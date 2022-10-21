@@ -18,7 +18,7 @@ namespace spdy {
 
 // RecordingHeadersHandler copies the headers emitted from the deframer, and
 // when needed can forward events to another wrapped handler.
-class QUICHE_EXPORT_PRIVATE RecordingHeadersHandler
+class QUICHE_EXPORT RecordingHeadersHandler
     : public SpdyHeadersHandlerInterface {
  public:
   explicit RecordingHeadersHandler(

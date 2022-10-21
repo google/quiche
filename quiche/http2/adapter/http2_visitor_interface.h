@@ -46,7 +46,7 @@ namespace adapter {
 //     - OnCloseStream()
 //
 // More details are at RFC 7540 (go/http2spec).
-class QUICHE_EXPORT_PRIVATE Http2VisitorInterface {
+class QUICHE_EXPORT Http2VisitorInterface {
  public:
   Http2VisitorInterface(const Http2VisitorInterface&) = delete;
   Http2VisitorInterface& operator=(const Http2VisitorInterface&) = delete;

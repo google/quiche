@@ -11,7 +11,7 @@ namespace spdy {
 
 // This class simply gathers the key-value pairs emitted by an HpackDecoder in
 // a Http2HeaderBlock.
-class QUICHE_EXPORT_PRIVATE Http2HeaderBlockHpackListener
+class QUICHE_EXPORT Http2HeaderBlockHpackListener
     : public http2::HpackDecoderListener {
  public:
   Http2HeaderBlockHpackListener() {}

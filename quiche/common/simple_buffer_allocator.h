@@ -13,8 +13,7 @@ namespace quiche {
 // Provides buffer allocation using operators new[] and delete[] on char arrays.
 // Note that some of the QUICHE code relies on this being the case for deleting
 // new[]-allocated arrays from elsewhere.
-class QUICHE_EXPORT_PRIVATE SimpleBufferAllocator
-    : public QuicheBufferAllocator {
+class QUICHE_EXPORT SimpleBufferAllocator : public QuicheBufferAllocator {
  public:
   static SimpleBufferAllocator* Get() {
     static SimpleBufferAllocator* singleton = new SimpleBufferAllocator();

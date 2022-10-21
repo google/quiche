@@ -20,7 +20,7 @@ namespace quiche {
 // Supports encoding and decoding Binary Http messages.
 // Currently limited to known-length messages.
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html
-class QUICHE_EXPORT_PRIVATE BinaryHttpMessage {
+class QUICHE_EXPORT BinaryHttpMessage {
  public:
   // Name value pair of either a header or trailer field.
   struct Field {
@@ -108,7 +108,7 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpMessage {
   bool has_host_ = false;
 };
 
-class QUICHE_EXPORT_PRIVATE BinaryHttpRequest : public BinaryHttpMessage {
+class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
  public:
   // HTTP request must have all of the following fields.
   // Some examples are:
@@ -161,10 +161,9 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpRequest : public BinaryHttpMessage {
   const ControlData control_data_;
 };
 
-void QUICHE_EXPORT_PRIVATE PrintTo(const BinaryHttpRequest& msg,
-                                   std::ostream* os);
+void QUICHE_EXPORT PrintTo(const BinaryHttpRequest& msg, std::ostream* os);
 
-class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
+class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
  public:
   // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html#name-response-control-data
   // A response can contain 0 to N informational responses.  Each informational
@@ -259,8 +258,7 @@ class QUICHE_EXPORT_PRIVATE BinaryHttpResponse : public BinaryHttpMessage {
   const uint16_t status_code_;
 };
 
-void QUICHE_EXPORT_PRIVATE PrintTo(const BinaryHttpResponse& msg,
-                                   std::ostream* os);
+void QUICHE_EXPORT PrintTo(const BinaryHttpResponse& msg, std::ostream* os);
 }  // namespace quiche
 
 #endif  // QUICHE_BINARY_HTTP_BINARY_HTTP_MESSAGE_H_

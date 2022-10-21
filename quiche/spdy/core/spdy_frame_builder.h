@@ -29,7 +29,7 @@ class SpdyFrameBuilderPeer;
 // to a frame instance.  The SpdyFrameBuilder grows its internal memory buffer
 // dynamically to hold the sequence of primitive values.   The internal memory
 // buffer is exposed as the "data" of the SpdyFrameBuilder.
-class QUICHE_EXPORT_PRIVATE SpdyFrameBuilder {
+class QUICHE_EXPORT SpdyFrameBuilder {
  public:
   // Initializes a SpdyFrameBuilder with a buffer of given size
   explicit SpdyFrameBuilder(size_t size);

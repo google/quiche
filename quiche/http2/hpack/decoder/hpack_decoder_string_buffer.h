@@ -20,7 +20,7 @@
 
 namespace http2 {
 
-class QUICHE_EXPORT_PRIVATE HpackDecoderStringBuffer {
+class QUICHE_EXPORT HpackDecoderStringBuffer {
  public:
   enum class State : uint8_t { RESET, COLLECTING, COMPLETE };
   enum class Backing : uint8_t { RESET, UNBUFFERED, BUFFERED, STATIC };
@@ -93,8 +93,8 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderStringBuffer {
   Backing backing_;
 };
 
-QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& out, const HpackDecoderStringBuffer& v);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& out,
+                                       const HpackDecoderStringBuffer& v);
 
 }  // namespace http2
 

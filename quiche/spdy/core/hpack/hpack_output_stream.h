@@ -20,7 +20,7 @@ namespace spdy {
 
 // An HpackOutputStream handles all the low-level details of encoding
 // header fields.
-class QUICHE_EXPORT_PRIVATE HpackOutputStream {
+class QUICHE_EXPORT HpackOutputStream {
  public:
   HpackOutputStream();
   HpackOutputStream(const HpackOutputStream&) = delete;

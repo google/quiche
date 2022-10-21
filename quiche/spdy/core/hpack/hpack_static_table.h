@@ -19,7 +19,7 @@ constexpr size_t kStaticTableSize = 61;
 // encoding and decoding contexts.  Once initialized, an instance is read only
 // and may be accessed only through its const interface.  Such an instance may
 // be shared accross multiple HPACK contexts.
-class QUICHE_EXPORT_PRIVATE HpackStaticTable {
+class QUICHE_EXPORT HpackStaticTable {
  public:
   HpackStaticTable();
   ~HpackStaticTable();

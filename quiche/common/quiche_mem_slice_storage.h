@@ -18,7 +18,7 @@ namespace quiche {
 
 // QuicheMemSliceStorage is a container class that store QuicheMemSlices for
 // further use cases such as turning into QuicheMemSliceSpan.
-class QUICHE_EXPORT_PRIVATE QuicheMemSliceStorage {
+class QUICHE_EXPORT QuicheMemSliceStorage {
  public:
   QuicheMemSliceStorage(const struct iovec* iov, int iov_count,
                         QuicheBufferAllocator* allocator,

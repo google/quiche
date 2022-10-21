@@ -22,7 +22,7 @@
 
 namespace quiche {
 
-class QUICHE_EXPORT_PRIVATE LogStreamVoidHelper {
+class QUICHE_EXPORT LogStreamVoidHelper {
  public:
   // This operator has lower precedence than << but higher than ?:, which is
   // useful for implementing QUICHE_DISREGARD_LOG_STREAM below.
@@ -31,7 +31,7 @@ class QUICHE_EXPORT_PRIVATE LogStreamVoidHelper {
 
 // NoopLogSink provides a log sink that does not put the data that it logs
 // anywhere.
-class QUICHE_EXPORT_PRIVATE NoopLogSink {
+class QUICHE_EXPORT NoopLogSink {
  public:
   NoopLogSink() {}
 
@@ -52,7 +52,7 @@ class QUICHE_EXPORT_PRIVATE NoopLogSink {
 
 // We need to actually implement LOG(FATAL), otherwise some functions will fail
 // to compile due to the "failed to return value from non-void function" error.
-class QUICHE_EXPORT_PRIVATE FatalLogSink : public NoopLogSink {
+class QUICHE_EXPORT FatalLogSink : public NoopLogSink {
  public:
   ABSL_ATTRIBUTE_NORETURN ~FatalLogSink() {
     std::cerr << str() << std::endl;
@@ -61,7 +61,7 @@ class QUICHE_EXPORT_PRIVATE FatalLogSink : public NoopLogSink {
   }
 };
 
-class QUICHE_EXPORT_PRIVATE CheckLogSink : public NoopLogSink {
+class QUICHE_EXPORT CheckLogSink : public NoopLogSink {
  public:
   CheckLogSink(bool condition) : condition_(condition) {}
   ~CheckLogSink() {

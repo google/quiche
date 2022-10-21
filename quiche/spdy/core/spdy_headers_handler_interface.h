@@ -14,7 +14,7 @@ namespace spdy {
 
 // This interface defines how an object that accepts header data should behave.
 // It is used by both SpdyHeadersBlockParser and HpackDecoder.
-class QUICHE_EXPORT_PRIVATE SpdyHeadersHandlerInterface {
+class QUICHE_EXPORT SpdyHeadersHandlerInterface {
  public:
   virtual ~SpdyHeadersHandlerInterface() {}
 

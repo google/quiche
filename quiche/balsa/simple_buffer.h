@@ -18,7 +18,7 @@ class SimpleBufferTest;
 // SimpleBuffer stores data in a contiguous region.  It can grow on demand,
 // which involves moving its data.  It keeps track of a read and a write
 // position.  Reading consumes data.
-class QUICHE_EXPORT_PRIVATE SimpleBuffer {
+class QUICHE_EXPORT SimpleBuffer {
  public:
   SimpleBuffer() = default;
   // Create SimpleBuffer with at least `size` reserved capacity.

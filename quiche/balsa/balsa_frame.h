@@ -28,7 +28,7 @@ class BalsaFrameTestPeer;
 }  // namespace test
 
 // BalsaFrame is a lightweight HTTP framer.
-class QUICHE_EXPORT_PRIVATE BalsaFrame : public FramerInterface {
+class QUICHE_EXPORT BalsaFrame : public FramerInterface {
  public:
   typedef std::vector<std::pair<size_t, size_t> > Lines;
 

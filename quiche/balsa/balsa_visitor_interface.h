@@ -21,7 +21,7 @@ class BalsaHeaders;
 // BalsaFrame, then you should subclass it, and set an instantiation of your
 // subclass as the current visitor for the BalsaFrame class using
 // BalsaFrame::set_visitor().
-class QUICHE_EXPORT_PRIVATE BalsaVisitorInterface {
+class QUICHE_EXPORT BalsaVisitorInterface {
  public:
   virtual ~BalsaVisitorInterface() {}
 

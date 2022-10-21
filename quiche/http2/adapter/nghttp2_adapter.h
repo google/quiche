@@ -13,7 +13,7 @@
 namespace http2 {
 namespace adapter {
 
-class QUICHE_EXPORT_PRIVATE NgHttp2Adapter : public Http2Adapter {
+class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
  public:
   ~NgHttp2Adapter() override;
 

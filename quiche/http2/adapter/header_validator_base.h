@@ -23,7 +23,7 @@ enum class ObsTextOption : uint8_t {
   kDisallow,
 };
 
-class QUICHE_EXPORT_PRIVATE HeaderValidatorBase {
+class QUICHE_EXPORT HeaderValidatorBase {
  public:
   HeaderValidatorBase() = default;
   virtual ~HeaderValidatorBase() = default;

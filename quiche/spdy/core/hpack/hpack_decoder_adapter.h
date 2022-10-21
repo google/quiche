@@ -28,7 +28,7 @@ namespace test {
 class HpackDecoderAdapterPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
+class QUICHE_EXPORT HpackDecoderAdapter {
  public:
   friend test::HpackDecoderAdapterPeer;
   HpackDecoderAdapter();
@@ -91,8 +91,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
   std::string detailed_error() const { return detailed_error_; }
 
  private:
-  class QUICHE_EXPORT_PRIVATE ListenerAdapter
-      : public http2::HpackDecoderListener {
+  class QUICHE_EXPORT ListenerAdapter : public http2::HpackDecoderListener {
    public:
     ListenerAdapter();
     ~ListenerAdapter() override;

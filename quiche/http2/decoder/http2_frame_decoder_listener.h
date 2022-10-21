@@ -39,7 +39,7 @@ namespace http2 {
 
 // TODO(jamessynge): Consider sorting the methods by frequency of call, if that
 // helps at all.
-class QUICHE_EXPORT_PRIVATE Http2FrameDecoderListener {
+class QUICHE_EXPORT Http2FrameDecoderListener {
  public:
   Http2FrameDecoderListener() {}
   virtual ~Http2FrameDecoderListener() {}
@@ -315,7 +315,7 @@ class QUICHE_EXPORT_PRIVATE Http2FrameDecoderListener {
 };
 
 // Do nothing for each call. Useful for ignoring a frame that is invalid.
-class QUICHE_EXPORT_PRIVATE Http2FrameDecoderNoOpListener
+class QUICHE_EXPORT Http2FrameDecoderNoOpListener
     : public Http2FrameDecoderListener {
  public:
   Http2FrameDecoderNoOpListener() {}

@@ -27,7 +27,7 @@ namespace test {
 class Http2StructureDecoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE Http2StructureDecoder {
+class QUICHE_EXPORT Http2StructureDecoder {
  public:
   // The caller needs to keep track of whether to call Start or Resume.
   //

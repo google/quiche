@@ -14,7 +14,7 @@
 
 namespace http2 {
 
-class QUICHE_EXPORT_PRIVATE HpackDecoderListener {
+class QUICHE_EXPORT HpackDecoderListener {
  public:
   HpackDecoderListener();
   virtual ~HpackDecoderListener();
@@ -41,8 +41,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderListener {
 
 // A no-op implementation of HpackDecoderListener, useful for ignoring
 // callbacks once an error is detected.
-class QUICHE_EXPORT_PRIVATE HpackDecoderNoOpListener
-    : public HpackDecoderListener {
+class QUICHE_EXPORT HpackDecoderNoOpListener : public HpackDecoderListener {
  public:
   HpackDecoderNoOpListener();
   ~HpackDecoderNoOpListener() override;

@@ -46,11 +46,11 @@ class ValueProxyPeer;
 //
 // This implementation does not make much of an effort to minimize wasted space.
 // It's expected that keys are rarely deleted from a Http2HeaderBlock.
-class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
+class QUICHE_EXPORT Http2HeaderBlock {
  private:
   // Stores a list of value fragments that can be joined later with a
   // key-dependent separator.
-  class QUICHE_EXPORT_PRIVATE HeaderValue {
+  class QUICHE_EXPORT HeaderValue {
    public:
     HeaderValue(Http2HeaderStorage* storage, absl::string_view key,
                 absl::string_view initial_value);
@@ -102,7 +102,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
   // absl::string_view>, even though the underlying MapType::value_type is
   // different. Dereferencing the iterator will result in memory allocation for
   // multi-value headers.
-  class QUICHE_EXPORT_PRIVATE iterator {
+  class QUICHE_EXPORT iterator {
    public:
     // The following type definitions fulfill the requirements for iterator
     // implementations.
@@ -205,7 +205,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
   // be nearly a drop-in replacement for
   // SpdyLinkedHashMap<std::string, std::string>.
   // It reads data from or writes data to a Http2HeaderStorage.
-  class QUICHE_EXPORT_PRIVATE ValueProxy {
+  class QUICHE_EXPORT ValueProxy {
    public:
     ~ValueProxy();
 

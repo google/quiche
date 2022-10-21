@@ -12,7 +12,7 @@
 namespace http2 {
 namespace adapter {
 
-class QUICHE_EXPORT_PRIVATE HeaderValidator : public HeaderValidatorBase {
+class QUICHE_EXPORT HeaderValidator : public HeaderValidatorBase {
  public:
   HeaderValidator() = default;
 

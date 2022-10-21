@@ -29,8 +29,7 @@ namespace http2 {
 // Note any new methods in SpdyFramerVisitorInterface MUST be overridden here to
 // properly forward the event. This could be ensured by making every event in
 // SpdyFramerVisitorInterface a pure virtual.
-class QUICHE_EXPORT_PRIVATE Http2TraceLogger
-    : public spdy::SpdyFramerVisitorInterface {
+class QUICHE_EXPORT Http2TraceLogger : public spdy::SpdyFramerVisitorInterface {
  public:
   typedef spdy::SpdyAltSvcWireFormat SpdyAltSvcWireFormat;
   typedef spdy::SpdyErrorCode SpdyErrorCode;
@@ -104,7 +103,7 @@ class QUICHE_EXPORT_PRIVATE Http2TraceLogger
 };
 
 // Visitor to log control frames that have been written.
-class QUICHE_EXPORT_PRIVATE Http2FrameLogger : public spdy::SpdyFrameVisitor {
+class QUICHE_EXPORT Http2FrameLogger : public spdy::SpdyFrameVisitor {
  public:
   // This class will preface all of its log messages with the value of
   // |connection_id| in hexadecimal.

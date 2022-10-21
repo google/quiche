@@ -14,7 +14,7 @@
 
 namespace http2 {
 
-class QUICHE_EXPORT_PRIVATE ContinuationPayloadDecoder {
+class QUICHE_EXPORT ContinuationPayloadDecoder {
  public:
   // Starts the decoding of a CONTINUATION frame's payload, and completes
   // it if the entire payload is in the provided decode buffer.

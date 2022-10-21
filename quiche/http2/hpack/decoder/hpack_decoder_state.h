@@ -30,7 +30,7 @@ namespace test {
 class HpackDecoderStatePeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE HpackDecoderState : public HpackWholeEntryListener {
+class QUICHE_EXPORT HpackDecoderState : public HpackWholeEntryListener {
  public:
   explicit HpackDecoderState(HpackDecoderListener* listener);
   ~HpackDecoderState() override;

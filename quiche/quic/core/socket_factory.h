@@ -15,7 +15,7 @@
 namespace quic {
 
 // A factory to create objects of type Socket and derived interfaces.
-class QUICHE_EXPORT_PRIVATE SocketFactory {
+class QUICHE_EXPORT SocketFactory {
  public:
   virtual ~SocketFactory() = default;
 

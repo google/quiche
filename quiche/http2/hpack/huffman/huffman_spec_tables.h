@@ -13,7 +13,7 @@
 
 namespace http2 {
 
-struct QUICHE_EXPORT_PRIVATE HuffmanSpecTables {
+struct QUICHE_EXPORT HuffmanSpecTables {
   // Number of bits in the encoding of each symbol (byte).
   static const uint8_t kCodeLengths[257];
 

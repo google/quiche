@@ -18,7 +18,7 @@ namespace test {
 class PushPromisePayloadDecoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE PushPromisePayloadDecoder {
+class QUICHE_EXPORT PushPromisePayloadDecoder {
  public:
   // States during decoding of a PUSH_PROMISE frame.
   enum class PayloadState {

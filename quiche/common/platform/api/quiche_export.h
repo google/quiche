@@ -7,12 +7,10 @@
 
 #include "quiche_platform_impl/quiche_export_impl.h"
 
-// QUICHE_EXPORT is not meant to be used.
+// QUICHE_EXPORT is meant for QUICHE functionality that is built in
+// Chromium as part of //net/third_party/quiche component, and not fully
+// contained in headers.  It is required for Windows DLL builds to work.
 #define QUICHE_EXPORT QUICHE_EXPORT_IMPL
-
-// QUICHE_EXPORT_PRIVATE is meant for QUICHE functionality that is built in
-// Chromium as part of //net, and not fully contained in headers.
-#define QUICHE_EXPORT_PRIVATE QUICHE_EXPORT_PRIVATE_IMPL
 
 // QUICHE_NO_EXPORT is meant for QUICHE functionality that is either fully
 // defined in a header, or is built in Chromium as part of tests or tools.

@@ -11,7 +11,7 @@
 
 namespace spdy {
 
-class QUICHE_EXPORT_PRIVATE ZeroCopyOutputBuffer {
+class QUICHE_EXPORT ZeroCopyOutputBuffer {
  public:
   virtual ~ZeroCopyOutputBuffer() {}
 

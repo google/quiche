@@ -24,11 +24,11 @@ namespace test {
 class SpdyAltSvcWireFormatPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE SpdyAltSvcWireFormat {
+class QUICHE_EXPORT SpdyAltSvcWireFormat {
  public:
   using VersionVector = absl::InlinedVector<uint32_t, 8>;
 
-  struct QUICHE_EXPORT_PRIVATE AlternativeService {
+  struct QUICHE_EXPORT AlternativeService {
     std::string protocol_id;
     std::string host;
 

@@ -12,7 +12,7 @@
 
 namespace spdy {
 
-class QUICHE_EXPORT_PRIVATE ArrayOutputBuffer : public ZeroCopyOutputBuffer {
+class QUICHE_EXPORT ArrayOutputBuffer : public ZeroCopyOutputBuffer {
  public:
   // |buffer| is pointed to the output to write to, and |size| is the capacity
   // of the output.

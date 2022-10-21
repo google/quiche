@@ -40,7 +40,7 @@ class PriorityWriteSchedulerPeer;
 // I/O event that occurred for a stream of that priority.
 //
 template <typename StreamIdType>
-class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
+class QUICHE_EXPORT PriorityWriteScheduler
     : public WriteScheduler<StreamIdType> {
  public:
   using typename WriteScheduler<StreamIdType>::StreamPrecedenceType;
@@ -290,7 +290,7 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
 
   // State kept for all registered streams. All ready streams have ready = true
   // and should be present in priority_infos_[priority].ready_list.
-  struct QUICHE_EXPORT_PRIVATE StreamInfo {
+  struct QUICHE_EXPORT StreamInfo {
     spdy::SpdyPriority priority;
     StreamIdType stream_id;
     bool ready;
@@ -300,7 +300,7 @@ class QUICHE_EXPORT_PRIVATE PriorityWriteScheduler
   using ReadyList = quiche::QuicheCircularDeque<StreamInfo*>;
 
   // State kept for each priority level.
-  struct QUICHE_EXPORT_PRIVATE PriorityInfo {
+  struct QUICHE_EXPORT PriorityInfo {
     // IDs of streams that are ready to write.
     ReadyList ready_list;
     // Time of latest write event for stream of this priority, in microseconds.

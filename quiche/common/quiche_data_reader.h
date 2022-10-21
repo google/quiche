@@ -26,7 +26,7 @@ namespace quiche {
 // trusted and it is up to the caller to throw away the failed instance and
 // handle the error as appropriate. None of the Read*() methods should ever be
 // called after failure, as they will also fail immediately.
-class QUICHE_EXPORT_PRIVATE QuicheDataReader {
+class QUICHE_EXPORT QuicheDataReader {
  public:
   // Constructs a reader using NETWORK_BYTE_ORDER endianness.
   // Caller must provide an underlying buffer to work on.

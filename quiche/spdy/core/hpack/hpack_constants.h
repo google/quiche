@@ -19,13 +19,13 @@ namespace spdy {
 
 // An HpackPrefix signifies |bits| stored in the top |bit_size| bits
 // of an octet.
-struct QUICHE_EXPORT_PRIVATE HpackPrefix {
+struct QUICHE_EXPORT HpackPrefix {
   uint8_t bits;
   size_t bit_size;
 };
 
 // Represents a symbol and its Huffman code (stored in most-significant bits).
-struct QUICHE_EXPORT_PRIVATE HpackHuffmanSymbol {
+struct QUICHE_EXPORT HpackHuffmanSymbol {
   uint32_t code;
   uint8_t length;
   uint16_t id;
@@ -33,7 +33,7 @@ struct QUICHE_EXPORT_PRIVATE HpackHuffmanSymbol {
 
 // An entry in the static table. Must be a POD in order to avoid static
 // initializers, i.e. no user-defined constructors or destructors.
-struct QUICHE_EXPORT_PRIVATE HpackStaticEntry {
+struct QUICHE_EXPORT HpackStaticEntry {
   const char* const name;
   const size_t name_len;
   const char* const value;
@@ -70,17 +70,15 @@ const HpackPrefix kLiteralNoIndexOpcode = {0b0000, 4};
 const HpackPrefix kHeaderTableSizeUpdateOpcode = {0b001, 3};
 
 // RFC 7541, Appendix B: Huffman Code.
-QUICHE_EXPORT_PRIVATE const std::vector<HpackHuffmanSymbol>&
-HpackHuffmanCodeVector();
+QUICHE_EXPORT const std::vector<HpackHuffmanSymbol>& HpackHuffmanCodeVector();
 
 // RFC 7541, Appendix A: Static Table Definition.
-QUICHE_EXPORT_PRIVATE const std::vector<HpackStaticEntry>&
-HpackStaticTableVector();
+QUICHE_EXPORT const std::vector<HpackStaticEntry>& HpackStaticTableVector();
 
 // Returns a HpackStaticTable instance initialized with |kHpackStaticTable|.
 // The instance is read-only, has static lifetime, and is safe to share amoung
 // threads. This function is thread-safe.
-QUICHE_EXPORT_PRIVATE const HpackStaticTable& ObtainHpackStaticTable();
+QUICHE_EXPORT const HpackStaticTable& ObtainHpackStaticTable();
 
 // RFC 7541, 8.1.2.1: Pseudo-headers start with a colon.
 const char kPseudoHeaderPrefix = ':';

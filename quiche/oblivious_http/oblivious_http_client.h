@@ -25,7 +25,7 @@ namespace quiche {
 // 4. Handles BoringSSL HPKE context setup and bookkeeping.
 
 // This class is immutable (except moves) and thus trivially thread-safe.
-class QUICHE_EXPORT_PRIVATE ObliviousHttpClient {
+class QUICHE_EXPORT ObliviousHttpClient {
  public:
   static absl::StatusOr<ObliviousHttpClient> Create(
       absl::string_view hpke_public_key,

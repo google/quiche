@@ -23,7 +23,7 @@ namespace spdy {
 constexpr size_t kHpackEntrySizeOverhead = 32;
 
 // A structure for looking up entries in the static and dynamic tables.
-struct QUICHE_EXPORT_PRIVATE HpackLookupEntry {
+struct QUICHE_EXPORT HpackLookupEntry {
   absl::string_view name;
   absl::string_view value;
 
@@ -40,7 +40,7 @@ struct QUICHE_EXPORT_PRIVATE HpackLookupEntry {
 
 // A structure for an entry in the static table (3.3.1)
 // and the header table (3.3.2).
-class QUICHE_EXPORT_PRIVATE HpackEntry {
+class QUICHE_EXPORT HpackEntry {
  public:
   HpackEntry(std::string name, std::string value);
 

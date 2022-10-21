@@ -9,7 +9,7 @@
 
 namespace quiche {
 
-class QUICHE_EXPORT_PRIVATE QuicheLowerCaseStringImpl {
+class QUICHE_EXPORT QuicheLowerCaseStringImpl {
  public:
   QuicheLowerCaseStringImpl(absl::string_view str)
       : str_(absl::AsciiStrToLower(str)) {}

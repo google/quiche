@@ -14,7 +14,7 @@
 
 namespace quiche {
 
-class QUICHE_EXPORT_PRIVATE ObliviousHttpHeaderKeyConfig {
+class QUICHE_EXPORT ObliviousHttpHeaderKeyConfig {
  public:
   // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.1-4.2
   static constexpr absl::string_view kOhttpRequestLabel =
@@ -109,7 +109,7 @@ class QUICHE_EXPORT_PRIVATE ObliviousHttpHeaderKeyConfig {
 // for details of the "Key Configuration" spec.
 //
 // ObliviousHttpKeyConfigs objects are immutable after construction.
-class QUICHE_EXPORT_PRIVATE ObliviousHttpKeyConfigs {
+class QUICHE_EXPORT ObliviousHttpKeyConfigs {
  public:
   // Parses the "application/ohttp-keys" media type, which is a byte string
   // formatted according to the spec:

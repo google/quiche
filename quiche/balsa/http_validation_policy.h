@@ -14,7 +14,7 @@ namespace quiche {
 // An HttpValidationPolicy captures policy choices affecting parsing of HTTP
 // requests.  It offers individual Boolean member functions to be consulted
 // during the parsing of an HTTP request.
-class QUICHE_EXPORT_PRIVATE HttpValidationPolicy {
+class QUICHE_EXPORT HttpValidationPolicy {
  public:
   HttpValidationPolicy(bool enforce_all);
 
@@ -39,7 +39,7 @@ class QUICHE_EXPORT_PRIVATE HttpValidationPolicy {
 
   bool operator==(const HttpValidationPolicy& other) const;
 
-  friend QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const HttpValidationPolicy& policy) {
     os << "HttpValidationPolicy(enforce_all_=" << policy.enforce_all_ << ")";
     return os;

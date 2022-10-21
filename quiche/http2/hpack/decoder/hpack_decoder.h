@@ -37,7 +37,7 @@ namespace test {
 class HpackDecoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE HpackDecoder {
+class QUICHE_EXPORT HpackDecoder {
  public:
   HpackDecoder(HpackDecoderListener* listener, size_t max_string_size);
   virtual ~HpackDecoder();

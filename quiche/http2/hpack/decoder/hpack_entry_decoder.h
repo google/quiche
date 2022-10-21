@@ -24,7 +24,7 @@
 
 namespace http2 {
 
-class QUICHE_EXPORT_PRIVATE HpackEntryDecoder {
+class QUICHE_EXPORT HpackEntryDecoder {
  public:
   enum class EntryDecoderState {
     // Have started decoding the type/varint, but didn't finish on the previous
@@ -80,9 +80,9 @@ class QUICHE_EXPORT_PRIVATE HpackEntryDecoder {
   HpackDecodingError error_ = HpackDecodingError::kOk;
 };
 
-QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                               const HpackEntryDecoder& v);
-QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& out,
+                                       const HpackEntryDecoder& v);
+QUICHE_EXPORT std::ostream& operator<<(
     std::ostream& out, HpackEntryDecoder::EntryDecoderState state);
 
 }  // namespace http2

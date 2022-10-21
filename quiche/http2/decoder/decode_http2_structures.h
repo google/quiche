@@ -17,19 +17,16 @@ namespace http2 {
 // to end, advancing the cursor by STRUCTURE::EncodedSize(). The decode buffer
 // must be large enough (i.e. b->Remaining() >= STRUCTURE::EncodedSize()).
 
-QUICHE_EXPORT_PRIVATE void DoDecode(Http2FrameHeader* out, DecodeBuffer* b);
-QUICHE_EXPORT_PRIVATE void DoDecode(Http2PriorityFields* out, DecodeBuffer* b);
-QUICHE_EXPORT_PRIVATE void DoDecode(Http2RstStreamFields* out, DecodeBuffer* b);
-QUICHE_EXPORT_PRIVATE void DoDecode(Http2SettingFields* out, DecodeBuffer* b);
-QUICHE_EXPORT_PRIVATE void DoDecode(Http2PushPromiseFields* out,
-                                    DecodeBuffer* b);
-QUICHE_EXPORT_PRIVATE void DoDecode(Http2PingFields* out, DecodeBuffer* b);
-QUICHE_EXPORT_PRIVATE void DoDecode(Http2GoAwayFields* out, DecodeBuffer* b);
-QUICHE_EXPORT_PRIVATE void DoDecode(Http2WindowUpdateFields* out,
-                                    DecodeBuffer* b);
-QUICHE_EXPORT_PRIVATE void DoDecode(Http2AltSvcFields* out, DecodeBuffer* b);
-QUICHE_EXPORT_PRIVATE void DoDecode(Http2PriorityUpdateFields* out,
-                                    DecodeBuffer* b);
+QUICHE_EXPORT void DoDecode(Http2FrameHeader* out, DecodeBuffer* b);
+QUICHE_EXPORT void DoDecode(Http2PriorityFields* out, DecodeBuffer* b);
+QUICHE_EXPORT void DoDecode(Http2RstStreamFields* out, DecodeBuffer* b);
+QUICHE_EXPORT void DoDecode(Http2SettingFields* out, DecodeBuffer* b);
+QUICHE_EXPORT void DoDecode(Http2PushPromiseFields* out, DecodeBuffer* b);
+QUICHE_EXPORT void DoDecode(Http2PingFields* out, DecodeBuffer* b);
+QUICHE_EXPORT void DoDecode(Http2GoAwayFields* out, DecodeBuffer* b);
+QUICHE_EXPORT void DoDecode(Http2WindowUpdateFields* out, DecodeBuffer* b);
+QUICHE_EXPORT void DoDecode(Http2AltSvcFields* out, DecodeBuffer* b);
+QUICHE_EXPORT void DoDecode(Http2PriorityUpdateFields* out, DecodeBuffer* b);
 
 }  // namespace http2
 

@@ -33,7 +33,7 @@ class HpackHeaderTablePeer;
 constexpr size_t kHpackEntryNotFound = 0;
 
 // A data structure for the static table (2.3.1) and the dynamic table (2.3.2).
-class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
+class QUICHE_EXPORT HpackHeaderTable {
  public:
   friend class test::HpackHeaderTablePeer;
 

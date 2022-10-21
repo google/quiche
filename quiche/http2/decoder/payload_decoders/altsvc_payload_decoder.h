@@ -18,7 +18,7 @@ namespace test {
 class AltSvcPayloadDecoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE AltSvcPayloadDecoder {
+class QUICHE_EXPORT AltSvcPayloadDecoder {
  public:
   // States during decoding of a ALTSVC frame.
   enum class PayloadState {

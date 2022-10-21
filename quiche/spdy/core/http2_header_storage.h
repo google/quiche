@@ -16,7 +16,7 @@ namespace spdy {
 // Write operations always append to the last block. If there is not enough
 // space to perform the write, a new block is allocated, and any unused space
 // is wasted.
-class QUICHE_EXPORT_PRIVATE Http2HeaderStorage {
+class QUICHE_EXPORT Http2HeaderStorage {
  public:
   Http2HeaderStorage();
 
@@ -49,9 +49,9 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderStorage {
 
 // Writes |fragments| to |dst|, joined by |separator|. |dst| must be large
 // enough to hold the result. Returns the number of bytes written.
-QUICHE_EXPORT_PRIVATE size_t
-Join(char* dst, const std::vector<absl::string_view>& fragments,
-     absl::string_view separator);
+QUICHE_EXPORT size_t Join(char* dst,
+                          const std::vector<absl::string_view>& fragments,
+                          absl::string_view separator);
 
 }  // namespace spdy
 

@@ -17,7 +17,7 @@ namespace quiche {
 
 // UDP-proxying HTTP Datagram payload for use with CONNECT-UDP. See RFC 9298,
 // Section 5.
-class QUICHE_EXPORT_PRIVATE ConnectUdpDatagramPayload {
+class QUICHE_EXPORT ConnectUdpDatagramPayload {
  public:
   using ContextId = uint64_t;
   enum class Type { kUdpPacket, kUnknown };
@@ -54,7 +54,7 @@ class QUICHE_EXPORT_PRIVATE ConnectUdpDatagramPayload {
 };
 
 // UDP-proxying HTTP Datagram payload that encodes a UDP packet.
-class QUICHE_EXPORT_PRIVATE ConnectUdpDatagramUdpPacketPayload final
+class QUICHE_EXPORT ConnectUdpDatagramUdpPacketPayload final
     : public ConnectUdpDatagramPayload {
  public:
   static constexpr ContextId kContextId = 0;
@@ -75,7 +75,7 @@ class QUICHE_EXPORT_PRIVATE ConnectUdpDatagramUdpPacketPayload final
   absl::string_view udp_packet_;
 };
 
-class QUICHE_EXPORT_PRIVATE ConnectUdpDatagramUnknownPayload final
+class QUICHE_EXPORT ConnectUdpDatagramUnknownPayload final
     : public ConnectUdpDatagramPayload {
  public:
   // `udp_proxying_payload` represents the inner payload contained by the UDP-

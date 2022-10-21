@@ -16,7 +16,7 @@ namespace quiche {
 
 // QuicheMemSlice is a wrapper around a platform-specific I/O buffer type. It
 // may be reference counted, though QUICHE itself does not rely on that.
-class QUICHE_EXPORT_PRIVATE QuicheMemSlice {
+class QUICHE_EXPORT QuicheMemSlice {
  public:
   // Constructs a empty QuicheMemSlice with no underlying data.
   QuicheMemSlice() = default;

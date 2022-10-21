@@ -20,7 +20,7 @@ class SpdyPrefixedBufferReader;
 // Represents a piece of consumed buffer which may (or may not) own its
 // underlying storage. Users may "pin" the buffer at a later time to ensure
 // a SpdyPinnableBufferPiece owns and retains storage of the buffer.
-struct QUICHE_EXPORT_PRIVATE SpdyPinnableBufferPiece {
+struct QUICHE_EXPORT SpdyPinnableBufferPiece {
  public:
   SpdyPinnableBufferPiece();
   ~SpdyPinnableBufferPiece();

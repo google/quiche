@@ -12,7 +12,7 @@ namespace quiche {
 
 inline void QuicheRunSystemEventLoopIterationImpl() {}
 
-class QUICHE_EXPORT_PRIVATE QuicheSystemEventLoopImpl {
+class QUICHE_EXPORT QuicheSystemEventLoopImpl {
  public:
   QuicheSystemEventLoopImpl(std::string context_name) {
     QUICHE_LOG(INFO) << "Starting event loop for " << context_name;

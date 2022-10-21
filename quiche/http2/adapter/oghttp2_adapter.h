@@ -12,7 +12,7 @@
 namespace http2 {
 namespace adapter {
 
-class QUICHE_EXPORT_PRIVATE OgHttp2Adapter : public Http2Adapter {
+class QUICHE_EXPORT OgHttp2Adapter : public Http2Adapter {
  public:
   using Options = OgHttp2Session::Options;
   static std::unique_ptr<OgHttp2Adapter> Create(Http2VisitorInterface& visitor,

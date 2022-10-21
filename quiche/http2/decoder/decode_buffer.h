@@ -24,7 +24,7 @@
 namespace http2 {
 class DecodeBufferSubset;
 
-class QUICHE_EXPORT_PRIVATE DecodeBuffer {
+class QUICHE_EXPORT DecodeBuffer {
  public:
   // We assume the decode buffers will typically be modest in size (i.e. often a
   // few KB, perhaps as high as 100KB). Let's make sure during testing that we
@@ -134,7 +134,7 @@ class QUICHE_EXPORT_PRIVATE DecodeBuffer {
 // DecodeBuffer, though they can be nested (i.e. a DecodeBufferSubset's
 // base may itself be a DecodeBufferSubset). This avoids the AdvanceCursor
 // being called erroneously.
-class QUICHE_EXPORT_PRIVATE DecodeBufferSubset : public DecodeBuffer {
+class QUICHE_EXPORT DecodeBufferSubset : public DecodeBuffer {
  public:
   DecodeBufferSubset(DecodeBuffer* base, size_t subset_len)
       : DecodeBuffer(base->cursor(), base->MinLengthRemaining(subset_len)),

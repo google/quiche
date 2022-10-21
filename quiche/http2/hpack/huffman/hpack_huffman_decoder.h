@@ -38,7 +38,7 @@ typedef size_t HuffmanAccumulatorBitCount;
 
 // HuffmanBitBuffer stores the leading edge of bits to be decoded. The high
 // order bit of accumulator_ is the next bit to be decoded.
-class QUICHE_EXPORT_PRIVATE HuffmanBitBuffer {
+class QUICHE_EXPORT HuffmanBitBuffer {
  public:
   HuffmanBitBuffer();
 
@@ -85,7 +85,7 @@ inline std::ostream& operator<<(std::ostream& out, const HuffmanBitBuffer& v) {
   return out << v.DebugString();
 }
 
-class QUICHE_EXPORT_PRIVATE HpackHuffmanDecoder {
+class QUICHE_EXPORT HpackHuffmanDecoder {
  public:
   HpackHuffmanDecoder();
   ~HpackHuffmanDecoder();

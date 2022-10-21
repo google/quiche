@@ -9,7 +9,7 @@
 namespace quiche {
 
 // The interface for a random number generator.
-class QUICHE_EXPORT_PRIVATE QuicheRandom {
+class QUICHE_EXPORT QuicheRandom {
  public:
   virtual ~QuicheRandom() {}
 

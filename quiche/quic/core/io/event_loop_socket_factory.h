@@ -19,7 +19,7 @@ namespace quic {
 
 // A socket factory that creates sockets implemented using an underlying
 // QuicEventLoop.
-class QUICHE_EXPORT_PRIVATE EventLoopSocketFactory : public SocketFactory {
+class QUICHE_EXPORT EventLoopSocketFactory : public SocketFactory {
  public:
   // `event_loop` and `buffer_allocator` must outlive the created factory.
   EventLoopSocketFactory(QuicEventLoop* event_loop,

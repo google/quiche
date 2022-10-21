@@ -28,7 +28,7 @@ namespace quic {
 // handles IO on a single thread, so if making calls from that typical
 // environment, it would be problematic to make a blocking call and block that
 // single thread.
-class QUICHE_EXPORT_PRIVATE ConnectingClientSocket {
+class QUICHE_EXPORT ConnectingClientSocket {
  public:
   class AsyncVisitor {
    public:

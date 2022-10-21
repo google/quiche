@@ -17,7 +17,7 @@ namespace adapter {
 
 // This visitor implementation accepts a set of nghttp2 callbacks and a "user
 // data" pointer, and invokes the callbacks according to HTTP/2 events received.
-class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
+class QUICHE_EXPORT CallbackVisitor : public Http2VisitorInterface {
  public:
   // Called when the visitor receives a close event for `stream_id`.
   using StreamCloseListener = std::function<void(Http2StreamId stream_id)>;
@@ -79,7 +79,7 @@ class QUICHE_EXPORT_PRIVATE CallbackVisitor : public Http2VisitorInterface {
   }
 
  private:
-  struct QUICHE_EXPORT_PRIVATE StreamInfo {
+  struct QUICHE_EXPORT StreamInfo {
     bool before_sent_headers = false;
     bool sent_headers = false;
     bool received_headers = false;

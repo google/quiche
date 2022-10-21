@@ -19,7 +19,7 @@ namespace test {
 class PingPayloadDecoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE PingPayloadDecoder {
+class QUICHE_EXPORT PingPayloadDecoder {
  public:
   // Starts the decoding of a PING frame's payload, and completes it if the
   // entire payload is in the provided decode buffer.

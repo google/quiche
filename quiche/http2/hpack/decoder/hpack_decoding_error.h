@@ -43,7 +43,7 @@ enum class HpackDecodingError {
   kCompressedHeaderSizeExceedsLimit,
 };
 
-QUICHE_EXPORT_PRIVATE absl::string_view HpackDecodingErrorToString(
+QUICHE_EXPORT absl::string_view HpackDecodingErrorToString(
     HpackDecodingError error);
 
 }  // namespace http2

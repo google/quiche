@@ -24,8 +24,7 @@ namespace http2 {
 
 // TODO(jamessynge): Consider renaming HpackEntryDecoderListener to
 // HpackEntryPartsListener or HpackEntryFragmentsListener.
-class QUICHE_EXPORT_PRIVATE HpackWholeEntryBuffer
-    : public HpackEntryDecoderListener {
+class QUICHE_EXPORT HpackWholeEntryBuffer : public HpackEntryDecoderListener {
  public:
   // max_string_size specifies the maximum size of an on-the-wire string (name
   // or value, plain or Huffman encoded) that will be accepted. See sections

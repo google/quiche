@@ -33,7 +33,7 @@ class ExtensionVisitorInterface;
 namespace http2 {
 
 // Adapts SpdyFramer interface to use Http2FrameDecoder.
-class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
+class QUICHE_EXPORT Http2DecoderAdapter
     : public http2::Http2FrameDecoderListener {
  public:
   // HTTP2 states.
@@ -363,7 +363,7 @@ namespace spdy {
 //      been delivered for the control frame.
 // During step 2, if the visitor is not interested in accepting the header data,
 // it should return a no-op implementation of SpdyHeadersHandlerInterface.
-class QUICHE_EXPORT_PRIVATE SpdyFramerVisitorInterface {
+class QUICHE_EXPORT SpdyFramerVisitorInterface {
  public:
   virtual ~SpdyFramerVisitorInterface() {}
 
@@ -542,7 +542,7 @@ class QUICHE_EXPORT_PRIVATE SpdyFramerVisitorInterface {
                                      absl::string_view payload) = 0;
 };
 
-class QUICHE_EXPORT_PRIVATE ExtensionVisitorInterface {
+class QUICHE_EXPORT ExtensionVisitorInterface {
  public:
   virtual ~ExtensionVisitorInterface() {}
 

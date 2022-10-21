@@ -16,7 +16,7 @@ namespace quiche::header_properties {
 // practices) indicates that header can have multiple values. Note that nothing
 // stops clients from sending multiple values of other headers, so this may not
 // be perfectly reliable in practice.
-QUICHE_EXPORT_PRIVATE bool IsMultivaluedHeader(absl::string_view header);
+QUICHE_EXPORT bool IsMultivaluedHeader(absl::string_view header);
 
 // An array of characters that are invalid in HTTP header field names.
 // These are control characters, including \t, \n, \r, as well as space and
@@ -39,11 +39,11 @@ inline constexpr char kInvalidHeaderCharList[] = {
     0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x7F};
 
 // Returns true if the given `c` is invalid in a header field name.
-QUICHE_EXPORT_PRIVATE bool IsInvalidHeaderKeyChar(uint8_t c);
+QUICHE_EXPORT bool IsInvalidHeaderKeyChar(uint8_t c);
 // Returns true if the given `c` is invalid in a header field or the `value` has
 // invalid characters.
-QUICHE_EXPORT_PRIVATE bool IsInvalidHeaderChar(uint8_t c);
-QUICHE_EXPORT_PRIVATE bool HasInvalidHeaderChars(absl::string_view value);
+QUICHE_EXPORT bool IsInvalidHeaderChar(uint8_t c);
+QUICHE_EXPORT bool HasInvalidHeaderChars(absl::string_view value);
 
 }  // namespace quiche::header_properties
 

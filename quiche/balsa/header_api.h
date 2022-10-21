@@ -36,7 +36,7 @@ namespace quiche {
 // already lowercaseified. It's faster to avoid converting them to and from
 // lowercase. Additionally, some implementations of ConstHeaderApi might take
 // advantage of a constant-time lookup for inlined headers.
-class QUICHE_EXPORT_PRIVATE ConstHeaderApi {
+class QUICHE_EXPORT ConstHeaderApi {
  public:
   virtual ~ConstHeaderApi() {}
 
@@ -186,7 +186,7 @@ class QUICHE_EXPORT_PRIVATE ConstHeaderApi {
 //
 // Operations on header keys are case-insensitive while operations on header
 // values are case-sensitive.
-class QUICHE_EXPORT_PRIVATE HeaderApi : public virtual ConstHeaderApi {
+class QUICHE_EXPORT HeaderApi : public virtual ConstHeaderApi {
  public:
   // Replaces header entries with key |key| if they exist, or appends
   // a new header if none exist.

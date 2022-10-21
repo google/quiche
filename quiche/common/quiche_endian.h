@@ -20,7 +20,7 @@ enum Endianness {
 
 // Provide utility functions that convert from/to network order (big endian)
 // to/from host order (little endian).
-class QUICHE_EXPORT_PRIVATE QuicheEndian {
+class QUICHE_EXPORT QuicheEndian {
  public:
   // Convert |x| from host order (little endian) to network order (big endian).
 #if defined(__clang__) || \

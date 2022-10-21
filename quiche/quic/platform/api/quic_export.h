@@ -12,7 +12,7 @@
 
 // QUIC_EXPORT_PRIVATE is meant for QUIC functionality that is built in Chromium
 // as part of //net, and not fully contained in headers.
-#define QUIC_EXPORT_PRIVATE QUICHE_EXPORT_PRIVATE
+#define QUIC_EXPORT_PRIVATE QUICHE_EXPORT
 
 // QUIC_NO_EXPORT is meant for QUIC functionality that is either fully defined
 // in a header, or is built in Chromium as part of tests or tools.

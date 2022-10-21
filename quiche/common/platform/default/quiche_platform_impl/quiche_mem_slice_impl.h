@@ -7,7 +7,7 @@
 
 namespace quiche {
 
-class QUICHE_EXPORT_PRIVATE QuicheMemSliceImpl {
+class QUICHE_EXPORT QuicheMemSliceImpl {
  public:
   QuicheMemSliceImpl() = default;
 

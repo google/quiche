@@ -16,7 +16,7 @@ namespace http2 {
 // HPACK integer encoder class with single static method implementing variable
 // length integer representation defined in RFC7541, Section 5.1:
 // https://httpwg.org/specs/rfc7541.html#integer.representation
-class QUICHE_EXPORT_PRIVATE HpackVarintEncoder {
+class QUICHE_EXPORT HpackVarintEncoder {
  public:
   // Encode |varint|, appending encoded data to |*output|.
   // Appends between 1 and 11 bytes in total.

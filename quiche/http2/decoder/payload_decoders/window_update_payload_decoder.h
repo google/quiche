@@ -18,7 +18,7 @@ namespace test {
 class WindowUpdatePayloadDecoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE WindowUpdatePayloadDecoder {
+class QUICHE_EXPORT WindowUpdatePayloadDecoder {
  public:
   // Starts decoding a WINDOW_UPDATE frame's payload, and completes it if
   // the entire payload is in the provided decode buffer.

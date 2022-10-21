@@ -30,7 +30,7 @@ namespace test {
 class FrameDecoderStatePeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE FrameDecoderState {
+class QUICHE_EXPORT FrameDecoderState {
  public:
   FrameDecoderState() {}
 

@@ -22,7 +22,7 @@
 
 namespace http2 {
 
-class QUICHE_EXPORT_PRIVATE HpackEntryTypeDecoder {
+class QUICHE_EXPORT HpackEntryTypeDecoder {
  public:
   // Only call when the decode buffer has data (i.e. HpackEntryDecoder must
   // not call until there is data).
@@ -50,8 +50,8 @@ class QUICHE_EXPORT_PRIVATE HpackEntryTypeDecoder {
   HpackEntryType entry_type_ = HpackEntryType::kIndexedHeader;
 };
 
-QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                               const HpackEntryTypeDecoder& v);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& out,
+                                       const HpackEntryTypeDecoder& v);
 
 }  // namespace http2
 #endif  // QUICHE_HTTP2_HPACK_DECODER_HPACK_ENTRY_TYPE_DECODER_H_

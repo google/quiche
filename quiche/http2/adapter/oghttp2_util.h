@@ -9,7 +9,7 @@
 namespace http2 {
 namespace adapter {
 
-QUICHE_EXPORT_PRIVATE spdy::Http2HeaderBlock ToHeaderBlock(
+QUICHE_EXPORT spdy::Http2HeaderBlock ToHeaderBlock(
     absl::Span<const Header> headers);
 
 }  // namespace adapter

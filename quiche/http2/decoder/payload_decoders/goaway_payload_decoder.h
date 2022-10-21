@@ -21,7 +21,7 @@ namespace test {
 class GoAwayPayloadDecoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE GoAwayPayloadDecoder {
+class QUICHE_EXPORT GoAwayPayloadDecoder {
  public:
   // States during decoding of a GOAWAY frame.
   enum class PayloadState {

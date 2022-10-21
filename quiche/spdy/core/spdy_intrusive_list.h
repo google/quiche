@@ -97,7 +97,7 @@ template <typename T, typename ListID>
 class SpdyIntrusiveList;
 
 template <typename T, typename ListID = void>
-class QUICHE_EXPORT_PRIVATE SpdyIntrusiveLink {
+class QUICHE_EXPORT SpdyIntrusiveLink {
  protected:
   // We declare the constructor protected so that only derived types and the
   // befriended list can construct this.
@@ -122,7 +122,7 @@ class QUICHE_EXPORT_PRIVATE SpdyIntrusiveLink {
 };
 
 template <typename T, typename ListID = void>
-class QUICHE_EXPORT_PRIVATE SpdyIntrusiveList {
+class QUICHE_EXPORT SpdyIntrusiveList {
   template <typename QualifiedT, typename QualifiedLinkT>
   class iterator_impl;
 
@@ -268,7 +268,7 @@ class QUICHE_EXPORT_PRIVATE SpdyIntrusiveList {
   // variant of T and the matching qualified link type. Essentially, QualifiedT
   // will either be 'T' or 'const T', the latter for a const_iterator.
   template <typename QualifiedT, typename QualifiedLinkT>
-  class QUICHE_EXPORT_PRIVATE iterator_impl {
+  class QUICHE_EXPORT iterator_impl {
    public:
     using iterator_category = std::bidirectional_iterator_tag;
     using value_type = QualifiedT;

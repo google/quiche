@@ -23,7 +23,7 @@ namespace quic {
 
 // A connection-based client socket implemented using an underlying
 // QuicEventLoop.
-class QUICHE_EXPORT_PRIVATE EventLoopConnectingClientSocket
+class QUICHE_EXPORT EventLoopConnectingClientSocket
     : public ConnectingClientSocket,
       public QuicSocketEventListener {
  public:

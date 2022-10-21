@@ -16,7 +16,7 @@ namespace spdy {
 
 namespace test {
 
-class QUICHE_EXPORT_PRIVATE SpdyFrameBuilderPeer {
+class QUICHE_EXPORT SpdyFrameBuilderPeer {
  public:
   static char* GetWritableBuffer(SpdyFrameBuilder* builder, size_t length) {
     return builder->GetWritableBuffer(length);

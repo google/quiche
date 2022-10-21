@@ -12,7 +12,7 @@ namespace http2 {
 namespace adapter {
 
 // Represents a source of DATA frames for transmission to the peer.
-class QUICHE_EXPORT_PRIVATE DataFrameSource {
+class QUICHE_EXPORT DataFrameSource {
  public:
   virtual ~DataFrameSource() {}
 
@@ -34,7 +34,7 @@ class QUICHE_EXPORT_PRIVATE DataFrameSource {
 };
 
 // Represents a source of metadata frames for transmission to the peer.
-class QUICHE_EXPORT_PRIVATE MetadataSource {
+class QUICHE_EXPORT MetadataSource {
  public:
   virtual ~MetadataSource() {}
 

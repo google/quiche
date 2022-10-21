@@ -33,7 +33,7 @@ namespace http2 {
 // Resume() when more input is available, repeating until kDecodeInProgress is
 // not returned. If kDecodeDone or kDecodeError is returned, then Resume() must
 // not be called until Start() has been called to start decoding a new string.
-class QUICHE_EXPORT_PRIVATE HpackStringDecoder {
+class QUICHE_EXPORT HpackStringDecoder {
  public:
   enum StringDecoderState {
     kStartDecodingLength,
@@ -200,8 +200,8 @@ class QUICHE_EXPORT_PRIVATE HpackStringDecoder {
   bool huffman_encoded_ = false;
 };
 
-QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                               const HpackStringDecoder& v);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& out,
+                                       const HpackStringDecoder& v);
 
 }  // namespace http2
 #endif  // QUICHE_HTTP2_HPACK_DECODER_HPACK_STRING_DECODER_H_

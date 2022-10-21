@@ -40,7 +40,7 @@ enum : uint64_t {
 // The QuicheDataWriter supports appending primitive values (int, string, etc)
 // to a frame instance.  The internal memory buffer is exposed as the "data"
 // of the QuicheDataWriter.
-class QUICHE_EXPORT_PRIVATE QuicheDataWriter {
+class QUICHE_EXPORT QuicheDataWriter {
  public:
   // Creates a QuicheDataWriter where |buffer| is not owned
   // using NETWORK_BYTE_ORDER endianness.

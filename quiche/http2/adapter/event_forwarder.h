@@ -13,8 +13,7 @@ namespace adapter {
 // provided predicate succeeds. Currently, OnHeaderFrameStart() is always
 // forwarded regardless of the predicate.
 // TODO(diannahu): Add a NoOpHeadersHandler if needed.
-class QUICHE_EXPORT_PRIVATE EventForwarder
-    : public spdy::SpdyFramerVisitorInterface {
+class QUICHE_EXPORT EventForwarder : public spdy::SpdyFramerVisitorInterface {
  public:
   // Whether the forwarder can forward events to the receiver.
   using ForwardPredicate = std::function<bool()>;

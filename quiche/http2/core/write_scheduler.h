@@ -32,7 +32,7 @@ namespace http2 {
 // returned by PopNextReadyStream(); when returned by that method, the stream's
 // state changes to not ready.
 template <typename StreamIdType>
-class QUICHE_EXPORT_PRIVATE WriteScheduler {
+class QUICHE_EXPORT WriteScheduler {
  public:
   typedef spdy::StreamPrecedence<StreamIdType> StreamPrecedenceType;
 

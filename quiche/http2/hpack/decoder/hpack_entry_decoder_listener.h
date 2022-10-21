@@ -16,7 +16,7 @@
 
 namespace http2 {
 
-class QUICHE_EXPORT_PRIVATE HpackEntryDecoderListener {
+class QUICHE_EXPORT HpackEntryDecoderListener {
  public:
   virtual ~HpackEntryDecoderListener() {}
 
@@ -64,7 +64,7 @@ class QUICHE_EXPORT_PRIVATE HpackEntryDecoderListener {
   virtual void OnDynamicTableSizeUpdate(size_t size) = 0;
 };
 
-class QUICHE_EXPORT_PRIVATE HpackEntryDecoderVLoggingListener
+class QUICHE_EXPORT HpackEntryDecoderVLoggingListener
     : public HpackEntryDecoderListener {
  public:
   HpackEntryDecoderVLoggingListener() : wrapped_(nullptr) {}
@@ -88,7 +88,7 @@ class QUICHE_EXPORT_PRIVATE HpackEntryDecoderVLoggingListener
 };
 
 // A no-op implementation of HpackEntryDecoderListener.
-class QUICHE_EXPORT_PRIVATE HpackEntryDecoderNoOpListener
+class QUICHE_EXPORT HpackEntryDecoderNoOpListener
     : public HpackEntryDecoderListener {
  public:
   ~HpackEntryDecoderNoOpListener() override {}

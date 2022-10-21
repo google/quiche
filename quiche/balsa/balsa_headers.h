@@ -75,7 +75,7 @@ class BalsaHeadersTestPeer;
 //    - at this point, perhaps just use a vector of strings, and let
 //      the allocator do the right thing.
 //
-class QUICHE_EXPORT_PRIVATE BalsaBuffer {
+class QUICHE_EXPORT BalsaBuffer {
  public:
   static constexpr size_t kDefaultBlocksize = 4096;
 
@@ -85,7 +85,7 @@ class QUICHE_EXPORT_PRIVATE BalsaBuffer {
   // sizes and bytes free. It *may* be possible to replace this
   // with a vector<char>, but it's unclear whether moving a vector
   // can invalidate pointers into it. LWG issue 2321 proposes to fix this.
-  struct QUICHE_EXPORT_PRIVATE BufferBlock {
+  struct QUICHE_EXPORT BufferBlock {
    public:
     std::unique_ptr<char[]> buffer;
     size_t buffer_size = 0;
@@ -362,13 +362,13 @@ class QUICHE_EXPORT_PRIVATE BalsaBuffer {
 //
 //  Key comparisons are case-insensitive.
 
-class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
+class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
  public:
   // Each header line is parsed into a HeaderLineDescription, which maintains
   // pointers into the BalsaBuffer.
   //
   // Succinctly describes one header line as indices into a buffer.
-  struct QUICHE_EXPORT_PRIVATE HeaderLineDescription {
+  struct QUICHE_EXPORT HeaderLineDescription {
     HeaderLineDescription(size_t first_character_index, size_t key_end_index,
                           size_t value_begin_index, size_t last_character_index,
                           size_t buffer_base_index)
@@ -418,7 +418,7 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
 
   // A simple class that can be used in a range-based for loop.
   template <typename IteratorType>
-  class QUICHE_EXPORT_PRIVATE iterator_range {
+  class QUICHE_EXPORT iterator_range {
    public:
     using iterator = IteratorType;
     using const_iterator = IteratorType;
@@ -1180,7 +1180,7 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders : public HeaderApi {
 
 // Base class for iterating the headers in a BalsaHeaders object, returning a
 // pair of string_view's for each header.
-class QUICHE_EXPORT_PRIVATE BalsaHeaders::iterator_base
+class QUICHE_EXPORT BalsaHeaders::iterator_base
     : public std::iterator<std::forward_iterator_tag,
                            std::pair<absl::string_view, absl::string_view>> {
  public:
@@ -1223,8 +1223,8 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders::iterator_base
   // operator<< work for the classes it sees.  It would be better if there
   // was an additional traits-like system for the gUnit output... but oh
   // well.
-  friend QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const iterator_base& it) {
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const iterator_base& it) {
     os << "[" << it.headers_ << ", " << it.idx_ << "]";
     return os;
   }
@@ -1276,7 +1276,7 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders::iterator_base
 };
 
 // A const iterator for all the header lines.
-class QUICHE_EXPORT_PRIVATE BalsaHeaders::const_header_lines_iterator
+class QUICHE_EXPORT BalsaHeaders::const_header_lines_iterator
     : public BalsaHeaders::iterator_base {
  public:
   const_header_lines_iterator() : iterator_base() {}
@@ -1295,7 +1295,7 @@ class QUICHE_EXPORT_PRIVATE BalsaHeaders::const_header_lines_iterator
 };
 
 // A const iterator that stops only on header lines for a particular key.
-class QUICHE_EXPORT_PRIVATE BalsaHeaders::const_header_lines_key_iterator
+class QUICHE_EXPORT BalsaHeaders::const_header_lines_key_iterator
     : public BalsaHeaders::iterator_base {
  public:
   const_header_lines_key_iterator& operator++() {

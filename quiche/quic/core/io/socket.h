@@ -51,7 +51,7 @@ inline absl::string_view GetProtocolName(SocketProtocol protocol) {
   return "unknown";
 }
 
-struct QUICHE_EXPORT_PRIVATE AcceptResult {
+struct QUICHE_EXPORT AcceptResult {
   // Socket for interacting with the accepted connection.
   SocketFd fd;
 

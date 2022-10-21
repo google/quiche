@@ -16,7 +16,7 @@ class WindowManagerPeer;
 
 // This class keeps track of a HTTP/2 flow control window, notifying a listener
 // when a window update needs to be sent. This class is not thread-safe.
-class QUICHE_EXPORT_PRIVATE WindowManager {
+class QUICHE_EXPORT WindowManager {
  public:
   // A WindowUpdateListener is invoked when it is time to send a window update.
   using WindowUpdateListener = std::function<void(int64_t)>;

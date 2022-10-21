@@ -12,7 +12,7 @@
 
 namespace quiche {
 
-class QUICHE_EXPORT_PRIVATE ObliviousHttpResponse {
+class QUICHE_EXPORT ObliviousHttpResponse {
  public:
   // Parse and decrypt the OHttp response using ObliviousHttpContext context obj
   // that was returned from `CreateClientObliviousRequest` method. On success,

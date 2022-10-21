@@ -18,7 +18,7 @@ class BalsaHeaders;
 // Provides empty BalsaVisitorInterface overrides for convenience.
 // Intended to be used as a base class for BalsaVisitorInterface subclasses that
 // only need to override a small number of methods.
-class QUICHE_EXPORT_PRIVATE NoOpBalsaVisitor : public BalsaVisitorInterface {
+class QUICHE_EXPORT NoOpBalsaVisitor : public BalsaVisitorInterface {
  public:
   NoOpBalsaVisitor() = default;
 

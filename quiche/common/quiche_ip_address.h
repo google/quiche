@@ -25,7 +25,7 @@
 namespace quiche {
 
 // Represents an IP address.
-class QUICHE_EXPORT_PRIVATE QuicheIpAddress {
+class QUICHE_EXPORT QuicheIpAddress {
  public:
   // Sizes of IP addresses of different types, in bytes.
   enum : size_t {
@@ -46,10 +46,10 @@ class QUICHE_EXPORT_PRIVATE QuicheIpAddress {
   explicit QuicheIpAddress(const in6_addr& ipv6_address);
   QuicheIpAddress& operator=(const QuicheIpAddress& other) = default;
   QuicheIpAddress& operator=(QuicheIpAddress&& other) = default;
-  QUICHE_EXPORT_PRIVATE friend bool operator==(QuicheIpAddress lhs,
-                                               QuicheIpAddress rhs);
-  QUICHE_EXPORT_PRIVATE friend bool operator!=(QuicheIpAddress lhs,
-                                               QuicheIpAddress rhs);
+  QUICHE_EXPORT friend bool operator==(QuicheIpAddress lhs,
+                                       QuicheIpAddress rhs);
+  QUICHE_EXPORT friend bool operator!=(QuicheIpAddress lhs,
+                                       QuicheIpAddress rhs);
 
   bool IsInitialized() const;
   IpAddressFamily address_family() const;
@@ -95,7 +95,7 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 
 // Represents an IP prefix, which is an IP address and a prefix length in bits.
-class QUICHE_EXPORT_PRIVATE QuicheIpPrefix {
+class QUICHE_EXPORT QuicheIpPrefix {
  public:
   QuicheIpPrefix();
   explicit QuicheIpPrefix(const QuicheIpAddress& address);
@@ -110,10 +110,10 @@ class QUICHE_EXPORT_PRIVATE QuicheIpPrefix {
   QuicheIpPrefix(const QuicheIpPrefix& other) = default;
   QuicheIpPrefix& operator=(const QuicheIpPrefix& other) = default;
   QuicheIpPrefix& operator=(QuicheIpPrefix&& other) = default;
-  QUICHE_EXPORT_PRIVATE friend bool operator==(const QuicheIpPrefix& lhs,
-                                               const QuicheIpPrefix& rhs);
-  QUICHE_EXPORT_PRIVATE friend bool operator!=(const QuicheIpPrefix& lhs,
-                                               const QuicheIpPrefix& rhs);
+  QUICHE_EXPORT friend bool operator==(const QuicheIpPrefix& lhs,
+                                       const QuicheIpPrefix& rhs);
+  QUICHE_EXPORT friend bool operator!=(const QuicheIpPrefix& lhs,
+                                       const QuicheIpPrefix& rhs);
 
  private:
   QuicheIpAddress address_;

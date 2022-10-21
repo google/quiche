@@ -12,7 +12,7 @@
 
 namespace quiche {
 
-class QUICHE_EXPORT_PRIVATE QuicheHostnameUtils {
+class QUICHE_EXPORT QuicheHostnameUtils {
  public:
   QuicheHostnameUtils() = delete;
 

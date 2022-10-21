@@ -22,7 +22,7 @@
 
 namespace http2 {
 
-class QUICHE_EXPORT_PRIVATE HpackBlockDecoder {
+class QUICHE_EXPORT HpackBlockDecoder {
  public:
   explicit HpackBlockDecoder(HpackEntryDecoderListener* listener)
       : listener_(listener) {
@@ -61,8 +61,8 @@ class QUICHE_EXPORT_PRIVATE HpackBlockDecoder {
   bool before_entry_ = true;
 };
 
-QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                               const HpackBlockDecoder& v);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& out,
+                                       const HpackBlockDecoder& v);
 
 }  // namespace http2
 

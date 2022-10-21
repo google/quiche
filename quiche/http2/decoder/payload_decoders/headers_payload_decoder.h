@@ -18,7 +18,7 @@ namespace test {
 class HeadersPayloadDecoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE HeadersPayloadDecoder {
+class QUICHE_EXPORT HeadersPayloadDecoder {
  public:
   // States during decoding of a HEADERS frame, unless the fast path kicks
   // in, in which case the state machine will be bypassed.

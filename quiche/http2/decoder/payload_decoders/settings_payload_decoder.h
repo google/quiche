@@ -19,7 +19,7 @@ namespace test {
 class SettingsPayloadDecoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE SettingsPayloadDecoder {
+class QUICHE_EXPORT SettingsPayloadDecoder {
  public:
   // Starts the decoding of a SETTINGS frame's payload, and completes it if
   // the entire payload is in the provided decode buffer.

@@ -57,10 +57,10 @@ inline bool IsSupportedHttp2FrameType(Http2FrameType v) {
 // for each unsupported value. Since these are just used for debugging/error
 // messages, that isn't a cost to we need to worry about. The same applies to
 // the functions later in this file.
-QUICHE_EXPORT_PRIVATE std::string Http2FrameTypeToString(Http2FrameType v);
-QUICHE_EXPORT_PRIVATE std::string Http2FrameTypeToString(uint8_t v);
-QUICHE_EXPORT_PRIVATE inline std::ostream& operator<<(std::ostream& out,
-                                                      Http2FrameType v) {
+QUICHE_EXPORT std::string Http2FrameTypeToString(Http2FrameType v);
+QUICHE_EXPORT std::string Http2FrameTypeToString(uint8_t v);
+QUICHE_EXPORT inline std::ostream& operator<<(std::ostream& out,
+                                              Http2FrameType v) {
   return out << Http2FrameTypeToString(v);
 }
 
@@ -76,10 +76,9 @@ enum Http2FrameFlag : uint8_t {
 
 // Formats zero or more flags for the specified type of frame. Returns an
 // empty string if flags==0.
-QUICHE_EXPORT_PRIVATE std::string Http2FrameFlagsToString(Http2FrameType type,
-                                                          uint8_t flags);
-QUICHE_EXPORT_PRIVATE std::string Http2FrameFlagsToString(uint8_t type,
-                                                          uint8_t flags);
+QUICHE_EXPORT std::string Http2FrameFlagsToString(Http2FrameType type,
+                                                  uint8_t flags);
+QUICHE_EXPORT std::string Http2FrameFlagsToString(uint8_t type, uint8_t flags);
 
 // Error codes for GOAWAY and RST_STREAM frames.
 enum class Http2ErrorCode : uint32_t {
@@ -143,10 +142,10 @@ inline bool IsSupportedHttp2ErrorCode(Http2ErrorCode v) {
 }
 
 // Format the specified error code.
-QUICHE_EXPORT_PRIVATE std::string Http2ErrorCodeToString(uint32_t v);
-QUICHE_EXPORT_PRIVATE std::string Http2ErrorCodeToString(Http2ErrorCode v);
-QUICHE_EXPORT_PRIVATE inline std::ostream& operator<<(std::ostream& out,
-                                                      Http2ErrorCode v) {
+QUICHE_EXPORT std::string Http2ErrorCodeToString(uint32_t v);
+QUICHE_EXPORT std::string Http2ErrorCodeToString(Http2ErrorCode v);
+QUICHE_EXPORT inline std::ostream& operator<<(std::ostream& out,
+                                              Http2ErrorCode v) {
   return out << Http2ErrorCodeToString(v);
 }
 
@@ -223,8 +222,8 @@ inline bool IsSupportedHttp2SettingsParameter(Http2SettingsParameter v) {
 }
 
 // Format the specified settings parameter.
-QUICHE_EXPORT_PRIVATE std::string Http2SettingsParameterToString(uint32_t v);
-QUICHE_EXPORT_PRIVATE std::string Http2SettingsParameterToString(
+QUICHE_EXPORT std::string Http2SettingsParameterToString(uint32_t v);
+QUICHE_EXPORT std::string Http2SettingsParameterToString(
     Http2SettingsParameter v);
 inline std::ostream& operator<<(std::ostream& out, Http2SettingsParameter v) {
   return out << Http2SettingsParameterToString(v);
@@ -232,7 +231,7 @@ inline std::ostream& operator<<(std::ostream& out, Http2SettingsParameter v) {
 
 // Information about the initial, minimum and maximum value of settings (not
 // applicable to all settings parameters).
-class QUICHE_EXPORT_PRIVATE Http2SettingsInfo {
+class QUICHE_EXPORT Http2SettingsInfo {
  public:
   // Default value for HEADER_TABLE_SIZE.
   static constexpr uint32_t DefaultHeaderTableSize() { return 4096; }
@@ -264,7 +263,7 @@ using InvalidHeaderSet =
                         quiche::StringPieceCaseEqual>;
 
 // Returns all disallowed HTTP/2 headers.
-QUICHE_EXPORT_PRIVATE const InvalidHeaderSet& GetInvalidHttp2HeaderSet();
+QUICHE_EXPORT const InvalidHeaderSet& GetInvalidHttp2HeaderSet();
 
 }  // namespace http2
 

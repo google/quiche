@@ -14,7 +14,7 @@ namespace spdy {
 
 // Reader class which simplifies reading contiguously from
 // from a disjoint buffer prefix & suffix.
-class QUICHE_EXPORT_PRIVATE SpdyPrefixedBufferReader {
+class QUICHE_EXPORT SpdyPrefixedBufferReader {
  public:
   SpdyPrefixedBufferReader(const char* prefix, size_t prefix_length,
                            const char* suffix, size_t suffix_length);

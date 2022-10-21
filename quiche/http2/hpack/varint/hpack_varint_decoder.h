@@ -55,7 +55,7 @@ const uint8_t kHpackVarintDecoderOffsetDone =
 // needed. Start and StartExtended handles the initialization of member
 // variables. This is necessary in order for HpackVarintDecoder to be part
 // of a union.
-class QUICHE_EXPORT_PRIVATE HpackVarintDecoder {
+class QUICHE_EXPORT HpackVarintDecoder {
  public:
   // |prefix_value| is the first byte of the encoded varint.
   // |prefix_length| is number of bits in the first byte that are used for

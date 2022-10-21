@@ -18,7 +18,7 @@ namespace test {
 class PriorityPayloadDecoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE PriorityPayloadDecoder {
+class QUICHE_EXPORT PriorityPayloadDecoder {
  public:
   // Starts the decoding of a PRIORITY frame's payload, and completes it if
   // the entire payload is in the provided decode buffer.

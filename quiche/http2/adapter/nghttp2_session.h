@@ -12,7 +12,7 @@ namespace http2 {
 namespace adapter {
 
 // A C++ wrapper around common nghttp2_session operations.
-class QUICHE_EXPORT_PRIVATE NgHttp2Session : public Http2Session {
+class QUICHE_EXPORT NgHttp2Session : public Http2Session {
  public:
   // Does not take ownership of |options|.
   NgHttp2Session(Perspective perspective,

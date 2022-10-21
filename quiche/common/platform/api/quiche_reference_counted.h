@@ -11,8 +11,7 @@
 namespace quiche {
 
 // Base class for explicitly reference-counted objects in QUIC.
-class QUICHE_EXPORT_PRIVATE QuicheReferenceCounted
-    : public QuicheReferenceCountedImpl {
+class QUICHE_EXPORT QuicheReferenceCounted : public QuicheReferenceCountedImpl {
  public:
   QuicheReferenceCounted() {}
 

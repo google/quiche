@@ -9,7 +9,7 @@ namespace http2 {
 namespace adapter {
 
 // A validator that does not actually perform any validation.
-class QUICHE_EXPORT_PRIVATE NoopHeaderValidator : public HeaderValidatorBase {
+class QUICHE_EXPORT NoopHeaderValidator : public HeaderValidatorBase {
  public:
   NoopHeaderValidator() = default;
 

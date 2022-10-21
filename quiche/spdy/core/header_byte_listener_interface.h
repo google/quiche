@@ -8,7 +8,7 @@
 namespace spdy {
 
 // Listens for the receipt of uncompressed header bytes.
-class QUICHE_EXPORT_PRIVATE HeaderByteListenerInterface {
+class QUICHE_EXPORT HeaderByteListenerInterface {
  public:
   virtual ~HeaderByteListenerInterface() {}
 

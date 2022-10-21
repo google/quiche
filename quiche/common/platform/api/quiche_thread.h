@@ -13,7 +13,7 @@
 namespace quiche {
 
 // A class representing a thread of execution in QUIC.
-class QUICHE_EXPORT_PRIVATE QuicheThread : public QuicheThreadImpl {
+class QUICHE_EXPORT QuicheThread : public QuicheThreadImpl {
  public:
   QuicheThread(const std::string& string) : QuicheThreadImpl(string) {}
   QuicheThread(const QuicheThread&) = delete;

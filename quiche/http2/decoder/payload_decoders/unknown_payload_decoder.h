@@ -17,7 +17,7 @@
 
 namespace http2 {
 
-class QUICHE_EXPORT_PRIVATE UnknownPayloadDecoder {
+class QUICHE_EXPORT UnknownPayloadDecoder {
  public:
   // Starts decoding a payload of unknown type; just passes it to the listener.
   DecodeStatus StartDecodingPayload(FrameDecoderState* state, DecodeBuffer* db);

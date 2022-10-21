@@ -16,7 +16,7 @@
 namespace quiche {
 
 // Abstract base class for classes which allocate and delete buffers.
-class QUICHE_EXPORT_PRIVATE QuicheBufferAllocator {
+class QUICHE_EXPORT QuicheBufferAllocator {
  public:
   virtual ~QuicheBufferAllocator() = default;
 
@@ -38,7 +38,7 @@ class QUICHE_EXPORT_PRIVATE QuicheBufferAllocator {
 
 // A deleter that can be used to manage ownership of buffers allocated via
 // QuicheBufferAllocator through std::unique_ptr.
-class QUICHE_EXPORT_PRIVATE QuicheBufferDeleter {
+class QUICHE_EXPORT QuicheBufferDeleter {
  public:
   explicit QuicheBufferDeleter(QuicheBufferAllocator* allocator)
       : allocator_(allocator) {}
@@ -62,7 +62,7 @@ inline QuicheUniqueBufferPtr MakeUniqueBuffer(QuicheBufferAllocator* allocator,
 // QuicheMemSlice, except unlike QuicheMemSlice, QuicheBuffer is mutable and is
 // not platform-specific.  Also unlike QuicheMemSlice, QuicheBuffer can be
 // empty.
-class QUICHE_EXPORT_PRIVATE QuicheBuffer {
+class QUICHE_EXPORT QuicheBuffer {
  public:
   QuicheBuffer() : buffer_(nullptr, QuicheBufferDeleter(nullptr)), size_(0) {}
   QuicheBuffer(QuicheBufferAllocator* allocator, size_t size)

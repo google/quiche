@@ -33,7 +33,7 @@ namespace test {
 class HpackDecoderTablesPeer;
 }  // namespace test
 
-struct QUICHE_EXPORT_PRIVATE HpackStringPair {
+struct QUICHE_EXPORT HpackStringPair {
   HpackStringPair(std::string name, std::string value);
   ~HpackStringPair();
 
@@ -47,13 +47,13 @@ struct QUICHE_EXPORT_PRIVATE HpackStringPair {
   const std::string value;
 };
 
-QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                               const HpackStringPair& p);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const HpackStringPair& p);
 
 // See http://httpwg.org/specs/rfc7541.html#static.table.definition for the
 // contents, and http://httpwg.org/specs/rfc7541.html#index.address.space for
 // info about accessing the static table.
-class QUICHE_EXPORT_PRIVATE HpackDecoderStaticTable {
+class QUICHE_EXPORT HpackDecoderStaticTable {
  public:
   explicit HpackDecoderStaticTable(const std::vector<HpackStringPair>* table);
   // Uses a global table shared by all threads.
@@ -73,7 +73,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderStaticTable {
 // in the dynamic table. See these sections of the RFC:
 //   http://httpwg.org/specs/rfc7541.html#dynamic.table
 //   http://httpwg.org/specs/rfc7541.html#dynamic.table.management
-class QUICHE_EXPORT_PRIVATE HpackDecoderDynamicTable {
+class QUICHE_EXPORT HpackDecoderDynamicTable {
  public:
   HpackDecoderDynamicTable();
   ~HpackDecoderDynamicTable();
@@ -120,7 +120,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderDynamicTable {
   size_t insert_count_;
 };
 
-class QUICHE_EXPORT_PRIVATE HpackDecoderTables {
+class QUICHE_EXPORT HpackDecoderTables {
  public:
   HpackDecoderTables();
   ~HpackDecoderTables();

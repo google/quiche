@@ -13,19 +13,19 @@
 
 #include "quiche/common/platform/api/quiche_export.h"
 
-#define QUIC_FLAG(flag, value) QUICHE_EXPORT_PRIVATE extern bool FLAGS_##flag;
+#define QUIC_FLAG(flag, value) QUICHE_EXPORT extern bool FLAGS_##flag;
 #include "quiche/quic/core/quic_flags_list.h"
 #undef QUIC_FLAG
 
 // Protocol flags.  TODO(bnc): Move to quiche_protocol_flags_list.h.
 #define QUIC_PROTOCOL_FLAG(type, flag, ...) \
-  QUICHE_EXPORT_PRIVATE extern type FLAGS_##flag;
+  QUICHE_EXPORT extern type FLAGS_##flag;
 #include "quiche/quic/core/quic_protocol_flags_list.h"
 #undef QUIC_PROTOCOL_FLAG
 
 // Protocol flags.
 #define QUICHE_PROTOCOL_FLAG(type, flag, ...) \
-  QUICHE_EXPORT_PRIVATE extern type FLAGS_##flag;
+  QUICHE_EXPORT extern type FLAGS_##flag;
 #include "quiche/common/quiche_protocol_flags_list.h"
 #undef QUICHE_PROTOCOL_FLAG
 

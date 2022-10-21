@@ -10,7 +10,7 @@
 #if defined(_WIN32)
 
 // See <https://pubs.opengroup.org/onlinepubs/009604599/basedefs/sys/uio.h.html>
-struct QUICHE_EXPORT_PRIVATE iovec {
+struct QUICHE_EXPORT iovec {
   void* iov_base;
   size_t iov_len;
 };

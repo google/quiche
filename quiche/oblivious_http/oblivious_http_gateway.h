@@ -23,7 +23,7 @@ namespace quiche {
 // This class is immutable (except moves) and thus trivially thread-safe,
 // assuming the `QuicheRandom* quiche_random` passed in with `Create` is
 // thread-safe. Note that default `QuicheRandom::GetInstance()` is thread-safe.
-class QUICHE_EXPORT_PRIVATE ObliviousHttpGateway {
+class QUICHE_EXPORT ObliviousHttpGateway {
  public:
   // @params: If callers would like to pass in their own `QuicheRandom`
   // instance, they can make use of the param `quiche_random`. Otherwise, the

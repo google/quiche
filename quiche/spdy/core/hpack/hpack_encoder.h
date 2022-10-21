@@ -30,7 +30,7 @@ namespace test {
 class HpackEncoderPeer;
 }  // namespace test
 
-class QUICHE_EXPORT_PRIVATE HpackEncoder {
+class QUICHE_EXPORT HpackEncoder {
  public:
   using Representation = std::pair<absl::string_view, absl::string_view>;
   using Representations = std::vector<Representation>;
@@ -53,7 +53,7 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   // Encodes and returns the given header set as a string.
   std::string EncodeHeaderBlock(const Http2HeaderBlock& header_set);
 
-  class QUICHE_EXPORT_PRIVATE ProgressiveEncoder {
+  class QUICHE_EXPORT ProgressiveEncoder {
    public:
     virtual ~ProgressiveEncoder() {}
 

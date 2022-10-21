@@ -57,7 +57,7 @@ namespace structured_headers {
 // present in Structured Header values, and will cause the entire header to fail
 // to parse.)
 
-class QUICHE_EXPORT_PRIVATE Item {
+class QUICHE_EXPORT Item {
  public:
   enum ItemType {
     kNullType,
@@ -77,8 +77,7 @@ class QUICHE_EXPORT_PRIVATE Item {
   Item(const char* value, Item::ItemType type = kStringType);
   Item(std::string value, Item::ItemType type = kStringType);
 
-  QUICHE_EXPORT_PRIVATE friend bool operator==(const Item& lhs,
-                                               const Item& rhs);
+  QUICHE_EXPORT friend bool operator==(const Item& lhs, const Item& rhs);
   inline friend bool operator!=(const Item& lhs, const Item& rhs) {
     return !(lhs == rhs);
   }
@@ -145,7 +144,7 @@ class QUICHE_EXPORT_PRIVATE Item {
 // Holds a ParameterizedIdentifier (draft 9 only). The contained Item must be a
 // Token, and there may be any number of parameters. Parameter ordering is not
 // significant.
-struct QUICHE_EXPORT_PRIVATE ParameterisedIdentifier {
+struct QUICHE_EXPORT ParameterisedIdentifier {
   using Parameters = std::map<std::string, Item>;
 
   Item identifier;
@@ -166,7 +165,7 @@ inline bool operator==(const ParameterisedIdentifier& lhs,
 
 using Parameters = std::vector<std::pair<std::string, Item>>;
 
-struct QUICHE_EXPORT_PRIVATE ParameterizedItem {
+struct QUICHE_EXPORT ParameterizedItem {
   Item item;
   Parameters params;
 
@@ -190,7 +189,7 @@ inline bool operator!=(const ParameterizedItem& lhs,
 // Holds a ParameterizedMember, which may be either an single Item, or an Inner
 // List of ParameterizedItems, along with any number of parameters. Parameter
 // ordering is significant.
-struct QUICHE_EXPORT_PRIVATE ParameterizedMember {
+struct QUICHE_EXPORT ParameterizedMember {
   std::vector<ParameterizedItem> member;
   // If false, then |member| should only hold one Item.
   bool member_is_inner_list = false;
@@ -218,7 +217,7 @@ inline bool operator==(const ParameterizedMember& lhs,
 using DictionaryMember = std::pair<std::string, ParameterizedMember>;
 
 // Structured Headers RFC8941 Dictionary.
-class QUICHE_EXPORT_PRIVATE Dictionary {
+class QUICHE_EXPORT Dictionary {
  public:
   using iterator = std::vector<DictionaryMember>::iterator;
   using const_iterator = std::vector<DictionaryMember>::const_iterator;
@@ -277,13 +276,13 @@ using List = std::vector<ParameterizedMember>;
 // Returns the result of parsing the header value as an Item, if it can be
 // parsed as one, or nullopt if it cannot. Note that this uses the Draft 15
 // parsing rules, and so applies tighter range limits to integers.
-QUICHE_EXPORT_PRIVATE absl::optional<ParameterizedItem> ParseItem(
+QUICHE_EXPORT absl::optional<ParameterizedItem> ParseItem(
     absl::string_view str);
 
 // Returns the result of parsing the header value as an Item with no parameters,
 // or nullopt if it cannot. Note that this uses the Draft 15 parsing rules, and
 // so applies tighter range limits to integers.
-QUICHE_EXPORT_PRIVATE absl::optional<Item> ParseBareItem(absl::string_view str);
+QUICHE_EXPORT absl::optional<Item> ParseBareItem(absl::string_view str);
 
 // Returns the result of parsing the header value as a Parameterised List, if it
 // can be parsed as one, or nullopt if it cannot. Note that parameter keys will
@@ -291,7 +290,7 @@ QUICHE_EXPORT_PRIVATE absl::optional<Item> ParseBareItem(absl::string_view str);
 // as well as parameter values, will be returned as Items. This method uses the
 // Draft 09 parsing rules for Items, so integers have the 64-bit int range.
 // Structured-Headers Draft 09 only.
-QUICHE_EXPORT_PRIVATE absl::optional<ParameterisedList> ParseParameterisedList(
+QUICHE_EXPORT absl::optional<ParameterisedList> ParseParameterisedList(
     absl::string_view str);
 
 // Returns the result of parsing the header value as a List of Lists, if it can
@@ -299,28 +298,26 @@ QUICHE_EXPORT_PRIVATE absl::optional<ParameterisedList> ParseParameterisedList(
 // as Items. This method uses the Draft 09 parsing rules for Items, so integers
 // have the 64-bit int range.
 // Structured-Headers Draft 09 only.
-QUICHE_EXPORT_PRIVATE absl::optional<ListOfLists> ParseListOfLists(
+QUICHE_EXPORT absl::optional<ListOfLists> ParseListOfLists(
     absl::string_view str);
 
 // Returns the result of parsing the header value as a general List, if it can
 // be parsed as one, or nullopt if it cannot.
 // Structured-Headers Draft 15 only.
-QUICHE_EXPORT_PRIVATE absl::optional<List> ParseList(absl::string_view str);
+QUICHE_EXPORT absl::optional<List> ParseList(absl::string_view str);
 
 // Returns the result of parsing the header value as a general Dictionary, if it
 // can be parsed as one, or nullopt if it cannot. Structured-Headers Draft 15
 // only.
-QUICHE_EXPORT_PRIVATE absl::optional<Dictionary> ParseDictionary(
+QUICHE_EXPORT absl::optional<Dictionary> ParseDictionary(
     const absl::string_view& str);
 
 // Serialization is implemented for Structured-Headers Draft 15 only.
-QUICHE_EXPORT_PRIVATE absl::optional<std::string> SerializeItem(
-    const Item& value);
-QUICHE_EXPORT_PRIVATE absl::optional<std::string> SerializeItem(
+QUICHE_EXPORT absl::optional<std::string> SerializeItem(const Item& value);
+QUICHE_EXPORT absl::optional<std::string> SerializeItem(
     const ParameterizedItem& value);
-QUICHE_EXPORT_PRIVATE absl::optional<std::string> SerializeList(
-    const List& value);
-QUICHE_EXPORT_PRIVATE absl::optional<std::string> SerializeDictionary(
+QUICHE_EXPORT absl::optional<std::string> SerializeList(const List& value);
+QUICHE_EXPORT absl::optional<std::string> SerializeDictionary(
     const Dictionary& value);
 
 }  // namespace structured_headers

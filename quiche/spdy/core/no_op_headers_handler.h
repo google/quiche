@@ -9,8 +9,7 @@ namespace spdy {
 
 // Drops all header data, but passes information about header bytes parsed to
 // a listener.
-class QUICHE_EXPORT_PRIVATE NoOpHeadersHandler
-    : public SpdyHeadersHandlerInterface {
+class QUICHE_EXPORT NoOpHeadersHandler : public SpdyHeadersHandlerInterface {
  public:
   // Does not take ownership of listener.
   explicit NoOpHeadersHandler(HeaderByteListenerInterface* listener)
