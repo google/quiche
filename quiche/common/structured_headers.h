@@ -9,6 +9,7 @@
 #include <map>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -117,6 +118,20 @@ class QUICHE_EXPORT_PRIVATE Item {
     const std::string* value = absl::visit(Visitor(), value_);
     QUICHE_CHECK(value);
     return *value;
+  }
+
+  // Transfers ownership of the underlying String, Token, or Byte Sequence.
+  std::string TakeString() && {
+    struct Visitor {
+      std::string* operator()(absl::monostate&) { return nullptr; }
+      std::string* operator()(int64_t&) { return nullptr; }
+      std::string* operator()(double&) { return nullptr; }
+      std::string* operator()(std::string& value) { return &value; }
+      std::string* operator()(bool&) { return nullptr; }
+    };
+    std::string* value = absl::visit(Visitor(), value_);
+    QUICHE_CHECK(value);
+    return std::move(*value);
   }
 
   ItemType Type() const { return static_cast<ItemType>(value_.index()); }
