@@ -142,7 +142,7 @@ class ConnectUdpTunnelTest : public quiche::test::QuicheTest {
   ConnectUdpTunnel tunnel_{
       &request_handler_,
       &socket_factory_,
-      /*server_label=*/123,
+      "server_label",
       /*acceptable_targets=*/
       {{std::string(kAcceptableTarget), kAcceptablePort},
        {TestLoopback4().ToString(), kAcceptablePort},

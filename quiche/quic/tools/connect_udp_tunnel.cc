@@ -167,14 +167,15 @@ bool ValidateTarget(
 
 ConnectUdpTunnel::ConnectUdpTunnel(
     QuicSimpleServerBackend::RequestHandler* client_stream_request_handler,
-    SocketFactory* socket_factory, uint64_t server_label,
+    SocketFactory* socket_factory, std::string server_label,
     absl::flat_hash_set<QuicServerId> acceptable_targets)
     : acceptable_targets_(std::move(acceptable_targets)),
       socket_factory_(socket_factory),
-      server_label_(server_label),
+      server_label_(std::move(server_label)),
       client_stream_request_handler_(client_stream_request_handler) {
   QUICHE_DCHECK(client_stream_request_handler_);
   QUICHE_DCHECK(socket_factory_);
+  QUICHE_DCHECK(!server_label_.empty());
 }
 
 ConnectUdpTunnel::~ConnectUdpTunnel() {
@@ -385,8 +386,7 @@ void ConnectUdpTunnel::SendErrorResponse(absl::string_view status,
   spdy::Http2HeaderBlock headers;
   headers[":status"] = status;
 
-  structured_headers::Item proxy_status_item(
-      absl::StrCat("QuicToyServer", server_label_));
+  structured_headers::Item proxy_status_item(server_label_);
   structured_headers::Item proxy_status_error_item(
       std::string{proxy_status_error});
   structured_headers::Item proxy_status_details_item(

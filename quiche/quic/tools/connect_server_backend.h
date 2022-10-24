@@ -15,17 +15,23 @@
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/socket_factory.h"
 #include "quiche/quic/tools/connect_tunnel.h"
+#include "quiche/quic/tools/connect_udp_tunnel.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 
 namespace quic {
 
-// QUIC server backend that handles CONNECT requests. Non-CONNECT requests are
-// delegated to a separate backend.
+// QUIC server backend that handles CONNECT and CONNECT-UDP requests.
+// Non-CONNECT requests are delegated to a separate backend.
 class ConnectServerBackend : public QuicSimpleServerBackend {
  public:
+  // `server_label` is an identifier (typically randomly generated) to identify
+  // the server or backend in error headers, per the requirements of RFC 9209,
+  // Section 2.
   ConnectServerBackend(
       std::unique_ptr<QuicSimpleServerBackend> non_connect_backend,
-      absl::flat_hash_set<QuicServerId> acceptable_destinations);
+      absl::flat_hash_set<QuicServerId> acceptable_connect_destinations,
+      absl::flat_hash_set<QuicServerId> acceptable_connect_udp_targets,
+      std::string server_label);
 
   ConnectServerBackend(const ConnectServerBackend&) = delete;
   ConnectServerBackend& operator=(const ConnectServerBackend&) = delete;
@@ -48,10 +54,15 @@ class ConnectServerBackend : public QuicSimpleServerBackend {
 
  private:
   std::unique_ptr<QuicSimpleServerBackend> non_connect_backend_;
-  const absl::flat_hash_set<QuicServerId> acceptable_destinations_;
+  const absl::flat_hash_set<QuicServerId> acceptable_connect_destinations_;
+  const absl::flat_hash_set<QuicServerId> acceptable_connect_udp_targets_;
+  const std::string server_label_;
 
   SocketFactory* socket_factory_;  // unowned
-  absl::flat_hash_map<QuicStreamId, std::unique_ptr<ConnectTunnel>> tunnels_;
+  absl::flat_hash_map<QuicStreamId, std::unique_ptr<ConnectTunnel>>
+      connect_tunnels_;
+  absl::flat_hash_map<QuicStreamId, std::unique_ptr<ConnectUdpTunnel>>
+      connect_udp_tunnels_;
 };
 
 }  // namespace quic

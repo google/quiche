@@ -13,6 +13,7 @@
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/socket_factory.h"
 #include "quiche/quic/tools/connect_tunnel.h"
+#include "quiche/quic/tools/connect_udp_tunnel.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -35,15 +36,23 @@ void SendErrorResponse(QuicSimpleServerBackend::RequestHandler* request_handler,
 
 ConnectServerBackend::ConnectServerBackend(
     std::unique_ptr<QuicSimpleServerBackend> non_connect_backend,
-    absl::flat_hash_set<QuicServerId> acceptable_destinations)
+    absl::flat_hash_set<QuicServerId> acceptable_connect_destinations,
+    absl::flat_hash_set<QuicServerId> acceptable_connect_udp_targets,
+    std::string server_label)
     : non_connect_backend_(std::move(non_connect_backend)),
-      acceptable_destinations_(std::move(acceptable_destinations)) {
+      acceptable_connect_destinations_(
+          std::move(acceptable_connect_destinations)),
+      acceptable_connect_udp_targets_(
+          std::move(acceptable_connect_udp_targets)),
+      server_label_(std::move(server_label)) {
   QUICHE_DCHECK(non_connect_backend_);
+  QUICHE_DCHECK(!server_label_.empty());
 }
 
 ConnectServerBackend::~ConnectServerBackend() {
   // Expect all streams to be closed before destroying backend.
-  QUICHE_DCHECK(tunnels_.empty());
+  QUICHE_DCHECK(connect_tunnels_.empty());
+  QUICHE_DCHECK(connect_udp_tunnels_.empty());
 }
 
 bool ConnectServerBackend::InitializeBackend(const std::string&) {
@@ -54,7 +63,8 @@ bool ConnectServerBackend::IsBackendInitialized() const { return true; }
 
 void ConnectServerBackend::SetSocketFactory(SocketFactory* socket_factory) {
   QUICHE_DCHECK_NE(socket_factory_, socket_factory);
-  QUICHE_DCHECK(tunnels_.empty());
+  QUICHE_DCHECK(connect_tunnels_.empty());
+  QUICHE_DCHECK(connect_udp_tunnels_.empty());
   socket_factory_ = socket_factory;
 }
 
@@ -80,28 +90,42 @@ void ConnectServerBackend::HandleConnectHeaders(
     return;
   }
 
-  if (request_headers.contains(":protocol")) {
-    // Anything other than normal CONNECT not supported.
-    // TODO(ericorth): Add CONNECT-UDP support.
+  if (!request_headers.contains(":protocol")) {
+    // normal CONNECT
+    auto [tunnel_it, inserted] = connect_tunnels_.emplace(
+        request_handler->stream_id(),
+        std::make_unique<ConnectTunnel>(request_handler, socket_factory_,
+                                        acceptable_connect_destinations_));
+    QUICHE_DCHECK(inserted);
+
+    tunnel_it->second->OpenTunnel(request_headers);
+  } else if (request_headers.find(":protocol")->second == "connect-udp") {
+    // CONNECT-UDP
+    auto [tunnel_it, inserted] = connect_udp_tunnels_.emplace(
+        request_handler->stream_id(),
+        std::make_unique<ConnectUdpTunnel>(request_handler, socket_factory_,
+                                           server_label_,
+                                           acceptable_connect_udp_targets_));
+    QUICHE_DCHECK(inserted);
+
+    tunnel_it->second->OpenTunnel(request_headers);
+  } else {
+    // Not a supported request.
     non_connect_backend_->HandleConnectHeaders(request_headers,
                                                request_handler);
-    return;
   }
-
-  auto [tunnel_it, inserted] = tunnels_.emplace(
-      request_handler->stream_id(),
-      std::make_unique<ConnectTunnel>(request_handler, socket_factory_,
-                                      acceptable_destinations_));
-  QUICHE_DCHECK(inserted);
-
-  tunnel_it->second->OpenTunnel(request_headers);
 }
 
 void ConnectServerBackend::HandleConnectData(absl::string_view data,
                                              bool data_complete,
                                              RequestHandler* request_handler) {
-  auto tunnel_it = tunnels_.find(request_handler->stream_id());
-  if (tunnel_it == tunnels_.end()) {
+  // Expect ConnectUdpTunnels to register a datagram visitor, causing the
+  // stream to process data as capsules.  HandleConnectData() should therefore
+  // never be called for streams with a ConnectUdpTunnel.
+  QUICHE_DCHECK(!connect_udp_tunnels_.contains(request_handler->stream_id()));
+
+  auto tunnel_it = connect_tunnels_.find(request_handler->stream_id());
+  if (tunnel_it == connect_tunnels_.end()) {
     // If tunnel not found, perhaps it's something being handled for
     // non-CONNECT. Possible because this method could be called for anything
     // with a ":method":"CONNECT" header, but this class does not handle such
@@ -116,16 +140,22 @@ void ConnectServerBackend::HandleConnectData(absl::string_view data,
   }
   if (data_complete) {
     tunnel_it->second->OnClientStreamClose();
-    tunnels_.erase(tunnel_it);
+    connect_tunnels_.erase(tunnel_it);
   }
 }
 
 void ConnectServerBackend::CloseBackendResponseStream(
     QuicSimpleServerBackend::RequestHandler* request_handler) {
-  auto tunnel_it = tunnels_.find(request_handler->stream_id());
-  if (tunnel_it != tunnels_.end()) {
+  auto tunnel_it = connect_tunnels_.find(request_handler->stream_id());
+  if (tunnel_it != connect_tunnels_.end()) {
     tunnel_it->second->OnClientStreamClose();
-    tunnels_.erase(tunnel_it);
+    connect_tunnels_.erase(tunnel_it);
+  }
+
+  auto udp_tunnel_it = connect_udp_tunnels_.find(request_handler->stream_id());
+  if (udp_tunnel_it != connect_udp_tunnels_.end()) {
+    udp_tunnel_it->second->OnClientStreamClose();
+    connect_udp_tunnels_.erase(udp_tunnel_it);
   }
 
   non_connect_backend_->CloseBackendResponseStream(request_handler);

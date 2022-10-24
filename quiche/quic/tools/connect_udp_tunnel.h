@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_TOOLS_CONNECT_TUNNEL_H_
-#define QUICHE_QUIC_TOOLS_CONNECT_TUNNEL_H_
+#ifndef QUICHE_QUIC_TOOLS_CONNECT_UDP_TUNNEL_H_
+#define QUICHE_QUIC_TOOLS_CONNECT_UDP_TUNNEL_H_
 
 #include <cstdint>
 #include <memory>
@@ -36,7 +36,7 @@ class ConnectUdpTunnel : public ConnectingClientSocket::AsyncVisitor,
   // per the requirements of RFC 9209, Section 2.
   ConnectUdpTunnel(
       QuicSimpleServerBackend::RequestHandler* client_stream_request_handler,
-      SocketFactory* socket_factory, uint64_t server_label,
+      SocketFactory* socket_factory, std::string server_label,
       absl::flat_hash_set<QuicServerId> acceptable_targets);
   ~ConnectUdpTunnel();
   ConnectUdpTunnel(const ConnectUdpTunnel&) = delete;
@@ -80,7 +80,7 @@ class ConnectUdpTunnel : public ConnectingClientSocket::AsyncVisitor,
 
   const absl::flat_hash_set<QuicServerId> acceptable_targets_;
   SocketFactory* const socket_factory_;
-  const uint64_t server_label_;
+  const std::string server_label_;
 
   // Null when client stream closed.
   QuicSimpleServerBackend::RequestHandler* client_stream_request_handler_;
@@ -94,4 +94,4 @@ class ConnectUdpTunnel : public ConnectingClientSocket::AsyncVisitor,
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_TOOLS_CONNECT_TUNNEL_H_
+#endif  // QUICHE_QUIC_TOOLS_CONNECT_UDP_TUNNEL_H_
