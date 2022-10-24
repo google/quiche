@@ -54,54 +54,59 @@ absl::optional<AES_KEY> BuildKey(absl::string_view key, bool encrypt) {
 // TakePlaintextFrom{Left,Right}() reads the left or right half of 'from' and
 // expands it into a full encryption block ('to') in accordance with the
 // internet-draft.
-void TakePlaintextFromLeft(uint8_t *to, uint8_t *from, uint8_t plaintext_len,
-                           uint8_t index) {
+void TakePlaintextFromLeft(const uint8_t *from, const uint8_t plaintext_len,
+                           const uint8_t index, uint8_t *to) {
   uint8_t half = plaintext_len / 2;
-  memset(to, 0, kLoadBalancerBlockSize - 1);
-  memcpy(to, from, half);
+
+  to[0] = plaintext_len;
+  to[1] = index;
+  memcpy(to + 2, from, half);
   if (plaintext_len % 2) {
-    to[half] = from[half] & 0xf0;
+    to[2 + half] = from[half] & 0xf0;
+    half++;
   }
-  to[kLoadBalancerBlockSize - 1] = plaintext_len + 1;
-  to[kLoadBalancerBlockSize - 2] = index;
+  memset(to + 2 + half, 0, kLoadBalancerBlockSize - 2 - half);
 }
 
-void TakePlaintextFromRight(uint8_t *to, uint8_t *from, uint8_t plaintext_len,
-                            uint8_t index) {
-  const uint8_t half = plaintext_len / 2;
-  const uint8_t write_point = kLoadBalancerBlockSize - half;
-  const uint8_t read_point = plaintext_len - half;
-  memset((to + 1), 0, kLoadBalancerBlockSize - 1);
-  memcpy(to + write_point, from + read_point, half);
-  if (plaintext_len % 2) {
-    to[write_point - 1] = from[read_point - 1] & 0x0f;
-  }
-  to[0] = plaintext_len + 1;
+void TakePlaintextFromRight(const uint8_t *from, const uint8_t plaintext_len,
+                            const uint8_t index, uint8_t *to) {
+  uint8_t half = plaintext_len / 2;
+
+  to[0] = plaintext_len;
   to[1] = index;
+  memcpy(to + 2, from + half, half + (plaintext_len % 2));
+  if (plaintext_len % 2) {
+    to[2] &= 0x0f;
+    half++;
+  }
+  memset(to + 2 + half, 0, kLoadBalancerBlockSize - 2 - half);
 }
 
 // CiphertextXorWith{Left,Right}() takes the relevant end of the ciphertext in
 // 'from' and XORs it with half of the ConnectionId stored at 'to', in
 // accordance with the internet-draft.
-void CiphertextXorWithLeft(uint8_t *to, uint8_t *from, uint8_t plaintext_len) {
+void CiphertextXorWithLeft(const uint8_t *from, const uint8_t plaintext_len,
+                           uint8_t *to) {
   uint8_t half = plaintext_len / 2;
   for (int i = 0; i < half; i++) {
-    *(to + i) ^= *(from + i);
+    to[i] ^= from[i];
   }
   if (plaintext_len % 2) {
-    *(to + half) ^= (*(from + half) & 0xf0);
+    to[half] ^= (from[half] & 0xf0);
   }
 }
 
-void CiphertextXorWithRight(uint8_t *to, uint8_t *from, uint8_t plaintext_len) {
-  const uint8_t half = plaintext_len / 2;
-  const uint8_t write_point = plaintext_len - half;
-  const uint8_t read_point = kLoadBalancerBlockSize - half;
+void CiphertextXorWithRight(const uint8_t *from, const uint8_t plaintext_len,
+                            uint8_t *to) {
+  uint8_t half = plaintext_len / 2;
+  int i = 0;
   if (plaintext_len % 2) {
-    *(to + write_point - 1) ^= (*(from + read_point - 1) & 0x0f);
+    to[half] ^= (from[0] & 0x0f);
+    i++;
   }
-  for (int i = 0; i < half; i++) {
-    *(to + write_point + i) ^= *(from + read_point + i);
+  while ((half + i) < plaintext_len) {
+    to[half + i] ^= from[i];
+    i++;
   }
 }
 
@@ -146,18 +151,18 @@ bool LoadBalancerConfig::EncryptionPass(absl::Span<uint8_t> target,
     return false;
   }
   if (index % 2) {  // Odd indices go from left to right
-    TakePlaintextFromLeft(buf, target.data(), plaintext_len(), index);
+    TakePlaintextFromLeft(target.data(), plaintext_len(), index, buf);
   } else {
-    TakePlaintextFromRight(buf, target.data(), plaintext_len(), index);
+    TakePlaintextFromRight(target.data(), plaintext_len(), index, buf);
   }
   if (!BlockEncrypt(buf, buf)) {
     return false;
   }
   // XOR bits over the correct half.
   if (index % 2) {
-    CiphertextXorWithRight(target.data(), buf, plaintext_len());
+    CiphertextXorWithRight(buf, plaintext_len(), target.data());
   } else {
-    CiphertextXorWithLeft(target.data(), buf, plaintext_len());
+    CiphertextXorWithLeft(buf, plaintext_len(), target.data());
   }
   return true;
 }

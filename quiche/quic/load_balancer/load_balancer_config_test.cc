@@ -85,35 +85,53 @@ TEST_F(LoadBalancerConfigTest, ValidParams) {
 }
 
 // Compare EncryptionPass() results to the example in
-// draft-ietf-quic-load-balancers-14, Section 4.3.2.
+// draft-ietf-quic-load-balancers-15, Section 4.3.2.
 TEST_F(LoadBalancerConfigTest, TestEncryptionPassExample) {
   auto config =
       LoadBalancerConfig::Create(0, 3, 4, absl::string_view(raw_key, 16));
   EXPECT_TRUE(config.has_value());
   EXPECT_TRUE(config->IsEncrypted());
-  std::array<uint8_t, 7> bytes = {
-      0x31, 0x44, 0x1a, 0x9c, 0x69, 0xc2, 0x75,
-  };
+  std::array<uint8_t, 7> bytes = {0x31, 0x44, 0x1a, 0x9c, 0x69, 0xc2, 0x75};
+  std::array<uint8_t, 7> pass1 = {0x31, 0x44, 0x1a, 0x9f, 0x1a, 0x5b, 0x6b};
+  std::array<uint8_t, 7> pass2 = {0x02, 0x8e, 0x1b, 0x5f, 0x1a, 0x5b, 0x6b};
+  std::array<uint8_t, 7> pass3 = {0x02, 0x8e, 0x1b, 0x54, 0x94, 0x97, 0x62};
+  std::array<uint8_t, 7> pass4 = {0x8e, 0x9a, 0x91, 0xf4, 0x94, 0x97, 0x62};
+
   // Input is too short.
   EXPECT_FALSE(config->EncryptionPass(absl::Span<uint8_t>(bytes.data(), 6), 0));
   EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 1));
-  EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
-                            {0x31, 0x44, 0x1a, 0x92, 0x52, 0xaa, 0xef})));
+  EXPECT_EQ(bytes, pass1);
   EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 2));
-  EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
-                            {0xe6, 0xa1, 0x3a, 0xb2, 0x52, 0xaa, 0xef})));
+  EXPECT_EQ(bytes, pass2);
   EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 3));
-  EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
-                            {0xe6, 0xa1, 0x3a, 0xbc, 0xe1, 0xe0, 0xd2})));
+  EXPECT_EQ(bytes, pass3);
   EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 4));
-  EXPECT_TRUE((bytes == std::array<uint8_t, 7>(
-                            {0x32, 0xc3, 0x63, 0xfc, 0xe1, 0xe0, 0xd2})));
+  EXPECT_EQ(bytes, pass4);
 }
 
 TEST_F(LoadBalancerConfigTest, EncryptionPassPlaintext) {
   auto config = LoadBalancerConfig::CreateUnencrypted(0, 3, 4);
   std::array<uint8_t, 7> bytes = {0x31, 0x44, 0x1a, 0x9c, 0x69, 0xc2, 0x75};
   EXPECT_FALSE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 1));
+}
+
+// Check that the encryption pass code can decode its own ciphertext. Various
+// pointer errors could cause the code to overwrite bits that contain
+// important information.
+TEST_F(LoadBalancerConfigTest, EncryptionPassesAreReversible) {
+  auto config =
+      LoadBalancerConfig::Create(0, 3, 4, absl::string_view(raw_key, 16));
+  std::array<uint8_t, 7> bytes = {
+      0x31, 0x44, 0x1a, 0x9c, 0x69, 0xc2, 0x75,
+  };
+  std::array<uint8_t, 7> orig_bytes;
+  memcpy(orig_bytes.data(), bytes.data(), bytes.size());
+  // Work left->right and right->left passes.
+  EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 1));
+  EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 2));
+  EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 2));
+  EXPECT_TRUE(config->EncryptionPass(absl::Span<uint8_t>(bytes), 1));
+  EXPECT_EQ(bytes, orig_bytes);
 }
 
 TEST_F(LoadBalancerConfigTest, InvalidBlockEncryption) {
@@ -133,7 +151,7 @@ TEST_F(LoadBalancerConfigTest, InvalidBlockEncryption) {
 }
 
 // Block decrypt test from the Test Vector in
-// draft-ietf-quic-load-balancers-14, Appendix B.
+// draft-ietf-quic-load-balancers-15, Appendix B.
 TEST_F(LoadBalancerConfigTest, BlockEncryptionExample) {
   const uint8_t ptext[] = {0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f, 0x5f,
                            0xee, 0x08, 0x0d, 0xbf, 0x48, 0xc0, 0xd1, 0xe5};
