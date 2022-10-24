@@ -108,6 +108,9 @@ class QUICHE_EXPORT BinaryHttpMessage {
   bool has_host_ = false;
 };
 
+void QUICHE_EXPORT PrintTo(const BinaryHttpMessage::Field& msg,
+                           std::ostream* os);
+
 class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
  public:
   // HTTP request must have all of the following fields.

@@ -394,12 +394,12 @@ std::string BinaryHttpMessage::DebugString() const {
   for (const auto& field : GetHeaderFields()) {
     headers.emplace_back(field.DebugString());
   }
-  return absl::StrCat("BinaryHttpMessage{Headers{",
-                      absl::StrJoin(headers, ";;"), "}Body{", body(), "}}");
+  return absl::StrCat("BinaryHttpMessage{Headers{", absl::StrJoin(headers, ";"),
+                      "}Body{", body(), "}}");
 }
 
 std::string BinaryHttpMessage::Field::DebugString() const {
-  return absl::StrCat(name, "=", value);
+  return absl::StrCat("Field{", name, "=", value, "}");
 }
 
 std::string BinaryHttpResponse::InformationalResponse::DebugString() const {
@@ -407,7 +407,7 @@ std::string BinaryHttpResponse::InformationalResponse::DebugString() const {
   for (const auto& field : fields()) {
     fs.emplace_back(field.DebugString());
   }
-  return absl::StrCat("InformationalResponse{", absl::StrJoin(fs, ";;"), "}");
+  return absl::StrCat("InformationalResponse{", absl::StrJoin(fs, ";"), "}");
 }
 
 std::string BinaryHttpResponse::DebugString() const {
@@ -416,8 +416,8 @@ std::string BinaryHttpResponse::DebugString() const {
     irs.emplace_back(ir.DebugString());
   }
   return absl::StrCat("BinaryHttpResponse(", status_code_, "){",
-                      BinaryHttpMessage::DebugString(),
-                      absl::StrJoin(irs, ";;"), "}");
+                      BinaryHttpMessage::DebugString(), absl::StrJoin(irs, ";"),
+                      "}");
 }
 
 std::string BinaryHttpRequest::DebugString() const {
@@ -430,6 +430,10 @@ void PrintTo(const BinaryHttpRequest& msg, std::ostream* os) {
 }
 
 void PrintTo(const BinaryHttpResponse& msg, std::ostream* os) {
+  *os << msg.DebugString();
+}
+
+void PrintTo(const BinaryHttpMessage::Field& msg, std::ostream* os) {
   *os << msg.DebugString();
 }
 
