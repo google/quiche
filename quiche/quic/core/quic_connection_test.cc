@@ -210,6 +210,23 @@ class TestConnection : public QuicConnection {
 
   MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket packet), (override));
 
+  void OnEffectivePeerMigrationValidated(bool is_migration_linkable) override {
+    QuicConnection::OnEffectivePeerMigrationValidated(is_migration_linkable);
+    if (is_migration_linkable) {
+      num_linkable_client_migration_++;
+    } else {
+      num_unlinkable_client_migration_++;
+    }
+  }
+
+  uint32_t num_unlinkable_client_migration() const {
+    return num_unlinkable_client_migration_;
+  }
+
+  uint32_t num_linkable_client_migration() const {
+    return num_linkable_client_migration_;
+  }
+
   void SetSendAlgorithm(SendAlgorithmInterface* send_algorithm) {
     QuicConnectionPeer::SetSendAlgorithm(this, send_algorithm);
   }
@@ -541,6 +558,10 @@ class TestConnection : public QuicConnection {
   std::unique_ptr<QuicSocketAddress> next_effective_peer_addr_;
 
   QuicSocketAddress self_address_on_default_path_while_sending_packet_;
+
+  uint32_t num_unlinkable_client_migration_ = 0;
+
+  uint32_t num_linkable_client_migration_ = 0;
 };
 
 enum class AckResponse { kDefer, kImmediate };
@@ -1714,6 +1735,7 @@ TEST_P(QuicConnectionTest, PeerPortChangeAtServer) {
   if (connection_.validate_client_address()) {
     EXPECT_EQ(NO_CHANGE, connection_.active_effective_peer_migration_type());
     EXPECT_EQ(1u, connection_.GetStats().num_validated_peer_migration);
+    EXPECT_EQ(1u, connection_.num_linkable_client_migration());
   }
 }
 
@@ -1855,6 +1877,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
   // than the anti-amplification limit.
   connection_.SendCryptoDataWithString(std::string(1200, 'a'), 0);
   EXPECT_EQ(1u, connection_.GetStats().num_validated_peer_migration);
+  EXPECT_EQ(1u, connection_.num_linkable_client_migration());
 }
 
 TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
@@ -1994,6 +2017,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
   if (connection_.validate_client_address()) {
     EXPECT_EQ(NO_CHANGE, connection_.active_effective_peer_migration_type());
     EXPECT_EQ(1u, connection_.GetStats().num_validated_peer_migration);
+    EXPECT_EQ(1u, connection_.num_linkable_client_migration());
   }
 
   // Process another packet with a different direct peer address and the same
@@ -13434,6 +13458,7 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
       .WillRepeatedly(Return(QuicBandwidth::Zero()));
   connection_.SendCryptoDataWithString(std::string(1200, 'a'), 0);
   EXPECT_EQ(1u, connection_.GetStats().num_validated_peer_migration);
+  EXPECT_EQ(1u, connection_.num_unlinkable_client_migration());
 }
 
 TEST_P(QuicConnectionTest,

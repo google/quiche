@@ -1284,7 +1284,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void StartEffectivePeerMigration(AddressChangeType type);
 
   // Called when a effective peer address migration is validated.
-  virtual void OnEffectivePeerMigrationValidated();
+  virtual void OnEffectivePeerMigrationValidated(bool is_migration_linkable);
 
   // Get the effective peer address from the packet being processed. For proxied
   // connections, effective peer address is the address of the endpoint behind

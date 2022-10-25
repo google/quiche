@@ -2728,7 +2728,7 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
        sent_packet_manager_.GetLargestObserved() >
            highest_packet_sent_before_effective_peer_migration_)) {
     if (perspective_ == Perspective::IS_SERVER) {
-      OnEffectivePeerMigrationValidated();
+      OnEffectivePeerMigrationValidated(/*is_migration_linkable=*/true);
     }
   }
 
@@ -5077,7 +5077,8 @@ void QuicConnection::DiscoverMtu() {
   QUICHE_DCHECK(!mtu_discovery_alarm_->IsSet());
 }
 
-void QuicConnection::OnEffectivePeerMigrationValidated() {
+void QuicConnection::OnEffectivePeerMigrationValidated(
+    bool /*is_migration_linkable*/) {
   if (active_effective_peer_migration_type_ == NO_CHANGE) {
     QUIC_BUG(quic_bug_10511_33) << "No migration underway.";
     return;
@@ -5275,7 +5276,9 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
       // validation.
       ++stats_.num_peer_migration_to_proactively_validated_address;
     }
-    OnEffectivePeerMigrationValidated();
+    OnEffectivePeerMigrationValidated(
+        default_path_.server_connection_id ==
+        previous_default_path.server_connection_id);
     return;
   }
 
@@ -7053,7 +7056,9 @@ void QuicConnection::ReversePathValidationResultDelegate::
           " Connection is connected: ", connection_->connected_);
       QUIC_BUG(quic_bug_10511_43) << error_detail;
     }
-    connection_->OnEffectivePeerMigrationValidated();
+    connection_->OnEffectivePeerMigrationValidated(
+        connection_->alternative_path_.server_connection_id ==
+        connection_->default_path_.server_connection_id);
   } else {
     QUICHE_DCHECK(connection_->IsAlternativePath(
         context->self_address(), context->effective_peer_address()));
