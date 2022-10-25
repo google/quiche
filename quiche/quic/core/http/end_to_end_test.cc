@@ -266,8 +266,13 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (!pre_shared_key_client_.empty()) {
       client->client()->SetPreSharedKey(pre_shared_key_client_);
     }
-    client->UseConnectionIdLength(override_server_connection_id_length_);
-    client->UseClientConnectionIdLength(override_client_connection_id_length_);
+    if (override_server_connection_id_length_ >= 0) {
+      client->UseConnectionIdLength(override_server_connection_id_length_);
+    }
+    if (override_client_connection_id_length_ >= 0) {
+      client->UseClientConnectionIdLength(
+          override_client_connection_id_length_);
+    }
     client->client()->set_connection_debug_visitor(connection_debug_visitor_);
     client->client()->set_enable_web_transport(enable_web_transport_);
     client->Connect();

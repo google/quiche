@@ -19,6 +19,7 @@
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 
 namespace quic {
@@ -278,6 +279,11 @@ class QuicClientBase {
 
   std::string interface_name() { return interface_name_; }
 
+  void set_server_connection_id_override(
+      const QuicConnectionId& connection_id) {
+    server_connection_id_override_ = connection_id;
+  }
+
   void set_server_connection_id_length(uint8_t server_connection_id_length) {
     server_connection_id_length_ = server_connection_id_length;
   }
@@ -423,6 +429,11 @@ class QuicClientBase {
   // The debug visitor set on the connection right after it is constructed.
   // Not owned, must be valid for the lifetime of the QuicClientBase instance.
   QuicConnectionDebugVisitor* connection_debug_visitor_;
+
+  // If set,
+  // - GetNextConnectionId will use this as the next server connection id.
+  // - GenerateNewConnectionId will not be called.
+  absl::optional<QuicConnectionId> server_connection_id_override_;
 
   // GenerateNewConnectionId creates a random connection ID of this length.
   // Defaults to 8.

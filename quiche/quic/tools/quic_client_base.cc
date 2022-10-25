@@ -410,6 +410,9 @@ QuicErrorCode QuicClientBase::connection_error() const {
 }
 
 QuicConnectionId QuicClientBase::GetNextConnectionId() {
+  if (server_connection_id_override_.has_value()) {
+    return *server_connection_id_override_;
+  }
   return GenerateNewConnectionId();
 }
 

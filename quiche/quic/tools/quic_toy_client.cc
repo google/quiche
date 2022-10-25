@@ -173,8 +173,16 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, one_connection_per_request, false,
                                 "If true, close the connection after each "
                                 "request. This allows testing 0-RTT.");
 
-DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, server_connection_id_length, -1,
-                                "Length of the server connection ID used.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, server_connection_id, "",
+    "If non-empty, the client will use the given server connection id for all "
+    "connections. The flag value is the hex-string of the on-wire connection id"
+    " bytes, e.g. '--server_connection_id=0123456789abcdef'.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    int32_t, server_connection_id_length, -1,
+    "Length of the server connection ID used. This flag has no effects if "
+    "--server_connection_id is non-empty.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, client_connection_id_length, -1,
                                 "Length of the client connection ID used.");
@@ -355,6 +363,17 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       initial_mtu != 0 ? initial_mtu : quic::kDefaultMaxPacketSize);
   client->set_drop_response_body(
       quiche::GetQuicheCommandLineFlag(FLAGS_drop_response_body));
+  const std::string server_connection_id_hex_string =
+      quiche::GetQuicheCommandLineFlag(FLAGS_server_connection_id);
+  QUICHE_CHECK(server_connection_id_hex_string.size() % 2 == 0)
+      << "The length of --server_connection_id must be even. It is "
+      << server_connection_id_hex_string.size() << "-byte long.";
+  if (!server_connection_id_hex_string.empty()) {
+    const std::string server_connection_id_bytes =
+        absl::HexStringToBytes(server_connection_id_hex_string);
+    client->set_server_connection_id_override(QuicConnectionId(
+        server_connection_id_bytes.data(), server_connection_id_bytes.size()));
+  }
   const int32_t server_connection_id_length =
       quiche::GetQuicheCommandLineFlag(FLAGS_server_connection_id_length);
   if (server_connection_id_length >= 0) {
