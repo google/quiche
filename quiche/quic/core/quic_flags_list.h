@@ -8,7 +8,7 @@
 
 QUIC_FLAG(quic_restart_flag_quic_offload_pacing_to_usps2, false)
 
-QUIC_FLAG(quic_restart_flag_quic_use_hash_quic_codepoint, false)
+QUIC_FLAG(quic_restart_flag_quic_use_hash_quic_codepoint, true)
 // A testonly reloadable flag that will always default to false.
 QUIC_FLAG(quic_reloadable_flag_quic_testonly_default_false, false)
 // A testonly reloadable flag that will always default to true.
