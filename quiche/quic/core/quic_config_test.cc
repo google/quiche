@@ -459,6 +459,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
+  const std::string kFakeGoogleHandshakeMessage = "Fake handshake message";
   config_.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
       2 * kMinimumFlowControlSendWindow);
   config_.SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
@@ -473,6 +474,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   config_.SetInitialSourceConnectionIdToSend(TestConnectionId(0x2222));
   config_.SetRetrySourceConnectionIdToSend(TestConnectionId(0x3333));
   config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
+  config_.SetGoogleHandshakeMessageToSend(kFakeGoogleHandshakeMessage);
 
   QuicIpAddress host;
   host.FromString("127.0.3.1");
@@ -520,6 +522,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   EXPECT_EQ(*reinterpret_cast<StatelessResetToken*>(
                 &params.preferred_address->stateless_reset_token.front()),
             new_stateless_reset_token);
+  EXPECT_EQ(kFakeGoogleHandshakeMessage, params.google_handshake_message);
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
@@ -527,6 +530,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
+  const std::string kFakeGoogleHandshakeMessage = "Fake handshake message";
   TransportParameters params;
 
   params.initial_max_stream_data_bidi_local.set_value(
@@ -546,6 +550,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   params.original_destination_connection_id = TestConnectionId(0x1111);
   params.initial_source_connection_id = TestConnectionId(0x2222);
   params.retry_source_connection_id = TestConnectionId(0x3333);
+  params.google_handshake_message = kFakeGoogleHandshakeMessage;
 
   std::string error_details;
   EXPECT_THAT(config_.ProcessTransportParameters(
@@ -664,6 +669,8 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   ASSERT_TRUE(config_.HasReceivedRetrySourceConnectionId());
   EXPECT_EQ(config_.ReceivedRetrySourceConnectionId(),
             TestConnectionId(0x3333));
+  EXPECT_EQ(kFakeGoogleHandshakeMessage,
+            config_.GetReceivedGoogleHandshakeMessage());
 }
 
 TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {

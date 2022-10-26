@@ -53,6 +53,8 @@ enum TransportParameters::TransportParameterId : uint64_t {
 
   kMaxDatagramFrameSize = 0x20,
 
+  kGoogleHandshakeMessage = 0x26ab,
+
   kInitialRoundTripTime = 0x3127,
   kGoogleConnectionOptions = 0x3128,
   // 0x3129 was used to convey the user agent string.
@@ -119,6 +121,8 @@ std::string TransportParameterIdToString(
       return "retry_source_connection_id";
     case TransportParameters::kMaxDatagramFrameSize:
       return "max_datagram_frame_size";
+    case TransportParameters::kGoogleHandshakeMessage:
+      return "google_handshake_message";
     case TransportParameters::kInitialRoundTripTime:
       return "initial_round_trip_time";
     case TransportParameters::kGoogleConnectionOptions:
@@ -154,6 +158,7 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kInitialSourceConnectionId:
     case TransportParameters::kRetrySourceConnectionId:
     case TransportParameters::kMaxDatagramFrameSize:
+    case TransportParameters::kGoogleHandshakeMessage:
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
     case TransportParameters::kGoogleQuicVersion:
@@ -419,6 +424,11 @@ std::string TransportParameters::ToString() const {
           retry_source_connection_id.value().ToString();
   }
   rv += max_datagram_frame_size.ToString(/*for_use_in_list=*/true);
+  if (google_handshake_message.has_value()) {
+    absl::StrAppend(&rv, " ",
+                    TransportParameterIdToString(kGoogleHandshakeMessage),
+                    " length: ", google_handshake_message.value().length());
+  }
   rv += initial_round_trip_time_us.ToString(/*for_use_in_list=*/true);
   if (google_connection_options.has_value()) {
     rv += " " + TransportParameterIdToString(kGoogleConnectionOptions) + " ";
@@ -505,6 +515,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       retry_source_connection_id(other.retry_source_connection_id),
       max_datagram_frame_size(other.max_datagram_frame_size),
       initial_round_trip_time_us(other.initial_round_trip_time_us),
+      google_handshake_message(other.google_handshake_message),
       google_connection_options(other.google_connection_options),
       custom_parameters(other.custom_parameters) {
   if (other.preferred_address) {
@@ -545,6 +556,7 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
             rhs.max_datagram_frame_size.value() &&
         initial_round_trip_time_us.value() ==
             rhs.initial_round_trip_time_us.value() &&
+        google_handshake_message == rhs.google_handshake_message &&
         google_connection_options == rhs.google_connection_options &&
         custom_parameters == rhs.custom_parameters)) {
     return false;
@@ -614,6 +626,11 @@ bool TransportParameters::AreValid(std::string* error_details) const {
                                     " is not allowed");
       return false;
     }
+  }
+  if (perspective == Perspective::IS_SERVER &&
+      google_handshake_message.has_value()) {
+    *error_details = "Server cannot send google_handshake_message";
+    return false;
   }
   if (perspective == Perspective::IS_SERVER &&
       initial_round_trip_time_us.value() > 0) {
@@ -726,6 +743,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       kConnectionIdParameterLength +      // retry_source_connection_id
       kIntegerParameterLength +           // max_datagram_frame_size
       kIntegerParameterLength +           // initial_round_trip_time_us
+      kTypeAndValueLength +               // google_handshake_message
       kTypeAndValueLength +               // google_connection_options
       kTypeAndValueLength;                // google-version
 
@@ -745,6 +763,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       TransportParameters::kMinAckDelay,
       TransportParameters::kActiveConnectionIdLimit,
       TransportParameters::kMaxDatagramFrameSize,
+      TransportParameters::kGoogleHandshakeMessage,
       TransportParameters::kInitialRoundTripTime,
       TransportParameters::kDisableActiveMigration,
       TransportParameters::kPreferredAddress,
@@ -776,6 +795,10 @@ bool SerializeTransportParameters(const TransportParameters& in,
         // Add one for the added GREASE version.
         (in.version_information.value().other_versions.size() + 1) *
             sizeof(QuicVersionLabel);
+  }
+  // google_handshake_message.
+  if (in.google_handshake_message.has_value()) {
+    max_transport_param_length += in.google_handshake_message.value().length();
   }
 
   // Add a random GREASE transport parameter, as defined in the
@@ -956,6 +979,20 @@ bool SerializeTransportParameters(const TransportParameters& in,
           QUIC_BUG(Failed to write max_datagram_frame_size)
               << "Failed to write max_datagram_frame_size for " << in;
           return false;
+        }
+      } break;
+      // google_handshake_message
+      case TransportParameters::kGoogleHandshakeMessage: {
+        if (in.google_handshake_message.has_value()) {
+          if (!writer.WriteVarInt62(
+                  TransportParameters::kGoogleHandshakeMessage) ||
+              !writer.WriteStringPieceVarInt62(
+                  in.google_handshake_message.value())) {
+            QUIC_BUG(Failed to write google_handshake_message)
+                << "Failed to write google_handshake_message: "
+                << in.google_handshake_message.value() << " for " << in;
+            return false;
+          }
         }
       } break;
       // initial_round_trip_time_us
@@ -1385,6 +1422,14 @@ bool ParseTransportParameters(ParsedQuicVersion version,
       case TransportParameters::kMaxDatagramFrameSize:
         parse_success =
             out->max_datagram_frame_size.Read(&value_reader, error_details);
+        break;
+      case TransportParameters::kGoogleHandshakeMessage:
+        if (out->google_handshake_message.has_value()) {
+          *error_details = "Received a second google_handshake_message";
+          return false;
+        }
+        out->google_handshake_message =
+            std::string(value_reader.ReadRemainingPayload());
         break;
       case TransportParameters::kInitialRoundTripTime:
         parse_success =

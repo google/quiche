@@ -467,6 +467,15 @@ void QuicConfig::SetConnectionOptionsToSend(
   connection_options_.SetSendValues(connection_options);
 }
 
+void QuicConfig::SetGoogleHandshakeMessageToSend(const std::string& message) {
+  google_handshake_message_to_send_ = message;
+}
+
+absl::optional<std::string> QuicConfig::GetReceivedGoogleHandshakeMessage()
+    const {
+  return received_google_handshake_message_;
+}
+
 bool QuicConfig::HasReceivedConnectionOptions() const {
   return connection_options_.HasReceivedValues();
 }
@@ -1253,6 +1262,10 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
     params->google_connection_options = connection_options_.GetSendValues();
   }
 
+  if (google_handshake_message_to_send_.has_value()) {
+    params->google_handshake_message = google_handshake_message_to_send_;
+  }
+
   params->custom_parameters = custom_transport_parameters_to_send_;
 
   return true;
@@ -1383,6 +1396,9 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   if (params.google_connection_options.has_value()) {
     connection_options_.SetReceivedValues(
         params.google_connection_options.value());
+  }
+  if (params.google_handshake_message.has_value()) {
+    received_google_handshake_message_ = params.google_handshake_message;
   }
 
   received_custom_transport_parameters_ = params.custom_parameters;

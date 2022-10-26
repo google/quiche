@@ -247,6 +247,10 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   bool HasReceivedConnectionOptions() const;
 
+  void SetGoogleHandshakeMessageToSend(const std::string& message);
+
+  absl::optional<std::string> GetReceivedGoogleHandshakeMessage() const;
+
   // Sets initial received connection options.  All received connection options
   // will be initialized with these fields. Initial received options may only be
   // set once per config, prior to the setting of any other options.  If options
@@ -657,6 +661,10 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // handshake.
   TransportParameters::ParameterMap custom_transport_parameters_to_send_;
   TransportParameters::ParameterMap received_custom_transport_parameters_;
+
+  // Google internal handshake message.
+  absl::optional<std::string> google_handshake_message_to_send_;
+  absl::optional<std::string> received_google_handshake_message_;
 };
 
 }  // namespace quic
