@@ -2,6 +2,7 @@
 #define QUICHE_OBLIVIOUS_HTTP_OBLIVIOUS_HTTP_GATEWAY_H_
 
 #include <memory>
+#include <string>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -61,7 +62,7 @@ class QUICHE_EXPORT ObliviousHttpGateway {
   // `ObliviousHttpRequest` and pass in to this method in order to handle the
   // response flow back to the client.
   absl::StatusOr<ObliviousHttpResponse> CreateObliviousHttpResponse(
-      absl::string_view plaintext_data,
+      std::string plaintext_data,
       ObliviousHttpRequest::Context& oblivious_http_request_context) const;
 
  private:

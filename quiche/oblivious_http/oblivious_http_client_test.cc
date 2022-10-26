@@ -36,17 +36,17 @@ const ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id,
   auto ohttp_key_config =
       ObliviousHttpHeaderKeyConfig::Create(key_id, kem_id, kdf_id, aead_id);
   EXPECT_TRUE(ohttp_key_config.ok());
-  return std::move(ohttp_key_config.value());
+  return ohttp_key_config.value();
 }
 
 bssl::UniquePtr<EVP_HPKE_KEY> ConstructHpkeKey(
     absl::string_view hpke_key,
-    const ObliviousHttpHeaderKeyConfig &ohttp_key_config) {
+    const ObliviousHttpHeaderKeyConfig& ohttp_key_config) {
   bssl::UniquePtr<EVP_HPKE_KEY> bssl_hpke_key(EVP_HPKE_KEY_new());
   EXPECT_NE(bssl_hpke_key, nullptr);
   EXPECT_TRUE(EVP_HPKE_KEY_init(
       bssl_hpke_key.get(), ohttp_key_config.GetHpkeKem(),
-      reinterpret_cast<const uint8_t *>(hpke_key.data()), hpke_key.size()));
+      reinterpret_cast<const uint8_t*>(hpke_key.data()), hpke_key.size()));
   return bssl_hpke_key;
 }
 
@@ -150,7 +150,7 @@ TEST(ObliviousHttpClient, TestObliviousResponseHandling) {
   auto client_request_context =
       std::move(encapsulate_req_on_client.value()).ReleaseContext();
   auto decapsulate_resp_on_client = client->DecryptObliviousHttpResponse(
-      absl::string_view(encapsulate_resp_on_gateway->EncapsulateAndSerialize()),
+      encapsulate_resp_on_gateway->EncapsulateAndSerialize(),
       client_request_context);
   ASSERT_TRUE(decapsulate_resp_on_client.ok());
   EXPECT_EQ(decapsulate_resp_on_client->GetPlaintextData(), "test response");
@@ -182,7 +182,7 @@ TEST(ObliviousHttpClient,
       ObliviousHttpClient::Create(GetHpkePublicKey(), ohttp_key_config);
   ASSERT_TRUE(client.ok());
   auto decapsulate_resp_on_client = client->DecryptObliviousHttpResponse(
-      absl::string_view(encapsulate_resp_on_gateway->EncapsulateAndSerialize()),
+      encapsulate_resp_on_gateway->EncapsulateAndSerialize(),
       gateway_request_context);
   ASSERT_TRUE(decapsulate_resp_on_client.ok());
   EXPECT_EQ(decapsulate_resp_on_client->GetPlaintextData(), "test response");

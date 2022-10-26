@@ -60,12 +60,12 @@ class QUICHE_EXPORT ObliviousHttpRequest {
   // On success, returns obj that callers will use to `EncapsulateAndSerialize`
   // OHttp request.
   static absl::StatusOr<ObliviousHttpRequest> CreateClientObliviousRequest(
-      absl::string_view plaintext_payload, absl::string_view hpke_public_key,
+      std::string plaintext_payload, absl::string_view hpke_public_key,
       const ObliviousHttpHeaderKeyConfig& ohttp_key_config);
 
   // Same as above but accepts a random number seed for testing.
   static absl::StatusOr<ObliviousHttpRequest> CreateClientWithSeedForTesting(
-      absl::string_view plaintext_payload, absl::string_view hpke_public_key,
+      std::string plaintext_payload, absl::string_view hpke_public_key,
       const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
       absl::string_view seed);
 
@@ -104,7 +104,7 @@ class QUICHE_EXPORT ObliviousHttpRequest {
       std::string req_ciphertext, std::string req_plaintext);
 
   static absl::StatusOr<ObliviousHttpRequest> EncapsulateWithSeed(
-      absl::string_view plaintext_payload, absl::string_view hpke_public_key,
+      std::string plaintext_payload, absl::string_view hpke_public_key,
       const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
       absl::string_view seed);
 

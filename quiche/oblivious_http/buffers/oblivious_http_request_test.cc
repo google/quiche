@@ -116,7 +116,7 @@ TEST(ObliviousHttpRequest, TestEncapsulatedRequestStructure) {
   uint16_t test_kem_id = EVP_HPKE_DHKEM_X25519_HKDF_SHA256;
   uint16_t test_kdf_id = EVP_HPKE_HKDF_SHA256;
   uint16_t test_aead_id = EVP_HPKE_AES_256_GCM;
-  absl::string_view plaintext = "test";
+  std::string plaintext = "test";
   auto instance = ObliviousHttpRequest::CreateClientObliviousRequest(
       plaintext, GetHpkePublicKey(),
       GetOhttpKeyConfig(test_key_id, test_kem_id, test_kdf_id, test_aead_id));

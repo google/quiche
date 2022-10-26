@@ -37,9 +37,9 @@ std::string random(QuicheRandom* quiche_random, size_t len) {
 ObliviousHttpResponse::ObliviousHttpResponse(std::string resp_nonce,
                                              std::string resp_ciphertext,
                                              std::string resp_plaintext)
-    : response_nonce_(resp_nonce),
-      response_ciphertext_(resp_ciphertext),
-      response_plaintext_(resp_plaintext) {}
+    : response_nonce_(std::move(resp_nonce)),
+      response_ciphertext_(std::move(resp_ciphertext)),
+      response_plaintext_(std::move(resp_plaintext)) {}
 
 // Response Decapsulation.
 // 1. Extract resp_nonce
@@ -119,9 +119,10 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
         "Failed to decrypt the response with derived AEAD key and nonce.");
   }
   decrypted.resize(decrypted_len);
-  ObliviousHttpResponse oblivious_response(
-      std::string(response_nonce), std::string(encrypted_response), decrypted);
-  return std::move(oblivious_response);
+  ObliviousHttpResponse oblivious_response(std::string(response_nonce),
+                                           std::string(encrypted_response),
+                                           std::move(decrypted));
+  return oblivious_response;
 }
 
 // Response Encapsulation.
@@ -131,7 +132,7 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
 // encrypt) the response back to the Sender(client)
 absl::StatusOr<ObliviousHttpResponse>
 ObliviousHttpResponse::CreateServerObliviousResponse(
-    absl::string_view plaintext_payload,
+    std::string plaintext_payload,
     ObliviousHttpRequest::Context& oblivious_http_request_context,
     QuicheRandom* quiche_random) {
   if (oblivious_http_request_context.hpke_context_ == nullptr) {
@@ -196,9 +197,10 @@ ObliviousHttpResponse::CreateServerObliviousResponse(
         (response_nonce.empty() ? "Generated nonce is empty." : ""),
         (ciphertext.empty() ? "Generated Encrypted payload is empty." : "")));
   }
-  ObliviousHttpResponse oblivious_response(response_nonce, ciphertext,
-                                           std::string(plaintext_payload));
-  return std::move(oblivious_response);
+  ObliviousHttpResponse oblivious_response(std::move(response_nonce),
+                                           std::move(ciphertext),
+                                           std::move(plaintext_payload));
+  return oblivious_response;
 }
 
 // Serialize.
@@ -233,7 +235,7 @@ ObliviousHttpResponse::GetCommonAeadParams(
   const size_t secret_len = std::max(aead_key_len, aead_nonce_len);
   CommonAeadParamsResult result{evp_hpke_aead, aead_key_len, aead_nonce_len,
                                 secret_len};
-  return std::move(result);
+  return result;
 }
 
 // Common Steps of AEAD key and AEAD nonce derivation common to both
@@ -346,7 +348,7 @@ ObliviousHttpResponse::CommonOperationsToEncapDecap(
         "Failed to initialize AEAD context with derived key.");
   }
   CommonOperationsResult result{std::move(aead_ctx), std::move(aead_nonce)};
-  return std::move(result);
+  return result;
 }
 
 }  // namespace quiche

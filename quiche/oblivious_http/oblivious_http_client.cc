@@ -75,17 +75,17 @@ absl::StatusOr<ObliviousHttpClient> ObliviousHttpClient::Create(
 
 absl::StatusOr<ObliviousHttpRequest>
 ObliviousHttpClient::CreateObliviousHttpRequest(
-    absl::string_view plaintext_data) const {
+    std::string plaintext_data) const {
   return ObliviousHttpRequest::CreateClientObliviousRequest(
-      plaintext_data, hpke_public_key_, ohttp_key_config_);
+      std::move(plaintext_data), hpke_public_key_, ohttp_key_config_);
 }
 
 absl::StatusOr<ObliviousHttpResponse>
 ObliviousHttpClient::DecryptObliviousHttpResponse(
-    absl::string_view encrypted_data,
+    std::string encrypted_data,
     ObliviousHttpRequest::Context& oblivious_http_request_context) const {
   return ObliviousHttpResponse::CreateClientObliviousResponse(
-      encrypted_data, oblivious_http_request_context);
+      std::move(encrypted_data), oblivious_http_request_context);
 }
 
 }  // namespace quiche

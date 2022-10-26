@@ -95,23 +95,23 @@ ObliviousHttpRequest::CreateServerObliviousRequest(
 // Request Encapsulation.
 absl::StatusOr<ObliviousHttpRequest>
 ObliviousHttpRequest::CreateClientObliviousRequest(
-    absl::string_view plaintext_payload, absl::string_view hpke_public_key,
+    std::string plaintext_payload, absl::string_view hpke_public_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config) {
-  return EncapsulateWithSeed(plaintext_payload, hpke_public_key,
+  return EncapsulateWithSeed(std::move(plaintext_payload), hpke_public_key,
                              ohttp_key_config, "");
 }
 
 absl::StatusOr<ObliviousHttpRequest>
 ObliviousHttpRequest::CreateClientWithSeedForTesting(
-    absl::string_view plaintext_payload, absl::string_view hpke_public_key,
+    std::string plaintext_payload, absl::string_view hpke_public_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
     absl::string_view seed) {
   return ObliviousHttpRequest::EncapsulateWithSeed(
-      plaintext_payload, hpke_public_key, ohttp_key_config, seed);
+      std::move(plaintext_payload), hpke_public_key, ohttp_key_config, seed);
 }
 
 absl::StatusOr<ObliviousHttpRequest> ObliviousHttpRequest::EncapsulateWithSeed(
-    absl::string_view plaintext_payload, absl::string_view hpke_public_key,
+    std::string plaintext_payload, absl::string_view hpke_public_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
     absl::string_view seed) {
   if (plaintext_payload.empty() || hpke_public_key.empty()) {
@@ -182,7 +182,7 @@ absl::StatusOr<ObliviousHttpRequest> ObliviousHttpRequest::EncapsulateWithSeed(
 
   return ObliviousHttpRequest(
       std::move(client_ctx), std::move(encapsulated_key), ohttp_key_config,
-      std::move(ciphertext), std::string(plaintext_payload));
+      std::move(ciphertext), std::move(plaintext_payload));
 }
 
 // Request Serialize.

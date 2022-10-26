@@ -50,7 +50,7 @@ const ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id,
   auto ohttp_key_config =
       ObliviousHttpHeaderKeyConfig::Create(key_id, kem_id, kdf_id, aead_id);
   EXPECT_TRUE(ohttp_key_config.ok());
-  return std::move(ohttp_key_config.value());
+  return ohttp_key_config.value();
 }
 
 bssl::UniquePtr<EVP_HPKE_CTX> GetSeededClientContext(uint8_t key_id,
@@ -90,11 +90,12 @@ bssl::UniquePtr<EVP_HPKE_KEY> ConstructHpkeKey(
 ObliviousHttpRequest SetUpObliviousHttpContext(uint8_t key_id, uint16_t kem_id,
                                                uint16_t kdf_id,
                                                uint16_t aead_id,
-                                               absl::string_view plaintext) {
+                                               std::string plaintext) {
   auto ohttp_key_config = GetOhttpKeyConfig(key_id, kem_id, kdf_id, aead_id);
   auto client_request_encapsulate =
       ObliviousHttpRequest::CreateClientWithSeedForTesting(
-          plaintext, GetHpkePublicKey(), ohttp_key_config, GetSeed());
+          std::move(plaintext), GetHpkePublicKey(), ohttp_key_config,
+          GetSeed());
   EXPECT_TRUE(client_request_encapsulate.ok());
   auto oblivious_request =
       client_request_encapsulate->EncapsulateAndSerialize();

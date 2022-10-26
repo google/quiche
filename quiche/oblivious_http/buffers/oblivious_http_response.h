@@ -37,7 +37,7 @@ class QUICHE_EXPORT ObliviousHttpResponse {
   // string generation. `quiche_random` is required to stay alive only for the
   // lifetime of this factory method call.
   static absl::StatusOr<ObliviousHttpResponse> CreateServerObliviousResponse(
-      absl::string_view plaintext_payload,
+      std::string plaintext_payload,
       ObliviousHttpRequest::Context& oblivious_http_request_context,
       QuicheRandom* quiche_random = nullptr);
 
