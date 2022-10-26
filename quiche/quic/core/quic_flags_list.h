@@ -24,7 +24,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicConnectionContext will track the decrypted payload and the offset of the current frame, for debugging.
 QUIC_FLAG(quic_reloadable_flag_quic_add_process_packet_context, true)
 // If true, QuicCryptoServerConfig::ParseConfigProtobuf will treat an empty SCID as the same as non-existent.
-QUIC_FLAG(quic_restart_flag_quic_return_error_on_empty_scid, false)
+QUIC_FLAG(quic_restart_flag_quic_return_error_on_empty_scid, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, ack frequency frame can be sent from server to client.
