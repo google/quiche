@@ -10,14 +10,13 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_data_writer.h"
 
 namespace quiche {
 
 // UDP-proxying HTTP Datagram payload for use with CONNECT-UDP. See RFC 9298,
 // Section 5.
-class QUICHE_EXPORT ConnectUdpDatagramPayload {
+class ConnectUdpDatagramPayload {
  public:
   using ContextId = uint64_t;
   enum class Type { kUdpPacket, kUnknown };
@@ -54,7 +53,7 @@ class QUICHE_EXPORT ConnectUdpDatagramPayload {
 };
 
 // UDP-proxying HTTP Datagram payload that encodes a UDP packet.
-class QUICHE_EXPORT ConnectUdpDatagramUdpPacketPayload final
+class ConnectUdpDatagramUdpPacketPayload final
     : public ConnectUdpDatagramPayload {
  public:
   static constexpr ContextId kContextId = 0;
@@ -75,7 +74,7 @@ class QUICHE_EXPORT ConnectUdpDatagramUdpPacketPayload final
   absl::string_view udp_packet_;
 };
 
-class QUICHE_EXPORT ConnectUdpDatagramUnknownPayload final
+class ConnectUdpDatagramUnknownPayload final
     : public ConnectUdpDatagramPayload {
  public:
   // `udp_proxying_payload` represents the inner payload contained by the UDP-
