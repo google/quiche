@@ -1370,13 +1370,16 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
     return false;
   }
   switch (capsule.capsule_type()) {
+    case CapsuleType::DATAGRAM: {
+      HandleReceivedDatagram(capsule.datagram_capsule().http_datagram_payload);
+    } break;
     case CapsuleType::LEGACY_DATAGRAM: {
       HandleReceivedDatagram(
           capsule.legacy_datagram_capsule().http_datagram_payload);
     } break;
-    case CapsuleType::DATAGRAM_WITHOUT_CONTEXT: {
-      HandleReceivedDatagram(
-          capsule.datagram_without_context_capsule().http_datagram_payload);
+    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT: {
+      HandleReceivedDatagram(capsule.legacy_datagram_without_context_capsule()
+                                 .http_datagram_payload);
     } break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION: {
       if (web_transport_ == nullptr) {
@@ -1541,12 +1544,12 @@ QuicByteCount QuicSpdyStream::GetMaxDatagramSize() const {
   QuicByteCount prefix_size = 0;
   switch (spdy_session_->http_datagram_support()) {
     case HttpDatagramSupport::kDraft04:
-    case HttpDatagramSupport::kDraft09:
+    case HttpDatagramSupport::kRfc:
       prefix_size =
           QuicDataWriter::GetVarInt62Len(id() / kHttpDatagramStreamIdDivisor);
       break;
     case HttpDatagramSupport::kNone:
-    case HttpDatagramSupport::kDraft04And09:
+    case HttpDatagramSupport::kRfcAndDraft04:
       QUIC_BUG(GetMaxDatagramSize called with no datagram support)
           << "GetMaxDatagramSize() called when no HTTP/3 datagram support has "
              "been negotiated.  Support value: "

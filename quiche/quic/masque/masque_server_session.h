@@ -93,7 +93,7 @@ class QUIC_NO_EXPORT MasqueServerSession
   // From QuicSpdySession.
   bool OnSettingsFrame(const SettingsFrame& frame) override;
   HttpDatagramSupport LocalHttpDatagramSupport() override {
-    return HttpDatagramSupport::kDraft09;
+    return HttpDatagramSupport::kRfc;
   }
 
   MasqueServerBackend* masque_server_backend_;  // Unowned.

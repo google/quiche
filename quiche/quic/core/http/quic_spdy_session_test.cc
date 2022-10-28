@@ -3370,12 +3370,12 @@ void QuicSpdySessionTestBase::TestHttpDatagramSetting(
     case HttpDatagramSupport::kDraft04:
       settings.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
       break;
-    case HttpDatagramSupport::kDraft09:
-      settings.values[SETTINGS_H3_DATAGRAM_DRAFT09] = 1;
+    case HttpDatagramSupport::kRfc:
+      settings.values[SETTINGS_H3_DATAGRAM] = 1;
       break;
-    case HttpDatagramSupport::kDraft04And09:
+    case HttpDatagramSupport::kRfcAndDraft04:
+      settings.values[SETTINGS_H3_DATAGRAM] = 1;
       settings.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
-      settings.values[SETTINGS_H3_DATAGRAM_DRAFT09] = 1;
       break;
   }
   std::string data = std::string(1, kControlStream) +
@@ -3403,7 +3403,7 @@ TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal04Remote04) {
 TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal04Remote09) {
   TestHttpDatagramSetting(
       /*local_support=*/HttpDatagramSupport::kDraft04,
-      /*remote_support=*/HttpDatagramSupport::kDraft09,
+      /*remote_support=*/HttpDatagramSupport::kRfc,
       /*expected_support=*/HttpDatagramSupport::kNone,
       /*expected_datagram_supported=*/false);
 }
@@ -3411,14 +3411,14 @@ TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal04Remote09) {
 TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal04Remote04And09) {
   TestHttpDatagramSetting(
       /*local_support=*/HttpDatagramSupport::kDraft04,
-      /*remote_support=*/HttpDatagramSupport::kDraft04And09,
+      /*remote_support=*/HttpDatagramSupport::kRfcAndDraft04,
       /*expected_support=*/HttpDatagramSupport::kDraft04,
       /*expected_datagram_supported=*/true);
 }
 
 TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal09Remote04) {
   TestHttpDatagramSetting(
-      /*local_support=*/HttpDatagramSupport::kDraft09,
+      /*local_support=*/HttpDatagramSupport::kRfc,
       /*remote_support=*/HttpDatagramSupport::kDraft04,
       /*expected_support=*/HttpDatagramSupport::kNone,
       /*expected_datagram_supported=*/false);
@@ -3426,23 +3426,23 @@ TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal09Remote04) {
 
 TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal09Remote09) {
   TestHttpDatagramSetting(
-      /*local_support=*/HttpDatagramSupport::kDraft09,
-      /*remote_support=*/HttpDatagramSupport::kDraft09,
-      /*expected_support=*/HttpDatagramSupport::kDraft09,
+      /*local_support=*/HttpDatagramSupport::kRfc,
+      /*remote_support=*/HttpDatagramSupport::kRfc,
+      /*expected_support=*/HttpDatagramSupport::kRfc,
       /*expected_datagram_supported=*/true);
 }
 
 TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal09Remote04And09) {
   TestHttpDatagramSetting(
-      /*local_support=*/HttpDatagramSupport::kDraft09,
-      /*remote_support=*/HttpDatagramSupport::kDraft04And09,
-      /*expected_support=*/HttpDatagramSupport::kDraft09,
+      /*local_support=*/HttpDatagramSupport::kRfc,
+      /*remote_support=*/HttpDatagramSupport::kRfcAndDraft04,
+      /*expected_support=*/HttpDatagramSupport::kRfc,
       /*expected_datagram_supported=*/true);
 }
 
 TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal04And09Remote04) {
   TestHttpDatagramSetting(
-      /*local_support=*/HttpDatagramSupport::kDraft04And09,
+      /*local_support=*/HttpDatagramSupport::kRfcAndDraft04,
       /*remote_support=*/HttpDatagramSupport::kDraft04,
       /*expected_support=*/HttpDatagramSupport::kDraft04,
       /*expected_datagram_supported=*/true);
@@ -3450,18 +3450,18 @@ TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal04And09Remote04) {
 
 TEST_P(QuicSpdySessionTestClient, HttpDatagramSettingLocal04And09Remote09) {
   TestHttpDatagramSetting(
-      /*local_support=*/HttpDatagramSupport::kDraft04And09,
-      /*remote_support=*/HttpDatagramSupport::kDraft09,
-      /*expected_support=*/HttpDatagramSupport::kDraft09,
+      /*local_support=*/HttpDatagramSupport::kRfcAndDraft04,
+      /*remote_support=*/HttpDatagramSupport::kRfc,
+      /*expected_support=*/HttpDatagramSupport::kRfc,
       /*expected_datagram_supported=*/true);
 }
 
 TEST_P(QuicSpdySessionTestClient,
        HttpDatagramSettingLocal04And09Remote04And09) {
   TestHttpDatagramSetting(
-      /*local_support=*/HttpDatagramSupport::kDraft04And09,
-      /*remote_support=*/HttpDatagramSupport::kDraft04And09,
-      /*expected_support=*/HttpDatagramSupport::kDraft09,
+      /*local_support=*/HttpDatagramSupport::kRfcAndDraft04,
+      /*remote_support=*/HttpDatagramSupport::kRfcAndDraft04,
+      /*expected_support=*/HttpDatagramSupport::kRfc,
       /*expected_datagram_supported=*/true);
 }
 TEST_P(QuicSpdySessionTestClient, WebTransportSetting) {

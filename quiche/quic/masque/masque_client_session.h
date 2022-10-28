@@ -125,7 +125,7 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   };
 
   HttpDatagramSupport LocalHttpDatagramSupport() override {
-    return HttpDatagramSupport::kDraft09;
+    return HttpDatagramSupport::kRfc;
   }
 
   const ConnectUdpClientState* GetOrCreateConnectUdpClientState(
