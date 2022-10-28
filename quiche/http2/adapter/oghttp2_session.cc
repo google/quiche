@@ -1430,8 +1430,20 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
 void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
                                     int delta_window_size) {
   if (stream_id == 0) {
+    if (delta_window_size == 0) {
+      // A PROTOCOL_ERROR, according to RFC 9113 Section 6.9.
+      LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                          ConnectionError::kFlowControlError);
+      return;
+    }
     connection_send_window_ += delta_window_size;
   } else {
+    if (delta_window_size == 0) {
+      // A PROTOCOL_ERROR, according to RFC 9113 Section 6.9.
+      EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
+          stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
+      return;
+    }
     auto it = stream_map_.find(stream_id);
     if (it == stream_map_.end()) {
       QUICHE_VLOG(1) << "Stream " << stream_id << " not found!";
