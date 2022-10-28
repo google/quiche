@@ -23,22 +23,18 @@
 namespace quiche {
 namespace {
 // Generate a random string.
-std::string random(QuicheRandom* quiche_random, size_t len) {
-  std::string token(len, '\0');
+void random(QuicheRandom* quiche_random, char* dest, size_t len) {
   if (quiche_random == nullptr) {
     quiche_random = QuicheRandom::GetInstance();
   }
-  quiche_random->RandBytes(token.data(), token.size());
-  return token;
+  quiche_random->RandBytes(dest, len);
 }
 }  // namespace
 
 // Ctor.
-ObliviousHttpResponse::ObliviousHttpResponse(std::string resp_nonce,
-                                             std::string resp_ciphertext,
+ObliviousHttpResponse::ObliviousHttpResponse(std::string encrypted_data,
                                              std::string resp_plaintext)
-    : response_nonce_(std::move(resp_nonce)),
-      response_ciphertext_(std::move(resp_ciphertext)),
+    : encrypted_data_(std::move(encrypted_data)),
       response_plaintext_(std::move(resp_plaintext)) {}
 
 // Response Decapsulation.
@@ -50,7 +46,7 @@ ObliviousHttpResponse::ObliviousHttpResponse(std::string resp_nonce,
 // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-4
 absl::StatusOr<ObliviousHttpResponse>
 ObliviousHttpResponse::CreateClientObliviousResponse(
-    absl::string_view encrypted_data,
+    std::string encrypted_data,
     ObliviousHttpRequest::Context& oblivious_http_request_context) {
   if (oblivious_http_request_context.hpke_context_ == nullptr) {
     return absl::FailedPreconditionError(
@@ -87,8 +83,10 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
   }
   // Extract response_nonce. Step 2
   // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.2
-  absl::string_view response_nonce = encrypted_data.substr(0, secret_len);
-  absl::string_view encrypted_response = encrypted_data.substr(secret_len);
+  absl::string_view response_nonce =
+      absl::string_view(encrypted_data).substr(0, secret_len);
+  absl::string_view encrypted_response =
+      absl::string_view(encrypted_data).substr(secret_len);
 
   // Steps (1, 3 to 5) + AEAD context SetUp before 6th step is performed in
   // CommonOperations.
@@ -119,8 +117,7 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
         "Failed to decrypt the response with derived AEAD key and nonce.");
   }
   decrypted.resize(decrypted_len);
-  ObliviousHttpResponse oblivious_response(std::string(response_nonce),
-                                           std::string(encrypted_response),
+  ObliviousHttpResponse oblivious_response(std::move(encrypted_data),
                                            std::move(decrypted));
   return oblivious_response;
 }
@@ -156,9 +153,17 @@ ObliviousHttpResponse::CreateServerObliviousResponse(
   if (!aead_params_st.ok()) {
     return aead_params_st.status();
   }
+  const size_t nonce_size = aead_params_st->secret_len;
+  const size_t max_encrypted_data_size =
+      nonce_size + plaintext_payload.size() +
+      EVP_AEAD_max_overhead(EVP_HPKE_AEAD_aead(EVP_HPKE_CTX_aead(
+          oblivious_http_request_context.hpke_context_.get())));
+  std::string encrypted_data(max_encrypted_data_size, '\0');
   // response_nonce = random(max(Nn, Nk))
   // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.2
-  std::string response_nonce(random(quiche_random, aead_params_st->secret_len));
+  random(quiche_random, encrypted_data.data(), nonce_size);
+  absl::string_view response_nonce =
+      absl::string_view(encrypted_data).substr(0, nonce_size);
 
   // Steps (1, 3 to 5) + AEAD context SetUp before 6th step is performed in
   // CommonOperations.
@@ -172,16 +177,11 @@ ObliviousHttpResponse::CreateServerObliviousResponse(
 
   // ct = Seal(aead_key, aead_nonce, "", response)
   // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.6
-  std::string ciphertext(
-      plaintext_payload.size() +
-          EVP_AEAD_max_overhead(EVP_HPKE_AEAD_aead(EVP_HPKE_CTX_aead(
-              oblivious_http_request_context.hpke_context_.get()))),
-      '\0');
   size_t ciphertext_len;
   if (!EVP_AEAD_CTX_seal(
           common_ops_st.value().aead_ctx.get(),
-          reinterpret_cast<uint8_t*>(ciphertext.data()), &ciphertext_len,
-          ciphertext.size(),
+          reinterpret_cast<uint8_t*>(encrypted_data.data() + nonce_size),
+          &ciphertext_len, encrypted_data.size() - nonce_size,
           reinterpret_cast<const uint8_t*>(
               common_ops_st.value().aead_nonce.data()),
           aead_params_st.value().aead_nonce_len,
@@ -190,15 +190,14 @@ ObliviousHttpResponse::CreateServerObliviousResponse(
     return SslErrorAsStatus(
         "Failed to encrypt the payload with derived AEAD key.");
   }
-  ciphertext.resize(ciphertext_len);
-  if (response_nonce.empty() || ciphertext.empty()) {
+  encrypted_data.resize(nonce_size + ciphertext_len);
+  if (nonce_size == 0 || ciphertext_len == 0) {
     return absl::InternalError(absl::StrCat(
         "ObliviousHttpResponse Object wasn't initialized with required fields.",
-        (response_nonce.empty() ? "Generated nonce is empty." : ""),
-        (ciphertext.empty() ? "Generated Encrypted payload is empty." : "")));
+        (nonce_size == 0 ? "Generated nonce is empty." : ""),
+        (ciphertext_len == 0 ? "Generated Encrypted payload is empty." : "")));
   }
-  ObliviousHttpResponse oblivious_response(std::move(response_nonce),
-                                           std::move(ciphertext),
+  ObliviousHttpResponse oblivious_response(std::move(encrypted_data),
                                            std::move(plaintext_payload));
   return oblivious_response;
 }
@@ -206,12 +205,12 @@ ObliviousHttpResponse::CreateServerObliviousResponse(
 // Serialize.
 // enc_response = concat(response_nonce, ct)
 // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-4
-std::string ObliviousHttpResponse::EncapsulateAndSerialize() const {
-  return absl::StrCat(response_nonce_, response_ciphertext_);
+const std::string& ObliviousHttpResponse::EncapsulateAndSerialize() const {
+  return encrypted_data_;
 }
 
 // Decrypted blob.
-absl::string_view ObliviousHttpResponse::GetPlaintextData() const {
+const std::string& ObliviousHttpResponse::GetPlaintextData() const {
   return response_plaintext_;
 }
 
