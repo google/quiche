@@ -309,8 +309,7 @@ QUICHE_EXPORT absl::optional<List> ParseList(absl::string_view str);
 // Returns the result of parsing the header value as a general Dictionary, if it
 // can be parsed as one, or nullopt if it cannot. Structured-Headers Draft 15
 // only.
-QUICHE_EXPORT absl::optional<Dictionary> ParseDictionary(
-    const absl::string_view& str);
+QUICHE_EXPORT absl::optional<Dictionary> ParseDictionary(absl::string_view str);
 
 // Serialization is implemented for Structured-Headers Draft 15 only.
 QUICHE_EXPORT absl::optional<std::string> SerializeItem(const Item& value);

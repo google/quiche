@@ -875,7 +875,7 @@ absl::optional<List> ParseList(absl::string_view str) {
   return absl::nullopt;
 }
 
-absl::optional<Dictionary> ParseDictionary(const absl::string_view& str) {
+absl::optional<Dictionary> ParseDictionary(absl::string_view str) {
   StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal);
   absl::optional<Dictionary> dictionary = parser.ReadDictionary();
   if (dictionary && parser.FinishParsing()) return dictionary;
