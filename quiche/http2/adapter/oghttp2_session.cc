@@ -1429,10 +1429,18 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
 
 void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
                                     int delta_window_size) {
+  constexpr int kMaxWindowValue = 2147483647;  // (1 << 31) - 1
   if (stream_id == 0) {
     if (delta_window_size == 0) {
       // A PROTOCOL_ERROR, according to RFC 9113 Section 6.9.
       LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
+                          ConnectionError::kFlowControlError);
+      return;
+    }
+    if (connection_send_window_ > 0 &&
+        delta_window_size > (kMaxWindowValue - connection_send_window_)) {
+      // Window overflow is a FLOW_CONTROL_ERROR.
+      LatchErrorAndNotify(Http2ErrorCode::FLOW_CONTROL_ERROR,
                           ConnectionError::kFlowControlError);
       return;
     }
@@ -1457,6 +1465,13 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
       return;
     } else {
       if (streams_reset_.contains(stream_id)) {
+        return;
+      }
+      if (it->second.send_window > 0 &&
+          delta_window_size > (kMaxWindowValue - it->second.send_window)) {
+        // Window overflow is a FLOW_CONTROL_ERROR.
+        EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
+            stream_id, spdy::ERROR_CODE_FLOW_CONTROL_ERROR));
         return;
       }
       const bool was_blocked = (it->second.send_window <= 0);

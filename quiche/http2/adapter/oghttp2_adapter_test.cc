@@ -3894,6 +3894,72 @@ TEST(OgHttp2AdapterTest, WindowUpdateZeroDelta) {
   adapter->Send();
 }
 
+TEST(OgHttp2AdapterTest, WindowUpdateCausesWindowOverflow) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kServer;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::string data_chunk(kDefaultFramePayloadSizeLimit, 'a');
+  const std::string request =
+      TestFrameSequence()
+          .ClientPreface()
+          .Headers(1,
+                   {{":method", "GET"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/"}},
+                   /*fin=*/false)
+          .WindowUpdate(1, std::numeric_limits<int>::max())
+          .Data(1, "Subsequent frames on stream 1 are not delivered.")
+          .Serialize();
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
+
+  adapter->ProcessBytes(request);
+
+  EXPECT_TRUE(adapter->want_write());
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 6, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 6, 0x0, 0));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, _, 0x0));
+  EXPECT_CALL(
+      visitor,
+      OnFrameSent(RST_STREAM, 1, _, 0x0,
+                  static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(1, _));
+
+  adapter->Send();
+
+  const std::string window_update =
+      TestFrameSequence()
+          .WindowUpdate(0, std::numeric_limits<int>::max())
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kFlowControlError));
+  adapter->ProcessBytes(window_update);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(
+      visitor,
+      OnFrameSent(GOAWAY, 0, _, 0x0,
+                  static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+  adapter->Send();
+}
+
 TEST(OgHttp2AdapterTest, WindowUpdateRaisesFlowControlWindowLimit) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options;
