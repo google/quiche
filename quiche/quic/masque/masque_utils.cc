@@ -32,6 +32,8 @@ std::string MasqueModeToString(MasqueMode masque_mode) {
       return "Invalid";
     case MasqueMode::kOpen:
       return "Open";
+    case MasqueMode::kConnectIp:
+      return "CONNECT-IP";
   }
   return absl::StrCat("Unknown(", static_cast<int>(masque_mode), ")");
 }

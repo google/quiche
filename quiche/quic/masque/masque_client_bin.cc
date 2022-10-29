@@ -89,9 +89,15 @@ int RunMasqueClient(int argc, char* argv[]) {
   }
   MasqueMode masque_mode = MasqueMode::kOpen;
   std::string mode_string = quiche::GetQuicheCommandLineFlag(FLAGS_masque_mode);
-  if (!mode_string.empty() && mode_string != "open") {
-    std::cerr << "Invalid masque_mode \"" << mode_string << "\"" << std::endl;
-    return 1;
+  if (!mode_string.empty()) {
+    if (mode_string == "open") {
+      masque_mode = MasqueMode::kOpen;
+    } else if (mode_string == "connectip" || mode_string == "connect-ip") {
+      masque_mode = MasqueMode::kConnectIp;
+    } else {
+      std::cerr << "Invalid masque_mode \"" << mode_string << "\"" << std::endl;
+      return 1;
+    }
   }
   std::unique_ptr<MasqueClient> masque_client = MasqueClient::Create(
       uri_template, masque_mode, event_loop.get(), std::move(proof_verifier));

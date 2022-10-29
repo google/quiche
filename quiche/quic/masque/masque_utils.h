@@ -27,9 +27,13 @@ enum : QuicByteCount {
 enum class MasqueMode : uint8_t {
   kInvalid = 0,  // Should never be used.
   kOpen = 2,  // Open mode uses the MASQUE HTTP CONNECT-UDP method as documented
-  // in <https://tools.ietf.org/html/draft-ietf-masque-connect-udp>. This mode
-  // allows unauthenticated clients (a more restricted mode will be added to
-  // this enum at a later date).
+  // in <https://www.rfc-editor.org/rfc/rfc9298.html>. This mode allows
+  // unauthenticated clients (a more restricted mode will be added to this enum
+  // at a later date).
+  kConnectIp =
+      1,  // ConnectIp mode uses MASQUE HTTP CONNECT-IP as documented in
+  // <https://datatracker.ietf.org/doc/html/draft-ietf-masque-connect-ip>. This
+  // mode also allows unauthenticated clients.
 };
 
 QUIC_NO_EXPORT std::string MasqueModeToString(MasqueMode masque_mode);

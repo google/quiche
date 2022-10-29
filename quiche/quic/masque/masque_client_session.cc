@@ -15,13 +15,19 @@
 #include "url/url_canon.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/quic_data_reader.h"
+#include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/platform/api/quiche_url_utils.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
+
+namespace {
+constexpr uint64_t kConnectIpPayloadContextId = 0;
+}
 
 MasqueClientSession::MasqueClientSession(
     MasqueMode masque_mode, const std::string& uri_template,
@@ -33,7 +39,9 @@ MasqueClientSession::MasqueClientSession(
                             crypto_config, push_promise_index),
       masque_mode_(masque_mode),
       uri_template_(uri_template),
-      owner_(owner) {}
+      owner_(owner) {
+  connection->SetMaxPacketLength(1400);
+}
 
 void MasqueClientSession::OnMessageAcked(QuicMessageId message_id,
                                          QuicTime /*receive_timestamp*/) {
@@ -138,6 +146,83 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   return &connect_udp_client_states_.back();
 }
 
+const MasqueClientSession::ConnectIpClientState*
+MasqueClientSession::GetOrCreateConnectIpClientState(
+    MasqueClientSession::EncapsulatedIpSession* encapsulated_ip_session) {
+  for (const ConnectIpClientState& client_state : connect_ip_client_states_) {
+    if (client_state.encapsulated_ip_session() == encapsulated_ip_session) {
+      // Found existing CONNECT-IP request.
+      return &client_state;
+    }
+  }
+  // No CONNECT-IP request found, create a new one.
+  QuicSpdyClientStream* stream = CreateOutgoingBidirectionalStream();
+  if (stream == nullptr) {
+    // Stream flow control limits prevented us from opening a new stream.
+    QUIC_DLOG(ERROR) << "Failed to open CONNECT-IP stream";
+    return nullptr;
+  }
+
+  QuicUrl url(uri_template_);
+  std::string scheme = url.scheme();
+  std::string authority = url.HostPort();
+  std::string path = "/.well-known/masque/ip/*/*/";
+
+  QUIC_DLOG(INFO) << "Sending CONNECT-IP request on stream " << stream->id()
+                  << " scheme=\"" << scheme << "\" authority=\"" << authority
+                  << "\" path=\"" << path << "\"";
+
+  // Send the request.
+  spdy::Http2HeaderBlock headers;
+  headers[":method"] = "CONNECT";
+  headers[":protocol"] = "connect-ip";
+  headers[":scheme"] = scheme;
+  headers[":authority"] = authority;
+  headers[":path"] = path;
+  headers["connect-ip-version"] = "3";
+  size_t bytes_sent =
+      stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
+  if (bytes_sent == 0) {
+    QUIC_DLOG(ERROR) << "Failed to send CONNECT-IP request";
+    return nullptr;
+  }
+
+  connect_ip_client_states_.push_back(
+      ConnectIpClientState(stream, encapsulated_ip_session, this));
+  return &connect_ip_client_states_.back();
+}
+
+void MasqueClientSession::SendIpPacket(
+    absl::string_view packet,
+    MasqueClientSession::EncapsulatedIpSession* encapsulated_ip_session) {
+  const ConnectIpClientState* connect_ip =
+      GetOrCreateConnectIpClientState(encapsulated_ip_session);
+  if (connect_ip == nullptr) {
+    QUIC_DLOG(ERROR) << "Failed to create CONNECT-IP request";
+    return;
+  }
+
+  std::string http_payload;
+  http_payload.resize(
+      QuicDataWriter::GetVarInt62Len(kConnectIpPayloadContextId) +
+      packet.size());
+  QuicDataWriter writer(http_payload.size(), http_payload.data());
+  if (!writer.WriteVarInt62(kConnectIpPayloadContextId)) {
+    QUIC_BUG(IP context write fail) << "Failed to write CONNECT-IP context ID";
+    return;
+  }
+  if (!writer.WriteStringPiece(packet)) {
+    QUIC_BUG(IP packet write fail) << "Failed to write CONNECT-IP packet";
+    return;
+  }
+  MessageStatus message_status =
+      SendHttp3Datagram(connect_ip->stream()->id(), http_payload);
+
+  QUIC_DVLOG(1) << "Sent IP packet with stream ID "
+                << connect_ip->stream()->id() << " and got message status "
+                << MessageStatusToString(message_status);
+}
+
 void MasqueClientSession::SendPacket(
     absl::string_view packet, const QuicSocketAddress& target_server_address,
     EncapsulatedClientSession* encapsulated_client_session) {
@@ -166,9 +251,28 @@ void MasqueClientSession::CloseConnectUdpStream(
   for (auto it = connect_udp_client_states_.begin();
        it != connect_udp_client_states_.end();) {
     if (it->encapsulated_client_session() == encapsulated_client_session) {
-      QUIC_DLOG(INFO) << "Removing state for stream ID " << it->stream()->id();
+      QUIC_DLOG(INFO) << "Removing CONNECT-UDP state for stream ID "
+                      << it->stream()->id();
       auto* stream = it->stream();
       it = connect_udp_client_states_.erase(it);
+      if (!stream->write_side_closed()) {
+        stream->Reset(QUIC_STREAM_CANCELLED);
+      }
+    } else {
+      ++it;
+    }
+  }
+}
+
+void MasqueClientSession::CloseConnectIpStream(
+    EncapsulatedIpSession* encapsulated_ip_session) {
+  for (auto it = connect_ip_client_states_.begin();
+       it != connect_ip_client_states_.end();) {
+    if (it->encapsulated_ip_session() == encapsulated_ip_session) {
+      QUIC_DLOG(INFO) << "Removing CONNECT-IP state for stream ID "
+                      << it->stream()->id();
+      auto* stream = it->stream();
+      it = connect_ip_client_states_.erase(it);
       if (!stream->write_side_closed()) {
         stream->Reset(QUIC_STREAM_CANCELLED);
       }
@@ -187,6 +291,10 @@ void MasqueClientSession::OnConnectionClosed(
         QUIC_CONNECTION_CANCELLED, "Underlying MASQUE connection was closed",
         ConnectionCloseBehavior::SILENT_CLOSE);
   }
+  for (const auto& client_state : connect_ip_client_states_) {
+    client_state.encapsulated_ip_session()->CloseIpSession(
+        "Underlying MASQUE connection was closed");
+  }
 }
 
 void MasqueClientSession::OnStreamClosed(QuicStreamId stream_id) {
@@ -204,13 +312,26 @@ void MasqueClientSession::OnStreamClosed(QuicStreamId stream_id) {
        it != connect_udp_client_states_.end();) {
     if (it->stream()->id() == stream_id) {
       QUIC_DLOG(INFO) << "Stream " << stream_id
-                      << " was closed, removing state";
+                      << " was closed, removing CONNECT-UDP state";
       auto* encapsulated_client_session = it->encapsulated_client_session();
       it = connect_udp_client_states_.erase(it);
       encapsulated_client_session->CloseConnection(
           QUIC_CONNECTION_CANCELLED,
           "Underlying MASQUE CONNECT-UDP stream was closed",
           ConnectionCloseBehavior::SILENT_CLOSE);
+    } else {
+      ++it;
+    }
+  }
+  for (auto it = connect_ip_client_states_.begin();
+       it != connect_ip_client_states_.end();) {
+    if (it->stream()->id() == stream_id) {
+      QUIC_DLOG(INFO) << "Stream " << stream_id
+                      << " was closed, removing CONNECT-IP state";
+      auto* encapsulated_ip_session = it->encapsulated_ip_session();
+      it = connect_ip_client_states_.erase(it);
+      encapsulated_ip_session->CloseIpSession(
+          "Underlying MASQUE CONNECT-IP stream was closed");
     } else {
       ++it;
     }
@@ -292,5 +413,80 @@ void MasqueClientSession::ConnectUdpClientState::OnHttp3Datagram(
   QUIC_DVLOG(1) << "Sent " << http_payload.size()
                 << " bytes to connection for stream ID " << stream_id;
 }
+
+MasqueClientSession::ConnectIpClientState::ConnectIpClientState(
+    QuicSpdyClientStream* stream,
+    EncapsulatedIpSession* encapsulated_ip_session,
+    MasqueClientSession* masque_session)
+    : stream_(stream),
+      encapsulated_ip_session_(encapsulated_ip_session),
+      masque_session_(masque_session) {
+  QUICHE_DCHECK_NE(masque_session_, nullptr);
+  this->stream()->RegisterHttp3DatagramVisitor(this);
+  this->stream()->RegisterConnectIpVisitor(this);
+}
+
+MasqueClientSession::ConnectIpClientState::~ConnectIpClientState() {
+  if (stream() != nullptr) {
+    stream()->UnregisterHttp3DatagramVisitor();
+    stream()->UnregisterConnectIpVisitor();
+  }
+}
+
+MasqueClientSession::ConnectIpClientState::ConnectIpClientState(
+    MasqueClientSession::ConnectIpClientState&& other) {
+  *this = std::move(other);
+}
+
+MasqueClientSession::ConnectIpClientState&
+MasqueClientSession::ConnectIpClientState::operator=(
+    MasqueClientSession::ConnectIpClientState&& other) {
+  stream_ = other.stream_;
+  encapsulated_ip_session_ = other.encapsulated_ip_session_;
+  masque_session_ = other.masque_session_;
+  other.stream_ = nullptr;
+  if (stream() != nullptr) {
+    stream()->ReplaceHttp3DatagramVisitor(this);
+    stream()->ReplaceConnectIpVisitor(this);
+  }
+  return *this;
+}
+
+void MasqueClientSession::ConnectIpClientState::OnHttp3Datagram(
+    QuicStreamId stream_id, absl::string_view payload) {
+  QUICHE_DCHECK_EQ(stream_id, stream()->id());
+  QuicDataReader reader(payload);
+  uint64_t context_id;
+  if (!reader.ReadVarInt62(&context_id)) {
+    QUIC_DLOG(ERROR) << "Failed to read context ID";
+    return;
+  }
+  if (context_id != kConnectIpPayloadContextId) {
+    QUIC_DLOG(ERROR) << "Ignoring HTTP Datagram with unexpected context ID "
+                     << context_id;
+    return;
+  }
+  absl::string_view http_payload = reader.ReadRemainingPayload();
+  encapsulated_ip_session_->ProcessIpPacket(http_payload);
+  QUIC_DVLOG(1) << "Sent " << http_payload.size()
+                << " IP bytes to connection for stream ID " << stream_id;
+}
+
+bool MasqueClientSession::ConnectIpClientState::OnAddressAssignCapsule(
+    const AddressAssignCapsule& capsule) {
+  return encapsulated_ip_session_->OnAddressAssignCapsule(capsule);
+}
+
+bool MasqueClientSession::ConnectIpClientState::OnAddressRequestCapsule(
+    const AddressRequestCapsule& capsule) {
+  return encapsulated_ip_session_->OnAddressRequestCapsule(capsule);
+}
+
+bool MasqueClientSession::ConnectIpClientState::OnRouteAdvertisementCapsule(
+    const RouteAdvertisementCapsule& capsule) {
+  return encapsulated_ip_session_->OnRouteAdvertisementCapsule(capsule);
+}
+
+void MasqueClientSession::ConnectIpClientState::OnHeadersWritten() {}
 
 }  // namespace quic
