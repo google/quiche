@@ -47,6 +47,7 @@ CallbackVisitor::CallbackVisitor(Perspective perspective,
   nghttp2_session_callbacks_new(&c);
   *c = callbacks;
   callbacks_ = MakeCallbacksPtr(c);
+  memset(&current_frame_, 0, sizeof(current_frame_));
 }
 
 int64_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
@@ -78,8 +79,14 @@ bool CallbackVisitor::OnFrameHeader(Http2StreamId stream_id, size_t length,
                  << ", type=" << int(type) << ", length=" << length
                  << ", flags=" << int(flags) << ")";
   if (static_cast<FrameType>(type) == FrameType::CONTINUATION) {
-    // Treat CONTINUATION as HEADERS
-    QUICHE_DCHECK_EQ(current_frame_.hd.stream_id, stream_id);
+    if (static_cast<FrameType>(current_frame_.hd.type) != FrameType::HEADERS ||
+        current_frame_.hd.stream_id == 0 ||
+        current_frame_.hd.stream_id != stream_id) {
+      // CONTINUATION frames must follow HEADERS on the same stream. If no
+      // frames have been received, the type is initialized to zero, and the
+      // comparison will fail.
+      return false;
+    }
     current_frame_.hd.length += length;
     current_frame_.hd.flags |= flags;
     QUICHE_DLOG_IF(ERROR, length == 0) << "Empty CONTINUATION!";
