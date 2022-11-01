@@ -1058,7 +1058,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                      QuicStreamOffset offset,
                                      StreamSendingState state,
                                      QuicPacketNumber* last_packet) {
-    QuicByteCount packet_size;
+    QuicByteCount packet_size = 0;
     // Save the last packet's size.
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
         .Times(AnyNumber())
