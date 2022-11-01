@@ -23,7 +23,7 @@ namespace quiche {
 class QUICHE_EXPORT BinaryHttpMessage {
  public:
   // Name value pair of either a header or trailer field.
-  struct Field {
+  struct QUICHE_EXPORT Field {
     std::string name;
     std::string value;
     bool operator==(const BinaryHttpMessage::Field& rhs) const {
@@ -118,7 +118,7 @@ class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
   //   scheme: HTTP
   //   authority: www.example.com
   //   path: /index.html
-  struct ControlData {
+  struct QUICHE_EXPORT ControlData {
     std::string method;
     std::string scheme;
     std::string authority;
@@ -172,7 +172,7 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
   // A response can contain 0 to N informational responses.  Each informational
   // response contains a status code followed by a header field. Valid status
   // codes are [100,199].
-  class InformationalResponse {
+  class QUICHE_EXPORT InformationalResponse {
    public:
     explicit InformationalResponse(uint16_t status_code)
         : status_code_(status_code) {}
