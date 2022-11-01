@@ -162,7 +162,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   void set_stream(StreamInterface* stream) { stream_ = stream; }
 
   // Returns string describing internal state.
-  const std::string DebugString() const;
+  std::string DebugString() const;
 
  private:
   friend class test::QuicStreamSequencerPeer;
