@@ -21,7 +21,7 @@ class QUICHE_EXPORT ObliviousHttpRequest {
   // Holds the HPKE related data received from request. This context is created
   // during request processing, and subsequently passed into response handling
   // in `ObliviousHttpResponse`.
-  class Context {
+  class QUICHE_EXPORT Context {
    public:
     ~Context() = default;
 
