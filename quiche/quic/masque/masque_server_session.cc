@@ -4,9 +4,17 @@
 
 #include "quiche/quic/masque/masque_server_session.h"
 
+#include <fcntl.h>
+#include <linux/if.h>
+#include <linux/if_tun.h>
 #include <netdb.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
+#include <netinet/udp.h>
+#include <sys/ioctl.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include "absl/cleanup/cleanup.h"
@@ -18,8 +26,10 @@
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_udp_socket.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/platform/api/quiche_url_utils.h"
+#include "quiche/common/quiche_ip_address.h"
 
 namespace quic {
 
@@ -75,6 +85,79 @@ std::unique_ptr<QuicBackendResponse> CreateBackendErrorResponse(
   return response;
 }
 
+int CreateTunInterface(const QuicIpAddress& client_address) {
+  if (!client_address.IsIPv4()) {
+    QUIC_LOG(ERROR) << "CreateTunInterface currently only supports IPv4";
+    return -1;
+  }
+  int tun_fd = open("/dev/net/tun", O_RDWR);
+  int ip_fd = -1;
+  do {
+    if (tun_fd < 0) {
+      QUIC_PLOG(ERROR) << "Failed to open clone device";
+      break;
+    }
+    struct ifreq ifr = {};
+    ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
+    // If we want to pick a specific device name, we can set it via
+    // ifr.ifr_name. Otherwise, the kernel will pick the next available tunX
+    // name.
+    int err = ioctl(tun_fd, TUNSETIFF, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "TUNSETIFF failed";
+      break;
+    }
+    ip_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (ip_fd < 0) {
+      QUIC_PLOG(ERROR) << "Failed to open IP configuration socket";
+      break;
+    }
+    struct sockaddr_in addr = {};
+    addr.sin_family = AF_INET;
+    // Local address, unused but needs to be set. We use the same address as the
+    // client address, but with last byte set to 1.
+    addr.sin_addr = client_address.GetIPv4();
+    addr.sin_addr.s_addr &= htonl(0xffffff00);
+    addr.sin_addr.s_addr |= htonl(0x00000001);
+    memcpy(&ifr.ifr_addr, &addr, sizeof(addr));
+    err = ioctl(ip_fd, SIOCSIFADDR, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "SIOCSIFADDR failed";
+      break;
+    }
+    // Peer address, needs to match source IP address of sent packets.
+    addr.sin_addr = client_address.GetIPv4();
+    memcpy(&ifr.ifr_addr, &addr, sizeof(addr));
+    err = ioctl(ip_fd, SIOCSIFDSTADDR, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "SIOCSIFDSTADDR failed";
+      break;
+    }
+    err = ioctl(ip_fd, SIOCGIFFLAGS, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "SIOCGIFFLAGS failed";
+      break;
+    }
+    ifr.ifr_flags |= (IFF_UP | IFF_RUNNING);
+    err = ioctl(ip_fd, SIOCSIFFLAGS, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "SIOCSIFFLAGS failed";
+      break;
+    }
+    close(ip_fd);
+    QUIC_DLOG(INFO) << "Successfully created TUN interface " << ifr.ifr_name
+                    << " with fd " << tun_fd;
+    return tun_fd;
+  } while (false);
+  if (tun_fd >= 0) {
+    close(tun_fd);
+  }
+  if (ip_fd >= 0) {
+    close(ip_fd);
+  }
+  return -1;
+}
+
 }  // namespace
 
 MasqueServerSession::MasqueServerSession(
@@ -94,7 +177,7 @@ MasqueServerSession::MasqueServerSession(
   // Artificially increase the max packet length to 1350 to ensure we can fit
   // QUIC packets inside DATAGRAM frames.
   // TODO(b/181606597) Remove this workaround once we use PMTUD.
-  connection->SetMaxPacketLength(kDefaultMaxPacketSize);
+  connection->SetMaxPacketLength(kMasqueMaxOuterPacketSize);
 
   masque_server_backend_->RegisterBackendClient(connection_id(), this);
   QUICHE_DCHECK_NE(event_loop_, nullptr);
@@ -122,6 +205,10 @@ void MasqueServerSession::OnStreamClosed(QuicStreamId stream_id) {
   connect_udp_server_states_.remove_if(
       [stream_id](const ConnectUdpServerState& connect_udp) {
         return connect_udp.stream()->id() == stream_id;
+      });
+  connect_ip_server_states_.remove_if(
+      [stream_id](const ConnectIpServerState& connect_ip) {
+        return connect_ip.stream()->id() == stream_id;
       });
 
   QuicSimpleServerSession::OnStreamClosed(stream_id);
@@ -171,10 +258,47 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     QUIC_DLOG(ERROR) << "MASQUE request with bad method \"" << method << "\"";
     return CreateBackendErrorResponse("400", "Bad method");
   }
-  if (protocol != "connect-udp") {
+  if (protocol != "connect-udp" && protocol != "connect-ip") {
     QUIC_DLOG(ERROR) << "MASQUE request with bad protocol \"" << protocol
                      << "\"";
     return CreateBackendErrorResponse("400", "Bad protocol");
+  }
+  if (protocol == "connect-ip") {
+    QuicSpdyStream* stream = static_cast<QuicSpdyStream*>(
+        GetActiveStream(request_handler->stream_id()));
+    if (stream == nullptr) {
+      QUIC_BUG(bad masque server stream type)
+          << "Unexpected stream type for stream ID "
+          << request_handler->stream_id();
+      return CreateBackendErrorResponse("500", "Bad stream type");
+    }
+    QuicIpAddress client_ip = masque_server_backend_->GetNextClientIpAddress();
+    QUIC_DLOG(INFO) << "Using client IP " << client_ip.ToString()
+                    << " for CONNECT-IP stream ID "
+                    << request_handler->stream_id();
+    int fd = CreateTunInterface(client_ip);
+    if (fd < 0) {
+      QUIC_LOG(ERROR) << "Failed to create TUN interface for stream ID "
+                      << request_handler->stream_id();
+      return CreateBackendErrorResponse("500",
+                                        "Failed to create TUN interface");
+    }
+    if (!event_loop_->RegisterSocket(fd, kSocketEventReadable, this)) {
+      QUIC_DLOG(ERROR) << "Failed to register TUN fd with the event loop";
+      close(fd);
+      return CreateBackendErrorResponse("500", "Registering TUN socket failed");
+    }
+    connect_ip_server_states_.push_back(
+        ConnectIpServerState(client_ip, stream, fd, this));
+
+    spdy::Http2HeaderBlock response_headers;
+    response_headers[":status"] = "200";
+    auto response = std::make_unique<QuicBackendResponse>();
+    response->set_response_type(QuicBackendResponse::INCOMPLETE_RESPONSE);
+    response->set_headers(std::move(response_headers));
+    response->set_body("");
+
+    return response;
   }
   // Extract target host and port from path using default template.
   std::vector<absl::string_view> path_split = absl::StrSplit(path, '/');
@@ -270,8 +394,37 @@ void MasqueServerSession::OnSocketEvent(QuicEventLoop* /*event_loop*/,
                               return connect_udp.fd() == fd;
                             });
   if (it == connect_udp_server_states_.end()) {
-    QUIC_BUG(quic_bug_10974_1)
-        << "Got unexpected event mask " << events << " on unknown fd " << fd;
+    auto it2 = absl::c_find_if(connect_ip_server_states_,
+                               [fd](const ConnectIpServerState& connect_ip) {
+                                 return connect_ip.fd() == fd;
+                               });
+    if (it2 == connect_ip_server_states_.end()) {
+      QUIC_BUG(quic_bug_10974_1)
+          << "Got unexpected event mask " << events << " on unknown fd " << fd;
+      return;
+    }
+
+    char datagram[1501];
+    datagram[0] = 0;  // Context ID.
+    while (true) {
+      ssize_t read_size = read(fd, datagram + 1, sizeof(datagram) - 1);
+      if (read_size < 0) {
+        break;
+      }
+      MessageStatus message_status = it2->stream()->SendHttp3Datagram(
+          absl::string_view(datagram, 1 + read_size));
+      QUIC_DVLOG(1) << "Encapsulated IP packet of length " << read_size
+                    << " with stream ID " << it2->stream()->id()
+                    << " and got message status "
+                    << MessageStatusToString(message_status);
+    }
+    if (!event_loop_->SupportsEdgeTriggered()) {
+      if (!event_loop_->RearmSocket(fd, kSocketEventReadable)) {
+        QUIC_BUG(MasqueServerSession_ConnectIp_OnSocketEvent_Rearm)
+            << "Failed to re-arm socket " << fd << " for reading";
+      }
+    }
+
     return;
   }
 
@@ -428,6 +581,125 @@ void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
       fd_, http_payload.data(), http_payload.length(), packet_info);
   QUIC_DVLOG(1) << "Wrote packet of length " << http_payload.length() << " to "
                 << target_server_address_ << " with result " << write_result;
+}
+
+MasqueServerSession::ConnectIpServerState::ConnectIpServerState(
+    QuicIpAddress client_ip, QuicSpdyStream* stream, QuicUdpSocketFd fd,
+    MasqueServerSession* masque_session)
+    : client_ip_(client_ip),
+      stream_(stream),
+      fd_(fd),
+      masque_session_(masque_session) {
+  QUICHE_DCHECK(client_ip_.IsIPv4());
+  QUICHE_DCHECK_NE(fd_, kQuicInvalidSocketFd);
+  QUICHE_DCHECK_NE(masque_session_, nullptr);
+  this->stream()->RegisterHttp3DatagramVisitor(this);
+  this->stream()->RegisterConnectIpVisitor(this);
+}
+
+MasqueServerSession::ConnectIpServerState::~ConnectIpServerState() {
+  if (stream() != nullptr) {
+    stream()->UnregisterHttp3DatagramVisitor();
+    stream()->UnregisterConnectIpVisitor();
+  }
+  if (fd_ == kQuicInvalidSocketFd) {
+    return;
+  }
+  QuicUdpSocketApi socket_api;
+  QUIC_DLOG(INFO) << "Closing fd " << fd_;
+  if (!masque_session_->event_loop()->UnregisterSocket(fd_)) {
+    QUIC_DLOG(ERROR) << "Failed to unregister FD " << fd_;
+  }
+  socket_api.Destroy(fd_);
+}
+
+MasqueServerSession::ConnectIpServerState::ConnectIpServerState(
+    MasqueServerSession::ConnectIpServerState&& other) {
+  fd_ = kQuicInvalidSocketFd;
+  *this = std::move(other);
+}
+
+MasqueServerSession::ConnectIpServerState&
+MasqueServerSession::ConnectIpServerState::operator=(
+    MasqueServerSession::ConnectIpServerState&& other) {
+  if (fd_ != kQuicInvalidSocketFd) {
+    QuicUdpSocketApi socket_api;
+    QUIC_DLOG(INFO) << "Closing fd " << fd_;
+    if (!masque_session_->event_loop()->UnregisterSocket(fd_)) {
+      QUIC_DLOG(ERROR) << "Failed to unregister FD " << fd_;
+    }
+    socket_api.Destroy(fd_);
+  }
+  client_ip_ = other.client_ip_;
+  stream_ = other.stream_;
+  other.stream_ = nullptr;
+  fd_ = other.fd_;
+  masque_session_ = other.masque_session_;
+  other.fd_ = kQuicInvalidSocketFd;
+  if (stream() != nullptr) {
+    stream()->ReplaceHttp3DatagramVisitor(this);
+    stream()->ReplaceConnectIpVisitor(this);
+  }
+  return *this;
+}
+
+void MasqueServerSession::ConnectIpServerState::OnHttp3Datagram(
+    QuicStreamId stream_id, absl::string_view payload) {
+  QUICHE_DCHECK_EQ(stream_id, stream()->id());
+  QuicDataReader reader(payload);
+  uint64_t context_id;
+  if (!reader.ReadVarInt62(&context_id)) {
+    QUIC_DLOG(ERROR) << "Failed to read context ID";
+    return;
+  }
+  if (context_id != 0) {
+    QUIC_DLOG(ERROR) << "Ignoring HTTP Datagram with unexpected context ID "
+                     << context_id;
+    return;
+  }
+  absl::string_view ip_packet = reader.ReadRemainingPayload();
+  ssize_t written = write(fd(), ip_packet.data(), ip_packet.size());
+  if (written != static_cast<ssize_t>(ip_packet.size())) {
+    QUIC_DLOG(ERROR) << "Failed to write CONNECT-IP packet of length "
+                     << ip_packet.size();
+  } else {
+    QUIC_DLOG(INFO) << "Decapsulated CONNECT-IP packet of length "
+                    << ip_packet.size();
+  }
+}
+
+bool MasqueServerSession::ConnectIpServerState::OnAddressAssignCapsule(
+    const AddressAssignCapsule& /*capsule*/) {
+  return true;
+}
+
+bool MasqueServerSession::ConnectIpServerState::OnAddressRequestCapsule(
+    const AddressRequestCapsule& /*capsule*/) {
+  return true;
+}
+
+bool MasqueServerSession::ConnectIpServerState::OnRouteAdvertisementCapsule(
+    const RouteAdvertisementCapsule& /*capsule*/) {
+  return true;
+}
+
+void MasqueServerSession::ConnectIpServerState::OnHeadersWritten() {
+  QUICHE_DCHECK(client_ip_.IsIPv4()) << client_ip_.ToString();
+  Capsule address_assign_capsule = Capsule::AddressAssign();
+  PrefixWithId assigned_address;
+  assigned_address.ip_prefix = quiche::QuicheIpPrefix(client_ip_, 32);
+  assigned_address.request_id = 0;
+  address_assign_capsule.address_assign_capsule().assigned_addresses.push_back(
+      assigned_address);
+  stream()->WriteCapsule(address_assign_capsule);
+  IpAddressRange default_route;
+  default_route.start_ip_address.FromString("0.0.0.0");
+  default_route.end_ip_address.FromString("255.255.255.255");
+  default_route.ip_protocol = 0;
+  Capsule route_advertisement = Capsule::RouteAdvertisement();
+  route_advertisement.route_advertisement_capsule().ip_address_ranges.push_back(
+      default_route);
+  stream()->WriteCapsule(route_advertisement);
 }
 
 }  // namespace quic

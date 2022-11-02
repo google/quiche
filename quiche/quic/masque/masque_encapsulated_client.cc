@@ -29,7 +29,8 @@ class ChecksumWriter {
     odd_ = !odd_;
   }
   bool IngestData(size_t offset, size_t length) {
-    quiche::QuicheDataReader reader(writer_.data(), writer_.capacity());
+    quiche::QuicheDataReader reader(
+        writer_.data(), std::min<size_t>(offset + length, writer_.capacity()));
     if (!reader.Seek(offset) || reader.BytesRemaining() < length) {
       return false;
     }
@@ -39,7 +40,7 @@ class ChecksumWriter {
       IngestUInt8(first_byte);
     }
     // Handle each 16-bit word at a time.
-    while (reader.BytesRemaining() > sizeof(uint16_t)) {
+    while (reader.BytesRemaining() >= sizeof(uint16_t)) {
       uint16_t word;
       if (!reader.ReadUInt16(&word)) {
         return false;
@@ -57,6 +58,7 @@ class ChecksumWriter {
     while (accumulator_ >> 16 > 0) {
       accumulator_ = (accumulator_ & 0xffff) + (accumulator_ >> 16);
     }
+    accumulator_ = 0xffff & ~accumulator_;
     quiche::QuicheDataWriter writer2(writer_.capacity(), writer_.data());
     return writer2.Seek(offset) && writer2.WriteUInt16(accumulator_);
   }

@@ -13,6 +13,12 @@ MasqueServerBackend::MasqueServerBackend(MasqueMode masque_mode,
                                          const std::string& server_authority,
                                          const std::string& cache_directory)
     : masque_mode_(masque_mode), server_authority_(server_authority) {
+  // Start with client IP 10.1.1.2.
+  connect_ip_next_client_ip_[0] = 10;
+  connect_ip_next_client_ip_[1] = 1;
+  connect_ip_next_client_ip_[2] = 1;
+  connect_ip_next_client_ip_[3] = 2;
+
   if (!cache_directory.empty()) {
     QuicMemoryCacheBackend::InitializeBackend(cache_directory);
   }
@@ -30,7 +36,8 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
   std::string masque_path = "";
   auto protocol_pair = request_headers.find(":protocol");
   if (method != "CONNECT" || protocol_pair == request_headers.end() ||
-      protocol_pair->second != "connect-udp") {
+      (protocol_pair->second != "connect-udp" &&
+       protocol_pair->second != "connect-ip")) {
     // This is not a MASQUE request.
     return false;
   }
@@ -120,6 +127,27 @@ void MasqueServerBackend::RegisterBackendClient(QuicConnectionId connection_id,
 void MasqueServerBackend::RemoveBackendClient(QuicConnectionId connection_id) {
   QUIC_DLOG(INFO) << "Removing backend client for " << connection_id;
   backend_client_states_.erase(connection_id);
+}
+
+QuicIpAddress MasqueServerBackend::GetNextClientIpAddress() {
+  // Makes sure all addresses are in 10.(1-254).(1-254).(2-254)
+  QuicIpAddress address;
+  address.FromPackedString(
+      reinterpret_cast<char*>(&connect_ip_next_client_ip_[0]),
+      sizeof(connect_ip_next_client_ip_));
+  connect_ip_next_client_ip_[3]++;
+  if (connect_ip_next_client_ip_[3] >= 255) {
+    connect_ip_next_client_ip_[3] = 2;
+    connect_ip_next_client_ip_[2]++;
+    if (connect_ip_next_client_ip_[2] >= 255) {
+      connect_ip_next_client_ip_[2] = 1;
+      connect_ip_next_client_ip_[1]++;
+      if (connect_ip_next_client_ip_[1] >= 255) {
+        QUIC_LOG(FATAL) << "Ran out of IP addresses, restarting process.";
+      }
+    }
+  }
+  return address;
 }
 
 }  // namespace quic

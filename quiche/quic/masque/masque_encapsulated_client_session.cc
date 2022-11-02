@@ -18,9 +18,7 @@ MasqueEncapsulatedClientSession::MasqueEncapsulatedClientSession(
     MasqueClientSession* masque_client_session)
     : QuicSpdyClientSession(config, supported_versions, connection, server_id,
                             crypto_config, push_promise_index),
-      masque_client_session_(masque_client_session) {
-  connection->SetMaxPacketLength(1250);
-}
+      masque_client_session_(masque_client_session) {}
 
 void MasqueEncapsulatedClientSession::ProcessPacket(
     absl::string_view packet, QuicSocketAddress server_address) {
@@ -50,17 +48,20 @@ void MasqueEncapsulatedClientSession::ProcessIpPacket(
     QUIC_DLOG(ERROR) << "Dropping empty CONNECT-IP packet";
     return;
   }
-  const uint8_t ip_version = first_byte >> 8;
-  absl::string_view quic_packet;
+  const uint8_t ip_version = first_byte >> 4;
   quiche::QuicheIpAddress server_ip;
   if (ip_version == 6) {
     if (!reader.Seek(5)) {
-      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP IPv6 start";
+      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP IPv6 start"
+                         << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     uint8_t next_header = 0;
     if (!reader.ReadUInt8(&next_header)) {
-      QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP next header";
+      QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP next header"
+                         << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     if (next_header != 17) {
@@ -68,100 +69,140 @@ void MasqueEncapsulatedClientSession::ProcessIpPacket(
       // do not expect to see them in practice.
       QUIC_DLOG(ERROR)
           << "Dropping CONNECT-IP packet with unexpected next header "
-          << static_cast<int>(next_header);
+          << static_cast<int>(next_header) << "\n"
+          << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     if (!reader.Seek(1)) {
-      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP hop limit";
+      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP hop limit"
+                         << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     absl::string_view source_ip;
-    if (!reader.ReadBytes(&source_ip, 16)) {
-      QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP source IPv6";
+    if (!reader.ReadStringPiece(&source_ip, 16)) {
+      QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP source IPv6"
+                         << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     server_ip.FromPackedString(source_ip.data(), source_ip.length());
     if (!reader.Seek(16)) {
-      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP destination IPv6";
+      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP destination IPv6"
+                         << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
   } else if (ip_version == 4) {
     uint8_t ihl = first_byte & 0xF;
     if (ihl < 5) {
       QUICHE_DLOG(ERROR) << "Dropping CONNECT-IP packet with invalid IHL "
-                         << static_cast<int>(ihl);
+                         << static_cast<int>(ihl) << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     if (!reader.Seek(8)) {
-      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP IPv4 start";
+      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP IPv4 start"
+                         << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     uint8_t ip_proto = 0;
     if (!reader.ReadUInt8(&ip_proto)) {
-      QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP ip_proto";
+      QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP ip_proto"
+                         << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     if (ip_proto != 17) {
       QUIC_DLOG(ERROR) << "Dropping CONNECT-IP packet with unexpected IP proto "
-                       << static_cast<int>(ip_proto);
+                       << static_cast<int>(ip_proto) << "\n"
+                       << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     if (!reader.Seek(2)) {
-      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP IP checksum";
+      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP IP checksum"
+                         << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     absl::string_view source_ip;
-    if (!reader.ReadBytes(&source_ip, 4)) {
-      QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP source IPv4";
+    if (!reader.ReadStringPiece(&source_ip, 4)) {
+      QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP source IPv4"
+                         << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     server_ip.FromPackedString(source_ip.data(), source_ip.length());
     if (!reader.Seek(4)) {
-      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP destination IPv4";
+      QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP destination IPv4"
+                         << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
     uint8_t ip_options_length = (ihl - 5) * 4;
     if (!reader.Seek(ip_options_length)) {
       QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP IP options of length "
-                         << static_cast<int>(ip_options_length);
+                         << static_cast<int>(ip_options_length) << "\n"
+                         << quiche::QuicheTextUtils::HexDump(packet);
       return;
     }
   } else {
     QUIC_DLOG(ERROR) << "Dropping CONNECT-IP packet with unexpected IP version "
-                     << static_cast<int>(ip_version);
+                     << static_cast<int>(ip_version) << "\n"
+                     << quiche::QuicheTextUtils::HexDump(packet);
     return;
   }
   // Parse UDP header.
   uint16_t server_port;
   if (!reader.ReadUInt16(&server_port)) {
-    QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP source port";
+    QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP source port"
+                       << "\n"
+                       << quiche::QuicheTextUtils::HexDump(packet);
     return;
   }
   if (!reader.Seek(2)) {
-    QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP destination port";
+    QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP destination port"
+                       << "\n"
+                       << quiche::QuicheTextUtils::HexDump(packet);
     return;
   }
   uint16_t udp_length;
   if (!reader.ReadUInt16(&udp_length)) {
-    QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP UDP length";
+    QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP UDP length"
+                       << "\n"
+                       << quiche::QuicheTextUtils::HexDump(packet);
+    return;
+  }
+  if (udp_length < 8) {
+    QUICHE_DLOG(ERROR) << "Dropping CONNECT-IP packet with invalid UDP length "
+                       << udp_length << "\n"
+                       << quiche::QuicheTextUtils::HexDump(packet);
     return;
   }
   if (!reader.Seek(2)) {
-    QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP UDP checksum";
+    QUICHE_DLOG(ERROR) << "Failed to seek CONNECT-IP UDP checksum"
+                       << "\n"
+                       << quiche::QuicheTextUtils::HexDump(packet);
     return;
   }
-  if (!reader.ReadBytes(&quic_packet, udp_length)) {
-    QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP UDP payload";
+  absl::string_view quic_packet;
+  if (!reader.ReadStringPiece(&quic_packet, udp_length - 8)) {
+    QUICHE_DLOG(ERROR) << "Failed to read CONNECT-IP UDP payload"
+                       << "\n"
+                       << quiche::QuicheTextUtils::HexDump(packet);
     return;
   }
   if (!reader.IsDoneReading()) {
-    QUICHE_DLOG(INFO)
-        << "Received CONNECT-IP UDP packet with extra data after payload";
+    QUICHE_DLOG(INFO) << "Received CONNECT-IP UDP packet with "
+                      << reader.BytesRemaining()
+                      << " extra bytes after payload\n"
+                      << quiche::QuicheTextUtils::HexDump(packet);
   }
   QUIC_DLOG(INFO) << "Received CONNECT-IP encapsulated packet of length "
-                  << packet.size();
+                  << quic_packet.size();
   QuicTime now = connection()->clock()->ApproximateNow();
-  QuicReceivedPacket received_packet(quic_packet.data(), quic_packet.length(),
+  QuicReceivedPacket received_packet(quic_packet.data(), quic_packet.size(),
                                      now);
   QuicSocketAddress server_address = QuicSocketAddress(server_ip, server_port);
   connection()->ProcessUdpPacket(connection()->self_address(), server_address,

@@ -19,7 +19,7 @@ QUIC_NO_EXPORT QuicConfig MasqueEncapsulatedConfig();
 
 // Maximum packet size for encapsulated connections.
 enum : QuicByteCount {
-  kMasqueMaxEncapsulatedPacketSize = 1300,
+  kMasqueMaxEncapsulatedPacketSize = 1250,
   kMasqueMaxOuterPacketSize = 1350,
 };
 

@@ -90,6 +90,46 @@ class QUIC_NO_EXPORT MasqueServerSession
     MasqueServerSession* masque_session_;  // Unowned.
   };
 
+  // State that the MasqueServerSession keeps for each CONNECT-IP request.
+  class QUIC_NO_EXPORT ConnectIpServerState
+      : public QuicSpdyStream::Http3DatagramVisitor,
+        public QuicSpdyStream::ConnectIpVisitor {
+   public:
+    // ConnectIpServerState takes ownership of |fd|. It will unregister it
+    // from |event_loop| and close the file descriptor when destructed.
+    explicit ConnectIpServerState(QuicIpAddress client_ip,
+                                  QuicSpdyStream* stream, QuicUdpSocketFd fd,
+                                  MasqueServerSession* masque_session);
+
+    ~ConnectIpServerState();
+
+    // Disallow copy but allow move.
+    ConnectIpServerState(const ConnectIpServerState&) = delete;
+    ConnectIpServerState(ConnectIpServerState&&);
+    ConnectIpServerState& operator=(const ConnectIpServerState&) = delete;
+    ConnectIpServerState& operator=(ConnectIpServerState&&);
+
+    QuicSpdyStream* stream() const { return stream_; }
+    QuicUdpSocketFd fd() const { return fd_; }
+
+    // From QuicSpdyStream::Http3DatagramVisitor.
+    void OnHttp3Datagram(QuicStreamId stream_id,
+                         absl::string_view payload) override;
+
+    // From QuicSpdyStream::ConnectIpVisitor.
+    bool OnAddressAssignCapsule(const AddressAssignCapsule& capsule) override;
+    bool OnAddressRequestCapsule(const AddressRequestCapsule& capsule) override;
+    bool OnRouteAdvertisementCapsule(
+        const RouteAdvertisementCapsule& capsule) override;
+    void OnHeadersWritten() override;
+
+   private:
+    QuicIpAddress client_ip_;
+    QuicSpdyStream* stream_;
+    QuicUdpSocketFd fd_;                   // Owned.
+    MasqueServerSession* masque_session_;  // Unowned.
+  };
+
   // From QuicSpdySession.
   bool OnSettingsFrame(const SettingsFrame& frame) override;
   HttpDatagramSupport LocalHttpDatagramSupport() override {
@@ -100,6 +140,7 @@ class QUIC_NO_EXPORT MasqueServerSession
   QuicEventLoop* event_loop_;                   // Unowned.
   MasqueMode masque_mode_;
   std::list<ConnectUdpServerState> connect_udp_server_states_;
+  std::list<ConnectIpServerState> connect_ip_server_states_;
   bool masque_initialized_ = false;
 };
 

@@ -39,9 +39,7 @@ MasqueClientSession::MasqueClientSession(
                             crypto_config, push_promise_index),
       masque_mode_(masque_mode),
       uri_template_(uri_template),
-      owner_(owner) {
-  connection->SetMaxPacketLength(1400);
-}
+      owner_(owner) {}
 
 void MasqueClientSession::OnMessageAcked(QuicMessageId message_id,
                                          QuicTime /*receive_timestamp*/) {
@@ -218,8 +216,9 @@ void MasqueClientSession::SendIpPacket(
   MessageStatus message_status =
       SendHttp3Datagram(connect_ip->stream()->id(), http_payload);
 
-  QUIC_DVLOG(1) << "Sent IP packet with stream ID "
-                << connect_ip->stream()->id() << " and got message status "
+  QUIC_DVLOG(1) << "Sent encapsulated IP packet of length " << packet.size()
+                << " with stream ID " << connect_ip->stream()->id()
+                << " and got message status "
                 << MessageStatusToString(message_status);
 }
 

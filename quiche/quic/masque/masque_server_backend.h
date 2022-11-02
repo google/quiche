@@ -53,6 +53,9 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
   // Unregister backend client.
   void RemoveBackendClient(QuicConnectionId connection_id);
 
+  // Provides a unique client IP address for each CONNECT-IP client.
+  QuicIpAddress GetNextClientIpAddress();
+
  private:
   // Handle MASQUE request.
   bool MaybeHandleMasqueRequest(
@@ -69,6 +72,7 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
   absl::flat_hash_map<QuicConnectionId, BackendClientState,
                       QuicConnectionIdHash>
       backend_client_states_;
+  uint8_t connect_ip_next_client_ip_[4];
 };
 
 }  // namespace quic
