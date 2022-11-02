@@ -987,6 +987,10 @@ void QuicConfig::SetStatelessResetTokenToSend(
   stateless_reset_token_.SetSendValue(stateless_reset_token);
 }
 
+bool QuicConfig::HasStatelessResetTokenToSend() const {
+  return stateless_reset_token_.HasSendValue();
+}
+
 bool QuicConfig::HasReceivedStatelessResetToken() const {
   return stateless_reset_token_.HasReceivedValue();
 }

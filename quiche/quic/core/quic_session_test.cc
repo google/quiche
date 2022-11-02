@@ -3162,6 +3162,13 @@ TEST_P(QuicSessionTestServer, DonotPtoStreamDataBeforeHandshakeConfirmed) {
   EXPECT_FALSE(crypto_stream->HasBufferedCryptoFrames());
 }
 
+TEST_P(QuicSessionTestServer, SetStatelessResetTokenToSend) {
+  if (!session_.version().HasIetfQuicFrames()) {
+    return;
+  }
+  EXPECT_TRUE(session_.config()->HasStatelessResetTokenToSend());
+}
+
 // A client test class that can be used when the automatic configuration is not
 // desired.
 class QuicSessionTestClientUnconfigured : public QuicSessionTestBase {

@@ -1006,6 +1006,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
+
+  const bool delay_setting_stateless_reset_token_ =
+      GetQuicReloadableFlag(quic_delay_setting_stateless_reset_token);
 };
 
 }  // namespace quic

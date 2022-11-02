@@ -421,6 +421,7 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Stateless reset token.
   void SetStatelessResetTokenToSend(
       const StatelessResetToken& stateless_reset_token);
+  bool HasStatelessResetTokenToSend() const;
   bool HasReceivedStatelessResetToken() const;
   const StatelessResetToken& ReceivedStatelessResetToken() const;
 
