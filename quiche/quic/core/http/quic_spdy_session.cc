@@ -1186,8 +1186,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                 HttpDatagramSupport::kRfcAndDraft04) {
           break;
         }
-        QUIC_DVLOG(1) << ENDPOINT
-                      << "SETTINGS_H3_DATAGRAM_DRAFT09 received with value "
+        QUIC_DVLOG(1) << ENDPOINT << "SETTINGS_H3_DATAGRAM received with value "
                       << value;
         if (!version().UsesHttp3()) {
           break;
@@ -1835,9 +1834,9 @@ std::string HttpDatagramSupportToString(
     case HttpDatagramSupport::kDraft04:
       return "Draft04";
     case HttpDatagramSupport::kRfc:
-      return "Draft09";
+      return "Rfc";
     case HttpDatagramSupport::kRfcAndDraft04:
-      return "Draft04And09";
+      return "RfcAndDraft04";
   }
   return absl::StrCat("Unknown(", static_cast<int>(http_datagram_support), ")");
 }
