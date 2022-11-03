@@ -406,6 +406,10 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // indicating it can start processing data.
   void OnStreamCreatedFromPendingStream();
 
+  void DisableConnectionFlowControlForThisStream() {
+    stream_contributes_to_connection_flow_control_ = false;
+  }
+
  protected:
   // Called when data of [offset, offset + data_length] is buffered in send
   // buffer.
@@ -475,10 +479,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   const QuicStreamSequencer* sequencer() const { return &sequencer_; }
   QuicStreamSequencer* sequencer() { return &sequencer_; }
-
-  void DisableConnectionFlowControlForThisStream() {
-    stream_contributes_to_connection_flow_control_ = false;
-  }
 
   const QuicIntervalSet<QuicStreamOffset>& bytes_acked() const;
 
