@@ -156,7 +156,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
    */
   bool probe_up_includes_acks_after_cwnd_limited = false;
   bool probe_up_dont_exit_if_no_queue_ = false;
-  bool probe_up_ignore_inflight_hi = false;
+  bool probe_up_ignore_inflight_hi = true;
 
   /*
    * PROBE_RTT parameters.

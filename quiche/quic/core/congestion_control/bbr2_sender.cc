@@ -176,7 +176,7 @@ void Bbr2Sender::ApplyConnectionOptions(
     params_.probe_up_dont_exit_if_no_queue_ = true;
   }
   if (ContainsQuicTag(connection_options, kB203)) {
-    params_.probe_up_ignore_inflight_hi = true;
+    params_.probe_up_ignore_inflight_hi = false;
   }
   if (ContainsQuicTag(connection_options, kB204)) {
     model_.SetReduceExtraAckedOnBandwidthIncrease(true);
