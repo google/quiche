@@ -187,7 +187,6 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kB207)) {
     params_.exit_startup_on_persistent_queue = true;
   }
-
   if (ContainsQuicTag(connection_options, kBBRA)) {
     model_.SetStartNewAggregationEpochAfterFullRound(true);
   }
@@ -197,9 +196,12 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kBBQ0)) {
     params_.probe_up_includes_acks_after_cwnd_limited = true;
   }
-
   if (ContainsQuicTag(connection_options, kB206)) {
     params_.startup_full_loss_count = params_.probe_bw_full_loss_count;
+  }
+  if (ContainsQuicTag(connection_options, kBBPD)) {
+    // Derived constant to ensure fairness.
+    params_.probe_bw_probe_down_pacing_gain = 0.91;
   }
 }
 
