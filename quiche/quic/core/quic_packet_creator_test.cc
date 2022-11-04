@@ -3885,7 +3885,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ExtraPaddingNeeded) {
   ASSERT_FALSE(packets_[0].nonretransmittable_frames.empty());
   QuicFrame padding = packets_[0].nonretransmittable_frames[0];
   // Verify stream frame expansion is excluded.
-  padding.padding_frame.num_padding_bytes = 3;
+  EXPECT_EQ(3, padding.padding_frame.num_padding_bytes);
 }
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest,
