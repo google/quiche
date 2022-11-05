@@ -18,7 +18,8 @@ namespace tools {
 bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
                                    QuicEventLoop* event_loop,
                                    std::string url_string,
-                                   bool disable_certificate_verification) {
+                                   bool disable_certificate_verification,
+                                   int address_family_for_lookup) {
   const QuicUrl url(url_string, "https");
   std::unique_ptr<ProofVerifier> proof_verifier;
   if (disable_certificate_verification) {
@@ -28,8 +29,8 @@ bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
   }
 
   // Build the client, and try to connect.
-  const QuicSocketAddress addr =
-      LookupAddress(url.host(), absl::StrCat(url.port()));
+  const QuicSocketAddress addr = LookupAddress(
+      address_family_for_lookup, url.host(), absl::StrCat(url.port()));
   if (!addr.IsInitialized()) {
     QUIC_LOG(ERROR) << "Unable to resolve address: " << url.host();
     return false;

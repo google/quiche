@@ -17,7 +17,8 @@ namespace tools {
 bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
                                    QuicEventLoop* event_loop,
                                    std::string url_string,
-                                   bool disable_certificate_verification);
+                                   bool disable_certificate_verification,
+                                   int address_family_for_lookup);
 
 }  // namespace tools
 }  // namespace quic

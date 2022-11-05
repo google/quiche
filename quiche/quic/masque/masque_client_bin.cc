@@ -32,6 +32,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
     "If true, don't verify the server certificate.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(int, address_family, 0,
+                                "IP address family to use. Must be 0, 4 or 6. "
+                                "Defaults to 0 which means any.");
+
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, masque_mode, "",
     "Allows setting MASQUE mode, currently only valid value is \"open\".");
@@ -99,6 +103,19 @@ int RunMasqueClient(int argc, char* argv[]) {
       return 1;
     }
   }
+  const int address_family =
+      quiche::GetQuicheCommandLineFlag(FLAGS_address_family);
+  int address_family_for_lookup;
+  if (address_family == 0) {
+    address_family_for_lookup = AF_UNSPEC;
+  } else if (address_family == 4) {
+    address_family_for_lookup = AF_INET;
+  } else if (address_family == 6) {
+    address_family_for_lookup = AF_INET6;
+  } else {
+    std::cerr << "Invalid address_family " << address_family << std::endl;
+    return 1;
+  }
   std::unique_ptr<MasqueClient> masque_client = MasqueClient::Create(
       uri_template, masque_mode, event_loop.get(), std::move(proof_verifier));
   if (masque_client == nullptr) {
@@ -111,7 +128,7 @@ int RunMasqueClient(int argc, char* argv[]) {
   for (size_t i = 1; i < urls.size(); ++i) {
     if (!tools::SendEncapsulatedMasqueRequest(
             masque_client.get(), event_loop.get(), urls[i],
-            disable_certificate_verification)) {
+            disable_certificate_verification, address_family_for_lookup)) {
       return 1;
     }
   }
