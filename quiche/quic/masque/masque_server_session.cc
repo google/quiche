@@ -5,13 +5,10 @@
 #include "quiche/quic/masque/masque_server_session.h"
 
 #include <fcntl.h>
-#include <linux/if.h>
-#include <linux/if_tun.h>
 #include <netdb.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
-#include <sys/ioctl.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -26,6 +23,7 @@
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_udp_socket.h"
+#include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/platform/api/quiche_url_utils.h"
@@ -83,79 +81,6 @@ std::unique_ptr<QuicBackendResponse> CreateBackendErrorResponse(
   response->set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
   response->set_headers(std::move(response_headers));
   return response;
-}
-
-int CreateTunInterface(const QuicIpAddress& client_address) {
-  if (!client_address.IsIPv4()) {
-    QUIC_LOG(ERROR) << "CreateTunInterface currently only supports IPv4";
-    return -1;
-  }
-  int tun_fd = open("/dev/net/tun", O_RDWR);
-  int ip_fd = -1;
-  do {
-    if (tun_fd < 0) {
-      QUIC_PLOG(ERROR) << "Failed to open clone device";
-      break;
-    }
-    struct ifreq ifr = {};
-    ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
-    // If we want to pick a specific device name, we can set it via
-    // ifr.ifr_name. Otherwise, the kernel will pick the next available tunX
-    // name.
-    int err = ioctl(tun_fd, TUNSETIFF, &ifr);
-    if (err < 0) {
-      QUIC_PLOG(ERROR) << "TUNSETIFF failed";
-      break;
-    }
-    ip_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (ip_fd < 0) {
-      QUIC_PLOG(ERROR) << "Failed to open IP configuration socket";
-      break;
-    }
-    struct sockaddr_in addr = {};
-    addr.sin_family = AF_INET;
-    // Local address, unused but needs to be set. We use the same address as the
-    // client address, but with last byte set to 1.
-    addr.sin_addr = client_address.GetIPv4();
-    addr.sin_addr.s_addr &= htonl(0xffffff00);
-    addr.sin_addr.s_addr |= htonl(0x00000001);
-    memcpy(&ifr.ifr_addr, &addr, sizeof(addr));
-    err = ioctl(ip_fd, SIOCSIFADDR, &ifr);
-    if (err < 0) {
-      QUIC_PLOG(ERROR) << "SIOCSIFADDR failed";
-      break;
-    }
-    // Peer address, needs to match source IP address of sent packets.
-    addr.sin_addr = client_address.GetIPv4();
-    memcpy(&ifr.ifr_addr, &addr, sizeof(addr));
-    err = ioctl(ip_fd, SIOCSIFDSTADDR, &ifr);
-    if (err < 0) {
-      QUIC_PLOG(ERROR) << "SIOCSIFDSTADDR failed";
-      break;
-    }
-    err = ioctl(ip_fd, SIOCGIFFLAGS, &ifr);
-    if (err < 0) {
-      QUIC_PLOG(ERROR) << "SIOCGIFFLAGS failed";
-      break;
-    }
-    ifr.ifr_flags |= (IFF_UP | IFF_RUNNING);
-    err = ioctl(ip_fd, SIOCSIFFLAGS, &ifr);
-    if (err < 0) {
-      QUIC_PLOG(ERROR) << "SIOCSIFFLAGS failed";
-      break;
-    }
-    close(ip_fd);
-    QUIC_DLOG(INFO) << "Successfully created TUN interface " << ifr.ifr_name
-                    << " with fd " << tun_fd;
-    return tun_fd;
-  } while (false);
-  if (tun_fd >= 0) {
-    close(tun_fd);
-  }
-  if (ip_fd >= 0) {
-    close(ip_fd);
-  }
-  return -1;
 }
 
 }  // namespace

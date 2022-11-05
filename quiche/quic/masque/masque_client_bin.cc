@@ -40,9 +40,95 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, masque_mode, "",
     "Allows setting MASQUE mode, currently only valid value is \"open\".");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, bring_up_tun, false,
+    "If set to true, no URLs need to be specified and instead a TUN device "
+    "is brought up with the assigned IP from the MASQUE CONNECT-IP server");
+
 namespace quic {
 
 namespace {
+
+class MasqueTunSession : public MasqueClientSession::EncapsulatedIpSession,
+                         public QuicSocketEventListener {
+ public:
+  MasqueTunSession(QuicEventLoop* event_loop, MasqueClientSession* session)
+      : event_loop_(event_loop), session_(session) {}
+  ~MasqueTunSession() override = default;
+  // MasqueClientSession::EncapsulatedIpSession
+  void ProcessIpPacket(absl::string_view packet) override {
+    QUIC_LOG(INFO) << " Received IP packets of length " << packet.length();
+    if (fd_ == -1) {
+      // TUN not open, early return
+      return;
+    }
+    write(fd_, packet.data(), packet.size());
+  }
+  void CloseIpSession(const std::string& details) override {
+    QUIC_LOG(ERROR) << "Was asked to close IP session: " << details;
+  }
+  bool OnAddressAssignCapsule(const AddressAssignCapsule& capsule) override {
+    for (auto assigned_address : capsule.assigned_addresses) {
+      if (assigned_address.ip_prefix.address().IsIPv4()) {
+        QUIC_LOG(INFO) << "MasqueTunSession saving local IPv4 address "
+                       << assigned_address.ip_prefix.address();
+        local_address_ = assigned_address.ip_prefix.address();
+        break;
+      }
+    }
+    // Bring up the TUN
+    QUIC_LOG(ERROR) << "Bringing up tun with address " << local_address_;
+    fd_ = CreateTunInterface(local_address_, false);
+    if (fd_ < 0) {
+      QUIC_LOG(FATAL) << "Failed to create TUN interface";
+    }
+    if (!event_loop_->RegisterSocket(fd_, kSocketEventReadable, this)) {
+      QUIC_LOG(FATAL) << "Failed to register TUN fd with the event loop";
+    }
+    return true;
+  }
+  bool OnAddressRequestCapsule(
+      const AddressRequestCapsule& /*capsule*/) override {
+    // Always ignore the address request capsule from the server.
+    return true;
+  }
+  bool OnRouteAdvertisementCapsule(
+      const RouteAdvertisementCapsule& /*capsule*/) override {
+    // Consider installing routes.
+    return true;
+  }
+
+  // QuicSocketEventListener
+  void OnSocketEvent(QuicEventLoop* /*event_loop*/, QuicUdpSocketFd fd,
+                     QuicSocketEventMask events) override {
+    if ((events & kSocketEventReadable) == 0) {
+      QUIC_DVLOG(1) << "Ignoring OnEvent fd " << fd << " event mask " << events;
+      return;
+    }
+    char datagram[1501];
+    while (true) {
+      ssize_t read_size = read(fd, datagram, sizeof(datagram));
+      if (read_size < 0) {
+        break;
+      }
+      // Packet received from the TUN. Write it to the MASQUE CONNECT-IP
+      // session.
+      session_->SendIpPacket(absl::string_view(datagram, read_size), this);
+    }
+    if (!event_loop_->SupportsEdgeTriggered()) {
+      if (!event_loop_->RearmSocket(fd, kSocketEventReadable)) {
+        QUIC_BUG(MasqueServerSession_ConnectIp_OnSocketEvent_Rearm)
+            << "Failed to re-arm socket " << fd << " for reading";
+      }
+    }
+  }
+
+ private:
+  QuicEventLoop* event_loop_;
+  MasqueClientSession* session_;
+  QuicIpAddress local_address_;
+  int fd_ = -1;
+};
 
 int RunMasqueClient(int argc, char* argv[]) {
   quiche::QuicheSystemEventLoop system_event_loop("masque_client");
@@ -55,7 +141,8 @@ int RunMasqueClient(int argc, char* argv[]) {
   // {?target_host,target_port}.
   std::vector<std::string> urls =
       quiche::QuicheParseCommandLineFlags(usage, argc, argv);
-  if (urls.empty()) {
+  bool bring_up_tun = quiche::GetQuicheCommandLineFlag(FLAGS_bring_up_tun);
+  if (urls.empty() && !bring_up_tun) {
     quiche::QuichePrintCommandLineFlagHelp(usage);
     return 1;
   }
@@ -124,6 +211,18 @@ int RunMasqueClient(int argc, char* argv[]) {
 
   std::cerr << "MASQUE is connected " << masque_client->connection_id()
             << " in " << masque_mode << " mode" << std::endl;
+
+  if (bring_up_tun) {
+    std::cerr << "Bringing up tun" << std::endl;
+    MasqueTunSession tun_session(event_loop.get(),
+                                 masque_client->masque_client_session());
+    masque_client->masque_client_session()->SendIpPacket(
+        absl::string_view("asdf"), &tun_session);
+    while (true) {
+      event_loop->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(50));
+    }
+    return 0;
+  }
 
   for (size_t i = 1; i < urls.size(); ++i) {
     if (!tools::SendEncapsulatedMasqueRequest(

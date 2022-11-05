@@ -4,6 +4,11 @@
 
 #include "quiche/quic/masque/masque_utils.h"
 
+#include <fcntl.h>
+#include <linux/if.h>
+#include <linux/if_tun.h>
+#include <sys/ioctl.h>
+
 namespace quic {
 
 ParsedQuicVersionVector MasqueSupportedVersions() {
@@ -41,6 +46,95 @@ std::string MasqueModeToString(MasqueMode masque_mode) {
 std::ostream& operator<<(std::ostream& os, const MasqueMode& masque_mode) {
   os << MasqueModeToString(masque_mode);
   return os;
+}
+
+int CreateTunInterface(const QuicIpAddress& client_address, bool server) {
+  if (!client_address.IsIPv4()) {
+    QUIC_LOG(ERROR) << "CreateTunInterface currently only supports IPv4";
+    return -1;
+  }
+  int tun_fd = open("/dev/net/tun", O_RDWR);
+  int ip_fd = -1;
+  do {
+    if (tun_fd < 0) {
+      QUIC_PLOG(ERROR) << "Failed to open clone device";
+      break;
+    }
+    struct ifreq ifr = {};
+    ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
+    // If we want to pick a specific device name, we can set it via
+    // ifr.ifr_name. Otherwise, the kernel will pick the next available tunX
+    // name.
+    int err = ioctl(tun_fd, TUNSETIFF, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "TUNSETIFF failed";
+      break;
+    }
+    ip_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (ip_fd < 0) {
+      QUIC_PLOG(ERROR) << "Failed to open IP configuration socket";
+      break;
+    }
+    struct sockaddr_in addr = {};
+    addr.sin_family = AF_INET;
+    // Local address, unused but needs to be set. We use the same address as the
+    // client address, but with last byte set to 1.
+    addr.sin_addr = client_address.GetIPv4();
+    if (server) {
+      addr.sin_addr.s_addr &= htonl(0xffffff00);
+      addr.sin_addr.s_addr |= htonl(0x00000001);
+    }
+    memcpy(&ifr.ifr_addr, &addr, sizeof(addr));
+    err = ioctl(ip_fd, SIOCSIFADDR, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "SIOCSIFADDR failed";
+      break;
+    }
+    // Peer address, needs to match source IP address of sent packets.
+    addr.sin_addr = client_address.GetIPv4();
+    if (!server) {
+      addr.sin_addr.s_addr &= htonl(0xffffff00);
+      addr.sin_addr.s_addr |= htonl(0x00000001);
+    }
+    memcpy(&ifr.ifr_addr, &addr, sizeof(addr));
+    err = ioctl(ip_fd, SIOCSIFDSTADDR, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "SIOCSIFDSTADDR failed";
+      break;
+    }
+    if (!server) {
+      // Set MTU, to 1280 for now which should always fit (fingers crossed)
+      ifr.ifr_mtu = 1280;
+      err = ioctl(ip_fd, SIOCSIFMTU, &ifr);
+      if (err < 0) {
+        QUIC_PLOG(ERROR) << "SIOCSIFMTU failed";
+        break;
+      }
+    }
+
+    err = ioctl(ip_fd, SIOCGIFFLAGS, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "SIOCGIFFLAGS failed";
+      break;
+    }
+    ifr.ifr_flags |= (IFF_UP | IFF_RUNNING);
+    err = ioctl(ip_fd, SIOCSIFFLAGS, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "SIOCSIFFLAGS failed";
+      break;
+    }
+    close(ip_fd);
+    QUIC_DLOG(INFO) << "Successfully created TUN interface " << ifr.ifr_name
+                    << " with fd " << tun_fd;
+    return tun_fd;
+  } while (false);
+  if (tun_fd >= 0) {
+    close(tun_fd);
+  }
+  if (ip_fd >= 0) {
+    close(ip_fd);
+  }
+  return -1;
 }
 
 }  // namespace quic

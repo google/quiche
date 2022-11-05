@@ -40,6 +40,9 @@ QUIC_NO_EXPORT std::string MasqueModeToString(MasqueMode masque_mode);
 QUIC_NO_EXPORT std::ostream& operator<<(std::ostream& os,
                                         const MasqueMode& masque_mode);
 
+// Create a TUN interface, with the specified `client_address`. Requires root.
+int CreateTunInterface(const QuicIpAddress& client_address, bool server = true);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_MASQUE_MASQUE_UTILS_H_
