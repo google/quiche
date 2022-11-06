@@ -273,6 +273,10 @@ cc_library(
     ],
     deps = [
         ":io_tool_support",
+        ":quiche_core",
+        ":quiche_platform_default",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -435,6 +439,7 @@ cc_binary(
     name = "quic_client",
     srcs = ["quic/tools/quic_client_bin.cc"],
     deps = [
+        ":io_tool_support",
         ":quic_toy_client",
         ":quiche_core",
         ":quiche_tool_support",
@@ -450,6 +455,7 @@ cc_binary(
         ":quiche_core",
         ":quiche_tool_support",
         "@com_google_absl//absl/strings",
+        "@com_google_googleurl//url",
     ],
 )
 
