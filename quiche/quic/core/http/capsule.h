@@ -39,16 +39,20 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 struct QUIC_EXPORT_PRIVATE DatagramCapsule {
   absl::string_view http_datagram_payload;
+  std::string ToString() const;
 };
 struct QUIC_EXPORT_PRIVATE LegacyDatagramCapsule {
   absl::string_view http_datagram_payload;
+  std::string ToString() const;
 };
 struct QUIC_EXPORT_PRIVATE LegacyDatagramWithoutContextCapsule {
   absl::string_view http_datagram_payload;
+  std::string ToString() const;
 };
 struct QUIC_EXPORT_PRIVATE CloseWebTransportSessionCapsule {
   WebTransportSessionError error_code;
   absl::string_view error_message;
+  std::string ToString() const;
 };
 struct QUIC_EXPORT_PRIVATE PrefixWithId {
   uint64_t request_id;
@@ -64,14 +68,17 @@ struct QUIC_EXPORT_PRIVATE IpAddressRange {
 struct QUIC_EXPORT_PRIVATE AddressAssignCapsule {
   std::vector<PrefixWithId> assigned_addresses;
   bool operator==(const AddressAssignCapsule& other) const;
+  std::string ToString() const;
 };
 struct QUIC_EXPORT_PRIVATE AddressRequestCapsule {
   std::vector<PrefixWithId> requested_addresses;
   bool operator==(const AddressRequestCapsule& other) const;
+  std::string ToString() const;
 };
 struct QUIC_EXPORT_PRIVATE RouteAdvertisementCapsule {
   std::vector<IpAddressRange> ip_address_ranges;
   bool operator==(const RouteAdvertisementCapsule& other) const;
+  std::string ToString() const;
 };
 
 // Capsule from RFC 9297.

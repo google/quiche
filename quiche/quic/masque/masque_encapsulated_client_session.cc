@@ -217,6 +217,7 @@ void MasqueEncapsulatedClientSession::CloseIpSession(
 
 bool MasqueEncapsulatedClientSession::OnAddressAssignCapsule(
     const AddressAssignCapsule& capsule) {
+  QUIC_DLOG(INFO) << "Received capsule " << capsule.ToString();
   for (auto assigned_address : capsule.assigned_addresses) {
     if (assigned_address.ip_prefix.address().IsIPv4() &&
         !local_v4_address_.IsInitialized()) {
@@ -236,12 +237,14 @@ bool MasqueEncapsulatedClientSession::OnAddressAssignCapsule(
 }
 
 bool MasqueEncapsulatedClientSession::OnAddressRequestCapsule(
-    const AddressRequestCapsule& /*capsule*/) {
+    const AddressRequestCapsule& capsule) {
+  QUIC_DLOG(INFO) << "Ignoring received capsule " << capsule.ToString();
   return true;
 }
 
 bool MasqueEncapsulatedClientSession::OnRouteAdvertisementCapsule(
-    const RouteAdvertisementCapsule& /*capsule*/) {
+    const RouteAdvertisementCapsule& capsule) {
+  QUIC_DLOG(INFO) << "Ignoring received capsule " << capsule.ToString();
   return true;
 }
 

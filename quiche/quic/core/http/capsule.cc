@@ -248,67 +248,77 @@ bool Capsule::operator==(const Capsule& other) const {
   }
 }
 
+std::string DatagramCapsule::ToString() const {
+  return absl::StrCat("DATAGRAM[",
+                      absl::BytesToHexString(http_datagram_payload), "]");
+}
+
+std::string LegacyDatagramCapsule::ToString() const {
+  return absl::StrCat("LEGACY_DATAGRAM[",
+                      absl::BytesToHexString(http_datagram_payload), "]");
+}
+
+std::string LegacyDatagramWithoutContextCapsule::ToString() const {
+  return absl::StrCat("LEGACY_DATAGRAM_WITHOUT_CONTEXT[",
+                      absl::BytesToHexString(http_datagram_payload), "]");
+}
+
+std::string CloseWebTransportSessionCapsule::ToString() const {
+  return absl::StrCat("CLOSE_WEBTRANSPORT_SESSION(error_code=", error_code,
+                      ",error_message=\"", error_message, "\")");
+}
+
+std::string AddressRequestCapsule::ToString() const {
+  std::string rv = "ADDRESS_REQUEST[";
+  for (auto requested_address : requested_addresses) {
+    absl::StrAppend(&rv, "(", requested_address.request_id, "-",
+                    requested_address.ip_prefix.ToString(), ")");
+  }
+  absl::StrAppend(&rv, "]");
+  return rv;
+}
+
+std::string AddressAssignCapsule::ToString() const {
+  std::string rv = "ADDRESS_ASSIGN[";
+  for (auto assigned_address : assigned_addresses) {
+    absl::StrAppend(&rv, "(", assigned_address.request_id, "-",
+                    assigned_address.ip_prefix.ToString(), ")");
+  }
+  absl::StrAppend(&rv, "]");
+  return rv;
+}
+
+std::string RouteAdvertisementCapsule::ToString() const {
+  std::string rv = "ROUTE_ADVERTISEMENT[";
+  for (auto ip_address_range : ip_address_ranges) {
+    absl::StrAppend(&rv, "(", ip_address_range.start_ip_address.ToString(), "-",
+                    ip_address_range.end_ip_address.ToString(), "-",
+                    static_cast<int>(ip_address_range.ip_protocol), ")");
+  }
+  absl::StrAppend(&rv, "]");
+  return rv;
+}
+
 std::string Capsule::ToString() const {
-  std::string rv = CapsuleTypeToString(capsule_type_);
   switch (capsule_type_) {
     case CapsuleType::DATAGRAM:
-      absl::StrAppend(
-          &rv, "[",
-          absl::BytesToHexString(datagram_capsule_.http_datagram_payload), "]");
-      break;
+      return datagram_capsule_.ToString();
     case CapsuleType::LEGACY_DATAGRAM:
-      absl::StrAppend(&rv, "[",
-                      absl::BytesToHexString(
-                          legacy_datagram_capsule_.http_datagram_payload),
-                      "]");
-      break;
+      return legacy_datagram_capsule_.ToString();
     case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
-      absl::StrAppend(
-          &rv, "[",
-          absl::BytesToHexString(
-              legacy_datagram_without_context_capsule_.http_datagram_payload),
-          "]");
-      break;
+      return legacy_datagram_without_context_capsule_.ToString();
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
-      absl::StrAppend(
-          &rv, "(error_code=", close_web_transport_session_capsule_.error_code,
-          ",error_message=\"",
-          close_web_transport_session_capsule_.error_message, "\")");
-      break;
-    case CapsuleType::ADDRESS_REQUEST: {
-      absl::StrAppend(&rv, "[");
-      for (auto requested_address :
-           address_request_capsule_->requested_addresses) {
-        absl::StrAppend(&rv, "(", requested_address.request_id, "-",
-                        requested_address.ip_prefix.ToString(), ")");
-      }
-      absl::StrAppend(&rv, "]");
-    } break;
-    case CapsuleType::ADDRESS_ASSIGN: {
-      absl::StrAppend(&rv, "[");
-      for (auto assigned_address :
-           address_assign_capsule_->assigned_addresses) {
-        absl::StrAppend(&rv, "(", assigned_address.request_id, "-",
-                        assigned_address.ip_prefix.ToString(), ")");
-      }
-      absl::StrAppend(&rv, "]");
-    } break;
-    case CapsuleType::ROUTE_ADVERTISEMENT: {
-      absl::StrAppend(&rv, "[");
-      for (auto ip_address_range :
-           route_advertisement_capsule_->ip_address_ranges) {
-        absl::StrAppend(&rv, "(", ip_address_range.start_ip_address.ToString(),
-                        "-", ip_address_range.end_ip_address.ToString(), "-",
-                        static_cast<int>(ip_address_range.ip_protocol), ")");
-      }
-      absl::StrAppend(&rv, "]");
-    } break;
+      return close_web_transport_session_capsule_.ToString();
+    case CapsuleType::ADDRESS_REQUEST:
+      return address_request_capsule_->ToString();
+    case CapsuleType::ADDRESS_ASSIGN:
+      return address_assign_capsule_->ToString();
+    case CapsuleType::ROUTE_ADVERTISEMENT:
+      return route_advertisement_capsule_->ToString();
     default:
-      absl::StrAppend(&rv, "[", absl::BytesToHexString(unknown_capsule_data_),
-                      "]");
-      break;
+      return absl::StrCat(CapsuleTypeToString(capsule_type_), "[",
+                          absl::BytesToHexString(unknown_capsule_data_), "]");
   }
-  return rv;
 }
 
 std::ostream& operator<<(std::ostream& os, const Capsule& capsule) {

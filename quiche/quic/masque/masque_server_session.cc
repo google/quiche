@@ -594,17 +594,20 @@ void MasqueServerSession::ConnectIpServerState::OnHttp3Datagram(
 }
 
 bool MasqueServerSession::ConnectIpServerState::OnAddressAssignCapsule(
-    const AddressAssignCapsule& /*capsule*/) {
+    const AddressAssignCapsule& capsule) {
+  QUIC_DLOG(INFO) << "Ignoring received capsule " << capsule.ToString();
   return true;
 }
 
 bool MasqueServerSession::ConnectIpServerState::OnAddressRequestCapsule(
-    const AddressRequestCapsule& /*capsule*/) {
+    const AddressRequestCapsule& capsule) {
+  QUIC_DLOG(INFO) << "Ignoring received capsule " << capsule.ToString();
   return true;
 }
 
 bool MasqueServerSession::ConnectIpServerState::OnRouteAdvertisementCapsule(
-    const RouteAdvertisementCapsule& /*capsule*/) {
+    const RouteAdvertisementCapsule& capsule) {
+  QUIC_DLOG(INFO) << "Ignoring received capsule " << capsule.ToString();
   return true;
 }
 
