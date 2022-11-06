@@ -221,7 +221,7 @@ int RunMasqueClient(int argc, char* argv[]) {
     while (true) {
       event_loop->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(50));
     }
-    return 0;
+    QUICHE_NOTREACHED();
   }
 
   for (size_t i = 1; i < urls.size(); ++i) {
