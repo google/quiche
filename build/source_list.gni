@@ -968,7 +968,9 @@ io_tool_support_hdrs = [
     "src/quiche/quic/masque/masque_utils.h",
     "src/quiche/quic/platform/api/quic_udp_socket_platform_api.h",
     "src/quiche/quic/tools/quic_client_default_network_helper.h",
+    "src/quiche/quic/tools/quic_client_factory.h",
     "src/quiche/quic/tools/quic_default_client.h",
+    "src/quiche/quic/tools/quic_epoll_client_factory.h",
     "src/quiche/quic/tools/quic_server.h",
 ]
 io_tool_support_srcs = [
@@ -993,6 +995,7 @@ io_tool_support_srcs = [
     "src/quiche/quic/masque/masque_utils.cc",
     "src/quiche/quic/tools/quic_client_default_network_helper.cc",
     "src/quiche/quic/tools/quic_default_client.cc",
+    "src/quiche/quic/tools/quic_epoll_client_factory.cc",
     "src/quiche/quic/tools/quic_server.cc",
 ]
 io_test_support_hdrs = [
@@ -1310,7 +1313,6 @@ fuzzers_srcs = [
     "src/quiche/quic/test_tools/fuzzing/quic_framer_process_data_packet_fuzzer.cc",
 ]
 cli_tools_hdrs = [
-    "src/quiche/quic/tools/quic_epoll_client_factory.h",
     "src/quiche/quic/tools/quic_server_factory.h",
     "src/quiche/quic/tools/quic_toy_client.h",
     "src/quiche/quic/tools/quic_toy_server.h",
@@ -1322,7 +1324,6 @@ cli_tools_srcs = [
     "src/quiche/quic/tools/qpack_offline_decoder_bin.cc",
     "src/quiche/quic/tools/quic_client_bin.cc",
     "src/quiche/quic/tools/quic_client_interop_test_bin.cc",
-    "src/quiche/quic/tools/quic_epoll_client_factory.cc",
     "src/quiche/quic/tools/quic_packet_printer_bin.cc",
     "src/quiche/quic/tools/quic_reject_reason_decoder_bin.cc",
     "src/quiche/quic/tools/quic_server_bin.cc",

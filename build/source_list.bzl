@@ -968,7 +968,9 @@ io_tool_support_hdrs = [
     "quic/masque/masque_utils.h",
     "quic/platform/api/quic_udp_socket_platform_api.h",
     "quic/tools/quic_client_default_network_helper.h",
+    "quic/tools/quic_client_factory.h",
     "quic/tools/quic_default_client.h",
+    "quic/tools/quic_epoll_client_factory.h",
     "quic/tools/quic_server.h",
 ]
 io_tool_support_srcs = [
@@ -993,6 +995,7 @@ io_tool_support_srcs = [
     "quic/masque/masque_utils.cc",
     "quic/tools/quic_client_default_network_helper.cc",
     "quic/tools/quic_default_client.cc",
+    "quic/tools/quic_epoll_client_factory.cc",
     "quic/tools/quic_server.cc",
 ]
 io_test_support_hdrs = [
@@ -1310,7 +1313,6 @@ fuzzers_srcs = [
     "quic/test_tools/fuzzing/quic_framer_process_data_packet_fuzzer.cc",
 ]
 cli_tools_hdrs = [
-    "quic/tools/quic_epoll_client_factory.h",
     "quic/tools/quic_server_factory.h",
     "quic/tools/quic_toy_client.h",
     "quic/tools/quic_toy_server.h",
@@ -1322,7 +1324,6 @@ cli_tools_srcs = [
     "quic/tools/qpack_offline_decoder_bin.cc",
     "quic/tools/quic_client_bin.cc",
     "quic/tools/quic_client_interop_test_bin.cc",
-    "quic/tools/quic_epoll_client_factory.cc",
     "quic/tools/quic_packet_printer_bin.cc",
     "quic/tools/quic_reject_reason_decoder_bin.cc",
     "quic/tools/quic_server_bin.cc",
