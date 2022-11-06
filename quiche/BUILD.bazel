@@ -263,6 +263,19 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "quic_toy_client",
+    srcs = [
+        "quic/tools/quic_toy_client.cc",
+    ],
+    hdrs = [
+        "quic/tools/quic_toy_client.h",
+    ],
+    deps = [
+        ":io_tool_support",
+    ],
+)
+
 test_suite_from_source_list(
     name = "quiche_tests",
     srcs = quiche_tests_srcs,
@@ -272,12 +285,12 @@ test_suite_from_source_list(
     ]),
     deps = [
         ":binary_http",
+        ":oblivious_http",
         ":quiche_core",
         ":quiche_platform_default_testonly",
         ":quiche_protobufs_testonly_cc_proto",
         ":quiche_test_support",
         ":quiche_tool_support",
-        ":oblivious_http",
         "@boringssl//:crypto",
         "@boringssl//:ssl",
         "@com_google_absl//absl/algorithm:container",
@@ -403,6 +416,51 @@ cc_binary(
     srcs = ["quic/tools/quic_packet_printer_bin.cc"],
     deps = [
         ":quiche_core",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "crypto_message_printer",
+    srcs = ["quic/tools/crypto_message_printer_bin.cc"],
+    deps = [
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "quic_client",
+    srcs = ["quic/tools/quic_client_bin.cc"],
+    deps = [
+        ":quic_toy_client",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "masque_client",
+    srcs = ["quic/masque/masque_client_bin.cc"],
+    deps = [
+        ":io_tool_support",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "masque_server",
+    srcs = ["quic/masque/masque_server_bin.cc"],
+    deps = [
+        ":io_tool_support",
+        ":quiche_core",
+        ":quiche_platform_default",
+        ":quiche_platform_default_tools",
         ":quiche_tool_support",
         "@com_google_absl//absl/strings",
     ],
