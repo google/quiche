@@ -62,7 +62,9 @@ class MasqueTunSession : public MasqueClientSession::EncapsulatedIpSession,
       // TUN not open, early return
       return;
     }
-    write(fd_, packet.data(), packet.size());
+    if (write(fd_, packet.data(), packet.size()) == -1) {
+      QUIC_LOG(FATAL) << "Failed to write";
+    }
   }
   void CloseIpSession(const std::string& details) override {
     QUIC_LOG(ERROR) << "Was asked to close IP session: " << details;
