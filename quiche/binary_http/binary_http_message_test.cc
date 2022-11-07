@@ -707,4 +707,80 @@ TEST(BinaryHttpResponse, Inequality) {
   EXPECT_NE(response, no_informational);
 }
 
+MATCHER_P(HasEqPayload, value, "Payloads of messages are equivalent.") {
+  return arg.IsPayloadEqual(value);
+}
+
+template <typename T>
+void TestPadding(T& message) {
+  const auto data_so = message.Serialize();
+  ASSERT_TRUE(data_so.ok());
+  auto data = *data_so;
+  ASSERT_EQ(data.size(), message.EncodedSize());
+
+  message.set_num_padding_bytes(10);
+  const auto padded_data_so = message.Serialize();
+  ASSERT_TRUE(padded_data_so.ok());
+  const auto padded_data = *padded_data_so;
+  ASSERT_EQ(padded_data.size(), message.EncodedSize());
+
+  // Check padding size output.
+  ASSERT_EQ(data.size() + 10, padded_data.size());
+  // Check for valid null byte padding output
+  data.resize(data.size() + 10);
+  ASSERT_EQ(data, padded_data);
+
+  // Deserialize padded and not padded, and verify they are the same.
+  const auto deserialized_padded_message_so = T::Create(data);
+  ASSERT_TRUE(deserialized_padded_message_so.ok());
+  const auto deserialized_padded_message = *deserialized_padded_message_so;
+  ASSERT_EQ(deserialized_padded_message, message);
+  ASSERT_EQ(deserialized_padded_message.num_padding_bytes(), size_t(10));
+
+  // Invalid padding
+  data[data.size() - 1] = 'a';
+  const auto bad_so = T::Create(data);
+  ASSERT_FALSE(bad_so.ok());
+
+  // Check that padding does not impact equality.
+  data.resize(data.size() - 10);
+  const auto deserialized_message_so = T::Create(data);
+  ASSERT_TRUE(deserialized_message_so.ok());
+  const auto deserialized_message = *deserialized_message_so;
+  ASSERT_EQ(deserialized_message.num_padding_bytes(), size_t(0));
+  // Confirm that the message payloads are equal, but not fully equivalent due
+  // to padding.
+  ASSERT_THAT(deserialized_message, HasEqPayload(deserialized_padded_message));
+  ASSERT_NE(deserialized_message, deserialized_padded_message);
+}
+
+TEST(BinaryHttpRequest, Padding) {
+  /*
+    GET /hello.txt HTTP/1.1
+    User-Agent: curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3
+    Host: www.example.com
+    Accept-Language: en, mi
+  */
+  BinaryHttpRequest request({"GET", "https", "", "/hello.txt"});
+  request
+      .AddHeaderField({"User-Agent",
+                       "curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3"})
+      ->AddHeaderField({"Host", "www.example.com"})
+      ->AddHeaderField({"Accept-Language", "en, mi"});
+  TestPadding(request);
+}
+
+TEST(BinaryHttpResponse, Padding) {
+  /*
+    HTTP/1.1 200 OK
+    Server: Apache
+
+    Hello, world!
+  */
+  BinaryHttpResponse response(200);
+  response.AddHeaderField({"Server", "Apache"});
+  response.set_body("Hello, world!\r\n");
+  TestPadding(response);
+}
+
 }  // namespace quiche

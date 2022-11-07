@@ -1,6 +1,7 @@
 #ifndef QUICHE_BINARY_HTTP_BINARY_HTTP_MESSAGE_H_
 #define QUICHE_BINARY_HTTP_BINARY_HTTP_MESSAGE_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -51,8 +52,15 @@ class QUICHE_EXPORT BinaryHttpMessage {
   }
 
   void swap_body(std::string& body) { body_.swap(body); }
+  void set_num_padding_bytes(size_t num_padding_bytes) {
+    num_padding_bytes_ = num_padding_bytes;
+  }
+  size_t num_padding_bytes() const { return num_padding_bytes_; }
 
   absl::string_view body() const { return body_; }
+
+  // Returns the number of bytes `Serialize` will return, including padding.
+  virtual size_t EncodedSize() const = 0;
 
   // Returns the Binary Http formatted message.
   virtual absl::StatusOr<std::string> Serialize() const = 0;
@@ -81,17 +89,18 @@ class QUICHE_EXPORT BinaryHttpMessage {
 
     // The number of returned by EncodedFieldsSize
     // plus the number of bytes used in the varint holding that value.
-    uint64_t EncodedSize() const;
+    size_t EncodedSize() const;
 
    private:
     // Number of bytes of just the set of fields.
-    uint64_t EncodedFieldsSize() const;
+    size_t EncodedFieldsSize() const;
 
     // Fields in insertion order.
     std::vector<BinaryHttpMessage::Field> fields_;
   };
 
-  bool operator==(const BinaryHttpMessage& rhs) const {
+  // Checks equality excluding padding.
+  bool IsPayloadEqual(const BinaryHttpMessage& rhs) const {
     // `has_host_` is derived from `header_fields_` so it doesn't need to be
     // tested directly.
     return body_ == rhs.body_ && header_fields_ == rhs.header_fields_;
@@ -99,13 +108,14 @@ class QUICHE_EXPORT BinaryHttpMessage {
 
   absl::Status EncodeKnownLengthFieldsAndBody(
       quiche::QuicheDataWriter& writer) const;
-  uint64_t EncodedKnownLengthFieldsAndBodySize() const;
+  size_t EncodedKnownLengthFieldsAndBodySize() const;
   bool has_host() const { return has_host_; }
 
  private:
   std::string body_;
   Fields header_fields_;
   bool has_host_ = false;
+  size_t num_padding_bytes_ = 0;
 };
 
 void QUICHE_EXPORT PrintTo(const BinaryHttpMessage::Field& msg,
@@ -113,7 +123,10 @@ void QUICHE_EXPORT PrintTo(const BinaryHttpMessage::Field& msg,
 
 class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
  public:
-  // HTTP request must have all of the following fields.
+  // HTTP request must have method, scheme, and path fields.
+  // The `authority` field is required unless a `host` header field is added.
+  // If a `host` header field is added, `authority` is serialized as the empty
+  // string.
   // Some examples are:
   //   scheme: HTTP
   //   authority: www.example.com
@@ -137,14 +150,21 @@ class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
   // Deserialize
   static absl::StatusOr<BinaryHttpRequest> Create(absl::string_view data);
 
+  size_t EncodedSize() const override;
   absl::StatusOr<std::string> Serialize() const override;
   const ControlData& control_data() const { return control_data_; }
 
   virtual std::string DebugString() const override;
 
-  bool operator==(const BinaryHttpRequest& rhs) const {
+  // Returns true if the contents of the requests are equal, excluding padding.
+  bool IsPayloadEqual(const BinaryHttpRequest& rhs) const {
     return control_data_ == rhs.control_data_ &&
-           BinaryHttpMessage::operator==(rhs);
+           BinaryHttpMessage::IsPayloadEqual(rhs);
+  }
+
+  bool operator==(const BinaryHttpRequest& rhs) const {
+    return IsPayloadEqual(rhs) &&
+           num_padding_bytes() == rhs.num_padding_bytes();
   }
 
   bool operator!=(const BinaryHttpRequest& rhs) const {
@@ -154,9 +174,7 @@ class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
  private:
   absl::Status EncodeControlData(quiche::QuicheDataWriter& writer) const;
 
-  uint64_t EncodedControlDataSize() const;
-
-  uint64_t EncodedSize() const;
+  size_t EncodedControlDataSize() const;
 
   // Returns Binary Http known length request formatted request.
   absl::StatusOr<std::string> EncodeAsKnownLength() const;
@@ -210,7 +228,7 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
     // Give BinaryHttpResponse access to Encoding functionality.
     friend class BinaryHttpResponse;
 
-    uint64_t EncodedSize() const;
+    size_t EncodedSize() const;
 
     // Appends the encoded fields and body to `writer`.
     absl::Status Encode(quiche::QuicheDataWriter& writer) const;
@@ -225,6 +243,7 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
   // Deserialize
   static absl::StatusOr<BinaryHttpResponse> Create(absl::string_view data);
 
+  size_t EncodedSize() const override;
   absl::StatusOr<std::string> Serialize() const override;
 
   // Informational status codes must be between 100 and 199 inclusive.
@@ -241,12 +260,19 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
 
   virtual std::string DebugString() const override;
 
-  bool operator==(const BinaryHttpResponse& rhs) const {
+  // Returns true if the contents of the requests are equal, excluding padding.
+  bool IsPayloadEqual(const BinaryHttpResponse& rhs) const {
     return informational_response_control_data_ ==
                rhs.informational_response_control_data_ &&
            status_code_ == rhs.status_code_ &&
-           BinaryHttpMessage::operator==(rhs);
+           BinaryHttpMessage::IsPayloadEqual(rhs);
   }
+
+  bool operator==(const BinaryHttpResponse& rhs) const {
+    return IsPayloadEqual(rhs) &&
+           num_padding_bytes() == rhs.num_padding_bytes();
+  }
+
   bool operator!=(const BinaryHttpResponse& rhs) const {
     return !(*this == rhs);
   }
@@ -254,8 +280,6 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
  private:
   // Returns Binary Http known length request formatted response.
   absl::StatusOr<std::string> EncodeAsKnownLength() const;
-
-  uint64_t EncodedSize() const;
 
   std::vector<InformationalResponse> informational_response_control_data_;
   const uint16_t status_code_;

@@ -33,6 +33,11 @@ bool ReadStringValue(quiche::QuicheDataReader& reader, std::string& data) {
   return true;
 }
 
+bool IsValidPadding(absl::string_view data) {
+  return std::all_of(data.begin(), data.end(),
+                     [](char c) { return c == '\0'; });
+}
+
 absl::StatusOr<BinaryHttpRequest::ControlData> DecodeControlData(
     quiche::QuicheDataReader& reader) {
   BinaryHttpRequest::ControlData control_data;
@@ -107,6 +112,10 @@ absl::StatusOr<BinaryHttpRequest> DecodeKnownLengthRequest(
       !status.ok()) {
     return status;
   }
+  if (!IsValidPadding(reader.PeekRemainingPayload())) {
+    return absl::InvalidArgumentError("Non-zero padding.");
+  }
+  request.set_num_padding_bytes(reader.BytesRemaining());
   return request;
 }
 
@@ -148,13 +157,16 @@ absl::StatusOr<BinaryHttpResponse> DecodeKnownLengthResponse(
       !status.ok()) {
     return status;
   }
+  if (!IsValidPadding(reader.PeekRemainingPayload())) {
+    return absl::InvalidArgumentError("Non-zero padding.");
+  }
+  response.set_num_padding_bytes(reader.BytesRemaining());
   return response;
 }
 
 uint64_t StringPieceVarInt62Len(absl::string_view s) {
   return quiche::QuicheDataWriter::GetVarInt62Len(s.length()) + s.length();
 }
-
 }  // namespace
 
 void BinaryHttpMessage::Fields::AddField(BinaryHttpMessage::Field field) {
@@ -179,13 +191,13 @@ absl::Status BinaryHttpMessage::Fields::Encode(
   return absl::OkStatus();
 }
 
-uint64_t BinaryHttpMessage::Fields::EncodedSize() const {
-  uint64_t size = EncodedFieldsSize();
+size_t BinaryHttpMessage::Fields::EncodedSize() const {
+  const size_t size = EncodedFieldsSize();
   return size + quiche::QuicheDataWriter::GetVarInt62Len(size);
 }
 
-uint64_t BinaryHttpMessage::Fields::EncodedFieldsSize() const {
-  uint64_t size = 0;
+size_t BinaryHttpMessage::Fields::EncodedFieldsSize() const {
+  size_t size = 0;
   for (const BinaryHttpMessage::Field& field : fields_) {
     size += StringPieceVarInt62Len(field.name) +
             StringPieceVarInt62Len(field.value);
@@ -217,7 +229,7 @@ absl::Status BinaryHttpMessage::EncodeKnownLengthFieldsAndBody(
   return absl::OkStatus();
 }
 
-uint64_t BinaryHttpMessage::EncodedKnownLengthFieldsAndBodySize() const {
+size_t BinaryHttpMessage::EncodedKnownLengthFieldsAndBodySize() const {
   return header_fields_.EncodedSize() + StringPieceVarInt62Len(body_);
 }
 
@@ -263,17 +275,18 @@ absl::StatusOr<std::string> BinaryHttpResponse::EncodeAsKnownLength() const {
       !status.ok()) {
     return status;
   }
-  QUICHE_DCHECK_EQ(writer.remaining(), 0u);
+  QUICHE_DCHECK_EQ(writer.remaining(), num_padding_bytes());
+  writer.WritePadding();
   return data;
 }
 
-uint64_t BinaryHttpResponse::EncodedSize() const {
-  uint64_t size = sizeof(kKnownLengthResponseFraming);
+size_t BinaryHttpResponse::EncodedSize() const {
+  size_t size = sizeof(kKnownLengthResponseFraming);
   for (const auto& informational : informational_response_control_data_) {
     size += informational.EncodedSize();
   }
   return size + quiche::QuicheDataWriter::GetVarInt62Len(status_code_) +
-         EncodedKnownLengthFieldsAndBodySize();
+         EncodedKnownLengthFieldsAndBodySize() + num_padding_bytes();
 }
 
 void BinaryHttpResponse::InformationalResponse::AddField(absl::string_view name,
@@ -288,7 +301,7 @@ absl::Status BinaryHttpResponse::InformationalResponse::Encode(
   return fields_.Encode(writer);
 }
 
-uint64_t BinaryHttpResponse::InformationalResponse::EncodedSize() const {
+size_t BinaryHttpResponse::InformationalResponse::EncodedSize() const {
   return quiche::QuicheDataWriter::GetVarInt62Len(status_code_) +
          fields_.EncodedSize();
 }
@@ -325,10 +338,10 @@ absl::Status BinaryHttpRequest::EncodeControlData(
   return absl::OkStatus();
 }
 
-uint64_t BinaryHttpRequest::EncodedControlDataSize() const {
-  uint64_t size = StringPieceVarInt62Len(control_data_.method) +
-                  StringPieceVarInt62Len(control_data_.scheme) +
-                  StringPieceVarInt62Len(control_data_.path);
+size_t BinaryHttpRequest::EncodedControlDataSize() const {
+  size_t size = StringPieceVarInt62Len(control_data_.method) +
+                StringPieceVarInt62Len(control_data_.scheme) +
+                StringPieceVarInt62Len(control_data_.path);
   if (!has_host()) {
     size += StringPieceVarInt62Len(control_data_.authority);
   } else {
@@ -337,9 +350,9 @@ uint64_t BinaryHttpRequest::EncodedControlDataSize() const {
   return size;
 }
 
-uint64_t BinaryHttpRequest::EncodedSize() const {
+size_t BinaryHttpRequest::EncodedSize() const {
   return sizeof(kKnownLengthRequestFraming) + EncodedControlDataSize() +
-         EncodedKnownLengthFieldsAndBodySize();
+         EncodedKnownLengthFieldsAndBodySize() + num_padding_bytes();
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html#name-known-length-messages
@@ -357,7 +370,8 @@ absl::StatusOr<std::string> BinaryHttpRequest::EncodeAsKnownLength() const {
       !status.ok()) {
     return status;
   }
-  QUICHE_DCHECK_EQ(writer.remaining(), 0u);
+  QUICHE_DCHECK_EQ(writer.remaining(), num_padding_bytes());
+  writer.WritePadding();
   return data;
 }
 
