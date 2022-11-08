@@ -96,7 +96,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   void SendRequestsAndWaitForResponse(const std::vector<std::string>& url_list);
 
   // Returns a newly created QuicSpdyClientStream.
-  QuicSpdyClientStream* CreateClientStream();
+  virtual QuicSpdyClientStream* CreateClientStream();
 
   // Returns a the session used for this client downcasted to a
   // QuicSpdyClientSession.
