@@ -247,9 +247,9 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   bool HasReceivedConnectionOptions() const;
 
-  void SetGoogleHandshakeMessageToSend(const std::string& message);
+  void SetGoogleHandshakeMessageToSend(std::string message);
 
-  absl::optional<std::string> GetReceivedGoogleHandshakeMessage() const;
+  const absl::optional<std::string>& GetReceivedGoogleHandshakeMessage() const;
 
   // Sets initial received connection options.  All received connection options
   // will be initialized with these fields. Initial received options may only be
@@ -515,6 +515,9 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   received_custom_transport_parameters() const {
     return received_custom_transport_parameters_;
   }
+
+  // Called to clear google_handshake_message to send or received.
+  void ClearGoogleHandshakeMessage();
 
  private:
   friend class test::QuicConfigPeer;

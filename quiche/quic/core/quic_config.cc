@@ -467,12 +467,12 @@ void QuicConfig::SetConnectionOptionsToSend(
   connection_options_.SetSendValues(connection_options);
 }
 
-void QuicConfig::SetGoogleHandshakeMessageToSend(const std::string& message) {
-  google_handshake_message_to_send_ = message;
+void QuicConfig::SetGoogleHandshakeMessageToSend(std::string message) {
+  google_handshake_message_to_send_ = std::move(message);
 }
 
-absl::optional<std::string> QuicConfig::GetReceivedGoogleHandshakeMessage()
-    const {
+const absl::optional<std::string>&
+QuicConfig::GetReceivedGoogleHandshakeMessage() const {
   return received_google_handshake_message_;
 }
 
@@ -1412,6 +1412,11 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   }
   *error_details = "";
   return QUIC_NO_ERROR;
+}
+
+void QuicConfig::ClearGoogleHandshakeMessage() {
+  google_handshake_message_to_send_.reset();
+  received_google_handshake_message_.reset();
 }
 
 }  // namespace quic
