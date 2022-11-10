@@ -6,8 +6,10 @@
 
 #include <cstddef>
 
+#include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/mock_connection_id_generator.h"
@@ -1026,6 +1028,46 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
   EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(_)).Times(0);
   EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_)).Times(0);
   cid_manager_.MaybeSendNewConnectionIds();
+}
+
+// Regression test for b/258450534
+TEST_F(QuicSelfIssuedConnectionIdManagerTest,
+       RetireConnectionIdAfterConnectionIdCollisionIsFine) {
+  SetQuicReloadableFlag(quic_check_cid_collision_when_issue_new_cid, true);
+  QuicConnectionId cid0 = initial_connection_id_;
+  QuicConnectionId cid1 = CheckGenerate(cid0);
+  EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid1))
+      .WillOnce(Return(true));
+  EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_))
+      .WillOnce(Return(true));
+  cid_manager_.MaybeSendNewConnectionIds();
+
+  QuicRetireConnectionIdFrame retire_cid_frame(/*control_frame_id=*/0,
+                                               /*sequence_number=*/1);
+  QuicConnectionId cid2 = CheckGenerate(cid1);
+  // This happens when cid2 is aleady present in the dispatcher map.
+  EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid2))
+      .WillOnce(Return(false));
+  std::string error_details;
+  EXPECT_EQ(
+      cid_manager_.OnRetireConnectionIdFrame(
+          retire_cid_frame, QuicTime::Delta::FromSeconds(1), &error_details),
+      QUIC_NO_ERROR)
+      << error_details;
+
+  if (GetQuicReloadableFlag(
+          quic_check_retire_cid_with_next_cid_sequence_number)) {
+    EXPECT_EQ(
+        cid_manager_.OnRetireConnectionIdFrame(
+            retire_cid_frame, QuicTime::Delta::FromSeconds(1), &error_details),
+        QUIC_NO_ERROR)
+        << error_details;
+  } else {
+    EXPECT_EQ(
+        cid_manager_.OnRetireConnectionIdFrame(
+            retire_cid_frame, QuicTime::Delta::FromSeconds(1), &error_details),
+        IETF_QUIC_PROTOCOL_VIOLATION);
+  }
 }
 
 }  // namespace
