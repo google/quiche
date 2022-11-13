@@ -458,7 +458,8 @@ bool QuicDispatcher::MaybeDispatchPacket(
     return true;
   }
 
-  QuicConnectionId server_connection_id = packet_info.destination_connection_id;
+  const QuicConnectionId server_connection_id =
+      packet_info.destination_connection_id;
 
   // The IETF spec requires the client to generate an initial server
   // connection ID that is at least 64 bits long. After that initial
@@ -548,19 +549,9 @@ bool QuicDispatcher::MaybeDispatchPacket(
       if (ShouldCreateSessionForUnknownVersion(packet_info.version_label)) {
         return false;
       }
-      if (!crypto_config()->validate_chlo_size() ||
-          packet_info.packet.length() >= kMinPacketSizeForVersionNegotiation) {
-        // Since the version is not supported, send a version negotiation
-        // packet and stop processing the current packet.
-        QuicConnectionId client_connection_id =
-            packet_info.source_connection_id;
-        time_wait_list_manager()->SendVersionNegotiationPacket(
-            server_connection_id, client_connection_id,
-            packet_info.form != GOOGLE_QUIC_PACKET,
-            packet_info.use_length_prefix, GetSupportedVersions(),
-            packet_info.self_address, packet_info.peer_address,
-            GetPerPacketContext());
-      }
+      // Since the version is not supported, send a version negotiation
+      // packet and stop processing the current packet.
+      MaybeSendVersionNegotiationPacket(packet_info);
       return true;
     }
 
@@ -1391,6 +1382,19 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
       packet_info.destination_connection_id,
       packet_info.form != GOOGLE_QUIC_PACKET, packet_info.packet.length(),
       GetPerPacketContext());
+}
+
+void QuicDispatcher::MaybeSendVersionNegotiationPacket(
+    const ReceivedPacketInfo& packet_info) {
+  if (crypto_config()->validate_chlo_size() &&
+      packet_info.packet.length() < kMinPacketSizeForVersionNegotiation) {
+    return;
+  }
+  time_wait_list_manager()->SendVersionNegotiationPacket(
+      packet_info.destination_connection_id, packet_info.source_connection_id,
+      packet_info.form != GOOGLE_QUIC_PACKET, packet_info.use_length_prefix,
+      GetSupportedVersions(), packet_info.self_address,
+      packet_info.peer_address, GetPerPacketContext());
 }
 
 size_t QuicDispatcher::NumSessions() const {

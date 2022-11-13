@@ -1636,9 +1636,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const char* ValidateStopWaitingFrame(
       const QuicStopWaitingFrame& stop_waiting);
 
-  // Sends a version negotiation packet to the peer.
-  void SendVersionNegotiationPacket(bool ietf_quic, bool has_length_prefix);
-
   // Clears any accumulated frames from the last received packet.
   void ClearLastFrames();
 
