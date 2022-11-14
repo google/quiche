@@ -141,6 +141,7 @@ void CallbackVisitor::OnSettingsEnd() {
 
 void CallbackVisitor::OnSettingsAck() {
   // ACK is part of the flags, which were set in OnFrameHeader().
+  QUICHE_VLOG(1) << "OnSettingsAck()";
   if (callbacks_->on_frame_recv_callback) {
     const int result = callbacks_->on_frame_recv_callback(
         nullptr, &current_frame_, user_data_);
@@ -180,8 +181,10 @@ bool CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
 }
 
 Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(
-    Http2StreamId /*stream_id*/, absl::string_view name,
-    absl::string_view value) {
+    Http2StreamId stream_id, absl::string_view name, absl::string_view value) {
+  QUICHE_VLOG(2) << "OnHeaderForStream(stream_id=" << stream_id << ", name=["
+                 << absl::CEscape(name) << "], value=[" << absl::CEscape(value)
+                 << "])";
   if (callbacks_->on_header_callback) {
     const int result = callbacks_->on_header_callback(
         nullptr, &current_frame_, ToUint8Ptr(name.data()), name.size(),
@@ -199,7 +202,8 @@ Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(
   return HEADER_OK;
 }
 
-bool CallbackVisitor::OnEndHeadersForStream(Http2StreamId /*stream_id*/) {
+bool CallbackVisitor::OnEndHeadersForStream(Http2StreamId stream_id) {
+  QUICHE_VLOG(1) << "OnEndHeadersForStream(stream_id=" << stream_id << ")";
   if (callbacks_->on_frame_recv_callback) {
     const int result = callbacks_->on_frame_recv_callback(
         nullptr, &current_frame_, user_data_);
@@ -234,6 +238,8 @@ bool CallbackVisitor::OnBeginDataForStream(Http2StreamId /*stream_id*/,
 
 bool CallbackVisitor::OnDataForStream(Http2StreamId stream_id,
                                       absl::string_view data) {
+  QUICHE_VLOG(1) << "OnDataForStream(stream_id=" << stream_id
+                 << ", data.size()=" << data.size() << ")";
   int result = 0;
   if (callbacks_->on_data_chunk_recv_callback) {
     result = callbacks_->on_data_chunk_recv_callback(
@@ -249,10 +255,14 @@ bool CallbackVisitor::OnDataForStream(Http2StreamId stream_id,
   return result == 0;
 }
 
-void CallbackVisitor::OnEndStream(Http2StreamId /*stream_id*/) {}
+void CallbackVisitor::OnEndStream(Http2StreamId stream_id) {
+  QUICHE_VLOG(1) << "OnEndStream(stream_id=" << stream_id << ")";
+}
 
-void CallbackVisitor::OnRstStream(Http2StreamId /*stream_id*/,
+void CallbackVisitor::OnRstStream(Http2StreamId stream_id,
                                   Http2ErrorCode error_code) {
+  QUICHE_VLOG(1) << "OnRstStream(stream_id=" << stream_id
+                 << ", error_code=" << static_cast<int>(error_code) << ")";
   current_frame_.rst_stream.error_code = static_cast<uint32_t>(error_code);
   if (callbacks_->on_frame_recv_callback) {
     const int result = callbacks_->on_frame_recv_callback(
@@ -263,10 +273,10 @@ void CallbackVisitor::OnRstStream(Http2StreamId /*stream_id*/,
 
 bool CallbackVisitor::OnCloseStream(Http2StreamId stream_id,
                                     Http2ErrorCode error_code) {
+  QUICHE_VLOG(1) << "OnCloseStream(stream_id=" << stream_id
+                 << ", error_code=" << static_cast<int>(error_code) << ")";
   int result = 0;
   if (callbacks_->on_stream_close_callback) {
-    QUICHE_VLOG(1) << "OnCloseStream(stream_id: " << stream_id
-                   << ", error_code: " << int(error_code) << ")";
     result = callbacks_->on_stream_close_callback(
         nullptr, stream_id, static_cast<uint32_t>(error_code), user_data_);
   }
@@ -290,7 +300,9 @@ void CallbackVisitor::OnPriorityForStream(Http2StreamId /*stream_id*/,
   }
 }
 
-void CallbackVisitor::OnPing(Http2PingId ping_id, bool /*is_ack*/) {
+void CallbackVisitor::OnPing(Http2PingId ping_id, bool is_ack) {
+  QUICHE_VLOG(1) << "OnPing(ping_id=" << static_cast<int64_t>(ping_id)
+                 << ", is_ack=" << is_ack << ")";
   uint64_t network_order_opaque_data =
       quiche::QuicheEndian::HostToNet64(ping_id);
   std::memcpy(current_frame_.ping.opaque_data, &network_order_opaque_data,
@@ -310,6 +322,10 @@ void CallbackVisitor::OnPushPromiseForStream(
 bool CallbackVisitor::OnGoAway(Http2StreamId last_accepted_stream_id,
                                Http2ErrorCode error_code,
                                absl::string_view opaque_data) {
+  QUICHE_VLOG(1) << "OnGoAway(last_accepted_stream_id="
+                 << last_accepted_stream_id
+                 << ", error_code=" << static_cast<int>(error_code)
+                 << ", opaque_data=[" << absl::CEscape(opaque_data) << "])";
   current_frame_.goaway.last_stream_id = last_accepted_stream_id;
   current_frame_.goaway.error_code = static_cast<uint32_t>(error_code);
   current_frame_.goaway.opaque_data = ToUint8Ptr(opaque_data.data());
@@ -322,8 +338,10 @@ bool CallbackVisitor::OnGoAway(Http2StreamId last_accepted_stream_id,
   return true;
 }
 
-void CallbackVisitor::OnWindowUpdate(Http2StreamId /*stream_id*/,
+void CallbackVisitor::OnWindowUpdate(Http2StreamId stream_id,
                                      int window_increment) {
+  QUICHE_VLOG(1) << "OnWindowUpdate(stream_id=" << stream_id
+                 << ", delta=" << window_increment << ")";
   current_frame_.window_update.window_size_increment = window_increment;
   if (callbacks_->on_frame_recv_callback) {
     const int result = callbacks_->on_frame_recv_callback(
@@ -368,10 +386,10 @@ void CallbackVisitor::PopulateFrame(nghttp2_frame& frame, uint8_t frame_type,
 int CallbackVisitor::OnBeforeFrameSent(uint8_t frame_type,
                                        Http2StreamId stream_id, size_t length,
                                        uint8_t flags) {
+  QUICHE_VLOG(1) << "OnBeforeFrameSent(stream_id=" << stream_id
+                 << ", type=" << int(frame_type) << ", length=" << length
+                 << ", flags=" << int(flags) << ")";
   if (callbacks_->before_frame_send_callback) {
-    QUICHE_VLOG(1) << "OnBeforeFrameSent(stream_id=" << stream_id
-                   << ", type=" << int(frame_type) << ", length=" << length
-                   << ", flags=" << int(flags) << ")";
     nghttp2_frame frame;
     auto it = GetStreamInfo(stream_id);
     // The implementation of the before_frame_send_callback doesn't look at the
@@ -387,11 +405,11 @@ int CallbackVisitor::OnBeforeFrameSent(uint8_t frame_type,
 int CallbackVisitor::OnFrameSent(uint8_t frame_type, Http2StreamId stream_id,
                                  size_t length, uint8_t flags,
                                  uint32_t error_code) {
+  QUICHE_VLOG(1) << "OnFrameSent(stream_id=" << stream_id
+                 << ", type=" << int(frame_type) << ", length=" << length
+                 << ", flags=" << int(flags) << ", error_code=" << error_code
+                 << ")";
   if (callbacks_->on_frame_send_callback) {
-    QUICHE_VLOG(1) << "OnFrameSent(stream_id=" << stream_id
-                   << ", type=" << int(frame_type) << ", length=" << length
-                   << ", flags=" << int(flags) << ", error_code=" << error_code
-                   << ")";
     nghttp2_frame frame;
     auto it = GetStreamInfo(stream_id);
     PopulateFrame(frame, frame_type, stream_id, length, flags, error_code,
@@ -452,6 +470,7 @@ bool CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
 }
 
 void CallbackVisitor::OnErrorDebug(absl::string_view message) {
+  QUICHE_VLOG(1) << "OnErrorDebug(message=[" << absl::CEscape(message) << "])";
   if (callbacks_->error_callback2) {
     callbacks_->error_callback2(nullptr, -1, message.data(), message.size(),
                                 user_data_);
