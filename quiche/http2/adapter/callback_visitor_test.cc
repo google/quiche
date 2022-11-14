@@ -467,8 +467,8 @@ TEST(ServerCallbackVisitorUnitTest, DataWithPadding) {
 
   EXPECT_CALL(callbacks, OnFrameRecv(IsData(5, _, kFlags, kPaddingLength)))
       .WillOnce(testing::Return(NGHTTP2_ERR_CALLBACK_FAILURE));
-  EXPECT_FALSE(visitor.OnDataPaddingLength(5, kPaddingLength));
-  EXPECT_TRUE(visitor.OnEndStream(3));
+  EXPECT_TRUE(visitor.OnDataPaddingLength(5, kPaddingLength));
+  EXPECT_FALSE(visitor.OnEndStream(3));
 
   EXPECT_CALL(callbacks, OnStreamClose(5, NGHTTP2_NO_ERROR));
   visitor.OnCloseStream(5, Http2ErrorCode::HTTP2_NO_ERROR);
@@ -522,9 +522,8 @@ TEST(ServerCallbackVisitorUnitTest, MismatchedContentLengthCallbacks) {
   EXPECT_CALL(callbacks, OnDataChunkRecv(NGHTTP2_FLAG_END_STREAM, 1,
                                          "Less than 50 bytes."));
 
-  // BUG: CallbackVisitor should not pass on this call to OnFrameRecv.
-  // (b/258853437)
-  EXPECT_CALL(callbacks, OnFrameRecv(IsData(1, _, NGHTTP2_FLAG_END_STREAM)));
+  // Like nghttp2, CallbackVisitor does not pass on a call to OnFrameRecv in the
+  // case of Content-Length mismatch.
 
   int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), result);

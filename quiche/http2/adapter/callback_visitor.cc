@@ -217,7 +217,9 @@ bool CallbackVisitor::OnDataPaddingLength(Http2StreamId /*stream_id*/,
   QUICHE_DCHECK_GE(remaining_data_, padding_length);
   current_frame_.data.padlen = padding_length;
   remaining_data_ -= padding_length;
-  if (remaining_data_ == 0 && callbacks_->on_frame_recv_callback != nullptr) {
+  if (remaining_data_ == 0 &&
+      (current_frame_.hd.flags & NGHTTP2_FLAG_END_STREAM) == 0 &&
+      callbacks_->on_frame_recv_callback != nullptr) {
     const int result = callbacks_->on_frame_recv_callback(
         nullptr, &current_frame_, user_data_);
     return result == 0;
@@ -228,7 +230,9 @@ bool CallbackVisitor::OnDataPaddingLength(Http2StreamId /*stream_id*/,
 bool CallbackVisitor::OnBeginDataForStream(Http2StreamId /*stream_id*/,
                                            size_t payload_length) {
   remaining_data_ = payload_length;
-  if (remaining_data_ == 0 && callbacks_->on_frame_recv_callback != nullptr) {
+  if (remaining_data_ == 0 &&
+      (current_frame_.hd.flags & NGHTTP2_FLAG_END_STREAM) == 0 &&
+      callbacks_->on_frame_recv_callback != nullptr) {
     const int result = callbacks_->on_frame_recv_callback(
         nullptr, &current_frame_, user_data_);
     return result == 0;
@@ -248,7 +252,10 @@ bool CallbackVisitor::OnDataForStream(Http2StreamId stream_id,
   }
   remaining_data_ -= data.size();
   if (result == 0 && remaining_data_ == 0 &&
+      (current_frame_.hd.flags & NGHTTP2_FLAG_END_STREAM) == 0 &&
       callbacks_->on_frame_recv_callback) {
+    // If the DATA frame contains the END_STREAM flag, `on_frame_recv` is
+    // invoked later.
     result = callbacks_->on_frame_recv_callback(nullptr, &current_frame_,
                                                 user_data_);
   }
@@ -257,7 +264,17 @@ bool CallbackVisitor::OnDataForStream(Http2StreamId stream_id,
 
 bool CallbackVisitor::OnEndStream(Http2StreamId stream_id) {
   QUICHE_VLOG(1) << "OnEndStream(stream_id=" << stream_id << ")";
-  return true;
+  int result = 0;
+  if (static_cast<FrameType>(current_frame_.hd.type) == FrameType::DATA &&
+      (current_frame_.hd.flags & NGHTTP2_FLAG_END_STREAM) != 0 &&
+      callbacks_->on_frame_recv_callback) {
+    // `on_frame_recv` is invoked here to ensure that the Http2Adapter
+    // implementation has successfully validated and processed the entire DATA
+    // frame.
+    result = callbacks_->on_frame_recv_callback(nullptr, &current_frame_,
+                                                user_data_);
+  }
+  return result == 0;
 }
 
 void CallbackVisitor::OnRstStream(Http2StreamId stream_id,
