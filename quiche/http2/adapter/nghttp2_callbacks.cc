@@ -22,8 +22,8 @@ ssize_t OnReadyToSend(nghttp2_session* /* session */, const uint8_t* data,
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const int64_t result = visitor->OnReadyToSend(ToStringView(data, length));
-  QUICHE_VLOG(1) << "OnReadyToSend(length=" << length << ", flags=" << flags
-                 << ") returning " << result;
+  QUICHE_VLOG(1) << "callbacks::OnReadyToSend(length=" << length
+                 << ", flags=" << flags << ") returning " << result;
   if (result > 0) {
     return result;
   } else if (result == Http2VisitorInterface::kSendBlocked) {
@@ -35,6 +35,10 @@ ssize_t OnReadyToSend(nghttp2_session* /* session */, const uint8_t* data,
 
 int OnBeginFrame(nghttp2_session* /* session */, const nghttp2_frame_hd* header,
                  void* user_data) {
+  QUICHE_VLOG(1) << "callbacks::OnBeginFrame(stream_id=" << header->stream_id
+                 << ", type=" << int(header->type)
+                 << ", length=" << header->length
+                 << ", flags=" << int(header->flags) << ")";
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   bool result = visitor->OnFrameHeader(header->stream_id, header->length,
@@ -52,6 +56,10 @@ int OnBeginFrame(nghttp2_session* /* session */, const nghttp2_frame_hd* header,
 
 int OnFrameReceived(nghttp2_session* /* session */, const nghttp2_frame* frame,
                     void* user_data) {
+  QUICHE_VLOG(1) << "callbacks::OnFrameReceived(stream_id="
+                 << frame->hd.stream_id << ", type=" << int(frame->hd.type)
+                 << ", length=" << frame->hd.length
+                 << ", flags=" << int(frame->hd.flags) << ")";
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const Http2StreamId stream_id = frame->hd.stream_id;
@@ -156,6 +164,8 @@ int OnFrameReceived(nghttp2_session* /* session */, const nghttp2_frame* frame,
 
 int OnBeginHeaders(nghttp2_session* /* session */, const nghttp2_frame* frame,
                    void* user_data) {
+  QUICHE_VLOG(1) << "callbacks::OnBeginHeaders(stream_id="
+                 << frame->hd.stream_id << ")";
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const bool result = visitor->OnBeginHeadersForStream(frame->hd.stream_id);
@@ -165,6 +175,9 @@ int OnBeginHeaders(nghttp2_session* /* session */, const nghttp2_frame* frame,
 int OnHeader(nghttp2_session* /* session */, const nghttp2_frame* frame,
              nghttp2_rcbuf* name, nghttp2_rcbuf* value, uint8_t /*flags*/,
              void* user_data) {
+  QUICHE_VLOG(2) << "callbacks::OnHeader(stream_id=" << frame->hd.stream_id
+                 << ", name=[" << absl::CEscape(ToStringView(name))
+                 << "], value=[" << absl::CEscape(ToStringView(value)) << "])";
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const Http2VisitorInterface::OnHeaderResult result =
@@ -187,6 +200,10 @@ int OnHeader(nghttp2_session* /* session */, const nghttp2_frame* frame,
 
 int OnBeforeFrameSent(nghttp2_session* /* session */,
                       const nghttp2_frame* frame, void* user_data) {
+  QUICHE_VLOG(1) << "callbacks::OnBeforeFrameSent(stream_id="
+                 << frame->hd.stream_id << ", type=" << int(frame->hd.type)
+                 << ", length=" << frame->hd.length
+                 << ", flags=" << int(frame->hd.flags) << ")";
   QUICHE_CHECK_NE(user_data, nullptr);
   LogBeforeSend(*frame);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
@@ -196,6 +213,10 @@ int OnBeforeFrameSent(nghttp2_session* /* session */,
 
 int OnFrameSent(nghttp2_session* /* session */, const nghttp2_frame* frame,
                 void* user_data) {
+  QUICHE_VLOG(1) << "callbacks::OnFrameSent(stream_id=" << frame->hd.stream_id
+                 << ", type=" << int(frame->hd.type)
+                 << ", length=" << frame->hd.length
+                 << ", flags=" << int(frame->hd.flags) << ")";
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   uint32_t error_code = 0;
@@ -210,6 +231,10 @@ int OnFrameSent(nghttp2_session* /* session */, const nghttp2_frame* frame,
 
 int OnFrameNotSent(nghttp2_session* /* session */, const nghttp2_frame* frame,
                    int /* lib_error_code */, void* /* user_data */) {
+  QUICHE_VLOG(1) << "callbacks::OnFrameNotSent(stream_id="
+                 << frame->hd.stream_id << ", type=" << int(frame->hd.type)
+                 << ", length=" << frame->hd.length
+                 << ", flags=" << int(frame->hd.flags) << ")";
   if (frame->hd.type == kMetadataFrameType) {
     auto* source = static_cast<MetadataSource*>(frame->ext.payload);
     if (source == nullptr) {
@@ -226,6 +251,9 @@ int OnFrameNotSent(nghttp2_session* /* session */, const nghttp2_frame* frame,
 int OnInvalidFrameReceived(nghttp2_session* /* session */,
                            const nghttp2_frame* frame, int lib_error_code,
                            void* user_data) {
+  QUICHE_VLOG(1) << "callbacks::OnInvalidFrameReceived(stream_id="
+                 << frame->hd.stream_id << ", InvalidFrameError="
+                 << int(ToInvalidFrameError(lib_error_code)) << ")";
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const bool result = visitor->OnInvalidFrame(
@@ -236,6 +264,8 @@ int OnInvalidFrameReceived(nghttp2_session* /* session */,
 int OnDataChunk(nghttp2_session* /* session */, uint8_t /*flags*/,
                 Http2StreamId stream_id, const uint8_t* data, size_t len,
                 void* user_data) {
+  QUICHE_VLOG(1) << "callbacks::OnDataChunk(stream_id=" << stream_id
+                 << ", length=" << len << ")";
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const bool result = visitor->OnDataForStream(
@@ -245,6 +275,8 @@ int OnDataChunk(nghttp2_session* /* session */, uint8_t /*flags*/,
 
 int OnStreamClosed(nghttp2_session* /* session */, Http2StreamId stream_id,
                    uint32_t error_code, void* user_data) {
+  QUICHE_VLOG(1) << "callbacks::OnStreamClosed(stream_id=" << stream_id
+                 << ", error_code=" << error_code << ")";
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const bool result =
@@ -303,6 +335,7 @@ ssize_t OnPackExtensionCallback(nghttp2_session* /*session*/, uint8_t* buf,
 
 int OnError(nghttp2_session* /*session*/, int /*lib_error_code*/,
             const char* msg, size_t len, void* user_data) {
+  QUICHE_VLOG(1) << "callbacks::OnError(" << absl::string_view(msg, len) << ")";
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   visitor->OnErrorDebug(absl::string_view(msg, len));
