@@ -3,7 +3,9 @@
 #include "absl/container/flat_hash_map.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/mock_nghttp2_callbacks.h"
+#include "quiche/http2/adapter/nghttp2_adapter.h"
 #include "quiche/http2/adapter/nghttp2_test_utils.h"
+#include "quiche/http2/adapter/test_frame_sequence.h"
 #include "quiche/http2/adapter/test_utils.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -470,6 +472,62 @@ TEST(ServerCallbackVisitorUnitTest, DataWithPadding) {
 
   EXPECT_CALL(callbacks, OnStreamClose(5, NGHTTP2_NO_ERROR));
   visitor.OnCloseStream(5, Http2ErrorCode::HTTP2_NO_ERROR);
+}
+
+// In the case of a Content-Length mismatch where the header value is larger
+// than the actual data for the stream, nghttp2 will call
+// `on_begin_frame_callback` and `on_data_chunk_recv_callback`, but not the
+// `on_frame_recv_callback`.
+TEST(ServerCallbackVisitorUnitTest, MismatchedContentLengthCallbacks) {
+  testing::StrictMock<MockNghttp2Callbacks> callbacks;
+  CallbackVisitor visitor(Perspective::kServer,
+                          *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/"},
+                                           {"content-length", "50"}},
+                                          /*fin=*/false)
+                                 .Data(1, "Less than 50 bytes.", true)
+                                 .Serialize();
+
+  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(0, SETTINGS, _)));
+
+  EXPECT_CALL(callbacks, OnFrameRecv(IsSettings(testing::IsEmpty())));
+
+  // HEADERS on stream 1
+  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(
+                             1, HEADERS, NGHTTP2_FLAG_END_HEADERS)));
+
+  EXPECT_CALL(callbacks, OnBeginHeaders(IsHeaders(1, NGHTTP2_FLAG_END_HEADERS,
+                                                  NGHTTP2_HCAT_REQUEST)));
+
+  EXPECT_CALL(callbacks, OnHeader(_, ":method", "POST", _));
+  EXPECT_CALL(callbacks, OnHeader(_, ":path", "/", _));
+  EXPECT_CALL(callbacks, OnHeader(_, ":scheme", "https", _));
+  EXPECT_CALL(callbacks, OnHeader(_, ":authority", "example.com", _));
+  EXPECT_CALL(callbacks, OnHeader(_, "content-length", "50", _));
+  EXPECT_CALL(callbacks, OnFrameRecv(IsHeaders(1, NGHTTP2_FLAG_END_HEADERS,
+                                               NGHTTP2_HCAT_REQUEST)));
+
+  // DATA on stream 1
+  EXPECT_CALL(callbacks,
+              OnBeginFrame(HasFrameHeader(1, DATA, NGHTTP2_FLAG_END_STREAM)));
+
+  EXPECT_CALL(callbacks, OnDataChunkRecv(NGHTTP2_FLAG_END_STREAM, 1,
+                                         "Less than 50 bytes."));
+
+  // BUG: CallbackVisitor should not pass on this call to OnFrameRecv.
+  // (b/258853437)
+  EXPECT_CALL(callbacks, OnFrameRecv(IsData(1, _, NGHTTP2_FLAG_END_STREAM)));
+
+  int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), result);
 }
 
 }  // namespace
