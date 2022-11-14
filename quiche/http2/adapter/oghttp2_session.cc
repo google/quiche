@@ -1120,7 +1120,11 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
       return;
     }
 
-    visitor_.OnEndStream(stream_id);
+    const bool result = visitor_.OnEndStream(stream_id);
+    if (!result) {
+      fatal_visitor_callback_failure_ = true;
+      decoder_.StopProcessing();
+    }
   }
 
   auto queued_frames_iter = queued_frames_.find(stream_id);

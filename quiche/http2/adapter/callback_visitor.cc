@@ -255,8 +255,9 @@ bool CallbackVisitor::OnDataForStream(Http2StreamId stream_id,
   return result == 0;
 }
 
-void CallbackVisitor::OnEndStream(Http2StreamId stream_id) {
+bool CallbackVisitor::OnEndStream(Http2StreamId stream_id) {
   QUICHE_VLOG(1) << "OnEndStream(stream_id=" << stream_id << ")";
+  return true;
 }
 
 void CallbackVisitor::OnRstStream(Http2StreamId stream_id,

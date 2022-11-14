@@ -39,7 +39,7 @@ class QUICHE_NO_EXPORT RecordingHttp2Visitor : public Http2VisitorInterface {
                             size_t payload_length) override;
   bool OnDataForStream(Http2StreamId stream_id,
                        absl::string_view data) override;
-  void OnEndStream(Http2StreamId stream_id) override;
+  bool OnEndStream(Http2StreamId stream_id) override;
   void OnRstStream(Http2StreamId stream_id, Http2ErrorCode error_code) override;
   bool OnCloseStream(Http2StreamId stream_id,
                      Http2ErrorCode error_code) override;

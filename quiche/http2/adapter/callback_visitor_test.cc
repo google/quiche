@@ -168,7 +168,7 @@ TEST(ClientCallbackVisitorUnitTest, StreamFrames) {
 
   EXPECT_CALL(callbacks, OnFrameRecv(IsData(1, _, NGHTTP2_FLAG_END_STREAM)));
   visitor.OnBeginDataForStream(1, 0);
-  visitor.OnEndStream(1);
+  EXPECT_TRUE(visitor.OnEndStream(1));
 
   EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_NO_ERROR));
   visitor.OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR);
@@ -388,7 +388,7 @@ TEST(ServerCallbackVisitorUnitTest, StreamFrames) {
                                          "This is the request body."));
   EXPECT_CALL(callbacks, OnFrameRecv(IsData(1, _, NGHTTP2_FLAG_END_STREAM)));
   visitor.OnDataForStream(1, "This is the request body.");
-  visitor.OnEndStream(1);
+  EXPECT_TRUE(visitor.OnEndStream(1));
 
   EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_NO_ERROR));
   visitor.OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR);
@@ -431,7 +431,7 @@ TEST(ServerCallbackVisitorUnitTest, DataWithPadding) {
               OnDataChunkRecv(kFlags, 1, "This is the request body."));
   EXPECT_CALL(callbacks, OnFrameRecv(IsData(1, _, kFlags, kPaddingLength)));
   EXPECT_TRUE(visitor.OnDataForStream(1, "This is the request body."));
-  visitor.OnEndStream(1);
+  EXPECT_TRUE(visitor.OnEndStream(1));
 
   EXPECT_CALL(callbacks, OnStreamClose(1, NGHTTP2_NO_ERROR));
   visitor.OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR);
@@ -449,7 +449,7 @@ TEST(ServerCallbackVisitorUnitTest, DataWithPadding) {
 
   EXPECT_CALL(callbacks, OnFrameRecv(IsData(3, _, kFlags, kPaddingLength)));
   EXPECT_TRUE(visitor.OnDataPaddingLength(3, kPaddingLength));
-  visitor.OnEndStream(3);
+  EXPECT_TRUE(visitor.OnEndStream(3));
 
   EXPECT_CALL(callbacks, OnStreamClose(3, NGHTTP2_NO_ERROR));
   visitor.OnCloseStream(3, Http2ErrorCode::HTTP2_NO_ERROR);
@@ -468,7 +468,7 @@ TEST(ServerCallbackVisitorUnitTest, DataWithPadding) {
   EXPECT_CALL(callbacks, OnFrameRecv(IsData(5, _, kFlags, kPaddingLength)))
       .WillOnce(testing::Return(NGHTTP2_ERR_CALLBACK_FAILURE));
   EXPECT_FALSE(visitor.OnDataPaddingLength(5, kPaddingLength));
-  visitor.OnEndStream(3);
+  EXPECT_TRUE(visitor.OnEndStream(3));
 
   EXPECT_CALL(callbacks, OnStreamClose(5, NGHTTP2_NO_ERROR));
   visitor.OnCloseStream(5, Http2ErrorCode::HTTP2_NO_ERROR);

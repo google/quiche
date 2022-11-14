@@ -73,7 +73,10 @@ int OnFrameReceived(nghttp2_session* /* session */, const nghttp2_frame* frame,
         visitor->OnDataPaddingLength(stream_id, frame->data.padlen);
       }
       if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
-        visitor->OnEndStream(stream_id);
+        const bool result = visitor->OnEndStream(stream_id);
+        if (!result) {
+          return NGHTTP2_ERR_CALLBACK_FAILURE;
+        }
       }
       break;
     case NGHTTP2_HEADERS: {
@@ -84,7 +87,10 @@ int OnFrameReceived(nghttp2_session* /* session */, const nghttp2_frame* frame,
         }
       }
       if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
-        visitor->OnEndStream(stream_id);
+        const bool result = visitor->OnEndStream(stream_id);
+        if (!result) {
+          return NGHTTP2_ERR_CALLBACK_FAILURE;
+        }
       }
       break;
     }

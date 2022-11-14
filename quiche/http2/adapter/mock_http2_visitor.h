@@ -23,6 +23,7 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
     ON_CALL(*this, OnDataPaddingLength).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnBeginDataForStream).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnDataForStream).WillByDefault(testing::Return(true));
+    ON_CALL(*this, OnEndStream).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnCloseStream).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnGoAway).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnInvalidFrame).WillByDefault(testing::Return(true));
@@ -61,7 +62,7 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
   MOCK_METHOD(bool, OnDataForStream,
               (Http2StreamId stream_id, absl::string_view data), (override));
 
-  MOCK_METHOD(void, OnEndStream, (Http2StreamId stream_id), (override));
+  MOCK_METHOD(bool, OnEndStream, (Http2StreamId stream_id), (override));
 
   MOCK_METHOD(void, OnRstStream,
               (Http2StreamId stream_id, Http2ErrorCode error_code), (override));

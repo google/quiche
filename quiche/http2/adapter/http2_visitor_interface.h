@@ -166,7 +166,7 @@ class QUICHE_EXPORT Http2VisitorInterface {
 
   // Called when the peer sends the END_STREAM flag on a stream, indicating that
   // the peer will not send additional headers or data for that stream.
-  virtual void OnEndStream(Http2StreamId stream_id) = 0;
+  virtual bool OnEndStream(Http2StreamId stream_id) = 0;
 
   // Called when the connection receives a RST_STREAM for a stream. This call
   // will be followed by either OnCloseStream().
