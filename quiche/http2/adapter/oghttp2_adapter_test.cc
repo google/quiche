@@ -3777,20 +3777,14 @@ TEST(OgHttp2AdapterTest, ClientAcceptsHeadResponseWithContentLength) {
   EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id));
   EXPECT_CALL(visitor, OnHeaderForStream).Times(2);
   EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id));
-
-  // BUG: visitor does not receive the END_STREAM event.
-  // EXPECT_CALL(visitor, OnEndStream(stream_id));
+  EXPECT_CALL(visitor, OnEndStream(stream_id));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR));
 
   adapter->ProcessBytes(initial_frames);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
-
-  // BUG: adapter generates a RST_STREAM PROTOCOL_ERROR.
-  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, stream_id, 4, 0x0));
-  EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, stream_id, 4, 0x0, 1));
-  EXPECT_CALL(visitor,
-              OnCloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR));
 
   adapter->Send();
 }

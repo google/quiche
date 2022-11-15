@@ -32,6 +32,8 @@ const uint32_t kMaximumHpackTableCapacity = 65536u;
 // Corresponds to NGHTTP2_ERR_CALLBACK_FAILURE.
 const int kSendError = -902;
 
+constexpr absl::string_view kHeadValue = "HEAD";
+
 // TODO(birenroy): Consider incorporating spdy::FlagsSerializionVisitor here.
 class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
  public:
@@ -1180,7 +1182,8 @@ void OgHttp2Session::OnHeaderFrameEnd(spdy::SpdyStreamId stream_id) {
     it->second.received_header_type = headers_handler_.header_type();
 
     // Track the content-length if the headers indicate that a body can follow.
-    it->second.can_receive_body = headers_handler_.CanReceiveBody();
+    it->second.can_receive_body =
+        headers_handler_.CanReceiveBody() && !it->second.sent_head_method;
     if (it->second.can_receive_body) {
       it->second.remaining_content_length = headers_handler_.content_length();
     }
@@ -1792,6 +1795,11 @@ void OgHttp2Session::StartRequest(Http2StreamId stream_id,
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
   iter->second.user_data = user_data;
+  for (const auto& [name, value] : headers) {
+    if (name == kHttp2MethodPseudoHeader && value == kHeadValue) {
+      iter->second.sent_head_method = true;
+    }
+  }
   SendHeaders(stream_id, std::move(headers), end_stream);
 }
 
