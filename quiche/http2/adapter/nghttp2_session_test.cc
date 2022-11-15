@@ -319,6 +319,55 @@ TEST_F(NgHttp2SessionTest, NullPayload) {
       "Extension frame payload for stream 1 is null!");
 }
 
+TEST_F(NgHttp2SessionTest, ServerSeesErrorOnEndStream) {
+  NgHttp2Session session(Perspective::kServer, CreateCallbacks(), options_,
+                         &visitor_);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/"}},
+                                          /*fin=*/false)
+                                 .Data(1, "Request body", true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor_, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor_, OnSettingsStart());
+  EXPECT_CALL(visitor_, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor_, OnFrameHeader(1, _, HEADERS, 0x4));
+  EXPECT_CALL(visitor_, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor_, OnHeaderForStream(1, ":method", "POST"));
+  EXPECT_CALL(visitor_, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor_, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor_, OnHeaderForStream(1, ":path", "/"));
+  EXPECT_CALL(visitor_, OnEndHeadersForStream(1));
+
+  EXPECT_CALL(visitor_, OnFrameHeader(1, _, DATA, 0x1));
+  EXPECT_CALL(visitor_, OnBeginDataForStream(1, _));
+  EXPECT_CALL(visitor_, OnDataForStream(1, "Request body"));
+  EXPECT_CALL(visitor_, OnEndStream(1)).WillOnce(testing::Return(false));
+
+  const int64_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, result);
+
+  EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor_, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor_, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  ASSERT_EQ(0, nghttp2_session_send(session.raw_ptr()));
+  EXPECT_THAT(visitor_.data(), EqualsFrames({spdy::SpdyFrameType::SETTINGS}));
+  visitor_.Clear();
+
+  EXPECT_FALSE(session.want_write());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter

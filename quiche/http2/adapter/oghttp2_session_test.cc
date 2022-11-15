@@ -933,6 +933,68 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
                             SpdyFrameType::HEADERS}));
 }
 
+TEST(OgHttp2SessionTest, ServerSeesErrorOnEndStream) {
+  DataSavingVisitor visitor;
+  OgHttp2Session::Options options;
+  options.perspective = Perspective::kServer;
+  OgHttp2Session session(visitor, options);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/"}},
+                                          /*fin=*/false)
+                                 .Data(1, "Request body", true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0x4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "POST"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0x1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
+  EXPECT_CALL(visitor, OnDataForStream(1, "Request body"));
+  EXPECT_CALL(visitor, OnEndStream(1)).WillOnce(testing::Return(false));
+  EXPECT_CALL(
+      visitor,
+      OnConnectionError(Http2VisitorInterface::ConnectionError::kParseError));
+
+  const int64_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(/*NGHTTP2_ERR_CALLBACK_FAILURE=*/-902, result);
+
+  EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, _, 0x0));
+  EXPECT_CALL(
+      visitor,
+      OnFrameSent(GOAWAY, 0, _, 0x0,
+                  static_cast<int>(
+                      Http2VisitorInterface::ConnectionError::kParseError)));
+
+  int send_result = session.Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
+  visitor.Clear();
+
+  EXPECT_FALSE(session.want_write());
+}
+
 }  // namespace test
 }  // namespace adapter
 }  // namespace http2
