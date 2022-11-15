@@ -3739,6 +3739,62 @@ TEST(OgHttp2AdapterTest, ClientQueuesRequests) {
   adapter->Send();
 }
 
+TEST(OgHttp2AdapterTest, ClientAcceptsHeadResponseWithContentLength) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kClient;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::vector<Header> headers = ToHeaders({{":method", "HEAD"},
+                                                 {":scheme", "http"},
+                                                 {":authority", "example.com"},
+                                                 {":path", "/"}});
+  const int32_t stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+
+  testing::InSequence s;
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
+
+  adapter->Send();
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .SettingsAck()
+          .Headers(stream_id, {{":status", "200"}, {"content-length", "101"}},
+                   /*fin=*/true)
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, SETTINGS, 0x0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0x1));
+  EXPECT_CALL(visitor, OnSettingsAck());
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnHeaderForStream).Times(2);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id));
+
+  // BUG: visitor does not receive the END_STREAM event.
+  // EXPECT_CALL(visitor, OnEndStream(stream_id));
+
+  adapter->ProcessBytes(initial_frames);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  // BUG: adapter generates a RST_STREAM PROTOCOL_ERROR.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, stream_id, 4, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, stream_id, 4, 0x0, 1));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  adapter->Send();
+}
+
 TEST(OgHttp2AdapterTest, SubmitMetadata) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options;

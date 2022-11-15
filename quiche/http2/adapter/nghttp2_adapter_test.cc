@@ -2522,6 +2522,49 @@ TEST(NgHttp2AdapterTest, ClientQueuesRequests) {
   adapter->Send();
 }
 
+TEST(NgHttp2AdapterTest, ClientAcceptsHeadResponseWithContentLength) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  const std::vector<Header> headers = ToHeaders({{":method", "HEAD"},
+                                                 {":scheme", "http"},
+                                                 {":authority", "example.com"},
+                                                 {":path", "/"}});
+  const int32_t stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+
+  testing::InSequence s;
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
+
+  adapter->Send();
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .Headers(stream_id, {{":status", "200"}, {"content-length", "101"}},
+                   /*fin=*/true)
+          .Serialize();
+
+  EXPECT_CALL(visitor, OnFrameHeader(0, _, SETTINGS, 0x0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnHeaderForStream).Times(2);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnEndStream(stream_id));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  adapter->ProcessBytes(initial_frames);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+
+  adapter->Send();
+}
+
 TEST(NgHttp2AdapterTest, SubmitMetadata) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
