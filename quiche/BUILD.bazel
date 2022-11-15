@@ -487,6 +487,12 @@ alias(
 )
 
 alias(
+    name = "oblivious_http_unstable_api",
+    actual = ":oblivious_http",
+    visibility = ["//visibility:public"],
+)
+
+alias(
     name = "quiche_unstable_api_tool_support",
     actual = ":quiche_tool_support",
     visibility = ["//visibility:public"],
