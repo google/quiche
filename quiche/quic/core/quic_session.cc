@@ -1803,8 +1803,6 @@ void QuicSession::UpdateStreamPriority(
   write_blocked_streams()->UpdateStreamPriority(id, new_precedence);
 }
 
-QuicConfig* QuicSession::config() { return &config_; }
-
 void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
   QuicStreamId stream_id = stream->id();
   bool is_static = stream->is_static();
