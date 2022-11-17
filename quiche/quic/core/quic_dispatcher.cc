@@ -692,7 +692,7 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
       return result;
     }
 
-    if (!has_full_tls_chlo) {
+    if (GetQuicFlag(quic_allow_chlo_buffering) && !has_full_tls_chlo) {
       // This packet does not contain a full CHLO. It could be a 0-RTT
       // packet that arrived before the CHLO (due to loss or reordering),
       // or it could be a fragment of a multi-packet CHLO.
