@@ -303,6 +303,10 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   SetTransportParametersResult SetTransportParameters();
   bool ProcessTransportParameters(const SSL_CLIENT_HELLO* client_hello,
                                   std::string* error_details);
+  // Compares |serialized_params| with |server_params_|.
+  // Returns true if handshaker serialization is equivalent.
+  bool TransportParametersMatch(
+      absl::Span<const uint8_t> serialized_params) const;
 
   struct QUIC_NO_EXPORT SetApplicationSettingsResult {
     bool success = false;
@@ -374,6 +378,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       last_received_cached_network_params_;
 
   bool cert_matched_sni_ = false;
+  TransportParameters server_params_;
 };
 
 }  // namespace quic

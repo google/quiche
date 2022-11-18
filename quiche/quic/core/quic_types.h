@@ -838,6 +838,8 @@ struct QUIC_NO_EXPORT QuicDelayedSSLConfig {
   // Client certificate mode for mTLS support. Only used at server side.
   // absl::nullopt means do not change client certificate mode.
   absl::optional<ClientCertMode> client_cert_mode;
+  // QUIC transport parameters as serialized by ProofSourceHandle.
+  absl::optional<std::vector<uint8_t>> quic_transport_parameters;
 };
 
 // ParsedClientHello contains client hello information extracted from a fully

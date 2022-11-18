@@ -505,30 +505,30 @@ TlsServerHandshaker::SetTransportParameters() {
   SetTransportParametersResult result;
   QUICHE_DCHECK(!result.success);
 
-  TransportParameters server_params;
-  server_params.perspective = Perspective::IS_SERVER;
-  server_params.legacy_version_information =
+  server_params_.perspective = Perspective::IS_SERVER;
+  server_params_.legacy_version_information =
       TransportParameters::LegacyVersionInformation();
-  server_params.legacy_version_information.value().supported_versions =
+  server_params_.legacy_version_information.value().supported_versions =
       CreateQuicVersionLabelVector(session()->supported_versions());
-  server_params.legacy_version_information.value().version =
+  server_params_.legacy_version_information.value().version =
       CreateQuicVersionLabel(session()->connection()->version());
-  server_params.version_information = TransportParameters::VersionInformation();
-  server_params.version_information.value().chosen_version =
+  server_params_.version_information =
+      TransportParameters::VersionInformation();
+  server_params_.version_information.value().chosen_version =
       CreateQuicVersionLabel(session()->version());
-  server_params.version_information.value().other_versions =
+  server_params_.version_information.value().other_versions =
       CreateQuicVersionLabelVector(session()->supported_versions());
 
-  if (!handshaker_delegate()->FillTransportParameters(&server_params)) {
+  if (!handshaker_delegate()->FillTransportParameters(&server_params_)) {
     return result;
   }
 
   // Notify QuicConnectionDebugVisitor.
-  session()->connection()->OnTransportParametersSent(server_params);
+  session()->connection()->OnTransportParametersSent(server_params_);
 
   {  // Ensure |server_params_bytes| is not accessed out of the scope.
     std::vector<uint8_t> server_params_bytes;
-    if (!SerializeTransportParameters(server_params, &server_params_bytes) ||
+    if (!SerializeTransportParameters(server_params_, &server_params_bytes) ||
         SSL_set_quic_transport_params(ssl(), server_params_bytes.data(),
                                       server_params_bytes.size()) != 1) {
       return result;
@@ -539,7 +539,7 @@ TlsServerHandshaker::SetTransportParameters() {
   if (application_state_) {
     std::vector<uint8_t> early_data_context;
     if (!SerializeTransportParametersForTicket(
-            server_params, *application_state_, &early_data_context)) {
+            server_params_, *application_state_, &early_data_context)) {
       QUIC_BUG(quic_bug_10341_4)
           << "Failed to serialize Transport Parameters for ticket.";
       result.early_data_context = std::vector<uint8_t>();
@@ -552,6 +552,24 @@ TlsServerHandshaker::SetTransportParameters() {
   }
   result.success = true;
   return result;
+}
+
+bool TlsServerHandshaker::TransportParametersMatch(
+    absl::Span<const uint8_t> serialized_params) const {
+  TransportParameters params;
+  std::string error_details;
+
+  bool parse_ok = ParseTransportParameters(
+      session()->version(), Perspective::IS_SERVER, serialized_params.data(),
+      serialized_params.size(), &params, &error_details);
+
+  if (!parse_ok) {
+    return false;
+  }
+
+  DegreaseTransportParameters(params);
+
+  return params == server_params_;
 }
 
 void TlsServerHandshaker::SetWriteSecret(
@@ -967,6 +985,22 @@ void TlsServerHandshaker::OnSelectCertificateDone(
   ticket_encryption_key_ = std::string(ticket_encryption_key);
   select_cert_status_ = QUIC_FAILURE;
   cert_matched_sni_ = cert_matched_sni;
+
+  if (delayed_ssl_config.quic_transport_parameters.has_value()) {
+    // In case of any error the SSL object is still valid. Handshaker may need
+    // to call ComputeSignature but otherwise can proceed.
+    if (TransportParametersMatch(
+            absl::MakeSpan(*delayed_ssl_config.quic_transport_parameters))) {
+      if (SSL_set_quic_transport_params(
+              ssl(), delayed_ssl_config.quic_transport_parameters->data(),
+              delayed_ssl_config.quic_transport_parameters->size()) != 1) {
+        QUIC_DVLOG(1) << "SSL_set_quic_transport_params override failed";
+      }
+    } else {
+      QUIC_DVLOG(1)
+          << "QUIC transport parameters mismatch with ProofSourceHandle";
+    }
+  }
 
   if (delayed_ssl_config.client_cert_mode.has_value()) {
     tls_connection_.SetClientCertMode(*delayed_ssl_config.client_cert_mode);

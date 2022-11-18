@@ -1040,6 +1040,56 @@ TEST_P(TransportParametersTest, SerializationOrderIsRandom) {
   }
 }
 
+TEST_P(TransportParametersTest, Degrease) {
+  TransportParameters orig_params;
+  orig_params.perspective = Perspective::IS_CLIENT;
+  orig_params.legacy_version_information =
+      CreateFakeLegacyVersionInformationClient();
+  orig_params.version_information = CreateFakeVersionInformation();
+  orig_params.max_idle_timeout_ms.set_value(kFakeIdleTimeoutMilliseconds);
+  orig_params.max_udp_payload_size.set_value(kMaxPacketSizeForTest);
+  orig_params.initial_max_data.set_value(kFakeInitialMaxData);
+  orig_params.initial_max_stream_data_bidi_local.set_value(
+      kFakeInitialMaxStreamDataBidiLocal);
+  orig_params.initial_max_stream_data_bidi_remote.set_value(
+      kFakeInitialMaxStreamDataBidiRemote);
+  orig_params.initial_max_stream_data_uni.set_value(
+      kFakeInitialMaxStreamDataUni);
+  orig_params.initial_max_streams_bidi.set_value(kFakeInitialMaxStreamsBidi);
+  orig_params.initial_max_streams_uni.set_value(kFakeInitialMaxStreamsUni);
+  orig_params.ack_delay_exponent.set_value(kAckDelayExponentForTest);
+  orig_params.max_ack_delay.set_value(kMaxAckDelayForTest);
+  orig_params.min_ack_delay_us.set_value(kMinAckDelayUsForTest);
+  orig_params.disable_active_migration = kFakeDisableMigration;
+  orig_params.active_connection_id_limit.set_value(
+      kActiveConnectionIdLimitForTest);
+  orig_params.initial_source_connection_id =
+      CreateFakeInitialSourceConnectionId();
+  orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
+  orig_params.google_handshake_message =
+      absl::HexStringToBytes(kFakeGoogleHandshakeMessage);
+  orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
+  orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
+  orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
+
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(SerializeTransportParameters(orig_params, &serialized));
+
+  TransportParameters new_params;
+  std::string error_details;
+  ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
+                                       serialized.data(), serialized.size(),
+                                       &new_params, &error_details))
+      << error_details;
+  EXPECT_TRUE(error_details.empty());
+
+  // Deserialized parameters have grease added.
+  EXPECT_NE(new_params, orig_params);
+
+  DegreaseTransportParameters(new_params);
+  EXPECT_EQ(new_params, orig_params);
+}
+
 class TransportParametersTicketSerializationTest : public QuicTest {
  protected:
   void SetUp() override {

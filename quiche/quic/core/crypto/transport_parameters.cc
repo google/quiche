@@ -71,6 +71,9 @@ enum TransportParameters::TransportParameterId : uint64_t {
 
 namespace {
 
+constexpr QuicVersionLabel kReservedVersionMask = 0x0f0f0f0f;
+constexpr QuicVersionLabel kReservedVersionBits = 0x0a0a0a0a;
+
 // The following constants define minimum and maximum allowed values for some of
 // the parameters. These come from the "Transport Parameter Definitions"
 // section of draft-ietf-quic-transport.
@@ -1619,6 +1622,34 @@ bool SerializeTransportParametersForTicket(
     return false;
   }
   return true;
+}
+
+void DegreaseTransportParameters(TransportParameters& parameters) {
+  // Strip GREASE from custom parameters.
+  for (auto it = parameters.custom_parameters.begin();
+       it != parameters.custom_parameters.end();
+       /**/) {
+    // See the "Reserved Transport Parameters" section of RFC 9000.
+    if (it->first % 31 == 27) {
+      parameters.custom_parameters.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+
+  // Strip GREASE from versions.
+  if (parameters.version_information.has_value()) {
+    QuicVersionLabelVector clean_versions;
+    for (QuicVersionLabel version :
+         parameters.version_information->other_versions) {
+      // See the "Versions" section of RFC 9000.
+      if ((version & kReservedVersionMask) != kReservedVersionBits) {
+        clean_versions.push_back(version);
+      }
+    }
+
+    parameters.version_information->other_versions = std::move(clean_versions);
+  }
 }
 
 }  // namespace quic

@@ -300,6 +300,12 @@ QUIC_EXPORT_PRIVATE bool SerializeTransportParametersForTicket(
     const TransportParameters& in, const std::vector<uint8_t>& application_data,
     std::vector<uint8_t>* out);
 
+// Removes reserved values from custom_parameters and versions.
+// The resulting value can be reliably compared with an original or other
+// deserialized value.
+QUIC_EXPORT_PRIVATE void DegreaseTransportParameters(
+    TransportParameters& parameters);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_CRYPTO_TRANSPORT_PARAMETERS_H_

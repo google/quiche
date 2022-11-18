@@ -945,6 +945,81 @@ TEST_P(TlsServerHandshakerTest, RequestClientCert) {
   EXPECT_TRUE(server_handshaker_->received_client_cert());
 }
 
+TEST_P(TlsServerHandshakerTest,
+       SetInvalidServerTransportParamsByDelayedSslConfig) {
+  ASSERT_TRUE(SetupClientCert());
+  InitializeFakeClient();
+
+  QuicDelayedSSLConfig delayed_ssl_config;
+  delayed_ssl_config.quic_transport_parameters = {1, 2, 3};
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+      delayed_ssl_config);
+
+  AdvanceHandshakeWithFakeClient();
+  ASSERT_TRUE(
+      server_handshaker_->fake_proof_source_handle()->HasPendingOperation());
+  server_handshaker_->fake_proof_source_handle()->CompletePendingOperation();
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(server_handshaker_->fake_proof_source_handle()
+                   ->all_compute_signature_args()
+                   .empty());
+}
+
+TEST_P(TlsServerHandshakerTest,
+       SetValidServerTransportParamsByDelayedSslConfig) {
+  ParsedQuicVersion version = GetParam().version;
+
+  TransportParameters server_params;
+  std::string error_details;
+  server_params.perspective = quic::Perspective::IS_SERVER;
+  server_params.legacy_version_information =
+      TransportParameters::LegacyVersionInformation();
+  server_params.legacy_version_information.value().supported_versions =
+      quic::CreateQuicVersionLabelVector(
+          quic::ParsedQuicVersionVector{version});
+  server_params.legacy_version_information.value().version =
+      quic::CreateQuicVersionLabel(version);
+  server_params.version_information = TransportParameters::VersionInformation();
+  server_params.version_information.value().chosen_version =
+      quic::CreateQuicVersionLabel(version);
+  server_params.version_information.value().other_versions =
+      quic::CreateQuicVersionLabelVector(
+          quic::ParsedQuicVersionVector{version});
+
+  ASSERT_TRUE(server_params.AreValid(&error_details)) << error_details;
+
+  std::vector<uint8_t> server_params_bytes;
+  ASSERT_TRUE(
+      SerializeTransportParameters(server_params, &server_params_bytes));
+
+  ASSERT_TRUE(SetupClientCert());
+  InitializeFakeClient();
+
+  QuicDelayedSSLConfig delayed_ssl_config;
+  delayed_ssl_config.quic_transport_parameters = server_params_bytes;
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+      delayed_ssl_config);
+
+  AdvanceHandshakeWithFakeClient();
+  ASSERT_TRUE(
+      server_handshaker_->fake_proof_source_handle()->HasPendingOperation());
+  server_handshaker_->fake_proof_source_handle()->CompletePendingOperation();
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(server_handshaker_->fake_proof_source_handle()
+                   ->all_compute_signature_args()
+                   .empty());
+}
+
 TEST_P(TlsServerHandshakerTest, RequestClientCertByDelayedSslConfig) {
   ASSERT_TRUE(SetupClientCert());
   InitializeFakeClient();
