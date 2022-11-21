@@ -95,6 +95,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_ask_for_short_header_connection_id_length2, 
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, support draft-ietf-quic-v2-01
 QUIC_FLAG(quic_reloadable_flag_quic_enable_version_2_draft_01, false)
+// When true, the BBHI copt causes QUIC BBRv2 to use a simpler algorithm for raising inflight_hi in PROBE_UP.
+QUIC_FLAG(quic_reloadable_flag_quic_bbr2_simplify_inflight_hi, true)
 // When true, the BBR4 copt sets the extra_acked window to 20 RTTs and BBR5 sets it to 40 RTTs.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_extra_acked_window, true)
 

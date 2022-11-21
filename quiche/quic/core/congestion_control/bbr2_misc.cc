@@ -81,6 +81,9 @@ void Bbr2NetworkModel::OnPacketSent(QuicTime sent_time,
   if (bytes_in_flight < min_bytes_in_flight_in_round_) {
     min_bytes_in_flight_in_round_ = bytes_in_flight;
   }
+  if (bytes_in_flight + bytes >= inflight_hi_) {
+    inflight_hi_limited_in_round_ = true;
+  }
   round_trip_counter_.OnPacketSent(packet_number);
 
   bandwidth_sampler_.OnPacketSent(sent_time, packet_number, bytes,
@@ -383,6 +386,7 @@ void Bbr2NetworkModel::OnNewRound() {
   loss_events_in_round_ = 0;
   max_bytes_delivered_in_round_ = 0;
   min_bytes_in_flight_in_round_ = std::numeric_limits<uint64_t>::max();
+  inflight_hi_limited_in_round_ = false;
 }
 
 void Bbr2NetworkModel::cap_inflight_lo(QuicByteCount cap) {

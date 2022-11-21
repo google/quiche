@@ -203,6 +203,14 @@ void Bbr2Sender::ApplyConnectionOptions(
     // Derived constant to ensure fairness.
     params_.probe_bw_probe_down_pacing_gain = 0.91;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_simplify_inflight_hi) &&
+      ContainsQuicTag(connection_options, kBBHI)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_simplify_inflight_hi);
+    params_.probe_up_simplify_inflight_hi = true;
+    // Simplify inflight_hi is intended as an alternative to ignoring it,
+    // so ensure we're not ignoring it.
+    params_.probe_up_ignore_inflight_hi = false;
+  }
 }
 
 Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {

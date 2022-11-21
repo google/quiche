@@ -157,6 +157,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   bool probe_up_includes_acks_after_cwnd_limited = false;
   bool probe_up_dont_exit_if_no_queue_ = false;
   bool probe_up_ignore_inflight_hi = true;
+  bool probe_up_simplify_inflight_hi = false;
 
   /*
    * PROBE_RTT parameters.
@@ -489,6 +490,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return min_bytes_in_flight_in_round_;
   }
 
+  bool inflight_hi_limited_in_round() const {
+    return inflight_hi_limited_in_round_;
+  }
+
   QuicPacketNumber end_of_app_limited_phase() const {
     return bandwidth_sampler_.end_of_app_limited_phase();
   }
@@ -562,6 +567,9 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   // The minimum bytes in flight during this round.
   QuicByteCount min_bytes_in_flight_in_round_ =
       std::numeric_limits<uint64_t>::max();
+
+  // True if sending was limited by inflight_hi anytime in the current round.
+  bool inflight_hi_limited_in_round_ = false;
 
   // Max bandwidth in the current round. Updated once per congestion event.
   QuicBandwidth bandwidth_latest_ = QuicBandwidth::Zero();
