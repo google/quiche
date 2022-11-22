@@ -594,10 +594,7 @@ void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {
   }
   last_sent_urgency_ = urgency;
 
-  PriorityUpdateFrame priority_update;
-  priority_update.prioritized_element_type = REQUEST_STREAM;
-  priority_update.prioritized_element_id = id();
-  priority_update.priority_field_value = absl::StrCat("u=", urgency);
+  PriorityUpdateFrame priority_update{id(), absl::StrCat("u=", urgency)};
   spdy_session_->WriteHttp3PriorityUpdate(priority_update);
 }
 

@@ -616,8 +616,6 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
 
 bool HttpDecoder::ParsePriorityUpdateFrame(QuicDataReader* reader,
                                            PriorityUpdateFrame* frame) {
-  frame->prioritized_element_type = REQUEST_STREAM;
-
   if (!reader->ReadVarInt62(&frame->prioritized_element_id)) {
     RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read prioritized element id.");
     return false;

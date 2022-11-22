@@ -133,12 +133,6 @@ std::string HttpEncoder::SerializeGoAwayFrame(const GoAwayFrame& goaway) {
 
 std::string HttpEncoder::SerializePriorityUpdateFrame(
     const PriorityUpdateFrame& priority_update) {
-  if (priority_update.prioritized_element_type != REQUEST_STREAM) {
-    QUIC_BUG(quic_bug_10402_1)
-        << "PRIORITY_UPDATE for push streams not implemented";
-    return {};
-  }
-
   QuicByteCount payload_length =
       QuicDataWriter::GetVarInt62Len(priority_update.prioritized_element_id) +
       priority_update.priority_field_value.size();

@@ -2211,10 +2211,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
 
   // PRIORITY_UPDATE frame for first request stream.
   const QuicStreamId stream_id1 = GetNthClientInitiatedBidirectionalId(0);
-  struct PriorityUpdateFrame priority_update1;
-  priority_update1.prioritized_element_type = REQUEST_STREAM;
-  priority_update1.prioritized_element_id = stream_id1;
-  priority_update1.priority_field_value = "u=2";
+  PriorityUpdateFrame priority_update1{stream_id1, "u=2"};
   std::string serialized_priority_update1 =
       HttpEncoder::SerializePriorityUpdateFrame(priority_update1);
   QuicStreamFrame data3(receive_control_stream_id,
@@ -2231,10 +2228,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
 
   // PRIORITY_UPDATE frame for second request stream.
   const QuicStreamId stream_id2 = GetNthClientInitiatedBidirectionalId(1);
-  struct PriorityUpdateFrame priority_update2;
-  priority_update2.prioritized_element_type = REQUEST_STREAM;
-  priority_update2.prioritized_element_id = stream_id2;
-  priority_update2.priority_field_value = "u=2";
+  PriorityUpdateFrame priority_update2{stream_id2, "u=2"};
   std::string serialized_priority_update2 =
       HttpEncoder::SerializePriorityUpdateFrame(priority_update2);
   QuicStreamFrame stream_frame3(receive_control_stream_id,

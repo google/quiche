@@ -65,17 +65,31 @@ TEST(HttpEncoderTest, SerializeGoAwayFrame) {
 
 TEST(HttpEncoderTest, SerializePriorityUpdateFrame) {
   PriorityUpdateFrame priority_update1;
-  priority_update1.prioritized_element_type = REQUEST_STREAM;
   priority_update1.prioritized_element_id = 0x03;
   uint8_t output1[] = {0x80, 0x0f, 0x07, 0x00,  // type (PRIORITY_UPDATE)
                        0x01,                    // length
                        0x03};                   // prioritized element id
 
-  std::string frame =
+  std::string frame1 =
       HttpEncoder::SerializePriorityUpdateFrame(priority_update1);
   quiche::test::CompareCharArraysWithHexError(
-      "PRIORITY_UPDATE", frame.data(), frame.length(),
+      "PRIORITY_UPDATE", frame1.data(), frame1.length(),
       reinterpret_cast<char*>(output1), ABSL_ARRAYSIZE(output1));
+
+  PriorityUpdateFrame priority_update2;
+  priority_update2.prioritized_element_id = 0x05;
+  priority_update2.priority_field_value = "foo";
+
+  uint8_t output2[] = {0x80, 0x0f, 0x07, 0x00,  // type (PRIORITY_UPDATE)
+                       0x04,                    // length
+                       0x05,                    // prioritized element id
+                       0x66, 0x6f, 0x6f};       // priority field value: "foo"
+
+  std::string frame2 =
+      HttpEncoder::SerializePriorityUpdateFrame(priority_update2);
+  quiche::test::CompareCharArraysWithHexError(
+      "PRIORITY_UPDATE", frame2.data(), frame2.length(),
+      reinterpret_cast<char*>(output2), ABSL_ARRAYSIZE(output2));
 }
 
 TEST(HttpEncoderTest, SerializeAcceptChFrame) {

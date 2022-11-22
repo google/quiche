@@ -104,32 +104,24 @@ struct QUIC_EXPORT_PRIVATE GoAwayFrame {
 // The PRIORITY_UPDATE frame specifies the sender-advised priority of a stream.
 // Frame type 0xf0700 (called PRIORITY_UPDATE_REQUEST_STREAM in the
 // implementation) is used for for request streams.
-// Frame type 0xf0701 is used for push streams and is not implemented.
+// Frame type 0xf0701 would be used for push streams but it is not implemented;
+// incoming 0xf0701 frames are treated as frames of unknown type.
 
 // Length of a priority frame's first byte.
 const QuicByteCount kPriorityFirstByteLength = 1;
 
-enum PrioritizedElementType : uint8_t {
-  REQUEST_STREAM = 0x00,
-  PUSH_STREAM = 0x80,
-};
-
 struct QUIC_EXPORT_PRIVATE PriorityUpdateFrame {
-  PrioritizedElementType prioritized_element_type = REQUEST_STREAM;
   uint64_t prioritized_element_id = 0;
   std::string priority_field_value;
 
   bool operator==(const PriorityUpdateFrame& rhs) const {
-    return std::tie(prioritized_element_type, prioritized_element_id,
-                    priority_field_value) ==
-           std::tie(rhs.prioritized_element_type, rhs.prioritized_element_id,
-                    rhs.priority_field_value);
+    return std::tie(prioritized_element_id, priority_field_value) ==
+           std::tie(rhs.prioritized_element_id, rhs.priority_field_value);
   }
   std::string ToString() const {
-    return absl::StrCat("Priority Frame : {prioritized_element_type: ",
-                        static_cast<int>(prioritized_element_type),
-                        ", prioritized_element_id: ", prioritized_element_id,
-                        ", priority_field_value: ", priority_field_value, "}");
+    return absl::StrCat(
+        "Priority Frame : {prioritized_element_id: ", prioritized_element_id,
+        ", priority_field_value: ", priority_field_value, "}");
   }
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(

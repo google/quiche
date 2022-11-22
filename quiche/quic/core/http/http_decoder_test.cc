@@ -810,7 +810,6 @@ TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
       "03");      // prioritized element id
 
   PriorityUpdateFrame priority_update1;
-  priority_update1.prioritized_element_type = REQUEST_STREAM;
   priority_update1.prioritized_element_id = 0x03;
 
   // Visitor pauses processing.
@@ -849,7 +848,6 @@ TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
       "666f6f");  // priority field value: "foo"
 
   PriorityUpdateFrame priority_update2;
-  priority_update2.prioritized_element_type = REQUEST_STREAM;
   priority_update2.prioritized_element_id = 0x05;
   priority_update2.priority_field_value = "foo";
 

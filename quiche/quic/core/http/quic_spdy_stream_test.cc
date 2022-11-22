@@ -1560,10 +1560,10 @@ TEST_P(QuicSpdyStreamTest, ChangePriority) {
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_->set_debug_visitor(&debug_visitor);
 
-  // Two writes on the request stream: HEADERS frame header and payload.
   if (GetQuicReloadableFlag(quic_one_write_for_headers)) {
     EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _)).Times(1);
   } else {
+    // Two writes on the request stream: HEADERS frame header and payload.
     EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _)).Times(2);
   }
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
@@ -1574,9 +1574,7 @@ TEST_P(QuicSpdyStreamTest, ChangePriority) {
   auto send_control_stream =
       QuicSpdySessionPeer::GetSendControlStream(session_.get());
   EXPECT_CALL(*session_, WritevData(send_control_stream->id(), _, _, _, _, _));
-  PriorityUpdateFrame priority_update;
-  priority_update.prioritized_element_id = 0;
-  priority_update.priority_field_value = "u=0";
+  PriorityUpdateFrame priority_update{stream_->id(), "u=0"};
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameSent(priority_update));
   stream_->SetPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
 }
