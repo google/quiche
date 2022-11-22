@@ -80,10 +80,9 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   // TODO(wub): Maybe change to the newly derived value of 2.773 (4 * ln(2)).
   float startup_pacing_gain = 2.885;
 
-  // Full bandwidth is declared if the total bandwidth growth is less than
-  // |startup_full_bw_threshold| times in the last |startup_full_bw_rounds|
-  // round trips.
-  float startup_full_bw_threshold = 1.25;
+  // STARTUP or PROBE_UP are exited if the total bandwidth growth is less than
+  // |full_bw_threshold| in the last |startup_full_bw_rounds| round trips.
+  float full_bw_threshold = 1.25;
 
   QuicRoundTripCount startup_full_bw_rounds = 3;
 
@@ -135,9 +134,6 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   // The minimum number of loss marking events to exit the PROBE_UP phase.
   int64_t probe_bw_full_loss_count =
       GetQuicFlag(quic_bbr2_default_probe_bw_full_loss_count);
-
-  // Multiplier to get target inflight (as multiple of BDP) for PROBE_UP phase.
-  float probe_bw_probe_inflight_gain = 1.25;
 
   // When attempting to grow inflight_hi in PROBE_UP, check whether we are cwnd
   // limited before the current aggregation epoch, instead of before the current

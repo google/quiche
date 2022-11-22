@@ -76,11 +76,11 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
                              static_cast<double>(
                                  max_bw_at_round_beginning_.ToBitsPerSecond()));
         // Even when bandwidth isn't increasing, use a gain large enough to
-        // cause a startup_full_bw_threshold increase.
+        // cause a full_bw_threshold increase.
         const float new_gain =
-            ((bandwidth_ratio - 1) * (Params().startup_pacing_gain -
-                                      Params().startup_full_bw_threshold)) +
-            Params().startup_full_bw_threshold;
+            ((bandwidth_ratio - 1) *
+             (Params().startup_pacing_gain - Params().full_bw_threshold)) +
+            Params().full_bw_threshold;
         // Allow the pacing gain to decrease.
         model_->set_pacing_gain(
             std::min(Params().startup_pacing_gain, new_gain));

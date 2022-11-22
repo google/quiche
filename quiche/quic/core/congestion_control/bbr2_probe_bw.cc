@@ -499,8 +499,8 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
   } else if (cycle_.rounds_in_phase > 0) {
     if (Params().probe_up_dont_exit_if_no_queue_) {
       is_queuing = congestion_event.end_of_round_trip &&
-                   model_->CheckPersistentQueue(
-                       congestion_event, Params().probe_bw_probe_inflight_gain);
+                   model_->CheckPersistentQueue(congestion_event,
+                                                Params().full_bw_threshold);
     } else {
       QuicByteCount queuing_threshold_extra_bytes =
           model_->QueueingThresholdExtraBytes();
@@ -508,7 +508,7 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
         queuing_threshold_extra_bytes += model_->MaxAckHeight();
       }
       QuicByteCount queuing_threshold =
-          (Params().probe_bw_probe_inflight_gain * model_->BDP()) +
+          (Params().full_bw_threshold * model_->BDP()) +
           queuing_threshold_extra_bytes;
 
       is_queuing = congestion_event.bytes_in_flight >= queuing_threshold;

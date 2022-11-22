@@ -283,15 +283,15 @@ void Bbr2NetworkModel::AdaptLowerBounds(
     // fast, conservation style response to loss, use the last sample.
     last_bandwidth = congestion_event.sample_max_bandwidth;
   }
-  if (pacing_gain_ > Params().startup_full_bw_threshold) {
+  if (pacing_gain_ > Params().full_bw_threshold) {
     // In STARTUP, pacing_gain_ is applied to bandwidth_lo_ in
     // UpdatePacingRate, so this backs that multiplication out to allow the
     // pacing rate to decrease, but not below
-    // last_bandwidth * startup_full_bw_threshold.
+    // last_bandwidth * full_bw_threshold.
     // TODO(ianswett): Consider altering pacing_gain_ when in STARTUP instead.
-    bandwidth_lo_ = std::max(
-        bandwidth_lo_,
-        last_bandwidth * (Params().startup_full_bw_threshold / pacing_gain_));
+    bandwidth_lo_ =
+        std::max(bandwidth_lo_,
+                 last_bandwidth * (Params().full_bw_threshold / pacing_gain_));
   } else {
     // Ensure bandwidth_lo isn't lower than last_bandwidth.
     bandwidth_lo_ = std::max(bandwidth_lo_, last_bandwidth);
@@ -410,7 +410,7 @@ bool Bbr2NetworkModel::HasBandwidthGrowth(
   QUICHE_DCHECK(congestion_event.end_of_round_trip);
 
   QuicBandwidth threshold =
-      full_bandwidth_baseline_ * Params().startup_full_bw_threshold;
+      full_bandwidth_baseline_ * Params().full_bw_threshold;
 
   if (MaxBandwidth() >= threshold) {
     QUIC_DVLOG(3) << " CheckBandwidthGrowth at end of round. max_bandwidth:"
