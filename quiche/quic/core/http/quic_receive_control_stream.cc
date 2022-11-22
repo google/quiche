@@ -163,8 +163,7 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
       return spdy_session_->OnPriorityUpdateForRequestStream(
           frame.prioritized_element_id, urgency);
     } else {
-      return spdy_session_->OnPriorityUpdateForPushStream(
-          frame.prioritized_element_id, urgency);
+      return true;
     }
   }
 

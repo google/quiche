@@ -185,10 +185,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // stream.  Returns false and closes connection if |stream_id| is invalid.
   bool OnPriorityUpdateForRequestStream(QuicStreamId stream_id, int urgency);
 
-  // Called when an HTTP/3 PRIORITY_UPDATE frame has been received for a push
-  // stream.  Returns false and closes connection if |push_id| is invalid.
-  bool OnPriorityUpdateForPushStream(QuicStreamId push_id, int urgency);
-
   // Called when an HTTP/3 ACCEPT_CH frame has been received.
   // This method will only be called for client sessions.
   virtual void OnAcceptChFrame(const AcceptChFrame& /*frame*/) {}

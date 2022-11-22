@@ -675,12 +675,6 @@ bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
   return true;
 }
 
-bool QuicSpdySession::OnPriorityUpdateForPushStream(QuicStreamId /*push_id*/,
-                                                    int /*urgency*/) {
-  // TODO(b/147306124): Implement PRIORITY_UPDATE frames for pushed streams.
-  return true;
-}
-
 size_t QuicSpdySession::ProcessHeaderData(const struct iovec& iov) {
   QUIC_BUG_IF(quic_bug_12477_4, destruction_indicator_ != 123456789)
       << "QuicSpdyStream use after free. " << destruction_indicator_
