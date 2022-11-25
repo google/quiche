@@ -22,9 +22,7 @@
 #include "quiche/quic/core/http/quic_send_control_stream.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/qpack/qpack_decoder.h"
-#include "quiche/quic/core/qpack/qpack_decoder_stream_sender.h"
 #include "quiche/quic/core/qpack/qpack_encoder.h"
-#include "quiche/quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "quiche/quic/core/qpack/qpack_receive_stream.h"
 #include "quiche/quic/core/qpack/qpack_send_stream.h"
 #include "quiche/quic/core/quic_session.h"
@@ -32,7 +30,6 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/common/quiche_circular_deque.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
@@ -62,11 +59,11 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   // Creation of unidirectional streams.
 
   // Called when locally-initiated control stream is created.
-  virtual void OnControlStreamCreated(QuicStreamId /*stream_id*/) {}
+  virtual void OnControlStreamCreated(QuicStreamId /*stream_id*/) = 0;
   // Called when locally-initiated QPACK encoder stream is created.
-  virtual void OnQpackEncoderStreamCreated(QuicStreamId /*stream_id*/) {}
+  virtual void OnQpackEncoderStreamCreated(QuicStreamId /*stream_id*/) = 0;
   // Called when locally-initiated QPACK decoder stream is created.
-  virtual void OnQpackDecoderStreamCreated(QuicStreamId /*stream_id*/) {}
+  virtual void OnQpackDecoderStreamCreated(QuicStreamId /*stream_id*/) = 0;
   // Called when peer's control stream type is received.
   virtual void OnPeerControlStreamCreated(QuicStreamId /*stream_id*/) = 0;
   // Called when peer's QPACK encoder stream type is received.
@@ -80,40 +77,40 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
 
   // Incoming HTTP/3 frames on the control stream.
   virtual void OnSettingsFrameReceived(const SettingsFrame& /*frame*/) = 0;
-  virtual void OnGoAwayFrameReceived(const GoAwayFrame& /*frame*/) {}
+  virtual void OnGoAwayFrameReceived(const GoAwayFrame& /*frame*/) = 0;
   virtual void OnPriorityUpdateFrameReceived(
-      const PriorityUpdateFrame& /*frame*/) {}
+      const PriorityUpdateFrame& /*frame*/) = 0;
   virtual void OnAcceptChFrameReceived(const AcceptChFrame& /*frame*/) {}
 
   // Incoming HTTP/3 frames on request or push streams.
   virtual void OnDataFrameReceived(QuicStreamId /*stream_id*/,
-                                   QuicByteCount /*payload_length*/) {}
+                                   QuicByteCount /*payload_length*/) = 0;
   virtual void OnHeadersFrameReceived(
-      QuicStreamId /*stream_id*/, QuicByteCount /*compressed_headers_length*/) {
-  }
+      QuicStreamId /*stream_id*/,
+      QuicByteCount /*compressed_headers_length*/) = 0;
   virtual void OnHeadersDecoded(QuicStreamId /*stream_id*/,
-                                QuicHeaderList /*headers*/) {}
+                                QuicHeaderList /*headers*/) = 0;
 
   // Incoming HTTP/3 frames of unknown type on any stream.
   virtual void OnUnknownFrameReceived(QuicStreamId /*stream_id*/,
                                       uint64_t /*frame_type*/,
-                                      QuicByteCount /*payload_length*/) {}
+                                      QuicByteCount /*payload_length*/) = 0;
 
   // Outgoing HTTP/3 frames on the control stream.
   virtual void OnSettingsFrameSent(const SettingsFrame& /*frame*/) = 0;
-  virtual void OnGoAwayFrameSent(QuicStreamId /*stream_id*/) {}
-  virtual void OnPriorityUpdateFrameSent(const PriorityUpdateFrame& /*frame*/) {
-  }
+  virtual void OnGoAwayFrameSent(QuicStreamId /*stream_id*/) = 0;
+  virtual void OnPriorityUpdateFrameSent(
+      const PriorityUpdateFrame& /*frame*/) = 0;
 
   // Outgoing HTTP/3 frames on request or push streams.
   virtual void OnDataFrameSent(QuicStreamId /*stream_id*/,
-                               QuicByteCount /*payload_length*/) {}
+                               QuicByteCount /*payload_length*/) = 0;
   virtual void OnHeadersFrameSent(
       QuicStreamId /*stream_id*/,
-      const spdy::Http2HeaderBlock& /*header_block*/) {}
+      const spdy::Http2HeaderBlock& /*header_block*/) = 0;
 
   // 0-RTT related events.
-  virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) {}
+  virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) = 0;
 };
 
 // Whether HTTP Datagrams are supported on this session and if so which version

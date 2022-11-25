@@ -35,14 +35,12 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/mock_quic_session_visitor.h"
 #include "quiche/quic/test_tools/mock_random.h"
 #include "quiche/quic/test_tools/quic_framer_peer.h"
 #include "quiche/quic/test_tools/simple_quic_framer.h"
-#include "quiche/common/quiche_mem_slice_storage.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
@@ -1026,6 +1024,7 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
   MOCK_METHOD(void, OnDataFrameSent, (QuicStreamId, QuicByteCount), (override));
   MOCK_METHOD(void, OnHeadersFrameSent,
               (QuicStreamId, const spdy::Http2HeaderBlock&), (override));
+  MOCK_METHOD(void, OnSettingsFrameResumed, (const SettingsFrame&), (override));
 };
 
 class TestQuicSpdyServerSession : public QuicServerSessionBase {
