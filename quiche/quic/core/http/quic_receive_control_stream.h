@@ -20,6 +20,13 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
     : public QuicStream,
       public HttpDecoder::Visitor {
  public:
+  // Return type of ParsePriorityFieldValue().
+  struct ParsePriorityFieldValueResult {
+    bool success;
+    int urgency;
+    bool incremental;
+  };
+
   explicit QuicReceiveControlStream(PendingStream* pending,
                                     QuicSpdySession* spdy_session);
   QuicReceiveControlStream(const QuicReceiveControlStream&) = delete;
@@ -59,6 +66,10 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
   bool OnUnknownFrameEnd() override;
 
   QuicSpdySession* spdy_session() { return spdy_session_; }
+
+  // Parses the Priority Field Value field of a PRIORITY_UPDATE frame.
+  static ParsePriorityFieldValueResult ParsePriorityFieldValue(
+      absl::string_view priority_field_value);
 
  private:
   // Called when a frame of allowed type is received.  Returns true if the frame

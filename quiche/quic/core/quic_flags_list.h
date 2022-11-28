@@ -87,6 +87,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_use_ping_manager2, true)
 QUIC_FLAG(quic_reloadable_flag_quic_connection_migration_use_new_cid_v2, true)
 // If true, use next_connection_id_sequence_number to validate retired cid number.
 QUIC_FLAG(quic_reloadable_flag_quic_check_retire_cid_with_next_cid_sequence_number, true)
+// If true, use quiche/common/structured_headers in QuicReceiveControlStream::OnPriorityUpdateFrame().
+QUIC_FLAG(quic_reloadable_flag_quic_priority_update_structured_headers_parser, false)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // Instead of assuming an incoming connection ID length for short headers, ask each time.

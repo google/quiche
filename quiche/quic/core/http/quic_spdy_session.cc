@@ -377,10 +377,7 @@ class QuicSpdySession::SpdyFramerVisitor
   }
 
   void OnPriorityUpdate(SpdyStreamId /*prioritized_stream_id*/,
-                        absl::string_view /*priority_field_value*/) override {
-    // TODO(b/171470299): Parse and call
-    // QuicSpdySession::OnPriorityUpdateForRequestStream().
-  }
+                        absl::string_view /*priority_field_value*/) override {}
 
   bool OnUnknownFrame(SpdyStreamId /*stream_id*/,
                       uint8_t /*frame_type*/) override {

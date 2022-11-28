@@ -16,6 +16,7 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/quiche_text_utils.h"
+#include "quiche/common/structured_headers.h"
 
 namespace quic {
 
@@ -135,7 +136,23 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     spdy_session()->debug_visitor()->OnPriorityUpdateFrameReceived(frame);
   }
 
-  // TODO(b/147306124): Use a proper structured headers parser instead.
+  if (GetQuicReloadableFlag(quic_priority_update_structured_headers_parser)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_priority_update_structured_headers_parser);
+    const ParsePriorityFieldValueResult result =
+        ParsePriorityFieldValue(frame.priority_field_value);
+
+    if (!result.success) {
+      stream_delegate()->OnStreamError(
+          QUIC_INVALID_PRIORITY_UPDATE,
+          "Invalid PRIORITY_UPDATE frame payload.");
+      return false;
+    }
+
+    const QuicStreamId stream_id = frame.prioritized_element_id;
+    return spdy_session_->OnPriorityUpdateForRequestStream(stream_id,
+                                                           result.urgency);
+  }
+
   for (absl::string_view key_value :
        absl::StrSplit(frame.priority_field_value, ',')) {
     std::vector<absl::string_view> key_and_value =
@@ -152,6 +169,8 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
 
     absl::string_view value = key_and_value[1];
     int urgency;
+    // This violates RFC9218 Section 4: "priority parameters with out-of-range
+    // values, or values of unexpected types MUST be ignored".
     if (!absl::SimpleAtoi(value, &urgency) || urgency < 0 || urgency > 7) {
       stream_delegate()->OnStreamError(
           QUIC_INVALID_PRIORITY_UPDATE,
@@ -204,6 +223,45 @@ bool QuicReceiveControlStream::OnUnknownFramePayload(
     absl::string_view /*payload*/) {
   // Ignore unknown frame types.
   return true;
+}
+
+QuicReceiveControlStream::ParsePriorityFieldValueResult
+QuicReceiveControlStream::ParsePriorityFieldValue(
+    absl::string_view priority_field_value) {
+  // Default values
+  int urgency = 3;
+  bool incremental = false;
+
+  absl::optional<quiche::structured_headers::Dictionary> parsed_dictionary =
+      quiche::structured_headers::ParseDictionary(priority_field_value);
+  if (!parsed_dictionary.has_value()) {
+    return {false, urgency, incremental};
+  }
+
+  for (const auto& [name, value] : *parsed_dictionary) {
+    if (value.member_is_inner_list) {
+      continue;
+    }
+
+    const std::vector<quiche::structured_headers::ParameterizedItem>& member =
+        value.member;
+    if (member.size() != 1) {
+      continue;
+    }
+
+    const quiche::structured_headers::Item item = member[0].item;
+    if (name == "u" && item.is_integer()) {
+      int parsed_urgency = item.GetInteger();
+      // Ignore out-of-range values.
+      if (parsed_urgency >= 0 && parsed_urgency <= 7) {
+        urgency = parsed_urgency;
+      }
+    } else if (name == "i" && item.is_boolean()) {
+      incremental = item.GetBoolean();
+    }
+  }
+
+  return {true, urgency, incremental};
 }
 
 bool QuicReceiveControlStream::OnUnknownFrameEnd() {

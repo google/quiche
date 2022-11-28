@@ -456,6 +456,71 @@ TEST_P(QuicReceiveControlStreamTest, UnknownFrameBeforeSettings) {
                       /* offset = */ 1, unknown_frame));
 }
 
+TEST(ParsePriorityFieldValueTest, ParsePriorityFieldValue) {
+  // Default values
+  QuicReceiveControlStream::ParsePriorityFieldValueResult result =
+      QuicReceiveControlStream::ParsePriorityFieldValue("");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(3, result.urgency);
+  EXPECT_FALSE(result.incremental);
+
+  result = QuicReceiveControlStream::ParsePriorityFieldValue("i=?1");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(3, result.urgency);
+  EXPECT_TRUE(result.incremental);
+
+  result = QuicReceiveControlStream::ParsePriorityFieldValue("u=5");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(5, result.urgency);
+  EXPECT_FALSE(result.incremental);
+
+  result = QuicReceiveControlStream::ParsePriorityFieldValue("u=5, i");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(5, result.urgency);
+  EXPECT_TRUE(result.incremental);
+
+  result = QuicReceiveControlStream::ParsePriorityFieldValue("i, u=1");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(1, result.urgency);
+  EXPECT_TRUE(result.incremental);
+
+  // Duplicate values are allowed.
+  result =
+      QuicReceiveControlStream::ParsePriorityFieldValue("u=5, i=?1, i=?0, u=2");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(2, result.urgency);
+  EXPECT_FALSE(result.incremental);
+
+  // Unknown parameters MUST be ignored.
+  result = QuicReceiveControlStream::ParsePriorityFieldValue("a=42, u=4, i=?0");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(4, result.urgency);
+  EXPECT_FALSE(result.incremental);
+
+  // Out-of-range values MUST be ignored.
+  result = QuicReceiveControlStream::ParsePriorityFieldValue("u=-2, i");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(3, result.urgency);
+  EXPECT_TRUE(result.incremental);
+
+  // Values of unexpected types MUST be ignored.
+  result =
+      QuicReceiveControlStream::ParsePriorityFieldValue("u=4.2, i=\"foo\"");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(3, result.urgency);
+  EXPECT_FALSE(result.incremental);
+
+  // Values of the right type but different names are ignored.
+  result = QuicReceiveControlStream::ParsePriorityFieldValue("a=4, b=?1");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(3, result.urgency);
+  EXPECT_FALSE(result.incremental);
+
+  // Cannot be parsed as structured headers.
+  result = QuicReceiveControlStream::ParsePriorityFieldValue("000");
+  EXPECT_FALSE(result.success);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
