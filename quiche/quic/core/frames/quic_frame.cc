@@ -514,6 +514,12 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
   return os;
 }
 
+QUIC_EXPORT_PRIVATE std::string QuicFrameToString(const QuicFrame& frame) {
+  std::ostringstream os;
+  os << frame;
+  return os.str();
+}
+
 std::string QuicFramesToString(const QuicFrames& frames) {
   std::ostringstream os;
   for (const QuicFrame& frame : frames) {

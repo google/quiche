@@ -452,6 +452,7 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
   if (on_closed_frame_.quic_error_code == QUIC_NO_ERROR) {
     // Save all of the connection close information
     on_closed_frame_ = frame;
+    source_ = source;
   }
 
   GetMutableCryptoStream()->OnConnectionClosed(frame.quic_error_code, source);
@@ -789,8 +790,13 @@ QuicConsumedData QuicSession::WritevData(QuicStreamId id, size_t write_length,
                                          StreamSendingState state,
                                          TransmissionType type,
                                          EncryptionLevel level) {
-  QUICHE_DCHECK(connection_->connected())
-      << ENDPOINT << "Try to write stream data when connection is closed.";
+  QUIC_BUG_IF(session writevdata when disconnected, !connection()->connected())
+      << ENDPOINT
+      << absl::StrCat("Try to write stream data when connection is closed: ",
+                      QuicFrameToString(QuicFrame(&on_closed_frame_)), " ",
+                      source_.has_value()
+                          ? ConnectionCloseSourceToString(source_.value())
+                          : "");
   if (!IsEncryptionEstablished() &&
       !QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     // Do not let streams write without encryption. The calling stream will end
@@ -865,7 +871,13 @@ void QuicSession::OnControlFrameManagerError(QuicErrorCode error_code,
 bool QuicSession::WriteControlFrame(const QuicFrame& frame,
                                     TransmissionType type) {
   QUIC_BUG_IF(quic_bug_12435_11, !connection()->connected())
-      << ENDPOINT << "Try to write control frames when connection is closed.";
+      << ENDPOINT
+      << absl::StrCat("Try to write control frame: ", QuicFrameToString(frame),
+                      " when connection is closed: ",
+                      QuicFrameToString(QuicFrame(&on_closed_frame_)), " ",
+                      source_.has_value()
+                          ? ConnectionCloseSourceToString(source_.value())
+                          : "");
   if (!IsEncryptionEstablished()) {
     // Suppress the write before encryption gets established.
     return false;

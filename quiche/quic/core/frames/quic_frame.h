@@ -166,6 +166,7 @@ QUIC_EXPORT_PRIVATE QuicFrames CopyQuicFrames(
     quiche::QuicheBufferAllocator* allocator, const QuicFrames& frames);
 
 // Human-readable description suitable for logging.
+QUIC_EXPORT_PRIVATE std::string QuicFrameToString(const QuicFrame& frame);
 QUIC_EXPORT_PRIVATE std::string QuicFramesToString(const QuicFrames& frames);
 
 }  // namespace quic

@@ -3121,8 +3121,7 @@ TEST_P(QuicSessionTestServer, BufferedCryptoFrameCausesWriteError) {
   if (!GetQuicReloadableFlag(
           quic_no_write_control_frame_upon_connection_close)) {
     EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(Return(false));
-    EXPECT_QUIC_BUG(session_.OnCanWrite(),
-                    "Try to write control frames when connection is closed");
+    EXPECT_QUIC_BUG(session_.OnCanWrite(), "Try to write control frame");
   } else {
     session_.OnCanWrite();
   }

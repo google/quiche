@@ -951,6 +951,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Received information for a connection close.
   QuicConnectionCloseFrame on_closed_frame_;
+  absl::optional<ConnectionCloseSource> source_;
 
   // Used for connection-level flow control.
   QuicFlowController flow_controller_;
