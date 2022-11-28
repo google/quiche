@@ -209,11 +209,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Writes an HTTP/2 PRIORITY frame the to peer. Returns the size in bytes of
   // the resulting PRIORITY frame.
-  size_t WritePriority(QuicStreamId id, QuicStreamId parent_stream_id,
+  size_t WritePriority(QuicStreamId stream_id, QuicStreamId parent_stream_id,
                        int weight, bool exclusive);
 
   // Writes an HTTP/3 PRIORITY_UPDATE frame to the peer.
-  void WriteHttp3PriorityUpdate(const PriorityUpdateFrame& priority_update);
+  void WriteHttp3PriorityUpdate(QuicStreamId stream_id, int urgency,
+                                bool incremental);
 
   // Process received HTTP/3 GOAWAY frame.  When sent from server to client,
   // |id| is a stream ID.  When sent from client to server, |id| is a push ID.

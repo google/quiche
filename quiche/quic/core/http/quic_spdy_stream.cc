@@ -588,14 +588,14 @@ void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {
   }
 
   // Value between 0 and 7, inclusive.  Lower value means higher priority.
-  int urgency = precedence().spdy3_priority();
+  const int urgency = precedence().spdy3_priority();
   if (last_sent_urgency_ == urgency) {
     return;
   }
   last_sent_urgency_ = urgency;
 
-  PriorityUpdateFrame priority_update{id(), absl::StrCat("u=", urgency)};
-  spdy_session_->WriteHttp3PriorityUpdate(priority_update);
+  spdy_session_->WriteHttp3PriorityUpdate(id(), urgency,
+                                          /* incremental = */ false);
 }
 
 void QuicSpdyStream::OnHeadersTooLarge() { Reset(QUIC_HEADERS_TOO_LARGE); }

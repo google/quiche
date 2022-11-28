@@ -694,22 +694,22 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStream(
       /* exclusive = */ false, std::move(ack_listener));
 }
 
-size_t QuicSpdySession::WritePriority(QuicStreamId id,
+size_t QuicSpdySession::WritePriority(QuicStreamId stream_id,
                                       QuicStreamId parent_stream_id, int weight,
                                       bool exclusive) {
   QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
-  SpdyPriorityIR priority_frame(id, parent_stream_id, weight, exclusive);
+  SpdyPriorityIR priority_frame(stream_id, parent_stream_id, weight, exclusive);
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(priority_frame));
   headers_stream()->WriteOrBufferData(
       absl::string_view(frame.data(), frame.size()), false, nullptr);
   return frame.size();
 }
 
-void QuicSpdySession::WriteHttp3PriorityUpdate(
-    const PriorityUpdateFrame& priority_update) {
+void QuicSpdySession::WriteHttp3PriorityUpdate(QuicStreamId stream_id,
+                                               int urgency, bool incremental) {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
-  send_control_stream_->WritePriorityUpdate(priority_update);
+  send_control_stream_->WritePriorityUpdate(stream_id, urgency, incremental);
 }
 
 void QuicSpdySession::OnHttp3GoAway(uint64_t id) {

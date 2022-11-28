@@ -39,7 +39,8 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
 
   // Send a PRIORITY_UPDATE frame on this stream, and a SETTINGS frame
   // beforehand if one has not been already sent.
-  void WritePriorityUpdate(const PriorityUpdateFrame& priority_update);
+  void WritePriorityUpdate(QuicStreamId stream_id, int urgency,
+                           bool incremental);
 
   // Send a GOAWAY frame on this stream, and a SETTINGS frame beforehand if one
   // has not been already sent.
@@ -48,6 +49,9 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   // The send control stream is write unidirectional, so this method should
   // never be called.
   void OnDataAvailable() override { QUICHE_NOTREACHED(); }
+
+  // Serialize the Priority Field Value for a PRIORITY_UPDATE frame.
+  static std::string SerializePriorityFieldValue(int urgency, bool incremental);
 
  private:
   // Track if a settings frame is already sent.

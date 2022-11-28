@@ -16,8 +16,19 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/structured_headers.h"
 
 namespace quic {
+namespace {
+
+// See https://httpwg.org/specs/rfc9218.html for Priority Field Value format.
+constexpr absl::string_view kUrgencyKey = "u";
+constexpr absl::string_view kIncrementalKey = "i";
+constexpr int kMinimumUrgency = 0;
+constexpr int kMaximumUrgency = 7;
+constexpr bool kDefaultIncremental = false;
+
+}  // anonymous namespace
 
 QuicSendControlStream::QuicSendControlStream(QuicStreamId id,
                                              QuicSpdySession* spdy_session,
@@ -82,19 +93,23 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
                     nullptr);
 }
 
-void QuicSendControlStream::WritePriorityUpdate(
-    const PriorityUpdateFrame& priority_update) {
+void QuicSendControlStream::WritePriorityUpdate(QuicStreamId stream_id,
+                                                int urgency, bool incremental) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   MaybeSendSettingsFrame();
 
+  const std::string priority_field_value =
+      SerializePriorityFieldValue(urgency, incremental);
+  PriorityUpdateFrame priority_update_frame{stream_id, priority_field_value};
   if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnPriorityUpdateFrameSent(priority_update);
+    spdy_session_->debug_visitor()->OnPriorityUpdateFrameSent(
+        priority_update_frame);
   }
 
   std::string frame =
-      HttpEncoder::SerializePriorityUpdateFrame(priority_update);
+      HttpEncoder::SerializePriorityUpdateFrame(priority_update_frame);
   QUIC_DVLOG(1) << "Control Stream " << id() << " is writing "
-                << priority_update;
+                << priority_update_frame;
   WriteOrBufferData(frame, false, nullptr);
 }
 
@@ -109,6 +124,32 @@ void QuicSendControlStream::SendGoAway(QuicStreamId id) {
   }
 
   WriteOrBufferData(HttpEncoder::SerializeGoAwayFrame(frame), false, nullptr);
+}
+
+std::string QuicSendControlStream::SerializePriorityFieldValue(
+    int urgency, bool incremental) {
+  quiche::structured_headers::Dictionary dictionary;
+
+  if (urgency != QuicStream::kDefaultUrgency && urgency >= kMinimumUrgency &&
+      urgency <= kMaximumUrgency) {
+    dictionary[kUrgencyKey] = quiche::structured_headers::ParameterizedMember(
+        quiche::structured_headers::Item(static_cast<int64_t>(urgency)), {});
+  }
+
+  if (incremental != kDefaultIncremental) {
+    dictionary[kIncrementalKey] =
+        quiche::structured_headers::ParameterizedMember(
+            quiche::structured_headers::Item(incremental), {});
+  }
+
+  absl::optional<std::string> priority_field_value =
+      quiche::structured_headers::SerializeDictionary(dictionary);
+  if (!priority_field_value.has_value()) {
+    QUICHE_BUG(priority_field_value_serialization_failed);
+    return "";
+  }
+
+  return *priority_field_value;
 }
 
 }  // namespace quic
