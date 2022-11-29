@@ -8474,7 +8474,7 @@ TEST_P(QuicConnectionTest, GetCurrentLargestMessagePayload) {
   // that the encryption overhead is constant across versions.
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            std::make_unique<TaggingEncrypter>(0x00));
-  QuicPacketLength expected_largest_payload = 1219;
+  QuicPacketLength expected_largest_payload = 1215;
   if (connection_.version().SendsVariableLengthPacketNumberInLongHeader()) {
     expected_largest_payload += 3;
   }
@@ -8509,7 +8509,7 @@ TEST_P(QuicConnectionTest, GetGuaranteedLargestMessagePayload) {
   // that the encryption overhead is constant across versions.
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            std::make_unique<TaggingEncrypter>(0x00));
-  QuicPacketLength expected_largest_payload = 1219;
+  QuicPacketLength expected_largest_payload = 1215;
   if (connection_.version().HasLongHeaderLengths()) {
     expected_largest_payload -= 2;
   }

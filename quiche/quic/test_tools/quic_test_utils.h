@@ -1721,7 +1721,7 @@ class TaggingEncrypter : public QuicEncrypter {
 
  private:
   enum {
-    kTagSize = 12,
+    kTagSize = 16,
   };
 
   const uint8_t tag_;
@@ -1784,7 +1784,7 @@ class TaggingDecrypter : public QuicDecrypter {
 
  private:
   enum {
-    kTagSize = 12,
+    kTagSize = 16,
   };
 
   bool CheckTag(absl::string_view ciphertext, uint8_t tag);
