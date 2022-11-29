@@ -306,24 +306,13 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   ReceivedPacketInfo packet_info(self_address, peer_address, packet);
   std::string detailed_error;
   QuicErrorCode error;
-  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_ask_for_short_header_connection_id_length2);
-    error = QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
-        packet, &packet_info.form, &packet_info.long_packet_type,
-        &packet_info.version_flag, &packet_info.use_length_prefix,
-        &packet_info.version_label, &packet_info.version,
-        &packet_info.destination_connection_id,
-        &packet_info.source_connection_id, &packet_info.retry_token,
-        &detailed_error, connection_id_generator_);
-  } else {
-    error = QuicFramer::ParsePublicHeaderDispatcher(
-        packet, expected_server_connection_id_length_, &packet_info.form,
-        &packet_info.long_packet_type, &packet_info.version_flag,
-        &packet_info.use_length_prefix, &packet_info.version_label,
-        &packet_info.version, &packet_info.destination_connection_id,
-        &packet_info.source_connection_id, &packet_info.retry_token,
-        &detailed_error);
-  }
+  error = QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
+      packet, &packet_info.form, &packet_info.long_packet_type,
+      &packet_info.version_flag, &packet_info.use_length_prefix,
+      &packet_info.version_label, &packet_info.version,
+      &packet_info.destination_connection_id, &packet_info.source_connection_id,
+      &packet_info.retry_token, &detailed_error, connection_id_generator_);
+
   if (error != QUIC_NO_ERROR) {
     // Packet has framing error.
     SetLastError(error);
@@ -361,12 +350,6 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
 
   // Before introducing the flag, it was impossible for a short header to
   // update |expected_server_connection_id_length_|.
-  QUIC_BUG_IF(
-      quic_bug_480483284_01,
-      !GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2) &&
-          !packet_info.version_flag &&
-          packet_info.destination_connection_id.length() !=
-              expected_server_connection_id_length_);
   if (should_update_expected_server_connection_id_length_ &&
       packet_info.version_flag) {
     expected_server_connection_id_length_ =
@@ -385,7 +368,6 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   // where NEW_CONNECTION_IDs are not using the generator, and the dispatcher
   // is, due to flag misconfiguration.
   if (!packet_info.version_flag &&
-      GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2) &&
       (IsSupportedVersion(ParsedQuicVersion::Q046()) ||
        IsSupportedVersion(ParsedQuicVersion::Q050()))) {
     ReceivedPacketInfo gquic_packet_info(self_address, peer_address, packet);
@@ -1253,9 +1235,6 @@ bool QuicDispatcher::IsServerConnectionIdTooShort(
       connection_id.length() >= expected_server_connection_id_length_ ||
       allow_short_initial_server_connection_ids_) {
     return false;
-  }
-  if (!GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)) {
-    return true;
   }
   uint8_t generator_output =
       connection_id.IsEmpty()

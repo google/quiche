@@ -326,18 +326,14 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         ConstructReceivedPacket(*packet, mock_helper_.GetClock()->Now()));
     // Call ConnectionIdLength if the packet clears the Long Header bit, or
     // if the test involves sending a connection ID that is too short
-    if ((!has_version_flag || !version.AllowsVariableLengthConnectionIds() ||
-         server_connection_id.length() == 0 ||
-         server_connection_id_included == CONNECTION_ID_ABSENT) &&
-        GetQuicReloadableFlag(
-            quic_ask_for_short_header_connection_id_length2)) {
+    if (!has_version_flag || !version.AllowsVariableLengthConnectionIds() ||
+        server_connection_id.length() == 0 ||
+        server_connection_id_included == CONNECTION_ID_ABSENT) {
       // Short headers will ask for the length
       EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_))
           .WillRepeatedly(Return(generated_connection_id_.has_value()
                                      ? generated_connection_id_->length()
                                      : kQuicDefaultConnectionIdLength));
-    } else {
-      EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
     }
     ProcessReceivedPacket(std::move(received_packet), peer_address, version,
                           server_connection_id);
@@ -631,23 +627,9 @@ TEST_P(QuicDispatcherTestAllVersions, VariableServerConnectionIdLength) {
       })));
   ProcessFirstFlight(client_address, old_id);
 
-  // Send short header packets with the new length and verify they are parsed
-  // correctly. If flag is set, all versions should succeed. If not, it should
-  // fail (this is the bugfix!). gQUIC never gets a new connection ID, so it's
-  // not affected by asking.
-  if (version_.HasIetfQuicFrames() &&
-      !GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)) {
-    // Dispatcher issued a longer connection ID if IETF QUIC, but won't ask for
-    // that length when processing a short header. Thus dispatch will fail.
-    EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
-                ProcessUdpPacket(_, _, _))
-        .Times(0);
-  } else {
-    // Dispatch succeeds, because it's gQUIC or all the flags are aligned.
-    EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
-                ProcessUdpPacket(_, _, _))
-        .Times(1);
-  }
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .Times(1);
   ProcessPacket(client_address, new_id, false, "foo");
 }
 
@@ -995,8 +977,7 @@ TEST_P(QuicDispatcherTestAllVersions,
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   // Verify small packet is silently dropped.
-  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2) &&
-      version_.HasIetfInvariantHeader()) {
+  if (version_.HasIetfInvariantHeader()) {
     EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0xa7))
         .WillOnce(Return(kQuicDefaultConnectionIdLength));
   } else {
@@ -1005,8 +986,7 @@ TEST_P(QuicDispatcherTestAllVersions,
   EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
       .Times(0);
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
-  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2) &&
-      version_.HasIetfInvariantHeader()) {
+  if (version_.HasIetfInvariantHeader()) {
     EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0xa7))
         .WillOnce(Return(kQuicDefaultConnectionIdLength));
   } else {
@@ -1030,12 +1010,8 @@ TEST_P(QuicDispatcherTestOneVersion, DropPacketWithInvalidFlags) {
       .Times(0);
   EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
       .Times(0);
-  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)) {
-    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_))
-        .WillOnce(Return(kQuicDefaultConnectionIdLength));
-  } else {
-    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
-  }
+  EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_))
+      .WillOnce(Return(kQuicDefaultConnectionIdLength));
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
 }
 
@@ -1286,12 +1262,8 @@ TEST_P(QuicDispatcherTestAllVersions,
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   // dispatcher_ should drop this packet.
-  if (GetQuicReloadableFlag(quic_ask_for_short_header_connection_id_length2)) {
-    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0x00))
-        .WillOnce(Return(10));
-  } else {
-    EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
-  }
+  EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0x00))
+      .WillOnce(Return(10));
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
       .Times(0);
