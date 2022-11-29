@@ -21,8 +21,6 @@ QUIC_FLAG(quic_restart_flag_quic_testonly_default_true, true)
 QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
-// If true, QuicConnectionContext will track the decrypted payload and the offset of the current frame, for debugging.
-QUIC_FLAG(quic_reloadable_flag_quic_add_process_packet_context, true)
 // If true, QuicCryptoServerConfig::ParseConfigProtobuf will treat an empty SCID as the same as non-existent.
 QUIC_FLAG(quic_restart_flag_quic_return_error_on_empty_scid, true)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.

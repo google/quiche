@@ -1907,8 +1907,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
 
   // Remember decrypted_payload in the current connection context until the end
   // of this function.
-  auto* connection_context =
-      add_process_packet_context_ ? QuicConnectionContext::Current() : nullptr;
+  auto* connection_context = QuicConnectionContext::Current();
   if (connection_context != nullptr) {
     connection_context->process_packet_context.decrypted_payload =
         reader.FullPayload();
@@ -1916,7 +1915,6 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
   }
   auto clear_decrypted_payload = absl::MakeCleanup([&]() {
     if (connection_context != nullptr) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_add_process_packet_context);
       connection_context->process_packet_context.decrypted_payload =
           absl::string_view();
     }
@@ -3187,8 +3185,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
   }
 
   QUIC_DVLOG(2) << ENDPOINT << "Processing IETF packet with header " << header;
-  auto* connection_context =
-      add_process_packet_context_ ? QuicConnectionContext::Current() : nullptr;
+  auto* connection_context = QuicConnectionContext::Current();
   while (!reader->IsDoneReading()) {
     if (connection_context != nullptr) {
       connection_context->process_packet_context.current_frame_offset =
