@@ -7343,8 +7343,7 @@ TEST_P(QuicConnectionTest, ServerRetransmittableOnWire) {
 }
 
 TEST_P(QuicConnectionTest, RetransmittableOnWireSendFirstPacket) {
-  if (!GetQuicReloadableFlag(quic_use_ping_manager2) ||
-      !VersionHasIetfQuicFrames(connection_.version().transport_version)) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
@@ -7389,8 +7388,7 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSendFirstPacket) {
 }
 
 TEST_P(QuicConnectionTest, RetransmittableOnWireSendRandomBytes) {
-  if (!GetQuicReloadableFlag(quic_use_ping_manager2) ||
-      !VersionHasIetfQuicFrames(connection_.version().transport_version)) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
@@ -7438,8 +7436,7 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSendRandomBytes) {
 
 TEST_P(QuicConnectionTest,
        RetransmittableOnWireSendRandomBytesWithWriterBlocked) {
-  if (!GetQuicReloadableFlag(quic_use_ping_manager2) ||
-      !VersionHasIetfQuicFrames(connection_.version().transport_version)) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())

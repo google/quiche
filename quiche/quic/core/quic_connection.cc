@@ -123,17 +123,6 @@ class SendAlarmDelegate : public QuicConnectionAlarmDelegate {
   }
 };
 
-class PingAlarmDelegate : public QuicConnectionAlarmDelegate {
- public:
-  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
-
-  void OnAlarm() override {
-    QUICHE_DCHECK(connection_->connected());
-    QUICHE_DCHECK(!GetQuicReloadableFlag(quic_use_ping_manager2));
-    connection_->OnPingTimeout();
-  }
-};
-
 class MtuDiscoveryAlarmDelegate : public QuicConnectionAlarmDelegate {
  public:
   using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
@@ -299,10 +288,6 @@ QuicConnection::QuicConnection(
       stop_waiting_count_(0),
       pending_retransmission_alarm_(false),
       defer_send_in_response_to_packets_(false),
-      keep_alive_ping_timeout_(QuicTime::Delta::FromSeconds(kPingTimeoutSecs)),
-      initial_retransmittable_on_wire_timeout_(QuicTime::Delta::Infinite()),
-      consecutive_retransmittable_on_wire_ping_count_(0),
-      retransmittable_on_wire_ping_count_(0),
       arena_(),
       ack_alarm_(alarm_factory_->CreateAlarm(arena_.New<AckAlarmDelegate>(this),
                                              &arena_)),
@@ -310,8 +295,6 @@ QuicConnection::QuicConnection(
           arena_.New<RetransmissionAlarmDelegate>(this), &arena_)),
       send_alarm_(alarm_factory_->CreateAlarm(
           arena_.New<SendAlarmDelegate>(this), &arena_)),
-      ping_alarm_(alarm_factory_->CreateAlarm(
-          arena_.New<PingAlarmDelegate>(this), &arena_)),
       mtu_discovery_alarm_(alarm_factory_->CreateAlarm(
           arena_.New<MtuDiscoveryAlarmDelegate>(this), &arena_)),
       process_undecryptable_packets_alarm_(alarm_factory_->CreateAlarm(
@@ -1360,11 +1343,7 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
   MaybeUpdateAckTimeout();
   visitor_->OnStreamFrame(frame);
   stats_.stream_bytes_received += frame.data_length;
-  if (use_ping_manager_) {
-    ping_manager_.reset_consecutive_retransmittable_on_wire_count();
-  } else {
-    consecutive_retransmittable_on_wire_ping_count_ = 0;
-  }
+  ping_manager_.reset_consecutive_retransmittable_on_wire_count();
   return connected_;
 }
 
@@ -3967,15 +3946,6 @@ void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
   WritePacket(&packet);
 }
 
-void QuicConnection::OnPingTimeout() {
-  QUICHE_DCHECK(!use_ping_manager_);
-  if (retransmission_alarm_->IsSet() ||
-      !visitor_->ShouldKeepConnectionAlive()) {
-    return;
-  }
-  SendPingAtLevel(framer().GetEncryptionLevelToSendApplicationData());
-}
-
 void QuicConnection::SendAck() {
   QUICHE_DCHECK(!SupportsMultiplePacketNumberSpaces());
   QUIC_DVLOG(1) << ENDPOINT << "Sending an ACK proactively";
@@ -4518,11 +4488,7 @@ void QuicConnection::CancelAllAlarms() {
   QUIC_DVLOG(1) << "Cancelling all QuicConnection alarms.";
 
   ack_alarm_->PermanentCancel();
-  if (use_ping_manager_) {
-    ping_manager_.Stop();
-  } else {
-    ping_alarm_->PermanentCancel();
-  }
+  ping_manager_.Stop();
   retransmission_alarm_->PermanentCancel();
   send_alarm_->PermanentCancel();
   mtu_discovery_alarm_->PermanentCancel();
@@ -4566,79 +4532,9 @@ void QuicConnection::SetPingAlarm() {
   if (!connected_) {
     return;
   }
-  if (use_ping_manager_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_use_ping_manager2);
-    ping_manager_.SetAlarm(clock_->ApproximateNow(),
-                           visitor_->ShouldKeepConnectionAlive(),
-                           sent_packet_manager_.HasInFlightPackets());
-    return;
-  }
-  if (perspective_ == Perspective::IS_SERVER &&
-      initial_retransmittable_on_wire_timeout_.IsInfinite()) {
-    // The PING alarm exists to support two features:
-    // 1) clients send PINGs every 15s to prevent NAT timeouts,
-    // 2) both clients and servers can send retransmittable on the wire PINGs
-    // (ROWP) while ShouldKeepConnectionAlive is true and there is no packets in
-    // flight.
-    return;
-  }
-  if (!visitor_->ShouldKeepConnectionAlive()) {
-    ping_alarm_->Cancel();
-    // Don't send a ping unless the application (ie: HTTP/3) says to, usually
-    // because it is expecting a response from the server.
-    return;
-  }
-  if (initial_retransmittable_on_wire_timeout_.IsInfinite() ||
-      sent_packet_manager_.HasInFlightPackets() ||
-      retransmittable_on_wire_ping_count_ >
-          GetQuicFlag(quic_max_retransmittable_on_wire_ping_count)) {
-    if (perspective_ == Perspective::IS_CLIENT) {
-      // Clients send 15s PINGs to avoid NATs from timing out.
-      ping_alarm_->Update(clock_->ApproximateNow() + keep_alive_ping_timeout_,
-                          QuicTime::Delta::FromSeconds(1));
-    } else {
-      // Servers do not send 15s PINGs.
-      ping_alarm_->Cancel();
-    }
-    return;
-  }
-  QUICHE_DCHECK_LT(initial_retransmittable_on_wire_timeout_,
-                   keep_alive_ping_timeout_);
-  QuicTime::Delta retransmittable_on_wire_timeout =
-      initial_retransmittable_on_wire_timeout_;
-  int max_aggressive_retransmittable_on_wire_ping_count =
-      GetQuicFlag(quic_max_aggressive_retransmittable_on_wire_ping_count);
-  QUICHE_DCHECK_LE(0, max_aggressive_retransmittable_on_wire_ping_count);
-  if (consecutive_retransmittable_on_wire_ping_count_ >
-      max_aggressive_retransmittable_on_wire_ping_count) {
-    // Exponentially back off the timeout if the number of consecutive
-    // retransmittable on wire pings has exceeds the allowance.
-    int shift = consecutive_retransmittable_on_wire_ping_count_ -
-                max_aggressive_retransmittable_on_wire_ping_count;
-    retransmittable_on_wire_timeout =
-        initial_retransmittable_on_wire_timeout_ * (1 << shift);
-  }
-  // If it's already set to an earlier time, then don't update it.
-  if (ping_alarm_->IsSet() &&
-      ping_alarm_->deadline() <
-          clock_->ApproximateNow() + retransmittable_on_wire_timeout) {
-    return;
-  }
-
-  if (retransmittable_on_wire_timeout < keep_alive_ping_timeout_) {
-    // Use a shorter timeout if there are open streams, but nothing on the wire.
-    ping_alarm_->Update(
-        clock_->ApproximateNow() + retransmittable_on_wire_timeout,
-        kAlarmGranularity);
-    if (max_aggressive_retransmittable_on_wire_ping_count != 0) {
-      consecutive_retransmittable_on_wire_ping_count_++;
-    }
-    retransmittable_on_wire_ping_count_++;
-    return;
-  }
-
-  ping_alarm_->Update(clock_->ApproximateNow() + keep_alive_ping_timeout_,
-                      kAlarmGranularity);
+  ping_manager_.SetAlarm(clock_->ApproximateNow(),
+                         visitor_->ShouldKeepConnectionAlive(),
+                         sent_packet_manager_.HasInFlightPackets());
 }
 
 void QuicConnection::SetRetransmissionAlarm() {
@@ -6194,7 +6090,6 @@ void QuicConnection::OnBandwidthUpdateTimeout() {
 }
 
 void QuicConnection::OnKeepAliveTimeout() {
-  QUICHE_DCHECK(use_ping_manager_);
   if (retransmission_alarm_->IsSet() ||
       !visitor_->ShouldKeepConnectionAlive()) {
     return;
@@ -6203,7 +6098,6 @@ void QuicConnection::OnKeepAliveTimeout() {
 }
 
 void QuicConnection::OnRetransmittableOnWireTimeout() {
-  QUICHE_DCHECK(use_ping_manager_);
   if (retransmission_alarm_->IsSet() ||
       !visitor_->ShouldKeepConnectionAlive()) {
     return;
@@ -7175,23 +7069,13 @@ QuicConnection::OnPeerIpAddressChanged() {
 
 void QuicConnection::set_keep_alive_ping_timeout(
     QuicTime::Delta keep_alive_ping_timeout) {
-  if (use_ping_manager_) {
-    ping_manager_.set_keep_alive_timeout(keep_alive_ping_timeout);
-    return;
-  }
-  QUICHE_DCHECK(!ping_alarm_->IsSet());
-  keep_alive_ping_timeout_ = keep_alive_ping_timeout;
+  ping_manager_.set_keep_alive_timeout(keep_alive_ping_timeout);
 }
 
 void QuicConnection::set_initial_retransmittable_on_wire_timeout(
     QuicTime::Delta retransmittable_on_wire_timeout) {
-  if (use_ping_manager_) {
-    ping_manager_.set_initial_retransmittable_on_wire_timeout(
-        retransmittable_on_wire_timeout);
-    return;
-  }
-  QUICHE_DCHECK(!ping_alarm_->IsSet());
-  initial_retransmittable_on_wire_timeout_ = retransmittable_on_wire_timeout;
+  ping_manager_.set_initial_retransmittable_on_wire_timeout(
+      retransmittable_on_wire_timeout);
 }
 
 #undef ENDPOINT  // undef for jumbo builds

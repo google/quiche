@@ -573,10 +573,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicConnectionStats& mutable_stats() { return stats_; }
 
-  int retransmittable_on_wire_ping_count() const {
-    return retransmittable_on_wire_ping_count_;
-  }
-
   // Returns statistics tracked for this connection.
   const QuicConnectionStats& GetStats();
 
@@ -838,10 +834,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const MultiPortStats* multi_port_stats() const {
     return multi_port_stats_.get();
   }
-
-  // Called when the ping alarm fires. Causes a ping frame to be sent only
-  // if the retransmission alarm is not running.
-  void OnPingTimeout();
 
   // Sets up a packet with an QuicAckFrame and sends it out.
   void SendAck();
@@ -2030,21 +2022,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // SendAlarm.
   bool defer_send_in_response_to_packets_;
 
-  // TODO(fayang): remove PING related fields below when deprecating
-  // quic_use_ping_manager2.
-  // The timeout for keep-alive PING.
-  QuicTime::Delta keep_alive_ping_timeout_;
-
-  // Initial timeout for how long the wire can have no retransmittable packets.
-  QuicTime::Delta initial_retransmittable_on_wire_timeout_;
-
-  // Indicates how many retransmittable-on-wire pings have been emitted without
-  // receiving any new data in between.
-  int consecutive_retransmittable_on_wire_ping_count_;
-
-  // Indicates how many retransmittable-on-wire pings have been emitted.
-  int retransmittable_on_wire_ping_count_;
-
   // Arena to store class implementations within the QuicConnection.
   QuicConnectionArena arena_;
 
@@ -2055,9 +2032,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // An alarm that is scheduled when the SentPacketManager requires a delay
   // before sending packets and fires when the packet may be sent.
   QuicArenaScopedPtr<QuicAlarm> send_alarm_;
-  // TODO(fayang): remove ping_alarm_ when deprecating quic_use_ping_manager2.
-  // An alarm that fires when a ping should be sent.
-  QuicArenaScopedPtr<QuicAlarm> ping_alarm_;
   // An alarm that fires when an MTU probe should be sent.
   QuicArenaScopedPtr<QuicAlarm> mtu_discovery_alarm_;
   // An alarm that fires to process undecryptable packets when new decyrption
@@ -2271,8 +2245,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // If true, send connection close packet on INVALID_VERSION.
   bool send_connection_close_for_invalid_version_ = false;
-
-  const bool use_ping_manager_ = GetQuicReloadableFlag(quic_use_ping_manager2);
 
   QuicPingManager ping_manager_;
 
