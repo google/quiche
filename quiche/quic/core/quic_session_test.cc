@@ -3078,14 +3078,7 @@ TEST_P(QuicSessionTestServer, BlockedFrameCausesWriteError) {
             ConnectionCloseBehavior::SILENT_CLOSE);
         return false;
       }));
-  std::string msg =
-      absl::StrCat("Marking unknown stream ", stream->id(), " blocked.");
-  if (GetQuicReloadableFlag(
-          quic_donot_mark_stream_write_blocked_if_write_side_closed)) {
-    stream->WriteOrBufferData(body, false, nullptr);
-  } else {
-    EXPECT_QUIC_BUG(stream->WriteOrBufferData(body, false, nullptr), msg);
-  }
+  stream->WriteOrBufferData(body, false, nullptr);
 }
 
 TEST_P(QuicSessionTestServer, BufferedCryptoFrameCausesWriteError) {

@@ -55,8 +55,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, tru
 QUIC_FLAG(quic_reloadable_flag_quic_donot_pto_stream_data_before_handshake_confirmed, true)
 // If true, do not issue a new connection ID that has been claimed by another connection.
 QUIC_FLAG(quic_reloadable_flag_quic_check_cid_collision_when_issue_new_cid, true)
-// If true, do not mark stream connection level write blocked if its write side has been closed.
-QUIC_FLAG(quic_reloadable_flag_quic_donot_mark_stream_write_blocked_if_write_side_closed, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, flush pending frames as well as pending padding bytes on connection migration.
