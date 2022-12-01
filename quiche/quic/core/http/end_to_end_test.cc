@@ -5423,13 +5423,15 @@ TEST_P(EndToEndTest, ClientValidateNewNetwork) {
 }
 
 TEST_P(EndToEndTest, ClientMultiPortConnection) {
-  client_extra_copts_.push_back(kMPQC);
+  client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC});
   ASSERT_TRUE(Initialize());
   if (!GetClientConnection()->connection_migration_use_new_cid()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
   QuicConnection* client_connection = GetClientConnection();
+  QuicSpdyClientStream* stream = client_->GetOrCreateStream();
+  ASSERT_TRUE(stream);
   // Increase the probing frequency to speed up this test.
   client_connection->SetMultiPortProbingInterval(
       QuicTime::Delta::FromMilliseconds(100));
@@ -5463,6 +5465,7 @@ TEST_P(EndToEndTest, ClientMultiPortConnection) {
   }));
   // Verify that the previous path was retired.
   EXPECT_EQ(1u, client_connection->GetStats().num_retire_connection_id_sent);
+  stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
 }
 
 TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {

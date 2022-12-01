@@ -176,7 +176,7 @@ class MultiPortProbingAlarmDelegate : public QuicConnectionAlarmDelegate {
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
     QUIC_DLOG(INFO) << "Alternative path probing alarm fired";
-    connection_->ProbeMultiPortPath();
+    connection_->MaybeProbeMultiPortPath();
   }
 };
 
@@ -673,10 +673,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     UpdateReleaseTimeIntoFuture();
   }
 
-  multi_port_enabled_ =
+  if (perspective_ == Perspective::IS_CLIENT &&
       connection_migration_use_new_cid_ &&
-      config.HasClientSentConnectionOption(kMPQC, perspective_);
-  if (multi_port_enabled_) {
+      config.HasClientRequestedIndependentOption(kMPQC, perspective_)) {
     multi_port_stats_ = std::make_unique<MultiPortStats>();
   }
 }
@@ -1994,7 +1993,7 @@ bool QuicConnection::OnNewConnectionIdFrame(
   if (!OnNewConnectionIdFrameInner(frame)) {
     return false;
   }
-  if (perspective_ == Perspective::IS_CLIENT && multi_port_enabled_) {
+  if (multi_port_stats_ != nullptr) {
     MaybeCreateMultiPortPath();
   }
   return true;
@@ -3929,14 +3928,21 @@ void QuicConnection::OnHandshakeComplete() {
 
 void QuicConnection::MaybeCreateMultiPortPath() {
   QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+  QUIC_BUG_IF(quic_bug_12714_20, path_validator_.HasPendingPathValidation())
+      << "Pending validation exists when multi-port path is created.";
+  if (multi_port_stats_->num_multi_port_paths_created >=
+      kMaxNumMultiPortPaths) {
+    return;
+  }
   auto path_context = visitor_->CreateContextForMultiPortPath();
-  if (!path_context || path_validator_.HasPendingPathValidation()) {
+  if (!path_context) {
     return;
   }
   auto multi_port_validation_result_delegate =
       std::make_unique<MultiPortPathValidationResultDelegate>(this);
   multi_port_probing_alarm_->Cancel();
   multi_port_path_context_ = nullptr;
+  multi_port_stats_->num_multi_port_paths_created++;
   ValidatePath(std::move(path_context),
                std::move(multi_port_validation_result_delegate));
 }
@@ -4495,6 +4501,7 @@ void QuicConnection::CancelAllAlarms() {
   process_undecryptable_packets_alarm_->PermanentCancel();
   discard_previous_one_rtt_keys_alarm_->PermanentCancel();
   discard_zero_rtt_decryption_keys_alarm_->PermanentCancel();
+  multi_port_probing_alarm_->PermanentCancel();
   blackhole_detector_.StopDetection(/*permanent=*/true);
   idle_network_detector_.StopDetection();
 }
@@ -6889,13 +6896,15 @@ void QuicConnection::OnMultiPortPathProbingSuccess(
   }
 }
 
-void QuicConnection::ProbeMultiPortPath() {
+void QuicConnection::MaybeProbeMultiPortPath() {
   if (!connected_ || path_validator_.HasPendingPathValidation() ||
       !multi_port_path_context_ ||
       alternative_path_.self_address !=
           multi_port_path_context_->self_address() ||
       alternative_path_.peer_address !=
-          multi_port_path_context_->peer_address()) {
+          multi_port_path_context_->peer_address() ||
+      !visitor_->ShouldKeepConnectionAlive() ||
+      multi_port_probing_alarm_->IsSet()) {
     return;
   }
   auto multi_port_validation_result_delegate =

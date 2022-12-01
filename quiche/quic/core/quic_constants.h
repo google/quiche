@@ -324,6 +324,8 @@ inline constexpr uint64_t kHttpDatagramStreamIdDivisor = 4;
 inline constexpr QuicTime::Delta kDefaultMultiPortProbingInterval =
     QuicTime::Delta::FromSeconds(3);
 
+inline constexpr size_t kMaxNumMultiPortPaths = 5;
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_CONSTANTS_H_

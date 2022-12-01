@@ -113,6 +113,8 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     stream_ = new StrictMock<TestStream>(kTestStreamId, session_.get(),
                                          BIDIRECTIONAL);
     EXPECT_NE(nullptr, stream_);
+    EXPECT_CALL(*session_, ShouldKeepConnectionAlive())
+        .WillRepeatedly(Return(true));
     // session_ now owns stream_.
     session_->ActivateStream(absl::WrapUnique(stream_));
     // Ignore resetting when session_ is terminated.

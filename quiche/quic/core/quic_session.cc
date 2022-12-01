@@ -1816,6 +1816,7 @@ void QuicSession::UpdateStreamPriority(
 }
 
 void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
+  const bool should_keep_alive = ShouldKeepConnectionAlive();
   QuicStreamId stream_id = stream->id();
   bool is_static = stream->is_static();
   QUIC_DVLOG(1) << ENDPOINT << "num_streams: " << stream_map_.size()
@@ -1830,6 +1831,11 @@ void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
     // Do not inform stream ID manager of static streams.
     stream_id_manager_.ActivateStream(
         /*is_incoming=*/IsIncomingStream(stream_id));
+  }
+  if (perspective() == Perspective::IS_CLIENT &&
+      connection()->multi_port_stats() != nullptr && !should_keep_alive &&
+      ShouldKeepConnectionAlive()) {
+    connection()->MaybeProbeMultiPortPath();
   }
 }
 

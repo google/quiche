@@ -13008,10 +13008,11 @@ TEST_P(QuicConnectionTest, MigrateToNewPathDuringProbing) {
       &connection_, kNewSelfAddress, connection_.peer_address()));
 }
 
-TEST_P(QuicConnectionTest, MultiPortCreation) {
+TEST_P(QuicConnectionTest, MultiPortConnection) {
   set_perspective(Perspective::IS_CLIENT);
   QuicConfig config;
-  config.SetConnectionOptionsToSend(QuicTagVector{kMPQC, kRVCM});
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
+  config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   if (!connection_.connection_migration_use_new_cid()) {
@@ -13030,6 +13031,7 @@ TEST_P(QuicConnectionTest, MultiPortCreation) {
   EXPECT_NE(kNewSelfAddress, self_address);
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
 
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive()).WillOnce(Return(false));
   QuicNewConnectionIdFrame frame;
   frame.connection_id = TestConnectionId(1234);
   ASSERT_NE(frame.connection_id, connection_.connection_id());
@@ -13055,7 +13057,7 @@ TEST_P(QuicConnectionTest, MultiPortCreation) {
 
   QuicFrames frames;
   frames.push_back(QuicFrame(QuicPathResponseFrame(
-      99, new_writer.path_challenge_frames().front().data_buffer)));
+      99, new_writer.path_challenge_frames().back().data_buffer)));
   ProcessFramesPacketWithAddresses(frames, kNewSelfAddress, kPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   // No migration should happen and the alternative path should still be alive.
@@ -13071,6 +13073,46 @@ TEST_P(QuicConnectionTest, MultiPortCreation) {
   EXPECT_EQ(kTestRTT,
             stats->rtt_stats_when_default_path_degrading.latest_rtt());
 
+  // When there's no active request, the probing shouldn't happen. But the
+  // probing context should be saved.
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive()).WillOnce(Return(false));
+  connection_.GetMultiPortProbingAlarm()->Fire();
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
+  EXPECT_FALSE(connection_.GetMultiPortProbingAlarm()->IsSet());
+
+  // Simulate the situation where a new request stream is created.
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
+      .WillRepeatedly(Return(true));
+  random_generator_.ChangeValue();
+  connection_.MaybeProbeMultiPortPath();
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
+      &connection_, kNewSelfAddress, connection_.peer_address()));
+  EXPECT_TRUE(alt_path->validated);
+  // Fake a response delay.
+  clock_.AdvanceTime(kTestRTT);
+  QuicFrames frames2;
+  frames2.push_back(QuicFrame(QuicPathResponseFrame(
+      99, new_writer.path_challenge_frames().back().data_buffer)));
+  ProcessFramesPacketWithAddresses(frames2, kNewSelfAddress, kPeerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  // No migration should happen and the alternative path should still be alive.
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
+      &connection_, kNewSelfAddress, connection_.peer_address()));
+  EXPECT_TRUE(alt_path->validated);
+  EXPECT_EQ(1, stats->num_path_degrading);
+  EXPECT_EQ(0, stats->num_multi_port_probe_failures_when_path_degrading);
+  EXPECT_EQ(kTestRTT, stats->rtt_stats.latest_rtt());
+  EXPECT_EQ(kTestRTT,
+            stats->rtt_stats_when_default_path_degrading.latest_rtt());
+
+  EXPECT_TRUE(connection_.GetMultiPortProbingAlarm()->IsSet());
+  // Since there's already a scheduled probing alarm, manual calls won't have
+  // any effect.
+  connection_.MaybeProbeMultiPortPath();
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
+
+  // Simulate the case where the path validation fails after retries.
   connection_.GetMultiPortProbingAlarm()->Fire();
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
@@ -13089,6 +13131,116 @@ TEST_P(QuicConnectionTest, MultiPortCreation) {
   EXPECT_EQ(1, stats->num_path_degrading);
   EXPECT_EQ(1, stats->num_multi_port_probe_failures_when_path_degrading);
   EXPECT_EQ(0, stats->num_multi_port_probe_failures_when_path_not_degrading);
+}
+
+TEST_P(QuicConnectionTest, TooManyMultiPortPathCreations) {
+  set_perspective(Perspective::IS_CLIENT);
+  QuicConfig config;
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
+  config.SetClientConnectionOptions(QuicTagVector{kMPQC});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  if (!connection_.connection_migration_use_new_cid()) {
+    return;
+  }
+  connection_.CreateConnectionIdManager();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+
+  EXPECT_CALL(visitor_, OnPathDegrading());
+  connection_.OnPathDegradingDetected();
+
+  auto self_address = connection_.self_address();
+  const QuicSocketAddress kNewSelfAddress(self_address.host(),
+                                          self_address.port() + 1);
+  EXPECT_NE(kNewSelfAddress, self_address);
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
+      .WillRepeatedly(Return(true));
+
+  QuicNewConnectionIdFrame frame;
+  frame.connection_id = TestConnectionId(1234);
+  ASSERT_NE(frame.connection_id, connection_.connection_id());
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  frame.retire_prior_to = 0u;
+  frame.sequence_number = 1u;
+  EXPECT_CALL(visitor_, CreateContextForMultiPortPath())
+      .WillRepeatedly(Return(
+          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
+              kNewSelfAddress, connection_.peer_address(), &new_writer))));
+  EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame));
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
+      &connection_, kNewSelfAddress, connection_.peer_address()));
+  auto* alt_path = QuicConnectionPeer::GetAlternativePath(&connection_);
+  EXPECT_FALSE(alt_path->validated);
+
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
+      &connection_, kNewSelfAddress, connection_.peer_address()));
+  for (size_t i = 0; i < QuicPathValidator::kMaxRetryTimes + 1; ++i) {
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
+    static_cast<TestAlarmFactory::TestAlarm*>(
+        QuicPathValidatorPeer::retry_timer(
+            QuicConnectionPeer::path_validator(&connection_)))
+        ->Fire();
+  }
+
+  auto stats = connection_.multi_port_stats();
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
+  EXPECT_FALSE(QuicConnectionPeer::IsAlternativePath(
+      &connection_, kNewSelfAddress, connection_.peer_address()));
+  EXPECT_EQ(1, stats->num_path_degrading);
+  EXPECT_EQ(1, stats->num_multi_port_probe_failures_when_path_degrading);
+
+  uint64_t connection_id = 1235;
+  for (size_t i = 0; i < kMaxNumMultiPortPaths - 1; ++i) {
+    QuicNewConnectionIdFrame frame;
+    frame.connection_id = TestConnectionId(connection_id + i);
+    ASSERT_NE(frame.connection_id, connection_.connection_id());
+    frame.stateless_reset_token =
+        QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+    frame.retire_prior_to = 0u;
+    frame.sequence_number = i + 2;
+    EXPECT_CALL(visitor_, CreateContextForMultiPortPath())
+        .WillRepeatedly(Return(
+            testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, connection_.peer_address(), &new_writer))));
+    EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame));
+    EXPECT_TRUE(connection_.HasPendingPathValidation());
+    EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
+        &connection_, kNewSelfAddress, connection_.peer_address()));
+    EXPECT_FALSE(alt_path->validated);
+
+    for (size_t j = 0; j < QuicPathValidator::kMaxRetryTimes + 1; ++j) {
+      clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
+      static_cast<TestAlarmFactory::TestAlarm*>(
+          QuicPathValidatorPeer::retry_timer(
+              QuicConnectionPeer::path_validator(&connection_)))
+          ->Fire();
+    }
+
+    EXPECT_FALSE(connection_.HasPendingPathValidation());
+    EXPECT_FALSE(QuicConnectionPeer::IsAlternativePath(
+        &connection_, kNewSelfAddress, connection_.peer_address()));
+    EXPECT_EQ(1, stats->num_path_degrading);
+    EXPECT_EQ(i + 2, stats->num_multi_port_probe_failures_when_path_degrading);
+  }
+
+  // The 6th attemp should fail.
+  QuicNewConnectionIdFrame frame2;
+  frame2.connection_id = TestConnectionId(1239);
+  ASSERT_NE(frame2.connection_id, connection_.connection_id());
+  frame2.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame2.connection_id);
+  frame2.retire_prior_to = 0u;
+  frame2.sequence_number = 6u;
+  EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame2));
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
+  EXPECT_EQ(kMaxNumMultiPortPaths,
+            stats->num_multi_port_probe_failures_when_path_degrading);
 }
 
 TEST_P(QuicConnectionTest, SingleAckInPacket) {

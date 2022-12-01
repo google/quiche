@@ -636,6 +636,7 @@ class MockQuicConnection : public QuicConnection {
   MOCK_METHOD(bool, SendConnectivityProbingPacket,
               (QuicPacketWriter*, const QuicSocketAddress& peer_address),
               (override));
+  MOCK_METHOD(void, MaybeProbeMultiPortPath, (), (override));
 
   MOCK_METHOD(void, OnSendConnectionState, (const CachedNetworkParameters&),
               (override));

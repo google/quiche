@@ -38,7 +38,7 @@ HttpDatagramSupport QuicSimpleClientSession::LocalHttpDatagramSupport() {
 
 std::unique_ptr<QuicPathValidationContext>
 QuicSimpleClientSession::CreateContextForMultiPortPath() {
-  if (!network_helper_ || !connection()->multi_port_enabled()) {
+  if (!network_helper_ || connection()->multi_port_stats() == nullptr) {
     return nullptr;
   }
   auto self_address = connection()->self_address();

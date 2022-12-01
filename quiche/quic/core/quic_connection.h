@@ -493,6 +493,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     size_t num_multi_port_probe_failures_when_path_not_degrading = 0;
     // number of multi-port probe failure when path is degrading
     size_t num_multi_port_probe_failures_when_path_degrading = 0;
+    // number of total multi-port path creations in a connection
+    size_t num_multi_port_paths_created = 0;
   };
 
   // Sets connection parameters from the supplied |config|.
@@ -762,7 +764,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Probe the existing alternative path. Does not create a new alternative
   // path. This method is the callback for |multi_port_probing_alarm_|.
-  void ProbeMultiPortPath();
+  virtual void MaybeProbeMultiPortPath();
 
   // Accessors
   void set_visitor(QuicConnectionVisitorInterface* visitor) {
@@ -805,7 +807,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicByteCount max_packet_length() const;
   void SetMaxPacketLength(QuicByteCount length);
 
-  bool multi_port_enabled() const { return multi_port_enabled_; }
   size_t mtu_probe_count() const { return mtu_probe_count_; }
 
   bool connected() const { return connected_; }
@@ -2252,8 +2253,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   std::unique_ptr<BufferedPacket> first_serialized_one_rtt_packet_;
 
   std::unique_ptr<QuicPathValidationContext> multi_port_path_context_;
-
-  bool multi_port_enabled_ = false;
 
   QuicTime::Delta multi_port_probing_interval_;
 

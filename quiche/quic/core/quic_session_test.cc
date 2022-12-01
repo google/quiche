@@ -2086,6 +2086,23 @@ TEST_P(QuicSessionTestClient, AvailableBidirectionalStreamsClient) {
       &session_, GetNthClientInitiatedBidirectionalId(1)));
 }
 
+TEST_P(QuicSessionTestClient, NewStreamCreationResumesMultiPortProbing) {
+  session_.config()->SetConnectionOptionsToSend({kRVCM});
+  session_.config()->SetClientConnectionOptions({kMPQC});
+  session_.Initialize();
+  connection_->CreateConnectionIdManager();
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_->OnHandshakeComplete();
+  session_.OnConfigNegotiated();
+
+  if (!connection_->connection_migration_use_new_cid()) {
+    return;
+  }
+
+  EXPECT_CALL(*connection_, MaybeProbeMultiPortPath());
+  session_.CreateOutgoingBidirectionalStream();
+}
+
 TEST_P(QuicSessionTestClient, InvalidSessionFlowControlWindowInHandshake) {
   // Test that receipt of an invalid (< default for gQUIC, < current for TLS)
   // session flow control window from the peer results in the connection being
