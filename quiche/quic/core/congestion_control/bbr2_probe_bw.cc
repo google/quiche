@@ -10,7 +10,6 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -198,11 +197,7 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
     if (cycle_.is_sample_from_probing) {
       cycle_.is_sample_from_probing = false;
       if (!send_state.is_app_limited ||
-          Params().probe_up_dont_exit_if_no_queue_) {
-        if (send_state.is_app_limited) {
-          // If there's excess loss or a queue is building, exit even if the
-          // last sample was app limited.
-        }
+          Params().max_probe_up_queue_rounds > 0) {
         const QuicByteCount inflight_target =
             sender_->GetTargetBytesInflight() * (1.0 - Params().beta);
         if (inflight_at_send >= inflight_target) {
@@ -497,10 +492,16 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
     // TCP uses min_rtt instead of a full round:
     //   HasPhaseLasted(model_->MinRtt(), congestion_event)
   } else if (cycle_.rounds_in_phase > 0) {
-    if (Params().probe_up_dont_exit_if_no_queue_) {
-      is_queuing = congestion_event.end_of_round_trip &&
-                   model_->CheckPersistentQueue(congestion_event,
-                                                Params().full_bw_threshold);
+    if (Params().max_probe_up_queue_rounds > 0) {
+      if (congestion_event.end_of_round_trip) {
+        model_->CheckPersistentQueue(congestion_event,
+                                     Params().full_bw_threshold);
+        if (model_->rounds_with_queueing() >=
+            Params().max_probe_up_queue_rounds) {
+          QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_probe_two_rounds, 1, 3);
+          is_queuing = true;
+        }
+      }
     } else {
       QuicByteCount queuing_threshold_extra_bytes =
           model_->QueueingThresholdExtraBytes();

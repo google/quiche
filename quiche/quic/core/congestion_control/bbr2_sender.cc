@@ -173,7 +173,7 @@ void Bbr2Sender::ApplyConnectionOptions(
     params_.probe_bw_check_cwnd_limited_before_aggregation_epoch = true;
   }
   if (ContainsQuicTag(connection_options, kB202)) {
-    params_.probe_up_dont_exit_if_no_queue_ = true;
+    params_.max_probe_up_queue_rounds = 1;
   }
   if (ContainsQuicTag(connection_options, kB203)) {
     params_.probe_up_ignore_inflight_hi = false;
@@ -185,7 +185,7 @@ void Bbr2Sender::ApplyConnectionOptions(
     params_.startup_include_extra_acked = true;
   }
   if (ContainsQuicTag(connection_options, kB207)) {
-    params_.exit_startup_on_persistent_queue = true;
+    params_.max_startup_queue_rounds = 1;
   }
   if (ContainsQuicTag(connection_options, kBBRA)) {
     model_.SetStartNewAggregationEpochAfterFullRound(true);
@@ -210,6 +210,16 @@ void Bbr2Sender::ApplyConnectionOptions(
     // Simplify inflight_hi is intended as an alternative to ignoring it,
     // so ensure we're not ignoring it.
     params_.probe_up_ignore_inflight_hi = false;
+  }
+  if (GetQuicReloadableFlag(quic_bbr2_probe_two_rounds) &&
+      ContainsQuicTag(connection_options, kBB2U)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_probe_two_rounds, 1, 3);
+    params_.max_probe_up_queue_rounds = 2;
+  }
+  if (GetQuicReloadableFlag(quic_bbr2_probe_two_rounds) &&
+      ContainsQuicTag(connection_options, kBB2S)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_probe_two_rounds, 2, 3);
+    params_.max_startup_queue_rounds = 2;
   }
 }
 

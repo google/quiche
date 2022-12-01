@@ -53,8 +53,10 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
     return Bbr2Mode::STARTUP;
   }
   bool has_bandwidth_growth = model_->HasBandwidthGrowth(congestion_event);
-  if (Params().exit_startup_on_persistent_queue && !has_bandwidth_growth) {
-    model_->CheckPersistentQueue(congestion_event, Params().startup_cwnd_gain);
+  if (Params().max_startup_queue_rounds > 0 && !has_bandwidth_growth) {
+    // 1.75 is less than the 2x CWND gain, but substantially more than 1.25x,
+    // the minimum bandwidth increase expected during STARTUP.
+    model_->CheckPersistentQueue(congestion_event, 1.75);
   }
   // TCP BBR always exits upon excessive losses. QUIC BBRv1 does not exit
   // upon excessive losses, if enough bandwidth growth is observed or if the

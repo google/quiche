@@ -379,6 +379,7 @@ bool Bbr2NetworkModel::IsInflightTooHigh(
 void Bbr2NetworkModel::RestartRoundEarly() {
   OnNewRound();
   round_trip_counter_.RestartRound();
+  rounds_with_queueing_ = 0;
 }
 
 void Bbr2NetworkModel::OnNewRound() {
@@ -437,26 +438,23 @@ bool Bbr2NetworkModel::HasBandwidthGrowth(
   return false;
 }
 
-bool Bbr2NetworkModel::CheckPersistentQueue(
-    const Bbr2CongestionEvent& congestion_event, float bdp_gain) {
+void Bbr2NetworkModel::CheckPersistentQueue(
+    const Bbr2CongestionEvent& congestion_event, float target_gain) {
   QUICHE_DCHECK(congestion_event.end_of_round_trip);
   QUICHE_DCHECK_NE(min_bytes_in_flight_in_round_,
                    std::numeric_limits<uint64_t>::max());
-  QuicByteCount target = bdp_gain * BDP();
-  if (bdp_gain >= 2) {
-    // Use a more conservative threshold for STARTUP because CWND gain is 2.
-    if (target <= QueueingThresholdExtraBytes()) {
-      return false;
-    }
-    target -= QueueingThresholdExtraBytes();
-  } else {
-    target += QueueingThresholdExtraBytes();
+  QUICHE_DCHECK_GE(target_gain, Params().full_bw_threshold);
+  QuicByteCount target =
+      std::max(static_cast<QuicByteCount>(target_gain * BDP()),
+               BDP() + QueueingThresholdExtraBytes());
+  if (min_bytes_in_flight_in_round_ < target) {
+    rounds_with_queueing_ = 0;
+    return;
   }
-  if (min_bytes_in_flight_in_round_ > target) {
+  rounds_with_queueing_++;
+  if (rounds_with_queueing_ >= Params().max_startup_queue_rounds) {
     full_bandwidth_reached_ = true;
-    return true;
   }
-  return false;
 }
 
 }  // namespace quic

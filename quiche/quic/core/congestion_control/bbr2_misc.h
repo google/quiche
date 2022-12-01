@@ -86,6 +86,11 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
 
   QuicRoundTripCount startup_full_bw_rounds = 3;
 
+  // Number of rounds to stay in STARTUP when there's a sufficient queue that
+  // bytes_in_flight never drops below the target (1.75 * BDP).  0 indicates the
+  // feature is disabled and we never exit due to queueing.
+  QuicRoundTripCount max_startup_queue_rounds = 0;
+
   // The minimum number of loss marking events to exit STARTUP.
   int64_t startup_full_loss_count =
       GetQuicFlag(quic_bbr2_default_startup_full_loss_count);
@@ -98,9 +103,6 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   // acked when bandwidth increases.
   bool startup_include_extra_acked = false;
 
-  // If true, exit STARTUP if bytes in flight has not gone below 2 * BDP at
-  // any point in the last round.
-  bool exit_startup_on_persistent_queue = false;
 
   /*
    * DRAIN parameters.
@@ -151,9 +153,13 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
    * PROBE_UP parameters.
    */
   bool probe_up_includes_acks_after_cwnd_limited = false;
-  bool probe_up_dont_exit_if_no_queue_ = false;
   bool probe_up_ignore_inflight_hi = true;
   bool probe_up_simplify_inflight_hi = false;
+
+  // Number of rounds to stay in PROBE_UP when there's a sufficient queue that
+  // bytes_in_flight never drops below the target.  0 indicates the feature is
+  // disabled and we never exit due to queueing.
+  QuicRoundTripCount max_probe_up_queue_rounds = 0;
 
   /*
    * PROBE_RTT parameters.
@@ -455,10 +461,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   // |full_bandwidth_reached_| to true.
   bool HasBandwidthGrowth(const Bbr2CongestionEvent& congestion_event);
 
-  // Returns true if the minimum bytes in flight during the round is greater
-  // than the BDP * |bdp_gain|.
-  bool CheckPersistentQueue(const Bbr2CongestionEvent& congestion_event,
-                            float bdp_gain);
+  // Increments rounds_with_queueing_ if the minimum bytes in flight during the
+  // round is greater than the BDP * |target_gain|.
+  void CheckPersistentQueue(const Bbr2CongestionEvent& congestion_event,
+                            float target_gain);
 
   QuicPacketNumber last_sent_packet() const {
     return round_trip_counter_.last_sent_packet();
@@ -532,6 +538,9 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   QuicRoundTripCount rounds_without_bandwidth_growth() const {
     return rounds_without_bandwidth_growth_;
   }
+  QuicRoundTripCount rounds_with_queueing() const {
+    return rounds_with_queueing_;
+  }
 
  private:
   // Called when a new round trip starts.
@@ -592,6 +601,9 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   bool full_bandwidth_reached_ = false;
   QuicBandwidth full_bandwidth_baseline_ = QuicBandwidth::Zero();
   QuicRoundTripCount rounds_without_bandwidth_growth_ = 0;
+
+  // Used by STARTUP and PROBE_UP to decide when to exit.
+  QuicRoundTripCount rounds_with_queueing_ = 0;
 };
 
 enum class Bbr2Mode : uint8_t {

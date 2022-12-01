@@ -178,6 +178,12 @@ const QuicTag kB205 = TAG('B', '2', '0', '5');   // Add extra acked to CWND in
 const QuicTag kB206 = TAG('B', '2', '0', '6');   // Exit STARTUP after 2 losses.
 const QuicTag kB207 = TAG('B', '2', '0', '7');   // Exit STARTUP on persistent
                                                  // queue
+const QuicTag kBB2U = TAG('B', 'B', '2', 'U');   // Exit PROBE_UP on
+                                                 // min_bytes_in_flight for two
+                                                 // rounds in a row.
+const QuicTag kBB2S = TAG('B', 'B', '2', 'S');   // Exit STARTUP on
+                                                 // min_bytes_in_flight for two
+                                                 // rounds in a row.
 const QuicTag kNTLP = TAG('N', 'T', 'L', 'P');   // No tail loss probe
 const QuicTag k1TLP = TAG('1', 'T', 'L', 'P');   // 1 tail loss probe
 const QuicTag k1RTO = TAG('1', 'R', 'T', 'O');   // Send 1 packet upon RTO
