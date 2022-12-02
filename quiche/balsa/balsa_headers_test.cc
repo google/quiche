@@ -2763,8 +2763,9 @@ TEST(BalsaHeaders, IteratorWorksWithOStreamAsExpected) {
     BalsaHeaders::const_header_lines_iterator chli;
     actual << chli;
     // Note that the output depends on the flavor of standard library in use.
-    EXPECT_THAT(actual.str(), AnyOf(StrEq("[0, 0]"),        // libstdc++
-                                    StrEq("[(nil), 0]")));  // libc++
+    EXPECT_THAT(actual.str(), AnyOf(StrEq("[0, 0]"),      // libstdc++
+                                    StrEq("[(nil), 0]"),  // libc++
+                                    StrEq("[0x0, 0]")));  // libc++ on Mac
   }
   {
     BalsaHeaders headers;
