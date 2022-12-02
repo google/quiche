@@ -96,7 +96,16 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
       stats_->OnPacketDeferred(direction);
       break;
     case ProcessingResult::ICMP:
-      SendIcmpResponse(&icmp_header, *packet, direction);
+      if (icmp_header.icmp6_type == ICMP6_ECHO_REPLY) {
+        // If this is an ICMP6 ECHO REPLY, the payload should be the same as the
+        // ICMP6 ECHO REQUEST that this came from, not the entire packet. So we
+        // need to take off both the IPv6 header and the ICMP6 header.
+        auto icmp_body = absl::string_view(*packet).substr(sizeof(ip6_hdr) +
+                                                           sizeof(icmp6_hdr));
+        SendIcmpResponse(&icmp_header, icmp_body, direction);
+      } else {
+        SendIcmpResponse(&icmp_header, *packet, direction);
+      }
       stats_->OnPacketDroppedWithIcmp(direction);
       break;
     case ProcessingResult::ICMP_AND_TCP_RESET:
