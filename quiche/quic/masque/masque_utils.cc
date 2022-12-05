@@ -4,10 +4,12 @@
 
 #include "quiche/quic/masque/masque_utils.h"
 
+#if defined(__linux__)
 #include <fcntl.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <sys/ioctl.h>
+#endif  // defined(__linux__)
 
 namespace quic {
 
@@ -48,6 +50,7 @@ std::ostream& operator<<(std::ostream& os, const MasqueMode& masque_mode) {
   return os;
 }
 
+#if defined(__linux__)
 int CreateTunInterface(const QuicIpAddress& client_address, bool server) {
   if (!client_address.IsIPv4()) {
     QUIC_LOG(ERROR) << "CreateTunInterface currently only supports IPv4";
@@ -136,5 +139,12 @@ int CreateTunInterface(const QuicIpAddress& client_address, bool server) {
   }
   return -1;
 }
+#else
+int CreateTunInterface(const QuicIpAddress& /*client_address*/,
+                       bool /*server*/) {
+  // Unsupported.
+  return -1;
+}
+#endif  // defined(__linux__)
 
 }  // namespace quic

@@ -125,9 +125,8 @@ bool QuicServer::CreateUDPSocketAndListen(const QuicSocketAddress& address) {
   overflow_supported_ = socket_api.EnableDroppedPacketCount(fd_);
   socket_api.EnableReceiveTimestamp(fd_);
 
-  sockaddr_storage addr = address.generic_address();
-  int rc = bind(fd_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
-  if (rc < 0) {
+  bool success = socket_api.Bind(fd_, address);
+  if (!success) {
     QUIC_LOG(ERROR) << "Bind failed: " << strerror(errno);
     return false;
   }

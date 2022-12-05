@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if defined(__APPLE__) && !defined(__APPLE_USE_RFC_3542)
+// This must be defined before including any system headers.
+#define __APPLE_USE_RFC_3542
+#endif  // defined(__APPLE__) && !defined(__APPLE_USE_RFC_3542)
+
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <net/if.h>

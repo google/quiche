@@ -146,18 +146,21 @@ TEST_P(QuicServerEpollInTest, ProcessBufferedCHLOsOnEpollin) {
           DoAll(testing::Assign(&more_chlos, false), testing::Return(false)));
 
   // Send a packet to trigger epoll event.
-  int fd = socket(
-      AddressFamilyUnderTest() == IpAddressFamily::IP_V4 ? AF_INET : AF_INET6,
-      SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP);
-  ASSERT_LT(0, fd);
+  QuicUdpSocketApi socket_api;
+  SocketFd fd =
+      socket_api.Create(server_address_.host().AddressFamilyToInt(),
+                        /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
+                        /*send_buffer_size =*/kDefaultSocketReceiveBuffer);
+  ASSERT_NE(fd, kQuicInvalidSocketFd);
 
   char buf[1024];
   memset(buf, 0, ABSL_ARRAYSIZE(buf));
-  sockaddr_storage storage = server_address_.generic_address();
-  int rc = sendto(fd, buf, ABSL_ARRAYSIZE(buf), 0,
-                  reinterpret_cast<sockaddr*>(&storage), sizeof(storage));
-  if (rc < 0) {
-    QUIC_DLOG(INFO) << errno << " " << strerror(errno);
+  QuicUdpPacketInfo packet_info;
+  packet_info.SetPeerAddress(server_address_);
+  WriteResult result =
+      socket_api.WritePacket(fd, buf, sizeof(buf), packet_info);
+  if (result.status != WRITE_STATUS_OK) {
+    QUIC_LOG(ERROR) << "Write error for UDP packet: " << result.error_code;
   }
 
   while (more_chlos) {
