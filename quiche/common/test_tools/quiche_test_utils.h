@@ -21,6 +21,11 @@ void CompareCharArraysWithHexError(const std::string& description,
 // Create iovec that points to that data that `str` points to.
 iovec MakeIOVector(absl::string_view str);
 
+// Due to binary size considerations, googleurl library can be built with or
+// without IDNA support, meaning that we have to adjust our tests accordingly.
+// This function checks if IDNAs are supported.
+bool GoogleUrlSupportsIdnaForTest();
+
 }  // namespace test
 }  // namespace quiche
 

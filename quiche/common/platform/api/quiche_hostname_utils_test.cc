@@ -8,6 +8,7 @@
 
 #include "absl/base/macros.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace quiche {
 namespace test {
@@ -71,16 +72,20 @@ TEST_F(QuicheHostnameUtilsTest, NormalizeHostname) {
           "........",
           "",
       },
-      {
-          "\xe5\x85\x89.google.com",
-          "xn--54q.google.com",
-      },
   };
   // clang-format on
 
   for (size_t i = 0; i < ABSL_ARRAYSIZE(tests); ++i) {
     EXPECT_EQ(std::string(tests[i].expected),
               QuicheHostnameUtils::NormalizeHostname(tests[i].input));
+  }
+
+  if (GoogleUrlSupportsIdnaForTest()) {
+    EXPECT_EQ("xn--54q.google.com", QuicheHostnameUtils::NormalizeHostname(
+                                        "\xe5\x85\x89.google.com"));
+  } else {
+    EXPECT_EQ(
+        "", QuicheHostnameUtils::NormalizeHostname("\xe5\x85\x89.google.com"));
   }
 }
 

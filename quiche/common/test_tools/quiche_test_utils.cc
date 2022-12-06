@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "url/gurl.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -85,6 +86,16 @@ void CompareCharArraysWithHexError(const std::string& description,
 
 iovec MakeIOVector(absl::string_view str) {
   return iovec{const_cast<char*>(str.data()), static_cast<size_t>(str.size())};
+}
+
+bool GoogleUrlSupportsIdnaForTest() {
+  const std::string kTestInput = "https://\xe5\x85\x89.example.org/";
+  const std::string kExpectedOutput = "https://xn--54q.example.org/";
+
+  GURL url(kTestInput);
+  bool valid = url.is_valid() && url.spec() == kExpectedOutput;
+  QUICHE_CHECK(valid || !url.is_valid()) << url.spec();
+  return valid;
 }
 
 }  // namespace test

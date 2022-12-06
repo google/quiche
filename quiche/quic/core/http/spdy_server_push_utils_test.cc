@@ -6,9 +6,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 
 using spdy::Http2HeaderBlock;
 
@@ -127,7 +129,7 @@ TEST_F(PushPromiseUrlTest, GetPushPromiseUrl) {
   const unsigned char SCHEME = (1u << 0);
   const unsigned char AUTH = (1u << 1);
   const unsigned char PATH = (1u << 2);
-  const std::pair<const char*, unsigned char> input_headers[] = {
+  std::vector<std::pair<const char*, unsigned char>> input_headers = {
       {"http", SCHEME | AUTH},
       {"https", SCHEME | AUTH},
       {"hTtP", SCHEME | AUTH},
@@ -135,7 +137,6 @@ TEST_F(PushPromiseUrlTest, GetPushPromiseUrl) {
       {"www.google.com", AUTH},
       {"90af90e0", AUTH},
       {"12foo%20-bar:00001233", AUTH},
-      {"GOO\u200b\u2060\ufeffgoo", AUTH},
       {"192.168.0.5", AUTH},
       {"[::ffff:192.168.0.1.]", AUTH},
       {"http:", AUTH},
@@ -157,11 +158,14 @@ TEST_F(PushPromiseUrlTest, GetPushPromiseUrl) {
       {"[::ffff:192.168", 0},
       {"]/", 0},
       {"//", 0}};
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(input_headers); ++i) {
+  if (quiche::test::GoogleUrlSupportsIdnaForTest()) {
+    input_headers.push_back({"GOO\u200b\u2060\ufeffgoo", AUTH});
+  }
+  for (size_t i = 0; i < input_headers.size(); ++i) {
     bool should_accept = (input_headers[i].second & SCHEME);
-    for (size_t j = 0; j < ABSL_ARRAYSIZE(input_headers); ++j) {
+    for (size_t j = 0; j < input_headers.size(); ++j) {
       bool should_accept_2 = should_accept && (input_headers[j].second & AUTH);
-      for (size_t k = 0; k < ABSL_ARRAYSIZE(input_headers); ++k) {
+      for (size_t k = 0; k < input_headers.size(); ++k) {
         // |should_accept_3| indicates whether or not GetPushPromiseUrl() is
         // expected to accept this input combination.
         bool should_accept_3 =
