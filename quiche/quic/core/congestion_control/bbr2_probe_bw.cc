@@ -361,47 +361,11 @@ void Bbr2ProbeBwMode::ProbeInflightHighUpward(
       return;
     }
   } else {
-    if (Params().probe_bw_check_cwnd_limited_before_aggregation_epoch) {
-      if (!model_->cwnd_limited_before_aggregation_epoch()) {
-        QUIC_DVLOG(3) << sender_
-                      << " Raising inflight_hi early return: Not cwnd limited "
-                         "before aggregation epoch.";
-        // Not fully utilizing cwnd, so can't safely grow.
-        return;
-      }
-    } else if (Params().probe_up_includes_acks_after_cwnd_limited) {
-      // Don't continue adding bytes to probe_up_acked if the sender was not
-      // app-limited after being inflight_hi limited at least once.
-      if (!cycle_.probe_up_app_limited_since_inflight_hi_limited_ ||
-          congestion_event.last_packet_send_state.is_app_limited) {
-        cycle_.probe_up_app_limited_since_inflight_hi_limited_ = false;
-        if (congestion_event.prior_bytes_in_flight <
-            congestion_event.prior_cwnd) {
-          QUIC_DVLOG(3)
-              << sender_
-              << " Raising inflight_hi early return: Not cwnd limited.";
-          // Not fully utilizing cwnd, so can't safely grow.
-          return;
-        }
-
-        if (congestion_event.prior_cwnd < model_->inflight_hi()) {
-          QUIC_DVLOG(3) << sender_
-                        << " Raising inflight_hi early return: inflight_hi not "
-                           "fully used.";
-          // Not fully using inflight_hi, so don't grow it.
-          return;
-        }
-      }
-      // Start a new period of adding bytes_acked, because inflight_hi limited.
-      cycle_.probe_up_app_limited_since_inflight_hi_limited_ = true;
-    } else {
-      if (congestion_event.prior_bytes_in_flight <
-          congestion_event.prior_cwnd) {
-        QUIC_DVLOG(3) << sender_
-                      << " Raising inflight_hi early return: Not cwnd limited.";
-        // Not fully utilizing cwnd, so can't safely grow.
-        return;
-      }
+    if (congestion_event.prior_bytes_in_flight < congestion_event.prior_cwnd) {
+      QUIC_DVLOG(3) << sender_
+                    << " Raising inflight_hi early return: Not cwnd limited.";
+      // Not fully utilizing cwnd, so can't safely grow.
+      return;
     }
 
     if (congestion_event.prior_cwnd < model_->inflight_hi()) {

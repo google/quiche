@@ -107,8 +107,7 @@ const QuicTag kBBRA = TAG('B', 'B', 'R', 'A');   // Starts a new ack aggregation
 const QuicTag kBBRB = TAG('B', 'B', 'R', 'B');   // Use send rate in BBR's
                                                  // MaxAckHeightTracker
 const QuicTag kBBRS = TAG('B', 'B', 'R', 'S');   // DEPRECATED
-const QuicTag kBBQ1 = TAG('B', 'B', 'Q', '1');   // BBR with lower 2.77 STARTUP
-                                                 // pacing and CWND gain.
+const QuicTag kBBQ1 = TAG('B', 'B', 'Q', '1');   // DEPRECATED
 const QuicTag kBBQ2 = TAG('B', 'B', 'Q', '2');   // BBRv2 with 2.885 STARTUP and
                                                  // DRAIN CWND gain.
 const QuicTag kBBQ3 = TAG('B', 'B', 'Q', '3');   // BBR with ack aggregation
@@ -164,9 +163,7 @@ const QuicTag kBSAO = TAG('B', 'S', 'A', 'O');   // Avoid Overestimation in
                                                  // aggregation
 const QuicTag kB2DL = TAG('B', '2', 'D', 'L');   // Increase inflight_hi based
                                                  // on delievered, not inflight.
-const QuicTag kB201 = TAG('B', '2', '0', '1');   // In PROBE_UP, check if cwnd
-                                                 // limited before aggregation
-                                                 // epoch, instead of ack event.
+const QuicTag kB201 = TAG('B', '2', '0', '1');   // DEPRECATED
 const QuicTag kB202 = TAG('B', '2', '0', '2');   // Do not exit PROBE_UP if
                                                  // inflight dips below 1.25*BW.
 const QuicTag kB203 = TAG('B', '2', '0', '3');   // Ignore inflight_hi until

@@ -169,9 +169,6 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kBBQ9)) {
     params_.bw_lo_mode_ = Bbr2Params::QuicBandwidthLoMode::CWND_REDUCTION;
   }
-  if (ContainsQuicTag(connection_options, kB201)) {
-    params_.probe_bw_check_cwnd_limited_before_aggregation_epoch = true;
-  }
   if (ContainsQuicTag(connection_options, kB202)) {
     params_.max_probe_up_queue_rounds = 1;
   }
@@ -192,9 +189,6 @@ void Bbr2Sender::ApplyConnectionOptions(
   }
   if (ContainsQuicTag(connection_options, kBBRB)) {
     model_.SetLimitMaxAckHeightTrackerBySendRate(true);
-  }
-  if (ContainsQuicTag(connection_options, kBBQ0)) {
-    params_.probe_up_includes_acks_after_cwnd_limited = true;
   }
   if (ContainsQuicTag(connection_options, kB206)) {
     params_.startup_full_loss_count = params_.probe_bw_full_loss_count;

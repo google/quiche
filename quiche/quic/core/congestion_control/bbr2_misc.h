@@ -137,11 +137,6 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   int64_t probe_bw_full_loss_count =
       GetQuicFlag(quic_bbr2_default_probe_bw_full_loss_count);
 
-  // When attempting to grow inflight_hi in PROBE_UP, check whether we are cwnd
-  // limited before the current aggregation epoch, instead of before the current
-  // ack event.
-  bool probe_bw_check_cwnd_limited_before_aggregation_epoch = false;
-
   // Pacing gains.
   float probe_bw_probe_up_pacing_gain = 1.25;
   float probe_bw_probe_down_pacing_gain = 0.75;
@@ -152,7 +147,6 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   /*
    * PROBE_UP parameters.
    */
-  bool probe_up_includes_acks_after_cwnd_limited = false;
   bool probe_up_ignore_inflight_hi = true;
   bool probe_up_simplify_inflight_hi = false;
 
