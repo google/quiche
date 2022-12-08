@@ -4,6 +4,10 @@
 
 #include "quiche/quic/qbone/qbone_packet_processor.h"
 
+#include <netinet/icmp6.h>
+#include <netinet/in.h>
+#include <netinet/ip6.h>
+
 #include <cstring>
 
 #include "absl/base/optimization.h"
@@ -22,6 +26,7 @@ constexpr size_t kIPv6AddressSize = 16;
 constexpr size_t kIPv6MinPacketSize = 1280;
 constexpr size_t kIcmpTtl = 64;
 constexpr size_t kICMPv6DestinationUnreachableDueToSourcePolicy = 5;
+constexpr size_t kIPv6DestinationOffset = 8;
 
 }  // namespace
 
@@ -77,6 +82,10 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
   ProcessingResult result = ProcessIPv6HeaderAndFilter(
       packet, direction, &transport_protocol, &transport_data, &icmp_header);
 
+  in6_addr dst;
+  // TODO(b/70339814): ensure this is actually a unicast address.
+  memcpy(&dst, &packet->data()[kIPv6DestinationOffset], kIPv6AddressSize);
+
   switch (result) {
     case ProcessingResult::OK:
       switch (direction) {
@@ -102,14 +111,14 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
         // need to take off both the IPv6 header and the ICMP6 header.
         auto icmp_body = absl::string_view(*packet).substr(sizeof(ip6_hdr) +
                                                            sizeof(icmp6_hdr));
-        SendIcmpResponse(&icmp_header, icmp_body, direction);
+        SendIcmpResponse(dst, &icmp_header, icmp_body, direction);
       } else {
-        SendIcmpResponse(&icmp_header, *packet, direction);
+        SendIcmpResponse(dst, &icmp_header, *packet, direction);
       }
       stats_->OnPacketDroppedWithIcmp(direction);
       break;
     case ProcessingResult::ICMP_AND_TCP_RESET:
-      SendIcmpResponse(&icmp_header, *packet, direction);
+      SendIcmpResponse(dst, &icmp_header, *packet, direction);
       stats_->OnPacketDroppedWithIcmp(direction);
       SendTcpReset(*packet, direction);
       stats_->OnPacketDroppedWithTcpReset(direction);
@@ -249,14 +258,11 @@ QbonePacketProcessor::ProcessingResult QbonePacketProcessor::ProcessIPv6Header(
   return ProcessingResult::OK;
 }
 
-void QbonePacketProcessor::SendIcmpResponse(icmp6_hdr* icmp_header,
-                                            absl::string_view original_packet,
+void QbonePacketProcessor::SendIcmpResponse(in6_addr dst,
+                                            icmp6_hdr* icmp_header,
+                                            absl::string_view payload,
                                             Direction original_direction) {
-  in6_addr dst;
-  // TODO(b/70339814): ensure this is actually a unicast address.
-  memcpy(dst.s6_addr, &original_packet[8], kIPv6AddressSize);
-
-  CreateIcmpPacket(self_ip_, dst, *icmp_header, original_packet,
+  CreateIcmpPacket(self_ip_, dst, *icmp_header, payload,
                    [this, original_direction](absl::string_view packet) {
                      SendResponse(original_direction, packet);
                    });

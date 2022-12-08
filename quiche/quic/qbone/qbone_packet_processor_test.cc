@@ -18,6 +18,7 @@ using Direction = QbonePacketProcessor::Direction;
 using ProcessingResult = QbonePacketProcessor::ProcessingResult;
 using OutputInterface = QbonePacketProcessor::OutputInterface;
 using ::testing::_;
+using ::testing::Eq;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::WithArgs;
@@ -117,13 +118,48 @@ static const char kReferenceEchoRequestData[] = {
     // IP address of the receiver is fe80::71:626f:6e6f
     0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x71, 0x62, 0x6f, 0x6e, 0x6f,
-    // ICMP Type ping
+    // ICMP Type ping request
     128,
     // ICMP Code 0
     0,
     // Checksum is not actually checked in any of the tests, so we leave it as
     // zero
     0x00, 0x00,
+    // ICMP Identifier (0xcafe to be memorable)
+    0xca, 0xfe,
+    // Sequence number
+    0x00, 0x01,
+    // Data, starting with unix timeval then 0x10..0x37
+    0x67, 0x37, 0x8a, 0x63, 0x00, 0x00, 0x00, 0x00,
+    0x96, 0x58, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+    0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+    0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+    0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+};
+
+static const char kReferenceEchoReplyData[] = {
+    // IPv6 with zero TOS and flow label.
+    0x60, 0x00, 0x00, 0x00,
+    // Payload size is 64 bytes.
+    0x00, 64,
+    // Next header is ICMP
+    58,
+    // TTL is 255.
+    255,
+    // IP address of the sender is fd00:4:0:1::1
+    0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    // IP address of the receiver is fd00:0:0:1::1
+    0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    // ICMP Type ping reply
+    129,
+    // ICMP Code 0
+    0,
+    // Checksum
+    0x66, 0xb6,
     // ICMP Identifier (0xcafe to be memorable)
     0xca, 0xfe,
     // Sequence number
@@ -336,7 +372,12 @@ TEST_F(QbonePacketProcessorTest, Icmp6EchoResponseHasRightPayload) {
   EXPECT_CALL(stats_, OnPacketDroppedWithIcmp(Direction::FROM_OFF_NETWORK));
   EXPECT_CALL(output_, SendPacketToClient(_))
       .WillOnce(Invoke([](absl::string_view packet) {
-        EXPECT_EQ(packet.size(), kReferenceEchoRequest.size());
+        // Explicit conversion because otherwise it is treated as a null
+        // terminated string.
+        absl::string_view expected = absl::string_view(
+            kReferenceEchoReplyData, sizeof(kReferenceEchoReplyData));
+
+        EXPECT_THAT(packet, Eq(expected));
         QUIC_LOG(INFO) << "ICMP response:\n"
                        << quiche::QuicheTextUtils::HexDump(packet);
       }));
