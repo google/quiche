@@ -553,11 +553,12 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
   if (version.KnowsWhichDecrypterToUse()) {
     connection_->InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
-        std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
+        std::make_unique<StrictTaggingDecrypter>(ENCRYPTION_FORWARD_SECURE));
   } else {
-    connection_->SetDecrypter(
+    connection_->SetAlternativeDecrypter(
         ENCRYPTION_FORWARD_SECURE,
-        std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
+        std::make_unique<StrictTaggingDecrypter>(ENCRYPTION_FORWARD_SECURE),
+        false);
   }
 
   EXPECT_CALL(*connection_, ProcessUdpPacket(server_address, client_address, _))

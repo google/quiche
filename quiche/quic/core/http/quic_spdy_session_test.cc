@@ -16,7 +16,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
-#include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/frames/quic_streams_blocked_frame.h"
 #include "quiche/quic/core/http/http_constants.h"
@@ -92,7 +91,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     encryption_established_ = true;
     session()->connection()->SetEncrypter(
         ENCRYPTION_ZERO_RTT,
-        std::make_unique<NullEncrypter>(session()->perspective()));
+        std::make_unique<TaggingEncrypter>(ENCRYPTION_ZERO_RTT));
   }
 
   void OnHandshakeMessage(const CryptoHandshakeMessage& /*message*/) override {
@@ -128,7 +127,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     EXPECT_THAT(error, IsQuicNoError());
     session()->OnNewEncryptionKeyAvailable(
         ENCRYPTION_FORWARD_SECURE,
-        std::make_unique<NullEncrypter>(session()->perspective()));
+        std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
     session()->OnConfigNegotiated();
     if (session()->connection()->version().handshake_protocol ==
         PROTOCOL_TLS1_3) {
@@ -271,7 +270,7 @@ class TestSession : public QuicSpdySession {
         writev_consumes_all_data_(false) {
     this->connection()->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
-        std::make_unique<NullEncrypter>(connection->perspective()));
+        std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
     if (this->connection()->version().SupportsAntiAmplificationLimit()) {
       QuicConnectionPeer::SetAddressValidated(this->connection());
     }

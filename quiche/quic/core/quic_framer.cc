@@ -4406,7 +4406,6 @@ absl::string_view QuicFramer::GetAssociatedDataFromEncryptedPacket(
 
 void QuicFramer::SetDecrypter(EncryptionLevel level,
                               std::unique_ptr<QuicDecrypter> decrypter) {
-  QUICHE_DCHECK_EQ(alternative_decrypter_level_, NUM_ENCRYPTION_LEVELS);
   QUICHE_DCHECK_GE(level, decrypter_level_);
   QUICHE_DCHECK(!version_.KnowsWhichDecrypterToUse());
   QUIC_DVLOG(1) << ENDPOINT << "Setting decrypter from level "

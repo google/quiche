@@ -922,7 +922,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   EncryptionLevel level =
       header.version_flag ? ENCRYPTION_INITIAL : ENCRYPTION_FORWARD_SECURE;
   if (level != ENCRYPTION_INITIAL) {
-    framer.SetEncrypter(level, std::make_unique<NullEncrypter>(perspective));
+    framer.SetEncrypter(level, std::make_unique<TaggingEncrypter>(level));
   }
   if (!QuicVersionUsesCryptoFrames(version.transport_version)) {
     QuicFrame frame(
@@ -988,7 +988,7 @@ std::unique_ptr<QuicEncryptedPacket> GetUndecryptableEarlyPacket(
   framer.SetInitialObfuscators(server_connection_id);
 
   framer.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
+                      std::make_unique<TaggingEncrypter>(ENCRYPTION_ZERO_RTT));
   std::unique_ptr<QuicPacket> packet(
       BuildUnsizedDataPacket(&framer, header, frames));
   EXPECT_TRUE(packet != nullptr);
@@ -1042,7 +1042,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
   EncryptionLevel level =
       version_flag ? ENCRYPTION_INITIAL : ENCRYPTION_FORWARD_SECURE;
   if (level != ENCRYPTION_INITIAL) {
-    framer.SetEncrypter(level, std::make_unique<NullEncrypter>(perspective));
+    framer.SetEncrypter(level, std::make_unique<TaggingEncrypter>(level));
   }
   // We need a minimum of 7 bytes of encrypted payload. This will guarantee that
   // we have at least that much. (It ignores the overhead of the stream/crypto
@@ -1318,31 +1318,21 @@ WriteResult TestPacketWriter::WritePacket(const char* buffer, size_t buf_len,
     memcpy(&final_bytes_of_last_packet_, packet.data() + packet.length() - 4,
            sizeof(final_bytes_of_last_packet_));
   }
-
-  if (use_tagging_decrypter_) {
-    if (framer_.framer()->version().KnowsWhichDecrypterToUse()) {
-      framer_.framer()->InstallDecrypter(ENCRYPTION_INITIAL,
-                                         std::make_unique<TaggingDecrypter>());
-      framer_.framer()->InstallDecrypter(ENCRYPTION_HANDSHAKE,
-                                         std::make_unique<TaggingDecrypter>());
-      framer_.framer()->InstallDecrypter(ENCRYPTION_ZERO_RTT,
-                                         std::make_unique<TaggingDecrypter>());
-      framer_.framer()->InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
-                                         std::make_unique<TaggingDecrypter>());
-    } else {
-      framer_.framer()->SetDecrypter(ENCRYPTION_INITIAL,
-                                     std::make_unique<TaggingDecrypter>());
-    }
-  } else if (framer_.framer()->version().KnowsWhichDecrypterToUse()) {
-    framer_.framer()->InstallDecrypter(
-        ENCRYPTION_HANDSHAKE,
-        std::make_unique<NullDecrypter>(framer_.framer()->perspective()));
-    framer_.framer()->InstallDecrypter(
-        ENCRYPTION_ZERO_RTT,
-        std::make_unique<NullDecrypter>(framer_.framer()->perspective()));
-    framer_.framer()->InstallDecrypter(
+  if (framer_.framer()->version().KnowsWhichDecrypterToUse()) {
+    framer_.framer()->InstallDecrypter(ENCRYPTION_HANDSHAKE,
+                                       std::make_unique<TaggingDecrypter>());
+    framer_.framer()->InstallDecrypter(ENCRYPTION_ZERO_RTT,
+                                       std::make_unique<TaggingDecrypter>());
+    framer_.framer()->InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                                       std::make_unique<TaggingDecrypter>());
+  } else if (!framer_.framer()->HasDecrypterOfEncryptionLevel(
+                 ENCRYPTION_FORWARD_SECURE) &&
+             !framer_.framer()->HasDecrypterOfEncryptionLevel(
+                 ENCRYPTION_ZERO_RTT)) {
+    framer_.framer()->SetAlternativeDecrypter(
         ENCRYPTION_FORWARD_SECURE,
-        std::make_unique<NullDecrypter>(framer_.framer()->perspective()));
+        std::make_unique<StrictTaggingDecrypter>(ENCRYPTION_FORWARD_SECURE),
+        false);
   }
   EXPECT_EQ(next_packet_processable_, framer_.ProcessPacket(packet))
       << framer_.framer()->detailed_error() << " perspective "

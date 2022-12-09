@@ -10930,12 +10930,13 @@ TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
   // Since we are using ConstructEncryptedPacket, we have to set the framer's
   // crypto to be Null.
   if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(
-        ENCRYPTION_FORWARD_SECURE,
-        std::make_unique<NullDecrypter>(framer_.perspective()));
+    framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                             std::make_unique<StrictTaggingDecrypter>(
+                                 (uint8_t)ENCRYPTION_FORWARD_SECURE));
   } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL, std::make_unique<NullDecrypter>(
-                                                 framer_.perspective()));
+    framer_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+                         std::make_unique<StrictTaggingDecrypter>(
+                             (uint8_t)ENCRYPTION_FORWARD_SECURE));
   }
   ParsedQuicVersionVector versions;
   versions.push_back(framer_.version());
@@ -10977,13 +10978,8 @@ TEST_P(QuicFramerTest, ConstructMisFramedEncryptedPacket) {
   if (framer_.version().KnowsWhichDecrypterToUse()) {
     framer_.InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
-        std::make_unique<NullDecrypter>(framer_.perspective()));
-  } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL, std::make_unique<NullDecrypter>(
-                                                 framer_.perspective()));
+        std::make_unique<StrictTaggingDecrypter>(ENCRYPTION_FORWARD_SECURE));
   }
-  framer_.SetEncrypter(ENCRYPTION_INITIAL,
-                       std::make_unique<NullEncrypter>(framer_.perspective()));
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructMisFramedEncryptedPacket(
       TestConnectionId(), EmptyQuicConnectionId(), false, false,
       kTestQuicStreamId, kTestString, CONNECTION_ID_PRESENT,
