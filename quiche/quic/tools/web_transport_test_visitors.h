@@ -74,9 +74,11 @@ class WebTransportBidirectionalEchoVisitor : public WebTransportStreamVisitor {
       buffer_ = "";
     }
 
-    if (send_fin_) {
+    if (send_fin_ && !fin_sent_) {
       bool success = stream_->SendFin();
-      QUICHE_DCHECK(success);
+      if (success) {
+        fin_sent_ = true;
+      }
     }
   }
 
@@ -99,6 +101,7 @@ class WebTransportBidirectionalEchoVisitor : public WebTransportStreamVisitor {
   WebTransportStream* stream_;
   std::string buffer_;
   bool send_fin_ = false;
+  bool fin_sent_ = false;
   bool stop_sending_received_ = false;
 };
 
