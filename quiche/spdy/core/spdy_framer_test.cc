@@ -46,13 +46,14 @@ char frame_list_char[buffer_size] = "";
 
 class MockDebugVisitor : public SpdyFramerDebugVisitorInterface {
  public:
-  MOCK_METHOD4(OnSendCompressedFrame,
-               void(SpdyStreamId stream_id, SpdyFrameType type,
-                    size_t payload_len, size_t frame_len));
+  MOCK_METHOD(void, OnSendCompressedFrame,
+              (SpdyStreamId stream_id, SpdyFrameType type, size_t payload_len,
+               size_t frame_len),
+              (override));
 
-  MOCK_METHOD3(OnReceiveCompressedFrame,
-               void(SpdyStreamId stream_id, SpdyFrameType type,
-                    size_t frame_len));
+  MOCK_METHOD(void, OnReceiveCompressedFrame,
+              (SpdyStreamId stream_id, SpdyFrameType type, size_t frame_len),
+              (override));
 };
 
 MATCHER_P(IsFrameUnionOf, frame_list, "") {
