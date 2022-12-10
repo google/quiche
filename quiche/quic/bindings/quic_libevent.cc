@@ -118,7 +118,11 @@ void LibeventQuicEventLoop::RunEventLoopOnce(QuicTime::Delta default_timeout) {
   event_base_loop(base_, EVLOOP_ONCE);
 }
 
-void LibeventQuicEventLoop::WakeUp() { event_base_loopbreak(base_); }
+void LibeventQuicEventLoop::WakeUp() { 
+  timeval timeout =
+      absl::ToTimeval(absl::Microseconds(0));
+  event_base_loopexit(base_, &timeout);
+}
 
 LibeventQuicEventLoop::Registration::Registration(
     LibeventQuicEventLoop* loop, QuicUdpSocketFd fd, QuicSocketEventMask events,
