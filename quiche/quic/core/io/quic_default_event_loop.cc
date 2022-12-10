@@ -6,7 +6,9 @@
 
 #include <memory>
 
+#ifndef QUICHE_ENABLE_LIBEVENT
 #include "quiche/quic/core/io/quic_poll_event_loop.h"
+#endif
 #include "quiche/common/platform/api/quiche_event_loop.h"
 
 #ifdef QUICHE_ENABLE_LIBEVENT
