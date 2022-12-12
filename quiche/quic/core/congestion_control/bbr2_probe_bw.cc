@@ -462,7 +462,7 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
                                      Params().full_bw_threshold);
         if (model_->rounds_with_queueing() >=
             Params().max_probe_up_queue_rounds) {
-          QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_probe_two_rounds, 1, 3);
+          QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_probe_two_rounds, 3, 3);
           is_queuing = true;
         }
       }
