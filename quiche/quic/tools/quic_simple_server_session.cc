@@ -10,6 +10,7 @@
 #include "quiche/quic/core/http/quic_server_initiated_spdy_stream.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -195,7 +196,9 @@ void QuicSimpleServerSession::HandlePromisedPushRequests() {
     QUICHE_DCHECK_EQ(promised_info.stream_id, promised_stream->id());
     QUIC_DLOG(INFO) << "created server push stream " << promised_stream->id();
 
-    promised_stream->SetPriority(promised_info.precedence);
+    promised_stream->SetPriority(
+        QuicStreamPriority{promised_info.precedence.spdy3_priority(),
+                           QuicStreamPriority::kDefaultIncremental});
 
     spdy::Http2HeaderBlock request_headers(
         std::move(promised_info.request_headers));

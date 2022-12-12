@@ -181,7 +181,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Called when an HTTP/3 PRIORITY_UPDATE frame has been received for a request
   // stream.  Returns false and closes connection if |stream_id| is invalid.
-  bool OnPriorityUpdateForRequestStream(QuicStreamId stream_id, int urgency);
+  bool OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
+                                        QuicStreamPriority priority);
 
   // Called when an HTTP/3 ACCEPT_CH frame has been received.
   // This method will only be called for client sessions.
@@ -623,7 +624,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Priority values received in PRIORITY_UPDATE frames for streams that are not
   // open yet.
-  absl::flat_hash_map<QuicStreamId, int> buffered_stream_priorities_;
+  absl::flat_hash_map<QuicStreamId, QuicStreamPriority>
+      buffered_stream_priorities_;
 
   // An integer used for live check. The indicator is assigned a value in
   // constructor. As long as it is not the assigned value, that would indicate

@@ -37,7 +37,6 @@
 #include "quiche/spdy/core/spdy_protocol.h"
 
 using spdy::Http2HeaderBlock;
-using spdy::SpdyPriority;
 
 namespace quic {
 
@@ -503,7 +502,8 @@ void QuicSpdyStream::OnStreamHeadersPriority(
     const spdy::SpdyStreamPrecedence& precedence) {
   QUICHE_DCHECK_EQ(Perspective::IS_SERVER,
                    session()->connection()->perspective());
-  SetPriority(precedence);
+  SetPriority(QuicStreamPriority{precedence.spdy3_priority(),
+                                 QuicStreamPriority::kDefaultIncremental});
 }
 
 void QuicSpdyStream::OnStreamHeaderList(bool fin, size_t frame_len,
@@ -585,16 +585,12 @@ void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {
     return;
   }
 
-  // Value between 0 and 7, inclusive.  Lower value means higher priority.
-  const uint8_t urgency = precedence().spdy3_priority();
-  const QuicStreamPriority priority{urgency,
-                                    QuicStreamPriority::kDefaultIncremental};
-  if (last_sent_priority_ == priority) {
+  if (last_sent_priority_ == priority()) {
     return;
   }
-  last_sent_priority_ = priority;
+  last_sent_priority_ = priority();
 
-  spdy_session_->WriteHttp3PriorityUpdate(id(), priority);
+  spdy_session_->WriteHttp3PriorityUpdate(id(), priority());
 }
 
 void QuicSpdyStream::OnHeadersTooLarge() { Reset(QUIC_HEADERS_TOO_LARGE); }
@@ -706,7 +702,8 @@ void QuicSpdyStream::OnPriorityFrame(
     const spdy::SpdyStreamPrecedence& precedence) {
   QUICHE_DCHECK_EQ(Perspective::IS_SERVER,
                    session()->connection()->perspective());
-  SetPriority(precedence);
+  SetPriority(QuicStreamPriority{precedence.spdy3_priority(),
+                                 QuicStreamPriority::kDefaultIncremental});
 }
 
 void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
@@ -1151,7 +1148,8 @@ size_t QuicSpdyStream::WriteHeadersImpl(
         ack_listener) {
   if (!VersionUsesHttp3(transport_version())) {
     return spdy_session_->WriteHeadersOnHeadersStream(
-        id(), std::move(header_block), fin, precedence(),
+        id(), std::move(header_block), fin,
+        spdy::SpdyStreamPrecedence(priority().urgency),
         std::move(ack_listener));
   }
 

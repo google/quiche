@@ -898,7 +898,8 @@ TEST_P(QuicSpdySessionTestServer, TestBatchedWrites) {
   // Now let stream 4 do the 2nd of its 3 writes, but add a block for a high
   // priority stream 6.  4 should be preempted.  6 will write but *not* block so
   // will cede back to 4.
-  stream6->SetPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  stream6->SetPriority(QuicStreamPriority{
+      kV3HighestPriority, QuicStreamPriority::kDefaultIncremental});
   EXPECT_CALL(*stream4, OnCanWrite())
       .WillOnce(Invoke([this, stream4, stream6]() {
         session_.SendLargeFakeData(stream4, 6000);
@@ -2175,8 +2176,10 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityFrame) {
   TestStream* stream = session_.CreateIncomingStream(stream_id);
   session_.OnPriorityFrame(stream_id,
                            spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  EXPECT_EQ(spdy::SpdyStreamPrecedence(kV3HighestPriority),
-            stream->precedence());
+
+  EXPECT_EQ((QuicStreamPriority{kV3HighestPriority,
+                                QuicStreamPriority::kDefaultIncremental}),
+            stream->priority());
 }
 
 TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
@@ -2220,11 +2223,13 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
 
   // PRIORITY_UPDATE frame arrives after stream creation.
   TestStream* stream1 = session_.CreateIncomingStream(stream_id1);
-  EXPECT_EQ(QuicStreamPriority::kDefaultUrgency,
-            stream1->precedence().spdy3_priority());
+  EXPECT_EQ((QuicStreamPriority{QuicStreamPriority::kDefaultUrgency,
+                                QuicStreamPriority::kDefaultIncremental}),
+            stream1->priority());
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update1));
   session_.OnStreamFrame(data3);
-  EXPECT_EQ(2u, stream1->precedence().spdy3_priority());
+  EXPECT_EQ((QuicStreamPriority{2u, QuicStreamPriority::kDefaultIncremental}),
+            stream1->priority());
 
   // PRIORITY_UPDATE frame for second request stream.
   const QuicStreamId stream_id2 = GetNthClientInitiatedBidirectionalId(1);
@@ -2241,7 +2246,8 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   session_.OnStreamFrame(stream_frame3);
   // Priority is applied upon stream construction.
   TestStream* stream2 = session_.CreateIncomingStream(stream_id2);
-  EXPECT_EQ(2u, stream2->precedence().spdy3_priority());
+  EXPECT_EQ((QuicStreamPriority{2u, QuicStreamPriority::kDefaultIncremental}),
+            stream2->priority());
 }
 
 TEST_P(QuicSpdySessionTestServer, OnInvalidPriorityUpdateFrame) {

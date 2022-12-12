@@ -503,8 +503,7 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
   if (!VersionUsesHttp3(transport_version())) {
     session_->RegisterStreamPriority(
         QuicUtils::GetHeadersStreamId(transport_version()),
-        /*is_static=*/true,
-        spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
+        /*is_static=*/true, QuicStreamPriority());
   }
 
   // Create push streams till reaching the upper limit of allowed open streams.

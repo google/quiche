@@ -620,8 +620,8 @@ void QuicSpdySession::OnPriorityFrame(
   stream->OnPriorityFrame(precedence);
 }
 
-bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
-                                                       int urgency) {
+bool QuicSpdySession::OnPriorityUpdateForRequestStream(
+    QuicStreamId stream_id, QuicStreamPriority priority) {
   if (perspective() == Perspective::IS_CLIENT ||
       !QuicUtils::IsBidirectionalStreamId(stream_id, version()) ||
       !QuicUtils::IsClientInitiatedStreamId(transport_version(), stream_id)) {
@@ -642,7 +642,7 @@ bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
     return false;
   }
 
-  if (MaybeSetStreamPriority(stream_id, spdy::SpdyStreamPrecedence(urgency))) {
+  if (MaybeSetStreamPriority(stream_id, priority)) {
     return true;
   }
 
@@ -650,7 +650,7 @@ bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
     return true;
   }
 
-  buffered_stream_priorities_[stream_id] = urgency;
+  buffered_stream_priorities_[stream_id] = priority;
 
   if (buffered_stream_priorities_.size() >
       10 * max_open_incoming_bidirectional_streams()) {
@@ -842,7 +842,7 @@ void QuicSpdySession::OnStreamCreated(QuicSpdyStream* stream) {
     return;
   }
 
-  stream->SetPriority(spdy::SpdyStreamPrecedence(it->second));
+  stream->SetPriority(it->second);
   buffered_stream_priorities_.erase(it);
 }
 

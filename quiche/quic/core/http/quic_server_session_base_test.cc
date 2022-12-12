@@ -546,8 +546,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   if (!VersionUsesHttp3(transport_version())) {
     session_->RegisterStreamPriority(
         QuicUtils::GetHeadersStreamId(transport_version()),
-        /*is_static=*/true,
-        spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
+        /*is_static=*/true, QuicStreamPriority());
   }
 
   // Set some initial bandwidth values.

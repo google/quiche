@@ -28,8 +28,6 @@
 #include "quiche/quic/platform/api/quic_stack_trace.h"
 #include "quiche/common/quiche_text_utils.h"
 
-using spdy::SpdyPriority;
-
 namespace quic {
 
 namespace {
@@ -1800,19 +1798,20 @@ void QuicSession::OnCryptoHandshakeMessageSent(
 void QuicSession::OnCryptoHandshakeMessageReceived(
     const CryptoHandshakeMessage& /*message*/) {}
 
-void QuicSession::RegisterStreamPriority(
-    QuicStreamId id, bool is_static,
-    const spdy::SpdyStreamPrecedence& precedence) {
-  write_blocked_streams()->RegisterStream(id, is_static, precedence);
+void QuicSession::RegisterStreamPriority(QuicStreamId id, bool is_static,
+                                         const QuicStreamPriority& priority) {
+  write_blocked_streams()->RegisterStream(
+      id, is_static, spdy::SpdyStreamPrecedence(priority.urgency));
 }
 
 void QuicSession::UnregisterStreamPriority(QuicStreamId id, bool is_static) {
   write_blocked_streams()->UnregisterStream(id, is_static);
 }
 
-void QuicSession::UpdateStreamPriority(
-    QuicStreamId id, const spdy::SpdyStreamPrecedence& new_precedence) {
-  write_blocked_streams()->UpdateStreamPriority(id, new_precedence);
+void QuicSession::UpdateStreamPriority(QuicStreamId id,
+                                       const QuicStreamPriority& new_priority) {
+  write_blocked_streams()->UpdateStreamPriority(
+      id, spdy::SpdyStreamPrecedence(new_priority.urgency));
 }
 
 void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
@@ -2031,11 +2030,11 @@ void QuicSession::DeleteConnection() {
   }
 }
 
-bool QuicSession::MaybeSetStreamPriority(
-    QuicStreamId stream_id, const spdy::SpdyStreamPrecedence& precedence) {
+bool QuicSession::MaybeSetStreamPriority(QuicStreamId stream_id,
+                                         const QuicStreamPriority& priority) {
   auto active_stream = stream_map_.find(stream_id);
   if (active_stream != stream_map_.end()) {
-    active_stream->second->SetPriority(precedence);
+    active_stream->second->SetPriority(priority);
     return true;
   }
 

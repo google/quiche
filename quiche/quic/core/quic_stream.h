@@ -29,6 +29,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_flow_controller.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_stream_send_buffer.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
@@ -206,7 +207,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   virtual void OnConnectionClosed(QuicErrorCode error,
                                   ConnectionCloseSource source);
 
-  const spdy::SpdyStreamPrecedence& precedence() const;
+  const QuicStreamPriority& priority() const;
 
   // Send PRIORITY_UPDATE frame if application protocol supports it.
   virtual void MaybeSendPriorityUpdateFrame() {}
@@ -216,7 +217,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // PRIORITY_UPDATE frame is received.  This calls
   // MaybeSendPriorityUpdateFrame(), which for a client stream might send a
   // PRIORITY_UPDATE frame.
-  void SetPriority(const spdy::SpdyStreamPrecedence& precedence);
+  void SetPriority(const QuicStreamPriority& priority);
 
   // Returns true if this stream is still waiting for acks of sent data.
   // This will return false if all data has been acked, or if the stream
@@ -388,8 +389,8 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   bool was_draining() const { return was_draining_; }
 
-  static spdy::SpdyStreamPrecedence CalculateDefaultPriority(
-      const QuicSession* session);
+  static QuicStreamPriority CalculateDefaultPriority(
+      QuicTransportVersion version);
 
   QuicTime creation_time() const { return creation_time_; }
 
@@ -525,8 +526,8 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // TODO(b/136274541): Remove session pointer from streams.
   QuicSession* session_;
   StreamDelegateInterface* stream_delegate_;
-  // The precedence of the stream, once parsed.
-  spdy::SpdyStreamPrecedence precedence_;
+  // The priority of the stream, once parsed.
+  QuicStreamPriority priority_;
   // Bytes read refers to payload bytes only: they do not include framing,
   // encryption overhead etc.
   uint64_t stream_bytes_read_;

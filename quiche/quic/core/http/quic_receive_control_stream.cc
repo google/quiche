@@ -149,8 +149,8 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     }
 
     const QuicStreamId stream_id = frame.prioritized_element_id;
-    return spdy_session_->OnPriorityUpdateForRequestStream(
-        stream_id, result.priority.urgency);
+    return spdy_session_->OnPriorityUpdateForRequestStream(stream_id,
+                                                           result.priority);
   }
 
   for (absl::string_view key_value :
@@ -179,7 +179,9 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     }
 
     return spdy_session_->OnPriorityUpdateForRequestStream(
-        frame.prioritized_element_id, urgency);
+        frame.prioritized_element_id,
+        QuicStreamPriority{static_cast<uint8_t>(urgency),
+                           QuicStreamPriority::kDefaultIncremental});
   }
 
   // Ignore frame if no urgency parameter can be parsed.
