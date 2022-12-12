@@ -29,6 +29,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
@@ -225,8 +226,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   QuicSpdySession* spdy_session() const { return spdy_session_; }
 
-  // Send PRIORITY_UPDATE frame and update |last_sent_urgency_| if
-  // |last_sent_urgency_| is different from current priority.
+  // Send PRIORITY_UPDATE frame and update |last_sent_priority_| if
+  // |last_sent_priority_| is different from current priority.
   void MaybeSendPriorityUpdateFrame() override;
 
   // Returns the WebTransport session owned by this stream, if one exists.
@@ -470,9 +471,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Offset of unacked frame headers.
   QuicIntervalSet<QuicStreamOffset> unacked_frame_headers_offsets_;
 
-  // Urgency value sent in the last PRIORITY_UPDATE frame, or default urgency
-  // defined by the spec if no PRIORITY_UPDATE frame has been sent.
-  int last_sent_urgency_;
+  // Priority parameters sent in the last PRIORITY_UPDATE frame, or default
+  // values defined by RFC9218 if no PRIORITY_UPDATE frame has been sent.
+  QuicStreamPriority last_sent_priority_;
 
   // If this stream is a WebTransport extended CONNECT stream, contains the
   // WebTransport session associated with this stream.

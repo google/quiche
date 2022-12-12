@@ -190,8 +190,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session,
                HttpDecoderOptionsForBidiStream(spdy_session)),
       sequencer_offset_(0),
       is_decoder_processing_input_(false),
-      ack_listener_(nullptr),
-      last_sent_urgency_(kDefaultUrgency) {
+      ack_listener_(nullptr) {
   QUICHE_DCHECK_EQ(session()->connection(), spdy_session->connection());
   QUICHE_DCHECK_EQ(transport_version(), spdy_session->transport_version());
   QUICHE_DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id));
@@ -225,8 +224,7 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(sequencer()->NumBytesConsumed()),
       is_decoder_processing_input_(false),
-      ack_listener_(nullptr),
-      last_sent_urgency_(kDefaultUrgency) {
+      ack_listener_(nullptr) {
   QUICHE_DCHECK_EQ(session()->connection(), spdy_session->connection());
   QUICHE_DCHECK_EQ(transport_version(), spdy_session->transport_version());
   QUICHE_DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id()));
@@ -588,14 +586,15 @@ void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {
   }
 
   // Value between 0 and 7, inclusive.  Lower value means higher priority.
-  const int urgency = precedence().spdy3_priority();
-  if (last_sent_urgency_ == urgency) {
+  const uint8_t urgency = precedence().spdy3_priority();
+  const QuicStreamPriority priority{urgency,
+                                    QuicStreamPriority::kDefaultIncremental};
+  if (last_sent_priority_ == priority) {
     return;
   }
-  last_sent_urgency_ = urgency;
+  last_sent_priority_ = priority;
 
-  spdy_session_->WriteHttp3PriorityUpdate(id(), urgency,
-                                          /* incremental = */ false);
+  spdy_session_->WriteHttp3PriorityUpdate(id(), priority);
 }
 
 void QuicSpdyStream::OnHeadersTooLarge() { Reset(QUIC_HEADERS_TOO_LARGE); }

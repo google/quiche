@@ -161,10 +161,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   virtual ~QuicStream();
 
-  // Default priority for IETF QUIC, defined by the priority extension at
-  // https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html#urgency.
-  static const int kDefaultUrgency = 3;
-
   // QuicStreamSequencer::StreamInterface implementation.
   QuicStreamId id() const override { return id_; }
   ParsedQuicVersion version() const override;

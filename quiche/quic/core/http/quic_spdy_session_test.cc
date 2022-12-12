@@ -29,6 +29,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -2219,7 +2220,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
 
   // PRIORITY_UPDATE frame arrives after stream creation.
   TestStream* stream1 = session_.CreateIncomingStream(stream_id1);
-  EXPECT_EQ(QuicStream::kDefaultUrgency,
+  EXPECT_EQ(QuicStreamPriority::kDefaultUrgency,
             stream1->precedence().spdy3_priority());
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update1));
   session_.OnStreamFrame(data3);

@@ -13,6 +13,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_flow_controller.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -110,9 +111,6 @@ QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
 
 // static
 const SpdyPriority QuicStream::kDefaultPriority;
-
-// static
-const int QuicStream::kDefaultUrgency;
 
 PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
     : id_(id),
@@ -1431,7 +1429,7 @@ spdy::SpdyStreamPrecedence QuicStream::CalculateDefaultPriority(
     const QuicSession* session) {
   return spdy::SpdyStreamPrecedence(
       VersionUsesHttp3(session->transport_version())
-          ? kDefaultUrgency
+          ? QuicStreamPriority::kDefaultUrgency
           : QuicStream::kDefaultPriority);
 }
 

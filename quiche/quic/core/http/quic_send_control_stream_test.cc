@@ -252,13 +252,15 @@ TEST_P(QuicSendControlStreamTest, WritePriorityBeforeSettings) {
   EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _, _))
       .Times(4);
   send_control_stream_->WritePriorityUpdate(
-      /* stream_id = */ 0, /* urgency = */ 3, /* incremental = */ false);
+      /* stream_id = */ 0,
+      QuicStreamPriority{/* urgency = */ 3, /* incremental = */ false});
 
   EXPECT_TRUE(testing::Mock::VerifyAndClearExpectations(&session_));
 
   EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _, _));
   send_control_stream_->WritePriorityUpdate(
-      /* stream_id = */ 0, /* urgency = */ 3, /* incremental = */ false);
+      /* stream_id = */ 0,
+      QuicStreamPriority{/* urgency = */ 3, /* incremental = */ false});
 }
 
 TEST_P(QuicSendControlStreamTest, CloseControlStream) {
@@ -292,23 +294,6 @@ TEST_P(QuicSendControlStreamTest, SendGoAway) {
   EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(stream_id));
 
   send_control_stream_->SendGoAway(stream_id);
-}
-
-TEST(SerializePriorityFieldValueTest, SerializePriorityFieldValue) {
-  // Default value is omitted.
-  EXPECT_EQ("", QuicSendControlStream::SerializePriorityFieldValue(
-                    /* urgency = */ 3, /* incremental = */ false));
-  EXPECT_EQ("u=5", QuicSendControlStream::SerializePriorityFieldValue(
-                       /* urgency = */ 5, /* incremental = */ false));
-  EXPECT_EQ("i", QuicSendControlStream::SerializePriorityFieldValue(
-                     /* urgency = */ 3, /* incremental = */ true));
-  EXPECT_EQ("u=0, i", QuicSendControlStream::SerializePriorityFieldValue(
-                          /* urgency = */ 0, /* incremental = */ true));
-  // Out-of-bound value is ignored.
-  EXPECT_EQ("", QuicSendControlStream::SerializePriorityFieldValue(
-                    /* urgency = */ -2, /* incremental = */ false));
-  EXPECT_EQ("i", QuicSendControlStream::SerializePriorityFieldValue(
-                     /* urgency = */ 9, /* incremental = */ true));
 }
 
 }  // namespace

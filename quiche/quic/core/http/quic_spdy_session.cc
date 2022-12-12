@@ -706,10 +706,10 @@ size_t QuicSpdySession::WritePriority(QuicStreamId stream_id,
 }
 
 void QuicSpdySession::WriteHttp3PriorityUpdate(QuicStreamId stream_id,
-                                               int urgency, bool incremental) {
+                                               QuicStreamPriority priority) {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
-  send_control_stream_->WritePriorityUpdate(stream_id, urgency, incremental);
+  send_control_stream_->WritePriorityUpdate(stream_id, priority);
 }
 
 void QuicSpdySession::OnHttp3GoAway(uint64_t id) {

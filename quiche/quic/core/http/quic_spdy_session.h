@@ -26,6 +26,7 @@
 #include "quiche/quic/core/qpack/qpack_receive_stream.h"
 #include "quiche/quic/core/qpack/qpack_send_stream.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -213,8 +214,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
                        int weight, bool exclusive);
 
   // Writes an HTTP/3 PRIORITY_UPDATE frame to the peer.
-  void WriteHttp3PriorityUpdate(QuicStreamId stream_id, int urgency,
-                                bool incremental);
+  void WriteHttp3PriorityUpdate(QuicStreamId stream_id,
+                                QuicStreamPriority priority);
 
   // Process received HTTP/3 GOAWAY frame.  When sent from server to client,
   // |id| is a stream ID.  When sent from client to server, |id| is a push ID.

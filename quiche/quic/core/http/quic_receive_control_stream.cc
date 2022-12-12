@@ -12,11 +12,11 @@
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/common/structured_headers.h"
 
 namespace quic {
 
@@ -149,8 +149,8 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     }
 
     const QuicStreamId stream_id = frame.prioritized_element_id;
-    return spdy_session_->OnPriorityUpdateForRequestStream(stream_id,
-                                                           result.urgency);
+    return spdy_session_->OnPriorityUpdateForRequestStream(
+        stream_id, result.priority.urgency);
   }
 
   for (absl::string_view key_value :
@@ -223,45 +223,6 @@ bool QuicReceiveControlStream::OnUnknownFramePayload(
     absl::string_view /*payload*/) {
   // Ignore unknown frame types.
   return true;
-}
-
-QuicReceiveControlStream::ParsePriorityFieldValueResult
-QuicReceiveControlStream::ParsePriorityFieldValue(
-    absl::string_view priority_field_value) {
-  // Default values
-  int urgency = 3;
-  bool incremental = false;
-
-  absl::optional<quiche::structured_headers::Dictionary> parsed_dictionary =
-      quiche::structured_headers::ParseDictionary(priority_field_value);
-  if (!parsed_dictionary.has_value()) {
-    return {false, urgency, incremental};
-  }
-
-  for (const auto& [name, value] : *parsed_dictionary) {
-    if (value.member_is_inner_list) {
-      continue;
-    }
-
-    const std::vector<quiche::structured_headers::ParameterizedItem>& member =
-        value.member;
-    if (member.size() != 1) {
-      continue;
-    }
-
-    const quiche::structured_headers::Item item = member[0].item;
-    if (name == "u" && item.is_integer()) {
-      int parsed_urgency = item.GetInteger();
-      // Ignore out-of-range values.
-      if (parsed_urgency >= 0 && parsed_urgency <= 7) {
-        urgency = parsed_urgency;
-      }
-    } else if (name == "i" && item.is_boolean()) {
-      incremental = item.GetBoolean();
-    }
-  }
-
-  return {true, urgency, incremental};
 }
 
 bool QuicReceiveControlStream::OnUnknownFrameEnd() {
