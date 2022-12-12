@@ -1855,6 +1855,8 @@ QuicStreamId QuicSession::GetNextOutgoingUnidirectionalStreamId() {
 bool QuicSession::CanOpenNextOutgoingBidirectionalStream() {
   if (liveness_testing_in_progress_) {
     QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective());
+    QUIC_CODE_COUNT(
+        quic_client_fails_to_create_stream_liveness_testing_in_progress);
     return false;
   }
   if (!VersionHasIetfQuicFrames(transport_version())) {
@@ -1863,6 +1865,8 @@ bool QuicSession::CanOpenNextOutgoingBidirectionalStream() {
     }
   } else {
     if (!ietf_streamid_manager_.CanOpenNextOutgoingBidirectionalStream()) {
+      QUIC_CODE_COUNT(
+          quic_fails_to_create_stream_close_too_many_streams_created);
       if (is_configured_) {
         // Send STREAM_BLOCKED after config negotiated.
         control_frame_manager_.WriteOrBufferStreamsBlocked(
@@ -1877,6 +1881,7 @@ bool QuicSession::CanOpenNextOutgoingBidirectionalStream() {
     // Now is relatively close to the idle timeout having the risk that requests
     // could be discarded at the server.
     liveness_testing_in_progress_ = true;
+    QUIC_CODE_COUNT(quic_client_fails_to_create_stream_close_to_idle_timeout);
     return false;
   }
   return true;

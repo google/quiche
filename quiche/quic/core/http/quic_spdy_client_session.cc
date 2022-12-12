@@ -48,11 +48,14 @@ void QuicSpdyClientSession::OnProofVerifyDetailsAvailable(
 bool QuicSpdyClientSession::ShouldCreateOutgoingBidirectionalStream() {
   if (!crypto_stream_->encryption_established()) {
     QUIC_DLOG(INFO) << "Encryption not active so no outgoing stream created.";
+    QUIC_CODE_COUNT(
+        quic_client_fails_to_create_stream_encryption_not_established);
     return false;
   }
   if (goaway_received() && respect_goaway_) {
     QUIC_DLOG(INFO) << "Failed to create a new outgoing stream. "
                     << "Already received goaway.";
+    QUIC_CODE_COUNT(quic_client_fails_to_create_stream_goaway_received);
     return false;
   }
   return CanOpenNextOutgoingBidirectionalStream();
