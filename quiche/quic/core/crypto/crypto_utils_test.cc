@@ -209,7 +209,7 @@ TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
                          0x7e,
                          0x37};
   const char v2_08_key[] = {// test vector from draft-ietf-quic-v2-08
-                            0x82,
+                            static_cast<char>(0x82),
                             static_cast<char>(0xdb),
                             static_cast<char>(0x63),
                             static_cast<char>(0x78),
@@ -222,8 +222,8 @@ TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
                             0x19,
                             static_cast<char>(0xea),
                             0x71,
-                            0xd5,
-                            0xd2,
+                            static_cast<char>(0xd5),
+                            static_cast<char>(0xd2),
                             static_cast<char>(0xa7)};
   const char connection_id[] =  // test vector from both docs
       {static_cast<char>(0x83),
