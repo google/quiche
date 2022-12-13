@@ -648,6 +648,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   using ZombieStreamMap =
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
 
+  std::string on_closed_frame_string() const;
+
   // Creates a new stream to handle a peer-initiated stream.
   // Caller does not own the returned stream.
   // Returns nullptr and does error handling if the stream can not be created.

@@ -783,18 +783,23 @@ void QuicSession::ProcessUdpPacket(const QuicSocketAddress& self_address,
   connection_->ProcessUdpPacket(self_address, peer_address, packet);
 }
 
+std::string QuicSession::on_closed_frame_string() const {
+  std::stringstream ss;
+  ss << on_closed_frame_;
+  if (source_.has_value()) {
+    ss << " " << ConnectionCloseSourceToString(source_.value());
+  }
+  return ss.str();
+}
+
 QuicConsumedData QuicSession::WritevData(QuicStreamId id, size_t write_length,
                                          QuicStreamOffset offset,
                                          StreamSendingState state,
                                          TransmissionType type,
                                          EncryptionLevel level) {
   QUIC_BUG_IF(session writevdata when disconnected, !connection()->connected())
-      << ENDPOINT
-      << absl::StrCat("Try to write stream data when connection is closed: ",
-                      QuicFrameToString(QuicFrame(&on_closed_frame_)), " ",
-                      source_.has_value()
-                          ? ConnectionCloseSourceToString(source_.value())
-                          : "");
+      << ENDPOINT << "Try to write stream data when connection is closed: "
+      << on_closed_frame_string();
   if (!IsEncryptionEstablished() &&
       !QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     // Do not let streams write without encryption. The calling stream will end
@@ -871,11 +876,8 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
   QUIC_BUG_IF(quic_bug_12435_11, !connection()->connected())
       << ENDPOINT
       << absl::StrCat("Try to write control frame: ", QuicFrameToString(frame),
-                      " when connection is closed: ",
-                      QuicFrameToString(QuicFrame(&on_closed_frame_)), " ",
-                      source_.has_value()
-                          ? ConnectionCloseSourceToString(source_.value())
-                          : "");
+                      " when connection is closed: ")
+      << on_closed_frame_string();
   if (!IsEncryptionEstablished()) {
     // Suppress the write before encryption gets established.
     return false;
