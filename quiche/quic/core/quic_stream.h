@@ -138,16 +138,6 @@ class QUIC_EXPORT_PRIVATE PendingStream
 class QUIC_EXPORT_PRIVATE QuicStream
     : public QuicStreamSequencer::StreamInterface {
  public:
-  // Default priority for Google QUIC.
-  // This is somewhat arbitrary.  It's possible, but unlikely, we will either
-  // fail to set a priority client-side, or cancel a stream before stripping the
-  // priority from the wire server-side.  In either case, start out with a
-  // priority in the middle in case of Google QUIC.
-  static const spdy::SpdyPriority kDefaultPriority = 3;
-  static_assert(kDefaultPriority ==
-                    (spdy::kV3LowestPriority + spdy::kV3HighestPriority) / 2,
-                "Unexpected value of kDefaultPriority");
-
   // Creates a new stream with stream_id |id| associated with |session|. If
   // |is_static| is true, then the stream will be given precedence
   // over other streams when determing what streams should write next.
@@ -388,9 +378,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   bool is_static() const { return is_static_; }
 
   bool was_draining() const { return was_draining_; }
-
-  static QuicStreamPriority CalculateDefaultPriority(
-      QuicTransportVersion version);
 
   QuicTime creation_time() const { return creation_time_; }
 
