@@ -57,6 +57,9 @@ ParsePriorityFieldValueResult ParsePriorityFieldValue(
     const std::vector<quiche::structured_headers::ParameterizedItem>& member =
         value.member;
     if (member.size() != 1) {
+      // If `member_is_inner_list` is false above,
+      // then `member` should have exactly one element.
+      QUICHE_BUG(priority_field_value_parsing_internal_error);
       continue;
     }
 

@@ -2233,7 +2233,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
 
   // PRIORITY_UPDATE frame for second request stream.
   const QuicStreamId stream_id2 = GetNthClientInitiatedBidirectionalId(1);
-  PriorityUpdateFrame priority_update2{stream_id2, "u=2"};
+  PriorityUpdateFrame priority_update2{stream_id2, "u=5, i"};
   std::string serialized_priority_update2 =
       HttpEncoder::SerializePriorityUpdateFrame(priority_update2);
   QuicStreamFrame stream_frame3(receive_control_stream_id,
@@ -2246,8 +2246,11 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   session_.OnStreamFrame(stream_frame3);
   // Priority is applied upon stream construction.
   TestStream* stream2 = session_.CreateIncomingStream(stream_id2);
-  EXPECT_EQ((QuicStreamPriority{2u, QuicStreamPriority::kDefaultIncremental}),
-            stream2->priority());
+  if (GetQuicReloadableFlag(quic_priority_update_structured_headers_parser)) {
+    EXPECT_EQ((QuicStreamPriority{5u, true}), stream2->priority());
+  } else {
+    EXPECT_EQ((QuicStreamPriority{5u, false}), stream2->priority());
+  }
 }
 
 TEST_P(QuicSpdySessionTestServer, OnInvalidPriorityUpdateFrame) {

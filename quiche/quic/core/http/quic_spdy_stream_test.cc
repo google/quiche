@@ -1566,6 +1566,7 @@ TEST_P(QuicSpdyStreamTest, ChangePriority) {
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   EXPECT_CALL(debug_visitor, OnHeadersFrameSent(stream_->id(), _));
   stream_->WriteHeaders(Http2HeaderBlock(), /*fin=*/false, nullptr);
+  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
 
   // PRIORITY_UPDATE frame on the control stream.
   auto send_control_stream =
@@ -1573,14 +1574,22 @@ TEST_P(QuicSpdyStreamTest, ChangePriority) {
   EXPECT_CALL(*session_, WritevData(send_control_stream->id(), _, _, _, _, _));
   PriorityUpdateFrame priority_update1{stream_->id(), "u=0"};
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameSent(priority_update1));
-  stream_->SetPriority(QuicStreamPriority{
-      kV3HighestPriority, QuicStreamPriority::kDefaultIncremental});
+  const QuicStreamPriority priority1{kV3HighestPriority,
+                                     QuicStreamPriority::kDefaultIncremental};
+  stream_->SetPriority(priority1);
+  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
 
   // Send another PRIORITY_UPDATE frame with incremental flag set to true.
   EXPECT_CALL(*session_, WritevData(send_control_stream->id(), _, _, _, _, _));
   PriorityUpdateFrame priority_update2{stream_->id(), "u=2, i"};
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameSent(priority_update2));
-  stream_->SetPriority(QuicStreamPriority{2, true});
+  const QuicStreamPriority priority2{2, true};
+  stream_->SetPriority(priority2);
+  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
+
+  // Calling SetPriority() with the same priority does not trigger sending
+  // another PRIORITY_UPDATE frame.
+  stream_->SetPriority(priority2);
 }
 
 TEST_P(QuicSpdyStreamTest, ChangePriorityBeforeWritingHeaders) {

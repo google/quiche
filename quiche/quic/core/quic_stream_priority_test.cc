@@ -21,10 +21,13 @@ TEST(QuicStreamPriority, Equals) {
                                 QuicStreamPriority::kDefaultIncremental}));
   EXPECT_EQ((QuicStreamPriority{5, true}), (QuicStreamPriority{5, true}));
   EXPECT_EQ((QuicStreamPriority{2, false}), (QuicStreamPriority{2, false}));
+  EXPECT_EQ((QuicStreamPriority{11, true}), (QuicStreamPriority{11, true}));
 
   EXPECT_NE((QuicStreamPriority{1, true}), (QuicStreamPriority{3, true}));
   EXPECT_NE((QuicStreamPriority{4, false}), (QuicStreamPriority{4, true}));
   EXPECT_NE((QuicStreamPriority{6, true}), (QuicStreamPriority{2, false}));
+  EXPECT_NE((QuicStreamPriority{12, true}), (QuicStreamPriority{9, true}));
+  EXPECT_NE((QuicStreamPriority{2, false}), (QuicStreamPriority{8, false}));
 }
 
 TEST(SerializePriorityFieldValueTest, SerializePriorityFieldValue) {
@@ -102,6 +105,12 @@ TEST(ParsePriorityFieldValueTest, ParsePriorityFieldValue) {
   // Cannot be parsed as structured headers.
   result = ParsePriorityFieldValue("000");
   EXPECT_FALSE(result.success);
+
+  // Inner list dictionary values are ignored.
+  result = ParsePriorityFieldValue("a=(1 2), u=1");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(1, result.priority.urgency);
+  EXPECT_FALSE(result.priority.incremental);
 }
 
 }  // namespace quic::test
