@@ -10,7 +10,6 @@
 #include "openssl/crypto.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
-#include "quiche/quic/core/tls_client_handshaker.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_stack_trace.h"
 
