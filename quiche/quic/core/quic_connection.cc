@@ -704,6 +704,15 @@ bool QuicConnection::MaybeTestLiveness() {
   if (!sent_packet_manager_.IsLessThanThreePTOs(timeout)) {
     return false;
   }
+  QUIC_LOG_EVERY_N_SEC(INFO, 60)
+      << "Testing liveness, idle_network_timeout: "
+      << idle_network_detector_.idle_network_timeout()
+      << ", timeout: " << timeout
+      << ", Pto delay: " << sent_packet_manager_.GetPtoDelay()
+      << ", smoothed_rtt: "
+      << sent_packet_manager_.GetRttStats()->smoothed_rtt()
+      << ", mean deviation: "
+      << sent_packet_manager_.GetRttStats()->mean_deviation();
   SendConnectivityProbingPacket(writer_, peer_address());
   return true;
 }
