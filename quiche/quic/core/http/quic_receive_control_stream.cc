@@ -9,6 +9,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
@@ -138,10 +139,10 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
 
   if (GetQuicReloadableFlag(quic_priority_update_structured_headers_parser)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_priority_update_structured_headers_parser);
-    const ParsePriorityFieldValueResult result =
+    absl::optional<QuicStreamPriority> priority =
         ParsePriorityFieldValue(frame.priority_field_value);
 
-    if (!result.success) {
+    if (!priority.has_value()) {
       stream_delegate()->OnStreamError(
           QUIC_INVALID_PRIORITY_UPDATE,
           "Invalid PRIORITY_UPDATE frame payload.");
@@ -150,7 +151,7 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
 
     const QuicStreamId stream_id = frame.prioritized_element_id;
     return spdy_session_->OnPriorityUpdateForRequestStream(stream_id,
-                                                           result.priority);
+                                                           *priority);
   }
 
   for (absl::string_view key_value :

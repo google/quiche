@@ -10,6 +10,7 @@
 #include <tuple>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -43,15 +44,10 @@ struct QUICHE_EXPORT QuicStreamPriority {
 QUICHE_EXPORT std::string SerializePriorityFieldValue(
     QuicStreamPriority priority);
 
-// Return type of ParsePriorityFieldValue().
-struct QUICHE_EXPORT ParsePriorityFieldValueResult {
-  bool success;
-  QuicStreamPriority priority;
-};
-
 // Parses the Priority Field Value field of a PRIORITY_UPDATE frame.
-QUICHE_EXPORT ParsePriorityFieldValueResult
-ParsePriorityFieldValue(absl::string_view priority_field_value);
+// Returns nullopt on failure.
+QUICHE_EXPORT absl::optional<QuicStreamPriority> ParsePriorityFieldValue(
+    absl::string_view priority_field_value);
 
 }  // namespace quic
 

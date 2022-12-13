@@ -38,12 +38,12 @@ std::string SerializePriorityFieldValue(QuicStreamPriority priority) {
   return *priority_field_value;
 }
 
-ParsePriorityFieldValueResult ParsePriorityFieldValue(
+absl::optional<QuicStreamPriority> ParsePriorityFieldValue(
     absl::string_view priority_field_value) {
   absl::optional<quiche::structured_headers::Dictionary> parsed_dictionary =
       quiche::structured_headers::ParseDictionary(priority_field_value);
   if (!parsed_dictionary.has_value()) {
-    return {false, {}};
+    return std::nullopt;
   }
 
   uint8_t urgency = QuicStreamPriority::kDefaultUrgency;
@@ -77,7 +77,7 @@ ParsePriorityFieldValueResult ParsePriorityFieldValue(
     }
   }
 
-  return {true, {urgency, incremental}};
+  return QuicStreamPriority{urgency, incremental};
 }
 
 }  // namespace quic

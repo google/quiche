@@ -47,70 +47,70 @@ TEST(SerializePriorityFieldValueTest, SerializePriorityFieldValue) {
 
 TEST(ParsePriorityFieldValueTest, ParsePriorityFieldValue) {
   // Default values
-  ParsePriorityFieldValueResult result = ParsePriorityFieldValue("");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(3, result.priority.urgency);
-  EXPECT_FALSE(result.priority.incremental);
+  absl::optional<QuicStreamPriority> result = ParsePriorityFieldValue("");
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(3, result->urgency);
+  EXPECT_FALSE(result->incremental);
 
   result = ParsePriorityFieldValue("i=?1");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(3, result.priority.urgency);
-  EXPECT_TRUE(result.priority.incremental);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(3, result->urgency);
+  EXPECT_TRUE(result->incremental);
 
   result = ParsePriorityFieldValue("u=5");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(5, result.priority.urgency);
-  EXPECT_FALSE(result.priority.incremental);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(5, result->urgency);
+  EXPECT_FALSE(result->incremental);
 
   result = ParsePriorityFieldValue("u=5, i");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(5, result.priority.urgency);
-  EXPECT_TRUE(result.priority.incremental);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(5, result->urgency);
+  EXPECT_TRUE(result->incremental);
 
   result = ParsePriorityFieldValue("i, u=1");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(1, result.priority.urgency);
-  EXPECT_TRUE(result.priority.incremental);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(1, result->urgency);
+  EXPECT_TRUE(result->incremental);
 
   // Duplicate values are allowed.
   result = ParsePriorityFieldValue("u=5, i=?1, i=?0, u=2");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(2, result.priority.urgency);
-  EXPECT_FALSE(result.priority.incremental);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(2, result->urgency);
+  EXPECT_FALSE(result->incremental);
 
   // Unknown parameters MUST be ignored.
   result = ParsePriorityFieldValue("a=42, u=4, i=?0");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(4, result.priority.urgency);
-  EXPECT_FALSE(result.priority.incremental);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(4, result->urgency);
+  EXPECT_FALSE(result->incremental);
 
   // Out-of-range values MUST be ignored.
   result = ParsePriorityFieldValue("u=-2, i");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(3, result.priority.urgency);
-  EXPECT_TRUE(result.priority.incremental);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(3, result->urgency);
+  EXPECT_TRUE(result->incremental);
 
   // Values of unexpected types MUST be ignored.
   result = ParsePriorityFieldValue("u=4.2, i=\"foo\"");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(3, result.priority.urgency);
-  EXPECT_FALSE(result.priority.incremental);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(3, result->urgency);
+  EXPECT_FALSE(result->incremental);
 
   // Values of the right type but different names are ignored.
   result = ParsePriorityFieldValue("a=4, b=?1");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(3, result.priority.urgency);
-  EXPECT_FALSE(result.priority.incremental);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(3, result->urgency);
+  EXPECT_FALSE(result->incremental);
 
   // Cannot be parsed as structured headers.
   result = ParsePriorityFieldValue("000");
-  EXPECT_FALSE(result.success);
+  EXPECT_FALSE(result.has_value());
 
   // Inner list dictionary values are ignored.
   result = ParsePriorityFieldValue("a=(1 2), u=1");
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(1, result.priority.urgency);
-  EXPECT_FALSE(result.priority.incremental);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(1, result->urgency);
+  EXPECT_FALSE(result->incremental);
 }
 
 }  // namespace quic::test
