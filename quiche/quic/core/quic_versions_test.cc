@@ -114,13 +114,13 @@ TEST(QuicVersionsTest, ParseQuicVersionLabel) {
             ParseQuicVersionLabel(MakeVersionLabel(0xff, 0x00, 0x00, 0x1d)));
   EXPECT_EQ(ParsedQuicVersion::RFCv1(),
             ParseQuicVersionLabel(MakeVersionLabel(0x00, 0x00, 0x00, 0x01)));
-  EXPECT_EQ(ParsedQuicVersion::V2Draft01(),
-            ParseQuicVersionLabel(MakeVersionLabel(0x70, 0x9a, 0x50, 0xc4)));
-  EXPECT_EQ((ParsedQuicVersionVector{ParsedQuicVersion::V2Draft01(),
+  EXPECT_EQ(ParsedQuicVersion::V2Draft08(),
+            ParseQuicVersionLabel(MakeVersionLabel(0x6b, 0x33, 0x43, 0xcf)));
+  EXPECT_EQ((ParsedQuicVersionVector{ParsedQuicVersion::V2Draft08(),
                                      ParsedQuicVersion::RFCv1(),
                                      ParsedQuicVersion::Draft29()}),
             ParseQuicVersionLabelVector(QuicVersionLabelVector{
-                MakeVersionLabel(0x70, 0x9a, 0x50, 0xc4),
+                MakeVersionLabel(0x6b, 0x33, 0x43, 0xcf),
                 MakeVersionLabel(0x00, 0x00, 0x00, 0x01),
                 MakeVersionLabel(0xaa, 0xaa, 0xaa, 0xaa),
                 MakeVersionLabel(0xff, 0x00, 0x00, 0x1d)}));
@@ -231,8 +231,8 @@ TEST(QuicVersionsTest, CreateQuicVersionLabel) {
   EXPECT_EQ(0x51303530u, CreateQuicVersionLabel(ParsedQuicVersion::Q050()));
   EXPECT_EQ(0xff00001du, CreateQuicVersionLabel(ParsedQuicVersion::Draft29()));
   EXPECT_EQ(0x00000001u, CreateQuicVersionLabel(ParsedQuicVersion::RFCv1()));
-  EXPECT_EQ(0x709a50c4u,
-            CreateQuicVersionLabel(ParsedQuicVersion::V2Draft01()));
+  EXPECT_EQ(0x6b3343cfu,
+            CreateQuicVersionLabel(ParsedQuicVersion::V2Draft08()));
 
   // Make sure the negotiation reserved version is in the IETF reserved space.
   EXPECT_EQ(
@@ -259,8 +259,8 @@ TEST(QuicVersionsTest, QuicVersionLabelToString) {
                             ParsedQuicVersion::Draft29())));
   EXPECT_EQ("00000001", QuicVersionLabelToString(CreateQuicVersionLabel(
                             ParsedQuicVersion::RFCv1())));
-  EXPECT_EQ("709a50c4", QuicVersionLabelToString(CreateQuicVersionLabel(
-                            ParsedQuicVersion::V2Draft01())));
+  EXPECT_EQ("6b3343cf", QuicVersionLabelToString(CreateQuicVersionLabel(
+                            ParsedQuicVersion::V2Draft08())));
 
   QuicVersionLabelVector version_labels = {
       MakeVersionLabel('Q', '0', '3', '5'),
@@ -295,8 +295,8 @@ TEST(QuicVersionsTest, ParseQuicVersionLabelString) {
             ParseQuicVersionLabelString("ff00001d"));
   EXPECT_EQ(ParsedQuicVersion::RFCv1(),
             ParseQuicVersionLabelString("00000001"));
-  EXPECT_EQ(ParsedQuicVersion::V2Draft01(),
-            ParseQuicVersionLabelString("709a50c4"));
+  EXPECT_EQ(ParsedQuicVersion::V2Draft08(),
+            ParseQuicVersionLabelString("6b3343cf"));
 
   // Sanity check that a variety of other serialization formats are ignored.
   EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionLabelString("1"));
@@ -353,8 +353,8 @@ TEST(QuicVersionsTest, ParsedQuicVersionToString) {
   EXPECT_EQ("Q050", ParsedQuicVersionToString(ParsedQuicVersion::Q050()));
   EXPECT_EQ("draft29", ParsedQuicVersionToString(ParsedQuicVersion::Draft29()));
   EXPECT_EQ("RFCv1", ParsedQuicVersionToString(ParsedQuicVersion::RFCv1()));
-  EXPECT_EQ("v2draft01",
-            ParsedQuicVersionToString(ParsedQuicVersion::V2Draft01()));
+  EXPECT_EQ("V2Draft08",
+            ParsedQuicVersionToString(ParsedQuicVersion::V2Draft08()));
 
   ParsedQuicVersionVector versions_vector = {ParsedQuicVersion::Q043()};
   EXPECT_EQ("Q043", ParsedQuicVersionVectorToString(versions_vector));
@@ -428,7 +428,7 @@ TEST(QuicVersionsTest, CheckTransportVersionNumbersForTypos) {
   EXPECT_EQ(QUIC_VERSION_50, 50);
   EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_29, 73);
   EXPECT_EQ(QUIC_VERSION_IETF_RFC_V1, 80);
-  EXPECT_EQ(QUIC_VERSION_IETF_2_DRAFT_01, 81);
+  EXPECT_EQ(QUIC_VERSION_IETF_2_DRAFT_08, 81);
 }
 
 TEST(QuicVersionsTest, AlpnForVersion) {
@@ -439,7 +439,7 @@ TEST(QuicVersionsTest, AlpnForVersion) {
   EXPECT_EQ("h3-Q050", AlpnForVersion(ParsedQuicVersion::Q050()));
   EXPECT_EQ("h3-29", AlpnForVersion(ParsedQuicVersion::Draft29()));
   EXPECT_EQ("h3", AlpnForVersion(ParsedQuicVersion::RFCv1()));
-  EXPECT_EQ("h3", AlpnForVersion(ParsedQuicVersion::V2Draft01()));
+  EXPECT_EQ("h3", AlpnForVersion(ParsedQuicVersion::V2Draft08()));
 }
 
 TEST(QuicVersionsTest, QuicVersionEnabling) {
@@ -490,7 +490,7 @@ TEST(QuicVersionsTest, SupportedVersionsAllDistinct) {
                 CreateQuicVersionLabel(version2))
           << version1 << " " << version2;
       // The one pair where ALPNs are the same.
-      if ((version1 != ParsedQuicVersion::V2Draft01()) &&
+      if ((version1 != ParsedQuicVersion::V2Draft08()) &&
           (version2 != ParsedQuicVersion::RFCv1())) {
         EXPECT_NE(AlpnForVersion(version1), AlpnForVersion(version2))
             << version1 << " " << version2;

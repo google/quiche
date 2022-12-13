@@ -87,8 +87,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_priority_update_structured_headers_parser, t
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
-// When true, support draft-ietf-quic-v2-01
-QUIC_FLAG(quic_reloadable_flag_quic_enable_version_2_draft_01, false)
+// When true, support draft-ietf-quic-v2-08
+QUIC_FLAG(quic_reloadable_flag_quic_enable_version_2_draft_08, false)
 // When true, the BB2U copt causes BBR2 to wait two rounds with out draining the queue before exiting PROBE_UP and BB2S has the same effect in STARTUP.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_probe_two_rounds, true)
 // When true, the BBHI copt causes QUIC BBRv2 to use a simpler algorithm for raising inflight_hi in PROBE_UP.

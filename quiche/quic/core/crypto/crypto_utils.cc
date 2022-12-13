@@ -96,7 +96,7 @@ const std::string getLabelForVersion(const ParsedQuicVersion& version,
                                      const absl::string_view& predicate) {
   static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync with HKDF labels");
-  if (version == ParsedQuicVersion::V2Draft01()) {
+  if (version == ParsedQuicVersion::V2Draft08()) {
     return absl::StrCat("quicv2 ", predicate);
   } else {
     return absl::StrCat("quic ", predicate);
@@ -152,9 +152,10 @@ const uint8_t kDraft29InitialSalt[] = {0xaf, 0xbf, 0xec, 0x28, 0x99, 0x93, 0xd2,
 const uint8_t kRFCv1InitialSalt[] = {0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34,
                                      0xb3, 0x4d, 0x17, 0x9a, 0xe6, 0xa4, 0xc8,
                                      0x0c, 0xad, 0xcc, 0xbb, 0x7f, 0x0a};
-const uint8_t kV2Draft01InitialSalt[] = {
-    0xa7, 0x07, 0xc2, 0x03, 0xa5, 0x9b, 0x47, 0x18, 0x4a, 0x1d,
-    0x62, 0xca, 0x57, 0x04, 0x06, 0xea, 0x7a, 0xe3, 0xe5, 0xd3};
+const uint8_t kV2Draft08InitialSalt[] = {
+    0x0d, 0xed, 0xe3, 0xde, 0xf7, 0x00, 0xa6, 0xdb, 0x81, 0x93,
+    0x81, 0xbe, 0x6e, 0x26, 0x9d, 0xcb, 0xf9, 0xbd, 0x2e, 0xd9,
+};
 
 // Salts used by deployed versions of QUIC. When introducing a new version,
 // generate a new salt by running `openssl rand -hex 20`.
@@ -173,9 +174,9 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
                                      size_t* out_len) {
   static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync with initial encryption salts");
-  if (version == ParsedQuicVersion::V2Draft01()) {
-    *out_len = ABSL_ARRAYSIZE(kV2Draft01InitialSalt);
-    return kV2Draft01InitialSalt;
+  if (version == ParsedQuicVersion::V2Draft08()) {
+    *out_len = ABSL_ARRAYSIZE(kV2Draft08InitialSalt);
+    return kV2Draft08InitialSalt;
   } else if (version == ParsedQuicVersion::RFCv1()) {
     *out_len = ABSL_ARRAYSIZE(kRFCv1InitialSalt);
     return kRFCv1InitialSalt;
@@ -211,11 +212,11 @@ const uint8_t kRFCv1RetryIntegrityKey[] = {0xbe, 0x0c, 0x69, 0x0b, 0x9f, 0x66,
                                            0xe3, 0x68, 0xc8, 0x4e};
 const uint8_t kRFCv1RetryIntegrityNonce[] = {
     0x46, 0x15, 0x99, 0xd3, 0x5d, 0x63, 0x2b, 0xf2, 0x23, 0x98, 0x25, 0xbb};
-const uint8_t kV2Draft01RetryIntegrityKey[] = {
-    0xba, 0x85, 0x8d, 0xc7, 0xb4, 0x3d, 0xe5, 0xdb,
-    0xf8, 0x76, 0x17, 0xff, 0x4a, 0xb2, 0x53, 0xdb};
-const uint8_t kV2Draft01RetryIntegrityNonce[] = {
-    0x14, 0x1b, 0x99, 0xc2, 0x39, 0xb0, 0x3e, 0x78, 0x5d, 0x6a, 0x2e, 0x9f};
+const uint8_t kV2Draft08RetryIntegrityKey[] = {
+    0x8f, 0xb4, 0xb0, 0x1b, 0x56, 0xac, 0x48, 0xe2,
+    0x60, 0xfb, 0xcb, 0xce, 0xad, 0x7c, 0xcc, 0x92};
+const uint8_t kV2Draft08RetryIntegrityNonce[] = {
+    0xd8, 0x69, 0x69, 0xbc, 0x2d, 0x7c, 0x6d, 0x99, 0x90, 0xef, 0xb0, 0x4a};
 // Retry integrity key used by ParsedQuicVersion::ReservedForNegotiation().
 const uint8_t kReservedForNegotiationRetryIntegrityKey[] = {
     0xf2, 0xcd, 0x8f, 0xe0, 0x36, 0xd0, 0x25, 0x35,
@@ -236,13 +237,13 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
         << "Attempted to get retry integrity keys for invalid version "
         << version;
     return false;
-  } else if (version == ParsedQuicVersion::V2Draft01()) {
+  } else if (version == ParsedQuicVersion::V2Draft08()) {
     *key = absl::string_view(
-        reinterpret_cast<const char*>(kV2Draft01RetryIntegrityKey),
-        ABSL_ARRAYSIZE(kV2Draft01RetryIntegrityKey));
+        reinterpret_cast<const char*>(kV2Draft08RetryIntegrityKey),
+        ABSL_ARRAYSIZE(kV2Draft08RetryIntegrityKey));
     *nonce = absl::string_view(
-        reinterpret_cast<const char*>(kV2Draft01RetryIntegrityNonce),
-        ABSL_ARRAYSIZE(kV2Draft01RetryIntegrityNonce));
+        reinterpret_cast<const char*>(kV2Draft08RetryIntegrityNonce),
+        ABSL_ARRAYSIZE(kV2Draft08RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::RFCv1()) {
     *key = absl::string_view(

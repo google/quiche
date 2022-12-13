@@ -208,23 +208,23 @@ TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
                          0x06,
                          0x7e,
                          0x37};
-  const char v2_01_key[] = {// test vector from draft-ietf-quic-v2-01
-                            0x15,
+  const char v2_08_key[] = {// test vector from draft-ietf-quic-v2-08
+                            0x82,
+                            static_cast<char>(0xdb),
+                            static_cast<char>(0x63),
+                            static_cast<char>(0x78),
+                            static_cast<char>(0x61),
                             static_cast<char>(0xd5),
-                            static_cast<char>(0xb4),
-                            static_cast<char>(0xd9),
-                            static_cast<char>(0xa2),
-                            static_cast<char>(0xb8),
-                            static_cast<char>(0x91),
-                            0x6a,
-                            static_cast<char>(0xa3),
-                            static_cast<char>(0x9b),
-                            0x1b,
-                            static_cast<char>(0xfe),
-                            0x57,
-                            0x4d,
-                            0x2a,
-                            static_cast<char>(0xad)};
+                            static_cast<char>(0x5e),
+                            0x1d,
+                            static_cast<char>(0x01),
+                            static_cast<char>(0x1f),
+                            0x19,
+                            static_cast<char>(0xea),
+                            0x71,
+                            0xd5,
+                            0xd2,
+                            static_cast<char>(0xa7)};
   const char connection_id[] =  // test vector from both docs
       {static_cast<char>(0x83),
        static_cast<char>(0x94),
@@ -245,8 +245,8 @@ TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
       key_str = v1_key;
       key_size = sizeof(v1_key);
     } else {  // draft-ietf-quic-v2-01
-      key_str = v2_01_key;
-      key_size = sizeof(v2_01_key);
+      key_str = v2_08_key;
+      key_size = sizeof(v2_08_key);
     }
     const absl::string_view expected_key{key_str, key_size};
 

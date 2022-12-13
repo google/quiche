@@ -23,7 +23,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     QuicEnableVersion(version);
   }
-  QuicDisableVersion(ParsedQuicVersion::V2Draft01());
+  QuicDisableVersion(ParsedQuicVersion::V2Draft08());
   QuicDisableVersion(ParsedQuicVersion::RFCv1());
   QuicDisableVersion(ParsedQuicVersion::Draft29());
   QuicVersionManager manager(AllSupportedVersions());
@@ -65,9 +65,9 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_THAT(manager.GetSupportedAlpns(),
               ElementsAre("h3", "h3-29", "h3-Q050", "h3-Q046", "h3-Q043"));
 
-  QuicEnableVersion(ParsedQuicVersion::V2Draft01());
+  QuicEnableVersion(ParsedQuicVersion::V2Draft08());
   expected_parsed_versions.insert(expected_parsed_versions.begin(),
-                                  ParsedQuicVersion::V2Draft01());
+                                  ParsedQuicVersion::V2Draft08());
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
