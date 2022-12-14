@@ -868,7 +868,7 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTStartup) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw < sender_->ExportDebugState().max_bandwidth) {
+        if (max_bw * 1.001 < sender_->ExportDebugState().max_bandwidth) {
           max_bw = sender_->ExportDebugState().max_bandwidth;
           max_bw_round = sender_->ExportDebugState().round_trip_count;
         }
@@ -895,7 +895,7 @@ TEST_F(BbrSenderTest, SimpleTransferExitStartupOnLoss) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw < sender_->ExportDebugState().max_bandwidth) {
+        if (max_bw * 1.001 < sender_->ExportDebugState().max_bandwidth) {
           max_bw = sender_->ExportDebugState().max_bandwidth;
           max_bw_round = sender_->ExportDebugState().round_trip_count;
         }

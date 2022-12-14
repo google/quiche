@@ -365,7 +365,7 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartup) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw < sender_->ExportDebugState().bandwidth_hi) {
+        if (max_bw * 1.001 < sender_->ExportDebugState().bandwidth_hi) {
           max_bw = sender_->ExportDebugState().bandwidth_hi;
           max_bw_round = sender_->ExportDebugState().round_trip_count;
         }
@@ -457,7 +457,7 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartupBB2S) {
   QuicBandwidth max_bw(QuicBandwidth::Zero());
   bool simulator_result = simulator_.RunUntilOrTimeout(
       [this, &max_bw, &max_bw_round]() {
-        if (max_bw < sender_->ExportDebugState().bandwidth_hi) {
+        if (max_bw * 1.001 < sender_->ExportDebugState().bandwidth_hi) {
           max_bw = sender_->ExportDebugState().bandwidth_hi;
           max_bw_round = sender_->ExportDebugState().round_trip_count;
         }
