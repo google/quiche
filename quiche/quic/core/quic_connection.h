@@ -1263,6 +1263,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       QuicTime::Delta blackhole_delay, QuicTime::Delta path_degrading_delay,
       QuicTime::Delta pto_delay);
 
+  void DisableLivenessTesting() { liveness_testing_disabled_ = true; }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -2246,6 +2248,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // If true, send connection close packet on INVALID_VERSION.
   bool send_connection_close_for_invalid_version_ = false;
+
+  // If true, disable liveness testing.
+  bool liveness_testing_disabled_ = false;
 
   QuicPingManager ping_manager_;
 

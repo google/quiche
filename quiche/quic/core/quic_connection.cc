@@ -682,7 +682,8 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
 
 bool QuicConnection::MaybeTestLiveness() {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-  if (encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
+  if (liveness_testing_disabled_ ||
+      encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
     return false;
   }
   const QuicTime idle_network_deadline =

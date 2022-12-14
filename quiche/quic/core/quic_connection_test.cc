@@ -11149,6 +11149,49 @@ TEST_P(QuicConnectionTest, TestingLiveness) {
   EXPECT_EQ(deadline, QuicConnectionPeer::GetIdleNetworkDeadline(&connection_));
 }
 
+TEST_P(QuicConnectionTest, DisableLivenessTesting) {
+  const size_t kMinRttMs = 40;
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(kMinRttMs),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+
+  CryptoHandshakeMessage msg;
+  std::string error_details;
+  QuicConfig client_config;
+  client_config.SetInitialStreamFlowControlWindowToSend(
+      kInitialStreamFlowControlWindowForTest);
+  client_config.SetInitialSessionFlowControlWindowToSend(
+      kInitialSessionFlowControlWindowForTest);
+  client_config.SetIdleNetworkTimeout(QuicTime::Delta::FromSeconds(30));
+  client_config.ToHandshakeMessage(&msg, connection_.transport_version());
+  const QuicErrorCode error =
+      config.ProcessPeerHello(msg, CLIENT, &error_details);
+  EXPECT_THAT(error, IsQuicNoError());
+
+  if (connection_.version().UsesTls()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
+
+  connection_.SetFromConfig(config);
+  connection_.OnHandshakeComplete();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.DisableLivenessTesting();
+  ASSERT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
+  EXPECT_FALSE(connection_.MaybeTestLiveness());
+
+  QuicTime deadline = QuicConnectionPeer::GetIdleNetworkDeadline(&connection_);
+  QuicTime::Delta timeout = deadline - clock_.ApproximateNow();
+  // Advance time to near the idle timeout.
+  clock_.AdvanceTime(timeout - QuicTime::Delta::FromMilliseconds(1));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  EXPECT_FALSE(connection_.MaybeTestLiveness());
+}
+
 TEST_P(QuicConnectionTest, SilentIdleTimeout) {
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
