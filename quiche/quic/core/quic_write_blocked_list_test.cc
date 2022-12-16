@@ -15,6 +15,10 @@ namespace quic {
 namespace test {
 namespace {
 
+// Default value for `incremental`, see RFC9218.
+// TODO(b/147306124): Add support and tests for `incremental` being true.
+constexpr bool kNotIncremental = false;
+
 class QuicWriteBlockedListTest : public QuicTestWithParam<bool> {
  public:
   QuicWriteBlockedListTest()
@@ -37,15 +41,15 @@ TEST_F(QuicWriteBlockedListTest, PriorityOrder) {
   // Mark streams blocked in roughly reverse priority order, and
   // verify that streams are sorted.
   write_blocked_list_.RegisterStream(
-      40, false, spdy::SpdyStreamPrecedence(kV3LowestPriority));
+      40, false, QuicStreamPriority{kV3LowestPriority, kNotIncremental});
   write_blocked_list_.RegisterStream(
-      23, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      23, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
   write_blocked_list_.RegisterStream(
-      17, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      17, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
   write_blocked_list_.RegisterStream(
-      1, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      1, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
   write_blocked_list_.RegisterStream(
-      3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      3, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
 
   write_blocked_list_.AddStream(40);
   EXPECT_TRUE(write_blocked_list_.IsStreamBlocked(40));
@@ -86,7 +90,7 @@ TEST_F(QuicWriteBlockedListTest, PriorityOrder) {
 
 TEST_F(QuicWriteBlockedListTest, CryptoStream) {
   write_blocked_list_.RegisterStream(
-      1, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      1, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
   write_blocked_list_.AddStream(1);
 
   EXPECT_EQ(1u, write_blocked_list_.NumBlockedStreams());
@@ -98,7 +102,7 @@ TEST_F(QuicWriteBlockedListTest, CryptoStream) {
 
 TEST_F(QuicWriteBlockedListTest, HeadersStream) {
   write_blocked_list_.RegisterStream(
-      3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      3, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
   write_blocked_list_.AddStream(3);
 
   EXPECT_EQ(1u, write_blocked_list_.NumBlockedStreams());
@@ -110,9 +114,9 @@ TEST_F(QuicWriteBlockedListTest, HeadersStream) {
 
 TEST_F(QuicWriteBlockedListTest, VerifyHeadersStream) {
   write_blocked_list_.RegisterStream(
-      5, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      5, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
   write_blocked_list_.RegisterStream(
-      3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      3, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
   write_blocked_list_.AddStream(5);
   write_blocked_list_.AddStream(3);
 
@@ -134,7 +138,8 @@ TEST_F(QuicWriteBlockedListTest, NoDuplicateEntries) {
   // priority.
   const QuicStreamId kBlockedId = 3 + 2;
   write_blocked_list_.RegisterStream(
-      kBlockedId, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      kBlockedId, false,
+      QuicStreamPriority{kV3HighestPriority, kNotIncremental});
   write_blocked_list_.AddStream(kBlockedId);
   write_blocked_list_.AddStream(kBlockedId);
   write_blocked_list_.AddStream(kBlockedId);
@@ -154,11 +159,11 @@ TEST_F(QuicWriteBlockedListTest, BatchingWrites) {
   const QuicStreamId id2 = id1 + 2;
   const QuicStreamId id3 = id2 + 2;
   write_blocked_list_.RegisterStream(
-      id1, false, spdy::SpdyStreamPrecedence(kV3LowestPriority));
+      id1, false, QuicStreamPriority{kV3LowestPriority, kNotIncremental});
   write_blocked_list_.RegisterStream(
-      id2, false, spdy::SpdyStreamPrecedence(kV3LowestPriority));
+      id2, false, QuicStreamPriority{kV3LowestPriority, kNotIncremental});
   write_blocked_list_.RegisterStream(
-      id3, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      id3, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
 
   write_blocked_list_.AddStream(id1);
   write_blocked_list_.AddStream(id2);
@@ -217,16 +222,19 @@ TEST_F(QuicWriteBlockedListTest, Ceding) {
        7
   */
   write_blocked_list_.RegisterStream(
-      15, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      15, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
   write_blocked_list_.RegisterStream(
-      16, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  write_blocked_list_.RegisterStream(5, false, spdy::SpdyStreamPrecedence(5));
-  write_blocked_list_.RegisterStream(4, false, spdy::SpdyStreamPrecedence(5));
-  write_blocked_list_.RegisterStream(7, false, spdy::SpdyStreamPrecedence(7));
+      16, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
+  write_blocked_list_.RegisterStream(5, false,
+                                     QuicStreamPriority{5, kNotIncremental});
+  write_blocked_list_.RegisterStream(4, false,
+                                     QuicStreamPriority{5, kNotIncremental});
+  write_blocked_list_.RegisterStream(7, false,
+                                     QuicStreamPriority{7, kNotIncremental});
   write_blocked_list_.RegisterStream(
-      1, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      1, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
   write_blocked_list_.RegisterStream(
-      3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+      3, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
 
   // When nothing is on the list, nothing yields.
   EXPECT_FALSE(write_blocked_list_.ShouldYield(5));

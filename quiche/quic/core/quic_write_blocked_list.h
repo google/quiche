@@ -12,9 +12,11 @@
 #include "absl/container/inlined_vector.h"
 #include "quiche/http2/core/priority_write_scheduler.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace quic {
 
@@ -57,12 +59,12 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   QuicStreamId PopFront();
 
   void RegisterStream(QuicStreamId stream_id, bool is_static_stream,
-                      const spdy::SpdyStreamPrecedence& precedence);
+                      const QuicStreamPriority& priority);
 
   void UnregisterStream(QuicStreamId stream_id, bool is_static);
 
   void UpdateStreamPriority(QuicStreamId stream_id,
-                            const spdy::SpdyStreamPrecedence& new_precedence);
+                            const QuicStreamPriority& new_priority);
 
   void UpdateBytesForStream(QuicStreamId stream_id, size_t bytes);
 

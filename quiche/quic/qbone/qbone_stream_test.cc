@@ -9,6 +9,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
@@ -18,7 +19,6 @@
 #include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/simple_buffer_allocator.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace quic {
 
@@ -70,8 +70,8 @@ class MockQuicSession : public QboneSessionBase {
     // priority.
     write_blocked_streams()->RegisterStream(
         stream_id,
-        /*is_static_stream=*/false,
-        /* precedence= */ spdy::SpdyStreamPrecedence(3));
+        /* is_static_stream = */ false,
+        QuicStreamPriority{3, QuicStreamPriority::kDefaultIncremental});
   }
 
   // The session take ownership of the stream.

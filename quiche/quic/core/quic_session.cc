@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_connection_context.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_flow_controller.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -1802,8 +1803,7 @@ void QuicSession::OnCryptoHandshakeMessageReceived(
 
 void QuicSession::RegisterStreamPriority(QuicStreamId id, bool is_static,
                                          const QuicStreamPriority& priority) {
-  write_blocked_streams()->RegisterStream(
-      id, is_static, spdy::SpdyStreamPrecedence(priority.urgency));
+  write_blocked_streams()->RegisterStream(id, is_static, priority);
 }
 
 void QuicSession::UnregisterStreamPriority(QuicStreamId id, bool is_static) {
@@ -1812,8 +1812,7 @@ void QuicSession::UnregisterStreamPriority(QuicStreamId id, bool is_static) {
 
 void QuicSession::UpdateStreamPriority(QuicStreamId id,
                                        const QuicStreamPriority& new_priority) {
-  write_blocked_streams()->UpdateStreamPriority(
-      id, spdy::SpdyStreamPrecedence(new_priority.urgency));
+  write_blocked_streams()->UpdateStreamPriority(id, new_priority);
 }
 
 void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
