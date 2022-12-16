@@ -43,7 +43,7 @@ absl::optional<QuicStreamPriority> ParsePriorityFieldValue(
   absl::optional<quiche::structured_headers::Dictionary> parsed_dictionary =
       quiche::structured_headers::ParseDictionary(priority_field_value);
   if (!parsed_dictionary.has_value()) {
-    return std::nullopt;
+    return absl::nullopt;
   }
 
   uint8_t urgency = QuicStreamPriority::kDefaultUrgency;
