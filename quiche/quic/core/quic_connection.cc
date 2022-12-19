@@ -5686,7 +5686,13 @@ void QuicConnection::SendAllPendingAcks() {
                           packet_creator_.max_packet_length()))
           << "Writer not blocked and not throttled by amplification factor, "
              "but ACK not flushed for packet space:"
-          << i;
+          << PacketNumberSpaceToString(static_cast<PacketNumberSpace>(i))
+          << ", connected: " << connected_
+          << ", fill_coalesced_packet: " << fill_coalesced_packet_
+          << ", has_soft_max_packet_length: "
+          << packet_creator_.HasSoftMaxPacketLength()
+          << ", max_packet_length: " << packet_creator_.max_packet_length()
+          << ", pending frames: " << packet_creator_.GetPendingFramesInfo();
       break;
     }
     ResetAckStates();
