@@ -212,6 +212,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // value than max_packet_size - PacketSize(), in this case.
   size_t BytesFree() const;
 
+  // Since PADDING frames are always prepended, a separate function computes
+  // available space without considering STREAM frame expansion.
+  size_t BytesFreeForPadding() const;
+
   // Returns the number of bytes that the packet will expand by if a new frame
   // is added to the packet. If the last frame was a stream frame, it will
   // expand slightly when a new frame is added, and this method returns the
@@ -428,7 +432,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   }
 
   // Returns the minimum size that the plaintext of a packet must be.
-  static size_t MinPlaintextPacketSize(const ParsedQuicVersion& version);
+  static size_t MinPlaintextPacketSize(
+      const ParsedQuicVersion& version,
+      QuicPacketNumberLength packet_number_length);
 
   // Indicates whether packet flusher is currently attached.
   bool PacketFlusherAttached() const;

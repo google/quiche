@@ -939,8 +939,8 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     // We need a minimum number of bytes of encrypted payload. This will
     // guarantee that we have at least that much. (It ignores the overhead of
     // the stream/crypto framing, so it overpads slightly.)
-    size_t min_plaintext_size =
-        QuicPacketCreator::MinPlaintextPacketSize(version);
+    size_t min_plaintext_size = QuicPacketCreator::MinPlaintextPacketSize(
+        version, packet_number_length);
     if (data.length() < min_plaintext_size) {
       size_t padding_length = min_plaintext_size - data.length();
       frames.push_back(QuicFrame(QuicPaddingFrame(padding_length)));
