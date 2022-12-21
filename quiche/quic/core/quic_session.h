@@ -174,10 +174,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void BeforeConnectionCloseSent() override {}
   bool ValidateToken(absl::string_view token) override;
   bool MaybeSendAddressToken() override;
-  bool IsKnownServerAddress(
-      const QuicSocketAddress& /*address*/) const override {
-    return false;
-  }
   void OnBandwidthUpdateTimeout() override {}
   std::unique_ptr<QuicPathValidationContext> CreateContextForMultiPortPath()
       override {

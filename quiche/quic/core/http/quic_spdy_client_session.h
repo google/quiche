@@ -42,9 +42,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSession
   QuicSpdyClientStream* CreateOutgoingUnidirectionalStream() override;
   QuicCryptoClientStreamBase* GetMutableCryptoStream() override;
   const QuicCryptoClientStreamBase* GetCryptoStream() const override;
-  bool IsKnownServerAddress(const QuicSocketAddress& address) const override;
-
-  void AddKnownServerAddress(const QuicSocketAddress& address);
 
   bool IsAuthorized(const std::string& authority) override;
 
@@ -114,8 +111,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSession
   std::unique_ptr<QuicCryptoClientStreamBase> crypto_stream_;
   QuicServerId server_id_;
   QuicCryptoClientConfig* crypto_config_;
-  // Server addresses that are known to the client.
-  std::vector<QuicSocketAddress> known_server_addresses_;
 
   // If this is set to false, the client will ignore server GOAWAYs and allow
   // the creation of streams regardless of the high chance they will fail.

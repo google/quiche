@@ -234,9 +234,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Return false if the crypto stream fail to generate one.
   virtual bool MaybeSendAddressToken() = 0;
 
-  // Whether the server address is known to the connection.
-  virtual bool IsKnownServerAddress(const QuicSocketAddress& address) const = 0;
-
   // When bandwidth update alarms.
   virtual void OnBandwidthUpdateTimeout() = 0;
 
@@ -1265,6 +1262,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   void DisableLivenessTesting() { liveness_testing_disabled_ = true; }
 
+  void AddKnownServerAddress(const QuicSocketAddress& address);
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1898,6 +1897,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   EncryptionLevel GetEncryptionLevelToSendPingForSpace(
       PacketNumberSpace space) const;
 
+  // Returns true if |address| is known server address.
+  bool IsKnownServerAddress(const QuicSocketAddress& address) const;
+
   QuicConnectionContext context_;
 
   QuicFramer framer_;
@@ -2264,6 +2266,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   std::unique_ptr<MultiPortStats> multi_port_stats_;
 
   RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
+
+  // Server addresses that are known to the client.
+  std::vector<QuicSocketAddress> known_server_addresses_;
 
   // If true, throttle sending if next created packet will exceed amplification
   // limit.

@@ -384,6 +384,9 @@ QuicConnection::QuicConnection(
       blackhole_detection_disabled_ = true;
     }
   }
+  if (perspective_ == Perspective::IS_CLIENT) {
+    AddKnownServerAddress(initial_peer_address);
+  }
   packet_creator_.SetDefaultPeerAddress(initial_peer_address);
 }
 
@@ -1213,12 +1216,16 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   if (perspective_ == Perspective::IS_CLIENT) {
     if (!GetLargestReceivedPacket().IsInitialized() ||
         header.packet_number > GetLargestReceivedPacket()) {
-      // Update direct_peer_address_ and default path peer_address immediately
-      // for client connections.
-      // TODO(fayang): only change peer addresses in application data packet
-      // number space.
-      UpdatePeerAddress(last_received_packet_info_.source_address);
-      default_path_.peer_address = GetEffectivePeerAddressFromCurrentPacket();
+      if (version().HasIetfQuicFrames()) {
+        // Do not update server address.
+      } else {
+        // Update direct_peer_address_ and default path peer_address immediately
+        // for client connections.
+        // TODO(fayang): only change peer addresses in application data packet
+        // number space.
+        UpdatePeerAddress(last_received_packet_info_.source_address);
+        default_path_.peer_address = GetEffectivePeerAddressFromCurrentPacket();
+      }
     }
   } else {
     // At server, remember the address change type of effective_peer_address
@@ -2651,6 +2658,9 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   }
 
   if (!direct_peer_address_.IsInitialized()) {
+    if (perspective_ == Perspective::IS_CLIENT) {
+      AddKnownServerAddress(last_received_packet_info_.source_address);
+    }
     UpdatePeerAddress(last_received_packet_info_.source_address);
   }
 
@@ -2894,8 +2904,7 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
       direct_peer_address_.IsInitialized() &&
       last_received_packet_info_.source_address.IsInitialized() &&
       direct_peer_address_ != last_received_packet_info_.source_address &&
-      !visitor_->IsKnownServerAddress(
-          last_received_packet_info_.source_address)) {
+      !IsKnownServerAddress(last_received_packet_info_.source_address)) {
     // TODO(haoyuewang) Revisit this when preferred_address transport parameter
     // is used on the client side.
     // Discard packets received from unseen server addresses.
@@ -4002,6 +4011,14 @@ EncryptionLevel QuicConnection::GetEncryptionLevelToSendPingForSpace(
       QUICHE_DCHECK(false);
       return NUM_ENCRYPTION_LEVELS;
   }
+}
+
+bool QuicConnection::IsKnownServerAddress(
+    const QuicSocketAddress& address) const {
+  QUICHE_DCHECK(address.IsInitialized());
+  return std::find(known_server_addresses_.cbegin(),
+                   known_server_addresses_.cend(),
+                   address) != known_server_addresses_.cend();
 }
 
 void QuicConnection::OnRetransmissionTimeout() {
@@ -5309,6 +5326,9 @@ void QuicConnection::CheckIfApplicationLimited() {
 bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
   last_received_packet_info_.frames.push_back(type);
   if (version().HasIetfQuicFrames()) {
+    if (perspective_ == Perspective::IS_CLIENT) {
+      return connected_;
+    }
     if (!QuicUtils::IsProbingFrame(type)) {
       MaybeStartIetfPeerMigration();
       return connected_;
@@ -6316,6 +6336,14 @@ QuicTime::Delta QuicConnection::CalculateNetworkBlackholeDelay(
     QUIC_CODE_COUNT(quic_extending_short_blackhole_delay);
   }
   return std::max(min_delay, blackhole_delay);
+}
+
+void QuicConnection::AddKnownServerAddress(const QuicSocketAddress& address) {
+  QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
+  if (!address.IsInitialized() || IsKnownServerAddress(address)) {
+    return;
+  }
+  known_server_addresses_.push_back(address);
 }
 
 bool QuicConnection::ShouldDetectBlackhole() const {

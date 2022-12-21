@@ -104,10 +104,6 @@ class QuicEndpoint : public QuicEndpointBase,
   void BeforeConnectionCloseSent() override {}
   bool ValidateToken(absl::string_view /*token*/) override { return true; }
   bool MaybeSendAddressToken() override { return false; }
-  bool IsKnownServerAddress(
-      const QuicSocketAddress& /*address*/) const override {
-    return false;
-  }
   void OnBandwidthUpdateTimeout() override {}
   std::unique_ptr<QuicPathValidationContext> CreateContextForMultiPortPath()
       override {

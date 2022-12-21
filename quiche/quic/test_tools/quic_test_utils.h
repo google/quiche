@@ -503,11 +503,6 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(std::unique_ptr<QuicPathValidationContext>,
               CreateContextForMultiPortPath, (), (override));
 
-  bool IsKnownServerAddress(
-      const QuicSocketAddress& /*address*/) const override {
-    return false;
-  }
-
   void OnBandwidthUpdateTimeout() override {}
 };
 

@@ -2836,18 +2836,18 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  if (connection_.version().HasIetfQuicFrames()) {
+    // Verify the 2nd packet from unknown server address gets dropped.
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  } else if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(2);
   } else {
-    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(2);
   }
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress, kPeerAddress,
                                   ENCRYPTION_INITIAL);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
-
-  // Process another packet with a different peer address on client side will
-  // only update peer address.
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
@@ -2861,6 +2861,48 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
     EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
     EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
   }
+}
+
+TEST_P(QuicConnectionTest, ServerAddressChangesToKnownAddress) {
+  if (!connection_.version().HasIetfQuicFrames()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  set_perspective(Perspective::IS_CLIENT);
+  EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+
+  // Clear direct_peer_address.
+  QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
+  // Clear effective_peer_address, it is the same as direct_peer_address for
+  // this test.
+  QuicConnectionPeer::SetEffectivePeerAddress(&connection_,
+                                              QuicSocketAddress());
+  EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
+
+  // Verify all 3 packets get processed.
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(3);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress, kPeerAddress,
+                                  ENCRYPTION_INITIAL);
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+
+  // Process another packet with a different but known server address.
+  const QuicSocketAddress kNewPeerAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
+  connection_.AddKnownServerAddress(kNewPeerAddress);
+  EXPECT_CALL(visitor_, OnConnectionMigration(_)).Times(0);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kNewPeerAddress, ENCRYPTION_INITIAL);
+  // Verify peer address does not change.
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+
+  // Process 3rd packet from previous server address.
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress, kPeerAddress,
+                                  ENCRYPTION_INITIAL);
+  // Verify peer address does not change.
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 }
 
 TEST_P(QuicConnectionTest, MaxPacketSize) {
