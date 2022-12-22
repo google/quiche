@@ -129,5 +129,28 @@ void QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
   config->max_datagram_frame_size_.SetReceivedValue(max_datagram_frame_size);
 }
 
+//  static
+void QuicConfigPeer::SetReceivedAlternateServerAddress(
+    QuicConfig* config, const QuicSocketAddress& server_address) {
+  switch (server_address.host().address_family()) {
+    case quiche::IpAddressFamily::IP_V4:
+      config->alternate_server_address_ipv4_.SetReceivedValue(server_address);
+      break;
+    case quiche::IpAddressFamily::IP_V6:
+      config->alternate_server_address_ipv6_.SetReceivedValue(server_address);
+      break;
+    case quiche::IpAddressFamily::IP_UNSPEC:
+      break;
+  }
+}
+
+// static
+void QuicConfigPeer::SetPreferredAddressConnectionIdAndToken(
+    QuicConfig* config, QuicConnectionId connection_id,
+    const StatelessResetToken& token) {
+  config->preferred_address_connection_id_and_token_ =
+      std::make_pair(connection_id, token);
+}
+
 }  // namespace test
 }  // namespace quic

@@ -242,6 +242,58 @@ bool ContainsNonProbingFrame(const SerializedPacket& packet) {
   return false;
 }
 
+// This context stores the path info from client address to server preferred
+// address while client is validating this address.
+class ServerPreferredAddressPathValidationContext
+    : public QuicPathValidationContext {
+ public:
+  ServerPreferredAddressPathValidationContext(
+      const QuicSocketAddress& server_preferred_address,
+      QuicConnection* connection)
+      : QuicPathValidationContext(connection->self_address(),
+                                  server_preferred_address),
+        connection_(connection) {}
+
+  QuicPacketWriter* WriterToUse() override { return connection_->writer(); }
+
+ private:
+  QuicConnection* connection_;
+};
+
+// Client migrates to server preferred address on path validation suceeds.
+// Otherwise, client cleans up alternative path.
+class ServerPreferredAddressResultDelegate
+    : public QuicPathValidator::ResultDelegate {
+ public:
+  explicit ServerPreferredAddressResultDelegate(QuicConnection* connection)
+      : connection_(connection) {}
+  void OnPathValidationSuccess(
+      std::unique_ptr<QuicPathValidationContext> context,
+      QuicTime /*start_time*/) override {
+    QUIC_DLOG(INFO) << "Server preferred address: " << context->peer_address()
+                    << " validated. Migrating path, self_address: "
+                    << context->self_address()
+                    << ", peer_address: " << context->peer_address();
+    const bool success = connection_->MigratePath(context->self_address(),
+                                                  context->peer_address(),
+                                                  context->WriterToUse(),
+                                                  /*owns_writer*/ false);
+    QUIC_BUG_IF(failed to migrate to server preferred address, !success)
+        << "Failed to migrate to server preferred address: "
+        << context->peer_address() << " after successful validation";
+  }
+
+  void OnPathValidationFailure(
+      std::unique_ptr<QuicPathValidationContext> context) override {
+    QUIC_DLOG(INFO) << "Failed to validate server preferred address : "
+                    << context->peer_address();
+    connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false);
+  }
+
+ private:
+  QuicConnection* connection_;
+};
+
 }  // namespace
 
 #define ENDPOINT \
@@ -658,6 +710,19 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   connection_migration_use_new_cid_ =
       validate_client_addresses_ &&
       GetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2);
+
+  if (connection_migration_use_new_cid_ &&
+      config.HasReceivedPreferredAddressConnectionIdAndToken() &&
+      config.HasClientRequestedIndependentOption(kSPAD, perspective_)) {
+    if (self_address().host().IsIPv4() &&
+        config.HasReceivedIPv4AlternateServerAddress()) {
+      server_preferred_address_ = config.ReceivedIPv4AlternateServerAddress();
+    } else if (self_address().host().IsIPv6() &&
+               config.HasReceivedIPv6AlternateServerAddress()) {
+      server_preferred_address_ = config.ReceivedIPv6AlternateServerAddress();
+    }
+    AddKnownServerAddress(server_preferred_address_);
+  }
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
     packet_creator_.SetMaxPacketLength(
@@ -1217,7 +1282,9 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
     if (!GetLargestReceivedPacket().IsInitialized() ||
         header.packet_number > GetLargestReceivedPacket()) {
       if (version().HasIetfQuicFrames()) {
-        // Do not update server address.
+        // Client processes packets from any known server address. Client only
+        // updates peer address on initialization and/or to validated server
+        // preferred address.
       } else {
         // Update direct_peer_address_ and default path peer_address immediately
         // for client connections.
@@ -2905,8 +2972,6 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
       last_received_packet_info_.source_address.IsInitialized() &&
       direct_peer_address_ != last_received_packet_info_.source_address &&
       !IsKnownServerAddress(last_received_packet_info_.source_address)) {
-    // TODO(haoyuewang) Revisit this when preferred_address transport parameter
-    // is used on the client side.
     // Discard packets received from unseen server addresses.
     return false;
   }
@@ -3943,6 +4008,16 @@ void QuicConnection::OnHandshakeComplete() {
   // Re-arm ack alarm.
   ack_alarm_->Update(uber_received_packet_manager_.GetEarliestAckTimeout(),
                      kAlarmGranularity);
+  if (server_preferred_address_.IsInitialized()) {
+    QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+    // Validate received server preferred address.
+    auto context =
+        std::make_unique<ServerPreferredAddressPathValidationContext>(
+            server_preferred_address_, this);
+    auto result_delegate =
+        std::make_unique<ServerPreferredAddressResultDelegate>(this);
+    ValidatePath(std::move(context), std::move(result_delegate));
+  }
 }
 
 void QuicConnection::MaybeCreateMultiPortPath() {
@@ -5339,8 +5414,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
                       last_received_packet_info_.source_address)) {
       return connected_;
     }
-    if (perspective_ == Perspective::IS_SERVER &&
-        type == PATH_CHALLENGE_FRAME &&
+    if (type == PATH_CHALLENGE_FRAME &&
         !IsAlternativePath(last_received_packet_info_.destination_address,
                            current_effective_peer_address)) {
       QUIC_DVLOG(1)
@@ -6694,7 +6768,10 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
                                peer_address_change_type == NO_CHANGE);
   SetSelfAddress(self_address);
   UpdatePeerAddress(peer_address);
-  SetQuicPacketWriter(writer, owns_writer);
+  default_path_.peer_address = peer_address;
+  if (writer_ != writer) {
+    SetQuicPacketWriter(writer, owns_writer);
+  }
   MaybeClearQueuedPacketsOnPathChange();
   OnSuccessfulMigration(is_port_change);
   return true;

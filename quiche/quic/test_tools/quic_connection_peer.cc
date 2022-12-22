@@ -563,5 +563,11 @@ void QuicConnectionPeer::SetInProbeTimeOut(QuicConnection* connection,
   connection->in_probe_time_out_ = value;
 }
 
+// static
+QuicSocketAddress QuicConnectionPeer::GetServerPreferredAddress(
+    QuicConnection* connection) {
+  return connection->server_preferred_address_;
+}
+
 }  // namespace test
 }  // namespace quic

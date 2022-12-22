@@ -1462,6 +1462,46 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
   }
 
+  // Receive server preferred address.
+  void ServerPreferredAddressInit() {
+    ASSERT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+    ASSERT_TRUE(version().HasIetfQuicFrames());
+    ASSERT_TRUE(connection_.self_address().host().IsIPv6());
+    SetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2, true);
+    QuicIpAddress host;
+    host.FromString("2604:31c0::");
+    QuicSocketAddress server_preferred_address(host, 443);
+    const QuicConnectionId connection_id = TestConnectionId(17);
+    const StatelessResetToken reset_token =
+        QuicUtils::GenerateStatelessResetToken(connection_id);
+
+    connection_.CreateConnectionIdManager();
+
+    connection_.SendCryptoStreamData();
+    EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _));
+    EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+    QuicAckFrame frame = InitAckFrame(1);
+    // Received ACK for packet 1.
+    ProcessFramePacketAtLevel(1, QuicFrame(&frame), ENCRYPTION_INITIAL);
+
+    QuicConfig config;
+    config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
+    config.SetClientConnectionOptions(QuicTagVector{kSPAD});
+    QuicConfigPeer::SetReceivedStatelessResetToken(&config,
+                                                   kTestStatelessResetToken);
+    QuicConfigPeer::SetReceivedAlternateServerAddress(&config,
+                                                      server_preferred_address);
+    QuicConfigPeer::SetPreferredAddressConnectionIdAndToken(
+        &config, connection_id, reset_token);
+    EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+    connection_.SetFromConfig(config);
+
+    ASSERT_TRUE(QuicConnectionPeer::GetServerPreferredAddress(&connection_)
+                    .IsInitialized());
+    EXPECT_EQ(server_preferred_address,
+              QuicConnectionPeer::GetServerPreferredAddress(&connection_));
+  }
+
   void TestClientRetryHandling(bool invalid_retry_tag,
                                bool missing_original_id_in_config,
                                bool wrong_original_id_in_config,
@@ -15937,6 +15977,165 @@ TEST_P(QuicConnectionTest, ServerConnectionIdChangeTwiceWithLateInitial) {
   // Handshake packet discarded because there's a different connection ID.
   EXPECT_EQ(QuicConnectionPeer::NumUndecryptablePackets(&connection_), 0u);
   EXPECT_EQ(connection_.connection_id(), connection_id_);
+}
+
+TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress) {
+  // Test the scenario where the client validates server preferred address by
+  // receiving PATH_RESPONSE from server preferred address.
+  if (!connection_.version().HasIetfQuicFrames()) {
+    return;
+  }
+  ServerPreferredAddressInit();
+  const QuicSocketAddress kServerPreferredAddress =
+      QuicConnectionPeer::GetServerPreferredAddress(&connection_);
+  const StatelessResetToken kNewStatelessResetToken =
+      QuicUtils::GenerateStatelessResetToken(TestConnectionId(17));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  // Kick off path validation of server preferred address on handshake
+  // confirmed.
+  connection_.OnHandshakeComplete();
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  EXPECT_EQ(TestConnectionId(17),
+            writer_->last_packet_header().destination_connection_id);
+  EXPECT_EQ(kServerPreferredAddress, writer_->last_write_peer_address());
+
+  ASSERT_FALSE(writer_->path_challenge_frames().empty());
+  QuicPathFrameBuffer payload =
+      writer_->path_challenge_frames().front().data_buffer;
+  // Send data packet while path validation is pending.
+  connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
+  // While path validation is pending, packet is sent on default path.
+  EXPECT_EQ(TestConnectionId(),
+            writer_->last_packet_header().destination_connection_id);
+  EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
+  EXPECT_TRUE(connection_.IsValidStatelessResetToken(kTestStatelessResetToken));
+  EXPECT_FALSE(connection_.IsValidStatelessResetToken(kNewStatelessResetToken));
+
+  // Receive path challenge from server preferred address.
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
+  // Verify send_algorithm gets reset after migration (new sent packet is not
+  // updated to exsting send_algorithm_).
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  ProcessFramesPacketWithAddresses(
+      frames, kSelfAddress, kServerPreferredAddress, ENCRYPTION_FORWARD_SECURE);
+  ASSERT_FALSE(connection_.HasPendingPathValidation());
+  // Verify stream data is retransmitted on new path.
+  EXPECT_EQ(TestConnectionId(17),
+            writer_->last_packet_header().destination_connection_id);
+  EXPECT_EQ(kServerPreferredAddress, writer_->last_write_peer_address());
+  // Verify stateless reset token gets changed.
+  EXPECT_FALSE(
+      connection_.IsValidStatelessResetToken(kTestStatelessResetToken));
+  EXPECT_TRUE(connection_.IsValidStatelessResetToken(kNewStatelessResetToken));
+
+  auto* retire_peer_issued_cid_alarm =
+      connection_.GetRetirePeerIssuedConnectionIdAlarm();
+  ASSERT_TRUE(retire_peer_issued_cid_alarm->IsSet());
+  // Verify client retires connection ID with sequence number 0.
+  EXPECT_CALL(visitor_, SendRetireConnectionId(/*sequence_number=*/0u));
+  retire_peer_issued_cid_alarm->Fire();
+}
+
+TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress2) {
+  // Test the scenario where the client validates server preferred address by
+  // receiving PATH_RESPONSE from original server address.
+  if (!connection_.version().HasIetfQuicFrames()) {
+    return;
+  }
+  ServerPreferredAddressInit();
+  const QuicSocketAddress kServerPreferredAddress =
+      QuicConnectionPeer::GetServerPreferredAddress(&connection_);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  // Kick off path validation of server preferred address on handshake
+  // confirmed.
+  connection_.OnHandshakeComplete();
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  ASSERT_FALSE(writer_->path_challenge_frames().empty());
+  QuicPathFrameBuffer payload =
+      writer_->path_challenge_frames().front().data_buffer;
+  // Send data packet while path validation is pending.
+  connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
+  EXPECT_EQ(TestConnectionId(),
+            writer_->last_packet_header().destination_connection_id);
+  EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
+
+  // Receive path challenge from original server address.
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
+  ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  ASSERT_FALSE(connection_.HasPendingPathValidation());
+  // Verify stream data is retransmitted on new path.
+  EXPECT_EQ(TestConnectionId(17),
+            writer_->last_packet_header().destination_connection_id);
+  EXPECT_EQ(kServerPreferredAddress, writer_->last_write_peer_address());
+
+  auto* retire_peer_issued_cid_alarm =
+      connection_.GetRetirePeerIssuedConnectionIdAlarm();
+  ASSERT_TRUE(retire_peer_issued_cid_alarm->IsSet());
+  // Verify client retires connection ID with sequence number 0.
+  EXPECT_CALL(visitor_, SendRetireConnectionId(/*sequence_number=*/0u));
+  retire_peer_issued_cid_alarm->Fire();
+
+  // Verify another packet from original server address gets processed.
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  frames.clear();
+  frames.push_back(QuicFrame(frame1_));
+  ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+}
+
+TEST_P(QuicConnectionTest, ClientFailedToValidateServerPreferredAddress) {
+  // Test the scenario where the client fails to validate server preferred
+  // address.
+  if (!connection_.version().HasIetfQuicFrames()) {
+    return;
+  }
+  ServerPreferredAddressInit();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  // Kick off path validation of server preferred address on handshake
+  // confirmed.
+  connection_.OnHandshakeComplete();
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  ASSERT_FALSE(writer_->path_challenge_frames().empty());
+
+  // Receive mismatched path challenge from original server address.
+  QuicFrames frames;
+  frames.push_back(
+      QuicFrame(QuicPathResponseFrame(99, {0, 1, 2, 3, 4, 5, 6, 7})));
+  ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  ASSERT_TRUE(connection_.HasPendingPathValidation());
+
+  // Simluate path validation times out.
+  for (size_t i = 0; i < QuicPathValidator::kMaxRetryTimes + 1; ++i) {
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
+    static_cast<TestAlarmFactory::TestAlarm*>(
+        QuicPathValidatorPeer::retry_timer(
+            QuicConnectionPeer::path_validator(&connection_)))
+        ->Fire();
+  }
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
+  // Verify stream data is sent on the default path.
+  connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
+  EXPECT_EQ(TestConnectionId(),
+            writer_->last_packet_header().destination_connection_id);
+  EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
+
+  auto* retire_peer_issued_cid_alarm =
+      connection_.GetRetirePeerIssuedConnectionIdAlarm();
+  ASSERT_TRUE(retire_peer_issued_cid_alarm->IsSet());
+  // Verify client retires connection ID with sequence number 1.
+  EXPECT_CALL(visitor_, SendRetireConnectionId(/*sequence_number=*/1u));
+  retire_peer_issued_cid_alarm->Fire();
+  EXPECT_TRUE(connection_.IsValidStatelessResetToken(kTestStatelessResetToken));
 }
 
 }  // namespace

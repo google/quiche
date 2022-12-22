@@ -74,6 +74,13 @@ class QuicConfigPeer {
 
   static void SetReceivedMaxDatagramFrameSize(QuicConfig* config,
                                               uint64_t max_datagram_frame_size);
+
+  static void SetReceivedAlternateServerAddress(
+      QuicConfig* config, const QuicSocketAddress& server_address);
+
+  static void SetPreferredAddressConnectionIdAndToken(
+      QuicConfig* config, QuicConnectionId connection_id,
+      const StatelessResetToken& token);
 };
 
 }  // namespace test

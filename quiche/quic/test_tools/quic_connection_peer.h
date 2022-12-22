@@ -228,6 +228,9 @@ class QuicConnectionPeer {
   static QuicAlarm* GetMultiPortProbingAlarm(QuicConnection* connection);
 
   static void SetInProbeTimeOut(QuicConnection* connection, bool value);
+
+  static QuicSocketAddress GetServerPreferredAddress(
+      QuicConnection* connection);
 };
 
 }  // namespace test

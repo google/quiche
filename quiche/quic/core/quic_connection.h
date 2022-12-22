@@ -2270,6 +2270,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Server addresses that are known to the client.
   std::vector<QuicSocketAddress> known_server_addresses_;
 
+  // Stores received server preferred address in transport param. Client side
+  // only.
+  QuicSocketAddress server_preferred_address_;
+
   // If true, throttle sending if next created packet will exceed amplification
   // limit.
   const bool enforce_strict_amplification_factor_ =
