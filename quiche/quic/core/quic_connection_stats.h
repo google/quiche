@@ -218,6 +218,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // Number of RETIRE_CONNECTION_ID frames sent.
   size_t num_retire_connection_id_sent = 0;
 
+  bool server_preferred_address_validated = false;
+  bool failed_to_validate_server_preferred_address = false;
+
   struct QUIC_NO_EXPORT TlsServerOperationStats {
     bool success = false;
     // If the operation is performed asynchronously, how long did it take.

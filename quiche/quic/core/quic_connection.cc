@@ -242,24 +242,6 @@ bool ContainsNonProbingFrame(const SerializedPacket& packet) {
   return false;
 }
 
-// This context stores the path info from client address to server preferred
-// address while client is validating this address.
-class ServerPreferredAddressPathValidationContext
-    : public QuicPathValidationContext {
- public:
-  ServerPreferredAddressPathValidationContext(
-      const QuicSocketAddress& server_preferred_address,
-      QuicConnection* connection)
-      : QuicPathValidationContext(connection->self_address(),
-                                  server_preferred_address),
-        connection_(connection) {}
-
-  QuicPacketWriter* WriterToUse() override { return connection_->writer(); }
-
- private:
-  QuicConnection* connection_;
-};
-
 // Client migrates to server preferred address on path validation suceeds.
 // Otherwise, client cleans up alternative path.
 class ServerPreferredAddressResultDelegate
@@ -274,6 +256,7 @@ class ServerPreferredAddressResultDelegate
                     << " validated. Migrating path, self_address: "
                     << context->self_address()
                     << ", peer_address: " << context->peer_address();
+    connection_->mutable_stats().server_preferred_address_validated = true;
     const bool success = connection_->MigratePath(context->self_address(),
                                                   context->peer_address(),
                                                   context->WriterToUse(),
@@ -287,6 +270,8 @@ class ServerPreferredAddressResultDelegate
       std::unique_ptr<QuicPathValidationContext> context) override {
     QUIC_DLOG(INFO) << "Failed to validate server preferred address : "
                     << context->peer_address();
+    connection_->mutable_stats().failed_to_validate_server_preferred_address =
+        true;
     connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false);
   }
 
@@ -721,6 +706,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
                config.HasReceivedIPv6AlternateServerAddress()) {
       server_preferred_address_ = config.ReceivedIPv6AlternateServerAddress();
     }
+    QUIC_DLOG_IF(INFO, server_preferred_address_.IsInitialized())
+        << ENDPOINT
+        << "Received server preferred address: " << server_preferred_address_;
     AddKnownServerAddress(server_preferred_address_);
   }
   if (config.HasReceivedMaxPacketSize()) {
@@ -2763,7 +2751,8 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   }
   QUIC_DVLOG(1) << ENDPOINT << "time of last received packet: "
                 << packet.receipt_time().ToDebuggingValue() << " from peer "
-                << last_received_packet_info_.source_address;
+                << last_received_packet_info_.source_address << ", to "
+                << last_received_packet_info_.destination_address;
 
   ScopedPacketFlusher flusher(this);
   if (!framer_.ProcessPacket(packet)) {
@@ -4012,11 +4001,16 @@ void QuicConnection::OnHandshakeComplete() {
     QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
     // Validate received server preferred address.
     auto context =
-        std::make_unique<ServerPreferredAddressPathValidationContext>(
-            server_preferred_address_, this);
-    auto result_delegate =
-        std::make_unique<ServerPreferredAddressResultDelegate>(this);
-    ValidatePath(std::move(context), std::move(result_delegate));
+        visitor_->CreatePathValidationContextForServerPreferredAddress(
+            server_preferred_address_);
+    if (context != nullptr) {
+      QUICHE_DLOG(INFO) << ENDPOINT
+                        << "Start validating server preferred address: "
+                        << server_preferred_address_;
+      auto result_delegate =
+          std::make_unique<ServerPreferredAddressResultDelegate>(this);
+      ValidatePath(std::move(context), std::move(result_delegate));
+    }
   }
 }
 
@@ -6418,6 +6412,15 @@ void QuicConnection::AddKnownServerAddress(const QuicSocketAddress& address) {
     return;
   }
   known_server_addresses_.push_back(address);
+}
+
+absl::optional<QuicNewConnectionIdFrame>
+QuicConnection::MaybeIssueNewConnectionIdForPreferredAddress() {
+  if (self_issued_cid_manager_ == nullptr) {
+    return absl::nullopt;
+  }
+  return self_issued_cid_manager_
+      ->MaybeIssueNewConnectionIdForPreferredAddress();
 }
 
 bool QuicConnection::ShouldDetectBlackhole() const {

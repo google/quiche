@@ -859,21 +859,6 @@ void QuicConfig::SetIPv6AlternateServerAddressToSend(
   alternate_server_address_ipv6_.SetSendValue(alternate_server_address_ipv6);
 }
 
-void QuicConfig::SetIPv6AlternateServerAddressToSend(
-    const QuicSocketAddress& alternate_server_address_ipv6,
-    const QuicConnectionId& connection_id,
-    const StatelessResetToken& stateless_reset_token) {
-  if (!alternate_server_address_ipv6.host().IsIPv6()) {
-    QUIC_BUG(quic_bug_10575_10)
-        << "Cannot use SetIPv6AlternateServerAddressToSend with "
-        << alternate_server_address_ipv6;
-    return;
-  }
-  alternate_server_address_ipv6_.SetSendValue(alternate_server_address_ipv6);
-  preferred_address_connection_id_and_token_ =
-      std::make_pair(connection_id, stateless_reset_token);
-}
-
 bool QuicConfig::HasReceivedIPv6AlternateServerAddress() const {
   return alternate_server_address_ipv6_.HasReceivedValue();
 }
@@ -894,21 +879,6 @@ void QuicConfig::SetIPv4AlternateServerAddressToSend(
   alternate_server_address_ipv4_.SetSendValue(alternate_server_address_ipv4);
 }
 
-void QuicConfig::SetIPv4AlternateServerAddressToSend(
-    const QuicSocketAddress& alternate_server_address_ipv4,
-    const QuicConnectionId& connection_id,
-    const StatelessResetToken& stateless_reset_token) {
-  if (!alternate_server_address_ipv4.host().IsIPv4()) {
-    QUIC_BUG(quic_bug_10575_12)
-        << "Cannot use SetIPv4AlternateServerAddressToSend with "
-        << alternate_server_address_ipv4;
-    return;
-  }
-  alternate_server_address_ipv4_.SetSendValue(alternate_server_address_ipv4);
-  preferred_address_connection_id_and_token_ =
-      std::make_pair(connection_id, stateless_reset_token);
-}
-
 bool QuicConfig::HasReceivedIPv4AlternateServerAddress() const {
   return alternate_server_address_ipv4_.HasReceivedValue();
 }
@@ -916,6 +886,26 @@ bool QuicConfig::HasReceivedIPv4AlternateServerAddress() const {
 const QuicSocketAddress& QuicConfig::ReceivedIPv4AlternateServerAddress()
     const {
   return alternate_server_address_ipv4_.GetReceivedValue();
+}
+
+void QuicConfig::SetPreferredAddressConnectionIdAndTokenToSend(
+    const QuicConnectionId& connection_id,
+    const StatelessResetToken& stateless_reset_token) {
+  if (!CanSendPreferredAddressConnectionIdAndToken()) {
+    QUIC_BUG(quic_bug_10575_17)
+        << "Can not send connection ID and token for preferred address";
+    return;
+  }
+  preferred_address_connection_id_and_token_ =
+      std::make_pair(connection_id, stateless_reset_token);
+}
+
+bool QuicConfig::CanSendPreferredAddressConnectionIdAndToken() const {
+  if (!alternate_server_address_ipv4_.HasSendValue() &&
+      !alternate_server_address_ipv6_.HasSendValue()) {
+    return false;
+  }
+  return !preferred_address_connection_id_and_token_.has_value();
 }
 
 bool QuicConfig::HasReceivedPreferredAddressConnectionIdAndToken() const {

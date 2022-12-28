@@ -482,8 +482,12 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   QuicConnectionId new_connection_id = TestConnectionId(5);
   StatelessResetToken new_stateless_reset_token =
       QuicUtils::GenerateStatelessResetToken(new_connection_id);
-  config_.SetIPv4AlternateServerAddressToSend(
-      kTestServerAddress, new_connection_id, new_stateless_reset_token);
+  EXPECT_FALSE(config_.CanSendPreferredAddressConnectionIdAndToken());
+  config_.SetIPv4AlternateServerAddressToSend(kTestServerAddress);
+  ASSERT_TRUE(config_.CanSendPreferredAddressConnectionIdAndToken());
+  config_.SetPreferredAddressConnectionIdAndTokenToSend(
+      new_connection_id, new_stateless_reset_token);
+  EXPECT_FALSE(config_.CanSendPreferredAddressConnectionIdAndToken());
 
   TransportParameters params;
   config_.FillTransportParameters(&params);

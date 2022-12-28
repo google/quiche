@@ -56,4 +56,22 @@ QuicSimpleClientSession::CreateContextForMultiPortPath() {
       network_helper_->GetLatestClientAddress(), peer_address());
 }
 
+std::unique_ptr<QuicPathValidationContext>
+QuicSimpleClientSession::CreatePathValidationContextForServerPreferredAddress(
+    const QuicSocketAddress& server_preferred_address) {
+  const auto self_address = connection()->self_address();
+  if (network_helper_ == nullptr ||
+      !network_helper_->CreateUDPSocketAndBind(server_preferred_address,
+                                               self_address.host(), 0)) {
+    return nullptr;
+  }
+  QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
+  if (writer == nullptr) {
+    return nullptr;
+  }
+  return std::make_unique<PathMigrationContext>(
+      std::unique_ptr<QuicPacketWriter>(writer),
+      network_helper_->GetLatestClientAddress(), server_preferred_address);
+}
+
 }  // namespace quic

@@ -109,6 +109,11 @@ class QuicEndpoint : public QuicEndpointBase,
       override {
     return nullptr;
   }
+  std::unique_ptr<QuicPathValidationContext>
+  CreatePathValidationContextForServerPreferredAddress(
+      const QuicSocketAddress& /*server_preferred_address*/) override {
+    return nullptr;
+  }
 
   // End QuicConnectionVisitorInterface implementation.
 

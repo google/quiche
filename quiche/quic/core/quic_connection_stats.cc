@@ -63,6 +63,10 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
   os << " address_validated_via_decrypting_packet: "
      << s.address_validated_via_decrypting_packet;
   os << " address_validated_via_token: " << s.address_validated_via_token;
+  os << " server_preferred_address_validated: "
+     << s.server_preferred_address_validated;
+  os << " failed_to_validate_server_preferred_address: "
+     << s.failed_to_validate_server_preferred_address;
   os << " }";
 
   return os;

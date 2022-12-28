@@ -240,6 +240,11 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Returns context needed for the connection to probe on the alternative path.
   virtual std::unique_ptr<QuicPathValidationContext>
   CreateContextForMultiPortPath() = 0;
+
+  // Creates context to validate server preferred address.
+  virtual std::unique_ptr<QuicPathValidationContext>
+  CreatePathValidationContextForServerPreferredAddress(
+      const QuicSocketAddress& server_preferred_address) = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting
@@ -1263,6 +1268,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void DisableLivenessTesting() { liveness_testing_disabled_ = true; }
 
   void AddKnownServerAddress(const QuicSocketAddress& address);
+
+  absl::optional<QuicNewConnectionIdFrame>
+  MaybeIssueNewConnectionIdForPreferredAddress();
 
  protected:
   // Calls cancel() on all the alarms owned by this connection.

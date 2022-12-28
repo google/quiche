@@ -503,6 +503,13 @@ QuicConnection::PathState* QuicConnectionPeer::GetDefaultPath(
 }
 
 // static
+bool QuicConnectionPeer::IsDefaultPath(QuicConnection* connection,
+                                       const QuicSocketAddress& self_address,
+                                       const QuicSocketAddress& peer_address) {
+  return connection->IsDefaultPath(self_address, peer_address);
+}
+
+// static
 QuicConnection::PathState* QuicConnectionPeer::GetAlternativePath(
     QuicConnection* connection) {
   return &connection->alternative_path_;

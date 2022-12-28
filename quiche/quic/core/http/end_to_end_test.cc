@@ -506,8 +506,11 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         server_supported_versions_, &memory_cache_backend_,
         expected_server_connection_id_length_);
     test_server->SetEventLoopFactory(GetParam().event_loop);
-    server_thread_ =
-        std::make_unique<ServerThread>(std::move(test_server), server_address_);
+    const QuicSocketAddress server_listening_address =
+        server_listening_address_.has_value() ? *server_listening_address_
+                                              : server_address_;
+    server_thread_ = std::make_unique<ServerThread>(std::move(test_server),
+                                                    server_listening_address);
     if (chlo_multiplier_ != 0) {
       server_thread_->server()->SetChloMultiplier(chlo_multiplier_);
     }
@@ -885,6 +888,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   // Default is true.
   bool connect_to_server_on_initialize_;
   QuicSocketAddress server_address_;
+  absl::optional<QuicSocketAddress> server_listening_address_;
   std::string server_hostname_;
   QuicTestBackend memory_cache_backend_;
   std::unique_ptr<ServerThread> server_thread_;
@@ -5466,6 +5470,36 @@ TEST_P(EndToEndTest, ClientMultiPortConnection) {
   // Verify that the previous path was retired.
   EXPECT_EQ(1u, client_connection->GetStats().num_retire_connection_id_sent);
   stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
+}
+
+TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
+  const QuicSocketAddress kServerPreferredAddress(TestLoopback(1), 443);
+  server_address_ = QuicSocketAddress(TestLoopback(2), 443);
+  ASSERT_NE(kServerPreferredAddress, server_address_);
+  // Send server preferred address and let server listen on Any.
+  if (kServerPreferredAddress.host().IsIPv4()) {
+    server_listening_address_ = QuicSocketAddress(QuicIpAddress::Any4(), 443);
+    server_config_.SetIPv4AlternateServerAddressToSend(kServerPreferredAddress);
+  } else {
+    server_listening_address_ = QuicSocketAddress(QuicIpAddress::Any6(), 443);
+    server_config_.SetIPv6AlternateServerAddressToSend(kServerPreferredAddress);
+  }
+  ASSERT_TRUE(Initialize());
+  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+    return;
+  }
+  client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
+  client_config_.SetClientConnectionOptions(QuicTagVector{kSPAD});
+  client_.reset(CreateQuicClient(nullptr));
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  while (client_->client()->HasPendingPathValidation()) {
+    client_->client()->WaitForEvents();
+  }
+  // TODO(b/262386897): Currently, server drops packets received on preferred
+  // address because self address change is disallowed.
+  const auto client_stats = GetClientConnection()->GetStats();
+  EXPECT_FALSE(client_stats.server_preferred_address_validated);
+  EXPECT_TRUE(client_stats.failed_to_validate_server_preferred_address);
 }
 
 TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {

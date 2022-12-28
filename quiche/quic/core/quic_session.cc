@@ -1330,6 +1330,16 @@ void QuicSession::OnConfigNegotiated() {
         config_.ReceivedInitialSessionFlowControlWindowBytes());
   }
 
+  if (version().HasIetfQuicFrames() &&
+      config_.CanSendPreferredAddressConnectionIdAndToken()) {
+    absl::optional<QuicNewConnectionIdFrame> frame =
+        connection_->MaybeIssueNewConnectionIdForPreferredAddress();
+    if (frame.has_value()) {
+      config_.SetPreferredAddressConnectionIdAndTokenToSend(
+          frame->connection_id, frame->stateless_reset_token);
+    }
+  }
+
   is_configured_ = true;
   connection()->OnConfigNegotiated();
 

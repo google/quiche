@@ -27,6 +27,9 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
   HttpDatagramSupport LocalHttpDatagramSupport() override;
   std::unique_ptr<QuicPathValidationContext> CreateContextForMultiPortPath()
       override;
+  std::unique_ptr<QuicPathValidationContext>
+  CreatePathValidationContextForServerPreferredAddress(
+      const QuicSocketAddress& server_preferred_address) override;
   bool drop_response_body() const { return drop_response_body_; }
 
  private:

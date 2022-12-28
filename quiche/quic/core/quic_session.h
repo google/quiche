@@ -180,6 +180,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return nullptr;
   }
 
+  std::unique_ptr<QuicPathValidationContext>
+  CreatePathValidationContextForServerPreferredAddress(
+      const QuicSocketAddress& /*server_preferred_address*/) override {
+    return nullptr;
+  }
+
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,
                                         QuicStreamOffset offset,

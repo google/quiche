@@ -390,22 +390,26 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // IPv6 alternate server address.
   void SetIPv6AlternateServerAddressToSend(
       const QuicSocketAddress& alternate_server_address_ipv6);
-  void SetIPv6AlternateServerAddressToSend(
-      const QuicSocketAddress& alternate_server_address_ipv6,
-      const QuicConnectionId& connection_id,
-      const StatelessResetToken& stateless_reset_token);
   bool HasReceivedIPv6AlternateServerAddress() const;
   const QuicSocketAddress& ReceivedIPv6AlternateServerAddress() const;
 
   // IPv4 alternate server address.
   void SetIPv4AlternateServerAddressToSend(
       const QuicSocketAddress& alternate_server_address_ipv4);
-  void SetIPv4AlternateServerAddressToSend(
-      const QuicSocketAddress& alternate_server_address_ipv4,
-      const QuicConnectionId& connection_id,
-      const StatelessResetToken& stateless_reset_token);
   bool HasReceivedIPv4AlternateServerAddress() const;
   const QuicSocketAddress& ReceivedIPv4AlternateServerAddress() const;
+
+  // Called to set |connection_id| and |stateless_reset_token| if server
+  // preferred address has been set via SetIPv(4|6)AlternateServerAddressToSend.
+  // Please note, this is different from SetStatelessResetTokenToSend(const
+  // StatelessResetToken&) which is used to send the token corresponding to the
+  // existing server_connection_id.
+  void SetPreferredAddressConnectionIdAndTokenToSend(
+      const QuicConnectionId& connection_id,
+      const StatelessResetToken& stateless_reset_token);
+  // Returns true if server preferred address has been set via
+  // SetIPv(4|6)AlternateServerAddressToSend.
+  bool CanSendPreferredAddressConnectionIdAndToken() const;
 
   // Preferred Address Connection ID and Token.
   bool HasReceivedPreferredAddressConnectionIdAndToken() const;

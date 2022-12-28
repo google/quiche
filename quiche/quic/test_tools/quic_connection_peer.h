@@ -201,6 +201,10 @@ class QuicConnectionPeer {
 
   static QuicConnection::PathState* GetDefaultPath(QuicConnection* connection);
 
+  static bool IsDefaultPath(QuicConnection* connection,
+                            const QuicSocketAddress& self_address,
+                            const QuicSocketAddress& peer_address);
+
   static QuicConnection::PathState* GetAlternativePath(
       QuicConnection* connection);
 
