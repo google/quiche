@@ -5473,21 +5473,30 @@ TEST_P(EndToEndTest, ClientMultiPortConnection) {
 }
 
 TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
-  const QuicSocketAddress kServerPreferredAddress(TestLoopback(1), 443);
-  server_address_ = QuicSocketAddress(TestLoopback(2), 443);
-  ASSERT_NE(kServerPreferredAddress, server_address_);
-  // Send server preferred address and let server listen on Any.
-  if (kServerPreferredAddress.host().IsIPv4()) {
-    server_listening_address_ = QuicSocketAddress(QuicIpAddress::Any4(), 443);
-    server_config_.SetIPv4AlternateServerAddressToSend(kServerPreferredAddress);
-  } else {
-    server_listening_address_ = QuicSocketAddress(QuicIpAddress::Any6(), 443);
-    server_config_.SetIPv6AlternateServerAddressToSend(kServerPreferredAddress);
-  }
   ASSERT_TRUE(Initialize());
   if (!GetClientConnection()->connection_migration_use_new_cid()) {
     return;
   }
+  client_->Disconnect();
+  StopServer();
+  // server_address_ now contains the random listening port.
+  const QuicSocketAddress kServerPreferredAddress =
+      QuicSocketAddress(TestLoopback(2), server_address_.port());
+  ASSERT_NE(server_address_, kServerPreferredAddress);
+  // Send server preferred address and let server listen on Any.
+  if (kServerPreferredAddress.host().IsIPv4()) {
+    server_listening_address_ =
+        QuicSocketAddress(QuicIpAddress::Any4(), server_address_.port());
+    server_config_.SetIPv4AlternateServerAddressToSend(kServerPreferredAddress);
+  } else {
+    server_listening_address_ =
+        QuicSocketAddress(QuicIpAddress::Any6(), server_address_.port());
+    server_config_.SetIPv6AlternateServerAddressToSend(kServerPreferredAddress);
+  }
+  // Server restarts.
+  server_writer_ = new PacketDroppingTestWriter();
+  StartServer();
+
   client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
   client_config_.SetClientConnectionOptions(QuicTagVector{kSPAD});
   client_.reset(CreateQuicClient(nullptr));
