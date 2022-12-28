@@ -735,6 +735,15 @@ int TlsServerHandshaker::SessionTicketSeal(uint8_t* out, size_t* out_len,
   QUICHE_DCHECK(proof_source_->GetTicketCrypter());
   std::vector<uint8_t> ticket =
       proof_source_->GetTicketCrypter()->Encrypt(in, ticket_encryption_key_);
+  if (GetQuicReloadableFlag(
+          quic_send_placeholder_ticket_when_encrypt_ticket_fails) &&
+      ticket.empty()) {
+    QUIC_CODE_COUNT(quic_tls_server_handshaker_send_placeholder_ticket);
+    const absl::string_view kTicketFailurePlaceholder = "TICKET FAILURE";
+    const absl::string_view kTicketWithSizeLimit =
+        kTicketFailurePlaceholder.substr(0, max_out_len);
+    ticket.assign(kTicketWithSizeLimit.begin(), kTicketWithSizeLimit.end());
+  }
   if (max_out_len < ticket.size()) {
     QUIC_BUG(quic_bug_12423_2)
         << "TicketCrypter returned " << ticket.size()

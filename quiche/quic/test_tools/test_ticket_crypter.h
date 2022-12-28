@@ -30,6 +30,7 @@ class TestTicketCrypter : public ProofSource::TicketCrypter {
 
   // Allows configuring this TestTicketCrypter to fail decryption.
   void set_fail_decrypt(bool fail_decrypt) { fail_decrypt_ = fail_decrypt; }
+  void set_fail_encrypt(bool fail_encrypt) { fail_encrypt_ = fail_encrypt; }
 
  private:
   // Performs the Decrypt operation synchronously.
@@ -41,6 +42,7 @@ class TestTicketCrypter : public ProofSource::TicketCrypter {
   };
 
   bool fail_decrypt_ = false;
+  bool fail_encrypt_ = false;
   bool run_async_ = false;
   std::vector<PendingCallback> pending_callbacks_;
   std::vector<uint8_t> ticket_prefix_;

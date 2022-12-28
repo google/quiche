@@ -37,6 +37,9 @@ size_t TestTicketCrypter::MaxOverhead() { return ticket_prefix_.size(); }
 
 std::vector<uint8_t> TestTicketCrypter::Encrypt(
     absl::string_view in, absl::string_view /* encryption_key */) {
+  if (fail_encrypt_) {
+    return {};
+  }
   size_t prefix_len = ticket_prefix_.size();
   std::vector<uint8_t> out(prefix_len + in.size());
   memcpy(out.data(), ticket_prefix_.data(), prefix_len);

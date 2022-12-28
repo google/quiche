@@ -786,6 +786,29 @@ TEST_P(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
   EXPECT_TRUE(server_stream()->ResumptionAttempted());
 }
 
+TEST_P(TlsServerHandshakerTest, ResumptionWithPlaceholderTicket) {
+  // Do the first handshake
+  InitializeFakeClient();
+
+  ticket_crypter_->set_fail_encrypt(true);
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(client_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->ResumptionAttempted());
+
+  // Now do another handshake. It should end up with a full handshake because
+  // the placeholder ticket is undecryptable.
+  InitializeServer();
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(client_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->IsResumption());
+  EXPECT_NE(server_stream()->ResumptionAttempted(),
+            GetParam().disable_resumption);
+}
+
 TEST_P(TlsServerHandshakerTest, AdvanceHandshakeDuringAsyncDecryptCallback) {
   if (GetParam().disable_resumption) {
     return;
