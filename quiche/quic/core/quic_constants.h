@@ -326,6 +326,8 @@ inline constexpr QuicTime::Delta kDefaultMultiPortProbingInterval =
 
 inline constexpr size_t kMaxNumMultiPortPaths = 5;
 
+inline constexpr size_t kMaxDuplicatedPacketsSentToServerPreferredAddress = 5;
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_CONSTANTS_H_

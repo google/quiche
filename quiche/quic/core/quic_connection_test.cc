@@ -1463,7 +1463,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   // Receive server preferred address.
-  void ServerPreferredAddressInit() {
+  void ServerPreferredAddressInit(QuicConfig& config) {
     ASSERT_EQ(Perspective::IS_CLIENT, connection_.perspective());
     ASSERT_TRUE(version().HasIetfQuicFrames());
     ASSERT_TRUE(connection_.self_address().host().IsIPv6());
@@ -1485,10 +1485,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     ProcessFramePacketAtLevel(1, QuicFrame(&frame), ENCRYPTION_INITIAL);
     // Discard INITIAL key.
     connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
-    QuicConfig config;
     config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
-    config.SetClientConnectionOptions(QuicTagVector{kSPAD});
     QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                    kTestStatelessResetToken);
     QuicConfigPeer::SetReceivedAlternateServerAddress(&config,
@@ -15987,7 +15986,9 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress) {
   if (!connection_.version().HasIetfQuicFrames()) {
     return;
   }
-  ServerPreferredAddressInit();
+  QuicConfig config;
+  config.SetClientConnectionOptions(QuicTagVector{kSPAD});
+  ServerPreferredAddressInit(config);
   const QuicSocketAddress kServerPreferredAddress =
       QuicConnectionPeer::GetServerPreferredAddress(&connection_);
   const QuicSocketAddress kNewSelfAddress =
@@ -16065,7 +16066,9 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress2) {
   if (!connection_.version().HasIetfQuicFrames()) {
     return;
   }
-  ServerPreferredAddressInit();
+  QuicConfig config;
+  config.SetClientConnectionOptions(QuicTagVector{kSPAD});
+  ServerPreferredAddressInit(config);
   const QuicSocketAddress kServerPreferredAddress =
       QuicConnectionPeer::GetServerPreferredAddress(&connection_);
   const QuicSocketAddress kNewSelfAddress =
@@ -16129,7 +16132,9 @@ TEST_P(QuicConnectionTest, ClientFailedToValidateServerPreferredAddress) {
   if (!connection_.version().HasIetfQuicFrames()) {
     return;
   }
-  ServerPreferredAddressInit();
+  QuicConfig config;
+  config.SetClientConnectionOptions(QuicTagVector{kSPAD});
+  ServerPreferredAddressInit(config);
   const QuicSocketAddress kServerPreferredAddress =
       QuicConnectionPeer::GetServerPreferredAddress(&connection_);
   const QuicSocketAddress kNewSelfAddress =
@@ -16189,6 +16194,128 @@ TEST_P(QuicConnectionTest, ClientFailedToValidateServerPreferredAddress) {
   EXPECT_FALSE(connection_.GetStats().server_preferred_address_validated);
   EXPECT_TRUE(
       connection_.GetStats().failed_to_validate_server_preferred_address);
+}
+
+TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress) {
+  if (!connection_.version().HasIetfQuicFrames()) {
+    return;
+  }
+  QuicIpAddress host;
+  host.FromString("2604:31c0::");
+  const QuicSocketAddress kServerPreferredAddress(host, 443);
+  const QuicSocketAddress kNewSelfAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_CALL(visitor_, CreatePathValidationContextForServerPreferredAddress(
+                            kServerPreferredAddress))
+      .WillOnce(Return(
+          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
+              kNewSelfAddress, kServerPreferredAddress, &new_writer))));
+  QuicConfig config;
+  config.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
+  ServerPreferredAddressInit(config);
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  ASSERT_FALSE(new_writer.path_challenge_frames().empty());
+
+  // Send data packet while path validation is pending.
+  connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
+  // Verify the packet is sent on both paths.
+  EXPECT_FALSE(writer_->stream_frames().empty());
+  EXPECT_FALSE(new_writer.stream_frames().empty());
+
+  // Verify packet duplication stops on handshake confirmed.
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+  SendPing();
+  EXPECT_FALSE(writer_->ping_frames().empty());
+  EXPECT_TRUE(new_writer.ping_frames().empty());
+}
+
+TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress2) {
+  if (!connection_.version().HasIetfQuicFrames()) {
+    return;
+  }
+  QuicIpAddress host;
+  host.FromString("2604:31c0::");
+  const QuicSocketAddress kServerPreferredAddress(host, 443);
+  const QuicSocketAddress kNewSelfAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_CALL(visitor_, CreatePathValidationContextForServerPreferredAddress(
+                            kServerPreferredAddress))
+      .WillOnce(Return(
+          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
+              kNewSelfAddress, kServerPreferredAddress, &new_writer))));
+  QuicConfig config;
+  config.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
+  ServerPreferredAddressInit(config);
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  ASSERT_FALSE(new_writer.path_challenge_frames().empty());
+
+  // Send data packet while path validation is pending.
+  connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
+  // Verify the packet is sent on both paths.
+  EXPECT_FALSE(writer_->stream_frames().empty());
+  EXPECT_FALSE(new_writer.stream_frames().empty());
+
+  // Simluate path validation times out.
+  for (size_t i = 0; i < QuicPathValidator::kMaxRetryTimes + 1; ++i) {
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
+    static_cast<TestAlarmFactory::TestAlarm*>(
+        QuicPathValidatorPeer::retry_timer(
+            QuicConnectionPeer::path_validator(&connection_)))
+        ->Fire();
+  }
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
+  // Verify packet duplication stops if there is no pending validation.
+  SendPing();
+  EXPECT_FALSE(writer_->ping_frames().empty());
+  EXPECT_TRUE(new_writer.ping_frames().empty());
+}
+
+TEST_P(QuicConnectionTest, MaxDuplicatedPacketsSentToServerPreferredAddress) {
+  if (!connection_.version().HasIetfQuicFrames()) {
+    return;
+  }
+  QuicIpAddress host;
+  host.FromString("2604:31c0::");
+  const QuicSocketAddress kServerPreferredAddress(host, 443);
+  const QuicSocketAddress kNewSelfAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_CALL(visitor_, CreatePathValidationContextForServerPreferredAddress(
+                            kServerPreferredAddress))
+      .WillOnce(Return(
+          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
+              kNewSelfAddress, kServerPreferredAddress, &new_writer))));
+  QuicConfig config;
+  config.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
+  ServerPreferredAddressInit(config);
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  ASSERT_FALSE(new_writer.path_challenge_frames().empty());
+
+  // Send data packet while path validation is pending.
+  size_t write_limit = writer_->packets_write_attempts();
+  size_t new_write_limit = new_writer.packets_write_attempts();
+  for (size_t i = 0; i < kMaxDuplicatedPacketsSentToServerPreferredAddress;
+       ++i) {
+    connection_.SendStreamDataWithString(3, "foo", i * 3, NO_FIN);
+    // Verify the packet is sent on both paths.
+    ASSERT_EQ(write_limit + 1, writer_->packets_write_attempts());
+    ASSERT_EQ(new_write_limit + 1, new_writer.packets_write_attempts());
+    ++write_limit;
+    ++new_write_limit;
+    EXPECT_FALSE(writer_->stream_frames().empty());
+    EXPECT_FALSE(new_writer.stream_frames().empty());
+  }
+
+  // Verify packet duplication stops if duplication limit is hit.
+  SendPing();
+  ASSERT_EQ(write_limit + 1, writer_->packets_write_attempts());
+  ASSERT_EQ(new_write_limit, new_writer.packets_write_attempts());
+  EXPECT_FALSE(writer_->ping_frames().empty());
+  EXPECT_TRUE(new_writer.ping_frames().empty());
 }
 
 }  // namespace

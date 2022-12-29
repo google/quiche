@@ -5511,6 +5511,45 @@ TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
   EXPECT_TRUE(client_stats.failed_to_validate_server_preferred_address);
 }
 
+TEST_P(EndToEndTest, OptimizedServerPreferredAddress) {
+  ASSERT_TRUE(Initialize());
+  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+    return;
+  }
+  client_->Disconnect();
+  StopServer();
+  // server_address_ now contains the random listening port.
+  const QuicSocketAddress kServerPreferredAddress =
+      QuicSocketAddress(TestLoopback(2), server_address_.port());
+  ASSERT_NE(server_address_, kServerPreferredAddress);
+  // Send server preferred address and let server listen on Any.
+  if (kServerPreferredAddress.host().IsIPv4()) {
+    server_listening_address_ =
+        QuicSocketAddress(QuicIpAddress::Any4(), server_address_.port());
+    server_config_.SetIPv4AlternateServerAddressToSend(kServerPreferredAddress);
+  } else {
+    server_listening_address_ =
+        QuicSocketAddress(QuicIpAddress::Any6(), server_address_.port());
+    server_config_.SetIPv6AlternateServerAddressToSend(kServerPreferredAddress);
+  }
+  // Server restarts.
+  server_writer_ = new PacketDroppingTestWriter();
+  StartServer();
+
+  client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
+  client_config_.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
+  client_.reset(CreateQuicClient(nullptr));
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  while (client_->client()->HasPendingPathValidation()) {
+    client_->client()->WaitForEvents();
+  }
+  // TODO(b/262386897): Currently, server drops packets received on preferred
+  // address because self address change is disallowed.
+  const auto client_stats = GetClientConnection()->GetStats();
+  EXPECT_FALSE(client_stats.server_preferred_address_validated);
+  EXPECT_TRUE(client_stats.failed_to_validate_server_preferred_address);
+}
+
 TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {

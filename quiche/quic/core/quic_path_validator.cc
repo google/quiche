@@ -149,4 +149,18 @@ bool QuicPathValidator::IsValidatingPeerAddress(
          path_context_->effective_peer_address() == effective_peer_address;
 }
 
+void QuicPathValidator::MaybeWritePacketToAddress(
+    const char* buffer, size_t buf_len, const QuicSocketAddress& peer_address) {
+  if (!HasPendingPathValidation() ||
+      path_context_->peer_address() != peer_address) {
+    return;
+  }
+  QUIC_DVLOG(1) << "Path validator is sending packet of size " << buf_len
+                << " from " << path_context_->self_address() << " to "
+                << path_context_->peer_address();
+  path_context_->WriterToUse()->WritePacket(
+      buffer, buf_len, path_context_->self_address().host(),
+      path_context_->peer_address(), nullptr);
+}
+
 }  // namespace quic

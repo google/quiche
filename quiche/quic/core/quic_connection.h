@@ -1272,6 +1272,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   absl::optional<QuicNewConnectionIdFrame>
   MaybeIssueNewConnectionIdForPreferredAddress();
 
+  // Kicks off validation of received server preferred address.
+  void ValidateServerPreferredAddress();
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -2281,6 +2284,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Stores received server preferred address in transport param. Client side
   // only.
   QuicSocketAddress server_preferred_address_;
+
+  // If true, kicks off validation of server_preferred_address_ once it is
+  // received. Also, send all coalesced packets on both paths until handshake is
+  // confirmed.
+  bool accelerated_server_preferred_address_ = false;
 
   // If true, throttle sending if next created packet will exceed amplification
   // limit.

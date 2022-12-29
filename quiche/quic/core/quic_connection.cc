@@ -706,10 +706,15 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
                config.HasReceivedIPv6AlternateServerAddress()) {
       server_preferred_address_ = config.ReceivedIPv6AlternateServerAddress();
     }
-    QUIC_DLOG_IF(INFO, server_preferred_address_.IsInitialized())
-        << ENDPOINT
-        << "Received server preferred address: " << server_preferred_address_;
     AddKnownServerAddress(server_preferred_address_);
+    if (server_preferred_address_.IsInitialized()) {
+      QUICHE_DLOG(INFO) << ENDPOINT << "Received server preferred address: "
+                        << server_preferred_address_;
+      if (config.HasClientRequestedIndependentOption(kSPA2, perspective_)) {
+        accelerated_server_preferred_address_ = true;
+        ValidateServerPreferredAddress();
+      }
+    }
   }
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
@@ -3997,20 +4002,10 @@ void QuicConnection::OnHandshakeComplete() {
   // Re-arm ack alarm.
   ack_alarm_->Update(uber_received_packet_manager_.GetEarliestAckTimeout(),
                      kAlarmGranularity);
-  if (server_preferred_address_.IsInitialized()) {
+  if (!accelerated_server_preferred_address_ &&
+      server_preferred_address_.IsInitialized()) {
     QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
-    // Validate received server preferred address.
-    auto context =
-        visitor_->CreatePathValidationContextForServerPreferredAddress(
-            server_preferred_address_);
-    if (context != nullptr) {
-      QUICHE_DLOG(INFO) << ENDPOINT
-                        << "Start validating server preferred address: "
-                        << server_preferred_address_;
-      auto result_delegate =
-          std::make_unique<ServerPreferredAddressResultDelegate>(this);
-      ValidatePath(std::move(context), std::move(result_delegate));
-    }
+    ValidateServerPreferredAddress();
   }
 }
 
@@ -5924,6 +5919,16 @@ bool QuicConnection::FlushCoalescedPacket() {
       }
     }
   }
+  if (accelerated_server_preferred_address_ &&
+      stats_.num_duplicated_packets_sent_to_server_preferred_address <
+          kMaxDuplicatedPacketsSentToServerPreferredAddress) {
+    // Send coalesced packets to both addresses while the server preferred
+    // address validation is pending.
+    QUICHE_DCHECK(server_preferred_address_.IsInitialized());
+    path_validator_.MaybeWritePacketToAddress(buffer, length,
+                                              server_preferred_address_);
+    ++stats_.num_duplicated_packets_sent_to_server_preferred_address;
+  }
   // Account for added padding.
   if (length > coalesced_packet_.length()) {
     if (IsDefaultPath(coalesced_packet_.self_address(),
@@ -6421,6 +6426,21 @@ QuicConnection::MaybeIssueNewConnectionIdForPreferredAddress() {
   }
   return self_issued_cid_manager_
       ->MaybeIssueNewConnectionIdForPreferredAddress();
+}
+
+void QuicConnection::ValidateServerPreferredAddress() {
+  QUICHE_DCHECK(server_preferred_address_.IsInitialized());
+  // Validate received server preferred address.
+  auto context = visitor_->CreatePathValidationContextForServerPreferredAddress(
+      server_preferred_address_);
+  if (context == nullptr) {
+    return;
+  }
+  QUICHE_DLOG(INFO) << ENDPOINT << "Start validating server preferred address: "
+                    << server_preferred_address_;
+  auto result_delegate =
+      std::make_unique<ServerPreferredAddressResultDelegate>(this);
+  ValidatePath(std::move(context), std::move(result_delegate));
 }
 
 bool QuicConnection::ShouldDetectBlackhole() const {

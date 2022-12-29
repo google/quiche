@@ -138,6 +138,11 @@ class QUIC_EXPORT_PRIVATE QuicPathValidator {
 
   bool IsValidatingPeerAddress(const QuicSocketAddress& effective_peer_address);
 
+  // Called to send packet to |peer_address| if the path validation to this
+  // address is pending.
+  void MaybeWritePacketToAddress(const char* buffer, size_t buf_len,
+                                 const QuicSocketAddress& peer_address);
+
  private:
   friend class test::QuicPathValidatorPeer;
 

@@ -220,6 +220,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
 
   bool server_preferred_address_validated = false;
   bool failed_to_validate_server_preferred_address = false;
+  // Number of duplicated packets that have been sent to server preferred
+  // address while the validation is pending.
+  size_t num_duplicated_packets_sent_to_server_preferred_address = 0;
 
   struct QUIC_NO_EXPORT TlsServerOperationStats {
     bool success = false;

@@ -67,6 +67,8 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
      << s.server_preferred_address_validated;
   os << " failed_to_validate_server_preferred_address: "
      << s.failed_to_validate_server_preferred_address;
+  os << " num_duplicated_packets_sent_to_server_preferred_address: "
+     << s.num_duplicated_packets_sent_to_server_preferred_address;
   os << " }";
 
   return os;

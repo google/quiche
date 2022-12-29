@@ -285,6 +285,10 @@ const QuicTag kRVCM = TAG('R', 'V', 'C', 'M');   // Validate the new address
                                                  // upon client address change.
 
 const QuicTag kSPAD = TAG('S', 'P', 'A', 'D');   // Use server preferred address
+const QuicTag kSPA2 = TAG('S', 'P', 'A', '2');   // Start validating server
+                                                 // preferred address once it is
+                                                 // received. Send all coalesced
+                                                 // packets to both addresses.
 
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the
