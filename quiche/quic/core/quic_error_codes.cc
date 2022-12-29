@@ -58,6 +58,7 @@ const char* QuicRstStreamErrorCodeToString(QuicRstStreamErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_STREAM_WEBTRANSPORT_SESSION_GONE);
     RETURN_STRING_LITERAL(
         QUIC_STREAM_WEBTRANSPORT_BUFFERED_STREAMS_LIMIT_EXCEEDED);
+    RETURN_STRING_LITERAL(QUIC_APPLICATION_DONE_WITH_STREAM);
     RETURN_STRING_LITERAL(QUIC_STREAM_LAST_ERROR);
   }
   // Return a default value so that we return this when |error| doesn't match
@@ -907,6 +908,8 @@ uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
       return static_cast<uint64_t>(QuicHttp3ErrorCode::CONNECT_ERROR);
     case QUIC_STREAM_WEBTRANSPORT_BUFFERED_STREAMS_LIMIT_EXCEEDED:
       return static_cast<uint64_t>(QuicHttp3ErrorCode::CONNECT_ERROR);
+    case QUIC_APPLICATION_DONE_WITH_STREAM:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR);
     case QUIC_STREAM_LAST_ERROR:
       return static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR);
   }

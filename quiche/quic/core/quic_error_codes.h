@@ -111,8 +111,10 @@ enum QuicRstStreamErrorCode : uint32_t {
   // There is no corresponding WebTransport session to associate this stream
   // with, and the limit for buffered streams has been exceeded.
   QUIC_STREAM_WEBTRANSPORT_BUFFERED_STREAMS_LIMIT_EXCEEDED = 37,
+  // Application layer done with the current stream.
+  QUIC_APPLICATION_DONE_WITH_STREAM = 38,
   // No error. Used as bound while iterating.
-  QUIC_STREAM_LAST_ERROR = 38,
+  QUIC_STREAM_LAST_ERROR = 39,
 };
 // QuicRstStreamErrorCode is encoded as a single octet on-the-wire.
 static_assert(static_cast<int>(QUIC_STREAM_LAST_ERROR) <=
