@@ -10,6 +10,7 @@
 #include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace quic {
 
@@ -22,8 +23,7 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
                             QuicStreamSequencer* sequencer);
 
   // WebTransportStream implementation.
-  ABSL_MUST_USE_RESULT ReadResult Read(char* buffer,
-                                       size_t buffer_size) override;
+  ABSL_MUST_USE_RESULT ReadResult Read(absl::Span<char> output) override;
   ABSL_MUST_USE_RESULT ReadResult Read(std::string* output) override;
   ABSL_MUST_USE_RESULT bool Write(absl::string_view data) override;
   ABSL_MUST_USE_RESULT bool SendFin() override;

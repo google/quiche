@@ -9,6 +9,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/time/time.h"
 #include "absl/types/optional.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
@@ -17,6 +18,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/web_transport/web_transport.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
@@ -80,9 +82,10 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   WebTransportStream* OpenOutgoingBidirectionalStream() override;
   WebTransportStream* OpenOutgoingUnidirectionalStream() override;
 
-  MessageStatus SendOrQueueDatagram(quiche::QuicheMemSlice datagram) override;
+  webtransport::DatagramStatus SendOrQueueDatagram(
+      absl::string_view datagram) override;
   QuicByteCount GetMaxDatagramSize() const override;
-  void SetDatagramMaxTimeInQueue(QuicTime::Delta max_time_in_queue) override;
+  void SetDatagramMaxTimeInQueue(absl::Duration max_time_in_queue) override;
 
   // From QuicSpdyStream::Http3DatagramVisitor.
   void OnHttp3Datagram(QuicStreamId stream_id,

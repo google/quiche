@@ -6759,7 +6759,7 @@ TEST_P(EndToEndTest, WebTransportDatagrams) {
 
   quiche::SimpleBufferAllocator allocator;
   for (int i = 0; i < 10; i++) {
-    session->SendOrQueueDatagram(MemSliceFromString("test"));
+    session->SendOrQueueDatagram("test");
   }
 
   int received = 0;

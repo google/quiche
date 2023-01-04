@@ -6,7 +6,9 @@
 
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace quic {
 
@@ -15,10 +17,10 @@ WebTransportStreamAdapter::WebTransportStreamAdapter(
     : session_(session), stream_(stream), sequencer_(sequencer) {}
 
 WebTransportStream::ReadResult WebTransportStreamAdapter::Read(
-    char* buffer, size_t buffer_size) {
+    absl::Span<char> buffer) {
   iovec iov;
-  iov.iov_base = buffer;
-  iov.iov_len = buffer_size;
+  iov.iov_base = buffer.data();
+  iov.iov_len = buffer.size();
   const size_t result = sequencer_->Readv(&iov, 1);
   if (!fin_read_ && sequencer_->IsClosed()) {
     fin_read_ = true;
@@ -32,7 +34,8 @@ WebTransportStream::ReadResult WebTransportStreamAdapter::Read(
   const size_t old_size = output->size();
   const size_t bytes_to_read = ReadableBytes();
   output->resize(old_size + bytes_to_read);
-  ReadResult result = Read(&(*output)[old_size], bytes_to_read);
+  ReadResult result =
+      Read(absl::Span<char>(&(*output)[old_size], bytes_to_read));
   QUICHE_DCHECK_EQ(bytes_to_read, result.bytes_read);
   output->resize(old_size + result.bytes_read);
   return result;

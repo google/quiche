@@ -224,9 +224,7 @@ class EchoWebTransportSessionVisitor : public WebTransportVisitor {
   }
 
   void OnDatagramReceived(absl::string_view datagram) override {
-    quiche::QuicheMemSlice slice(
-        quiche::QuicheBuffer::Copy(&allocator_, datagram));
-    session_->SendOrQueueDatagram(std::move(slice));
+    session_->SendOrQueueDatagram(datagram);
   }
 
   void OnCanCreateNewOutgoingBidirectionalStream() override {

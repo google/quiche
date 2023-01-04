@@ -19,6 +19,7 @@
 #include <ostream>
 #include <string>
 
+#include "absl/time/time.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 // TODO(vasilvv): replace with ABSL_MUST_USE_RESULT once we're using absl.
@@ -60,6 +61,14 @@ class QUIC_EXPORT_PRIVATE QuicTime {
     // Converts a number of microseconds to a time offset.
     static constexpr Delta FromMicroseconds(int64_t us) { return Delta(us); }
 
+    // Converts from Abseil duration type.
+    static constexpr Delta FromAbsl(absl::Duration duration) {
+      if (ABSL_PREDICT_FALSE(duration == absl::InfiniteDuration())) {
+        return Infinite();
+      }
+      return Delta(absl::ToInt64Microseconds(duration));
+    }
+
     // Converts the time offset to a rounded number of seconds.
     constexpr int64_t ToSeconds() const { return time_offset_ / 1000 / 1000; }
 
@@ -68,6 +77,14 @@ class QUIC_EXPORT_PRIVATE QuicTime {
 
     // Converts the time offset to a rounded number of microseconds.
     constexpr int64_t ToMicroseconds() const { return time_offset_; }
+
+    // Converts the time offset to an Abseil duration.
+    constexpr absl::Duration ToAbsl() {
+      if (ABSL_PREDICT_FALSE(IsInfinite())) {
+        return absl::InfiniteDuration();
+      }
+      return absl::Microseconds(time_offset_);
+    }
 
     constexpr bool IsZero() const { return time_offset_ == 0; }
 
