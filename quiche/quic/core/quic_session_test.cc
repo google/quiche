@@ -3158,13 +3158,8 @@ TEST_P(QuicSessionTestServer, DonotPtoStreamDataBeforeHandshakeConfirmed) {
   // Buffered crypto data gets sent.
   EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, _, _))
       .WillOnce(Return(350));
-  if (GetQuicReloadableFlag(
-          quic_donot_pto_stream_data_before_handshake_confirmed)) {
-    // Verify stream data is not sent on PTO before handshake confirmed.
-    EXPECT_CALL(*stream, OnCanWrite()).Times(0);
-  } else {
-    EXPECT_CALL(*stream, OnCanWrite());
-  }
+  // Verify stream data is not sent on PTO before handshake confirmed.
+  EXPECT_CALL(*stream, OnCanWrite()).Times(0);
 
   // Fire PTO.
   QuicConnectionPeer::SetInProbeTimeOut(connection_, true);
