@@ -45,28 +45,8 @@ class QUICHE_EXPORT PriorityWriteScheduler
  public:
   using typename WriteScheduler<StreamIdType>::StreamPrecedenceType;
 
-  // Creates scheduler with no streams.
-  PriorityWriteScheduler() : PriorityWriteScheduler(spdy::kHttp2RootStreamId) {}
-  explicit PriorityWriteScheduler(StreamIdType root_stream_id)
-      : root_stream_id_(root_stream_id) {}
-
   void RegisterStream(StreamIdType stream_id,
                       const StreamPrecedenceType& precedence) override {
-    // TODO(mpw): verify |precedence.is_spdy3_priority() == true| once
-    //   Http2PriorityWriteScheduler enabled for HTTP/2.
-
-    // parent_id not used here, but may as well validate it.  However,
-    // parent_id may legitimately not be registered yet--see b/15676312.
-    StreamIdType parent_id = precedence.parent_id();
-    QUICHE_DVLOG_IF(
-        1, parent_id != root_stream_id_ && !StreamRegistered(parent_id))
-        << "Parent stream " << parent_id << " not registered";
-
-    if (stream_id == root_stream_id_) {
-      QUICHE_BUG(spdy_bug_19_1)
-          << "Stream " << root_stream_id_ << " already registered";
-      return;
-    }
     auto stream_info = std::make_unique<StreamInfo>(
         StreamInfo{precedence.spdy3_priority(), stream_id, false});
     bool inserted =
@@ -107,16 +87,6 @@ class QUICHE_EXPORT PriorityWriteScheduler
 
   void UpdateStreamPrecedence(StreamIdType stream_id,
                               const StreamPrecedenceType& precedence) override {
-    // TODO(mpw): verify |precedence.is_spdy3_priority() == true| once
-    //   Http2PriorityWriteScheduler enabled for HTTP/2.
-
-    // parent_id not used here, but may as well validate it.  However,
-    // parent_id may legitimately not be registered yet--see b/15676312.
-    StreamIdType parent_id = precedence.parent_id();
-    QUICHE_DVLOG_IF(
-        1, parent_id != root_stream_id_ && !StreamRegistered(parent_id))
-        << "Parent stream " << parent_id << " not registered";
-
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       // TODO(mpw): add to stream_infos_ on demand--see b/15676312.
@@ -331,7 +301,6 @@ class QUICHE_EXPORT PriorityWriteScheduler
   PriorityInfo priority_infos_[spdy::kV3LowestPriority + 1];
   // StreamInfos for all registered streams.
   StreamInfoMap stream_infos_;
-  StreamIdType root_stream_id_;
 };
 
 }  // namespace http2

@@ -20,10 +20,6 @@ namespace {
 constexpr bool kNotIncremental = false;
 
 class QuicWriteBlockedListTest : public QuicTestWithParam<bool> {
- public:
-  QuicWriteBlockedListTest()
-      : write_blocked_list_(AllSupportedVersions()[0].transport_version) {}
-
  protected:
   QuicWriteBlockedList write_blocked_list_;
 };

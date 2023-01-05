@@ -51,16 +51,14 @@ TEST_F(PriorityWriteSchedulerTest, RegisterUnregisterStreams) {
   EXPECT_TRUE(scheduler_.StreamRegistered(1));
   EXPECT_EQ(1u, scheduler_.NumRegisteredStreams());
 
-  // Root stream counts as already registered.
-  EXPECT_QUICHE_BUG(
-      scheduler_.RegisterStream(kHttp2RootStreamId, SpdyStreamPrecedence(1)),
-      "Stream 0 already registered");
-
   // Try redundant registrations.
   EXPECT_QUICHE_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(1)),
                     "Stream 1 already registered");
+  EXPECT_EQ(1u, scheduler_.NumRegisteredStreams());
+
   EXPECT_QUICHE_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(2)),
                     "Stream 1 already registered");
+  EXPECT_EQ(1u, scheduler_.NumRegisteredStreams());
 
   scheduler_.RegisterStream(2, SpdyStreamPrecedence(3));
   EXPECT_EQ(2u, scheduler_.NumRegisteredStreams());
@@ -76,6 +74,7 @@ TEST_F(PriorityWriteSchedulerTest, RegisterUnregisterStreams) {
   // Try redundant unregistration.
   EXPECT_QUICHE_BUG(scheduler_.UnregisterStream(1), "Stream 1 not registered");
   EXPECT_QUICHE_BUG(scheduler_.UnregisterStream(2), "Stream 2 not registered");
+  EXPECT_EQ(0u, scheduler_.NumRegisteredStreams());
 }
 
 TEST_F(PriorityWriteSchedulerTest, RegisterStreamWithHttp2StreamDependency) {

@@ -73,7 +73,6 @@ QuicSession::QuicSession(
     : connection_(connection),
       perspective_(connection->perspective()),
       visitor_(owner),
-      write_blocked_streams_(connection->transport_version()),
       config_(config),
       stream_id_manager_(perspective(), connection->transport_version(),
                          kDefaultMaxStreamsPerConnection,

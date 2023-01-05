@@ -25,10 +25,10 @@ namespace quic {
 // Crypto stream > Headers stream > Data streams by requested priority.
 class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
  public:
-  explicit QuicWriteBlockedList(QuicTransportVersion version);
+  explicit QuicWriteBlockedList();
   QuicWriteBlockedList(const QuicWriteBlockedList&) = delete;
   QuicWriteBlockedList& operator=(const QuicWriteBlockedList&) = delete;
-  ~QuicWriteBlockedList();
+  ~QuicWriteBlockedList() = default;
 
   bool HasWriteBlockedDataStreams() const {
     return priority_write_scheduler_.HasReadyStreams();
