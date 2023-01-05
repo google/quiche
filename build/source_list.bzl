@@ -399,6 +399,8 @@ quiche_core_hdrs = [
     "spdy/core/spdy_protocol.h",
     "spdy/core/spdy_simple_arena.h",
     "spdy/core/zero_copy_output_buffer.h",
+    "web_transport/mock_web_transport.h",
+    "web_transport/web_transport.h",
 ]
 quiche_core_srcs = [
     "balsa/balsa_enums.cc",

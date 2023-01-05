@@ -397,7 +397,9 @@
     "quiche/spdy/core/spdy_prefixed_buffer_reader.h",
     "quiche/spdy/core/spdy_protocol.h",
     "quiche/spdy/core/spdy_simple_arena.h",
-    "quiche/spdy/core/zero_copy_output_buffer.h"
+    "quiche/spdy/core/zero_copy_output_buffer.h",
+    "quiche/web_transport/mock_web_transport.h",
+    "quiche/web_transport/web_transport.h"
   ],
   "quiche_core_srcs": [
     "quiche/balsa/balsa_enums.cc",
