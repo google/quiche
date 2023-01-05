@@ -46,6 +46,12 @@ class QUICHE_EXPORT PriorityWriteScheduler {
  public:
   using StreamPrecedenceType = spdy::StreamPrecedence<StreamIdType>;
 
+  static constexpr int kHighestPriority = 0;
+  static constexpr int kLowestPriority = 7;
+
+  static_assert(spdy::kV3HighestPriority == kHighestPriority);
+  static_assert(spdy::kV3LowestPriority == kLowestPriority);
+
   // Registers new stream `stream_id` with the scheduler, assigning it the
   // given precedence. If the scheduler supports stream dependencies, the
   // stream is inserted into the dependency tree under
@@ -98,7 +104,7 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       QUICHE_DVLOG(1) << "Stream " << stream_id << " not registered";
-      return StreamPrecedenceType(spdy::kV3LowestPriority);
+      return StreamPrecedenceType(kLowestPriority);
     }
     return StreamPrecedenceType(it->second->priority);
   }
@@ -169,8 +175,8 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     }
     int64_t last_event_time_usec = 0;
     const StreamInfo* const stream_info = it->second.get();
-    for (spdy::SpdyPriority p = spdy::kV3HighestPriority;
-         p < stream_info->priority; ++p) {
+    for (spdy::SpdyPriority p = kHighestPriority; p < stream_info->priority;
+         ++p) {
       last_event_time_usec = std::max(last_event_time_usec,
                                       priority_infos_[p].last_event_time_usec);
     }
@@ -193,8 +199,7 @@ class QUICHE_EXPORT PriorityWriteScheduler {
   // Preconditions: `HasReadyStreams() == true`
   std::tuple<StreamIdType, StreamPrecedenceType>
   PopNextReadyStreamAndPrecedence() {
-    for (spdy::SpdyPriority p = spdy::kV3HighestPriority;
-         p <= spdy::kV3LowestPriority; ++p) {
+    for (spdy::SpdyPriority p = kHighestPriority; p <= kLowestPriority; ++p) {
       ReadyList& ready_list = priority_infos_[p].ready_list;
       if (!ready_list.empty()) {
         StreamInfo* const info = ready_list.front();
@@ -209,7 +214,7 @@ class QUICHE_EXPORT PriorityWriteScheduler {
       }
     }
     QUICHE_BUG(spdy_bug_19_6) << "No ready streams available";
-    return std::make_tuple(0, StreamPrecedenceType(spdy::kV3LowestPriority));
+    return std::make_tuple(0, StreamPrecedenceType(kLowestPriority));
   }
 
   // Returns true if there's another stream ahead of the given stream in the
@@ -226,8 +231,8 @@ class QUICHE_EXPORT PriorityWriteScheduler {
 
     // If there's a higher priority stream, this stream should yield.
     const StreamInfo* const stream_info = it->second.get();
-    for (spdy::SpdyPriority p = spdy::kV3HighestPriority;
-         p < stream_info->priority; ++p) {
+    for (spdy::SpdyPriority p = kHighestPriority; p < stream_info->priority;
+         ++p) {
       if (!priority_infos_[p].ready_list.empty()) {
         return true;
       }
@@ -359,7 +364,7 @@ class QUICHE_EXPORT PriorityWriteScheduler {
   // Number of ready streams.
   size_t num_ready_streams_ = 0;
   // Per-priority state, including ready lists.
-  PriorityInfo priority_infos_[spdy::kV3LowestPriority + 1];
+  PriorityInfo priority_infos_[kLowestPriority + 1];
   // StreamInfos for all registered streams.
   StreamInfoMap stream_infos_;
 };

@@ -13,7 +13,6 @@ namespace http2 {
 namespace test {
 
 using ::spdy::kHttp2RootStreamId;
-using ::spdy::kV3LowestPriority;
 using ::spdy::SpdyPriority;
 using ::spdy::SpdyStreamId;
 using ::spdy::SpdyStreamPrecedence;
@@ -37,6 +36,9 @@ namespace {
 
 class PriorityWriteSchedulerTest : public quiche::test::QuicheTest {
  public:
+  static constexpr int kLowestPriority =
+      PriorityWriteScheduler<SpdyStreamId>::kLowestPriority;
+
   PriorityWriteSchedulerTest() : peer_(&scheduler_) {}
 
   PriorityWriteScheduler<SpdyStreamId> scheduler_;
@@ -105,7 +107,7 @@ TEST_F(PriorityWriteSchedulerTest, RegisterStreamWithHttp2StreamDependency) {
 TEST_F(PriorityWriteSchedulerTest, GetStreamPrecedence) {
   // Unknown streams tolerated due to b/15676312. However, return lowest
   // priority.
-  EXPECT_EQ(kV3LowestPriority,
+  EXPECT_EQ(kLowestPriority,
             scheduler_.GetStreamPrecedence(1).spdy3_priority());
 
   scheduler_.RegisterStream(1, SpdyStreamPrecedence(3));
@@ -135,7 +137,7 @@ TEST_F(PriorityWriteSchedulerTest, GetStreamPrecedence) {
   EXPECT_EQ(6, scheduler_.GetStreamPrecedence(1).spdy3_priority());
 
   scheduler_.UnregisterStream(1);
-  EXPECT_EQ(kV3LowestPriority,
+  EXPECT_EQ(kLowestPriority,
             scheduler_.GetStreamPrecedence(1).spdy3_priority());
 }
 
@@ -151,12 +153,12 @@ TEST_F(PriorityWriteSchedulerTest, UpdateStreamPrecedence) {
   // For the moment, updating stream precedence on a non-registered stream
   // should have no effect. In the future, it will lazily cause the stream to
   // be registered (b/15676312).
-  EXPECT_EQ(kV3LowestPriority,
+  EXPECT_EQ(kLowestPriority,
             scheduler_.GetStreamPrecedence(3).spdy3_priority());
   EXPECT_FALSE(scheduler_.StreamRegistered(3));
   scheduler_.UpdateStreamPrecedence(3, SpdyStreamPrecedence(1));
   EXPECT_FALSE(scheduler_.StreamRegistered(3));
-  EXPECT_EQ(kV3LowestPriority,
+  EXPECT_EQ(kLowestPriority,
             scheduler_.GetStreamPrecedence(3).spdy3_priority());
 
   scheduler_.RegisterStream(3, SpdyStreamPrecedence(1));
