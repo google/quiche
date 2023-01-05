@@ -75,7 +75,6 @@ quiche_core_hdrs = [
     "http2/adapter/window_manager.h",
     "http2/core/http2_trace_logging.h",
     "http2/core/priority_write_scheduler.h",
-    "http2/core/write_scheduler.h",
     "http2/decoder/decode_buffer.h",
     "http2/decoder/decode_http2_structures.h",
     "http2/decoder/decode_status.h",
