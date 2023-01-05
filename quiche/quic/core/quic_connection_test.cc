@@ -102,6 +102,13 @@ const QuicSocketAddress kPeerAddress =
 const QuicSocketAddress kSelfAddress =
     QuicSocketAddress(QuicIpAddress::Loopback6(),
                       /*port=*/443);
+const QuicSocketAddress kServerPreferredAddress = QuicSocketAddress(
+    []() {
+      QuicIpAddress address;
+      address.FromString("2604:31c0::");
+      return address;
+    }(),
+    /*port=*/443);
 
 QuicStreamId GetNthClientInitiatedStreamId(int n,
                                            QuicTransportVersion version) {
@@ -1468,9 +1475,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     ASSERT_TRUE(version().HasIetfQuicFrames());
     ASSERT_TRUE(connection_.self_address().host().IsIPv6());
     SetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2, true);
-    QuicIpAddress host;
-    host.FromString("2604:31c0::");
-    QuicSocketAddress server_preferred_address(host, 443);
     const QuicConnectionId connection_id = TestConnectionId(17);
     const StatelessResetToken reset_token =
         QuicUtils::GenerateStatelessResetToken(connection_id);
@@ -1491,7 +1495,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                    kTestStatelessResetToken);
     QuicConfigPeer::SetReceivedAlternateServerAddress(&config,
-                                                      server_preferred_address);
+                                                      kServerPreferredAddress);
     QuicConfigPeer::SetPreferredAddressConnectionIdAndToken(
         &config, connection_id, reset_token);
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -1499,7 +1503,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
     ASSERT_TRUE(QuicConnectionPeer::GetServerPreferredAddress(&connection_)
                     .IsInitialized());
-    EXPECT_EQ(server_preferred_address,
+    EXPECT_EQ(kServerPreferredAddress,
               QuicConnectionPeer::GetServerPreferredAddress(&connection_));
   }
 
@@ -2514,7 +2518,8 @@ class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
     EXPECT_EQ(expected_self_address_, context->self_address());
     EXPECT_EQ(expected_peer_address_, context->peer_address());
     if (connection_->perspective() == Perspective::IS_CLIENT) {
-      connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false);
+      connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false,
+                                                   *context);
     }
     *success_ = false;
   }
@@ -2524,6 +2529,32 @@ class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
   QuicSocketAddress expected_self_address_;
   QuicSocketAddress expected_peer_address_;
   bool* success_;
+};
+
+// A test implementation which migrates to server preferred address
+// on path validation suceeds. Otherwise, client cleans up alternative path.
+class QUICHE_EXPORT ServerPreferredAddressTestResultDelegate
+    : public QuicPathValidator::ResultDelegate {
+ public:
+  explicit ServerPreferredAddressTestResultDelegate(QuicConnection* connection)
+      : connection_(connection) {}
+  void OnPathValidationSuccess(
+      std::unique_ptr<QuicPathValidationContext> context,
+      QuicTime /*start_time*/) override {
+    connection_->OnServerPreferredAddressValidated(*context, false);
+  }
+
+  void OnPathValidationFailure(
+      std::unique_ptr<QuicPathValidationContext> context) override {
+    connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false,
+                                                 *context);
+  }
+
+ protected:
+  QuicConnection* connection() { return connection_; }
+
+ private:
+  QuicConnection* connection_;
 };
 
 // Receive a path probe request at the server side, i.e.,
@@ -2944,6 +2975,53 @@ TEST_P(QuicConnectionTest, ServerAddressChangesToKnownAddress) {
   // Verify peer address does not change.
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+}
+
+TEST_P(QuicConnectionTest,
+       PeerAddressChangesToPreferredAddressBeforeClientInitiates) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  ASSERT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+  ASSERT_TRUE(connection_.self_address().host().IsIPv6());
+  SetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2, true);
+  const QuicConnectionId connection_id = TestConnectionId(17);
+  const StatelessResetToken reset_token =
+      QuicUtils::GenerateStatelessResetToken(connection_id);
+
+  connection_.CreateConnectionIdManager();
+
+  connection_.SendCryptoStreamData();
+  EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame = InitAckFrame(1);
+  // Received ACK for packet 1.
+  ProcessFramePacketAtLevel(1, QuicFrame(&frame), ENCRYPTION_INITIAL);
+  // Discard INITIAL key.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  QuicConfig config;
+  config.SetClientConnectionOptions(QuicTagVector{kSPAD});
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
+  QuicConfigPeer::SetReceivedStatelessResetToken(&config,
+                                                 kTestStatelessResetToken);
+  QuicConfigPeer::SetReceivedAlternateServerAddress(&config,
+                                                    kServerPreferredAddress);
+  QuicConfigPeer::SetPreferredAddressConnectionIdAndToken(
+      &config, connection_id, reset_token);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+  ASSERT_TRUE(QuicConnectionPeer::GetServerPreferredAddress(&connection_)
+                  .IsInitialized());
+  EXPECT_EQ(kServerPreferredAddress,
+            QuicConnectionPeer::GetServerPreferredAddress(&connection_));
+
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(0);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kServerPreferredAddress, ENCRYPTION_INITIAL);
 }
 
 TEST_P(QuicConnectionTest, MaxPacketSize) {
@@ -15989,8 +16067,6 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress) {
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPAD});
   ServerPreferredAddressInit(config);
-  const QuicSocketAddress kServerPreferredAddress =
-      QuicConnectionPeer::GetServerPreferredAddress(&connection_);
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
@@ -16001,11 +16077,15 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress) {
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   // Kick off path validation of server preferred address on handshake
   // confirmed.
-  EXPECT_CALL(visitor_, CreatePathValidationContextForServerPreferredAddress(
-                            kServerPreferredAddress))
-      .WillOnce(Return(
-          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
-              kNewSelfAddress, kServerPreferredAddress, &new_writer))));
+  EXPECT_CALL(visitor_,
+              OnServerPreferredAddressAvailable(kServerPreferredAddress))
+      .WillOnce(Invoke([&]() {
+        connection_.ValidatePath(
+            std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, kServerPreferredAddress, &new_writer),
+            std::make_unique<ServerPreferredAddressTestResultDelegate>(
+                &connection_));
+      }));
   connection_.OnHandshakeComplete();
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
@@ -16027,7 +16107,7 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress) {
   EXPECT_TRUE(connection_.IsValidStatelessResetToken(kTestStatelessResetToken));
   EXPECT_FALSE(connection_.IsValidStatelessResetToken(kNewStatelessResetToken));
 
-  // Receive path challenge from server preferred address.
+  // Receive path response from server preferred address.
   QuicFrames frames;
   frames.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
   // Verify send_algorithm gets reset after migration (new sent packet is not
@@ -16069,8 +16149,6 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress2) {
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPAD});
   ServerPreferredAddressInit(config);
-  const QuicSocketAddress kServerPreferredAddress =
-      QuicConnectionPeer::GetServerPreferredAddress(&connection_);
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
@@ -16079,11 +16157,15 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress2) {
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   // Kick off path validation of server preferred address on handshake
   // confirmed.
-  EXPECT_CALL(visitor_, CreatePathValidationContextForServerPreferredAddress(
-                            kServerPreferredAddress))
-      .WillOnce(Return(
-          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
-              kNewSelfAddress, kServerPreferredAddress, &new_writer))));
+  EXPECT_CALL(visitor_,
+              OnServerPreferredAddressAvailable(kServerPreferredAddress))
+      .WillOnce(Invoke([&]() {
+        connection_.ValidatePath(
+            std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, kServerPreferredAddress, &new_writer),
+            std::make_unique<ServerPreferredAddressTestResultDelegate>(
+                &connection_));
+      }));
   connection_.OnHandshakeComplete();
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   ASSERT_FALSE(new_writer.path_challenge_frames().empty());
@@ -16096,7 +16178,7 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress2) {
             writer_->last_packet_header().destination_connection_id);
   EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
 
-  // Receive path challenge from original server address.
+  // Receive path response from original server address.
   QuicFrames frames;
   frames.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
   ProcessFramesPacketWithAddresses(frames, kNewSelfAddress, kPeerAddress,
@@ -16135,8 +16217,6 @@ TEST_P(QuicConnectionTest, ClientFailedToValidateServerPreferredAddress) {
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPAD});
   ServerPreferredAddressInit(config);
-  const QuicSocketAddress kServerPreferredAddress =
-      QuicConnectionPeer::GetServerPreferredAddress(&connection_);
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
@@ -16145,13 +16225,17 @@ TEST_P(QuicConnectionTest, ClientFailedToValidateServerPreferredAddress) {
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   // Kick off path validation of server preferred address on handshake
   // confirmed.
-  EXPECT_CALL(visitor_, CreatePathValidationContextForServerPreferredAddress(
-                            kServerPreferredAddress))
-      .WillOnce(Return(
-          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
-              kNewSelfAddress, kServerPreferredAddress, &new_writer))));
+  EXPECT_CALL(visitor_,
+              OnServerPreferredAddressAvailable(kServerPreferredAddress))
+      .WillOnce(Invoke([&]() {
+        connection_.ValidatePath(
+            std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, kServerPreferredAddress, &new_writer),
+            std::make_unique<ServerPreferredAddressTestResultDelegate>(
+                &connection_));
+      }));
   connection_.OnHandshakeComplete();
-  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  EXPECT_TRUE(connection_.IsValidatingServerPreferredAddress());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, kServerPreferredAddress));
   ASSERT_FALSE(new_writer.path_challenge_frames().empty());
@@ -16200,17 +16284,18 @@ TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress) {
   if (!connection_.version().HasIetfQuicFrames()) {
     return;
   }
-  QuicIpAddress host;
-  host.FromString("2604:31c0::");
-  const QuicSocketAddress kServerPreferredAddress(host, 443);
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
-  EXPECT_CALL(visitor_, CreatePathValidationContextForServerPreferredAddress(
-                            kServerPreferredAddress))
-      .WillOnce(Return(
-          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
-              kNewSelfAddress, kServerPreferredAddress, &new_writer))));
+  EXPECT_CALL(visitor_,
+              OnServerPreferredAddressAvailable(kServerPreferredAddress))
+      .WillOnce(Invoke([&]() {
+        connection_.ValidatePath(
+            std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, kServerPreferredAddress, &new_writer),
+            std::make_unique<ServerPreferredAddressTestResultDelegate>(
+                &connection_));
+      }));
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
   ServerPreferredAddressInit(config);
@@ -16236,17 +16321,18 @@ TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress2) {
   if (!connection_.version().HasIetfQuicFrames()) {
     return;
   }
-  QuicIpAddress host;
-  host.FromString("2604:31c0::");
-  const QuicSocketAddress kServerPreferredAddress(host, 443);
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
-  EXPECT_CALL(visitor_, CreatePathValidationContextForServerPreferredAddress(
-                            kServerPreferredAddress))
-      .WillOnce(Return(
-          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
-              kNewSelfAddress, kServerPreferredAddress, &new_writer))));
+  EXPECT_CALL(visitor_,
+              OnServerPreferredAddressAvailable(kServerPreferredAddress))
+      .WillOnce(Invoke([&]() {
+        connection_.ValidatePath(
+            std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, kServerPreferredAddress, &new_writer),
+            std::make_unique<ServerPreferredAddressTestResultDelegate>(
+                &connection_));
+      }));
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
   ServerPreferredAddressInit(config);
@@ -16278,17 +16364,18 @@ TEST_P(QuicConnectionTest, MaxDuplicatedPacketsSentToServerPreferredAddress) {
   if (!connection_.version().HasIetfQuicFrames()) {
     return;
   }
-  QuicIpAddress host;
-  host.FromString("2604:31c0::");
-  const QuicSocketAddress kServerPreferredAddress(host, 443);
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
-  EXPECT_CALL(visitor_, CreatePathValidationContextForServerPreferredAddress(
-                            kServerPreferredAddress))
-      .WillOnce(Return(
-          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
-              kNewSelfAddress, kServerPreferredAddress, &new_writer))));
+  EXPECT_CALL(visitor_,
+              OnServerPreferredAddressAvailable(kServerPreferredAddress))
+      .WillOnce(Invoke([&]() {
+        connection_.ValidatePath(
+            std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, kServerPreferredAddress, &new_writer),
+            std::make_unique<ServerPreferredAddressTestResultDelegate>(
+                &connection_));
+      }));
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
   ServerPreferredAddressInit(config);
@@ -16316,6 +16403,96 @@ TEST_P(QuicConnectionTest, MaxDuplicatedPacketsSentToServerPreferredAddress) {
   ASSERT_EQ(new_write_limit, new_writer.packets_write_attempts());
   EXPECT_FALSE(writer_->ping_frames().empty());
   EXPECT_TRUE(new_writer.ping_frames().empty());
+}
+
+TEST_P(QuicConnectionTest, MultiPortCreationAfterServerMigration) {
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    return;
+  }
+  QuicConfig config;
+  config.SetClientConnectionOptions(QuicTagVector{kMPQC, kSPAD});
+  ServerPreferredAddressInit(config);
+  if (!connection_.connection_migration_use_new_cid()) {
+    return;
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  QuicConnectionId cid_for_preferred_address = TestConnectionId(17);
+  const QuicSocketAddress kNewSelfAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_CALL(visitor_,
+              OnServerPreferredAddressAvailable(kServerPreferredAddress))
+      .WillOnce(Invoke([&]() {
+        connection_.ValidatePath(
+            std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, kServerPreferredAddress, &new_writer),
+            std::make_unique<ServerPreferredAddressTestResultDelegate>(
+                &connection_));
+      }));
+  // The connection should start probing the preferred address after handshake
+  // confirmed.
+  QuicPathFrameBuffer payload;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(testing::AtLeast(1u))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
+        payload = new_writer.path_challenge_frames().front().data_buffer;
+        EXPECT_EQ(kServerPreferredAddress,
+                  new_writer.last_write_peer_address());
+      }));
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+  EXPECT_TRUE(connection_.IsValidatingServerPreferredAddress());
+
+  // Receiving PATH_RESPONSE should cause the connection to migrate to the
+  // preferred address.
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
+  ProcessFramesPacketWithAddresses(frames, kNewSelfAddress, kPeerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(connection_.IsValidatingServerPreferredAddress());
+  EXPECT_EQ(kServerPreferredAddress, connection_.effective_peer_address());
+  EXPECT_EQ(kNewSelfAddress, connection_.self_address());
+  EXPECT_EQ(connection_.connection_id(), cid_for_preferred_address);
+
+  // As the default path changed, the server issued CID 1 should be retired.
+  auto* retire_peer_issued_cid_alarm =
+      connection_.GetRetirePeerIssuedConnectionIdAlarm();
+  ASSERT_TRUE(retire_peer_issued_cid_alarm->IsSet());
+  EXPECT_CALL(visitor_, SendRetireConnectionId(/*sequence_number=*/0u));
+  retire_peer_issued_cid_alarm->Fire();
+
+  const QuicSocketAddress kNewSelfAddress2(kNewSelfAddress.host(),
+                                           kNewSelfAddress.port() + 1);
+  EXPECT_NE(kNewSelfAddress2, kNewSelfAddress);
+  TestPacketWriter new_writer2(version(), &clock_, Perspective::IS_CLIENT);
+  QuicNewConnectionIdFrame frame;
+  frame.connection_id = TestConnectionId(789);
+  ASSERT_NE(frame.connection_id, connection_.connection_id());
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  frame.retire_prior_to = 0u;
+  frame.sequence_number = 2u;
+  EXPECT_CALL(visitor_, CreateContextForMultiPortPath())
+      .WillOnce(Return(
+          testing::ByMove(std::make_unique<TestQuicPathValidationContext>(
+              kNewSelfAddress2, connection_.peer_address(), &new_writer2))));
+  connection_.OnNewConnectionIdFrame(frame);
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
+  payload = new_writer.path_challenge_frames().front().data_buffer;
+  EXPECT_EQ(kServerPreferredAddress, new_writer.last_write_peer_address());
+  EXPECT_EQ(kNewSelfAddress2.host(), new_writer.last_write_source_address());
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
+      &connection_, kNewSelfAddress2, connection_.peer_address()));
+  auto* alt_path = QuicConnectionPeer::GetAlternativePath(&connection_);
+  EXPECT_FALSE(alt_path->validated);
+  QuicFrames frames2;
+  frames2.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
+  ProcessFramesPacketWithAddresses(frames2, kNewSelfAddress2, kPeerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(alt_path->validated);
 }
 
 }  // namespace

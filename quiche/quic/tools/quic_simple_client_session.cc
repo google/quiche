@@ -6,7 +6,38 @@
 
 #include <utility>
 
+#include "quiche/quic/core/quic_path_validator.h"
+
 namespace quic {
+
+namespace {
+
+class QUICHE_EXPORT ServerPreferredAddressResultDelegateWithWriter
+    : public QuicPathValidator::ResultDelegate {
+ public:
+  explicit ServerPreferredAddressResultDelegateWithWriter(
+      QuicConnection* connection)
+      : connection_(connection) {}
+
+  // Overridden to transfer the ownership of the new writer.
+  void OnPathValidationSuccess(
+      std::unique_ptr<QuicPathValidationContext> /*context*/,
+      QuicTime /*start_time*/) override {
+    // TODO(danzh) hand over the ownership of the released writer to client and
+    // call the connection to migrate.
+  }
+
+  void OnPathValidationFailure(
+      std::unique_ptr<QuicPathValidationContext> context) override {
+    connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false,
+                                                 *context);
+  }
+
+ private:
+  QuicConnection* connection_ = nullptr;
+};
+
+}  // namespace
 
 QuicSimpleClientSession::QuicSimpleClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
@@ -56,22 +87,24 @@ QuicSimpleClientSession::CreateContextForMultiPortPath() {
       network_helper_->GetLatestClientAddress(), peer_address());
 }
 
-std::unique_ptr<QuicPathValidationContext>
-QuicSimpleClientSession::CreatePathValidationContextForServerPreferredAddress(
+void QuicSimpleClientSession::OnServerPreferredAddressAvailable(
     const QuicSocketAddress& server_preferred_address) {
   const auto self_address = connection()->self_address();
   if (network_helper_ == nullptr ||
       !network_helper_->CreateUDPSocketAndBind(server_preferred_address,
                                                self_address.host(), 0)) {
-    return nullptr;
+    return;
   }
   QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
   if (writer == nullptr) {
-    return nullptr;
+    return;
   }
-  return std::make_unique<PathMigrationContext>(
-      std::unique_ptr<QuicPacketWriter>(writer),
-      network_helper_->GetLatestClientAddress(), server_preferred_address);
+  connection()->ValidatePath(
+      std::make_unique<PathMigrationContext>(
+          std::unique_ptr<QuicPacketWriter>(writer),
+          network_helper_->GetLatestClientAddress(), server_preferred_address),
+      std::make_unique<ServerPreferredAddressResultDelegateWithWriter>(
+          connection()));
 }
 
 }  // namespace quic

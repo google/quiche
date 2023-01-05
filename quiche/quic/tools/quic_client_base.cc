@@ -50,7 +50,7 @@ class QuicClientSocketMigrationValidationResultDelegate
     QUIC_LOG(WARNING) << "Fail to validate path " << *context
                       << ", stop migrating.";
     client_->session()->connection()->OnPathValidationFailureAtClient(
-        /*is_multi_port=*/false);
+        /*is_multi_port=*/false, *context);
   }
 
  private:
@@ -469,7 +469,7 @@ class ValidationResultDelegate : public QuicPathValidator::ResultDelegate {
     QUIC_LOG(WARNING) << "Fail to validate path " << *context
                       << ", stop migrating.";
     client_->session()->connection()->OnPathValidationFailureAtClient(
-        /*is_multi_port=*/false);
+        /*is_multi_port=*/false, *context);
   }
 
  private:

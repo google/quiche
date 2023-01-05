@@ -242,43 +242,6 @@ bool ContainsNonProbingFrame(const SerializedPacket& packet) {
   return false;
 }
 
-// Client migrates to server preferred address on path validation suceeds.
-// Otherwise, client cleans up alternative path.
-class ServerPreferredAddressResultDelegate
-    : public QuicPathValidator::ResultDelegate {
- public:
-  explicit ServerPreferredAddressResultDelegate(QuicConnection* connection)
-      : connection_(connection) {}
-  void OnPathValidationSuccess(
-      std::unique_ptr<QuicPathValidationContext> context,
-      QuicTime /*start_time*/) override {
-    QUIC_DLOG(INFO) << "Server preferred address: " << context->peer_address()
-                    << " validated. Migrating path, self_address: "
-                    << context->self_address()
-                    << ", peer_address: " << context->peer_address();
-    connection_->mutable_stats().server_preferred_address_validated = true;
-    const bool success = connection_->MigratePath(context->self_address(),
-                                                  context->peer_address(),
-                                                  context->WriterToUse(),
-                                                  /*owns_writer*/ false);
-    QUIC_BUG_IF(failed to migrate to server preferred address, !success)
-        << "Failed to migrate to server preferred address: "
-        << context->peer_address() << " after successful validation";
-  }
-
-  void OnPathValidationFailure(
-      std::unique_ptr<QuicPathValidationContext> context) override {
-    QUIC_DLOG(INFO) << "Failed to validate server preferred address : "
-                    << context->peer_address();
-    connection_->mutable_stats().failed_to_validate_server_preferred_address =
-        true;
-    connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false);
-  }
-
- private:
-  QuicConnection* connection_;
-};
-
 }  // namespace
 
 #define ENDPOINT \
@@ -706,13 +669,12 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
                config.HasReceivedIPv6AlternateServerAddress()) {
       server_preferred_address_ = config.ReceivedIPv6AlternateServerAddress();
     }
-    AddKnownServerAddress(server_preferred_address_);
     if (server_preferred_address_.IsInitialized()) {
       QUICHE_DLOG(INFO) << ENDPOINT << "Received server preferred address: "
                         << server_preferred_address_;
       if (config.HasClientRequestedIndependentOption(kSPA2, perspective_)) {
         accelerated_server_preferred_address_ = true;
-        ValidateServerPreferredAddress();
+        visitor_->OnServerPreferredAddressAvailable(server_preferred_address_);
       }
     }
   }
@@ -4005,7 +3967,7 @@ void QuicConnection::OnHandshakeComplete() {
   if (!accelerated_server_preferred_address_ &&
       server_preferred_address_.IsInitialized()) {
     QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
-    ValidateServerPreferredAddress();
+    visitor_->OnServerPreferredAddressAvailable(server_preferred_address_);
   }
 }
 
@@ -6428,21 +6390,6 @@ QuicConnection::MaybeIssueNewConnectionIdForPreferredAddress() {
       ->MaybeIssueNewConnectionIdForPreferredAddress();
 }
 
-void QuicConnection::ValidateServerPreferredAddress() {
-  QUICHE_DCHECK(server_preferred_address_.IsInitialized());
-  // Validate received server preferred address.
-  auto context = visitor_->CreatePathValidationContextForServerPreferredAddress(
-      server_preferred_address_);
-  if (context == nullptr) {
-    return;
-  }
-  QUICHE_DLOG(INFO) << ENDPOINT << "Start validating server preferred address: "
-                    << server_preferred_address_;
-  auto result_delegate =
-      std::make_unique<ServerPreferredAddressResultDelegate>(this);
-  ValidatePath(std::move(context), std::move(result_delegate));
-}
-
 bool QuicConnection::ShouldDetectBlackhole() const {
   if (!connected_ || blackhole_detection_disabled_) {
     return false;
@@ -6564,6 +6511,13 @@ void QuicConnection::ValidatePath(
         default_path_.stateless_reset_token);
   }
   if (path_validator_.HasPendingPathValidation()) {
+    if (perspective_ == Perspective::IS_CLIENT &&
+        IsValidatingServerPreferredAddress()) {
+      QUIC_CLIENT_HISTOGRAM_BOOL(
+          "QuicSession.ServerPreferredAddressValidationCancelled", true,
+          "How often the caller kicked off another validation while there is "
+          "an on-going server preferred address validation.");
+    }
     // Cancel and fail any earlier validation.
     path_validator_.CancelPathValidation();
   }
@@ -6603,6 +6557,10 @@ void QuicConnection::ValidatePath(
   }
   path_validator_.StartPathValidation(std::move(context),
                                       std::move(result_delegate));
+  if (perspective_ == Perspective::IS_CLIENT &&
+      IsValidatingServerPreferredAddress()) {
+    AddKnownServerAddress(server_preferred_address_);
+  }
 }
 
 bool QuicConnection::SendPathResponse(
@@ -6682,7 +6640,7 @@ void QuicConnection::CancelPathValidation() {
   path_validator_.CancelPathValidation();
 }
 
-bool QuicConnection::UpdateConnectionIdsOnClientMigration(
+bool QuicConnection::UpdateConnectionIdsOnMigration(
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
@@ -6765,7 +6723,7 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   QUICHE_DCHECK(!version().UsesHttp3() || IsHandshakeConfirmed());
 
   if (connection_migration_use_new_cid_) {
-    if (!UpdateConnectionIdsOnClientMigration(self_address, peer_address)) {
+    if (!UpdateConnectionIdsOnMigration(self_address, peer_address)) {
       if (owns_writer) {
         delete writer;
       }
@@ -6800,7 +6758,8 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   return true;
 }
 
-void QuicConnection::OnPathValidationFailureAtClient(bool is_multi_port) {
+void QuicConnection::OnPathValidationFailureAtClient(
+    bool is_multi_port, const QuicPathValidationContext& context) {
   if (connection_migration_use_new_cid_) {
     QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
     alternative_path_.Clear();
@@ -6813,6 +6772,13 @@ void QuicConnection::OnPathValidationFailureAtClient(bool is_multi_port) {
       multi_port_stats_
           ->num_multi_port_probe_failures_when_path_not_degrading++;
     }
+  }
+
+  if (context.peer_address() == server_preferred_address_ &&
+      server_preferred_address_ != default_path_.peer_address) {
+    QUIC_DLOG(INFO) << "Failed to validate server preferred address : "
+                    << server_preferred_address_;
+    mutable_stats().failed_to_validate_server_preferred_address = true;
   }
 
   RetirePeerIssuedConnectionIdsOnPathValidationFailure();
@@ -7072,8 +7038,9 @@ void QuicConnection::MultiPortPathValidationResultDelegate::
 
 void QuicConnection::MultiPortPathValidationResultDelegate::
     OnPathValidationFailure(
-        std::unique_ptr<QuicPathValidationContext> /*context*/) {
-  connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/true);
+        std::unique_ptr<QuicPathValidationContext> context) {
+  connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/true,
+                                               *context);
 }
 
 QuicConnection::ReversePathValidationResultDelegate::
@@ -7229,6 +7196,30 @@ void QuicConnection::set_initial_retransmittable_on_wire_timeout(
     QuicTime::Delta retransmittable_on_wire_timeout) {
   ping_manager_.set_initial_retransmittable_on_wire_timeout(
       retransmittable_on_wire_timeout);
+}
+
+bool QuicConnection::IsValidatingServerPreferredAddress() const {
+  QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+  return server_preferred_address_.IsInitialized() &&
+         server_preferred_address_ != default_path_.peer_address &&
+         path_validator_.HasPendingPathValidation() &&
+         path_validator_.GetContext()->peer_address() ==
+             server_preferred_address_;
+}
+
+void QuicConnection::OnServerPreferredAddressValidated(
+    QuicPathValidationContext& context, bool owns_writer) {
+  QUIC_DLOG(INFO) << "Server preferred address: " << context.peer_address()
+                  << " validated. Migrating path, self_address: "
+                  << context.self_address()
+                  << ", peer_address: " << context.peer_address();
+  mutable_stats().server_preferred_address_validated = true;
+  const bool success =
+      MigratePath(context.self_address(), context.peer_address(),
+                  context.WriterToUse(), owns_writer);
+  QUIC_BUG_IF(failed to migrate to server preferred address, !success)
+      << "Failed to migrate to server preferred address: "
+      << context.peer_address() << " after successful validation";
 }
 
 #undef ENDPOINT  // undef for jumbo builds

@@ -241,9 +241,8 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   virtual std::unique_ptr<QuicPathValidationContext>
   CreateContextForMultiPortPath() = 0;
 
-  // Creates context to validate server preferred address.
-  virtual std::unique_ptr<QuicPathValidationContext>
-  CreatePathValidationContextForServerPreferredAddress(
+  // Called when the client receives a preferred address from its peer.
+  virtual void OnServerPreferredAddressAvailable(
       const QuicSocketAddress& server_preferred_address) = 0;
 };
 
@@ -1219,7 +1218,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Called to clear the alternative_path_ when path validation failed on the
   // client side.
-  void OnPathValidationFailureAtClient(bool is_multi_port);
+  void OnPathValidationFailureAtClient(
+      bool is_multi_port, const QuicPathValidationContext& context);
 
   void SetSourceAddressTokenToSend(absl::string_view token);
 
@@ -1274,6 +1274,16 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Kicks off validation of received server preferred address.
   void ValidateServerPreferredAddress();
+
+  // Returns true if the client is validating the server preferred address which
+  // hasn't been used before.
+  bool IsValidatingServerPreferredAddress() const;
+
+  // Called by client to start sending packets to the preferred address.
+  // If |owns_writer| is true, the ownership of the writer in the |context| is
+  // also passed in.
+  void OnServerPreferredAddressValidated(QuicPathValidationContext& context,
+                                         bool owns_writer);
 
  protected:
   // Calls cancel() on all the alarms owned by this connection.
@@ -1604,11 +1614,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns true if header contains valid server connection ID.
   bool ValidateServerConnectionId(const QuicPacketHeader& header) const;
 
-  // Update the connection IDs when client migrates with/without validation.
+  // Update the connection IDs when client migrates its own address
+  // (with/without validation) or switches to server preferred address.
   // Returns false if required connection ID is not available.
-  bool UpdateConnectionIdsOnClientMigration(
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address);
+  bool UpdateConnectionIdsOnMigration(const QuicSocketAddress& self_address,
+                                      const QuicSocketAddress& peer_address);
 
   // Retire active peer issued connection IDs after they are no longer used on
   // any path.
