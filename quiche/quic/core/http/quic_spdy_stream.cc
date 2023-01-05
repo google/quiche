@@ -1170,28 +1170,12 @@ size_t QuicSpdyStream::WriteHeadersImpl(
       send_buffer().stream_offset(),
       send_buffer().stream_offset() + headers_frame_header.length());
 
-  if (GetQuicReloadableFlag(quic_one_write_for_headers)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_one_write_for_headers);
-
-    QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                    << " is writing HEADERS frame header of length "
-                    << headers_frame_header.length()
-                    << ", and payload of length " << encoded_headers.length()
-                    << " with fin " << fin;
-    WriteOrBufferData(absl::StrCat(headers_frame_header, encoded_headers), fin,
-                      /*ack_listener=*/nullptr);
-  } else {
-    QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                    << " is writing HEADERS frame header of length "
-                    << headers_frame_header.length();
-    WriteOrBufferData(headers_frame_header, /* fin = */ false,
-                      /* ack_listener = */ nullptr);
-
-    QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                    << " is writing HEADERS frame payload of length "
-                    << encoded_headers.length() << " with fin " << fin;
-    WriteOrBufferData(encoded_headers, fin, nullptr);
-  }
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
+                  << " is writing HEADERS frame header of length "
+                  << headers_frame_header.length() << ", and payload of length "
+                  << encoded_headers.length() << " with fin " << fin;
+  WriteOrBufferData(absl::StrCat(headers_frame_header, encoded_headers), fin,
+                    /*ack_listener=*/nullptr);
 
   QuicSpdySession::LogHeaderCompressionRatioHistogram(
       /* using_qpack = */ true,
