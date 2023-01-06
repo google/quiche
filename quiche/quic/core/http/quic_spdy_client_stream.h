@@ -51,7 +51,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
                      bool fin);
 
   // Returns the response data.
-  const std::string& data() { return data_; }
+  absl::string_view data() const { return data_; }
 
   // Returns whatever headers have been received for this stream.
   const spdy::Http2HeaderBlock& response_headers() { return response_headers_; }

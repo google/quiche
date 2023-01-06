@@ -166,22 +166,25 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   bool buffer_body() const;
   void set_buffer_body(bool buffer_body);
 
-  // Getters for stream state. Please note, these getters are divided into two
-  // groups. 1) returns state which only get updated once a complete response
-  // is received. 2) returns state of the oldest active stream which have
-  // received partial response (if any).
-  // Group 1.
+  // Getters for stream state that only get updated once a complete response is
+  // received.
   const spdy::Http2HeaderBlock& response_trailers() const;
   bool response_complete() const;
   int64_t response_body_size() const;
   const std::string& response_body() const;
-  // Group 2.
+  // Getters for stream state that return state of the oldest active stream that
+  // have received a partial response.
   bool response_headers_complete() const;
   const spdy::Http2HeaderBlock* response_headers() const;
   const spdy::Http2HeaderBlock* preliminary_headers() const;
   int64_t response_size() const;
   size_t bytes_read() const;
   size_t bytes_written() const;
+
+  // Returns response body received so far by the stream that has been most
+  // recently opened among currently open streams.  To query response body
+  // received by a stream that is already closed, use `response_body()` instead.
+  absl::string_view partial_response_body() const;
 
   // Returns once at least one complete response or a connection close has been
   // received from the server. If responses are received for multiple (say 2)

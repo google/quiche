@@ -89,7 +89,7 @@ void QuicSpdyClientBase::OnClose(QuicSpdyStream* stream) {
     preliminary_response_headers_ =
         client_stream->preliminary_headers().DebugString();
     latest_response_header_block_ = response_headers.Clone();
-    latest_response_body_ = client_stream->data();
+    latest_response_body_ = std::string(client_stream->data());
     latest_response_trailers_ =
         client_stream->received_trailers().DebugString();
   }

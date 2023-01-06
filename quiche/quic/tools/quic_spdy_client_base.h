@@ -37,7 +37,7 @@ class QuicSpdyClientBase : public QuicClientBase,
     virtual ~ResponseListener() {}
     virtual void OnCompleteResponse(
         QuicStreamId id, const spdy::Http2HeaderBlock& response_headers,
-        const std::string& response_body) = 0;
+        absl::string_view response_body) = 0;
   };
 
   // A piece of data that can be sent multiple times. For example, it can be a
