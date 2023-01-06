@@ -780,7 +780,8 @@ bool QuicPacketCreator::AddPaddedSavedFrame(
 absl::optional<size_t>
 QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
     const QuicPacketHeader& header, char* buffer) {
-  if (framer_->perspective() != Perspective::IS_CLIENT ||
+  if (!GetQuicFlag(quic_enable_chaos_protection) ||
+      framer_->perspective() != Perspective::IS_CLIENT ||
       packet_.encryption_level != ENCRYPTION_INITIAL ||
       !framer_->version().UsesCryptoFrames() || queued_frames_.size() != 2u ||
       queued_frames_[0].type != CRYPTO_FRAME ||

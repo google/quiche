@@ -255,6 +255,8 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
            n * 2;
   }
 
+  void TestChaosProtection(bool enabled);
+
   static constexpr QuicStreamOffset kOffset = 0u;
 
   char buffer_[kMaxOutgoingPacketSize];
@@ -1345,7 +1347,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrameShortData) {
   EXPECT_EQ(GetParam().version_serialization, header.version_flag);
 }
 
-TEST_P(QuicPacketCreatorTest, ChaosProtection) {
+void QuicPacketCreatorTest::TestChaosProtection(bool enabled) {
   if (!GetParam().version.UsesCryptoFrames()) {
     return;
   }
@@ -1362,11 +1364,26 @@ TEST_P(QuicPacketCreatorTest, ChaosProtection) {
   EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
   EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-  EXPECT_CALL(framer_visitor_, OnCryptoFrame(_)).Times(AtLeast(2));
-  EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(AtLeast(2));
-  EXPECT_CALL(framer_visitor_, OnPingFrame(_)).Times(AtLeast(1));
+  if (enabled) {
+    EXPECT_CALL(framer_visitor_, OnCryptoFrame(_)).Times(AtLeast(2));
+    EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(AtLeast(2));
+    EXPECT_CALL(framer_visitor_, OnPingFrame(_)).Times(AtLeast(1));
+  } else {
+    EXPECT_CALL(framer_visitor_, OnCryptoFrame(_)).Times(1);
+    EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(1);
+    EXPECT_CALL(framer_visitor_, OnPingFrame(_)).Times(0);
+  }
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
   ProcessPacket(serialized);
+}
+
+TEST_P(QuicPacketCreatorTest, ChaosProtectionEnabled) {
+  TestChaosProtection(true);
+}
+
+TEST_P(QuicPacketCreatorTest, ChaosProtectionDisabled) {
+  SetQuicFlag(quic_enable_chaos_protection, false);
+  TestChaosProtection(false);
 }
 
 TEST_P(QuicPacketCreatorTest, ConsumeDataLargerThanOneStreamFrame) {
