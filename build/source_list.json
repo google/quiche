@@ -397,7 +397,6 @@
     "quiche/spdy/core/spdy_protocol.h",
     "quiche/spdy/core/spdy_simple_arena.h",
     "quiche/spdy/core/zero_copy_output_buffer.h",
-    "quiche/web_transport/mock_web_transport.h",
     "quiche/web_transport/web_transport.h"
   ],
   "quiche_core_srcs": [
@@ -850,7 +849,8 @@
     "quiche/quic/test_tools/web_transport_resets_backend.h",
     "quiche/quic/test_tools/web_transport_test_tools.h",
     "quiche/spdy/test_tools/mock_spdy_framer_visitor.h",
-    "quiche/spdy/test_tools/spdy_test_utils.h"
+    "quiche/spdy/test_tools/spdy_test_utils.h",
+    "quiche/web_transport/test_tools/mock_web_transport.h"
   ],
   "quiche_test_support_srcs": [
     "quiche/common/platform/api/quiche_test_loopback.cc",

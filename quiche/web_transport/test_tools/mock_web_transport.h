@@ -4,8 +4,8 @@
 
 // Pre-defined mocks for the APIs in web_transport.h.
 
-#ifndef QUICHE_WEB_TRANSPORT_MOCK_WEB_TRANSPORT_H_
-#define QUICHE_WEB_TRANSPORT_MOCK_WEB_TRANSPORT_H_
+#ifndef QUICHE_WEB_TRANSPORT_TEST_TOOLS_MOCK_WEB_TRANSPORT_H_
+#define QUICHE_WEB_TRANSPORT_TEST_TOOLS_MOCK_WEB_TRANSPORT_H_
 
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/web_transport/web_transport.h"
@@ -73,4 +73,4 @@ class QUICHE_NO_EXPORT MockSession : public Session {
 }  // namespace test
 }  // namespace webtransport
 
-#endif  // QUICHE_WEB_TRANSPORT_MOCK_WEB_TRANSPORT_H_
+#endif  // QUICHE_WEB_TRANSPORT_TEST_TOOLS_MOCK_WEB_TRANSPORT_H_
