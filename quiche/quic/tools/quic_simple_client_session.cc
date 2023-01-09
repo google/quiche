@@ -12,7 +12,7 @@ namespace quic {
 
 namespace {
 
-class QUICHE_EXPORT ServerPreferredAddressResultDelegateWithWriter
+class ServerPreferredAddressResultDelegateWithWriter
     : public QuicPathValidator::ResultDelegate {
  public:
   explicit ServerPreferredAddressResultDelegateWithWriter(
