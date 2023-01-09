@@ -123,9 +123,10 @@ enum QuicTransportVersion {
   // Number 70 used to represent draft-ietf-quic-transport-25.
   // Number 71 used to represent draft-ietf-quic-transport-27.
   // Number 72 used to represent draft-ietf-quic-transport-28.
-  QUIC_VERSION_IETF_DRAFT_29 = 73,    // draft-ietf-quic-transport-29.
-  QUIC_VERSION_IETF_RFC_V1 = 80,      // RFC 9000.
-  QUIC_VERSION_IETF_2_DRAFT_08 = 81,  // draft-ietf-quic-v2-08.
+  QUIC_VERSION_IETF_DRAFT_29 = 73,  // draft-ietf-quic-transport-29.
+  QUIC_VERSION_IETF_RFC_V1 = 80,    // RFC 9000.
+  // Number 81 used to represent draft-ietf-quic-v2-01.
+  QUIC_VERSION_IETF_2_DRAFT_08 = 82,  // draft-ietf-quic-v2-08.
   // Version 99 was a dumping ground for IETF QUIC changes which were not yet
   // ready for production between 2018-02 and 2020-02.
 
