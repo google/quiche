@@ -2533,7 +2533,7 @@ class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
 
 // A test implementation which migrates to server preferred address
 // on path validation suceeds. Otherwise, client cleans up alternative path.
-class QUICHE_EXPORT ServerPreferredAddressTestResultDelegate
+class ServerPreferredAddressTestResultDelegate
     : public QuicPathValidator::ResultDelegate {
  public:
   explicit ServerPreferredAddressTestResultDelegate(QuicConnection* connection)
