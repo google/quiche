@@ -150,45 +150,59 @@ TEST(HeaderValidatorTest, AuthorityHasInvalidChar) {
   for (absl::string_view key : {":authority", "host"}) {
     // These characters should be allowed. (Not exhaustive.)
     for (const absl::string_view c : {"1", "-", "!", ":", "+", "=", ","}) {
+      const std::string value = absl::StrCat("ho", c, "st.example.com");
+      EXPECT_TRUE(HeaderValidator::IsValidAuthority(value));
+
       HeaderValidator v;
       v.StartHeaderBlock();
-      HeaderValidator::HeaderStatus status =
-          v.ValidateSingleHeader(key, absl::StrCat("ho", c, "st.example.com"));
+      HeaderValidator::HeaderStatus status = v.ValidateSingleHeader(key, value);
       EXPECT_EQ(HeaderValidator::HEADER_OK, status);
     }
     // These should not.
     for (const absl::string_view c : {"\r", "\n", "|", "\\", "`"}) {
+      const std::string value = absl::StrCat("ho", c, "st.example.com");
+      EXPECT_FALSE(HeaderValidator::IsValidAuthority(value));
+
       HeaderValidator v;
       v.StartHeaderBlock();
-      HeaderValidator::HeaderStatus status =
-          v.ValidateSingleHeader(key, absl::StrCat("ho", c, "st.example.com"));
+      HeaderValidator::HeaderStatus status = v.ValidateSingleHeader(key, value);
       EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
     }
 
     {
       // IPv4 example
+      const std::string value = "123.45.67.89";
+      EXPECT_TRUE(HeaderValidator::IsValidAuthority(value));
+
       HeaderValidator v;
       v.StartHeaderBlock();
-      HeaderValidator::HeaderStatus status =
-          v.ValidateSingleHeader(key, "123.45.67.89");
+      HeaderValidator::HeaderStatus status = v.ValidateSingleHeader(key, value);
       EXPECT_EQ(HeaderValidator::HEADER_OK, status);
     }
 
     {
       // IPv6 examples
+      const std::string value1 = "2001:0db8:85a3:0000:0000:8a2e:0370:7334";
+      EXPECT_TRUE(HeaderValidator::IsValidAuthority(value1));
+
       HeaderValidator v;
       v.StartHeaderBlock();
-      HeaderValidator::HeaderStatus status = v.ValidateSingleHeader(
-          key, "2001:0db8:85a3:0000:0000:8a2e:0370:7334");
+      HeaderValidator::HeaderStatus status =
+          v.ValidateSingleHeader(key, value1);
       EXPECT_EQ(HeaderValidator::HEADER_OK, status);
+
+      const std::string value2 = "[::1]:80";
+      EXPECT_TRUE(HeaderValidator::IsValidAuthority(value2));
       HeaderValidator v2;
       v2.StartHeaderBlock();
-      status = v2.ValidateSingleHeader(key, "[::1]:80");
+      status = v2.ValidateSingleHeader(key, value2);
       EXPECT_EQ(HeaderValidator::HEADER_OK, status);
     }
 
     {
       // Empty field
+      EXPECT_TRUE(HeaderValidator::IsValidAuthority(""));
+
       HeaderValidator v;
       v.StartHeaderBlock();
       HeaderValidator::HeaderStatus status = v.ValidateSingleHeader(key, "");

@@ -246,6 +246,12 @@ bool HeaderValidator::FinishHeaderBlock(HeaderType type) {
   return false;
 }
 
+/* static */
+bool HeaderValidator::IsValidAuthority(absl::string_view authority) {
+  static const CharMap valid_chars = BuildValidCharMap(kValidAuthorityChars);
+  return AllCharsInMap(authority, valid_chars);
+}
+
 HeaderValidator::ContentLengthStatus HeaderValidator::HandleContentLength(
     absl::string_view value) {
   if (value.empty()) {
@@ -278,8 +284,7 @@ HeaderValidator::ContentLengthStatus HeaderValidator::HandleContentLength(
 // Returns whether `authority` contains only characters from the `host` ABNF
 // from RFC 3986 section 3.2.2.
 bool HeaderValidator::ValidateAndSetAuthority(absl::string_view authority) {
-  static const CharMap valid_chars = BuildValidCharMap(kValidAuthorityChars);
-  if (!AllCharsInMap(authority, valid_chars)) {
+  if (!IsValidAuthority(authority)) {
     return false;
   }
   if (authority_.has_value() && authority != authority_.value()) {

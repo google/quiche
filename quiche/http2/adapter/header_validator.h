@@ -25,6 +25,9 @@ class QUICHE_EXPORT HeaderValidator : public HeaderValidatorBase {
   // present for the given header type.
   bool FinishHeaderBlock(HeaderType type) override;
 
+  // Returns whether `authority` is valid according to RFC 3986 Section 3.2.
+  static bool IsValidAuthority(absl::string_view authority);
+
  private:
   enum ContentLengthStatus {
     CONTENT_LENGTH_OK,
