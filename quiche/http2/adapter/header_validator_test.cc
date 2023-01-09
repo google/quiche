@@ -85,34 +85,48 @@ TEST(HeaderValidatorTest, ValueHasInvalidChar) {
   // These characters should be allowed. (Not exhaustive.)
   for (const char* c :
        {"!", "3", "a", "_", "|", "~", "\\", "<", ";", "[", "=", "A", "\t"}) {
+    const std::string value = absl::StrCat("val", c, "ue");
+    EXPECT_TRUE(
+        HeaderValidator::IsValidHeaderValue(value, ObsTextOption::kDisallow));
     HeaderValidator::HeaderStatus status =
-        v.ValidateSingleHeader("name", absl::StrCat("val", c, "ue"));
+        v.ValidateSingleHeader("name", value);
     EXPECT_EQ(HeaderValidator::HEADER_OK, status);
   }
   // These should not.
   for (const char* c : {"\r", "\n"}) {
+    const std::string value = absl::StrCat("val", c, "ue");
+    EXPECT_FALSE(
+        HeaderValidator::IsValidHeaderValue(value, ObsTextOption::kDisallow));
     HeaderValidator::HeaderStatus status =
-        v.ValidateSingleHeader("name", absl::StrCat("val", c, "ue"));
+        v.ValidateSingleHeader("name", value);
     EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
   }
   // Test nul separately.
   {
+    const std::string value("val\0ue", 6);
+    EXPECT_FALSE(
+        HeaderValidator::IsValidHeaderValue(value, ObsTextOption::kDisallow));
     HeaderValidator::HeaderStatus status =
-        v.ValidateSingleHeader("name", absl::string_view("val\0ue", 6));
+        v.ValidateSingleHeader("name", value);
     EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
   }
   {
+    const std::string obs_text_value = "val\xa9ue";
     // Test that obs-text is disallowed by default.
     EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
-              v.ValidateSingleHeader("name", "val\xa9ue"));
+              v.ValidateSingleHeader("name", obs_text_value));
     // Test that obs-text is disallowed when configured.
     v.SetObsTextOption(ObsTextOption::kDisallow);
+    EXPECT_FALSE(HeaderValidator::IsValidHeaderValue(obs_text_value,
+                                                     ObsTextOption::kDisallow));
     EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
-              v.ValidateSingleHeader("name", "val\xa9ue"));
+              v.ValidateSingleHeader("name", obs_text_value));
     // Test that obs-text is allowed when configured.
     v.SetObsTextOption(ObsTextOption::kAllow);
+    EXPECT_TRUE(HeaderValidator::IsValidHeaderValue(obs_text_value,
+                                                    ObsTextOption::kAllow));
     EXPECT_EQ(HeaderValidator::HEADER_OK,
-              v.ValidateSingleHeader("name", "val\xa9ue"));
+              v.ValidateSingleHeader("name", obs_text_value));
   }
 }
 

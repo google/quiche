@@ -25,6 +25,11 @@ class QUICHE_EXPORT HeaderValidator : public HeaderValidatorBase {
   // present for the given header type.
   bool FinishHeaderBlock(HeaderType type) override;
 
+  // Returns whether `value` is valid according to RFC 9110 Section 5.5 and RFC
+  // 9112 Section 8.2.1.
+  static bool IsValidHeaderValue(absl::string_view value,
+                                 ObsTextOption ops_text_option);
+
   // Returns whether `authority` is valid according to RFC 3986 Section 3.2.
   static bool IsValidAuthority(absl::string_view authority);
 
