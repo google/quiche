@@ -85,6 +85,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 QUIC_FLAG(quic_reloadable_flag_quic_send_placeholder_ticket_when_encrypt_ticket_fails, true)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
+// When true, quiche UDP sockets report Explicit Congestion Notification (ECN) [RFC3168, RFC9330] results.
+QUIC_FLAG(quic_restart_flag_quic_quiche_ecn_sockets, false)
 // When true, support draft-ietf-quic-v2-08
 QUIC_FLAG(quic_reloadable_flag_quic_enable_version_2_draft_08, false)
 // When true, the BB2U copt causes BBR2 to wait two rounds with out draining the queue before exiting PROBE_UP and BB2S has the same effect in STARTUP.

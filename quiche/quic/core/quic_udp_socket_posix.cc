@@ -19,6 +19,7 @@
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_ip_address_family.h"
 #include "quiche/quic/platform/api/quic_udp_socket_platform_api.h"
 
@@ -38,6 +39,9 @@
 
 namespace quic {
 namespace {
+
+// Explicit Congestion Notification is the last two bits of the TOS byte.
+constexpr uint8_t kEcnMask = 0x03;
 
 #if defined(__linux__) && (!defined(__ANDROID_API__) || __ANDROID_API__ >= 21)
 #define QUIC_UDP_SOCKET_SUPPORT_LINUX_TIMESTAMPING 1
@@ -159,6 +163,14 @@ void PopulatePacketInfoFromControlMessage(struct cmsghdr* cmsg,
     return;
   }
 
+  if ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TOS) ||
+      (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_TCLASS)) {
+    if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::ECN)) {
+      packet_info->SetEcnCodepoint(QuicEcnCodepoint(
+          *(reinterpret_cast<uint8_t*>(CMSG_DATA(cmsg))) & kEcnMask));
+    }
+  }
+
   if (packet_info_interested.IsSet(
           QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER)) {
     BufferSpan google_packet_headers;
@@ -248,6 +260,23 @@ bool QuicUdpSocketApi::SetupSocket(QuicUdpSocketFd fd, int address_family,
                  sizeof(send_buffer_size)) != 0) {
     QUIC_LOG_FIRST_N(ERROR, 100) << "Failed to set socket send size";
     return false;
+  }
+
+  if (GetQuicRestartFlag(quic_quiche_ecn_sockets)) {
+    QUIC_RESTART_FLAG_COUNT(quic_quiche_ecn_sockets);
+    unsigned int set = 1;
+    if (address_family == AF_INET &&
+        setsockopt(fd, IPPROTO_IP, IP_RECVTOS, &set, sizeof(set)) != 0) {
+      QUIC_LOG_FIRST_N(ERROR, 100) << "Failed to request to receive ECN on "
+                                   << "socket";
+      return false;
+    }
+    if (address_family == AF_INET6 &&
+        setsockopt(fd, IPPROTO_IPV6, IPV6_RECVTCLASS, &set, sizeof(set)) != 0) {
+      QUIC_LOG_FIRST_N(ERROR, 100) << "Failed to request to receive ECN on "
+                                   << "socket";
+      return false;
+    }
   }
 
   if (!(address_family == AF_INET6 && ipv6_only)) {
@@ -438,6 +467,24 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
   packet_buffer.buffer_len = bytes_read;
   if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::PEER_ADDRESS)) {
     packet_info->SetPeerAddress(QuicSocketAddress(raw_peer_address));
+  }
+
+  if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::ECN)) {
+    int ecn;
+    socklen_t optlen = sizeof(ecn);
+    if (raw_peer_address.ss_family == AF_INET &&
+        getsockopt(fd, IPPROTO_IP, IP_TOS, (void*)&ecn, &optlen) == 0) {
+      packet_info->SetEcnCodepoint(
+          QuicEcnCodepoint(static_cast<uint8_t>(ecn) & kEcnMask));
+    } else if (raw_peer_address.ss_family == AF_INET6 &&
+               getsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, (void*)&ecn,
+                          &optlen) == 0) {
+      packet_info->SetEcnCodepoint(
+          QuicEcnCodepoint(static_cast<uint8_t>(ecn) & kEcnMask));
+    } else {
+      // Fail back to not reporting ECN marks.
+      packet_info->SetEcnCodepoint(ECN_NOT_ECT);
+    }
   }
 
   if (hdr.msg_controllen > 0) {
@@ -634,6 +681,20 @@ WriteResult QuicUdpSocketApi::WritePacket(
     *reinterpret_cast<int*>(CMSG_DATA(cmsg)) = packet_info.ttl();
   }
 #endif
+
+  if (packet_info.HasValue(QuicUdpPacketInfoBit::ECN)) {
+    int cmsg_level =
+        packet_info.peer_address().host().IsIPv4() ? IPPROTO_IP : IPPROTO_IPV6;
+    int cmsg_type =
+        packet_info.peer_address().host().IsIPv4() ? IP_TOS : IPV6_TCLASS;
+    if (!NextCmsg(&hdr, control_buffer, sizeof(control_buffer), cmsg_level,
+                  cmsg_type, sizeof(int), &cmsg)) {
+      QUIC_LOG_FIRST_N(ERROR, 100) << "Not enough buffer to set ECN.";
+      return WriteResult(WRITE_STATUS_ERROR, EINVAL);
+    }
+    *reinterpret_cast<int*>(CMSG_DATA(cmsg)) =
+        static_cast<int>(packet_info.ecn_codepoint());
+  }
 
   int rc;
   do {

@@ -706,10 +706,10 @@ enum AckResult {
 
 // Indicates the fate of a serialized packet in WritePacket().
 enum SerializedPacketFate : uint8_t {
-  DISCARD,                     // Discard the packet.
-  COALESCE,                    // Try to coalesce packet.
-  BUFFER,                      // Buffer packet in buffered_packets_.
-  SEND_TO_WRITER,              // Send packet to writer.
+  DISCARD,         // Discard the packet.
+  COALESCE,        // Try to coalesce packet.
+  BUFFER,          // Buffer packet in buffered_packets_.
+  SEND_TO_WRITER,  // Send packet to writer.
 };
 
 QUIC_EXPORT_PRIVATE std::string SerializedPacketFateToString(
@@ -860,6 +860,23 @@ QUIC_EXPORT_PRIVATE bool operator==(const ParsedClientHello& a,
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, const ParsedClientHello& parsed_chlo);
+
+// The two bits in the IP header for Explicit Congestion Notification can take
+// one of four values.
+enum QuicEcnCodepoint {
+  // The NOT-ECT codepoint, indicating the packet sender is not using (or the
+  // network has disabled) ECN.
+  ECN_NOT_ECT = 0,
+  // The ECT(0) codepoint, indicating the packet sender is using classic ECN
+  // (RFC3168).
+  ECN_ECT0 = 1,
+  // The ECT(1) codepoint, indicating the packet sender is using Low Latency,
+  // Low Loss, Scalable Throughput (L4S) ECN (RFC9330).
+  ECN_ECT1 = 2,
+  // The CE ("Congestion Experienced") codepoint, indicating the packet sender
+  // is using ECN, and a router is experiencing congestion.
+  ECN_CE = 3,
+};
 
 }  // namespace quic
 
