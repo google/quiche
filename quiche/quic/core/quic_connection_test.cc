@@ -1491,7 +1491,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
-    config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
     QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                    kTestStatelessResetToken);
     QuicConfigPeer::SetReceivedAlternateServerAddress(&config,
@@ -3002,8 +3001,7 @@ TEST_P(QuicConnectionTest,
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kSPAD});
-  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                  kTestStatelessResetToken);
   QuicConfigPeer::SetReceivedAlternateServerAddress(&config,
@@ -16065,7 +16063,7 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress) {
     return;
   }
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kSPAD});
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
   ServerPreferredAddressInit(config);
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
@@ -16147,7 +16145,7 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress2) {
     return;
   }
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kSPAD});
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
   ServerPreferredAddressInit(config);
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
@@ -16215,7 +16213,7 @@ TEST_P(QuicConnectionTest, ClientFailedToValidateServerPreferredAddress) {
     return;
   }
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kSPAD});
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
   ServerPreferredAddressInit(config);
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
@@ -16297,7 +16295,8 @@ TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress) {
                 &connection_));
       }));
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
+  config.SetClientConnectionOptions(QuicTagVector{kSPA2});
   ServerPreferredAddressInit(config);
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   ASSERT_FALSE(new_writer.path_challenge_frames().empty());
@@ -16334,7 +16333,8 @@ TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress2) {
                 &connection_));
       }));
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
+  config.SetClientConnectionOptions(QuicTagVector{kSPA2});
   ServerPreferredAddressInit(config);
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   ASSERT_FALSE(new_writer.path_challenge_frames().empty());
@@ -16377,7 +16377,8 @@ TEST_P(QuicConnectionTest, MaxDuplicatedPacketsSentToServerPreferredAddress) {
                 &connection_));
       }));
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
+  config.SetClientConnectionOptions(QuicTagVector{kSPA2});
   ServerPreferredAddressInit(config);
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   ASSERT_FALSE(new_writer.path_challenge_frames().empty());
@@ -16410,7 +16411,8 @@ TEST_P(QuicConnectionTest, MultiPortCreationAfterServerMigration) {
     return;
   }
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kMPQC, kSPAD});
+  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
+  config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   ServerPreferredAddressInit(config);
   if (!connection_.connection_migration_use_new_cid()) {
     return;

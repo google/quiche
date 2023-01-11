@@ -1328,7 +1328,9 @@ void QuicSession::OnConfigNegotiated() {
   }
 
   if (version().HasIetfQuicFrames() &&
-      config_.CanSendPreferredAddressConnectionIdAndToken()) {
+      config_.CanSendPreferredAddressConnectionIdAndToken() &&
+      config_.HasClientSentConnectionOption(kSPAD, perspective())) {
+    // Set connection ID and token if SPAD is received.
     absl::optional<QuicNewConnectionIdFrame> frame =
         connection_->MaybeIssueNewConnectionIdForPreferredAddress();
     if (frame.has_value()) {

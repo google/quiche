@@ -661,7 +661,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
 
   if (connection_migration_use_new_cid_ &&
       config.HasReceivedPreferredAddressConnectionIdAndToken() &&
-      config.HasClientRequestedIndependentOption(kSPAD, perspective_)) {
+      config.HasClientSentConnectionOption(kSPAD, perspective_)) {
     if (self_address().host().IsIPv4() &&
         config.HasReceivedIPv4AlternateServerAddress()) {
       server_preferred_address_ = config.ReceivedIPv4AlternateServerAddress();

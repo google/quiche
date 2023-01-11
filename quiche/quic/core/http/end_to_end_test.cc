@@ -5497,8 +5497,7 @@ TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
   server_writer_ = new PacketDroppingTestWriter();
   StartServer();
 
-  client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
-  client_config_.SetClientConnectionOptions(QuicTagVector{kSPAD});
+  client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
   client_.reset(CreateQuicClient(nullptr));
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   while (client_->client()->HasPendingPathValidation()) {
@@ -5536,8 +5535,8 @@ TEST_P(EndToEndTest, OptimizedServerPreferredAddress) {
   server_writer_ = new PacketDroppingTestWriter();
   StartServer();
 
-  client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
-  client_config_.SetClientConnectionOptions(QuicTagVector{kSPAD, kSPA2});
+  client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
+  client_config_.SetClientConnectionOptions(QuicTagVector{kSPA2});
   client_.reset(CreateQuicClient(nullptr));
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   while (client_->client()->HasPendingPathValidation()) {
