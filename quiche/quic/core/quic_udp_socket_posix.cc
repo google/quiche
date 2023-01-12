@@ -473,12 +473,11 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
     int ecn;
     socklen_t optlen = sizeof(ecn);
     if (raw_peer_address.ss_family == AF_INET &&
-        getsockopt(fd, IPPROTO_IP, IP_TOS, (void*)&ecn, &optlen) == 0) {
+        getsockopt(fd, IPPROTO_IP, IP_TOS, &ecn, &optlen) == 0) {
       packet_info->SetEcnCodepoint(
           QuicEcnCodepoint(static_cast<uint8_t>(ecn) & kEcnMask));
     } else if (raw_peer_address.ss_family == AF_INET6 &&
-               getsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, (void*)&ecn,
-                          &optlen) == 0) {
+               getsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &ecn, &optlen) == 0) {
       packet_info->SetEcnCodepoint(
           QuicEcnCodepoint(static_cast<uint8_t>(ecn) & kEcnMask));
     } else {
