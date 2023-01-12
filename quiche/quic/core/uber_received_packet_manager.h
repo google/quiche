@@ -31,7 +31,8 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   // been parsed.
   void RecordPacketReceived(EncryptionLevel decrypted_packet_level,
                             const QuicPacketHeader& header,
-                            QuicTime receipt_time);
+                            QuicTime receipt_time,
+                            QuicEcnCodepoint ecn_codepoint);
 
   // Retrieves a frame containing a QuicAckFrame. The ack frame must be
   // serialized before another packet is received, or it will change.

@@ -16497,6 +16497,61 @@ TEST_P(QuicConnectionTest, MultiPortCreationAfterServerMigration) {
   EXPECT_TRUE(alt_path->validated);
 }
 
+TEST_P(QuicConnectionTest, EcnMarksCorrectlyRecorded) {
+  set_perspective(Perspective::IS_SERVER);
+  QuicPacketHeader header = ConstructPacketHeader(1, ENCRYPTION_FORWARD_SECURE);
+  QuicFrames frames;
+  QuicPingFrame ping_frame;
+  QuicPaddingFrame padding_frame;
+  frames.push_back(QuicFrame(ping_frame));
+  frames.push_back(QuicFrame(padding_frame));
+  std::unique_ptr<QuicPacket> packet =
+      BuildUnsizedDataPacket(&peer_framer_, header, frames);
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length = peer_framer_.EncryptPayload(
+      ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(1), *packet, buffer,
+      kMaxOutgoingPacketSize);
+  QuicReceivedPacket received_packet(buffer, encrypted_length, clock_.Now(),
+                                     false, 0, true, nullptr, 0, false,
+                                     ECN_ECT0);
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    EXPECT_FALSE(connection_.received_packet_manager()
+                     .GetAckFrame(APPLICATION_DATA)
+                     .ecn_counters.has_value());
+    connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, received_packet);
+    if (GetQuicRestartFlag(quic_receive_ecn)) {
+      EXPECT_TRUE(connection_.received_packet_manager()
+                      .GetAckFrame(APPLICATION_DATA)
+                      .ecn_counters.has_value());
+      EXPECT_EQ(connection_.received_packet_manager()
+                    .GetAckFrame(APPLICATION_DATA)
+                    .ecn_counters->ect0,
+                1);
+    } else {
+      EXPECT_FALSE(connection_.received_packet_manager()
+                       .GetAckFrame(APPLICATION_DATA)
+                       .ecn_counters.has_value());
+    }
+  } else {
+    EXPECT_FALSE(connection_.received_packet_manager()
+                     .ack_frame()
+                     .ecn_counters.has_value());
+    connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, received_packet);
+    if (GetQuicRestartFlag(quic_receive_ecn)) {
+      EXPECT_TRUE(connection_.received_packet_manager()
+                      .ack_frame()
+                      .ecn_counters.has_value());
+      EXPECT_EQ(
+          connection_.received_packet_manager().ack_frame().ecn_counters->ect0,
+          1);
+    } else {
+      EXPECT_FALSE(connection_.received_packet_manager()
+                       .ack_frame()
+                       .ecn_counters.has_value());
+    }
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

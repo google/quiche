@@ -74,8 +74,8 @@ class UberReceivedPacketManagerTest : public QuicTest {
                            uint64_t packet_number, QuicTime receipt_time) {
     QuicPacketHeader header;
     header.packet_number = QuicPacketNumber(packet_number);
-    manager_->RecordPacketReceived(decrypted_packet_level, header,
-                                   receipt_time);
+    manager_->RecordPacketReceived(decrypted_packet_level, header, receipt_time,
+                                   ECN_NOT_ECT);
   }
 
   bool HasPendingAck() {

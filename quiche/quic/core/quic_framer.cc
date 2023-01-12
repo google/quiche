@@ -22,6 +22,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
@@ -392,6 +393,16 @@ std::string GenerateErrorString(std::string initial_error_string,
                       ":", initial_error_string);
 }
 
+// Return the minimum size of the ECN fields in an ACK frame
+size_t AckEcnCountSize(const QuicAckFrame& ack_frame) {
+  if (!ack_frame.ecn_counters.has_value()) {
+    return 0;
+  }
+  return (QuicDataWriter::GetVarInt62Len(ack_frame.ecn_counters->ect0) +
+          QuicDataWriter::GetVarInt62Len(ack_frame.ecn_counters->ect1) +
+          QuicDataWriter::GetVarInt62Len(ack_frame.ecn_counters->ce));
+}
+
 }  // namespace
 
 QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
@@ -499,13 +510,8 @@ size_t QuicFramer::GetMinAckFrameSize(
     if (use_ietf_ack_with_receive_timestamp) {
       // 0 Timestamp Range Count.
       min_size += QuicDataWriter::GetVarInt62Len(0);
-    } else if (ack_frame.ecn_counters_populated &&
-               (ack_frame.ect_0_count || ack_frame.ect_1_count ||
-                ack_frame.ecn_ce_count)) {
-      // ECN counts.
-      min_size += (QuicDataWriter::GetVarInt62Len(ack_frame.ect_0_count) +
-                   QuicDataWriter::GetVarInt62Len(ack_frame.ect_1_count) +
-                   QuicDataWriter::GetVarInt62Len(ack_frame.ecn_ce_count));
+    } else {
+      min_size += AckEcnCountSize(ack_frame);
     }
     return min_size;
   }
@@ -4113,32 +4119,32 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     ack_block_count--;
   }
 
+  QUICHE_DCHECK(!ack_frame->ecn_counters.has_value());
   if (frame_type == IETF_ACK_RECEIVE_TIMESTAMPS) {
     QUICHE_DCHECK(process_timestamps_);
     if (!ProcessIetfTimestampsInAckFrame(ack_frame->largest_acked, reader)) {
       return false;
     }
   } else if (frame_type == IETF_ACK_ECN) {
-    ack_frame->ecn_counters_populated = true;
-    if (!reader->ReadVarInt62(&ack_frame->ect_0_count)) {
+    ack_frame->ecn_counters = QuicEcnCounts();
+    if (!reader->ReadVarInt62(&ack_frame->ecn_counters->ect0)) {
       set_detailed_error("Unable to read ack ect_0_count.");
       return false;
     }
-    if (!reader->ReadVarInt62(&ack_frame->ect_1_count)) {
+    if (!reader->ReadVarInt62(&ack_frame->ecn_counters->ect1)) {
       set_detailed_error("Unable to read ack ect_1_count.");
       return false;
     }
-    if (!reader->ReadVarInt62(&ack_frame->ecn_ce_count)) {
+    if (!reader->ReadVarInt62(&ack_frame->ecn_counters->ce)) {
       set_detailed_error("Unable to read ack ecn_ce_count.");
       return false;
     }
-  } else {
-    ack_frame->ecn_counters_populated = false;
-    ack_frame->ect_0_count = 0;
-    ack_frame->ect_1_count = 0;
-    ack_frame->ecn_ce_count = 0;
+    if (GetQuicRestartFlag(quic_receive_ecn)) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_receive_ecn, 2, 3);
+      visitor_->OnAckEcnCounts(*ack_frame->ecn_counters);
+    }
   }
-  // TODO(fayang): Report ECN counts to visitor when they are actually used.
+
   if (!visitor_->OnAckFrameEnd(QuicPacketNumber(block_low))) {
     set_detailed_error(
         "Error occurs when visitor finishes processing the ACK frame.");
@@ -5103,12 +5109,8 @@ size_t QuicFramer::GetIetfAckFrameSize(const QuicAckFrame& frame) {
 
   if (UseIetfAckWithReceiveTimestamp(frame)) {
     ack_frame_size += GetIetfAckFrameTimestampSize(frame);
-  } else if (frame.ecn_counters_populated &&
-             (frame.ect_0_count || frame.ect_1_count || frame.ecn_ce_count)) {
-    // ECN counts.
-    ack_frame_size += QuicDataWriter::GetVarInt62Len(frame.ect_0_count);
-    ack_frame_size += QuicDataWriter::GetVarInt62Len(frame.ect_1_count);
-    ack_frame_size += QuicDataWriter::GetVarInt62Len(frame.ecn_ce_count);
+  } else {
+    ack_frame_size += AckEcnCountSize(frame);
   }
 
   return ack_frame_size;
@@ -6040,13 +6042,10 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
   uint64_t ecn_size = 0;
   if (UseIetfAckWithReceiveTimestamp(frame)) {
     type = IETF_ACK_RECEIVE_TIMESTAMPS;
-  } else if (frame.ecn_counters_populated &&
-             (frame.ect_0_count || frame.ect_1_count || frame.ecn_ce_count)) {
+  } else if (frame.ecn_counters.has_value()) {
     // Change frame type to ACK_ECN if any ECN count is available.
     type = IETF_ACK_ECN;
-    ecn_size = (QuicDataWriter::GetVarInt62Len(frame.ect_0_count) +
-                QuicDataWriter::GetVarInt62Len(frame.ect_1_count) +
-                QuicDataWriter::GetVarInt62Len(frame.ecn_ce_count));
+    ecn_size = AckEcnCountSize(frame);
   }
 
   if (!writer->WriteVarInt62(type)) {
@@ -6141,15 +6140,15 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
 
   if (type == IETF_ACK_ECN) {
     // Encode the ECN counts.
-    if (!writer->WriteVarInt62(frame.ect_0_count)) {
+    if (!writer->WriteVarInt62(frame.ecn_counters->ect0)) {
       set_detailed_error("No room for ect_0_count in ack frame");
       return false;
     }
-    if (!writer->WriteVarInt62(frame.ect_1_count)) {
+    if (!writer->WriteVarInt62(frame.ecn_counters->ect1)) {
       set_detailed_error("No room for ect_1_count in ack frame");
       return false;
     }
-    if (!writer->WriteVarInt62(frame.ecn_ce_count)) {
+    if (!writer->WriteVarInt62(frame.ecn_counters->ce)) {
       set_detailed_error("No room for ecn_ce_count in ack frame");
       return false;
     }

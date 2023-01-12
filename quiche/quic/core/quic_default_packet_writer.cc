@@ -17,11 +17,12 @@ WriteResult QuicDefaultPacketWriter::WritePacket(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
     const QuicSocketAddress& peer_address, PerPacketOptions* options) {
   QUICHE_DCHECK(!write_blocked_);
-  QUICHE_DCHECK(nullptr == options)
-      << "QuicDefaultPacketWriter does not accept any options.";
   QuicUdpPacketInfo packet_info;
   packet_info.SetPeerAddress(peer_address);
   packet_info.SetSelfIp(self_address);
+  if (options != nullptr) {
+    packet_info.SetEcnCodepoint(options->ecn_codepoint);
+  }
   WriteResult result =
       QuicUdpSocketApi().WritePacket(fd_, buffer, buf_len, packet_info);
   if (IsWriteBlockedStatus(result.status)) {

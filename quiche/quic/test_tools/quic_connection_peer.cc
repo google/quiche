@@ -576,5 +576,11 @@ QuicSocketAddress QuicConnectionPeer::GetServerPreferredAddress(
   return connection->server_preferred_address_;
 }
 
+// static
+QuicEcnCounts* QuicConnectionPeer::GetEcnCounts(
+    QuicConnection* connection, PacketNumberSpace packet_number_space) {
+  return &connection->peer_ack_ecn_counts_[packet_number_space];
+}
+
 }  // namespace test
 }  // namespace quic

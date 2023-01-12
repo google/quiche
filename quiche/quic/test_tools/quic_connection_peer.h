@@ -12,6 +12,7 @@
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 
@@ -235,6 +236,9 @@ class QuicConnectionPeer {
 
   static QuicSocketAddress GetServerPreferredAddress(
       QuicConnection* connection);
+
+  static QuicEcnCounts* GetEcnCounts(QuicConnection* connection,
+                                     PacketNumberSpace packet_number_space);
 };
 
 }  // namespace test

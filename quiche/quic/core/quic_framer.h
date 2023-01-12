@@ -164,6 +164,10 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   virtual bool OnAckTimestamp(QuicPacketNumber packet_number,
                               QuicTime timestamp) = 0;
 
+  // Called when an ACK frame arrives that includes Explicit Congestion
+  // Notification (ECN) packet counts.
+  virtual void OnAckEcnCounts(const QuicEcnCounts& ecn_counts) = 0;
+
   // Called after the last ack range in an AckFrame has been parsed.
   // |start| is the starting value of the last ack range.
   virtual bool OnAckFrameEnd(QuicPacketNumber start) = 0;

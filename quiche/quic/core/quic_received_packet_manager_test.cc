@@ -13,6 +13,7 @@
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -54,9 +55,14 @@ class QuicReceivedPacketManagerTest : public QuicTest {
   }
 
   void RecordPacketReceipt(uint64_t packet_number, QuicTime receipt_time) {
+    RecordPacketReceipt(packet_number, receipt_time, ECN_NOT_ECT);
+  }
+
+  void RecordPacketReceipt(uint64_t packet_number, QuicTime receipt_time,
+                           QuicEcnCodepoint ecn_codepoint) {
     QuicPacketHeader header;
     header.packet_number = QuicPacketNumber(packet_number);
-    received_manager_.RecordPacketReceived(header, receipt_time);
+    received_manager_.RecordPacketReceived(header, receipt_time, ecn_codepoint);
   }
 
   bool HasPendingAck() {
@@ -91,9 +97,9 @@ class QuicReceivedPacketManagerTest : public QuicTest {
 TEST_F(QuicReceivedPacketManagerTest, DontWaitForPacketsBefore) {
   QuicPacketHeader header;
   header.packet_number = QuicPacketNumber(2u);
-  received_manager_.RecordPacketReceived(header, QuicTime::Zero());
+  received_manager_.RecordPacketReceived(header, QuicTime::Zero(), ECN_NOT_ECT);
   header.packet_number = QuicPacketNumber(7u);
-  received_manager_.RecordPacketReceived(header, QuicTime::Zero());
+  received_manager_.RecordPacketReceived(header, QuicTime::Zero(), ECN_NOT_ECT);
   EXPECT_TRUE(received_manager_.IsAwaitingPacket(QuicPacketNumber(3u)));
   EXPECT_TRUE(received_manager_.IsAwaitingPacket(QuicPacketNumber(6u)));
   received_manager_.DontWaitForPacketsBefore(QuicPacketNumber(4));
@@ -106,7 +112,7 @@ TEST_F(QuicReceivedPacketManagerTest, GetUpdatedAckFrame) {
   header.packet_number = QuicPacketNumber(2u);
   QuicTime two_ms = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(2);
   EXPECT_FALSE(received_manager_.ack_frame_updated());
-  received_manager_.RecordPacketReceived(header, two_ms);
+  received_manager_.RecordPacketReceived(header, two_ms, ECN_NOT_ECT);
   EXPECT_TRUE(received_manager_.ack_frame_updated());
 
   QuicFrame ack = received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
@@ -129,11 +135,11 @@ TEST_F(QuicReceivedPacketManagerTest, GetUpdatedAckFrame) {
   EXPECT_EQ(1u, ack.ack_frame->received_packet_times.size());
 
   header.packet_number = QuicPacketNumber(999u);
-  received_manager_.RecordPacketReceived(header, two_ms);
+  received_manager_.RecordPacketReceived(header, two_ms, ECN_NOT_ECT);
   header.packet_number = QuicPacketNumber(4u);
-  received_manager_.RecordPacketReceived(header, two_ms);
+  received_manager_.RecordPacketReceived(header, two_ms, ECN_NOT_ECT);
   header.packet_number = QuicPacketNumber(1000u);
-  received_manager_.RecordPacketReceived(header, two_ms);
+  received_manager_.RecordPacketReceived(header, two_ms, ECN_NOT_ECT);
   EXPECT_TRUE(received_manager_.ack_frame_updated());
   ack = received_manager_.GetUpdatedAckFrame(two_ms);
   received_manager_.ResetAckStates();
@@ -674,6 +680,23 @@ TEST_F(QuicReceivedPacketManagerTest,
       clock_.ApproximateNow(), &rtt_stats_);
   // Given 100ms > ack delay, verify immediate ACK.
   CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_F(QuicReceivedPacketManagerTest, CountEcnPackets) {
+  EXPECT_FALSE(HasPendingAck());
+  RecordPacketReceipt(3, QuicTime::Zero(), ECN_NOT_ECT);
+  RecordPacketReceipt(4, QuicTime::Zero(), ECN_ECT0);
+  RecordPacketReceipt(5, QuicTime::Zero(), ECN_ECT1);
+  RecordPacketReceipt(6, QuicTime::Zero(), ECN_CE);
+  QuicFrame ack = received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  if (GetQuicRestartFlag(quic_receive_ecn)) {
+    EXPECT_TRUE(ack.ack_frame->ecn_counters.has_value());
+    EXPECT_EQ(ack.ack_frame->ecn_counters->ect0, 1);
+    EXPECT_EQ(ack.ack_frame->ecn_counters->ect1, 1);
+    EXPECT_EQ(ack.ack_frame->ecn_counters->ce, 1);
+  } else {
+    EXPECT_FALSE(ack.ack_frame->ecn_counters.has_value());
+  }
 }
 
 }  // namespace

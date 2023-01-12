@@ -1328,7 +1328,8 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   }
   uber_received_packet_manager_.RecordPacketReceived(
       last_received_packet_info_.decrypted_level,
-      last_received_packet_info_.header, receipt_time);
+      last_received_packet_info_.header, receipt_time,
+      last_received_packet_info_.ecn_codepoint);
   if (EnforceAntiAmplificationLimit() && !IsHandshakeConfirmed() &&
       !header.retry_token.empty() &&
       visitor_->ValidateToken(header.retry_token)) {
@@ -1492,6 +1493,14 @@ bool QuicConnection::OnAckTimestamp(QuicPacketNumber packet_number,
 
   sent_packet_manager_.OnAckTimestamp(packet_number, timestamp);
   return true;
+}
+
+void QuicConnection::OnAckEcnCounts(const QuicEcnCounts& ecn_counts) {
+  QUIC_DVLOG(1) << ENDPOINT << "OnAckEcnCounts: [" << ecn_counts.ToString()
+                << "]";
+  PacketNumberSpace space = QuicUtils::GetPacketNumberSpace(
+      last_received_packet_info_.decrypted_level);
+  peer_ack_ecn_counts_[space] = ecn_counts;
 }
 
 bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
@@ -2671,8 +2680,9 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPacketReceived(self_address, peer_address, packet);
   }
-  last_received_packet_info_ = ReceivedPacketInfo(
-      self_address, peer_address, packet.receipt_time(), packet.length());
+  last_received_packet_info_ =
+      ReceivedPacketInfo(self_address, peer_address, packet.receipt_time(),
+                         packet.length(), packet.ecn_codepoint());
   current_packet_data_ = packet.data();
 
   if (!default_path_.self_address.IsInitialized()) {
@@ -4807,11 +4817,12 @@ QuicConnection::ReceivedPacketInfo::ReceivedPacketInfo(QuicTime receipt_time)
 QuicConnection::ReceivedPacketInfo::ReceivedPacketInfo(
     const QuicSocketAddress& destination_address,
     const QuicSocketAddress& source_address, QuicTime receipt_time,
-    QuicByteCount length)
+    QuicByteCount length, QuicEcnCodepoint ecn_codepoint)
     : destination_address(destination_address),
       source_address(source_address),
       receipt_time(receipt_time),
-      length(length) {}
+      length(length),
+      ecn_codepoint(ecn_codepoint) {}
 
 std::ostream& operator<<(std::ostream& os,
                          const QuicConnection::ReceivedPacketInfo& info) {

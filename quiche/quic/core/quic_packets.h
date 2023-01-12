@@ -291,6 +291,10 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacket : public QuicEncryptedPacket {
                      bool owns_buffer, int ttl, bool ttl_valid,
                      char* packet_headers, size_t headers_length,
                      bool owns_header_buffer);
+  QuicReceivedPacket(const char* buffer, size_t length, QuicTime receipt_time,
+                     bool owns_buffer, int ttl, bool ttl_valid,
+                     char* packet_headers, size_t headers_length,
+                     bool owns_header_buffer, QuicEcnCodepoint ecn_codepoint);
   ~QuicReceivedPacket();
   QuicReceivedPacket(const QuicReceivedPacket&) = delete;
   QuicReceivedPacket& operator=(const QuicReceivedPacket&) = delete;
@@ -317,6 +321,8 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacket : public QuicEncryptedPacket {
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
       std::ostream& os, const QuicReceivedPacket& s);
 
+  QuicEcnCodepoint ecn_codepoint() const { return ecn_codepoint_; }
+
  private:
   const QuicTime receipt_time_;
   int ttl_;
@@ -326,6 +332,7 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacket : public QuicEncryptedPacket {
   int headers_length_;
   // Whether owns the buffer for packet headers.
   bool owns_header_buffer_;
+  QuicEcnCodepoint ecn_codepoint_;
 };
 
 // SerializedPacket contains information of a serialized(encrypted) packet.

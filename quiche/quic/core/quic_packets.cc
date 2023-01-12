@@ -344,7 +344,7 @@ QuicReceivedPacket::QuicReceivedPacket(const char* buffer, size_t length,
     : quic::QuicReceivedPacket(buffer, length, receipt_time, owns_buffer, ttl,
                                ttl_valid, nullptr /* packet_headers */,
                                0 /* headers_length */,
-                               false /* owns_header_buffer */) {}
+                               false /* owns_header_buffer */, ECN_NOT_ECT) {}
 
 QuicReceivedPacket::QuicReceivedPacket(const char* buffer, size_t length,
                                        QuicTime receipt_time, bool owns_buffer,
@@ -352,12 +352,21 @@ QuicReceivedPacket::QuicReceivedPacket(const char* buffer, size_t length,
                                        char* packet_headers,
                                        size_t headers_length,
                                        bool owns_header_buffer)
+    : quic::QuicReceivedPacket(buffer, length, receipt_time, owns_buffer, ttl,
+                               ttl_valid, packet_headers, headers_length,
+                               owns_header_buffer, ECN_NOT_ECT) {}
+
+QuicReceivedPacket::QuicReceivedPacket(
+    const char* buffer, size_t length, QuicTime receipt_time, bool owns_buffer,
+    int ttl, bool ttl_valid, char* packet_headers, size_t headers_length,
+    bool owns_header_buffer, QuicEcnCodepoint ecn_codepoint)
     : QuicEncryptedPacket(buffer, length, owns_buffer),
       receipt_time_(receipt_time),
       ttl_(ttl_valid ? ttl : -1),
       packet_headers_(packet_headers),
       headers_length_(headers_length),
-      owns_header_buffer_(owns_header_buffer) {}
+      owns_header_buffer_(owns_header_buffer),
+      ecn_codepoint_(ecn_codepoint) {}
 
 QuicReceivedPacket::~QuicReceivedPacket() {
   if (owns_header_buffer_) {

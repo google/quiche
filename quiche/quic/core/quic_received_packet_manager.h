@@ -11,6 +11,7 @@
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -41,7 +42,8 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // header: the packet header.
   // timestamp: the arrival time of the packet.
   virtual void RecordPacketReceived(const QuicPacketHeader& header,
-                                    QuicTime receipt_time);
+                                    QuicTime receipt_time,
+                                    QuicEcnCodepoint ecn);
 
   // Checks whether |packet_number| is missing and less than largest observed.
   virtual bool IsMissing(QuicPacketNumber packet_number);

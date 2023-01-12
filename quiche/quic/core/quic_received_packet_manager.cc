@@ -10,7 +10,9 @@
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection_stats.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -70,7 +72,8 @@ void QuicReceivedPacketManager::SetFromConfig(const QuicConfig& config,
 }
 
 void QuicReceivedPacketManager::RecordPacketReceived(
-    const QuicPacketHeader& header, QuicTime receipt_time) {
+    const QuicPacketHeader& header, QuicTime receipt_time,
+    const QuicEcnCodepoint ecn) {
   const QuicPacketNumber packet_number = header.packet_number;
   QUICHE_DCHECK(IsAwaitingPacket(packet_number))
       << " packet_number:" << packet_number;
@@ -116,6 +119,27 @@ void QuicReceivedPacketManager::RecordPacketReceived(
     } else {
       ack_frame_.received_packet_times.push_back(
           std::make_pair(packet_number, receipt_time));
+    }
+  }
+
+  if (GetQuicRestartFlag(quic_receive_ecn) && ecn != ECN_NOT_ECT) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_receive_ecn, 1, 3);
+    if (!ack_frame_.ecn_counters.has_value()) {
+      ack_frame_.ecn_counters = QuicEcnCounts();
+    }
+    switch (ecn) {
+      case ECN_NOT_ECT:
+        QUICHE_NOTREACHED();
+        break;  // It's impossible to get here, but the compiler complains.
+      case ECN_ECT0:
+        ack_frame_.ecn_counters->ect0++;
+        break;
+      case ECN_ECT1:
+        ack_frame_.ecn_counters->ect1++;
+        break;
+      case ECN_CE:
+        ack_frame_.ecn_counters->ce++;
+        break;
     }
   }
 

@@ -51,6 +51,7 @@ const uint64_t kEpoch = UINT64_C(1) << 32;
 const uint64_t kMask = kEpoch - 1;
 const uint8_t kPacket0ByteConnectionId = 0;
 const uint8_t kPacket8ByteConnectionId = 8;
+constexpr size_t kTagSize = 16;
 
 const StatelessResetToken kTestStatelessResetToken{
     0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
@@ -395,6 +396,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     }
     return true;
   }
+
+  void OnAckEcnCounts(const QuicEcnCounts& /*ecn_counts*/) override {}
 
   bool OnAckFrameEnd(QuicPacketNumber /*start*/) override { return true; }
 
@@ -10646,10 +10649,7 @@ TEST_P(QuicFramerTest, IetfAckFrameTruncation) {
   ack_frame = MakeAckFrameWithGaps(/*gap_size=*/0xffffffff,
                                    /*max_num_gaps=*/200,
                                    /*largest_acked=*/kMaxIetfVarInt);
-  ack_frame.ecn_counters_populated = true;
-  ack_frame.ect_0_count = 100;
-  ack_frame.ect_1_count = 10000;
-  ack_frame.ecn_ce_count = 1000000;
+  ack_frame.ecn_counters = QuicEcnCounts(100, 10000, 1000000);
   QuicFrames frames = {QuicFrame(&ack_frame)};
   // Build an ACK packet.
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -16478,6 +16478,67 @@ TEST_P(QuicFramerTest, ShortHeaderWithNonDefaultConnectionIdLength) {
   EXPECT_EQ(source_connection_id.length(), 0);
   EXPECT_FALSE(retry_token.has_value());
   EXPECT_EQ(detailed_error, "");
+}
+
+TEST_P(QuicFramerTest, ReportEcnCountsIfPresent) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  for (bool ecn_marks : { false, true }) {
+    // Add some padding, because TestEncrypter doesn't add an authentication
+    // tag. For a small packet, this will cause QuicFramer to fail to get a
+    // header protection sample.
+    QuicPaddingFrame padding_frame(kTagSize);
+    // Create a packet with just an ack.
+    QuicAckFrame ack_frame = InitAckFrame(5);
+    if (ecn_marks) {
+      ack_frame.ecn_counters = QuicEcnCounts(100, 10000, 1000000);
+    } else {
+      ack_frame.ecn_counters = absl::nullopt;
+    }
+    QuicFrames frames = {QuicFrame(padding_frame), QuicFrame(&ack_frame)};
+    // Build an ACK packet.
+    QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+    std::unique_ptr<QuicPacket> raw_ack_packet(BuildDataPacket(header, frames));
+    ASSERT_TRUE(raw_ack_packet != nullptr);
+    char buffer[kMaxOutgoingPacketSize];
+    size_t encrypted_length =
+        framer_.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number,
+                               *raw_ack_packet, buffer, kMaxOutgoingPacketSize);
+    ASSERT_NE(0u, encrypted_length);
+    // Now make sure we can turn our ack packet back into an ack frame.
+    QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+    MockFramerVisitor visitor;
+    framer_.set_visitor(&visitor);
+    EXPECT_CALL(visitor, OnPacket()).Times(1);
+    EXPECT_CALL(visitor, OnUnauthenticatedPublicHeader(_))
+        .Times(1)
+        .WillOnce(Return(true));
+    EXPECT_CALL(visitor, OnUnauthenticatedHeader(_))
+        .Times(1)
+        .WillOnce(Return(true));
+    EXPECT_CALL(visitor, OnPacketHeader(_)).Times(1);
+    EXPECT_CALL(visitor, OnDecryptedPacket(_, _)).Times(1);
+    EXPECT_CALL(visitor, OnAckFrameStart(_, _)).Times(1).WillOnce(Return(true));
+    EXPECT_CALL(visitor, OnAckRange(_, _)).Times(1).WillOnce(Return(true));
+    if (GetQuicRestartFlag(quic_receive_ecn) && ecn_marks) {
+      EXPECT_CALL(visitor, OnAckEcnCounts(_)).Times(1);
+    } else {
+      EXPECT_CALL(visitor, OnAckEcnCounts(_)).Times(0);
+    }
+    EXPECT_CALL(visitor, OnAckFrameEnd(_)).Times(1).WillOnce(Return(true));
+    EXPECT_CALL(visitor, OnPacketComplete()).Times(1);
+    ASSERT_TRUE(framer_.ProcessPacket(
+                    QuicEncryptedPacket(buffer, encrypted_length, false)));
+  }
 }
 
 }  // namespace

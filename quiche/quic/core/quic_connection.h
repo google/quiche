@@ -673,6 +673,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool OnAckRange(QuicPacketNumber start, QuicPacketNumber end) override;
   bool OnAckTimestamp(QuicPacketNumber packet_number,
                       QuicTime timestamp) override;
+  void OnAckEcnCounts(const quic::QuicEcnCounts& ecn_counts) override;
   bool OnAckFrameEnd(QuicPacketNumber start) override;
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override;
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override;
@@ -1482,7 +1483,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     explicit ReceivedPacketInfo(QuicTime receipt_time);
     ReceivedPacketInfo(const QuicSocketAddress& destination_address,
                        const QuicSocketAddress& source_address,
-                       QuicTime receipt_time, QuicByteCount length);
+                       QuicTime receipt_time, QuicByteCount length,
+                       QuicEcnCodepoint ecn_codepoint);
 
     QuicSocketAddress destination_address;
     QuicSocketAddress source_address;
@@ -1496,6 +1498,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     EncryptionLevel decrypted_level = ENCRYPTION_INITIAL;
     QuicPacketHeader header;
     absl::InlinedVector<QuicFrameType, 1> frames;
+    QuicEcnCodepoint ecn_codepoint;
   };
 
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
@@ -2316,6 +2319,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       GetQuicFlag(quic_enforce_strict_amplification_factor);
 
   ConnectionIdGeneratorInterface& connection_id_generator_;
+
+  // Most recent ECN codepoint counts received in ACK_ECN frames sent from the
+  // peer. For now, this is only stored for tests.
+  QuicEcnCounts
+      peer_ack_ecn_counts_[PacketNumberSpace::NUM_PACKET_NUMBER_SPACES];
 };
 
 }  // namespace quic

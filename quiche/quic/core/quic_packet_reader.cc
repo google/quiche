@@ -7,6 +7,8 @@
 #include "absl/base/macros.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_process_packet_interface.h"
+#include "quiche/quic/core/quic_udp_socket.h"
+#include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -47,15 +49,19 @@ bool QuicPacketReader::ReadAndDispatchPackets(
   // arriving at the host and now is considered part of the network delay.
   QuicTime now = clock.Now();
 
-  size_t packets_read = socket_api_.ReadMultiplePackets(
-      fd,
-      BitMask64(QuicUdpPacketInfoBit::DROPPED_PACKETS,
-                QuicUdpPacketInfoBit::PEER_ADDRESS,
-                QuicUdpPacketInfoBit::V4_SELF_IP,
-                QuicUdpPacketInfoBit::V6_SELF_IP,
-                QuicUdpPacketInfoBit::RECV_TIMESTAMP, QuicUdpPacketInfoBit::TTL,
-                QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER),
-      &read_results_);
+  BitMask64 info_bits{QuicUdpPacketInfoBit::DROPPED_PACKETS,
+                      QuicUdpPacketInfoBit::PEER_ADDRESS,
+                      QuicUdpPacketInfoBit::V4_SELF_IP,
+                      QuicUdpPacketInfoBit::V6_SELF_IP,
+                      QuicUdpPacketInfoBit::RECV_TIMESTAMP,
+                      QuicUdpPacketInfoBit::TTL,
+                      QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER};
+  if (GetQuicRestartFlag(quic_receive_ecn)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_receive_ecn, 3, 3);
+    info_bits.Set(QuicUdpPacketInfoBit::ECN);
+  }
+  size_t packets_read =
+      socket_api_.ReadMultiplePackets(fd, info_bits, &read_results_);
   for (size_t i = 0; i < packets_read; ++i) {
     auto& result = read_results_[i];
     if (!result.ok) {
@@ -97,8 +103,7 @@ bool QuicPacketReader::ReadAndDispatchPackets(
     QuicReceivedPacket packet(
         result.packet_buffer.buffer, result.packet_buffer.buffer_len, now,
         /*owns_buffer=*/false, ttl, has_ttl, headers, headers_length,
-        /*owns_header_buffer=*/false);
-
+        /*owns_header_buffer=*/false, result.packet_info.ecn_codepoint());
     QuicSocketAddress self_address(self_ip, port);
     processor->ProcessPacket(self_address, peer_address, packet);
   }

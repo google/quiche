@@ -310,6 +310,7 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD(bool, OnAckRange, (QuicPacketNumber, QuicPacketNumber),
               (override));
   MOCK_METHOD(bool, OnAckTimestamp, (QuicPacketNumber, QuicTime), (override));
+  MOCK_METHOD(void, OnAckEcnCounts, (const QuicEcnCounts&), (override));
   MOCK_METHOD(bool, OnAckFrameEnd, (QuicPacketNumber), (override));
   MOCK_METHOD(bool, OnStopWaitingFrame, (const QuicStopWaitingFrame& frame),
               (override));
@@ -393,6 +394,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool OnAckRange(QuicPacketNumber start, QuicPacketNumber end) override;
   bool OnAckTimestamp(QuicPacketNumber packet_number,
                       QuicTime timestamp) override;
+  void OnAckEcnCounts(const QuicEcnCounts& ecn_counts) override;
   bool OnAckFrameEnd(QuicPacketNumber start) override;
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override;
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override;
@@ -1382,7 +1384,8 @@ class MockReceivedPacketManager : public QuicReceivedPacketManager {
   ~MockReceivedPacketManager() override;
 
   MOCK_METHOD(void, RecordPacketReceived,
-              (const QuicPacketHeader& header, QuicTime receipt_time),
+              (const QuicPacketHeader& header, QuicTime receipt_time,
+               const QuicEcnCodepoint ecn),
               (override));
   MOCK_METHOD(bool, IsMissing, (QuicPacketNumber packet_number), (override));
   MOCK_METHOD(bool, IsAwaitingPacket, (QuicPacketNumber packet_number),
@@ -2144,6 +2147,13 @@ inline std::string EscapeTestParamName(absl::string_view name) {
   }
   return result;
 }
+
+struct TestPerPacketOptions : PerPacketOptions {
+ public:
+  std::unique_ptr<quic::PerPacketOptions> Clone() const override {
+    return std::make_unique<TestPerPacketOptions>(*this);
+  }
+};
 
 }  // namespace test
 }  // namespace quic
