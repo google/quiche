@@ -41,6 +41,10 @@ inline webtransport::DatagramStatus MessageStatusToWebTransportStatus(
       return webtransport::DatagramStatus(
           webtransport::DatagramStatusCode::kInternalError,
           absl::StrCat("Internal error: ", MessageStatusToString(status)));
+    default:
+      return webtransport::DatagramStatus(
+          webtransport::DatagramStatusCode::kInternalError,
+          absl::StrCat("Unknown status: ", MessageStatusToString(status)));
   }
 }
 
