@@ -17,9 +17,10 @@ using spdy::Http2HeaderBlock;
 namespace quic {
 
 QuicSpdyClientSessionBase::QuicSpdyClientSessionBase(
-    QuicConnection* connection, QuicClientPushPromiseIndex* push_promise_index,
-    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions)
-    : QuicSpdySession(connection, nullptr, config, supported_versions),
+    QuicConnection* connection, QuicSession::Visitor* visitor,
+    QuicClientPushPromiseIndex* push_promise_index, const QuicConfig& config,
+    const ParsedQuicVersionVector& supported_versions)
+    : QuicSpdySession(connection, visitor, config, supported_versions),
       push_promise_index_(push_promise_index),
       largest_promised_stream_id_(
           QuicUtils::GetInvalidStreamId(connection->transport_version())) {}

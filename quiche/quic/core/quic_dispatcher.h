@@ -116,6 +116,11 @@ class QUIC_NO_EXPORT QuicDispatcher
   void OnConnectionIdRetired(
       const QuicConnectionId& server_connection_id) override;
 
+  void OnServerPreferredAddressAvailable(
+      const QuicSocketAddress& /*server_preferred_address*/) override {
+    QUICHE_DCHECK(false);
+  }
+
   // QuicTimeWaitListManager::Visitor interface implementation
   // Called whenever the time wait list manager adds a new connection to the
   // time-wait list.

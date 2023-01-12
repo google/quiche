@@ -31,6 +31,15 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSession
                         const QuicServerId& server_id,
                         QuicCryptoClientConfig* crypto_config,
                         QuicClientPushPromiseIndex* push_promise_index);
+
+  QuicSpdyClientSession(const QuicConfig& config,
+                        const ParsedQuicVersionVector& supported_versions,
+                        QuicConnection* connection,
+                        QuicSession::Visitor* visitor,
+                        const QuicServerId& server_id,
+                        QuicCryptoClientConfig* crypto_config,
+                        QuicClientPushPromiseIndex* push_promise_index);
+
   QuicSpdyClientSession(const QuicSpdyClientSession&) = delete;
   QuicSpdyClientSession& operator=(const QuicSpdyClientSession&) = delete;
   ~QuicSpdyClientSession() override;

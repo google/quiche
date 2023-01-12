@@ -40,6 +40,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
   // Takes ownership of |connection|. Caller retains ownership of
   // |promised_by_url|.
   QuicSpdyClientSessionBase(QuicConnection* connection,
+                            QuicSession::Visitor* visitor,
                             QuicClientPushPromiseIndex* push_promise_index,
                             const QuicConfig& config,
                             const ParsedQuicVersionVector& supported_versions);

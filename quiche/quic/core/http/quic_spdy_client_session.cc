@@ -26,7 +26,15 @@ QuicSpdyClientSession::QuicSpdyClientSession(
     QuicConnection* connection, const QuicServerId& server_id,
     QuicCryptoClientConfig* crypto_config,
     QuicClientPushPromiseIndex* push_promise_index)
-    : QuicSpdyClientSessionBase(connection, push_promise_index, config,
+    : QuicSpdyClientSession(config, supported_versions, connection, nullptr,
+                            server_id, crypto_config, push_promise_index) {}
+
+QuicSpdyClientSession::QuicSpdyClientSession(
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
+    QuicConnection* connection, QuicSession::Visitor* visitor,
+    const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
+    QuicClientPushPromiseIndex* push_promise_index)
+    : QuicSpdyClientSessionBase(connection, visitor, push_promise_index, config,
                                 supported_versions),
       server_id_(server_id),
       crypto_config_(crypto_config),

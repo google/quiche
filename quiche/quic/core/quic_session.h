@@ -68,8 +68,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
       public QuicControlFrameManager::DelegateInterface {
  public:
   // An interface from the session to the entity owning the session.
-  // This lets the session notify its owner (the Dispatcher) when the connection
-  // is closed, blocked, or added/removed from the time-wait list.
+  // This lets the session notify its owner when the connection
+  // is closed, blocked, etc.
+  // TODO(danzh): split this visitor to separate visitors for client and server
+  // respectively as not all methods in this class are interesting to both
+  // perspectives.
   class QUIC_EXPORT_PRIVATE Visitor {
    public:
     virtual ~Visitor() {}
@@ -98,6 +101,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
     // Called when a ConnectionId has been retired.
     virtual void OnConnectionIdRetired(
         const QuicConnectionId& server_connection_id) = 0;
+
+    virtual void OnServerPreferredAddressAvailable(
+        const QuicSocketAddress& /*server_preferred_address*/) = 0;
   };
 
   // Does not take ownership of |connection| or |visitor|.
@@ -180,7 +186,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return nullptr;
   }
   void OnServerPreferredAddressAvailable(
-      const QuicSocketAddress& /*server_preferred_address*/) override {}
+      const QuicSocketAddress& /*server_preferred_address*/) override;
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,

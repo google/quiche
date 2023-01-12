@@ -738,8 +738,8 @@ TestQuicSpdyClientSession::TestQuicSpdyClientSession(
     QuicConnection* connection, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config)
-    : QuicSpdyClientSessionBase(connection, &push_promise_index_, config,
-                                supported_versions) {
+    : QuicSpdyClientSessionBase(connection, nullptr, &push_promise_index_,
+                                config, supported_versions) {
   // TODO(b/153726130): Consider adding SetServerApplicationStateForResumption
   // calls in tests and set |has_application_state| to true.
   crypto_stream_ = std::make_unique<QuicCryptoClientStream>(

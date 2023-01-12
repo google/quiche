@@ -27,6 +27,7 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_server_stats.h"
 #include "quiche/quic/platform/api/quic_stack_trace.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -2692,6 +2693,14 @@ bool QuicSession::ValidateToken(absl::string_view token) {
     }
   }
   return valid;
+}
+
+void QuicSession::OnServerPreferredAddressAvailable(
+    const QuicSocketAddress& server_preferred_address) {
+  QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+  if (visitor_ != nullptr) {
+    visitor_->OnServerPreferredAddressAvailable(server_preferred_address);
+  }
 }
 
 #undef ENDPOINT  // undef for jumbo builds

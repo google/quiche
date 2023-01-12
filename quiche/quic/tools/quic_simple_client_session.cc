@@ -10,43 +10,26 @@
 
 namespace quic {
 
-namespace {
-
-class ServerPreferredAddressResultDelegateWithWriter
-    : public QuicPathValidator::ResultDelegate {
- public:
-  explicit ServerPreferredAddressResultDelegateWithWriter(
-      QuicConnection* connection)
-      : connection_(connection) {}
-
-  // Overridden to transfer the ownership of the new writer.
-  void OnPathValidationSuccess(
-      std::unique_ptr<QuicPathValidationContext> /*context*/,
-      QuicTime /*start_time*/) override {
-    // TODO(danzh) hand over the ownership of the released writer to client and
-    // call the connection to migrate.
-  }
-
-  void OnPathValidationFailure(
-      std::unique_ptr<QuicPathValidationContext> context) override {
-    connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false,
-                                                 *context);
-  }
-
- private:
-  QuicConnection* connection_ = nullptr;
-};
-
-}  // namespace
-
 QuicSimpleClientSession::QuicSimpleClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, QuicClientBase::NetworkHelper* network_helper,
     const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
     QuicClientPushPromiseIndex* push_promise_index, bool drop_response_body,
     bool enable_web_transport)
-    : QuicSpdyClientSession(config, supported_versions, connection, server_id,
-                            crypto_config, push_promise_index),
+    : QuicSimpleClientSession(config, supported_versions, connection,
+                              /*visitor=*/nullptr, network_helper, server_id,
+                              crypto_config, push_promise_index,
+                              drop_response_body, enable_web_transport) {}
+
+QuicSimpleClientSession::QuicSimpleClientSession(
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
+    QuicConnection* connection, QuicSession::Visitor* visitor,
+    QuicClientBase::NetworkHelper* network_helper,
+    const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
+    QuicClientPushPromiseIndex* push_promise_index, bool drop_response_body,
+    bool enable_web_transport)
+    : QuicSpdyClientSession(config, supported_versions, connection, visitor,
+                            server_id, crypto_config, push_promise_index),
       network_helper_(network_helper),
       drop_response_body_(drop_response_body),
       enable_web_transport_(enable_web_transport) {}
@@ -85,26 +68,6 @@ QuicSimpleClientSession::CreateContextForMultiPortPath() {
   return std::make_unique<PathMigrationContext>(
       std::unique_ptr<QuicPacketWriter>(writer),
       network_helper_->GetLatestClientAddress(), peer_address());
-}
-
-void QuicSimpleClientSession::OnServerPreferredAddressAvailable(
-    const QuicSocketAddress& server_preferred_address) {
-  const auto self_address = connection()->self_address();
-  if (network_helper_ == nullptr ||
-      !network_helper_->CreateUDPSocketAndBind(server_preferred_address,
-                                               self_address.host(), 0)) {
-    return;
-  }
-  QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
-  if (writer == nullptr) {
-    return;
-  }
-  connection()->ValidatePath(
-      std::make_unique<PathMigrationContext>(
-          std::unique_ptr<QuicPacketWriter>(writer),
-          network_helper_->GetLatestClientAddress(), server_preferred_address),
-      std::make_unique<ServerPreferredAddressResultDelegateWithWriter>(
-          connection()));
 }
 
 }  // namespace quic
