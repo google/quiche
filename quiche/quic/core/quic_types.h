@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quiche/quic/core/quic_connection_id.h"
