@@ -1,19 +1,34 @@
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
 #include "openssl/hpke.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_data_writer.h"
 #include "quiche/common/quiche_endian.h"
 
 namespace quiche {
 namespace {
+
+// Size of KEM ID is 2 bytes. Refer to OHTTP Key Config in the spec,
+// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-06.html#name-a-single-key-configuration
+constexpr size_t kSizeOfHpkeKemId = 2;
+
+// Size of Symmetric algorithms is 2 bytes(16 bits) each.
+// Refer to HPKE Symmetric Algorithms configuration in the spec,
+// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-06.html#name-a-single-key-configuration
+constexpr size_t kSizeOfSymmetricAlgorithmHpkeKdfId = 2;
+constexpr size_t kSizeOfSymmetricAlgorithmHpkeAeadId = 2;
 
 absl::StatusOr<const EVP_HPKE_KEM*> CheckKemId(uint16_t kem_id) {
   switch (kem_id) {
@@ -194,6 +209,130 @@ std::string ObliviousHttpHeaderKeyConfig::SerializeOhttpPayloadHeader() const {
   return hdr;
 }
 
+namespace {
+// https://www.rfc-editor.org/rfc/rfc9180#section-7.1
+absl::StatusOr<uint16_t> KeyLength(uint16_t kem_id) {
+  auto supported_kem = CheckKemId(kem_id);
+  if (!supported_kem.ok()) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Unsupported KEM ID:", kem_id, ". public key length is unknown."));
+  }
+  return EVP_HPKE_KEM_public_key_len(supported_kem.value());
+}
+
+absl::StatusOr<std::string> SerializeOhttpKeyWithPublicKey(
+    uint8_t key_id, absl::string_view public_key,
+    const std::vector<ObliviousHttpHeaderKeyConfig>& ohttp_configs) {
+  auto ohttp_config = ohttp_configs[0];
+  // Check if `ohttp_config` match spec's encoding guidelines.
+  static_assert(sizeof(ohttp_config.GetHpkeKemId()) == kSizeOfHpkeKemId &&
+                    sizeof(ohttp_config.GetHpkeKdfId()) ==
+                        kSizeOfSymmetricAlgorithmHpkeKdfId &&
+                    sizeof(ohttp_config.GetHpkeAeadId()) ==
+                        kSizeOfSymmetricAlgorithmHpkeAeadId,
+                "Size of HPKE IDs should match RFC specification.");
+
+  uint16_t symmetric_algs_length =
+      ohttp_configs.size() * (kSizeOfSymmetricAlgorithmHpkeKdfId +
+                              kSizeOfSymmetricAlgorithmHpkeAeadId);
+  int buf_len = sizeof(key_id) + kSizeOfHpkeKemId + public_key.size() +
+                sizeof(symmetric_algs_length) + symmetric_algs_length;
+  std::string ohttp_key_configuration(buf_len, '\0');
+  QuicheDataWriter writer(ohttp_key_configuration.size(),
+                          ohttp_key_configuration.data());
+  if (!writer.WriteUInt8(key_id)) {
+    return absl::InternalError("Failed to serialize OHTTP key.[key_id]");
+  }
+  if (!writer.WriteUInt16(ohttp_config.GetHpkeKemId())) {
+    return absl::InternalError(
+        "Failed to serialize OHTTP key.[kem_id]");  // kemID.
+  }
+  if (!writer.WriteStringPiece(public_key)) {
+    return absl::InternalError(
+        "Failed to serialize OHTTP key.[public_key]");  // Raw public key.
+  }
+  if (!writer.WriteUInt16(symmetric_algs_length)) {
+    return absl::InternalError(
+        "Failed to serialize OHTTP key.[symmetric_algs_length]");
+  }
+  for (const auto& item : ohttp_configs) {
+    // Check if KEM ID is the same for all the configs stored in `this` for
+    // given `key_id`.
+    if (item.GetHpkeKemId() != ohttp_config.GetHpkeKemId()) {
+      QUICHE_BUG(ohttp_key_configs_builder_parser)
+          << "ObliviousHttpKeyConfigs object cannot hold ConfigMap of "
+             "different KEM IDs:[ "
+          << item.GetHpkeKemId() << "," << ohttp_config.GetHpkeKemId()
+          << " ]for a given key_id:" << static_cast<uint16_t>(key_id);
+    }
+    if (!writer.WriteUInt16(item.GetHpkeKdfId())) {
+      return absl::InternalError(
+          "Failed to serialize OHTTP key.[kdf_id]");  // kdfID.
+    }
+    if (!writer.WriteUInt16(item.GetHpkeAeadId())) {
+      return absl::InternalError(
+          "Failed to serialize OHTTP key.[aead_id]");  // aeadID.
+    }
+  }
+  QUICHE_DCHECK_EQ(writer.remaining(), 0u);
+  return ohttp_key_configuration;
+}
+
+std::string GetDebugStringForFailedKeyConfig(
+    const ObliviousHttpKeyConfigs::OhttpKeyConfig& failed_key_config) {
+  std::string debug_string = "[ ";
+  absl::StrAppend(&debug_string,
+                  "key_id:", static_cast<uint16_t>(failed_key_config.key_id),
+                  " , kem_id:", failed_key_config.kem_id,
+                  ". Printing HEX formatted public_key:",
+                  absl::BytesToHexString(failed_key_config.public_key));
+  absl::StrAppend(&debug_string, ", symmetric_algorithms: { ");
+  for (const auto& symmetric_config : failed_key_config.symmetric_algorithms) {
+    absl::StrAppend(&debug_string, "{kdf_id: ", symmetric_config.kdf_id,
+                    ", aead_id:", symmetric_config.aead_id, " }");
+  }
+  absl::StrAppend(&debug_string, " } ]");
+  return debug_string;
+}
+
+// Verifies if the `key_config` contains all valid combinations of [kem_id,
+// kdf_id, aead_id] that comprises Single Key configuration encoding as
+// specified in
+// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#name-a-single-key-configuration.
+absl::Status StoreKeyConfigIfValid(
+    ObliviousHttpKeyConfigs::OhttpKeyConfig key_config,
+    absl::btree_map<uint8_t, std::vector<ObliviousHttpHeaderKeyConfig>,
+                    std::greater<uint8_t>>& configs,
+    absl::flat_hash_map<uint8_t, std::string>& keys) {
+  if (!CheckKemId(key_config.kem_id).ok() ||
+      key_config.public_key.size() != KeyLength(key_config.kem_id).value()) {
+    QUICHE_LOG(ERROR) << "Failed to process: "
+                      << GetDebugStringForFailedKeyConfig(key_config);
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid key_config! [KEM ID:", key_config.kem_id, "]"));
+  }
+  for (const auto& symmetric_config : key_config.symmetric_algorithms) {
+    if (!CheckKdfId(symmetric_config.kdf_id).ok() ||
+        !CheckAeadId(symmetric_config.aead_id).ok()) {
+      QUICHE_LOG(ERROR) << "Failed to process: "
+                        << GetDebugStringForFailedKeyConfig(key_config);
+      return absl::InvalidArgumentError(
+          absl::StrCat("Invalid key_config! [KDF ID:", symmetric_config.kdf_id,
+                       ", AEAD ID:", symmetric_config.aead_id, "]"));
+    }
+    auto ohttp_config = ObliviousHttpHeaderKeyConfig::Create(
+        key_config.key_id, key_config.kem_id, symmetric_config.kdf_id,
+        symmetric_config.aead_id);
+    if (ohttp_config.ok()) {
+      configs[key_config.key_id].emplace_back(std::move(ohttp_config.value()));
+    }
+  }
+  keys.emplace(key_config.key_id, std::move(key_config.public_key));
+  return absl::OkStatus();
+}
+
+}  // namespace
+
 absl::StatusOr<ObliviousHttpKeyConfigs>
 ObliviousHttpKeyConfigs::ParseConcatenatedKeys(absl::string_view key_config) {
   ConfigMap configs;
@@ -204,6 +343,67 @@ ObliviousHttpKeyConfigs::ParseConcatenatedKeys(absl::string_view key_config) {
     if (!status.ok()) return status;
   }
   return ObliviousHttpKeyConfigs(std::move(configs), std::move(keys));
+}
+
+absl::StatusOr<ObliviousHttpKeyConfigs> ObliviousHttpKeyConfigs::Create(
+    absl::flat_hash_set<ObliviousHttpKeyConfigs::OhttpKeyConfig>
+        ohttp_key_configs) {
+  if (ohttp_key_configs.empty()) {
+    return absl::InvalidArgumentError("Empty input.");
+  }
+  ConfigMap configs_map;
+  PublicKeyMap keys_map;
+  for (auto& ohttp_key_config : ohttp_key_configs) {
+    auto result = StoreKeyConfigIfValid(std::move(ohttp_key_config),
+                                        configs_map, keys_map);
+    if (!result.ok()) {
+      return result;
+    }
+  }
+  auto oblivious_configs =
+      ObliviousHttpKeyConfigs(std::move(configs_map), std::move(keys_map));
+  return oblivious_configs;
+}
+
+absl::StatusOr<ObliviousHttpKeyConfigs> ObliviousHttpKeyConfigs::Create(
+    const ObliviousHttpHeaderKeyConfig& single_key_config,
+    absl::string_view public_key) {
+  if (public_key.empty()) {
+    return absl::InvalidArgumentError("Empty input.");
+  }
+
+  if (auto key_length = KeyLength(single_key_config.GetHpkeKemId());
+      public_key.size() != key_length.value()) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Invalid key. Key size mismatch. Expected:", key_length.value(),
+        " Actual:", public_key.size()));
+  }
+
+  ConfigMap configs;
+  PublicKeyMap keys;
+  uint8_t key_id = single_key_config.GetKeyId();
+  keys.emplace(key_id, public_key);
+  configs[key_id].emplace_back(std::move(single_key_config));
+  return ObliviousHttpKeyConfigs(std::move(configs), std::move(keys));
+}
+
+absl::StatusOr<std::string> ObliviousHttpKeyConfigs::GenerateConcatenatedKeys()
+    const {
+  std::string concatenated_keys;
+  for (const auto& [key_id, ohttp_configs] : configs_) {
+    auto key = public_keys_.find(key_id);
+    if (key == public_keys_.end()) {
+      return absl::InternalError(
+          "Failed to serialize. No public key found for key_id");
+    }
+    auto serialized =
+        SerializeOhttpKeyWithPublicKey(key_id, key->second, ohttp_configs);
+    if (!serialized.ok()) {
+      return absl::InternalError("Failed to serialize OHTTP key configs.");
+    }
+    absl::StrAppend(&concatenated_keys, serialized.value());
+  }
+  return concatenated_keys;
 }
 
 ObliviousHttpHeaderKeyConfig ObliviousHttpKeyConfigs::PreferredConfig() const {
@@ -219,21 +419,6 @@ absl::StatusOr<absl::string_view> ObliviousHttpKeyConfigs::GetPublicKeyForId(
   }
   return key->second;
 }
-
-namespace {
-// https://www.rfc-editor.org/rfc/rfc9180#section-7.1
-// TODO(kmg): Switch to BoringSSL's EVP_HPKE_KEM_public_key_len()
-// https://boringssl-review.googlesource.com/c/boringssl/+/54605
-absl::StatusOr<uint16_t> KeyLength(uint16_t kem_id) {
-  switch (kem_id) {
-    case EVP_HPKE_DHKEM_X25519_HKDF_SHA256:
-      return 32;
-    default:
-      return absl::InvalidArgumentError(
-          "Unsupported kem_id; public key length is unknown.");
-  }
-}
-}  // namespace
 
 absl::Status ObliviousHttpKeyConfigs::ReadSingleKeyConfig(
     QuicheDataReader& reader, ConfigMap& configs, PublicKeyMap& keys) {

@@ -5,6 +5,7 @@
 
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -111,11 +112,73 @@ class QUICHE_EXPORT ObliviousHttpHeaderKeyConfig {
 // ObliviousHttpKeyConfigs objects are immutable after construction.
 class QUICHE_EXPORT ObliviousHttpKeyConfigs {
  public:
+  // Below two structures follow the Single key configuration spec in OHTTP RFC.
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-06.html#name-a-single-key-configuration
+  struct SymmetricAlgorithmsConfig {
+    uint16_t kdf_id;
+    uint16_t aead_id;
+
+    bool operator==(const SymmetricAlgorithmsConfig& other) const {
+      return kdf_id == other.kdf_id && aead_id == other.aead_id;
+    }
+
+    template <typename H>
+    friend H AbslHashValue(H h, const SymmetricAlgorithmsConfig& sym_alg_cfg) {
+      return H::combine(std::move(h), sym_alg_cfg.kdf_id, sym_alg_cfg.aead_id);
+    }
+  };
+
+  struct OhttpKeyConfig {
+    uint8_t key_id;
+    uint16_t kem_id;
+    std::string public_key;  // Raw byte string.
+    absl::flat_hash_set<SymmetricAlgorithmsConfig> symmetric_algorithms;
+
+    bool operator==(const OhttpKeyConfig& other) const {
+      return key_id == other.key_id && kem_id == other.kem_id &&
+             public_key == other.public_key &&
+             symmetric_algorithms == other.symmetric_algorithms;
+    }
+
+    template <typename H>
+    friend H AbslHashValue(H h, const OhttpKeyConfig& ohttp_key_cfg) {
+      return H::combine(std::move(h), ohttp_key_cfg.key_id,
+                        ohttp_key_cfg.kem_id, ohttp_key_cfg.public_key,
+                        ohttp_key_cfg.symmetric_algorithms);
+    }
+  };
+
   // Parses the "application/ohttp-keys" media type, which is a byte string
   // formatted according to the spec:
   // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-04.html#section-3
   static absl::StatusOr<ObliviousHttpKeyConfigs> ParseConcatenatedKeys(
       absl::string_view key_configs);
+
+  // Builds `ObliviousHttpKeyConfigs` with multiple key configurations, each
+  // made up of Single Key Configuration([{key_id, kem_id, public key},
+  // Set<SymmetricAlgos>]) encoding specified in section 3.
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#name-key-configuration-encoding
+  // @params: Set<{key_id, kem_id, public key, Set<HPKE Symmetric Algorithms>>.
+  // @return: When given all valid configs supported by BoringSSL, builds and
+  // returns `ObliviousHttpKeyConfigs`. If any one of the input configs are
+  // invalid or unsupported by BSSL, returns an error.
+  // @note: Subsequently, To get concatenated keys[contiguous byte string of
+  // keys], use `GenerateConcatenatedKeys()`. This output can inturn be parsed
+  // by `ObliviousHttpKeyConfigs::ParseConcatenatedKeys` on client side.
+  static absl::StatusOr<ObliviousHttpKeyConfigs> Create(
+      absl::flat_hash_set<OhttpKeyConfig> ohttp_key_configs);
+
+  // Builds `ObliviousHttpKeyConfigs` with given public_key and Single key
+  // configuration specified in `ObliviousHttpHeaderKeyConfig` object. After
+  // successful `Create`, clients can call `GenerateConcatenatedKeys()` to build
+  // the Single key config.
+  static absl::StatusOr<ObliviousHttpKeyConfigs> Create(
+      const ObliviousHttpHeaderKeyConfig& single_key_config,
+      absl::string_view public_key);
+
+  // Generates byte string corresponding to "application/ohttp-keys" media type.
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-04.html#section-3
+  absl::StatusOr<std::string> GenerateConcatenatedKeys() const;
 
   int NumKeys() const { return public_keys_.size(); }
 
