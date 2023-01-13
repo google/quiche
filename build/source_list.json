@@ -55,6 +55,7 @@
     "quiche/common/quiche_mem_slice_storage.h",
     "quiche/common/quiche_protocol_flags_list.h",
     "quiche/common/quiche_random.h",
+    "quiche/common/quiche_stream.h",
     "quiche/common/quiche_text_utils.h",
     "quiche/common/simple_buffer_allocator.h",
     "quiche/common/structured_headers.h",

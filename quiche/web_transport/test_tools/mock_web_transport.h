@@ -24,8 +24,10 @@ class QUICHE_NO_EXPORT MockStreamVisitor : public StreamVisitor {
 class QUICHE_NO_EXPORT MockStream : public Stream {
   MOCK_METHOD(ReadResult, Read, (absl::Span<char> buffer), (override));
   MOCK_METHOD(ReadResult, Read, (std::string * output), (override));
-  MOCK_METHOD(bool, Write, (absl::string_view data), (override));
-  MOCK_METHOD(bool, SendFin, (), (override));
+  MOCK_METHOD(absl::Status, Writev,
+              (absl::Span<const absl::string_view> data,
+               const quiche::StreamWriteOptions& options),
+              (override));
   MOCK_METHOD(bool, CanWrite, (), (const, override));
   MOCK_METHOD(size_t, ReadableBytes, (), (const, override));
   MOCK_METHOD(StreamId, GetStreamId, (), (const, override));

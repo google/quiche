@@ -7,11 +7,13 @@
 
 #include <string>
 
+#include "absl/status/status.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_circular_deque.h"
+#include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
@@ -63,11 +65,10 @@ class WebTransportBidirectionalEchoVisitor : public WebTransportStreamVisitor {
     }
 
     if (!buffer_.empty()) {
-      bool success = stream_->Write(buffer_);
+      absl::Status status = quiche::WriteIntoStream(*stream_, buffer_);
       QUIC_DVLOG(1) << "Attempted writing on WebTransport bidirectional stream "
-                    << stream_->GetStreamId()
-                    << ", success: " << (success ? "yes" : "no");
-      if (!success) {
+                    << stream_->GetStreamId() << ", success: " << status;
+      if (!status.ok()) {
         return;
       }
 
@@ -75,8 +76,8 @@ class WebTransportBidirectionalEchoVisitor : public WebTransportStreamVisitor {
     }
 
     if (send_fin_ && !fin_sent_) {
-      bool success = stream_->SendFin();
-      if (success) {
+      absl::Status status = quiche::SendFinOnStream(*stream_);
+      if (status.ok()) {
         fin_sent_ = true;
       }
     }
@@ -153,14 +154,17 @@ class WebTransportUnidirectionalEchoWriteVisitor
     if (data_.empty()) {
       return;
     }
-    if (!stream_->Write(data_)) {
+    absl::Status write_status = quiche::WriteIntoStream(*stream_, data_);
+    if (!write_status.ok()) {
+      QUICHE_DLOG_IF(WARNING, !absl::IsUnavailable(write_status))
+          << "Failed to write into stream: " << write_status;
       return;
     }
     data_ = "";
-    bool fin_sent = stream_->SendFin();
+    absl::Status fin_status = quiche::SendFinOnStream(*stream_);
     QUICHE_DVLOG(1)
         << "WebTransportUnidirectionalEchoWriteVisitor finished sending data.";
-    QUICHE_DCHECK(fin_sent);
+    QUICHE_DCHECK(fin_status.ok());
   }
 
   void OnResetStreamReceived(WebTransportStreamError /*error*/) override {}

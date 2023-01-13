@@ -18,6 +18,7 @@
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_stream.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
 namespace webtransport {
@@ -61,14 +62,12 @@ struct QUICHE_EXPORT DatagramStatus {
 // events related to a WebTransport stream.  The visitor object is owned by the
 // stream itself, meaning that if the stream is ever fully closed, the visitor
 // will be garbage-collected.
-class QUICHE_EXPORT StreamVisitor {
+class QUICHE_EXPORT StreamVisitor : public quiche::WriteStreamVisitor {
  public:
   virtual ~StreamVisitor() {}
 
   // Called whenever the stream has readable data available.
   virtual void OnCanRead() = 0;
-  // Called whenever the stream is not write-blocked and can accept new data.
-  virtual void OnCanWrite() = 0;
 
   // Called when RESET_STREAM is received for the stream.
   virtual void OnResetStreamReceived(StreamErrorCode error) = 0;
@@ -82,7 +81,7 @@ class QUICHE_EXPORT StreamVisitor {
 
 // A stream (either bidirectional or unidirectional) that is contained within a
 // WebTransport session.
-class QUICHE_EXPORT Stream {
+class QUICHE_EXPORT Stream : public quiche::WriteStream {
  public:
   struct QUICHE_EXPORT ReadResult {
     // Number of bytes actually read.
@@ -99,16 +98,7 @@ class QUICHE_EXPORT Stream {
   [[nodiscard]] virtual ReadResult Read(absl::Span<char> buffer) = 0;
   // Reads all available data and appends it to the end of |output|.
   [[nodiscard]] virtual ReadResult Read(std::string* output) = 0;
-  // Writes |data| into the stream.  WebTransport writes are all-or-nothing: the
-  // stream will either accept all of the data (potentially buffering some of
-  // it), or reject it.  In the latter case, the method will return false, and
-  // the sender has to wait until OnCanWrite() is called.
-  [[nodiscard]] virtual bool Write(absl::string_view data) = 0;
-  // Sends the FIN on the stream.  Returns true on success.
-  [[nodiscard]] virtual bool SendFin() = 0;
 
-  // Indicates whether it is possible to write into stream right now.
-  virtual bool CanWrite() const = 0;
   // Indicates the number of bytes that can be read from the stream.
   virtual size_t ReadableBytes() const = 0;
 

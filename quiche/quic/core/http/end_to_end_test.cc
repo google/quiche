@@ -15,6 +15,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
 #include "quiche/quic/core/frames/quic_blocked_frame.h"
@@ -72,6 +73,8 @@
 #include "quiche/quic/tools/quic_simple_client_stream.h"
 #include "quiche/quic/tools/quic_simple_server_stream.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_stream.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
 using spdy::Http2HeaderBlock;
@@ -831,7 +834,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         visitor = visitor_owned.get();
         stream->SetVisitor(std::move(visitor_owned));
       }
-      EXPECT_CALL(*visitor, OnCanRead()).WillOnce(Assign(&can_read, true));
+      EXPECT_CALL(*visitor, OnCanRead())
+          .WillRepeatedly(Assign(&can_read, true));
       client_->WaitUntil(5000 /*ms*/, [&can_read]() { return can_read; });
       if (!can_read) {
         ADD_FAILURE() << "Waiting for readable data on stream " << id
@@ -6600,7 +6604,7 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
       .WillOnce(Assign(&data_acknowledged, true));
   outgoing_stream->SetVisitor(std::move(stream_visitor));
 
-  EXPECT_TRUE(outgoing_stream->Write("test"));
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*outgoing_stream, "test"));
   EXPECT_TRUE(outgoing_stream->SendFin());
 
   bool stream_received = false;
@@ -6639,7 +6643,7 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
   WebTransportStream* outgoing_stream =
       session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(outgoing_stream != nullptr);
-  EXPECT_TRUE(outgoing_stream->Write("test"));
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*outgoing_stream, "test"));
   EXPECT_TRUE(outgoing_stream->SendFin());
 
   bool stream_received = false;
@@ -6679,7 +6683,7 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
       .WillOnce(Assign(&data_acknowledged, true));
   stream->SetVisitor(std::move(stream_visitor_owned));
 
-  EXPECT_TRUE(stream->Write("test"));
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
   EXPECT_TRUE(stream->SendFin());
 
   std::string received_data =
@@ -6706,7 +6710,7 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStreamWithBuffering) {
 
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
-  EXPECT_TRUE(stream->Write("test"));
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
   EXPECT_TRUE(stream->SendFin());
 
   std::string received_data = ReadDataFromWebTransportStreamUntilFin(stream);
@@ -6735,11 +6739,16 @@ TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
 
   WebTransportStream* stream = session->AcceptIncomingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
-  EXPECT_TRUE(stream->Write("test"));
-  EXPECT_TRUE(stream->SendFin());
+  // Test the full Writev() API.
+  const std::string kLongString = std::string(16 * 1024, 'a');
+  std::vector<absl::string_view> write_vector = {"foo", "bar", "test",
+                                                 kLongString};
+  quiche::StreamWriteOptions options;
+  options.set_send_fin(true);
+  QUICHE_EXPECT_OK(stream->Writev(absl::MakeConstSpan(write_vector), options));
 
   std::string received_data = ReadDataFromWebTransportStreamUntilFin(stream);
-  EXPECT_EQ(received_data, "test");
+  EXPECT_EQ(received_data, absl::StrCat("foobartest", kLongString));
 }
 
 TEST_P(EndToEndTest, WebTransportDatagrams) {
@@ -6786,7 +6795,7 @@ TEST_P(EndToEndTest, WebTransportSessionClose) {
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
   QuicStreamId stream_id = stream->GetStreamId();
-  EXPECT_TRUE(stream->Write("test"));
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
   // Keep stream open.
 
   bool close_received = false;
@@ -6818,7 +6827,7 @@ TEST_P(EndToEndTest, WebTransportSessionCloseWithoutCapsule) {
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
   QuicStreamId stream_id = stream->GetStreamId();
-  EXPECT_TRUE(stream->Write("test"));
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
   // Keep stream open.
 
   bool close_received = false;
@@ -6850,7 +6859,7 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveClose) {
   WebTransportStream* stream = session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
   QuicStreamId stream_id = stream->GetStreamId();
-  EXPECT_TRUE(stream->Write("42 test error"));
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "42 test error"));
   EXPECT_TRUE(stream->SendFin());
 
   // Have some other streams open pending, to ensure they are closed properly.
@@ -6890,7 +6899,7 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   QuicStreamId id1 = stream->GetStreamId();
   ASSERT_TRUE(stream != nullptr);
-  EXPECT_TRUE(stream->Write("test"));
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
   stream->ResetWithUserCode(42);
 
   // This read fails if the stream is closed in both directions, since that
@@ -6901,7 +6910,7 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
   stream = session->OpenOutgoingBidirectionalStream();
   QuicStreamId id2 = stream->GetStreamId();
   ASSERT_TRUE(stream != nullptr);
-  EXPECT_TRUE(stream->Write("test"));
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
   stream->SendStopSending(24);
 
   std::array<std::string, 2> expected_log = {
@@ -6941,7 +6950,7 @@ TEST_P(EndToEndTest, WebTransportSession404) {
 
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
-  EXPECT_TRUE(stream->Write("test"));
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
   EXPECT_TRUE(stream->SendFin());
 
   EXPECT_TRUE(client_->WaitUntil(-1, [this, connect_stream_id]() {

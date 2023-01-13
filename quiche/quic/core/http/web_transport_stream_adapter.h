@@ -25,8 +25,8 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
   // WebTransportStream implementation.
   ABSL_MUST_USE_RESULT ReadResult Read(absl::Span<char> output) override;
   ABSL_MUST_USE_RESULT ReadResult Read(std::string* output) override;
-  ABSL_MUST_USE_RESULT bool Write(absl::string_view data) override;
-  ABSL_MUST_USE_RESULT bool SendFin() override;
+  absl::Status Writev(absl::Span<const absl::string_view> data,
+                      const quiche::StreamWriteOptions& options) override;
   bool CanWrite() const override;
   size_t ReadableBytes() const override;
   void SetVisitor(std::unique_ptr<WebTransportStreamVisitor> visitor) override {
@@ -53,6 +53,8 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
   void OnCanWriteNewData();
 
  private:
+  absl::Status CheckBeforeStreamWrite() const;
+
   QuicSession* session_;            // Unowned.
   QuicStream* stream_;              // Unowned.
   QuicStreamSequencer* sequencer_;  // Unowned.
