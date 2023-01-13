@@ -1498,7 +1498,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     EncryptionLevel decrypted_level = ENCRYPTION_INITIAL;
     QuicPacketHeader header;
     absl::InlinedVector<QuicFrameType, 1> frames;
-    QuicEcnCodepoint ecn_codepoint;
+    QuicEcnCodepoint ecn_codepoint = ECN_NOT_ECT;
   };
 
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(

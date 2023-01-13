@@ -239,6 +239,8 @@ class QuicConnectionPeer {
 
   static QuicEcnCounts* GetEcnCounts(QuicConnection* connection,
                                      PacketNumberSpace packet_number_space);
+
+  static bool TestLastReceivedPacketInfoDefaults();
 };
 
 }  // namespace test

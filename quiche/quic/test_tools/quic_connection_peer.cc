@@ -582,5 +582,22 @@ QuicEcnCounts* QuicConnectionPeer::GetEcnCounts(
   return &connection->peer_ack_ecn_counts_[packet_number_space];
 }
 
+// static
+bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
+  QuicConnection::ReceivedPacketInfo info{QuicTime::Zero()};
+  return info.destination_address == QuicSocketAddress() &&
+         info.source_address == QuicSocketAddress() &&
+         info.receipt_time == QuicTime::Zero() &&
+         !info.received_bytes_counted && info.length == 0 &&
+         info.destination_connection_id == QuicConnectionId() &&
+         !info.decrypted && info.decrypted_level == ENCRYPTION_INITIAL &&
+         // There's no simple way to compare all the values of QuicPacketHeader.
+         info.frames.empty() && info.ecn_codepoint == ECN_NOT_ECT &&
+         // If the condition below fails, the contents of ReceivedPacketInfo
+         // have changed. Please add the relevant conditions and update the
+         // length below.
+         sizeof(QuicConnection::ReceivedPacketInfo) == 256;
+}
+
 }  // namespace test
 }  // namespace quic

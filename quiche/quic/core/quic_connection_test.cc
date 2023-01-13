@@ -16708,6 +16708,10 @@ TEST_P(QuicConnectionTest, EcnMarksUndecryptableCoalescedPacket) {
             connection_.SupportsMultiplePacketNumberSpaces() ? 1 : 2);
 }
 
+TEST_P(QuicConnectionTest, ReceivedPacketInfoDefaults) {
+  EXPECT_TRUE(QuicConnectionPeer::TestLastReceivedPacketInfoDefaults());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
