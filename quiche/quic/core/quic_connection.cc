@@ -1766,16 +1766,25 @@ bool QuicConnection::OnPathChallengeFrameInternal(
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPathChallengeFrame(frame);
   }
-
-  const QuicSocketAddress current_effective_peer_address =
-      GetEffectivePeerAddressFromCurrentPacket();
+  // On the server side, send response to the source address of the current
+  // incoming packet according to RFC9000.
+  // On the client side, send response to the default peer address which should
+  // be on an existing path with a pre-assigned a destination CID.
+  const QuicSocketAddress effective_peer_address_to_respond =
+      perspective_ == Perspective::IS_CLIENT
+          ? effective_peer_address()
+          : GetEffectivePeerAddressFromCurrentPacket();
+  const QuicSocketAddress direct_peer_address_to_respond =
+      perspective_ == Perspective::IS_CLIENT
+          ? direct_peer_address_
+          : last_received_packet_info_.source_address;
   QuicConnectionId client_cid, server_cid;
   FindOnPathConnectionIds(last_received_packet_info_.destination_address,
-                          current_effective_peer_address, &client_cid,
+                          effective_peer_address_to_respond, &client_cid,
                           &server_cid);
   QuicPacketCreator::ScopedPeerAddressContext context(
-      &packet_creator_, last_received_packet_info_.source_address, client_cid,
-      server_cid, connection_migration_use_new_cid_);
+      &packet_creator_, direct_peer_address_to_respond, client_cid, server_cid,
+      connection_migration_use_new_cid_);
   if (should_proactively_validate_peer_address_on_path_challenge_) {
     // Conditions to proactively validate peer address:
     // The perspective is server
@@ -1783,23 +1792,19 @@ bool QuicConnection::OnPathChallengeFrameInternal(
     // The connection isn't validating migrated peer address, which is of
     // higher prority.
     QUIC_DVLOG(1) << "Proactively validate the effective peer address "
-                  << current_effective_peer_address;
+                  << effective_peer_address_to_respond;
     QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 2, 6);
     ValidatePath(std::make_unique<ReversePathValidationContext>(
-                     default_path_.self_address,
-                     last_received_packet_info_.source_address,
-                     current_effective_peer_address, this),
+                     default_path_.self_address, direct_peer_address_to_respond,
+                     effective_peer_address_to_respond, this),
                  std::make_unique<ReversePathValidationResultDelegate>(
                      this, peer_address()));
   }
   has_path_challenge_in_current_packet_ = true;
   MaybeUpdateAckTimeout();
-  // Queue or send PATH_RESPONSE. Send PATH_RESPONSE to the source address of
-  // the current incoming packet, even if it's not the default path or the
-  // alternative path.
-  if (!SendPathResponse(frame.data_buffer,
-                        last_received_packet_info_.source_address,
-                        current_effective_peer_address)) {
+  // Queue or send PATH_RESPONSE.
+  if (!SendPathResponse(frame.data_buffer, direct_peer_address_to_respond,
+                        effective_peer_address_to_respond)) {
     QUIC_CODE_COUNT(quic_failed_to_send_path_response);
   }
   // TODO(b/150095588): change the stats to
@@ -2921,6 +2926,12 @@ bool QuicConnection::FindOnPathConnectionIds(
     *server_connection_id = alternative_path_.server_connection_id;
     return true;
   }
+  // Client should only send packets on either default or alternative path, so
+  // it shouldn't fail here. If the server fail to find CID to use, no packet
+  // will be generated on this path.
+  QUIC_BUG_IF(failed to find on path connection ids,
+              perspective_ == Perspective::IS_CLIENT)
+      << "Fails to find on path connection IDs";
   return false;
 }
 
