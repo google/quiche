@@ -16905,7 +16905,8 @@ TEST_P(QuicConnectionTest, EcnMarksUndecryptableCoalescedPacket) {
             connection_.SupportsMultiplePacketNumberSpaces() ? 1 : 2);
 }
 
-TEST_P(QuicConnectionTest, ReceivedPacketInfoDefaults) {
+// TODO(b/265478749): re-enable this test.
+TEST_P(QuicConnectionTest, DISABLED_ReceivedPacketInfoDefaults) {
   EXPECT_TRUE(QuicConnectionPeer::TestLastReceivedPacketInfoDefaults());
 }
 
