@@ -72,7 +72,8 @@ void QuicPathValidator::OnPathResponse(const QuicPathFrameBuffer& probing_data,
 
 void QuicPathValidator::StartPathValidation(
     std::unique_ptr<QuicPathValidationContext> context,
-    std::unique_ptr<ResultDelegate> result_delegate) {
+    std::unique_ptr<ResultDelegate> result_delegate,
+    PathValidationReason reason) {
   QUICHE_DCHECK(context);
   QUIC_DLOG(INFO) << "Start validating path " << *context
                   << " via writer: " << context->WriterToUse();
@@ -82,6 +83,7 @@ void QuicPathValidator::StartPathValidation(
     ResetPathValidation();
   }
 
+  reason_ = reason;
   path_context_ = std::move(context);
   result_delegate_ = std::move(result_delegate);
   SendPathChallengeAndSetAlarm();
@@ -92,6 +94,7 @@ void QuicPathValidator::ResetPathValidation() {
   result_delegate_ = nullptr;
   retry_timer_->Cancel();
   retry_count_ = 0;
+  reason_ = PathValidationReason::kReasonUnknown;
 }
 
 void QuicPathValidator::CancelPathValidation() {

@@ -1798,7 +1798,8 @@ bool QuicConnection::OnPathChallengeFrameInternal(
                      default_path_.self_address, direct_peer_address_to_respond,
                      effective_peer_address_to_respond, this),
                  std::make_unique<ReversePathValidationResultDelegate>(
-                     this, peer_address()));
+                     this, peer_address()),
+                 PathValidationReason::kReversePathValidation);
   }
   has_path_challenge_in_current_packet_ = true;
   MaybeUpdateAckTimeout();
@@ -3994,8 +3995,13 @@ void QuicConnection::OnHandshakeComplete() {
 
 void QuicConnection::MaybeCreateMultiPortPath() {
   QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
-  QUIC_BUG_IF(quic_bug_12714_20, path_validator_.HasPendingPathValidation())
-      << "Pending validation exists when multi-port path is created.";
+  if (path_validator_.HasPendingPathValidation()) {
+    QUIC_CLIENT_HISTOGRAM_ENUM("QuicConnection.MultiPortPathCreationCancelled",
+                               path_validator_.GetPathValidationReason(),
+                               PathValidationReason::kMaxValue,
+                               "Reason for cancelled multi port path creation");
+    return;
+  }
   if (multi_port_stats_->num_multi_port_paths_created >=
       kMaxNumMultiPortPaths) {
     return;
@@ -4010,7 +4016,8 @@ void QuicConnection::MaybeCreateMultiPortPath() {
   multi_port_path_context_ = nullptr;
   multi_port_stats_->num_multi_port_paths_created++;
   ValidatePath(std::move(path_context),
-               std::move(multi_port_validation_result_delegate));
+               std::move(multi_port_validation_result_delegate),
+               PathValidationReason::kMultiPort);
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
@@ -5291,7 +5298,8 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
                      default_path_.self_address, peer_address(),
                      default_path_.peer_address, this),
                  std::make_unique<ReversePathValidationResultDelegate>(
-                     this, previous_direct_peer_address));
+                     this, previous_direct_peer_address),
+                 PathValidationReason::kReversePathValidation);
   } else {
     QUIC_DVLOG(1) << "Peer address " << default_path_.peer_address
                   << " is already under validation, wait for result.";
@@ -6523,7 +6531,8 @@ QuicTime QuicConnection::GetRetryTimeout(
 
 void QuicConnection::ValidatePath(
     std::unique_ptr<QuicPathValidationContext> context,
-    std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate) {
+    std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate,
+    PathValidationReason reason) {
   if (!connection_migration_use_new_cid_ &&
       perspective_ == Perspective::IS_CLIENT &&
       !IsDefaultPath(context->self_address(), context->peer_address())) {
@@ -6578,7 +6587,7 @@ void QuicConnection::ValidatePath(
                                   server_connection_id, stateless_reset_token);
   }
   path_validator_.StartPathValidation(std::move(context),
-                                      std::move(result_delegate));
+                                      std::move(result_delegate), reason);
   if (perspective_ == Perspective::IS_CLIENT &&
       IsValidatingServerPreferredAddress()) {
     AddKnownServerAddress(server_preferred_address_);
@@ -7043,7 +7052,8 @@ void QuicConnection::MaybeProbeMultiPortPath() {
       std::make_unique<MultiPortPathValidationResultDelegate>(this);
   path_validator_.StartPathValidation(
       std::move(multi_port_path_context_),
-      std::move(multi_port_validation_result_delegate));
+      std::move(multi_port_validation_result_delegate),
+      PathValidationReason::kMultiPort);
 }
 
 QuicConnection::MultiPortPathValidationResultDelegate::

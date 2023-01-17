@@ -1193,7 +1193,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // this one.
   void ValidatePath(
       std::unique_ptr<QuicPathValidationContext> context,
-      std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate);
+      std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate,
+      PathValidationReason reason);
 
   bool can_receive_ack_frequency_frame() const {
     return can_receive_ack_frequency_frame_;

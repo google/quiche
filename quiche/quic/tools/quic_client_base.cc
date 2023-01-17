@@ -315,8 +315,8 @@ bool QuicClientBase::ValidateAndMigrateSocket(const QuicIpAddress& new_host) {
       std::make_unique<PathMigrationContext>(
           std::move(writer), network_helper_->GetLatestClientAddress(),
           session_->peer_address()),
-      std::make_unique<QuicClientSocketMigrationValidationResultDelegate>(
-          this));
+      std::make_unique<QuicClientSocketMigrationValidationResultDelegate>(this),
+      PathValidationReason::kConnectionMigration);
   return true;
 }
 
@@ -519,7 +519,7 @@ void QuicClientBase::ValidateNewNetwork(const QuicIpAddress& host) {
       std::make_unique<PathMigrationContext>(
           std::move(writer), network_helper_->GetLatestClientAddress(),
           session_->peer_address()),
-      std::move(result_delegate));
+      std::move(result_delegate), PathValidationReason::kConnectionMigration);
 }
 
 void QuicClientBase::OnServerPreferredAddressAvailable(
@@ -538,7 +538,8 @@ void QuicClientBase::OnServerPreferredAddressAvailable(
       std::make_unique<PathMigrationContext>(
           std::unique_ptr<QuicPacketWriter>(writer),
           network_helper_->GetLatestClientAddress(), server_preferred_address),
-      std::make_unique<ServerPreferredAddressResultDelegateWithWriter>(this));
+      std::make_unique<ServerPreferredAddressResultDelegateWithWriter>(this),
+      PathValidationReason::kServerPreferredAddressMigration);
 }
 
 }  // namespace quic

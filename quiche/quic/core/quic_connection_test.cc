@@ -2658,7 +2658,8 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
               connection_.self_address(), kNewPeerAddress, writer_.get()),
           std::make_unique<TestValidationResultDelegate>(
               &connection_, connection_.self_address(), kNewPeerAddress,
-              &success));
+              &success),
+          PathValidationReason::kReasonUnknown);
     }
     EXPECT_EQ((connection_.validate_client_address() ? 2 : 3) * bytes_sent,
               QuicConnectionPeer::BytesSentOnAlternativePath(&connection_));
@@ -8860,7 +8861,8 @@ TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnAlternativeSocket) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
 
   // Receiving a PATH_CHALLENGE on the alternative path. Response to this
   // PATH_CHALLENGE should be sent via the alternative writer.
@@ -11625,7 +11627,8 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
   EXPECT_EQ(0u, writer_->packets_write_attempts());
 
   QuicFrames frames;
@@ -11658,7 +11661,8 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
   EXPECT_EQ(0u, writer_->packets_write_attempts());
 
   // Start another path validation request.
@@ -11682,7 +11686,8 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
           kNewSelfAddress2, connection_.peer_address(), &new_writer2),
       std::make_unique<TestValidationResultDelegate>(
           &connection_, kNewSelfAddress2, connection_.peer_address(),
-          &success2));
+          &success2),
+      PathValidationReason::kReasonUnknown);
   EXPECT_FALSE(success);
   if (connection_.connection_migration_use_new_cid()) {
     // There is no pening path validation as there is no available connection
@@ -11712,7 +11717,8 @@ TEST_P(QuicConnectionTest, PathValidationRetry) {
                                connection_.peer_address(), writer_.get()),
                            std::make_unique<TestValidationResultDelegate>(
                                &connection_, connection_.self_address(),
-                               connection_.peer_address(), &success));
+                               connection_.peer_address(), &success),
+                           PathValidationReason::kReasonUnknown);
   EXPECT_EQ(1u, writer_->packets_write_attempts());
   EXPECT_TRUE(connection_.HasPendingPathValidation());
 
@@ -11753,7 +11759,8 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
   EXPECT_EQ(0u, writer_->packets_write_attempts());
   EXPECT_TRUE(connection_.HasPendingPathValidation());
 
@@ -11798,7 +11805,8 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
   EXPECT_EQ(0u, writer_->packets_write_attempts());
 
   new_writer.SetWritable();
@@ -11860,7 +11868,8 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedDefaultSocket) {
             connection_.self_address(), kNewPeerAddress, writer_.get()),
         std::make_unique<TestValidationResultDelegate>(
             &connection_, connection_.self_address(), kNewPeerAddress,
-            &success));
+            &success),
+        PathValidationReason::kReasonUnknown);
   }
   EXPECT_EQ(1u, writer_->packets_write_attempts());
 
@@ -11903,7 +11912,8 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnNewSocket) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
   EXPECT_EQ(1u, new_writer.packets_write_attempts());
   EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
   EXPECT_EQ(1u, new_writer.padding_frames().size());
@@ -11939,7 +11949,8 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
                                  connection_.peer_address(), writer_.get()),
                              std::make_unique<TestValidationResultDelegate>(
                                  &connection_, connection_.self_address(),
-                                 connection_.peer_address(), &success));
+                                 connection_.peer_address(), &success),
+                             PathValidationReason::kReasonUnknown);
   }
   EXPECT_EQ(1u, writer_->packets_write_attempts());
   EXPECT_EQ(1u, writer_->path_challenge_frames().size());
@@ -11970,7 +11981,8 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnAlternativePeerAddress) {
       std::make_unique<TestQuicPathValidationContext>(
           connection_.self_address(), kNewPeerAddress, writer_.get()),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, connection_.self_address(), kNewPeerAddress, &success));
+          &connection_, connection_.self_address(), kNewPeerAddress, &success),
+      PathValidationReason::kReasonUnknown);
 
   EXPECT_EQ(1u, writer_->packets_write_attempts());
   EXPECT_FALSE(connection_.HasPendingPathValidation());
@@ -12003,7 +12015,8 @@ TEST_P(QuicConnectionTest,
       std::make_unique<TestQuicPathValidationContext>(
           connection_.self_address(), kNewPeerAddress, writer_.get()),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, connection_.self_address(), kNewPeerAddress, &success));
+          &connection_, connection_.self_address(), kNewPeerAddress, &success),
+      PathValidationReason::kReasonUnknown);
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   // Connection shouldn't be closed.
   EXPECT_TRUE(connection_.connected());
@@ -13187,7 +13200,8 @@ TEST_P(QuicConnectionTest, MigrateToNewPathDuringProbing) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
@@ -13241,6 +13255,14 @@ TEST_P(QuicConnectionTest, MultiPortConnection) {
       &connection_, kNewSelfAddress, connection_.peer_address()));
   auto* alt_path = QuicConnectionPeer::GetAlternativePath(&connection_);
   EXPECT_FALSE(alt_path->validated);
+  EXPECT_EQ(PathValidationReason::kMultiPort,
+            QuicConnectionPeer::path_validator(&connection_)
+                ->GetPathValidationReason());
+
+  // Suppose the server retransmits the NEW_CID frame, the client will receive
+  // the same frame again. It should be ignored.
+  // Regression test of crbug.com/1406762
+  connection_.OnNewConnectionIdFrame(frame);
 
   // 30ms RTT.
   const QuicTime::Delta kTestRTT = QuicTime::Delta::FromMilliseconds(30);
@@ -14198,7 +14220,8 @@ TEST_P(QuicConnectionTest,
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), writer_.get()),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
 
   EXPECT_FALSE(success);
 }
@@ -14250,7 +14273,8 @@ TEST_P(QuicConnectionTest,
       std::make_unique<TestQuicPathValidationContext>(
           kSelfAddress1, connection_.peer_address(), writer_.get()),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kSelfAddress1, connection_.peer_address(), &success1));
+          &connection_, kSelfAddress1, connection_.peer_address(), &success1),
+      PathValidationReason::kReasonUnknown);
 
   // Migrate upon 1st validation success.
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
@@ -14291,7 +14315,8 @@ TEST_P(QuicConnectionTest,
       std::make_unique<TestQuicPathValidationContext>(
           kSelfAddress2, connection_.peer_address(), writer_.get()),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kSelfAddress2, connection_.peer_address(), &success2));
+          &connection_, kSelfAddress2, connection_.peer_address(), &success2),
+      PathValidationReason::kReasonUnknown);
   // Since server does not retire any client connection ID yet, 2nd validation
   // would fail due to lack of client connection ID.
   EXPECT_FALSE(success2);
@@ -14326,7 +14351,8 @@ TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), writer_.get()),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success));
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
 
   auto* path_validator = QuicConnectionPeer::path_validator(&connection_);
   path_validator->CancelPathValidation();
@@ -16104,7 +16130,8 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress) {
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
-                &connection_));
+                &connection_),
+            PathValidationReason::kReasonUnknown);
       }));
   connection_.OnHandshakeComplete();
   EXPECT_TRUE(connection_.HasPendingPathValidation());
@@ -16183,7 +16210,8 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress2) {
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
-                &connection_));
+                &connection_),
+            PathValidationReason::kReasonUnknown);
       }));
   connection_.OnHandshakeComplete();
   EXPECT_TRUE(connection_.HasPendingPathValidation());
@@ -16250,7 +16278,8 @@ TEST_P(QuicConnectionTest, ClientFailedToValidateServerPreferredAddress) {
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
-                &connection_));
+                &connection_),
+            PathValidationReason::kReasonUnknown);
       }));
   connection_.OnHandshakeComplete();
   EXPECT_TRUE(connection_.IsValidatingServerPreferredAddress());
@@ -16312,7 +16341,8 @@ TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress) {
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
-                &connection_));
+                &connection_),
+            PathValidationReason::kReasonUnknown);
       }));
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPA2});
@@ -16349,7 +16379,8 @@ TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress2) {
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
-                &connection_));
+                &connection_),
+            PathValidationReason::kReasonUnknown);
       }));
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPA2});
@@ -16392,7 +16423,8 @@ TEST_P(QuicConnectionTest, MaxDuplicatedPacketsSentToServerPreferredAddress) {
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
-                &connection_));
+                &connection_),
+            PathValidationReason::kReasonUnknown);
       }));
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPA2});
@@ -16445,7 +16477,8 @@ TEST_P(QuicConnectionTest, MultiPortCreationAfterServerMigration) {
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
-                &connection_));
+                &connection_),
+            PathValidationReason::kReasonUnknown);
       }));
   // The connection should start probing the preferred address after handshake
   // confirmed.
@@ -16685,8 +16718,8 @@ TEST_P(QuicConnectionTest, ClientProbesAfterServerMigration) {
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress2, connection_.peer_address(), &new_writer2),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress2, connection_.peer_address(),
-          &success));
+          &connection_, kNewSelfAddress2, connection_.peer_address(), &success),
+      PathValidationReason::kServerPreferredAddressMigration);
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress2, kServerPreferredAddress));
 

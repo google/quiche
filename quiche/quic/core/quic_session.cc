@@ -2658,8 +2658,10 @@ void QuicSession::ProcessAllPendingStreams() {
 
 void QuicSession::ValidatePath(
     std::unique_ptr<QuicPathValidationContext> context,
-    std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate) {
-  connection_->ValidatePath(std::move(context), std::move(result_delegate));
+    std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate,
+    PathValidationReason reason) {
+  connection_->ValidatePath(std::move(context), std::move(result_delegate),
+                            reason);
 }
 
 bool QuicSession::HasPendingPathValidation() const {

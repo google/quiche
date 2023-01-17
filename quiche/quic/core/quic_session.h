@@ -464,7 +464,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   //  };
   void ValidatePath(
       std::unique_ptr<QuicPathValidationContext> context,
-      std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate);
+      std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate,
+      PathValidationReason reason);
 
   // Return true if there is a path being validated.
   bool HasPendingPathValidation() const;

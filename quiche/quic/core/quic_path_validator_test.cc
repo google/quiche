@@ -86,8 +86,11 @@ TEST_F(QuicPathValidatorTest, PathValidationSuccessOnFirstRound) {
   const QuicTime expected_start_time = clock_.Now();
   path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
-      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
+      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
+      PathValidationReason::kMultiPort);
   EXPECT_TRUE(path_validator_.HasPendingPathValidation());
+  EXPECT_EQ(PathValidationReason::kMultiPort,
+            path_validator_.GetPathValidationReason());
   EXPECT_TRUE(path_validator_.IsValidatingPeerAddress(effective_peer_address_));
   EXPECT_CALL(*result_delegate_, OnPathValidationSuccess(_, _))
       .WillOnce(Invoke([=](std::unique_ptr<QuicPathValidationContext> context,
@@ -98,6 +101,8 @@ TEST_F(QuicPathValidatorTest, PathValidationSuccessOnFirstRound) {
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(kInitialRttMs));
   path_validator_.OnPathResponse(challenge_data, self_address_);
   EXPECT_FALSE(path_validator_.HasPendingPathValidation());
+  EXPECT_EQ(PathValidationReason::kReasonUnknown,
+            path_validator_.GetPathValidationReason());
 }
 
 TEST_F(QuicPathValidatorTest, RespondWithDifferentSelfAddress) {
@@ -115,7 +120,8 @@ TEST_F(QuicPathValidatorTest, RespondWithDifferentSelfAddress) {
   const QuicTime expected_start_time = clock_.Now();
   path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
-      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
+      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
+      PathValidationReason::kMultiPort);
 
   // Reception of a PATH_RESPONSE on a different self address should be ignored.
   const QuicSocketAddress kAlternativeSelfAddress(QuicIpAddress::Any6(), 54321);
@@ -131,6 +137,8 @@ TEST_F(QuicPathValidatorTest, RespondWithDifferentSelfAddress) {
       }));
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(kInitialRttMs));
   path_validator_.OnPathResponse(challenge_data, self_address_);
+  EXPECT_EQ(PathValidationReason::kReasonUnknown,
+            path_validator_.GetPathValidationReason());
 }
 
 TEST_F(QuicPathValidatorTest, RespondAfter1stRetry) {
@@ -156,7 +164,8 @@ TEST_F(QuicPathValidatorTest, RespondAfter1stRetry) {
   const QuicTime start_time = clock_.Now();
   path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
-      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
+      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
+      PathValidationReason::kMultiPort);
 
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
   random_.ChangeValue();
@@ -191,7 +200,8 @@ TEST_F(QuicPathValidatorTest, RespondToRetryChallenge) {
       .Times(2u);
   path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
-      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
+      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
+      PathValidationReason::kMultiPort);
 
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
   const QuicTime start_time = clock_.Now();
@@ -215,7 +225,8 @@ TEST_F(QuicPathValidatorTest, ValidationTimeOut) {
       .Times(3u);
   path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
-      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
+      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
+      PathValidationReason::kMultiPort);
 
   QuicPathFrameBuffer challenge_data;
   memset(challenge_data.data(), 'a', challenge_data.size());
@@ -232,6 +243,8 @@ TEST_F(QuicPathValidatorTest, ValidationTimeOut) {
     alarm_factory_.FireAlarm(
         QuicPathValidatorPeer::retry_timer(&path_validator_));
   }
+  EXPECT_EQ(PathValidationReason::kReasonUnknown,
+            path_validator_.GetPathValidationReason());
 }
 
 TEST_F(QuicPathValidatorTest, SendPathChallengeError) {
@@ -251,9 +264,12 @@ TEST_F(QuicPathValidatorTest, SendPathChallengeError) {
   EXPECT_CALL(*result_delegate_, OnPathValidationFailure(_));
   path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
-      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
+      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
+      PathValidationReason::kMultiPort);
   EXPECT_FALSE(path_validator_.HasPendingPathValidation());
   EXPECT_FALSE(QuicPathValidatorPeer::retry_timer(&path_validator_)->IsSet());
+  EXPECT_EQ(PathValidationReason::kReasonUnknown,
+            path_validator_.GetPathValidationReason());
 }
 
 }  // namespace test
