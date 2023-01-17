@@ -1048,6 +1048,7 @@ quiche_tests_srcs = [
     "common/simple_buffer_allocator_test.cc",
     "common/structured_headers_generated_test.cc",
     "common/structured_headers_test.cc",
+    "common/test_tools/quiche_test_utils_test.cc",
     "http2/adapter/event_forwarder_test.cc",
     "http2/adapter/header_validator_test.cc",
     "http2/adapter/noop_header_validator_test.cc",
