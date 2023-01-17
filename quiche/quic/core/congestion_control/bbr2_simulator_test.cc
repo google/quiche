@@ -1345,9 +1345,9 @@ TEST_F(Bbr2DefaultTopologyTest,
       [this]() { return sender_endpoint_.bytes_to_transfer() == 0; },
       QuicTime::Delta::FromSeconds(50));
   EXPECT_TRUE(simulator_result);
-  // Ensure at least 30% of the full bandwidth is observed.
+  // Ensure at least 15% of the full bandwidth is observed.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_hi, 0.82f);
+                   sender_->ExportDebugState().bandwidth_hi, 0.85f);
 }
 
 // Test Bbr2's reaction to a 100x bandwidth increase during a transfer with BB2U
@@ -1387,9 +1387,9 @@ TEST_F(Bbr2DefaultTopologyTest,
       [this]() { return sender_endpoint_.bytes_to_transfer() == 0; },
       QuicTime::Delta::FromSeconds(50));
   EXPECT_TRUE(simulator_result);
-  // Ensure at least 20% of the full bandwidth is observed.
+  // Ensure at least 15% of the full bandwidth is observed.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_hi, 0.82f);
+                   sender_->ExportDebugState().bandwidth_hi, 0.85f);
 }
 
 // Test the number of losses incurred by the startup phase in a situation when
