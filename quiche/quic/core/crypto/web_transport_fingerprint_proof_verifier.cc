@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
@@ -55,7 +56,8 @@ WebTransportFingerprintProofVerifier::WebTransportFingerprintProofVerifier(
 bool WebTransportFingerprintProofVerifier::AddFingerprint(
     CertificateFingerprint fingerprint) {
   NormalizeFingerprint(fingerprint);
-  if (fingerprint.algorithm != CertificateFingerprint::kSha256) {
+  if (!absl::EqualsIgnoreCase(fingerprint.algorithm,
+                              CertificateFingerprint::kSha256)) {
     QUIC_DLOG(WARNING) << "Algorithms other than SHA-256 are not supported";
     return false;
   }
