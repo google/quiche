@@ -9,7 +9,6 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "quiche/quic/core/http/capsule.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/quic_data_reader.h"
@@ -20,6 +19,7 @@
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/capsule.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -108,7 +108,7 @@ void WebTransportHttp3::CloseSession(WebTransportSessionError error_code,
   QuicConnection::ScopedPacketFlusher flusher(
       connect_stream_->spdy_session()->connection());
   connect_stream_->WriteCapsule(
-      Capsule::CloseWebTransportSession(error_code, error_message),
+      quiche::Capsule::CloseWebTransportSession(error_code, error_message),
       /*fin=*/true);
 }
 

@@ -117,10 +117,12 @@ class QUIC_NO_EXPORT MasqueServerSession
                          absl::string_view payload) override;
 
     // From QuicSpdyStream::ConnectIpVisitor.
-    bool OnAddressAssignCapsule(const AddressAssignCapsule& capsule) override;
-    bool OnAddressRequestCapsule(const AddressRequestCapsule& capsule) override;
+    bool OnAddressAssignCapsule(
+        const quiche::AddressAssignCapsule& capsule) override;
+    bool OnAddressRequestCapsule(
+        const quiche::AddressRequestCapsule& capsule) override;
     bool OnRouteAdvertisementCapsule(
-        const RouteAdvertisementCapsule& capsule) override;
+        const quiche::RouteAdvertisementCapsule& capsule) override;
     void OnHeadersWritten() override;
 
    private:

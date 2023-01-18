@@ -26,6 +26,11 @@
 namespace quic {
 
 namespace {
+
+using ::quiche::AddressAssignCapsule;
+using ::quiche::AddressRequestCapsule;
+using ::quiche::RouteAdvertisementCapsule;
+
 constexpr uint64_t kConnectIpPayloadContextId = 0;
 }
 

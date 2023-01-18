@@ -10,6 +10,10 @@
 
 namespace quic {
 
+using ::quiche::AddressAssignCapsule;
+using ::quiche::AddressRequestCapsule;
+using ::quiche::RouteAdvertisementCapsule;
+
 MasqueEncapsulatedClientSession::MasqueEncapsulatedClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, const QuicServerId& server_id,

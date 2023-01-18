@@ -49,6 +49,10 @@ namespace quic {
 
 namespace {
 
+using ::quiche::AddressAssignCapsule;
+using ::quiche::AddressRequestCapsule;
+using ::quiche::RouteAdvertisementCapsule;
+
 class MasqueTunSession : public MasqueClientSession::EncapsulatedIpSession,
                          public QuicSocketEventListener {
  public:

@@ -2,23 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_HTTP_CAPSULE_H_
-#define QUICHE_QUIC_CORE_HTTP_CAPSULE_H_
+#ifndef QUICHE_COMMON_CAPSULE_H_
+#define QUICHE_COMMON_CAPSULE_H_
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
-#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "quiche/quic/core/quic_data_reader.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_ip_address.h"
+#include "quiche/web_transport/web_transport.h"
 
-namespace quic {
+namespace quiche {
 
 enum class CapsuleType : uint64_t {
   // Casing in this enum matches the IETF specifications.
@@ -33,49 +31,49 @@ enum class CapsuleType : uint64_t {
   ROUTE_ADVERTISEMENT = 0x1ECA6A02,
 };
 
-QUIC_EXPORT_PRIVATE std::string CapsuleTypeToString(CapsuleType capsule_type);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             const CapsuleType& capsule_type);
+QUICHE_EXPORT std::string CapsuleTypeToString(CapsuleType capsule_type);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const CapsuleType& capsule_type);
 
-struct QUIC_EXPORT_PRIVATE DatagramCapsule {
+struct QUICHE_EXPORT DatagramCapsule {
   absl::string_view http_datagram_payload;
   std::string ToString() const;
 };
-struct QUIC_EXPORT_PRIVATE LegacyDatagramCapsule {
+struct QUICHE_EXPORT LegacyDatagramCapsule {
   absl::string_view http_datagram_payload;
   std::string ToString() const;
 };
-struct QUIC_EXPORT_PRIVATE LegacyDatagramWithoutContextCapsule {
+struct QUICHE_EXPORT LegacyDatagramWithoutContextCapsule {
   absl::string_view http_datagram_payload;
   std::string ToString() const;
 };
-struct QUIC_EXPORT_PRIVATE CloseWebTransportSessionCapsule {
-  WebTransportSessionError error_code;
+struct QUICHE_EXPORT CloseWebTransportSessionCapsule {
+  webtransport::SessionErrorCode error_code;
   absl::string_view error_message;
   std::string ToString() const;
 };
-struct QUIC_EXPORT_PRIVATE PrefixWithId {
+struct QUICHE_EXPORT PrefixWithId {
   uint64_t request_id;
   quiche::QuicheIpPrefix ip_prefix;
   bool operator==(const PrefixWithId& other) const;
 };
-struct QUIC_EXPORT_PRIVATE IpAddressRange {
+struct QUICHE_EXPORT IpAddressRange {
   quiche::QuicheIpAddress start_ip_address;
   quiche::QuicheIpAddress end_ip_address;
   uint8_t ip_protocol;
   bool operator==(const IpAddressRange& other) const;
 };
-struct QUIC_EXPORT_PRIVATE AddressAssignCapsule {
+struct QUICHE_EXPORT AddressAssignCapsule {
   std::vector<PrefixWithId> assigned_addresses;
   bool operator==(const AddressAssignCapsule& other) const;
   std::string ToString() const;
 };
-struct QUIC_EXPORT_PRIVATE AddressRequestCapsule {
+struct QUICHE_EXPORT AddressRequestCapsule {
   std::vector<PrefixWithId> requested_addresses;
   bool operator==(const AddressRequestCapsule& other) const;
   std::string ToString() const;
 };
-struct QUIC_EXPORT_PRIVATE RouteAdvertisementCapsule {
+struct QUICHE_EXPORT RouteAdvertisementCapsule {
   std::vector<IpAddressRange> ip_address_ranges;
   bool operator==(const RouteAdvertisementCapsule& other) const;
   std::string ToString() const;
@@ -86,7 +84,7 @@ struct QUIC_EXPORT_PRIVATE RouteAdvertisementCapsule {
 // points to. Strings saved into a capsule must outlive the capsule object. Any
 // code that sees a capsule in a callback needs to either process it immediately
 // or perform its own deep copy.
-class QUIC_EXPORT_PRIVATE Capsule {
+class QUICHE_EXPORT Capsule {
  public:
   static Capsule Datagram(
       absl::string_view http_datagram_payload = absl::string_view());
@@ -95,7 +93,7 @@ class QUIC_EXPORT_PRIVATE Capsule {
   static Capsule LegacyDatagramWithoutContext(
       absl::string_view http_datagram_payload = absl::string_view());
   static Capsule CloseWebTransportSession(
-      WebTransportSessionError error_code = 0,
+      webtransport::SessionErrorCode error_code = 0,
       absl::string_view error_message = "");
   static Capsule AddressRequest();
   static Capsule AddressAssign();
@@ -112,8 +110,8 @@ class QUIC_EXPORT_PRIVATE Capsule {
 
   // Human-readable information string for debugging purposes.
   std::string ToString() const;
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                                      const Capsule& capsule);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const Capsule& capsule);
 
   CapsuleType capsule_type() const { return capsule_type_; }
   DatagramCapsule& datagram_capsule() {
@@ -222,9 +220,9 @@ namespace test {
 class CapsuleParserPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE CapsuleParser {
+class QUICHE_EXPORT CapsuleParser {
  public:
-  class QUIC_EXPORT_PRIVATE Visitor {
+  class QUICHE_EXPORT Visitor {
    public:
     virtual ~Visitor() {}
 
@@ -268,9 +266,9 @@ class QUIC_EXPORT_PRIVATE CapsuleParser {
 };
 
 // Serializes |capsule| into a newly allocated buffer.
-QUIC_EXPORT_PRIVATE quiche::QuicheBuffer SerializeCapsule(
+QUICHE_EXPORT quiche::QuicheBuffer SerializeCapsule(
     const Capsule& capsule, quiche::QuicheBufferAllocator* allocator);
 
-}  // namespace quic
+}  // namespace quiche
 
-#endif  // QUICHE_QUIC_CORE_HTTP_CAPSULE_H_
+#endif  // QUICHE_COMMON_CAPSULE_H_

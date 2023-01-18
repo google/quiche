@@ -66,11 +66,11 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
     virtual void CloseIpSession(const std::string& details) = 0;
 
     virtual bool OnAddressAssignCapsule(
-        const AddressAssignCapsule& capsule) = 0;
+        const quiche::AddressAssignCapsule& capsule) = 0;
     virtual bool OnAddressRequestCapsule(
-        const AddressRequestCapsule& capsule) = 0;
+        const quiche::AddressRequestCapsule& capsule) = 0;
     virtual bool OnRouteAdvertisementCapsule(
-        const RouteAdvertisementCapsule& capsule) = 0;
+        const quiche::RouteAdvertisementCapsule& capsule) = 0;
   };
 
   // Takes ownership of |connection|, but not of |crypto_config| or
@@ -186,10 +186,12 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
                          absl::string_view payload) override;
 
     // From QuicSpdyStream::ConnectIpVisitor.
-    bool OnAddressAssignCapsule(const AddressAssignCapsule& capsule) override;
-    bool OnAddressRequestCapsule(const AddressRequestCapsule& capsule) override;
+    bool OnAddressAssignCapsule(
+        const quiche::AddressAssignCapsule& capsule) override;
+    bool OnAddressRequestCapsule(
+        const quiche::AddressRequestCapsule& capsule) override;
     bool OnRouteAdvertisementCapsule(
-        const RouteAdvertisementCapsule& capsule) override;
+        const quiche::RouteAdvertisementCapsule& capsule) override;
     void OnHeadersWritten() override;
 
    private:

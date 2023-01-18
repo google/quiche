@@ -19,7 +19,6 @@
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/quic/core/http/capsule.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/http_encoder.h"
 #include "quiche/quic/core/http/quic_header_list.h"
@@ -36,6 +35,7 @@
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/capsule.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_framer.h"
@@ -53,7 +53,7 @@ class WebTransportHttp3;
 // A QUIC stream that can send and receive HTTP2 (SPDY) headers.
 class QUIC_EXPORT_PRIVATE QuicSpdyStream
     : public QuicStream,
-      public CapsuleParser::Visitor,
+      public quiche::CapsuleParser::Visitor,
       public QpackDecodedHeadersAccumulator::Visitor {
  public:
   // Visitor receives callbacks from the stream.
@@ -256,7 +256,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool CanWriteNewBodyData(QuicByteCount write_size) const;
 
   // From CapsuleParser::Visitor.
-  bool OnCapsule(const Capsule& capsule) override;
+  bool OnCapsule(const quiche::Capsule& capsule) override;
   void OnCapsuleParseFailure(const std::string& error_message) override;
 
   // Sends an HTTP/3 datagram. The stream ID is not part of |payload|. Virtual
@@ -290,11 +290,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
     virtual ~ConnectIpVisitor() {}
 
     virtual bool OnAddressAssignCapsule(
-        const AddressAssignCapsule& capsule) = 0;
+        const quiche::AddressAssignCapsule& capsule) = 0;
     virtual bool OnAddressRequestCapsule(
-        const AddressRequestCapsule& capsule) = 0;
+        const quiche::AddressRequestCapsule& capsule) = 0;
     virtual bool OnRouteAdvertisementCapsule(
-        const RouteAdvertisementCapsule& capsule) = 0;
+        const quiche::RouteAdvertisementCapsule& capsule) = 0;
     virtual void OnHeadersWritten() = 0;
   };
 
@@ -318,7 +318,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   QuicByteCount GetMaxDatagramSize() const;
 
   // Writes |capsule| onto the DATA stream.
-  void WriteCapsule(const Capsule& capsule, bool fin = false);
+  void WriteCapsule(const quiche::Capsule& capsule, bool fin = false);
 
   void WriteGreaseCapsule();
 
@@ -452,7 +452,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // the sequencer each time new stream data is processed.
   QuicSpdyStreamBodyManager body_manager_;
 
-  std::unique_ptr<CapsuleParser> capsule_parser_;
+  std::unique_ptr<quiche::CapsuleParser> capsule_parser_;
 
   // Sequencer offset keeping track of how much data HttpDecoder has processed.
   // Initial value is zero for fresh streams, or sequencer()->NumBytesConsumed()

@@ -26,12 +26,21 @@
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/tools/quic_url.h"
+#include "quiche/common/capsule.h"
 #include "quiche/common/platform/api/quiche_url_utils.h"
 #include "quiche/common/quiche_ip_address.h"
 
 namespace quic {
 
 namespace {
+
+using ::quiche::AddressAssignCapsule;
+using ::quiche::AddressRequestCapsule;
+using ::quiche::Capsule;
+using ::quiche::IpAddressRange;
+using ::quiche::PrefixWithId;
+using ::quiche::RouteAdvertisementCapsule;
+
 // RAII wrapper for QuicUdpSocketFd.
 class FdWrapper {
  public:

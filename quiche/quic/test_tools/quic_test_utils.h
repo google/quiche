@@ -2099,40 +2099,43 @@ class SavingHttp3DatagramVisitor : public QuicSpdyStream::Http3DatagramVisitor {
 // Implementation of ConnectIpVisitor which saves all received capsules.
 class SavingConnectIpVisitor : public QuicSpdyStream::ConnectIpVisitor {
  public:
-  const std::vector<AddressAssignCapsule>& received_address_assign_capsules()
-      const {
+  const std::vector<quiche::AddressAssignCapsule>&
+  received_address_assign_capsules() const {
     return received_address_assign_capsules_;
   }
-  const std::vector<AddressRequestCapsule>& received_address_request_capsules()
-      const {
+  const std::vector<quiche::AddressRequestCapsule>&
+  received_address_request_capsules() const {
     return received_address_request_capsules_;
   }
-  const std::vector<RouteAdvertisementCapsule>&
+  const std::vector<quiche::RouteAdvertisementCapsule>&
   received_route_advertisement_capsules() const {
     return received_route_advertisement_capsules_;
   }
   bool headers_written() const { return headers_written_; }
 
   // From QuicSpdyStream::ConnectIpVisitor.
-  bool OnAddressAssignCapsule(const AddressAssignCapsule& capsule) override {
+  bool OnAddressAssignCapsule(
+      const quiche::AddressAssignCapsule& capsule) override {
     received_address_assign_capsules_.push_back(capsule);
     return true;
   }
-  bool OnAddressRequestCapsule(const AddressRequestCapsule& capsule) override {
+  bool OnAddressRequestCapsule(
+      const quiche::AddressRequestCapsule& capsule) override {
     received_address_request_capsules_.push_back(capsule);
     return true;
   }
   bool OnRouteAdvertisementCapsule(
-      const RouteAdvertisementCapsule& capsule) override {
+      const quiche::RouteAdvertisementCapsule& capsule) override {
     received_route_advertisement_capsules_.push_back(capsule);
     return true;
   }
   void OnHeadersWritten() override { headers_written_ = true; }
 
  private:
-  std::vector<AddressAssignCapsule> received_address_assign_capsules_;
-  std::vector<AddressRequestCapsule> received_address_request_capsules_;
-  std::vector<RouteAdvertisementCapsule> received_route_advertisement_capsules_;
+  std::vector<quiche::AddressAssignCapsule> received_address_assign_capsules_;
+  std::vector<quiche::AddressRequestCapsule> received_address_request_capsules_;
+  std::vector<quiche::RouteAdvertisementCapsule>
+      received_route_advertisement_capsules_;
   bool headers_written_ = false;
 };
 

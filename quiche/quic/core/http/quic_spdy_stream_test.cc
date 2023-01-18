@@ -15,7 +15,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
-#include "quiche/quic/core/http/capsule.h"
 #include "quiche/quic/core/http/http_encoder.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/spdy_utils.h"
@@ -37,10 +36,13 @@
 #include "quiche/quic/test_tools/quic_spdy_stream_peer.h"
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/capsule.h"
 #include "quiche/common/quiche_ip_address.h"
 #include "quiche/common/quiche_mem_slice_storage.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
+using quiche::Capsule;
+using quiche::IpAddressRange;
 using spdy::Http2HeaderBlock;
 using spdy::kV3HighestPriority;
 using spdy::kV3LowestPriority;
@@ -3195,7 +3197,7 @@ TEST_P(QuicSpdyStreamTest, Capsules) {
               ElementsAre(SavingHttp3DatagramVisitor::SavedHttp3Datagram{
                   stream_->id(), http_datagram_payload}));
   // Address assign capsule.
-  PrefixWithId ip_prefix_with_id;
+  quiche::PrefixWithId ip_prefix_with_id;
   ip_prefix_with_id.request_id = 1;
   quiche::QuicheIpAddress ip_address;
   ip_address.FromString("::");

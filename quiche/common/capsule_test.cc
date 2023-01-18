@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/core/http/capsule.h"
+#include "quiche/common/capsule.h"
 
 #include <cstddef>
 #include <deque>
@@ -11,16 +11,16 @@
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_ip_address.h"
+#include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Return;
 
-namespace quic {
+namespace quiche {
 namespace test {
 
 class CapsuleParserPeer {
@@ -43,7 +43,7 @@ class MockCapsuleParserVisitor : public CapsuleParser::Visitor {
               (override));
 };
 
-class CapsuleTest : public QuicTest {
+class CapsuleTest : public QuicheTest {
  public:
   CapsuleTest() : capsule_parser_(&visitor_) {}
 
@@ -57,7 +57,7 @@ class CapsuleTest : public QuicTest {
   void TestSerialization(const Capsule& capsule,
                          const std::string& expected_bytes) {
     quiche::QuicheBuffer serialized_capsule =
-        SerializeCapsule(capsule, quiche::SimpleBufferAllocator::Get());
+        SerializeCapsule(capsule, SimpleBufferAllocator::Get());
     quiche::test::CompareCharArraysWithHexError(
         "Serialized capsule", serialized_capsule.data(),
         serialized_capsule.size(), expected_bytes.data(),
@@ -389,4 +389,4 @@ TEST_F(CapsuleTest, RejectOverlyLongCapsule) {
 
 }  // namespace
 }  // namespace test
-}  // namespace quic
+}  // namespace quiche

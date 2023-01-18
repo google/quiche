@@ -2,23 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/core/http/capsule.h"
+#include "quiche/common/capsule.h"
 
 #include <type_traits>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/http/http_frames.h"
-#include "quiche/quic/core/quic_data_reader.h"
-#include "quiche/quic/core/quic_data_writer.h"
-#include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_data_reader.h"
+#include "quiche/common/quiche_data_writer.h"
 #include "quiche/common/quiche_ip_address.h"
+#include "quiche/web_transport/web_transport.h"
 
-namespace quic {
+namespace quiche {
 
 std::string CapsuleTypeToString(CapsuleType capsule_type) {
   switch (capsule_type) {
@@ -142,8 +140,9 @@ Capsule Capsule::LegacyDatagramWithoutContext(
 }
 
 // static
-Capsule Capsule::CloseWebTransportSession(WebTransportSessionError error_code,
-                                          absl::string_view error_message) {
+Capsule Capsule::CloseWebTransportSession(
+    webtransport::SessionErrorCode error_code,
+    absl::string_view error_message) {
   Capsule capsule(CapsuleType::CLOSE_WEBTRANSPORT_SESSION);
   capsule.close_web_transport_session_capsule().error_code = error_code;
   capsule.close_web_transport_session_capsule().error_message = error_message;
@@ -332,9 +331,9 @@ CapsuleParser::CapsuleParser(Visitor* visitor) : visitor_(visitor) {
 
 quiche::QuicheBuffer SerializeCapsule(
     const Capsule& capsule, quiche::QuicheBufferAllocator* allocator) {
-  QuicByteCount capsule_type_length = QuicDataWriter::GetVarInt62Len(
+  size_t capsule_type_length = QuicheDataWriter::GetVarInt62Len(
       static_cast<uint64_t>(capsule.capsule_type()));
-  QuicByteCount capsule_data_length;
+  size_t capsule_data_length;
   switch (capsule.capsule_type()) {
     case CapsuleType::DATAGRAM:
       capsule_data_length =
@@ -350,7 +349,7 @@ quiche::QuicheBuffer SerializeCapsule(
       break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       capsule_data_length =
-          sizeof(WebTransportSessionError) +
+          sizeof(webtransport::SessionErrorCode) +
           capsule.close_web_transport_session_capsule().error_message.size();
       break;
     case CapsuleType::ADDRESS_REQUEST:
@@ -358,10 +357,10 @@ quiche::QuicheBuffer SerializeCapsule(
       for (auto requested_address :
            capsule.address_request_capsule().requested_addresses) {
         capsule_data_length +=
-            QuicDataWriter::GetVarInt62Len(requested_address.request_id) + 1 +
+            QuicheDataWriter::GetVarInt62Len(requested_address.request_id) + 1 +
             (requested_address.ip_prefix.address().IsIPv4()
-                 ? QuicIpAddress::kIPv4AddressSize
-                 : QuicIpAddress::kIPv6AddressSize) +
+                 ? QuicheIpAddress::kIPv4AddressSize
+                 : QuicheIpAddress::kIPv6AddressSize) +
             1;
       }
       break;
@@ -370,10 +369,10 @@ quiche::QuicheBuffer SerializeCapsule(
       for (auto assigned_address :
            capsule.address_assign_capsule().assigned_addresses) {
         capsule_data_length +=
-            QuicDataWriter::GetVarInt62Len(assigned_address.request_id) + 1 +
+            QuicheDataWriter::GetVarInt62Len(assigned_address.request_id) + 1 +
             (assigned_address.ip_prefix.address().IsIPv4()
-                 ? QuicIpAddress::kIPv4AddressSize
-                 : QuicIpAddress::kIPv6AddressSize) +
+                 ? QuicheIpAddress::kIPv4AddressSize
+                 : QuicheIpAddress::kIPv6AddressSize) +
             1;
       }
       break;
@@ -383,8 +382,8 @@ quiche::QuicheBuffer SerializeCapsule(
            capsule.route_advertisement_capsule().ip_address_ranges) {
         capsule_data_length += 1 +
                                (ip_address_range.start_ip_address.IsIPv4()
-                                    ? QuicIpAddress::kIPv4AddressSize
-                                    : QuicIpAddress::kIPv6AddressSize) *
+                                    ? QuicheIpAddress::kIPv4AddressSize
+                                    : QuicheIpAddress::kIPv6AddressSize) *
                                    2 +
                                1;
       }
@@ -393,25 +392,25 @@ quiche::QuicheBuffer SerializeCapsule(
       capsule_data_length = capsule.unknown_capsule_data().length();
       break;
   }
-  QuicByteCount capsule_length_length =
-      QuicDataWriter::GetVarInt62Len(capsule_data_length);
-  QuicByteCount total_capsule_length =
+  size_t capsule_length_length =
+      QuicheDataWriter::GetVarInt62Len(capsule_data_length);
+  size_t total_capsule_length =
       capsule_type_length + capsule_length_length + capsule_data_length;
   quiche::QuicheBuffer buffer(allocator, total_capsule_length);
-  QuicDataWriter writer(buffer.size(), buffer.data());
+  QuicheDataWriter writer(buffer.size(), buffer.data());
   if (!writer.WriteVarInt62(static_cast<uint64_t>(capsule.capsule_type()))) {
-    QUIC_BUG(capsule type write fail) << "Failed to write CAPSULE type";
+    QUICHE_BUG(capsule type write fail) << "Failed to write CAPSULE type";
     return {};
   }
   if (!writer.WriteVarInt62(capsule_data_length)) {
-    QUIC_BUG(capsule length write fail) << "Failed to write CAPSULE length";
+    QUICHE_BUG(capsule length write fail) << "Failed to write CAPSULE length";
     return {};
   }
   switch (capsule.capsule_type()) {
     case CapsuleType::DATAGRAM:
       if (!writer.WriteStringPiece(
               capsule.datagram_capsule().http_datagram_payload)) {
-        QUIC_BUG(datagram capsule payload write fail)
+        QUICHE_BUG(datagram capsule payload write fail)
             << "Failed to write DATAGRAM CAPSULE payload";
         return {};
       }
@@ -419,7 +418,7 @@ quiche::QuicheBuffer SerializeCapsule(
     case CapsuleType::LEGACY_DATAGRAM:
       if (!writer.WriteStringPiece(
               capsule.legacy_datagram_capsule().http_datagram_payload)) {
-        QUIC_BUG(datagram legacy capsule payload write fail)
+        QUICHE_BUG(datagram legacy capsule payload write fail)
             << "Failed to write LEGACY_DATAGRAM CAPSULE payload";
         return {};
       }
@@ -428,7 +427,7 @@ quiche::QuicheBuffer SerializeCapsule(
       if (!writer.WriteStringPiece(
               capsule.legacy_datagram_without_context_capsule()
                   .http_datagram_payload)) {
-        QUIC_BUG(datagram legacy without context capsule payload write fail)
+        QUICHE_BUG(datagram legacy without context capsule payload write fail)
             << "Failed to write LEGACY_DATAGRAM_WITHOUT_CONTEXT CAPSULE "
                "payload";
         return {};
@@ -437,13 +436,13 @@ quiche::QuicheBuffer SerializeCapsule(
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       if (!writer.WriteUInt32(
               capsule.close_web_transport_session_capsule().error_code)) {
-        QUIC_BUG(close webtransport session capsule error code write fail)
+        QUICHE_BUG(close webtransport session capsule error code write fail)
             << "Failed to write CLOSE_WEBTRANSPORT_SESSION error code";
         return {};
       }
       if (!writer.WriteStringPiece(
               capsule.close_web_transport_session_capsule().error_message)) {
-        QUIC_BUG(close webtransport session capsule error message write fail)
+        QUICHE_BUG(close webtransport session capsule error message write fail)
             << "Failed to write CLOSE_WEBTRANSPORT_SESSION error message";
         return {};
       }
@@ -452,24 +451,24 @@ quiche::QuicheBuffer SerializeCapsule(
       for (auto requested_address :
            capsule.address_request_capsule().requested_addresses) {
         if (!writer.WriteVarInt62(requested_address.request_id)) {
-          QUIC_BUG(address request capsule id write fail)
+          QUICHE_BUG(address request capsule id write fail)
               << "Failed to write ADDRESS_REQUEST ID";
           return {};
         }
         if (!writer.WriteUInt8(
                 requested_address.ip_prefix.address().IsIPv4() ? 4 : 6)) {
-          QUIC_BUG(address request capsule family write fail)
+          QUICHE_BUG(address request capsule family write fail)
               << "Failed to write ADDRESS_REQUEST family";
           return {};
         }
         if (!writer.WriteStringPiece(
                 requested_address.ip_prefix.address().ToPackedString())) {
-          QUIC_BUG(address request capsule address write fail)
+          QUICHE_BUG(address request capsule address write fail)
               << "Failed to write ADDRESS_REQUEST address";
           return {};
         }
         if (!writer.WriteUInt8(requested_address.ip_prefix.prefix_length())) {
-          QUIC_BUG(address request capsule prefix length write fail)
+          QUICHE_BUG(address request capsule prefix length write fail)
               << "Failed to write ADDRESS_REQUEST prefix length";
           return {};
         }
@@ -479,24 +478,24 @@ quiche::QuicheBuffer SerializeCapsule(
       for (auto assigned_address :
            capsule.address_assign_capsule().assigned_addresses) {
         if (!writer.WriteVarInt62(assigned_address.request_id)) {
-          QUIC_BUG(address request capsule id write fail)
+          QUICHE_BUG(address request capsule id write fail)
               << "Failed to write ADDRESS_ASSIGN ID";
           return {};
         }
         if (!writer.WriteUInt8(
                 assigned_address.ip_prefix.address().IsIPv4() ? 4 : 6)) {
-          QUIC_BUG(address request capsule family write fail)
+          QUICHE_BUG(address request capsule family write fail)
               << "Failed to write ADDRESS_ASSIGN family";
           return {};
         }
         if (!writer.WriteStringPiece(
                 assigned_address.ip_prefix.address().ToPackedString())) {
-          QUIC_BUG(address request capsule address write fail)
+          QUICHE_BUG(address request capsule address write fail)
               << "Failed to write ADDRESS_ASSIGN address";
           return {};
         }
         if (!writer.WriteUInt8(assigned_address.ip_prefix.prefix_length())) {
-          QUIC_BUG(address request capsule prefix length write fail)
+          QUICHE_BUG(address request capsule prefix length write fail)
               << "Failed to write ADDRESS_ASSIGN prefix length";
           return {};
         }
@@ -507,24 +506,24 @@ quiche::QuicheBuffer SerializeCapsule(
            capsule.route_advertisement_capsule().ip_address_ranges) {
         if (!writer.WriteUInt8(
                 ip_address_range.start_ip_address.IsIPv4() ? 4 : 6)) {
-          QUIC_BUG(route advertisement capsule family write fail)
+          QUICHE_BUG(route advertisement capsule family write fail)
               << "Failed to write ROUTE_ADVERTISEMENT family";
           return {};
         }
         if (!writer.WriteStringPiece(
                 ip_address_range.start_ip_address.ToPackedString())) {
-          QUIC_BUG(route advertisement capsule start address write fail)
+          QUICHE_BUG(route advertisement capsule start address write fail)
               << "Failed to write ROUTE_ADVERTISEMENT start address";
           return {};
         }
         if (!writer.WriteStringPiece(
                 ip_address_range.end_ip_address.ToPackedString())) {
-          QUIC_BUG(route advertisement capsule end address write fail)
+          QUICHE_BUG(route advertisement capsule end address write fail)
               << "Failed to write ROUTE_ADVERTISEMENT end address";
           return {};
         }
         if (!writer.WriteUInt8(ip_address_range.ip_protocol)) {
-          QUIC_BUG(route advertisement capsule IP protocol write fail)
+          QUICHE_BUG(route advertisement capsule IP protocol write fail)
               << "Failed to write ROUTE_ADVERTISEMENT IP protocol";
           return {};
         }
@@ -532,13 +531,13 @@ quiche::QuicheBuffer SerializeCapsule(
       break;
     default:
       if (!writer.WriteStringPiece(capsule.unknown_capsule_data())) {
-        QUIC_BUG(capsule data write fail) << "Failed to write CAPSULE data";
+        QUICHE_BUG(capsule data write fail) << "Failed to write CAPSULE data";
         return {};
       }
       break;
   }
   if (writer.remaining() != 0) {
-    QUIC_BUG(capsule write length mismatch)
+    QUICHE_BUG(capsule write length mismatch)
         << "CAPSULE serialization wrote " << writer.length() << " instead of "
         << writer.capacity();
     return {};
@@ -577,19 +576,20 @@ size_t CapsuleParser::AttemptParseCapsule() {
   if (buffered_data_.empty()) {
     return 0;
   }
-  QuicDataReader capsule_fragment_reader(buffered_data_);
+  QuicheDataReader capsule_fragment_reader(buffered_data_);
   uint64_t capsule_type64;
   if (!capsule_fragment_reader.ReadVarInt62(&capsule_type64)) {
-    QUIC_DVLOG(2) << "Partial read: not enough data to read capsule type";
+    QUICHE_DVLOG(2) << "Partial read: not enough data to read capsule type";
     return 0;
   }
   absl::string_view capsule_data;
   if (!capsule_fragment_reader.ReadStringPieceVarInt62(&capsule_data)) {
-    QUIC_DVLOG(2) << "Partial read: not enough data to read capsule length or "
-                     "full capsule data";
+    QUICHE_DVLOG(2)
+        << "Partial read: not enough data to read capsule length or "
+           "full capsule data";
     return 0;
   }
-  QuicDataReader capsule_data_reader(capsule_data);
+  QuicheDataReader capsule_data_reader(capsule_data);
   Capsule capsule(static_cast<CapsuleType>(capsule_type64));
   switch (capsule.capsule_type()) {
     case CapsuleType::DATAGRAM:
@@ -634,8 +634,8 @@ size_t CapsuleParser::AttemptParseCapsule() {
         absl::string_view ip_address_bytes;
         if (!capsule_data_reader.ReadStringPiece(
                 &ip_address_bytes, address_family == 4
-                                       ? QuicIpAddress::kIPv4AddressSize
-                                       : QuicIpAddress::kIPv6AddressSize)) {
+                                       ? QuicheIpAddress::kIPv4AddressSize
+                                       : QuicheIpAddress::kIPv6AddressSize)) {
           ReportParseFailure("Unable to read capsule ADDRESS_REQUEST address");
           return 0;
         }
@@ -682,8 +682,8 @@ size_t CapsuleParser::AttemptParseCapsule() {
         absl::string_view ip_address_bytes;
         if (!capsule_data_reader.ReadStringPiece(
                 &ip_address_bytes, address_family == 4
-                                       ? QuicIpAddress::kIPv4AddressSize
-                                       : QuicIpAddress::kIPv6AddressSize)) {
+                                       ? QuicheIpAddress::kIPv4AddressSize
+                                       : QuicheIpAddress::kIPv6AddressSize)) {
           ReportParseFailure("Unable to read capsule ADDRESS_ASSIGN address");
           return 0;
         }
@@ -726,8 +726,8 @@ size_t CapsuleParser::AttemptParseCapsule() {
         absl::string_view start_ip_address_bytes;
         if (!capsule_data_reader.ReadStringPiece(
                 &start_ip_address_bytes,
-                address_family == 4 ? QuicIpAddress::kIPv4AddressSize
-                                    : QuicIpAddress::kIPv6AddressSize)) {
+                address_family == 4 ? QuicheIpAddress::kIPv4AddressSize
+                                    : QuicheIpAddress::kIPv6AddressSize)) {
           ReportParseFailure(
               "Unable to read capsule ROUTE_ADVERTISEMENT start address");
           return 0;
@@ -740,9 +740,9 @@ size_t CapsuleParser::AttemptParseCapsule() {
         }
         absl::string_view end_ip_address_bytes;
         if (!capsule_data_reader.ReadStringPiece(
-                &end_ip_address_bytes, address_family == 4
-                                           ? QuicIpAddress::kIPv4AddressSize
-                                           : QuicIpAddress::kIPv6AddressSize)) {
+                &end_ip_address_bytes,
+                address_family == 4 ? QuicheIpAddress::kIPv4AddressSize
+                                    : QuicheIpAddress::kIPv6AddressSize)) {
           ReportParseFailure(
               "Unable to read capsule ROUTE_ADVERTISEMENT end address");
           return 0;
@@ -775,7 +775,7 @@ size_t CapsuleParser::AttemptParseCapsule() {
 
 void CapsuleParser::ReportParseFailure(const std::string& error_message) {
   if (parsing_error_occurred_) {
-    QUIC_BUG(multiple parse errors) << "Experienced multiple parse failures";
+    QUICHE_BUG(multiple parse errors) << "Experienced multiple parse failures";
     return;
   }
   parsing_error_occurred_ = true;
@@ -815,4 +815,4 @@ bool RouteAdvertisementCapsule::operator==(
   return ip_address_ranges == other.ip_address_ranges;
 }
 
-}  // namespace quic
+}  // namespace quiche

@@ -51,10 +51,12 @@ class QUIC_NO_EXPORT MasqueEncapsulatedClientSession
   // From MasqueClientSession::EncapsulatedIpSession.
   void ProcessIpPacket(absl::string_view packet) override;
   void CloseIpSession(const std::string& details) override;
-  bool OnAddressAssignCapsule(const AddressAssignCapsule& capsule) override;
-  bool OnAddressRequestCapsule(const AddressRequestCapsule& capsule) override;
+  bool OnAddressAssignCapsule(
+      const quiche::AddressAssignCapsule& capsule) override;
+  bool OnAddressRequestCapsule(
+      const quiche::AddressRequestCapsule& capsule) override;
   bool OnRouteAdvertisementCapsule(
-      const RouteAdvertisementCapsule& capsule) override;
+      const quiche::RouteAdvertisementCapsule& capsule) override;
 
   // From QuicSession.
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,

@@ -14,7 +14,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/http2_constants.h"
-#include "quiche/quic/core/http/capsule.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/http_frames.h"
@@ -32,11 +31,14 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/capsule.h"
 #include "quiche/common/quiche_mem_slice_storage.h"
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
-using spdy::Http2HeaderBlock;
+using ::quiche::Capsule;
+using ::quiche::CapsuleType;
+using ::spdy::Http2HeaderBlock;
 
 namespace quic {
 
@@ -1444,7 +1446,7 @@ void QuicSpdyStream::RegisterHttp3DatagramVisitor(
   }
   datagram_visitor_ = visitor;
   QUICHE_DCHECK(!capsule_parser_);
-  capsule_parser_ = std::make_unique<CapsuleParser>(this);
+  capsule_parser_ = std::make_unique<quiche::CapsuleParser>(this);
 }
 
 void QuicSpdyStream::UnregisterHttp3DatagramVisitor() {
