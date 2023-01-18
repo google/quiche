@@ -644,6 +644,7 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
 
 void QuicVersionInitializeSupportForIetfDraft() {
   // Enable necessary flags.
+  SetQuicRestartFlag(quic_receive_ecn, true);
 }
 
 void QuicEnableVersion(const ParsedQuicVersion& version) {
