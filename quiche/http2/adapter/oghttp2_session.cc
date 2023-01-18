@@ -1769,8 +1769,8 @@ OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
                   std::move(listener), options_.should_window_update_fn));
   if (inserted) {
     // Add the stream to the write scheduler.
-    const WriteScheduler::StreamPrecedenceType precedence(3);
-    write_scheduler_.RegisterStream(stream_id, precedence);
+    const spdy::SpdyPriority priority = 3;
+    write_scheduler_.RegisterStream(stream_id, priority);
 
     highest_processed_stream_id_ =
         std::max(highest_processed_stream_id_, stream_id);

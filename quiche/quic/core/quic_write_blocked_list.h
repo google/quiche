@@ -51,7 +51,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   bool ShouldYield(QuicStreamId id) const;
 
   spdy::SpdyPriority GetSpdyPriorityofStream(QuicStreamId id) const {
-    return priority_write_scheduler_.GetStreamPrecedence(id).spdy3_priority();
+    return priority_write_scheduler_.GetStreamPriority(id);
   }
 
   // Pops the highest priority stream, special casing static streams. Latches
