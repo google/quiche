@@ -28,7 +28,7 @@ void ClearOpenSslErrors() {
   }
 }
 
-absl::Status SslErrorAsStatus(absl::string_view msg) {
+absl::Status SslErrorAsStatus(absl::string_view msg, absl::StatusCode code) {
   std::string message;
   absl::StrAppend(&message, msg, "OpenSSL error: ");
   while (uint32_t error = ERR_get_error()) {
@@ -36,7 +36,7 @@ absl::Status SslErrorAsStatus(absl::string_view msg) {
     ERR_error_string_n(error, buf, ABSL_ARRAYSIZE(buf));
     absl::StrAppend(&message, buf);
   }
-  return absl::InternalError(message);
+  return absl::Status(code, message);
 }
 
 }  // namespace quiche

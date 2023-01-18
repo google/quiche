@@ -84,7 +84,8 @@ ObliviousHttpRequest::CreateServerObliviousRequest(
           &decrypted_len, decrypted.size(),
           reinterpret_cast<const uint8_t*>(ciphertext_received.data()),
           ciphertext_received.size(), nullptr, 0)) {
-    return SslErrorAsStatus("Failed to decrypt.");
+    return SslErrorAsStatus("Failed to decrypt.",
+                            absl::StatusCode::kInvalidArgument);
   }
   decrypted.resize(decrypted_len);
   return ObliviousHttpRequest(

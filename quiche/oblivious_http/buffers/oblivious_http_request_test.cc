@@ -34,6 +34,12 @@ std::string GetHpkePublicKey() {
   return absl::HexStringToBytes(public_key);
 }
 
+std::string GetAlternativeHpkePublicKey() {
+  absl::string_view public_key =
+      "6d21cfe09fbea5122f9ebc2eb2a69fcc4f06408cd54aac934f012e76fcdcef63";
+  return absl::HexStringToBytes(public_key);
+}
+
 std::string GetSeed() {
   absl::string_view seed =
       "52c4a758a802cd8b936eceea314432798d5baf2d7e9235dc084ab1b9cfa2f736";
@@ -264,4 +270,18 @@ TEST(ObliviousHttpRequest, EndToEndTestForRequest) {
   EXPECT_EQ(decrypted, "test");
 }
 
+TEST(ObliviousHttpRequest, EndToEndTestForRequestWithWrongKey) {
+  auto ohttp_key_config =
+      GetOhttpKeyConfig(5, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                        EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM);
+  auto encapsulate = ObliviousHttpRequest::CreateClientObliviousRequest(
+      "test", GetAlternativeHpkePublicKey(), ohttp_key_config);
+  ASSERT_TRUE(encapsulate.ok());
+  auto oblivious_request = encapsulate->EncapsulateAndSerialize();
+  auto decapsulate = ObliviousHttpRequest::CreateServerObliviousRequest(
+      oblivious_request,
+      *(ConstructHpkeKey(GetHpkePrivateKey(), ohttp_key_config)),
+      ohttp_key_config);
+  EXPECT_EQ(decapsulate.status().code(), absl::StatusCode::kInvalidArgument);
+}
 }  // namespace quiche
