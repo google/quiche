@@ -20,9 +20,10 @@
 
 namespace quic {
 
-// Keeps tracks of the QUIC streams that have data to write, sorted by
-// priority.  QUIC stream priority order is:
-// Crypto stream > Headers stream > Data streams by requested priority.
+// Keeps tracks of the order of QUIC streams that have data to write.
+// Static streams come first, in the order they were registered with
+// QuicWriteBlockedList.  They are followed by non-static streams, ordered by
+// priority.
 class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
  public:
   explicit QuicWriteBlockedList();
@@ -53,16 +54,19 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     return priority_write_scheduler_.GetStreamPrecedence(id).spdy3_priority();
   }
 
-  // Pops the highest priority stream, special casing crypto and headers
-  // streams. Latches the most recently popped data stream for batch writing
-  // purposes.
+  // Pops the highest priority stream, special casing static streams. Latches
+  // the most recently popped data stream for batch writing purposes.
   QuicStreamId PopFront();
 
+  // Register a stream with given priority.
+  // `priority` is ignored for static streams.
   void RegisterStream(QuicStreamId stream_id, bool is_static_stream,
                       const QuicStreamPriority& priority);
 
   void UnregisterStream(QuicStreamId stream_id, bool is_static);
 
+  // Updates the stored priority of a stream.  Must not be called for static
+  // streams.
   void UpdateStreamPriority(QuicStreamId stream_id,
                             const QuicStreamPriority& new_priority);
 
@@ -71,7 +75,8 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   // Pushes a stream to the back of the list for its priority level *unless* it
   // is latched for doing batched writes in which case it goes to the front of
   // the list for its priority level.
-  // Headers and crypto streams are special cased to always resume first.
+  // Static streams are special cased to always resume first.
+  // Stream must already be registered.
   void AddStream(QuicStreamId stream_id);
 
   // Returns true if stream with |stream_id| is write blocked.

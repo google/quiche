@@ -7,7 +7,6 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
-using spdy::kHttp2DefaultStreamWeight;
 using spdy::kV3HighestPriority;
 using spdy::kV3LowestPriority;
 
@@ -15,257 +14,368 @@ namespace quic {
 namespace test {
 namespace {
 
+constexpr bool kStatic = true;
+constexpr bool kNotStatic = false;
+
 // Default value for `incremental`, see RFC9218.
 // TODO(b/147306124): Add support and tests for `incremental` being true.
 constexpr bool kNotIncremental = false;
 
-class QuicWriteBlockedListTest : public QuicTestWithParam<bool> {
+class QuicWriteBlockedListTest : public QuicTest {
  protected:
+  bool HasWriteBlockedDataStreams() const {
+    return write_blocked_list_.HasWriteBlockedDataStreams();
+  }
+
+  bool HasWriteBlockedSpecialStream() const {
+    return write_blocked_list_.HasWriteBlockedSpecialStream();
+  }
+
+  size_t NumBlockedSpecialStreams() const {
+    return write_blocked_list_.NumBlockedSpecialStreams();
+  }
+
+  size_t NumBlockedStreams() const {
+    return write_blocked_list_.NumBlockedStreams();
+  }
+
+  bool ShouldYield(QuicStreamId id) const {
+    return write_blocked_list_.ShouldYield(id);
+  }
+
+  spdy::SpdyPriority GetSpdyPriorityofStream(QuicStreamId id) const {
+    return write_blocked_list_.GetSpdyPriorityofStream(id);
+  }
+
+  QuicStreamId PopFront() { return write_blocked_list_.PopFront(); }
+
+  void RegisterStream(QuicStreamId stream_id, bool is_static_stream,
+                      const QuicStreamPriority& priority) {
+    write_blocked_list_.RegisterStream(stream_id, is_static_stream, priority);
+  }
+
+  void UnregisterStream(QuicStreamId stream_id, bool is_static) {
+    write_blocked_list_.UnregisterStream(stream_id, is_static);
+  }
+
+  void UpdateStreamPriority(QuicStreamId stream_id,
+                            const QuicStreamPriority& new_priority) {
+    write_blocked_list_.UpdateStreamPriority(stream_id, new_priority);
+  }
+
+  void UpdateBytesForStream(QuicStreamId stream_id, size_t bytes) {
+    write_blocked_list_.UpdateBytesForStream(stream_id, bytes);
+  }
+
+  void AddStream(QuicStreamId stream_id) {
+    write_blocked_list_.AddStream(stream_id);
+  }
+
+  bool IsStreamBlocked(QuicStreamId stream_id) const {
+    return write_blocked_list_.IsStreamBlocked(stream_id);
+  }
+
+ private:
   QuicWriteBlockedList write_blocked_list_;
 };
 
 TEST_F(QuicWriteBlockedListTest, PriorityOrder) {
-  /*
-       0
-       |
-       23
-       |
-       17
-       |
-       40
-  */
   // Mark streams blocked in roughly reverse priority order, and
   // verify that streams are sorted.
-  write_blocked_list_.RegisterStream(
-      40, false, QuicStreamPriority{kV3LowestPriority, kNotIncremental});
-  write_blocked_list_.RegisterStream(
-      23, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.RegisterStream(
-      17, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.RegisterStream(
-      1, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.RegisterStream(
-      3, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
+  RegisterStream(40, kNotStatic, {kV3LowestPriority, kNotIncremental});
+  RegisterStream(23, kNotStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(17, kNotStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(1, kStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(3, kStatic, {kV3HighestPriority, kNotIncremental});
 
-  write_blocked_list_.AddStream(40);
-  EXPECT_TRUE(write_blocked_list_.IsStreamBlocked(40));
-  write_blocked_list_.AddStream(23);
-  EXPECT_TRUE(write_blocked_list_.IsStreamBlocked(23));
-  write_blocked_list_.AddStream(17);
-  EXPECT_TRUE(write_blocked_list_.IsStreamBlocked(17));
-  write_blocked_list_.AddStream(3);
-  EXPECT_TRUE(write_blocked_list_.IsStreamBlocked(3));
-  write_blocked_list_.AddStream(1);
-  EXPECT_TRUE(write_blocked_list_.IsStreamBlocked(1));
+  EXPECT_EQ(kV3LowestPriority, GetSpdyPriorityofStream(40));
+  EXPECT_EQ(kV3HighestPriority, GetSpdyPriorityofStream(23));
+  EXPECT_EQ(kV3HighestPriority, GetSpdyPriorityofStream(17));
 
-  EXPECT_EQ(5u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_TRUE(write_blocked_list_.HasWriteBlockedSpecialStream());
-  EXPECT_EQ(2u, write_blocked_list_.NumBlockedSpecialStreams());
-  EXPECT_TRUE(write_blocked_list_.HasWriteBlockedDataStreams());
-  // The Crypto stream is highest priority.
-  EXPECT_EQ(1u, write_blocked_list_.PopFront());
-  EXPECT_EQ(1u, write_blocked_list_.NumBlockedSpecialStreams());
-  EXPECT_FALSE(write_blocked_list_.IsStreamBlocked(1));
-  // Followed by the Headers stream.
-  EXPECT_EQ(3u, write_blocked_list_.PopFront());
-  EXPECT_EQ(0u, write_blocked_list_.NumBlockedSpecialStreams());
-  EXPECT_FALSE(write_blocked_list_.IsStreamBlocked(3));
+  AddStream(40);
+  EXPECT_TRUE(IsStreamBlocked(40));
+  AddStream(23);
+  EXPECT_TRUE(IsStreamBlocked(23));
+  AddStream(17);
+  EXPECT_TRUE(IsStreamBlocked(17));
+  AddStream(3);
+  EXPECT_TRUE(IsStreamBlocked(3));
+  AddStream(1);
+  EXPECT_TRUE(IsStreamBlocked(1));
+
+  EXPECT_EQ(5u, NumBlockedStreams());
+  EXPECT_TRUE(HasWriteBlockedSpecialStream());
+  EXPECT_EQ(2u, NumBlockedSpecialStreams());
+  EXPECT_TRUE(HasWriteBlockedDataStreams());
+
+  // Static streams are highest priority, regardless of priority value.
+  EXPECT_EQ(1u, PopFront());
+  EXPECT_EQ(1u, NumBlockedSpecialStreams());
+  EXPECT_FALSE(IsStreamBlocked(1));
+
+  EXPECT_EQ(3u, PopFront());
+  EXPECT_EQ(0u, NumBlockedSpecialStreams());
+  EXPECT_FALSE(IsStreamBlocked(3));
+
   // Streams with same priority are popped in the order they were inserted.
-  EXPECT_EQ(23u, write_blocked_list_.PopFront());
-  EXPECT_FALSE(write_blocked_list_.IsStreamBlocked(23));
-  EXPECT_EQ(17u, write_blocked_list_.PopFront());
-  EXPECT_FALSE(write_blocked_list_.IsStreamBlocked(17));
+  EXPECT_EQ(23u, PopFront());
+  EXPECT_FALSE(IsStreamBlocked(23));
+  EXPECT_EQ(17u, PopFront());
+  EXPECT_FALSE(IsStreamBlocked(17));
+
   // Low priority stream appears last.
-  EXPECT_EQ(40u, write_blocked_list_.PopFront());
-  EXPECT_FALSE(write_blocked_list_.IsStreamBlocked(40));
+  EXPECT_EQ(40u, PopFront());
+  EXPECT_FALSE(IsStreamBlocked(40));
 
-  EXPECT_EQ(0u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_FALSE(write_blocked_list_.HasWriteBlockedSpecialStream());
-  EXPECT_FALSE(write_blocked_list_.HasWriteBlockedDataStreams());
+  EXPECT_EQ(0u, NumBlockedStreams());
+  EXPECT_FALSE(HasWriteBlockedSpecialStream());
+  EXPECT_FALSE(HasWriteBlockedDataStreams());
 }
 
-TEST_F(QuicWriteBlockedListTest, CryptoStream) {
-  write_blocked_list_.RegisterStream(
-      1, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.AddStream(1);
+TEST_F(QuicWriteBlockedListTest, SingleStaticStream) {
+  RegisterStream(5, kStatic, {kV3HighestPriority, kNotIncremental});
+  AddStream(5);
 
-  EXPECT_EQ(1u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_TRUE(write_blocked_list_.HasWriteBlockedSpecialStream());
-  EXPECT_EQ(1u, write_blocked_list_.PopFront());
-  EXPECT_EQ(0u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_FALSE(write_blocked_list_.HasWriteBlockedSpecialStream());
+  EXPECT_EQ(1u, NumBlockedStreams());
+  EXPECT_TRUE(HasWriteBlockedSpecialStream());
+  EXPECT_EQ(5u, PopFront());
+  EXPECT_EQ(0u, NumBlockedStreams());
+  EXPECT_FALSE(HasWriteBlockedSpecialStream());
 }
 
-TEST_F(QuicWriteBlockedListTest, HeadersStream) {
-  write_blocked_list_.RegisterStream(
-      3, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.AddStream(3);
+TEST_F(QuicWriteBlockedListTest, StaticStreamsComeFirst) {
+  RegisterStream(5, kNotStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(3, kStatic, {kV3LowestPriority, kNotIncremental});
+  AddStream(5);
+  AddStream(3);
 
-  EXPECT_EQ(1u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_TRUE(write_blocked_list_.HasWriteBlockedSpecialStream());
-  EXPECT_EQ(3u, write_blocked_list_.PopFront());
-  EXPECT_EQ(0u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_FALSE(write_blocked_list_.HasWriteBlockedSpecialStream());
-}
+  EXPECT_EQ(2u, NumBlockedStreams());
+  EXPECT_TRUE(HasWriteBlockedSpecialStream());
+  EXPECT_TRUE(HasWriteBlockedDataStreams());
 
-TEST_F(QuicWriteBlockedListTest, VerifyHeadersStream) {
-  write_blocked_list_.RegisterStream(
-      5, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.RegisterStream(
-      3, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.AddStream(5);
-  write_blocked_list_.AddStream(3);
+  EXPECT_EQ(3u, PopFront());
+  EXPECT_EQ(5u, PopFront());
 
-  EXPECT_EQ(2u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_TRUE(write_blocked_list_.HasWriteBlockedSpecialStream());
-  EXPECT_TRUE(write_blocked_list_.HasWriteBlockedDataStreams());
-  // In newer QUIC versions, there is a headers stream which is
-  // higher priority than data streams.
-  EXPECT_EQ(3u, write_blocked_list_.PopFront());
-  EXPECT_EQ(5u, write_blocked_list_.PopFront());
-  EXPECT_EQ(0u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_FALSE(write_blocked_list_.HasWriteBlockedSpecialStream());
-  EXPECT_FALSE(write_blocked_list_.HasWriteBlockedDataStreams());
+  EXPECT_EQ(0u, NumBlockedStreams());
+  EXPECT_FALSE(HasWriteBlockedSpecialStream());
+  EXPECT_FALSE(HasWriteBlockedDataStreams());
 }
 
 TEST_F(QuicWriteBlockedListTest, NoDuplicateEntries) {
   // Test that QuicWriteBlockedList doesn't allow duplicate entries.
   // Try to add a stream to the write blocked list multiple times at the same
   // priority.
-  const QuicStreamId kBlockedId = 3 + 2;
-  write_blocked_list_.RegisterStream(
-      kBlockedId, false,
-      QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.AddStream(kBlockedId);
-  write_blocked_list_.AddStream(kBlockedId);
-  write_blocked_list_.AddStream(kBlockedId);
+  const QuicStreamId kBlockedId = 5;
+  RegisterStream(kBlockedId, kNotStatic, {kV3HighestPriority, kNotIncremental});
+  AddStream(kBlockedId);
+  AddStream(kBlockedId);
+  AddStream(kBlockedId);
 
   // This should only result in one blocked stream being added.
-  EXPECT_EQ(1u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_TRUE(write_blocked_list_.HasWriteBlockedDataStreams());
+  EXPECT_EQ(1u, NumBlockedStreams());
+  EXPECT_TRUE(HasWriteBlockedDataStreams());
 
   // There should only be one stream to pop off the front.
-  EXPECT_EQ(kBlockedId, write_blocked_list_.PopFront());
-  EXPECT_EQ(0u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_FALSE(write_blocked_list_.HasWriteBlockedDataStreams());
+  EXPECT_EQ(kBlockedId, PopFront());
+  EXPECT_EQ(0u, NumBlockedStreams());
+  EXPECT_FALSE(HasWriteBlockedDataStreams());
 }
 
 TEST_F(QuicWriteBlockedListTest, BatchingWrites) {
-  const QuicStreamId id1 = 3 + 2;
-  const QuicStreamId id2 = id1 + 2;
-  const QuicStreamId id3 = id2 + 2;
-  write_blocked_list_.RegisterStream(
-      id1, false, QuicStreamPriority{kV3LowestPriority, kNotIncremental});
-  write_blocked_list_.RegisterStream(
-      id2, false, QuicStreamPriority{kV3LowestPriority, kNotIncremental});
-  write_blocked_list_.RegisterStream(
-      id3, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
+  const QuicStreamId id1 = 5;
+  const QuicStreamId id2 = 7;
+  const QuicStreamId id3 = 9;
+  RegisterStream(id1, kNotStatic, {kV3LowestPriority, kNotIncremental});
+  RegisterStream(id2, kNotStatic, {kV3LowestPriority, kNotIncremental});
+  RegisterStream(id3, kNotStatic, {kV3HighestPriority, kNotIncremental});
 
-  write_blocked_list_.AddStream(id1);
-  write_blocked_list_.AddStream(id2);
-  EXPECT_EQ(2u, write_blocked_list_.NumBlockedStreams());
+  AddStream(id1);
+  AddStream(id2);
+  EXPECT_EQ(2u, NumBlockedStreams());
 
   // The first stream we push back should stay at the front until 16k is
   // written.
-  EXPECT_EQ(id1, write_blocked_list_.PopFront());
-  write_blocked_list_.UpdateBytesForStream(id1, 15999);
-  write_blocked_list_.AddStream(id1);
-  EXPECT_EQ(2u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_EQ(id1, write_blocked_list_.PopFront());
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, 15999);
+  AddStream(id1);
+  EXPECT_EQ(2u, NumBlockedStreams());
+  EXPECT_EQ(id1, PopFront());
 
   // Once 16k is written the first stream will yield to the next.
-  write_blocked_list_.UpdateBytesForStream(id1, 1);
-  write_blocked_list_.AddStream(id1);
-  EXPECT_EQ(2u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_EQ(id2, write_blocked_list_.PopFront());
+  UpdateBytesForStream(id1, 1);
+  AddStream(id1);
+  EXPECT_EQ(2u, NumBlockedStreams());
+  EXPECT_EQ(id2, PopFront());
 
   // Set the new stream to have written all but one byte.
-  write_blocked_list_.UpdateBytesForStream(id2, 15999);
-  write_blocked_list_.AddStream(id2);
-  EXPECT_EQ(2u, write_blocked_list_.NumBlockedStreams());
+  UpdateBytesForStream(id2, 15999);
+  AddStream(id2);
+  EXPECT_EQ(2u, NumBlockedStreams());
 
   // Ensure higher priority streams are popped first.
-  write_blocked_list_.AddStream(id3);
-  EXPECT_EQ(id3, write_blocked_list_.PopFront());
+  AddStream(id3);
+  EXPECT_EQ(id3, PopFront());
 
   // Higher priority streams will always be popped first, even if using their
   // byte quota
-  write_blocked_list_.UpdateBytesForStream(id3, 20000);
-  write_blocked_list_.AddStream(id3);
-  EXPECT_EQ(id3, write_blocked_list_.PopFront());
+  UpdateBytesForStream(id3, 20000);
+  AddStream(id3);
+  EXPECT_EQ(id3, PopFront());
 
   // Once the higher priority stream is out of the way, id2 will resume its 16k
   // write, with only 1 byte remaining of its guaranteed write allocation.
-  EXPECT_EQ(id2, write_blocked_list_.PopFront());
-  write_blocked_list_.UpdateBytesForStream(id2, 1);
-  write_blocked_list_.AddStream(id2);
-  EXPECT_EQ(2u, write_blocked_list_.NumBlockedStreams());
-  EXPECT_EQ(id1, write_blocked_list_.PopFront());
+  EXPECT_EQ(id2, PopFront());
+  UpdateBytesForStream(id2, 1);
+  AddStream(id2);
+  EXPECT_EQ(2u, NumBlockedStreams());
+  EXPECT_EQ(id1, PopFront());
 }
 
 TEST_F(QuicWriteBlockedListTest, Ceding) {
-  /*
-       0
-       |
-       15
-       |
-       16
-       |
-       5
-       |
-       4
-       |
-       7
-  */
-  write_blocked_list_.RegisterStream(
-      15, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.RegisterStream(
-      16, false, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.RegisterStream(5, false,
-                                     QuicStreamPriority{5, kNotIncremental});
-  write_blocked_list_.RegisterStream(4, false,
-                                     QuicStreamPriority{5, kNotIncremental});
-  write_blocked_list_.RegisterStream(7, false,
-                                     QuicStreamPriority{7, kNotIncremental});
-  write_blocked_list_.RegisterStream(
-      1, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
-  write_blocked_list_.RegisterStream(
-      3, true, QuicStreamPriority{kV3HighestPriority, kNotIncremental});
+  RegisterStream(15, kNotStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(16, kNotStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(5, kNotStatic, {5, kNotIncremental});
+  RegisterStream(4, kNotStatic, {5, kNotIncremental});
+  RegisterStream(7, kNotStatic, {7, kNotIncremental});
+  RegisterStream(1, kStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(3, kStatic, {kV3HighestPriority, kNotIncremental});
 
   // When nothing is on the list, nothing yields.
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(5));
+  EXPECT_FALSE(ShouldYield(5));
 
-  write_blocked_list_.AddStream(5);
+  AddStream(5);
   // 5 should not yield to itself.
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(5));
+  EXPECT_FALSE(ShouldYield(5));
   // 4 and 7 are equal or lower priority and should yield to 5.
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(4));
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(7));
-  // 15, headers and crypto should preempt 5.
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(15));
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(3));
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(1));
+  EXPECT_TRUE(ShouldYield(4));
+  EXPECT_TRUE(ShouldYield(7));
+  // Stream 15 and static streams should preempt 5.
+  EXPECT_FALSE(ShouldYield(15));
+  EXPECT_FALSE(ShouldYield(3));
+  EXPECT_FALSE(ShouldYield(1));
 
   // Block a high priority stream.
-  write_blocked_list_.AddStream(15);
-  // 16 should yield (same priority) but headers and crypto will still not.
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(16));
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(3));
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(1));
+  AddStream(15);
+  // 16 should yield (same priority) but static streams will still not.
+  EXPECT_TRUE(ShouldYield(16));
+  EXPECT_FALSE(ShouldYield(3));
+  EXPECT_FALSE(ShouldYield(1));
 
-  // Block the headers stream.  All streams but crypto and headers should yield.
-  write_blocked_list_.AddStream(3);
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(16));
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(15));
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(3));
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(1));
+  // Block a static stream.  All non-static streams should yield.
+  AddStream(3);
+  EXPECT_TRUE(ShouldYield(16));
+  EXPECT_TRUE(ShouldYield(15));
+  EXPECT_FALSE(ShouldYield(3));
+  EXPECT_FALSE(ShouldYield(1));
 
-  // Block the crypto stream.  All streams but crypto should yield.
-  write_blocked_list_.AddStream(1);
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(16));
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(15));
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(3));
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(1));
+  // Block the other static stream.  All other streams should yield.
+  AddStream(1);
+  EXPECT_TRUE(ShouldYield(16));
+  EXPECT_TRUE(ShouldYield(15));
+  EXPECT_TRUE(ShouldYield(3));
+  EXPECT_FALSE(ShouldYield(1));
+}
+
+TEST_F(QuicWriteBlockedListTest, UnregisterStream) {
+  RegisterStream(40, kNotStatic, {kV3LowestPriority, kNotIncremental});
+  RegisterStream(23, kNotStatic, {6, kNotIncremental});
+  RegisterStream(12, kNotStatic, {3, kNotIncremental});
+  RegisterStream(17, kNotStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(1, kStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(3, kStatic, {kV3HighestPriority, kNotIncremental});
+
+  AddStream(40);
+  AddStream(23);
+  AddStream(12);
+  AddStream(17);
+  AddStream(1);
+  AddStream(3);
+
+  UnregisterStream(23, kNotStatic);
+  UnregisterStream(1, kStatic);
+
+  EXPECT_EQ(3u, PopFront());
+  EXPECT_EQ(17u, PopFront());
+  EXPECT_EQ(12u, PopFront());
+  EXPECT_EQ(40, PopFront());
+}
+
+TEST_F(QuicWriteBlockedListTest, UpdateStreamPriority) {
+  RegisterStream(40, kNotStatic, {kV3LowestPriority, kNotIncremental});
+  RegisterStream(23, kNotStatic, {6, kNotIncremental});
+  RegisterStream(17, kNotStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(1, kStatic, {2, kNotIncremental});
+  RegisterStream(3, kStatic, {kV3HighestPriority, kNotIncremental});
+
+  EXPECT_EQ(kV3LowestPriority, GetSpdyPriorityofStream(40));
+  EXPECT_EQ(6, GetSpdyPriorityofStream(23));
+  EXPECT_EQ(kV3HighestPriority, GetSpdyPriorityofStream(17));
+
+  UpdateStreamPriority(40, {3, kNotIncremental});
+  UpdateStreamPriority(23, {kV3HighestPriority, kNotIncremental});
+  UpdateStreamPriority(17, {5, kNotIncremental});
+
+  EXPECT_EQ(3, GetSpdyPriorityofStream(40));
+  EXPECT_EQ(kV3HighestPriority, GetSpdyPriorityofStream(23));
+  EXPECT_EQ(5, GetSpdyPriorityofStream(17));
+
+  AddStream(40);
+  AddStream(23);
+  AddStream(17);
+  AddStream(1);
+  AddStream(3);
+
+  EXPECT_EQ(1u, PopFront());
+  EXPECT_EQ(3u, PopFront());
+  EXPECT_EQ(23u, PopFront());
+  EXPECT_EQ(40u, PopFront());
+  EXPECT_EQ(17u, PopFront());
+}
+
+// UpdateStreamPriority() must not be called for static streams.
+TEST_F(QuicWriteBlockedListTest, UpdateStaticStreamPriority) {
+  RegisterStream(2, kStatic, {kV3LowestPriority, kNotIncremental});
+  EXPECT_QUICHE_DEBUG_DEATH(
+      UpdateStreamPriority(2, {kV3HighestPriority, kNotIncremental}),
+      "IsRegistered");
+}
+
+// TODO(bnc): Test that incremental bit can be changed if urgency is the same.
+TEST_F(QuicWriteBlockedListTest, UpdateStreamPrioritySame) {
+  RegisterStream(1, kNotStatic, {6, kNotIncremental});
+  RegisterStream(2, kNotStatic, {6, kNotIncremental});
+
+  AddStream(1);
+  AddStream(2);
+
+  EXPECT_EQ(1u, PopFront());
+  EXPECT_EQ(2u, PopFront());
+
+  RegisterStream(3, kNotStatic, {6, kNotIncremental});
+  RegisterStream(4, kNotStatic, {6, kNotIncremental});
+
+  EXPECT_EQ(6, GetSpdyPriorityofStream(3));
+  UpdateStreamPriority(3, {6, kNotIncremental});
+  EXPECT_EQ(6, GetSpdyPriorityofStream(3));
+
+  AddStream(3);
+  AddStream(4);
+
+  EXPECT_EQ(3u, PopFront());
+  EXPECT_EQ(4u, PopFront());
+
+  RegisterStream(5, kNotStatic, {6, kNotIncremental});
+  RegisterStream(6, kNotStatic, {6, kNotIncremental});
+
+  EXPECT_EQ(6, GetSpdyPriorityofStream(6));
+  UpdateStreamPriority(6, {6, kNotIncremental});
+  EXPECT_EQ(6, GetSpdyPriorityofStream(6));
+
+  AddStream(5);
+  AddStream(6);
+
+  EXPECT_EQ(5u, PopFront());
+  EXPECT_EQ(6u, PopFront());
 }
 
 }  // namespace
