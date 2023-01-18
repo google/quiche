@@ -50,7 +50,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
 
   bool ShouldYield(QuicStreamId id) const;
 
-  spdy::SpdyPriority GetSpdyPriorityofStream(QuicStreamId id) const {
+  QuicStreamPriority GetPriorityofStream(QuicStreamId id) const {
     return priority_write_scheduler_.GetStreamPriority(id);
   }
 
@@ -83,7 +83,10 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   bool IsStreamBlocked(QuicStreamId stream_id) const;
 
  private:
-  http2::PriorityWriteScheduler<QuicStreamId> priority_write_scheduler_;
+  http2::PriorityWriteScheduler<QuicStreamId, QuicStreamPriority,
+                                QuicStreamPriorityToInt,
+                                IntToQuicStreamPriority>
+      priority_write_scheduler_;
 
   // If performing batch writes, this will be the stream ID of the stream doing
   // batch writes for this priority level.  We will allow this stream to write

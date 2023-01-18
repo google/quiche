@@ -708,7 +708,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual bool ShouldProcessPendingStreamImmediately() const { return true; }
 
   spdy::SpdyPriority GetSpdyPriorityofStream(QuicStreamId stream_id) const {
-    return write_blocked_streams_.GetSpdyPriorityofStream(stream_id);
+    return write_blocked_streams_.GetPriorityofStream(stream_id).urgency;
   }
 
   size_t pending_streams_size() const { return pending_stream_map_.size(); }

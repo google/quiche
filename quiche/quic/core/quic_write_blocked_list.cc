@@ -38,7 +38,7 @@ QuicStreamId QuicWriteBlockedList::PopFront() {
   const auto id_and_priority =
       priority_write_scheduler_.PopNextReadyStreamAndPriority();
   const QuicStreamId id = std::get<0>(id_and_priority);
-  const spdy::SpdyPriority priority = std::get<1>(id_and_priority);
+  const spdy::SpdyPriority priority = std::get<1>(id_and_priority).urgency;
 
   if (!priority_write_scheduler_.HasReadyStreams()) {
     // If no streams are blocked, don't bother latching.  This stream will be
@@ -65,7 +65,7 @@ void QuicWriteBlockedList::RegisterStream(QuicStreamId stream_id,
     return;
   }
 
-  priority_write_scheduler_.RegisterStream(stream_id, priority.urgency);
+  priority_write_scheduler_.RegisterStream(stream_id, priority);
 }
 
 void QuicWriteBlockedList::UnregisterStream(QuicStreamId stream_id,
@@ -80,8 +80,7 @@ void QuicWriteBlockedList::UnregisterStream(QuicStreamId stream_id,
 void QuicWriteBlockedList::UpdateStreamPriority(
     QuicStreamId stream_id, const QuicStreamPriority& new_priority) {
   QUICHE_DCHECK(!static_stream_collection_.IsRegistered(stream_id));
-  priority_write_scheduler_.UpdateStreamPriority(stream_id,
-                                                 new_priority.urgency);
+  priority_write_scheduler_.UpdateStreamPriority(stream_id, new_priority);
 }
 
 void QuicWriteBlockedList::UpdateBytesForStream(QuicStreamId stream_id,

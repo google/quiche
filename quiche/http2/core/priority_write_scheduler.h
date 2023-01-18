@@ -29,11 +29,20 @@ template <typename StreamIdType>
 class PriorityWriteSchedulerPeer;
 }
 
+// SpdyPriority is an integer type, so this functor can be used both as
+// PriorityTypeToInt and as IntToPriorityType.
+struct QUICHE_EXPORT SpdyPriorityToSpdyPriority {
+  spdy::SpdyPriority operator()(spdy::SpdyPriority priority) {
+    return priority;
+  }
+};
+
 // PriorityWriteScheduler manages the order in which HTTP/2 or HTTP/3 streams
-// are written. Each stream has a priority, which is an integer between 0 and 7.
-// Higher priority (lower integer value) streams are always given precedence
-// over lower priority (higher value) streams, as long as the higher priority
-// stream is not blocked.
+// are written. Each stream has a priority of type PriorityType. This includes
+// an integer between 0 and 7, and optionally other information that is stored
+// but otherwise ignored by this class.  Higher priority (lower integer value)
+// streams are always given precedence over lower priority (higher value)
+// streams, as long as the higher priority stream is not blocked.
 //
 // Each stream can be in one of two states: ready or not ready (for writing).
 // Ready state is changed by calling the MarkStreamReady() and
@@ -41,11 +50,11 @@ class PriorityWriteSchedulerPeer;
 // by PopNextReadyStream(). When returned by that method, the stream's state
 // changes to not ready.
 //
-template <typename StreamIdType>
+template <typename StreamIdType, typename PriorityType = spdy::SpdyPriority,
+          typename PriorityTypeToInt = SpdyPriorityToSpdyPriority,
+          typename IntToPriorityType = SpdyPriorityToSpdyPriority>
 class QUICHE_EXPORT PriorityWriteScheduler {
  public:
-  using PriorityType = spdy::SpdyPriority;
-
   static constexpr int kHighestPriority = 0;
   static constexpr int kLowestPriority = 7;
 
@@ -57,8 +66,8 @@ class QUICHE_EXPORT PriorityWriteScheduler {
   //
   // Preconditions: `stream_id` should be unregistered.
   void RegisterStream(StreamIdType stream_id, PriorityType priority) {
-    auto stream_info =
-        std::make_unique<StreamInfo>(StreamInfo{priority, stream_id, false});
+    auto stream_info = std::make_unique<StreamInfo>(
+        StreamInfo{std::move(priority), stream_id, false});
     bool inserted =
         stream_infos_.insert(std::make_pair(stream_id, std::move(stream_info)))
             .second;
@@ -78,8 +87,10 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     }
     const StreamInfo* const stream_info = it->second.get();
     if (stream_info->ready) {
-      bool erased = Erase(&priority_infos_[stream_info->priority].ready_list,
-                          stream_info);
+      bool erased =
+          Erase(&priority_infos_[PriorityTypeToInt()(stream_info->priority)]
+                     .ready_list,
+                stream_info);
       QUICHE_DCHECK(erased);
     }
     stream_infos_.erase(it);
@@ -97,7 +108,7 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       QUICHE_DVLOG(1) << "Stream " << stream_id << " not registered";
-      return kLowestPriority;
+      return IntToPriorityType()(kLowestPriority);
     }
     return it->second->priority;
   }
@@ -112,18 +123,30 @@ class QUICHE_EXPORT PriorityWriteScheduler {
       QUICHE_DVLOG(1) << "Stream " << stream_id << " not registered";
       return;
     }
+
     StreamInfo* const stream_info = it->second.get();
     if (stream_info->priority == priority) {
       return;
     }
-    if (stream_info->ready) {
-      bool erased = Erase(&priority_infos_[stream_info->priority].ready_list,
-                          stream_info);
+
+    // Only move `stream_info` to a different bucket if the integral priority
+    // value changes.
+    if (PriorityTypeToInt()(stream_info->priority) !=
+            PriorityTypeToInt()(priority) &&
+        stream_info->ready) {
+      bool erased =
+          Erase(&priority_infos_[PriorityTypeToInt()(stream_info->priority)]
+                     .ready_list,
+                stream_info);
       QUICHE_DCHECK(erased);
-      priority_infos_[priority].ready_list.push_back(stream_info);
+      priority_infos_[PriorityTypeToInt()(priority)].ready_list.push_back(
+          stream_info);
       ++num_ready_streams_;
     }
-    stream_info->priority = priority;
+
+    // But override `priority` for the stream regardless of the integral value,
+    // because it might contain additional information.
+    stream_info->priority = std::move(priority);
   }
 
   // Records time (in microseconds) of a read/write event for the given
@@ -136,7 +159,8 @@ class QUICHE_EXPORT PriorityWriteScheduler {
       QUICHE_BUG(spdy_bug_19_4) << "Stream " << stream_id << " not registered";
       return;
     }
-    PriorityInfo& priority_info = priority_infos_[it->second->priority];
+    PriorityInfo& priority_info =
+        priority_infos_[PriorityTypeToInt()(it->second->priority)];
     priority_info.last_event_time_usec =
         std::max(priority_info.last_event_time_usec, now_in_usec);
   }
@@ -154,7 +178,8 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     }
     int64_t last_event_time_usec = 0;
     const StreamInfo* const stream_info = it->second.get();
-    for (PriorityType p = kHighestPriority; p < stream_info->priority; ++p) {
+    for (int p = kHighestPriority;
+         p < PriorityTypeToInt()(stream_info->priority); ++p) {
       last_event_time_usec = std::max(last_event_time_usec,
                                       priority_infos_[p].last_event_time_usec);
     }
@@ -176,7 +201,7 @@ class QUICHE_EXPORT PriorityWriteScheduler {
   //
   // Preconditions: `HasReadyStreams() == true`
   std::tuple<StreamIdType, PriorityType> PopNextReadyStreamAndPriority() {
-    for (PriorityType p = kHighestPriority; p <= kLowestPriority; ++p) {
+    for (int p = kHighestPriority; p <= kLowestPriority; ++p) {
       ReadyList& ready_list = priority_infos_[p].ready_list;
       if (!ready_list.empty()) {
         StreamInfo* const info = ready_list.front();
@@ -190,7 +215,7 @@ class QUICHE_EXPORT PriorityWriteScheduler {
       }
     }
     QUICHE_BUG(spdy_bug_19_6) << "No ready streams available";
-    return std::make_tuple(0, kLowestPriority);
+    return std::make_tuple(0, IntToPriorityType()(kLowestPriority));
   }
 
   // Returns true if there's another stream ahead of the given stream in the
@@ -207,7 +232,8 @@ class QUICHE_EXPORT PriorityWriteScheduler {
 
     // If there's a higher priority stream, this stream should yield.
     const StreamInfo* const stream_info = it->second.get();
-    for (PriorityType p = kHighestPriority; p < stream_info->priority; ++p) {
+    for (int p = kHighestPriority;
+         p < PriorityTypeToInt()(stream_info->priority); ++p) {
       if (!priority_infos_[p].ready_list.empty()) {
         return true;
       }
@@ -215,7 +241,8 @@ class QUICHE_EXPORT PriorityWriteScheduler {
 
     // If this priority level is empty, or this stream is the next up, there's
     // no need to yield.
-    const auto& ready_list = priority_infos_[it->second->priority].ready_list;
+    const auto& ready_list =
+        priority_infos_[PriorityTypeToInt()(it->second->priority)].ready_list;
     if (ready_list.empty() || ready_list.front()->stream_id == stream_id) {
       return false;
     }
@@ -240,7 +267,8 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     if (stream_info->ready) {
       return;
     }
-    ReadyList& ready_list = priority_infos_[stream_info->priority].ready_list;
+    ReadyList& ready_list =
+        priority_infos_[PriorityTypeToInt()(stream_info->priority)].ready_list;
     if (add_to_front) {
       ready_list.push_front(stream_info);
     } else {
@@ -264,8 +292,9 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     if (!stream_info->ready) {
       return;
     }
-    bool erased =
-        Erase(&priority_infos_[stream_info->priority].ready_list, stream_info);
+    bool erased = Erase(
+        &priority_infos_[PriorityTypeToInt()(stream_info->priority)].ready_list,
+        stream_info);
     QUICHE_DCHECK(erased);
     stream_info->ready = false;
   }

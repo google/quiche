@@ -27,7 +27,7 @@ struct QUICHE_EXPORT QuicStreamPriority {
   static constexpr absl::string_view kUrgencyKey = "u";
   static constexpr absl::string_view kIncrementalKey = "i";
 
-  uint8_t urgency = kDefaultUrgency;
+  int urgency = kDefaultUrgency;
   bool incremental = kDefaultIncremental;
 
   bool operator==(const QuicStreamPriority& other) const {
@@ -37,6 +37,19 @@ struct QUICHE_EXPORT QuicStreamPriority {
 
   bool operator!=(const QuicStreamPriority& other) const {
     return !operator==(other);
+  }
+};
+
+// Functors to be used as template parameters for PriorityWriteScheduler.
+struct QUICHE_EXPORT QuicStreamPriorityToInt {
+  int operator()(const QuicStreamPriority& priority) {
+    return priority.urgency;
+  }
+};
+
+struct QUICHE_EXPORT IntToQuicStreamPriority {
+  QuicStreamPriority operator()(int urgency) {
+    return QuicStreamPriority{urgency};
   }
 };
 
