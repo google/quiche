@@ -585,6 +585,23 @@ QuicEcnCounts* QuicConnectionPeer::GetEcnCounts(
 // static
 bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
   QuicConnection::ReceivedPacketInfo info{QuicTime::Zero()};
+  QUIC_DVLOG(2)
+      << "QuicConnectionPeer::TestLastReceivedPacketInfoDefaults"
+      << " dest_addr passed: "
+      << (info.destination_address == QuicSocketAddress())
+      << " source_addr passed: " << (info.source_address == QuicSocketAddress())
+      << " receipt_time passed: " << (info.receipt_time == QuicTime::Zero())
+      << " received_bytes_counted passed: " << !info.received_bytes_counted
+      << " destination_connection_id passed: "
+      << (info.destination_connection_id == QuicConnectionId())
+      << " length passed: " << (info.length == 0)
+      << " decrypted passed: " << !info.decrypted << " decrypted_level passed: "
+      << (info.decrypted_level == ENCRYPTION_INITIAL)
+      << " frames.empty passed: " << info.frames.empty()
+      << " ecn_codepoint passed: " << (info.ecn_codepoint == ECN_NOT_ECT)
+      << " sizeof(ReceivedPacketInfo) passed: "
+      << (sizeof(size_t) != 8 ||
+          sizeof(QuicConnection::ReceivedPacketInfo) == 256);
   return info.destination_address == QuicSocketAddress() &&
          info.source_address == QuicSocketAddress() &&
          info.receipt_time == QuicTime::Zero() &&
@@ -596,7 +613,8 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
          // If the condition below fails, the contents of ReceivedPacketInfo
          // have changed. Please add the relevant conditions and update the
          // length below.
-         sizeof(QuicConnection::ReceivedPacketInfo) == 256;
+         (sizeof(size_t) != 8 ||
+          sizeof(QuicConnection::ReceivedPacketInfo) == 256);
 }
 
 }  // namespace test
