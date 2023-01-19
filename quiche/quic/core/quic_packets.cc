@@ -169,6 +169,7 @@ QuicPacketHeader::QuicPacketHeader()
       version_flag(false),
       has_possible_stateless_reset_token(false),
       packet_number_length(PACKET_4BYTE_PACKET_NUMBER),
+      type_byte(0),
       version(UnsupportedQuicVersion()),
       nonce(nullptr),
       form(GOOGLE_QUIC_PACKET),
@@ -447,7 +448,8 @@ SerializedPacket::SerializedPacket(SerializedPacket&& other)
       has_message(other.has_message),
       fate(other.fate),
       peer_address(other.peer_address),
-      bytes_not_retransmitted(other.bytes_not_retransmitted) {
+      bytes_not_retransmitted(other.bytes_not_retransmitted),
+      initial_header(other.initial_header) {
   if (this != &other) {
     if (release_encrypted_buffer && encrypted_buffer != nullptr) {
       release_encrypted_buffer(encrypted_buffer);
@@ -495,6 +497,7 @@ SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
   copy->fate = serialized.fate;
   copy->peer_address = serialized.peer_address;
   copy->bytes_not_retransmitted = serialized.bytes_not_retransmitted;
+  copy->initial_header = serialized.initial_header;
 
   if (copy_buffer) {
     copy->encrypted_buffer = CopyBuffer(serialized);
@@ -561,6 +564,36 @@ std::ostream& operator<<(std::ostream& os,
                          const ReceivedPacketInfo& packet_info) {
   os << packet_info.ToString();
   return os;
+}
+
+bool QuicPacketHeader::operator==(const QuicPacketHeader& other) const {
+  return destination_connection_id == other.destination_connection_id &&
+         destination_connection_id_included ==
+             other.destination_connection_id_included &&
+         source_connection_id == other.source_connection_id &&
+         source_connection_id_included == other.source_connection_id_included &&
+         reset_flag == other.reset_flag && version_flag == other.version_flag &&
+         has_possible_stateless_reset_token ==
+             other.has_possible_stateless_reset_token &&
+         packet_number_length == other.packet_number_length &&
+         type_byte == other.type_byte && version == other.version &&
+         nonce == other.nonce &&
+         ((!packet_number.IsInitialized() &&
+           !other.packet_number.IsInitialized()) ||
+          (packet_number.IsInitialized() &&
+           other.packet_number.IsInitialized() &&
+           packet_number == other.packet_number)) &&
+         form == other.form && long_packet_type == other.long_packet_type &&
+         possible_stateless_reset_token ==
+             other.possible_stateless_reset_token &&
+         retry_token_length_length == other.retry_token_length_length &&
+         retry_token == other.retry_token &&
+         length_length == other.length_length &&
+         remaining_packet_length == other.remaining_packet_length;
+}
+
+bool QuicPacketHeader::operator!=(const QuicPacketHeader& other) const {
+  return !operator==(other);
 }
 
 }  // namespace quic

@@ -72,6 +72,14 @@ TEST_F(QuicPacketsTest, GetClientConnectionIdAsSender) {
             GetClientConnectionIdAsSender(header, Perspective::IS_CLIENT));
 }
 
+TEST_F(QuicPacketsTest, CopyQuicPacketHeader) {
+  QuicPacketHeader header;
+  QuicPacketHeader header2 = CreateFakePacketHeader();
+  EXPECT_NE(header, header2);
+  QuicPacketHeader header3(header2);
+  EXPECT_EQ(header2, header3);
+}
+
 TEST_F(QuicPacketsTest, CopySerializedPacket) {
   std::string buffer(1000, 'a');
   quiche::SimpleBufferAllocator allocator;

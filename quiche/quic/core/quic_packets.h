@@ -157,6 +157,9 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
   // 0-RTT and Handshake packets. Also includes the length of the
   // diversification nonce in server to client 0-RTT packets.
   QuicByteCount remaining_packet_length;
+
+  bool operator==(const QuicPacketHeader& other) const;
+  bool operator!=(const QuicPacketHeader& other) const;
 };
 
 struct QUIC_EXPORT_PRIVATE QuicPublicResetPacket {
@@ -388,6 +391,9 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
   // populated for packets with "mixed frames": at least one frame of a
   // retransmission type and at least one frame of NOT_RETRANSMISSION type.
   absl::optional<QuicByteCount> bytes_not_retransmitted;
+  // Only populated if encryption_level is ENCRYPTION_INITIAL.
+  // TODO(b/265777524): remove this.
+  absl::optional<QuicPacketHeader> initial_header;
 };
 
 // Make a copy of |serialized| (including the underlying frames). |copy_buffer|

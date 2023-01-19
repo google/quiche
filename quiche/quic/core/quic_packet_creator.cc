@@ -507,6 +507,7 @@ void QuicPacketCreator::ClearPacket() {
   packet_.largest_acked.Clear();
   needs_full_padding_ = false;
   packet_.bytes_not_retransmitted.reset();
+  packet_.initial_header.reset();
 }
 
 size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
@@ -559,6 +560,15 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
   if (!SerializePacket(QuicOwnedPacketBuffer(buffer, nullptr), buffer_len,
                        /*allow_padding=*/false)) {
     return 0;
+  }
+  if (!packet.initial_header.has_value() ||
+      !packet_.initial_header.has_value()) {
+    QUIC_BUG(missing initial packet header)
+        << "initial serialized packet does not have header populated";
+  } else if (packet.initial_header.value() != packet_.initial_header.value()) {
+    QUIC_BUG(initial packet header changed before reserialization)
+        << ENDPOINT << "original header: " << packet.initial_header.value()
+        << ", new header: " << packet_.initial_header.value();
   }
   const size_t encrypted_length = packet_.encrypted_length;
   // Clear frames in packet_. No need to DeleteFrames since frames are owned by
@@ -826,6 +836,9 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
   QuicPacketHeader header;
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
+  if (packet_.encryption_level == ENCRYPTION_INITIAL) {
+    packet_.initial_header = header;
+  }
   if (delegate_ != nullptr) {
     packet_.fate = delegate_->GetSerializedPacketFate(
         /*is_mtu_discovery=*/QuicUtils::ContainsFrameType(queued_frames_,
