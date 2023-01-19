@@ -29,7 +29,7 @@ class QuicPathValidatorPeer;
 
 class QuicConnection;
 
-enum class QUIC_EXPORT_PRIVATE PathValidationReason {
+enum class PathValidationReason {
   kReasonUnknown,
   kMultiPort,
   kReversePathValidation,
