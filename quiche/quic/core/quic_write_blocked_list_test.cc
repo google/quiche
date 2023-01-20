@@ -6,6 +6,7 @@
 
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/platform/api/quiche_expect_bug.h"
 
 using spdy::kV3HighestPriority;
 using spdy::kV3LowestPriority;
@@ -53,8 +54,8 @@ class QuicWriteBlockedListTest : public QuicTest {
     write_blocked_list_.RegisterStream(stream_id, is_static_stream, priority);
   }
 
-  void UnregisterStream(QuicStreamId stream_id, bool is_static) {
-    write_blocked_list_.UnregisterStream(stream_id, is_static);
+  void UnregisterStream(QuicStreamId stream_id) {
+    write_blocked_list_.UnregisterStream(stream_id);
   }
 
   void UpdateStreamPriority(QuicStreamId stream_id,
@@ -295,13 +296,21 @@ TEST_F(QuicWriteBlockedListTest, UnregisterStream) {
   AddStream(1);
   AddStream(3);
 
-  UnregisterStream(23, kNotStatic);
-  UnregisterStream(1, kStatic);
+  UnregisterStream(23);
+  UnregisterStream(1);
 
   EXPECT_EQ(3u, PopFront());
   EXPECT_EQ(17u, PopFront());
   EXPECT_EQ(12u, PopFront());
   EXPECT_EQ(40, PopFront());
+}
+
+TEST_F(QuicWriteBlockedListTest, UnregisterNotRegisteredStream) {
+  EXPECT_QUICHE_BUG(UnregisterStream(1), "Stream 1 not registered");
+
+  RegisterStream(2, kNotStatic, {kV3HighestPriority, kIncremental});
+  UnregisterStream(2);
+  EXPECT_QUICHE_BUG(UnregisterStream(2), "Stream 2 not registered");
 }
 
 TEST_F(QuicWriteBlockedListTest, UpdateStreamPriority) {

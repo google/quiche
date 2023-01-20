@@ -390,7 +390,7 @@ QuicStream::~QuicStream() {
         << ", fin_outstanding: " << fin_outstanding_;
   }
   if (stream_delegate_ != nullptr && type_ != CRYPTO) {
-    stream_delegate_->UnregisterStreamPriority(id(), is_static_);
+    stream_delegate_->UnregisterStreamPriority(id());
   }
 }
 

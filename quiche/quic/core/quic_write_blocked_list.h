@@ -63,7 +63,9 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   void RegisterStream(QuicStreamId stream_id, bool is_static_stream,
                       const QuicStreamPriority& priority);
 
-  void UnregisterStream(QuicStreamId stream_id, bool is_static);
+  // Unregister a stream.  `stream_id` must be registered, either as a static
+  // stream or as a non-static stream.
+  void UnregisterStream(QuicStreamId stream_id);
 
   // Updates the stored priority of a stream.  Must not be called for static
   // streams.
@@ -124,9 +126,9 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     // True if |id| is in the collection, regardless of its state.
     bool IsRegistered(QuicStreamId id) const;
 
-    // Remove |id| from the collection, if it is in the blocked state, reduce
-    // |num_blocked_| by 1.
-    void Unregister(QuicStreamId id);
+    // Remove |id| from the collection.  If it is in the blocked state, reduce
+    // |num_blocked_| by 1.  Returns true if |id| was in the collection.
+    bool Unregister(QuicStreamId id);
 
     // Set |id| to be blocked. If |id| is not already blocked, increase
     // |num_blocked_| by 1.
