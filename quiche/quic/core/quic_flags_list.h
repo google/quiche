@@ -58,7 +58,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_remove_connection_migration_connection_optio
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, lowers the minimum packet size to that in the spec.
-QUIC_FLAG(quic_restart_flag_quic_allow_smaller_packets, true)
+QUIC_FLAG(quic_restart_flag_quic_allow_smaller_packets, false)
 // If true, quic server will send ENABLE_CONNECT_PROTOCOL setting and and endpoint will validate required request/response headers and extended CONNECT mechanism and update code counts of valid/invalid headers.
 QUIC_FLAG(quic_reloadable_flag_quic_verify_request_headers_2, true)
 // If true, reject or send error response code upon receiving invalid request or response headers. This flag depends on --gfe2_reloadable_flag_quic_verify_request_headers_2.
