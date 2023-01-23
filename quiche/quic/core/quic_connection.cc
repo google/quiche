@@ -2683,12 +2683,27 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
                        absl::string_view(packet.data(), packet.length()));
   QUIC_BUG_IF(quic_bug_12714_21, current_packet_data_ != nullptr)
       << "ProcessUdpPacket must not be called while processing a packet.";
-  if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnPacketReceived(self_address, peer_address, packet);
+  QuicSocketAddress normalized_self_address = self_address;
+  QuicSocketAddress normalized_peer_address = peer_address;
+  if (normalize_incoming_packets_addresses_) {
+    normalized_self_address = self_address.Normalized();
+    normalized_peer_address = peer_address.Normalized();
+    if (normalized_self_address != self_address) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_normalize_incoming_packets_addresses, 1,
+                                   3);
+    }
+    if (normalized_peer_address != peer_address) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_normalize_incoming_packets_addresses, 2,
+                                   3);
+    }
   }
-  last_received_packet_info_ =
-      ReceivedPacketInfo(self_address, peer_address, packet.receipt_time(),
-                         packet.length(), packet.ecn_codepoint());
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnPacketReceived(normalized_self_address,
+                                     normalized_peer_address, packet);
+  }
+  last_received_packet_info_ = ReceivedPacketInfo(
+      normalized_self_address, normalized_peer_address, packet.receipt_time(),
+      packet.length(), packet.ecn_codepoint());
   current_packet_data_ = packet.data();
 
   if (!default_path_.self_address.IsInitialized()) {
@@ -2959,12 +2974,17 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
       last_received_packet_info_.destination_address.IsInitialized() &&
       default_path_.self_address !=
           last_received_packet_info_.destination_address) {
-    // Allow change between pure IPv4 and equivalent mapped IPv4 address.
-    if (default_path_.self_address.port() !=
+    bool self_address_changed =
+        default_path_.self_address.port() !=
             last_received_packet_info_.destination_address.port() ||
         default_path_.self_address.host().Normalized() !=
-            last_received_packet_info_.destination_address.host()
-                .Normalized()) {
+            last_received_packet_info_.destination_address.host().Normalized();
+    if (normalize_incoming_packets_addresses_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_normalize_incoming_packets_addresses, 3,
+                                   3);
+      self_address_changed = true;
+    }
+    if (self_address_changed) {
       if (!visitor_->AllowSelfAddressChange()) {
         const std::string error_details = absl::StrCat(
             "Self address migration is not supported at the server, current "

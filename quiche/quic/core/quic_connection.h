@@ -2325,6 +2325,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // peer. For now, this is only stored for tests.
   QuicEcnCounts
       peer_ack_ecn_counts_[PacketNumberSpace::NUM_PACKET_NUMBER_SPACES];
+
+  const bool normalize_incoming_packets_addresses_ =
+      GetQuicReloadableFlag(quic_normalize_incoming_packets_addresses);
 };
 
 }  // namespace quic
