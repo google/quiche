@@ -3751,6 +3751,32 @@ TEST_F(HTTPBalsaFrameTest, Support100ContinueRunTogether) {
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, Http09) {
+  constexpr absl::string_view request = "GET /\r\n";
+
+  InSequence s;
+  StrictMock<BalsaVisitorMock> visitor_mock;
+  balsa_frame_.set_balsa_visitor(&visitor_mock);
+
+  EXPECT_CALL(
+      visitor_mock,
+      HandleWarning(
+          BalsaFrameEnums::FAILED_TO_FIND_WS_AFTER_REQUEST_REQUEST_URI));
+  EXPECT_CALL(visitor_mock, OnRequestFirstLineInput("GET /", "GET", "/", ""));
+  EXPECT_CALL(visitor_mock, OnHeaderInput(request));
+  EXPECT_CALL(visitor_mock, ProcessHeaders(FakeHeaders{}));
+  EXPECT_CALL(visitor_mock, HeaderDone());
+  EXPECT_CALL(visitor_mock, MessageDone());
+
+  EXPECT_EQ(request.size(),
+            balsa_frame_.ProcessInput(request.data(), request.size()));
+
+  // HTTP/0.9 request is parsed with a warning.
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::FAILED_TO_FIND_WS_AFTER_REQUEST_REQUEST_URI,
+            balsa_frame_.ErrorCode());
+}
+
 }  // namespace
 
 }  // namespace test
