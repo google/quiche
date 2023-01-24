@@ -334,7 +334,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void RegisterStreamPriority(QuicStreamId id, bool is_static,
                               const QuicStreamPriority& priority) override;
   // Clears priority from the write blocked list.
-  void UnregisterStreamPriority(QuicStreamId id) override;
+  void UnregisterStreamPriority(QuicStreamId id, bool is_static) override;
   // Updates priority on the write blocked list.
   void UpdateStreamPriority(QuicStreamId id,
                             const QuicStreamPriority& new_priority) override;

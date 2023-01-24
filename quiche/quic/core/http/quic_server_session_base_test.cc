@@ -525,7 +525,8 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
 
   if (!VersionUsesHttp3(transport_version())) {
     session_->UnregisterStreamPriority(
-        QuicUtils::GetHeadersStreamId(transport_version()));
+        QuicUtils::GetHeadersStreamId(transport_version()),
+        /*is_static=*/true);
   }
   QuicServerSessionBasePeer::SetCryptoStream(session_.get(), nullptr);
   MockQuicCryptoServerStream* quic_crypto_stream = nullptr;
