@@ -179,8 +179,8 @@ void BalsaHeaders::ParseTokenList(absl::string_view header_value,
   if (header_value.empty()) {
     return;
   }
-  const char* start = header_value.begin();
-  const char* end = header_value.end();
+  auto start = header_value.begin();
+  auto end = header_value.end();
   while (true) {
     // Cast `*start` to unsigned char to make values above 127 rank as expected
     // on platforms with signed char, where such values are represented as
@@ -194,7 +194,7 @@ void BalsaHeaders::ParseTokenList(absl::string_view header_value,
       }
     }
     // found. marked.
-    const char* nws = start;
+    auto nws = start;
 
     // search for next whitspace or separator char.
     while (*start != ',' && static_cast<unsigned char>(*start) > ' ') {
