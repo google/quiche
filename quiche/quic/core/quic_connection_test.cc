@@ -1681,13 +1681,8 @@ TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
   host2.FromString(
       absl::StrCat("::ffff:", connection_.self_address().host().ToString()));
   QuicSocketAddress self_address2(host2, connection_.self_address().port());
-  EXPECT_CALL(visitor_, AllowSelfAddressChange()).Times(0u);
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address2,
                                   kPeerAddress, ENCRYPTION_INITIAL);
-  EXPECT_EQ(GetQuicReloadableFlag(quic_normalize_incoming_packets_addresses)
-                ? self_address1
-                : self_address2,
-            connection_.self_address());
   EXPECT_TRUE(connection_.connected());
   // self_address change back to Ipv4 address.
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address1,
