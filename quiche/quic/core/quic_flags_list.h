@@ -20,7 +20,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicConnection will normalize the packet's source and destination addresses before processing the packet.
-QUIC_FLAG(quic_reloadable_flag_quic_normalize_incoming_packets_addresses, true)
+QUIC_FLAG(quic_reloadable_flag_quic_normalize_incoming_packets_addresses, false)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, ack frequency frame can be sent from server to client.
