@@ -12,7 +12,9 @@ namespace quic {
 std::string SerializePriorityFieldValue(QuicStreamPriority priority) {
   quiche::structured_headers::Dictionary dictionary;
 
-  if (priority.urgency != QuicStreamPriority::kDefaultUrgency &&
+  // TODO(b/266722347): Never send `urgency` if value equals default value.
+  if ((priority.urgency != QuicStreamPriority::kDefaultUrgency ||
+       priority.incremental != QuicStreamPriority::kDefaultIncremental) &&
       priority.urgency >= QuicStreamPriority::kMinimumUrgency &&
       priority.urgency <= QuicStreamPriority::kMaximumUrgency) {
     dictionary[QuicStreamPriority::kUrgencyKey] =
