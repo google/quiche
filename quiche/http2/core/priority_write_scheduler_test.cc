@@ -15,6 +15,8 @@ namespace test {
 using ::spdy::kHttp2RootStreamId;
 using ::spdy::SpdyPriority;
 using ::spdy::SpdyStreamId;
+using ::testing::Eq;
+using ::testing::Optional;
 
 template <typename StreamIdType>
 class PriorityWriteSchedulerPeer {
@@ -314,22 +316,26 @@ TEST_F(PriorityWriteSchedulerTest, ShouldYield) {
 }
 
 TEST_F(PriorityWriteSchedulerTest, GetLatestEventWithPriority) {
-  EXPECT_QUICHE_BUG(scheduler_.RecordStreamEventTime(3, 5),
-                    "Stream 3 not registered");
-  EXPECT_QUICHE_BUG(EXPECT_EQ(0, scheduler_.GetLatestEventWithPriority(4)),
-                    "Stream 4 not registered");
+  EXPECT_QUICHE_BUG(
+      scheduler_.RecordStreamEventTime(3, absl::FromUnixMicros(5)),
+      "Stream 3 not registered");
+  EXPECT_QUICHE_BUG(
+      EXPECT_FALSE(scheduler_.GetLatestEventWithPriority(4).has_value()),
+      "Stream 4 not registered");
 
   for (int i = 1; i < 5; ++i) {
     scheduler_.RegisterStream(i, i);
   }
   for (int i = 1; i < 5; ++i) {
-    EXPECT_EQ(0, scheduler_.GetLatestEventWithPriority(i));
+    EXPECT_FALSE(scheduler_.GetLatestEventWithPriority(i).has_value());
   }
   for (int i = 1; i < 5; ++i) {
-    scheduler_.RecordStreamEventTime(i, i * 100);
+    scheduler_.RecordStreamEventTime(i, absl::FromUnixMicros(i * 100));
   }
-  for (int i = 1; i < 5; ++i) {
-    EXPECT_EQ((i - 1) * 100, scheduler_.GetLatestEventWithPriority(i));
+  EXPECT_FALSE(scheduler_.GetLatestEventWithPriority(1).has_value());
+  for (int i = 2; i < 5; ++i) {
+    EXPECT_THAT(scheduler_.GetLatestEventWithPriority(i),
+                Optional(Eq(absl::FromUnixMicros((i - 1) * 100))));
   }
 }
 

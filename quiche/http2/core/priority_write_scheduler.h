@@ -16,6 +16,8 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
+#include "absl/time/time.h"
+#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -149,11 +151,10 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     stream_info->priority = std::move(priority);
   }
 
-  // Records time (in microseconds) of a read/write event for the given
-  // stream.
+  // Records time of a read/write event for the given stream.
   //
   // Preconditions: `stream_id` should be registered.
-  void RecordStreamEventTime(StreamIdType stream_id, int64_t now_in_usec) {
+  void RecordStreamEventTime(StreamIdType stream_id, absl::Time now) {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       QUICHE_BUG(spdy_bug_19_4) << "Stream " << stream_id << " not registered";
@@ -161,29 +162,30 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     }
     PriorityInfo& priority_info =
         priority_infos_[PriorityTypeToInt()(it->second->priority)];
-    priority_info.last_event_time_usec =
-        std::max(priority_info.last_event_time_usec, now_in_usec);
+    priority_info.last_event_time =
+        std::max(priority_info.last_event_time, absl::make_optional(now));
   }
 
-  // Returns time (in microseconds) of the last read/write event for a stream
-  // with higher priority than the priority of the given stream, or 0 if there
-  // is no such event.
+  // Returns time of the last read/write event for a stream with higher priority
+  // than the priority of the given stream, or nullopt if there is no such
+  // event.
   //
   // Preconditions: `stream_id` should be registered.
-  int64_t GetLatestEventWithPriority(StreamIdType stream_id) const {
+  absl::optional<absl::Time> GetLatestEventWithPriority(
+      StreamIdType stream_id) const {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       QUICHE_BUG(spdy_bug_19_5) << "Stream " << stream_id << " not registered";
-      return 0;
+      return absl::nullopt;
     }
-    int64_t last_event_time_usec = 0;
+    absl::optional<absl::Time> last_event_time;
     const StreamInfo* const stream_info = it->second.get();
     for (int p = kHighestPriority;
          p < PriorityTypeToInt()(stream_info->priority); ++p) {
-      last_event_time_usec = std::max(last_event_time_usec,
-                                      priority_infos_[p].last_event_time_usec);
+      last_event_time =
+          std::max(last_event_time, priority_infos_[p].last_event_time);
     }
-    return last_event_time_usec;
+    return last_event_time;
   }
 
   // If the scheduler has any ready streams, returns the next scheduled
@@ -344,8 +346,8 @@ class QUICHE_EXPORT PriorityWriteScheduler {
   struct QUICHE_EXPORT PriorityInfo {
     // IDs of streams that are ready to write.
     ReadyList ready_list;
-    // Time of latest write event for stream of this priority, in microseconds.
-    int64_t last_event_time_usec = 0;
+    // Time of latest write event for stream of this priority.
+    absl::optional<absl::Time> last_event_time;
   };
 
   // Use std::unique_ptr, because absl::flat_hash_map does not have pointer
