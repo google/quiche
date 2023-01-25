@@ -6,14 +6,19 @@
 
 #include <type_traits>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
 #include "quiche/common/quiche_ip_address.h"
+#include "quiche/common/wire_serialization.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quiche {
@@ -329,220 +334,128 @@ CapsuleParser::CapsuleParser(Visitor* visitor) : visitor_(visitor) {
   QUICHE_DCHECK_NE(visitor_, nullptr);
 }
 
-quiche::QuicheBuffer SerializeCapsule(
+// Serialization logic for quiche::PrefixWithId.
+class WirePrefixWithId {
+ public:
+  using DataType = PrefixWithId;
+
+  WirePrefixWithId(const PrefixWithId& prefix) : prefix_(prefix) {}
+
+  size_t GetLengthOnWire() {
+    return ComputeLengthOnWire(
+        WireVarInt62(prefix_.request_id),
+        WireUint8(prefix_.ip_prefix.address().IsIPv4() ? 4 : 6),
+        WireBytes(prefix_.ip_prefix.address().ToPackedString()),
+        WireUint8(prefix_.ip_prefix.prefix_length()));
+  }
+
+  absl::Status SerializeIntoWriter(QuicheDataWriter& writer) {
+    return AppendToStatus(
+        quiche::SerializeIntoWriter(
+            writer, WireVarInt62(prefix_.request_id),
+            WireUint8(prefix_.ip_prefix.address().IsIPv4() ? 4 : 6),
+            WireBytes(prefix_.ip_prefix.address().ToPackedString()),
+            WireUint8(prefix_.ip_prefix.prefix_length())),
+        " while serializing a PrefixWithId");
+  }
+
+ private:
+  const PrefixWithId& prefix_;
+};
+
+// Serialization logic for quiche::IpAddressRange.
+class WireIpAddressRange {
+ public:
+  using DataType = IpAddressRange;
+
+  explicit WireIpAddressRange(const IpAddressRange& range) : range_(range) {}
+
+  size_t GetLengthOnWire() {
+    return ComputeLengthOnWire(
+        WireUint8(range_.start_ip_address.IsIPv4() ? 4 : 6),
+        WireBytes(range_.start_ip_address.ToPackedString()),
+        WireBytes(range_.end_ip_address.ToPackedString()),
+        WireUint8(range_.ip_protocol));
+  }
+
+  absl::Status SerializeIntoWriter(QuicheDataWriter& writer) {
+    return AppendToStatus(
+        ::quiche::SerializeIntoWriter(
+            writer, WireUint8(range_.start_ip_address.IsIPv4() ? 4 : 6),
+            WireBytes(range_.start_ip_address.ToPackedString()),
+            WireBytes(range_.end_ip_address.ToPackedString()),
+            WireUint8(range_.ip_protocol)),
+        " while serializing an IpAddressRange");
+  }
+
+ private:
+  const IpAddressRange& range_;
+};
+
+template <typename... T>
+absl::StatusOr<quiche::QuicheBuffer> SerializeCapsuleFields(
+    CapsuleType type, QuicheBufferAllocator* allocator, T... fields) {
+  size_t capsule_payload_size = ComputeLengthOnWire(fields...);
+  return SerializeIntoBuffer(allocator, WireVarInt62(type),
+                             WireVarInt62(capsule_payload_size), fields...);
+}
+
+absl::StatusOr<quiche::QuicheBuffer> SerializeCapsuleWithStatus(
     const Capsule& capsule, quiche::QuicheBufferAllocator* allocator) {
-  size_t capsule_type_length = QuicheDataWriter::GetVarInt62Len(
-      static_cast<uint64_t>(capsule.capsule_type()));
-  size_t capsule_data_length;
   switch (capsule.capsule_type()) {
     case CapsuleType::DATAGRAM:
-      capsule_data_length =
-          capsule.datagram_capsule().http_datagram_payload.length();
-      break;
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireBytes(capsule.datagram_capsule().http_datagram_payload));
     case CapsuleType::LEGACY_DATAGRAM:
-      capsule_data_length =
-          capsule.legacy_datagram_capsule().http_datagram_payload.length();
-      break;
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireBytes(capsule.legacy_datagram_capsule().http_datagram_payload));
     case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
-      capsule_data_length = capsule.legacy_datagram_without_context_capsule()
-                                .http_datagram_payload.length();
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireBytes(capsule.legacy_datagram_without_context_capsule()
+                        .http_datagram_payload));
       break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
-      capsule_data_length =
-          sizeof(webtransport::SessionErrorCode) +
-          capsule.close_web_transport_session_capsule().error_message.size();
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireUint32(capsule.close_web_transport_session_capsule().error_code),
+          WireBytes(
+              capsule.close_web_transport_session_capsule().error_message));
       break;
     case CapsuleType::ADDRESS_REQUEST:
-      capsule_data_length = 0;
-      for (auto requested_address :
-           capsule.address_request_capsule().requested_addresses) {
-        capsule_data_length +=
-            QuicheDataWriter::GetVarInt62Len(requested_address.request_id) + 1 +
-            (requested_address.ip_prefix.address().IsIPv4()
-                 ? QuicheIpAddress::kIPv4AddressSize
-                 : QuicheIpAddress::kIPv6AddressSize) +
-            1;
-      }
-      break;
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireSpan<WirePrefixWithId>(absl::MakeConstSpan(
+              capsule.address_request_capsule().requested_addresses)));
     case CapsuleType::ADDRESS_ASSIGN:
-      capsule_data_length = 0;
-      for (auto assigned_address :
-           capsule.address_assign_capsule().assigned_addresses) {
-        capsule_data_length +=
-            QuicheDataWriter::GetVarInt62Len(assigned_address.request_id) + 1 +
-            (assigned_address.ip_prefix.address().IsIPv4()
-                 ? QuicheIpAddress::kIPv4AddressSize
-                 : QuicheIpAddress::kIPv6AddressSize) +
-            1;
-      }
-      break;
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireSpan<WirePrefixWithId>(absl::MakeConstSpan(
+              capsule.address_assign_capsule().assigned_addresses)));
     case CapsuleType::ROUTE_ADVERTISEMENT:
-      capsule_data_length = 0;
-      for (auto ip_address_range :
-           capsule.route_advertisement_capsule().ip_address_ranges) {
-        capsule_data_length += 1 +
-                               (ip_address_range.start_ip_address.IsIPv4()
-                                    ? QuicheIpAddress::kIPv4AddressSize
-                                    : QuicheIpAddress::kIPv6AddressSize) *
-                                   2 +
-                               1;
-      }
-      break;
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireSpan<WireIpAddressRange>(absl::MakeConstSpan(
+              capsule.route_advertisement_capsule().ip_address_ranges)));
     default:
-      capsule_data_length = capsule.unknown_capsule_data().length();
-      break;
+      return SerializeCapsuleFields(capsule.capsule_type(), allocator,
+                                    WireBytes(capsule.unknown_capsule_data()));
   }
-  size_t capsule_length_length =
-      QuicheDataWriter::GetVarInt62Len(capsule_data_length);
-  size_t total_capsule_length =
-      capsule_type_length + capsule_length_length + capsule_data_length;
-  quiche::QuicheBuffer buffer(allocator, total_capsule_length);
-  QuicheDataWriter writer(buffer.size(), buffer.data());
-  if (!writer.WriteVarInt62(static_cast<uint64_t>(capsule.capsule_type()))) {
-    QUICHE_BUG(capsule type write fail) << "Failed to write CAPSULE type";
-    return {};
+}
+
+QuicheBuffer SerializeCapsule(const Capsule& capsule,
+                              quiche::QuicheBufferAllocator* allocator) {
+  absl::StatusOr<QuicheBuffer> serialized =
+      SerializeCapsuleWithStatus(capsule, allocator);
+  if (!serialized.ok()) {
+    QUICHE_BUG(capsule_serialization_failed)
+        << "Failed to serialize the following capsule:\n"
+        << capsule << "Serialization error: " << serialized.status();
+    return QuicheBuffer();
   }
-  if (!writer.WriteVarInt62(capsule_data_length)) {
-    QUICHE_BUG(capsule length write fail) << "Failed to write CAPSULE length";
-    return {};
-  }
-  switch (capsule.capsule_type()) {
-    case CapsuleType::DATAGRAM:
-      if (!writer.WriteStringPiece(
-              capsule.datagram_capsule().http_datagram_payload)) {
-        QUICHE_BUG(datagram capsule payload write fail)
-            << "Failed to write DATAGRAM CAPSULE payload";
-        return {};
-      }
-      break;
-    case CapsuleType::LEGACY_DATAGRAM:
-      if (!writer.WriteStringPiece(
-              capsule.legacy_datagram_capsule().http_datagram_payload)) {
-        QUICHE_BUG(datagram legacy capsule payload write fail)
-            << "Failed to write LEGACY_DATAGRAM CAPSULE payload";
-        return {};
-      }
-      break;
-    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
-      if (!writer.WriteStringPiece(
-              capsule.legacy_datagram_without_context_capsule()
-                  .http_datagram_payload)) {
-        QUICHE_BUG(datagram legacy without context capsule payload write fail)
-            << "Failed to write LEGACY_DATAGRAM_WITHOUT_CONTEXT CAPSULE "
-               "payload";
-        return {};
-      }
-      break;
-    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
-      if (!writer.WriteUInt32(
-              capsule.close_web_transport_session_capsule().error_code)) {
-        QUICHE_BUG(close webtransport session capsule error code write fail)
-            << "Failed to write CLOSE_WEBTRANSPORT_SESSION error code";
-        return {};
-      }
-      if (!writer.WriteStringPiece(
-              capsule.close_web_transport_session_capsule().error_message)) {
-        QUICHE_BUG(close webtransport session capsule error message write fail)
-            << "Failed to write CLOSE_WEBTRANSPORT_SESSION error message";
-        return {};
-      }
-      break;
-    case CapsuleType::ADDRESS_REQUEST:
-      for (auto requested_address :
-           capsule.address_request_capsule().requested_addresses) {
-        if (!writer.WriteVarInt62(requested_address.request_id)) {
-          QUICHE_BUG(address request capsule id write fail)
-              << "Failed to write ADDRESS_REQUEST ID";
-          return {};
-        }
-        if (!writer.WriteUInt8(
-                requested_address.ip_prefix.address().IsIPv4() ? 4 : 6)) {
-          QUICHE_BUG(address request capsule family write fail)
-              << "Failed to write ADDRESS_REQUEST family";
-          return {};
-        }
-        if (!writer.WriteStringPiece(
-                requested_address.ip_prefix.address().ToPackedString())) {
-          QUICHE_BUG(address request capsule address write fail)
-              << "Failed to write ADDRESS_REQUEST address";
-          return {};
-        }
-        if (!writer.WriteUInt8(requested_address.ip_prefix.prefix_length())) {
-          QUICHE_BUG(address request capsule prefix length write fail)
-              << "Failed to write ADDRESS_REQUEST prefix length";
-          return {};
-        }
-      }
-      break;
-    case CapsuleType::ADDRESS_ASSIGN:
-      for (auto assigned_address :
-           capsule.address_assign_capsule().assigned_addresses) {
-        if (!writer.WriteVarInt62(assigned_address.request_id)) {
-          QUICHE_BUG(address request capsule id write fail)
-              << "Failed to write ADDRESS_ASSIGN ID";
-          return {};
-        }
-        if (!writer.WriteUInt8(
-                assigned_address.ip_prefix.address().IsIPv4() ? 4 : 6)) {
-          QUICHE_BUG(address request capsule family write fail)
-              << "Failed to write ADDRESS_ASSIGN family";
-          return {};
-        }
-        if (!writer.WriteStringPiece(
-                assigned_address.ip_prefix.address().ToPackedString())) {
-          QUICHE_BUG(address request capsule address write fail)
-              << "Failed to write ADDRESS_ASSIGN address";
-          return {};
-        }
-        if (!writer.WriteUInt8(assigned_address.ip_prefix.prefix_length())) {
-          QUICHE_BUG(address request capsule prefix length write fail)
-              << "Failed to write ADDRESS_ASSIGN prefix length";
-          return {};
-        }
-      }
-      break;
-    case CapsuleType::ROUTE_ADVERTISEMENT:
-      for (auto ip_address_range :
-           capsule.route_advertisement_capsule().ip_address_ranges) {
-        if (!writer.WriteUInt8(
-                ip_address_range.start_ip_address.IsIPv4() ? 4 : 6)) {
-          QUICHE_BUG(route advertisement capsule family write fail)
-              << "Failed to write ROUTE_ADVERTISEMENT family";
-          return {};
-        }
-        if (!writer.WriteStringPiece(
-                ip_address_range.start_ip_address.ToPackedString())) {
-          QUICHE_BUG(route advertisement capsule start address write fail)
-              << "Failed to write ROUTE_ADVERTISEMENT start address";
-          return {};
-        }
-        if (!writer.WriteStringPiece(
-                ip_address_range.end_ip_address.ToPackedString())) {
-          QUICHE_BUG(route advertisement capsule end address write fail)
-              << "Failed to write ROUTE_ADVERTISEMENT end address";
-          return {};
-        }
-        if (!writer.WriteUInt8(ip_address_range.ip_protocol)) {
-          QUICHE_BUG(route advertisement capsule IP protocol write fail)
-              << "Failed to write ROUTE_ADVERTISEMENT IP protocol";
-          return {};
-        }
-      }
-      break;
-    default:
-      if (!writer.WriteStringPiece(capsule.unknown_capsule_data())) {
-        QUICHE_BUG(capsule data write fail) << "Failed to write CAPSULE data";
-        return {};
-      }
-      break;
-  }
-  if (writer.remaining() != 0) {
-    QUICHE_BUG(capsule write length mismatch)
-        << "CAPSULE serialization wrote " << writer.length() << " instead of "
-        << writer.capacity();
-    return {};
-  }
-  return buffer;
+  return *std::move(serialized);
 }
 
 bool CapsuleParser::IngestCapsuleFragment(absl::string_view capsule_fragment) {
