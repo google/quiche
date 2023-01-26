@@ -106,6 +106,10 @@ struct QUICHE_EXPORT BalsaFrameEnums {
     INVALID_HEADER_NAME_CHARACTER,
     INVALID_TRAILER_NAME_CHARACTER,
 
+    // The client request included 'Expect: 100-continue' header on a protocol
+    // that doesn't support it.
+    UNSUPPORTED_100_CONTINUE,
+
     NUM_ERROR_CODES
   };
   static const char* ParseStateToString(ParseState error_code);

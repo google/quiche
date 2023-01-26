@@ -106,6 +106,8 @@ const char* BalsaFrameEnums::ErrorCodeToString(
       return "INVALID_HEADER_NAME_CHARACTER";
     case INVALID_TRAILER_NAME_CHARACTER:
       return "INVALID_TRAILER_NAME_CHARACTER";
+    case UNSUPPORTED_100_CONTINUE:
+      return "UNSUPPORTED_100_CONTINUE";
     case NUM_ERROR_CODES:
       return "UNKNOWN_ERROR";
   }
