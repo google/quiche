@@ -416,14 +416,12 @@ absl::StatusOr<quiche::QuicheBuffer> SerializeCapsuleWithStatus(
           capsule.capsule_type(), allocator,
           WireBytes(capsule.legacy_datagram_without_context_capsule()
                         .http_datagram_payload));
-      break;
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       return SerializeCapsuleFields(
           capsule.capsule_type(), allocator,
           WireUint32(capsule.close_web_transport_session_capsule().error_code),
           WireBytes(
               capsule.close_web_transport_session_capsule().error_message));
-      break;
     case CapsuleType::ADDRESS_REQUEST:
       return SerializeCapsuleFields(
           capsule.capsule_type(), allocator,
