@@ -576,8 +576,6 @@ class BalsaVisitorMock : public BalsaVisitorInterface {
 class HTTPBalsaFrameTest : public QuicheTest {
  protected:
   void SetUp() override {
-    balsa_frame_.set_http_validation_policy(
-        HttpValidationPolicy::CreateDefault());
     balsa_frame_.set_balsa_headers(&headers_);
     balsa_frame_.set_balsa_trailer(&trailer_);
     balsa_frame_.set_balsa_visitor(&visitor_mock_);
@@ -2464,8 +2462,6 @@ TEST_F(HTTPBalsaFrameTest, AppropriateActionTakenWhenHeadersTooLongWhenReset) {
 class BalsaFrameParsingTest : public QuicheTest {
  protected:
   void SetUp() override {
-    balsa_frame_.set_http_validation_policy(
-        HttpValidationPolicy::CreateDefault());
     balsa_frame_.set_is_request(true);
     balsa_frame_.set_balsa_headers(&headers_);
     balsa_frame_.set_balsa_visitor(&visitor_mock_);

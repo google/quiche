@@ -408,7 +408,6 @@ quiche_core_srcs = [
     "balsa/balsa_frame.cc",
     "balsa/balsa_headers.cc",
     "balsa/header_properties.cc",
-    "balsa/http_validation_policy.cc",
     "balsa/simple_buffer.cc",
     "balsa/standard_header_map.cc",
     "common/capsule.cc",

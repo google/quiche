@@ -407,7 +407,6 @@
     "quiche/balsa/balsa_frame.cc",
     "quiche/balsa/balsa_headers.cc",
     "quiche/balsa/header_properties.cc",
-    "quiche/balsa/http_validation_policy.cc",
     "quiche/balsa/simple_buffer.cc",
     "quiche/balsa/standard_header_map.cc",
     "quiche/common/capsule.cc",

@@ -350,7 +350,7 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       // https://tools.ietf.org/html/rfc7230#section-3.2.4 says that a proxy
       // can choose to reject or normalize continuation lines.
       if ((c != ' ' && c != '\t') ||
-          http_validation_policy().disallow_header_continuation_lines()) {
+          http_validation_policy().disallow_header_continuation_lines) {
         HandleError(is_trailer ? BalsaFrameEnums::INVALID_TRAILER_FORMAT
                                : BalsaFrameEnums::INVALID_HEADER_FORMAT);
         return false;
@@ -384,7 +384,7 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
         line_begin - stream_begin, line_end - stream_begin,
         line_end - stream_begin, line_end - stream_begin, 0));
     if (current >= line_end) {
-      if (http_validation_policy().require_header_colon()) {
+      if (http_validation_policy().require_header_colon) {
         HandleError(is_trailer ? BalsaFrameEnums::TRAILER_MISSING_COLON
                                : BalsaFrameEnums::HEADER_MISSING_COLON);
         return false;
@@ -424,7 +424,7 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       // construct which is technically not allowed by the spec.
 
       // In strict mode, we do treat this invalid value-less key as an error.
-      if (http_validation_policy().require_header_colon()) {
+      if (http_validation_policy().require_header_colon) {
         HandleError(is_trailer ? BalsaFrameEnums::TRAILER_MISSING_COLON
                                : BalsaFrameEnums::HEADER_MISSING_COLON);
         return false;
@@ -624,7 +624,7 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
       if ((headers->content_length_status_ != content_length_status) ||
           ((headers->content_length_status_ ==
             BalsaHeadersEnums::VALID_CONTENT_LENGTH) &&
-           (http_validation_policy().disallow_multiple_content_length() ||
+           (http_validation_policy().disallow_multiple_content_length ||
             length != headers->content_length_))) {
         HandleError(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS);
         return;
@@ -642,7 +642,7 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
 
   if (!is_trailer) {
     if (http_validation_policy()
-            .disallow_transfer_encoding_with_content_length() &&
+            .disallow_transfer_encoding_with_content_length &&
         content_length_idx != 0 && transfer_encoding_idx != 0) {
       HandleError(BalsaFrameEnums::BOTH_TRANSFER_ENCODING_AND_CONTENT_LENGTH);
       return;

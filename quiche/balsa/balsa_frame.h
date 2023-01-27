@@ -68,8 +68,7 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
         start_of_trailer_line_(0),
         trailer_length_(0),
         trailer_(nullptr),
-        invalid_chars_level_(InvalidCharsLevel::kOff),
-        http_validation_policy_(HttpValidationPolicy::CreateDefault()) {}
+        invalid_chars_level_(InvalidCharsLevel::kOff) {}
 
   ~BalsaFrame() override {}
 
