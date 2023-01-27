@@ -26,7 +26,13 @@ class QUIC_EXPORT_PRIVATE LoadBalancerServerId {
  public:
   // Copies all the bytes from |data| into a new LoadBalancerServerId.
   static absl::optional<LoadBalancerServerId> Create(
-      const absl::Span<const uint8_t> data);
+      absl::Span<const uint8_t> data);
+
+  // For callers with a string_view at hand.
+  static absl::optional<LoadBalancerServerId> Create(absl::string_view data) {
+    return Create(absl::MakeSpan(reinterpret_cast<const uint8_t*>(data.data()),
+                                 data.length()));
+  }
 
   // Server IDs are opaque bytes, but defining these operators allows us to sort
   // them into a tree and define ranges.

@@ -75,8 +75,12 @@ absl::optional<uint8_t> LoadBalancerDecoder::GetConfigId(
   if (connection_id.IsEmpty()) {
     return absl::optional<uint8_t>();
   }
-  const uint8_t first_byte = connection_id.data()[0];
-  uint8_t codepoint = (first_byte >> 6);
+  return GetConfigId(*reinterpret_cast<const uint8_t*>(connection_id.data()));
+}
+
+absl::optional<uint8_t> LoadBalancerDecoder::GetConfigId(
+    const uint8_t connection_id_first_byte) {
+  uint8_t codepoint = (connection_id_first_byte >> 6);
   if (codepoint < kNumLoadBalancerConfigs) {
     return codepoint;
   }

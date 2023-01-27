@@ -208,13 +208,31 @@ TEST_F(LoadBalancerDecoderTest, GetConfigId) {
   EXPECT_FALSE(
       LoadBalancerDecoder::GetConfigId(QuicConnectionId()).has_value());
   for (uint8_t i = 0; i < 3; i++) {
-    auto config_id = LoadBalancerDecoder::GetConfigId(
-        QuicConnectionId({static_cast<unsigned char>(i << 6)}));
+    const QuicConnectionId connection_id({static_cast<unsigned char>(i << 6)});
+    auto config_id = LoadBalancerDecoder::GetConfigId(connection_id);
+    EXPECT_EQ(config_id,
+              LoadBalancerDecoder::GetConfigId(connection_id.data()[0]));
     EXPECT_TRUE(config_id.has_value());
     EXPECT_EQ(*config_id, i);
   }
   EXPECT_FALSE(
       LoadBalancerDecoder::GetConfigId(QuicConnectionId({0xc0})).has_value());
+}
+
+TEST_F(LoadBalancerDecoderTest, GetConfig) {
+  LoadBalancerDecoder decoder;
+  decoder.AddConfig(*LoadBalancerConfig::CreateUnencrypted(2, 3, 4));
+
+  EXPECT_EQ(decoder.GetConfig(0), nullptr);
+  EXPECT_EQ(decoder.GetConfig(1), nullptr);
+  EXPECT_EQ(decoder.GetConfig(3), nullptr);
+  EXPECT_EQ(decoder.GetConfig(4), nullptr);
+
+  const LoadBalancerConfig* config = decoder.GetConfig(2);
+  ASSERT_NE(config, nullptr);
+  EXPECT_EQ(config->server_id_len(), 3);
+  EXPECT_EQ(config->nonce_len(), 4);
+  EXPECT_FALSE(config->IsEncrypted());
 }
 
 }  // namespace
