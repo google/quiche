@@ -324,6 +324,82 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
             kInitialFlowControlWindowSize);
 }
 
+TEST(OgHttp2SessionTest, ClientSubmitRequestWithLargePayload) {
+  DataSavingVisitor visitor;
+  OgHttp2Session::Options options;
+  options.perspective = Perspective::kClient;
+  OgHttp2Session session(visitor, options);
+
+  EXPECT_FALSE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+
+  // Even though the user has not queued any frames for the session, it should
+  // still send the connection preface.
+  int result = session.Send();
+  EXPECT_EQ(0, result);
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  // Initial SETTINGS.
+  EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  const std::string initial_frames =
+      TestFrameSequence()
+          .ServerPreface(
+              {Http2Setting{Http2KnownSettingsId::MAX_FRAME_SIZE, 32768u}})
+          .Serialize();
+  testing::InSequence s;
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{
+                           Http2KnownSettingsId::MAX_FRAME_SIZE, 32768u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = session.ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), static_cast<size_t>(initial_result));
+
+  // Session will want to write a SETTINGS ack.
+  EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+
+  result = session.Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
+  body1->AppendPayload(std::string(20000, 'a'));
+  body1->EndData();
+  int stream_id =
+      session.SubmitRequest(ToHeaders({{":method", "POST"},
+                                       {":scheme", "http"},
+                                       {":authority", "example.com"},
+                                       {":path", "/this/is/request/one"}}),
+                            std::move(body1), nullptr);
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(session.want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  // Single DATA frame with fin, indicating all 20k bytes fit in one frame.
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
+
+  result = session.Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({spdy::SpdyFrameType::HEADERS,
+                                            spdy::SpdyFrameType::DATA}));
+  visitor.Clear();
+  EXPECT_FALSE(session.want_write());
+}
+
 // This test exercises the case where the client request body source is read
 // blocked.
 TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
