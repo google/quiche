@@ -1328,15 +1328,39 @@ void QuicSession::OnConfigNegotiated() {
         config_.ReceivedInitialSessionFlowControlWindowBytes());
   }
 
-  if (version().HasIetfQuicFrames() &&
-      config_.CanSendPreferredAddressConnectionIdAndToken() &&
-      config_.HasClientSentConnectionOption(kSPAD, perspective())) {
-    // Set connection ID and token if SPAD is received.
-    absl::optional<QuicNewConnectionIdFrame> frame =
-        connection_->MaybeIssueNewConnectionIdForPreferredAddress();
-    if (frame.has_value()) {
-      config_.SetPreferredAddressConnectionIdAndTokenToSend(
-          frame->connection_id, frame->stateless_reset_token);
+  if (perspective_ == Perspective::IS_SERVER && version().HasIetfQuicFrames() &&
+      connection_->effective_peer_address().IsInitialized()) {
+    if (config_.HasClientSentConnectionOption(kSPAD, perspective_)) {
+      quiche::IpAddressFamily address_family =
+          connection_->effective_peer_address()
+              .Normalized()
+              .host()
+              .address_family();
+      absl::optional<QuicSocketAddress> preferred_address =
+          config_.GetPreferredAddressToSend(address_family);
+      if (preferred_address.has_value()) {
+        // Set connection ID and token if SPAD has received and a preferred
+        // address of the same address family is configured.
+        absl::optional<QuicNewConnectionIdFrame> frame =
+            connection_->MaybeIssueNewConnectionIdForPreferredAddress();
+        if (frame.has_value()) {
+          config_.SetPreferredAddressConnectionIdAndTokenToSend(
+              frame->connection_id, frame->stateless_reset_token);
+        }
+        connection_->set_sent_server_preferred_address(
+            preferred_address.value());
+      }
+      // Clear the alternative address of the other address family in the
+      // config.
+      config_.ClearAlternateServerAddressToSend(
+          address_family == quiche::IpAddressFamily::IP_V4
+              ? quiche::IpAddressFamily::IP_V6
+              : quiche::IpAddressFamily::IP_V4);
+    } else {
+      // Clear alternative IPv(4|6) addresses in config if the server hasn't
+      // received 'SPAD' connection option.
+      config_.ClearAlternateServerAddressToSend(quiche::IpAddressFamily::IP_V4);
+      config_.ClearAlternateServerAddressToSend(quiche::IpAddressFamily::IP_V6);
     }
   }
 

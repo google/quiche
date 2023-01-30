@@ -216,6 +216,8 @@ class QUIC_EXPORT_PRIVATE QuicFixedSocketAddress : public QuicConfigValue {
 
   void SetSendValue(const QuicSocketAddress& value);
 
+  void ClearSendValue();
+
   bool HasReceivedValue() const;
 
   const QuicSocketAddress& GetReceivedValue() const;
@@ -407,14 +409,15 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   void SetPreferredAddressConnectionIdAndTokenToSend(
       const QuicConnectionId& connection_id,
       const StatelessResetToken& stateless_reset_token);
-  // Returns true if server preferred address has been set via
-  // SetIPv(4|6)AlternateServerAddressToSend.
-  bool CanSendPreferredAddressConnectionIdAndToken() const;
 
   // Preferred Address Connection ID and Token.
   bool HasReceivedPreferredAddressConnectionIdAndToken() const;
   const std::pair<QuicConnectionId, StatelessResetToken>&
   ReceivedPreferredAddressConnectionIdAndToken() const;
+  absl::optional<QuicSocketAddress> GetPreferredAddressToSend(
+      quiche::IpAddressFamily address_family) const;
+  void ClearAlternateServerAddressToSend(
+      quiche::IpAddressFamily address_family);
 
   // Original destination connection ID.
   void SetOriginalConnectionIdToSend(

@@ -1287,6 +1287,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnServerPreferredAddressValidated(QuicPathValidationContext& context,
                                          bool owns_writer);
 
+  void set_sent_server_preferred_address(
+      const QuicSocketAddress& sent_server_preferred_address) {
+    sent_server_preferred_address_ = sent_server_preferred_address;
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1500,6 +1505,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     QuicPacketHeader header;
     absl::InlinedVector<QuicFrameType, 1> frames;
     QuicEcnCodepoint ecn_codepoint = ECN_NOT_ECT;
+    // Stores the actual address this packet is received on when it is received
+    // on the preferred address. In this case, |destination_address| will
+    // be overridden to the current default self address.
+    QuicSocketAddress actual_destination_address;
   };
 
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
@@ -2304,7 +2313,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Stores received server preferred address in transport param. Client side
   // only.
-  QuicSocketAddress server_preferred_address_;
+  QuicSocketAddress received_server_preferred_address_;
+
+  // Stores sent server preferred address in transport param. Server side only.
+  QuicSocketAddress sent_server_preferred_address_;
 
   // If true, kicks off validation of server_preferred_address_ once it is
   // received. Also, send all coalesced packets on both paths until handshake is

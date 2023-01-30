@@ -234,7 +234,10 @@ class QuicConnectionPeer {
 
   static void SetInProbeTimeOut(QuicConnection* connection, bool value);
 
-  static QuicSocketAddress GetServerPreferredAddress(
+  static QuicSocketAddress GetReceivedServerPreferredAddress(
+      QuicConnection* connection);
+
+  static QuicSocketAddress GetSentServerPreferredAddress(
       QuicConnection* connection);
 
   static QuicEcnCounts* GetEcnCounts(QuicConnection* connection,

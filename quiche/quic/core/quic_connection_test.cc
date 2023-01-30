@@ -1491,6 +1491,51 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
   }
 
+  void ServerHandlePreferredAddressInit() {
+    ASSERT_TRUE(GetParam().version.HasIetfQuicFrames());
+    set_perspective(Perspective::IS_SERVER);
+    connection_.CreateConnectionIdManager();
+    QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+    SetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2, true);
+    EXPECT_CALL(visitor_, AllowSelfAddressChange())
+        .WillRepeatedly(Return(true));
+
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+    // Discard INITIAL key.
+    connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+    connection_.NeuterUnencryptedPackets();
+    // Prevent packets from being coalesced.
+    EXPECT_CALL(visitor_, GetHandshakeState())
+        .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+    if (version().SupportsAntiAmplificationLimit()) {
+      QuicConnectionPeer::SetAddressValidated(&connection_);
+    }
+    // Clear direct_peer_address.
+    QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
+    // Clear effective_peer_address, it is the same as direct_peer_address for
+    // this test.
+    QuicConnectionPeer::SetEffectivePeerAddress(&connection_,
+                                                QuicSocketAddress());
+    EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
+
+    if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+      EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+    } else {
+      EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+    }
+    QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 2);
+    ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                    kPeerAddress, ENCRYPTION_FORWARD_SECURE);
+    EXPECT_EQ(kPeerAddress, connection_.peer_address());
+    EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+    QuicConfig config;
+    config.SetInitialReceivedConnectionOptions(QuicTagVector{kRVCM});
+    EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+    connection_.SetFromConfig(config);
+    connection_.set_sent_server_preferred_address(kServerPreferredAddress);
+  }
+
   // Receive server preferred address.
   void ServerPreferredAddressInit(QuicConfig& config) {
     ASSERT_EQ(Perspective::IS_CLIENT, connection_.perspective());
@@ -1523,10 +1568,12 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
     connection_.SetFromConfig(config);
 
-    ASSERT_TRUE(QuicConnectionPeer::GetServerPreferredAddress(&connection_)
-                    .IsInitialized());
-    EXPECT_EQ(kServerPreferredAddress,
-              QuicConnectionPeer::GetServerPreferredAddress(&connection_));
+    ASSERT_TRUE(
+        QuicConnectionPeer::GetReceivedServerPreferredAddress(&connection_)
+            .IsInitialized());
+    EXPECT_EQ(
+        kServerPreferredAddress,
+        QuicConnectionPeer::GetReceivedServerPreferredAddress(&connection_));
   }
 
   void TestClientRetryHandling(bool invalid_retry_tag,
@@ -2583,7 +2630,7 @@ class ServerPreferredAddressTestResultDelegate
 // in non-IETF version: receive a padded PING packet with a peer addess change;
 // in IETF version: receive a packet contains PATH CHALLENGE with peer address
 // change.
-TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
+TEST_P(QuicConnectionTest, ReceivePathProbingFromNewPeerAddressAtServer) {
   PathProbeTestInit(Perspective::IS_SERVER);
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
@@ -2695,6 +2742,68 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
                                   ENCRYPTION_INITIAL);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+}
+
+// Receive a packet contains PATH CHALLENGE with self address change.
+TEST_P(QuicConnectionTest, ReceivePathProbingToPreferredAddressAtServer) {
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    return;
+  }
+  ServerHandlePreferredAddressInit();
+
+  EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
+  EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(0);
+
+  // Process a probing packet to the server preferred address.
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
+  std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
+      QuicEncryptedPacket(probing_packet->encrypted_buffer,
+                          probing_packet->encrypted_length),
+      clock_.Now()));
+  uint64_t num_probing_received =
+      connection_.GetStats().num_connectivity_probing_received;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, writer_->path_response_frames().size());
+        // Verify that the PATH_RESPONSE is sent from the original self address.
+        EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
+        EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
+      }));
+  ProcessReceivedPacket(kServerPreferredAddress, kPeerAddress, *received);
+
+  EXPECT_EQ(num_probing_received + 1,
+            connection_.GetStats().num_connectivity_probing_received);
+  EXPECT_FALSE(QuicConnectionPeer::IsAlternativePath(
+      &connection_, kServerPreferredAddress, kPeerAddress));
+  EXPECT_NE(kServerPreferredAddress, connection_.self_address());
+
+  // Receiving another probing packet from a new client address.
+  const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Loopback4(),
+                                          /*port=*/34567);
+  probing_packet = ConstructProbingPacket();
+  received.reset(ConstructReceivedPacket(
+      QuicEncryptedPacket(probing_packet->encrypted_buffer,
+                          probing_packet->encrypted_length),
+      clock_.Now()));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, writer_->path_response_frames().size());
+        EXPECT_EQ(1u, writer_->path_challenge_frames().size());
+        EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
+        // The responses should still be sent from the original address.
+        EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
+      }));
+  ProcessReceivedPacket(kServerPreferredAddress, kNewPeerAddress, *received);
+
+  EXPECT_EQ(num_probing_received + 2,
+            connection_.GetStats().num_connectivity_probing_received);
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(&connection_, kSelfAddress,
+                                                    kNewPeerAddress));
+  EXPECT_LT(0u, QuicConnectionPeer::BytesSentOnAlternativePath(&connection_));
+  EXPECT_EQ(received->length(),
+            QuicConnectionPeer::BytesReceivedOnAlternativePath(&connection_));
 }
 
 // Receive a padded PING packet with a port change on server side.
@@ -3036,10 +3145,12 @@ TEST_P(QuicConnectionTest,
   connection_.SetFromConfig(config);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
-  ASSERT_TRUE(QuicConnectionPeer::GetServerPreferredAddress(&connection_)
-                  .IsInitialized());
-  EXPECT_EQ(kServerPreferredAddress,
-            QuicConnectionPeer::GetServerPreferredAddress(&connection_));
+  ASSERT_TRUE(
+      QuicConnectionPeer::GetReceivedServerPreferredAddress(&connection_)
+          .IsInitialized());
+  EXPECT_EQ(
+      kServerPreferredAddress,
+      QuicConnectionPeer::GetReceivedServerPreferredAddress(&connection_));
 
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(0);
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
@@ -16940,6 +17051,140 @@ TEST_P(QuicConnectionTest, EcnMarksUndecryptableCoalescedPacket) {
 
 TEST_P(QuicConnectionTest, ReceivedPacketInfoDefaults) {
   EXPECT_TRUE(QuicConnectionPeer::TestLastReceivedPacketInfoDefaults());
+}
+
+TEST_P(QuicConnectionTest, DetectMigrationToPreferredAddress) {
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    return;
+  }
+  ServerHandlePreferredAddressInit();
+
+  // Issue a new server CID associated with the preferred address.
+  QuicConnectionId server_issued_cid_for_preferred_address =
+      TestConnectionId(17);
+  EXPECT_CALL(connection_id_generator_,
+              GenerateNextConnectionId(connection_id_))
+      .WillOnce(Return(server_issued_cid_for_preferred_address));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(Return(true));
+  absl::optional<QuicNewConnectionIdFrame> frame =
+      connection_.MaybeIssueNewConnectionIdForPreferredAddress();
+  ASSERT_TRUE(frame.has_value());
+
+  auto* packet_creator = QuicConnectionPeer::GetPacketCreator(&connection_);
+  ASSERT_EQ(packet_creator->GetDestinationConnectionId(),
+            connection_.client_connection_id());
+  ASSERT_EQ(packet_creator->GetSourceConnectionId(), connection_id_);
+
+  // Process a packet received at the preferred Address.
+  peer_creator_.SetServerConnectionId(server_issued_cid_for_preferred_address);
+  EXPECT_CALL(visitor_, OnCryptoFrame(_));
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kServerPreferredAddress,
+                                  kPeerAddress, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  // The server migrates half-way with the default path unchanged, and
+  // continuing with the client issued CID 1.
+  EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
+  EXPECT_EQ(kSelfAddress, connection_.self_address());
+
+  // The peer retires CID 123.
+  QuicRetireConnectionIdFrame retire_cid_frame;
+  retire_cid_frame.sequence_number = 0u;
+  EXPECT_CALL(connection_id_generator_,
+              GenerateNextConnectionId(server_issued_cid_for_preferred_address))
+      .WillOnce(Return(TestConnectionId(456)));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(Return(true));
+  EXPECT_CALL(visitor_, SendNewConnectionId(_));
+  EXPECT_TRUE(connection_.OnRetireConnectionIdFrame(retire_cid_frame));
+
+  // Process another packet received at Preferred Address.
+  EXPECT_CALL(visitor_, OnCryptoFrame(_));
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kServerPreferredAddress,
+                                  kPeerAddress, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
+  EXPECT_EQ(kSelfAddress, connection_.self_address());
+}
+
+TEST_P(QuicConnectionTest,
+       DetectSimutanuousServerAndClientAddressChangeWithProbe) {
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    return;
+  }
+  ServerHandlePreferredAddressInit();
+
+  // Issue a new server CID associated with the preferred address.
+  QuicConnectionId server_issued_cid_for_preferred_address =
+      TestConnectionId(17);
+  EXPECT_CALL(connection_id_generator_,
+              GenerateNextConnectionId(connection_id_))
+      .WillOnce(Return(server_issued_cid_for_preferred_address));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(Return(true));
+  absl::optional<QuicNewConnectionIdFrame> frame =
+      connection_.MaybeIssueNewConnectionIdForPreferredAddress();
+  ASSERT_TRUE(frame.has_value());
+
+  auto* packet_creator = QuicConnectionPeer::GetPacketCreator(&connection_);
+  ASSERT_EQ(packet_creator->GetSourceConnectionId(), connection_id_);
+  ASSERT_EQ(packet_creator->GetDestinationConnectionId(),
+            connection_.client_connection_id());
+
+  // Receiving a probing packet from a new client address to the preferred
+  // address.
+  peer_creator_.SetServerConnectionId(server_issued_cid_for_preferred_address);
+  const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Loopback4(),
+                                          /*port=*/34567);
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
+  std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
+      QuicEncryptedPacket(probing_packet->encrypted_buffer,
+                          probing_packet->encrypted_length),
+      clock_.Now()));
+  uint64_t num_probing_received =
+      connection_.GetStats().num_connectivity_probing_received;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, writer_->path_response_frames().size());
+        EXPECT_EQ(1u, writer_->path_challenge_frames().size());
+        // The responses should still be sent from the original address.
+        EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
+        EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
+      }));
+  ProcessReceivedPacket(kServerPreferredAddress, kNewPeerAddress, *received);
+  EXPECT_EQ(num_probing_received + 1,
+            connection_.GetStats().num_connectivity_probing_received);
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(&connection_, kSelfAddress,
+                                                    kNewPeerAddress));
+  EXPECT_LT(0u, QuicConnectionPeer::BytesSentOnAlternativePath(&connection_));
+  EXPECT_EQ(received->length(),
+            QuicConnectionPeer::BytesReceivedOnAlternativePath(&connection_));
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kSelfAddress, connection_.self_address());
+
+  // Process a data packet received at the preferred Address from the new client
+  // address.
+  EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE));
+  EXPECT_CALL(visitor_, OnCryptoFrame(_));
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kServerPreferredAddress,
+                                  kNewPeerAddress, ENCRYPTION_FORWARD_SECURE);
+  // The server migrates half-way with the new peer address but the same default
+  // self address.
+  EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
+  EXPECT_EQ(kSelfAddress, connection_.self_address());
+  EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  EXPECT_FALSE(QuicConnectionPeer::GetDefaultPath(&connection_)->validated);
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(&connection_, kSelfAddress,
+                                                    kPeerAddress));
+  EXPECT_EQ(packet_creator->GetSourceConnectionId(),
+            server_issued_cid_for_preferred_address);
+
+  // Process another packet received at the preferred Address.
+  EXPECT_CALL(visitor_, OnCryptoFrame(_));
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kServerPreferredAddress,
+                                  kNewPeerAddress, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
+  EXPECT_EQ(kSelfAddress, connection_.self_address());
 }
 
 }  // namespace

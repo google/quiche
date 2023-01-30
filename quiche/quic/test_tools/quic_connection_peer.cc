@@ -571,9 +571,15 @@ void QuicConnectionPeer::SetInProbeTimeOut(QuicConnection* connection,
 }
 
 // static
-QuicSocketAddress QuicConnectionPeer::GetServerPreferredAddress(
+QuicSocketAddress QuicConnectionPeer::GetReceivedServerPreferredAddress(
     QuicConnection* connection) {
-  return connection->server_preferred_address_;
+  return connection->received_server_preferred_address_;
+}
+
+// static
+QuicSocketAddress QuicConnectionPeer::GetSentServerPreferredAddress(
+    QuicConnection* connection) {
+  return connection->sent_server_preferred_address_;
 }
 
 // static
@@ -601,7 +607,7 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
       << " ecn_codepoint passed: " << (info.ecn_codepoint == ECN_NOT_ECT)
       << " sizeof(ReceivedPacketInfo) passed: "
       << (sizeof(size_t) != 8 ||
-          sizeof(QuicConnection::ReceivedPacketInfo) == 256);
+          sizeof(QuicConnection::ReceivedPacketInfo) == 280);
   return info.destination_address == QuicSocketAddress() &&
          info.source_address == QuicSocketAddress() &&
          info.receipt_time == QuicTime::Zero() &&
@@ -610,11 +616,12 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
          !info.decrypted && info.decrypted_level == ENCRYPTION_INITIAL &&
          // There's no simple way to compare all the values of QuicPacketHeader.
          info.frames.empty() && info.ecn_codepoint == ECN_NOT_ECT &&
+         info.actual_destination_address == QuicSocketAddress() &&
          // If the condition below fails, the contents of ReceivedPacketInfo
          // have changed. Please add the relevant conditions and update the
          // length below.
          (sizeof(size_t) != 8 ||
-          sizeof(QuicConnection::ReceivedPacketInfo) == 256);
+          sizeof(QuicConnection::ReceivedPacketInfo) == 280);
 }
 
 }  // namespace test

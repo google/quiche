@@ -440,6 +440,37 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     // to connect to the server.
     StartServer();
 
+    if (use_preferred_address_) {
+      // At this point, the server has an ephemeral port to listen on. Restart
+      // the server with the preferred address.
+      StopServer();
+      // server_address_ now contains the random listening port.
+      server_preferred_address_ =
+          QuicSocketAddress(TestLoopback(2), server_address_.port());
+      if (server_preferred_address_ == server_address_) {
+        ADD_FAILURE() << "Preferred address and server address are the same "
+                      << server_address_;
+        return false;
+      }
+      // Send server preferred address and let server listen on Any.
+      if (server_preferred_address_.host().IsIPv4()) {
+        server_listening_address_ =
+            QuicSocketAddress(QuicIpAddress::Any4(), server_address_.port());
+        server_config_.SetIPv4AlternateServerAddressToSend(
+            server_preferred_address_);
+      } else {
+        server_listening_address_ =
+            QuicSocketAddress(QuicIpAddress::Any6(), server_address_.port());
+        server_config_.SetIPv6AlternateServerAddressToSend(
+            server_preferred_address_);
+      }
+      // Server restarts.
+      server_writer_ = new PacketDroppingTestWriter();
+      StartServer();
+
+      client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
+    }
+
     if (!connect_to_server_on_initialize_) {
       initialized_ = true;
       return true;
@@ -918,6 +949,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   uint8_t expected_server_connection_id_length_;
   bool enable_web_transport_ = false;
   std::vector<std::string> received_webtransport_unidirectional_streams_;
+  bool use_preferred_address_ = false;
+  QuicSocketAddress server_preferred_address_;
 };
 
 // Run all end to end tests with all supported versions.
@@ -5477,80 +5510,54 @@ TEST_P(EndToEndTest, ClientMultiPortConnection) {
 }
 
 TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
+  use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
   if (!GetClientConnection()->connection_migration_use_new_cid()) {
     return;
   }
-  client_->Disconnect();
-  StopServer();
-  // server_address_ now contains the random listening port.
-  const QuicSocketAddress kServerPreferredAddress =
-      QuicSocketAddress(TestLoopback(2), server_address_.port());
-  ASSERT_NE(server_address_, kServerPreferredAddress);
-  // Send server preferred address and let server listen on Any.
-  if (kServerPreferredAddress.host().IsIPv4()) {
-    server_listening_address_ =
-        QuicSocketAddress(QuicIpAddress::Any4(), server_address_.port());
-    server_config_.SetIPv4AlternateServerAddressToSend(kServerPreferredAddress);
-  } else {
-    server_listening_address_ =
-        QuicSocketAddress(QuicIpAddress::Any6(), server_address_.port());
-    server_config_.SetIPv6AlternateServerAddressToSend(kServerPreferredAddress);
-  }
-  // Server restarts.
-  server_writer_ = new PacketDroppingTestWriter();
-  StartServer();
-
-  client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
   client_.reset(CreateQuicClient(nullptr));
+  QuicConnection* client_connection = GetClientConnection();
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  EXPECT_EQ(server_address_, client_connection->effective_peer_address());
+  EXPECT_EQ(server_address_, client_connection->peer_address());
+  EXPECT_TRUE(client_->client()->HasPendingPathValidation());
+  QuicConnectionId server_cid1 = client_connection->connection_id();
+
+  SendSynchronousFooRequestAndCheckResponse();
   while (client_->client()->HasPendingPathValidation()) {
     client_->client()->WaitForEvents();
   }
-  // TODO(b/262386897): Currently, server drops packets received on preferred
-  // address because self address change is disallowed.
+  EXPECT_EQ(server_preferred_address_,
+            client_connection->effective_peer_address());
+  EXPECT_EQ(server_preferred_address_, client_connection->peer_address());
+  EXPECT_NE(server_cid1, client_connection->connection_id());
+
   const auto client_stats = GetClientConnection()->GetStats();
-  EXPECT_FALSE(client_stats.server_preferred_address_validated);
-  EXPECT_TRUE(client_stats.failed_to_validate_server_preferred_address);
+  EXPECT_TRUE(client_stats.server_preferred_address_validated);
+  EXPECT_FALSE(client_stats.failed_to_validate_server_preferred_address);
 }
 
 TEST_P(EndToEndTest, OptimizedServerPreferredAddress) {
+  use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
   if (!GetClientConnection()->connection_migration_use_new_cid()) {
     return;
   }
-  client_->Disconnect();
-  StopServer();
-  // server_address_ now contains the random listening port.
-  const QuicSocketAddress kServerPreferredAddress =
-      QuicSocketAddress(TestLoopback(2), server_address_.port());
-  ASSERT_NE(server_address_, kServerPreferredAddress);
-  // Send server preferred address and let server listen on Any.
-  if (kServerPreferredAddress.host().IsIPv4()) {
-    server_listening_address_ =
-        QuicSocketAddress(QuicIpAddress::Any4(), server_address_.port());
-    server_config_.SetIPv4AlternateServerAddressToSend(kServerPreferredAddress);
-  } else {
-    server_listening_address_ =
-        QuicSocketAddress(QuicIpAddress::Any6(), server_address_.port());
-    server_config_.SetIPv6AlternateServerAddressToSend(kServerPreferredAddress);
-  }
-  // Server restarts.
-  server_writer_ = new PacketDroppingTestWriter();
-  StartServer();
-
-  client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
   client_config_.SetClientConnectionOptions(QuicTagVector{kSPA2});
   client_.reset(CreateQuicClient(nullptr));
-  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  QuicConnection* client_connection = GetClientConnection();
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  EXPECT_EQ(server_address_, client_connection->effective_peer_address());
+  EXPECT_EQ(server_address_, client_connection->peer_address());
+  EXPECT_TRUE(client_->client()->HasPendingPathValidation());
+  SendSynchronousFooRequestAndCheckResponse();
   while (client_->client()->HasPendingPathValidation()) {
     client_->client()->WaitForEvents();
   }
-  // TODO(b/262386897): Currently, server drops packets received on preferred
-  // address because self address change is disallowed.
+
   const auto client_stats = GetClientConnection()->GetStats();
-  EXPECT_FALSE(client_stats.server_preferred_address_validated);
-  EXPECT_TRUE(client_stats.failed_to_validate_server_preferred_address);
+  EXPECT_TRUE(client_stats.server_preferred_address_validated);
+  EXPECT_FALSE(client_stats.failed_to_validate_server_preferred_address);
 }
 
 TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
@@ -7169,6 +7176,124 @@ TEST_P(EndToEndTest, EcnMarksReportedCorrectly) {
     EXPECT_EQ(ecn->ect1, 0);
   }
   client_->Disconnect();
+}
+
+TEST_P(EndToEndTest, ClientMigrationAfterHalfwayServerMigration) {
+  use_preferred_address_ = true;
+  ASSERT_TRUE(Initialize());
+  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+    return;
+  }
+  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+  QuicConnection* client_connection = GetClientConnection();
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  EXPECT_EQ(server_address_, client_connection->effective_peer_address());
+  EXPECT_EQ(server_address_, client_connection->peer_address());
+  EXPECT_TRUE(client_->client()->HasPendingPathValidation());
+  QuicConnectionId server_cid1 = client_connection->connection_id();
+
+  SendSynchronousFooRequestAndCheckResponse();
+  EXPECT_TRUE(client_->WaitUntil(
+      1000, [&]() { return !client_->client()->HasPendingPathValidation(); }));
+  EXPECT_EQ(server_preferred_address_,
+            client_connection->effective_peer_address());
+  EXPECT_EQ(server_preferred_address_, client_connection->peer_address());
+  EXPECT_NE(server_cid1, client_connection->connection_id());
+  EXPECT_EQ(0u,
+            client_connection->GetStats().num_connectivity_probing_received);
+  const auto client_stats = GetClientConnection()->GetStats();
+  EXPECT_TRUE(client_stats.server_preferred_address_validated);
+  EXPECT_FALSE(client_stats.failed_to_validate_server_preferred_address);
+
+  WaitForNewConnectionIds();
+  // Migrate socket to a new IP address.
+  QuicIpAddress host = TestLoopback(2);
+  ASSERT_NE(
+      client_->client()->network_helper()->GetLatestClientAddress().host(),
+      host);
+  ASSERT_TRUE(client_->client()->ValidateAndMigrateSocket(host));
+  EXPECT_TRUE(client_->WaitUntil(
+      1000, [&]() { return !client_->client()->HasPendingPathValidation(); }));
+  EXPECT_EQ(host, client_->client()->session()->self_address().host());
+
+  SendSynchronousBarRequestAndCheckResponse();
+
+  // Wait for the PATH_CHALLENGE.
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return client_connection->GetStats().num_connectivity_probing_received >= 1;
+  }));
+
+  // Send another request to ensure that the server will have time to finish the
+  // reverse path validation and send address token.
+  SendSynchronousBarRequestAndCheckResponse();
+  // By the time the above request is completed, the PATH_RESPONSE must have
+  // been received by the server. Check server stats.
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  EXPECT_FALSE(server_connection->HasPendingPathValidation());
+  EXPECT_EQ(2u, server_connection->GetStats().num_validated_peer_migration);
+  EXPECT_EQ(2u, server_connection->GetStats().num_new_connection_id_sent);
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest, MultiPortCreationFollowingServerMigration) {
+  use_preferred_address_ = true;
+  ASSERT_TRUE(Initialize());
+  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+    return;
+  }
+
+  client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC});
+  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+  QuicConnection* client_connection = GetClientConnection();
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  EXPECT_EQ(server_address_, client_connection->effective_peer_address());
+  EXPECT_EQ(server_address_, client_connection->peer_address());
+  QuicConnectionId server_cid1 = client_connection->connection_id();
+  EXPECT_TRUE(client_connection->IsValidatingServerPreferredAddress());
+
+  SendSynchronousFooRequestAndCheckResponse();
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return !client_connection->IsValidatingServerPreferredAddress();
+  }));
+  EXPECT_EQ(server_preferred_address_,
+            client_connection->effective_peer_address());
+  EXPECT_EQ(server_preferred_address_, client_connection->peer_address());
+  const auto client_stats = GetClientConnection()->GetStats();
+  EXPECT_TRUE(client_stats.server_preferred_address_validated);
+  EXPECT_FALSE(client_stats.failed_to_validate_server_preferred_address);
+
+  QuicConnectionId server_cid2 = client_connection->connection_id();
+  EXPECT_NE(server_cid1, server_cid2);
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return client_connection->GetStats().num_path_response_received == 2;
+  }));
+  EXPECT_TRUE(
+      QuicConnectionPeer::IsAlternativePathValidated(client_connection));
+  QuicConnectionId server_cid3 =
+      QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+          client_connection);
+  EXPECT_NE(server_cid2, server_cid3);
+  EXPECT_NE(server_cid1, server_cid3);
+}
+
+TEST_P(EndToEndTest, DoNotAdvertisePreferredAddressWithoutSPAD) {
+  if (!version_.HasIetfQuicFrames()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  server_config_.SetIPv4AlternateServerAddressToSend(
+      QuicSocketAddress(QuicIpAddress::Any4(), 12345));
+  server_config_.SetIPv6AlternateServerAddressToSend(
+      QuicSocketAddress(QuicIpAddress::Any6(), 12345));
+  NiceMock<MockQuicConnectionDebugVisitor> visitor;
+  connection_debug_visitor_ = &visitor;
+  EXPECT_CALL(visitor, OnTransportParametersReceived(_))
+      .WillOnce(Invoke([](const TransportParameters& transport_parameters) {
+        EXPECT_EQ(nullptr, transport_parameters.preferred_address);
+      }));
+  ASSERT_TRUE(Initialize());
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
 }
 
 }  // namespace

@@ -482,12 +482,17 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   QuicConnectionId new_connection_id = TestConnectionId(5);
   StatelessResetToken new_stateless_reset_token =
       QuicUtils::GenerateStatelessResetToken(new_connection_id);
-  EXPECT_FALSE(config_.CanSendPreferredAddressConnectionIdAndToken());
   config_.SetIPv4AlternateServerAddressToSend(kTestServerAddress);
-  ASSERT_TRUE(config_.CanSendPreferredAddressConnectionIdAndToken());
+  QuicSocketAddress kTestServerAddressV6 =
+      QuicSocketAddress(QuicIpAddress::Any6(), 1234);
+  config_.SetIPv6AlternateServerAddressToSend(kTestServerAddressV6);
   config_.SetPreferredAddressConnectionIdAndTokenToSend(
       new_connection_id, new_stateless_reset_token);
-  EXPECT_FALSE(config_.CanSendPreferredAddressConnectionIdAndToken());
+  config_.ClearAlternateServerAddressToSend(quiche::IpAddressFamily::IP_V6);
+  EXPECT_TRUE(config_.GetPreferredAddressToSend(quiche::IpAddressFamily::IP_V4)
+                  .has_value());
+  EXPECT_FALSE(config_.GetPreferredAddressToSend(quiche::IpAddressFamily::IP_V6)
+                   .has_value());
 
   TransportParameters params;
   config_.FillTransportParameters(&params);
@@ -523,10 +528,44 @@ TEST_P(QuicConfigTest, FillTransportParams) {
       params.min_ack_delay_us.value());
 
   EXPECT_EQ(params.preferred_address->ipv4_socket_address, kTestServerAddress);
+  EXPECT_EQ(params.preferred_address->ipv6_socket_address,
+            QuicSocketAddress(QuicIpAddress::Any6(), 0));
+
   EXPECT_EQ(*reinterpret_cast<StatelessResetToken*>(
                 &params.preferred_address->stateless_reset_token.front()),
             new_stateless_reset_token);
   EXPECT_EQ(kFakeGoogleHandshakeMessage, params.google_handshake_message);
+}
+
+TEST_P(QuicConfigTest, FillTransportParamsNoV4PreferredAddress) {
+  if (!version_.UsesTls()) {
+    // TransportParameters are only used for QUIC+TLS.
+    return;
+  }
+
+  QuicIpAddress host;
+  host.FromString("127.0.3.1");
+  QuicSocketAddress kTestServerAddress = QuicSocketAddress(host, 1234);
+  QuicConnectionId new_connection_id = TestConnectionId(5);
+  StatelessResetToken new_stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(new_connection_id);
+  config_.SetIPv4AlternateServerAddressToSend(kTestServerAddress);
+  QuicSocketAddress kTestServerAddressV6 =
+      QuicSocketAddress(QuicIpAddress::Any6(), 1234);
+  config_.SetIPv6AlternateServerAddressToSend(kTestServerAddressV6);
+  config_.SetPreferredAddressConnectionIdAndTokenToSend(
+      new_connection_id, new_stateless_reset_token);
+  config_.ClearAlternateServerAddressToSend(quiche::IpAddressFamily::IP_V4);
+  EXPECT_FALSE(config_.GetPreferredAddressToSend(quiche::IpAddressFamily::IP_V4)
+                   .has_value());
+  config_.ClearAlternateServerAddressToSend(quiche::IpAddressFamily::IP_V4);
+
+  TransportParameters params;
+  config_.FillTransportParameters(&params);
+  EXPECT_EQ(params.preferred_address->ipv4_socket_address,
+            QuicSocketAddress(QuicIpAddress::Any4(), 0));
+  EXPECT_EQ(params.preferred_address->ipv6_socket_address,
+            kTestServerAddressV6);
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {

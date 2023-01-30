@@ -664,20 +664,24 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       config.HasClientSentConnectionOption(kSPAD, perspective_)) {
     if (self_address().host().IsIPv4() &&
         config.HasReceivedIPv4AlternateServerAddress()) {
-      server_preferred_address_ = config.ReceivedIPv4AlternateServerAddress();
+      received_server_preferred_address_ =
+          config.ReceivedIPv4AlternateServerAddress();
     } else if (self_address().host().IsIPv6() &&
                config.HasReceivedIPv6AlternateServerAddress()) {
-      server_preferred_address_ = config.ReceivedIPv6AlternateServerAddress();
+      received_server_preferred_address_ =
+          config.ReceivedIPv6AlternateServerAddress();
     }
-    if (server_preferred_address_.IsInitialized()) {
+    if (received_server_preferred_address_.IsInitialized()) {
       QUICHE_DLOG(INFO) << ENDPOINT << "Received server preferred address: "
-                        << server_preferred_address_;
+                        << received_server_preferred_address_;
       if (config.HasClientRequestedIndependentOption(kSPA2, perspective_)) {
         accelerated_server_preferred_address_ = true;
-        visitor_->OnServerPreferredAddressAvailable(server_preferred_address_);
+        visitor_->OnServerPreferredAddressAvailable(
+            received_server_preferred_address_);
       }
     }
   }
+
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
     packet_creator_.SetMaxPacketLength(
@@ -1237,7 +1241,7 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
     if (!GetLargestReceivedPacket().IsInitialized() ||
         header.packet_number > GetLargestReceivedPacket()) {
       if (version().HasIetfQuicFrames()) {
-        // Client processes packets from any known server address. Client only
+        // Client processes packets from any known server address, but only
         // updates peer address on initialization and/or to validated server
         // preferred address.
       } else {
@@ -2693,6 +2697,14 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
 
   if (!default_path_.self_address.IsInitialized()) {
     default_path_.self_address = last_received_packet_info_.destination_address;
+  } else if (default_path_.self_address != self_address &&
+             sent_server_preferred_address_.IsInitialized() &&
+             self_address.Normalized() ==
+                 sent_server_preferred_address_.Normalized()) {
+    // If the packet is received at the preferred address, treat it as if it is
+    // received on the original server address.
+    last_received_packet_info_.destination_address = default_path_.self_address;
+    last_received_packet_info_.actual_destination_address = self_address;
   }
 
   if (!direct_peer_address_.IsInitialized()) {
@@ -2930,6 +2942,8 @@ bool QuicConnection::FindOnPathConnectionIds(
   // Client should only send packets on either default or alternative path, so
   // it shouldn't fail here. If the server fail to find CID to use, no packet
   // will be generated on this path.
+  // TODO(danzh) fix SendPathResponse() to respond to probes from a different
+  // client port with non-Zero client CID.
   QUIC_BUG_IF(failed to find on path connection ids,
               perspective_ == Perspective::IS_CLIENT)
       << "Fails to find on path connection IDs";
@@ -2970,6 +2984,8 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
             "Self address migration is not supported at the server, current "
             "address: ",
             default_path_.self_address.ToString(),
+            ", server preferred address: ",
+            sent_server_preferred_address_.ToString(),
             ", received packet address: ",
             last_received_packet_info_.destination_address.ToString(),
             ", size: ", last_received_packet_info_.length,
@@ -2983,6 +2999,19 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
       }
     }
     default_path_.self_address = last_received_packet_info_.destination_address;
+  }
+
+  if (perspective_ == Perspective::IS_SERVER &&
+      last_received_packet_info_.actual_destination_address.IsInitialized() &&
+      !IsHandshakeConfirmed() &&
+      GetEffectivePeerAddressFromCurrentPacket() !=
+          default_path_.peer_address) {
+    // Our client implementation has an optimization to spray packets from
+    // different sockets to the server's preferred address before handshake
+    // gets confirmed. In this case, do not kick off client address migration
+    // detection.
+    QUICHE_DCHECK(sent_server_preferred_address_.IsInitialized());
+    last_received_packet_info_.source_address = direct_peer_address_;
   }
 
   if (PacketCanReplaceServerConnectionId(header, perspective_) &&
@@ -3987,9 +4016,10 @@ void QuicConnection::OnHandshakeComplete() {
   ack_alarm_->Update(uber_received_packet_manager_.GetEarliestAckTimeout(),
                      kAlarmGranularity);
   if (!accelerated_server_preferred_address_ &&
-      server_preferred_address_.IsInitialized()) {
+      received_server_preferred_address_.IsInitialized()) {
     QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
-    visitor_->OnServerPreferredAddressAvailable(server_preferred_address_);
+    visitor_->OnServerPreferredAddressAvailable(
+        received_server_preferred_address_);
   }
 }
 
@@ -5916,9 +5946,9 @@ bool QuicConnection::FlushCoalescedPacket() {
           kMaxDuplicatedPacketsSentToServerPreferredAddress) {
     // Send coalesced packets to both addresses while the server preferred
     // address validation is pending.
-    QUICHE_DCHECK(server_preferred_address_.IsInitialized());
-    path_validator_.MaybeWritePacketToAddress(buffer, length,
-                                              server_preferred_address_);
+    QUICHE_DCHECK(received_server_preferred_address_.IsInitialized());
+    path_validator_.MaybeWritePacketToAddress(
+        buffer, length, received_server_preferred_address_);
     ++stats_.num_duplicated_packets_sent_to_server_preferred_address;
   }
   // Account for added padding.
@@ -6590,7 +6620,7 @@ void QuicConnection::ValidatePath(
                                       std::move(result_delegate), reason);
   if (perspective_ == Perspective::IS_CLIENT &&
       IsValidatingServerPreferredAddress()) {
-    AddKnownServerAddress(server_preferred_address_);
+    AddKnownServerAddress(received_server_preferred_address_);
   }
 }
 
@@ -6751,7 +6781,8 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
     }
     return false;
   }
-  QUICHE_DCHECK(!version().UsesHttp3() || IsHandshakeConfirmed());
+  QUICHE_DCHECK(!version().UsesHttp3() || IsHandshakeConfirmed() ||
+                accelerated_server_preferred_address_);
 
   if (connection_migration_use_new_cid_) {
     if (!UpdateConnectionIdsOnMigration(self_address, peer_address)) {
@@ -6805,10 +6836,10 @@ void QuicConnection::OnPathValidationFailureAtClient(
     }
   }
 
-  if (context.peer_address() == server_preferred_address_ &&
-      server_preferred_address_ != default_path_.peer_address) {
+  if (context.peer_address() == received_server_preferred_address_ &&
+      received_server_preferred_address_ != default_path_.peer_address) {
     QUIC_DLOG(INFO) << "Failed to validate server preferred address : "
-                    << server_preferred_address_;
+                    << received_server_preferred_address_;
     mutable_stats().failed_to_validate_server_preferred_address = true;
   }
 
@@ -7242,11 +7273,11 @@ void QuicConnection::set_initial_retransmittable_on_wire_timeout(
 
 bool QuicConnection::IsValidatingServerPreferredAddress() const {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-  return server_preferred_address_.IsInitialized() &&
-         server_preferred_address_ != default_path_.peer_address &&
+  return received_server_preferred_address_.IsInitialized() &&
+         received_server_preferred_address_ != default_path_.peer_address &&
          path_validator_.HasPendingPathValidation() &&
          path_validator_.GetContext()->peer_address() ==
-             server_preferred_address_;
+             received_server_preferred_address_;
 }
 
 void QuicConnection::OnServerPreferredAddressValidated(
