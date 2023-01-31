@@ -303,6 +303,8 @@ namespace wire_serialization_internal {
 template <typename T>
 auto SerializeIntoWriterWrapper(QuicheDataWriter& writer, int argno, T data) {
 #if defined(NDEBUG)
+  (void)argno;
+  (void)data;
   return data.SerializeIntoWriter(writer);
 #else
   // When running in the debug build, we check that the length reported by
