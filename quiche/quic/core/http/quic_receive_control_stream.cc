@@ -137,56 +137,17 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     spdy_session()->debug_visitor()->OnPriorityUpdateFrameReceived(frame);
   }
 
-  if (GetQuicReloadableFlag(quic_priority_update_structured_headers_parser)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_priority_update_structured_headers_parser);
-    absl::optional<QuicStreamPriority> priority =
-        ParsePriorityFieldValue(frame.priority_field_value);
+  absl::optional<QuicStreamPriority> priority =
+      ParsePriorityFieldValue(frame.priority_field_value);
 
-    if (!priority.has_value()) {
-      stream_delegate()->OnStreamError(
-          QUIC_INVALID_PRIORITY_UPDATE,
-          "Invalid PRIORITY_UPDATE frame payload.");
-      return false;
-    }
-
-    const QuicStreamId stream_id = frame.prioritized_element_id;
-    return spdy_session_->OnPriorityUpdateForRequestStream(stream_id,
-                                                           *priority);
+  if (!priority.has_value()) {
+    stream_delegate()->OnStreamError(QUIC_INVALID_PRIORITY_UPDATE,
+                                     "Invalid PRIORITY_UPDATE frame payload.");
+    return false;
   }
 
-  for (absl::string_view key_value :
-       absl::StrSplit(frame.priority_field_value, ',')) {
-    std::vector<absl::string_view> key_and_value =
-        absl::StrSplit(key_value, '=');
-    if (key_and_value.size() != 2) {
-      continue;
-    }
-
-    absl::string_view key = key_and_value[0];
-    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&key);
-    if (key != "u") {
-      continue;
-    }
-
-    absl::string_view value = key_and_value[1];
-    int urgency;
-    // This violates RFC9218 Section 4: "priority parameters with out-of-range
-    // values, or values of unexpected types MUST be ignored".
-    if (!absl::SimpleAtoi(value, &urgency) || urgency < 0 || urgency > 7) {
-      stream_delegate()->OnStreamError(
-          QUIC_INVALID_PRIORITY_UPDATE,
-          "Invalid value for PRIORITY_UPDATE urgency parameter.");
-      return false;
-    }
-
-    return spdy_session_->OnPriorityUpdateForRequestStream(
-        frame.prioritized_element_id,
-        QuicStreamPriority{static_cast<uint8_t>(urgency),
-                           QuicStreamPriority::kDefaultIncremental});
-  }
-
-  // Ignore frame if no urgency parameter can be parsed.
-  return true;
+  const QuicStreamId stream_id = frame.prioritized_element_id;
+  return spdy_session_->OnPriorityUpdateForRequestStream(stream_id, *priority);
 }
 
 bool QuicReceiveControlStream::OnAcceptChFrameStart(

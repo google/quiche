@@ -2246,11 +2246,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   session_.OnStreamFrame(stream_frame3);
   // Priority is applied upon stream construction.
   TestStream* stream2 = session_.CreateIncomingStream(stream_id2);
-  if (GetQuicReloadableFlag(quic_priority_update_structured_headers_parser)) {
-    EXPECT_EQ((QuicStreamPriority{5u, true}), stream2->priority());
-  } else {
-    EXPECT_EQ((QuicStreamPriority{5u, false}), stream2->priority());
-  }
+  EXPECT_EQ((QuicStreamPriority{5u, true}), stream2->priority());
 }
 
 TEST_P(QuicSpdySessionTestServer, OnInvalidPriorityUpdateFrame) {
@@ -2289,13 +2285,9 @@ TEST_P(QuicSpdySessionTestServer, OnInvalidPriorityUpdateFrame) {
   PriorityUpdateFrame priority_update{stream_id, "00"};
 
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update));
-  if (GetQuicReloadableFlag(quic_priority_update_structured_headers_parser)) {
-    EXPECT_CALL(*connection_,
-                CloseConnection(QUIC_INVALID_PRIORITY_UPDATE,
-                                "Invalid PRIORITY_UPDATE frame payload.", _));
-  } else {
-    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  }
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_INVALID_PRIORITY_UPDATE,
+                              "Invalid PRIORITY_UPDATE frame payload.", _));
 
   std::string serialized_priority_update =
       HttpEncoder::SerializePriorityUpdateFrame(priority_update);
@@ -2339,14 +2331,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrameOutOfBoundsUrgency) {
   PriorityUpdateFrame priority_update{stream_id, "u=9"};
 
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update));
-  if (GetQuicReloadableFlag(quic_priority_update_structured_headers_parser)) {
-    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  } else {
-    EXPECT_CALL(*connection_,
-                CloseConnection(
-                    QUIC_INVALID_PRIORITY_UPDATE,
-                    "Invalid value for PRIORITY_UPDATE urgency parameter.", _));
-  }
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
 
   std::string serialized_priority_update =
       HttpEncoder::SerializePriorityUpdateFrame(priority_update);
