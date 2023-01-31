@@ -110,11 +110,6 @@ QuicSession::QuicSession(
   closed_streams_clean_up_alarm_ =
       absl::WrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
-  if (!delay_setting_stateless_reset_token_ &&
-      perspective() == Perspective::IS_SERVER &&
-      connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
-    config_.SetStatelessResetTokenToSend(GetStatelessResetToken());
-  }
   if (VersionHasIetfQuicFrames(transport_version())) {
     config_.SetMaxUnidirectionalStreamsToSend(
         config_.GetMaxUnidirectionalStreamsToSend() +
@@ -135,10 +130,8 @@ void QuicSession::Initialize() {
       config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
     }
   }
-  if (delay_setting_stateless_reset_token_ &&
-      perspective() == Perspective::IS_SERVER &&
+  if (perspective() == Perspective::IS_SERVER &&
       connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_delay_setting_stateless_reset_token);
     config_.SetStatelessResetTokenToSend(GetStatelessResetToken());
   }
 

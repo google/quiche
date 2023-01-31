@@ -29,8 +29,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
 QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
-// If true, delay setting of stateless reset token until session initialization.
-QUIC_FLAG(quic_reloadable_flag_quic_delay_setting_stateless_reset_token, true)
 // If true, disable QUIC version Q043.
 QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q043, false)
 // If true, disable QUIC version Q046.
