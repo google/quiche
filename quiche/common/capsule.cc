@@ -12,6 +12,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -48,208 +49,48 @@ std::ostream& operator<<(std::ostream& os, const CapsuleType& capsule_type) {
   return os;
 }
 
-Capsule::Capsule(CapsuleType capsule_type) : capsule_type_(capsule_type) {
-  switch (capsule_type) {
-    case CapsuleType::DATAGRAM:
-      static_assert(std::is_standard_layout<DatagramCapsule>::value &&
-                        std::is_trivially_destructible<DatagramCapsule>::value,
-                    "All inline capsule structs must have these properties");
-      datagram_capsule_ = DatagramCapsule();
-      break;
-    case CapsuleType::LEGACY_DATAGRAM:
-      static_assert(
-          std::is_standard_layout<LegacyDatagramCapsule>::value &&
-              std::is_trivially_destructible<LegacyDatagramCapsule>::value,
-          "All inline capsule structs must have these properties");
-      legacy_datagram_capsule_ = LegacyDatagramCapsule();
-      break;
-    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
-      static_assert(
-          std::is_standard_layout<LegacyDatagramWithoutContextCapsule>::value &&
-              std::is_trivially_destructible<
-                  LegacyDatagramWithoutContextCapsule>::value,
-          "All inline capsule structs must have these properties");
-      legacy_datagram_without_context_capsule_ =
-          LegacyDatagramWithoutContextCapsule();
-      break;
-    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
-      static_assert(
-          std::is_standard_layout<CloseWebTransportSessionCapsule>::value &&
-              std::is_trivially_destructible<
-                  CloseWebTransportSessionCapsule>::value,
-          "All inline capsule structs must have these properties");
-      close_web_transport_session_capsule_ = CloseWebTransportSessionCapsule();
-      break;
-    case CapsuleType::ADDRESS_REQUEST:
-      address_request_capsule_ = new AddressRequestCapsule();
-      break;
-    case CapsuleType::ADDRESS_ASSIGN:
-      address_assign_capsule_ = new AddressAssignCapsule();
-      break;
-    case CapsuleType::ROUTE_ADVERTISEMENT:
-      route_advertisement_capsule_ = new RouteAdvertisementCapsule();
-      break;
-    default:
-      unknown_capsule_data_ = absl::string_view();
-      break;
-  }
-}
-
-void Capsule::Free() {
-  switch (capsule_type_) {
-    // Inlined capsule types.
-    case CapsuleType::DATAGRAM:
-    case CapsuleType::LEGACY_DATAGRAM:
-    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
-    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
-      // Do nothing, these are guaranteed to be trivially destructible.
-      break;
-    // Out-of-line capsule types.
-    case CapsuleType::ADDRESS_REQUEST:
-      delete address_request_capsule_;
-      break;
-    case CapsuleType::ADDRESS_ASSIGN:
-      delete address_assign_capsule_;
-      break;
-    case CapsuleType::ROUTE_ADVERTISEMENT:
-      delete route_advertisement_capsule_;
-      break;
-  }
-  capsule_type_ = static_cast<CapsuleType>(0x17);  // Reserved unknown value.
-  unknown_capsule_data_ = absl::string_view();
-}
-Capsule::~Capsule() { Free(); }
-
 // static
 Capsule Capsule::Datagram(absl::string_view http_datagram_payload) {
-  Capsule capsule(CapsuleType::DATAGRAM);
-  capsule.datagram_capsule().http_datagram_payload = http_datagram_payload;
-  return capsule;
+  return Capsule(DatagramCapsule{http_datagram_payload});
 }
 
 // static
 Capsule Capsule::LegacyDatagram(absl::string_view http_datagram_payload) {
-  Capsule capsule(CapsuleType::LEGACY_DATAGRAM);
-  capsule.legacy_datagram_capsule().http_datagram_payload =
-      http_datagram_payload;
-  return capsule;
+  return Capsule(LegacyDatagramCapsule{http_datagram_payload});
 }
 
 // static
 Capsule Capsule::LegacyDatagramWithoutContext(
     absl::string_view http_datagram_payload) {
-  Capsule capsule(CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT);
-  capsule.legacy_datagram_without_context_capsule().http_datagram_payload =
-      http_datagram_payload;
-  return capsule;
+  return Capsule(LegacyDatagramWithoutContextCapsule{http_datagram_payload});
 }
 
 // static
 Capsule Capsule::CloseWebTransportSession(
     webtransport::SessionErrorCode error_code,
     absl::string_view error_message) {
-  Capsule capsule(CapsuleType::CLOSE_WEBTRANSPORT_SESSION);
-  capsule.close_web_transport_session_capsule().error_code = error_code;
-  capsule.close_web_transport_session_capsule().error_message = error_message;
-  return capsule;
+  return Capsule(CloseWebTransportSessionCapsule({error_code, error_message}));
 }
 
 // static
-Capsule Capsule::AddressRequest() {
-  return Capsule(CapsuleType::ADDRESS_REQUEST);
-}
+Capsule Capsule::AddressRequest() { return Capsule(AddressRequestCapsule()); }
 
 // static
-Capsule Capsule::AddressAssign() {
-  return Capsule(CapsuleType::ADDRESS_ASSIGN);
-}
+Capsule Capsule::AddressAssign() { return Capsule(AddressAssignCapsule()); }
 
 // static
 Capsule Capsule::RouteAdvertisement() {
-  return Capsule(CapsuleType::ROUTE_ADVERTISEMENT);
+  return Capsule(RouteAdvertisementCapsule());
 }
 
 // static
 Capsule Capsule::Unknown(uint64_t capsule_type,
                          absl::string_view unknown_capsule_data) {
-  Capsule capsule(static_cast<CapsuleType>(capsule_type));
-  capsule.unknown_capsule_data() = unknown_capsule_data;
-  return capsule;
-}
-
-Capsule& Capsule::operator=(const Capsule& other) {
-  Free();
-  capsule_type_ = other.capsule_type_;
-  switch (capsule_type_) {
-    case CapsuleType::DATAGRAM:
-      datagram_capsule_ = other.datagram_capsule_;
-      break;
-    case CapsuleType::LEGACY_DATAGRAM:
-      legacy_datagram_capsule_ = other.legacy_datagram_capsule_;
-      break;
-    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
-      legacy_datagram_without_context_capsule_ =
-          other.legacy_datagram_without_context_capsule_;
-      break;
-    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
-      close_web_transport_session_capsule_ =
-          other.close_web_transport_session_capsule_;
-      break;
-    case CapsuleType::ADDRESS_ASSIGN:
-      address_assign_capsule_ = new AddressAssignCapsule();
-      *address_assign_capsule_ = *other.address_assign_capsule_;
-      break;
-    case CapsuleType::ADDRESS_REQUEST:
-      address_request_capsule_ = new AddressRequestCapsule();
-      *address_request_capsule_ = *other.address_request_capsule_;
-      break;
-    case CapsuleType::ROUTE_ADVERTISEMENT:
-      route_advertisement_capsule_ = new RouteAdvertisementCapsule();
-      *route_advertisement_capsule_ = *other.route_advertisement_capsule_;
-      break;
-    default:
-      unknown_capsule_data_ = other.unknown_capsule_data_;
-      break;
-  }
-  return *this;
-}
-
-Capsule::Capsule(const Capsule& other) : Capsule(other.capsule_type_) {
-  *this = other;
+  return Capsule(UnknownCapsule{capsule_type, unknown_capsule_data});
 }
 
 bool Capsule::operator==(const Capsule& other) const {
-  if (capsule_type_ != other.capsule_type_) {
-    return false;
-  }
-  switch (capsule_type_) {
-    case CapsuleType::DATAGRAM:
-      return datagram_capsule_.http_datagram_payload ==
-             other.datagram_capsule_.http_datagram_payload;
-    case CapsuleType::LEGACY_DATAGRAM:
-      return legacy_datagram_capsule_.http_datagram_payload ==
-             other.legacy_datagram_capsule_.http_datagram_payload;
-    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
-      return legacy_datagram_without_context_capsule_.http_datagram_payload ==
-             other.legacy_datagram_without_context_capsule_
-                 .http_datagram_payload;
-    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
-      return close_web_transport_session_capsule_.error_code ==
-                 other.close_web_transport_session_capsule_.error_code &&
-             close_web_transport_session_capsule_.error_message ==
-                 other.close_web_transport_session_capsule_.error_message;
-    case CapsuleType::ADDRESS_REQUEST:
-      return address_request_capsule_->requested_addresses ==
-             other.address_request_capsule_->requested_addresses;
-    case CapsuleType::ADDRESS_ASSIGN:
-      return address_assign_capsule_->assigned_addresses ==
-             other.address_assign_capsule_->assigned_addresses;
-    case CapsuleType::ROUTE_ADVERTISEMENT:
-      return route_advertisement_capsule_->ip_address_ranges ==
-             other.route_advertisement_capsule_->ip_address_ranges;
-    default:
-      return unknown_capsule_data_ == other.unknown_capsule_data_;
-  }
+  return capsule_ == other.capsule_;
 }
 
 std::string DatagramCapsule::ToString() const {
@@ -303,26 +144,14 @@ std::string RouteAdvertisementCapsule::ToString() const {
   return rv;
 }
 
+std::string UnknownCapsule::ToString() const {
+  return absl::StrCat("Unknown(", type, ") [", absl::BytesToHexString(payload),
+                      "]");
+}
+
 std::string Capsule::ToString() const {
-  switch (capsule_type_) {
-    case CapsuleType::DATAGRAM:
-      return datagram_capsule_.ToString();
-    case CapsuleType::LEGACY_DATAGRAM:
-      return legacy_datagram_capsule_.ToString();
-    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
-      return legacy_datagram_without_context_capsule_.ToString();
-    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
-      return close_web_transport_session_capsule_.ToString();
-    case CapsuleType::ADDRESS_REQUEST:
-      return address_request_capsule_->ToString();
-    case CapsuleType::ADDRESS_ASSIGN:
-      return address_assign_capsule_->ToString();
-    case CapsuleType::ROUTE_ADVERTISEMENT:
-      return route_advertisement_capsule_->ToString();
-    default:
-      return absl::StrCat(CapsuleTypeToString(capsule_type_), "[",
-                          absl::BytesToHexString(unknown_capsule_data_), "]");
-  }
+  return absl::visit([](const auto& capsule) { return capsule.ToString(); },
+                     capsule_);
 }
 
 std::ostream& operator<<(std::ostream& os, const Capsule& capsule) {
@@ -438,8 +267,9 @@ absl::StatusOr<quiche::QuicheBuffer> SerializeCapsuleWithStatus(
           WireSpan<WireIpAddressRange>(absl::MakeConstSpan(
               capsule.route_advertisement_capsule().ip_address_ranges)));
     default:
-      return SerializeCapsuleFields(capsule.capsule_type(), allocator,
-                                    WireBytes(capsule.unknown_capsule_data()));
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireBytes(capsule.unknown_capsule().payload));
   }
 }
 
@@ -462,16 +292,16 @@ bool CapsuleParser::IngestCapsuleFragment(absl::string_view capsule_fragment) {
   }
   absl::StrAppend(&buffered_data_, capsule_fragment);
   while (true) {
-    const size_t buffered_data_read = AttemptParseCapsule();
-    if (parsing_error_occurred_) {
-      QUICHE_DCHECK_EQ(buffered_data_read, 0u);
+    const absl::StatusOr<size_t> buffered_data_read = AttemptParseCapsule();
+    if (!buffered_data_read.ok()) {
+      ReportParseFailure(buffered_data_read.status().message());
       buffered_data_.clear();
       return false;
     }
-    if (buffered_data_read == 0) {
+    if (*buffered_data_read == 0) {
       break;
     }
-    buffered_data_.erase(0, buffered_data_read);
+    buffered_data_.erase(0, *buffered_data_read);
   }
   static constexpr size_t kMaxCapsuleBufferSize = 1024 * 1024;
   if (buffered_data_.size() > kMaxCapsuleBufferSize) {
@@ -482,7 +312,166 @@ bool CapsuleParser::IngestCapsuleFragment(absl::string_view capsule_fragment) {
   return true;
 }
 
-size_t CapsuleParser::AttemptParseCapsule() {
+static absl::StatusOr<Capsule> ParseCapsulePayload(QuicheDataReader& reader,
+                                                   CapsuleType type) {
+  switch (type) {
+    case CapsuleType::DATAGRAM:
+      return Capsule::Datagram(reader.ReadRemainingPayload());
+    case CapsuleType::LEGACY_DATAGRAM:
+      return Capsule::LegacyDatagram(reader.ReadRemainingPayload());
+    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
+      return Capsule::LegacyDatagramWithoutContext(
+          reader.ReadRemainingPayload());
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION: {
+      CloseWebTransportSessionCapsule capsule;
+      if (!reader.ReadUInt32(&capsule.error_code)) {
+        return absl::InvalidArgumentError(
+            "Unable to parse capsule CLOSE_WEBTRANSPORT_SESSION error code");
+      }
+      capsule.error_message = reader.ReadRemainingPayload();
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::ADDRESS_REQUEST: {
+      AddressRequestCapsule capsule;
+      while (!reader.IsDoneReading()) {
+        PrefixWithId requested_address;
+        if (!reader.ReadVarInt62(&requested_address.request_id)) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ADDRESS_REQUEST request ID");
+        }
+        uint8_t address_family;
+        if (!reader.ReadUInt8(&address_family)) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ADDRESS_REQUEST family");
+        }
+        if (address_family != 4 && address_family != 6) {
+          return absl::InvalidArgumentError("Bad ADDRESS_REQUEST family");
+        }
+        absl::string_view ip_address_bytes;
+        if (!reader.ReadStringPiece(&ip_address_bytes,
+                                    address_family == 4
+                                        ? QuicheIpAddress::kIPv4AddressSize
+                                        : QuicheIpAddress::kIPv6AddressSize)) {
+          return absl::InvalidArgumentError(
+              "Unable to read capsule ADDRESS_REQUEST address");
+        }
+        quiche::QuicheIpAddress ip_address;
+        if (!ip_address.FromPackedString(ip_address_bytes.data(),
+                                         ip_address_bytes.size())) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ADDRESS_REQUEST address");
+        }
+        uint8_t ip_prefix_length;
+        if (!reader.ReadUInt8(&ip_prefix_length)) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ADDRESS_REQUEST IP prefix length");
+        }
+        if (ip_prefix_length > QuicheIpPrefix(ip_address).prefix_length()) {
+          return absl::InvalidArgumentError("Invalid IP prefix length");
+        }
+        requested_address.ip_prefix =
+            QuicheIpPrefix(ip_address, ip_prefix_length);
+        capsule.requested_addresses.push_back(requested_address);
+      }
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::ADDRESS_ASSIGN: {
+      AddressAssignCapsule capsule;
+      while (!reader.IsDoneReading()) {
+        PrefixWithId assigned_address;
+        if (!reader.ReadVarInt62(&assigned_address.request_id)) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ADDRESS_ASSIGN request ID");
+        }
+        uint8_t address_family;
+        if (!reader.ReadUInt8(&address_family)) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ADDRESS_ASSIGN family");
+        }
+        if (address_family != 4 && address_family != 6) {
+          return absl::InvalidArgumentError("Bad ADDRESS_ASSIGN family");
+        }
+        absl::string_view ip_address_bytes;
+        if (!reader.ReadStringPiece(&ip_address_bytes,
+                                    address_family == 4
+                                        ? QuicheIpAddress::kIPv4AddressSize
+                                        : QuicheIpAddress::kIPv6AddressSize)) {
+          return absl::InvalidArgumentError(
+              "Unable to read capsule ADDRESS_ASSIGN address");
+        }
+        quiche::QuicheIpAddress ip_address;
+        if (!ip_address.FromPackedString(ip_address_bytes.data(),
+                                         ip_address_bytes.size())) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ADDRESS_ASSIGN address");
+        }
+        uint8_t ip_prefix_length;
+        if (!reader.ReadUInt8(&ip_prefix_length)) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ADDRESS_ASSIGN IP prefix length");
+        }
+        if (ip_prefix_length > QuicheIpPrefix(ip_address).prefix_length()) {
+          return absl::InvalidArgumentError("Invalid IP prefix length");
+        }
+        assigned_address.ip_prefix =
+            QuicheIpPrefix(ip_address, ip_prefix_length);
+        capsule.assigned_addresses.push_back(assigned_address);
+      }
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::ROUTE_ADVERTISEMENT: {
+      RouteAdvertisementCapsule capsule;
+      while (!reader.IsDoneReading()) {
+        uint8_t address_family;
+        if (!reader.ReadUInt8(&address_family)) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ROUTE_ADVERTISEMENT family");
+        }
+        if (address_family != 4 && address_family != 6) {
+          return absl::InvalidArgumentError("Bad ROUTE_ADVERTISEMENT family");
+        }
+        IpAddressRange ip_address_range;
+        absl::string_view start_ip_address_bytes;
+        if (!reader.ReadStringPiece(&start_ip_address_bytes,
+                                    address_family == 4
+                                        ? QuicheIpAddress::kIPv4AddressSize
+                                        : QuicheIpAddress::kIPv6AddressSize)) {
+          return absl::InvalidArgumentError(
+              "Unable to read capsule ROUTE_ADVERTISEMENT start address");
+        }
+        if (!ip_address_range.start_ip_address.FromPackedString(
+                start_ip_address_bytes.data(), start_ip_address_bytes.size())) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ROUTE_ADVERTISEMENT start address");
+        }
+        absl::string_view end_ip_address_bytes;
+        if (!reader.ReadStringPiece(&end_ip_address_bytes,
+                                    address_family == 4
+                                        ? QuicheIpAddress::kIPv4AddressSize
+                                        : QuicheIpAddress::kIPv6AddressSize)) {
+          return absl::InvalidArgumentError(
+              "Unable to read capsule ROUTE_ADVERTISEMENT end address");
+        }
+        if (!ip_address_range.end_ip_address.FromPackedString(
+                end_ip_address_bytes.data(), end_ip_address_bytes.size())) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ROUTE_ADVERTISEMENT end address");
+        }
+        if (!reader.ReadUInt8(&ip_address_range.ip_protocol)) {
+          return absl::InvalidArgumentError(
+              "Unable to parse capsule ROUTE_ADVERTISEMENT IP protocol");
+        }
+        capsule.ip_address_ranges.push_back(ip_address_range);
+      }
+      return Capsule(std::move(capsule));
+    }
+    default:
+      return Capsule(UnknownCapsule{static_cast<uint64_t>(type),
+                                    reader.ReadRemainingPayload()});
+  }
+}
+
+absl::StatusOr<size_t> CapsuleParser::AttemptParseCapsule() {
   QUICHE_DCHECK(!parsing_error_occurred_);
   if (buffered_data_.empty()) {
     return 0;
@@ -501,190 +490,16 @@ size_t CapsuleParser::AttemptParseCapsule() {
     return 0;
   }
   QuicheDataReader capsule_data_reader(capsule_data);
-  Capsule capsule(static_cast<CapsuleType>(capsule_type64));
-  switch (capsule.capsule_type()) {
-    case CapsuleType::DATAGRAM:
-      capsule.datagram_capsule().http_datagram_payload =
-          capsule_data_reader.ReadRemainingPayload();
-      break;
-    case CapsuleType::LEGACY_DATAGRAM:
-      capsule.legacy_datagram_capsule().http_datagram_payload =
-          capsule_data_reader.ReadRemainingPayload();
-      break;
-    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
-      capsule.legacy_datagram_without_context_capsule().http_datagram_payload =
-          capsule_data_reader.ReadRemainingPayload();
-      break;
-    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
-      if (!capsule_data_reader.ReadUInt32(
-              &capsule.close_web_transport_session_capsule().error_code)) {
-        ReportParseFailure(
-            "Unable to parse capsule CLOSE_WEBTRANSPORT_SESSION error code");
-        return 0;
-      }
-      capsule.close_web_transport_session_capsule().error_message =
-          capsule_data_reader.ReadRemainingPayload();
-      break;
-    case CapsuleType::ADDRESS_REQUEST: {
-      while (!capsule_data_reader.IsDoneReading()) {
-        PrefixWithId requested_address;
-        if (!capsule_data_reader.ReadVarInt62(&requested_address.request_id)) {
-          ReportParseFailure(
-              "Unable to parse capsule ADDRESS_REQUEST request ID");
-          return 0;
-        }
-        uint8_t address_family;
-        if (!capsule_data_reader.ReadUInt8(&address_family)) {
-          ReportParseFailure("Unable to parse capsule ADDRESS_REQUEST family");
-          return 0;
-        }
-        if (address_family != 4 && address_family != 6) {
-          ReportParseFailure("Bad ADDRESS_REQUEST family");
-          return 0;
-        }
-        absl::string_view ip_address_bytes;
-        if (!capsule_data_reader.ReadStringPiece(
-                &ip_address_bytes, address_family == 4
-                                       ? QuicheIpAddress::kIPv4AddressSize
-                                       : QuicheIpAddress::kIPv6AddressSize)) {
-          ReportParseFailure("Unable to read capsule ADDRESS_REQUEST address");
-          return 0;
-        }
-        quiche::QuicheIpAddress ip_address;
-        if (!ip_address.FromPackedString(ip_address_bytes.data(),
-                                         ip_address_bytes.size())) {
-          ReportParseFailure("Unable to parse capsule ADDRESS_REQUEST address");
-          return 0;
-        }
-        uint8_t ip_prefix_length;
-        if (!capsule_data_reader.ReadUInt8(&ip_prefix_length)) {
-          ReportParseFailure(
-              "Unable to parse capsule ADDRESS_REQUEST IP prefix length");
-          return 0;
-        }
-        if (ip_prefix_length >
-            quiche::QuicheIpPrefix(ip_address).prefix_length()) {
-          ReportParseFailure("Invalid IP prefix length");
-          return 0;
-        }
-        requested_address.ip_prefix =
-            quiche::QuicheIpPrefix(ip_address, ip_prefix_length);
-        capsule.address_request_capsule().requested_addresses.push_back(
-            requested_address);
-      }
-    } break;
-    case CapsuleType::ADDRESS_ASSIGN: {
-      while (!capsule_data_reader.IsDoneReading()) {
-        PrefixWithId assigned_address;
-        if (!capsule_data_reader.ReadVarInt62(&assigned_address.request_id)) {
-          ReportParseFailure(
-              "Unable to parse capsule ADDRESS_ASSIGN request ID");
-          return 0;
-        }
-        uint8_t address_family;
-        if (!capsule_data_reader.ReadUInt8(&address_family)) {
-          ReportParseFailure("Unable to parse capsule ADDRESS_ASSIGN family");
-          return 0;
-        }
-        if (address_family != 4 && address_family != 6) {
-          ReportParseFailure("Bad ADDRESS_ASSIGN family");
-          return 0;
-        }
-        absl::string_view ip_address_bytes;
-        if (!capsule_data_reader.ReadStringPiece(
-                &ip_address_bytes, address_family == 4
-                                       ? QuicheIpAddress::kIPv4AddressSize
-                                       : QuicheIpAddress::kIPv6AddressSize)) {
-          ReportParseFailure("Unable to read capsule ADDRESS_ASSIGN address");
-          return 0;
-        }
-        quiche::QuicheIpAddress ip_address;
-        if (!ip_address.FromPackedString(ip_address_bytes.data(),
-                                         ip_address_bytes.size())) {
-          ReportParseFailure("Unable to parse capsule ADDRESS_ASSIGN address");
-          return 0;
-        }
-        uint8_t ip_prefix_length;
-        if (!capsule_data_reader.ReadUInt8(&ip_prefix_length)) {
-          ReportParseFailure(
-              "Unable to parse capsule ADDRESS_ASSIGN IP prefix length");
-          return 0;
-        }
-        if (ip_prefix_length >
-            quiche::QuicheIpPrefix(ip_address).prefix_length()) {
-          ReportParseFailure("Invalid IP prefix length");
-          return 0;
-        }
-        assigned_address.ip_prefix =
-            quiche::QuicheIpPrefix(ip_address, ip_prefix_length);
-        capsule.address_assign_capsule().assigned_addresses.push_back(
-            assigned_address);
-      }
-    } break;
-    case CapsuleType::ROUTE_ADVERTISEMENT: {
-      while (!capsule_data_reader.IsDoneReading()) {
-        uint8_t address_family;
-        if (!capsule_data_reader.ReadUInt8(&address_family)) {
-          ReportParseFailure(
-              "Unable to parse capsule ROUTE_ADVERTISEMENT family");
-          return 0;
-        }
-        if (address_family != 4 && address_family != 6) {
-          ReportParseFailure("Bad ROUTE_ADVERTISEMENT family");
-          return 0;
-        }
-        IpAddressRange ip_address_range;
-        absl::string_view start_ip_address_bytes;
-        if (!capsule_data_reader.ReadStringPiece(
-                &start_ip_address_bytes,
-                address_family == 4 ? QuicheIpAddress::kIPv4AddressSize
-                                    : QuicheIpAddress::kIPv6AddressSize)) {
-          ReportParseFailure(
-              "Unable to read capsule ROUTE_ADVERTISEMENT start address");
-          return 0;
-        }
-        if (!ip_address_range.start_ip_address.FromPackedString(
-                start_ip_address_bytes.data(), start_ip_address_bytes.size())) {
-          ReportParseFailure(
-              "Unable to parse capsule ROUTE_ADVERTISEMENT start address");
-          return 0;
-        }
-        absl::string_view end_ip_address_bytes;
-        if (!capsule_data_reader.ReadStringPiece(
-                &end_ip_address_bytes,
-                address_family == 4 ? QuicheIpAddress::kIPv4AddressSize
-                                    : QuicheIpAddress::kIPv6AddressSize)) {
-          ReportParseFailure(
-              "Unable to read capsule ROUTE_ADVERTISEMENT end address");
-          return 0;
-        }
-        if (!ip_address_range.end_ip_address.FromPackedString(
-                end_ip_address_bytes.data(), end_ip_address_bytes.size())) {
-          ReportParseFailure(
-              "Unable to parse capsule ROUTE_ADVERTISEMENT end address");
-          return 0;
-        }
-        if (!capsule_data_reader.ReadUInt8(&ip_address_range.ip_protocol)) {
-          ReportParseFailure(
-              "Unable to parse capsule ROUTE_ADVERTISEMENT IP protocol");
-          return 0;
-        }
-        capsule.route_advertisement_capsule().ip_address_ranges.push_back(
-            ip_address_range);
-      }
-    } break;
-    default:
-      capsule.unknown_capsule_data() =
-          capsule_data_reader.ReadRemainingPayload();
-  }
-  if (!visitor_->OnCapsule(capsule)) {
-    ReportParseFailure("Visitor failed to process capsule");
-    return 0;
+  absl::StatusOr<Capsule> capsule = ParseCapsulePayload(
+      capsule_data_reader, static_cast<CapsuleType>(capsule_type64));
+  QUICHE_RETURN_IF_ERROR(capsule.status());
+  if (!visitor_->OnCapsule(*capsule)) {
+    return absl::AbortedError("Visitor failed to process capsule");
   }
   return capsule_fragment_reader.PreviouslyReadPayload().length();
 }
 
-void CapsuleParser::ReportParseFailure(const std::string& error_message) {
+void CapsuleParser::ReportParseFailure(absl::string_view error_message) {
   if (parsing_error_occurred_) {
     QUICHE_BUG(multiple parse errors) << "Experienced multiple parse failures";
     return;

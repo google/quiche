@@ -7,10 +7,13 @@
 
 #include <cstdint>
 #include <string>
+#include <variant>
 #include <vector>
 
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_ip_address.h"
@@ -37,21 +40,50 @@ QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
 
 struct QUICHE_EXPORT DatagramCapsule {
   absl::string_view http_datagram_payload;
+
   std::string ToString() const;
+  CapsuleType capsule_type() const { return CapsuleType::DATAGRAM; }
+  bool operator==(const DatagramCapsule& other) const {
+    return http_datagram_payload == other.http_datagram_payload;
+  }
 };
+
 struct QUICHE_EXPORT LegacyDatagramCapsule {
   absl::string_view http_datagram_payload;
+
   std::string ToString() const;
+  CapsuleType capsule_type() const { return CapsuleType::LEGACY_DATAGRAM; }
+  bool operator==(const LegacyDatagramCapsule& other) const {
+    return http_datagram_payload == other.http_datagram_payload;
+  }
 };
+
 struct QUICHE_EXPORT LegacyDatagramWithoutContextCapsule {
   absl::string_view http_datagram_payload;
+
   std::string ToString() const;
+  CapsuleType capsule_type() const {
+    return CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT;
+  }
+  bool operator==(const LegacyDatagramWithoutContextCapsule& other) const {
+    return http_datagram_payload == other.http_datagram_payload;
+  }
 };
+
 struct QUICHE_EXPORT CloseWebTransportSessionCapsule {
   webtransport::SessionErrorCode error_code;
   absl::string_view error_message;
+
   std::string ToString() const;
+  CapsuleType capsule_type() const {
+    return CapsuleType::CLOSE_WEBTRANSPORT_SESSION;
+  }
+  bool operator==(const CloseWebTransportSessionCapsule& other) const {
+    return error_code == other.error_code &&
+           error_message == other.error_message;
+  }
 };
+
 struct QUICHE_EXPORT PrefixWithId {
   uint64_t request_id;
   quiche::QuicheIpPrefix ip_prefix;
@@ -63,20 +95,34 @@ struct QUICHE_EXPORT IpAddressRange {
   uint8_t ip_protocol;
   bool operator==(const IpAddressRange& other) const;
 };
+
 struct QUICHE_EXPORT AddressAssignCapsule {
   std::vector<PrefixWithId> assigned_addresses;
   bool operator==(const AddressAssignCapsule& other) const;
   std::string ToString() const;
+  CapsuleType capsule_type() const { return CapsuleType::ADDRESS_ASSIGN; }
 };
 struct QUICHE_EXPORT AddressRequestCapsule {
   std::vector<PrefixWithId> requested_addresses;
   bool operator==(const AddressRequestCapsule& other) const;
   std::string ToString() const;
+  CapsuleType capsule_type() const { return CapsuleType::ADDRESS_REQUEST; }
 };
 struct QUICHE_EXPORT RouteAdvertisementCapsule {
   std::vector<IpAddressRange> ip_address_ranges;
   bool operator==(const RouteAdvertisementCapsule& other) const;
   std::string ToString() const;
+  CapsuleType capsule_type() const { return CapsuleType::ROUTE_ADVERTISEMENT; }
+};
+struct QUICHE_EXPORT UnknownCapsule {
+  uint64_t type;
+  absl::string_view payload;
+
+  std::string ToString() const;
+  CapsuleType capsule_type() const { return static_cast<CapsuleType>(type); }
+  bool operator==(const UnknownCapsule& other) const {
+    return type == other.type && payload == other.payload;
+  }
 };
 
 // Capsule from RFC 9297.
@@ -102,10 +148,8 @@ class QUICHE_EXPORT Capsule {
       uint64_t capsule_type,
       absl::string_view unknown_capsule_data = absl::string_view());
 
-  explicit Capsule(CapsuleType capsule_type);
-  ~Capsule();
-  Capsule(const Capsule& other);
-  Capsule& operator=(const Capsule& other);
+  template <typename CapsuleStruct>
+  explicit Capsule(CapsuleStruct capsule) : capsule_(std::move(capsule)) {}
   bool operator==(const Capsule& other) const;
 
   // Human-readable information string for debugging purposes.
@@ -113,107 +157,68 @@ class QUICHE_EXPORT Capsule {
   friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                                 const Capsule& capsule);
 
-  CapsuleType capsule_type() const { return capsule_type_; }
+  CapsuleType capsule_type() const {
+    return absl::visit(
+        [](const auto& capsule) { return capsule.capsule_type(); }, capsule_);
+  }
   DatagramCapsule& datagram_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM);
-    return datagram_capsule_;
+    return absl::get<DatagramCapsule>(capsule_);
   }
   const DatagramCapsule& datagram_capsule() const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::DATAGRAM);
-    return datagram_capsule_;
+    return absl::get<DatagramCapsule>(capsule_);
   }
   LegacyDatagramCapsule& legacy_datagram_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::LEGACY_DATAGRAM);
-    return legacy_datagram_capsule_;
+    return absl::get<LegacyDatagramCapsule>(capsule_);
   }
   const LegacyDatagramCapsule& legacy_datagram_capsule() const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::LEGACY_DATAGRAM);
-    return legacy_datagram_capsule_;
+    return absl::get<LegacyDatagramCapsule>(capsule_);
   }
   LegacyDatagramWithoutContextCapsule&
   legacy_datagram_without_context_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_,
-                     CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT);
-    return legacy_datagram_without_context_capsule_;
+    return absl::get<LegacyDatagramWithoutContextCapsule>(capsule_);
   }
   const LegacyDatagramWithoutContextCapsule&
   legacy_datagram_without_context_capsule() const {
-    QUICHE_DCHECK_EQ(capsule_type_,
-                     CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT);
-    return legacy_datagram_without_context_capsule_;
+    return absl::get<LegacyDatagramWithoutContextCapsule>(capsule_);
   }
   CloseWebTransportSessionCapsule& close_web_transport_session_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::CLOSE_WEBTRANSPORT_SESSION);
-    return close_web_transport_session_capsule_;
+    return absl::get<CloseWebTransportSessionCapsule>(capsule_);
   }
   const CloseWebTransportSessionCapsule& close_web_transport_session_capsule()
       const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::CLOSE_WEBTRANSPORT_SESSION);
-    return close_web_transport_session_capsule_;
+    return absl::get<CloseWebTransportSessionCapsule>(capsule_);
   }
   AddressRequestCapsule& address_request_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::ADDRESS_REQUEST);
-    return *address_request_capsule_;
+    return absl::get<AddressRequestCapsule>(capsule_);
   }
   const AddressRequestCapsule& address_request_capsule() const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::ADDRESS_REQUEST);
-    return *address_request_capsule_;
+    return absl::get<AddressRequestCapsule>(capsule_);
   }
   AddressAssignCapsule& address_assign_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::ADDRESS_ASSIGN);
-    return *address_assign_capsule_;
+    return absl::get<AddressAssignCapsule>(capsule_);
   }
   const AddressAssignCapsule& address_assign_capsule() const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::ADDRESS_ASSIGN);
-    return *address_assign_capsule_;
+    return absl::get<AddressAssignCapsule>(capsule_);
   }
   RouteAdvertisementCapsule& route_advertisement_capsule() {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::ROUTE_ADVERTISEMENT);
-    return *route_advertisement_capsule_;
+    return absl::get<RouteAdvertisementCapsule>(capsule_);
   }
   const RouteAdvertisementCapsule& route_advertisement_capsule() const {
-    QUICHE_DCHECK_EQ(capsule_type_, CapsuleType::ROUTE_ADVERTISEMENT);
-    return *route_advertisement_capsule_;
+    return absl::get<RouteAdvertisementCapsule>(capsule_);
   }
-  absl::string_view& unknown_capsule_data() {
-    QUICHE_DCHECK(capsule_type_ != CapsuleType::DATAGRAM &&
-                  capsule_type_ != CapsuleType::LEGACY_DATAGRAM &&
-                  capsule_type_ !=
-                      CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT &&
-                  capsule_type_ != CapsuleType::CLOSE_WEBTRANSPORT_SESSION &&
-                  capsule_type_ != CapsuleType::ADDRESS_REQUEST &&
-                  capsule_type_ != CapsuleType::ADDRESS_ASSIGN &&
-                  capsule_type_ != CapsuleType::ROUTE_ADVERTISEMENT)
-        << capsule_type_;
-    return unknown_capsule_data_;
+  UnknownCapsule& unknown_capsule() {
+    return absl::get<UnknownCapsule>(capsule_);
   }
-  const absl::string_view& unknown_capsule_data() const {
-    QUICHE_DCHECK(capsule_type_ != CapsuleType::DATAGRAM &&
-                  capsule_type_ != CapsuleType::LEGACY_DATAGRAM &&
-                  capsule_type_ !=
-                      CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT &&
-                  capsule_type_ != CapsuleType::CLOSE_WEBTRANSPORT_SESSION &&
-                  capsule_type_ != CapsuleType::ADDRESS_REQUEST &&
-                  capsule_type_ != CapsuleType::ADDRESS_ASSIGN &&
-                  capsule_type_ != CapsuleType::ROUTE_ADVERTISEMENT)
-        << capsule_type_;
-    return unknown_capsule_data_;
+  const UnknownCapsule& unknown_capsule() const {
+    return absl::get<UnknownCapsule>(capsule_);
   }
 
  private:
-  void Free();
-  CapsuleType capsule_type_;
-  union {
-    DatagramCapsule datagram_capsule_;
-    LegacyDatagramCapsule legacy_datagram_capsule_;
-    LegacyDatagramWithoutContextCapsule
-        legacy_datagram_without_context_capsule_;
-    CloseWebTransportSessionCapsule close_web_transport_session_capsule_;
-    AddressRequestCapsule* address_request_capsule_;
-    AddressAssignCapsule* address_assign_capsule_;
-    RouteAdvertisementCapsule* route_advertisement_capsule_;
-    absl::string_view unknown_capsule_data_;
-  };
+  absl::variant<DatagramCapsule, LegacyDatagramCapsule,
+                LegacyDatagramWithoutContextCapsule,
+                CloseWebTransportSessionCapsule, AddressRequestCapsule,
+                AddressAssignCapsule, RouteAdvertisementCapsule, UnknownCapsule>
+      capsule_;
 };
 
 namespace test {
@@ -235,7 +240,7 @@ class QUICHE_EXPORT CapsuleParser {
     // MUST make a deep copy before this returns.
     virtual bool OnCapsule(const Capsule& capsule) = 0;
 
-    virtual void OnCapsuleParseFailure(const std::string& error_message) = 0;
+    virtual void OnCapsuleParseFailure(absl::string_view error_message) = 0;
   };
 
   // |visitor| must be non-null, and must outlive CapsuleParser.
@@ -252,10 +257,10 @@ class QUICHE_EXPORT CapsuleParser {
 
  private:
   // Attempts to parse a single capsule from |buffered_data_|. If a full capsule
-  // is not available, returns 0. If a parsing error occurs, returns 0.
+  // is not available, returns 0. If a parsing error occurs, returns an error.
   // Otherwise, returns the number of bytes in the parsed capsule.
-  size_t AttemptParseCapsule();
-  void ReportParseFailure(const std::string& error_message);
+  absl::StatusOr<size_t> AttemptParseCapsule();
+  void ReportParseFailure(absl::string_view error_message);
 
   // Whether a parsing error has occurred.
   bool parsing_error_occurred_ = false;

@@ -1393,7 +1393,7 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
   return true;
 }
 
-void QuicSpdyStream::OnCapsuleParseFailure(const std::string& error_message) {
+void QuicSpdyStream::OnCapsuleParseFailure(absl::string_view error_message) {
   QUIC_DLOG(ERROR) << ENDPOINT << "Capsule parse failure: " << error_message;
   Reset(QUIC_BAD_APPLICATION_PAYLOAD);
 }

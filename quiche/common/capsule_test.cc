@@ -39,7 +39,7 @@ class MockCapsuleParserVisitor : public CapsuleParser::Visitor {
   }
   ~MockCapsuleParserVisitor() override = default;
   MOCK_METHOD(bool, OnCapsule, (const Capsule& capsule), (override));
-  MOCK_METHOD(void, OnCapsuleParseFailure, (const std::string& error_message),
+  MOCK_METHOD(void, OnCapsuleParseFailure, (absl::string_view error_message),
               (override));
 };
 
