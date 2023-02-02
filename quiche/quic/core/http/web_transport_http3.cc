@@ -440,7 +440,7 @@ absl::optional<WebTransportStreamError> Http3ErrorToWebTransport(
   uint64_t shifted = http3_error_code - kWebTransportMappedErrorCodeFirst;
   uint64_t result = shifted - shifted / 0x1f;
   QUICHE_DCHECK_LE(result, std::numeric_limits<uint8_t>::max());
-  return result;
+  return static_cast<WebTransportStreamError>(result);
 }
 
 WebTransportStreamError Http3ErrorToWebTransportOrDefault(
