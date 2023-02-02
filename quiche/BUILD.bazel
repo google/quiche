@@ -210,6 +210,7 @@ cc_library(
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/types:optional",
         "@com_google_absl//absl/types:span",
+        "@com_google_absl//absl/types:variant",
         "@com_google_googleurl//url",
         "@com_google_quic_trace//quic_trace:quic_trace_cc_proto",
         "@zlib",
