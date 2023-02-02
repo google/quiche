@@ -198,6 +198,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, interface_name, "",
                                 "Interface name to bind QUIC UDP sockets to.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, signing_algorithms_pref, "",
+    "A textual specification of a set of signature algorithms that can be "
+    "accepted by boring SSL SSL_set1_sigalgs_list()");
+
 namespace quic {
 namespace {
 
@@ -393,6 +398,11 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       quiche::GetQuicheCommandLineFlag(FLAGS_interface_name);
   if (!interface_name.empty()) {
     client->set_interface_name(interface_name);
+  }
+  const std::string signing_algorithms_pref =
+      quiche::GetQuicheCommandLineFlag(FLAGS_signing_algorithms_pref);
+  if (!signing_algorithms_pref.empty()) {
+    client->SetTlsSignatureAlgorithms(signing_algorithms_pref);
   }
   if (!client->Initialize()) {
     std::cerr << "Failed to initialize client." << std::endl;
