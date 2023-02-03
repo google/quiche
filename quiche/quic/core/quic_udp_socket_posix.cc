@@ -469,23 +469,6 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
     packet_info->SetPeerAddress(QuicSocketAddress(raw_peer_address));
   }
 
-  if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::ECN)) {
-    int ecn;
-    socklen_t optlen = sizeof(ecn);
-    if (raw_peer_address.ss_family == AF_INET &&
-        getsockopt(fd, IPPROTO_IP, IP_TOS, &ecn, &optlen) == 0) {
-      packet_info->SetEcnCodepoint(
-          QuicEcnCodepoint(static_cast<uint8_t>(ecn) & kEcnMask));
-    } else if (raw_peer_address.ss_family == AF_INET6 &&
-               getsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &ecn, &optlen) == 0) {
-      packet_info->SetEcnCodepoint(
-          QuicEcnCodepoint(static_cast<uint8_t>(ecn) & kEcnMask));
-    } else {
-      // Fail back to not reporting ECN marks.
-      packet_info->SetEcnCodepoint(ECN_NOT_ECT);
-    }
-  }
-
   if (hdr.msg_controllen > 0) {
     for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&hdr); cmsg != nullptr;
          cmsg = CMSG_NXTHDR(&hdr, cmsg)) {
