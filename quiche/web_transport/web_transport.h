@@ -58,6 +58,11 @@ struct QUICHE_EXPORT DatagramStatus {
   std::string error_message;
 };
 
+enum class StreamType {
+  kUnidirectional,
+  kBidirectional,
+};
+
 // The stream visitor is an application-provided object that gets notified about
 // events related to a WebTransport stream.  The visitor object is owned by the
 // stream itself, meaning that if the stream is ever fully closed, the visitor

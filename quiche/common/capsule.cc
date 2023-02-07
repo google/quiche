@@ -4,6 +4,7 @@
 
 #include "quiche/common/capsule.h"
 
+#include <limits>
 #include <type_traits>
 
 #include "absl/status/status.h"
@@ -19,6 +20,7 @@
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
 #include "quiche/common/quiche_ip_address.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/wire_serialization.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -40,6 +42,20 @@ std::string CapsuleTypeToString(CapsuleType capsule_type) {
       return "ADDRESS_ASSIGN";
     case CapsuleType::ROUTE_ADVERTISEMENT:
       return "ROUTE_ADVERTISEMENT";
+    case CapsuleType::WT_STREAM:
+      return "WT_STREAM";
+    case CapsuleType::WT_STREAM_WITH_FIN:
+      return "WT_STREAM_WITH_FIN";
+    case CapsuleType::WT_RESET_STREAM:
+      return "WT_RESET_STREAM";
+    case CapsuleType::WT_STOP_SENDING:
+      return "WT_STOP_SENDING";
+    case CapsuleType::WT_MAX_STREAM_DATA:
+      return "WT_MAX_STREAM_DATA";
+    case CapsuleType::WT_MAX_STREAMS_BIDI:
+      return "WT_MAX_STREAMS_BIDI";
+    case CapsuleType::WT_MAX_STREAMS_UNIDI:
+      return "WT_MAX_STREAMS_UNIDI";
   }
   return absl::StrCat("Unknown(", static_cast<uint64_t>(capsule_type), ")");
 }
@@ -147,6 +163,32 @@ std::string RouteAdvertisementCapsule::ToString() const {
 std::string UnknownCapsule::ToString() const {
   return absl::StrCat("Unknown(", type, ") [", absl::BytesToHexString(payload),
                       "]");
+}
+
+std::string WebTransportStreamDataCapsule::ToString() const {
+  return absl::StrCat(CapsuleTypeToString(capsule_type()),
+                      " [stream_id=", stream_id,
+                      ", data=", absl::BytesToHexString(data), "]");
+}
+
+std::string WebTransportResetStreamCapsule::ToString() const {
+  return absl::StrCat("WT_RESET_STREAM(stream_id=", stream_id,
+                      ", error_code=", error_code, ")");
+}
+
+std::string WebTransportStopSendingCapsule::ToString() const {
+  return absl::StrCat("WT_STOP_SENDING(stream_id=", stream_id,
+                      ", error_code=", error_code, ")");
+}
+
+std::string WebTransportMaxStreamDataCapsule::ToString() const {
+  return absl::StrCat("WT_MAX_STREAM_DATA (stream_id=", stream_id,
+                      ", max_stream_data=", max_stream_data, ")");
+}
+
+std::string WebTransportMaxStreamsCapsule::ToString() const {
+  return absl::StrCat(CapsuleTypeToString(capsule_type()),
+                      " (max_streams=", max_stream_count, ")");
 }
 
 std::string Capsule::ToString() const {
@@ -266,6 +308,33 @@ absl::StatusOr<quiche::QuicheBuffer> SerializeCapsuleWithStatus(
           capsule.capsule_type(), allocator,
           WireSpan<WireIpAddressRange>(absl::MakeConstSpan(
               capsule.route_advertisement_capsule().ip_address_ranges)));
+    case CapsuleType::WT_STREAM:
+    case CapsuleType::WT_STREAM_WITH_FIN:
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(capsule.web_transport_stream_data().stream_id),
+          WireBytes(capsule.web_transport_stream_data().data));
+    case CapsuleType::WT_RESET_STREAM:
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(capsule.web_transport_reset_stream().stream_id),
+          WireVarInt62(capsule.web_transport_reset_stream().error_code));
+    case CapsuleType::WT_STOP_SENDING:
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(capsule.web_transport_stop_sending().stream_id),
+          WireVarInt62(capsule.web_transport_stop_sending().error_code));
+    case CapsuleType::WT_MAX_STREAM_DATA:
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(capsule.web_transport_max_stream_data().stream_id),
+          WireVarInt62(
+              capsule.web_transport_max_stream_data().max_stream_data));
+    case CapsuleType::WT_MAX_STREAMS_BIDI:
+    case CapsuleType::WT_MAX_STREAMS_UNIDI:
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(capsule.web_transport_max_streams().max_stream_count));
     default:
       return SerializeCapsuleFields(
           capsule.capsule_type(), allocator,
@@ -312,8 +381,22 @@ bool CapsuleParser::IngestCapsuleFragment(absl::string_view capsule_fragment) {
   return true;
 }
 
-static absl::StatusOr<Capsule> ParseCapsulePayload(QuicheDataReader& reader,
-                                                   CapsuleType type) {
+namespace {
+absl::Status ReadWebTransportStreamId(QuicheDataReader& reader,
+                                      webtransport::StreamId& id) {
+  uint64_t raw_id;
+  if (!reader.ReadVarInt62(&raw_id)) {
+    return absl::InvalidArgumentError("Failed to read WebTransport Stream ID");
+  }
+  if (raw_id > std::numeric_limits<uint32_t>::max()) {
+    return absl::InvalidArgumentError("Stream ID does not fit into a uint32_t");
+  }
+  id = static_cast<webtransport::StreamId>(raw_id);
+  return absl::OkStatus();
+}
+
+absl::StatusOr<Capsule> ParseCapsulePayload(QuicheDataReader& reader,
+                                            CapsuleType type) {
   switch (type) {
     case CapsuleType::DATAGRAM:
       return Capsule::Datagram(reader.ReadRemainingPayload());
@@ -465,11 +548,63 @@ static absl::StatusOr<Capsule> ParseCapsulePayload(QuicheDataReader& reader,
       }
       return Capsule(std::move(capsule));
     }
+    case CapsuleType::WT_STREAM:
+    case CapsuleType::WT_STREAM_WITH_FIN: {
+      WebTransportStreamDataCapsule capsule;
+      capsule.fin = (type == CapsuleType::WT_STREAM_WITH_FIN);
+      QUICHE_RETURN_IF_ERROR(
+          ReadWebTransportStreamId(reader, capsule.stream_id));
+      capsule.data = reader.ReadRemainingPayload();
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::WT_RESET_STREAM: {
+      WebTransportResetStreamCapsule capsule;
+      QUICHE_RETURN_IF_ERROR(
+          ReadWebTransportStreamId(reader, capsule.stream_id));
+      if (!reader.ReadVarInt62(&capsule.error_code)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the RESET_STREAM error code");
+      }
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::WT_STOP_SENDING: {
+      WebTransportStopSendingCapsule capsule;
+      QUICHE_RETURN_IF_ERROR(
+          ReadWebTransportStreamId(reader, capsule.stream_id));
+      if (!reader.ReadVarInt62(&capsule.error_code)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the STOP_SENDING error code");
+      }
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::WT_MAX_STREAM_DATA: {
+      WebTransportMaxStreamDataCapsule capsule;
+      QUICHE_RETURN_IF_ERROR(
+          ReadWebTransportStreamId(reader, capsule.stream_id));
+      if (!reader.ReadVarInt62(&capsule.max_stream_data)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the max stream data field");
+      }
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::WT_MAX_STREAMS_UNIDI:
+    case CapsuleType::WT_MAX_STREAMS_BIDI: {
+      WebTransportMaxStreamsCapsule capsule;
+      capsule.stream_type = type == CapsuleType::WT_MAX_STREAMS_UNIDI
+                                ? webtransport::StreamType::kUnidirectional
+                                : webtransport::StreamType::kBidirectional;
+      if (!reader.ReadVarInt62(&capsule.max_stream_count)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the max streams field");
+      }
+      return Capsule(std::move(capsule));
+    }
     default:
       return Capsule(UnknownCapsule{static_cast<uint64_t>(type),
                                     reader.ReadRemainingPayload()});
   }
 }
+}  // namespace
 
 absl::StatusOr<size_t> CapsuleParser::AttemptParseCapsule() {
   QUICHE_DCHECK(!parsing_error_occurred_);
@@ -539,6 +674,33 @@ bool AddressRequestCapsule::operator==(
 bool RouteAdvertisementCapsule::operator==(
     const RouteAdvertisementCapsule& other) const {
   return ip_address_ranges == other.ip_address_ranges;
+}
+
+bool WebTransportStreamDataCapsule::operator==(
+    const WebTransportStreamDataCapsule& other) const {
+  return stream_id == other.stream_id && data == other.data && fin == other.fin;
+}
+
+bool WebTransportResetStreamCapsule::operator==(
+    const WebTransportResetStreamCapsule& other) const {
+  return stream_id == other.stream_id && error_code == other.error_code;
+}
+
+bool WebTransportStopSendingCapsule::operator==(
+    const WebTransportStopSendingCapsule& other) const {
+  return stream_id == other.stream_id && error_code == other.error_code;
+}
+
+bool WebTransportMaxStreamDataCapsule::operator==(
+    const WebTransportMaxStreamDataCapsule& other) const {
+  return stream_id == other.stream_id &&
+         max_stream_data == other.max_stream_data;
+}
+
+bool WebTransportMaxStreamsCapsule::operator==(
+    const WebTransportMaxStreamsCapsule& other) const {
+  return stream_type == other.stream_type &&
+         max_stream_count == other.max_stream_count;
 }
 
 }  // namespace quiche

@@ -15,10 +15,12 @@
 #include "quiche/common/quiche_ip_address.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
+#include "quiche/web_transport/web_transport.h"
 
 using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Return;
+using ::webtransport::StreamType;
 
 namespace quiche {
 namespace test {
@@ -243,6 +245,133 @@ TEST_F(CapsuleTest, RouteAdvertisementCapsule) {
   ip_address_range2.ip_protocol = 1;
   expected_capsule.route_advertisement_capsule().ip_address_ranges.push_back(
       ip_address_range2);
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
+TEST_F(CapsuleTest, WebTransportStreamData) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+      "990b4d3b"  // WT_STREAM without FIN
+      "04"        // capsule length
+      "17"        // stream ID
+      "abcdef"    // stream payload
+  );
+  Capsule expected_capsule = Capsule(WebTransportStreamDataCapsule());
+  expected_capsule.web_transport_stream_data().stream_id = 0x17;
+  expected_capsule.web_transport_stream_data().data = "\xab\xcd\xef";
+  expected_capsule.web_transport_stream_data().fin = false;
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+TEST_F(CapsuleTest, WebTransportStreamDataWithFin) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+      "990b4d3c"  // data with FIN
+      "04"        // capsule length
+      "17"        // stream ID
+      "abcdef"    // stream payload
+  );
+  Capsule expected_capsule = Capsule(WebTransportStreamDataCapsule());
+  expected_capsule.web_transport_stream_data().stream_id = 0x17;
+  expected_capsule.web_transport_stream_data().data = "\xab\xcd\xef";
+  expected_capsule.web_transport_stream_data().fin = true;
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
+TEST_F(CapsuleTest, WebTransportResetStream) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+      "990b4d39"  // WT_RESET_STREAM
+      "02"        // capsule length
+      "17"        // stream ID
+      "07"        // error code
+  );
+  Capsule expected_capsule = Capsule(WebTransportResetStreamCapsule());
+  expected_capsule.web_transport_reset_stream().stream_id = 0x17;
+  expected_capsule.web_transport_reset_stream().error_code = 0x07;
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
+TEST_F(CapsuleTest, WebTransportStopSending) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+      "990b4d3a"  // WT_STOP_SENDING
+      "02"        // capsule length
+      "17"        // stream ID
+      "07"        // error code
+  );
+  Capsule expected_capsule = Capsule(WebTransportStopSendingCapsule());
+  expected_capsule.web_transport_stop_sending().stream_id = 0x17;
+  expected_capsule.web_transport_stop_sending().error_code = 0x07;
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
+TEST_F(CapsuleTest, WebTransportMaxStreamData) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+      "990b4d3e"  // WT_MAX_STREAM_DATA
+      "02"        // capsule length
+      "17"        // stream ID
+      "10"        // max stream data
+  );
+  Capsule expected_capsule = Capsule(WebTransportMaxStreamDataCapsule());
+  expected_capsule.web_transport_max_stream_data().stream_id = 0x17;
+  expected_capsule.web_transport_max_stream_data().max_stream_data = 0x10;
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
+TEST_F(CapsuleTest, WebTransportMaxStreamsBi) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+      "990b4d3f"  // WT_MAX_STREAMS (bidi)
+      "01"        // capsule length
+      "17"        // max streams
+  );
+  Capsule expected_capsule = Capsule(WebTransportMaxStreamsCapsule());
+  expected_capsule.web_transport_max_streams().stream_type =
+      StreamType::kBidirectional;
+  expected_capsule.web_transport_max_streams().max_stream_count = 0x17;
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
+TEST_F(CapsuleTest, WebTransportMaxStreamsUni) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+      "990b4d40"  // WT_MAX_STREAMS (unidi)
+      "01"        // capsule length
+      "17"        // max streams
+  );
+  Capsule expected_capsule = Capsule(WebTransportMaxStreamsCapsule());
+  expected_capsule.web_transport_max_streams().stream_type =
+      StreamType::kUnidirectional;
+  expected_capsule.web_transport_max_streams().max_stream_count = 0x17;
   {
     EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
     ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));

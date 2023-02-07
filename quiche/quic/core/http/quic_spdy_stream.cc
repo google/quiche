@@ -1389,6 +1389,16 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
       }
       return connect_ip_visitor_->OnRouteAdvertisementCapsule(
           capsule.route_advertisement_capsule());
+
+    // Ignore WebTransport over HTTP/2 capsules.
+    case CapsuleType::WT_RESET_STREAM:
+    case CapsuleType::WT_STOP_SENDING:
+    case CapsuleType::WT_STREAM:
+    case CapsuleType::WT_STREAM_WITH_FIN:
+    case CapsuleType::WT_MAX_STREAM_DATA:
+    case CapsuleType::WT_MAX_STREAMS_BIDI:
+    case CapsuleType::WT_MAX_STREAMS_UNIDI:
+      return true;
   }
   return true;
 }

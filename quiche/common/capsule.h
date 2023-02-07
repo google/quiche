@@ -7,7 +7,6 @@
 
 #include <cstdint>
 #include <string>
-#include <variant>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -27,17 +26,40 @@ enum class CapsuleType : uint64_t {
   LEGACY_DATAGRAM = 0xff37a0,  // draft-ietf-masque-h3-datagram-04.
   LEGACY_DATAGRAM_WITHOUT_CONTEXT =
       0xff37a5,  // draft-ietf-masque-h3-datagram-05 to -08.
+
+  // <https://datatracker.ietf.org/doc/draft-ietf-webtrans-http3/>
   CLOSE_WEBTRANSPORT_SESSION = 0x2843,
+
   // draft-ietf-masque-connect-ip-03.
   ADDRESS_ASSIGN = 0x1ECA6A00,
   ADDRESS_REQUEST = 0x1ECA6A01,
   ROUTE_ADVERTISEMENT = 0x1ECA6A02,
+
+  // <https://ietf-wg-webtrans.github.io/draft-webtransport-http2/draft-ietf-webtrans-http2.html#name-webtransport-capsules>
+  WT_RESET_STREAM = 0x190b4d39,
+  WT_STOP_SENDING = 0x190b4d3a,
+  WT_STREAM = 0x190b4d3b,
+  WT_STREAM_WITH_FIN = 0x190b4d3c,
+  // Should be removed as a result of
+  // <https://github.com/ietf-wg-webtrans/draft-webtransport-http2/issues/27>.
+  // WT_MAX_DATA = 0x190b4d3d,
+  WT_MAX_STREAM_DATA = 0x190b4d3e,
+  WT_MAX_STREAMS_BIDI = 0x190b4d3f,
+  WT_MAX_STREAMS_UNIDI = 0x190b4d40,
+
+  // TODO(b/264263113): implement those.
+  // PADDING = 0x190b4d38,
+  // WT_DATA_BLOCKED = 0x190b4d41,
+  // WT_STREAM_DATA_BLOCKED = 0x190b4d42,
+  // WT_STREAMS_BLOCKED_BIDI = 0x190b4d43,
+  // WT_STREAMS_BLOCKED_UNIDI = 0x190b4d44,
 };
 
 QUICHE_EXPORT std::string CapsuleTypeToString(CapsuleType capsule_type);
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                        const CapsuleType& capsule_type);
 
+// General.
 struct QUICHE_EXPORT DatagramCapsule {
   absl::string_view http_datagram_payload;
 
@@ -70,6 +92,7 @@ struct QUICHE_EXPORT LegacyDatagramWithoutContextCapsule {
   }
 };
 
+// WebTransport over HTTP/3.
 struct QUICHE_EXPORT CloseWebTransportSessionCapsule {
   webtransport::SessionErrorCode error_code;
   absl::string_view error_message;
@@ -84,6 +107,7 @@ struct QUICHE_EXPORT CloseWebTransportSessionCapsule {
   }
 };
 
+// MASQUE CONNECT-IP.
 struct QUICHE_EXPORT PrefixWithId {
   uint64_t request_id;
   quiche::QuicheIpPrefix ip_prefix;
@@ -122,6 +146,55 @@ struct QUICHE_EXPORT UnknownCapsule {
   CapsuleType capsule_type() const { return static_cast<CapsuleType>(type); }
   bool operator==(const UnknownCapsule& other) const {
     return type == other.type && payload == other.payload;
+  }
+};
+
+// WebTransport over HTTP/2.
+struct QUICHE_EXPORT WebTransportStreamDataCapsule {
+  webtransport::StreamId stream_id;
+  absl::string_view data;
+  bool fin;
+
+  bool operator==(const WebTransportStreamDataCapsule& other) const;
+  std::string ToString() const;
+  CapsuleType capsule_type() const {
+    return fin ? CapsuleType::WT_STREAM_WITH_FIN : CapsuleType::WT_STREAM;
+  }
+};
+struct QUICHE_EXPORT WebTransportResetStreamCapsule {
+  webtransport::StreamId stream_id;
+  uint64_t error_code;
+
+  bool operator==(const WebTransportResetStreamCapsule& other) const;
+  std::string ToString() const;
+  CapsuleType capsule_type() const { return CapsuleType::WT_RESET_STREAM; }
+};
+struct QUICHE_EXPORT WebTransportStopSendingCapsule {
+  webtransport::StreamId stream_id;
+  uint64_t error_code;
+
+  bool operator==(const WebTransportStopSendingCapsule& other) const;
+  std::string ToString() const;
+  CapsuleType capsule_type() const { return CapsuleType::WT_STOP_SENDING; }
+};
+struct QUICHE_EXPORT WebTransportMaxStreamDataCapsule {
+  webtransport::StreamId stream_id;
+  uint64_t max_stream_data;
+
+  bool operator==(const WebTransportMaxStreamDataCapsule& other) const;
+  std::string ToString() const;
+  CapsuleType capsule_type() const { return CapsuleType::WT_MAX_STREAM_DATA; }
+};
+struct QUICHE_EXPORT WebTransportMaxStreamsCapsule {
+  webtransport::StreamType stream_type;
+  uint64_t max_stream_count;
+
+  bool operator==(const WebTransportMaxStreamsCapsule& other) const;
+  std::string ToString() const;
+  CapsuleType capsule_type() const {
+    return stream_type == webtransport::StreamType::kBidirectional
+               ? CapsuleType::WT_MAX_STREAMS_BIDI
+               : CapsuleType::WT_MAX_STREAMS_UNIDI;
   }
 };
 
@@ -206,6 +279,37 @@ class QUICHE_EXPORT Capsule {
   const RouteAdvertisementCapsule& route_advertisement_capsule() const {
     return absl::get<RouteAdvertisementCapsule>(capsule_);
   }
+  WebTransportStreamDataCapsule& web_transport_stream_data() {
+    return absl::get<WebTransportStreamDataCapsule>(capsule_);
+  }
+  const WebTransportStreamDataCapsule& web_transport_stream_data() const {
+    return absl::get<WebTransportStreamDataCapsule>(capsule_);
+  }
+  WebTransportResetStreamCapsule& web_transport_reset_stream() {
+    return absl::get<WebTransportResetStreamCapsule>(capsule_);
+  }
+  const WebTransportResetStreamCapsule& web_transport_reset_stream() const {
+    return absl::get<WebTransportResetStreamCapsule>(capsule_);
+  }
+  WebTransportStopSendingCapsule& web_transport_stop_sending() {
+    return absl::get<WebTransportStopSendingCapsule>(capsule_);
+  }
+  const WebTransportStopSendingCapsule& web_transport_stop_sending() const {
+    return absl::get<WebTransportStopSendingCapsule>(capsule_);
+  }
+  WebTransportMaxStreamDataCapsule& web_transport_max_stream_data() {
+    return absl::get<WebTransportMaxStreamDataCapsule>(capsule_);
+  }
+  const WebTransportMaxStreamDataCapsule& web_transport_max_stream_data()
+      const {
+    return absl::get<WebTransportMaxStreamDataCapsule>(capsule_);
+  }
+  WebTransportMaxStreamsCapsule& web_transport_max_streams() {
+    return absl::get<WebTransportMaxStreamsCapsule>(capsule_);
+  }
+  const WebTransportMaxStreamsCapsule& web_transport_max_streams() const {
+    return absl::get<WebTransportMaxStreamsCapsule>(capsule_);
+  }
   UnknownCapsule& unknown_capsule() {
     return absl::get<UnknownCapsule>(capsule_);
   }
@@ -217,7 +321,10 @@ class QUICHE_EXPORT Capsule {
   absl::variant<DatagramCapsule, LegacyDatagramCapsule,
                 LegacyDatagramWithoutContextCapsule,
                 CloseWebTransportSessionCapsule, AddressRequestCapsule,
-                AddressAssignCapsule, RouteAdvertisementCapsule, UnknownCapsule>
+                AddressAssignCapsule, RouteAdvertisementCapsule,
+                WebTransportStreamDataCapsule, WebTransportResetStreamCapsule,
+                WebTransportStopSendingCapsule, WebTransportMaxStreamsCapsule,
+                WebTransportMaxStreamDataCapsule, UnknownCapsule>
       capsule_;
 };
 
