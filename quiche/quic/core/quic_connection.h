@@ -1292,6 +1292,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     sent_server_preferred_address_ = sent_server_preferred_address;
   }
 
+  const QuicSocketAddress& sent_server_preferred_address() const {
+    return sent_server_preferred_address_;
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
