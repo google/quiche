@@ -22,7 +22,8 @@ QuicDatagramQueue::QuicDatagramQueue(QuicSession* session,
                                      std::unique_ptr<Observer> observer)
     : session_(session),
       clock_(session->connection()->clock()),
-      observer_(std::move(observer)) {}
+      observer_(std::move(observer)),
+      force_flush_(false) {}
 
 MessageStatus QuicDatagramQueue::SendOrQueueDatagram(
     quiche::QuicheMemSlice datagram) {
@@ -30,7 +31,8 @@ MessageStatus QuicDatagramQueue::SendOrQueueDatagram(
   // the datagrams are sent in the same order that they were sent by the
   // application.
   if (queue_.empty()) {
-    MessageResult result = session_->SendMessage(absl::MakeSpan(&datagram, 1));
+    MessageResult result = session_->SendMessage(absl::MakeSpan(&datagram, 1),
+                                                 /*flush=*/force_flush_);
     if (result.status != MESSAGE_STATUS_BLOCKED) {
       if (observer_) {
         observer_->OnDatagramProcessed(result.status);

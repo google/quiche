@@ -641,6 +641,14 @@ class QUIC_EXPORT_PRIVATE QuicSession
     client_original_supported_versions_ = client_original_supported_versions;
   }
 
+  // Controls whether the default datagram queue used by the session actually
+  // queues the datagram.  If set to true, the datagrams in the default queue
+  // will be forcefully flushed, potentially bypassing congestion control and
+  // other limitations.
+  void SetForceFlushForDefaultQueue(bool force_flush) {
+    datagram_queue_.SetForceFlush(force_flush);
+  }
+
  protected:
   using StreamMap =
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;

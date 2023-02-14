@@ -63,6 +63,11 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
     max_time_in_queue_ = max_time_in_queue;
   }
 
+  // If set to true, all datagrams added into the queue would be sent with the
+  // flush flag set to true, meaning that they will bypass congestion control
+  // and related logic.
+  void SetForceFlush(bool force_flush) { force_flush_ = force_flush; }
+
   size_t queue_size() { return queue_.size(); }
 
   bool empty() { return queue_.empty(); }
@@ -82,6 +87,7 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
   QuicTime::Delta max_time_in_queue_ = QuicTime::Delta::Zero();
   quiche::QuicheCircularDeque<Datagram> queue_;
   std::unique_ptr<Observer> observer_;
+  bool force_flush_;
 };
 
 }  // namespace quic
