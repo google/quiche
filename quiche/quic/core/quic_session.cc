@@ -1833,8 +1833,8 @@ void QuicSession::RegisterStreamPriority(QuicStreamId id, bool is_static,
   write_blocked_streams()->RegisterStream(id, is_static, priority);
 }
 
-void QuicSession::UnregisterStreamPriority(QuicStreamId id, bool is_static) {
-  write_blocked_streams()->UnregisterStream(id, is_static);
+void QuicSession::UnregisterStreamPriority(QuicStreamId id) {
+  write_blocked_streams()->UnregisterStream(id);
 }
 
 void QuicSession::UpdateStreamPriority(QuicStreamId id,

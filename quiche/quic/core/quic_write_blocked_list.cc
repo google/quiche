@@ -68,10 +68,8 @@ void QuicWriteBlockedList::RegisterStream(QuicStreamId stream_id,
   priority_write_scheduler_.RegisterStream(stream_id, priority);
 }
 
-void QuicWriteBlockedList::UnregisterStream(QuicStreamId stream_id,
-                                            bool is_static) {
-  if (is_static) {
-    static_stream_collection_.Unregister(stream_id);
+void QuicWriteBlockedList::UnregisterStream(QuicStreamId stream_id) {
+  if (static_stream_collection_.Unregister(stream_id)) {
     return;
   }
   priority_write_scheduler_.UnregisterStream(stream_id);
@@ -129,17 +127,17 @@ bool QuicWriteBlockedList::StaticStreamCollection::IsRegistered(
   return false;
 }
 
-void QuicWriteBlockedList::StaticStreamCollection::Unregister(QuicStreamId id) {
+bool QuicWriteBlockedList::StaticStreamCollection::Unregister(QuicStreamId id) {
   for (auto it = streams_.begin(); it != streams_.end(); ++it) {
     if (it->id == id) {
       if (it->is_blocked) {
         --num_blocked_;
       }
       streams_.erase(it);
-      return;
+      return true;
     }
   }
-  QUICHE_DCHECK(false) << "Erasing a non-exist stream with id " << id;
+  return false;
 }
 
 bool QuicWriteBlockedList::StaticStreamCollection::SetBlocked(QuicStreamId id) {

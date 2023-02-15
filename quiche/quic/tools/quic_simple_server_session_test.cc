@@ -491,8 +491,7 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
 
   if (!VersionUsesHttp3(transport_version())) {
     session_->UnregisterStreamPriority(
-        QuicUtils::GetHeadersStreamId(transport_version()),
-        /*is_static=*/true);
+        QuicUtils::GetHeadersStreamId(transport_version()));
   }
   // Assume encryption already established.
   QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), nullptr);

@@ -44,7 +44,7 @@ class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
   virtual void RegisterStreamPriority(QuicStreamId id, bool is_static,
                                       const QuicStreamPriority& priority) = 0;
   // Called on stream destruction to clear priority.
-  virtual void UnregisterStreamPriority(QuicStreamId id, bool is_static) = 0;
+  virtual void UnregisterStreamPriority(QuicStreamId id) = 0;
   // Called by the stream on SetPriority to update priority.
   virtual void UpdateStreamPriority(QuicStreamId id,
                                     const QuicStreamPriority& new_priority) = 0;
