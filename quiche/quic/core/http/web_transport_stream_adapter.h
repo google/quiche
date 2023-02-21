@@ -28,6 +28,7 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
   absl::Status Writev(absl::Span<const absl::string_view> data,
                       const quiche::StreamWriteOptions& options) override;
   bool CanWrite() const override;
+  void AbruptlyTerminate(absl::Status error) override;
   size_t ReadableBytes() const override;
   void SetVisitor(std::unique_ptr<WebTransportStreamVisitor> visitor) override {
     visitor_ = std::move(visitor);

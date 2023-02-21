@@ -29,6 +29,7 @@ class QUICHE_NO_EXPORT MockStream : public Stream {
                const quiche::StreamWriteOptions& options),
               (override));
   MOCK_METHOD(bool, CanWrite, (), (const, override));
+  MOCK_METHOD(void, AbruptlyTerminate, (absl::Status), (override));
   MOCK_METHOD(size_t, ReadableBytes, (), (const, override));
   MOCK_METHOD(StreamId, GetStreamId, (), (const, override));
   MOCK_METHOD(void, ResetWithUserCode, (StreamErrorCode error), (override));

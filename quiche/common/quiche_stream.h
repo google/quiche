@@ -14,6 +14,18 @@
 
 namespace quiche {
 
+// A shared base class for read and write stream to support abrupt termination.
+class QUICHE_EXPORT TerminableStream {
+ public:
+  virtual ~TerminableStream() = default;
+
+  // Abruptly terminate the stream due to an error. If `error` is not OK, it may
+  // carry the error information that could be potentially communicated to the
+  // peer in case the stream is remote. If the stream is a duplex stream, both
+  // ends of the stream are terminated.
+  virtual void AbruptlyTerminate(absl::Status error) = 0;
+};
+
 // A general-purpose visitor API that gets notifications for WriteStream-related
 // events.
 class QUICHE_EXPORT WriteStreamVisitor {
@@ -47,7 +59,7 @@ inline constexpr StreamWriteOptions kDefaultStreamWriteOptions =
 // to either accept all data written into it by returning absl::OkStatus, or ask
 // the caller to try again once via OnCanWrite() by returning
 // absl::UnavailableError.
-class QUICHE_EXPORT WriteStream {
+class QUICHE_EXPORT WriteStream : public TerminableStream {
  public:
   virtual ~WriteStream() {}
 

@@ -107,6 +107,15 @@ bool WebTransportStreamAdapter::CanWrite() const {
   return CheckBeforeStreamWrite().ok();
 }
 
+void WebTransportStreamAdapter::AbruptlyTerminate(absl::Status error) {
+  QUIC_DLOG(WARNING) << (session_->perspective() == Perspective::IS_CLIENT
+                             ? "Client: "
+                             : "Server: ")
+                     << "Abruptly terminating stream " << stream_->id()
+                     << " due to the following error: " << error;
+  ResetDueToInternalError();
+}
+
 size_t WebTransportStreamAdapter::ReadableBytes() const {
   return sequencer_->ReadableBytes();
 }
