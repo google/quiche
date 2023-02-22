@@ -146,6 +146,9 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   };
 
   StaticStreamCollection static_stream_collection_;
+
+  // Latched value of reloadable_flag_quic_priority_respect_incremental.
+  const bool respect_incremental_;
 };
 
 }  // namespace quic

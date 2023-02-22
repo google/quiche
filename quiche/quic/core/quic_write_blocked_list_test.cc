@@ -190,9 +190,9 @@ TEST_F(QuicWriteBlockedListTest, BatchingWrites) {
   const QuicStreamId id1 = 5;
   const QuicStreamId id2 = 7;
   const QuicStreamId id3 = 9;
-  RegisterStream(id1, kNotStatic, {kV3LowestPriority, kNotIncremental});
-  RegisterStream(id2, kNotStatic, {kV3LowestPriority, kNotIncremental});
-  RegisterStream(id3, kNotStatic, {kV3HighestPriority, kNotIncremental});
+  RegisterStream(id1, kNotStatic, {kV3LowestPriority, kIncremental});
+  RegisterStream(id2, kNotStatic, {kV3LowestPriority, kIncremental});
+  RegisterStream(id3, kNotStatic, {kV3HighestPriority, kIncremental});
 
   AddStream(id1);
   AddStream(id2);
@@ -234,6 +234,182 @@ TEST_F(QuicWriteBlockedListTest, BatchingWrites) {
   AddStream(id2);
   EXPECT_EQ(2u, NumBlockedStreams());
   EXPECT_EQ(id1, PopFront());
+}
+
+TEST_F(QuicWriteBlockedListTest, IncrementalStreamsRoundRobin) {
+  const QuicStreamId id1 = 5;
+  const QuicStreamId id2 = 7;
+  const QuicStreamId id3 = 9;
+  RegisterStream(id1, kNotStatic, {kV3LowestPriority, kIncremental});
+  RegisterStream(id2, kNotStatic, {kV3LowestPriority, kIncremental});
+  RegisterStream(id3, kNotStatic, {kV3LowestPriority, kIncremental});
+
+  AddStream(id1);
+  AddStream(id2);
+  AddStream(id3);
+
+  EXPECT_EQ(id1, PopFront());
+  const size_t kLargeWriteSize = 1000 * 1000 * 1000;
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  AddStream(id1);
+
+  EXPECT_EQ(id2, PopFront());
+  UpdateBytesForStream(id2, kLargeWriteSize);
+  EXPECT_EQ(id3, PopFront());
+  UpdateBytesForStream(id3, kLargeWriteSize);
+
+  AddStream(id3);
+  AddStream(id2);
+
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  EXPECT_EQ(id3, PopFront());
+  UpdateBytesForStream(id3, kLargeWriteSize);
+  AddStream(id3);
+
+  EXPECT_EQ(id2, PopFront());
+  EXPECT_EQ(id3, PopFront());
+}
+
+TEST_F(QuicWriteBlockedListTest, NonIncrementalStreamsKeepWriting) {
+  if (!GetQuicReloadableFlag(quic_priority_respect_incremental)) {
+    return;
+  }
+
+  const QuicStreamId id1 = 1;
+  const QuicStreamId id2 = 2;
+  const QuicStreamId id3 = 3;
+  const QuicStreamId id4 = 4;
+  RegisterStream(id1, kNotStatic, {kV3LowestPriority, kNotIncremental});
+  RegisterStream(id2, kNotStatic, {kV3LowestPriority, kNotIncremental});
+  RegisterStream(id3, kNotStatic, {kV3LowestPriority, kNotIncremental});
+  RegisterStream(id4, kNotStatic, {kV3HighestPriority, kNotIncremental});
+
+  AddStream(id1);
+  AddStream(id2);
+  AddStream(id3);
+
+  // A non-incremental stream can continue writing as long as it has data.
+  EXPECT_EQ(id1, PopFront());
+  const size_t kLargeWriteSize = 1000 * 1000 * 1000;
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  AddStream(id1);
+
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  AddStream(id1);
+
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  AddStream(id1);
+
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  AddStream(id1);
+
+  // A higher priority stream takes precedence.
+  AddStream(id4);
+  EXPECT_EQ(id4, PopFront());
+
+  // When it is the turn of the lower urgency bucket again, writing of the first
+  // stream will continue.
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kLargeWriteSize);
+
+  // When there is no more data on the first stream, write can start on the
+  // second stream.
+  EXPECT_EQ(id2, PopFront());
+  UpdateBytesForStream(id2, kLargeWriteSize);
+  AddStream(id2);
+
+  // Write continues without limit.
+  EXPECT_EQ(id2, PopFront());
+  UpdateBytesForStream(id2, kLargeWriteSize);
+  AddStream(id2);
+
+  // Stream 1 is not the most recently written one, therefore it gets to the end
+  // of the dequeue.
+  AddStream(id1);
+
+  EXPECT_EQ(id2, PopFront());
+  UpdateBytesForStream(id2, kLargeWriteSize);
+
+  EXPECT_EQ(id3, PopFront());
+  UpdateBytesForStream(id2, kLargeWriteSize);
+  AddStream(id3);
+
+  EXPECT_EQ(id3, PopFront());
+  UpdateBytesForStream(id2, kLargeWriteSize);
+
+  // When there is no data to write either on stream 2 or stream 3, stream 1 can
+  // resume.
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kLargeWriteSize);
+}
+
+TEST_F(QuicWriteBlockedListTest, IncrementalAndNonIncrementalStreams) {
+  if (!GetQuicReloadableFlag(quic_priority_respect_incremental)) {
+    return;
+  }
+
+  const QuicStreamId id1 = 1;
+  const QuicStreamId id2 = 2;
+  RegisterStream(id1, kNotStatic, {kV3LowestPriority, kNotIncremental});
+  RegisterStream(id2, kNotStatic, {kV3LowestPriority, kIncremental});
+
+  AddStream(id1);
+  AddStream(id2);
+
+  // Small writes do not exceed the batch limit.  Writes continue on streams
+  // with most recently written data, regardless of the incremental parameter
+  // value.
+  EXPECT_EQ(id1, PopFront());
+  const size_t kSmallWriteSize = 1000;
+  UpdateBytesForStream(id1, kSmallWriteSize);
+  AddStream(id1);
+
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kSmallWriteSize);
+  AddStream(id1);
+
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kSmallWriteSize);
+
+  EXPECT_EQ(id2, PopFront());
+  UpdateBytesForStream(id2, kSmallWriteSize);
+  AddStream(id2);
+  AddStream(id1);
+
+  EXPECT_EQ(id2, PopFront());
+  UpdateBytesForStream(id2, kSmallWriteSize);
+  AddStream(id2);
+
+  EXPECT_EQ(id2, PopFront());
+  UpdateBytesForStream(id2, kSmallWriteSize);
+
+  // A non-incremental stream can continue writing as long as it has data.
+  EXPECT_EQ(id1, PopFront());
+  const size_t kLargeWriteSize = 1000 * 1000 * 1000;
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  AddStream(id1);
+
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  AddStream(id1);
+
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  AddStream(id2);
+  AddStream(id1);
+
+  // However, if the batching limit is exceeded on stream 2, this stream will
+  // yield to stream 1.
+  EXPECT_EQ(id2, PopFront());
+  UpdateBytesForStream(id2, kLargeWriteSize);
+  AddStream(id2);
+
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kLargeWriteSize);
 }
 
 TEST_F(QuicWriteBlockedListTest, Ceding) {

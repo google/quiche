@@ -65,6 +65,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_verify_request_headers_2, true)
 QUIC_FLAG(quic_reloadable_flag_quic_act_upon_invalid_header, false)
 // If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.
 QUIC_FLAG(quic_reloadable_flag_quic_require_handshake_confirmation, false)
+// If true, respect the incremental parameter of each stream in QuicWriteBlockedList.
+QUIC_FLAG(quic_reloadable_flag_quic_priority_respect_incremental, false)
 // If true, server proactively retires client issued connection ID on reverse path validation failure. 
 QUIC_FLAG(quic_reloadable_flag_quic_retire_cid_on_reverse_path_validation_failure, true)
 // If true, server sends bandwidth eastimate when network is idle for a while.
