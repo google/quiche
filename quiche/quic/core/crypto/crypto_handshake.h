@@ -150,6 +150,7 @@ struct QUIC_EXPORT_PRIVATE QuicCryptoNegotiatedParameters
   uint16_t cipher_suite = 0;
   uint16_t key_exchange_group = 0;
   uint16_t peer_signature_algorithm = 0;
+  bool encrypted_client_hello = false;
 
  protected:
   ~QuicCryptoNegotiatedParameters() override;

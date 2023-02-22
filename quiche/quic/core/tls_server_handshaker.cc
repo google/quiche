@@ -587,6 +587,7 @@ void TlsServerHandshaker::SetWriteSecret(
           SSL_CIPHER_get_protocol_id(cipher);
     }
     crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
+    crypto_negotiated_params_->encrypted_client_hello = SSL_ech_accepted(ssl());
   }
   TlsHandshaker::SetWriteSecret(level, cipher, write_secret);
 }

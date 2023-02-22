@@ -830,6 +830,12 @@ struct QUIC_NO_EXPORT QuicSSLConfig {
   absl::optional<QuicSignatureAlgorithmVector> signing_algorithm_prefs;
   // Client certificate mode for mTLS support. Only used at server side.
   ClientCertMode client_cert_mode = ClientCertMode::kNone;
+  // As a client, the ECHConfigList to use with ECH. If empty, ECH is not
+  // offered.
+  std::string ech_config_list;
+  // As a client, whether ECH GREASE is enabled. If `ech_config_list` is
+  // not empty, this value does nothing.
+  bool ech_grease_enabled = false;
 };
 
 // QuicDelayedSSLConfig contains a subset of SSL config that can be applied

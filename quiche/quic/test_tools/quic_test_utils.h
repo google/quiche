@@ -1111,11 +1111,11 @@ class TestPushPromiseDelegate : public QuicClientPushPromiseIndex::Delegate {
 
 class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
  public:
-  TestQuicSpdyClientSession(QuicConnection* connection,
-                            const QuicConfig& config,
-                            const ParsedQuicVersionVector& supported_versions,
-                            const QuicServerId& server_id,
-                            QuicCryptoClientConfig* crypto_config);
+  TestQuicSpdyClientSession(
+      QuicConnection* connection, const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
+      absl::optional<QuicSSLConfig> ssl_config = absl::nullopt);
   TestQuicSpdyClientSession(const TestQuicSpdyClientSession&) = delete;
   TestQuicSpdyClientSession& operator=(const TestQuicSpdyClientSession&) =
       delete;
@@ -1148,6 +1148,11 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
   QuicCryptoClientStream* GetMutableCryptoStream() override;
   const QuicCryptoClientStream* GetCryptoStream() const override;
 
+  QuicSSLConfig GetSSLConfig() const override {
+    return ssl_config_.has_value() ? *ssl_config_
+                                   : QuicSpdyClientSessionBase::GetSSLConfig();
+  }
+
   // Override to save sent crypto handshake messages.
   void OnCryptoHandshakeMessageSent(
       const CryptoHandshakeMessage& message) override {
@@ -1167,6 +1172,7 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
   std::unique_ptr<QuicCryptoClientStream> crypto_stream_;
   QuicClientPushPromiseIndex push_promise_index_;
   std::vector<CryptoHandshakeMessage> sent_crypto_handshake_messages_;
+  absl::optional<QuicSSLConfig> ssl_config_;
 };
 
 class MockPacketWriter : public QuicPacketWriter {

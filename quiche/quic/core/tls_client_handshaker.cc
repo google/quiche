@@ -118,6 +118,19 @@ bool TlsClientHandshaker::CryptoConnect() {
     }
   }
 
+  SSL_set_enable_ech_grease(ssl(),
+                            tls_connection_.ssl_config().ech_grease_enabled);
+  if (!tls_connection_.ssl_config().ech_config_list.empty() &&
+      !SSL_set1_ech_config_list(
+          ssl(),
+          reinterpret_cast<const uint8_t*>(
+              tls_connection_.ssl_config().ech_config_list.data()),
+          tls_connection_.ssl_config().ech_config_list.size())) {
+    CloseConnection(QUIC_HANDSHAKE_FAILED,
+                    "Client failed to set ECHConfigList");
+    return false;
+  }
+
   // Start the handshake.
   AdvanceHandshake();
   return session()->connection()->connected();
@@ -570,6 +583,7 @@ void TlsClientHandshaker::FillNegotiatedParams() {
   crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
   crypto_negotiated_params_->peer_signature_algorithm =
       SSL_get_peer_signature_algorithm(ssl());
+  crypto_negotiated_params_->encrypted_client_hello = SSL_ech_accepted(ssl());
 }
 
 void TlsClientHandshaker::ProcessPostHandshakeMessage() {

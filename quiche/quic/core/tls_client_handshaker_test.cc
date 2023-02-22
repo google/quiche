@@ -7,6 +7,8 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "openssl/hpke.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -177,7 +179,7 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   void CreateSession() {
     session_ = std::make_unique<TestQuicSpdyClientSession>(
         connection_, DefaultQuicConfig(), supported_versions_, server_id_,
-        crypto_config_.get());
+        crypto_config_.get(), ssl_config_);
     EXPECT_CALL(*session_, GetAlpnsToOffer())
         .WillRepeatedly(testing::Return(std::vector<std::string>(
             {AlpnForVersion(connection_->version())})));
@@ -230,6 +232,40 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
         });
   }
 
+  static bssl::UniquePtr<SSL_ECH_KEYS> MakeTestEchKeys(
+      const char* public_name, size_t max_name_len,
+      std::string* ech_config_list) {
+    bssl::ScopedEVP_HPKE_KEY key;
+    if (!EVP_HPKE_KEY_generate(key.get(), EVP_hpke_x25519_hkdf_sha256())) {
+      return nullptr;
+    }
+
+    uint8_t* ech_config;
+    size_t ech_config_len;
+    if (!SSL_marshal_ech_config(&ech_config, &ech_config_len,
+                                /*config_id=*/1, key.get(), public_name,
+                                max_name_len)) {
+      return nullptr;
+    }
+    bssl::UniquePtr<uint8_t> scoped_ech_config(ech_config);
+
+    uint8_t* ech_config_list_raw;
+    size_t ech_config_list_len;
+    bssl::UniquePtr<SSL_ECH_KEYS> keys(SSL_ECH_KEYS_new());
+    if (!keys ||
+        !SSL_ECH_KEYS_add(keys.get(), /*is_retry_config=*/1, ech_config,
+                          ech_config_len, key.get()) ||
+        !SSL_ECH_KEYS_marshal_retry_configs(keys.get(), &ech_config_list_raw,
+                                            &ech_config_list_len)) {
+      return nullptr;
+    }
+    bssl::UniquePtr<uint8_t> scoped_ech_config_list(ech_config_list_raw);
+
+    ech_config_list->assign(ech_config_list_raw,
+                            ech_config_list_raw + ech_config_list_len);
+    return keys;
+  }
+
   MockQuicConnectionHelper server_helper_;
   MockQuicConnectionHelper client_helper_;
   MockAlarmFactory alarm_factory_;
@@ -239,6 +275,7 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicServerId server_id_;
   CryptoHandshakeMessage message_;
   std::unique_ptr<QuicCryptoClientConfig> crypto_config_;
+  absl::optional<QuicSSLConfig> ssl_config_;
 
   // Server state.
   std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;
@@ -697,6 +734,128 @@ TEST_P(TlsClientHandshakerTest, BadTransportParams) {
   crypto_test_utils::HandshakeWithFakeServer(
       &config, server_crypto_config_.get(), &server_helper_, &alarm_factory_,
       connection_, stream(), AlpnForVersion(connection_->version()));
+}
+
+TEST_P(TlsClientHandshakerTest, ECH) {
+  ssl_config_.emplace();
+  bssl::UniquePtr<SSL_ECH_KEYS> ech_keys =
+      MakeTestEchKeys("public-name.example", /*max_name_len=*/64,
+                      &ssl_config_->ech_config_list);
+  ASSERT_TRUE(ech_keys);
+
+  // Configure the server to use the test ECH keys.
+  ASSERT_TRUE(
+      SSL_CTX_set1_ech_keys(server_crypto_config_->ssl_ctx(), ech_keys.get()));
+
+  // Recreate the client to pick up the new `ssl_config_`.
+  CreateConnection();
+
+  // The handshake should complete and negotiate ECH.
+  CompleteCryptoHandshake();
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->crypto_negotiated_params().encrypted_client_hello);
+}
+
+TEST_P(TlsClientHandshakerTest, ECHWithConfigAndGREASE) {
+  ssl_config_.emplace();
+  bssl::UniquePtr<SSL_ECH_KEYS> ech_keys =
+      MakeTestEchKeys("public-name.example", /*max_name_len=*/64,
+                      &ssl_config_->ech_config_list);
+  ASSERT_TRUE(ech_keys);
+  ssl_config_->ech_grease_enabled = true;
+
+  // Configure the server to use the test ECH keys.
+  ASSERT_TRUE(
+      SSL_CTX_set1_ech_keys(server_crypto_config_->ssl_ctx(), ech_keys.get()));
+
+  // Recreate the client to pick up the new `ssl_config_`.
+  CreateConnection();
+
+  // When both ECH and ECH GREASE are enabled, ECH should take precedence.
+  // The handshake should complete and negotiate ECH.
+  CompleteCryptoHandshake();
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->crypto_negotiated_params().encrypted_client_hello);
+}
+
+TEST_P(TlsClientHandshakerTest, ECHInvalidConfig) {
+  // An invalid ECHConfigList should fail before sending a ClientHello.
+  ssl_config_.emplace();
+  ssl_config_->ech_config_list = "invalid config";
+  CreateConnection();
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
+  stream()->CryptoConnect();
+}
+
+TEST_P(TlsClientHandshakerTest, ECHWrongKeys) {
+  ssl_config_.emplace();
+  bssl::UniquePtr<SSL_ECH_KEYS> ech_keys1 =
+      MakeTestEchKeys("public-name.example", /*max_name_len=*/64,
+                      &ssl_config_->ech_config_list);
+  ASSERT_TRUE(ech_keys1);
+
+  std::string ech_config_list2;
+  bssl::UniquePtr<SSL_ECH_KEYS> ech_keys2 = MakeTestEchKeys(
+      "public-name.example", /*max_name_len=*/64, &ech_config_list2);
+  ASSERT_TRUE(ech_keys2);
+
+  // Configure the server to use different keys from what the client has.
+  ASSERT_TRUE(
+      SSL_CTX_set1_ech_keys(server_crypto_config_->ssl_ctx(), ech_keys2.get()));
+
+  // Recreate the client to pick up the new `ssl_config_`.
+  CreateConnection();
+
+  // TODO(crbug.com/1287248): This should instead output sufficient information
+  // to run the recovery flow.
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HANDSHAKE_FAILED,
+                              static_cast<QuicIetfTransportErrorCodes>(
+                                  CRYPTO_ERROR_FIRST + SSL_AD_ECH_REQUIRED),
+                              _, _))
+      .WillOnce(testing::Invoke(connection_,
+                                &MockQuicConnection::ReallyCloseConnection4));
+
+  // The handshake should complete and negotiate ECH.
+  CompleteCryptoHandshake();
+}
+
+// Test that ECH GREASE can be configured.
+TEST_P(TlsClientHandshakerTest, ECHGrease) {
+  ssl_config_.emplace();
+  ssl_config_->ech_grease_enabled = true;
+  CreateConnection();
+
+  // Add a DoS callback on the server, to test that the client sent a GREASE
+  // message. This is a bit of a hack. TlsServerHandshaker already configures
+  // the certificate selection callback, but does not usefully expose any way
+  // for tests to inspect the ClientHello. So, instead, we register a different
+  // callback that also gets the ClientHello.
+  static bool callback_ran;
+  callback_ran = false;
+  SSL_CTX_set_dos_protection_cb(
+      server_crypto_config_->ssl_ctx(),
+      [](const SSL_CLIENT_HELLO* client_hello) -> int {
+        const uint8_t* data;
+        size_t len;
+        EXPECT_TRUE(SSL_early_callback_ctx_extension_get(
+            client_hello, TLSEXT_TYPE_encrypted_client_hello, &data, &len));
+        callback_ran = true;
+        return 1;
+      });
+
+  CompleteCryptoHandshake();
+  EXPECT_TRUE(callback_ran);
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  // Sending an ignored ECH GREASE extension does not count as negotiating ECH.
+  EXPECT_FALSE(stream()->crypto_negotiated_params().encrypted_client_hello);
 }
 
 }  // namespace
