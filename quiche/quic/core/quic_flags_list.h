@@ -30,7 +30,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, disable QUIC version Q043.
-QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q043, false)
+QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q043, true)
 // If true, disable QUIC version Q046.
 QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q046, false)
 // If true, disable QUIC version Q050.
