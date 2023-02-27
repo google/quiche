@@ -56,4 +56,6 @@ bool ValidateCertAndKey(
   return true;
 }
 
+void ProofSource::OnNewSslCtx(SSL_CTX*) {}
+
 }  // namespace quic

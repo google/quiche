@@ -118,6 +118,13 @@ class QUIC_EXPORT_PRIVATE ProofSource {
 
   virtual ~ProofSource() {}
 
+  // OnNewSslCtx changes SSL parameters if required by ProofSource
+  // implementation. It is called when new SSL_CTX is created for a listener.
+  // Default implementation does nothing.
+  //
+  // This function may be called concurrently.
+  virtual void OnNewSslCtx(SSL_CTX* ssl_ctx);
+
   // GetProof finds a certificate chain for |hostname| (in leaf-first order),
   // and calculates a signature of |server_config| using that chain.
   //

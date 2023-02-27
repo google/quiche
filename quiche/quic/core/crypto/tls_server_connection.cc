@@ -52,6 +52,10 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
   SSL_CTX_set_select_certificate_cb(
       ssl_ctx.get(), &TlsServerConnection::EarlySelectCertCallback);
   SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_CIPHER_SERVER_PREFERENCE);
+
+  // Allow ProofSource to change SSL_CTX settings.
+  proof_source->OnNewSslCtx(ssl_ctx.get());
+
   return ssl_ctx;
 }
 
