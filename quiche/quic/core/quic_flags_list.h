@@ -34,7 +34,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q043, true)
 // If true, disable QUIC version Q046.
 QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q046, false)
 // If true, disable QUIC version Q050.
-QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q050, false)
+QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q050, true)
 // If true, disable QUIC version h3 (RFCv1).
 QUIC_FLAG(quic_reloadable_flag_quic_disable_version_rfcv1, false)
 // If true, disable QUIC version h3-29.
