@@ -68,7 +68,7 @@ class QUICHE_NO_EXPORT MockSession : public Session {
   MOCK_METHOD(Stream*, OpenOutgoingUnidirectionalStream, (), (override));
   MOCK_METHOD(DatagramStatus, SendOrQueueDatagram, (absl::string_view datagram),
               (override));
-  MOCK_METHOD(size_t, GetMaxDatagramSize, (), (const, override));
+  MOCK_METHOD(uint64_t, GetMaxDatagramSize, (), (const, override));
   MOCK_METHOD(void, SetDatagramMaxTimeInQueue,
               (absl::Duration max_time_in_queue), (override));
 };
