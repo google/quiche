@@ -4,12 +4,12 @@
 
 #include "quiche/quic/core/quic_connection_context.h"
 
-#include "quiche/common/platform/api/quiche_thread_local.h"
+#include "absl/base/attributes.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
 namespace {
-DEFINE_QUICHE_THREAD_LOCAL_POINTER(CurrentContext, QuicConnectionContext);
+ABSL_CONST_INIT thread_local QuicConnectionContext* current_context = nullptr;
 }  // namespace
 
 std::string QuicConnectionProcessPacketContext::DebugString() const {
@@ -25,13 +25,13 @@ std::string QuicConnectionProcessPacketContext::DebugString() const {
 
 // static
 QuicConnectionContext* QuicConnectionContext::Current() {
-  return GET_QUICHE_THREAD_LOCAL_POINTER(CurrentContext);
+  return current_context;
 }
 
 QuicConnectionContextSwitcher::QuicConnectionContextSwitcher(
     QuicConnectionContext* new_context)
     : old_context_(QuicConnectionContext::Current()) {
-  SET_QUICHE_THREAD_LOCAL_POINTER(CurrentContext, new_context);
+  current_context = new_context;
   if (new_context && new_context->tracer) {
     new_context->tracer->Activate();
   }
@@ -42,7 +42,7 @@ QuicConnectionContextSwitcher::~QuicConnectionContextSwitcher() {
   if (current && current->tracer) {
     current->tracer->Deactivate();
   }
-  SET_QUICHE_THREAD_LOCAL_POINTER(CurrentContext, old_context_);
+  current_context = old_context_;
 }
 
 }  // namespace quic

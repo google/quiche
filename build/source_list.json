@@ -40,7 +40,6 @@
     "quiche/common/platform/api/quiche_stack_trace.h",
     "quiche/common/platform/api/quiche_testvalue.h",
     "quiche/common/platform/api/quiche_thread.h",
-    "quiche/common/platform/api/quiche_thread_local.h",
     "quiche/common/platform/api/quiche_time_utils.h",
     "quiche/common/platform/api/quiche_url_utils.h",
     "quiche/common/print_elements.h",
@@ -1395,7 +1394,6 @@
     "quiche/common/platform/default/quiche_platform_impl/quiche_server_stats_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_stack_trace_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_testvalue_impl.h",
-    "quiche/common/platform/default/quiche_platform_impl/quiche_thread_local_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_time_utils_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_udp_socket_platform_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_url_utils_impl.h"
