@@ -66,6 +66,7 @@ class QUICHE_NO_EXPORT MockSession : public Session {
   MOCK_METHOD(bool, CanOpenNextOutgoingUnidirectionalStream, (), (override));
   MOCK_METHOD(Stream*, OpenOutgoingBidirectionalStream, (), (override));
   MOCK_METHOD(Stream*, OpenOutgoingUnidirectionalStream, (), (override));
+  MOCK_METHOD(Stream*, GetStreamById, (StreamId), (override));
   MOCK_METHOD(DatagramStatus, SendOrQueueDatagram, (absl::string_view datagram),
               (override));
   MOCK_METHOD(uint64_t, GetMaxDatagramSize, (), (const, override));

@@ -205,8 +205,7 @@ class QUICHE_EXPORT Session {
   //
   // IMPORTANT: See the class note regarding the lifetime of the returned stream
   // object.
-  // TODO(vasilvv): implement this in a follow-up CL.
-  // virtual Stream* GetStreamById(StreamId id) = 0;
+  virtual Stream* GetStreamById(StreamId id) = 0;
 
   virtual DatagramStatus SendOrQueueDatagram(absl::string_view datagram) = 0;
   // Returns a conservative estimate of the largest datagram size that the

@@ -6603,6 +6603,8 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
   WebTransportStream* outgoing_stream =
       session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(outgoing_stream != nullptr);
+  EXPECT_EQ(outgoing_stream,
+            session->GetStreamById(outgoing_stream->GetStreamId()));
 
   auto stream_visitor =
       std::make_unique<NiceMock<MockWebTransportStreamVisitor>>();
@@ -6622,6 +6624,8 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
   WebTransportStream* received_stream =
       session->AcceptIncomingUnidirectionalStream();
   ASSERT_TRUE(received_stream != nullptr);
+  EXPECT_EQ(received_stream,
+            session->GetStreamById(received_stream->GetStreamId()));
   std::string received_data;
   WebTransportStream::ReadResult result = received_stream->Read(&received_data);
   EXPECT_EQ(received_data, "test");
@@ -6681,6 +6685,7 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
 
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
+  EXPECT_EQ(stream, session->GetStreamById(stream->GetStreamId()));
 
   auto stream_visitor_owned =
       std::make_unique<NiceMock<MockWebTransportStreamVisitor>>();

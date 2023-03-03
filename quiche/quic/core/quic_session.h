@@ -649,6 +649,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
     datagram_queue_.SetForceFlush(force_flush);
   }
 
+  // Find stream with |id|, returns nullptr if the stream does not exist or
+  // closed. static streams and zombie streams are not considered active
+  // streams.
+  QuicStream* GetActiveStream(QuicStreamId id) const;
+
  protected:
   using StreamMap =
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
@@ -809,11 +814,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
       std::unique_ptr<LossDetectionTunerInterface> tuner) {
     connection()->SetLossDetectionTuner(std::move(tuner));
   }
-
-  // Find stream with |id|, returns nullptr if the stream does not exist or
-  // closed. static streams and zombie streams are not considered active
-  // streams.
-  QuicStream* GetActiveStream(QuicStreamId id) const;
 
   const UberQuicStreamIdManager& ietf_streamid_manager() const {
     QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version()));

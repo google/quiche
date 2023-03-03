@@ -82,6 +82,8 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   WebTransportStream* OpenOutgoingBidirectionalStream() override;
   WebTransportStream* OpenOutgoingUnidirectionalStream() override;
 
+  webtransport::Stream* GetStreamById(webtransport::StreamId id) override;
+
   webtransport::DatagramStatus SendOrQueueDatagram(
       absl::string_view datagram) override;
   QuicByteCount GetMaxDatagramSize() const override;

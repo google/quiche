@@ -27,6 +27,7 @@
 #include "quiche/quic/core/qpack/qpack_decoded_headers_accumulator.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
