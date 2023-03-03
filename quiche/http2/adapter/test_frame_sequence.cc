@@ -114,7 +114,7 @@ TestFrameSequence& TestFrameSequence::Headers(Http2StreamId stream_id,
     encoder.DisableCompression();
     std::string encoded_block = encoder.EncodeHeaderBlock(block);
     const size_t pos = encoded_block.size() / 2;
-    const uint8_t flags = fin ? 0x1 : 0x0;
+    const uint8_t flags = fin ? END_STREAM_FLAG : 0x0;
     frames_.push_back(std::make_unique<spdy::SpdyUnknownIR>(
         stream_id, static_cast<uint8_t>(spdy::SpdyFrameType::HEADERS), flags,
         encoded_block.substr(0, pos)));

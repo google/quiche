@@ -213,8 +213,9 @@ TEST(ClientCallbackVisitorUnitTest, HeadersWithContinuation) {
   EXPECT_CALL(callbacks, OnHeader(_, "server", "my-fake-server", _));
   visitor.OnHeaderForStream(1, "server", "my-fake-server");
 
-  EXPECT_CALL(callbacks, OnBeginFrame(HasFrameHeader(1, CONTINUATION, 0x4)));
-  ASSERT_TRUE(visitor.OnFrameHeader(1, 23, CONTINUATION, 0x4));
+  EXPECT_CALL(callbacks,
+              OnBeginFrame(HasFrameHeader(1, CONTINUATION, END_HEADERS_FLAG)));
+  ASSERT_TRUE(visitor.OnFrameHeader(1, 23, CONTINUATION, END_HEADERS_FLAG));
 
   EXPECT_CALL(callbacks,
               OnHeader(_, "date", "Tue, 6 Apr 2021 12:54:01 GMT", _));
@@ -233,7 +234,7 @@ TEST(ClientCallbackVisitorUnitTest, ContinuationNoHeaders) {
                           *MockNghttp2Callbacks::GetCallbacks(), &callbacks);
   // Because no stream precedes the CONTINUATION frame, the stream ID does not
   // match, and the method returns false.
-  EXPECT_FALSE(visitor.OnFrameHeader(1, 23, CONTINUATION, 0x4));
+  EXPECT_FALSE(visitor.OnFrameHeader(1, 23, CONTINUATION, END_HEADERS_FLAG));
 }
 
 TEST(ClientCallbackVisitorUnitTest, ContinuationWrongPrecedingType) {
@@ -246,7 +247,7 @@ TEST(ClientCallbackVisitorUnitTest, ContinuationWrongPrecedingType) {
 
   // Because the CONTINUATION frame does not follow HEADERS, the method returns
   // false.
-  EXPECT_FALSE(visitor.OnFrameHeader(1, 23, CONTINUATION, 0x4));
+  EXPECT_FALSE(visitor.OnFrameHeader(1, 23, CONTINUATION, END_HEADERS_FLAG));
 }
 
 TEST(ClientCallbackVisitorUnitTest, ContinuationWrongStream) {
@@ -268,7 +269,7 @@ TEST(ClientCallbackVisitorUnitTest, ContinuationWrongStream) {
   visitor.OnHeaderForStream(1, "server", "my-fake-server");
 
   // The CONTINUATION stream ID does not match the one from the HEADERS.
-  EXPECT_FALSE(visitor.OnFrameHeader(3, 23, CONTINUATION, 0x4));
+  EXPECT_FALSE(visitor.OnFrameHeader(3, 23, CONTINUATION, END_HEADERS_FLAG));
 }
 
 TEST(ClientCallbackVisitorUnitTest, ResetAndGoaway) {

@@ -225,7 +225,7 @@ absl::string_view ErrorString(uint32_t error_code) {
 }
 
 size_t PaddingLength(uint8_t flags, size_t padlen) {
-  return (flags & 0x8 ? 1 : 0) + padlen;
+  return (flags & PADDED_FLAG ? 1 : 0) + padlen;
 }
 
 struct NvFormatter {
@@ -268,7 +268,8 @@ void LogBeforeSend(const nghttp2_frame& frame) {
       break;
     case FrameType::SETTINGS:
       HTTP2_FRAME_SEND_LOG << "Sending SETTINGS with " << frame.settings.niv
-                           << " entries, is_ack: " << (frame.hd.flags & 0x01);
+                           << " entries, is_ack: "
+                           << (frame.hd.flags & ACK_FLAG);
       break;
     case FrameType::PUSH_PROMISE:
       HTTP2_FRAME_SEND_LOG << "Sending PUSH_PROMISE";
@@ -278,7 +279,7 @@ void LogBeforeSend(const nghttp2_frame& frame) {
       std::memcpy(&ping_id, frame.ping.opaque_data, sizeof(Http2PingId));
       HTTP2_FRAME_SEND_LOG << "Sending PING with unique_id "
                            << quiche::QuicheEndian::NetToHost64(ping_id)
-                           << ", is_ack: " << (frame.hd.flags & 0x01);
+                           << ", is_ack: " << (frame.hd.flags & ACK_FLAG);
       break;
     }
     case FrameType::GOAWAY:

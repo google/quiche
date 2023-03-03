@@ -3,6 +3,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 #include "quiche/spdy/test_tools/mock_spdy_framer_visitor.h"
@@ -32,9 +33,9 @@ TEST(EventForwarderTest, ForwardsEventsWithTruePredicate) {
       std::string(some_data));
 
   EXPECT_CALL(receiver,
-              OnCommonHeader(stream_id, length, /*type=*/0x0, /*flags=*/0x1));
+              OnCommonHeader(stream_id, length, /*type=*/0x0, END_STREAM_FLAG));
   event_forwarder.OnCommonHeader(stream_id, length, /*type=*/0x0,
-                                 /*flags=*/0x1);
+                                 END_STREAM_FLAG);
 
   EXPECT_CALL(receiver, OnDataFrameHeader(stream_id, length, /*fin=*/true));
   event_forwarder.OnDataFrameHeader(stream_id, length, /*fin=*/true);
@@ -142,7 +143,7 @@ TEST(EventForwarderTest, DoesNotForwardEventsWithFalsePredicate) {
 
   EXPECT_CALL(receiver, OnCommonHeader).Times(0);
   event_forwarder.OnCommonHeader(stream_id, length, /*type=*/0x0,
-                                 /*flags=*/0x1);
+                                 END_STREAM_FLAG);
 
   EXPECT_CALL(receiver, OnDataFrameHeader).Times(0);
   event_forwarder.OnDataFrameHeader(stream_id, length, /*fin=*/true);

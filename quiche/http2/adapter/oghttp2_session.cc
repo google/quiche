@@ -41,13 +41,15 @@ class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
   void VisitData(const spdy::SpdyDataIR& data) override {
     frame_type_ = static_cast<uint8_t>(data.frame_type());
     stream_id_ = data.stream_id();
-    flags_ = (data.fin() ? 0x1 : 0) | (data.padded() ? 0x8 : 0);
+    flags_ =
+        (data.fin() ? END_STREAM_FLAG : 0) | (data.padded() ? PADDED_FLAG : 0);
   }
   void VisitHeaders(const spdy::SpdyHeadersIR& headers) override {
     frame_type_ = static_cast<uint8_t>(headers.frame_type());
     stream_id_ = headers.stream_id();
-    flags_ = 0x4 | (headers.fin() ? 0x1 : 0) | (headers.padded() ? 0x8 : 0) |
-             (headers.has_priority() ? 0x20 : 0);
+    flags_ = END_HEADERS_FLAG | (headers.fin() ? END_STREAM_FLAG : 0) |
+             (headers.padded() ? PADDED_FLAG : 0) |
+             (headers.has_priority() ? PRIORITY_FLAG : 0);
   }
   void VisitPriority(const spdy::SpdyPriorityIR& priority) override {
     frame_type_ = static_cast<uint8_t>(priority.frame_type());
@@ -63,18 +65,18 @@ class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
   void VisitSettings(const spdy::SpdySettingsIR& settings) override {
     frame_type_ = static_cast<uint8_t>(settings.frame_type());
     frame_type_ = 4;
-    flags_ = (settings.is_ack() ? 0x1 : 0);
+    flags_ = (settings.is_ack() ? ACK_FLAG : 0);
   }
   void VisitPushPromise(const spdy::SpdyPushPromiseIR& push_promise) override {
     frame_type_ = static_cast<uint8_t>(push_promise.frame_type());
     frame_type_ = 5;
     stream_id_ = push_promise.stream_id();
-    flags_ = (push_promise.padded() ? 0x8 : 0);
+    flags_ = (push_promise.padded() ? PADDED_FLAG : 0);
   }
   void VisitPing(const spdy::SpdyPingIR& ping) override {
     frame_type_ = static_cast<uint8_t>(ping.frame_type());
     frame_type_ = 6;
-    flags_ = (ping.is_ack() ? 0x1 : 0);
+    flags_ = (ping.is_ack() ? ACK_FLAG : 0);
   }
   void VisitGoAway(const spdy::SpdyGoAwayIR& goaway) override {
     frame_type_ = static_cast<uint8_t>(goaway.frame_type());
@@ -91,7 +93,7 @@ class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
       const spdy::SpdyContinuationIR& continuation) override {
     frame_type_ = static_cast<uint8_t>(continuation.frame_type());
     stream_id_ = continuation.stream_id();
-    flags_ = continuation.end_headers() ? 0x4 : 0;
+    flags_ = continuation.end_headers() ? END_HEADERS_FLAG : 0;
   }
   void VisitUnknown(const spdy::SpdyUnknownIR& unknown) override {
     frame_type_ = static_cast<uint8_t>(unknown.frame_type());
@@ -743,7 +745,7 @@ bool OgHttp2Session::AfterFrameSent(uint8_t frame_type_int, uint32_t stream_id,
   }
   if (stream_id == 0) {
     if (frame_type == FrameType::SETTINGS) {
-      const bool is_settings_ack = (flags & 0x01);
+      const bool is_settings_ack = (flags & ACK_FLAG);
       if (is_settings_ack && encoder_header_table_capacity_when_acking_) {
         framer_.UpdateHeaderEncoderTableSize(
             encoder_header_table_capacity_when_acking_.value());
@@ -757,7 +759,7 @@ bool OgHttp2Session::AfterFrameSent(uint8_t frame_type_int, uint32_t stream_id,
 
   const bool contains_fin =
       (frame_type == FrameType::DATA || frame_type == FrameType::HEADERS) &&
-      (flags & 0x01) == 0x01;
+      (flags & END_STREAM_FLAG) == END_STREAM_FLAG;
   auto it = stream_map_.find(stream_id);
   const bool still_open_remote =
       it != stream_map_.end() && !it->second.half_closed_remote;
@@ -860,8 +862,8 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
         state.half_closed_local = true;
         MaybeFinWithRstStream(it);
       }
-      const bool ok =
-          AfterFrameSent(/* DATA */ 0, stream_id, length, fin ? 0x1 : 0x0, 0);
+      const bool ok = AfterFrameSent(/* DATA */ 0, stream_id, length,
+                                     fin ? END_STREAM_FLAG : 0x0, 0);
       if (!ok) {
         LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
                             ConnectionError::kSendError);

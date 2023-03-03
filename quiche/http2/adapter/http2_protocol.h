@@ -85,6 +85,14 @@ enum class FrameType : uint8_t {
   CONTINUATION,
 };
 
+enum FrameFlags : uint8_t {
+  END_STREAM_FLAG = 0x1,
+  ACK_FLAG = END_STREAM_FLAG,
+  END_HEADERS_FLAG = 0x4,
+  PADDED_FLAG = 0x8,
+  PRIORITY_FLAG = 0x20,
+};
+
 // HTTP/2 error codes as specified in RFC 7540 Section 7.
 enum class Http2ErrorCode {
   HTTP2_NO_ERROR = 0x0,
