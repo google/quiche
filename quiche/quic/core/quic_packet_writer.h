@@ -35,7 +35,7 @@ struct QUIC_EXPORT_PRIVATE PerPacketOptions {
   // Whether it is allowed to send this packet without |release_time_delay|.
   bool allow_burst = false;
   // ECN codepoint to use when sending this packet.
-  QuicEcnCodepoint ecn_codepoint;
+  QuicEcnCodepoint ecn_codepoint = ECN_NOT_ECT;
 };
 
 // An interface between writers and the entity managing the

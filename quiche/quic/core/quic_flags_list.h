@@ -83,6 +83,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_check_retire_cid_with_next_cid_sequence_numb
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, when TicketCrypter fails to encrypt a session ticket, quic::TlsServerHandshaker will send a placeholder ticket, instead of an empty one, to the client.
 QUIC_FLAG(quic_reloadable_flag_quic_send_placeholder_ticket_when_encrypt_ticket_fails, true)
+// When true, check what sockopt is used to set the IP TOS byte on the platform.
+QUIC_FLAG(quic_restart_flag_quic_platform_tos_sockopt, false)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, quiche UDP sockets report Explicit Congestion Notification (ECN) [RFC3168, RFC9330] results.
