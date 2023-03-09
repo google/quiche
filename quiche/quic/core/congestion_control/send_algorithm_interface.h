@@ -160,6 +160,11 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
 
   // Called before connection close to collect stats.
   virtual void PopulateConnectionStats(QuicConnectionStats* stats) const = 0;
+
+  // Called when the connection has received feedback about received
+  // Explicit Congestion Notification (ECN) marks.
+  virtual void CongestionExperienced(QuicPacketCount num_ce,
+                                     QuicPacketCount num_ect) = 0;
 };
 
 }  // namespace quic

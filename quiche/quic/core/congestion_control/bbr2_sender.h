@@ -92,6 +92,9 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   void OnApplicationLimited(QuicByteCount bytes_in_flight) override;
 
   void PopulateConnectionStats(QuicConnectionStats* stats) const override;
+
+  void CongestionExperienced(QuicPacketCount /*num_ce*/,
+                             QuicPacketCount /*num_ect*/) override {}
   // End implementation of SendAlgorithmInterface.
 
   const Bbr2Params& Params() const { return params_; }

@@ -130,6 +130,8 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   std::string GetDebugState() const override;
   void OnApplicationLimited(QuicByteCount bytes_in_flight) override;
   void PopulateConnectionStats(QuicConnectionStats* stats) const override;
+  void CongestionExperienced(QuicPacketCount /*num_ce*/,
+                             QuicPacketCount /*num_ect*/) override {}
   // End implementation of SendAlgorithmInterface.
 
   // Gets the number of RTTs BBR remains in STARTUP phase.

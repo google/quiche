@@ -1243,6 +1243,8 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
   MOCK_METHOD(void, OnApplicationLimited, (QuicByteCount), (override));
   MOCK_METHOD(void, PopulateConnectionStats, (QuicConnectionStats*),
               (const, override));
+  MOCK_METHOD(void, CongestionExperienced, (QuicPacketCount, QuicPacketCount),
+              (override));
 };
 
 class MockLossAlgorithm : public LossDetectionInterface {
