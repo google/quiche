@@ -376,6 +376,7 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
   // TODO(fayang): Remove has_ack and has_stop_waiting.
   bool has_ack;
   bool has_stop_waiting;
+  bool has_ack_ecn = false;  // ack frame contains ECN counts.
   TransmissionType transmission_type;
   // The largest acked of the AckFrame in this packet if has_ack is true,
   // 0 otherwise.

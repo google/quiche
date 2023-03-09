@@ -441,6 +441,7 @@ SerializedPacket::SerializedPacket(SerializedPacket&& other)
       encryption_level(other.encryption_level),
       has_ack(other.has_ack),
       has_stop_waiting(other.has_stop_waiting),
+      has_ack_ecn(other.has_ack_ecn),
       transmission_type(other.transmission_type),
       largest_acked(other.largest_acked),
       has_ack_frame_copy(other.has_ack_frame_copy),
@@ -498,6 +499,7 @@ SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
   copy->peer_address = serialized.peer_address;
   copy->bytes_not_retransmitted = serialized.bytes_not_retransmitted;
   copy->initial_header = serialized.initial_header;
+  copy->has_ack_ecn = serialized.has_ack_ecn;
 
   if (copy_buffer) {
     copy->encrypted_buffer = CopyBuffer(serialized);

@@ -16877,12 +16877,26 @@ TEST_P(QuicConnectionTest, EcnMarksCorrectlyRecorded) {
       connection_.SupportsMultiplePacketNumberSpaces()
           ? connection_.received_packet_manager().GetAckFrame(APPLICATION_DATA)
           : connection_.received_packet_manager().ack_frame();
+  // Send two PINGs so that the ACK goes too. The second packet should not
+  // include an ACK, which checks that the packet state is cleared properly.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  if (connection_.version().HasIetfQuicFrames()) {
+    QuicConnectionPeer::SendPing(&connection_);
+    QuicConnectionPeer::SendPing(&connection_);
+  }
+  QuicConnectionStats stats = connection_.GetStats();
   if (GetQuicRestartFlag(quic_receive_ecn)) {
     ASSERT_TRUE(ack_frame.ecn_counters.has_value());
     EXPECT_EQ(ack_frame.ecn_counters->ect0, 1);
+    EXPECT_EQ(stats.num_ack_frames_sent_with_ecn,
+              connection_.version().HasIetfQuicFrames() ? 1 : 0);
   } else {
     EXPECT_FALSE(ack_frame.ecn_counters.has_value());
+    EXPECT_EQ(stats.num_ack_frames_sent_with_ecn, 0);
   }
+  EXPECT_EQ(stats.num_ecn_marks_received.ect0, 1);
+  EXPECT_EQ(stats.num_ecn_marks_received.ect1, 0);
+  EXPECT_EQ(stats.num_ecn_marks_received.ce, 0);
 }
 
 TEST_P(QuicConnectionTest, EcnMarksCoalescedPacket) {
@@ -16914,6 +16928,16 @@ TEST_P(QuicConnectionTest, EcnMarksCoalescedPacket) {
       std::make_unique<TaggingEncrypter>(ENCRYPTION_HANDSHAKE));
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(2);
   ProcessCoalescedPacket(packets, ECN_ECT0);
+  // Send two PINGs so that the ACKs go too.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  if (connection_.version().HasIetfQuicFrames()) {
+    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    QuicConnectionPeer::SendPing(&connection_);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    QuicConnectionPeer::SendPing(&connection_);
+  }
+  QuicConnectionStats stats = connection_.GetStats();
   ack_frame =
       connection_.SupportsMultiplePacketNumberSpaces()
           ? connection_.received_packet_manager().GetAckFrame(HANDSHAKE_DATA)
@@ -16929,6 +16953,16 @@ TEST_P(QuicConnectionTest, EcnMarksCoalescedPacket) {
     EXPECT_TRUE(ack_frame.ecn_counters.has_value());
     EXPECT_EQ(ack_frame.ecn_counters->ect0, 1);
   }
+  if (GetQuicRestartFlag(quic_receive_ecn)) {
+    EXPECT_EQ(stats.num_ecn_marks_received.ect0, 2);
+    EXPECT_EQ(stats.num_ack_frames_sent_with_ecn,
+              connection_.version().HasIetfQuicFrames() ? 2 : 0);
+  } else {
+    EXPECT_EQ(stats.num_ecn_marks_received.ect0, 0);
+    EXPECT_EQ(stats.num_ack_frames_sent_with_ecn, 0);
+  }
+  EXPECT_EQ(stats.num_ecn_marks_received.ect1, 0);
+  EXPECT_EQ(stats.num_ecn_marks_received.ce, 0);
 }
 
 TEST_P(QuicConnectionTest, EcnMarksUndecryptableCoalescedPacket) {
@@ -17047,6 +17081,12 @@ TEST_P(QuicConnectionTest, EcnMarksUndecryptableCoalescedPacket) {
   // Should be recorded as ECT(0), not CE.
   EXPECT_EQ(ack_frame.ecn_counters->ect0,
             connection_.SupportsMultiplePacketNumberSpaces() ? 1 : 2);
+  QuicConnectionStats stats = connection_.GetStats();
+  EXPECT_EQ(stats.num_ecn_marks_received.ect0,
+            GetQuicRestartFlag(quic_receive_ecn) ? 2 : 0);
+  EXPECT_EQ(stats.num_ecn_marks_received.ect1, 0);
+  EXPECT_EQ(stats.num_ecn_marks_received.ce,
+            GetQuicRestartFlag(quic_receive_ecn) ? 1 : 0);
 }
 
 TEST_P(QuicConnectionTest, ReceivedPacketInfoDefaults) {

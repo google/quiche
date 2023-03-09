@@ -492,6 +492,7 @@ void QuicPacketCreator::OnSerializedPacket() {
 void QuicPacketCreator::ClearPacket() {
   packet_.has_ack = false;
   packet_.has_stop_waiting = false;
+  packet_.has_ack_ecn = false;
   packet_.has_crypto_handshake = NOT_HANDSHAKE;
   packet_.transmission_type = NOT_RETRANSMISSION;
   packet_.encrypted_buffer = nullptr;
@@ -1829,6 +1830,9 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   if (frame.type == ACK_FRAME) {
     packet_.has_ack = true;
     packet_.largest_acked = LargestAcked(*frame.ack_frame);
+    if (frame.ack_frame->ecn_counters.has_value()) {
+      packet_.has_ack_ecn = true;
+    }
   } else if (frame.type == STOP_WAITING_FRAME) {
     packet_.has_stop_waiting = true;
   } else if (frame.type == ACK_FREQUENCY_FRAME) {

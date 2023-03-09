@@ -1324,6 +1324,20 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
         last_received_packet_info_.header.packet_number;
   }
 
+  switch (last_received_packet_info_.ecn_codepoint) {
+    case ECN_NOT_ECT:
+      break;
+    case ECN_ECT0:
+      stats_.num_ecn_marks_received.ect0++;
+      break;
+    case ECN_ECT1:
+      stats_.num_ecn_marks_received.ect1++;
+      break;
+    case ECN_CE:
+      stats_.num_ecn_marks_received.ce++;
+      break;
+  }
+
   // Record packet receipt to populate ack info before processing stream
   // frames, since the processing may result in sending a bundled ack.
   QuicTime receipt_time = idle_network_detector_.time_of_last_received_packet();
@@ -3630,6 +3644,9 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
 
   stats_.bytes_sent += encrypted_length;
   ++stats_.packets_sent;
+  if (packet->has_ack_ecn) {
+    stats_.num_ack_frames_sent_with_ecn++;
+  }
 
   QuicByteCount bytes_not_retransmitted =
       packet->bytes_not_retransmitted.value_or(0);

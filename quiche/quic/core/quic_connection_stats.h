@@ -188,6 +188,14 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   QuicPacketCount
       num_tls_server_zero_rtt_packets_received_after_discarding_decrypter = 0;
 
+  // Counts the number of packets received with each Explicit Congestion
+  // Notification (ECN) codepoint, except Not-ECT. There is one counter across
+  // all packet number spaces.
+  QuicEcnCounts num_ecn_marks_received;
+
+  // Counts the number of ACK frames sent with ECN counts.
+  QuicPacketCount num_ack_frames_sent_with_ecn = 0;
+
   // True if address is validated via decrypting HANDSHAKE or 1-RTT packet.
   bool address_validated_via_decrypting_packet = false;
 
