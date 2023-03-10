@@ -41,6 +41,7 @@
 #include "quiche/quic/test_tools/mock_random.h"
 #include "quiche/quic/test_tools/quic_framer_peer.h"
 #include "quiche/quic/test_tools/simple_quic_framer.h"
+#include "quiche/common/capsule.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
@@ -2087,8 +2088,19 @@ class SavingHttp3DatagramVisitor : public QuicSpdyStream::Http3DatagramVisitor {
       return stream_id == o.stream_id && payload == o.payload;
     }
   };
+  struct SavedUnknownCapsule {
+    QuicStreamId stream_id;
+    uint64_t type;
+    std::string payload;
+    bool operator==(const SavedUnknownCapsule& o) const {
+      return stream_id == o.stream_id && type == o.type && payload == o.payload;
+    }
+  };
   const std::vector<SavedHttp3Datagram>& received_h3_datagrams() const {
     return received_h3_datagrams_;
+  }
+  const std::vector<SavedUnknownCapsule>& received_unknown_capsules() const {
+    return received_unknown_capsules_;
   }
 
   // Override from QuicSpdyStream::Http3DatagramVisitor.
@@ -2097,9 +2109,15 @@ class SavingHttp3DatagramVisitor : public QuicSpdyStream::Http3DatagramVisitor {
     received_h3_datagrams_.push_back(
         SavedHttp3Datagram{stream_id, std::string(payload)});
   }
+  void OnUnknownCapsule(QuicStreamId stream_id,
+                        const quiche::UnknownCapsule& capsule) override {
+    received_unknown_capsules_.push_back(SavedUnknownCapsule{
+        stream_id, capsule.type, std::string(capsule.payload)});
+  }
 
  private:
   std::vector<SavedHttp3Datagram> received_h3_datagrams_;
+  std::vector<SavedUnknownCapsule> received_unknown_capsules_;
 };
 
 // Implementation of ConnectIpVisitor which saves all received capsules.

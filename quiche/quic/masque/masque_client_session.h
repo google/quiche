@@ -148,6 +148,8 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
     // From QuicSpdyStream::Http3DatagramVisitor.
     void OnHttp3Datagram(QuicStreamId stream_id,
                          absl::string_view payload) override;
+    void OnUnknownCapsule(QuicStreamId /*stream_id*/,
+                          const quiche::UnknownCapsule& /*capsule*/) override {}
 
    private:
     QuicSpdyClientStream* stream_;                            // Unowned.
@@ -184,6 +186,8 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
     // From QuicSpdyStream::Http3DatagramVisitor.
     void OnHttp3Datagram(QuicStreamId stream_id,
                          absl::string_view payload) override;
+    void OnUnknownCapsule(QuicStreamId /*stream_id*/,
+                          const quiche::UnknownCapsule& /*capsule*/) override {}
 
     // From QuicSpdyStream::ConnectIpVisitor.
     bool OnAddressAssignCapsule(

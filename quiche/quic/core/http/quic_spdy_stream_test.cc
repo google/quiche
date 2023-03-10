@@ -3228,6 +3228,14 @@ TEST_P(QuicSpdyStreamTest, Capsules) {
   EXPECT_THAT(
       connect_ip_visitor.received_route_advertisement_capsules(),
       ElementsAre(route_advertisement_capsule.route_advertisement_capsule()));
+  // Unknown capsule.
+  uint64_t capsule_type = 0x17u;
+  std::string capsule_payload = {1, 2, 3, 4};
+  Capsule unknown_capsule = Capsule::Unknown(capsule_type, capsule_payload);
+  stream_->OnCapsule(unknown_capsule);
+  EXPECT_THAT(h3_datagram_visitor.received_unknown_capsules(),
+              ElementsAre(SavingHttp3DatagramVisitor::SavedUnknownCapsule{
+                  stream_->id(), capsule_type, capsule_payload}));
   // Cleanup.
   stream_->UnregisterHttp3DatagramVisitor();
   stream_->UnregisterConnectIpVisitor();

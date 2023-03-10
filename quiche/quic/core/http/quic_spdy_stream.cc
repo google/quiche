@@ -1350,18 +1350,18 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
     return false;
   }
   switch (capsule.capsule_type()) {
-    case CapsuleType::DATAGRAM: {
+    case CapsuleType::DATAGRAM:
       HandleReceivedDatagram(capsule.datagram_capsule().http_datagram_payload);
-    } break;
-    case CapsuleType::LEGACY_DATAGRAM: {
+      return true;
+    case CapsuleType::LEGACY_DATAGRAM:
       HandleReceivedDatagram(
           capsule.legacy_datagram_capsule().http_datagram_payload);
-    } break;
-    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT: {
+      return true;
+    case CapsuleType::LEGACY_DATAGRAM_WITHOUT_CONTEXT:
       HandleReceivedDatagram(capsule.legacy_datagram_without_context_capsule()
                                  .http_datagram_payload);
-    } break;
-    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION: {
+      return true;
+    case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       if (web_transport_ == nullptr) {
         QUIC_DLOG(ERROR) << ENDPOINT << "Received capsule " << capsule
                          << " for a non-WebTransport stream.";
@@ -1370,7 +1370,7 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
       web_transport_->OnCloseReceived(
           capsule.close_web_transport_session_capsule().error_code,
           capsule.close_web_transport_session_capsule().error_message);
-    } break;
+      return true;
     case CapsuleType::ADDRESS_ASSIGN:
       if (connect_ip_visitor_ == nullptr) {
         return true;
@@ -1399,6 +1399,9 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
     case CapsuleType::WT_MAX_STREAMS_BIDI:
     case CapsuleType::WT_MAX_STREAMS_UNIDI:
       return true;
+  }
+  if (datagram_visitor_) {
+    datagram_visitor_->OnUnknownCapsule(id(), capsule.unknown_capsule());
   }
   return true;
 }

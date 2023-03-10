@@ -64,6 +64,8 @@ class ConnectUdpTunnel : public ConnectingClientSocket::AsyncVisitor,
   // QuicSpdyStream::Http3DatagramVisitor:
   void OnHttp3Datagram(QuicStreamId stream_id,
                        absl::string_view payload) override;
+  void OnUnknownCapsule(QuicStreamId /*stream_id*/,
+                        const quiche::UnknownCapsule& /*capsule*/) override {}
 
  private:
   void BeginAsyncReadFromTarget();

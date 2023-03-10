@@ -272,10 +272,15 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
     // the stream ID.
     virtual void OnHttp3Datagram(QuicStreamId stream_id,
                                  absl::string_view payload) = 0;
+
+    // Called when a Capsule with an unknown type is received.
+    virtual void OnUnknownCapsule(QuicStreamId stream_id,
+                                  const quiche::UnknownCapsule& capsule) = 0;
   };
 
-  // Registers |visitor| to receive HTTP/3 datagrams. |visitor| must be
-  // valid until a corresponding call to UnregisterHttp3DatagramVisitor.
+  // Registers |visitor| to receive HTTP/3 datagrams and enables Capsule
+  // Protocol by registering a CapsuleParser. |visitor| must be valid until a
+  // corresponding call to UnregisterHttp3DatagramVisitor.
   void RegisterHttp3DatagramVisitor(Http3DatagramVisitor* visitor);
 
   // Unregisters an HTTP/3 datagram visitor. Must only be called after a call to
