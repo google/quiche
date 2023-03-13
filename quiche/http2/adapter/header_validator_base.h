@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_HEADER_VALIDATOR_BASE_H_
 #define QUICHE_HTTP2_ADAPTER_HEADER_VALIDATOR_BASE_H_
 
+#include <cstdint>
 #include <string>
 
 #include "absl/strings/string_view.h"

@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_QUIC_HKDF_H_
 #define QUICHE_QUIC_CORE_CRYPTO_QUIC_HKDF_H_
 
+#include <cstdint>
 #include <vector>
 
 #include "absl/strings/string_view.h"

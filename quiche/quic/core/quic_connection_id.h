@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CONNECTION_ID_H_
 #define QUICHE_QUIC_CORE_QUIC_CONNECTION_ID_H_
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
