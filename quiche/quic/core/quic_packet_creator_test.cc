@@ -307,10 +307,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
     }
     frames_.clear();
     ASSERT_GT(payload_len, 0);  // Must have a frame!
-    size_t min_payload =
-        (version.UsesTls() && GetQuicRestartFlag(quic_allow_smaller_packets))
-            ? 3
-            : 7;
+    size_t min_payload = version.UsesTls() ? 3 : 7;
     bool need_padding =
         (version.HasHeaderProtection() && (payload_len < min_payload));
     {
@@ -320,7 +317,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
       EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
       EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
       EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-      if (need_padding && GetQuicRestartFlag(quic_allow_smaller_packets)) {
+      if (need_padding) {
         EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
       }
       if (has_ack) {
@@ -334,9 +331,6 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
       }
       if (has_stream) {
         EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-      }
-      if (need_padding && !GetQuicRestartFlag(quic_allow_smaller_packets)) {
-        EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
       }
       EXPECT_CALL(framer_visitor_, OnPacketComplete());
     }
@@ -497,12 +491,9 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
     overhead +=
         QuicFramer::GetMinCryptoFrameSize(kOffset, kMaxOutgoingPacketSize);
   } else {
-    overhead +=
-        GetQuicRestartFlag(quic_allow_smaller_packets)
-            ? QuicFramer::GetMinStreamFrameSize(
-                  client_framer_.transport_version(),
-                  GetNthClientInitiatedStreamId(1), kOffset, false, 0)
-            : GetStreamFrameOverhead(client_framer_.transport_version());
+    overhead += QuicFramer::GetMinStreamFrameSize(
+        client_framer_.transport_version(), GetNthClientInitiatedStreamId(1),
+        kOffset, false, 0);
   }
   ASSERT_GT(kMaxOutgoingPacketSize, overhead);
   size_t capacity = kDefaultMaxPacketSize - overhead;
@@ -540,9 +531,7 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
     // (1 byte) and to expand the stream frame (another 2 bytes) the packet
     // will not be padded.
     // Padding is skipped when we try to send coalesced packets.
-    if ((!GetQuicRestartFlag(quic_allow_smaller_packets) && bytes_free < 3 &&
-         !QuicVersionUsesCryptoFrames(client_framer_.transport_version())) ||
-        client_framer_.version().CanSendCoalescedPackets()) {
+    if (client_framer_.version().CanSendCoalescedPackets()) {
       EXPECT_EQ(kDefaultMaxPacketSize - bytes_free,
                 serialized_packet_->encrypted_length);
     } else {
@@ -1556,13 +1545,8 @@ TEST_P(QuicPacketCreatorTest, SerializeStreamFrameWithPadding) {
     EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     if (client_framer_.version().HasHeaderProtection()) {
-      if (GetQuicRestartFlag(quic_allow_smaller_packets)) {
-        EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
-        EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-      } else {
-        EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-        EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
-      }
+      EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
+      EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
     } else {
       EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
     }
@@ -1685,14 +1669,13 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataAndRandomPadding) {
   // 1.
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       client_framer_.transport_version(), Perspective::IS_CLIENT);
-  size_t length = GetPacketHeaderOverhead(client_framer_.transport_version()) +
-                  GetEncryptionOverhead() +
-                  QuicFramer::GetMinStreamFrameSize(
-                      client_framer_.transport_version(), stream_id, 0,
-                      /*last_frame_in_packet=*/
-                      GetQuicRestartFlag(quic_allow_smaller_packets),
-                      kStreamFramePayloadSize + 1) +
-                  kStreamFramePayloadSize + 1;
+  size_t length =
+      GetPacketHeaderOverhead(client_framer_.transport_version()) +
+      GetEncryptionOverhead() +
+      QuicFramer::GetMinStreamFrameSize(
+          client_framer_.transport_version(), stream_id, 0,
+          /*last_frame_in_packet=*/true, kStreamFramePayloadSize + 1) +
+      kStreamFramePayloadSize + 1;
   creator_.SetMaxPacketLength(length);
   creator_.AddPendingPadding(kMaxNumRandomPaddingBytes);
   QuicByteCount pending_padding_bytes = creator_.pending_padding_bytes();
@@ -2145,15 +2128,10 @@ TEST_P(QuicPacketCreatorTest, RetryToken) {
     EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_))
         .WillOnce(DoAll(SaveArg<0>(&header), Return(true)));
-    if (client_framer_.version().HasHeaderProtection() &&
-        GetQuicRestartFlag(quic_allow_smaller_packets)) {
+    if (client_framer_.version().HasHeaderProtection()) {
       EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
     }
     EXPECT_CALL(framer_visitor_, OnPingFrame(_));
-    if (client_framer_.version().HasHeaderProtection() &&
-        !GetQuicRestartFlag(quic_allow_smaller_packets)) {
-      EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
-    }
     EXPECT_CALL(framer_visitor_, OnPacketComplete());
   }
   ProcessPacket(serialized);
@@ -2329,8 +2307,7 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
     EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     if (i != ENCRYPTION_ZERO_RTT) {
-      if (GetQuicRestartFlag(quic_allow_smaller_packets) &&
-          i != ENCRYPTION_INITIAL) {
+      if (i != ENCRYPTION_INITIAL) {
         EXPECT_CALL(framer_visitor_, OnPaddingFrame(_))
             .Times(testing::AtMost(1));
       }
@@ -2340,25 +2317,16 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
                   OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2)))
           .WillOnce(Return(true));
       EXPECT_CALL(framer_visitor_, OnAckFrameEnd(_)).WillOnce(Return(true));
-      if (!GetQuicRestartFlag(quic_allow_smaller_packets)) {
-        EXPECT_CALL(framer_visitor_, OnPaddingFrame(_))
-            .Times(testing::AtMost(1));
-      }
     }
     if (i == ENCRYPTION_INITIAL) {
       // Verify padding is added.
       EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
     }
-    if (GetQuicRestartFlag(quic_allow_smaller_packets) &&
-        i == ENCRYPTION_ZERO_RTT) {
+    if (i == ENCRYPTION_ZERO_RTT) {
       EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
     }
     if (i != ENCRYPTION_INITIAL && i != ENCRYPTION_HANDSHAKE) {
       EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-    }
-    if (!GetQuicRestartFlag(quic_allow_smaller_packets) &&
-        i == ENCRYPTION_ZERO_RTT) {
-      EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
     }
     EXPECT_CALL(framer_visitor_, OnPacketComplete());
     server_framer_.ProcessPacket(*packets[i]);
@@ -2472,8 +2440,6 @@ TEST_P(QuicPacketCreatorTest, MinPayloadLength) {
         PACKET_3BYTE_PACKET_NUMBER, PACKET_4BYTE_PACKET_NUMBER}) {
     if (!version.HasHeaderProtection()) {
       EXPECT_EQ(creator_.MinPlaintextPacketSize(version, pn_length), 0);
-    } else if (!GetQuicRestartFlag(quic_allow_smaller_packets)) {
-      EXPECT_EQ(creator_.MinPlaintextPacketSize(version, pn_length), 7);
     } else {
       EXPECT_EQ(creator_.MinPlaintextPacketSize(version, pn_length),
                 (version.UsesTls() ? 4 : 8) - pn_length);
@@ -2507,13 +2473,7 @@ TEST_P(QuicPacketCreatorTest, PadWhenAlmostMaxLength) {
     EXPECT_CALL(delegate_, OnSerializedPacket(_))
         .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
     creator_.FlushCurrentPacket();
-    /* Without the fix, the packet is not full-length. */
-    if (GetQuicRestartFlag(quic_allow_smaller_packets)) {
-      EXPECT_EQ(serialized_packet_->encrypted_length, kDefaultMaxPacketSize);
-    } else {
-      EXPECT_EQ(serialized_packet_->encrypted_length,
-                kDefaultMaxPacketSize - bytes_free);
-    }
+    EXPECT_EQ(serialized_packet_->encrypted_length, kDefaultMaxPacketSize);
     DeleteSerializedPacket();
   }
 }
@@ -3073,10 +3033,6 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
     // The framing of CRYPTO frames is slightly different than that of stream
     // frames, so the expected packet length differs slightly.
     expected_packet_length = 32;
-  }
-  if (framer_.version().HasHeaderProtection() &&
-      !GetQuicRestartFlag(quic_allow_smaller_packets)) {
-    expected_packet_length = 33;
   }
   EXPECT_EQ(expected_packet_length, packets_[0].encrypted_length);
 }
@@ -4035,8 +3991,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ExtraPaddingNeeded) {
   ASSERT_FALSE(packets_[0].nonretransmittable_frames.empty());
   QuicFrame padding = packets_[0].nonretransmittable_frames[0];
   // Verify stream frame expansion is excluded.
-  EXPECT_EQ(padding.padding_frame.num_padding_bytes,
-            GetQuicRestartFlag(quic_allow_smaller_packets) ? 1 : 4);
+  EXPECT_EQ(padding.padding_frame.num_padding_bytes, 1);
 }
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest,

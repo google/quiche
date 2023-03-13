@@ -630,16 +630,6 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
       MinPlaintextPacketSize(framer_->version(), GetPacketNumberLength());
   if (plaintext_bytes_written < min_plaintext_size) {
     needs_padding = true;
-    if (!GetQuicRestartFlag(quic_allow_smaller_packets)) {
-      // Recalculate sizes with the stream frame not being marked as the last
-      // frame in the packet.
-      min_frame_size = QuicFramer::GetMinStreamFrameSize(
-          framer_->transport_version(), id, stream_offset,
-          /* last_frame_in_packet= */ false, remaining_data_size);
-      available_size = max_plaintext_size_ - writer.length() - min_frame_size;
-      bytes_consumed = std::min<size_t>(available_size, remaining_data_size);
-      plaintext_bytes_written = min_frame_size + bytes_consumed;
-    }
   }
 
   const bool set_fin = fin && (bytes_consumed == remaining_data_size);
@@ -653,8 +643,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
 
   // TODO(ianswett): AppendTypeByte and AppendStreamFrame could be optimized
   // into one method that takes a QuicStreamFrame, if warranted.
-  if (needs_padding && GetQuicRestartFlag(quic_allow_smaller_packets)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_allow_smaller_packets, 2, 5);
+  if (needs_padding) {
     if (!writer.WritePaddingBytes(min_plaintext_size -
                                   plaintext_bytes_written)) {
       QUIC_BUG(quic_bug_10752_12) << ENDPOINT << "Unable to add padding bytes";
@@ -765,13 +754,6 @@ size_t QuicPacketCreator::BytesFree() const {
 
 size_t QuicPacketCreator::BytesFreeForPadding() const {
   size_t consumed = PacketSize();
-
-  if (!GetQuicRestartFlag(quic_allow_smaller_packets)) {
-    consumed += ExpansionOnNewFrame();
-  } else {
-    // The next frame (which is PADDING) will be prepended to the packet.
-    QUIC_RESTART_FLAG_COUNT_N(quic_allow_smaller_packets, 5, 5);
-  }
   return max_plaintext_size_ - std::min(max_plaintext_size_, consumed);
 }
 
@@ -1865,20 +1847,9 @@ void QuicPacketCreator::MaybeAddExtraPaddingForHeaderProtection() {
       MinPlaintextPacketSize(framer_->version(), GetPacketNumberLength())) {
     return;
   }
-  QuicByteCount min_header_protection_padding;
-  if (GetQuicRestartFlag(quic_allow_smaller_packets)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_allow_smaller_packets, 4, 5);
-    min_header_protection_padding =
-        MinPlaintextPacketSize(framer_->version(), GetPacketNumberLength()) -
-        frame_bytes;
-  } else {
-    min_header_protection_padding =
-        std::max(1 + ExpansionOnNewFrame(),
-                 MinPlaintextPacketSize(framer_->version(),
-                                        GetPacketNumberLength()) -
-                     frame_bytes) -
-        ExpansionOnNewFrame();
-  }
+  QuicByteCount min_header_protection_padding =
+      MinPlaintextPacketSize(framer_->version(), GetPacketNumberLength()) -
+      frame_bytes;
   // Update pending_padding_bytes_.
   pending_padding_bytes_ =
       std::max(pending_padding_bytes_, min_header_protection_padding);
@@ -1966,11 +1937,9 @@ void QuicPacketCreator::MaybeAddPadding() {
     pending_padding_bytes_ -= padding_bytes;
   }
 
-  if (!queued_frames_.empty() &&
-      GetQuicRestartFlag(quic_allow_smaller_packets)) {
+  if (!queued_frames_.empty()) {
     // Insert PADDING before the other frames to avoid adding a length field
     // to any trailing STREAM frame.
-    QUIC_RESTART_FLAG_COUNT_N(quic_allow_smaller_packets, 3, 5);
     if (needs_full_padding_) {
       padding_bytes = BytesFreeForPadding();
     }
@@ -2157,11 +2126,7 @@ size_t QuicPacketCreator::MinPlaintextPacketSize(
   // 1.3 is used, unittests still use NullEncrypter/NullDecrypter (and other
   // test crypters) which also only use 12 byte tags.
   //
-  if (GetQuicRestartFlag(quic_allow_smaller_packets)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_allow_smaller_packets, 1, 5);
-    return (version.UsesTls() ? 4 : 8) - packet_number_length;
-  }
-  return 7;
+  return (version.UsesTls() ? 4 : 8) - packet_number_length;
 }
 
 QuicPacketNumber QuicPacketCreator::NextSendingPacketNumber() const {
