@@ -70,4 +70,13 @@ QuicSimpleClientSession::CreateContextForMultiPortPath() {
       network_helper_->GetLatestClientAddress(), peer_address());
 }
 
+void QuicSimpleClientSession::MigrateToMultiPortPath(
+    std::unique_ptr<QuicPathValidationContext> context) {
+  auto* path_migration_context =
+      static_cast<PathMigrationContext*>(context.get());
+  MigratePath(path_migration_context->self_address(),
+              path_migration_context->peer_address(),
+              path_migration_context->ReleaseWriter(), /*owns_writer=*/true);
+}
+
 }  // namespace quic

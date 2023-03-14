@@ -114,6 +114,12 @@ QuicPathValidationContext* QuicPathValidator::GetContext() const {
   return path_context_.get();
 }
 
+std::unique_ptr<QuicPathValidationContext> QuicPathValidator::ReleaseContext() {
+  auto ret = std::move(path_context_);
+  ResetPathValidation();
+  return ret;
+}
+
 const QuicPathFrameBuffer& QuicPathValidator::GeneratePathChallengePayload() {
   probing_data_.emplace_back(clock_->Now());
   random_->RandBytes(probing_data_.back().frame_buffer.data(),

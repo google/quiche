@@ -241,6 +241,10 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   virtual std::unique_ptr<QuicPathValidationContext>
   CreateContextForMultiPortPath() = 0;
 
+  // Migrate to the multi-port path which is identified by |context|.
+  virtual void MigrateToMultiPortPath(
+      std::unique_ptr<QuicPathValidationContext> context) = 0;
+
   // Called when the client receives a preferred address from its peer.
   virtual void OnServerPreferredAddressAvailable(
       const QuicSocketAddress& server_preferred_address) = 0;
@@ -1409,6 +1413,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     SEND_RANDOM_BYTES  // Send random bytes which is an unprocessable packet.
   };
 
+  enum class MultiPortStatusOnMigration {
+    kNotValidated,
+    kPendingRefreshValidation,
+    kWaitingForRefreshValidation,
+    kMaxValue,
+  };
+
   struct QUIC_EXPORT_PRIVATE PendingPathChallenge {
     QuicPathFrameBuffer received_path_challenge;
     QuicSocketAddress peer_address;
@@ -1921,6 +1932,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // alternative path state if the current packet is from a non-default path.
   // Return true if framer should continue processing the packet.
   bool OnPathChallengeFrameInternal(const QuicPathChallengeFrame& frame);
+
+  // Check the state of the multi-port alternative path and initiate path
+  // migration.
+  void MaybeMigrateToMultiPortPath();
 
   std::unique_ptr<QuicSelfIssuedConnectionIdManager>
   MakeSelfIssuedConnectionIdManager();

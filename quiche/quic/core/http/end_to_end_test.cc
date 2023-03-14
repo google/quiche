@@ -5509,6 +5509,50 @@ TEST_P(EndToEndTest, ClientMultiPortConnection) {
   stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
 }
 
+TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegrading) {
+  client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC});
+  ASSERT_TRUE(Initialize());
+  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+    return;
+  }
+  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+  QuicConnection* client_connection = GetClientConnection();
+  QuicSpdyClientStream* stream = client_->GetOrCreateStream();
+  ASSERT_TRUE(stream);
+  // Increase the probing frequency to speed up this test.
+  client_connection->SetMultiPortProbingInterval(
+      QuicTime::Delta::FromMilliseconds(100));
+  SendSynchronousFooRequestAndCheckResponse();
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return 1u == client_connection->GetStats().num_path_response_received;
+  }));
+  // Verify that the alternative path keeps sending probes periodically.
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return 2u == client_connection->GetStats().num_path_response_received;
+  }));
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  // Verify that no migration has happened.
+  if (server_connection != nullptr) {
+    EXPECT_EQ(0u, server_connection->GetStats()
+                      .num_peer_migration_to_proactively_validated_address);
+  }
+  server_thread_->Resume();
+
+  auto original_self_addr = client_connection->self_address();
+  // Trigger client side path degrading
+  client_connection->OnPathDegradingDetected();
+  EXPECT_NE(original_self_addr, client_connection->self_address());
+
+  // Send another request to trigger connection id retirement.
+  SendSynchronousFooRequestAndCheckResponse();
+  EXPECT_EQ(1u, client_connection->GetStats().num_retire_connection_id_sent);
+  auto new_alt_path = QuicConnectionPeer::GetAlternativePath(client_connection);
+  EXPECT_NE(client_connection->self_address(), new_alt_path->self_address);
+
+  stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
+}
+
 TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());

@@ -37,6 +37,8 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
   HttpDatagramSupport LocalHttpDatagramSupport() override;
   std::unique_ptr<QuicPathValidationContext> CreateContextForMultiPortPath()
       override;
+  void MigrateToMultiPortPath(
+      std::unique_ptr<QuicPathValidationContext> context) override;
   bool drop_response_body() const { return drop_response_body_; }
 
  private:

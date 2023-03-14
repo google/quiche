@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_PATH_VALIDATOR_H_
 #define QUICHE_QUIC_CORE_QUIC_PATH_VALIDATOR_H_
 
+#include <memory>
 #include <ostream>
 
 #include "absl/container/inlined_vector.h"
@@ -142,6 +143,10 @@ class QUIC_EXPORT_PRIVATE QuicPathValidator {
   bool HasPendingPathValidation() const;
 
   QuicPathValidationContext* GetContext() const;
+
+  // Pass the ownership of path_validation context to the caller and reset the
+  // validator.
+  std::unique_ptr<QuicPathValidationContext> ReleaseContext();
 
   PathValidationReason GetPathValidationReason() const { return reason_; }
 

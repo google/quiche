@@ -1137,9 +1137,11 @@ void QuicConnection::OnSuccessfulVersionNegotiation() {
 
 void QuicConnection::OnSuccessfulMigration(bool is_port_change) {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-  if (IsPathDegrading()) {
+  if (IsPathDegrading() && !multi_port_stats_) {
     // If path was previously degrading, and migration is successful after
     // probing, restart the path degrading and blackhole detection.
+    // In the case of multi-port, since the alt-path state is inferred from
+    // historical data, we can't trust it until we receive data on the new path.
     OnForwardProgressMade();
   }
   if (IsAlternativePath(default_path_.self_address,
@@ -6164,10 +6166,49 @@ void QuicConnection::set_client_connection_id(
 
 void QuicConnection::OnPathDegradingDetected() {
   is_path_degrading_ = true;
+  visitor_->OnPathDegrading();
   if (multi_port_stats_) {
     multi_port_stats_->num_path_degrading++;
+    MaybeMigrateToMultiPortPath();
   }
-  visitor_->OnPathDegrading();
+}
+
+void QuicConnection::MaybeMigrateToMultiPortPath() {
+  if (!alternative_path_.validated) {
+    QUIC_CLIENT_HISTOGRAM_ENUM(
+        "QuicConnection.MultiPortPathStatusWhenMigrating",
+        MultiPortStatusOnMigration::kNotValidated,
+        MultiPortStatusOnMigration::kMaxValue,
+        "Status of the multi port path upon migration");
+    return;
+  }
+  std::unique_ptr<QuicPathValidationContext> context;
+  const bool has_pending_validation =
+      path_validator_.HasPendingPathValidation();
+  if (!has_pending_validation) {
+    // The multi-port path should have just finished the recent probe and
+    // waiting for the next one.
+    context = std::move(multi_port_path_context_);
+    multi_port_probing_alarm_->Cancel();
+    QUIC_CLIENT_HISTOGRAM_ENUM(
+        "QuicConnection.MultiPortPathStatusWhenMigrating",
+        MultiPortStatusOnMigration::kWaitingForRefreshValidation,
+        MultiPortStatusOnMigration::kMaxValue,
+        "Status of the multi port path upon migration");
+  } else {
+    // The multi-port path is currently under probing.
+    context = path_validator_.ReleaseContext();
+    QUIC_CLIENT_HISTOGRAM_ENUM(
+        "QuicConnection.MultiPortPathStatusWhenMigrating",
+        MultiPortStatusOnMigration::kPendingRefreshValidation,
+        MultiPortStatusOnMigration::kMaxValue,
+        "Status of the multi port path upon migration");
+  }
+  if (context == nullptr) {
+    QUICHE_BUG(quic_bug_12714_90) << "No multi-port context to migrate to";
+    return;
+  }
+  visitor_->MigrateToMultiPortPath(std::move(context));
 }
 
 void QuicConnection::OnBlackholeDetected() {

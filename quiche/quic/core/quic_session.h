@@ -185,6 +185,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
       override {
     return nullptr;
   }
+  void MigrateToMultiPortPath(
+      std::unique_ptr<QuicPathValidationContext> /*context*/) override {}
   void OnServerPreferredAddressAvailable(
       const QuicSocketAddress& /*server_preferred_address*/) override;
 
