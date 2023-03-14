@@ -408,10 +408,15 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   WebTransportHttp3* GetWebTransportSession(WebTransportSessionId id);
 
   // If true, no data on bidirectional streams will be processed by the server
-  // until the SETTINGS are received.  Only works for HTTP/3.
+  // until the SETTINGS are received.  Only works for HTTP/3. This is currently
+  // required either (1) for WebTransport because WebTransport needs settings to
+  // correctly parse requests or (2) when multiple versions of HTTP Datagrams
+  // are supported to ensure we know which one is used. The HTTP Datagram check
+  // will be removed once we drop support for draft04.
   bool ShouldBufferRequestsUntilSettings() {
     return version().UsesHttp3() && perspective() == Perspective::IS_SERVER &&
-           LocalHttpDatagramSupport() != HttpDatagramSupport::kNone;
+           (ShouldNegotiateWebTransport() ||
+            LocalHttpDatagramSupport() == HttpDatagramSupport::kRfcAndDraft04);
   }
 
   // Returns if the incoming bidirectional streams should process data.  This is
