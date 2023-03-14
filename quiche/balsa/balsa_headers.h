@@ -448,9 +448,6 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
       absl::flat_hash_map<absl::string_view, std::vector<absl::string_view>,
                           StringPieceCaseHash, StringPieceCaseEqual>;
 
-  // TODO(fenix): Revisit the amount of bytes initially allocated to the second
-  // block of the balsa_buffer_. It may make sense to pre-allocate some amount
-  // (roughly the amount we'd append in new headers such as X-User-Ip, etc.)
   BalsaHeaders()
       : balsa_buffer_(4096),
         content_length_(0),
@@ -523,8 +520,6 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
   // a new header if none exist.  See 'AppendHeader' below for additional
   // comments about ContentLength and TransferEncoding headers. Note that this
   // will allocate new storage every time that it is called.
-  // TODO(fenix): modify this function to reuse existing storage
-  // if it is available.
   void ReplaceOrAppendHeader(absl::string_view key,
                              absl::string_view value) override;
 
@@ -1246,9 +1241,6 @@ class QUICHE_EXPORT BalsaHeaders::iterator_base
     // The condition below exists so that ++(end() - 1) == end(), even
     // if there are only 'skip == true' elements between the end() iterator
     // and the end of the vector of HeaderLineDescriptions.
-    // TODO(fenix): refactor this list so that we don't have to do
-    // linear scanning through skipped headers (and this condition is
-    // then unnecessary)
     if (idx_ == header_lines_size) {
       idx_ = original_idx + 1;
     }

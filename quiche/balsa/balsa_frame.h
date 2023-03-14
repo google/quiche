@@ -38,9 +38,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   enum class InvalidCharsLevel { kOff, kWarning, kError };
 
-  // TODO(fenix): get rid of the 'kValidTerm*' stuff by using the 'since last
-  // index' strategy.  Note that this implies getting rid of the HeaderFramed()
-
   static constexpr int32_t kValidTerm1 = '\n' << 16 | '\r' << 8 | '\n';
   static constexpr int32_t kValidTerm1Mask = 0xFF << 16 | 0xFF << 8 | 0xFF;
   static constexpr int32_t kValidTerm2 = '\n' << 8 | '\n';
@@ -228,8 +225,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
     return current_char == '\n';
   }
 
-  // TODO(fenix): get rid of the following function and its uses (and
-  // replace with something more efficient).
   // Return header framing pattern. Non-zero return value indicates found,
   // which has two possible outcomes: kValidTerm1, which means \n\r\n
   // or kValidTerm2, which means \n\n. Zero return value means not found.

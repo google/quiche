@@ -286,8 +286,6 @@ void BalsaFrame::CleanUpKeyValueWhitespace(
   QUICHE_DCHECK_CHAR_GE(' ', *line_end)
       << "\"" << std::string(line_begin, line_end) << "\"";
 
-  // TODO(fenix): Investigate whether or not the bounds tests in the
-  // while loops here are redundant, and if so, remove them.
   --current;
   while (current > line_begin && CHAR_LE(*current, ' ')) {
     --current;
