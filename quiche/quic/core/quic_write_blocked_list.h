@@ -72,6 +72,8 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   void UpdateStreamPriority(QuicStreamId stream_id,
                             const QuicStreamPriority& new_priority);
 
+  // TODO(b/147306124): Remove when deprecating
+  // reloadable_flag_quic_disable_batch_write.
   void UpdateBytesForStream(QuicStreamId stream_id, size_t bytes);
 
   // Pushes a stream to the back of the list for its priority level *unless* it
@@ -98,8 +100,10 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   // Set to kBatchWriteSize when we set a new batch_write_stream_id_ for a given
   // priority.  This is decremented with each write the stream does until it is
   // done with its batch write.
+  // TODO(b/147306124): Remove when deprecating
+  // reloadable_flag_quic_disable_batch_write.
   size_t bytes_left_for_batch_write_[spdy::kV3LowestPriority + 1];
-  // Tracks the last priority popped for UpdateBytesForStream.
+  // Tracks the last priority popped for UpdateBytesForStream() and AddStream().
   spdy::SpdyPriority last_priority_popped_;
 
   // A StaticStreamCollection is a vector of <QuicStreamId, bool> pairs plus a
@@ -149,6 +153,8 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
 
   // Latched value of reloadable_flag_quic_priority_respect_incremental.
   const bool respect_incremental_;
+  // Latched value of reloadable_flag_quic_disable_batch_write.
+  const bool disable_batch_write_;
 };
 
 }  // namespace quic

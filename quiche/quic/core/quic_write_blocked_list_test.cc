@@ -23,60 +23,67 @@ constexpr bool kNotIncremental = false;
 
 class QuicWriteBlockedListTest : public QuicTest {
  protected:
+  void SetUp() override {
+    // Delay construction of QuicWriteBlockedList object to allow constructor of
+    // derived test classes to manipulate reloadable flags that are latched in
+    // QuicWriteBlockedList constructor.
+    write_blocked_list_.emplace();
+  }
+
   bool HasWriteBlockedDataStreams() const {
-    return write_blocked_list_.HasWriteBlockedDataStreams();
+    return write_blocked_list_->HasWriteBlockedDataStreams();
   }
 
   bool HasWriteBlockedSpecialStream() const {
-    return write_blocked_list_.HasWriteBlockedSpecialStream();
+    return write_blocked_list_->HasWriteBlockedSpecialStream();
   }
 
   size_t NumBlockedSpecialStreams() const {
-    return write_blocked_list_.NumBlockedSpecialStreams();
+    return write_blocked_list_->NumBlockedSpecialStreams();
   }
 
   size_t NumBlockedStreams() const {
-    return write_blocked_list_.NumBlockedStreams();
+    return write_blocked_list_->NumBlockedStreams();
   }
 
   bool ShouldYield(QuicStreamId id) const {
-    return write_blocked_list_.ShouldYield(id);
+    return write_blocked_list_->ShouldYield(id);
   }
 
   QuicStreamPriority GetPriorityofStream(QuicStreamId id) const {
-    return write_blocked_list_.GetPriorityofStream(id);
+    return write_blocked_list_->GetPriorityofStream(id);
   }
 
-  QuicStreamId PopFront() { return write_blocked_list_.PopFront(); }
+  QuicStreamId PopFront() { return write_blocked_list_->PopFront(); }
 
   void RegisterStream(QuicStreamId stream_id, bool is_static_stream,
                       const QuicStreamPriority& priority) {
-    write_blocked_list_.RegisterStream(stream_id, is_static_stream, priority);
+    write_blocked_list_->RegisterStream(stream_id, is_static_stream, priority);
   }
 
   void UnregisterStream(QuicStreamId stream_id) {
-    write_blocked_list_.UnregisterStream(stream_id);
+    write_blocked_list_->UnregisterStream(stream_id);
   }
 
   void UpdateStreamPriority(QuicStreamId stream_id,
                             const QuicStreamPriority& new_priority) {
-    write_blocked_list_.UpdateStreamPriority(stream_id, new_priority);
+    write_blocked_list_->UpdateStreamPriority(stream_id, new_priority);
   }
 
   void UpdateBytesForStream(QuicStreamId stream_id, size_t bytes) {
-    write_blocked_list_.UpdateBytesForStream(stream_id, bytes);
+    write_blocked_list_->UpdateBytesForStream(stream_id, bytes);
   }
 
   void AddStream(QuicStreamId stream_id) {
-    write_blocked_list_.AddStream(stream_id);
+    write_blocked_list_->AddStream(stream_id);
   }
 
   bool IsStreamBlocked(QuicStreamId stream_id) const {
-    return write_blocked_list_.IsStreamBlocked(stream_id);
+    return write_blocked_list_->IsStreamBlocked(stream_id);
   }
 
  private:
-  QuicWriteBlockedList write_blocked_list_;
+  absl::optional<QuicWriteBlockedList> write_blocked_list_;
 };
 
 TEST_F(QuicWriteBlockedListTest, PriorityOrder) {
@@ -186,7 +193,74 @@ TEST_F(QuicWriteBlockedListTest, NoDuplicateEntries) {
   EXPECT_FALSE(HasWriteBlockedDataStreams());
 }
 
-TEST_F(QuicWriteBlockedListTest, BatchingWrites) {
+TEST_F(QuicWriteBlockedListTest, IncrementalStreamsRoundRobin) {
+  const QuicStreamId id1 = 5;
+  const QuicStreamId id2 = 7;
+  const QuicStreamId id3 = 9;
+  RegisterStream(id1, kNotStatic, {kV3LowestPriority, kIncremental});
+  RegisterStream(id2, kNotStatic, {kV3LowestPriority, kIncremental});
+  RegisterStream(id3, kNotStatic, {kV3LowestPriority, kIncremental});
+
+  AddStream(id1);
+  AddStream(id2);
+  AddStream(id3);
+
+  EXPECT_EQ(id1, PopFront());
+  const size_t kLargeWriteSize = 1000 * 1000 * 1000;
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  AddStream(id1);
+
+  EXPECT_EQ(id2, PopFront());
+  UpdateBytesForStream(id2, kLargeWriteSize);
+  EXPECT_EQ(id3, PopFront());
+  UpdateBytesForStream(id3, kLargeWriteSize);
+
+  AddStream(id3);
+  AddStream(id2);
+
+  EXPECT_EQ(id1, PopFront());
+  UpdateBytesForStream(id1, kLargeWriteSize);
+  EXPECT_EQ(id3, PopFront());
+  UpdateBytesForStream(id3, kLargeWriteSize);
+  AddStream(id3);
+
+  EXPECT_EQ(id2, PopFront());
+  EXPECT_EQ(id3, PopFront());
+}
+
+class QuicWriteBlockedListParameterizedTest
+    : public QuicWriteBlockedListTest,
+      public ::testing::WithParamInterface<std::tuple<bool, bool>> {
+ protected:
+  QuicWriteBlockedListParameterizedTest()
+      : priority_respect_incremental_(std::get<0>(GetParam())),
+        disable_batch_write_(std::get<1>(GetParam())) {
+    SetQuicReloadableFlag(quic_priority_respect_incremental,
+                          priority_respect_incremental_);
+    SetQuicReloadableFlag(quic_disable_batch_write, disable_batch_write_);
+  }
+
+  const bool priority_respect_incremental_;
+  const bool disable_batch_write_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    BatchWrite, QuicWriteBlockedListParameterizedTest,
+    ::testing::Combine(::testing::Bool(), ::testing::Bool()),
+    [](const testing::TestParamInfo<
+        QuicWriteBlockedListParameterizedTest::ParamType>& info) {
+      return absl::StrCat(std::get<0>(info.param) ? "RespectIncrementalTrue"
+                                                  : "RespectIncrementalFalse",
+                          std::get<1>(info.param) ? "DisableBatchWriteTrue"
+                                                  : "DisableBatchWriteFalse");
+    });
+
+// If reloadable_flag_quic_disable_batch_write is false, writes are batched.
+TEST_P(QuicWriteBlockedListParameterizedTest, BatchingWrites) {
+  if (disable_batch_write_) {
+    return;
+  }
+
   const QuicStreamId id1 = 5;
   const QuicStreamId id2 = 7;
   const QuicStreamId id3 = 9;
@@ -236,7 +310,13 @@ TEST_F(QuicWriteBlockedListTest, BatchingWrites) {
   EXPECT_EQ(id1, PopFront());
 }
 
-TEST_F(QuicWriteBlockedListTest, IncrementalStreamsRoundRobin) {
+// If reloadable_flag_quic_disable_batch_write is true, writes are performed
+// round-robin regardless of how little data is written on each stream.
+TEST_P(QuicWriteBlockedListParameterizedTest, RoundRobin) {
+  if (!disable_batch_write_) {
+    return;
+  }
+
   const QuicStreamId id1 = 5;
   const QuicStreamId id2 = 7;
   const QuicStreamId id3 = 9;
@@ -249,30 +329,25 @@ TEST_F(QuicWriteBlockedListTest, IncrementalStreamsRoundRobin) {
   AddStream(id3);
 
   EXPECT_EQ(id1, PopFront());
-  const size_t kLargeWriteSize = 1000 * 1000 * 1000;
-  UpdateBytesForStream(id1, kLargeWriteSize);
   AddStream(id1);
 
   EXPECT_EQ(id2, PopFront());
-  UpdateBytesForStream(id2, kLargeWriteSize);
   EXPECT_EQ(id3, PopFront());
-  UpdateBytesForStream(id3, kLargeWriteSize);
 
   AddStream(id3);
   AddStream(id2);
 
   EXPECT_EQ(id1, PopFront());
-  UpdateBytesForStream(id1, kLargeWriteSize);
   EXPECT_EQ(id3, PopFront());
-  UpdateBytesForStream(id3, kLargeWriteSize);
   AddStream(id3);
 
   EXPECT_EQ(id2, PopFront());
   EXPECT_EQ(id3, PopFront());
 }
 
-TEST_F(QuicWriteBlockedListTest, NonIncrementalStreamsKeepWriting) {
-  if (!GetQuicReloadableFlag(quic_priority_respect_incremental)) {
+TEST_P(QuicWriteBlockedListParameterizedTest,
+       NonIncrementalStreamsKeepWriting) {
+  if (!priority_respect_incremental_) {
     return;
   }
 
@@ -347,8 +422,9 @@ TEST_F(QuicWriteBlockedListTest, NonIncrementalStreamsKeepWriting) {
   UpdateBytesForStream(id1, kLargeWriteSize);
 }
 
-TEST_F(QuicWriteBlockedListTest, IncrementalAndNonIncrementalStreams) {
-  if (!GetQuicReloadableFlag(quic_priority_respect_incremental)) {
+TEST_P(QuicWriteBlockedListParameterizedTest,
+       IncrementalAndNonIncrementalStreams) {
+  if (!priority_respect_incremental_) {
     return;
   }
 
@@ -360,9 +436,7 @@ TEST_F(QuicWriteBlockedListTest, IncrementalAndNonIncrementalStreams) {
   AddStream(id1);
   AddStream(id2);
 
-  // Small writes do not exceed the batch limit.  Writes continue on streams
-  // with most recently written data, regardless of the incremental parameter
-  // value.
+  // A non-incremental stream can continue writing as long as it has data.
   EXPECT_EQ(id1, PopFront());
   const size_t kSmallWriteSize = 1000;
   UpdateBytesForStream(id1, kSmallWriteSize);
@@ -380,14 +454,17 @@ TEST_F(QuicWriteBlockedListTest, IncrementalAndNonIncrementalStreams) {
   AddStream(id2);
   AddStream(id1);
 
-  EXPECT_EQ(id2, PopFront());
-  UpdateBytesForStream(id2, kSmallWriteSize);
-  AddStream(id2);
+  if (!disable_batch_write_) {
+    // Small writes do not exceed the batch limit.
+    // Writes continue even on an incremental stream.
+    EXPECT_EQ(id2, PopFront());
+    UpdateBytesForStream(id2, kSmallWriteSize);
+    AddStream(id2);
 
-  EXPECT_EQ(id2, PopFront());
-  UpdateBytesForStream(id2, kSmallWriteSize);
+    EXPECT_EQ(id2, PopFront());
+    UpdateBytesForStream(id2, kSmallWriteSize);
+  }
 
-  // A non-incremental stream can continue writing as long as it has data.
   EXPECT_EQ(id1, PopFront());
   const size_t kLargeWriteSize = 1000 * 1000 * 1000;
   UpdateBytesForStream(id1, kLargeWriteSize);
@@ -402,11 +479,15 @@ TEST_F(QuicWriteBlockedListTest, IncrementalAndNonIncrementalStreams) {
   AddStream(id2);
   AddStream(id1);
 
-  // However, if the batching limit is exceeded on stream 2, this stream will
-  // yield to stream 1.
-  EXPECT_EQ(id2, PopFront());
-  UpdateBytesForStream(id2, kLargeWriteSize);
-  AddStream(id2);
+  // When batch writing is disabled, stream 2 immediately yields to stream 1,
+  // which is the non-incremental stream with most recent writes.
+  // When batch writing is enabled, stream 2 only yields to stream 1 after
+  // exceeding the batching limit.
+  if (!disable_batch_write_) {
+    EXPECT_EQ(id2, PopFront());
+    UpdateBytesForStream(id2, kLargeWriteSize);
+    AddStream(id2);
+  }
 
   EXPECT_EQ(id1, PopFront());
   UpdateBytesForStream(id1, kLargeWriteSize);

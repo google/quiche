@@ -1037,25 +1037,33 @@ TEST_P(QuicSessionTestServer, TestBatchedWrites) {
   stream6->SetPriority(priority);
 
   session_.set_writev_consumes_all_data(true);
+  // Tell the session that stream2 and stream4 have data to write.
   session_.MarkConnectionLevelWriteBlocked(stream2->id());
   session_.MarkConnectionLevelWriteBlocked(stream4->id());
 
-  // With two sessions blocked, we should get two write calls.  They should both
-  // go to the first stream as it will only write 6k and mark itself blocked
-  // again.
+  // With two sessions blocked, we should get two write calls.
   InSequence s;
   EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
     session_.SendLargeFakeData(stream2, 6000);
     session_.MarkConnectionLevelWriteBlocked(stream2->id());
   }));
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
-    session_.SendLargeFakeData(stream2, 6000);
-    session_.MarkConnectionLevelWriteBlocked(stream2->id());
-  }));
+  if (GetQuicReloadableFlag(quic_disable_batch_write)) {
+    EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+      session_.SendLargeFakeData(stream4, 6000);
+      session_.MarkConnectionLevelWriteBlocked(stream4->id());
+    }));
+  } else {
+    // Since stream2 only wrote 6 kB and marked itself blocked again,
+    // the second write happens on the same stream.
+    EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+      session_.SendLargeFakeData(stream2, 6000);
+      session_.MarkConnectionLevelWriteBlocked(stream2->id());
+    }));
+  }
   session_.OnCanWrite();
 
-  // We should get one more call for stream2, at which point it has used its
-  // write quota and we move over to stream 4.
+  // If batched write is enabled, stream2 can write a third time in a row.
+  // If batched write is disabled, stream2 has a turn again after stream4.
   EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
     session_.SendLargeFakeData(stream2, 6000);
     session_.MarkConnectionLevelWriteBlocked(stream2->id());
@@ -1066,17 +1074,26 @@ TEST_P(QuicSessionTestServer, TestBatchedWrites) {
   }));
   session_.OnCanWrite();
 
-  // Now let stream 4 do the 2nd of its 3 writes, but add a block for a high
-  // priority stream 6.  4 should be preempted.  6 will write but *not* block so
-  // will cede back to 4.
+  // The next write adds a block for stream 6.
   stream6->SetPriority(QuicStreamPriority{
       kV3HighestPriority, QuicStreamPriority::kDefaultIncremental});
-  EXPECT_CALL(*stream4, OnCanWrite())
-      .WillOnce(Invoke([this, stream4, stream6]() {
-        session_.SendLargeFakeData(stream4, 6000);
-        session_.MarkConnectionLevelWriteBlocked(stream4->id());
-        session_.MarkConnectionLevelWriteBlocked(stream6->id());
-      }));
+  if (GetQuicReloadableFlag(quic_disable_batch_write)) {
+    EXPECT_CALL(*stream2, OnCanWrite())
+        .WillOnce(Invoke([this, stream2, stream6]() {
+          session_.SendLargeFakeData(stream2, 6000);
+          session_.MarkConnectionLevelWriteBlocked(stream2->id());
+          session_.MarkConnectionLevelWriteBlocked(stream6->id());
+        }));
+  } else {
+    EXPECT_CALL(*stream4, OnCanWrite())
+        .WillOnce(Invoke([this, stream4, stream6]() {
+          session_.SendLargeFakeData(stream4, 6000);
+          session_.MarkConnectionLevelWriteBlocked(stream4->id());
+          session_.MarkConnectionLevelWriteBlocked(stream6->id());
+        }));
+  }
+  // Stream 6 will write next, because it has higher priority.
+  // It does not mark itself as blocked.
   EXPECT_CALL(*stream6, OnCanWrite())
       .WillOnce(Invoke([this, stream4, stream6]() {
         session_.SendStreamData(stream6);
@@ -1084,8 +1101,9 @@ TEST_P(QuicSessionTestServer, TestBatchedWrites) {
       }));
   session_.OnCanWrite();
 
-  // Stream4 alread did 6k worth of writes, so after doing another 12k it should
-  // cede and 2 should resume.
+  // If batched write is enabled, stream4 can continue to write, but will
+  // exhaust its write limit, so the last write is on stream2.
+  // If batched write is disabled, stream4 has a turn again, then stream2.
   EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
     session_.SendLargeFakeData(stream4, 12000);
     session_.MarkConnectionLevelWriteBlocked(stream4->id());

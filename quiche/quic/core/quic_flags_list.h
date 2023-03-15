@@ -65,6 +65,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_act_upon_invalid_header, false)
 QUIC_FLAG(quic_reloadable_flag_quic_require_handshake_confirmation, false)
 // If true, respect the incremental parameter of each stream in QuicWriteBlockedList.
 QUIC_FLAG(quic_reloadable_flag_quic_priority_respect_incremental, false)
+// If true, round-robin stream writes instead of batching in QuicWriteBlockedList.
+QUIC_FLAG(quic_reloadable_flag_quic_disable_batch_write, false)
 // If true, server proactively retires client issued connection ID on reverse path validation failure. 
 QUIC_FLAG(quic_reloadable_flag_quic_retire_cid_on_reverse_path_validation_failure, true)
 // If true, server sends bandwidth eastimate when network is idle for a while.
