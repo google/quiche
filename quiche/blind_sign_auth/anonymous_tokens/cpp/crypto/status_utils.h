@@ -35,7 +35,7 @@ namespace anonymous_tokens {
   if (ABSL_PREDICT_FALSE(!statusor.ok())) {                      \
     return statusor.status();                                    \
   }                                                              \
-  lhs = std::move(statusor.value())
+  lhs = *std::move(statusor)
 
 #define ANON_TOKENS_RETURN_IF_ERROR(expr)                  \
   do {                                                     \

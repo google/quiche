@@ -27,8 +27,6 @@ namespace private_membership {
 namespace anonymous_tokens {
 namespace {
 
-using ::testing::EqualsProto;
-
 TEST(ProtoUtilsTest, EmptyUseCase) {
   EXPECT_THAT(ParseUseCase("").status().code(),
               absl::StatusCode::kInvalidArgument);
@@ -75,15 +73,13 @@ TEST(ProtoUtilsTest, TimeToProtoGood) {
   quiche::protobuf::Timestamp proto;
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
       proto, TimeToProto(absl::FromUnixSeconds(1596762373)));
-  EXPECT_THAT(proto, EqualsProto(R"pb(
-                seconds: 1596762373 nanos: 0
-              )pb"));
+  EXPECT_EQ(proto.seconds(), 1596762373);
+  EXPECT_EQ(proto.nanos(), 0);
 
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
       proto, TimeToProto(absl::FromUnixMillis(1596762373123L)));
-  EXPECT_THAT(proto, EqualsProto(R"pb(
-                seconds: 1596762373 nanos: 123000000
-              )pb"));
+  EXPECT_EQ(proto.seconds(), 1596762373);
+  EXPECT_EQ(proto.nanos(), 123000000);
 }
 
 TEST(ProtoUtilsTest, TimeToProtoBad) {

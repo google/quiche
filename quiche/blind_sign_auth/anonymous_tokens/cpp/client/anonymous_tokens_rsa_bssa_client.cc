@@ -263,7 +263,7 @@ AnonymousTokensRsaBssaClient::ProcessResponse(
 
 absl::Status AnonymousTokensRsaBssaClient::Verify(
     const RSABlindSignatureToken& /*token*/, absl::string_view /*message*/,
-    std::optional<absl::string_view> /*public_metadata*/) {
+    absl::optional<absl::string_view> /*public_metadata*/) {
   return absl::UnimplementedError("Verify not implemented yet.");
 }
 

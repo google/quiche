@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "privacy/net/common/cpp/public_metadata/fingerprint.h"
 #include "quiche/blind_sign_auth/proto/auth_and_sign.pb.h"
 #include "quiche/blind_sign_auth/proto/get_initial_data.pb.h"
 #include "quiche/blind_sign_auth/proto/key_services.pb.h"
@@ -28,6 +27,14 @@
 #include "quiche/common/quiche_random.h"
 
 namespace quiche {
+namespace {
+
+template <typename T>
+std::string OmitDefault(T value) {
+  return value == 0 ? "" : absl::StrCat(value);
+}
+
+}  // namespace
 
 void BlindSignAuth::GetTokens(
     absl::string_view oauth_token, int num_tokens,
@@ -101,7 +108,7 @@ void BlindSignAuth::GetInitialDataCallback(
     random->RandBytes(rand_bytes.data(), rand_bytes.size());
     plaintext_message.set_plaintext_message(absl::StrCat("blind:", rand_bytes));
     uint64_t fingerprint = 0;
-    absl::Status fingerprint_status = privacy::ppn::FingerprintPublicMetadata(
+    absl::Status fingerprint_status = FingerprintPublicMetadata(
         initial_data_response.public_metadata_info().public_metadata(),
         &fingerprint);
     if (!fingerprint_status.ok()) {
@@ -126,7 +133,7 @@ void BlindSignAuth::GetInitialDataCallback(
 
   // Create AuthAndSign RPC.
   privacy::ppn::AuthAndSignRequest sign_request;
-  sign_request.set_oauth_token(oauth_token);
+  sign_request.set_oauth_token(std::string(oauth_token));
   sign_request.set_service_type("chromeipblinding");
   sign_request.set_key_type(privacy::ppn::AT_PUBLIC_METADATA_KEY_TYPE);
   sign_request.set_key_version(
@@ -252,10 +259,38 @@ void BlindSignAuth::AuthAndSignCallback(
       return;
     }
     spend_token_data.set_use_case(*use_case);
+    spend_token_data.set_message_mask(
+        signed_tokens->at(i).token().message_mask());
     tokens_vec.push_back(spend_token_data.SerializeAsString());
   }
 
   callback(absl::Span<std::string>(tokens_vec));
+}
+
+absl::Status BlindSignAuth::FingerprintPublicMetadata(
+    const privacy::ppn::PublicMetadata& metadata, uint64_t* fingerprint) {
+  const EVP_MD* hasher = EVP_sha256();
+  std::string digest;
+  digest.resize(EVP_MAX_MD_SIZE);
+
+  uint32_t digest_length = 0;
+  // Concatenate fields in tag number order, omitting fields whose values match
+  // the default. This enables new fields to be added without changing the
+  // resulting encoding.
+  const std::string input = absl::StrCat(            //
+      metadata.exit_location().country(),            //
+      metadata.exit_location().city_geo_id(),        //
+      metadata.service_type(),                       //
+      OmitDefault(metadata.expiration().seconds()),  //
+      OmitDefault(metadata.expiration().nanos()));
+  if (EVP_Digest(input.data(), input.length(),
+                 reinterpret_cast<uint8_t*>(&digest[0]), &digest_length, hasher,
+                 nullptr) != 1) {
+    return absl::InternalError("EVP_Digest failed");
+  }
+  // Return the first uint64_t of the SHA-256 hash.
+  memcpy(fingerprint, digest.data(), sizeof(*fingerprint));
+  return absl::OkStatus();
 }
 
 }  // namespace quiche

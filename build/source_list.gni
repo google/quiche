@@ -1587,12 +1587,14 @@ blind_sign_auth_tests_srcs = [
 ]
 protobuf_blind_sign_auth = [
     "src/quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.proto",
+    "src/quiche/blind_sign_auth/proto/any.proto",
     "src/quiche/blind_sign_auth/proto/attestation.proto",
     "src/quiche/blind_sign_auth/proto/auth_and_sign.proto",
     "src/quiche/blind_sign_auth/proto/get_initial_data.proto",
     "src/quiche/blind_sign_auth/proto/key_services.proto",
     "src/quiche/blind_sign_auth/proto/public_metadata.proto",
     "src/quiche/blind_sign_auth/proto/spend_token_data.proto",
+    "src/quiche/blind_sign_auth/proto/timestamp.proto",
 ]
 libevent_hdrs = [
     "src/quiche/quic/bindings/quic_libevent.h",

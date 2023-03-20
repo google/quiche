@@ -136,7 +136,8 @@ TEST_P(ComputeHashTest, ComputesHash) {
   std::string data = absl::HexStringToBytes(params.input_hex);
   std::string expected_digest =
       absl::HexStringToBytes(params.expected_digest_hex);
-  QUICHE_EXPECT_OK_AND_ASSIGN(auto computed_hash, ComputeHash(data, *params.hasher));
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto computed_hash,
+                                   ComputeHash(data, *params.hasher));
   EXPECT_EQ(computed_hash, expected_digest);
 }
 

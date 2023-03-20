@@ -57,6 +57,15 @@ MATCHER_P(IsOkAndHolds, matcher,
   return ::testing::ExplainMatchResult(matcher, arg.value(), result_listener);
 }
 
+MATCHER_P(StatusIs, code, "Matcher against only a specific status code") {
+  if (ExtractStatus(arg).code() != code) {
+    *result_listener << "Expected status " << absl::StatusCodeToString(code)
+                     << ", got " << ExtractStatus(arg);
+    return false;
+  }
+  return true;
+}
+
 MATCHER_P2(StatusIs, code, matcher, "Matcher against a specific status code") {
   if (ExtractStatus(arg).code() != code) {
     *result_listener << "Expected status " << absl::StatusCodeToString(code)

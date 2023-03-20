@@ -41,7 +41,7 @@ CreateClientTestKey(absl::string_view use_case = "TEST_USE_CASE",
                     MessageMaskType mask_type = AT_MESSAGE_MASK_CONCAT,
                     int message_mask_size = 32) {
   ANON_TOKENS_ASSIGN_OR_RETURN(auto key, CreateTestKey());
-  key.second.set_use_case(use_case);
+  key.second.set_use_case(std::string(use_case));
   key.second.set_key_version(key_version);
   key.second.set_message_mask_type(mask_type);
   key.second.set_message_mask_size(message_mask_size);

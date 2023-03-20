@@ -8,8 +8,8 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
+#include "quiche/blind_sign_auth/proto/timestamp.pb.h"
 #include "quiche/blind_sign_auth/proto/auth_and_sign.pb.h"
 #include "quiche/blind_sign_auth/proto/get_initial_data.pb.h"
 #include "quiche/blind_sign_auth/proto/key_services.pb.h"
@@ -22,7 +22,6 @@
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/testing_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/base.h"
-
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
 #include "quiche/blind_sign_auth/test_tools/mock_blind_sign_http_interface.h"
 #include "quiche/common/platform/api/quiche_mutex.h"
@@ -35,13 +34,11 @@ namespace {
 
 using ::testing::_;
 using ::testing::Eq;
-using ::testing::EqualsProto;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::InvokeArgument;
 using ::testing::StartsWith;
 using ::testing::Unused;
-using ::testing::proto::WhenDeserializedAs;
 
 class BlindSignAuthTest : public QuicheTest {
  protected:
@@ -53,7 +50,13 @@ class BlindSignAuthTest : public QuicheTest {
     }
     keypair_ = *std::move(keypair);
     keypair_.second.set_key_version(1);
-    keypair_.second.set_use_case("CHROME_IP_BLINDING");
+    keypair_.second.set_use_case("TEST_USE_CASE");
+
+    // Create fake GetInitialDataRequest.
+    expected_get_initial_data_request_.set_use_attestation(false);
+    expected_get_initial_data_request_.set_service_type("chromeipblinding");
+    expected_get_initial_data_request_.set_location_granularity(
+        privacy::ppn::GetInitialDataRequest_LocationGranularity_UNKNOWN);
 
     // Create fake public key response.
     privacy::ppn::GetInitialDataResponse fake_get_initial_data_response;
@@ -72,11 +75,18 @@ class BlindSignAuthTest : public QuicheTest {
       }
       validation_version: 1
     )pb";
-    privacy::ppn::PublicMetadataInfo public_metadata_info;
-    ASSERT_TRUE(proto2::TextFormat::ParseFromString(public_metadata_str,
-                                                    &public_metadata_info));
+    privacy::ppn::PublicMetadata::Location location;
+    location.set_country("US");
+    quiche::protobuf::Timestamp expiration;
+    expiration.set_seconds(3600);
+    privacy::ppn::PublicMetadata public_metadata;
+    *public_metadata.mutable_exit_location() = location;
+    public_metadata.set_service_type("chromeipblinding");
+    *public_metadata.mutable_expiration() = expiration;
+    public_metadata_info_.set_validation_version(1);
+    *public_metadata_info_.mutable_public_metadata() = public_metadata;
     *fake_get_initial_data_response.mutable_public_metadata_info() =
-        public_metadata_info;
+        public_metadata_info_;
     fake_get_initial_data_response_ = fake_get_initial_data_response;
 
     blind_sign_auth_ = std::make_unique<BlindSignAuth>(&mock_http_interface_);
@@ -100,14 +110,8 @@ class BlindSignAuthTest : public QuicheTest {
     // privacy::ppn::AT_PUBLIC_METADATA_KEY_TYPE.
     EXPECT_EQ(request.key_type(), privacy::ppn::AT_PUBLIC_METADATA_KEY_TYPE);
     EXPECT_EQ(request.public_key_hash(), "");
-    EXPECT_THAT(request.public_metadata_info(), EqualsProto(R"pb(
-                  public_metadata {
-                    exit_location { country: "US" }
-                    service_type: "chromeipblinding"
-                    expiration { seconds: 3600 }
-                  }
-                  validation_version: 1
-                )pb"));
+    EXPECT_EQ(request.public_metadata_info().SerializeAsString(),
+              public_metadata_info_.SerializeAsString());
     EXPECT_EQ(request.key_version(), keypair_.second.key_version());
 
     // Construct AuthAndSignResponse.
@@ -130,22 +134,17 @@ class BlindSignAuthTest : public QuicheTest {
       privacy::ppn::SpendTokenData spend_token_data;
       ASSERT_TRUE(spend_token_data.ParseFromString(token));
       // Validate token structure.
-      EXPECT_THAT(spend_token_data.public_metadata(), EqualsProto(R"pb(
-                    public_metadata {
-                      exit_location { country: "US" }
-                      service_type: "chromeipblinding"
-                      expiration { seconds: 3600 }
-                    }
-                    validation_version: 1
-                  )pb"));
+      EXPECT_EQ(spend_token_data.public_metadata().SerializeAsString(),
+                public_metadata_info_.SerializeAsString());
       EXPECT_THAT(spend_token_data.unblinded_token(), StartsWith("blind:"));
       EXPECT_GE(spend_token_data.unblinded_token_signature().size(),
                 spend_token_data.unblinded_token().size());
       EXPECT_EQ(spend_token_data.signing_key_version(),
                 keypair_.second.key_version());
-      EXPECT_THAT(spend_token_data.use_case(),
-                  private_membership::anonymous_tokens::AnonymousTokensUseCase::
-                      CHROME_IP_BLINDING);
+      EXPECT_NE(spend_token_data.use_case(),
+                private_membership::anonymous_tokens::AnonymousTokensUseCase::
+                    ANONYMOUS_TOKENS_USE_CASE_UNDEFINED);
+      EXPECT_NE(spend_token_data.message_mask(), "");
     }
   }
 
@@ -154,14 +153,11 @@ class BlindSignAuthTest : public QuicheTest {
   std::pair<bssl::UniquePtr<RSA>,
             private_membership::anonymous_tokens::RSABlindSignaturePublicKey>
       keypair_;
+  privacy::ppn::PublicMetadataInfo public_metadata_info_;
   privacy::ppn::AuthAndSignResponse sign_response_;
   privacy::ppn::GetInitialDataResponse fake_get_initial_data_response_;
   std::string oauth_token_ = "oauth_token";
-  absl::string_view expected_get_initial_data_request_ = R"pb(
-    use_attestation: false
-    service_type: "chromeipblinding"
-    location_granularity: 0
-  )pb";
+  privacy::ppn::GetInitialDataRequest expected_get_initial_data_request_;
 };
 
 TEST_F(BlindSignAuthTest, TestGetTokensSuccessful) {
@@ -174,8 +170,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensSuccessful) {
     EXPECT_CALL(
         mock_http_interface_,
         DoRequest(Eq("/v1/getInitialData"), Eq(oauth_token_),
-                  WhenDeserializedAs<privacy::ppn::GetInitialDataRequest>(
-                      EqualsProto(expected_get_initial_data_request_)),
+                  Eq(expected_get_initial_data_request_.SerializeAsString()),
                   _))
         .Times(1)
         .WillOnce(InvokeArgument<3>(fake_public_key_response));
@@ -237,11 +232,10 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadGetInitialDataResponse) {
   BlindSignHttpResponse fake_public_key_response(
       200, fake_get_initial_data_response_.SerializeAsString());
 
-  EXPECT_CALL(mock_http_interface_,
-              DoRequest(Eq("/v1/getInitialData"), Eq(oauth_token_),
-                        WhenDeserializedAs<privacy::ppn::GetInitialDataRequest>(
-                            EqualsProto(expected_get_initial_data_request_)),
-                        _))
+  EXPECT_CALL(
+      mock_http_interface_,
+      DoRequest(Eq("/v1/getInitialData"), Eq(oauth_token_),
+                Eq(expected_get_initial_data_request_.SerializeAsString()), _))
       .Times(1)
       .WillOnce(InvokeArgument<3>(fake_public_key_response));
 
@@ -269,8 +263,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
     EXPECT_CALL(
         mock_http_interface_,
         DoRequest(Eq("/v1/getInitialData"), Eq(oauth_token_),
-                  WhenDeserializedAs<privacy::ppn::GetInitialDataRequest>(
-                      EqualsProto(expected_get_initial_data_request_)),
+                  Eq(expected_get_initial_data_request_.SerializeAsString()),
                   _))
         .Times(1)
         .WillOnce(InvokeArgument<3>(fake_public_key_response));

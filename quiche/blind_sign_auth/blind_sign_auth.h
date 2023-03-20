@@ -53,6 +53,8 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
       private_membership::anonymous_tokens::AnonymousTokensRsaBssaClient*
           bssa_client,
       std::function<void(absl::StatusOr<absl::Span<std::string>>)> callback);
+  absl::Status FingerprintPublicMetadata(
+      const privacy::ppn::PublicMetadata& metadata, uint64_t* fingerprint);
 
   BlindSignHttpInterface* http_fetcher_ = nullptr;
 };
