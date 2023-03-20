@@ -64,6 +64,9 @@ const QuicPacketCount kMaxConsecutiveNonRetransmittablePackets = 19;
 // The minimum release time into future in ms.
 const int kMinReleaseTimeIntoFutureMs = 1;
 
+// The maximum number of recorded client addresses.
+const size_t kMaxReceivedClientAddressSize = 20;
+
 // Base class of all alarms owned by a QuicConnection.
 class QuicConnectionAlarmDelegate : public QuicAlarm::Delegate {
  public:
@@ -338,7 +341,8 @@ QuicConnection::QuicConnection(
                       &context_),
       ping_manager_(perspective, this, &arena_, alarm_factory_, &context_),
       multi_port_probing_interval_(kDefaultMultiPortProbingInterval),
-      connection_id_generator_(generator) {
+      connection_id_generator_(generator),
+      received_client_addresses_cache_(kMaxReceivedClientAddressSize) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -3017,6 +3021,17 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
     default_path_.self_address = last_received_packet_info_.destination_address;
   }
 
+  if (GetQuicReloadableFlag(quic_use_received_client_addresses_cache) &&
+      perspective_ == Perspective::IS_SERVER &&
+      !last_received_packet_info_.actual_destination_address.IsInitialized() &&
+      last_received_packet_info_.source_address.IsInitialized()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_received_client_addresses_cache);
+    // Record client address of packets received on server original address.
+    received_client_addresses_cache_.Insert(
+        last_received_packet_info_.source_address,
+        std::make_unique<bool>(true));
+  }
+
   if (perspective_ == Perspective::IS_SERVER &&
       last_received_packet_info_.actual_destination_address.IsInitialized() &&
       !IsHandshakeConfirmed() &&
@@ -3399,6 +3414,19 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   QuicTime packet_send_time = CalculatePacketSentTime();
   WriteResult result(WRITE_STATUS_OK, encrypted_length);
   QuicSocketAddress send_to_address = packet->peer_address;
+  QuicSocketAddress send_from_address = self_address();
+  if (perspective_ == Perspective::IS_SERVER &&
+      sent_server_preferred_address_.IsInitialized() &&
+      received_client_addresses_cache_.Lookup(send_to_address) ==
+          received_client_addresses_cache_.end()) {
+    // Given server has not received packets from send_to_address to
+    // self_address(), most NATs do not allow packets from self_address() to
+    // send_to_address to go through. Override packet's self address to
+    // sent_server_preferred_address_.
+    // TODO(b/262386897): server should validate reverse path before changing
+    // self address of packets to send.
+    send_from_address = sent_server_preferred_address_;
+  }
   // Self address is always the default self address on this code path.
   const bool send_on_current_path = send_to_address == peer_address();
   if (!send_on_current_path) {
@@ -3422,7 +3450,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       QUIC_BUG_IF(quic_bug_12714_24,
                   !version().CanSendCoalescedPackets() || coalescing_done_);
       if (!coalesced_packet_.MaybeCoalescePacket(
-              *packet, self_address(), send_to_address,
+              *packet, send_from_address, send_to_address,
               helper_->GetStreamSendBufferAllocator(),
               packet_creator_.max_packet_length())) {
         // Failed to coalesce packet, flush current coalesced packet.
@@ -3435,7 +3463,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
           return false;
         }
         if (!coalesced_packet_.MaybeCoalescePacket(
-                *packet, self_address(), send_to_address,
+                *packet, send_from_address, send_to_address,
                 helper_->GetStreamSendBufferAllocator(),
                 packet_creator_.max_packet_length())) {
           // Failed to coalesce packet even it is the only packet, raise a write
@@ -3456,7 +3484,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     case BUFFER:
       QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
                     << " to buffered packets";
-      buffered_packets_.emplace_back(*packet, self_address(), send_to_address);
+      buffered_packets_.emplace_back(*packet, send_from_address,
+                                     send_to_address);
       break;
     case SEND_TO_WRITER:
       // Stop using coalescer from now on.
@@ -3470,7 +3499,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       // writer_->WritePacket transfers buffer ownership back to the writer.
       packet->release_encrypted_buffer = nullptr;
       result = writer_->WritePacket(packet->encrypted_buffer, encrypted_length,
-                                    self_address().host(), send_to_address,
+                                    send_from_address.host(), send_to_address,
                                     per_packet_options_);
       // This is a work around for an issue with linux UDP GSO batch writers.
       // When sending a GSO packet with 2 segments, if the first segment is
@@ -3505,7 +3534,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     if (result.status != WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
       QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
                     << " to buffered packets";
-      buffered_packets_.emplace_back(*packet, self_address(), send_to_address);
+      buffered_packets_.emplace_back(*packet, send_from_address,
+                                     send_to_address);
     }
   }
 
@@ -3533,9 +3563,9 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   if (IsWriteError(result.status)) {
     QUIC_LOG_FIRST_N(ERROR, 10)
         << ENDPOINT << "Failed writing packet " << packet_number << " of "
-        << encrypted_length << " bytes from " << self_address().host() << " to "
-        << send_to_address << ", with error code " << result.error_code
-        << ". long_term_mtu_:" << long_term_mtu_
+        << encrypted_length << " bytes from " << send_from_address.host()
+        << " to " << send_to_address << ", with error code "
+        << result.error_code << ". long_term_mtu_:" << long_term_mtu_
         << ", previous_validated_mtu_:" << previous_validated_mtu_
         << ", max_packet_length():" << max_packet_length()
         << ", is_mtu_discovery:" << is_mtu_discovery;

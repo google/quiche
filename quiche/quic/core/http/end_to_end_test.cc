@@ -441,6 +441,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     StartServer();
 
     if (use_preferred_address_) {
+      SetQuicReloadableFlag(quic_use_received_client_addresses_cache, true);
       // At this point, the server has an ephemeral port to listen on. Restart
       // the server with the preferred address.
       StopServer();

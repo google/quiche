@@ -45,6 +45,7 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_idle_network_detector.h"
+#include "quiche/quic/core/quic_lru_cache.h"
 #include "quiche/quic/core/quic_mtu_discovery.h"
 #include "quiche/quic/core/quic_network_blackhole_detector.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
@@ -2356,6 +2357,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // peer. For now, this is only stored for tests.
   QuicEcnCounts
       peer_ack_ecn_counts_[PacketNumberSpace::NUM_PACKET_NUMBER_SPACES];
+
+  // This LRU cache records source addresses of packets received on server's
+  // original address.
+  QuicLRUCache<QuicSocketAddress, bool, QuicSocketAddressHash>
+      received_client_addresses_cache_;
 };
 
 }  // namespace quic

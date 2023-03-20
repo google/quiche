@@ -1497,6 +1497,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     connection_.CreateConnectionIdManager();
     QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
     SetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2, true);
+    SetQuicReloadableFlag(quic_use_received_client_addresses_cache, true);
     EXPECT_CALL(visitor_, AllowSelfAddressChange())
         .WillRepeatedly(Return(true));
 
@@ -2791,8 +2792,11 @@ TEST_P(QuicConnectionTest, ReceivePathProbingToPreferredAddressAtServer) {
       .WillOnce(Invoke([&]() {
         EXPECT_EQ(1u, writer_->path_response_frames().size());
         EXPECT_EQ(1u, writer_->path_challenge_frames().size());
-        EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
-        // The responses should still be sent from the original address.
+        EXPECT_EQ(kServerPreferredAddress.host(),
+                  writer_->last_write_source_address());
+        // The responses should be sent from preferred address given server
+        // has not received packet on original address from the new client
+        // address.
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
       }));
   ProcessReceivedPacket(kServerPreferredAddress, kNewPeerAddress, *received);
@@ -17413,8 +17417,11 @@ TEST_P(QuicConnectionTest,
       .WillOnce(Invoke([&]() {
         EXPECT_EQ(1u, writer_->path_response_frames().size());
         EXPECT_EQ(1u, writer_->path_challenge_frames().size());
-        // The responses should still be sent from the original address.
-        EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
+        // The responses should be sent from preferred address given server
+        // has not received packet on original address from the new client
+        // address.
+        EXPECT_EQ(kServerPreferredAddress.host(),
+                  writer_->last_write_source_address());
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
       }));
   ProcessReceivedPacket(kServerPreferredAddress, kNewPeerAddress, *received);
@@ -17451,7 +17458,8 @@ TEST_P(QuicConnectionTest,
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), kServerPreferredAddress,
                                   kNewPeerAddress, ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
-  EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
+  EXPECT_EQ(kServerPreferredAddress.host(),
+            writer_->last_write_source_address());
   EXPECT_EQ(kSelfAddress, connection_.self_address());
 }
 
