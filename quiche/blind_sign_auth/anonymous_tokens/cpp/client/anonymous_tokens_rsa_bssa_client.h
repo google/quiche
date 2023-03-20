@@ -26,17 +26,17 @@
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/rsa.h"
-#include "quiche/common/platform/api/quiche_export.h"
+// #include "quiche/common/platform/api/quiche_export.h"
 
 namespace private_membership {
 namespace anonymous_tokens {
 
-// This class generates AnonymousTokens RSA BSSA
+// This class generates AnonymousTokens RSA blind signatures,
 // (https://datatracker.ietf.org/doc/draft-irtf-cfrg-rsa-blind-signatures/)
 // blind message signing request and processes the response.
 //
-// Each execution of the Anonymous Tokens RSA BSSA protocol requires a new
-// instance of the AnonymousTokensRsaBssaClient.
+// Each execution of the Anonymous Tokens RSA blind signatures protocol requires
+// a new instance of the AnonymousTokensRsaBssaClient.
 //
 // This class is not thread-safe.
 class QUICHE_EXPORT AnonymousTokensRsaBssaClient {
@@ -50,7 +50,8 @@ class QUICHE_EXPORT AnonymousTokensRsaBssaClient {
   // sign request and process a response.
   //
   // This method is to be used to create a client as its constructor is private.
-  // It takes as input a public key and relevant parameters.
+  // It takes as input RSABlindSignaturePublicKey which contains the public key
+  // and relevant parameters.
   static absl::StatusOr<std::unique_ptr<AnonymousTokensRsaBssaClient>> Create(
       const RSABlindSignaturePublicKey& public_key);
 
@@ -68,8 +69,8 @@ class QUICHE_EXPORT AnonymousTokensRsaBssaClient {
   //
   // It outputs a vector of a protos where each element contains an input
   // plaintext message and associated public metadata (if it exists) along with
-  // its final (unblinded) anonymous token resulting from the blind signature
-  // protocol.
+  // its final (unblinded) anonymous token resulting from the RSA blind
+  // signatures protocol.
   absl::StatusOr<std::vector<RSABlindSignatureTokenWithInput>> ProcessResponse(
       const AnonymousTokensSignResponse& response);
 

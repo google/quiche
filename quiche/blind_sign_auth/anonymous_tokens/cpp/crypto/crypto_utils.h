@@ -82,8 +82,8 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT GetRsaSqrtTwo(
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT ComputePowerOfTwo(
     int x);
 
-// ComputeHash sub-routine used druing blindness and verification of RSA PSS
-// AnonymousTokens.
+// ComputeHash sub-routine used during blindness and verification of RSA blind
+// signatures protocol with or without public metadata.
 absl::StatusOr<std::string> QUICHE_EXPORT ComputeHash(
     absl::string_view input, const EVP_MD& hasher);
 
@@ -92,7 +92,8 @@ absl::StatusOr<std::string> QUICHE_EXPORT ComputeHash(
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT
 ComputeCarmichaelLcm(const BIGNUM& phi_p, const BIGNUM& phi_q, BN_CTX& bn_ctx);
 
-// Converts AnonymousTokens::RSAPrivateKey To bssl::UniquePtr<RSA>
+// Converts AnonymousTokens::RSAPrivateKey to bssl::UniquePtr<RSA> without
+// public metadata augmentation.
 absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
 AnonymousTokensRSAPrivateKeyToRSA(const RSAPrivateKey& private_key);
 

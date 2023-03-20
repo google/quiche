@@ -26,28 +26,31 @@
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/blinder.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
-#include "quiche/common/platform/api/quiche_export.h"
+// #include "quiche/common/platform/api/quiche_export.h"
 
 namespace private_membership {
 namespace anonymous_tokens {
 
-// RsaBlinder is able to blind a token, and unblind it after it has been signed.
+// RsaBlinder `blinds` input messages, and then unblinds them after they are
+// signed.
 class QUICHE_EXPORT RsaBlinder : public Blinder {
  public:
   static absl::StatusOr<std::unique_ptr<RsaBlinder>> New(
       const RSABlindSignaturePublicKey& public_key,
       absl::string_view public_metadata = "");
 
-  // Blind `message` using n and e derived from an RSA public key.
-  // `message` will first be encoded with the EMSA-PSS operation.
-  // This encoding operation matches that which is used by RsaVerifier.
+  // Blind `message` using n and e derived from an RSA public key and the public
+  // metadata if applicable.
+  //
+  // Before blinding, the `message` will first be hashed and then encoded with
+  // the EMSA-PSS operation.
   absl::StatusOr<std::string> Blind(absl::string_view message) override;
 
   // Unblinds `blind_signature`.
   absl::StatusOr<std::string> Unblind(
       absl::string_view blind_signature) override;
 
-  // Verifies a signature.
+  // Verifies an `unblinded` signature against the input message.
   absl::Status Verify(absl::string_view signature, absl::string_view message);
 
  private:

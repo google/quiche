@@ -32,11 +32,12 @@ namespace anonymous_tokens {
 namespace public_metadata_crypto_utils_internal {
 
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> PublicMetadataHashWithHKDF(
-    absl::string_view input, absl::string_view rsa_modulus_str,
+    absl::string_view public_metadata, absl::string_view rsa_modulus_str,
     size_t out_len_bytes) {
   const EVP_MD* evp_md_sha_384 = EVP_sha384();
   // append 0x00 to input
-  std::vector<uint8_t> input_buffer(input.begin(), input.end());
+  std::vector<uint8_t> input_buffer(public_metadata.begin(),
+                                    public_metadata.end());
   input_buffer.push_back(0x00);
   std::string out_e;
   // We set the out_e size beyond out_len_bytes so that out_e bytes are
@@ -146,8 +147,8 @@ absl::StatusOr<bssl::UniquePtr<RSA>> RSAPublicKeyToRSAUnderPublicMetadata(
   if (!rsa_public_key.get()) {
     return absl::InternalError(
         absl::StrCat("RSA_new failed: ", GetSslErrors()));
-  } else if (RSA_set0_key(rsa_public_key.get(), rsa_modulus.get(),
-                          new_e.get(), nullptr) != kBsslSuccess) {
+  } else if (RSA_set0_key(rsa_public_key.get(), rsa_modulus.get(), new_e.get(),
+                          nullptr) != kBsslSuccess) {
     return absl::InternalError(
         absl::StrCat("RSA_set0_key failed: ", GetSslErrors()));
   }

@@ -20,22 +20,28 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
-#include "quiche/common/platform/api/quiche_export.h"
+// #include "quiche/common/platform/api/quiche_export.h"
 
 namespace private_membership {
 namespace anonymous_tokens {
 
+// Returns AnonymousTokensUseCase parsed from a string_view.
 absl::StatusOr<AnonymousTokensUseCase> QUICHE_EXPORT ParseUseCase(
     absl::string_view use_case);
 
+// Takes in quiche::protobuf::Timestamp and converts it to absl::Time.
+//
 // Timestamp is defined here:
 // https://developers.google.com/protocol-buffers/docs/reference/quiche.protobuf#timestamp
 absl::StatusOr<absl::Time> QUICHE_EXPORT TimeFromProto(
     const quiche::protobuf::Timestamp& proto);
 
+// Takes in absl::Time and converts it to quiche::protobuf::Timestamp.
+//
 // Timestamp is defined here:
 // https://developers.google.com/protocol-buffers/docs/reference/quiche.protobuf#timestamp
-absl::StatusOr<quiche::protobuf::Timestamp> QUICHE_EXPORT TimeToProto(absl::Time time);
+absl::StatusOr<quiche::protobuf::Timestamp> QUICHE_EXPORT TimeToProto(
+    absl::Time time);
 
 }  // namespace anonymous_tokens
 }  // namespace private_membership

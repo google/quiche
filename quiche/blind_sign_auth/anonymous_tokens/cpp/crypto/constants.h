@@ -27,7 +27,7 @@ constexpr int kBsslSuccess = 1;
 
 // RSA modulus size, 4096 bits
 //
-// Recommended size.
+// Our recommended size.
 constexpr int kRsaModulusSizeInBits4096 = 4096;
 
 // RSA modulus size, 512 bytes

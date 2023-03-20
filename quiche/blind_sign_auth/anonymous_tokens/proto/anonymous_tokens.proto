@@ -180,7 +180,7 @@ message AnonymousTokensSignRequest {
     // Version of key used to sign and generate the token.
     int64 key_version = 2;
 
-    // Public metadata to be tied to the ciphertext.
+    // Public metadata to be tied to the `blinded message` (serialized_token).
     bytes public_metadata = 4;
 
     // Serialization of the token.
@@ -200,13 +200,15 @@ message AnonymousTokensSignResponse {
     // Version of key used to sign and generate the token.
     int64 key_version = 2;
 
-    // Public metadata tied to the ciphertext.
+    // Public metadata tied to the input (serialized_blinded_message) and the
+    // `blinded` signature (serialized_token).
     bytes public_metadata = 4;
 
     // The serialized_token in BlindedToken in the AnonymousTokensSignRequest.
     bytes serialized_blinded_message = 5;
 
-    // Serialization of the signed token.
+    // Serialization of the signed token. This will have to be `unblinded` by
+    // the user before it can be used / redeemed.
     bytes serialized_token = 3;
   }
 
@@ -224,7 +226,8 @@ message AnonymousTokensRedemptionRequest {
     // redeemed.
     int64 key_version = 2;
 
-    // Public metadata to be used for verifying the ciphertext.
+    // Public metadata to be used for redeeming the signature
+    // (serialized_unblinded_token).
     bytes public_metadata = 4;
 
     // Serialization of the unblinded anonymous token that needs to be redeemed.
@@ -250,7 +253,8 @@ message AnonymousTokensRedemptionResponse {
     // Version of key associated with this redeemed anonymous token.
     int64 key_version = 4;
 
-    // Public metadata used for verifying the ciphertext.
+    // Public metadata used for verifying the signature
+    // (serialized_unblinded_token).
     bytes public_metadata = 5;
 
     // Serialization of this redeemed unblinded anonymous token.

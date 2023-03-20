@@ -25,11 +25,14 @@
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/base.h"
-#include "quiche/common/platform/api/quiche_export.h"
+// #include "quiche/common/platform/api/quiche_export.h"
 
 namespace private_membership {
 namespace anonymous_tokens {
 
+// Creates a pair containing a standard RSA Private key and an Anonymous Tokens
+// RSABlindSignaturePublicKey using RSA_F4 (65537) as the public exponent and
+// other input parameters.
 absl::StatusOr<std::pair<bssl::UniquePtr<RSA>,
                          RSABlindSignaturePublicKey>> QUICHE_EXPORT
 CreateTestKey(int key_size = 512, HashType sig_hash = AT_HASH_TYPE_SHA384,
@@ -37,6 +40,11 @@ CreateTestKey(int key_size = 512, HashType sig_hash = AT_HASH_TYPE_SHA384,
               MessageMaskType message_mask_type = AT_MESSAGE_MASK_CONCAT,
               int message_mask_size = kRsaMessageMaskSizeInBytes32);
 
+// Prepares message for signing by computing its hash and then applying the PSS
+// padding to the result by executing RSA_padding_add_PKCS1_PSS_mgf1 from the
+// openssl library, using the input parameters.
+//
+// This is a test function and it skips the message blinding part.
 absl::StatusOr<std::string> EncodeMessageForTests(absl::string_view message,
                                                   RSAPublicKey public_key,
                                                   const EVP_MD* sig_hasher,
