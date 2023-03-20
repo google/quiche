@@ -29,7 +29,6 @@
 #include "absl/strings/string_view.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/public_metadata_crypto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/status_utils.h"
 #include "openssl/rsa.h"
 
