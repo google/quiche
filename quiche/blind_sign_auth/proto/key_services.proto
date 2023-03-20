@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package privacy.ppn;
+
+import "storage/datapol/annotations/proto/semantic_annotations.proto";
+
+option java_multiple_files = true;
+option (datapol.file_vetting_status) = "latest";
+
+// Indicates client's desired or capable key support.
+enum KeyType {
+  UNKNOWN_KEY_TYPE = 0;
+  ZINC_KEY_TYPE = 1;
+  AT_PUBLIC_METADATA_KEY_TYPE = 2;
+  AT_PUBLIC_METADATA_VERIFIED_KEY_TYPE = 3;
+}

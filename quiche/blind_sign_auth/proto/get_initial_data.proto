@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package privacy.ppn;
+
+import "quiche/blind_sign_auth/proto/attestation.proto";
+import "quiche/blind_sign_auth/proto/public_metadata.proto";
+import "storage/datapol/annotations/proto/semantic_annotations.proto";
+import "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.proto";
+
+option java_multiple_files = true;
+option cc_api_version = 2;
+option (datapol.file_vetting_status) = "latest";
+
+// Request data needed to prepare for AuthAndSign.
+message GetInitialDataRequest {
+  // Whether the client wants to use attestation as part of authentication.
+  bool use_attestation = 1 ;
+
+  // A string uniquely identifying the strategy this client should be
+  // authenticated with.
+  string service_type = 2 ;
+
+  enum LocationGranularity {
+    UNKNOWN = 0;
+    COUNTRY = 1;
+    // Geographic area with population greater than 1 million.
+    CITY_GEOS = 2;
+  }
+  // The user selected granularity of exit IP location.
+  LocationGranularity location_granularity = 3
+      ;
+}
+
+// Contains data needed to perform blind signing and prepare for calling
+// AuthAndSign.
+message GetInitialDataResponse {
+  private_membership.anonymous_tokens.RSABlindSignaturePublicKey
+      at_public_metadata_public_key = 1;
+
+  // Metadata to associate with the token.
+  privacy.ppn.PublicMetadataInfo public_metadata_info = 2;
+
+  // Data needed to set up attestation, included if use_attestation is true or
+  // if the service_type input requires it.
+  privacy.ppn.PrepareAttestationData attestation = 3;
+}
