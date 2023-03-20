@@ -106,9 +106,9 @@ QuicCryptoStream* QuicSessionPeer::GetMutableCryptoStream(
 }
 
 // static
-QuicWriteBlockedList* QuicSessionPeer::GetWriteBlockedStreams(
+QuicWriteBlockedListInterface* QuicSessionPeer::GetWriteBlockedStreams(
     QuicSession* session) {
-  return &session->write_blocked_streams_;
+  return session->write_blocked_streams();
 }
 
 // static
@@ -171,7 +171,7 @@ QuicStream* QuicSessionPeer::GetStream(QuicSession* session, QuicStreamId id) {
 // static
 bool QuicSessionPeer::IsStreamWriteBlocked(QuicSession* session,
                                            QuicStreamId id) {
-  return session->write_blocked_streams_.IsStreamBlocked(id);
+  return session->write_blocked_streams()->IsStreamBlocked(id);
 }
 
 // static

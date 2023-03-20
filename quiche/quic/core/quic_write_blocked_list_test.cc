@@ -50,8 +50,8 @@ class QuicWriteBlockedListTest : public QuicTest {
     return write_blocked_list_->ShouldYield(id);
   }
 
-  QuicStreamPriority GetPriorityofStream(QuicStreamId id) const {
-    return write_blocked_list_->GetPriorityofStream(id);
+  QuicStreamPriority GetPriorityOfStream(QuicStreamId id) const {
+    return write_blocked_list_->GetPriorityOfStream(id);
   }
 
   QuicStreamId PopFront() { return write_blocked_list_->PopFront(); }
@@ -95,14 +95,14 @@ TEST_F(QuicWriteBlockedListTest, PriorityOrder) {
   RegisterStream(1, kStatic, {kV3HighestPriority, kNotIncremental});
   RegisterStream(3, kStatic, {kV3HighestPriority, kNotIncremental});
 
-  EXPECT_EQ(kV3LowestPriority, GetPriorityofStream(40).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityofStream(40).incremental);
+  EXPECT_EQ(kV3LowestPriority, GetPriorityOfStream(40).urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(40).incremental);
 
-  EXPECT_EQ(kV3HighestPriority, GetPriorityofStream(23).urgency);
-  EXPECT_EQ(kIncremental, GetPriorityofStream(23).incremental);
+  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(23).urgency);
+  EXPECT_EQ(kIncremental, GetPriorityOfStream(23).incremental);
 
-  EXPECT_EQ(kV3HighestPriority, GetPriorityofStream(17).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityofStream(17).incremental);
+  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(17).urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(17).incremental);
 
   AddStream(40);
   EXPECT_TRUE(IsStreamBlocked(40));
@@ -577,27 +577,27 @@ TEST_F(QuicWriteBlockedListTest, UpdateStreamPriority) {
   RegisterStream(1, kStatic, {2, kNotIncremental});
   RegisterStream(3, kStatic, {kV3HighestPriority, kNotIncremental});
 
-  EXPECT_EQ(kV3LowestPriority, GetPriorityofStream(40).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityofStream(40).incremental);
+  EXPECT_EQ(kV3LowestPriority, GetPriorityOfStream(40).urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(40).incremental);
 
-  EXPECT_EQ(6, GetPriorityofStream(23).urgency);
-  EXPECT_EQ(kIncremental, GetPriorityofStream(23).incremental);
+  EXPECT_EQ(6, GetPriorityOfStream(23).urgency);
+  EXPECT_EQ(kIncremental, GetPriorityOfStream(23).incremental);
 
-  EXPECT_EQ(kV3HighestPriority, GetPriorityofStream(17).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityofStream(17).incremental);
+  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(17).urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(17).incremental);
 
   UpdateStreamPriority(40, {3, kIncremental});
   UpdateStreamPriority(23, {kV3HighestPriority, kNotIncremental});
   UpdateStreamPriority(17, {5, kNotIncremental});
 
-  EXPECT_EQ(3, GetPriorityofStream(40).urgency);
-  EXPECT_EQ(kIncremental, GetPriorityofStream(40).incremental);
+  EXPECT_EQ(3, GetPriorityOfStream(40).urgency);
+  EXPECT_EQ(kIncremental, GetPriorityOfStream(40).incremental);
 
-  EXPECT_EQ(kV3HighestPriority, GetPriorityofStream(23).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityofStream(23).incremental);
+  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(23).urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(23).incremental);
 
-  EXPECT_EQ(5, GetPriorityofStream(17).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityofStream(17).incremental);
+  EXPECT_EQ(5, GetPriorityOfStream(17).urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(17).incremental);
 
   AddStream(40);
   AddStream(23);
@@ -637,13 +637,13 @@ TEST_F(QuicWriteBlockedListTest, UpdateStreamPrioritySameUrgency) {
   RegisterStream(3, kNotStatic, {6, kNotIncremental});
   RegisterStream(4, kNotStatic, {6, kNotIncremental});
 
-  EXPECT_EQ(6, GetPriorityofStream(3).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityofStream(3).incremental);
+  EXPECT_EQ(6, GetPriorityOfStream(3).urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(3).incremental);
 
   UpdateStreamPriority(3, {6, kIncremental});
 
-  EXPECT_EQ(6, GetPriorityofStream(3).urgency);
-  EXPECT_EQ(kIncremental, GetPriorityofStream(3).incremental);
+  EXPECT_EQ(6, GetPriorityOfStream(3).urgency);
+  EXPECT_EQ(kIncremental, GetPriorityOfStream(3).incremental);
 
   AddStream(3);
   AddStream(4);
@@ -656,13 +656,13 @@ TEST_F(QuicWriteBlockedListTest, UpdateStreamPrioritySameUrgency) {
   RegisterStream(5, kNotStatic, {6, kIncremental});
   RegisterStream(6, kNotStatic, {6, kIncremental});
 
-  EXPECT_EQ(6, GetPriorityofStream(6).urgency);
-  EXPECT_EQ(kIncremental, GetPriorityofStream(6).incremental);
+  EXPECT_EQ(6, GetPriorityOfStream(6).urgency);
+  EXPECT_EQ(kIncremental, GetPriorityOfStream(6).incremental);
 
   UpdateStreamPriority(6, {6, kNotIncremental});
 
-  EXPECT_EQ(6, GetPriorityofStream(6).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityofStream(6).incremental);
+  EXPECT_EQ(6, GetPriorityOfStream(6).urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(6).incremental);
 
   AddStream(5);
   AddStream(6);

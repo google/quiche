@@ -160,7 +160,7 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   MockQuicConnection* connection_;
   std::unique_ptr<MockQuicSession> session_;
   StrictMock<TestStream>* stream_;
-  QuicWriteBlockedList* write_blocked_list_;
+  QuicWriteBlockedListInterface* write_blocked_list_;
   QuicTime::Delta zero_;
   ParsedQuicVersionVector supported_versions_;
   QuicStreamId kTestStreamId = GetNthClientInitiatedBidirectionalStreamId(

@@ -21,6 +21,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/quic_write_blocked_list.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -74,6 +75,7 @@ QuicSession::QuicSession(
     : connection_(connection),
       perspective_(connection->perspective()),
       visitor_(owner),
+      write_blocked_streams_(std::make_unique<QuicWriteBlockedList>()),
       config_(config),
       stream_id_manager_(perspective(), connection->transport_version(),
                          kDefaultMaxStreamsPerConnection,
@@ -577,7 +579,7 @@ bool QuicSession::CheckStreamNotBusyLooping(QuicStream* stream,
 bool QuicSession::CheckStreamWriteBlocked(QuicStream* stream) const {
   if (!stream->write_side_closed() && stream->HasBufferedData() &&
       !stream->IsFlowControlBlocked() &&
-      !write_blocked_streams_.IsStreamBlocked(stream->id())) {
+      !write_blocked_streams_->IsStreamBlocked(stream->id())) {
     QUIC_DLOG(ERROR) << ENDPOINT << "stream " << stream->id()
                      << " has buffered " << stream->BufferedDataBytes()
                      << " bytes, and is not flow control blocked, "
@@ -612,8 +614,8 @@ void QuicSession::OnCanWrite() {
   // crypto and headers streams to try writing as all other streams will be
   // blocked.
   size_t num_writes = flow_controller_.IsBlocked()
-                          ? write_blocked_streams_.NumBlockedSpecialStreams()
-                          : write_blocked_streams_.NumBlockedStreams();
+                          ? write_blocked_streams_->NumBlockedSpecialStreams()
+                          : write_blocked_streams_->NumBlockedStreams();
   if (num_writes == 0 && !control_frame_manager_.WillingToWrite() &&
       datagram_queue_.empty() &&
       (!QuicVersionUsesCryptoFrames(transport_version()) ||
@@ -656,8 +658,8 @@ void QuicSession::OnCanWrite() {
   }
   std::vector<QuicStreamId> last_writing_stream_ids;
   for (size_t i = 0; i < num_writes; ++i) {
-    if (!(write_blocked_streams_.HasWriteBlockedSpecialStream() ||
-          write_blocked_streams_.HasWriteBlockedDataStreams())) {
+    if (!(write_blocked_streams_->HasWriteBlockedSpecialStream() ||
+          write_blocked_streams_->HasWriteBlockedDataStreams())) {
       // Writing one stream removed another!? Something's broken.
       QUIC_BUG(quic_bug_10866_1)
           << "WriteBlockedStream is missing, num_writes: " << num_writes
@@ -676,7 +678,7 @@ void QuicSession::OnCanWrite() {
     if (!CanWriteStreamData()) {
       return;
     }
-    currently_writing_stream_id_ = write_blocked_streams_.PopFront();
+    currently_writing_stream_id_ = write_blocked_streams_->PopFront();
     last_writing_stream_ids.push_back(currently_writing_stream_id_);
     QUIC_DVLOG(1) << ENDPOINT << "Removing stream "
                   << currently_writing_stream_id_ << " from write-blocked list";
@@ -723,10 +725,10 @@ bool QuicSession::WillingAndAbleToWrite() const {
     }
     // Crypto and headers streams are not blocked by connection level flow
     // control.
-    return write_blocked_streams_.HasWriteBlockedSpecialStream();
+    return write_blocked_streams_->HasWriteBlockedSpecialStream();
   }
-  return write_blocked_streams_.HasWriteBlockedSpecialStream() ||
-         write_blocked_streams_.HasWriteBlockedDataStreams();
+  return write_blocked_streams_->HasWriteBlockedSpecialStream() ||
+         write_blocked_streams_->HasWriteBlockedDataStreams();
 }
 
 std::string QuicSession::GetStreamsInfoForLogging() const {
@@ -764,7 +766,7 @@ bool QuicSession::HasPendingHandshake() const {
   }
   return streams_with_pending_retransmission_.contains(
              QuicUtils::GetCryptoStreamId(transport_version())) ||
-         write_blocked_streams_.IsStreamBlocked(
+         write_blocked_streams_->IsStreamBlocked(
              QuicUtils::GetCryptoStreamId(transport_version()));
 }
 
@@ -829,7 +831,7 @@ QuicConsumedData QuicSession::WritevData(QuicStreamId id, size_t write_length,
       connection_->SendStreamData(id, write_length, offset, state);
   if (type == NOT_RETRANSMISSION) {
     // This is new stream data.
-    write_blocked_streams_.UpdateBytesForStream(id, data.bytes_consumed);
+    write_blocked_streams_->UpdateBytesForStream(id, data.bytes_consumed);
   }
 
   return data;
@@ -2128,12 +2130,12 @@ void QuicSession::MarkConnectionLevelWriteBlocked(QuicStreamId id) {
   QUIC_DVLOG(1) << ENDPOINT << "Adding stream " << id
                 << " to write-blocked list";
 
-  write_blocked_streams_.AddStream(id);
+  write_blocked_streams_->AddStream(id);
 }
 
 bool QuicSession::HasDataToWrite() const {
-  return write_blocked_streams_.HasWriteBlockedSpecialStream() ||
-         write_blocked_streams_.HasWriteBlockedDataStreams() ||
+  return write_blocked_streams_->HasWriteBlockedSpecialStream() ||
+         write_blocked_streams_->HasWriteBlockedDataStreams() ||
          connection_->HasQueuedData() ||
          !streams_with_pending_retransmission_.empty() ||
          control_frame_manager_.WillingToWrite();
