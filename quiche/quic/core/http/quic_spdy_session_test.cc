@@ -2110,8 +2110,8 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityFrame) {
   session_.OnPriorityFrame(stream_id,
                            spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
-  EXPECT_EQ((QuicStreamPriority{kV3HighestPriority,
-                                QuicStreamPriority::kDefaultIncremental}),
+  EXPECT_EQ((QuicStreamPriority(HttpStreamPriority{
+                kV3HighestPriority, HttpStreamPriority::kDefaultIncremental})),
             stream->priority());
 }
 
@@ -2156,12 +2156,14 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
 
   // PRIORITY_UPDATE frame arrives after stream creation.
   TestStream* stream1 = session_.CreateIncomingStream(stream_id1);
-  EXPECT_EQ((QuicStreamPriority{QuicStreamPriority::kDefaultUrgency,
-                                QuicStreamPriority::kDefaultIncremental}),
+  EXPECT_EQ(QuicStreamPriority(
+                HttpStreamPriority{HttpStreamPriority::kDefaultUrgency,
+                                   HttpStreamPriority::kDefaultIncremental}),
             stream1->priority());
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update1));
   session_.OnStreamFrame(data3);
-  EXPECT_EQ((QuicStreamPriority{2u, QuicStreamPriority::kDefaultIncremental}),
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{
+                2u, HttpStreamPriority::kDefaultIncremental}),
             stream1->priority());
 
   // PRIORITY_UPDATE frame for second request stream.
@@ -2179,7 +2181,8 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   session_.OnStreamFrame(stream_frame3);
   // Priority is applied upon stream construction.
   TestStream* stream2 = session_.CreateIncomingStream(stream_id2);
-  EXPECT_EQ((QuicStreamPriority{5u, true}), stream2->priority());
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{5u, true}),
+            stream2->priority());
 }
 
 TEST_P(QuicSpdySessionTestServer, OnInvalidPriorityUpdateFrame) {

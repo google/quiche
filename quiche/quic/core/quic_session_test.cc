@@ -1030,8 +1030,9 @@ TEST_P(QuicSessionTestServer, TestBatchedWrites) {
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
 
-  const QuicStreamPriority priority{QuicStreamPriority::kDefaultUrgency,
-                                    /* incremental = */ true};
+  const QuicStreamPriority priority(
+      HttpStreamPriority{HttpStreamPriority::kDefaultUrgency,
+                         /* incremental = */ true});
   stream2->SetPriority(priority);
   stream4->SetPriority(priority);
   stream6->SetPriority(priority);
@@ -1075,8 +1076,8 @@ TEST_P(QuicSessionTestServer, TestBatchedWrites) {
   session_.OnCanWrite();
 
   // The next write adds a block for stream 6.
-  stream6->SetPriority(QuicStreamPriority{
-      kV3HighestPriority, QuicStreamPriority::kDefaultIncremental});
+  stream6->SetPriority(QuicStreamPriority(HttpStreamPriority{
+      kV3HighestPriority, HttpStreamPriority::kDefaultIncremental}));
   if (GetQuicReloadableFlag(quic_disable_batch_write)) {
     EXPECT_CALL(*stream2, OnCanWrite())
         .WillOnce(Invoke([this, stream2, stream6]() {

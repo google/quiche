@@ -86,7 +86,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
 }
 
 void QuicSendControlStream::WritePriorityUpdate(QuicStreamId stream_id,
-                                                QuicStreamPriority priority) {
+                                                HttpStreamPriority priority) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   MaybeSendSettingsFrame();
 

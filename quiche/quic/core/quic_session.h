@@ -656,6 +656,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // streams.
   QuicStream* GetActiveStream(QuicStreamId id) const;
 
+  // Returns the priority type used by the streams in the session.
+  QuicPriorityType priority_type() const { return QuicPriorityType::kHttp; }
+
  protected:
   using StreamMap =
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
@@ -723,7 +726,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual bool ShouldProcessPendingStreamImmediately() const { return true; }
 
   spdy::SpdyPriority GetSpdyPriorityofStream(QuicStreamId stream_id) const {
-    return write_blocked_streams_->GetPriorityOfStream(stream_id).urgency;
+    return write_blocked_streams_->GetPriorityOfStream(stream_id)
+        .http()
+        .urgency;
   }
 
   size_t pending_streams_size() const { return pending_stream_map_.size(); }

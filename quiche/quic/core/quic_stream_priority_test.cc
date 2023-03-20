@@ -4,30 +4,73 @@
 
 #include "quiche/quic/core/quic_stream_priority.h"
 
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace quic::test {
 
-TEST(QuicStreamPriority, DefaultConstructed) {
-  QuicStreamPriority priority;
+TEST(HttpStreamPriority, DefaultConstructed) {
+  HttpStreamPriority priority;
 
-  EXPECT_EQ(QuicStreamPriority::kDefaultUrgency, priority.urgency);
-  EXPECT_EQ(QuicStreamPriority::kDefaultIncremental, priority.incremental);
+  EXPECT_EQ(HttpStreamPriority::kDefaultUrgency, priority.urgency);
+  EXPECT_EQ(HttpStreamPriority::kDefaultIncremental, priority.incremental);
+}
+
+TEST(HttpStreamPriority, Equals) {
+  EXPECT_EQ((HttpStreamPriority()),
+            (HttpStreamPriority{HttpStreamPriority::kDefaultUrgency,
+                                HttpStreamPriority::kDefaultIncremental}));
+  EXPECT_EQ((HttpStreamPriority{5, true}), (HttpStreamPriority{5, true}));
+  EXPECT_EQ((HttpStreamPriority{2, false}), (HttpStreamPriority{2, false}));
+  EXPECT_EQ((HttpStreamPriority{11, true}), (HttpStreamPriority{11, true}));
+
+  EXPECT_NE((HttpStreamPriority{1, true}), (HttpStreamPriority{3, true}));
+  EXPECT_NE((HttpStreamPriority{4, false}), (HttpStreamPriority{4, true}));
+  EXPECT_NE((HttpStreamPriority{6, true}), (HttpStreamPriority{2, false}));
+  EXPECT_NE((HttpStreamPriority{12, true}), (HttpStreamPriority{9, true}));
+  EXPECT_NE((HttpStreamPriority{2, false}), (HttpStreamPriority{8, false}));
+}
+
+TEST(WebTransportStreamPriority, DefaultConstructed) {
+  WebTransportStreamPriority priority;
+
+  EXPECT_EQ(priority.stream_type,
+            WebTransportStreamPriority::StreamType::kData);
+  EXPECT_EQ(priority.send_order, 0);
+}
+
+TEST(WebTransportStreamPriority, Equals) {
+  EXPECT_EQ(WebTransportStreamPriority(),
+            (WebTransportStreamPriority{
+                WebTransportStreamPriority::StreamType::kData, 0}));
+  EXPECT_NE(WebTransportStreamPriority(),
+            (WebTransportStreamPriority{
+                WebTransportStreamPriority::StreamType::kData, 1}));
+  EXPECT_NE(WebTransportStreamPriority(),
+            (WebTransportStreamPriority{
+                WebTransportStreamPriority::StreamType::kHttp, 0}));
+}
+
+TEST(QuicStreamPriority, Default) {
+  EXPECT_EQ(QuicStreamPriority::Default(QuicPriorityType::kHttp).http(),
+            HttpStreamPriority());
+  EXPECT_EQ(QuicStreamPriority::Default(QuicPriorityType::kWebTransport)
+                .web_transport(),
+            WebTransportStreamPriority());
 }
 
 TEST(QuicStreamPriority, Equals) {
-  EXPECT_EQ((QuicStreamPriority()),
-            (QuicStreamPriority{QuicStreamPriority::kDefaultUrgency,
-                                QuicStreamPriority::kDefaultIncremental}));
-  EXPECT_EQ((QuicStreamPriority{5, true}), (QuicStreamPriority{5, true}));
-  EXPECT_EQ((QuicStreamPriority{2, false}), (QuicStreamPriority{2, false}));
-  EXPECT_EQ((QuicStreamPriority{11, true}), (QuicStreamPriority{11, true}));
+  EXPECT_EQ(QuicStreamPriority::Default(QuicPriorityType::kHttp),
+            QuicStreamPriority(HttpStreamPriority()));
+  EXPECT_EQ(QuicStreamPriority::Default(QuicPriorityType::kWebTransport),
+            QuicStreamPriority(WebTransportStreamPriority()));
+}
 
-  EXPECT_NE((QuicStreamPriority{1, true}), (QuicStreamPriority{3, true}));
-  EXPECT_NE((QuicStreamPriority{4, false}), (QuicStreamPriority{4, true}));
-  EXPECT_NE((QuicStreamPriority{6, true}), (QuicStreamPriority{2, false}));
-  EXPECT_NE((QuicStreamPriority{12, true}), (QuicStreamPriority{9, true}));
-  EXPECT_NE((QuicStreamPriority{2, false}), (QuicStreamPriority{8, false}));
+TEST(QuicStreamPriority, Type) {
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority()).type(),
+            QuicPriorityType::kHttp);
+  EXPECT_EQ(QuicStreamPriority(WebTransportStreamPriority()).type(),
+            QuicPriorityType::kWebTransport);
 }
 
 TEST(SerializePriorityFieldValueTest, SerializePriorityFieldValue) {
@@ -48,7 +91,7 @@ TEST(SerializePriorityFieldValueTest, SerializePriorityFieldValue) {
 
 TEST(ParsePriorityFieldValueTest, ParsePriorityFieldValue) {
   // Default values
-  absl::optional<QuicStreamPriority> result = ParsePriorityFieldValue("");
+  absl::optional<HttpStreamPriority> result = ParsePriorityFieldValue("");
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(3, result->urgency);
   EXPECT_FALSE(result->incremental);

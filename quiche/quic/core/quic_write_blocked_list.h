@@ -98,7 +98,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList
   bool ShouldYield(QuicStreamId id) const override;
 
   QuicStreamPriority GetPriorityOfStream(QuicStreamId id) const override {
-    return priority_write_scheduler_.GetStreamPriority(id);
+    return QuicStreamPriority(priority_write_scheduler_.GetStreamPriority(id));
   }
 
   // Pops the highest priority stream, special casing static streams. Latches
@@ -134,9 +134,20 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList
   bool IsStreamBlocked(QuicStreamId stream_id) const override;
 
  private:
-  http2::PriorityWriteScheduler<QuicStreamId, QuicStreamPriority,
-                                QuicStreamPriorityToInt,
-                                IntToQuicStreamPriority>
+  struct QUICHE_EXPORT HttpStreamPriorityToInt {
+    int operator()(const HttpStreamPriority& priority) {
+      return priority.urgency;
+    }
+  };
+
+  struct QUICHE_EXPORT IntToHttpStreamPriority {
+    HttpStreamPriority operator()(int urgency) {
+      return HttpStreamPriority{urgency};
+    }
+  };
+  http2::PriorityWriteScheduler<QuicStreamId, HttpStreamPriority,
+                                HttpStreamPriorityToInt,
+                                IntToHttpStreamPriority>
       priority_write_scheduler_;
 
   // If performing batch writes, this will be the stream ID of the stream doing

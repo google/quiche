@@ -904,6 +904,18 @@ struct QUIC_EXPORT_PRIVATE QuicEcnCounts {
   QuicPacketCount ce = 0;
 };
 
+// Type of the priorities used by a QUIC session.
+enum class QuicPriorityType : uint8_t {
+  // HTTP priorities as defined by RFC 9218
+  kHttp,
+  // WebTransport priorities as defined by <https://w3c.github.io/webtransport/>
+  kWebTransport,
+};
+
+QUICHE_EXPORT std::string QuicPriorityTypeToString(QuicPriorityType type);
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                             QuicPriorityType type);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_TYPES_H_

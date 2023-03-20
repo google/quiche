@@ -326,18 +326,19 @@ class TestMockUpdateStreamSession : public MockQuicSpdySession {
   void UpdateStreamPriority(QuicStreamId id,
                             const QuicStreamPriority& new_priority) override {
     EXPECT_EQ(id, expected_stream_->id());
-    EXPECT_EQ(expected_priority_, new_priority);
-    EXPECT_EQ(expected_priority_, expected_stream_->priority());
+    EXPECT_EQ(expected_priority_, new_priority.http());
+    EXPECT_EQ(QuicStreamPriority(expected_priority_),
+              expected_stream_->priority());
   }
 
   void SetExpectedStream(QuicSpdyStream* stream) { expected_stream_ = stream; }
-  void SetExpectedPriority(const QuicStreamPriority& priority) {
+  void SetExpectedPriority(const HttpStreamPriority& priority) {
     expected_priority_ = priority;
   }
 
  private:
   QuicSpdyStream* expected_stream_;
-  QuicStreamPriority expected_priority_;
+  HttpStreamPriority expected_priority_;
 };
 
 class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
@@ -1563,22 +1564,22 @@ TEST_P(QuicSpdyStreamTest, ChangePriority) {
   EXPECT_CALL(*session_, WritevData(send_control_stream->id(), _, _, _, _, _));
   PriorityUpdateFrame priority_update1{stream_->id(), "u=0"};
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameSent(priority_update1));
-  const QuicStreamPriority priority1{kV3HighestPriority,
-                                     QuicStreamPriority::kDefaultIncremental};
-  stream_->SetPriority(priority1);
+  const HttpStreamPriority priority1{kV3HighestPriority,
+                                     HttpStreamPriority::kDefaultIncremental};
+  stream_->SetPriority(QuicStreamPriority(priority1));
   testing::Mock::VerifyAndClearExpectations(&debug_visitor);
 
   // Send another PRIORITY_UPDATE frame with incremental flag set to true.
   EXPECT_CALL(*session_, WritevData(send_control_stream->id(), _, _, _, _, _));
   PriorityUpdateFrame priority_update2{stream_->id(), "u=2, i"};
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameSent(priority_update2));
-  const QuicStreamPriority priority2{2, true};
-  stream_->SetPriority(priority2);
+  const HttpStreamPriority priority2{2, true};
+  stream_->SetPriority(QuicStreamPriority(priority2));
   testing::Mock::VerifyAndClearExpectations(&debug_visitor);
 
   // Calling SetPriority() with the same priority does not trigger sending
   // another PRIORITY_UPDATE frame.
-  stream_->SetPriority(priority2);
+  stream_->SetPriority(QuicStreamPriority(priority2));
 }
 
 TEST_P(QuicSpdyStreamTest, ChangePriorityBeforeWritingHeaders) {
@@ -1594,8 +1595,8 @@ TEST_P(QuicSpdyStreamTest, ChangePriorityBeforeWritingHeaders) {
       QuicSpdySessionPeer::GetSendControlStream(session_.get());
   EXPECT_CALL(*session_, WritevData(send_control_stream->id(), _, _, _, _, _));
 
-  stream_->SetPriority(QuicStreamPriority{
-      kV3HighestPriority, QuicStreamPriority::kDefaultIncremental});
+  stream_->SetPriority(QuicStreamPriority(HttpStreamPriority{
+      kV3HighestPriority, HttpStreamPriority::kDefaultIncremental}));
   testing::Mock::VerifyAndClearExpectations(session_.get());
 
   // Two writes on the request stream: HEADERS frame header and payload.
@@ -1796,8 +1797,8 @@ TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
 TEST_P(QuicSpdyStreamTest, OnPriorityFrame) {
   Initialize(kShouldProcessData);
   stream_->OnPriorityFrame(spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  EXPECT_EQ((QuicStreamPriority{kV3HighestPriority,
-                                QuicStreamPriority::kDefaultIncremental}),
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{
+                kV3HighestPriority, HttpStreamPriority::kDefaultIncremental}),
             stream_->priority());
 }
 
@@ -1811,8 +1812,8 @@ TEST_P(QuicSpdyStreamTest, OnPriorityFrameAfterSendingData) {
   EXPECT_CALL(*session_, WritevData(_, 4, _, FIN, _, _));
   stream_->WriteOrBufferBody("data", true);
   stream_->OnPriorityFrame(spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  EXPECT_EQ((QuicStreamPriority{kV3HighestPriority,
-                                QuicStreamPriority::kDefaultIncremental}),
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{
+                kV3HighestPriority, HttpStreamPriority::kDefaultIncremental}),
             stream_->priority());
 }
 
@@ -1834,11 +1835,13 @@ TEST_P(QuicSpdyStreamTest, SetPriorityBeforeUpdateStreamPriority) {
   // if called within UpdateStreamPriority(). This expectation is enforced in
   // TestMockUpdateStreamSession::UpdateStreamPriority().
   session->SetExpectedStream(stream);
-  session->SetExpectedPriority(QuicStreamPriority{kV3HighestPriority});
-  stream->SetPriority(QuicStreamPriority{kV3HighestPriority});
+  session->SetExpectedPriority(HttpStreamPriority{kV3HighestPriority});
+  stream->SetPriority(
+      QuicStreamPriority(HttpStreamPriority{kV3HighestPriority}));
 
-  session->SetExpectedPriority(QuicStreamPriority{kV3LowestPriority});
-  stream->SetPriority(QuicStreamPriority{kV3LowestPriority});
+  session->SetExpectedPriority(HttpStreamPriority{kV3LowestPriority});
+  stream->SetPriority(
+      QuicStreamPriority(HttpStreamPriority{kV3LowestPriority}));
 }
 
 TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {

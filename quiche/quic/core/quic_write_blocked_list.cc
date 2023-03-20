@@ -39,10 +39,8 @@ QuicStreamId QuicWriteBlockedList::PopFront() {
     return static_stream_id;
   }
 
-  const auto id_and_priority =
+  const auto [id, priority] =
       priority_write_scheduler_.PopNextReadyStreamAndPriority();
-  const QuicStreamId id = std::get<0>(id_and_priority);
-  const QuicStreamPriority& priority = std::get<1>(id_and_priority);
   const spdy::SpdyPriority urgency = priority.urgency;
   const bool incremental = priority.incremental;
 
@@ -86,7 +84,7 @@ void QuicWriteBlockedList::RegisterStream(QuicStreamId stream_id,
     return;
   }
 
-  priority_write_scheduler_.RegisterStream(stream_id, priority);
+  priority_write_scheduler_.RegisterStream(stream_id, priority.http());
 }
 
 void QuicWriteBlockedList::UnregisterStream(QuicStreamId stream_id) {
@@ -99,7 +97,8 @@ void QuicWriteBlockedList::UnregisterStream(QuicStreamId stream_id) {
 void QuicWriteBlockedList::UpdateStreamPriority(
     QuicStreamId stream_id, const QuicStreamPriority& new_priority) {
   QUICHE_DCHECK(!static_stream_collection_.IsRegistered(stream_id));
-  priority_write_scheduler_.UpdateStreamPriority(stream_id, new_priority);
+  priority_write_scheduler_.UpdateStreamPriority(stream_id,
+                                                 new_priority.http());
 }
 
 void QuicWriteBlockedList::UpdateBytesForStream(QuicStreamId stream_id,

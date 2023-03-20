@@ -431,6 +431,21 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+QUICHE_EXPORT std::string QuicPriorityTypeToString(QuicPriorityType type) {
+  switch (type) {
+    case quic::QuicPriorityType::kHttp:
+      return "HTTP (RFC 9218)";
+    case quic::QuicPriorityType::kWebTransport:
+      return "WebTransport (W3C API)";
+  }
+  return "(unknown)";
+}
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                             QuicPriorityType type) {
+  os << QuicPriorityTypeToString(type);
+  return os;
+}
+
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
 
 }  // namespace quic

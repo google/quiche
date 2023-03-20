@@ -621,7 +621,7 @@ void QuicSpdySession::OnPriorityFrame(
 }
 
 bool QuicSpdySession::OnPriorityUpdateForRequestStream(
-    QuicStreamId stream_id, QuicStreamPriority priority) {
+    QuicStreamId stream_id, HttpStreamPriority priority) {
   if (perspective() == Perspective::IS_CLIENT ||
       !QuicUtils::IsBidirectionalStreamId(stream_id, version()) ||
       !QuicUtils::IsClientInitiatedStreamId(transport_version(), stream_id)) {
@@ -642,7 +642,7 @@ bool QuicSpdySession::OnPriorityUpdateForRequestStream(
     return false;
   }
 
-  if (MaybeSetStreamPriority(stream_id, priority)) {
+  if (MaybeSetStreamPriority(stream_id, QuicStreamPriority(priority))) {
     return true;
   }
 
@@ -706,7 +706,7 @@ size_t QuicSpdySession::WritePriority(QuicStreamId stream_id,
 }
 
 void QuicSpdySession::WriteHttp3PriorityUpdate(QuicStreamId stream_id,
-                                               QuicStreamPriority priority) {
+                                               HttpStreamPriority priority) {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
   send_control_stream_->WritePriorityUpdate(stream_id, priority);
@@ -842,7 +842,7 @@ void QuicSpdySession::OnStreamCreated(QuicSpdyStream* stream) {
     return;
   }
 
-  stream->SetPriority(it->second);
+  stream->SetPriority(QuicStreamPriority(it->second));
   buffered_stream_priorities_.erase(it);
 }
 

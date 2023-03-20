@@ -57,8 +57,9 @@ class QuicWriteBlockedListTest : public QuicTest {
   QuicStreamId PopFront() { return write_blocked_list_->PopFront(); }
 
   void RegisterStream(QuicStreamId stream_id, bool is_static_stream,
-                      const QuicStreamPriority& priority) {
-    write_blocked_list_->RegisterStream(stream_id, is_static_stream, priority);
+                      const HttpStreamPriority& priority) {
+    write_blocked_list_->RegisterStream(stream_id, is_static_stream,
+                                        QuicStreamPriority(priority));
   }
 
   void UnregisterStream(QuicStreamId stream_id) {
@@ -66,8 +67,9 @@ class QuicWriteBlockedListTest : public QuicTest {
   }
 
   void UpdateStreamPriority(QuicStreamId stream_id,
-                            const QuicStreamPriority& new_priority) {
-    write_blocked_list_->UpdateStreamPriority(stream_id, new_priority);
+                            const HttpStreamPriority& new_priority) {
+    write_blocked_list_->UpdateStreamPriority(stream_id,
+                                              QuicStreamPriority(new_priority));
   }
 
   void UpdateBytesForStream(QuicStreamId stream_id, size_t bytes) {
@@ -95,14 +97,14 @@ TEST_F(QuicWriteBlockedListTest, PriorityOrder) {
   RegisterStream(1, kStatic, {kV3HighestPriority, kNotIncremental});
   RegisterStream(3, kStatic, {kV3HighestPriority, kNotIncremental});
 
-  EXPECT_EQ(kV3LowestPriority, GetPriorityOfStream(40).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(40).incremental);
+  EXPECT_EQ(kV3LowestPriority, GetPriorityOfStream(40).http().urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(40).http().incremental);
 
-  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(23).urgency);
-  EXPECT_EQ(kIncremental, GetPriorityOfStream(23).incremental);
+  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(23).http().urgency);
+  EXPECT_EQ(kIncremental, GetPriorityOfStream(23).http().incremental);
 
-  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(17).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(17).incremental);
+  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(17).http().urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(17).http().incremental);
 
   AddStream(40);
   EXPECT_TRUE(IsStreamBlocked(40));
@@ -577,27 +579,27 @@ TEST_F(QuicWriteBlockedListTest, UpdateStreamPriority) {
   RegisterStream(1, kStatic, {2, kNotIncremental});
   RegisterStream(3, kStatic, {kV3HighestPriority, kNotIncremental});
 
-  EXPECT_EQ(kV3LowestPriority, GetPriorityOfStream(40).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(40).incremental);
+  EXPECT_EQ(kV3LowestPriority, GetPriorityOfStream(40).http().urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(40).http().incremental);
 
-  EXPECT_EQ(6, GetPriorityOfStream(23).urgency);
-  EXPECT_EQ(kIncremental, GetPriorityOfStream(23).incremental);
+  EXPECT_EQ(6, GetPriorityOfStream(23).http().urgency);
+  EXPECT_EQ(kIncremental, GetPriorityOfStream(23).http().incremental);
 
-  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(17).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(17).incremental);
+  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(17).http().urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(17).http().incremental);
 
   UpdateStreamPriority(40, {3, kIncremental});
   UpdateStreamPriority(23, {kV3HighestPriority, kNotIncremental});
   UpdateStreamPriority(17, {5, kNotIncremental});
 
-  EXPECT_EQ(3, GetPriorityOfStream(40).urgency);
-  EXPECT_EQ(kIncremental, GetPriorityOfStream(40).incremental);
+  EXPECT_EQ(3, GetPriorityOfStream(40).http().urgency);
+  EXPECT_EQ(kIncremental, GetPriorityOfStream(40).http().incremental);
 
-  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(23).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(23).incremental);
+  EXPECT_EQ(kV3HighestPriority, GetPriorityOfStream(23).http().urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(23).http().incremental);
 
-  EXPECT_EQ(5, GetPriorityOfStream(17).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(17).incremental);
+  EXPECT_EQ(5, GetPriorityOfStream(17).http().urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(17).http().incremental);
 
   AddStream(40);
   AddStream(23);
@@ -637,13 +639,13 @@ TEST_F(QuicWriteBlockedListTest, UpdateStreamPrioritySameUrgency) {
   RegisterStream(3, kNotStatic, {6, kNotIncremental});
   RegisterStream(4, kNotStatic, {6, kNotIncremental});
 
-  EXPECT_EQ(6, GetPriorityOfStream(3).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(3).incremental);
+  EXPECT_EQ(6, GetPriorityOfStream(3).http().urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(3).http().incremental);
 
   UpdateStreamPriority(3, {6, kIncremental});
 
-  EXPECT_EQ(6, GetPriorityOfStream(3).urgency);
-  EXPECT_EQ(kIncremental, GetPriorityOfStream(3).incremental);
+  EXPECT_EQ(6, GetPriorityOfStream(3).http().urgency);
+  EXPECT_EQ(kIncremental, GetPriorityOfStream(3).http().incremental);
 
   AddStream(3);
   AddStream(4);
@@ -656,13 +658,13 @@ TEST_F(QuicWriteBlockedListTest, UpdateStreamPrioritySameUrgency) {
   RegisterStream(5, kNotStatic, {6, kIncremental});
   RegisterStream(6, kNotStatic, {6, kIncremental});
 
-  EXPECT_EQ(6, GetPriorityOfStream(6).urgency);
-  EXPECT_EQ(kIncremental, GetPriorityOfStream(6).incremental);
+  EXPECT_EQ(6, GetPriorityOfStream(6).http().urgency);
+  EXPECT_EQ(kIncremental, GetPriorityOfStream(6).http().incremental);
 
   UpdateStreamPriority(6, {6, kNotIncremental});
 
-  EXPECT_EQ(6, GetPriorityOfStream(6).urgency);
-  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(6).incremental);
+  EXPECT_EQ(6, GetPriorityOfStream(6).http().urgency);
+  EXPECT_EQ(kNotIncremental, GetPriorityOfStream(6).http().incremental);
 
   AddStream(5);
   AddStream(6);

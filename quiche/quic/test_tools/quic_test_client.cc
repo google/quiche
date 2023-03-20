@@ -543,8 +543,8 @@ QuicSpdyClientStream* QuicTestClient::GetOrCreateStream() {
   if (!latest_created_stream_) {
     SetLatestCreatedStream(client_->CreateClientStream());
     if (latest_created_stream_) {
-      latest_created_stream_->SetPriority(
-          QuicStreamPriority{priority_, /* incremental = */ false});
+      latest_created_stream_->SetPriority(QuicStreamPriority(
+          HttpStreamPriority{priority_, /* incremental = */ false}));
     }
   }
 

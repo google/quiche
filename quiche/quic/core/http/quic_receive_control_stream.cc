@@ -137,7 +137,7 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     spdy_session()->debug_visitor()->OnPriorityUpdateFrameReceived(frame);
   }
 
-  absl::optional<QuicStreamPriority> priority =
+  absl::optional<HttpStreamPriority> priority =
       ParsePriorityFieldValue(frame.priority_field_value);
 
   if (!priority.has_value()) {

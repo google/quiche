@@ -40,7 +40,7 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
 
   // Send a PRIORITY_UPDATE frame on this stream, and a SETTINGS frame
   // beforehand if one has not been already sent.
-  void WritePriorityUpdate(QuicStreamId stream_id, QuicStreamPriority priority);
+  void WritePriorityUpdate(QuicStreamId stream_id, HttpStreamPriority priority);
 
   // Send a GOAWAY frame on this stream, and a SETTINGS frame beforehand if one
   // has not been already sent.
