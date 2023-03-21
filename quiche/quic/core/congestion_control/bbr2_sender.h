@@ -55,7 +55,9 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   void OnCongestionEvent(bool rtt_updated, QuicByteCount prior_in_flight,
                          QuicTime event_time,
                          const AckedPacketVector& acked_packets,
-                         const LostPacketVector& lost_packets) override;
+                         const LostPacketVector& lost_packets,
+                         QuicPacketCount num_ect,
+                         QuicPacketCount num_ce) override;
 
   void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                     QuicPacketNumber packet_number, QuicByteCount bytes,
@@ -92,6 +94,9 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   void OnApplicationLimited(QuicByteCount bytes_in_flight) override;
 
   void PopulateConnectionStats(QuicConnectionStats* stats) const override;
+
+  bool SupportsECT0() const override { return false; }
+  bool SupportsECT1() const override { return false; }
   // End implementation of SendAlgorithmInterface.
 
   const Bbr2Params& Params() const { return params_; }

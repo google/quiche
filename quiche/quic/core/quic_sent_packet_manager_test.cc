@@ -157,13 +157,13 @@ class QuicSentPacketManagerTest : public QuicTest {
         // Ensure the AckedPacketVector argument contains largest_observed.
         OnCongestionEvent(true, _, _,
                           Pointwise(PacketNumberEq(), {largest_observed}),
-                          IsEmpty()));
+                          IsEmpty(), _, _));
     EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   }
 
   void ExpectUpdatedRtt(uint64_t /*largest_observed*/) {
     EXPECT_CALL(*send_algorithm_,
-                OnCongestionEvent(true, _, _, IsEmpty(), IsEmpty()));
+                OnCongestionEvent(true, _, _, IsEmpty(), IsEmpty(), _, _));
     EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   }
 
@@ -173,7 +173,7 @@ class QuicSentPacketManagerTest : public QuicTest {
         *send_algorithm_,
         OnCongestionEvent(rtt_updated, _, _,
                           Pointwise(PacketNumberEq(), {largest_observed}),
-                          Pointwise(PacketNumberEq(), {lost_packet})));
+                          Pointwise(PacketNumberEq(), {lost_packet}), _, _));
     EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   }
 
@@ -190,9 +190,9 @@ class QuicSentPacketManagerTest : public QuicTest {
       lost_vector.push_back(QuicPacketNumber(packets_lost[i]));
     }
     EXPECT_CALL(*send_algorithm_,
-                OnCongestionEvent(rtt_updated, _, _,
-                                  Pointwise(PacketNumberEq(), ack_vector),
-                                  Pointwise(PacketNumberEq(), lost_vector)));
+                OnCongestionEvent(
+                    rtt_updated, _, _, Pointwise(PacketNumberEq(), ack_vector),
+                    Pointwise(PacketNumberEq(), lost_vector), _, _));
     EXPECT_CALL(*network_change_visitor_, OnCongestionChange())
         .Times(AnyNumber());
   }
@@ -1379,8 +1379,9 @@ TEST_F(QuicSentPacketManagerTest,
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   // Receiving an ACK for packet1 20s later shouldn't update the RTT, and
   // shouldn't be treated as spurious retransmission.
-  EXPECT_CALL(*send_algorithm_,
-              OnCongestionEvent(/*rtt_updated=*/false, kDefaultLength, _, _, _))
+  EXPECT_CALL(
+      *send_algorithm_,
+      OnCongestionEvent(/*rtt_updated=*/false, kDefaultLength, _, _, _, _, _))
       .WillOnce(testing::WithArg<3>(
           Invoke([](const AckedPacketVector& acked_packets) {
             EXPECT_EQ(1u, acked_packets.size());
@@ -1404,8 +1405,9 @@ TEST_F(QuicSentPacketManagerTest,
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
   EXPECT_CALL(*loss_algorithm, DetectLosses(_, _, _, _, _, _));
-  EXPECT_CALL(*send_algorithm_,
-              OnCongestionEvent(/*rtt_updated=*/true, kDefaultLength, _, _, _))
+  EXPECT_CALL(
+      *send_algorithm_,
+      OnCongestionEvent(/*rtt_updated=*/true, kDefaultLength, _, _, _, _, _))
       .WillOnce(testing::WithArg<3>(
           Invoke([](const AckedPacketVector& acked_packets) {
             EXPECT_EQ(1u, acked_packets.size());
@@ -1432,7 +1434,7 @@ TEST_F(QuicSentPacketManagerTest,
       })));
   EXPECT_CALL(notifier_, OnFrameLost(_));
   EXPECT_CALL(*send_algorithm_,
-              OnCongestionEvent(false, kDefaultLength, _, _, _));
+              OnCongestionEvent(false, kDefaultLength, _, _, _, _, _));
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(0u, BytesInFlight());
@@ -1463,7 +1465,7 @@ TEST_F(QuicSentPacketManagerTest,
   EXPECT_CALL(*loss_algorithm, DetectLosses(_, _, _, _, _, _));
   EXPECT_CALL(*loss_algorithm, SpuriousLossDetected(_, _, _, _, _)).Times(0u);
   EXPECT_CALL(*send_algorithm_,
-              OnCongestionEvent(/*rtt_updated=*/false, 0, _, _, _));
+              OnCongestionEvent(/*rtt_updated=*/false, 0, _, _, _, _, _));
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
@@ -1482,7 +1484,7 @@ TEST_F(QuicSentPacketManagerTest,
       })));
   EXPECT_CALL(notifier_, OnFrameLost(_));
   EXPECT_CALL(*send_algorithm_,
-              OnCongestionEvent(false, kDefaultLength, _, _, _));
+              OnCongestionEvent(false, kDefaultLength, _, _, _, _, _));
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(0u, BytesInFlight());
@@ -1499,8 +1501,9 @@ TEST_F(QuicSentPacketManagerTest,
   manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(5));
   EXPECT_CALL(*loss_algorithm, DetectLosses(_, _, _, _, _, _));
   EXPECT_CALL(*loss_algorithm, SpuriousLossDetected(_, _, _, _, _));
-  EXPECT_CALL(*send_algorithm_,
-              OnCongestionEvent(/*rtt_updated=*/true, kDefaultLength, _, _, _));
+  EXPECT_CALL(
+      *send_algorithm_,
+      OnCongestionEvent(/*rtt_updated=*/true, kDefaultLength, _, _, _, _, _));
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   EXPECT_CALL(notifier_, OnFrameAcked(_, _, _));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
@@ -1534,7 +1537,7 @@ TEST_F(QuicSentPacketManagerTest,
   EXPECT_CALL(*loss_algorithm, DetectLosses(_, _, _, _, _, _));
   EXPECT_CALL(*loss_algorithm, SpuriousLossDetected(_, _, _, _, _)).Times(0u);
   EXPECT_CALL(*send_algorithm_,
-              OnCongestionEvent(/*rtt_updated=*/false, 0, _, _, _));
+              OnCongestionEvent(/*rtt_updated=*/false, 0, _, _, _, _, _));
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   EXPECT_CALL(notifier_, OnFrameAcked(_, _, _));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
@@ -2735,9 +2738,10 @@ TEST_F(QuicSentPacketManagerTest, SendPathChallengeAndGetAck) {
   manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
                         NO_RETRANSMITTABLE_DATA, false);
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
-  EXPECT_CALL(*send_algorithm_,
-              OnCongestionEvent(/*rtt_updated=*/false, _, _,
-                                Pointwise(PacketNumberEq(), {1}), IsEmpty()));
+  EXPECT_CALL(
+      *send_algorithm_,
+      OnCongestionEvent(/*rtt_updated=*/false, _, _,
+                        Pointwise(PacketNumberEq(), {1}), IsEmpty(), _, _));
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
 
   // Get ACK for the packet.
@@ -2768,7 +2772,7 @@ SerializedPacket MakePacketWithAckFrequencyFrame(
 TEST_F(QuicSentPacketManagerTest,
        PeerMaxAckDelayUpdatedFromAckFrequencyFrameOneAtATime) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _, _, _))
       .Times(AnyNumber());
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange())
       .Times(AnyNumber());
@@ -2812,7 +2816,7 @@ TEST_F(QuicSentPacketManagerTest,
 TEST_F(QuicSentPacketManagerTest,
        PeerMaxAckDelayUpdatedFromInOrderAckFrequencyFrames) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _, _, _))
       .Times(AnyNumber());
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange())
       .Times(AnyNumber());
@@ -2864,7 +2868,7 @@ TEST_F(QuicSentPacketManagerTest,
 TEST_F(QuicSentPacketManagerTest,
        PeerMaxAckDelayUpdatedFromOutOfOrderAckedAckFrequencyFrames) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _, _, _))
       .Times(AnyNumber());
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange())
       .Times(AnyNumber());

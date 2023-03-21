@@ -277,7 +277,9 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
                                    QuicByteCount prior_in_flight,
                                    QuicTime event_time,
                                    const AckedPacketVector& acked_packets,
-                                   const LostPacketVector& lost_packets) {
+                                   const LostPacketVector& lost_packets,
+                                   QuicPacketCount /*num_ect*/,
+                                   QuicPacketCount /*num_ce*/) {
   QUIC_DVLOG(3) << this
                 << " OnCongestionEvent. prior_in_flight:" << prior_in_flight
                 << " prior_cwnd:" << cwnd_ << "  @ " << event_time;

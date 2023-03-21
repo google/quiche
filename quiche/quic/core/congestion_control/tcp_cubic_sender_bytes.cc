@@ -91,7 +91,8 @@ float TcpCubicSenderBytes::RenoBeta() const {
 void TcpCubicSenderBytes::OnCongestionEvent(
     bool rtt_updated, QuicByteCount prior_in_flight, QuicTime event_time,
     const AckedPacketVector& acked_packets,
-    const LostPacketVector& lost_packets) {
+    const LostPacketVector& lost_packets, QuicPacketCount /*num_ect*/,
+    QuicPacketCount /*num_ce*/) {
   if (rtt_updated && InSlowStart() &&
       hybrid_slow_start_.ShouldExitSlowStart(
           rtt_stats_->latest_rtt(), rtt_stats_->min_rtt(),

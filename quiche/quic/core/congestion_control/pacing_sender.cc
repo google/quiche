@@ -39,14 +39,16 @@ void PacingSender::OnCongestionEvent(bool rtt_updated,
                                      QuicByteCount bytes_in_flight,
                                      QuicTime event_time,
                                      const AckedPacketVector& acked_packets,
-                                     const LostPacketVector& lost_packets) {
+                                     const LostPacketVector& lost_packets,
+                                     QuicPacketCount num_ect,
+                                     QuicPacketCount num_ce) {
   QUICHE_DCHECK(sender_ != nullptr);
   if (!lost_packets.empty()) {
     // Clear any burst tokens when entering recovery.
     burst_tokens_ = 0;
   }
   sender_->OnCongestionEvent(rtt_updated, bytes_in_flight, event_time,
-                             acked_packets, lost_packets);
+                             acked_packets, lost_packets, num_ect, num_ce);
 }
 
 void PacingSender::OnPacketSent(

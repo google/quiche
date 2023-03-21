@@ -89,7 +89,7 @@ class TcpCubicSenderBytesTest : public QuicTest {
                       QuicTime::Zero()));
     }
     sender_->OnCongestionEvent(true, bytes_in_flight_, clock_.Now(),
-                               acked_packets, lost_packets);
+                               acked_packets, lost_packets, 0, 0);
     bytes_in_flight_ -= n * kDefaultTCPMSS;
     clock_.AdvanceTime(one_ms_);
   }
@@ -105,7 +105,7 @@ class TcpCubicSenderBytesTest : public QuicTest {
           LostPacket(QuicPacketNumber(acked_packet_number_), packet_length));
     }
     sender_->OnCongestionEvent(false, bytes_in_flight_, clock_.Now(),
-                               acked_packets, lost_packets);
+                               acked_packets, lost_packets, 0, 0);
     bytes_in_flight_ -= n * packet_length;
   }
 
@@ -116,7 +116,7 @@ class TcpCubicSenderBytesTest : public QuicTest {
     lost_packets.push_back(
         LostPacket(QuicPacketNumber(packet_number), kDefaultTCPMSS));
     sender_->OnCongestionEvent(false, bytes_in_flight_, clock_.Now(),
-                               acked_packets, lost_packets);
+                               acked_packets, lost_packets, 0, 0);
     bytes_in_flight_ -= kDefaultTCPMSS;
   }
 
@@ -793,7 +793,7 @@ TEST_F(TcpCubicSenderBytesTest, DefaultMaxCwnd) {
     acked_packets.push_back(
         AckedPacket(QuicPacketNumber(i), 1350, QuicTime::Zero()));
     sender->OnCongestionEvent(true, sender->GetCongestionWindow(), clock_.Now(),
-                              acked_packets, missing_packets);
+                              acked_packets, missing_packets, 0, 0);
   }
   EXPECT_EQ(max_congestion_window,
             sender->GetCongestionWindow() / kDefaultTCPMSS);

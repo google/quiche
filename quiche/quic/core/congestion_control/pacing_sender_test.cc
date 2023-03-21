@@ -60,13 +60,13 @@ class PacingSenderTest : public QuicTest {
     EXPECT_CALL(*mock_sender_, BandwidthEstimate())
         .WillRepeatedly(Return(bandwidth));
     if (burst_size == 0) {
-      EXPECT_CALL(*mock_sender_, OnCongestionEvent(_, _, _, _, _));
+      EXPECT_CALL(*mock_sender_, OnCongestionEvent(_, _, _, _, _, _, _));
       LostPacketVector lost_packets;
       lost_packets.push_back(
           LostPacket(QuicPacketNumber(1), kMaxOutgoingPacketSize));
       AckedPacketVector empty;
       pacing_sender_->OnCongestionEvent(true, 1234, clock_.Now(), empty,
-                                        lost_packets);
+                                        lost_packets, 0, 0);
     } else if (burst_size != kInitialBurstPackets) {
       QUIC_LOG(FATAL) << "Unsupported burst_size " << burst_size
                       << " specificied, only 0 and " << kInitialBurstPackets
@@ -126,11 +126,11 @@ class PacingSenderTest : public QuicTest {
 
   void UpdateRtt() {
     EXPECT_CALL(*mock_sender_,
-                OnCongestionEvent(true, kBytesInFlight, _, _, _));
+                OnCongestionEvent(true, kBytesInFlight, _, _, _, _, _));
     AckedPacketVector empty_acked;
     LostPacketVector empty_lost;
     pacing_sender_->OnCongestionEvent(true, kBytesInFlight, clock_.Now(),
-                                      empty_acked, empty_lost);
+                                      empty_acked, empty_lost, 0, 0);
   }
 
   void OnApplicationLimited() { pacing_sender_->OnApplicationLimited(); }
@@ -340,9 +340,9 @@ TEST_F(PacingSenderTest, NoBurstEnteringRecovery) {
       LostPacket(QuicPacketNumber(1), kMaxOutgoingPacketSize));
   AckedPacketVector empty_acked;
   EXPECT_CALL(*mock_sender_, OnCongestionEvent(true, kMaxOutgoingPacketSize, _,
-                                               testing::IsEmpty(), _));
+                                               testing::IsEmpty(), _, _, _));
   pacing_sender_->OnCongestionEvent(true, kMaxOutgoingPacketSize, clock_.Now(),
-                                    empty_acked, lost_packets);
+                                    empty_acked, lost_packets, 0, 0);
   // One packet is sent immediately, because of 1ms pacing granularity.
   CheckPacketIsSentImmediately();
   // Ensure packets are immediately paced.

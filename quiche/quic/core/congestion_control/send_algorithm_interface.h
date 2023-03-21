@@ -79,11 +79,18 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
   // latest_rtt sample has been taken, |prior_in_flight| the bytes in flight
   // prior to the congestion event.  |acked_packets| and |lost_packets| are any
   // packets considered acked or lost as a result of the congestion event.
+  // |num_ect| and |num_ce| indicate the number of newly acknowledged packets
+  // for which the receiver reported the Explicit Congestion Notification (ECN)
+  // bits were set to ECT(1) or CE, respectively. A sender will not use ECT(0).
+  // If QUIC determines the peer's feedback is invalid, it will send zero in
+  // these fields.
   virtual void OnCongestionEvent(bool rtt_updated,
                                  QuicByteCount prior_in_flight,
                                  QuicTime event_time,
                                  const AckedPacketVector& acked_packets,
-                                 const LostPacketVector& lost_packets) = 0;
+                                 const LostPacketVector& lost_packets,
+                                 QuicPacketCount num_ect,
+                                 QuicPacketCount num_ce) = 0;
 
   // Inform that we sent |bytes| to the wire, and if the packet is
   // retransmittable.  |bytes_in_flight| is the number of bytes in flight before
@@ -160,6 +167,11 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
 
   // Called before connection close to collect stats.
   virtual void PopulateConnectionStats(QuicConnectionStats* stats) const = 0;
+
+  // Returns true if the algorithm will respond to Congestion Experienced (CE)
+  // indications in accordance with RFC3168 [ECT(0)] or RFC9331 [ECT(1)].
+  virtual bool SupportsECT0() const = 0;
+  virtual bool SupportsECT1() const = 0;
 };
 
 }  // namespace quic

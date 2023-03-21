@@ -1220,7 +1220,8 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
   MOCK_METHOD(void, OnCongestionEvent,
               (bool rtt_updated, QuicByteCount bytes_in_flight,
                QuicTime event_time, const AckedPacketVector& acked_packets,
-               const LostPacketVector& lost_packets),
+               const LostPacketVector& lost_packets, QuicPacketCount num_ect,
+               QuicPacketCount num_ce),
               (override));
   MOCK_METHOD(void, OnPacketSent,
               (QuicTime, QuicByteCount, QuicPacketNumber, QuicByteCount,
@@ -1246,6 +1247,8 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
   MOCK_METHOD(void, OnApplicationLimited, (QuicByteCount), (override));
   MOCK_METHOD(void, PopulateConnectionStats, (QuicConnectionStats*),
               (const, override));
+  MOCK_METHOD(bool, SupportsECT0, (), (const, override));
+  MOCK_METHOD(bool, SupportsECT1, (), (const, override));
 };
 
 class MockLossAlgorithm : public LossDetectionInterface {

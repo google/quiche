@@ -327,7 +327,9 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
                                   QuicByteCount prior_in_flight,
                                   QuicTime event_time,
                                   const AckedPacketVector& acked_packets,
-                                  const LostPacketVector& lost_packets) {
+                                  const LostPacketVector& lost_packets,
+                                  QuicPacketCount /*num_ect*/,
+                                  QuicPacketCount /*num_ce*/) {
   const QuicByteCount total_bytes_acked_before = sampler_.total_bytes_acked();
   const QuicByteCount total_bytes_lost_before = sampler_.total_bytes_lost();
 

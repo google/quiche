@@ -402,7 +402,7 @@ TEST_F(BbrSenderTest, RemoveBytesLostInRecovery) {
   LostPacketVector lost_packets;
   lost_packets.emplace_back(least_inflight, least_inflight_packet_size);
   sender_->OnCongestionEvent(false, prior_inflight, clock_->Now(), {},
-                             lost_packets);
+                             lost_packets, 0, 0);
   EXPECT_EQ(sender_->ExportDebugState().recovery_window,
             prior_inflight - least_inflight_packet_size);
   EXPECT_LT(sender_->ExportDebugState().recovery_window, prior_recovery_window);
@@ -1300,7 +1300,7 @@ TEST_F(BbrSenderTest, LossOnlyCongestionEvent) {
 
   QuicTime now = simulator_.GetClock()->Now() + kTestRtt * 0.25;
   sender_->OnCongestionEvent(false, unacked_packets->bytes_in_flight(), now, {},
-                             lost_packets);
+                             lost_packets, 0, 0);
 
   // Bandwidth estimate should not change for the loss only event.
   EXPECT_EQ(prior_bandwidth_estimate, sender_->BandwidthEstimate());
