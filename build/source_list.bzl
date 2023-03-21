@@ -612,7 +612,6 @@ quiche_core_srcs = [
     "quic/core/quic_bandwidth.cc",
     "quic/core/quic_buffered_packet_store.cc",
     "quic/core/quic_chaos_protector.cc",
-    "quic/core/quic_clock.cc",
     "quic/core/quic_coalesced_packet.cc",
     "quic/core/quic_config.cc",
     "quic/core/quic_connection.cc",

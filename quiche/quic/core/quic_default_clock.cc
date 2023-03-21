@@ -23,9 +23,4 @@ QuicWallTime QuicDefaultClock::WallNow() const {
   return QuicWallTime::FromUNIXMicroseconds(absl::GetCurrentTimeNanos() / 1000);
 }
 
-QuicTime QuicDefaultClock::ConvertWallTimeToQuicTime(
-    const QuicWallTime& walltime) const {
-  return CreateTimeFromMicroseconds(walltime.ToUNIXMicroseconds());
-}
-
 }  // namespace quic

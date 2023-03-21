@@ -25,8 +25,6 @@ class QUIC_EXPORT_PRIVATE QuicDefaultClock : public QuicClock {
   QuicTime ApproximateNow() const override;
   QuicTime Now() const override;
   QuicWallTime WallNow() const override;
-  QuicTime ConvertWallTimeToQuicTime(
-      const QuicWallTime& walltime) const override;
 };
 
 }  // namespace quic

@@ -611,7 +611,6 @@
     "quiche/quic/core/quic_bandwidth.cc",
     "quiche/quic/core/quic_buffered_packet_store.cc",
     "quiche/quic/core/quic_chaos_protector.cc",
-    "quiche/quic/core/quic_clock.cc",
     "quiche/quic/core/quic_coalesced_packet.cc",
     "quiche/quic/core/quic_config.cc",
     "quiche/quic/core/quic_connection.cc",

@@ -35,10 +35,6 @@ class QUIC_EXPORT_PRIVATE QuicClock {
   // different clocks.
   virtual QuicWallTime WallNow() const = 0;
 
-  // Converts |walltime| to a QuicTime relative to this clock's epoch.
-  virtual QuicTime ConvertWallTimeToQuicTime(
-      const QuicWallTime& walltime) const;
-
  protected:
   // Creates a new QuicTime using |time_us| as the internal value.
   QuicTime CreateTimeFromMicroseconds(uint64_t time_us) const {
