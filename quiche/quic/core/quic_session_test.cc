@@ -994,6 +994,11 @@ TEST_P(QuicSessionTestServer, DebugDFatalIfMarkingClosedStreamWriteBlocked) {
                   msg);
 }
 
+// SpdySession::OnCanWrite() queries QuicWriteBlockedList for the number of
+// streams that are marked as connection level write blocked, then queries
+// QuicWriteBlockedList that many times for what stream to write data on.  This
+// can result in some streams writing multiple times in a single
+// SpdySession::OnCanWrite() call while other streams not getting a turn.
 TEST_P(QuicSessionTestServer, OnCanWrite) {
   CompleteHandshake();
   session_.set_writev_consumes_all_data(true);
@@ -1012,14 +1017,29 @@ TEST_P(QuicSessionTestServer, OnCanWrite) {
     session_.SendStreamData(stream2);
     session_.MarkConnectionLevelWriteBlocked(stream2->id());
   }));
-  // 2 will get called a second time as it didn't finish its block
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
-    session_.SendStreamData(stream2);
-  }));
-  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
-    session_.SendStreamData(stream6);
-  }));
-  // 4 will not get called, as we exceeded the loop limit.
+
+  if (!GetQuicReloadableFlag(quic_disable_batch_write) ||
+      GetQuicReloadableFlag(quic_priority_respect_incremental)) {
+    // If batched writes are enabled, stream 2 will write again. Also, streams
+    // are non-incremental by default, so if the incremental flag is respected,
+    // then stream 2 will write again. (If it is not respected, then every
+    // stream is treated as incremental.)
+    EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+      session_.SendStreamData(stream2);
+    }));
+    EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
+      session_.SendStreamData(stream6);
+    }));
+  } else {
+    EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
+      session_.SendStreamData(stream6);
+    }));
+    EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+      session_.SendStreamData(stream4);
+    }));
+  }
+
+  // Stream 4 will not get called, as we exceeded the loop limit.
   session_.OnCanWrite();
   EXPECT_TRUE(session_.WillingAndAbleToWrite());
 }

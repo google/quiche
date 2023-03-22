@@ -807,36 +807,6 @@ TEST_P(QuicSpdySessionTestServer,
                   msg);
 }
 
-TEST_P(QuicSpdySessionTestServer, OnCanWrite) {
-  CompleteHandshake();
-  session_.set_writev_consumes_all_data(true);
-  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
-  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
-  TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
-
-  session_.MarkConnectionLevelWriteBlocked(stream2->id());
-  session_.MarkConnectionLevelWriteBlocked(stream6->id());
-  session_.MarkConnectionLevelWriteBlocked(stream4->id());
-
-  InSequence s;
-
-  // Reregister, to test the loop limit.
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
-    session_.SendStreamData(stream2);
-    session_.MarkConnectionLevelWriteBlocked(stream2->id());
-  }));
-  // 2 will get called a second time as it didn't finish its block
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
-    session_.SendStreamData(stream2);
-  }));
-  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
-    session_.SendStreamData(stream6);
-  }));
-  // 4 will not get called, as we exceeded the loop limit.
-  session_.OnCanWrite();
-  EXPECT_TRUE(session_.WillingAndAbleToWrite());
-}
-
 TEST_P(QuicSpdySessionTestServer, TooLargeStreamBlocked) {
   // STREAMS_BLOCKED frame is IETF QUIC only.
   if (!VersionUsesHttp3(transport_version())) {
