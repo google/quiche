@@ -84,6 +84,11 @@ class QUICHE_EXPORT QuicStreamPriority {
       case QuicPriorityType::kWebTransport:
         return QuicStreamPriority(WebTransportStreamPriority());
     }
+
+    QUICHE_BUG(unhandled_quic_priority_type_518918225)
+        << "Tried to create QuicStreamPriority for unknown QuicPriorityType "
+        << type;
+    return QuicStreamPriority(HttpStreamPriority());
   }
 
   QuicPriorityType type() const { return absl::visit(TypeExtractor(), value_); }
