@@ -48,6 +48,7 @@ std::string TestPacketOut(const std::string& body) {
 }
 
 ParsedQuicVersionVector GetTestParams() {
+  SetQuicReloadableFlag(quic_disable_version_q046, false);
   ParsedQuicVersionVector test_versions;
 
   // TODO(b/113130636): Make QBONE work with TLS.

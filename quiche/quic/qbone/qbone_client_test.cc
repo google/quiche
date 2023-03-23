@@ -15,6 +15,7 @@
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/core/quic_dispatcher.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -37,7 +38,7 @@ using ::testing::ElementsAre;
 
 ParsedQuicVersionVector GetTestParams() {
   ParsedQuicVersionVector test_versions;
-
+  SetQuicReloadableFlag(quic_disable_version_q046, false);
   // TODO(b/113130636): Make QBONE work with TLS.
   for (const auto& version : CurrentSupportedVersionsWithQuicCrypto()) {
     // QBONE requires MESSAGE frames
