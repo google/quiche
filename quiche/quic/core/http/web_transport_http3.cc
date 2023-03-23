@@ -295,8 +295,7 @@ QuicByteCount WebTransportHttp3::GetMaxDatagramSize() const {
 
 void WebTransportHttp3::SetDatagramMaxTimeInQueue(
     absl::Duration max_time_in_queue) {
-  connect_stream_->SetMaxDatagramTimeInQueue(
-      QuicTime::Delta::FromAbsl(max_time_in_queue));
+  connect_stream_->SetMaxDatagramTimeInQueue(QuicTimeDelta(max_time_in_queue));
 }
 
 void WebTransportHttp3::OnHttp3Datagram(QuicStreamId stream_id,

@@ -2,14 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// QuicTime represents one point in time, stored in microsecond resolution.
-// QuicTime is monotonically increasing, even across system clock adjustments.
-// The epoch (time 0) of QuicTime is unspecified.
-//
-// This implementation wraps a int64_t of usec since the epoch.  While
-// the epoch is the Unix epoch, do not depend on this fact because other
-// implementations, like Chrome's, do NOT have the same epoch.
-
 #ifndef QUICHE_QUIC_CORE_QUIC_TIME_H_
 #define QUICHE_QUIC_CORE_QUIC_TIME_H_
 
@@ -22,105 +14,106 @@
 #include "absl/time/time.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
-// TODO(vasilvv): replace with ABSL_MUST_USE_RESULT once we're using absl.
-#if defined(__clang__)
-#define QUIC_TIME_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-#else
-#define QUIC_TIME_WARN_UNUSED_RESULT
-#endif /* defined(__clang__) */
-
 namespace quic {
 
 class QuicClock;
+class QuicTime;
 
-// A QuicTime is a purely relative time. QuicTime values from different clocks
-// cannot be compared to each other. If you need an absolute time, see
-// QuicWallTime, below.
+// A 64-bit signed integer type that stores a time duration as
+// a number of microseconds. QUIC does not use absl::Duration, since the Abseil
+// type is 128-bit, which would adversely affect certain performance-sensitive
+// QUIC data structures.
+class QUIC_EXPORT_PRIVATE QuicTimeDelta {
+ public:
+  // Creates a QuicTimeDelta from an absl::Duration. Note that this inherently
+  // loses precision, since absl::Duration is nanoseconds, and QuicTimeDelta is
+  // microseconds.
+  explicit QuicTimeDelta(absl::Duration duration)
+      : time_offset_((duration == absl::InfiniteDuration())
+                         ? kInfiniteTimeUs
+                         : absl::ToInt64Microseconds(duration)) {}
+
+  // Create a object with an offset of 0.
+  static constexpr QuicTimeDelta Zero() { return QuicTimeDelta(0); }
+
+  // Create a object with infinite offset time.
+  static constexpr QuicTimeDelta Infinite() {
+    return QuicTimeDelta(kInfiniteTimeUs);
+  }
+
+  // Converts a number of seconds to a time offset.
+  static constexpr QuicTimeDelta FromSeconds(int64_t secs) {
+    return QuicTimeDelta(secs * 1000 * 1000);
+  }
+
+  // Converts a number of milliseconds to a time offset.
+  static constexpr QuicTimeDelta FromMilliseconds(int64_t ms) {
+    return QuicTimeDelta(ms * 1000);
+  }
+
+  // Converts a number of microseconds to a time offset.
+  static constexpr QuicTimeDelta FromMicroseconds(int64_t us) {
+    return QuicTimeDelta(us);
+  }
+
+  // Converts the time offset to a rounded number of seconds.
+  constexpr int64_t ToSeconds() const { return time_offset_ / 1000 / 1000; }
+
+  // Converts the time offset to a rounded number of milliseconds.
+  constexpr int64_t ToMilliseconds() const { return time_offset_ / 1000; }
+
+  // Converts the time offset to a rounded number of microseconds.
+  constexpr int64_t ToMicroseconds() const { return time_offset_; }
+
+  // Converts the time offset to an Abseil duration.
+  constexpr absl::Duration ToAbsl() {
+    if (ABSL_PREDICT_FALSE(IsInfinite())) {
+      return absl::InfiniteDuration();
+    }
+    return absl::Microseconds(time_offset_);
+  }
+
+  constexpr bool IsZero() const { return time_offset_ == 0; }
+
+  constexpr bool IsInfinite() const { return time_offset_ == kInfiniteTimeUs; }
+
+  std::string ToDebuggingValue() const;
+
+ private:
+  friend inline bool operator==(QuicTimeDelta lhs, QuicTimeDelta rhs);
+  friend inline bool operator<(QuicTimeDelta lhs, QuicTimeDelta rhs);
+  friend inline QuicTimeDelta operator<<(QuicTimeDelta lhs, size_t rhs);
+  friend inline QuicTimeDelta operator>>(QuicTimeDelta lhs, size_t rhs);
+
+  friend inline constexpr QuicTimeDelta operator+(QuicTimeDelta lhs,
+                                                  QuicTimeDelta rhs);
+  friend inline constexpr QuicTimeDelta operator-(QuicTimeDelta lhs,
+                                                  QuicTimeDelta rhs);
+  friend inline constexpr QuicTimeDelta operator*(QuicTimeDelta lhs, int rhs);
+  // Not constexpr since std::llround() is not constexpr.
+  friend inline QuicTimeDelta operator*(QuicTimeDelta lhs, double rhs);
+
+  friend inline QuicTime operator+(QuicTime lhs, QuicTimeDelta rhs);
+  friend inline QuicTime operator-(QuicTime lhs, QuicTimeDelta rhs);
+  friend inline QuicTimeDelta operator-(QuicTime lhs, QuicTime rhs);
+
+  static constexpr int64_t kInfiniteTimeUs =
+      std::numeric_limits<int64_t>::max();
+
+  explicit constexpr QuicTimeDelta(int64_t time_offset)
+      : time_offset_(time_offset) {}
+
+  int64_t time_offset_;
+  friend class QuicTime;
+};
+
+// A microsecond precision timestamp returned by a QuicClock. It is
+// usually either a Unix timestamp or a timestamp returned by the
+// platform-specific monotonic clock. QuicClock has a method to convert QuicTime
+// to the wall time.
 class QUIC_EXPORT_PRIVATE QuicTime {
  public:
-  // A QuicTime::Delta represents the signed difference between two points in
-  // time, stored in microsecond resolution.
-  class QUIC_EXPORT_PRIVATE Delta {
-   public:
-    // Create a object with an offset of 0.
-    static constexpr Delta Zero() { return Delta(0); }
-
-    // Create a object with infinite offset time.
-    static constexpr Delta Infinite() { return Delta(kQuicInfiniteTimeUs); }
-
-    // Converts a number of seconds to a time offset.
-    static constexpr Delta FromSeconds(int64_t secs) {
-      return Delta(secs * 1000 * 1000);
-    }
-
-    // Converts a number of milliseconds to a time offset.
-    static constexpr Delta FromMilliseconds(int64_t ms) {
-      return Delta(ms * 1000);
-    }
-
-    // Converts a number of microseconds to a time offset.
-    static constexpr Delta FromMicroseconds(int64_t us) { return Delta(us); }
-
-    // Converts from Abseil duration type.
-    static constexpr Delta FromAbsl(absl::Duration duration) {
-      if (ABSL_PREDICT_FALSE(duration == absl::InfiniteDuration())) {
-        return Infinite();
-      }
-      return Delta(absl::ToInt64Microseconds(duration));
-    }
-
-    // Converts the time offset to a rounded number of seconds.
-    constexpr int64_t ToSeconds() const { return time_offset_ / 1000 / 1000; }
-
-    // Converts the time offset to a rounded number of milliseconds.
-    constexpr int64_t ToMilliseconds() const { return time_offset_ / 1000; }
-
-    // Converts the time offset to a rounded number of microseconds.
-    constexpr int64_t ToMicroseconds() const { return time_offset_; }
-
-    // Converts the time offset to an Abseil duration.
-    constexpr absl::Duration ToAbsl() {
-      if (ABSL_PREDICT_FALSE(IsInfinite())) {
-        return absl::InfiniteDuration();
-      }
-      return absl::Microseconds(time_offset_);
-    }
-
-    constexpr bool IsZero() const { return time_offset_ == 0; }
-
-    constexpr bool IsInfinite() const {
-      return time_offset_ == kQuicInfiniteTimeUs;
-    }
-
-    std::string ToDebuggingValue() const;
-
-   private:
-    friend inline bool operator==(QuicTime::Delta lhs, QuicTime::Delta rhs);
-    friend inline bool operator<(QuicTime::Delta lhs, QuicTime::Delta rhs);
-    friend inline QuicTime::Delta operator<<(QuicTime::Delta lhs, size_t rhs);
-    friend inline QuicTime::Delta operator>>(QuicTime::Delta lhs, size_t rhs);
-
-    friend inline constexpr QuicTime::Delta operator+(QuicTime::Delta lhs,
-                                                      QuicTime::Delta rhs);
-    friend inline constexpr QuicTime::Delta operator-(QuicTime::Delta lhs,
-                                                      QuicTime::Delta rhs);
-    friend inline constexpr QuicTime::Delta operator*(QuicTime::Delta lhs,
-                                                      int rhs);
-    // Not constexpr since std::llround() is not constexpr.
-    friend inline QuicTime::Delta operator*(QuicTime::Delta lhs, double rhs);
-
-    friend inline QuicTime operator+(QuicTime lhs, QuicTime::Delta rhs);
-    friend inline QuicTime operator-(QuicTime lhs, QuicTime::Delta rhs);
-    friend inline QuicTime::Delta operator-(QuicTime lhs, QuicTime rhs);
-
-    static const int64_t kQuicInfiniteTimeUs =
-        std::numeric_limits<int64_t>::max();
-
-    explicit constexpr Delta(int64_t time_offset) : time_offset_(time_offset) {}
-
-    int64_t time_offset_;
-    friend class QuicTime;
-  };
+  using Delta = QuicTimeDelta;
 
   // Creates a new QuicTime with an internal value of 0.  IsInitialized()
   // will return false for these times.
@@ -128,7 +121,7 @@ class QUIC_EXPORT_PRIVATE QuicTime {
 
   // Creates a new QuicTime with an infinite time.
   static constexpr QuicTime Infinite() {
-    return QuicTime(Delta::kQuicInfiniteTimeUs);
+    return QuicTime(Delta::kInfiniteTimeUs);
   }
 
   QuicTime(const QuicTime& other) = default;
@@ -151,18 +144,18 @@ class QUIC_EXPORT_PRIVATE QuicTime {
 
   friend inline bool operator==(QuicTime lhs, QuicTime rhs);
   friend inline bool operator<(QuicTime lhs, QuicTime rhs);
-  friend inline QuicTime operator+(QuicTime lhs, QuicTime::Delta rhs);
-  friend inline QuicTime operator-(QuicTime lhs, QuicTime::Delta rhs);
-  friend inline QuicTime::Delta operator-(QuicTime lhs, QuicTime rhs);
+  friend inline QuicTime operator+(QuicTime lhs, QuicTimeDelta rhs);
+  friend inline QuicTime operator-(QuicTime lhs, QuicTimeDelta rhs);
+  friend inline QuicTimeDelta operator-(QuicTime lhs, QuicTime rhs);
 
   explicit constexpr QuicTime(int64_t time) : time_(time) {}
 
   int64_t time_;
 };
 
-// A QuicWallTime represents an absolute time that is globally consistent. In
-// practice, clock-skew means that comparing values from different machines
-// requires some flexibility.
+// A UNIX timestamp.
+//
+// TODO(vasilvv): evaluate whether this can be replaced with absl::Time.
 class QUIC_EXPORT_PRIVATE QuicWallTime {
  public:
   // FromUNIXSeconds constructs a QuicWallTime from a count of the seconds
@@ -192,23 +185,22 @@ class QUIC_EXPORT_PRIVATE QuicWallTime {
 
   // AbsoluteDifference returns the absolute value of the time difference
   // between |this| and |other|.
-  QuicTime::Delta AbsoluteDifference(QuicWallTime other) const;
+  QuicTimeDelta AbsoluteDifference(QuicWallTime other) const;
 
   // Add returns a new QuicWallTime that represents the time of |this| plus
   // |delta|.
-  QUIC_TIME_WARN_UNUSED_RESULT QuicWallTime Add(QuicTime::Delta delta) const;
+  [[nodiscard]] QuicWallTime Add(QuicTimeDelta delta) const;
 
   // Subtract returns a new QuicWallTime that represents the time of |this|
   // minus |delta|.
-  QUIC_TIME_WARN_UNUSED_RESULT QuicWallTime
-  Subtract(QuicTime::Delta delta) const;
+  [[nodiscard]] QuicWallTime Subtract(QuicTimeDelta delta) const;
 
   bool operator==(const QuicWallTime& other) const {
     return microseconds_ == other.microseconds_;
   }
 
-  QuicTime::Delta operator-(const QuicWallTime& rhs) const {
-    return QuicTime::Delta::FromMicroseconds(microseconds_ - rhs.microseconds_);
+  QuicTimeDelta operator-(const QuicWallTime& rhs) const {
+    return QuicTimeDelta::FromMicroseconds(microseconds_ - rhs.microseconds_);
   }
 
  private:
@@ -218,30 +210,30 @@ class QUIC_EXPORT_PRIVATE QuicWallTime {
   uint64_t microseconds_;
 };
 
-// Non-member relational operators for QuicTime::Delta.
-inline bool operator==(QuicTime::Delta lhs, QuicTime::Delta rhs) {
+// Non-member relational operators for QuicTimeDelta.
+inline bool operator==(QuicTimeDelta lhs, QuicTimeDelta rhs) {
   return lhs.time_offset_ == rhs.time_offset_;
 }
-inline bool operator!=(QuicTime::Delta lhs, QuicTime::Delta rhs) {
+inline bool operator!=(QuicTimeDelta lhs, QuicTimeDelta rhs) {
   return !(lhs == rhs);
 }
-inline bool operator<(QuicTime::Delta lhs, QuicTime::Delta rhs) {
+inline bool operator<(QuicTimeDelta lhs, QuicTimeDelta rhs) {
   return lhs.time_offset_ < rhs.time_offset_;
 }
-inline bool operator>(QuicTime::Delta lhs, QuicTime::Delta rhs) {
+inline bool operator>(QuicTimeDelta lhs, QuicTimeDelta rhs) {
   return rhs < lhs;
 }
-inline bool operator<=(QuicTime::Delta lhs, QuicTime::Delta rhs) {
+inline bool operator<=(QuicTimeDelta lhs, QuicTimeDelta rhs) {
   return !(rhs < lhs);
 }
-inline bool operator>=(QuicTime::Delta lhs, QuicTime::Delta rhs) {
+inline bool operator>=(QuicTimeDelta lhs, QuicTimeDelta rhs) {
   return !(lhs < rhs);
 }
-inline QuicTime::Delta operator<<(QuicTime::Delta lhs, size_t rhs) {
-  return QuicTime::Delta(lhs.time_offset_ << rhs);
+inline QuicTimeDelta operator<<(QuicTimeDelta lhs, size_t rhs) {
+  return QuicTimeDelta(lhs.time_offset_ << rhs);
 }
-inline QuicTime::Delta operator>>(QuicTime::Delta lhs, size_t rhs) {
-  return QuicTime::Delta(lhs.time_offset_ >> rhs);
+inline QuicTimeDelta operator>>(QuicTimeDelta lhs, size_t rhs) {
+  return QuicTimeDelta(lhs.time_offset_ >> rhs);
 }
 
 // Non-member relational operators for QuicTime.
@@ -262,43 +254,39 @@ inline std::ostream& operator<<(std::ostream& output, const QuicTime t) {
   return output;
 }
 
-// Non-member arithmetic operators for QuicTime::Delta.
-inline constexpr QuicTime::Delta operator+(QuicTime::Delta lhs,
-                                           QuicTime::Delta rhs) {
-  return QuicTime::Delta(lhs.time_offset_ + rhs.time_offset_);
+// Non-member arithmetic operators for QuicTimeDelta.
+inline constexpr QuicTimeDelta operator+(QuicTimeDelta lhs, QuicTimeDelta rhs) {
+  return QuicTimeDelta(lhs.time_offset_ + rhs.time_offset_);
 }
-inline constexpr QuicTime::Delta operator-(QuicTime::Delta lhs,
-                                           QuicTime::Delta rhs) {
-  return QuicTime::Delta(lhs.time_offset_ - rhs.time_offset_);
+inline constexpr QuicTimeDelta operator-(QuicTimeDelta lhs, QuicTimeDelta rhs) {
+  return QuicTimeDelta(lhs.time_offset_ - rhs.time_offset_);
 }
-inline constexpr QuicTime::Delta operator*(QuicTime::Delta lhs, int rhs) {
-  return QuicTime::Delta(lhs.time_offset_ * rhs);
+inline constexpr QuicTimeDelta operator*(QuicTimeDelta lhs, int rhs) {
+  return QuicTimeDelta(lhs.time_offset_ * rhs);
 }
-inline QuicTime::Delta operator*(QuicTime::Delta lhs, double rhs) {
-  return QuicTime::Delta(static_cast<int64_t>(
+inline QuicTimeDelta operator*(QuicTimeDelta lhs, double rhs) {
+  return QuicTimeDelta(static_cast<int64_t>(
       std::llround(static_cast<double>(lhs.time_offset_) * rhs)));
 }
-inline QuicTime::Delta operator*(int lhs, QuicTime::Delta rhs) {
-  return rhs * lhs;
-}
-inline QuicTime::Delta operator*(double lhs, QuicTime::Delta rhs) {
+inline QuicTimeDelta operator*(int lhs, QuicTimeDelta rhs) { return rhs * lhs; }
+inline QuicTimeDelta operator*(double lhs, QuicTimeDelta rhs) {
   return rhs * lhs;
 }
 
-// Non-member arithmetic operators for QuicTime and QuicTime::Delta.
-inline QuicTime operator+(QuicTime lhs, QuicTime::Delta rhs) {
+// Non-member arithmetic operators for QuicTime and QuicTimeDelta.
+inline QuicTime operator+(QuicTime lhs, QuicTimeDelta rhs) {
   return QuicTime(lhs.time_ + rhs.time_offset_);
 }
-inline QuicTime operator-(QuicTime lhs, QuicTime::Delta rhs) {
+inline QuicTime operator-(QuicTime lhs, QuicTimeDelta rhs) {
   return QuicTime(lhs.time_ - rhs.time_offset_);
 }
-inline QuicTime::Delta operator-(QuicTime lhs, QuicTime rhs) {
-  return QuicTime::Delta(lhs.time_ - rhs.time_);
+inline QuicTimeDelta operator-(QuicTime lhs, QuicTime rhs) {
+  return QuicTimeDelta(lhs.time_ - rhs.time_);
 }
 
 // Override stream output operator for gtest.
 inline std::ostream& operator<<(std::ostream& output,
-                                const QuicTime::Delta delta) {
+                                const QuicTimeDelta delta) {
   output << delta.ToDebuggingValue();
   return output;
 }
