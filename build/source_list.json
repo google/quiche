@@ -1545,10 +1545,14 @@
   ],
   "blind_sign_auth_hdrs": [
     "quiche/blind_sign_auth/anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.h",
+    "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/blind_signer.h",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/blinder.h",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h",
+    "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer.h",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.h",
+    "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_ssa_pss_verifier.h",
+    "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/verifier.h",
     "quiche/blind_sign_auth/blind_sign_auth.h",
     "quiche/blind_sign_auth/blind_sign_auth_interface.h",
     "quiche/blind_sign_auth/blind_sign_http_interface.h",
@@ -1560,7 +1564,9 @@
   "blind_sign_auth_srcs": [
     "quiche/blind_sign_auth/anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.cc",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.cc",
+    "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer.cc",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.cc",
+    "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_ssa_pss_verifier.cc",
     "quiche/blind_sign_auth/blind_sign_auth.cc",
     "quiche/blind_sign_auth/cached_blind_sign_auth.cc"
   ],
@@ -1570,7 +1576,9 @@
   "blind_sign_auth_tests_srcs": [
     "quiche/blind_sign_auth/anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client_test.cc",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/at_crypto_utils_test.cc",
+    "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer_test.cc",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder_test.cc",
+    "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_ssa_pss_verifier_test.cc",
     "quiche/blind_sign_auth/blind_sign_auth_test.cc",
     "quiche/blind_sign_auth/cached_blind_sign_auth_test.cc"
   ],
