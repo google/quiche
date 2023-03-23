@@ -46,7 +46,6 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
   QboneServerSession& operator=(const QboneServerSession&) = delete;
   ~QboneServerSession() override;
 
-  void Initialize() override;
   // Override to create control stream at FORWARD_SECURE encryption level.
   void SetDefaultEncryptionLevel(quic::EncryptionLevel level) override;
 
