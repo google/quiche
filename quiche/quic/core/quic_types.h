@@ -899,6 +899,11 @@ struct QUIC_EXPORT_PRIVATE QuicEcnCounts {
                            std::to_string(ce));
   }
 
+  bool operator==(const QuicEcnCounts& other) const {
+    return (this->ect0 == other.ect0 && this->ect1 == other.ect1 &&
+            this->ce == other.ce);
+  }
+
   QuicPacketCount ect0 = 0;
   QuicPacketCount ect1 = 0;
   QuicPacketCount ce = 0;

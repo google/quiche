@@ -397,9 +397,10 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  void OnAckEcnCounts(const QuicEcnCounts& /*ecn_counts*/) override {}
-
-  bool OnAckFrameEnd(QuicPacketNumber /*start*/) override { return true; }
+  bool OnAckFrameEnd(QuicPacketNumber /*start*/,
+                     absl::optional<QuicEcnCounts>& /*ecn_counts*/) override {
+    return true;
+  }
 
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override {
     ++frame_count_;
@@ -16529,12 +16530,8 @@ TEST_P(QuicFramerTest, ReportEcnCountsIfPresent) {
     EXPECT_CALL(visitor, OnDecryptedPacket(_, _)).Times(1);
     EXPECT_CALL(visitor, OnAckFrameStart(_, _)).Times(1).WillOnce(Return(true));
     EXPECT_CALL(visitor, OnAckRange(_, _)).Times(1).WillOnce(Return(true));
-    if (GetQuicRestartFlag(quic_receive_ecn) && ecn_marks) {
-      EXPECT_CALL(visitor, OnAckEcnCounts(_)).Times(1);
-    } else {
-      EXPECT_CALL(visitor, OnAckEcnCounts(_)).Times(0);
-    }
-    EXPECT_CALL(visitor, OnAckFrameEnd(_)).Times(1).WillOnce(Return(true));
+    EXPECT_CALL(visitor, OnAckFrameEnd(_, ack_frame.ecn_counters))
+        .Times(1).WillOnce(Return(true));
     EXPECT_CALL(visitor, OnPacketComplete()).Times(1);
     ASSERT_TRUE(framer_.ProcessPacket(
                     QuicEncryptedPacket(buffer, encrypted_length, false)));

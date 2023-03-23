@@ -348,9 +348,8 @@ bool NoOpFramerVisitor::OnAckTimestamp(QuicPacketNumber /*packet_number*/,
   return true;
 }
 
-void NoOpFramerVisitor::OnAckEcnCounts(const QuicEcnCounts& /*ecn_counts*/) {}
-
-bool NoOpFramerVisitor::OnAckFrameEnd(QuicPacketNumber /*start*/) {
+bool NoOpFramerVisitor::OnAckFrameEnd(
+    QuicPacketNumber /*start*/, absl::optional<QuicEcnCounts>& /*ecn_counts*/) {
   return true;
 }
 

@@ -1519,15 +1519,8 @@ bool QuicConnection::OnAckTimestamp(QuicPacketNumber packet_number,
   return true;
 }
 
-void QuicConnection::OnAckEcnCounts(const QuicEcnCounts& ecn_counts) {
-  QUIC_DVLOG(1) << ENDPOINT << "OnAckEcnCounts: [" << ecn_counts.ToString()
-                << "]";
-  PacketNumberSpace space = QuicUtils::GetPacketNumberSpace(
-      last_received_packet_info_.decrypted_level);
-  peer_ack_ecn_counts_[space] = ecn_counts;
-}
-
-bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
+bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start,
+                                   absl::optional<QuicEcnCounts>& ecn_counts) {
   QUIC_BUG_IF(quic_bug_12714_7, !connected_)
       << "Processing ACK frame end when connection is closed. Received packet "
          "info: "
@@ -1556,6 +1549,11 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
                      << "Error occurred when processing an ACK frame: "
                      << QuicUtils::AckResultToString(ack_result);
     return false;
+  }
+  if (ecn_counts.has_value()) {
+    PacketNumberSpace space = QuicUtils::GetPacketNumberSpace(
+        last_received_packet_info_.decrypted_level);
+    peer_ack_ecn_counts_[space] = *ecn_counts;
   }
   if (SupportsMultiplePacketNumberSpaces() && !one_rtt_packet_was_acked &&
       sent_packet_manager_.one_rtt_packet_acked()) {

@@ -112,8 +112,10 @@ class QUIC_NO_EXPORT TlsChloExtractor
                       QuicTime /*timestamp*/) override {
     return true;
   }
-  void OnAckEcnCounts(const QuicEcnCounts& /*ecn_counts*/) override {}
-  bool OnAckFrameEnd(QuicPacketNumber /*start*/) override { return true; }
+  bool OnAckFrameEnd(QuicPacketNumber /*start*/,
+                     absl::optional<QuicEcnCounts>& /*ecn_counts*/) override {
+    return true;
+  }
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& /*frame*/) override {
     return true;
   }

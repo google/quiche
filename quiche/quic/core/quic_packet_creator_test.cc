@@ -326,7 +326,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
         EXPECT_CALL(framer_visitor_,
                     OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2)))
             .WillOnce(Return(true));
-        EXPECT_CALL(framer_visitor_, OnAckFrameEnd(QuicPacketNumber(1)))
+        EXPECT_CALL(framer_visitor_, OnAckFrameEnd(QuicPacketNumber(1), _))
             .WillOnce(Return(true));
       }
       if (has_stream) {
@@ -2316,7 +2316,7 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
       EXPECT_CALL(framer_visitor_,
                   OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2)))
           .WillOnce(Return(true));
-      EXPECT_CALL(framer_visitor_, OnAckFrameEnd(_)).WillOnce(Return(true));
+      EXPECT_CALL(framer_visitor_, OnAckFrameEnd(_, _)).WillOnce(Return(true));
     }
     if (i == ENCRYPTION_INITIAL) {
       // Verify padding is added.

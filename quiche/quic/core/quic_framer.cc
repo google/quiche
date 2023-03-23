@@ -3904,7 +3904,8 @@ bool QuicFramer::ProcessAckFrame(QuicDataReader* reader, uint8_t frame_type) {
   }
 
   // Done processing the ACK frame.
-  if (!visitor_->OnAckFrameEnd(QuicPacketNumber(first_received))) {
+  absl::optional<QuicEcnCounts> ecn_counts = absl::nullopt;
+  if (!visitor_->OnAckFrameEnd(QuicPacketNumber(first_received), ecn_counts)) {
     set_detailed_error(
         "Error occurs when visitor finishes processing the ACK frame.");
     return false;
@@ -4141,11 +4142,11 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     }
     if (GetQuicRestartFlag(quic_receive_ecn)) {
       QUIC_RESTART_FLAG_COUNT_N(quic_receive_ecn, 2, 3);
-      visitor_->OnAckEcnCounts(*ack_frame->ecn_counters);
     }
   }
 
-  if (!visitor_->OnAckFrameEnd(QuicPacketNumber(block_low))) {
+  if (!visitor_->OnAckFrameEnd(QuicPacketNumber(block_low),
+                               ack_frame->ecn_counters)) {
     set_detailed_error(
         "Error occurs when visitor finishes processing the ACK frame.");
     return false;
