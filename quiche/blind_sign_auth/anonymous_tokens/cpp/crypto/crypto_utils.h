@@ -39,6 +39,9 @@ namespace internal {
 // input and the rsa modulus as salt. The expected output hash size is passed as
 // out_len_bytes.
 //
+// Implementation follows the steps listed in
+// https://datatracker.ietf.org/doc/draft-amjad-cfrg-partially-blind-rsa/
+//
 // This method internally calls HKDF with output size of more than
 // out_len_bytes and later truncates the output to out_len_bytes. This is done
 // so that the output is indifferentiable from truly random bytes.
@@ -106,7 +109,7 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT ComputePowerOfTwo(
 absl::StatusOr<std::string> QUICHE_EXPORT ComputeHash(
     absl::string_view input, const EVP_MD& hasher);
 
-// Computes the Carmichael LCM given phi(p) and phi(q) where N = pq is a safe
+// Computes the Carmichael LCM given phi(p) and phi(q) where N = p*q is a safe
 // RSA modulus.
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT
 ComputeCarmichaelLcm(const BIGNUM& phi_p, const BIGNUM& phi_q, BN_CTX& bn_ctx);
@@ -115,6 +118,11 @@ ComputeCarmichaelLcm(const BIGNUM& phi_p, const BIGNUM& phi_q, BN_CTX& bn_ctx);
 // public metadata augmentation.
 absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
 AnonymousTokensRSAPrivateKeyToRSA(const RSAPrivateKey& private_key);
+
+// Converts AnonymousTokens::RSAPublicKey to bssl::UniquePtr<RSA> without
+// public metadata augmentation.
+absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
+AnonymousTokensRSAPublicKeyToRSA(const RSAPublicKey& public_key);
 
 // Compute exponent based only on the public metadata. Assumes that n is a safe
 // modulus i.e. it produces a strong RSA key pair. If not, the exponent may be
@@ -125,20 +133,12 @@ PublicMetadataExponent(const BIGNUM& n, absl::string_view public_metadata);
 // Computes final exponent by multiplying the public exponent e with the
 // exponent derived from public metadata. Assumes that n is a safe modulus i.e.
 // it produces a strong RSA key pair. If not, the exponent may be invalid.
+//
+// Empty public metadata is considered to be a valid value for public_metadata
+// and will output an exponent different than `e` as well.
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT
 ComputeFinalExponentUnderPublicMetadata(const BIGNUM& n, const BIGNUM& e,
                                         absl::string_view public_metadata);
-
-// Converts AnonymousTokens RSAPublicKey to RSA under a fixed public_metadata.
-//
-// If the public_metadata is empty, this method doesn't modify the public
-// exponent but instead simply outputs the RSA for the unmodified RSAPublicKey.
-//
-// TODO(b/271441409): Stop using RSA object from boringssl in
-// AnonymousTokensService. Replace with a new internal struct.
-absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
-RSAPublicKeyToRSAUnderPublicMetadata(const RSAPublicKey& public_key,
-                                     absl::string_view public_metadata);
 
 }  // namespace anonymous_tokens
 }  // namespace private_membership

@@ -55,21 +55,28 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
 
  private:
   // Use `New` to construct
-  RsaBlinder(bssl::UniquePtr<BIGNUM> r, bssl::UniquePtr<BIGNUM> r_inv_mont,
-             bssl::UniquePtr<RSA> public_key,
-             bssl::UniquePtr<BN_MONT_CTX> mont_n, const EVP_MD* sig_hash_,
-             const EVP_MD* mgf1_hash_, int32_t salt_length_,
-             absl::string_view public_metadata);
+  RsaBlinder(int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
+             bssl::UniquePtr<RSA> rsa_public_key,
+             bssl::UniquePtr<BIGNUM> rsa_modulus,
+             bssl::UniquePtr<BIGNUM> augmented_rsa_e, bssl::UniquePtr<BIGNUM> r,
+             bssl::UniquePtr<BIGNUM> r_inv_mont,
+             bssl::UniquePtr<BN_MONT_CTX> mont_n);
+
+  const int salt_length_;
+  const EVP_MD* sig_hash_;   // Owned by BoringSSL.
+  const EVP_MD* mgf1_hash_;  // Owned by BoringSSL.
+
+  const bssl::UniquePtr<RSA> rsa_public_key_;
+  // Storing RSA modulus separately for helping with BN computations.
+  const bssl::UniquePtr<BIGNUM> rsa_modulus_;
+  // If public metadata is not supported, augmented_rsa_e_ will be a null
+  // pointer.
+  const bssl::UniquePtr<BIGNUM> augmented_rsa_e_;
 
   const bssl::UniquePtr<BIGNUM> r_;
   // r^-1 mod n in the Montgomery domain
   const bssl::UniquePtr<BIGNUM> r_inv_mont_;
-  const bssl::UniquePtr<RSA> public_key_;
   const bssl::UniquePtr<BN_MONT_CTX> mont_n_;
-  const EVP_MD* sig_hash_;   // Owned by BoringSSL.
-  const EVP_MD* mgf1_hash_;  // Owned by BoringSSL.
-  const int32_t salt_length_;
-  const absl::string_view public_metadata_;
 
   std::string message_;
   BlinderState blinder_state_;

@@ -79,7 +79,7 @@ TEST_P(RsaBlindSignerTest, SignerWorks) {
                                    signer->Sign(encoded_message));
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
       const auto verifier,
-      RsaSsaPssVerifier::New(public_key_, sig_hash_, mgf1_hash_, salt_length_));
+      RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_));
   QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
 }
 
@@ -98,7 +98,7 @@ TEST_P(RsaBlindSignerTest, SignerFails) {
                                    signer->Sign(message2));
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
       const auto verifier,
-      RsaSsaPssVerifier::New(public_key_, sig_hash_, mgf1_hash_, salt_length_));
+      RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_));
   EXPECT_THAT(
       verifier->Verify(insecure_sig, message2),
       quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
@@ -149,8 +149,8 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata, SignerWorksWithPublicMetadata) {
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      auto verifier, RsaSsaPssVerifier::New(public_key_, sig_hash_, mgf1_hash_,
-                                            salt_length_, public_metadata));
+      auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
+                                            public_key_, public_metadata));
   QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
 }
 
@@ -169,8 +169,8 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      auto verifier, RsaSsaPssVerifier::New(public_key_, sig_hash_, mgf1_hash_,
-                                            salt_length_, public_metadata_2));
+      auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
+                                            public_key_, public_metadata_2));
   EXPECT_THAT(
       verifier->Verify(potentially_insecure_signature, message),
       quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
@@ -192,8 +192,8 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      auto verifier, RsaSsaPssVerifier::New(public_key_, sig_hash_, mgf1_hash_,
-                                            salt_length_, public_metadata_2));
+      auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
+                                            public_key_, public_metadata_2));
   EXPECT_THAT(
       verifier->Verify(potentially_insecure_signature, message),
       quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,

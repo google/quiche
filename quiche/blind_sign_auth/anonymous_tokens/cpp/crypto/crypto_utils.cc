@@ -69,9 +69,11 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> PublicMetadataHashWithHKDF(
     absl::string_view public_metadata, absl::string_view rsa_modulus_str,
     size_t out_len_bytes) {
   const EVP_MD* evp_md_sha_384 = EVP_sha384();
+  // Prepend "key" to input.
+  std::string modified_input = absl::StrCat("key", public_metadata);
+  std::vector<uint8_t> input_buffer(modified_input.begin(),
+                                    modified_input.end());
   // Append 0x00 to input.
-  std::vector<uint8_t> input_buffer(public_metadata.begin(),
-                                    public_metadata.end());
   input_buffer.push_back(0x00);
   std::string out_e;
   // We set the out_e size beyond out_len_bytes so that out_e bytes are
@@ -284,6 +286,29 @@ absl::StatusOr<bssl::UniquePtr<RSA>> AnonymousTokensRSAPrivateKeyToRSA(
   return std::move(rsa_private_key);
 }
 
+absl::StatusOr<bssl::UniquePtr<RSA>> AnonymousTokensRSAPublicKeyToRSA(
+    const RSAPublicKey& public_key) {
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_modulus,
+                               StringToBignum(public_key.n()));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_e,
+                               StringToBignum(public_key.e()));
+  // Convert to OpenSSL RSA.
+  bssl::UniquePtr<RSA> rsa_public_key(RSA_new());
+  if (!rsa_public_key.get()) {
+    return absl::InternalError(
+        absl::StrCat("RSA_new failed: ", GetSslErrors()));
+  } else if (RSA_set0_key(rsa_public_key.get(), rsa_modulus.get(), rsa_e.get(),
+                          nullptr) != kBsslSuccess) {
+    return absl::InternalError(
+        absl::StrCat("RSA_set0_key failed: ", GetSslErrors()));
+  }
+  // RSA_set0_key takes ownership of the pointers under rsa_modulus, new_e on
+  // success.
+  rsa_modulus.release();
+  rsa_e.release();
+  return rsa_public_key;
+}
+
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> ComputeCarmichaelLcm(
     const BIGNUM& phi_p, const BIGNUM& phi_q, BN_CTX& bn_ctx) {
   // To compute lcm(phi(p), phi(q)), we first compute phi(n) =
@@ -356,46 +381,11 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> ComputeFinalExponentUnderPublicMetadata(
   ANON_TOKENS_ASSIGN_OR_RETURN(BnCtxPtr bn_ctx, GetAndStartBigNumCtx());
   // new_e=e*md_exp
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> new_e, NewBigNum());
-  if (BN_mul(new_e.get(), md_exp.get(), &e, bn_ctx.get()) != 1) {
+  if (BN_mul(new_e.get(), md_exp.get(), &e, bn_ctx.get()) != kBsslSuccess) {
     return absl::InternalError(
         absl::StrCat("Unable to multiply e with md_exp: ", GetSslErrors()));
   }
   return new_e;
-}
-
-// TODO(b/259581423) Remove RSAPublicKeyToRSAUnderPublicMetadata as we should
-// not put public exponent values in borignssl RSA struct other than the
-// standard public exponent values.
-absl::StatusOr<bssl::UniquePtr<RSA>> RSAPublicKeyToRSAUnderPublicMetadata(
-    const RSAPublicKey& public_key, absl::string_view public_metadata) {
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_modulus,
-                               StringToBignum(public_key.n()));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> old_e,
-                               StringToBignum(public_key.e()));
-  bssl::UniquePtr<BIGNUM> new_e;
-  if (!public_metadata.empty()) {
-    // Final exponent under Public metadata
-    ANON_TOKENS_ASSIGN_OR_RETURN(
-        new_e, ComputeFinalExponentUnderPublicMetadata(
-                   *rsa_modulus.get(), *old_e.get(), public_metadata));
-  } else {
-    new_e = std::move(old_e);
-  }
-  // Convert to OpenSSL RSA.
-  bssl::UniquePtr<RSA> rsa_public_key(RSA_new());
-  if (!rsa_public_key.get()) {
-    return absl::InternalError(
-        absl::StrCat("RSA_new failed: ", GetSslErrors()));
-  } else if (RSA_set0_key(rsa_public_key.get(), rsa_modulus.get(), new_e.get(),
-                          nullptr) != kBsslSuccess) {
-    return absl::InternalError(
-        absl::StrCat("RSA_set0_key failed: ", GetSslErrors()));
-  }
-  // RSA_set0_key takes ownership of the pointers under rsa_modulus, new_e on
-  // success.
-  rsa_modulus.release();
-  new_e.release();
-  return rsa_public_key;
 }
 
 }  // namespace anonymous_tokens

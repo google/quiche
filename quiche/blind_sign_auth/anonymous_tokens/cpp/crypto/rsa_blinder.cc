@@ -39,13 +39,30 @@ absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
     return absl::InvalidArgumentError("Public key is malformed.");
   }
 
-  // Convert to OpenSSL RSA.
+  // Convert to OpenSSL RSA which will be used in the code paths for the
+  // standard RSA blind signature scheme.
   //
-  // If public metadata is empty, RSAPublicKeyToRSAUnderPublicMetadata returns
-  // bssl::UniquePtr<RSA> valid for no public metadata.
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<RSA> rsa_public_key,
-                               RSAPublicKeyToRSAUnderPublicMetadata(
-                                   rsa_public_key_proto, public_metadata));
+  // Moreover, it will also be passed as an argument to PSS related padding and
+  // padding verification methods irrespective of whether RsaBlinder is being
+  // used as a part of the standard RSA blind signature scheme or the scheme
+  // with public metadata support.
+  ANON_TOKENS_ASSIGN_OR_RETURN(
+      bssl::UniquePtr<RSA> rsa_public_key,
+      AnonymousTokensRSAPublicKeyToRSA(rsa_public_key_proto));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_modulus,
+                               StringToBignum(rsa_public_key_proto.n()));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_e,
+                               StringToBignum(rsa_public_key_proto.e()));
+
+  bssl::UniquePtr<BIGNUM> augmented_rsa_e = nullptr;
+  // Currently if public metadata is not empty, RsaBlinder will compute a
+  // modified public exponent.
+  if (!public_metadata.empty()) {
+    ANON_TOKENS_ASSIGN_OR_RETURN(
+        augmented_rsa_e,
+        ComputeFinalExponentUnderPublicMetadata(*rsa_modulus.get(),
+                                                *rsa_e.get(), public_metadata));
+  }
 
   // Owned by BoringSSL.
   const EVP_MD* sig_hash;
@@ -72,8 +89,7 @@ absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
 
   // Limit r between [2, n) so that an r of 1 never happens. An r of 1 doesn't
   // blind.
-  if (BN_rand_range_ex(r.get(), 2, RSA_get0_n(rsa_public_key.get())) !=
-      kBsslSuccess) {
+  if (BN_rand_range_ex(r.get(), 2, rsa_modulus.get()) != kBsslSuccess) {
     return absl::InternalError(
         "BN_rand_range_ex failed when called from RsaBlinder::New.");
   }
@@ -83,8 +99,8 @@ absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
     return absl::InternalError("BN_CTX_new failed.");
   }
 
-  bssl::UniquePtr<BN_MONT_CTX> bn_mont_ctx(BN_MONT_CTX_new_for_modulus(
-      RSA_get0_n(rsa_public_key.get()), bn_ctx.get()));
+  bssl::UniquePtr<BN_MONT_CTX> bn_mont_ctx(
+      BN_MONT_CTX_new_for_modulus(rsa_modulus.get(), bn_ctx.get()));
   if (!bn_mont_ctx) {
     return absl::InternalError("BN_MONT_CTX_new_for_modulus failed.");
   }
@@ -106,25 +122,25 @@ absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
   }
 
   return absl::WrapUnique(new RsaBlinder(
-      std::move(r), std::move(r_inv_mont), std::move(rsa_public_key),
-      std::move(bn_mont_ctx), sig_hash, mgf1_hash, public_key.salt_length(),
-      public_metadata));
+      public_key.salt_length(), sig_hash, mgf1_hash, std::move(rsa_public_key),
+      std::move(rsa_modulus), std::move(augmented_rsa_e), std::move(r),
+      std::move(r_inv_mont), std::move(bn_mont_ctx)));
 }
 
-RsaBlinder::RsaBlinder(bssl::UniquePtr<BIGNUM> r,
-                       bssl::UniquePtr<BIGNUM> r_inv_mont,
-                       bssl::UniquePtr<RSA> public_key,
-                       bssl::UniquePtr<BN_MONT_CTX> mont_n,
-                       const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
-                       int32_t salt_length, absl::string_view public_metadata)
-    : r_(std::move(r)),
-      r_inv_mont_(std::move(r_inv_mont)),
-      public_key_(std::move(public_key)),
-      mont_n_(std::move(mont_n)),
+RsaBlinder::RsaBlinder(
+    int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
+    bssl::UniquePtr<RSA> rsa_public_key, bssl::UniquePtr<BIGNUM> rsa_modulus,
+    bssl::UniquePtr<BIGNUM> augmented_rsa_e, bssl::UniquePtr<BIGNUM> r,
+    bssl::UniquePtr<BIGNUM> r_inv_mont, bssl::UniquePtr<BN_MONT_CTX> mont_n)
+    : salt_length_(salt_length),
       sig_hash_(sig_hash),
       mgf1_hash_(mgf1_hash),
-      salt_length_(salt_length),
-      public_metadata_(public_metadata),
+      rsa_public_key_(std::move(rsa_public_key)),
+      rsa_modulus_(std::move(rsa_modulus)),
+      augmented_rsa_e_(std::move(augmented_rsa_e)),
+      r_(std::move(r)),
+      r_inv_mont_(std::move(r_inv_mont)),
+      mont_n_(std::move(mont_n)),
       message_(""),
       blinder_state_(RsaBlinder::BlinderState::kCreated) {}
 
@@ -150,7 +166,7 @@ absl::StatusOr<std::string> RsaBlinder::Blind(const absl::string_view message) {
   }
 
   // Allocate for padded length
-  const int padded_len = RSA_size(public_key_.get());
+  const int padded_len = BN_num_bytes(rsa_modulus_.get());
   std::vector<uint8_t> padded(padded_len);
 
   // The |md| and |mgf1_md| arguments identify the hash used to calculate
@@ -159,7 +175,7 @@ absl::StatusOr<std::string> RsaBlinder::Blind(const absl::string_view message) {
   // is -1, then the salt length is the same as the hash length. If -2, then the
   // salt length is maximal given the size of |rsa|. If unsure, use -1.
   if (RSA_padding_add_PKCS1_PSS_mgf1(
-          /*rsa=*/public_key_.get(), /*EM=*/padded.data(),
+          /*rsa=*/rsa_public_key_.get(), /*EM=*/padded.data(),
           /*mHash=*/digest.data(), /*Hash=*/sig_hash_, /*mgf1Hash=*/mgf1_hash_,
           /*sLen=*/salt_length_) != kBsslSuccess) {
     return absl::InternalError(
@@ -179,11 +195,22 @@ absl::StatusOr<std::string> RsaBlinder::Blind(const absl::string_view message) {
   // Take `r^e mod n`. This is an equivalent operation to RSA_encrypt, without
   // extra encode/decode trips.
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rE, NewBigNum());
-  if (BN_mod_exp_mont(rE.get(), r_.get(), RSA_get0_e(public_key_.get()),
-                      RSA_get0_n(public_key_.get()), bn_ctx.get(),
-                      mont_n_.get()) != kBsslSuccess) {
-    return absl::InternalError(
-        "BN_mod_exp_mont failed when called from RsaBlinder::Blind.");
+  // TODO(b/259581423) When public metadata is not enabled, put standard rsa
+  // public exponent in augmented_rsa_e_ to avoid branching here.
+  if (augmented_rsa_e_) {
+    if (BN_mod_exp_mont(rE.get(), r_.get(), augmented_rsa_e_.get(),
+                        rsa_modulus_.get(), bn_ctx.get(),
+                        mont_n_.get()) != kBsslSuccess) {
+      return absl::InternalError(
+          "BN_mod_exp_mont failed when called from RsaBlinder::Blind.");
+    }
+  } else {
+    if (BN_mod_exp_mont(rE.get(), r_.get(), RSA_get0_e(rsa_public_key_.get()),
+                        rsa_modulus_.get(), bn_ctx.get(),
+                        mont_n_.get()) != kBsslSuccess) {
+      return absl::InternalError(
+          "BN_mod_exp_mont failed when called from RsaBlinder::Blind.");
+    }
   }
 
   // Do `encoded_message*r^e mod n`.
@@ -208,8 +235,8 @@ absl::StatusOr<std::string> RsaBlinder::Blind(const absl::string_view message) {
         "BN_mod_mul failed when called from RsaBlinder::Blind.");
   }
 
-  absl::StatusOr<std::string> blinded_msg = BignumToString(
-      *multiplication_res, BN_num_bytes(RSA_get0_n(public_key_.get())));
+  absl::StatusOr<std::string> blinded_msg =
+      BignumToString(*multiplication_res, BN_num_bytes(rsa_modulus_.get()));
 
   // Update RsaBlinder state to kBlinded
   blinder_state_ = RsaBlinder::BlinderState::kBlinded;
@@ -224,7 +251,7 @@ absl::StatusOr<std::string> RsaBlinder::Unblind(
     return absl::FailedPreconditionError(
         "RsaBlinder is in wrong state to unblind signature.");
   }
-  const size_t mod_size = RSA_size(public_key_.get());
+  const int mod_size = BN_num_bytes(rsa_modulus_.get());
   // Parse the signed_blinded_data as BIGNUM.
   if (blind_signature.size() != mod_size) {
     return absl::InternalError(absl::StrCat(
@@ -254,9 +281,9 @@ absl::StatusOr<std::string> RsaBlinder::Unblind(
     return absl::InternalError(
         "BN_mod_mul failed when called from RsaBlinder::Unblind.");
   }
-  absl::StatusOr<std::string> unblinded_signed_message = BignumToString(
-      *unblinded_sig_big,
-      /*output_len=*/BN_num_bytes(RSA_get0_n(public_key_.get())));
+  absl::StatusOr<std::string> unblinded_signed_message =
+      BignumToString(*unblinded_sig_big,
+                     /*output_len=*/BN_num_bytes(rsa_modulus_.get()));
   blinder_state_ = RsaBlinder::BlinderState::kUnblinded;
   return unblinded_signed_message;
 }
@@ -269,63 +296,62 @@ absl::Status RsaBlinder::Verify(absl::string_view signature,
   ANON_TOKENS_ASSIGN_OR_RETURN(std::string message_digest,
                                ComputeHash(message, *sig_hash_));
 
-  const size_t kHashSize = EVP_MD_size(sig_hash_);
+  const int hash_size = EVP_MD_size(sig_hash_);
   // Make sure the size of the digest is correct.
-  if (message_digest.size() != kHashSize) {
+  if (message_digest.size() != hash_size) {
     return absl::InvalidArgumentError(
         absl::StrCat("Size of the digest doesn't match the one "
                      "of the hashing algorithm; expected ",
-                     kHashSize, " got ", message_digest.size()));
+                     hash_size, " got ", message_digest.size()));
   }
-  const int kRsaModulusSize = RSA_size(public_key_.get());
-  if (signature.size() != kRsaModulusSize) {
+  const int rsa_modulus_size = BN_num_bytes(rsa_modulus_.get());
+  if (signature.size() != rsa_modulus_size) {
     return absl::InvalidArgumentError(
         "Signature size not equal to modulus size.");
   }
 
-  std::string recovered_message_digest(kRsaModulusSize, 0);
-  if (public_metadata_.empty()) {
+  std::string recovered_message_digest(rsa_modulus_size, 0);
+  if (augmented_rsa_e_ == nullptr) {
     int recovered_message_digest_size = RSA_public_decrypt(
         /*flen=*/signature.size(),
         /*from=*/reinterpret_cast<const uint8_t*>(signature.data()),
         /*to=*/
         reinterpret_cast<uint8_t*>(recovered_message_digest.data()),
-        /*rsa=*/public_key_.get(),
+        /*rsa=*/rsa_public_key_.get(),
         /*padding=*/RSA_NO_PADDING);
-    if (recovered_message_digest_size != kRsaModulusSize) {
+    if (recovered_message_digest_size != rsa_modulus_size) {
       return absl::InvalidArgumentError(
           absl::StrCat("Invalid signature size (likely an incorrect key is "
                        "used); expected ",
-                       kRsaModulusSize, " got ", recovered_message_digest_size,
+                       rsa_modulus_size, " got ", recovered_message_digest_size,
                        ": ", GetSslErrors()));
     }
   } else {
     ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> signature_bn,
                                  StringToBignum(signature));
-    if (BN_ucmp(signature_bn.get(), RSA_get0_n(public_key_.get())) >= 0) {
+    if (BN_ucmp(signature_bn.get(), rsa_modulus_.get()) >= 0) {
       return absl::InvalidArgumentError("Data too large for modulus.");
     }
     ANON_TOKENS_ASSIGN_OR_RETURN(BnCtxPtr bn_ctx, GetAndStartBigNumCtx());
-    bssl::UniquePtr<BN_MONT_CTX> bn_mont_ctx(BN_MONT_CTX_new_for_modulus(
-        RSA_get0_n(public_key_.get()), bn_ctx.get()));
+    bssl::UniquePtr<BN_MONT_CTX> bn_mont_ctx(
+        BN_MONT_CTX_new_for_modulus(rsa_modulus_.get(), bn_ctx.get()));
     if (!bn_mont_ctx) {
       return absl::InternalError("BN_MONT_CTX_new_for_modulus failed.");
     }
     ANON_TOKENS_ASSIGN_OR_RETURN(
         bssl::UniquePtr<BIGNUM> recovered_message_digest_bn, NewBigNum());
     if (BN_mod_exp_mont(recovered_message_digest_bn.get(), signature_bn.get(),
-                        RSA_get0_e(public_key_.get()),
-                        RSA_get0_n(public_key_.get()), bn_ctx.get(),
-                        bn_mont_ctx.get()) != kBsslSuccess) {
+                        augmented_rsa_e_.get(), rsa_modulus_.get(),
+                        bn_ctx.get(), bn_mont_ctx.get()) != kBsslSuccess) {
       return absl::InternalError("Exponentiation failed.");
     }
     ANON_TOKENS_ASSIGN_OR_RETURN(
         recovered_message_digest,
-        BignumToString(*recovered_message_digest_bn, kRsaModulusSize));
+        BignumToString(*recovered_message_digest_bn, rsa_modulus_size));
   }
 
   if (RSA_verify_PKCS1_PSS_mgf1(
-          public_key_.get(),
+          rsa_public_key_.get(),
           reinterpret_cast<const uint8_t*>(&message_digest[0]), sig_hash_,
           mgf1_hash_,
           reinterpret_cast<const uint8_t*>(&recovered_message_digest[0]),

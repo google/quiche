@@ -34,10 +34,12 @@ namespace anonymous_tokens {
 // inputted message using a public key and other input parameters.
 class QUICHE_EXPORT RsaSsaPssVerifier : public Verifier {
  public:
+  // TODO(b/259581423) Change absl::string_view public_metadata to
+  // std::optional<absl::string_view> public_metadata to help determine whether
+  // public metadata is supported.
   static absl::StatusOr<std::unique_ptr<RsaSsaPssVerifier>> New(
-      const RSAPublicKey& rsa_public_key, const EVP_MD* sig_hash,
-      const EVP_MD* mgf1_hash, int salt_length,
-      absl::string_view public_metadata = "");
+      int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
+      const RSAPublicKey& public_key, absl::string_view public_metadata = "");
 
   // Verifies the signature.
   //
@@ -47,15 +49,22 @@ class QUICHE_EXPORT RsaSsaPssVerifier : public Verifier {
 
  private:
   // Use `New` to construct
-  RsaSsaPssVerifier(bssl::UniquePtr<RSA> public_key, const EVP_MD* sig_hash,
-                    const EVP_MD* mgf1_hash, int32_t salt_length,
-                    absl::string_view public_metadata);
+  RsaSsaPssVerifier(int salt_length, const EVP_MD* sig_hash,
+                    const EVP_MD* mgf1_hash,
+                    bssl::UniquePtr<RSA> rsa_public_key,
+                    bssl::UniquePtr<BIGNUM> rsa_modulus,
+                    bssl::UniquePtr<BIGNUM> augmented_rsa_e);
 
-  const bssl::UniquePtr<RSA> public_key_;
+  const int salt_length_;
   const EVP_MD* sig_hash_;   // Owned by BoringSSL.
   const EVP_MD* mgf1_hash_;  // Owned by BoringSSL.
-  const int32_t salt_length_;
-  const absl::string_view public_metadata_;
+
+  const bssl::UniquePtr<RSA> rsa_public_key_;
+  // Storing RSA modulus separately for helping with BN computations.
+  const bssl::UniquePtr<BIGNUM> rsa_modulus_;
+  // If public metadata is not supported, modified_rsa_e_ will be a null
+  // pointer.
+  const bssl::UniquePtr<BIGNUM> augmented_rsa_e_;
 };
 
 }  // namespace anonymous_tokens

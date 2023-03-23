@@ -31,6 +31,12 @@ namespace private_membership {
 namespace anonymous_tokens {
 namespace {
 
+struct IetfNewPublicExponentWithPublicMetadataTestVector {
+  RSAPublicKey public_key;
+  std::string public_metadata;
+  std::string new_e;
+};
+
 TEST(CryptoUtilsTest, BignumToStringAndBack) {
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(BnCtxPtr ctx, GetAndStartBigNumCtx());
 
@@ -148,164 +154,6 @@ TEST_P(ComputeHashTest, ComputesHash) {
 INSTANTIATE_TEST_SUITE_P(ComputeHashTests, ComputeHashTest,
                          testing::ValuesIn(GetComputeHashTestParams()));
 
-std::pair<RSAPublicKey, std::string> GetFixedTestPublicKeyAndPublicMetadata() {
-  RSAPublicKey public_key;
-  public_key.set_n(absl::HexStringToBytes(
-      "b2ae391467872a7506468a9ac4e980fa76164666955ef8999917295dbbd89dd7aa9c0e41"
-      "2dcda3dd1aa867e0c414d80afb9544a7c71c32d83e1b8417f293f325d2ffe2f9e296d28f"
-      "b89a443de5cc06ab3c516913fc18694539c370315d3e7f4ac5f87faaf3fee751c9f439ae"
-      "8d53eee249d8c49b33bd3bb7aa060eb462522da98a02f92eff110cc9408ca0ccc54abf2c"
-      "fcb68b77fb0ec7048d8b76416f61f2b182ea73169ed18f0d1d238dcaf6fc9de067d4831f"
-      "68f485483dd5c9ec17d9384825ba7284bc38bb1ea5e40d9207d9007e609a19e3fab695a1"
-      "8c30f1a7c4b03c77ef72211415a0bfeacd3298dccafa7e06e41dc2131f9076b92bb352c8"
-      "f7bccfe9"));
-  public_key.set_e(absl::HexStringToBytes("03"));
-  std::string public_metadata = absl::HexStringToBytes("6d65746164617461");
-  return std::make_pair(std::move(public_key), std::move(public_metadata));
-}
-
-std::string GetFixedTestNewPublicKeyExponentUnderPublicMetadata() {
-  std::string new_e = absl::HexStringToBytes(
-      "0b2d80537b4c899c7107eef3b74ddc0dcd931aff9c583ce3cf3527d42483052b27d55dd4"
-      "d2f831a38430f13d81574c51aa97af6f5c3a6c03b269bc156d029273bd60e7af578fff15"
-      "c52cbb5c19288fd1ce59f6f756b2d93b6f2586210fb969efb5065700da5598bb8914d395"
-      "4d97a49c5ca05b2386bc3cf098281958cf372481");
-  return new_e;
-}
-
-using CreateTestKeyPairFunction =
-    absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>>();
-
-class CryptoUtilsTest
-    : public testing::TestWithParam<CreateTestKeyPairFunction*> {
- protected:
-  void SetUp() override {
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto keys_pair, (*GetParam())());
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-        private_key_, AnonymousTokensRSAPrivateKeyToRSA(keys_pair.second));
-    public_key_ = std::move(keys_pair.first);
-  }
-
-  bssl::UniquePtr<RSA> private_key_;
-  RSAPublicKey public_key_;
-};
-
-TEST_P(CryptoUtilsTest, PublicExponentCoprime) {
-  std::string metadata = "md";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<BIGNUM> exp,
-      PublicMetadataExponent(*RSA_get0_n(private_key_.get()), metadata));
-  int rsa_mod_size_bits = BN_num_bits(RSA_get0_n(private_key_.get()));
-  // Check that exponent is odd.
-  EXPECT_EQ(BN_is_odd(exp.get()), 1);
-  // Check that exponent is small enough.
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> sqrt2,
-                                   GetRsaSqrtTwo(rsa_mod_size_bits / 2));
-  EXPECT_LT(BN_cmp(exp.get(), sqrt2.get()), 0);
-  EXPECT_LT(BN_cmp(exp.get(), RSA_get0_p(private_key_.get())), 0);
-  EXPECT_LT(BN_cmp(exp.get(), RSA_get0_q(private_key_.get())), 0);
-}
-
-TEST_P(CryptoUtilsTest, PublicExponentHash) {
-  std::string metadata1 = "md1";
-  std::string metadata2 = "md2";
-  // Check that hash is deterministic.
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<BIGNUM> exp1,
-      PublicMetadataExponent(*RSA_get0_n(private_key_.get()), metadata1));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<BIGNUM> another_exp1,
-      PublicMetadataExponent(*RSA_get0_n(private_key_.get()), metadata1));
-  EXPECT_EQ(BN_cmp(exp1.get(), another_exp1.get()), 0);
-  // Check that hashes are distinct for different metadata.
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<BIGNUM> exp2,
-      PublicMetadataExponent(*RSA_get0_n(private_key_.get()), metadata2));
-  EXPECT_NE(BN_cmp(exp1.get(), exp2.get()), 0);
-}
-
-TEST_P(CryptoUtilsTest, FinalExponentCoprime) {
-  std::string metadata = "md";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<BIGNUM> final_exponent,
-      ComputeFinalExponentUnderPublicMetadata(*RSA_get0_n(private_key_.get()),
-                                              *RSA_get0_e(private_key_.get()),
-                                              metadata));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(BnCtxPtr ctx, GetAndStartBigNumCtx());
-
-  // Check that exponent is odd.
-  EXPECT_EQ(BN_is_odd(final_exponent.get()), 1);
-  // Check that exponent is co-prime to factors of the rsa modulus.
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> gcd_p_fe,
-                                   NewBigNum());
-  ASSERT_EQ(BN_gcd(gcd_p_fe.get(), RSA_get0_p(private_key_.get()),
-                   final_exponent.get(), ctx.get()),
-            1);
-  EXPECT_EQ(BN_cmp(gcd_p_fe.get(), BN_value_one()), 0);
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> gcd_q_fe,
-                                   NewBigNum());
-  ASSERT_EQ(BN_gcd(gcd_q_fe.get(), RSA_get0_q(private_key_.get()),
-                   final_exponent.get(), ctx.get()),
-            1);
-  EXPECT_EQ(BN_cmp(gcd_q_fe.get(), BN_value_one()), 0);
-}
-
-TEST_P(CryptoUtilsTest, DeterministicRSAPublicKeyToRSAUnderPublicMetadata) {
-  std::string metadata = "md";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<RSA> rsa_public_key_1,
-      RSAPublicKeyToRSAUnderPublicMetadata(public_key_, metadata));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<RSA> rsa_public_key_2,
-      RSAPublicKeyToRSAUnderPublicMetadata(public_key_, metadata));
-  EXPECT_EQ(BN_cmp(RSA_get0_e(rsa_public_key_1.get()),
-                   RSA_get0_e(rsa_public_key_2.get())),
-            0);
-}
-
-TEST_P(CryptoUtilsTest,
-       DifferentPublicMetadataRSAPublicKeyToRSAUnderPublicMetadata) {
-  std::string metadata_1 = "md1";
-  std::string metadata_2 = "md2";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<RSA> rsa_public_key_1,
-      RSAPublicKeyToRSAUnderPublicMetadata(public_key_, metadata_1));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<RSA> rsa_public_key_2,
-      RSAPublicKeyToRSAUnderPublicMetadata(public_key_, metadata_2));
-  // Check that exponent is different in all keys
-  EXPECT_NE(BN_cmp(RSA_get0_e(rsa_public_key_1.get()),
-                   RSA_get0_e(rsa_public_key_2.get())),
-            0);
-  EXPECT_NE(BN_cmp(RSA_get0_e(rsa_public_key_1.get()),
-                   RSA_get0_e(private_key_.get())),
-            0);
-  EXPECT_NE(BN_cmp(RSA_get0_e(rsa_public_key_1.get()),
-                   RSA_get0_e(private_key_.get())),
-            0);
-}
-
-TEST_P(CryptoUtilsTest, NoPublicMetadataRSAPublicKeyToRSAUnderPublicMetadata) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<RSA> rsa_public_key,
-      RSAPublicKeyToRSAUnderPublicMetadata(public_key_, ""));
-
-  // Check that exponent is same in output and input.
-  EXPECT_EQ(
-      BN_cmp(RSA_get0_e(rsa_public_key.get()), RSA_get0_e(private_key_.get())),
-      0);
-  // Check that rsa_modulus is correct
-  EXPECT_EQ(
-      BN_cmp(RSA_get0_n(rsa_public_key.get()), RSA_get0_n(private_key_.get())),
-      0);
-}
-
-INSTANTIATE_TEST_SUITE_P(CryptoUtilsTest, CryptoUtilsTest,
-                         testing::Values(&GetStrongRsaKeys2048,
-                                         &GetAnotherStrongRsaKeys2048,
-                                         &GetStrongRsaKeys3072,
-                                         &GetStrongRsaKeys4096));
-
 TEST(CryptoUtilsInternalTest, PublicMetadataHashWithHKDF) {
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(BnCtxPtr ctx, GetAndStartBigNumCtx());
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> max_value,
@@ -341,40 +189,207 @@ TEST(CryptoUtilsTest, PublicExponentHashDifferentModulus) {
   std::string metadata = "md";
   // Check that same metadata and different modulus result in different
   // hashes.
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      auto rsa_private_key_1,
-      AnonymousTokensRSAPrivateKeyToRSA(key_pair_1.second));
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> rsa_modulus_1,
+                                   StringToBignum(key_pair_1.first.n()));
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> exp1,
-      PublicMetadataExponent(*RSA_get0_n(rsa_private_key_1.get()), metadata));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      auto rsa_private_key_2,
-      AnonymousTokensRSAPrivateKeyToRSA(key_pair_2.second));
+      PublicMetadataExponent(*rsa_modulus_1.get(), metadata));
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto rsa_modulus_2,
+                                   StringToBignum(key_pair_2.first.n()));
   ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> exp2,
-      PublicMetadataExponent(*RSA_get0_n(rsa_private_key_2.get()), metadata));
+      PublicMetadataExponent(*rsa_modulus_2.get(), metadata));
   EXPECT_NE(BN_cmp(exp1.get(), exp2.get()), 0);
 }
 
-TEST(CryptoUtilsTest, FixedTestRSAPublicKeyToRSAUnderPublicMetadata) {
-  const auto public_key_and_metadata = GetFixedTestPublicKeyAndPublicMetadata();
-  const std::string expected_new_e_str =
-      GetFixedTestNewPublicKeyExponentUnderPublicMetadata();
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<BIGNUM> rsa_modulus,
-      StringToBignum(public_key_and_metadata.first.n()));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> expected_new_e,
-                                   StringToBignum(expected_new_e_str));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
-      bssl::UniquePtr<RSA> modified_rsa_public_key,
-      RSAPublicKeyToRSAUnderPublicMetadata(public_key_and_metadata.first,
-                                           public_key_and_metadata.second));
-  EXPECT_EQ(
-      BN_cmp(RSA_get0_n(modified_rsa_public_key.get()), rsa_modulus.get()), 0);
-  EXPECT_EQ(
-      BN_cmp(RSA_get0_e(modified_rsa_public_key.get()), expected_new_e.get()),
-      0);
+std::vector<IetfNewPublicExponentWithPublicMetadataTestVector>
+GetIetfNewPublicExponentWithPublicMetadataTestVectors() {
+  std::vector<IetfNewPublicExponentWithPublicMetadataTestVector> test_vectors;
+
+  RSAPublicKey public_key;
+  public_key.set_n(absl::HexStringToBytes(
+      "d6930820f71fe517bf3259d14d40209b02a5c0d3d61991c731dd7da39f8d69821552e231"
+      "8d6c9ad897e603887a476ea3162c1205da9ac96f02edf31df049bd55f142134c17d4382a"
+      "0e78e275345f165fbe8e49cdca6cf5c726c599dd39e09e75e0f330a33121e73976e4facb"
+      "a9cfa001c28b7c96f8134f9981db6750b43a41710f51da4240fe03106c12acb1e7bb53d7"
+      "5ec7256da3fddd0718b89c365410fce61bc7c99b115fb4c3c318081fa7e1b65a37774e8e"
+      "50c96e8ce2b2cc6b3b367982366a2bf9924c4bafdb3ff5e722258ab705c76d43e5f1f121"
+      "b984814e98ea2b2b8725cd9bc905c0bc3d75c2a8db70a7153213c39ae371b2b5dc1dafcb"
+      "19d6fae9"));
+  public_key.set_e(absl::HexStringToBytes("010001"));
+
+  // Test vector 1
+  test_vectors.push_back(
+      {.public_key = public_key,
+       .public_metadata = absl::HexStringToBytes("6d65746164617461"),
+       .new_e = absl::HexStringToBytes(
+           "30584b72f5cb557085106232f051d039e23358feee9204cf30ea567620e90d79e4a"
+           "7a81388b1f390e18ea5240a1d8cc296ce1325128b445c48aa5a3b34fa07c324bf17"
+           "bc7f1b3efebaff81d7e032948f1477493bc183d2f8d94c947c984c6f0757527615b"
+           "f2a2f0ef0db5ad80ce99905beed0440b47fa5cb9a2334fea40ad88e6ef1")});
+
+  // Test vector 2
+  test_vectors.push_back(
+      {.public_key = public_key,
+       .public_metadata = "",
+       .new_e = absl::HexStringToBytes(
+           "2ed5a8d2592a11bbeef728bb39018ef5c3cf343507dd77dd156d5eec7f06f04732e"
+           "4be944c5d2443d244c59e52c9fa5e8de40f55ffd0e70fbe9093d3f7be2aafd77c14"
+           "b263b71c1c6b3ca2b9629842a902128fee4878392a950906fae35d6194e0d2548e5"
+           "8bbc20f841188ca2fceb20b2b1b45448da5c7d1c73fb6e83fa58867397b")});
+
+  return test_vectors;
 }
+
+TEST(CryptoUtilsTest, IetfNewPublicExponentWithPublicMetadataTests) {
+  const auto test_vectors =
+      GetIetfNewPublicExponentWithPublicMetadataTestVectors();
+  for (const IetfNewPublicExponentWithPublicMetadataTestVector& test_vector :
+       test_vectors) {
+    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+        bssl::UniquePtr<BIGNUM> rsa_modulus,
+        StringToBignum(test_vector.public_key.n()));
+    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+        bssl::UniquePtr<BIGNUM> rsa_e,
+        StringToBignum(test_vector.public_key.e()));
+    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> expected_new_e,
+                                     StringToBignum(test_vector.new_e));
+    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+        bssl::UniquePtr<BIGNUM> modified_e,
+        ComputeFinalExponentUnderPublicMetadata(
+            *rsa_modulus.get(), *rsa_e.get(), test_vector.public_metadata));
+
+    EXPECT_EQ(BN_cmp(modified_e.get(), expected_new_e.get()), 0);
+  }
+}
+
+using CreateTestKeyPairFunction =
+    absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>>();
+
+class CryptoUtilsTest
+    : public testing::TestWithParam<CreateTestKeyPairFunction*> {
+ protected:
+  void SetUp() override {
+    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto keys_pair, (*GetParam())());
+    public_key_ = std::move(keys_pair.first);
+    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(rsa_modulus_,
+                                     StringToBignum(keys_pair.second.n()));
+    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(rsa_e_,
+                                     StringToBignum(keys_pair.second.e()));
+    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(rsa_p_,
+                                     StringToBignum(keys_pair.second.p()));
+    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(rsa_q_,
+                                     StringToBignum(keys_pair.second.q()));
+  }
+
+  bssl::UniquePtr<BIGNUM> rsa_modulus_;
+  bssl::UniquePtr<BIGNUM> rsa_e_;
+  bssl::UniquePtr<BIGNUM> rsa_p_;
+  bssl::UniquePtr<BIGNUM> rsa_q_;
+  RSAPublicKey public_key_;
+};
+
+TEST_P(CryptoUtilsTest, PublicExponentCoprime) {
+  std::string metadata = "md";
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+      bssl::UniquePtr<BIGNUM> exp,
+      PublicMetadataExponent(*rsa_modulus_.get(), metadata));
+  int rsa_mod_size_bits = BN_num_bits(rsa_modulus_.get());
+  // Check that exponent is odd.
+  EXPECT_EQ(BN_is_odd(exp.get()), 1);
+  // Check that exponent is small enough.
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> sqrt2,
+                                   GetRsaSqrtTwo(rsa_mod_size_bits / 2));
+  EXPECT_LT(BN_cmp(exp.get(), sqrt2.get()), 0);
+  EXPECT_LT(BN_cmp(exp.get(), rsa_p_.get()), 0);
+  EXPECT_LT(BN_cmp(exp.get(), rsa_q_.get()), 0);
+}
+
+TEST_P(CryptoUtilsTest, PublicExponentHash) {
+  std::string metadata1 = "md1";
+  std::string metadata2 = "md2";
+  // Check that hash is deterministic.
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+      bssl::UniquePtr<BIGNUM> exp1,
+      PublicMetadataExponent(*rsa_modulus_.get(), metadata1));
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+      bssl::UniquePtr<BIGNUM> another_exp1,
+      PublicMetadataExponent(*rsa_modulus_.get(), metadata1));
+  EXPECT_EQ(BN_cmp(exp1.get(), another_exp1.get()), 0);
+  // Check that hashes are distinct for different metadata.
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+      bssl::UniquePtr<BIGNUM> exp2,
+      PublicMetadataExponent(*rsa_modulus_.get(), metadata2));
+  EXPECT_NE(BN_cmp(exp1.get(), exp2.get()), 0);
+}
+
+TEST_P(CryptoUtilsTest, FinalExponentCoprime) {
+  std::string metadata = "md";
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+      bssl::UniquePtr<BIGNUM> final_exponent,
+      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus_.get(),
+                                              *rsa_e_.get(), metadata));
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(BnCtxPtr ctx, GetAndStartBigNumCtx());
+
+  // Check that exponent is odd.
+  EXPECT_EQ(BN_is_odd(final_exponent.get()), 1);
+  // Check that exponent is co-prime to factors of the rsa modulus.
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> gcd_p_fe,
+                                   NewBigNum());
+  ASSERT_EQ(
+      BN_gcd(gcd_p_fe.get(), rsa_p_.get(), final_exponent.get(), ctx.get()), 1);
+  EXPECT_EQ(BN_cmp(gcd_p_fe.get(), BN_value_one()), 0);
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> gcd_q_fe,
+                                   NewBigNum());
+  ASSERT_EQ(
+      BN_gcd(gcd_q_fe.get(), rsa_q_.get(), final_exponent.get(), ctx.get()), 1);
+  EXPECT_EQ(BN_cmp(gcd_q_fe.get(), BN_value_one()), 0);
+}
+
+TEST_P(CryptoUtilsTest, DeterministicModificationOfPublicExponentWithMetadata) {
+  std::string metadata = "md";
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+      bssl::UniquePtr<BIGNUM> public_exp_1,
+      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus_.get(),
+                                              *rsa_e_.get(), metadata));
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+      bssl::UniquePtr<BIGNUM> public_exp_2,
+      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus_.get(),
+                                              *rsa_e_.get(), metadata));
+
+  EXPECT_EQ(BN_cmp(public_exp_1.get(), public_exp_2.get()), 0);
+}
+
+TEST_P(CryptoUtilsTest, DifferentPublicExponentWithDifferentPublicMetadata) {
+  std::string metadata_1 = "md1";
+  std::string metadata_2 = "md2";
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+      bssl::UniquePtr<BIGNUM> public_exp_1,
+      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus_.get(),
+                                              *rsa_e_.get(), metadata_1));
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+      bssl::UniquePtr<BIGNUM> public_exp_2,
+      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus_.get(),
+                                              *rsa_e_.get(), metadata_2));
+  // Check that exponent is different in all keys
+  EXPECT_NE(BN_cmp(public_exp_1.get(), public_exp_2.get()), 0);
+  EXPECT_NE(BN_cmp(public_exp_1.get(), rsa_e_.get()), 0);
+  EXPECT_NE(BN_cmp(public_exp_2.get(), rsa_e_.get()), 0);
+}
+
+TEST_P(CryptoUtilsTest, ModifiedPublicExponentWithEmptyPublicMetadata) {
+  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> new_public_exp,
+                                   ComputeFinalExponentUnderPublicMetadata(
+                                       *rsa_modulus_.get(), *rsa_e_.get(), ""));
+
+  EXPECT_NE(BN_cmp(new_public_exp.get(), rsa_e_.get()), 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(CryptoUtilsTest, CryptoUtilsTest,
+                         testing::Values(&GetStrongRsaKeys2048,
+                                         &GetAnotherStrongRsaKeys2048,
+                                         &GetStrongRsaKeys3072,
+                                         &GetStrongRsaKeys4096));
 
 }  // namespace
 }  // namespace anonymous_tokens
