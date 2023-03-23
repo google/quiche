@@ -1550,7 +1550,6 @@ blind_sign_auth_hdrs = [
     "blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.h",
-    "blind_sign_auth/anonymous_tokens/cpp/crypto/testing_utils.h",
     "blind_sign_auth/blind_sign_auth.h",
     "blind_sign_auth/blind_sign_auth_interface.h",
     "blind_sign_auth/blind_sign_http_interface.h",
@@ -1563,7 +1562,6 @@ blind_sign_auth_srcs = [
     "blind_sign_auth/anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.cc",
-    "blind_sign_auth/anonymous_tokens/cpp/crypto/testing_utils.cc",
     "blind_sign_auth/blind_sign_auth.cc",
     "blind_sign_auth/cached_blind_sign_auth.cc",
 ]

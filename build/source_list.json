@@ -1549,7 +1549,6 @@
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.h",
-    "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/testing_utils.h",
     "quiche/blind_sign_auth/blind_sign_auth.h",
     "quiche/blind_sign_auth/blind_sign_auth_interface.h",
     "quiche/blind_sign_auth/blind_sign_http_interface.h",
@@ -1562,7 +1561,6 @@
     "quiche/blind_sign_auth/anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.cc",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.cc",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.cc",
-    "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/testing_utils.cc",
     "quiche/blind_sign_auth/blind_sign_auth.cc",
     "quiche/blind_sign_auth/cached_blind_sign_auth.cc"
   ],
