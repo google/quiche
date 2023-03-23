@@ -22,7 +22,7 @@
 #include "absl/status/status.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/status_utils.h"
+#include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/status_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/digest.h"
 #include "openssl/rsa.h"

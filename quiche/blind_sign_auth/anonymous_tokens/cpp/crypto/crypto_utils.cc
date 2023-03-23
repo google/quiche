@@ -28,7 +28,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/status_utils.h"
+#include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/status_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/err.h"
 #include "openssl/hkdf.h"
