@@ -679,7 +679,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool OnAckTimestamp(QuicPacketNumber packet_number,
                       QuicTime timestamp) override;
   bool OnAckFrameEnd(QuicPacketNumber start,
-                     absl::optional<QuicEcnCounts>& ecn_counts) override;
+                     const absl::optional<QuicEcnCounts>& ecn_counts) override;
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override;
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override;
   bool OnPingFrame(const QuicPingFrame& frame) override;

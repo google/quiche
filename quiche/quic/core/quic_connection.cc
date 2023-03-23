@@ -1519,8 +1519,8 @@ bool QuicConnection::OnAckTimestamp(QuicPacketNumber packet_number,
   return true;
 }
 
-bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start,
-                                   absl::optional<QuicEcnCounts>& ecn_counts) {
+bool QuicConnection::OnAckFrameEnd(
+    QuicPacketNumber start, const absl::optional<QuicEcnCounts>& ecn_counts) {
   QUIC_BUG_IF(quic_bug_12714_7, !connected_)
       << "Processing ACK frame end when connection is closed. Received packet "
          "info: "

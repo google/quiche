@@ -167,8 +167,9 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // Called after the last ack range in an AckFrame has been parsed.
   // |start| is the starting value of the last ack range. |ecn_counts| are
   // the reported ECN counts in the ack frame, if present.
-  virtual bool OnAckFrameEnd(QuicPacketNumber start,
-                             absl::optional<QuicEcnCounts>& ecn_counts) = 0;
+  virtual bool OnAckFrameEnd(
+      QuicPacketNumber start,
+      const absl::optional<QuicEcnCounts>& ecn_counts) = 0;
 
   // Called when a StopWaitingFrame has been parsed.
   virtual bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) = 0;

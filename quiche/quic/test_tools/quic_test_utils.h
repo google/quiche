@@ -312,7 +312,8 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
               (override));
   MOCK_METHOD(bool, OnAckTimestamp, (QuicPacketNumber, QuicTime), (override));
   MOCK_METHOD(bool, OnAckFrameEnd,
-              (QuicPacketNumber, absl::optional<QuicEcnCounts>&), (override));
+              (QuicPacketNumber, const absl::optional<QuicEcnCounts>&),
+              (override));
   MOCK_METHOD(bool, OnStopWaitingFrame, (const QuicStopWaitingFrame& frame),
               (override));
   MOCK_METHOD(bool, OnPaddingFrame, (const QuicPaddingFrame& frame),
@@ -396,7 +397,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool OnAckTimestamp(QuicPacketNumber packet_number,
                       QuicTime timestamp) override;
   bool OnAckFrameEnd(QuicPacketNumber start,
-                     absl::optional<QuicEcnCounts>& ecn_counts) override;
+                     const absl::optional<QuicEcnCounts>& ecn_counts) override;
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override;
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override;
   bool OnPingFrame(const QuicPingFrame& frame) override;
