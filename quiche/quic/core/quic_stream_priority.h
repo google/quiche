@@ -86,7 +86,7 @@ class QUICHE_EXPORT QuicStreamPriority {
     }
   }
 
-  QuicPriorityType type() const { return std::visit(TypeExtractor(), value_); }
+  QuicPriorityType type() const { return absl::visit(TypeExtractor(), value_); }
 
   HttpStreamPriority http() const {
     if (absl::holds_alternative<HttpStreamPriority>(value_)) {
