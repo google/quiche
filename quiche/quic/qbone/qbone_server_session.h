@@ -73,7 +73,7 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
   std::unique_ptr<QuicCryptoStream> CreateCryptoStream() override;
 
   // Instantiates QboneServerControlStream.
-  void CreateControlStream();
+  virtual void CreateControlStream();
 
   // Instantiates QboneServerControlStream from the pending stream and returns a
   // pointer to it.
