@@ -2353,11 +2353,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   ConnectionIdGeneratorInterface& connection_id_generator_;
 
-  // Most recent ECN codepoint counts received in ACK_ECN frames sent from the
-  // peer. For now, this is only stored for tests.
-  QuicEcnCounts
-      peer_ack_ecn_counts_[PacketNumberSpace::NUM_PACKET_NUMBER_SPACES];
-
   // This LRU cache records source addresses of packets received on server's
   // original address.
   QuicLRUCache<QuicSocketAddress, bool, QuicSocketAddressHash>

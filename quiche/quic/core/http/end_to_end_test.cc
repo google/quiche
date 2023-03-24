@@ -7186,8 +7186,9 @@ TEST_P(EndToEndTest, EcnMarksReportedCorrectly) {
   // Client connects using not-ECT.
   ASSERT_TRUE(Initialize());
   QuicConnection* client_connection = GetClientConnection();
-  QuicEcnCounts* ecn =
-      QuicConnectionPeer::GetEcnCounts(client_connection, APPLICATION_DATA);
+  QuicEcnCounts* ecn = QuicSentPacketManagerPeer::GetPeerEcnCounts(
+      QuicConnectionPeer::GetSentPacketManager(client_connection),
+      APPLICATION_DATA);
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
   EXPECT_EQ(ecn->ce, 0);

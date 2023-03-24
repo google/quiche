@@ -1540,7 +1540,7 @@ bool QuicConnection::OnAckFrameEnd(
   const AckResult ack_result = sent_packet_manager_.OnAckFrameEnd(
       idle_network_detector_.time_of_last_received_packet(),
       last_received_packet_info_.header.packet_number,
-      last_received_packet_info_.decrypted_level);
+      last_received_packet_info_.decrypted_level, ecn_counts);
   if (ack_result != PACKETS_NEWLY_ACKED &&
       ack_result != NO_PACKETS_NEWLY_ACKED) {
     // Error occurred (e.g., this ACK tries to ack packets in wrong packet
@@ -1549,11 +1549,6 @@ bool QuicConnection::OnAckFrameEnd(
                      << "Error occurred when processing an ACK frame: "
                      << QuicUtils::AckResultToString(ack_result);
     return false;
-  }
-  if (ecn_counts.has_value()) {
-    PacketNumberSpace space = QuicUtils::GetPacketNumberSpace(
-        last_received_packet_info_.decrypted_level);
-    peer_ack_ecn_counts_[space] = *ecn_counts;
   }
   if (SupportsMultiplePacketNumberSpaces() && !one_rtt_packet_was_acked &&
       sent_packet_manager_.one_rtt_packet_acked()) {

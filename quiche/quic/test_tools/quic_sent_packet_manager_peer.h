@@ -85,6 +85,9 @@ class QuicSentPacketManagerPeer {
 
   static int GetNumPtosForPathDegrading(
       QuicSentPacketManager* sent_packet_manager);
+
+  static QuicEcnCounts* GetPeerEcnCounts(
+      QuicSentPacketManager* sent_packet_manager, PacketNumberSpace space);
 };
 
 }  // namespace test

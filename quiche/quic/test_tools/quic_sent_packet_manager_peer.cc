@@ -176,5 +176,11 @@ int QuicSentPacketManagerPeer::GetNumPtosForPathDegrading(
   return sent_packet_manager->num_ptos_for_path_degrading_;
 }
 
+// static
+QuicEcnCounts* QuicSentPacketManagerPeer::GetPeerEcnCounts(
+    QuicSentPacketManager* sent_packet_manager, PacketNumberSpace space) {
+  return &(sent_packet_manager->peer_ack_ecn_counts_[space]);
+}
+
 }  // namespace test
 }  // namespace quic

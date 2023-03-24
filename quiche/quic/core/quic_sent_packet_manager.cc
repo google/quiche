@@ -1227,7 +1227,8 @@ void QuicSentPacketManager::OnAckTimestamp(QuicPacketNumber packet_number,
 
 AckResult QuicSentPacketManager::OnAckFrameEnd(
     QuicTime ack_receive_time, QuicPacketNumber ack_packet_number,
-    EncryptionLevel ack_decrypted_level) {
+    EncryptionLevel ack_decrypted_level,
+    const absl::optional<QuicEcnCounts>& ecn_counts) {
   QuicByteCount prior_bytes_in_flight = unacked_packets_.bytes_in_flight();
   // Reverse packets_acked_ so that it is in ascending order.
   std::reverse(packets_acked_.begin(), packets_acked_.end());
@@ -1295,10 +1296,15 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
                       last_ack_frame_.ack_delay_time,
                       acked_packet.receive_timestamp);
   }
+  PacketNumberSpace packet_number_space =
+      QuicUtils::GetPacketNumberSpace(ack_decrypted_level);
   const bool acked_new_packet = !packets_acked_.empty();
   PostProcessNewlyAckedPackets(ack_packet_number, ack_decrypted_level,
                                last_ack_frame_, ack_receive_time, rtt_updated_,
                                prior_bytes_in_flight);
+  if (ecn_counts.has_value()) {
+    peer_ack_ecn_counts_[packet_number_space] = ecn_counts.value();
+  }
 
   return acked_new_packet ? PACKETS_NEWLY_ACKED : NO_PACKETS_NEWLY_ACKED;
 }
