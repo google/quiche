@@ -72,7 +72,7 @@ class QuicSentPacketManagerTest : public QuicTest {
         QuicFrame(QuicStreamFrame(1, false, 0, absl::string_view())));
     packet.has_crypto_handshake = IS_HANDSHAKE;
     manager_.OnPacketSent(&packet, clock_.Now(), HANDSHAKE_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, true);
+                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
     return true;
   }
 
@@ -85,7 +85,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     SerializedPacket packet(CreatePacket(packet_number, true));
     packet.encryption_level = level;
     manager_.OnPacketSent(&packet, clock_.Now(), type, HAS_RETRANSMITTABLE_DATA,
-                          true);
+                          true, ECN_NOT_ECT);
     return true;
   }
 
@@ -232,7 +232,7 @@ class QuicSentPacketManagerTest : public QuicTest {
                      kDefaultLength, HAS_RETRANSMITTABLE_DATA));
     SerializedPacket packet(CreatePacket(new_packet_number, true));
     manager_.OnPacketSent(&packet, clock_.Now(), transmission_type,
-                          HAS_RETRANSMITTABLE_DATA, true);
+                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
   }
 
   SerializedPacket CreateDataPacket(uint64_t packet_number) {
@@ -270,7 +270,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     SerializedPacket packet(CreateDataPacket(packet_number));
     packet.encryption_level = encryption_level;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, true);
+                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
   }
 
   void SendPingPacket(uint64_t packet_number,
@@ -281,7 +281,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     SerializedPacket packet(CreatePingPacket(packet_number));
     packet.encryption_level = encryption_level;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, true);
+                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
   }
 
   void SendCryptoPacket(uint64_t packet_number) {
@@ -294,7 +294,7 @@ class QuicSentPacketManagerTest : public QuicTest {
         QuicFrame(QuicStreamFrame(1, false, 0, absl::string_view())));
     packet.has_crypto_handshake = IS_HANDSHAKE;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, true);
+                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
     EXPECT_CALL(notifier_, HasUnackedCryptoData()).WillRepeatedly(Return(true));
   }
 
@@ -312,7 +312,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     packet.largest_acked = QuicPacketNumber(largest_acked);
     packet.encryption_level = level;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          NO_RETRANSMITTABLE_DATA, true);
+                          NO_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
   }
 
   quiche::SimpleBufferAllocator allocator_;
@@ -1556,7 +1556,7 @@ TEST_F(QuicSentPacketManagerTest, PathMtuIncreased) {
   SerializedPacket packet(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,
                           nullptr, kDefaultLength + 100, false, false);
   manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, true);
+                        HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
 
   // Ack the large packet and expect the path MTU to increase.
   ExpectAck(1);
@@ -2739,7 +2739,7 @@ TEST_F(QuicSentPacketManagerTest, SendPathChallengeAndGetAck) {
       QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer)));
   packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
   manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                        NO_RETRANSMITTABLE_DATA, false);
+                        NO_RETRANSMITTABLE_DATA, false, ECN_NOT_ECT);
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   EXPECT_CALL(
       *send_algorithm_,
@@ -2791,7 +2791,8 @@ TEST_F(QuicSentPacketManagerTest,
       plus_1_ms_delay);
   // Higher on the fly max_ack_delay changes peer_max_ack_delay.
   manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), plus_1_ms_delay);
   manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
                            clock_.Now());
@@ -2806,7 +2807,8 @@ TEST_F(QuicSentPacketManagerTest,
       minus_1_ms_delay);
   // Lower on the fly max_ack_delay does not change peer_max_ack_delay.
   manager_.OnPacketSent(&packet2, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), plus_1_ms_delay);
   manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
                            clock_.Now());
@@ -2838,13 +2840,16 @@ TEST_F(QuicSentPacketManagerTest,
 
   // Send frame1, farme2, frame3.
   manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_1_ms);
   manager_.OnPacketSent(&packet2, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_3_ms);
   manager_.OnPacketSent(&packet3, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_3_ms);
 
   // Ack frame1, farme2, frame3.
@@ -2893,13 +2898,17 @@ TEST_F(QuicSentPacketManagerTest,
 
   // Send frame1, farme2, frame3, frame4.
   manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        ECN_NOT_ECT);
   manager_.OnPacketSent(&packet2, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        ECN_NOT_ECT);
   manager_.OnPacketSent(&packet3, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        ECN_NOT_ECT);
   manager_.OnPacketSent(&packet4, clock_.Now(), NOT_RETRANSMISSION,
-                        NO_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+                        NO_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_4_ms);
 
   // Ack frame3.
@@ -2951,7 +2960,8 @@ TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
     packet.retransmittable_frames.push_back(QuicFrame(message_frame));
     packet.has_message = true;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+                          HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                          ECN_NOT_ECT);
   }
 
   EXPECT_TRUE(message_frame->message_data.empty());

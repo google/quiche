@@ -3615,7 +3615,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       << " while current path has peer address " << peer_address();
   const bool in_flight = sent_packet_manager_.OnPacketSent(
       packet, packet_send_time, packet->transmission_type,
-      IsRetransmittable(*packet), /*measure_rtt=*/send_on_current_path);
+      IsRetransmittable(*packet), /*measure_rtt=*/send_on_current_path,
+      ECN_NOT_ECT);
   QUIC_BUG_IF(quic_bug_12714_25,
               perspective_ == Perspective::IS_SERVER &&
                   default_enable_5rto_blackhole_detection_ &&
@@ -5082,9 +5083,9 @@ bool QuicConnection::WritePacketUsingWriter(
   }
 
   // Send in currrent path. Call OnPacketSent regardless of the write result.
-  sent_packet_manager_.OnPacketSent(packet.get(), packet_send_time,
-                                    packet->transmission_type,
-                                    NO_RETRANSMITTABLE_DATA, measure_rtt);
+  sent_packet_manager_.OnPacketSent(
+      packet.get(), packet_send_time, packet->transmission_type,
+      NO_RETRANSMITTABLE_DATA, measure_rtt, ECN_NOT_ECT);
 
   if (debug_visitor_ != nullptr) {
     if (sent_packet_manager_.unacked_packets().empty()) {

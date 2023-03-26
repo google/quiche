@@ -42,7 +42,8 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // |mutable_packet| into the QuicTransmissionInfo.
   void AddSentPacket(SerializedPacket* mutable_packet,
                      TransmissionType transmission_type, QuicTime sent_time,
-                     bool set_in_flight, bool measure_rtt);
+                     bool set_in_flight, bool measure_rtt,
+                     QuicEcnCodepoint ecn_codepoint);
 
   // Returns true if the packet |packet_number| is unacked.
   bool IsUnacked(QuicPacketNumber packet_number) const;

@@ -202,7 +202,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   bool OnPacketSent(SerializedPacket* mutable_packet, QuicTime sent_time,
                     TransmissionType transmission_type,
                     HasRetransmittableData has_retransmittable_data,
-                    bool measure_rtt);
+                    bool measure_rtt, QuicEcnCodepoint ecn_codepoint);
 
   bool CanSendAckFrequency() const;
 

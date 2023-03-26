@@ -134,7 +134,8 @@ QuicUnackedPacketMap::~QuicUnackedPacketMap() {
 void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
                                          TransmissionType transmission_type,
                                          QuicTime sent_time, bool set_in_flight,
-                                         bool measure_rtt) {
+                                         bool measure_rtt,
+                                         QuicEcnCodepoint ecn_codepoint) {
   const SerializedPacket& packet = *mutable_packet;
   QuicPacketNumber packet_number = packet.packet_number;
   QuicPacketLength bytes_sent = packet.encrypted_length;
@@ -151,7 +152,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
   const bool has_crypto_handshake = packet.has_crypto_handshake == IS_HANDSHAKE;
   QuicTransmissionInfo info(packet.encryption_level, transmission_type,
                             sent_time, bytes_sent, has_crypto_handshake,
-                            packet.has_ack_frequency);
+                            packet.has_ack_frequency, ecn_codepoint);
   info.largest_acked = packet.largest_acked;
   largest_sent_largest_acked_.UpdateMax(packet.largest_acked);
 

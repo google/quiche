@@ -578,7 +578,7 @@ void PacketSavingConnection::SendOrQueuePacket(SerializedPacket packet) {
   OnPacketSent(packet.encryption_level, packet.transmission_type);
   QuicConnectionPeer::GetSentPacketManager(this)->OnPacketSent(
       &packet, clock_.ApproximateNow(), NOT_RETRANSMISSION,
-      HAS_RETRANSMITTABLE_DATA, true);
+      HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
 }
 
 MockQuicSession::MockQuicSession(QuicConnection* connection)

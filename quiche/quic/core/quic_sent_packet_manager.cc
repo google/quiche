@@ -625,7 +625,8 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
 bool QuicSentPacketManager::OnPacketSent(
     SerializedPacket* mutable_packet, QuicTime sent_time,
     TransmissionType transmission_type,
-    HasRetransmittableData has_retransmittable_data, bool measure_rtt) {
+    HasRetransmittableData has_retransmittable_data, bool measure_rtt,
+    QuicEcnCodepoint ecn_codepoint) {
   const SerializedPacket& packet = *mutable_packet;
   QuicPacketNumber packet_number = packet.packet_number;
   QUICHE_DCHECK_LE(FirstSendingPacketNumber(), packet_number);
@@ -672,7 +673,7 @@ bool QuicSentPacketManager::OnPacketSent(
     }
   }
   unacked_packets_.AddSentPacket(mutable_packet, transmission_type, sent_time,
-                                 in_flight, measure_rtt);
+                                 in_flight, measure_rtt, ecn_codepoint);
   // Reset the retransmission timer anytime a pending packet is sent.
   return in_flight;
 }
