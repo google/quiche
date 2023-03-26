@@ -19,7 +19,8 @@ bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
                                    QuicEventLoop* event_loop,
                                    std::string url_string,
                                    bool disable_certificate_verification,
-                                   int address_family_for_lookup) {
+                                   int address_family_for_lookup,
+                                   bool dns_on_client) {
   const QuicUrl url(url_string, "https");
   std::unique_ptr<ProofVerifier> proof_verifier;
   if (disable_certificate_verification) {
@@ -29,11 +30,19 @@ bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
   }
 
   // Build the client, and try to connect.
-  const QuicSocketAddress addr = LookupAddress(
-      address_family_for_lookup, url.host(), absl::StrCat(url.port()));
-  if (!addr.IsInitialized()) {
-    QUIC_LOG(ERROR) << "Unable to resolve address: " << url.host();
-    return false;
+  QuicSocketAddress addr;
+  if (dns_on_client) {
+    addr = LookupAddress(address_family_for_lookup, url.host(),
+                         absl::StrCat(url.port()));
+    if (!addr.IsInitialized()) {
+      QUIC_LOG(ERROR) << "Unable to resolve address: " << url.host();
+      return false;
+    }
+  } else {
+    addr = QuicSocketAddress(
+        masque_client->masque_client_session()->GetFakeAddress(url.host()),
+        url.port());
+    QUICHE_CHECK(addr.IsInitialized());
   }
   const QuicServerId server_id(url.host(), url.port());
   auto client = std::make_unique<MasqueEncapsulatedClient>(

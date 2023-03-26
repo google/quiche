@@ -45,6 +45,12 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "If set to true, no URLs need to be specified and instead a TUN device "
     "is brought up with the assigned IP from the MASQUE CONNECT-IP server");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, dns_on_client, false,
+    "If set to true, masque_client will perform DNS for encapsulated URLs and "
+    "send the IP litteral in the CONNECT request. If set to false, "
+    "masque_client send the hostname in the CONNECT request.");
+
 namespace quic {
 
 namespace {
@@ -230,10 +236,14 @@ int RunMasqueClient(int argc, char* argv[]) {
     QUICHE_NOTREACHED();
   }
 
+  const bool dns_on_client =
+      quiche::GetQuicheCommandLineFlag(FLAGS_dns_on_client);
+
   for (size_t i = 1; i < urls.size(); ++i) {
     if (!tools::SendEncapsulatedMasqueRequest(
             masque_client.get(), event_loop.get(), urls[i],
-            disable_certificate_verification, address_family_for_lookup)) {
+            disable_certificate_verification, address_family_for_lookup,
+            dns_on_client)) {
       return 1;
     }
   }

@@ -32,7 +32,7 @@ using ::quiche::AddressRequestCapsule;
 using ::quiche::RouteAdvertisementCapsule;
 
 constexpr uint64_t kConnectIpPayloadContextId = 0;
-}
+}  // namespace
 
 MasqueClientSession::MasqueClientSession(
     MasqueMode masque_mode, const std::string& uri_template,
@@ -68,6 +68,14 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
     }
   }
   // No CONNECT-UDP request found, create a new one.
+  std::string target_host;
+  auto it = fake_addresses_.find(target_server_address.host().ToPackedString());
+  if (it != fake_addresses_.end()) {
+    target_host = it->second;
+    fake_addresses_.erase(it);
+  } else {
+    target_host = target_server_address.host().ToString();
+  }
 
   url::Parsed parsed_uri_template;
   url::ParseStandardURL(uri_template_.c_str(), uri_template_.length(),
@@ -85,7 +93,7 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
                                          parsed_uri_template.query.len));
   }
   absl::flat_hash_map<std::string, std::string> parameters;
-  parameters["target_host"] = target_server_address.host().ToString();
+  parameters["target_host"] = target_host;
   parameters["target_port"] = absl::StrCat(target_server_address.port());
   std::string expanded_path;
   absl::flat_hash_set<std::string> vars_found;
@@ -94,7 +102,8 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   if (!expanded || vars_found.find("target_host") == vars_found.end() ||
       vars_found.find("target_port") == vars_found.end()) {
     QUIC_DLOG(ERROR) << "Failed to expand URI template \"" << uri_template_
-                     << "\" for " << target_server_address;
+                     << "\" for " << target_host << " port "
+                     << target_server_address.port();
     return nullptr;
   }
 
@@ -106,7 +115,8 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
       &canonicalized_path_output, &canonicalized_path_component);
   if (!canonicalized || !canonicalized_path_component.is_nonempty()) {
     QUIC_DLOG(ERROR) << "Failed to canonicalize URI template \""
-                     << uri_template_ << "\" for " << target_server_address;
+                     << uri_template_ << "\" for " << target_host << " port "
+                     << target_server_address.port();
     return nullptr;
   }
   std::string canonicalized_path(
@@ -124,10 +134,10 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   std::string scheme = url.scheme();
   std::string authority = url.HostPort();
 
-  QUIC_DLOG(INFO) << "Sending CONNECT-UDP request for " << target_server_address
-                  << " on stream " << stream->id() << " scheme=\"" << scheme
-                  << "\" authority=\"" << authority << "\" path=\""
-                  << canonicalized_path << "\"";
+  QUIC_DLOG(INFO) << "Sending CONNECT-UDP request for " << target_host
+                  << " port " << target_server_address.port() << " on stream "
+                  << stream->id() << " scheme=\"" << scheme << "\" authority=\""
+                  << authority << "\" path=\"" << canonicalized_path << "\"";
 
   // Send the request.
   spdy::Http2HeaderBlock headers;
@@ -492,5 +502,19 @@ bool MasqueClientSession::ConnectIpClientState::OnRouteAdvertisementCapsule(
 }
 
 void MasqueClientSession::ConnectIpClientState::OnHeadersWritten() {}
+
+quiche::QuicheIpAddress MasqueClientSession::GetFakeAddress(
+    absl::string_view hostname) {
+  quiche::QuicheIpAddress address;
+  uint8_t address_bytes[16] = {0xFD};
+  quiche::QuicheRandom::GetInstance()->RandBytes(&address_bytes[1],
+                                                 sizeof(address_bytes) - 1);
+  address.FromPackedString(reinterpret_cast<const char*>(address_bytes),
+                           sizeof(address_bytes));
+  std::string address_bytes_string(reinterpret_cast<const char*>(address_bytes),
+                                   sizeof(address_bytes));
+  fake_addresses_[address_bytes_string] = std::string(hostname);
+  return address;
+}
 
 }  // namespace quic

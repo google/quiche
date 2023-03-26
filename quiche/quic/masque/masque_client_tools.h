@@ -18,7 +18,8 @@ bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
                                    QuicEventLoop* event_loop,
                                    std::string url_string,
                                    bool disable_certificate_verification,
-                                   int address_family_for_lookup);
+                                   int address_family_for_lookup,
+                                   bool dns_on_client);
 
 }  // namespace tools
 }  // namespace quic
