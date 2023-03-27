@@ -297,7 +297,7 @@ class QuicClientBase : public QuicSession::Visitor {
     interface_name_ = interface_name;
   }
 
-  std::string interface_name() { return interface_name_; }
+  std::string interface_name() const { return interface_name_; }
 
   void set_server_connection_id_override(
       const QuicConnectionId& connection_id) {
