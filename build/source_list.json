@@ -1377,7 +1377,6 @@
     "quiche/common/platform/default/quiche_platform_impl/quiche_bug_tracker_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_client_stats_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_containers_impl.h",
-    "quiche/common/platform/default/quiche_platform_impl/quiche_default_proof_providers_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_event_loop_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_export_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_flag_utils_impl.h",
@@ -1406,12 +1405,14 @@
   ],
   "default_platform_impl_tool_support_hdrs": [
     "quiche/common/platform/default/quiche_platform_impl/quiche_command_line_flags_impl.h",
+    "quiche/common/platform/default/quiche_platform_impl/quiche_default_proof_providers_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_file_utils_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_stream_buffer_allocator_impl.h",
     "quiche/common/platform/default/quiche_platform_impl/quiche_system_event_loop_impl.h"
   ],
   "default_platform_impl_tool_support_srcs": [
     "quiche/common/platform/default/quiche_platform_impl/quiche_command_line_flags_impl.cc",
+    "quiche/common/platform/default/quiche_platform_impl/quiche_default_proof_providers_impl.cc",
     "quiche/common/platform/default/quiche_platform_impl/quiche_file_utils_impl.cc"
   ],
   "default_platform_impl_test_support_hdrs": [

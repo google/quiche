@@ -12,14 +12,9 @@
 
 namespace quiche {
 
-// TODO(vasilvv): implement those in order for the CLI tools to work.
-inline std::unique_ptr<quic::ProofVerifier> CreateDefaultProofVerifierImpl(
-    const std::string& /*host*/) {
-  return nullptr;
-}
-inline std::unique_ptr<quic::ProofSource> CreateDefaultProofSourceImpl() {
-  return nullptr;
-}
+std::unique_ptr<quic::ProofVerifier> CreateDefaultProofVerifierImpl(
+    const std::string& host);
+std::unique_ptr<quic::ProofSource> CreateDefaultProofSourceImpl();
 
 }  // namespace quiche
 
