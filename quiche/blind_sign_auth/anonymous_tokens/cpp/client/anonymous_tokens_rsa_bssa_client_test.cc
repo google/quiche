@@ -52,33 +52,33 @@ CreateClientTestKey(absl::string_view use_case = "TEST_USE_CASE",
 }
 
 TEST(CreateAnonymousTokensRsaBssaClientTest, Success) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto rsa_key, CreateClientTestKey());
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto rsa_key, CreateClientTestKey());
   QUICHE_EXPECT_OK(AnonymousTokensRsaBssaClient::Create(rsa_key.second));
 }
 
 TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidUseCase) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto rsa_key,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto rsa_key,
                                    CreateClientTestKey("INVALID_USE_CASE"));
   EXPECT_THAT(AnonymousTokensRsaBssaClient::Create(rsa_key.second),
               StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST(CreateAnonymousTokensRsaBssaClientTest, NotAUseCase) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto rsa_key,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto rsa_key,
                                    CreateClientTestKey("NOT_A_USE_CASE"));
   EXPECT_THAT(AnonymousTokensRsaBssaClient::Create(rsa_key.second),
               StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidKeyVersion) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto rsa_key,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto rsa_key,
                                    CreateClientTestKey("TEST_USE_CASE", 0));
   EXPECT_THAT(AnonymousTokensRsaBssaClient::Create(rsa_key.second),
               StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidMessageMaskType) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto rsa_key,
       CreateClientTestKey("TEST_USE_CASE", 0, AT_MESSAGE_MASK_TYPE_UNDEFINED));
   EXPECT_THAT(AnonymousTokensRsaBssaClient::Create(rsa_key.second),
@@ -86,7 +86,7 @@ TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidMessageMaskType) {
 }
 
 TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidMessageMaskSize) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto rsa_key,
       CreateClientTestKey("TEST_USE_CASE", 0, AT_MESSAGE_MASK_CONCAT, 0));
   EXPECT_THAT(AnonymousTokensRsaBssaClient::Create(rsa_key.second),
@@ -96,10 +96,10 @@ TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidMessageMaskSize) {
 class AnonymousTokensRsaBssaClientTest : public testing::Test {
  protected:
   void SetUp() override {
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto key, CreateClientTestKey());
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto key, CreateClientTestKey());
     rsa_key_ = std::move(key.first);
     public_key_ = std::move(key.second);
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
         client_, AnonymousTokensRsaBssaClient::Create(public_key_));
   }
 
@@ -138,21 +138,21 @@ class AnonymousTokensRsaBssaClientTest : public testing::Test {
 };
 
 TEST_F(AnonymousTokensRsaBssaClientTest, SuccessOneMessage) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       AnonymousTokensSignRequest request,
       client_->CreateRequest(CreateInput({"message"})));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
                                    CreateResponse(request));
   QUICHE_EXPECT_OK(client_->ProcessResponse(response));
   EXPECT_EQ(response.anonymous_tokens_size(), 1);
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, SuccessMultipleMessages) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       AnonymousTokensSignRequest request,
       client_->CreateRequest(CreateInput(
           {"message1", "msg2", "anotherMessage", "one_more_message"})));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
                                    CreateResponse(request));
   EXPECT_EQ(response.anonymous_tokens_size(), 4);
   QUICHE_EXPECT_OK(client_->ProcessResponse(response));
@@ -160,12 +160,12 @@ TEST_F(AnonymousTokensRsaBssaClientTest, SuccessMultipleMessages) {
 
 TEST_F(AnonymousTokensRsaBssaClientTest, EnsureRandomTokens) {
   std::string message = "test_same_message";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       AnonymousTokensSignRequest request,
       client_->CreateRequest(CreateInput({message, message})));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
                                    CreateResponse(request));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::vector<RSABlindSignatureTokenWithInput> tokens,
       client_->ProcessResponse(response));
   ASSERT_EQ(tokens.size(), 2);
@@ -184,10 +184,10 @@ TEST_F(AnonymousTokensRsaBssaClientTest, EmptyInput) {
 TEST_F(AnonymousTokensRsaBssaClientTest, NotYetValidKey) {
   RSABlindSignaturePublicKey not_valid_key = public_key_;
   absl::Time start_time = absl::Now() + absl::Minutes(100);
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       *not_valid_key.mutable_key_validity_start_time(),
       TimeToProto(start_time));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<AnonymousTokensRsaBssaClient> client,
       AnonymousTokensRsaBssaClient::Create(not_valid_key));
   EXPECT_THAT(client->CreateRequest(CreateInput({"message"})),
@@ -197,9 +197,9 @@ TEST_F(AnonymousTokensRsaBssaClientTest, NotYetValidKey) {
 TEST_F(AnonymousTokensRsaBssaClientTest, ExpiredKey) {
   RSABlindSignaturePublicKey expired_key = public_key_;
   absl::Time end_time = absl::Now() - absl::Seconds(1);
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(*expired_key.mutable_expiration_time(),
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(*expired_key.mutable_expiration_time(),
                                    TimeToProto(end_time));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<AnonymousTokensRsaBssaClient> client,
       AnonymousTokensRsaBssaClient::Create(expired_key));
   EXPECT_THAT(client->CreateRequest(CreateInput({"message"})),
@@ -219,7 +219,7 @@ TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithoutCreateRequest) {
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, ProcessEmptyResponse) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       AnonymousTokensSignRequest request,
       client_->CreateRequest(CreateInput({"message"})));
   AnonymousTokensSignResponse response;
@@ -228,10 +228,10 @@ TEST_F(AnonymousTokensRsaBssaClientTest, ProcessEmptyResponse) {
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithBadUseCase) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       AnonymousTokensSignRequest request,
       client_->CreateRequest(CreateInput({"message"})));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
                                    CreateResponse(request));
   response.mutable_anonymous_tokens(0)->set_use_case("TEST_USE_CASE_2");
   EXPECT_THAT(client_->ProcessResponse(response),
@@ -239,10 +239,10 @@ TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithBadUseCase) {
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithBadKeyVersion) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       AnonymousTokensSignRequest request,
       client_->CreateRequest(CreateInput({"message"})));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
                                    CreateResponse(request));
   response.mutable_anonymous_tokens(0)->set_key_version(2);
   EXPECT_THAT(client_->ProcessResponse(response),
@@ -250,18 +250,18 @@ TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithBadKeyVersion) {
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseFromDifferentClient) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<AnonymousTokensRsaBssaClient> client2,
       AnonymousTokensRsaBssaClient::Create(public_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       AnonymousTokensSignRequest request1,
       client_->CreateRequest(CreateInput({"message"})));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       AnonymousTokensSignRequest request2,
       client2->CreateRequest(CreateInput({"message"})));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(AnonymousTokensSignResponse response1,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignResponse response1,
                                    CreateResponse(request1));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(AnonymousTokensSignResponse response2,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignResponse response2,
                                    CreateResponse(request2));
   EXPECT_THAT(client_->ProcessResponse(response2),
               StatusIs(absl::StatusCode::kInvalidArgument));

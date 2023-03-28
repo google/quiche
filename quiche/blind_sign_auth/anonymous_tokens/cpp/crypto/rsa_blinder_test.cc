@@ -66,7 +66,7 @@ CreateLongerSaltTestKey() {
 class RsaBlinderTest : public testing::TestWithParam<CreateTestKeyFunction*> {
  protected:
   void SetUp() override {
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto test_key, (*GetParam())());
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto test_key, (*GetParam())());
     rsa_key_ = std::move(test_key.first);
     public_key_ = std::move(test_key.second);
   }
@@ -78,18 +78,18 @@ class RsaBlinderTest : public testing::TestWithParam<CreateTestKeyFunction*> {
 TEST_P(RsaBlinderTest, BlindSignUnblindEnd2EndTest) {
   const absl::string_view message = "Hello World!";
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
                                    RsaBlinder::New(public_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string blinded_message,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string blinded_signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_signature,
                                    TestSign(blinded_message, rsa_key_.get()));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string signature,
                                    blinder->Unblind(blinded_signature));
   EXPECT_NE(signature, blinded_signature);
   EXPECT_NE(signature, blinded_message);
@@ -100,9 +100,9 @@ TEST_P(RsaBlinderTest, BlindSignUnblindEnd2EndTest) {
 
 TEST_P(RsaBlinderTest, DoubleBlindingFailure) {
   const absl::string_view message = "Hello World2!";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
                                    RsaBlinder::New(public_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(const std::string blinded_message,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_message,
                                    blinder->Blind(message));
   // Blind the blinded_message
   absl::StatusOr<std::string> result = blinder->Blind(blinded_message);
@@ -117,13 +117,13 @@ TEST_P(RsaBlinderTest, DoubleBlindingFailure) {
 
 TEST_P(RsaBlinderTest, DoubleUnblindingFailure) {
   const absl::string_view message = "Hello World2!";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
                                    RsaBlinder::New(public_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(const std::string blinded_message,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_message,
                                    blinder->Blind(message));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(const std::string blinded_signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_signature,
                                    TestSign(blinded_message, rsa_key_.get()));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string signature,
                                    blinder->Unblind(blinded_signature));
   // Unblind the unblinded signature
   absl::StatusOr<std::string> result = blinder->Unblind(signature);
@@ -137,13 +137,13 @@ TEST_P(RsaBlinderTest, DoubleUnblindingFailure) {
 
 TEST_P(RsaBlinderTest, InvalidSignature) {
   const absl::string_view message = "Hello World2!";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
                                    RsaBlinder::New(public_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(const std::string blinded_message,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_message,
                                    blinder->Blind(message));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(const std::string blinded_signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_signature,
                                    TestSign(blinded_message, rsa_key_.get()));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string signature,
                                    blinder->Unblind(blinded_signature));
   QUICHE_EXPECT_OK(blinder->Verify(signature, message));
 
@@ -162,17 +162,17 @@ TEST_P(RsaBlinderTest, InvalidSignature) {
 
 TEST_P(RsaBlinderTest, InvalidVerificationKey) {
   const absl::string_view message = "Hello World4!";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
                                    RsaBlinder::New(public_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(const std::string blinded_message,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_message,
                                    blinder->Blind(message));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(const std::string blinded_signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_signature,
                                    TestSign(blinded_message, rsa_key_.get()));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string signature,
                                    blinder->Unblind(blinded_signature));
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto bad_key, CreateTestKey());
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> bad_blinder,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto bad_key, CreateTestKey());
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> bad_blinder,
                                    RsaBlinder::New(bad_key.second));
   EXPECT_THAT(bad_blinder->Verify(signature, message).code(),
               absl::StatusCode::kInvalidArgument);
@@ -192,7 +192,7 @@ class RsaBlinderWithPublicMetadataTest
     : public testing::TestWithParam<CreateTestKeyPairFunction*> {
  protected:
   void SetUp() override {
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto test_key, (*GetParam())());
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto test_key, (*GetParam())());
     RSABlindSignaturePublicKey public_key;
     public_key.set_sig_hash_type(HashType::AT_HASH_TYPE_SHA384);
     public_key.set_mask_gen_function(AT_MGF_SHA384);
@@ -200,7 +200,7 @@ class RsaBlinderWithPublicMetadataTest
     public_key.set_serialized_public_key(
         std::move(test_key.first).SerializeAsString());
     public_key_ = std::move(public_key);
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
         rsa_key_, AnonymousTokensRSAPrivateKeyToRSA(test_key.second));
   }
 
@@ -213,20 +213,20 @@ TEST_P(RsaBlinderWithPublicMetadataTest,
   const absl::string_view message = "Hello World!";
   const absl::string_view public_metadata = "pubmd!";
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlinder> blinder,
       RsaBlinder::New(public_key_, public_metadata));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string blinded_message,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
       TestSignWithPublicMetadata(blinded_message, public_metadata, *rsa_key_));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string signature,
                                    blinder->Unblind(blinded_signature));
   EXPECT_NE(signature, blinded_signature);
   EXPECT_NE(signature, blinded_message);
@@ -240,21 +240,21 @@ TEST_P(RsaBlinderWithPublicMetadataTest, WrongPublicMetadata) {
   const absl::string_view public_metadata = "pubmd!";
   const absl::string_view public_metadata_2 = "pubmd2";
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlinder> blinder,
       RsaBlinder::New(public_key_, public_metadata));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string blinded_message,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
       TestSignWithPublicMetadata(blinded_message, public_metadata_2,
                                  *rsa_key_));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string signature,
                                    blinder->Unblind(blinded_signature));
   EXPECT_NE(signature, blinded_signature);
   EXPECT_NE(signature, blinded_message);
@@ -269,19 +269,19 @@ TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataForSigning) {
   const absl::string_view message = "Hello World!";
   const absl::string_view public_metadata = "pubmd!";
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlinder> blinder,
       RsaBlinder::New(public_key_, public_metadata));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string blinded_message,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string blinded_signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_signature,
                                    TestSign(blinded_message, rsa_key_.get()));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string signature,
                                    blinder->Unblind(blinded_signature));
   EXPECT_NE(signature, blinded_signature);
   EXPECT_NE(signature, blinded_message);
@@ -296,19 +296,19 @@ TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataInBlinding) {
   const absl::string_view message = "Hello World!";
   const absl::string_view public_metadata = "pubmd!";
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlinder> blinder,
                                    RsaBlinder::New(public_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string blinded_message,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
       TestSignWithPublicMetadata(blinded_message, public_metadata, *rsa_key_));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string signature,
                                    blinder->Unblind(blinded_signature));
   EXPECT_NE(signature, blinded_signature);
   EXPECT_NE(signature, blinded_message);

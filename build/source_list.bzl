@@ -1555,6 +1555,9 @@ blind_sign_auth_hdrs = [
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.h",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_ssa_pss_verifier.h",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/verifier.h",
+    "blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.h",
+    "blind_sign_auth/anonymous_tokens/cpp/shared/status_utils.h",
+    "blind_sign_auth/anonymous_tokens/cpp/testing/utils.h",
     "blind_sign_auth/blind_sign_auth.h",
     "blind_sign_auth/blind_sign_auth_interface.h",
     "blind_sign_auth/blind_sign_http_interface.h",
@@ -1569,6 +1572,8 @@ blind_sign_auth_srcs = [
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_ssa_pss_verifier.cc",
+    "blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.cc",
+    "blind_sign_auth/anonymous_tokens/cpp/testing/utils.cc",
     "blind_sign_auth/blind_sign_auth.cc",
     "blind_sign_auth/cached_blind_sign_auth.cc",
 ]
@@ -1581,6 +1586,7 @@ blind_sign_auth_tests_srcs = [
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer_test.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder_test.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_ssa_pss_verifier_test.cc",
+    "blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils_test.cc",
     "blind_sign_auth/blind_sign_auth_test.cc",
     "blind_sign_auth/cached_blind_sign_auth_test.cc",
 ]

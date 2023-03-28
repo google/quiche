@@ -43,7 +43,7 @@ class RsaBlindSignerTest
     : public ::testing::TestWithParam<CreateTestKeyPairFunction *> {
  protected:
   void SetUp() override {
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto keys_pair, (*GetParam())());
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto keys_pair, (*GetParam())());
     public_key_ = std::move(keys_pair.first);
     private_key_ = std::move(keys_pair.second);
     generator_.seed(0);
@@ -69,22 +69,22 @@ class RsaBlindSignerTest
 // proven/analyzed.
 TEST_P(RsaBlindSignerTest, SignerWorks) {
   absl::string_view message = "Hello World!";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
       EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
                             salt_length_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::unique_ptr<RsaBlindSigner> signer,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlindSigner> signer,
                                    RsaBlindSigner::New(private_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       const auto verifier,
       RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_));
   QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
 }
 
 TEST_P(RsaBlindSignerTest, SignerFails) {
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::unique_ptr<RsaBlindSigner> signer,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlindSigner> signer,
                                    RsaBlindSigner::New(private_key_));
   absl::string_view message = "Hello World!";
   EXPECT_THAT(signer->Sign(message),
@@ -94,9 +94,9 @@ TEST_P(RsaBlindSignerTest, SignerFails) {
 
   int sig_size = public_key_.n().size();
   std::string message2 = RandomString(sig_size, &distr_u8_, &generator_);
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string insecure_sig,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string insecure_sig,
                                    signer->Sign(message2));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       const auto verifier,
       RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_));
   EXPECT_THAT(
@@ -116,7 +116,7 @@ class RsaBlindSignerTestWithPublicMetadata
     : public ::testing::TestWithParam<CreateTestKeyPairFunction *> {
  protected:
   void SetUp() override {
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto keys_pair, (*GetParam())());
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto keys_pair, (*GetParam())());
     public_key_ = std::move(keys_pair.first);
     private_key_ = std::move(keys_pair.second);
     // NOTE: using recommended RsaSsaPssParams
@@ -139,16 +139,16 @@ class RsaBlindSignerTestWithPublicMetadata
 TEST_P(RsaBlindSignerTestWithPublicMetadata, SignerWorksWithPublicMetadata) {
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
       EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
                             salt_length_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlindSigner> signer,
       RsaBlindSigner::New(private_key_, public_metadata));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata));
   QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
@@ -159,16 +159,16 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
   absl::string_view public_metadata_2 = "pubmd2";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
       EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
                             salt_length_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlindSigner> signer,
       RsaBlindSigner::New(private_key_, public_metadata));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata_2));
   EXPECT_THAT(
@@ -182,16 +182,16 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
   absl::string_view public_metadata_2 = "";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
       EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
                             salt_length_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlindSigner> signer,
       RsaBlindSigner::New(private_key_, public_metadata));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata_2));
   EXPECT_THAT(

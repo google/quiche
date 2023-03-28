@@ -26,7 +26,7 @@
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/blinder.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
-// #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace private_membership {
 namespace anonymous_tokens {

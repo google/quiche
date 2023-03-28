@@ -38,12 +38,12 @@ namespace {
 TEST(RsaSsaPssVerifier, SuccessfulVerification) {
   const IetfStandardRsaBlindSignatureTestVector test_vec =
       GetIetfStandardRsaBlindSignatureTestVector();
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(const auto test_keys,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const auto test_keys,
                                    GetIetfStandardRsaBlindSignatureTestKeys());
   const EVP_MD *sig_hash = EVP_sha384();   // Owned by BoringSSL
   const EVP_MD *mgf1_hash = EVP_sha384();  // Owned by BoringSSL
   const int salt_length = kSaltLengthInBytes48;
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       const auto verifier, RsaSsaPssVerifier::New(salt_length, sig_hash,
                                                   mgf1_hash, test_keys.first));
   QUICHE_EXPECT_OK(verifier->Verify(test_vec.signature, test_vec.message));
@@ -52,12 +52,12 @@ TEST(RsaSsaPssVerifier, SuccessfulVerification) {
 TEST(RsaSsaPssVerifier, InvalidSignature) {
   const IetfStandardRsaBlindSignatureTestVector test_vec =
       GetIetfStandardRsaBlindSignatureTestVector();
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(const auto test_keys,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const auto test_keys,
                                    GetIetfStandardRsaBlindSignatureTestKeys());
   const EVP_MD *sig_hash = EVP_sha384();   // Owned by BoringSSL
   const EVP_MD *mgf1_hash = EVP_sha384();  // Owned by BoringSSL
   const int salt_length = kSaltLengthInBytes48;
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       const auto verifier, RsaSsaPssVerifier::New(salt_length, sig_hash,
                                                   mgf1_hash, test_keys.first));
   // corrupt signature
@@ -77,8 +77,8 @@ TEST(RsaSsaPssVerifier, InvalidVerificationKey) {
   const EVP_MD *mgf1_hash = EVP_sha384();  // Owned by BoringSSL
   const int salt_length = kSaltLengthInBytes48;
   // wrong key
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto new_keys_pair, GetStandardRsaKeyPair());
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto new_keys_pair, GetStandardRsaKeyPair());
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       const auto verifier,
       RsaSsaPssVerifier::New(salt_length, sig_hash, mgf1_hash,
                              new_keys_pair.first));
@@ -92,12 +92,12 @@ TEST(RsaSsaPssVerifier, InvalidVerificationKey) {
 TEST(RsaSsaPssVerifier, EmptyMessageVerification) {
   const IetfStandardRsaBlindSignatureTestVector test_vec =
       GetIetfStandardRsaBlindSignatureTestVector();
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(const auto test_keys,
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const auto test_keys,
                                    GetIetfStandardRsaBlindSignatureTestKeys());
   const EVP_MD *sig_hash = EVP_sha384();   // Owned by BoringSSL
   const EVP_MD *mgf1_hash = EVP_sha384();  // Owned by BoringSSL
   const int salt_length = kSaltLengthInBytes48;
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       const auto verifier, RsaSsaPssVerifier::New(salt_length, sig_hash,
                                                   mgf1_hash, test_keys.first));
 
@@ -114,9 +114,9 @@ class RsaSsaPssVerifierTestWithPublicMetadata
     : public ::testing::TestWithParam<CreateTestKeyPairFunction *> {
  protected:
   void SetUp() override {
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(auto keys_pair, (*GetParam())());
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto keys_pair, (*GetParam())());
     public_key_ = std::move(keys_pair.first);
-    ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
         private_key_, AnonymousTokensRSAPrivateKeyToRSA(keys_pair.second));
     // NOTE: using recommended RsaSsaPssParams
     sig_hash_ = EVP_sha384();
@@ -139,15 +139,15 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
        VerifierWorksWithPublicMetadata) {
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
       EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
                             salt_length_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
                                  *private_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata));
   QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
@@ -158,15 +158,15 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
   absl::string_view public_metadata_2 = "pubmd2";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
       EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
                             salt_length_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
                                  *private_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata_2));
   EXPECT_THAT(
@@ -180,15 +180,15 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
   absl::string_view public_metadata_2 = "";
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
       EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
                             salt_length_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
                                  *private_key_));
-  ANON_TOKENS_QUICHE_EXPECT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata_2));
   EXPECT_THAT(

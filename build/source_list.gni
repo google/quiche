@@ -1555,6 +1555,9 @@ blind_sign_auth_hdrs = [
     "src/quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.h",
     "src/quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_ssa_pss_verifier.h",
     "src/quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/verifier.h",
+    "src/quiche/blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.h",
+    "src/quiche/blind_sign_auth/anonymous_tokens/cpp/shared/status_utils.h",
+    "src/quiche/blind_sign_auth/anonymous_tokens/cpp/testing/utils.h",
     "src/quiche/blind_sign_auth/blind_sign_auth.h",
     "src/quiche/blind_sign_auth/blind_sign_auth_interface.h",
     "src/quiche/blind_sign_auth/blind_sign_http_interface.h",
@@ -1569,6 +1572,8 @@ blind_sign_auth_srcs = [
     "src/quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer.cc",
     "src/quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.cc",
     "src/quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_ssa_pss_verifier.cc",
+    "src/quiche/blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.cc",
+    "src/quiche/blind_sign_auth/anonymous_tokens/cpp/testing/utils.cc",
     "src/quiche/blind_sign_auth/blind_sign_auth.cc",
     "src/quiche/blind_sign_auth/cached_blind_sign_auth.cc",
 ]
@@ -1581,6 +1586,7 @@ blind_sign_auth_tests_srcs = [
     "src/quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer_test.cc",
     "src/quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder_test.cc",
     "src/quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_ssa_pss_verifier_test.cc",
+    "src/quiche/blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils_test.cc",
     "src/quiche/blind_sign_auth/blind_sign_auth_test.cc",
     "src/quiche/blind_sign_auth/cached_blind_sign_auth_test.cc",
 ]

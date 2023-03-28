@@ -27,7 +27,7 @@
 #include "openssl/bn.h"
 #include "openssl/evp.h"
 #include "openssl/rsa.h"
-// #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace private_membership {
 namespace anonymous_tokens {
