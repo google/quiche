@@ -67,7 +67,7 @@ TEST(RsaSsaPssVerifier, InvalidSignature) {
 
   EXPECT_THAT(
       verifier->Verify(wrong_sig, test_vec.message),
-      testing::status::StatusIs(absl::StatusCode::kInvalidArgument,
+      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
                                 testing::HasSubstr("verification failed")));
 }
 
@@ -86,7 +86,7 @@ TEST(RsaSsaPssVerifier, InvalidVerificationKey) {
 
   EXPECT_THAT(
       verifier->Verify(test_vec.signature, test_vec.message),
-      testing::status::StatusIs(absl::StatusCode::kInvalidArgument,
+      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
                                 testing::HasSubstr("verification failed")));
 }
 

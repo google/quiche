@@ -23,6 +23,7 @@
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/blind_signer.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace private_membership {
 namespace anonymous_tokens {
@@ -31,7 +32,7 @@ namespace anonymous_tokens {
 // Signature Scheme) encoding is defined at
 // https://tools.ietf.org/html/rfc8017#section-8.1). This implementation uses
 // Boring SSL for the underlying cryptographic operations.
-class RsaBlindSigner : public BlindSigner {
+class QUICHE_EXPORT RsaBlindSigner : public BlindSigner {
  public:
   ~RsaBlindSigner() override = default;
   RsaBlindSigner(const RsaBlindSigner&) = delete;

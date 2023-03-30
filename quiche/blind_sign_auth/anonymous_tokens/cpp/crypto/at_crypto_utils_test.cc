@@ -37,7 +37,7 @@ struct IetfNewPublicExponentWithPublicMetadataTestVector {
   std::string new_e;
 };
 
-TEST(CryptoUtilsTest, BignumToStringAndBack) {
+TEST(AnonymousTokensCryptoUtilsTest, BignumToStringAndBack) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(BnCtxPtr ctx, GetAndStartBigNumCtx());
 
   // Create a new BIGNUM using the context and set it
@@ -58,7 +58,7 @@ TEST(CryptoUtilsTest, BignumToStringAndBack) {
   EXPECT_EQ(BN_cmp(bn_1.get(), bn_2.get()), 0);
 }
 
-TEST(CryptoUtilsTest, PowerOfTwoAndRsaSqrtTwo) {
+TEST(AnonymousTokensCryptoUtilsTest, PowerOfTwoAndRsaSqrtTwo) {
   // Compute 2^(10-1/2).
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> sqrt2,
                                    GetRsaSqrtTwo(10));
@@ -70,7 +70,7 @@ TEST(CryptoUtilsTest, PowerOfTwoAndRsaSqrtTwo) {
   EXPECT_LT(BN_cmp(sqrt2.get(), large_pow2.get()), 0);
 }
 
-TEST(CryptoUtilsTest, ComputeHashAcceptsNullStringView) {
+TEST(AnonymousTokensCryptoUtilsTest, ComputeHashAcceptsNullStringView) {
   absl::StatusOr<std::string> null_hash =
       ComputeHash(absl::string_view(nullptr, 0), *EVP_sha512());
   absl::StatusOr<std::string> empty_hash = ComputeHash("", *EVP_sha512());
@@ -85,7 +85,7 @@ TEST(CryptoUtilsTest, ComputeHashAcceptsNullStringView) {
   EXPECT_EQ(*null_hash, *empty_str_hash);
 }
 
-TEST(CryptoUtilsTest, ComputeCarmichaelLcm) {
+TEST(AnonymousTokensCryptoUtilsTest, ComputeCarmichaelLcm) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(BnCtxPtr ctx, GetAndStartBigNumCtx());
 
   // Suppose that N = 1019 * 1187.
@@ -154,7 +154,7 @@ TEST_P(ComputeHashTest, ComputesHash) {
 INSTANTIATE_TEST_SUITE_P(ComputeHashTests, ComputeHashTest,
                          testing::ValuesIn(GetComputeHashTestParams()));
 
-TEST(CryptoUtilsInternalTest, PublicMetadataHashWithHKDF) {
+TEST(PublicMetadataCryptoUtilsInternalTest, PublicMetadataHashWithHKDF) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(BnCtxPtr ctx, GetAndStartBigNumCtx());
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> max_value,
                                    NewBigNum());
@@ -182,7 +182,7 @@ TEST(CryptoUtilsInternalTest, PublicMetadataHashWithHKDF) {
   EXPECT_LT(BN_cmp(output2.get(), max_value.get()), 0);
 }
 
-TEST(CryptoUtilsTest, PublicExponentHashDifferentModulus) {
+TEST(PublicMetadataCryptoUtilsTest, PublicExponentHashDifferentModulus) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto key_pair_1, GetStrongRsaKeys2048());
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto key_pair_2,
                                    GetAnotherStrongRsaKeys2048());
@@ -241,7 +241,8 @@ GetIetfNewPublicExponentWithPublicMetadataTestVectors() {
   return test_vectors;
 }
 
-TEST(CryptoUtilsTest, IetfNewPublicExponentWithPublicMetadataTests) {
+TEST(PublicMetadataCryptoUtilsTest,
+     IetfNewPublicExponentWithPublicMetadataTests) {
   const auto test_vectors =
       GetIetfNewPublicExponentWithPublicMetadataTestVectors();
   for (const IetfNewPublicExponentWithPublicMetadataTestVector& test_vector :
