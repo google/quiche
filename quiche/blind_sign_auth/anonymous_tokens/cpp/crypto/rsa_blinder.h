@@ -18,6 +18,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/status/status.h"
@@ -35,9 +36,12 @@ namespace anonymous_tokens {
 // signed.
 class QUICHE_EXPORT RsaBlinder : public Blinder {
  public:
+  // Passing of public_metadata is optional. If it is set to any value including
+  // an empty string, RsaBlinder will assume that partially blind RSA signature
+  // protocol is being executed.
   static absl::StatusOr<std::unique_ptr<RsaBlinder>> New(
       const RSABlindSignaturePublicKey& public_key,
-      absl::string_view public_metadata = "");
+      std::optional<absl::string_view> public_metadata = std::nullopt);
 
   // Blind `message` using n and e derived from an RSA public key and the public
   // metadata if applicable.
@@ -55,7 +59,8 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
 
  private:
   // Use `New` to construct
-  RsaBlinder(int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
+  RsaBlinder(int salt_length, std::optional<absl::string_view> public_metadata,
+             const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
              bssl::UniquePtr<RSA> rsa_public_key,
              bssl::UniquePtr<BIGNUM> rsa_modulus,
              bssl::UniquePtr<BIGNUM> augmented_rsa_e, bssl::UniquePtr<BIGNUM> r,
@@ -63,14 +68,15 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
              bssl::UniquePtr<BN_MONT_CTX> mont_n);
 
   const int salt_length_;
+  std::optional<absl::string_view> public_metadata_;
   const EVP_MD* sig_hash_;   // Owned by BoringSSL.
   const EVP_MD* mgf1_hash_;  // Owned by BoringSSL.
 
   const bssl::UniquePtr<RSA> rsa_public_key_;
   // Storing RSA modulus separately for helping with BN computations.
   const bssl::UniquePtr<BIGNUM> rsa_modulus_;
-  // If public metadata is not supported, augmented_rsa_e_ will be a null
-  // pointer.
+  // If public metadata is not supported, augmented_rsa_e_ will be equal to
+  // public exponent e in rsa_public_key_.
   const bssl::UniquePtr<BIGNUM> augmented_rsa_e_;
 
   const bssl::UniquePtr<BIGNUM> r_;
@@ -78,7 +84,6 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
   const bssl::UniquePtr<BIGNUM> r_inv_mont_;
   const bssl::UniquePtr<BN_MONT_CTX> mont_n_;
 
-  std::string message_;
   BlinderState blinder_state_;
 };
 

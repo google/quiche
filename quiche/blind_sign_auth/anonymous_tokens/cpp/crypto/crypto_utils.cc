@@ -163,6 +163,49 @@ std::string MaskMessageConcat(absl::string_view mask,
   return absl::StrCat(mask, message);
 }
 
+std::string EncodeMessagePublicMetadata(absl::string_view message,
+                                        absl::string_view public_metadata) {
+  // Prepend encoding of "msg" followed by 4 bytes representing public metadata
+  // length.
+  std::string tag = "msg";
+  std::vector<uint8_t> buffer(tag.begin(), tag.end());
+  buffer.push_back((public_metadata.size() >> 24) & 0xFF);
+  buffer.push_back((public_metadata.size() >> 16) & 0xFF);
+  buffer.push_back((public_metadata.size() >> 8) & 0xFF);
+  buffer.push_back((public_metadata.size() >> 0) & 0xFF);
+
+  // Finally append public metadata and then the message to the output.
+  std::string encoding(buffer.begin(), buffer.end());
+  return absl::StrCat(encoding, public_metadata, message);
+}
+
+absl::StatusOr<const EVP_MD*> ProtoHashTypeToEVPDigest(
+    const HashType hash_type) {
+  switch (hash_type) {
+    case AT_HASH_TYPE_SHA256:
+      return EVP_sha256();
+    case AT_HASH_TYPE_SHA384:
+      return EVP_sha384();
+    case AT_HASH_TYPE_UNDEFINED:
+    default:
+      return absl::InvalidArgumentError("Unknown hash type.");
+  }
+}
+
+absl::StatusOr<const EVP_MD*> ProtoMaskGenFunctionToEVPDigest(
+    const MaskGenFunction mgf) {
+  switch (mgf) {
+    case AT_MGF_SHA256:
+      return EVP_sha256();
+    case AT_MGF_SHA384:
+      return EVP_sha384();
+    case AT_MGF_UNDEFINED:
+    default:
+      return absl::InvalidArgumentError(
+          "Unknown hash type for mask generation hash function.");
+  }
+}
+
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> GetRsaSqrtTwo(int x) {
   // Compute hard-coded sqrt(2).
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> sqrt2, NewBigNum());

@@ -77,6 +77,57 @@ absl::StatusOr<bssl::UniquePtr<RSA>> GenerateRSAKey(int modulus_bit_size,
   return rsa;
 }
 
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> PopulateTestVectorKeys(
+    const std::string& n, const std::string& e, const std::string& d,
+    const std::string& p, const std::string& q) {
+  RSAPublicKey public_key;
+  RSAPrivateKey private_key;
+
+  public_key.set_n(n);
+  public_key.set_e(e);
+
+  private_key.set_n(n);
+  private_key.set_e(e);
+  private_key.set_d(d);
+  private_key.set_p(p);
+  private_key.set_q(q);
+
+  // Computing CRT parameters
+  ANON_TOKENS_ASSIGN_OR_RETURN(BnCtxPtr bn_ctx, GetAndStartBigNumCtx());
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> dp_bn, NewBigNum());
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> dq_bn, NewBigNum());
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> crt_bn, NewBigNum());
+
+  // p - 1
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> pm1, StringToBignum(p));
+  BN_sub_word(pm1.get(), 1);
+  // q - 1
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> qm1, StringToBignum(q));
+  BN_sub_word(qm1.get(), 1);
+  // d mod p-1
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> d_bn, StringToBignum(d));
+  BN_mod(dp_bn.get(), d_bn.get(), pm1.get(), bn_ctx.get());
+  // d mod q-1
+  BN_mod(dq_bn.get(), d_bn.get(), qm1.get(), bn_ctx.get());
+  // crt q^(-1) mod p
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> q_bn, StringToBignum(q));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> p_bn, StringToBignum(p));
+  BN_mod_inverse(crt_bn.get(), q_bn.get(), p_bn.get(), bn_ctx.get());
+
+  // Populating crt params in private key
+  ANON_TOKENS_ASSIGN_OR_RETURN(
+      std::string dp_str, BignumToString(*dp_bn, BN_num_bytes(dp_bn.get())));
+  ANON_TOKENS_ASSIGN_OR_RETURN(
+      std::string dq_str, BignumToString(*dq_bn, BN_num_bytes(dq_bn.get())));
+  ANON_TOKENS_ASSIGN_OR_RETURN(
+      std::string crt_str, BignumToString(*crt_bn, BN_num_bytes(crt_bn.get())));
+  private_key.set_dp(dp_str);
+  private_key.set_dq(dq_str);
+  private_key.set_crt(crt_str);
+
+  return std::make_pair(std::move(public_key), std::move(private_key));
+}
+
 }  // namespace
 
 absl::StatusOr<std::pair<bssl::UniquePtr<RSA>, RSABlindSignaturePublicKey>>
@@ -144,9 +195,7 @@ absl::StatusOr<std::string> TestSign(const absl::string_view blinded_data,
 absl::StatusOr<std::string> TestSignWithPublicMetadata(
     const absl::string_view blinded_data, absl::string_view public_metadata,
     const RSA& rsa_key) {
-  if (public_metadata.empty()) {
-    return absl::InvalidArgumentError("Public Metadata is empty.");
-  } else if (blinded_data.empty()) {
+  if (blinded_data.empty()) {
     return absl::InvalidArgumentError("blinded_data string is empty.");
   } else if (blinded_data.size() != RSA_size(&rsa_key)) {
     return absl::InternalError(absl::StrCat(
@@ -490,61 +539,240 @@ GetIetfStandardRsaBlindSignatureTestVector() {
   return test_vector;
 }
 
+std::vector<IetfRsaBlindSignatureWithPublicMetadataTestVector>
+GetIetfRsaBlindSignatureWithPublicMetadataTestVectors() {
+  // n
+  std::string n = absl::HexStringToBytes(
+      "d6930820f71fe517bf3259d14d40209b02a5c0d3d61991c731dd7da39f8d69821552"
+      "e2318d6c9ad897e603887a476ea3162c1205da9ac96f02edf31df049bd55f142134c"
+      "17d4382a0e78e275345f165fbe8e49cdca6cf5c726c599dd39e09e75e0f330a33121"
+      "e73976e4facba9cfa001c28b7c96f8134f9981db6750b43a41710f51da4240fe0310"
+      "6c12acb1e7bb53d75ec7256da3fddd0718b89c365410fce61bc7c99b115fb4c3c318"
+      "081fa7e1b65a37774e8e50c96e8ce2b2cc6b3b367982366a2bf9924c4bafdb3ff5e7"
+      "22258ab705c76d43e5f1f121b984814e98ea2b2b8725cd9bc905c0bc3d75c2a8db70"
+      "a7153213c39ae371b2b5dc1dafcb19d6fae9");
+  std::string e = absl::HexStringToBytes("010001");
+  std::string d = absl::HexStringToBytes(
+      "4e21356983722aa1adedb084a483401c1127b781aac89eab103e1cfc52215494981d"
+      "18dd8028566d9d499469c25476358de23821c78a6ae43005e26b394e3051b5ca206a"
+      "a9968d68cae23b5affd9cbb4cb16d64ac7754b3cdba241b72ad6ddfc000facdb0f0d"
+      "d03abd4efcfee1730748fcc47b7621182ef8af2eeb7c985349f62ce96ab373d2689b"
+      "aeaea0e28ea7d45f2d605451920ca4ea1f0c08b0f1f6711eaa4b7cca66d58a6b916f"
+      "9985480f90aca97210685ac7b12d2ec3e30a1c7b97b65a18d38a93189258aa346bf2"
+      "bc572cd7e7359605c20221b8909d599ed9d38164c9c4abf396f897b9993c1e805e57"
+      "4d704649985b600fa0ced8e5427071d7049d");
+  std::string p = absl::HexStringToBytes(
+      "dcd90af1be463632c0d5ea555256a20605af3db667475e190e3af12a34a3324c46a3"
+      "094062c59fb4b249e0ee6afba8bee14e0276d126c99f4784b23009bf6168ff628ac1"
+      "486e5ae8e23ce4d362889de4df63109cbd90ef93db5ae64372bfe1c55f832766f21e"
+      "94ea3322eb2182f10a891546536ba907ad74b8d72469bea396f3");
+  std::string q = absl::HexStringToBytes(
+      "f8ba5c89bd068f57234a3cf54a1c89d5b4cd0194f2633ca7c60b91a795a56fa8c868"
+      "6c0e37b1c4498b851e3420d08bea29f71d195cfbd3671c6ddc49cf4c1db5b478231e"
+      "a9d91377ffa98fe95685fca20ba4623212b2f2def4da5b281ed0100b651f6db32112"
+      "e4017d831c0da668768afa7141d45bbc279f1e0f8735d74395b3");
+
+  std::vector<IetfRsaBlindSignatureWithPublicMetadataTestVector> test_vectors;
+  // test_vector 1.
+  test_vectors.push_back({
+      n,
+      e,
+      d,
+      p,
+      q,
+      // message
+      absl::HexStringToBytes("68656c6c6f20776f726c64"),
+      // public_metadata
+      absl::HexStringToBytes("6d65746164617461"),
+      // message_mask
+      absl::HexStringToBytes(
+          "64b5c5d2b2ca672690df59bab774a389606d85d56f92a18a57c42eb4cb164d43"),
+      // blinded_message
+      absl::HexStringToBytes(
+          "1b9e1057dd2d05a17ad2feba5f87a4083cc825fe06fc70f0b782062ea0043fa65ec8"
+          "096ce5d403cfa2aa3b11195b2a655d694386058f6266450715a936b5764f42977c0a"
+          "0933ff3054d456624734fd2c019def792f00d30b3ac2f27859ea56d835f80564a3ba"
+          "59f3c876dc926b2a785378ca83f177f7b378513b36a074e7db59448fd4007b54c647"
+          "91a33b61721ab3b5476165193af30f25164d480684d045a8d0782a53dd73774563e8"
+          "d29e48b175534f696763abaab49fa03a055ec9246c5e398a5563cc88d02eb57d725d"
+          "3fc9231ae5139aa7fcb9941060b0bf0192b8c81944fa0c54568b0ab4ea9c4c4c9829"
+          "d6dbcbf8b48006b322ee51d784ac93e4bf13"),
+      // blinded_signature
+      absl::HexStringToBytes(
+          "7ef75d9887f29f2232602acab43263afaea70313a0c90374388df5a7a7440d2584c4"
+          "b4e5b886accc065bf4824b4b22370ddde7fea99d4cd67f8ed2e4a6a2b7b5869e8d4d"
+          "0c52318320c5bf7b9f02bb132af7365c471e799edd111ca9441934c7db76c164b051"
+          "5afc5607b8ceb584f5b1d2177d5180e57218265c07aec9ebde982f3961e7ddaa432e"
+          "47297884da8f4512fe3dc9ab820121262e6a73850920299999c293b017cd800c6ec9"
+          "94f76b6ace35ff4232f9502e6a52262e19c03de7cc27d95ccbf4c381d698fcfe1f20"
+          "0209814e04ae2d6279883015bbf36cabf3e2350be1e175020ee9f4bb861ba409b467"
+          "e23d08027a699ac36b2e5ab988390f3c0ee9"),
+      // signature
+      absl::HexStringToBytes(
+          "abd6813bb4bbe3bc8dc9f8978655b22305e5481b35c5bdc4869b60e2d5cc74b84356"
+          "416abaaca0ca8602cd061248587f0d492fee3534b19a3fe089de18e4df9f3a6ad289"
+          "afb5323d7934487b8fafd25943766072bab873fa9cd69ce7328a57344c2c529fe969"
+          "83ca701483ca353a98a1a9610391b7d32b13e14e8ef87d04c0f56a724800655636cf"
+          "ff280d35d6b468f68f09f56e1b3acdb46bc6634b7a1eab5c25766cec3b5d97c37bbc"
+          "a302286c17ff557bcf1a4a0e342ea9b2713ab7f935c8174377bace2e5926b3983407"
+          "9761d9121f5df1fad47a51b03eab3d84d050c99cf1f68718101735267cca3213c0a4"
+          "6c0537887ffe92ca05371e26d587313cc3f4"),
+  });
+
+  // test_vector 2.
+  test_vectors.push_back({
+      n,
+      e,
+      d,
+      p,
+      q,
+      // message
+      absl::HexStringToBytes("68656c6c6f20776f726c64"),
+      // public_metadata
+      "",
+      // message_mask
+      absl::HexStringToBytes(
+          "ebb56541b9a1758028033cfb085a4ffe048f072c6c82a71ce21d40842b5c0a89"),
+      // blinded_message
+      absl::HexStringToBytes(
+          "d1fc97f30efbf116fadd9895130cdd55f939211f7db19ce9a85287227a02b33fb698"
+          "b52399f81be0e1f598482000202ec89968085753eae1810f14676b514e08238c8aa7"
+          "9d8b999af54e9f4282c6220d4d760716e48e5413f3228cc59ce10b8252916640de7b"
+          "9b5c7dc9c2bff9f53b4fb5eb4a5f8bab49af3fd1b955d34312073d15030e7fdb44bd"
+          "b23460d1c5662597f9947092def7fff955a5f3e63419ae9858c6405f9609b63c4331"
+          "e0cf90d24c196bee554f2b78e0d8f6da3d4308c8d4ae9fbe18a8bb7fa4fc3b9cacd4"
+          "263e5bd6e12ed891cfdfba8b50d0f37d7a9abe065238367907c685ed2c224924caf5"
+          "d8fe41f5db898b09a0501d318d9f65d88cb8"),
+      // blinded_signature
+      absl::HexStringToBytes(
+          "400c1bcdfa56624f15d04f6954908b5605dbeff4cd56f384d7531669970290d70652"
+          "9d44cde4c972a1399635525a2859ef1d914b4130068ed407cfda3bd9d1259790a30f"
+          "6d8c07d190aa98bf21ae9581e5d61801565d96e9eec134335958b3d0b905739e2fd9"
+          "f39074da08f869089fe34de2d218062afa16170c1505c67b65af4dcc2f1aeccd4827"
+          "5c3dacf96116557b7f8c7044d84e296a0501c511ba1e6201703e1dd834bf47a96e1a"
+          "c4ec9b935233ed751239bd4b514b031522cd51615c1555e520312ed1fa43f55d4abe"
+          "b222ee48b4746c79006966590004714039bac7fd18cdd54761924d91a4648e871458"
+          "937061ef6549dd12d76e37ed417634d88914"),
+      // signature
+      absl::HexStringToBytes(
+          "4062960edb71cc071e7d101db4f595aae4a98e0bfe6843aca3e5f48c9dfb46d505e8"
+          "c19806ffa07f040313d44d0996ef9f69a86fa5946cb818a32627fe2df2a0e8035028"
+          "8ae4fedfbee4193554cc1433d9d27639db8b4635265504d87dca7054c85e0c882d32"
+          "887534405e6cc4e7eb4b174383e5ce4eebbfffb217f353102f6d1a0461ef89238de3"
+          "1b0a0c134dfac0d2a8c533c807ccdd557c6510637596a490d5258b77410421be4076"
+          "ecdf2d7e9044327e36e349751f3239681bba10fe633f1b246f5a9f694706316898c9"
+          "00af2294f47267f2e9ad1e61c7f56bf643280258875d29f3745dfdb74b9bbcd5fe3d"
+          "ea62d9be85e2c6f5aed68bc79f8b4a27b3de"),
+  });
+
+  // test_vector 3.
+  test_vectors.push_back({
+      n,
+      e,
+      d,
+      p,
+      q,
+      // message
+      "",
+      // public_metadata
+      absl::HexStringToBytes("6d65746164617461"),
+      // message_mask
+      absl::HexStringToBytes(
+          "f2a4ed7c5aa338430c7026d7d92017f994ca1c8b123b236dae8666b1899059d0"),
+      // blinded_message
+      absl::HexStringToBytes(
+          "7756a1f89fa33cfc083567e02fd865d07d6e5cd4943f030a2f94b5c23f3fe79c83c4"
+          "9c594247d02885e2cd161638cff60803184c9e802a659d76a1c53340972e62e728cc"
+          "70cf684ef03ce2d05cefc729e6eee2ae46afa17b6b27a64f91e4c46cc12adc58d9cb"
+          "61a4306dac732c9789199cfe8bd28359d1911678e9709bc159dae34ac7aa59fd0c95"
+          "962c9f4904bf04aaba8a7e774735bd03be4a02fb0864a53354a2e2f3502506318a5b"
+          "03961366005c7b120f0e6b87b44bc15658c3e8985d69f6adea38c24fe5e7b4bafa1a"
+          "d6dc7d729281c26dffc88bd34fcc5a5f9df9b9781f99ea47472ba8bd679aaada5952"
+          "5b978ebc8a3ea2161de84b7398e4878b751b"),
+      // blinded_signature
+      absl::HexStringToBytes(
+          "2a13f73e4e255a9d5bc6f76cf48dfbf189581c2b170600fd3ab1a3def14884621323"
+          "9b9d0a981537541cb4f481a602aeebca9ef28c9fcdc63d15d4296f85d864f799edf0"
+          "8e9045180571ce1f1d3beff293b18aae9d8845068cc0d9a05b822295042dc56a1a2b"
+          "604c51aa65fd89e6d163fe1eac63cf603774797b7936a8b7494d43fa37039d3777b8"
+          "e57cf0d95227ab29d0bd9c01b3eae9dde5fca7141919bd83a17f9b1a3b401507f3e3"
+          "a8e8a2c8eb6c5c1921a781000fee65b6dd851d53c89cba2c3375f0900001c0485594"
+          "9b7fa499f2a78089a6f0c9b4d36fdfcac2d846076736c5eaedaf0ae70860633e51b0"
+          "de21d96c8b43c600afa2e4cc64cd66d77a8f"),
+      // signature
+      absl::HexStringToBytes(
+          "67985949f4e7c91edd5647223170d2a9b6611a191ca48ceadb6c568828b4c415b627"
+          "0b037cd8a68b5bca1992eb769aaef04549422889c8b156b9378c50e8a31c07dc1fe0"
+          "a80d25b870fadbcc1435197f0a31723740f3084ecb4e762c623546f6bd7d072aa565"
+          "bc2105b954244a2b03946c7d4093ba1216ec6bb65b8ca8d2f3f3c43468e80b257c54"
+          "a2c2ea15f640a08183a00488c7772b10df87232ee7879bee93d17e194d6b703aeceb"
+          "348c1b02ec7ce202086b6494f96a0f2d800f12e855f9c33dcd3abf6bd8044efd69d4"
+          "594a974d6297365479fe6c11f6ecc5ea333031c57deb6e14509777963a25cdf8db62"
+          "d6c8c68aa038555e4e3ae4411b28e43c8f57"),
+  });
+
+  // test_vector 4.
+  test_vectors.push_back({
+      n,
+      e,
+      d,
+      p,
+      q,
+      // message
+      "",
+      // public_metadata
+      "",
+      // message_mask
+      absl::HexStringToBytes(
+          "ba3ea4b1e475eebe11d4bfe3a48521d3ba8cd62f3baed9ec29fbbf7ff0478bc0"),
+      // blinded_message
+      absl::HexStringToBytes(
+          "99d725c5613ff87d16464b0375b0976bf4d47319d6946e85f0d0c2ca79eb02a4c0c2"
+          "82642e090a910b80fee288f0b3b6777e517b757fc6c96ea44ac570216c8fcd868e15"
+          "da4b389b0c70898c5a2ed25c1d13451e4d407fe1301c231b4dc76826b1d4cc5e64b0"
+          "e28fb9c71f928ba48c87e308d851dd07fb5a7e0aa5d0dce61d1348afb4233355374e"
+          "5898f63adbd5ba215332d3329786fb7c30ef04c181b267562828d8cf1295f2ef4a05"
+          "ef1e03ed8fee65efb7725d8c8ae476f61a35987e40efc481bcb4b89cb363addfb2ad"
+          "acf690aff5425107d29b2a75b4665d49f255c5caa856cdc0c5667de93dbf3f500db8"
+          "fcce246a70a159526729d82c34df69c926a8"),
+      // blinded_signature
+      absl::HexStringToBytes(
+          "a9678acee80b528a836e4784f0690fdddce147e5d4ac506e9ec51c11b16ee2fd5a32"
+          "e382a3c3d276a681bb638b63040388d53894afab79249e159835cd6bd65849e5d139"
+          "7666f03d1351aaec3eae8d3e7cba3135e7ec4e7b478ef84d79d81039693adc6b130b"
+          "0771e3d6f0879723a20b7f72b476fe6fef6f21e00b9e3763a364ed918180f939c351"
+          "0bb5f46b35c06a00e51f049ade9e47a8e1c3d5689bd5a43df20b73d70dcacfeed9fa"
+          "23cabfbe750779997da6bc7269d08b2620acaa3daa0d9e9d4b87ef841ebcc06a4c0a"
+          "f13f1d13f0808f512c50898586b4fc76d2b32858a7ddf715a095b7989d8df50654e3"
+          "e05120a83cec275709cf79571d8f46af2b8e"),
+      // signature
+      absl::HexStringToBytes(
+          "ba57951810dbea7652209eb73e3b8edafc56ca7061475a048751cbfb995aeb4ccda2"
+          "e9eb309698b7c61012accc4c0414adeeb4b89cd29ba2b49b1cc661d5e7f30caee7a1"
+          "2ab36d6b52b5e4d487dbff98eb2d27d552ecd09ca022352c9480ae27e10c3a49a1fd"
+          "4912699cc01fba9dbbfd18d1adcec76ca4bc44100ea67b9f1e00748d80255a03371a"
+          "7b8f2c160cf632499cea48f99a6c2322978bd29107d0dffdd2e4934bb7dc81c90dd6"
+          "3ae744fd8e57bff5e83f98014ca502b6ace876b455d1e3673525ba01687dce998406"
+          "e89100f55316147ad510e854a064d99835554de8949d3662708d5f1e43bca473c14a"
+          "8b1729846c6092f18fc0e08520e9309a32de"),
+  });
+  return test_vectors;
+}
+
 absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>>
 GetIetfStandardRsaBlindSignatureTestKeys() {
   IetfStandardRsaBlindSignatureTestVector test_vector =
       GetIetfStandardRsaBlindSignatureTestVector();
-  RSAPublicKey public_key;
-  RSAPrivateKey private_key;
+  return PopulateTestVectorKeys(test_vector.n, test_vector.e, test_vector.d,
+                                test_vector.p, test_vector.q);
+}
 
-  public_key.set_n(test_vector.n);
-  public_key.set_e(test_vector.e);
-
-  private_key.set_n(test_vector.n);
-  private_key.set_e(test_vector.e);
-  private_key.set_d(test_vector.d);
-  private_key.set_p(test_vector.p);
-  private_key.set_q(test_vector.q);
-
-  // Computing CRT parameters
-  ANON_TOKENS_ASSIGN_OR_RETURN(BnCtxPtr bn_ctx, GetAndStartBigNumCtx());
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> dp_bn, NewBigNum());
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> dq_bn, NewBigNum());
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> crt_bn, NewBigNum());
-
-  // p - 1
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> pm1,
-                               StringToBignum(test_vector.p));
-  BN_sub_word(pm1.get(), 1);
-  // q - 1
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> qm1,
-                               StringToBignum(test_vector.q));
-  BN_sub_word(qm1.get(), 1);
-  // d mod p-1
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> d,
-                               StringToBignum(test_vector.d));
-  BN_mod(dp_bn.get(), d.get(), pm1.get(), bn_ctx.get());
-  // d mod q-1
-  BN_mod(dq_bn.get(), d.get(), qm1.get(), bn_ctx.get());
-  // crt q^(-1) mod p
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> q,
-                               StringToBignum(test_vector.q));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> p,
-                               StringToBignum(test_vector.p));
-  BN_mod_inverse(crt_bn.get(), q.get(), p.get(), bn_ctx.get());
-
-  // Populating crt params in private key
-  ANON_TOKENS_ASSIGN_OR_RETURN(
-      std::string dp_str, BignumToString(*dp_bn, BN_num_bytes(dp_bn.get())));
-  ANON_TOKENS_ASSIGN_OR_RETURN(
-      std::string dq_str, BignumToString(*dq_bn, BN_num_bytes(dq_bn.get())));
-  ANON_TOKENS_ASSIGN_OR_RETURN(
-      std::string crt_str, BignumToString(*crt_bn, BN_num_bytes(crt_bn.get())));
-  private_key.set_dp(dp_str);
-  private_key.set_dq(dq_str);
-  private_key.set_crt(crt_str);
-
-  return std::make_pair(std::move(public_key), std::move(private_key));
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>>
+GetIetfRsaBlindSignatureWithPublicMetadataTestKeys() {
+  auto test_vectors = GetIetfRsaBlindSignatureWithPublicMetadataTestVectors();
+  return PopulateTestVectorKeys(test_vectors[0].n, test_vectors[0].e,
+                                test_vectors[0].d, test_vectors[0].p,
+                                test_vectors[0].q);
 }
 
 std::string RandomString(int n, std::uniform_int_distribution<int>* distr_u8,

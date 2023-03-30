@@ -93,8 +93,15 @@ std::string QUICHE_EXPORT GetSslErrors();
 
 // Mask message using protocol at
 // https://datatracker.ietf.org/doc/draft-irtf-cfrg-rsa-blind-signatures/
-std::string MaskMessageConcat(absl::string_view mask,
-                              absl::string_view message);
+std::string QUICHE_EXPORT MaskMessageConcat(absl::string_view mask,
+                                                  absl::string_view message);
+
+// Encode Message and Public Metadata using steps in
+// https://datatracker.ietf.org/doc/draft-amjad-cfrg-partially-blind-rsa/
+//
+// The length of public metadata must fit in 4 bytes.
+std::string QUICHE_EXPORT EncodeMessagePublicMetadata(
+    absl::string_view message, absl::string_view public_metadata);
 
 // Compute 2^(x - 1/2).
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT GetRsaSqrtTwo(
@@ -103,6 +110,15 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT GetRsaSqrtTwo(
 // Compute compute 2^x.
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT ComputePowerOfTwo(
     int x);
+
+// Converts the AnonymousTokens proto hash type to the equivalent EVP digest.
+absl::StatusOr<const EVP_MD*> QUICHE_EXPORT
+ProtoHashTypeToEVPDigest(HashType hash_type);
+
+// Converts the AnonymousTokens proto hash type for mask generation function to
+// the equivalent EVP digest.
+absl::StatusOr<const EVP_MD*> QUICHE_EXPORT
+ProtoMaskGenFunctionToEVPDigest(MaskGenFunction mgf);
 
 // ComputeHash sub-routine used during blindness and verification of RSA blind
 // signatures protocol with or without public metadata.

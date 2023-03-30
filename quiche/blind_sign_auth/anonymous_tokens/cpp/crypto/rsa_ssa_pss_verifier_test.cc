@@ -34,7 +34,8 @@ namespace anonymous_tokens {
 namespace {
 
 // TODO(b/259581423): Add tests incorporating blinder and signer.
-
+// TODO(b/275956922): Consolidate all tests that use IETF test vectors into one
+// E2E test.
 TEST(RsaSsaPssVerifier, SuccessfulVerification) {
   const IetfStandardRsaBlindSignatureTestVector test_vec =
       GetIetfStandardRsaBlindSignatureTestVector();
@@ -89,22 +90,49 @@ TEST(RsaSsaPssVerifier, InvalidVerificationKey) {
                                 testing::HasSubstr("verification failed")));
 }
 
-TEST(RsaSsaPssVerifier, EmptyMessageVerification) {
-  const IetfStandardRsaBlindSignatureTestVector test_vec =
-      GetIetfStandardRsaBlindSignatureTestVector();
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const auto test_keys,
-                                   GetIetfStandardRsaBlindSignatureTestKeys());
+TEST(RsaSsaPssVerifierTestWithPublicMetadata,
+     EmptyMessageStandardVerificationSuccess) {
+  absl::string_view message = "";
+  const EVP_MD *sig_hash = EVP_sha384();   // Owned by BoringSSL
+  const EVP_MD *mgf1_hash = EVP_sha384();  // Owned by BoringSSL
+  const int salt_length = kSaltLengthInBytes48;
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const auto test_key,
+                                   GetStandardRsaKeyPair());
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      auto private_key, AnonymousTokensRSAPrivateKeyToRSA(test_key.second));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::string encoded_message,
+      EncodeMessageForTests(message, test_key.first, sig_hash, mgf1_hash,
+                            salt_length));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::string potentially_insecure_signature,
+      TestSign(encoded_message, private_key.get()));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      auto verifier,
+      RsaSsaPssVerifier::New(salt_length, sig_hash, mgf1_hash, test_key.first));
+  QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
+}
+
+// TODO(b/275956922): Consolidate all tests that use IETF test vectors into one
+// E2E test.
+TEST(RsaSsaPssVerifierTestWithPublicMetadata,
+     IetfRsaBlindSignaturesWithPublicMetadataTestVectorsSuccess) {
+  auto test_vectors = GetIetfRsaBlindSignatureWithPublicMetadataTestVectors();
   const EVP_MD *sig_hash = EVP_sha384();   // Owned by BoringSSL
   const EVP_MD *mgf1_hash = EVP_sha384();  // Owned by BoringSSL
   const int salt_length = kSaltLengthInBytes48;
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      const auto verifier, RsaSsaPssVerifier::New(salt_length, sig_hash,
-                                                  mgf1_hash, test_keys.first));
-
-  EXPECT_THAT(verifier->Verify(test_vec.signature, ""),
-              testing::status::StatusIs(
-                  absl::StatusCode::kInvalidArgument,
-                  testing::HasSubstr("Input message string is empty.")));
+      const auto test_key,
+      GetIetfRsaBlindSignatureWithPublicMetadataTestKeys());
+  for (const auto &test_vector : test_vectors) {
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+        auto verifier,
+        RsaSsaPssVerifier::New(salt_length, sig_hash, mgf1_hash, test_key.first,
+                               test_vector.public_metadata));
+    QUICHE_EXPECT_OK(verifier->Verify(
+        test_vector.signature,
+        MaskMessageConcat(test_vector.message_mask, test_vector.message)));
+  }
 }
 
 using CreateTestKeyPairFunction =
@@ -139,10 +167,12 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
        VerifierWorksWithPublicMetadata) {
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
+  std::string augmented_message =
+      EncodeMessagePublicMetadata(message, public_metadata);
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
-      EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
-                            salt_length_));
+      EncodeMessageForTests(augmented_message, public_key_, sig_hash_,
+                            mgf1_hash_, salt_length_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
@@ -158,10 +188,12 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
   absl::string_view public_metadata_2 = "pubmd2";
+  std::string augmented_message =
+      EncodeMessagePublicMetadata(message, public_metadata);
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
-      EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
-                            salt_length_));
+      EncodeMessageForTests(augmented_message, public_key_, sig_hash_,
+                            mgf1_hash_, salt_length_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
@@ -176,25 +208,71 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
 }
 
 TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
-       VerifierFailsToVerifyWithNoPublicMetadata) {
+       VerifierFailsToVerifyWithEmptyPublicMetadata) {
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
-  absl::string_view public_metadata_2 = "";
+  absl::string_view empty_public_metadata = "";
+  std::string augmented_message =
+      EncodeMessagePublicMetadata(message, public_metadata);
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
-      EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
-                            salt_length_));
+      EncodeMessageForTests(augmented_message, public_key_, sig_hash_,
+                            mgf1_hash_, salt_length_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
                                  *private_key_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
-                                            public_key_, public_metadata_2));
+      auto verifier,
+      RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_,
+                             empty_public_metadata));
   EXPECT_THAT(
       verifier->Verify(potentially_insecure_signature, message),
       quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
                                   ::testing::HasSubstr("verification failed")));
+}
+
+TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
+       VerifierFailsToVerifyWithoutPublicMetadataSupport) {
+  absl::string_view message = "Hello World!";
+  absl::string_view public_metadata = "pubmd!";
+  std::string augmented_message =
+      EncodeMessagePublicMetadata(message, public_metadata);
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::string encoded_message,
+      EncodeMessageForTests(augmented_message, public_key_, sig_hash_,
+                            mgf1_hash_, salt_length_));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::string potentially_insecure_signature,
+      TestSignWithPublicMetadata(encoded_message, public_metadata,
+                                 *private_key_));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      auto verifier,
+      RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_));
+  EXPECT_THAT(
+      verifier->Verify(potentially_insecure_signature, message),
+      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
+                                  ::testing::HasSubstr("verification failed")));
+}
+
+TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
+       EmptyMessageEmptyPublicMetadataVerificationSuccess) {
+  absl::string_view message = "";
+  absl::string_view public_metadata = "";
+  std::string augmented_message =
+      EncodeMessagePublicMetadata(message, public_metadata);
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::string encoded_message,
+      EncodeMessageForTests(augmented_message, public_key_, sig_hash_,
+                            mgf1_hash_, salt_length_));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::string potentially_insecure_signature,
+      TestSignWithPublicMetadata(encoded_message, public_metadata,
+                                 *private_key_.get()));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
+                                            public_key_, public_metadata));
+  QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
 }
 
 INSTANTIATE_TEST_SUITE_P(RsaSsaPssVerifierTestWithPublicMetadata,

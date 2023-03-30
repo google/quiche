@@ -181,6 +181,8 @@ message AnonymousTokensSignRequest {
     int64 key_version = 2;
 
     // Public metadata to be tied to the `blinded message` (serialized_token).
+    //
+    // The length of public metadata must fit in 4 bytes.
     bytes public_metadata = 4;
 
     // Serialization of the token.
@@ -202,6 +204,8 @@ message AnonymousTokensSignResponse {
 
     // Public metadata tied to the input (serialized_blinded_message) and the
     // `blinded` signature (serialized_token).
+    //
+    // The length of public metadata must fit in 4 bytes.
     bytes public_metadata = 4;
 
     // The serialized_token in BlindedToken in the AnonymousTokensSignRequest.
@@ -228,6 +232,8 @@ message AnonymousTokensRedemptionRequest {
 
     // Public metadata to be used for redeeming the signature
     // (serialized_unblinded_token).
+    //
+    // The length of public metadata must fit in 4 bytes.
     bytes public_metadata = 4;
 
     // Serialization of the unblinded anonymous token that needs to be redeemed.
@@ -255,6 +261,8 @@ message AnonymousTokensRedemptionResponse {
 
     // Public metadata used for verifying the signature
     // (serialized_unblinded_token).
+    //
+    // The length of public metadata must fit in 4 bytes.
     bytes public_metadata = 5;
 
     // Serialization of this redeemed unblinded anonymous token.

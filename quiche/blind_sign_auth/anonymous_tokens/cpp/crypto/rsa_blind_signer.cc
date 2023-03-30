@@ -34,32 +34,33 @@
 namespace private_membership {
 namespace anonymous_tokens {
 
-RsaBlindSigner::RsaBlindSigner(absl::string_view public_metadata,
+RsaBlindSigner::RsaBlindSigner(std::optional<absl::string_view> public_metadata,
                                bssl::UniquePtr<BIGNUM> rsa_modulus,
                                bssl::UniquePtr<BIGNUM> rsa_p,
                                bssl::UniquePtr<BIGNUM> rsa_q,
-                               bssl::UniquePtr<BIGNUM> rsa_e,
-                               bssl::UniquePtr<BIGNUM> rsa_d,
+                               bssl::UniquePtr<BIGNUM> augmented_rsa_e,
+                               bssl::UniquePtr<BIGNUM> augmented_rsa_d,
                                bssl::UniquePtr<RSA> rsa_standard_key)
     : public_metadata_(public_metadata),
       rsa_modulus_(std::move(rsa_modulus)),
       rsa_p_(std::move(rsa_p)),
       rsa_q_(std::move(rsa_q)),
-      rsa_e_(std::move(rsa_e)),
-      rsa_d_(std::move(rsa_d)),
+      augmented_rsa_e_(std::move(augmented_rsa_e)),
+      augmented_rsa_d_(std::move(augmented_rsa_d)),
       rsa_standard_key_(std::move(rsa_standard_key)) {}
 
 absl::StatusOr<std::unique_ptr<RsaBlindSigner>> RsaBlindSigner::New(
-    const RSAPrivateKey& signing_key, absl::string_view metadata) {
-  if (metadata.empty()) {
+    const RSAPrivateKey& signing_key,
+    std::optional<absl::string_view> public_metadata) {
+  if (!public_metadata.has_value()) {
     // The RSA modulus and exponent are checked as part of the conversion to
     // bssl::UniquePtr<RSA>.
     ANON_TOKENS_ASSIGN_OR_RETURN(
         bssl::UniquePtr<RSA> rsa_standard_key,
         AnonymousTokensRSAPrivateKeyToRSA(signing_key));
-    return absl::WrapUnique(new RsaBlindSigner(metadata, nullptr, nullptr,
-                                               nullptr, nullptr, nullptr,
-                                               std::move(rsa_standard_key)));
+    return absl::WrapUnique(
+        new RsaBlindSigner(public_metadata, nullptr, nullptr, nullptr, nullptr,
+                           nullptr, std::move(rsa_standard_key)));
   }
 
   // Convert RSA modulus n (=p*q) to BIGNUM
@@ -78,9 +79,10 @@ absl::StatusOr<std::unique_ptr<RsaBlindSigner>> RsaBlindSigner::New(
                                StringToBignum(signing_key.d()));
 
   // Compute new exponents based on public metadata.
-  ANON_TOKENS_ASSIGN_OR_RETURN(
-      bssl::UniquePtr<BIGNUM> new_e,
-      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus, *old_e, metadata));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> augmented_rsa_e,
+                               ComputeFinalExponentUnderPublicMetadata(
+                                   *rsa_modulus, *old_e, *public_metadata));
+
   // Compute phi(p) = p-1 and phi(q) = q-1
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> phi_p, NewBigNum());
   if (BN_sub(phi_p.get(), rsa_p.get(), BN_value_one()) != 1) {
@@ -100,16 +102,20 @@ absl::StatusOr<std::unique_ptr<RsaBlindSigner>> RsaBlindSigner::New(
   // Compute lcm(phi(p), phi(q)).
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> lcm,
                                ComputeCarmichaelLcm(*phi_p, *phi_q, *bn_ctx));
+
   // Compute the new private exponent new_d
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> new_d, NewBigNum());
-  if (!BN_mod_inverse(new_d.get(), new_e.get(), lcm.get(), bn_ctx.get())) {
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> augmented_rsa_d,
+                               NewBigNum());
+  if (!BN_mod_inverse(augmented_rsa_d.get(), augmented_rsa_e.get(), lcm.get(),
+                      bn_ctx.get())) {
     return absl::InternalError(
         absl::StrCat("Could not compute private exponent d: ", GetSslErrors()));
   }
 
-  return absl::WrapUnique(
-      new RsaBlindSigner(metadata, std::move(rsa_modulus), std::move(rsa_p),
-                         std::move(rsa_q), std::move(new_e), std::move(new_d)));
+  return absl::WrapUnique(new RsaBlindSigner(
+      *public_metadata, std::move(rsa_modulus), std::move(rsa_p),
+      std::move(rsa_q), std::move(augmented_rsa_e),
+      std::move(augmented_rsa_d)));
 }
 
 // Helper Signature method that assumes RSA_NO_PADDING.
@@ -127,7 +133,7 @@ absl::StatusOr<std::string> RsaBlindSigner::SignInternal(
   ANON_TOKENS_ASSIGN_OR_RETURN(BnCtxPtr ctx, GetAndStartBigNumCtx());
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> result, NewBigNum());
   // TODO(b/271438266): Replace with constant-time implementation.
-  if (!BN_mod_exp(result.get(), input_bn.get(), rsa_d_.get(),
+  if (!BN_mod_exp(result.get(), input_bn.get(), augmented_rsa_d_.get(),
                   rsa_modulus_.get(), ctx.get())) {
     return absl::InternalError("BN_mod_exp_mont_consttime failed in RsaSign");
   }
@@ -136,8 +142,8 @@ absl::StatusOr<std::string> RsaBlindSigner::SignInternal(
   // boringssl. Also serves as a check for correctness.
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> vrfy, NewBigNum());
   if (vrfy == nullptr ||
-      !BN_mod_exp(vrfy.get(), result.get(), rsa_e_.get(), rsa_modulus_.get(),
-                  ctx.get()) ||
+      !BN_mod_exp(vrfy.get(), result.get(), augmented_rsa_e_.get(),
+                  rsa_modulus_.get(), ctx.get()) ||
       BN_cmp(vrfy.get(), input_bn.get()) != 0) {
     return absl::InternalError("Signature verification failed in RsaSign");
   }
@@ -152,7 +158,7 @@ absl::StatusOr<std::string> RsaBlindSigner::Sign(
   }
 
   int mod_size;
-  if (public_metadata_.empty()) {
+  if (!public_metadata_.has_value()) {
     mod_size = RSA_size(rsa_standard_key_.get());
   } else {
     mod_size = BN_num_bytes(rsa_modulus_.get());
@@ -164,7 +170,7 @@ absl::StatusOr<std::string> RsaBlindSigner::Sign(
   }
 
   std::string signature(mod_size, 0);
-  if (public_metadata_.empty()) {
+  if (!public_metadata_.has_value()) {
     // Compute a raw RSA signature.
     size_t out_len;
     if (RSA_sign_raw(/*rsa=*/rsa_standard_key_.get(), /*out_len=*/&out_len,

@@ -46,6 +46,20 @@ struct QUICHE_EXPORT IetfStandardRsaBlindSignatureTestVector {
   std::string signature;
 };
 
+struct QUICHE_EXPORT IetfRsaBlindSignatureWithPublicMetadataTestVector {
+  std::string n;
+  std::string e;
+  std::string d;
+  std::string p;
+  std::string q;
+  std::string message;
+  std::string public_metadata;
+  std::string message_mask;
+  std::string blinded_message;
+  std::string blinded_signature;
+  std::string signature;
+};
+
 // Creates a pair containing a standard RSA Private key and an Anonymous Tokens
 // RSABlindSignaturePublicKey using RSA_F4 (65537) as the public exponent and
 // other input parameters.
@@ -108,6 +122,20 @@ GetIetfStandardRsaBlindSignatureTestVector();
 // above.
 absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT
 GetIetfStandardRsaBlindSignatureTestKeys();
+
+// Returns the IETF test with Public Metadata examples from
+// https://datatracker.ietf.org/doc/draft-amjad-cfrg-partially-blind-rsa/
+//
+// Note that all test vectors use the same RSA key pair.
+std::vector<
+    IetfRsaBlindSignatureWithPublicMetadataTestVector> QUICHE_EXPORT
+GetIetfRsaBlindSignatureWithPublicMetadataTestVectors();
+
+// This method returns a RSA key pair as described in the IETF test with Public
+// Metadata example. It can be used for all test vectors returned by
+// GetIetfRsaBlindSignatureWithPublicMetadataTestVectors.
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT
+GetIetfRsaBlindSignatureWithPublicMetadataTestKeys();
 
 // Outputs a random string of n characters.
 std::string QUICHE_EXPORT RandomString(

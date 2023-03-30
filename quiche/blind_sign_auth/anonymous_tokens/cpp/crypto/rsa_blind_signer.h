@@ -37,8 +37,12 @@ class RsaBlindSigner : public BlindSigner {
   RsaBlindSigner(const RsaBlindSigner&) = delete;
   RsaBlindSigner& operator=(const RsaBlindSigner&) = delete;
 
+  // Passing of public_metadata is optional. If it is set to any value including
+  // an empty string, RsaBlindSigner will assume that partially blind RSA
+  // signature protocol is being executed.
   static absl::StatusOr<std::unique_ptr<RsaBlindSigner>> New(
-      const RSAPrivateKey& signing_key, absl::string_view metadata = "");
+      const RSAPrivateKey& signing_key,
+      std::optional<absl::string_view> public_metadata = std::nullopt);
 
   // Computes the signature for 'blinded_data'.
   absl::StatusOr<std::string> Sign(
@@ -46,24 +50,25 @@ class RsaBlindSigner : public BlindSigner {
 
  private:
   // Use New to construct.
-  RsaBlindSigner(absl::string_view public_metadata,
+  RsaBlindSigner(std::optional<absl::string_view> public_metadata,
                  bssl::UniquePtr<BIGNUM> rsa_modulus,
                  bssl::UniquePtr<BIGNUM> rsa_p, bssl::UniquePtr<BIGNUM> rsa_q,
-                 bssl::UniquePtr<BIGNUM> rsa_e, bssl::UniquePtr<BIGNUM> rsa_d,
+                 bssl::UniquePtr<BIGNUM> augmented_rsa_e,
+                 bssl::UniquePtr<BIGNUM> augmented_rsa_d,
                  bssl::UniquePtr<RSA> rsa_standard_key = nullptr);
 
   absl::StatusOr<std::string> SignInternal(absl::string_view input) const;
 
-  const absl::string_view public_metadata_;
+  const std::optional<absl::string_view> public_metadata_;
 
   // We only keep these for the case when we use RSA blind signatures with
-  // public metadata. Specifically rsa_e_ and rsa_d_ is derived using the public
-  // metadata.
+  // public metadata. Specifically augmented_rsa_e_ and augmented_rsa_d_ is
+  // derived using the public metadata.
   const bssl::UniquePtr<BIGNUM> rsa_modulus_;
   const bssl::UniquePtr<BIGNUM> rsa_p_;
   const bssl::UniquePtr<BIGNUM> rsa_q_;
-  const bssl::UniquePtr<BIGNUM> rsa_e_;
-  const bssl::UniquePtr<BIGNUM> rsa_d_;
+  const bssl::UniquePtr<BIGNUM> augmented_rsa_e_;
+  const bssl::UniquePtr<BIGNUM> augmented_rsa_d_;
 
   // We only keep this for the case when we use standard RSA blind signatures
   // without public metadata.

@@ -18,6 +18,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -34,12 +35,13 @@ namespace anonymous_tokens {
 // inputted message using a public key and other input parameters.
 class QUICHE_EXPORT RsaSsaPssVerifier : public Verifier {
  public:
-  // TODO(b/259581423) Change absl::string_view public_metadata to
-  // std::optional<absl::string_view> public_metadata to help determine whether
-  // public metadata is supported.
+  // Passing of public_metadata is optional. If it is set to any value including
+  // an empty string, RsaSsaPssVerifier will assume that partially blind RSA
+  // signature protocol is being executed.
   static absl::StatusOr<std::unique_ptr<RsaSsaPssVerifier>> New(
       int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
-      const RSAPublicKey& public_key, absl::string_view public_metadata = "");
+      const RSAPublicKey& public_key,
+      std::optional<absl::string_view> public_metadata = std::nullopt);
 
   // Verifies the signature.
   //
@@ -49,21 +51,23 @@ class QUICHE_EXPORT RsaSsaPssVerifier : public Verifier {
 
  private:
   // Use `New` to construct
-  RsaSsaPssVerifier(int salt_length, const EVP_MD* sig_hash,
-                    const EVP_MD* mgf1_hash,
+  RsaSsaPssVerifier(int salt_length,
+                    std::optional<absl::string_view> public_metadata,
+                    const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
                     bssl::UniquePtr<RSA> rsa_public_key,
                     bssl::UniquePtr<BIGNUM> rsa_modulus,
                     bssl::UniquePtr<BIGNUM> augmented_rsa_e);
 
   const int salt_length_;
+  std::optional<absl::string_view> public_metadata_;
   const EVP_MD* sig_hash_;   // Owned by BoringSSL.
   const EVP_MD* mgf1_hash_;  // Owned by BoringSSL.
 
   const bssl::UniquePtr<RSA> rsa_public_key_;
   // Storing RSA modulus separately for helping with BN computations.
   const bssl::UniquePtr<BIGNUM> rsa_modulus_;
-  // If public metadata is not supported, modified_rsa_e_ will be a null
-  // pointer.
+  // If public metadata is not supported, augmented_rsa_e_ will be equal to
+  // public exponent e in rsa_public_key_.
   const bssl::UniquePtr<BIGNUM> augmented_rsa_e_;
 };
 

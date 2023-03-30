@@ -34,6 +34,9 @@ namespace private_membership {
 namespace anonymous_tokens {
 namespace {
 
+// TODO(b/275965524): Figure out a way to test RsaBlinder class with IETF test
+// vectors in rsa_blinder_test.cc.
+
 using CreateTestKeyFunction = absl::StatusOr<
     std::pair<bssl::UniquePtr<RSA>, RSABlindSignaturePublicKey>>();
 
@@ -223,6 +226,34 @@ TEST_P(RsaBlinderWithPublicMetadataTest,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
       TestSignWithPublicMetadata(blinded_message, public_metadata, *rsa_key_));
+  EXPECT_NE(blinded_signature, blinded_message);
+  EXPECT_NE(blinded_signature, message);
+
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string signature,
+                                   blinder->Unblind(blinded_signature));
+  EXPECT_NE(signature, blinded_signature);
+  EXPECT_NE(signature, blinded_message);
+  EXPECT_NE(signature, message);
+
+  QUICHE_EXPECT_OK(blinder->Verify(signature, message));
+}
+
+TEST_P(RsaBlinderWithPublicMetadataTest,
+       BlindSignUnblindWithEmptyPublicMetadataEnd2EndTest) {
+  const absl::string_view message = "Hello World!";
+  const absl::string_view empty_public_metadata = "";
+
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<RsaBlinder> blinder,
+      RsaBlinder::New(public_key_, empty_public_metadata));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
+                                   blinder->Blind(message));
+  EXPECT_NE(blinded_message, message);
+
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::string blinded_signature,
+      TestSignWithPublicMetadata(blinded_message, empty_public_metadata,
+                                 *rsa_key_));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 

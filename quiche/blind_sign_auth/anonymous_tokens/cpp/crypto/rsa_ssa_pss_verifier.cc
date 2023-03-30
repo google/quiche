@@ -37,7 +37,8 @@ namespace anonymous_tokens {
 
 absl::StatusOr<std::unique_ptr<RsaSsaPssVerifier>> RsaSsaPssVerifier::New(
     const int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
-    const RSAPublicKey& public_key, absl::string_view public_metadata) {
+    const RSAPublicKey& public_key,
+    std::optional<absl::string_view> public_metadata) {
   // Convert to OpenSSL RSA which will be used in the code paths for the
   // standard RSA blind signature scheme.
   //
@@ -52,26 +53,32 @@ absl::StatusOr<std::unique_ptr<RsaSsaPssVerifier>> RsaSsaPssVerifier::New(
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_e,
                                StringToBignum(public_key.e()));
 
-  bssl::UniquePtr<BIGNUM> augemented_rsa_e = nullptr;
-  // Currently if public metadata is not empty, RsaBlinder will compute a
-  // modified public exponent.
-  if (!public_metadata.empty()) {
+  bssl::UniquePtr<BIGNUM> augmented_rsa_e = nullptr;
+  // If public metadata is supported, RsaSsaPssVerifier will compute a new
+  // public exponent using the public metadata.
+  //
+  // Empty string is a valid public metadata value.
+  if (public_metadata.has_value()) {
     ANON_TOKENS_ASSIGN_OR_RETURN(
-        augemented_rsa_e,
-        ComputeFinalExponentUnderPublicMetadata(*rsa_modulus.get(),
-                                                *rsa_e.get(), public_metadata));
+        augmented_rsa_e,
+        ComputeFinalExponentUnderPublicMetadata(
+            *rsa_modulus.get(), *rsa_e.get(), *public_metadata));
+  } else {
+    augmented_rsa_e = std::move(rsa_e);
   }
-  return absl::WrapUnique(new RsaSsaPssVerifier(
-      salt_length, sig_hash, mgf1_hash, std::move(rsa_public_key),
-      std::move(rsa_modulus), std::move(augemented_rsa_e)));
+  return absl::WrapUnique(
+      new RsaSsaPssVerifier(salt_length, public_metadata, sig_hash, mgf1_hash,
+                            std::move(rsa_public_key), std::move(rsa_modulus),
+                            std::move(augmented_rsa_e)));
 }
 
-RsaSsaPssVerifier::RsaSsaPssVerifier(int salt_length, const EVP_MD* sig_hash,
-                                     const EVP_MD* mgf1_hash,
-                                     bssl::UniquePtr<RSA> rsa_public_key,
-                                     bssl::UniquePtr<BIGNUM> rsa_modulus,
-                                     bssl::UniquePtr<BIGNUM> augmented_rsa_e)
+RsaSsaPssVerifier::RsaSsaPssVerifier(
+    int salt_length, std::optional<absl::string_view> public_metadata,
+    const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
+    bssl::UniquePtr<RSA> rsa_public_key, bssl::UniquePtr<BIGNUM> rsa_modulus,
+    bssl::UniquePtr<BIGNUM> augmented_rsa_e)
     : salt_length_(salt_length),
+      public_metadata_(public_metadata),
       sig_hash_(sig_hash),
       mgf1_hash_(mgf1_hash),
       rsa_public_key_(std::move(rsa_public_key)),
@@ -80,12 +87,12 @@ RsaSsaPssVerifier::RsaSsaPssVerifier(int salt_length, const EVP_MD* sig_hash,
 
 absl::Status RsaSsaPssVerifier::Verify(absl::string_view unblind_token,
                                        absl::string_view message) {
-  if (message.empty()) {
-    return absl::InvalidArgumentError("Input message string is empty.");
+  std::string augmented_message(message);
+  if (public_metadata_.has_value()) {
+    augmented_message = EncodeMessagePublicMetadata(message, *public_metadata_);
   }
-
   ANON_TOKENS_ASSIGN_OR_RETURN(std::string message_digest,
-                               ComputeHash(message, *sig_hash_));
+                               ComputeHash(augmented_message, *sig_hash_));
   const int hash_size = EVP_MD_size(sig_hash_);
   // Make sure the size of the digest is correct.
   if (message_digest.size() != hash_size) {
@@ -100,7 +107,7 @@ absl::Status RsaSsaPssVerifier::Verify(absl::string_view unblind_token,
   }
 
   std::string recovered_message_digest(rsa_modulus_size, 0);
-  if (augmented_rsa_e_ == nullptr) {
+  if (!public_metadata_.has_value()) {
     int recovered_message_digest_size = RSA_public_decrypt(
         /*flen=*/unblind_token.size(),
         /*from=*/reinterpret_cast<const uint8_t*>(unblind_token.data()),

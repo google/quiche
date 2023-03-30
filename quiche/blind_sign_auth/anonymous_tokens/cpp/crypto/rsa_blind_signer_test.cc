@@ -67,7 +67,10 @@ class RsaBlindSignerTest
 // outline of method calls in this test should not be assumed a secure signature
 // scheme (and used in other places) as the security has not been
 // proven/analyzed.
-TEST_P(RsaBlindSignerTest, SignerWorks) {
+//
+// Test for the standard signer does not take public metadata as a parameter
+// which means public metadata is set to std::nullopt.
+TEST_P(RsaBlindSignerTest, StandardSignerWorks) {
   absl::string_view message = "Hello World!";
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
@@ -139,10 +142,12 @@ class RsaBlindSignerTestWithPublicMetadata
 TEST_P(RsaBlindSignerTestWithPublicMetadata, SignerWorksWithPublicMetadata) {
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
+  std::string augmented_message =
+      EncodeMessagePublicMetadata(message, public_metadata);
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
-      EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
-                            salt_length_));
+      EncodeMessageForTests(augmented_message, public_key_, sig_hash_,
+                            mgf1_hash_, salt_length_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlindSigner> signer,
       RsaBlindSigner::New(private_key_, public_metadata));
@@ -155,14 +160,38 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata, SignerWorksWithPublicMetadata) {
 }
 
 TEST_P(RsaBlindSignerTestWithPublicMetadata,
+       SignerWorksWithEmptyPublicMetadata) {
+  absl::string_view message = "Hello World!";
+  absl::string_view empty_public_metadata = "";
+  std::string augmented_message =
+      EncodeMessagePublicMetadata(message, empty_public_metadata);
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::string encoded_message,
+      EncodeMessageForTests(augmented_message, public_key_, sig_hash_,
+                            mgf1_hash_, salt_length_));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<RsaBlindSigner> signer,
+      RsaBlindSigner::New(private_key_, empty_public_metadata));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
+                                   signer->Sign(encoded_message));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      auto verifier,
+      RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_,
+                             empty_public_metadata));
+  QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
+}
+
+TEST_P(RsaBlindSignerTestWithPublicMetadata,
        SignatureFailstoVerifyWithWrongPublicMetadata) {
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
   absl::string_view public_metadata_2 = "pubmd2";
+  std::string augmented_message =
+      EncodeMessagePublicMetadata(message, public_metadata);
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
-      EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
-                            salt_length_));
+      EncodeMessageForTests(augmented_message, public_key_, sig_hash_,
+                            mgf1_hash_, salt_length_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlindSigner> signer,
       RsaBlindSigner::New(private_key_, public_metadata));
@@ -182,10 +211,12 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
   absl::string_view message = "Hello World!";
   absl::string_view public_metadata = "pubmd!";
   absl::string_view public_metadata_2 = "";
+  std::string augmented_message =
+      EncodeMessagePublicMetadata(message, public_metadata);
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string encoded_message,
-      EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
-                            salt_length_));
+      EncodeMessageForTests(augmented_message, public_key_, sig_hash_,
+                            mgf1_hash_, salt_length_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlindSigner> signer,
       RsaBlindSigner::New(private_key_, public_metadata));
@@ -204,6 +235,28 @@ INSTANTIATE_TEST_SUITE_P(
     RsaBlindSignerTestWithPublicMetadata, RsaBlindSignerTestWithPublicMetadata,
     ::testing::Values(&GetStrongRsaKeys2048, &GetAnotherStrongRsaKeys2048,
                       &GetStrongRsaKeys3072, &GetStrongRsaKeys4096));
+
+// TODO(b/275956922): Consolidate all tests that use IETF test vectors into one
+// E2E test.
+//
+// This test uses IETF test vectors for RSA blind signatures with public
+// metadata. The vectors includes tests for public metadata set to an empty
+// string as well as a non-empty value.
+TEST(IetfRsaBlindSignerTest,
+     IetfRsaBlindSignaturesWithPublicMetadataTestVectorsSuccess) {
+  auto test_vectors = GetIetfRsaBlindSignatureWithPublicMetadataTestVectors();
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      const auto test_key,
+      GetIetfRsaBlindSignatureWithPublicMetadataTestKeys());
+  for (const auto &test_vector : test_vectors) {
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+        std::unique_ptr<RsaBlindSigner> signer,
+        RsaBlindSigner::New(test_key.second, test_vector.public_metadata));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blind_signature,
+                                     signer->Sign(test_vector.blinded_message));
+    EXPECT_EQ(blind_signature, test_vector.blinded_signature);
+  }
+}
 
 }  // namespace
 }  // namespace anonymous_tokens
