@@ -44,11 +44,6 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
 
   void OnInvalidHeaders() override;
 
-  // Make this stream start from as if it just finished parsing an incoming
-  // request whose headers are equivalent to |push_request_headers|.
-  // Doing so will trigger this toy stream to fetch response and send it back.
-  virtual void PushResponse(spdy::Http2HeaderBlock push_request_headers);
-
   // The response body of error responses.
   static const char* const kErrorResponseBody;
   static const char* const kNotFoundResponseBody;

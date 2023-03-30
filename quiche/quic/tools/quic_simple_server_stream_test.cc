@@ -458,44 +458,6 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus2) {
   EXPECT_TRUE(stream_->write_side_closed());
 }
 
-TEST_P(QuicSimpleServerStreamTest, SendPushResponseWith404Response) {
-  // Create a new promised stream with even id().
-  auto promised_stream = new StrictMock<TestStream>(
-      GetNthServerInitiatedUnidirectionalStreamId(
-          connection_->transport_version(), 3),
-      &session_, WRITE_UNIDIRECTIONAL, &memory_cache_backend_);
-  session_.ActivateStream(absl::WrapUnique(promised_stream));
-
-  // Send a push response with response status 404, which will be regarded as
-  // invalid server push response.
-  spdy::Http2HeaderBlock* request_headers = promised_stream->mutable_headers();
-  (*request_headers)[":path"] = "/bar";
-  (*request_headers)[":authority"] = "www.google.com";
-  (*request_headers)[":method"] = "GET";
-
-  response_headers_[":status"] = "404";
-  response_headers_["content-length"] = "8";
-  std::string body = "NotFound";
-
-  memory_cache_backend_.AddResponse("www.google.com", "/bar",
-                                    std::move(response_headers_), body);
-
-  InSequence s;
-  if (session_.version().UsesHttp3()) {
-    EXPECT_CALL(session_,
-                MaybeSendStopSendingFrame(
-                    promised_stream->id(),
-                    QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED)));
-  }
-  EXPECT_CALL(
-      session_,
-      MaybeSendRstStreamFrame(
-          promised_stream->id(),
-          QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED), 0));
-
-  promised_stream->DoSendResponse();
-}
-
 TEST_P(QuicSimpleServerStreamTest, SendResponseWithValidHeaders) {
   // Add a request and response with valid headers.
   spdy::Http2HeaderBlock* request_headers = stream_->mutable_headers();
@@ -622,64 +584,6 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithDelay) {
 
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
   EXPECT_TRUE(stream_->write_side_closed());
-}
-
-TEST_P(QuicSimpleServerStreamTest, PushResponseOnClientInitiatedStream) {
-  // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (GetParam() != AllSupportedVersions()[0]) {
-    return;
-  }
-
-  // Calling PushResponse() on a client initialted stream is never supposed to
-  // happen.
-  EXPECT_QUIC_BUG(stream_->PushResponse(spdy::Http2HeaderBlock()),
-                  "Client initiated stream"
-                  " shouldn't be used as promised stream.");
-}
-
-TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
-  // Tests that PushResponse() should take the given headers as request headers
-  // and fetch response from cache, and send it out.
-
-  // Create a stream with even stream id and test against this stream.
-  const QuicStreamId kServerInitiatedStreamId =
-      GetNthServerInitiatedUnidirectionalStreamId(
-          connection_->transport_version(), 3);
-  // Create a server initiated stream and pass it to session_.
-  auto server_initiated_stream =
-      new StrictMock<TestStream>(kServerInitiatedStreamId, &session_,
-                                 WRITE_UNIDIRECTIONAL, &memory_cache_backend_);
-  session_.ActivateStream(absl::WrapUnique(server_initiated_stream));
-
-  const std::string kHost = "www.foo.com";
-  const std::string kPath = "/bar";
-  spdy::Http2HeaderBlock headers;
-  headers[":path"] = kPath;
-  headers[":authority"] = kHost;
-  headers[":method"] = "GET";
-
-  response_headers_[":status"] = "200";
-  response_headers_["content-length"] = "5";
-  const std::string kBody = "Hello";
-  quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
-      body_.length(), quiche::SimpleBufferAllocator::Get());
-  memory_cache_backend_.AddResponse(kHost, kPath, std::move(response_headers_),
-                                    kBody);
-
-  // Call PushResponse() should trigger stream to fetch response from cache
-  // and send it back.
-  InSequence s;
-  EXPECT_CALL(*server_initiated_stream, WriteHeadersMock(false));
-
-  if (UsesHttp3()) {
-    EXPECT_CALL(session_, WritevData(kServerInitiatedStreamId, header.size(), _,
-                                     NO_FIN, _, _));
-  }
-  EXPECT_CALL(session_,
-              WritevData(kServerInitiatedStreamId, kBody.size(), _, FIN, _, _));
-  server_initiated_stream->PushResponse(std::move(headers));
-  EXPECT_EQ(kPath, server_initiated_stream->GetHeader(":path"));
-  EXPECT_EQ("GET", server_initiated_stream->GetHeader(":method"));
 }
 
 TEST_P(QuicSimpleServerStreamTest, TestSendErrorResponse) {

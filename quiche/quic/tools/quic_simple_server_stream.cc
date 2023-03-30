@@ -140,25 +140,6 @@ void QuicSimpleServerStream::OnBodyAvailable() {
   }
 }
 
-void QuicSimpleServerStream::PushResponse(
-    Http2HeaderBlock push_request_headers) {
-  if (QuicUtils::IsClientInitiatedStreamId(session()->transport_version(),
-                                           id())) {
-    QUIC_BUG(quic_bug_10962_2)
-        << "Client initiated stream shouldn't be used as promised stream.";
-    return;
-  }
-  // Change the stream state to emulate a client request.
-  request_headers_ = std::move(push_request_headers);
-  content_length_ = 0;
-  QUIC_DVLOG(1) << "Stream " << id()
-                << " ready to receive server push response.";
-  QUICHE_DCHECK(reading_stopped());
-
-  // Directly send response based on the emulated request_headers_.
-  SendResponse();
-}
-
 void QuicSimpleServerStream::HandleRequestConnectData(bool fin_received) {
   QUICHE_DCHECK(IsConnectRequest());
 
@@ -340,20 +321,6 @@ void QuicSimpleServerStream::Respond(const QuicBackendResponse* response) {
     }
     SendErrorResponse();
     return;
-  }
-
-  if (QuicUtils::IsServerInitiatedStreamId(session()->transport_version(),
-                                           id())) {
-    // A server initiated stream is only used for a server push response,
-    // and only 200 and 30X response codes are supported for server push.
-    // This behavior mirrors the HTTP/2 implementation.
-    bool is_redirection = response_code / 100 == 3;
-    if (response_code != 200 && !is_redirection) {
-      QUIC_LOG(WARNING) << "Response to server push request " << request_url
-                        << " result in response code " << response_code;
-      Reset(QUIC_STREAM_CANCELLED);
-      return;
-    }
   }
 
   if (response->response_type() == QuicBackendResponse::INCOMPLETE_RESPONSE) {

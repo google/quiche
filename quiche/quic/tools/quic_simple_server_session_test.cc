@@ -112,25 +112,6 @@ class MockTlsServerHandshaker : public TlsServerHandshaker {
   bool encryption_established() const override { return true; }
 };
 
-QuicCryptoServerStreamBase* CreateMockCryptoServerStream(
-    const QuicCryptoServerConfig* crypto_config,
-    QuicCompressedCertsCache* compressed_certs_cache, QuicSession* session,
-    QuicCryptoServerStreamBase::Helper* helper) {
-  switch (session->connection()->version().handshake_protocol) {
-    case PROTOCOL_QUIC_CRYPTO:
-      return new MockQuicCryptoServerStream(
-          crypto_config, compressed_certs_cache, session, helper);
-    case PROTOCOL_TLS1_3:
-      return new MockTlsServerHandshaker(session, crypto_config);
-    case PROTOCOL_UNSUPPORTED:
-      break;
-  }
-  QUIC_BUG(quic_bug_10933_1)
-      << "Unknown handshake protocol: "
-      << static_cast<int>(session->connection()->version().handshake_protocol);
-  return nullptr;
-}
-
 class MockQuicConnectionWithSendStreamData : public MockQuicConnection {
  public:
   MockQuicConnectionWithSendStreamData(
@@ -166,19 +147,6 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
             config, CurrentSupportedVersions(), connection, visitor, helper,
             crypto_config, compressed_certs_cache, quic_simple_server_backend) {
   }
-  // Methods taking non-copyable types like Http2HeaderBlock by value cannot be
-  // mocked directly.
-  void WritePushPromise(QuicStreamId original_stream_id,
-                        QuicStreamId promised_stream_id,
-                        spdy::Http2HeaderBlock headers) override {
-    return WritePushPromiseMock(original_stream_id, promised_stream_id,
-                                headers);
-  }
-  MOCK_METHOD(void, WritePushPromiseMock,
-              (QuicStreamId original_stream_id, QuicStreamId promised_stream_id,
-               const spdy::Http2HeaderBlock& headers),
-              ());
-
   MOCK_METHOD(void, SendBlocked, (QuicStreamId, QuicStreamOffset), (override));
   MOCK_METHOD(bool, WriteControlFrame,
               (const QuicFrame& frame, TransmissionType type), (override));
@@ -473,77 +441,6 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUnencrypted) {
       "Encryption not established so no outgoing stream created.");
   EXPECT_EQ(initial_num_open_stream,
             QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
-}
-
-TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
-  // Tests that outgoing stream creation should not be affected by existing
-  // incoming stream and vice-versa. But when reaching the limit of max outgoing
-  // stream allowed, creation should fail.
-
-  // Receive some data to initiate a incoming stream which should not effect
-  // creating outgoing streams.
-  QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                        kStreamData);
-  session_->OnStreamFrame(data1);
-  EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
-  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()) -
-                    /*incoming=*/1);
-
-  if (!VersionUsesHttp3(transport_version())) {
-    session_->UnregisterStreamPriority(
-        QuicUtils::GetHeadersStreamId(transport_version()));
-  }
-  // Assume encryption already established.
-  QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), nullptr);
-  QuicCryptoServerStreamBase* crypto_stream =
-      CreateMockCryptoServerStream(&crypto_config_, &compressed_certs_cache_,
-                                   session_.get(), &stream_helper_);
-  QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), crypto_stream);
-  if (!VersionUsesHttp3(transport_version())) {
-    session_->RegisterStreamPriority(
-        QuicUtils::GetHeadersStreamId(transport_version()),
-        /*is_static=*/true,
-        QuicStreamPriority::Default(session_->priority_type()));
-  }
-
-  // Create push streams till reaching the upper limit of allowed open streams.
-  for (size_t i = 0; i < kMaxStreamsForTest; ++i) {
-    QuicSpdyStream* created_stream =
-        QuicSimpleServerSessionPeer::CreateOutgoingUnidirectionalStream(
-            session_.get());
-    if (VersionUsesHttp3(transport_version())) {
-      EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(i + 3),
-                created_stream->id());
-    } else {
-      EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(i), created_stream->id());
-    }
-    EXPECT_EQ(i + 1, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()) -
-                         /*incoming=*/1);
-  }
-
-  // Continuing creating push stream would fail.
-  EXPECT_EQ(nullptr,
-            QuicSimpleServerSessionPeer::CreateOutgoingUnidirectionalStream(
-                session_.get()));
-  EXPECT_EQ(kMaxStreamsForTest,
-            QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()) -
-                /*incoming=*/1);
-
-  // Create peer initiated stream should have no problem.
-  QuicStreamFrame data2(GetNthClientInitiatedBidirectionalId(1), false, 0,
-                        kStreamData);
-  session_->OnStreamFrame(data2);
-  EXPECT_EQ(2u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()) -
-                    /*outcoming=*/kMaxStreamsForTest);
-}
-
-TEST_P(QuicSimpleServerSessionTest, OnStreamFrameWithEvenStreamId) {
-  QuicStreamFrame frame(GetNthServerInitiatedUnidirectionalId(0), false, 0,
-                        kStreamData);
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_INVALID_STREAM_ID,
-                              "Client sent data on server push stream", _));
-  session_->OnStreamFrame(frame);
 }
 
 // Tests that calling GetOrCreateStream() on an outgoing stream not promised yet
