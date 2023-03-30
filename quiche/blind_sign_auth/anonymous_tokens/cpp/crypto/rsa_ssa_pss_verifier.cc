@@ -87,75 +87,10 @@ RsaSsaPssVerifier::RsaSsaPssVerifier(
 
 absl::Status RsaSsaPssVerifier::Verify(absl::string_view unblind_token,
                                        absl::string_view message) {
-  std::string augmented_message(message);
-  if (public_metadata_.has_value()) {
-    augmented_message = EncodeMessagePublicMetadata(message, *public_metadata_);
-  }
-  ANON_TOKENS_ASSIGN_OR_RETURN(std::string message_digest,
-                               ComputeHash(augmented_message, *sig_hash_));
-  const int hash_size = EVP_MD_size(sig_hash_);
-  // Make sure the size of the digest is correct.
-  if (message_digest.size() != hash_size) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Size of the digest doesn't match the one "
-                     "of the hashing algorithm; expected ",
-                     hash_size, " got ", message_digest.size()));
-  }
-  const int rsa_modulus_size = BN_num_bytes(rsa_modulus_.get());
-  if (unblind_token.size() != rsa_modulus_size) {
-    return absl::InternalError("Signature size not equal to modulus size.");
-  }
-
-  std::string recovered_message_digest(rsa_modulus_size, 0);
-  if (!public_metadata_.has_value()) {
-    int recovered_message_digest_size = RSA_public_decrypt(
-        /*flen=*/unblind_token.size(),
-        /*from=*/reinterpret_cast<const uint8_t*>(unblind_token.data()),
-        /*to=*/
-        reinterpret_cast<uint8_t*>(recovered_message_digest.data()),
-        /*rsa=*/rsa_public_key_.get(),
-        /*padding=*/RSA_NO_PADDING);
-    if (recovered_message_digest_size != rsa_modulus_size) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Invalid signature size (likely an incorrect key is "
-                       "used); expected ",
-                       rsa_modulus_size, " got ", recovered_message_digest_size,
-                       ": ", GetSslErrors()));
-    }
-  } else {
-    ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> unblind_token_bn,
-                                 StringToBignum(unblind_token));
-    if (BN_ucmp(unblind_token_bn.get(), rsa_modulus_.get()) >= 0) {
-      return absl::InternalError("Data too large for modulus.");
-    }
-    ANON_TOKENS_ASSIGN_OR_RETURN(BnCtxPtr bn_ctx, GetAndStartBigNumCtx());
-    bssl::UniquePtr<BN_MONT_CTX> bn_mont_ctx(
-        BN_MONT_CTX_new_for_modulus(rsa_modulus_.get(), bn_ctx.get()));
-    if (!bn_mont_ctx) {
-      return absl::InternalError("BN_MONT_CTX_new_for_modulus failed.");
-    }
-    ANON_TOKENS_ASSIGN_OR_RETURN(
-        bssl::UniquePtr<BIGNUM> recovered_message_digest_bn, NewBigNum());
-    if (BN_mod_exp_mont(recovered_message_digest_bn.get(),
-                        unblind_token_bn.get(), augmented_rsa_e_.get(),
-                        rsa_modulus_.get(), bn_ctx.get(),
-                        bn_mont_ctx.get()) != kBsslSuccess) {
-      return absl::InternalError("Exponentiation failed.");
-    }
-    ANON_TOKENS_ASSIGN_OR_RETURN(
-        recovered_message_digest,
-        BignumToString(*recovered_message_digest_bn, rsa_modulus_size));
-  }
-  if (RSA_verify_PKCS1_PSS_mgf1(
-          rsa_public_key_.get(),
-          reinterpret_cast<const uint8_t*>(&message_digest[0]), sig_hash_,
-          mgf1_hash_,
-          reinterpret_cast<const uint8_t*>(recovered_message_digest.data()),
-          salt_length_) != kBsslSuccess) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("PSS padding verification failed: ", GetSslErrors()));
-  }
-  return absl::OkStatus();
+  return RsaBlindSignatureVerify(salt_length_, sig_hash_, mgf1_hash_,
+                                 rsa_public_key_.get(), *rsa_modulus_.get(),
+                                 *augmented_rsa_e_.get(), unblind_token,
+                                 message, public_metadata_);
 }
 
 }  // namespace anonymous_tokens

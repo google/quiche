@@ -93,9 +93,10 @@ absl::StatusOr<std::string> QUICHE_EXPORT TestSignWithPublicMetadata(
     const RSA& rsa_key);
 
 // This method returns a newly generated RSA key pair, setting the public
-// exponent to be the standard RSA_F4 (65537) and the modulus size to 512 bytes.
+// exponent to be the standard RSA_F4 (65537) and the default modulus size to
+// 512 bytes.
 absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT
-GetStandardRsaKeyPair();
+GetStandardRsaKeyPair(int modulus_size_in_bytes = kRsaModulusSizeInBytes512);
 
 // Method returns fixed 2048-bit strong RSA modulus for testing.
 absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT

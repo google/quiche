@@ -25,7 +25,6 @@
 #include "absl/types/optional.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
-#include "openssl/rsa.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace private_membership {

@@ -300,46 +300,47 @@ absl::StatusOr<std::string> EncodeMessageForTests(absl::string_view message,
   return encoded_message;
 }
 
-absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> GetStandardRsaKeyPair() {
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> GetStandardRsaKeyPair(
+    int modulus_size_in_bytes) {
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_f4, NewBigNum());
   BN_set_u64(rsa_f4.get(), RSA_F4);
-  int key_size_in_bytes = kRsaModulusSizeInBytes512;
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<RSA> rsa_key,
-                               GenerateRSAKey(key_size_in_bytes * 8, *rsa_f4));
+  ANON_TOKENS_ASSIGN_OR_RETURN(
+      bssl::UniquePtr<RSA> rsa_key,
+      GenerateRSAKey(modulus_size_in_bytes * 8, *rsa_f4));
 
   RSAPublicKey rsa_public_key;
   ANON_TOKENS_ASSIGN_OR_RETURN(
       *rsa_public_key.mutable_n(),
-      BignumToString(*RSA_get0_n(rsa_key.get()), key_size_in_bytes));
+      BignumToString(*RSA_get0_n(rsa_key.get()), modulus_size_in_bytes));
   ANON_TOKENS_ASSIGN_OR_RETURN(
       *rsa_public_key.mutable_e(),
-      BignumToString(*RSA_get0_e(rsa_key.get()), key_size_in_bytes));
+      BignumToString(*RSA_get0_e(rsa_key.get()), modulus_size_in_bytes));
 
   RSAPrivateKey rsa_private_key;
   ANON_TOKENS_ASSIGN_OR_RETURN(
       *rsa_private_key.mutable_n(),
-      BignumToString(*RSA_get0_n(rsa_key.get()), key_size_in_bytes));
+      BignumToString(*RSA_get0_n(rsa_key.get()), modulus_size_in_bytes));
   ANON_TOKENS_ASSIGN_OR_RETURN(
       *rsa_private_key.mutable_e(),
-      BignumToString(*RSA_get0_e(rsa_key.get()), key_size_in_bytes));
+      BignumToString(*RSA_get0_e(rsa_key.get()), modulus_size_in_bytes));
   ANON_TOKENS_ASSIGN_OR_RETURN(
       *rsa_private_key.mutable_d(),
-      BignumToString(*RSA_get0_d(rsa_key.get()), key_size_in_bytes));
+      BignumToString(*RSA_get0_d(rsa_key.get()), modulus_size_in_bytes));
   ANON_TOKENS_ASSIGN_OR_RETURN(
       *rsa_private_key.mutable_p(),
-      BignumToString(*RSA_get0_p(rsa_key.get()), key_size_in_bytes));
+      BignumToString(*RSA_get0_p(rsa_key.get()), modulus_size_in_bytes));
   ANON_TOKENS_ASSIGN_OR_RETURN(
       *rsa_private_key.mutable_q(),
-      BignumToString(*RSA_get0_q(rsa_key.get()), key_size_in_bytes));
+      BignumToString(*RSA_get0_q(rsa_key.get()), modulus_size_in_bytes));
   ANON_TOKENS_ASSIGN_OR_RETURN(
       *rsa_private_key.mutable_dp(),
-      BignumToString(*RSA_get0_dmp1(rsa_key.get()), key_size_in_bytes));
+      BignumToString(*RSA_get0_dmp1(rsa_key.get()), modulus_size_in_bytes));
   ANON_TOKENS_ASSIGN_OR_RETURN(
       *rsa_private_key.mutable_dq(),
-      BignumToString(*RSA_get0_dmq1(rsa_key.get()), key_size_in_bytes));
+      BignumToString(*RSA_get0_dmq1(rsa_key.get()), modulus_size_in_bytes));
   ANON_TOKENS_ASSIGN_OR_RETURN(
       *rsa_private_key.mutable_crt(),
-      BignumToString(*RSA_get0_iqmp(rsa_key.get()), key_size_in_bytes));
+      BignumToString(*RSA_get0_iqmp(rsa_key.get()), modulus_size_in_bytes));
 
   return std::make_pair(std::move(rsa_public_key), std::move(rsa_private_key));
 }

@@ -18,6 +18,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/status/statusor.h"
@@ -91,6 +92,11 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT StringToBignum(
 // Retrieve error messages from OpenSSL.
 std::string QUICHE_EXPORT GetSslErrors();
 
+// Generate a message mask. For more details, see
+// https://datatracker.ietf.org/doc/draft-irtf-cfrg-rsa-blind-signatures/
+absl::StatusOr<std::string> QUICHE_EXPORT GenerateMask(
+    const RSABlindSignaturePublicKey& public_key);
+
 // Mask message using protocol at
 // https://datatracker.ietf.org/doc/draft-irtf-cfrg-rsa-blind-signatures/
 std::string QUICHE_EXPORT MaskMessageConcat(absl::string_view mask,
@@ -155,6 +161,23 @@ PublicMetadataExponent(const BIGNUM& n, absl::string_view public_metadata);
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT
 ComputeFinalExponentUnderPublicMetadata(const BIGNUM& n, const BIGNUM& e,
                                         absl::string_view public_metadata);
+
+// Helper method that implements RSA PSS Blind Signatures verification protocol
+// for both the standard scheme as well as the public metadata version.
+//
+// The standard public exponent e in rsa_public_key should always have a
+// standard value even if the public_metada is not std::nullopt.
+//
+// If the public_metadata is set to std::nullopt, augmented_rsa_e should be
+// equal to a standard public exponent same as the value of e in rsa_public_key.
+// Otherwise, it will be equal to a new public exponent value derived using the
+// public metadata.
+absl::Status QUICHE_EXPORT RsaBlindSignatureVerify(
+    int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
+    RSA* rsa_public_key, const BIGNUM& rsa_modulus,
+    const BIGNUM& augmented_rsa_e, absl::string_view signature,
+    absl::string_view message,
+    std::optional<absl::string_view> public_metadata = std::nullopt);
 
 }  // namespace anonymous_tokens
 }  // namespace private_membership

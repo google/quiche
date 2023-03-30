@@ -109,8 +109,7 @@ TEST_P(RsaBlindSignerTest, SignerFails) {
 }
 
 INSTANTIATE_TEST_SUITE_P(RsaBlindSignerTest, RsaBlindSignerTest,
-                         ::testing::Values(&GetStandardRsaKeyPair,
-                                           &GetStrongRsaKeys2048,
+                         ::testing::Values(&GetStrongRsaKeys2048,
                                            &GetAnotherStrongRsaKeys2048,
                                            &GetStrongRsaKeys3072,
                                            &GetStrongRsaKeys4096));
