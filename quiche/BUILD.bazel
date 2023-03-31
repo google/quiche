@@ -294,6 +294,9 @@ cc_library(
         ":io_tool_support",
         ":quiche_core",
         ":quiche_platform_default_tools",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -306,6 +309,7 @@ cc_library(
         "quic/tools/quic_server_factory.h",
     ],
     deps = [
+        ":io_tool_support",
         ":quic_toy_server",
     ],
 )
