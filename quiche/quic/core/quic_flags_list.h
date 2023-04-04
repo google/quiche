@@ -91,8 +91,6 @@ QUIC_FLAG(quic_restart_flag_quic_platform_tos_sockopt, false)
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, quiche UDP sockets report Explicit Congestion Notification (ECN) [RFC3168, RFC9330] results.
 QUIC_FLAG(quic_restart_flag_quic_quiche_ecn_sockets, true)
-// When true, report received ECN markings to the peer on GFE sockets.
-QUIC_FLAG(quic_restart_flag_quic_gfe_ecn_sockets, true)
 // When true, report received ECN markings to the peer.
 QUIC_FLAG(quic_restart_flag_quic_receive_ecn, true)
 // When true, support draft-ietf-quic-v2-08
