@@ -885,6 +885,8 @@ enum QuicEcnCodepoint {
   ECN_CE = 3,
 };
 
+QUICHE_EXPORT std::string EcnCodepointToString(QuicEcnCodepoint ecn);
+
 // This struct reports the Explicit Congestion Notification (ECN) contents of
 // the ACK_ECN frame. They are the cumulative number of QUIC packets received
 // for that codepoint in a given Packet Number Space.

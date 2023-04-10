@@ -233,6 +233,13 @@ TEST_F(QuicUtilsTest, StatelessResetToken) {
   EXPECT_FALSE(QuicUtils::AreStatelessResetTokensEqual(token1a, token2));
 }
 
+TEST_F(QuicUtilsTest, EcnCodepointToString) {
+  EXPECT_EQ(EcnCodepointToString(ECN_NOT_ECT), "Not-ECT");
+  EXPECT_EQ(EcnCodepointToString(ECN_ECT0), "ECT(0)");
+  EXPECT_EQ(EcnCodepointToString(ECN_ECT1), "ECT(1)");
+  EXPECT_EQ(EcnCodepointToString(ECN_CE), "CE");
+}
+
 enum class TestEnumClassBit : uint8_t {
   BIT_ZERO = 0,
   BIT_ONE,

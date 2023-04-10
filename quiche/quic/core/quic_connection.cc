@@ -3115,7 +3115,6 @@ bool QuicConnection::ValidateReceivedPacketNumber(
 
 void QuicConnection::WriteQueuedPackets() {
   QUICHE_DCHECK(!writer_->IsWriteBlocked());
-
   QUIC_CLIENT_HISTOGRAM_COUNTS("QuicSession.NumQueuedPacketsBeforeWrite",
                                buffered_packets_.size(), 1, 1000, 50, "");
 
@@ -3124,7 +3123,7 @@ void QuicConnection::WriteQueuedPackets() {
       break;
     }
     const BufferedPacket& packet = buffered_packets_.front();
-    WriteResult result = writer_->WritePacket(
+    WriteResult result = SendPacketToWriter(
         packet.data.get(), packet.length, packet.self_address.host(),
         packet.peer_address, per_packet_options_);
     QUIC_DVLOG(1) << ENDPOINT << "Sending buffered packet, result: " << result;
@@ -3491,9 +3490,9 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       //
       // writer_->WritePacket transfers buffer ownership back to the writer.
       packet->release_encrypted_buffer = nullptr;
-      result = writer_->WritePacket(packet->encrypted_buffer, encrypted_length,
-                                    send_from_address.host(), send_to_address,
-                                    per_packet_options_);
+      result = SendPacketToWriter(packet->encrypted_buffer, encrypted_length,
+                                  send_from_address.host(), send_to_address,
+                                  per_packet_options_);
       // This is a work around for an issue with linux UDP GSO batch writers.
       // When sending a GSO packet with 2 segments, if the first segment is
       // larger than the path MTU, instead of EMSGSIZE, the linux kernel returns
@@ -4146,6 +4145,38 @@ bool QuicConnection::IsKnownServerAddress(
   return std::find(known_server_addresses_.cbegin(),
                    known_server_addresses_.cend(),
                    address) != known_server_addresses_.cend();
+}
+
+void QuicConnection::ClearEcnCodepoint() {
+  if (per_packet_options_ != nullptr) {
+    per_packet_options_->ecn_codepoint = ECN_NOT_ECT;
+  }
+}
+
+WriteResult QuicConnection::SendPacketToWriter(
+    const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
+    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
+  if (!disable_ecn_codepoint_validation_) {
+    switch (GetNextEcnCodepoint()) {
+      case ECN_NOT_ECT:
+        break;
+      case ECN_ECT0:
+        if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT0()) {
+          ClearEcnCodepoint();
+        }
+        break;
+      case ECN_ECT1:
+        if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT1()) {
+          ClearEcnCodepoint();
+        }
+        break;
+      case ECN_CE:
+        ClearEcnCodepoint();
+        break;
+    }
+  }
+  return writer_->WritePacket(buffer, buf_len, self_address, peer_address,
+                              options);
 }
 
 void QuicConnection::OnRetransmissionTimeout() {
@@ -5966,7 +5997,7 @@ bool QuicConnection::FlushCoalescedPacket() {
         buffer, static_cast<QuicPacketLength>(length),
         coalesced_packet_.self_address(), coalesced_packet_.peer_address());
   } else {
-    WriteResult result = writer_->WritePacket(
+    WriteResult result = SendPacketToWriter(
         buffer, length, coalesced_packet_.self_address().host(),
         coalesced_packet_.peer_address(), per_packet_options_);
     if (IsWriteError(result.status)) {

@@ -241,6 +241,9 @@ class QuicConnectionPeer {
       QuicConnection* connection);
 
   static bool TestLastReceivedPacketInfoDefaults();
+
+  // Overrides restrictions on sending ECN for test purposes.
+  static void DisableEcnCodepointValidation(QuicConnection* connection);
 };
 
 }  // namespace test

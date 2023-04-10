@@ -446,6 +446,19 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+std::string EcnCodepointToString(QuicEcnCodepoint ecn) {
+  switch (ecn) {
+    case ECN_NOT_ECT:
+      return "Not-ECT";
+    case ECN_ECT0:
+      return "ECT(0)";
+    case ECN_ECT1:
+      return "ECT(1)";
+    case ECN_CE:
+      return "CE";
+  }
+}
+
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
 
 }  // namespace quic

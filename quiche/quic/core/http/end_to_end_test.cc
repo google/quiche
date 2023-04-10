@@ -7182,10 +7182,11 @@ TEST_P(EndToEndTest, OriginalConnectionIdClearedFromMap) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTest, EcnMarksReportedCorrectly) {
+TEST_P(EndToEndTest, ServerReportsEcn) {
   // Client connects using not-ECT.
   ASSERT_TRUE(Initialize());
   QuicConnection* client_connection = GetClientConnection();
+  QuicConnectionPeer::DisableEcnCodepointValidation(client_connection);
   QuicEcnCounts* ecn = QuicSentPacketManagerPeer::GetPeerEcnCounts(
       QuicConnectionPeer::GetSentPacketManager(client_connection),
       APPLICATION_DATA);
@@ -7226,6 +7227,32 @@ TEST_P(EndToEndTest, EcnMarksReportedCorrectly) {
     ect0 = ecn->ect0;
     EXPECT_EQ(ecn->ect1, 0);
   }
+  client_->Disconnect();
+}
+
+TEST_P(EndToEndTest, ClientReportsEcn) {
+  ASSERT_TRUE(Initialize());
+  QuicConnection* server_connection = GetServerConnection();
+  QuicConnectionPeer::DisableEcnCodepointValidation(server_connection);
+  QuicEcnCounts* ecn = QuicSentPacketManagerPeer::GetPeerEcnCounts(
+      QuicConnectionPeer::GetSentPacketManager(server_connection),
+      APPLICATION_DATA);
+  TestPerPacketOptions options;
+  options.ecn_codepoint = ECN_ECT1;
+  server_connection->set_per_packet_options(&options);
+  client_->SendSynchronousRequest("/foo");
+  // A second request provides a packet for the client ACKs to go with.
+  client_->SendSynchronousRequest("/foo");
+  EXPECT_EQ(ecn->ect0, 0);
+  EXPECT_EQ(ecn->ce, 0);
+  if (!GetQuicRestartFlag(quic_receive_ecn) ||
+      !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
+      !VersionHasIetfQuicFrames(version_.transport_version)) {
+    EXPECT_EQ(ecn->ect1, 0);
+  } else {
+    EXPECT_GT(ecn->ect1, 0);
+  }
+  server_connection->set_per_packet_options(nullptr);
   client_->Disconnect();
 }
 

@@ -618,5 +618,11 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
           sizeof(QuicConnection::ReceivedPacketInfo) == 280);
 }
 
+// static
+void QuicConnectionPeer::DisableEcnCodepointValidation(
+    QuicConnection* connection) {
+  connection->disable_ecn_codepoint_validation_ = true;
+}
+
 }  // namespace test
 }  // namespace quic
