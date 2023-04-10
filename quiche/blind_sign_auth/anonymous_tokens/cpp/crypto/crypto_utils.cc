@@ -40,31 +40,21 @@ namespace anonymous_tokens {
 
 namespace internal {
 
-BN_ULONG TOBN(BN_ULONG hi, BN_ULONG lo) {
-  return ((BN_ULONG)(hi) << 32 | (lo));
-}
-
 // Approximation of sqrt(2) taken from
 // //depot/google3/third_party/openssl/boringssl/src/crypto/fipsmodule/rsa/rsa_impl.c;l=997
-const BN_ULONG kBoringSSLRSASqrtTwo[] = {
-    TOBN(0x4d7c60a5, 0xe633e3e1), TOBN(0x5fcf8f7b, 0xca3ea33b),
-    TOBN(0xc246785e, 0x92957023), TOBN(0xf9acce41, 0x797f2805),
-    TOBN(0xfdfe170f, 0xd3b1f780), TOBN(0xd24f4a76, 0x3facb882),
-    TOBN(0x18838a2e, 0xaff5f3b2), TOBN(0xc1fcbdde, 0xa2f7dc33),
-    TOBN(0xdea06241, 0xf7aa81c2), TOBN(0xf6a1be3f, 0xca221307),
-    TOBN(0x332a5e9f, 0x7bda1ebf), TOBN(0x0104dc01, 0xfe32352f),
-    TOBN(0xb8cf341b, 0x6f8236c7), TOBN(0x4264dabc, 0xd528b651),
-    TOBN(0xf4d3a02c, 0xebc93e0c), TOBN(0x81394ab6, 0xd8fd0efd),
-    TOBN(0xeaa4a089, 0x9040ca4a), TOBN(0xf52f120f, 0x836e582e),
-    TOBN(0xcb2a6343, 0x31f3c84d), TOBN(0xc6d5a8a3, 0x8bb7e9dc),
-    TOBN(0x460abc72, 0x2f7c4e33), TOBN(0xcab1bc91, 0x1688458a),
-    TOBN(0x53059c60, 0x11bc337b), TOBN(0xd2202e87, 0x42af1f4e),
-    TOBN(0x78048736, 0x3dfa2768), TOBN(0x0f74a85e, 0x439c7b4a),
-    TOBN(0xa8b1fe6f, 0xdc83db39), TOBN(0x4afc8304, 0x3ab8a2c3),
-    TOBN(0xed17ac85, 0x83339915), TOBN(0x1d6f60ba, 0x893ba84c),
-    TOBN(0x597d89b3, 0x754abe9f), TOBN(0xb504f333, 0xf9de6484),
+const std::vector<uint32_t> kBoringSSLRSASqrtTwo = {
+    0x4d7c60a5, 0xe633e3e1, 0x5fcf8f7b, 0xca3ea33b, 0xc246785e, 0x92957023,
+    0xf9acce41, 0x797f2805, 0xfdfe170f, 0xd3b1f780, 0xd24f4a76, 0x3facb882,
+    0x18838a2e, 0xaff5f3b2, 0xc1fcbdde, 0xa2f7dc33, 0xdea06241, 0xf7aa81c2,
+    0xf6a1be3f, 0xca221307, 0x332a5e9f, 0x7bda1ebf, 0x0104dc01, 0xfe32352f,
+    0xb8cf341b, 0x6f8236c7, 0x4264dabc, 0xd528b651, 0xf4d3a02c, 0xebc93e0c,
+    0x81394ab6, 0xd8fd0efd, 0xeaa4a089, 0x9040ca4a, 0xf52f120f, 0x836e582e,
+    0xcb2a6343, 0x31f3c84d, 0xc6d5a8a3, 0x8bb7e9dc, 0x460abc72, 0x2f7c4e33,
+    0xcab1bc91, 0x1688458a, 0x53059c60, 0x11bc337b, 0xd2202e87, 0x42af1f4e,
+    0x78048736, 0x3dfa2768, 0x0f74a85e, 0x439c7b4a, 0xa8b1fe6f, 0xdc83db39,
+    0x4afc8304, 0x3ab8a2c3, 0xed17ac85, 0x83339915, 0x1d6f60ba, 0x893ba84c,
+    0x597d89b3, 0x754abe9f, 0xb504f333, 0xf9de6484,
 };
-const int kBoringSSLRSASqrtTwoLen = 32;
 
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> PublicMetadataHashWithHKDF(
     absl::string_view public_metadata, absl::string_view rsa_modulus_str,
@@ -224,13 +214,24 @@ absl::StatusOr<const EVP_MD*> ProtoMaskGenFunctionToEVPDigest(
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> GetRsaSqrtTwo(int x) {
   // Compute hard-coded sqrt(2).
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> sqrt2, NewBigNum());
-  for (int i = internal::kBoringSSLRSASqrtTwoLen - 1; i >= 0; --i) {
+  // TODO(b/277606961): simplify RsaSqrtTwo initialization logic
+  for (int i = internal::kBoringSSLRSASqrtTwo.size() - 2; i >= 0; i = i - 2) {
+    // Add the uint32_t values as words directly and shift.
+    // 'i' is the "hi" value of a uint64_t, and 'i+1' is the "lo" value.
     if (BN_add_word(sqrt2.get(), internal::kBoringSSLRSASqrtTwo[i]) != 1) {
       return absl::InternalError(absl::StrCat(
           "Cannot add word to compute RSA sqrt(2): ", GetSslErrors()));
     }
+    if (BN_lshift(sqrt2.get(), sqrt2.get(), 32) != 1) {
+        return absl::InternalError(absl::StrCat(
+            "Cannot shift to compute RSA sqrt(2): ", GetSslErrors()));
+    }
+    if (BN_add_word(sqrt2.get(), internal::kBoringSSLRSASqrtTwo[i+1]) != 1) {
+      return absl::InternalError(absl::StrCat(
+          "Cannot add word to compute RSA sqrt(2): ", GetSslErrors()));
+    }
     if (i > 0) {
-      if (BN_lshift(sqrt2.get(), sqrt2.get(), 64) != 1) {
+      if (BN_lshift(sqrt2.get(), sqrt2.get(), 32) != 1) {
         return absl::InternalError(absl::StrCat(
             "Cannot shift to compute RSA sqrt(2): ", GetSslErrors()));
       }
@@ -238,7 +239,7 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> GetRsaSqrtTwo(int x) {
   }
 
   // Check that hard-coded result is correct length.
-  int sqrt2_bits = 64 * internal::kBoringSSLRSASqrtTwoLen;
+  int sqrt2_bits = 32 * internal::kBoringSSLRSASqrtTwo.size();
   if (BN_num_bits(sqrt2.get()) != sqrt2_bits) {
     return absl::InternalError("RSA sqrt(2) is not correct length.");
   }
