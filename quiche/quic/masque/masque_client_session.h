@@ -117,8 +117,12 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   void CloseConnectIpStream(EncapsulatedIpSession* encapsulated_ip_session);
 
   // Generate a random Unique Local Address and register a mapping from
-  // that address to the corresponding hostname.
+  // that address to the corresponding hostname. The returned address should be
+  // removed by calling RemoveFakeAddress() once it is no longer needed.
   quiche::QuicheIpAddress GetFakeAddress(absl::string_view hostname);
+
+  // Removes a fake address that was previously created by GetFakeAddress().
+  void RemoveFakeAddress(const quiche::QuicheIpAddress& fake_address);
 
  private:
   // State that the MasqueClientSession keeps for each CONNECT-UDP request.

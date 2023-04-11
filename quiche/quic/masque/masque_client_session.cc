@@ -72,7 +72,6 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   auto it = fake_addresses_.find(target_server_address.host().ToPackedString());
   if (it != fake_addresses_.end()) {
     target_host = it->second;
-    fake_addresses_.erase(it);
   } else {
     target_host = target_server_address.host().ToString();
   }
@@ -515,6 +514,11 @@ quiche::QuicheIpAddress MasqueClientSession::GetFakeAddress(
                                    sizeof(address_bytes));
   fake_addresses_[address_bytes_string] = std::string(hostname);
   return address;
+}
+
+void MasqueClientSession::RemoveFakeAddress(
+    const quiche::QuicheIpAddress& fake_address) {
+  fake_addresses_.erase(fake_address.ToPackedString());
 }
 
 }  // namespace quic
