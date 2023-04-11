@@ -7232,6 +7232,9 @@ TEST_P(EndToEndTest, ServerReportsEcn) {
 
 TEST_P(EndToEndTest, ClientReportsEcn) {
   ASSERT_TRUE(Initialize());
+  // Wait for handshake to complete, so that we can manipulate the server
+  // connection without race conditions.
+  server_thread_->WaitForCryptoHandshakeConfirmed();
   QuicConnection* server_connection = GetServerConnection();
   QuicConnectionPeer::DisableEcnCodepointValidation(server_connection);
   QuicEcnCounts* ecn = QuicSentPacketManagerPeer::GetPeerEcnCounts(
@@ -7243,6 +7246,7 @@ TEST_P(EndToEndTest, ClientReportsEcn) {
   client_->SendSynchronousRequest("/foo");
   // A second request provides a packet for the client ACKs to go with.
   client_->SendSynchronousRequest("/foo");
+  server_thread_->Pause();
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ce, 0);
   if (!GetQuicRestartFlag(quic_receive_ecn) ||
@@ -7253,6 +7257,7 @@ TEST_P(EndToEndTest, ClientReportsEcn) {
     EXPECT_GT(ecn->ect1, 0);
   }
   server_connection->set_per_packet_options(nullptr);
+  server_thread_->Resume();
   client_->Disconnect();
 }
 
