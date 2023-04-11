@@ -276,13 +276,16 @@ absl::Status BlindSignAuth::FingerprintPublicMetadata(
   uint32_t digest_length = 0;
   // Concatenate fields in tag number order, omitting fields whose values match
   // the default. This enables new fields to be added without changing the
-  // resulting encoding.
-  const std::string input = absl::StrCat(            //
-      metadata.exit_location().country(),            //
-      metadata.exit_location().city_geo_id(),        //
-      metadata.service_type(),                       //
-      OmitDefault(metadata.expiration().seconds()),  //
-      OmitDefault(metadata.expiration().nanos()));
+  // resulting encoding. The signer needs to ensure that | is not allowed in any
+  // metadata value so intentional collisions cannot be created.
+  const std::vector<std::string> parts = {
+      metadata.exit_location().country(),
+      metadata.exit_location().city_geo_id(),
+      metadata.service_type(),
+      OmitDefault(metadata.expiration().seconds()),
+      OmitDefault(metadata.expiration().nanos()),
+  };
+  const std::string input = absl::StrJoin(parts, "|");
   if (EVP_Digest(input.data(), input.length(),
                  reinterpret_cast<uint8_t*>(&digest[0]), &digest_length, hasher,
                  nullptr) != 1) {
