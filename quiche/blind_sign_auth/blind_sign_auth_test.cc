@@ -56,7 +56,7 @@ class BlindSignAuthTest : public QuicheTest {
     expected_get_initial_data_request_.set_use_attestation(false);
     expected_get_initial_data_request_.set_service_type("chromeipblinding");
     expected_get_initial_data_request_.set_location_granularity(
-        privacy::ppn::GetInitialDataRequest_LocationGranularity_UNKNOWN);
+        privacy::ppn::GetInitialDataRequest_LocationGranularity_CITY_GEOS);
 
     // Create fake public key response.
     privacy::ppn::GetInitialDataResponse fake_get_initial_data_response;

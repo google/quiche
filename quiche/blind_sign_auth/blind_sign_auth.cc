@@ -45,7 +45,7 @@ void BlindSignAuth::GetTokens(
   request.set_use_attestation(false);
   request.set_service_type("chromeipblinding");
   request.set_location_granularity(
-      privacy::ppn::GetInitialDataRequest_LocationGranularity_UNKNOWN);
+      privacy::ppn::GetInitialDataRequest_LocationGranularity_CITY_GEOS);
 
   // Call GetInitialData on the HttpFetcher.
   std::string path_and_query = "/v1/getInitialData";
