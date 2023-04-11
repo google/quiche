@@ -60,7 +60,7 @@ class QUICHE_EXPORT RsaBlindSigner : public BlindSigner {
 
   absl::StatusOr<std::string> SignInternal(absl::string_view input) const;
 
-  const std::optional<absl::string_view> public_metadata_;
+  const std::optional<std::string> public_metadata_;
 
   // We only keep these for the case when we use RSA blind signatures with
   // public metadata. Specifically augmented_rsa_e_ and augmented_rsa_d_ is

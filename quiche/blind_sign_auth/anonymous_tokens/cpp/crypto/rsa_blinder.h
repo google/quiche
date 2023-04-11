@@ -68,7 +68,7 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
              bssl::UniquePtr<BN_MONT_CTX> mont_n);
 
   const int salt_length_;
-  std::optional<absl::string_view> public_metadata_;
+  std::optional<std::string> public_metadata_;
   const EVP_MD* sig_hash_;   // Owned by BoringSSL.
   const EVP_MD* mgf1_hash_;  // Owned by BoringSSL.
 

@@ -59,7 +59,7 @@ class QUICHE_EXPORT RsaSsaPssVerifier : public Verifier {
                     bssl::UniquePtr<BIGNUM> augmented_rsa_e);
 
   const int salt_length_;
-  std::optional<absl::string_view> public_metadata_;
+  std::optional<std::string> public_metadata_;
   const EVP_MD* sig_hash_;   // Owned by BoringSSL.
   const EVP_MD* mgf1_hash_;  // Owned by BoringSSL.
 
