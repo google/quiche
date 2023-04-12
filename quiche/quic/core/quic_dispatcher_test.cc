@@ -5,18 +5,15 @@
 #include "quiche/quic/core/quic_dispatcher.h"
 
 #include <memory>
-#include <ostream>
 #include <string>
 #include <utility>
 
 #include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/chlo_extractor.h"
-#include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/crypto/quic_random.h"
-#include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -31,16 +28,13 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
-#include "quiche/quic/test_tools/fake_proof_source.h"
 #include "quiche/quic/test_tools/first_flight.h"
 #include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/mock_quic_time_wait_list_manager.h"
 #include "quiche/quic/test_tools/quic_buffered_packet_store_peer.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
-#include "quiche/quic/test_tools/quic_crypto_server_config_peer.h"
 #include "quiche/quic/test_tools/quic_dispatcher_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
-#include "quiche/quic/test_tools/quic_time_wait_list_manager_peer.h"
 #include "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 

@@ -8,9 +8,7 @@
 
 #include <cstdint>
 #include <memory>
-#include <ostream>
 #include <string>
-#include <type_traits>
 #include <utility>
 
 #include "absl/base/macros.h"
@@ -22,7 +20,6 @@
 #include "quiche/quic/core/crypto/null_decrypter.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
-#include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_path_response_frame.h"
@@ -56,7 +53,6 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_data_producer.h"
 #include "quiche/quic/test_tools/simple_session_notifier.h"
-#include "quiche/common/platform/api/quiche_reference_counted.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 using testing::_;
