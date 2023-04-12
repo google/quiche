@@ -20,6 +20,7 @@ quiche_core_hdrs = [
     "balsa/noop_balsa_visitor.h",
     "balsa/simple_buffer.h",
     "balsa/standard_header_map.h",
+    "common/btree_scheduler.h",
     "common/capsule.h",
     "common/masque/connect_udp_datagram_payload.h",
     "common/platform/api/quiche_bug_tracker.h",
@@ -1024,6 +1025,7 @@ quiche_tests_srcs = [
     "balsa/header_properties_test.cc",
     "balsa/simple_buffer_test.cc",
     "binary_http/binary_http_message_test.cc",
+    "common/btree_scheduler_test.cc",
     "common/capsule_test.cc",
     "common/masque/connect_udp_datagram_payload_test.cc",
     "common/platform/api/quiche_file_utils_test.cc",
@@ -1306,6 +1308,7 @@ fuzzers_hdrs = [
 
 ]
 fuzzers_srcs = [
+    "common/btree_scheduler_fuzzer.cc",
     "common/structured_headers_fuzzer.cc",
     "quic/core/crypto/certificate_view_der_fuzzer.cc",
     "quic/core/crypto/certificate_view_pem_fuzzer.cc",

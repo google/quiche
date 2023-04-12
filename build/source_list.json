@@ -19,6 +19,7 @@
     "quiche/balsa/noop_balsa_visitor.h",
     "quiche/balsa/simple_buffer.h",
     "quiche/balsa/standard_header_map.h",
+    "quiche/common/btree_scheduler.h",
     "quiche/common/capsule.h",
     "quiche/common/masque/connect_udp_datagram_payload.h",
     "quiche/common/platform/api/quiche_bug_tracker.h",
@@ -1023,6 +1024,7 @@
     "quiche/balsa/header_properties_test.cc",
     "quiche/balsa/simple_buffer_test.cc",
     "quiche/binary_http/binary_http_message_test.cc",
+    "quiche/common/btree_scheduler_test.cc",
     "quiche/common/capsule_test.cc",
     "quiche/common/masque/connect_udp_datagram_payload_test.cc",
     "quiche/common/platform/api/quiche_file_utils_test.cc",
@@ -1305,6 +1307,7 @@
 
   ],
   "fuzzers_srcs": [
+    "quiche/common/btree_scheduler_fuzzer.cc",
     "quiche/common/structured_headers_fuzzer.cc",
     "quiche/quic/core/crypto/certificate_view_der_fuzzer.cc",
     "quiche/quic/core/crypto/certificate_view_pem_fuzzer.cc",

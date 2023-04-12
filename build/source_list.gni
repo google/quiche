@@ -20,6 +20,7 @@ quiche_core_hdrs = [
     "src/quiche/balsa/noop_balsa_visitor.h",
     "src/quiche/balsa/simple_buffer.h",
     "src/quiche/balsa/standard_header_map.h",
+    "src/quiche/common/btree_scheduler.h",
     "src/quiche/common/capsule.h",
     "src/quiche/common/masque/connect_udp_datagram_payload.h",
     "src/quiche/common/platform/api/quiche_bug_tracker.h",
@@ -1024,6 +1025,7 @@ quiche_tests_srcs = [
     "src/quiche/balsa/header_properties_test.cc",
     "src/quiche/balsa/simple_buffer_test.cc",
     "src/quiche/binary_http/binary_http_message_test.cc",
+    "src/quiche/common/btree_scheduler_test.cc",
     "src/quiche/common/capsule_test.cc",
     "src/quiche/common/masque/connect_udp_datagram_payload_test.cc",
     "src/quiche/common/platform/api/quiche_file_utils_test.cc",
@@ -1306,6 +1308,7 @@ fuzzers_hdrs = [
 
 ]
 fuzzers_srcs = [
+    "src/quiche/common/btree_scheduler_fuzzer.cc",
     "src/quiche/common/structured_headers_fuzzer.cc",
     "src/quiche/quic/core/crypto/certificate_view_der_fuzzer.cc",
     "src/quiche/quic/core/crypto/certificate_view_pem_fuzzer.cc",
