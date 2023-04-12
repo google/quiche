@@ -2010,7 +2010,7 @@ class TestPacketWriter : public QuicPacketWriter {
     return last_write_peer_address_;
   }
 
-  const QuicEcnCodepoint last_ecn_sent() const { return last_ecn_sent_; }
+  QuicEcnCodepoint last_ecn_sent() const { return last_ecn_sent_; }
 
  private:
   char* AllocPacketBuffer();
