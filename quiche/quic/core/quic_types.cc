@@ -457,6 +457,7 @@ std::string EcnCodepointToString(QuicEcnCodepoint ecn) {
     case ECN_CE:
       return "CE";
   }
+  return "";  // Handle compilation on windows for invalid enums
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
