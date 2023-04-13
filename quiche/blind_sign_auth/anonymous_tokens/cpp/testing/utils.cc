@@ -17,6 +17,7 @@
 #include <stdint.h>
 
 #include <fstream>
+#include <ios>
 #include <memory>
 #include <random>
 #include <sstream>
@@ -43,21 +44,22 @@ namespace anonymous_tokens {
 namespace {
 
 absl::StatusOr<std::string> ReadFileToString(absl::string_view path) {
-  std::ifstream file((std::string(path)));
+  std::ifstream file(std::string(path), std::ios::binary);
   if (!file.is_open()) {
     return absl::InternalError("Reading file failed.");
   }
-  std::ostringstream ss;
+  std::ostringstream ss(std::ios::binary);
   ss << file.rdbuf();
   return ss.str();
 }
 
 absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> ParseRsaKeysFromFile(
     absl::string_view path) {
-  ANON_TOKENS_ASSIGN_OR_RETURN(std::string text_proto, ReadFileToString(path));
+  ANON_TOKENS_ASSIGN_OR_RETURN(std::string binary_proto,
+                               ReadFileToString(path));
   RSAPrivateKey private_key;
-  if (!private_key.ParseFromString(text_proto)) {
-    return absl::InternalError("Parsing text proto failed.");
+  if (!private_key.ParseFromString(binary_proto)) {
+    return absl::InternalError("Parsing binary proto failed.");
   }
   RSAPublicKey public_key;
   public_key.set_n(private_key.n());
