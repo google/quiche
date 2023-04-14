@@ -40,6 +40,9 @@ message GetInitialDataRequest {
   // The user selected granularity of exit IP location.
   LocationGranularity location_granularity = 3
       ;
+
+  // Indicates what validation rules the client uses for public metadata.
+  int64 validation_version = 4 ;
 }
 
 // Contains data needed to perform blind signing and prepare for calling
@@ -48,7 +51,8 @@ message GetInitialDataResponse {
   private_membership.anonymous_tokens.RSABlindSignaturePublicKey
       at_public_metadata_public_key = 1;
 
-  // Metadata to associate with the token.
+  // Metadata to associate with the token. Version will match the validation
+  // version in the request.
   privacy.ppn.PublicMetadataInfo public_metadata_info = 2;
 
   // Data needed to set up attestation, included if use_attestation is true or
