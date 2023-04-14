@@ -853,10 +853,8 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
         IsInterimResponse(headers_->parsed_response_code())) {
       // Deliver headers from this interim response but reset everything else to
       // prepare for the next set of headers.
-      auto interim_headers =
-          std::make_unique<BalsaHeaders>(std::move(*headers_));
+      visitor_->OnInterimHeaders(std::move(*headers_));
       Reset();
-      visitor_->OnInterimHeaders(std::move(interim_headers));
       checkpoint = message_start = message_current;
       continue;
     }
