@@ -34,16 +34,18 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
-using testing::_;
-using testing::AnyNumber;
-using testing::AtLeast;
-using testing::InSequence;
-using testing::IsEmpty;
-using testing::Mock;
-using testing::NiceMock;
-using testing::Range;
-using testing::StrEq;
-using testing::StrictMock;
+using ::testing::_;
+using ::testing::AnyNumber;
+using ::testing::AtLeast;
+using ::testing::InSequence;
+using ::testing::IsEmpty;
+using ::testing::Mock;
+using ::testing::NiceMock;
+using ::testing::Pointee;
+using ::testing::Property;
+using ::testing::Range;
+using ::testing::StrEq;
+using ::testing::StrictMock;
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, randseed, "",
@@ -3665,6 +3667,82 @@ TEST_F(HTTPBalsaFrameTest,
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, Parse100ContinueNoContinueHeadersNoCallback) {
+  std::string continue_headers =
+      "HTTP/1.1 100 Continue\r\n"
+      "\r\n";
+
+  // Do not set continue headers (or use interim callbacks). Then the parsed
+  // continue headers are treated as final headers.
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.set_use_interim_headers_callback(false);
+
+  InSequence s;
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  EXPECT_CALL(visitor_mock_, MessageDone());
+
+  ASSERT_EQ(balsa_frame_.ProcessInput(continue_headers.data(),
+                                      continue_headers.size()),
+            continue_headers.size())
+      << balsa_frame_.ErrorCode();
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(headers_.parsed_response_code(), 100);
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+}
+
+TEST_F(HTTPBalsaFrameTest, Parse100Continue) {
+  std::string continue_headers =
+      "HTTP/1.1 100 Continue\r\n"
+      "\r\n";
+
+  // The parsed continue headers are delivered as interim headers.
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.set_use_interim_headers_callback(true);
+
+  InSequence s;
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
+  EXPECT_CALL(visitor_mock_, HeaderDone()).Times(0);
+  EXPECT_CALL(visitor_mock_, MessageDone()).Times(0);
+
+  ASSERT_EQ(balsa_frame_.ProcessInput(continue_headers.data(),
+                                      continue_headers.size()),
+            continue_headers.size())
+      << balsa_frame_.ErrorCode();
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(headers_.parsed_response_code(), 0u);
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
+}
+
+// Handle two sets of headers when set up properly and the first is 100
+// Continue.
+TEST_F(HTTPBalsaFrameTest, Support100ContinueNoCallback) {
+  std::string initial_headers =
+      "HTTP/1.1 100 Continue\r\n"
+      "\r\n";
+  std::string real_headers =
+      "HTTP/1.1 200 OK\r\n"
+      "content-length: 3\r\n"
+      "\r\n";
+  std::string body = "foo";
+
+  balsa_frame_.set_is_request(false);
+  BalsaHeaders continue_headers;
+  balsa_frame_.set_continue_headers(&continue_headers);
+  balsa_frame_.set_use_interim_headers_callback(false);
+
+  ASSERT_EQ(initial_headers.size(),
+            balsa_frame_.ProcessInput(initial_headers.data(),
+                                      initial_headers.size()));
+  ASSERT_EQ(real_headers.size(),
+            balsa_frame_.ProcessInput(real_headers.data(), real_headers.size()))
+      << balsa_frame_.ErrorCode();
+  ASSERT_EQ(body.size(), balsa_frame_.ProcessInput(body.data(), body.size()));
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+}
+
 // Handle two sets of headers when set up properly and the first is 100
 // Continue.
 TEST_F(HTTPBalsaFrameTest, Support100Continue) {
@@ -3678,8 +3756,87 @@ TEST_F(HTTPBalsaFrameTest, Support100Continue) {
   std::string body = "foo";
 
   balsa_frame_.set_is_request(false);
+  balsa_frame_.set_use_interim_headers_callback(true);
+
+  InSequence s;
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
+  ASSERT_EQ(
+      balsa_frame_.ProcessInput(initial_headers.data(), initial_headers.size()),
+      initial_headers.size());
+  ASSERT_FALSE(balsa_frame_.Error());
+
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  ASSERT_EQ(balsa_frame_.ProcessInput(real_headers.data(), real_headers.size()),
+            real_headers.size())
+      << balsa_frame_.ErrorCode();
+  EXPECT_EQ(headers_.parsed_response_code(), 200);
+
+  EXPECT_CALL(visitor_mock_, MessageDone());
+  ASSERT_EQ(balsa_frame_.ProcessInput(body.data(), body.size()), body.size());
+
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(balsa_frame_.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
+}
+
+// If both the interim headers callback and continue headers are set, only the
+// former should be used.
+TEST_F(HTTPBalsaFrameTest, InterimHeadersCallbackTakesPrecedence) {
+  std::string initial_headers =
+      "HTTP/1.1 100 Continue\r\n"
+      "\r\n";
+  std::string real_headers =
+      "HTTP/1.1 200 OK\r\n"
+      "content-length: 3\r\n"
+      "\r\n";
+  std::string body = "foo";
+
+  balsa_frame_.set_is_request(false);
   BalsaHeaders continue_headers;
   balsa_frame_.set_continue_headers(&continue_headers);
+  balsa_frame_.set_use_interim_headers_callback(true);
+
+  InSequence s;
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
+  EXPECT_CALL(visitor_mock_, ContinueHeaderDone).Times(0);
+  ASSERT_EQ(
+      balsa_frame_.ProcessInput(initial_headers.data(), initial_headers.size()),
+      initial_headers.size());
+  EXPECT_EQ(continue_headers.parsed_response_code(), 0u);
+  ASSERT_FALSE(balsa_frame_.Error());
+
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  ASSERT_EQ(balsa_frame_.ProcessInput(real_headers.data(), real_headers.size()),
+            real_headers.size())
+      << balsa_frame_.ErrorCode();
+  EXPECT_EQ(headers_.parsed_response_code(), 200);
+
+  EXPECT_CALL(visitor_mock_, MessageDone());
+  ASSERT_EQ(balsa_frame_.ProcessInput(body.data(), body.size()), body.size());
+
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(balsa_frame_.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
+}
+
+// Handle two sets of headers when set up properly and the first is 100
+// Continue and it meets the conditions for b/62408297.
+TEST_F(HTTPBalsaFrameTest, Support100Continue401UnauthorizedNoCallback) {
+  std::string initial_headers =
+      "HTTP/1.1 100 Continue\r\n"
+      "\r\n";
+  std::string real_headers =
+      "HTTP/1.1 401 Unauthorized\r\n"
+      "content-length: 3\r\n"
+      "\r\n";
+  std::string body = "foo";
+
+  balsa_frame_.set_is_request(false);
+  BalsaHeaders continue_headers;
+  balsa_frame_.set_continue_headers(&continue_headers);
+  balsa_frame_.set_use_interim_headers_callback(false);
 
   ASSERT_EQ(initial_headers.size(),
             balsa_frame_.ProcessInput(initial_headers.data(),
@@ -3694,7 +3851,7 @@ TEST_F(HTTPBalsaFrameTest, Support100Continue) {
 }
 
 // Handle two sets of headers when set up properly and the first is 100
-// Continue and it meets the conditions for b/62408297
+// Continue and it meets the conditions for b/62408297.
 TEST_F(HTTPBalsaFrameTest, Support100Continue401Unauthorized) {
   std::string initial_headers =
       "HTTP/1.1 100 Continue\r\n"
@@ -3706,22 +3863,31 @@ TEST_F(HTTPBalsaFrameTest, Support100Continue401Unauthorized) {
   std::string body = "foo";
 
   balsa_frame_.set_is_request(false);
-  BalsaHeaders continue_headers;
-  balsa_frame_.set_continue_headers(&continue_headers);
+  balsa_frame_.set_use_interim_headers_callback(true);
 
-  ASSERT_EQ(initial_headers.size(),
-            balsa_frame_.ProcessInput(initial_headers.data(),
-                                      initial_headers.size()));
-  ASSERT_EQ(real_headers.size(),
-            balsa_frame_.ProcessInput(real_headers.data(), real_headers.size()))
+  InSequence s;
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
+  ASSERT_EQ(
+      balsa_frame_.ProcessInput(initial_headers.data(), initial_headers.size()),
+      initial_headers.size());
+  ASSERT_FALSE(balsa_frame_.Error());
+
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  ASSERT_EQ(balsa_frame_.ProcessInput(real_headers.data(), real_headers.size()),
+            real_headers.size())
       << balsa_frame_.ErrorCode();
-  ASSERT_EQ(body.size(), balsa_frame_.ProcessInput(body.data(), body.size()));
+  EXPECT_EQ(headers_.parsed_response_code(), 401);
+
+  EXPECT_CALL(visitor_mock_, MessageDone());
+  ASSERT_EQ(balsa_frame_.ProcessInput(body.data(), body.size()), body.size());
+
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(balsa_frame_.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
 }
 
-TEST_F(HTTPBalsaFrameTest, Support100ContinueRunTogether) {
+TEST_F(HTTPBalsaFrameTest, Support100ContinueRunTogetherNoCallback) {
   std::string both_headers =
       "HTTP/1.1 100 Continue\r\n"
       "\r\n"
@@ -3740,6 +3906,7 @@ TEST_F(HTTPBalsaFrameTest, Support100ContinueRunTogether) {
   balsa_frame_.set_is_request(false);
   BalsaHeaders continue_headers;
   balsa_frame_.set_continue_headers(&continue_headers);
+  balsa_frame_.set_use_interim_headers_callback(false);
 
   ASSERT_EQ(both_headers.size(),
             balsa_frame_.ProcessInput(both_headers.data(), both_headers.size()))
@@ -3748,6 +3915,70 @@ TEST_F(HTTPBalsaFrameTest, Support100ContinueRunTogether) {
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, Support100ContinueRunTogether) {
+  std::string both_headers =
+      "HTTP/1.1 100 Continue\r\n"
+      "\r\n"
+      "HTTP/1.1 200 OK\r\n"
+      "content-length: 3\r\n"
+      "\r\n";
+  std::string body = "foo";
+
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.set_use_interim_headers_callback(true);
+
+  InSequence s;
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+
+  ASSERT_EQ(balsa_frame_.ProcessInput(both_headers.data(), both_headers.size()),
+            both_headers.size())
+      << balsa_frame_.ErrorCode();
+  ASSERT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(headers_.parsed_response_code(), 200);
+
+  EXPECT_CALL(visitor_mock_, MessageDone());
+  ASSERT_EQ(balsa_frame_.ProcessInput(body.data(), body.size()), body.size());
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(balsa_frame_.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
+}
+
+TEST_F(HTTPBalsaFrameTest, MultipleInterimHeaders) {
+  std::string all_headers =
+      "HTTP/1.1 100 Continue\r\n"
+      "\r\n"
+      "HTTP/1.1 103 Early Hints\r\n"
+      "\r\n"
+      "HTTP/1.1 200 OK\r\n"
+      "content-length: 3\r\n"
+      "\r\n";
+  std::string body = "foo";
+
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.set_use_interim_headers_callback(true);
+
+  InSequence s;
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 103))));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+
+  ASSERT_EQ(balsa_frame_.ProcessInput(all_headers.data(), all_headers.size()),
+            all_headers.size())
+      << balsa_frame_.ErrorCode();
+  ASSERT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(headers_.parsed_response_code(), 200);
+
+  EXPECT_CALL(visitor_mock_, MessageDone());
+  ASSERT_EQ(balsa_frame_.ProcessInput(body.data(), body.size()), body.size());
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(balsa_frame_.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
 }
 
 TEST_F(HTTPBalsaFrameTest, Http09) {

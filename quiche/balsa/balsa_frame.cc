@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -48,6 +49,10 @@ constexpr absl::string_view kChunked = "chunked";
 constexpr absl::string_view kContentLength = "content-length";
 constexpr absl::string_view kIdentity = "identity";
 constexpr absl::string_view kTransferEncoding = "transfer-encoding";
+
+bool IsInterimResponse(size_t response_code) {
+  return response_code >= 100 && response_code < 200;
+}
 
 }  // namespace
 
@@ -844,6 +849,17 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
       return message_current - original_message_start;
     }
 
+    if (use_interim_headers_callback_ &&
+        IsInterimResponse(headers_->parsed_response_code())) {
+      // Deliver headers from this interim response but reset everything else to
+      // prepare for the next set of headers.
+      auto interim_headers =
+          std::make_unique<BalsaHeaders>(std::move(*headers_));
+      Reset();
+      visitor_->OnInterimHeaders(std::move(interim_headers));
+      checkpoint = message_start = message_current;
+      continue;
+    }
     if (continue_headers_ != nullptr &&
         headers_->parsed_response_code_ == kContinueStatusCode) {
       // Save the headers from this 100 Continue response but reset everything
