@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <memory>
 #include <random>
 #include <sstream>
 #include <string>
@@ -554,6 +555,8 @@ class BalsaVisitorMock : public BalsaVisitorInterface {
               (override));
   MOCK_METHOD(void, OnChunkLength, (size_t length), (override));
   MOCK_METHOD(void, OnChunkExtensionInput, (absl::string_view input),
+              (override));
+  MOCK_METHOD(void, OnInterimHeaders, (std::unique_ptr<BalsaHeaders> headers),
               (override));
   MOCK_METHOD(void, ContinueHeaderDone, (), (override));
   MOCK_METHOD(void, HeaderDone, (), (override));
