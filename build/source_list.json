@@ -1307,7 +1307,6 @@
 
   ],
   "fuzzers_srcs": [
-    "quiche/common/btree_scheduler_fuzzer.cc",
     "quiche/common/structured_headers_fuzzer.cc",
     "quiche/quic/core/crypto/certificate_view_der_fuzzer.cc",
     "quiche/quic/core/crypto/certificate_view_pem_fuzzer.cc",

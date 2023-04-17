@@ -1308,7 +1308,6 @@ fuzzers_hdrs = [
 
 ]
 fuzzers_srcs = [
-    "common/btree_scheduler_fuzzer.cc",
     "common/structured_headers_fuzzer.cc",
     "quic/core/crypto/certificate_view_der_fuzzer.cc",
     "quic/core/crypto/certificate_view_pem_fuzzer.cc",
