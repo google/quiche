@@ -158,7 +158,7 @@ TEST(PublicMetadataCryptoUtilsInternalTest, PublicMetadataHashWithHKDF) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(BnCtxPtr ctx, GetAndStartBigNumCtx());
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> max_value,
                                    NewBigNum());
-  ASSERT_TRUE(BN_set_word(max_value.get(), 4294967296));
+  ASSERT_TRUE(BN_set_word(max_value.get(), 4294967295));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto key_pair, GetStrongRsaKeys2048());
   std::string input1 = "ro1";
   std::string input2 = "ro2";
@@ -178,8 +178,8 @@ TEST(PublicMetadataCryptoUtilsInternalTest, PublicMetadataHashWithHKDF) {
                                            1 + input2.size()));
   EXPECT_NE(BN_cmp(output1.get(), output2.get()), 0);
 
-  EXPECT_LT(BN_cmp(output1.get(), max_value.get()), 0);
-  EXPECT_LT(BN_cmp(output2.get(), max_value.get()), 0);
+  EXPECT_LE(BN_cmp(output1.get(), max_value.get()), 0);
+  EXPECT_LE(BN_cmp(output2.get(), max_value.get()), 0);
 }
 
 TEST(PublicMetadataCryptoUtilsTest, PublicExponentHashDifferentModulus) {
