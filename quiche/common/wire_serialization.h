@@ -390,7 +390,7 @@ absl::StatusOr<QuicheBuffer> SerializeIntoBuffer(
     return absl::InternalError(absl::StrCat(
         "Excess ", writer.remaining(), " bytes allocated while serializing"));
   }
-  return buffer;
+  return std::move(buffer);
 }
 
 }  // namespace quiche
