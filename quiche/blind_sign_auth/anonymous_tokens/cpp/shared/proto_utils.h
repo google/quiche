@@ -21,6 +21,10 @@
 #include "absl/time/time.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "quiche/common/platform/api/quiche_export.h"
+// copybara:strip_begin(internal comment)
+// The QUICHE_EXPORT annotation is necessary for some classes and functions
+// to link correctly on Windows. Please do not remove them!
+// copybara:strip_end
 
 namespace private_membership {
 namespace anonymous_tokens {

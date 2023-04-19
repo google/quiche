@@ -26,12 +26,11 @@
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/base.h"
-#include "quiche/common/platform/api/quiche_export.h"
 
 namespace private_membership {
 namespace anonymous_tokens {
 
-struct QUICHE_EXPORT IetfStandardRsaBlindSignatureTestVector {
+struct IetfStandardRsaBlindSignatureTestVector {
   std::string n;
   std::string e;
   std::string d;
@@ -46,7 +45,7 @@ struct QUICHE_EXPORT IetfStandardRsaBlindSignatureTestVector {
   std::string signature;
 };
 
-struct QUICHE_EXPORT IetfRsaBlindSignatureWithPublicMetadataTestVector {
+struct IetfRsaBlindSignatureWithPublicMetadataTestVector {
   std::string n;
   std::string e;
   std::string d;
@@ -63,8 +62,7 @@ struct QUICHE_EXPORT IetfRsaBlindSignatureWithPublicMetadataTestVector {
 // Creates a pair containing a standard RSA Private key and an Anonymous Tokens
 // RSABlindSignaturePublicKey using RSA_F4 (65537) as the public exponent and
 // other input parameters.
-absl::StatusOr<std::pair<bssl::UniquePtr<RSA>,
-                         RSABlindSignaturePublicKey>> QUICHE_EXPORT
+absl::StatusOr<std::pair<bssl::UniquePtr<RSA>, RSABlindSignaturePublicKey>>
 CreateTestKey(int key_size = 512, HashType sig_hash = AT_HASH_TYPE_SHA384,
               MaskGenFunction mfg1_hash = AT_MGF_SHA384, int salt_length = 48,
               MessageMaskType message_mask_type = AT_MESSAGE_MASK_CONCAT,
@@ -83,65 +81,60 @@ absl::StatusOr<std::string> EncodeMessageForTests(absl::string_view message,
 
 // TestSign can be removed once rsa_blind_signer is moved to
 // anonympous_tokens/public/cpp/crypto
-absl::StatusOr<std::string> QUICHE_EXPORT TestSign(
-    absl::string_view blinded_data, RSA* rsa_key);
+absl::StatusOr<std::string> TestSign(absl::string_view blinded_data,
+                                     RSA* rsa_key);
 
 // TestSignWithPublicMetadata can be removed once rsa_blind_signer is moved to
 // anonympous_tokens/public/cpp/crypto
-absl::StatusOr<std::string> QUICHE_EXPORT TestSignWithPublicMetadata(
+absl::StatusOr<std::string> TestSignWithPublicMetadata(
     absl::string_view blinded_data, absl::string_view public_metadata,
     const RSA& rsa_key);
 
 // This method returns a newly generated RSA key pair, setting the public
 // exponent to be the standard RSA_F4 (65537) and the default modulus size to
 // 512 bytes.
-absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT
-GetStandardRsaKeyPair(int modulus_size_in_bytes = kRsaModulusSizeInBytes512);
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> GetStandardRsaKeyPair(
+    int modulus_size_in_bytes = kRsaModulusSizeInBytes512);
 
 // Method returns fixed 2048-bit strong RSA modulus for testing.
-absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT
-GetStrongRsaKeys2048();
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> GetStrongRsaKeys2048();
 
 // Method returns another fixed 2048-bit strong RSA modulus for testing.
-absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>>
 GetAnotherStrongRsaKeys2048();
 
 // Method returns fixed 3072-bit strong RSA modulus for testing.
-absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT
-GetStrongRsaKeys3072();
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> GetStrongRsaKeys3072();
 
 // Method returns fixed 4096-bit strong RSA modulus for testing.
-absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT
-GetStrongRsaKeys4096();
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> GetStrongRsaKeys4096();
 
 // Returns the IETF test example from
 // https://datatracker.ietf.org/doc/draft-irtf-cfrg-rsa-blind-signatures/
-IetfStandardRsaBlindSignatureTestVector QUICHE_EXPORT
+IetfStandardRsaBlindSignatureTestVector
 GetIetfStandardRsaBlindSignatureTestVector();
 
 // This method returns a RSA key pair as described in the IETF test example
 // above.
-absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>>
 GetIetfStandardRsaBlindSignatureTestKeys();
 
 // Returns the IETF test with Public Metadata examples from
 // https://datatracker.ietf.org/doc/draft-amjad-cfrg-partially-blind-rsa/
 //
 // Note that all test vectors use the same RSA key pair.
-std::vector<
-    IetfRsaBlindSignatureWithPublicMetadataTestVector> QUICHE_EXPORT
+std::vector<IetfRsaBlindSignatureWithPublicMetadataTestVector>
 GetIetfRsaBlindSignatureWithPublicMetadataTestVectors();
 
 // This method returns a RSA key pair as described in the IETF test with Public
 // Metadata example. It can be used for all test vectors returned by
 // GetIetfRsaBlindSignatureWithPublicMetadataTestVectors.
-absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>> QUICHE_EXPORT
+absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>>
 GetIetfRsaBlindSignatureWithPublicMetadataTestKeys();
 
 // Outputs a random string of n characters.
-std::string QUICHE_EXPORT RandomString(
-    int n, std::uniform_int_distribution<int>* distr_u8,
-    std::mt19937_64* generator);
+std::string RandomString(int n, std::uniform_int_distribution<int>* distr_u8,
+                         std::mt19937_64* generator);
 
 #define ANON_TOKENS_ASSERT_OK_AND_ASSIGN(lhs, rexpr)                       \
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN_IMPL_(                                  \

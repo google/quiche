@@ -29,6 +29,10 @@
 #include "openssl/evp.h"
 #include "openssl/rsa.h"
 #include "quiche/common/platform/api/quiche_export.h"
+// copybara:strip_begin(internal comment)
+// The QUICHE_EXPORT annotation is necessary for some classes and functions
+// to link correctly on Windows. Please do not remove them!
+// copybara:strip_end
 
 namespace private_membership {
 namespace anonymous_tokens {
