@@ -7225,8 +7225,9 @@ TEST_P(EndToEndTest, OriginalConnectionIdClearedFromMap) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTest, ServerReportsEcn) {
+TEST_P(EndToEndTest, ServerReportsNotEct) {
   // Client connects using not-ECT.
+  SetQuicReloadableFlag(quic_send_ect1, true);
   ASSERT_TRUE(Initialize());
   QuicConnection* client_connection = GetClientConnection();
   QuicConnectionPeer::DisableEcnCodepointValidation(client_connection);
@@ -7236,44 +7237,102 @@ TEST_P(EndToEndTest, ServerReportsEcn) {
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
   EXPECT_EQ(ecn->ce, 0);
-  QuicPacketCount ect0 = 0, ect1 = 0;
   TestPerPacketOptions options;
   client_connection->set_per_packet_options(&options);
-  for (QuicEcnCodepoint codepoint : {ECN_NOT_ECT, ECN_ECT0, ECN_ECT1, ECN_CE}) {
-    options.ecn_codepoint = codepoint;
-    client_->SendSynchronousRequest("/foo");
-    if (!GetQuicRestartFlag(quic_receive_ecn) ||
-        !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
-        !VersionHasIetfQuicFrames(version_.transport_version) ||
-        codepoint == ECN_NOT_ECT) {
-      EXPECT_EQ(ecn->ect0, 0);
-      EXPECT_EQ(ecn->ect1, 0);
-      EXPECT_EQ(ecn->ce, 0);
-      continue;
-    }
-    EXPECT_GT(ecn->ect0, 0);
-    if (codepoint == ECN_CE) {
-      EXPECT_EQ(ect0, ecn->ect0);  // No more ECT(0) arriving
-      EXPECT_GE(ecn->ect1, ect1);  // Late-arriving ECT(1) control packets
-      EXPECT_GT(ecn->ce, 0);
-      continue;
-    }
-    EXPECT_EQ(ecn->ce, 0);
-    if (codepoint == ECN_ECT1) {
-      EXPECT_GE(ecn->ect0, ect0);  // Late-arriving ECT(0) control packets
-      ect0 = ecn->ect0;
-      ect1 = ecn->ect1;
-      EXPECT_GT(ect1, 0);
-      continue;
-    }
-    // codepoint == ECN_ECT0
-    ect0 = ecn->ect0;
-    EXPECT_EQ(ecn->ect1, 0);
-  }
+  options.ecn_codepoint = ECN_NOT_ECT;
+  client_->SendSynchronousRequest("/foo");
+  EXPECT_EQ(ecn->ect0, 0);
+  EXPECT_EQ(ecn->ect1, 0);
+  EXPECT_EQ(ecn->ce, 0);
   client_->Disconnect();
 }
 
-TEST_P(EndToEndTest, ClientReportsEcn) {
+TEST_P(EndToEndTest, ServerReportsEct0) {
+  // Client connects using not-ECT.
+  SetQuicReloadableFlag(quic_send_ect1, true);
+  ASSERT_TRUE(Initialize());
+  QuicConnection* client_connection = GetClientConnection();
+  QuicConnectionPeer::DisableEcnCodepointValidation(client_connection);
+  QuicEcnCounts* ecn = QuicSentPacketManagerPeer::GetPeerEcnCounts(
+      QuicConnectionPeer::GetSentPacketManager(client_connection),
+      APPLICATION_DATA);
+  EXPECT_EQ(ecn->ect0, 0);
+  EXPECT_EQ(ecn->ect1, 0);
+  EXPECT_EQ(ecn->ce, 0);
+  TestPerPacketOptions options;
+  client_connection->set_per_packet_options(&options);
+  options.ecn_codepoint = ECN_ECT0;
+  client_->SendSynchronousRequest("/foo");
+  if (!GetQuicRestartFlag(quic_receive_ecn) ||
+      !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
+      !VersionHasIetfQuicFrames(version_.transport_version)) {
+    EXPECT_EQ(ecn->ect0, 0);
+  } else {
+    EXPECT_GT(ecn->ect0, 0);
+  }
+  EXPECT_EQ(ecn->ect1, 0);
+  EXPECT_EQ(ecn->ce, 0);
+  client_->Disconnect();
+}
+
+TEST_P(EndToEndTest, ServerReportsEct1) {
+  // Client connects using not-ECT.
+  SetQuicReloadableFlag(quic_send_ect1, true);
+  ASSERT_TRUE(Initialize());
+  QuicConnection* client_connection = GetClientConnection();
+  QuicConnectionPeer::DisableEcnCodepointValidation(client_connection);
+  QuicEcnCounts* ecn = QuicSentPacketManagerPeer::GetPeerEcnCounts(
+      QuicConnectionPeer::GetSentPacketManager(client_connection),
+      APPLICATION_DATA);
+  EXPECT_EQ(ecn->ect0, 0);
+  EXPECT_EQ(ecn->ect1, 0);
+  EXPECT_EQ(ecn->ce, 0);
+  TestPerPacketOptions options;
+  client_connection->set_per_packet_options(&options);
+  options.ecn_codepoint = ECN_ECT1;
+  client_->SendSynchronousRequest("/foo");
+  if (!GetQuicRestartFlag(quic_receive_ecn) ||
+      !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
+      !VersionHasIetfQuicFrames(version_.transport_version)) {
+    EXPECT_EQ(ecn->ect1, 0);
+  } else {
+    EXPECT_GT(ecn->ect1, 0);
+  }
+  EXPECT_EQ(ecn->ect0, 0);
+  EXPECT_EQ(ecn->ce, 0);
+  client_->Disconnect();
+}
+
+TEST_P(EndToEndTest, ServerReportsCe) {
+  // Client connects using not-ECT.
+  SetQuicReloadableFlag(quic_send_ect1, true);
+  ASSERT_TRUE(Initialize());
+  QuicConnection* client_connection = GetClientConnection();
+  QuicConnectionPeer::DisableEcnCodepointValidation(client_connection);
+  QuicEcnCounts* ecn = QuicSentPacketManagerPeer::GetPeerEcnCounts(
+      QuicConnectionPeer::GetSentPacketManager(client_connection),
+      APPLICATION_DATA);
+  EXPECT_EQ(ecn->ect0, 0);
+  EXPECT_EQ(ecn->ect1, 0);
+  EXPECT_EQ(ecn->ce, 0);
+  TestPerPacketOptions options;
+  client_connection->set_per_packet_options(&options);
+  options.ecn_codepoint = ECN_CE;
+  client_->SendSynchronousRequest("/foo");
+  if (!GetQuicRestartFlag(quic_receive_ecn) ||
+      !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
+      !VersionHasIetfQuicFrames(version_.transport_version)) {
+    EXPECT_EQ(ecn->ce, 0);
+  } else {
+    EXPECT_GT(ecn->ce, 0);
+  }
+  EXPECT_EQ(ecn->ect0, 0);
+  EXPECT_EQ(ecn->ect1, 0);
+  client_->Disconnect();
+}
+
+TEST_P(EndToEndTest, ClientReportsEct1) {
+  SetQuicReloadableFlag(quic_send_ect1, true);
   ASSERT_TRUE(Initialize());
   // Wait for handshake to complete, so that we can manipulate the server
   // connection without race conditions.

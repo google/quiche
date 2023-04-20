@@ -259,18 +259,23 @@ class QuicSentPacketManagerTest : public QuicTest {
   }
 
   void SendDataPacket(uint64_t packet_number) {
-    SendDataPacket(packet_number, ENCRYPTION_INITIAL);
+    SendDataPacket(packet_number, ENCRYPTION_INITIAL, ECN_NOT_ECT);
   }
 
   void SendDataPacket(uint64_t packet_number,
                       EncryptionLevel encryption_level) {
+    SendDataPacket(packet_number, encryption_level, ECN_NOT_ECT);
+  }
+
+  void SendDataPacket(uint64_t packet_number, EncryptionLevel encryption_level,
+                      QuicEcnCodepoint ecn_codepoint) {
     EXPECT_CALL(*send_algorithm_,
                 OnPacketSent(_, BytesInFlight(),
                              QuicPacketNumber(packet_number), _, _));
     SerializedPacket packet(CreateDataPacket(packet_number));
     packet.encryption_level = encryption_level;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+                          HAS_RETRANSMITTABLE_DATA, true, ecn_codepoint);
   }
 
   void SendPingPacket(uint64_t packet_number,
@@ -3190,14 +3195,28 @@ TEST_F(QuicSentPacketManagerTest, GetAvailableCongestionWindow) {
 }
 
 TEST_F(QuicSentPacketManagerTest, EcnCountsAreStored) {
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    return;
+  }
   absl::optional<QuicEcnCounts> ecn_counts1, ecn_counts2, ecn_counts3;
-  ecn_counts1 = {1, 2, 3};
+  ecn_counts1 = {1, 0, 3};
+  ecn_counts2 = {0, 3, 1};
+  ecn_counts3 = {0, 2, 0};
+  SendDataPacket(1, ENCRYPTION_INITIAL, ECN_ECT0);
+  SendDataPacket(2, ENCRYPTION_INITIAL, ECN_ECT0);
+  SendDataPacket(3, ENCRYPTION_INITIAL, ECN_ECT0);
+  SendDataPacket(4, ENCRYPTION_INITIAL, ECN_ECT0);
+  SendDataPacket(5, ENCRYPTION_HANDSHAKE, ECN_ECT1);
+  SendDataPacket(6, ENCRYPTION_HANDSHAKE, ECN_ECT1);
+  SendDataPacket(7, ENCRYPTION_HANDSHAKE, ECN_ECT1);
+  SendDataPacket(8, ENCRYPTION_HANDSHAKE, ECN_ECT1);
+  SendDataPacket(9, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
+  SendDataPacket(10, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
   manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1), ENCRYPTION_INITIAL,
                          ecn_counts1);
-  ecn_counts2 = {0, 3, 1};
   manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
                          ENCRYPTION_HANDSHAKE, ecn_counts2);
-  ecn_counts3 = {0, 2, 0};
+
   manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
                          ENCRYPTION_FORWARD_SECURE, ecn_counts3);
   EXPECT_EQ(
@@ -3209,6 +3228,226 @@ TEST_F(QuicSentPacketManagerTest, EcnCountsAreStored) {
   EXPECT_EQ(
       *QuicSentPacketManagerPeer::GetPeerEcnCounts(&manager_, APPLICATION_DATA),
       ecn_counts3);
+}
+
+TEST_F(QuicSentPacketManagerTest, EcnCountsReceived) {
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    return;
+  }
+  // Basic ECN reporting test. The reported counts are equal to the total sent,
+  // but more than the total acked. This is legal per the spec.
+  for (uint64_t i = 1; i <= 3; ++i) {
+    SendDataPacket(i, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
+  }
+  // Ack the last two packets, but report 3 counts (ack of 1 was lost).
+  EXPECT_CALL(*network_change_visitor_, OnInFlightEcnPacketAcked()).Times(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(4));
+  EXPECT_CALL(*send_algorithm_,
+              OnCongestionEvent(_, _, _, Pointwise(PacketNumberEq(), {2, 3}),
+                                IsEmpty(), 2, 1))
+      .Times(1);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange()).Times(1);
+  absl::optional<QuicEcnCounts> ecn_counts = QuicEcnCounts();
+  ecn_counts->ect1 = QuicPacketCount(2);
+  ecn_counts->ce = QuicPacketCount(1);
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE, ecn_counts));
+}
+
+TEST_F(QuicSentPacketManagerTest, PeerDecrementsEcnCounts) {
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    return;
+  }
+  for (uint64_t i = 1; i <= 5; ++i) {
+    SendDataPacket(i, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
+  }
+  // Ack all three packets).
+  EXPECT_CALL(*network_change_visitor_, OnInFlightEcnPacketAcked()).Times(3);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
+  EXPECT_CALL(*send_algorithm_,
+              OnCongestionEvent(_, _, _, Pointwise(PacketNumberEq(), {1, 2, 3}),
+                                IsEmpty(), 2, 1))
+      .Times(1);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange()).Times(1);
+  absl::optional<QuicEcnCounts> ecn_counts = QuicEcnCounts();
+  ecn_counts->ect1 = QuicPacketCount(2);
+  ecn_counts->ce = QuicPacketCount(1);
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE, ecn_counts));
+  // New ack, counts decline
+  EXPECT_CALL(*network_change_visitor_, OnInFlightEcnPacketAcked()).Times(1);
+  manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(5));
+  EXPECT_CALL(*network_change_visitor_, OnInvalidEcnFeedback());
+  EXPECT_CALL(*send_algorithm_,
+              OnCongestionEvent(_, _, _, Pointwise(PacketNumberEq(), {4}),
+                                IsEmpty(), 0, 0))
+      .Times(1);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange()).Times(1);
+  ecn_counts = QuicEcnCounts();
+  ecn_counts->ect1 = QuicPacketCount(3);
+  ecn_counts->ce = QuicPacketCount(0);  // Reduced CE count
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_FORWARD_SECURE, ecn_counts));
+}
+
+TEST_F(QuicSentPacketManagerTest, TooManyEcnCountsReported) {
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    return;
+  }
+  for (uint64_t i = 1; i <= 3; ++i) {
+    SendDataPacket(i, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
+  }
+  // Ack the last two packets, but report 3 counts (ack of 1 was lost).
+  EXPECT_CALL(*network_change_visitor_, OnInFlightEcnPacketAcked()).Times(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(4));
+  absl::optional<QuicEcnCounts> ecn_counts = QuicEcnCounts();
+  // Report 4 counts, but only 3 packets were sent.
+  ecn_counts->ect1 = QuicPacketCount(3);
+  ecn_counts->ce = QuicPacketCount(1);
+  EXPECT_CALL(*network_change_visitor_, OnInvalidEcnFeedback());
+  EXPECT_CALL(*send_algorithm_,
+              OnCongestionEvent(_, _, _, Pointwise(PacketNumberEq(), {2, 3}),
+                                IsEmpty(), 0, 0))
+      .Times(1);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange()).Times(1);
+
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE, ecn_counts));
+}
+
+TEST_F(QuicSentPacketManagerTest, PeerReportsWrongCodepoint) {
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    return;
+  }
+  for (uint64_t i = 1; i <= 3; ++i) {
+    SendDataPacket(i, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
+  }
+  // Ack the last two packets, but report 3 counts (ack of 1 was lost).
+  EXPECT_CALL(*network_change_visitor_, OnInFlightEcnPacketAcked()).Times(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(4));
+  absl::optional<QuicEcnCounts> ecn_counts = QuicEcnCounts();
+  // Report the wrong codepoint.
+  ecn_counts->ect0 = QuicPacketCount(2);
+  ecn_counts->ce = QuicPacketCount(1);
+  EXPECT_CALL(*network_change_visitor_, OnInvalidEcnFeedback());
+  EXPECT_CALL(*send_algorithm_,
+              OnCongestionEvent(_, _, _, Pointwise(PacketNumberEq(), {2, 3}),
+                                IsEmpty(), 0, 0))
+      .Times(1);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange()).Times(1);
+
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE, ecn_counts));
+}
+
+TEST_F(QuicSentPacketManagerTest, TooFewEcnCountsReported) {
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    return;
+  }
+  for (uint64_t i = 1; i <= 3; ++i) {
+    SendDataPacket(i, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
+  }
+  // Ack the last two packets, but report 3 counts (ack of 1 was lost).
+  EXPECT_CALL(*network_change_visitor_, OnInFlightEcnPacketAcked()).Times(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(4));
+  EXPECT_CALL(*network_change_visitor_, OnInvalidEcnFeedback());
+  EXPECT_CALL(*send_algorithm_,
+              OnCongestionEvent(_, _, _, Pointwise(PacketNumberEq(), {2, 3}),
+                                IsEmpty(), 0, 0))
+      .Times(1);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange()).Times(1);
+  absl::optional<QuicEcnCounts> ecn_counts = QuicEcnCounts();
+  // 2 ECN packets were newly acked, but only one count was reported.
+  ecn_counts->ect1 = QuicPacketCount(1);
+  ecn_counts->ce = QuicPacketCount(0);
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE, ecn_counts));
+}
+
+TEST_F(QuicSentPacketManagerTest,
+       EcnCountsNotValidatedIfLargestAckedUnchanged) {
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    return;
+  }
+  for (uint64_t i = 1; i <= 3; ++i) {
+    SendDataPacket(i, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
+  }
+  // Ack two packets.
+  EXPECT_CALL(*network_change_visitor_, OnInFlightEcnPacketAcked()).Times(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(4));
+  EXPECT_CALL(*send_algorithm_,
+              OnCongestionEvent(_, _, _, Pointwise(PacketNumberEq(), {2, 3}),
+                                IsEmpty(), 2, 1))
+      .Times(1);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange()).Times(1);
+  absl::optional<QuicEcnCounts> ecn_counts = QuicEcnCounts();
+  ecn_counts->ect1 = QuicPacketCount(2);
+  ecn_counts->ce = QuicPacketCount(1);
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE, ecn_counts));
+  // Ack the first packet, which will not update largest_acked.
+  EXPECT_CALL(*network_change_visitor_, OnInFlightEcnPacketAcked()).Times(1);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
+  EXPECT_CALL(*send_algorithm_,
+              OnCongestionEvent(_, _, _, Pointwise(PacketNumberEq(), {1}),
+                                IsEmpty(), 0, 0))
+      .Times(1);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange()).Times(1);
+  ecn_counts = QuicEcnCounts();
+  // Counts decline, but there's no validation because largest_acked didn't
+  // change.
+  ecn_counts->ect1 = QuicPacketCount(2);
+  ecn_counts->ce = QuicPacketCount(0);  // Reduced CE count
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_FORWARD_SECURE, ecn_counts));
+}
+
+TEST_F(QuicSentPacketManagerTest, EcnAckedButNoMarksReported) {
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    return;
+  }
+  for (uint64_t i = 1; i <= 3; ++i) {
+    SendDataPacket(i, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
+  }
+  // Ack the last two packets, but report 3 counts (ack of 1 was lost).
+  EXPECT_CALL(*network_change_visitor_, OnInFlightEcnPacketAcked()).Times(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(4));
+  EXPECT_CALL(*network_change_visitor_, OnInvalidEcnFeedback());
+  EXPECT_CALL(*send_algorithm_,
+              OnCongestionEvent(_, _, _, Pointwise(PacketNumberEq(), {2, 3}),
+                                IsEmpty(), 0, 0))
+      .Times(1);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange()).Times(1);
+  absl::optional<QuicEcnCounts> ecn_counts = absl::nullopt;
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE, ecn_counts));
 }
 
 }  // namespace

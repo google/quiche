@@ -93,6 +93,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
 QUIC_FLAG(quic_restart_flag_quic_quiche_ecn_sockets, true)
 // When true, report received ECN markings to the peer.
 QUIC_FLAG(quic_restart_flag_quic_receive_ecn, true)
+// When true, sends QUIC packets marked ECT(1).
+QUIC_FLAG(quic_reloadable_flag_quic_send_ect1, false)
 // When true, support draft-ietf-quic-v2-08
 QUIC_FLAG(quic_reloadable_flag_quic_enable_version_2_draft_08, false)
 // When true, the BB2U copt causes BBR2 to wait two rounds with out draining the queue before exiting PROBE_UP and BB2S has the same effect in STARTUP.

@@ -1308,6 +1308,8 @@ class MockNetworkChangeVisitor
 
   MOCK_METHOD(void, OnCongestionChange, (), (override));
   MOCK_METHOD(void, OnPathMtuIncreased, (QuicPacketLength), (override));
+  MOCK_METHOD(void, OnInFlightEcnPacketAcked, (), (override));
+  MOCK_METHOD(void, OnInvalidEcnFeedback, (), (override));
 };
 
 class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {

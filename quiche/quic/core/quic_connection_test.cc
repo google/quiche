@@ -17462,6 +17462,7 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, EcnCodepointsRejected) {
+  SetQuicReloadableFlag(quic_send_ect1, true);
   TestPerPacketOptions per_packet_options;
   connection_.set_per_packet_options(&per_packet_options);
   for (QuicEcnCodepoint ecn : {ECN_NOT_ECT, ECN_ECT0, ECN_ECT1, ECN_CE}) {
@@ -17473,12 +17474,13 @@ TEST_P(QuicConnectionTest, EcnCodepointsRejected) {
     }
     EXPECT_CALL(connection_, OnSerializedPacket(_));
     SendPing();
-    EXPECT_EQ(per_packet_options.ecn_codepoint, ECN_NOT_ECT);
+    EXPECT_EQ(per_packet_options.ecn_codepoint, ecn);
     EXPECT_EQ(writer_->last_ecn_sent(), ECN_NOT_ECT);
   }
 }
 
 TEST_P(QuicConnectionTest, EcnCodepointsAccepted) {
+  SetQuicReloadableFlag(quic_send_ect1, true);
   TestPerPacketOptions per_packet_options;
   connection_.set_per_packet_options(&per_packet_options);
   for (QuicEcnCodepoint ecn : {ECN_NOT_ECT, ECN_ECT0, ECN_ECT1, ECN_CE}) {
@@ -17494,12 +17496,26 @@ TEST_P(QuicConnectionTest, EcnCodepointsAccepted) {
     if (ecn == ECN_CE) {
       expected_codepoint = ECN_NOT_ECT;
     }
-    EXPECT_EQ(per_packet_options.ecn_codepoint, expected_codepoint);
+    EXPECT_EQ(per_packet_options.ecn_codepoint, ecn);
     EXPECT_EQ(writer_->last_ecn_sent(), expected_codepoint);
   }
 }
 
+TEST_P(QuicConnectionTest, EcnCodepointsRejectedIfFlagIsFalse) {
+  SetQuicReloadableFlag(quic_send_ect1, false);
+  TestPerPacketOptions per_packet_options;
+  connection_.set_per_packet_options(&per_packet_options);
+  for (QuicEcnCodepoint ecn : {ECN_NOT_ECT, ECN_ECT0, ECN_ECT1, ECN_CE}) {
+    per_packet_options.ecn_codepoint = ecn;
+    EXPECT_CALL(connection_, OnSerializedPacket(_));
+    SendPing();
+    EXPECT_EQ(per_packet_options.ecn_codepoint, ECN_NOT_ECT);
+    EXPECT_EQ(writer_->last_ecn_sent(), ECN_NOT_ECT);
+  }
+}
+
 TEST_P(QuicConnectionTest, EcnValidationDisabled) {
+  SetQuicReloadableFlag(quic_send_ect1, true);
   TestPerPacketOptions per_packet_options;
   connection_.set_per_packet_options(&per_packet_options);
   QuicConnectionPeer::DisableEcnCodepointValidation(&connection_);
@@ -17510,6 +17526,66 @@ TEST_P(QuicConnectionTest, EcnValidationDisabled) {
     EXPECT_EQ(per_packet_options.ecn_codepoint, ecn);
     EXPECT_EQ(writer_->last_ecn_sent(), ecn);
   }
+}
+
+TEST_P(QuicConnectionTest, RtoDisablesEcnMarking) {
+  SetQuicReloadableFlag(quic_send_ect1, true);
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
+  TestPerPacketOptions per_packet_options;
+  per_packet_options.ecn_codepoint = ECN_ECT1;
+  connection_.set_per_packet_options(&per_packet_options);
+  QuicPacketCreatorPeer::SetPacketNumber(
+      QuicConnectionPeer::GetPacketCreator(&connection_), 1);
+  SendPing();
+  connection_.OnRetransmissionTimeout();
+  EXPECT_EQ(writer_->last_ecn_sent(), ECN_NOT_ECT);
+  EXPECT_EQ(per_packet_options.ecn_codepoint, ECN_ECT1);
+  // On 2nd RTO, QUIC abandons ECN.
+  connection_.OnRetransmissionTimeout();
+  EXPECT_EQ(writer_->last_ecn_sent(), ECN_NOT_ECT);
+  EXPECT_EQ(per_packet_options.ecn_codepoint, ECN_NOT_ECT);
+}
+
+TEST_P(QuicConnectionTest, RtoDoesntDisableEcnMarkingIfEcnAcked) {
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
+  TestPerPacketOptions per_packet_options;
+  per_packet_options.ecn_codepoint = ECN_ECT1;
+  connection_.set_per_packet_options(&per_packet_options);
+  QuicPacketCreatorPeer::SetPacketNumber(
+      QuicConnectionPeer::GetPacketCreator(&connection_), 1);
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    EXPECT_QUIC_BUG(connection_.OnInFlightEcnPacketAcked(),
+                    "Unexpected call to OnInFlightEcnPacketAcked()");
+    return;
+  } else {
+    connection_.OnInFlightEcnPacketAcked();
+  }
+  SendPing();
+  // Because an ECN packet was acked, PTOs have no effect on ECN settings.
+  connection_.OnRetransmissionTimeout();
+  QuicEcnCodepoint expected_codepoint =
+      GetQuicReloadableFlag(quic_send_ect1) ? ECN_ECT1 : ECN_NOT_ECT;
+  EXPECT_EQ(writer_->last_ecn_sent(), expected_codepoint);
+  EXPECT_EQ(per_packet_options.ecn_codepoint, expected_codepoint);
+  connection_.OnRetransmissionTimeout();
+  EXPECT_EQ(writer_->last_ecn_sent(), expected_codepoint);
+  EXPECT_EQ(per_packet_options.ecn_codepoint, expected_codepoint);
+}
+
+TEST_P(QuicConnectionTest, InvalidFeedbackCancelsEcn) {
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
+  TestPerPacketOptions per_packet_options;
+  per_packet_options.ecn_codepoint = ECN_ECT1;
+  connection_.set_per_packet_options(&per_packet_options);
+  EXPECT_EQ(per_packet_options.ecn_codepoint, ECN_ECT1);
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    EXPECT_QUIC_BUG(connection_.OnInvalidEcnFeedback(),
+                    "Unexpected call to OnInvalidEcnFeedback().");
+    return;
+  } else {
+    connection_.OnInvalidEcnFeedback();
+  }
+  EXPECT_EQ(per_packet_options.ecn_codepoint, ECN_NOT_ECT);
 }
 
 }  // namespace

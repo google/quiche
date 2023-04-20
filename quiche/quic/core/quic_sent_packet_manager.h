@@ -105,6 +105,14 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
     // Called when the Path MTU may have increased.
     virtual void OnPathMtuIncreased(QuicPacketLength packet_size) = 0;
+
+    // Called when a in-flight packet sent on the current default path with ECN
+    // markings is acked.
+    virtual void OnInFlightEcnPacketAcked() = 0;
+
+    // Called when an ACK frame with ECN counts has invalid values, or an ACK
+    // acknowledges packets with ECN marks and there are no ECN counts.
+    virtual void OnInvalidEcnFeedback() = 0;
   };
 
   // The retransmission timer is a single timer which switches modes depending
@@ -500,7 +508,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // triggered.
   void MaybeInvokeCongestionEvent(bool rtt_updated,
                                   QuicByteCount prior_in_flight,
-                                  QuicTime event_time);
+                                  QuicTime event_time,
+                                  absl::optional<QuicEcnCounts> ecn_counts,
+                                  const QuicEcnCounts& previous_counts);
 
   // Removes the retransmittability and in flight properties from the packet at
   // |info| due to receipt by the peer.
@@ -521,7 +531,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
                                     EncryptionLevel ack_decrypted_level,
                                     const QuicAckFrame& ack_frame,
                                     QuicTime ack_receive_time, bool rtt_updated,
-                                    QuicByteCount prior_bytes_in_flight);
+                                    QuicByteCount prior_bytes_in_flight,
+                                    absl::optional<QuicEcnCounts> ecn_counts);
 
   // Notify observers that packet with QuicTransmissionInfo |info| is a spurious
   // retransmission. It is caller's responsibility to guarantee the packet with
@@ -555,6 +566,20 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Called when an AckFrequencyFrame is acked.
   void OnAckFrequencyFrameAcked(
       const QuicAckFrequencyFrame& ack_frequency_frame);
+
+  // Checks if newly reported ECN counts are valid given what has been reported
+  // in the past. |space| is the packet number space the counts apply to.
+  // |ecn_counts| is what the peer reported. |newly_acked_ect0| and
+  // |newly_acked_ect1| count the number of previously unacked packets with
+  // those markings that appeared in an ack block for the first time.
+  bool IsEcnFeedbackValid(PacketNumberSpace space,
+                          const absl::optional<QuicEcnCounts>& ecn_counts,
+                          QuicPacketCount newly_acked_ect0,
+                          QuicPacketCount newly_acked_ect1);
+
+  // Update counters for the number of ECN-marked packets sent.
+  void RecordEcnMarkingSent(QuicEcnCodepoint ecn_codepoint,
+                            EncryptionLevel level);
 
   // Newly serialized retransmittable packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is
@@ -670,6 +695,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Whether to ignore the ack_delay in received ACKs.
   bool ignore_ack_delay_;
+
+  // The total number of packets sent with ECT(0) or ECT(1) in each packet
+  // number space over the life of the connection.
+  QuicPacketCount ect0_packets_sent_[NUM_PACKET_NUMBER_SPACES] = {0, 0, 0};
+  QuicPacketCount ect1_packets_sent_[NUM_PACKET_NUMBER_SPACES] = {0, 0, 0};
 
   // Most recent ECN codepoint counts received in an ACK frame sent by the peer.
   QuicEcnCounts peer_ack_ecn_counts_[NUM_PACKET_NUMBER_SPACES];

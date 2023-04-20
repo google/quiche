@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <limits>
@@ -63,6 +64,11 @@ const int kMinReleaseTimeIntoFutureMs = 1;
 
 // The maximum number of recorded client addresses.
 const size_t kMaxReceivedClientAddressSize = 20;
+
+// An arbitrary limit on the number of PTOs before giving up on ECN, if no ECN-
+// marked packet is acked. Avoids abandoning ECN because of one burst loss,
+// but doesn't allow multiple RTTs of user delay in the hope of using ECN.
+const uint8_t kEcnPtoLimit = 2;
 
 // Base class of all alarms owned by a QuicConnection.
 class QuicConnectionAlarmDelegate : public QuicAlarm::Delegate {
@@ -3122,7 +3128,7 @@ void QuicConnection::WriteQueuedPackets() {
     const BufferedPacket& packet = buffered_packets_.front();
     WriteResult result = SendPacketToWriter(
         packet.data.get(), packet.length, packet.self_address.host(),
-        packet.peer_address, per_packet_options_);
+        packet.peer_address, per_packet_options_, writer_);
     QUIC_DVLOG(1) << ENDPOINT << "Sending buffered packet, result: " << result;
     if (IsMsgTooBig(writer_, result) && packet.length > long_term_mtu_) {
       // When MSG_TOO_BIG is returned, the system typically knows what the
@@ -3489,7 +3495,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       packet->release_encrypted_buffer = nullptr;
       result = SendPacketToWriter(packet->encrypted_buffer, encrypted_length,
                                   send_from_address.host(), send_to_address,
-                                  per_packet_options_);
+                                  per_packet_options_, writer_);
       // This is a work around for an issue with linux UDP GSO batch writers.
       // When sending a GSO packet with 2 segments, if the first segment is
       // larger than the path MTU, instead of EMSGSIZE, the linux kernel returns
@@ -3612,7 +3618,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   const bool in_flight = sent_packet_manager_.OnPacketSent(
       packet, packet_send_time, packet->transmission_type,
       IsRetransmittable(*packet), /*measure_rtt=*/send_on_current_path,
-      ECN_NOT_ECT);
+      last_ecn_codepoint_sent_);
   QUIC_BUG_IF(quic_bug_12714_25,
               perspective_ == Perspective::IS_SERVER &&
                   default_enable_5rto_blackhole_detection_ &&
@@ -3991,6 +3997,29 @@ void QuicConnection::OnPathMtuIncreased(QuicPacketLength packet_size) {
   }
 }
 
+void QuicConnection::OnInFlightEcnPacketAcked() {
+  QUIC_BUG_IF(quic_bug_518619343_01, !GetQuicReloadableFlag(quic_send_ect1))
+      << "Unexpected call to OnInFlightEcnPacketAcked()";
+  // Only packets on the default path are in-flight.
+  if (!default_path_.ecn_marked_packet_acked) {
+    QUIC_DVLOG(1) << ENDPOINT << "First ECT packet acked on active path.";
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 2, 2);
+    default_path_.ecn_marked_packet_acked = true;
+  }
+}
+
+void QuicConnection::OnInvalidEcnFeedback() {
+  QUIC_BUG_IF(quic_bug_518619343_02, !GetQuicReloadableFlag(quic_send_ect1))
+      << "Unexpected call to OnInvalidEcnFeedback().";
+  if (disable_ecn_codepoint_validation_) {
+    // In some tests, senders may send ECN marks in patterns that are not
+    // in accordance with the spec, and should not fail validation as a result.
+    return;
+  }
+  QUIC_DVLOG(1) << ENDPOINT << "ECN feedback is invalid, stop marking.";
+  ClearEcnCodepoint();
+}
+
 std::unique_ptr<QuicSelfIssuedConnectionIdManager>
 QuicConnection::MakeSelfIssuedConnectionIdManager() {
   QUICHE_DCHECK((perspective_ == Perspective::IS_CLIENT &&
@@ -4144,36 +4173,60 @@ bool QuicConnection::IsKnownServerAddress(
                    address) != known_server_addresses_.cend();
 }
 
-void QuicConnection::ClearEcnCodepoint() {
+QuicEcnCodepoint QuicConnection::GetEcnCodepointToSend(
+    const QuicSocketAddress& destination_address) const {
+  const QuicEcnCodepoint original_codepoint = GetNextEcnCodepoint();
+  if (disable_ecn_codepoint_validation_) {
+    return original_codepoint;
+  }
+  // Don't send ECN marks on alternate paths. Sending ECN marks might
+  // cause the connectivity check to fail on some networks.
+  if (destination_address != peer_address()) {
+    return ECN_NOT_ECT;
+  }
+  // If the path might drop ECN marked packets, send retransmission without
+  // them.
+  if (in_probe_time_out_ && !default_path_.ecn_marked_packet_acked) {
+    return ECN_NOT_ECT;
+  }
+  switch (original_codepoint) {
+    case ECN_NOT_ECT:
+      break;
+    case ECN_ECT0:
+      if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT0()) {
+        return ECN_NOT_ECT;
+      }
+      break;
+    case ECN_ECT1:
+      if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT1()) {
+        return ECN_NOT_ECT;
+      }
+      break;
+    case ECN_CE:
+      return ECN_NOT_ECT;
+  }
+  return original_codepoint;
+}
+
+void QuicConnection::ClearEcnCodepoint() { MaybeSetEcnCodepoint(ECN_NOT_ECT); }
+
+void QuicConnection::MaybeSetEcnCodepoint(QuicEcnCodepoint ecn_codepoint) {
   if (per_packet_options_ != nullptr) {
-    per_packet_options_->ecn_codepoint = ECN_NOT_ECT;
+    per_packet_options_->ecn_codepoint = ecn_codepoint;
   }
 }
 
 WriteResult QuicConnection::SendPacketToWriter(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
-  if (!disable_ecn_codepoint_validation_) {
-    switch (GetNextEcnCodepoint()) {
-      case ECN_NOT_ECT:
-        break;
-      case ECN_ECT0:
-        if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT0()) {
-          ClearEcnCodepoint();
-        }
-        break;
-      case ECN_ECT1:
-        if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT1()) {
-          ClearEcnCodepoint();
-        }
-        break;
-      case ECN_CE:
-        ClearEcnCodepoint();
-        break;
-    }
-  }
-  return writer_->WritePacket(buffer, buf_len, self_address, peer_address,
-                              options);
+    const QuicSocketAddress& destination_address, PerPacketOptions* options,
+    QuicPacketWriter* writer) {
+  QuicEcnCodepoint original_codepoint = GetNextEcnCodepoint();
+  last_ecn_codepoint_sent_ = GetEcnCodepointToSend(destination_address);
+  MaybeSetEcnCodepoint(last_ecn_codepoint_sent_);
+  WriteResult result = writer->WritePacket(buffer, buf_len, self_address,
+                                           destination_address, options);
+  MaybeSetEcnCodepoint(original_codepoint);
+  return result;
 }
 
 void QuicConnection::OnRetransmissionTimeout() {
@@ -4279,6 +4332,24 @@ void QuicConnection::OnRetransmissionTimeout() {
   // packet doesn't need to be retransmitted.
   if (!HasQueuedData() && !retransmission_alarm_->IsSet()) {
     SetRetransmissionAlarm();
+  }
+  if (GetNextEcnCodepoint() == ECN_NOT_ECT ||
+      default_path_.ecn_marked_packet_acked) {
+    return;
+  }
+  ++default_path_.ecn_pto_count;
+  if (default_path_.ecn_pto_count == kEcnPtoLimit) {
+    // Give up on ECN. There are two scenarios:
+    // 1. All packets are suffering PTO. In this case, the connection
+    // abandons ECN after 1 failed ECT(1) flight and one failed Not-ECT
+    // flight.
+    // 2. Only ECN packets are suffering PTO. In that case, alternating
+    // flights will have ECT(1). On the second ECT(1) failure, the
+    // connection will abandon.
+    // This behavior is in the range of acceptable choices in S13.4.2 of RFC
+    // 9000.
+    QUIC_DVLOG(1) << ENDPOINT << "ECN packets PTO 3 times.";
+    OnInvalidEcnFeedback();
   }
 }
 
@@ -5092,9 +5163,9 @@ bool QuicConnection::WritePacketUsingWriter(
                 << default_path_.server_connection_id << std::endl
                 << quiche::QuicheTextUtils::HexDump(absl::string_view(
                        packet->encrypted_buffer, packet->encrypted_length));
-  WriteResult result = writer->WritePacket(
+  WriteResult result = SendPacketToWriter(
       packet->encrypted_buffer, packet->encrypted_length, self_address.host(),
-      peer_address, per_packet_options_);
+      peer_address, per_packet_options_, writer);
 
   // If using a batch writer and the probing packet is buffered, flush it.
   if (writer->IsBatchMode() && result.status == WRITE_STATUS_OK &&
@@ -5113,7 +5184,7 @@ bool QuicConnection::WritePacketUsingWriter(
   // Send in currrent path. Call OnPacketSent regardless of the write result.
   sent_packet_manager_.OnPacketSent(
       packet.get(), packet_send_time, packet->transmission_type,
-      NO_RETRANSMITTABLE_DATA, measure_rtt, ECN_NOT_ECT);
+      NO_RETRANSMITTABLE_DATA, measure_rtt, last_ecn_codepoint_sent_);
 
   if (debug_visitor_ != nullptr) {
     if (sent_packet_manager_.unacked_packets().empty()) {
@@ -5996,7 +6067,7 @@ bool QuicConnection::FlushCoalescedPacket() {
   } else {
     WriteResult result = SendPacketToWriter(
         buffer, length, coalesced_packet_.self_address().host(),
-        coalesced_packet_.peer_address(), per_packet_options_);
+        coalesced_packet_.peer_address(), per_packet_options_, writer_);
     if (IsWriteError(result.status)) {
       OnWriteError(result.error_code);
       return false;
@@ -7117,6 +7188,8 @@ void QuicConnection::PathState::Clear() {
   send_algorithm = nullptr;
   rtt_stats = absl::nullopt;
   stateless_reset_token.reset();
+  ecn_marked_packet_acked = false;
+  ecn_pto_count = 0;
 }
 
 QuicConnection::PathState::PathState(PathState&& other) {

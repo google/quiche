@@ -724,6 +724,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // QuicSentPacketManager::NetworkChangeVisitor
   void OnCongestionChange() override;
   void OnPathMtuIncreased(QuicPacketLength packet_size) override;
+  void OnInFlightEcnPacketAcked() override;
+  void OnInvalidEcnFeedback() override;
 
   // QuicNetworkBlackholeDetector::Delegate
   void OnPathDegradingDetected() override;
@@ -1465,6 +1467,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     // validating migrated peer address. Nullptr otherwise.
     std::unique_ptr<SendAlgorithmInterface> send_algorithm;
     absl::optional<RttStats> rtt_stats;
+    // If true, an ECN packet was acked on this path, so the path probably isn't
+    // dropping ECN-marked packets.
+    bool ecn_marked_packet_acked = false;
+    // How many total PTOs have fired since the connection started sending ECN
+    // on this path, but before an ECN-marked packet has been acked.
+    uint8_t ecn_pto_count = 0;
   };
 
   using QueuedPacketList = std::list<SerializedPacket>;
@@ -1960,21 +1968,37 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns true if |address| is known server address.
   bool IsKnownServerAddress(const QuicSocketAddress& address) const;
 
-  // Retrieves the ECN codepoint to be sent on the next packet.
+  // Retrieves the ECN codepoint stored in per_packet_options_, unless the flag
+  // is not set.
   QuicEcnCodepoint GetNextEcnCodepoint() const {
-    return (per_packet_options_ != nullptr) ? per_packet_options_->ecn_codepoint
-                                            : ECN_NOT_ECT;
+    return (per_packet_options_ != nullptr &&
+            GetQuicReloadableFlag(quic_send_ect1))
+               ? per_packet_options_->ecn_codepoint
+               : ECN_NOT_ECT;
   }
+
+  // Retrieves the ECN codepoint to be sent on the next packet.
+  QuicEcnCodepoint GetEcnCodepointToSend(
+      const QuicSocketAddress& destination_address) const;
 
   // Sets the ECN codepoint to Not-ECT.
   void ClearEcnCodepoint();
 
-  // Writes the packet to the writer and clears the ECN codepoint in |options|
-  // if it is invalid.
+  // Set the ECN codepoint, but only if set_per_packet_options has been called.
+  void MaybeSetEcnCodepoint(QuicEcnCodepoint ecn_codepoint);
+
+  // Writes the packet to |writer| with the ECN mark specified in |options|. If
+  // by spec the connection should not send an ECN mark, or the packet is
+  // not on the default path, or it's PTO probe before an ECN packet has been
+  // successfully acked on the path, or QUIC reloadable flag quic_send_ect1 is
+  // false, then it sends Not-ECT instead. Will also set last_ecn_sent_
+  // appropriately. At the end, restores the original setting unless the flag
+  // is false.
   WriteResult SendPacketToWriter(const char* buffer, size_t buf_len,
                                  const QuicIpAddress& self_address,
-                                 const QuicSocketAddress& peer_address,
-                                 PerPacketOptions* options);
+                                 const QuicSocketAddress& destination_address,
+                                 PerPacketOptions* options,
+                                 QuicPacketWriter* writer);
 
   QuicConnectionContext context_;
 
@@ -2376,10 +2400,14 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Endpoints should never mark packets with Congestion Experienced (CE), as
   // this is only done by routers. Endpoints cannot send ECT(0) or ECT(1) if
   // their congestion control cannot respond to these signals in accordance with
-  // the spec, or if the QUIC implementation doesn't validate ECN feedback. When
-  // true, the connection will not verify that the requested codepoint adheres
-  // to these policies. This is only accessible through QuicConnectionPeer.
+  // the spec, or ECN feedback doesn't conform to the spec. When true, the
+  // connection will not verify that the requested codepoint adheres to these
+  // policies. This is only accessible through QuicConnectionPeer.
   bool disable_ecn_codepoint_validation_ = false;
+
+  // The ECN codepoint of the last packet to be sent to the writer, which
+  // might be different from the next codepoint in per_packet_options_.
+  QuicEcnCodepoint last_ecn_codepoint_sent_ = ECN_NOT_ECT;
 };
 
 }  // namespace quic
