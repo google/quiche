@@ -53,11 +53,11 @@ constexpr double kTooLargeDecimal = 1e12 - 0.0005;
 
 // Removes characters in remove from the beginning of s.
 void StripLeft(absl::string_view& s, absl::string_view remove) {
-  size_t i = 0;
-  while (i < s.size() && memchr(remove.data(), s[i], remove.size())) {
-    ++i;
+  size_t i = s.find_first_not_of(remove);
+  if (i == absl::string_view::npos) {
+    i = s.size();
   }
-  if (i > 0) s.remove_prefix(i);
+  s.remove_prefix(i);
 }
 
 // Parser for (a subset of) Structured Headers for HTTP defined in [SH09] and
