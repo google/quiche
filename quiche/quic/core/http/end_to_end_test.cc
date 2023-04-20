@@ -6991,6 +6991,49 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
   }));
 }
 
+// This test currently does not pass; we need support for
+// https://datatracker.ietf.org/doc/draft-seemann-quic-reliable-stream-reset/ in
+// order to make this work.
+TEST_P(EndToEndTest, DISABLED_WebTransportSessionResetReliability) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  SetPacketLossPercentage(30);
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/resets", /*wait_for_server_response=*/true);
+  ASSERT_TRUE(session != nullptr);
+
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
+  EXPECT_CALL(visitor, OnIncomingUnidirectionalStreamAvailable())
+      .WillRepeatedly([this, session]() {
+        ReadAllIncomingWebTransportUnidirectionalStreams(session);
+      });
+
+  std::vector<std::string> expected_log;
+  constexpr int kStreamsToCreate = 10;
+  for (int i = 0; i < kStreamsToCreate; i++) {
+    WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
+    QuicStreamId id = stream->GetStreamId();
+    ASSERT_TRUE(stream != nullptr);
+    stream->ResetWithUserCode(42);
+
+    expected_log.push_back(
+        absl::StrCat("Received reset for stream ", id, " with error code 42"));
+  }
+  client_->WaitUntil(2000, [this, &expected_log]() {
+    return received_webtransport_unidirectional_streams_.size() >=
+           expected_log.size();
+  });
+  EXPECT_THAT(received_webtransport_unidirectional_streams_,
+              UnorderedElementsAreArray(expected_log));
+}
+
 TEST_P(EndToEndTest, WebTransportSession404) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
