@@ -96,10 +96,10 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
   // Bind a socket to a specific network interface.
   bool BindInterfaceNameIfNeeded(int fd);
 
- private:
   // Actually clean up |fd|.
-  void CleanUpUDPSocketImpl(int fd);
+  virtual void CleanUpUDPSocketImpl(int fd);
 
+ private:
   // Listens for events on the client socket.
   QuicEventLoop* event_loop_;
 
