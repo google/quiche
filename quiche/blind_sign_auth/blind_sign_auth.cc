@@ -4,7 +4,6 @@
 
 #include "quiche/blind_sign_auth/blind_sign_auth.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <functional>
 #include <string>
@@ -244,7 +243,8 @@ void BlindSignAuth::AuthAndSignCallback(
   std::vector<std::string> tokens_vec;
   for (size_t i = 0; i < signed_tokens->size(); i++) {
     privacy::ppn::SpendTokenData spend_token_data;
-    *spend_token_data.mutable_public_metadata() = public_metadata_info;
+    *spend_token_data.mutable_public_metadata() =
+        public_metadata_info.public_metadata();
     *spend_token_data.mutable_unblinded_token() =
         signed_tokens->at(i).input().plaintext_message();
     *spend_token_data.mutable_unblinded_token_signature() =

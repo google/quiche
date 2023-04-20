@@ -135,7 +135,7 @@ class BlindSignAuthTest : public QuicheTest {
       ASSERT_TRUE(spend_token_data.ParseFromString(token));
       // Validate token structure.
       EXPECT_EQ(spend_token_data.public_metadata().SerializeAsString(),
-                public_metadata_info_.SerializeAsString());
+                public_metadata_info_.public_metadata().SerializeAsString());
       EXPECT_THAT(spend_token_data.unblinded_token(), StartsWith("blind:"));
       EXPECT_GE(spend_token_data.unblinded_token_signature().size(),
                 spend_token_data.unblinded_token().size());

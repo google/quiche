@@ -22,7 +22,7 @@ import "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.proto";
 message SpendTokenData {
   // Public metadata associated with the token being spent.
   // See go/ppn-token-spend and go/ppn-phosphor-at-service for details.
-  PublicMetadataInfo public_metadata = 1;
+  PublicMetadata public_metadata = 1;
   // The unblinded token to be spent which was blind-signed by Phosphor.
   bytes unblinded_token = 2;
   // The signature for the token to be spent, obtained from Phosphor and
