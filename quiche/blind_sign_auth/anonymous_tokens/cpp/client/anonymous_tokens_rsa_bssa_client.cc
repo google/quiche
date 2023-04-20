@@ -120,20 +120,20 @@ AnonymousTokensRsaBssaClient::CreateRequest(
 
   AnonymousTokensSignRequest request;
   for (const PlaintextMessageWithPublicMetadata& input : inputs) {
-    if (input.plaintext_message().empty()) {
-      return absl::InvalidArgumentError(
-          "Cannot send an empty message to sign.");
-    }
-
     // Generate nonce and masked message. For more details, see
     // https://datatracker.ietf.org/doc/draft-irtf-cfrg-rsa-blind-signatures/
     ANON_TOKENS_ASSIGN_OR_RETURN(std::string mask, GenerateMask(public_key_));
     std::string masked_message =
         MaskMessageConcat(mask, input.plaintext_message());
 
+    std::optional<std::string> public_metadata = std::nullopt;
+    if (public_key_.public_metadata_support()) {
+      // Empty public metadata is a valid value.
+      public_metadata = input.public_metadata();
+    }
     // Generate RSA blinder.
     ANON_TOKENS_ASSIGN_OR_RETURN(auto rsa_bssa_blinder,
-                                 RsaBlinder::New(public_key_));
+                                 RsaBlinder::New(public_key_, public_metadata));
     ANON_TOKENS_ASSIGN_OR_RETURN(const std::string blinded_message,
                                  rsa_bssa_blinder->Blind(masked_message));
 
@@ -217,7 +217,7 @@ AnonymousTokensRsaBssaClient::ProcessResponse(
     if (blinding_info.input.public_metadata() !=
         anonymous_token.public_metadata()) {
       return absl::InvalidArgumentError(
-          "Response metadata does not match input.");
+          "Response public metadata does not match input.");
     }
 
     // Unblind the blinded anonymous token to obtain the final anonymous token
@@ -246,8 +246,9 @@ AnonymousTokensRsaBssaClient::ProcessResponse(
 }
 
 absl::Status AnonymousTokensRsaBssaClient::Verify(
-    const RSABlindSignatureToken& /*token*/, absl::string_view /*message*/,
-    absl::optional<absl::string_view> /*public_metadata*/) {
+    const RSABlindSignaturePublicKey& /*public_key*/,
+    const RSABlindSignatureToken& /*token*/,
+    const PlaintextMessageWithPublicMetadata& /*input*/) {
   return absl::UnimplementedError("Verify not implemented yet.");
 }
 

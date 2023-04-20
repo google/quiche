@@ -77,12 +77,12 @@ class QUICHE_EXPORT AnonymousTokensRsaBssaClient {
   absl::StatusOr<std::vector<RSABlindSignatureTokenWithInput>> ProcessResponse(
       const AnonymousTokensSignResponse& response);
 
-  // Method to verify whether a blind token is valid or not.
+  // Method to verify whether an anonymous token is valid or not.
   //
   // Returns OK on a valid token and non-OK otherwise.
-  absl::Status Verify(
-      const RSABlindSignatureToken& token, absl::string_view message,
-      absl::optional<absl::string_view> public_metadata = absl::nullopt);
+  absl::Status Verify(const RSABlindSignaturePublicKey& public_key,
+                      const RSABlindSignatureToken& token,
+                      const PlaintextMessageWithPublicMetadata& input);
 
  private:
   struct BlindingInfo {

@@ -35,6 +35,7 @@ namespace private_membership {
 namespace anonymous_tokens {
 namespace {
 
+using ::testing::SizeIs;
 using quiche::test::StatusIs;
 
 // Returns a fixed public private key pair by calling GetStrongRsaKeys4096().
@@ -159,9 +160,8 @@ TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidMessageMaskSize) {
 class AnonymousTokensRsaBssaClientTest : public testing::Test {
  protected:
   void SetUp() override {
-    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto key_pair, CreateClientTestKey());
-    public_key_ = std::move(key_pair.first);
-    private_key_ = std::move(key_pair.second);
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::tie(public_key_, private_key_),
+                                     CreateClientTestKey());
     ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
         client_, AnonymousTokensRsaBssaClient::Create(public_key_));
   }
@@ -179,8 +179,8 @@ TEST_F(AnonymousTokensRsaBssaClientTest, SuccessOneMessage) {
                                    client_->CreateRequest(input_messages));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
                                    CreateResponse(request, private_key_));
+  EXPECT_THAT(response.anonymous_tokens(), SizeIs(1));
   QUICHE_EXPECT_OK(client_->ProcessResponse(response));
-  EXPECT_EQ(response.anonymous_tokens_size(), 1);
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, SuccessMultipleMessages) {
@@ -191,7 +191,7 @@ TEST_F(AnonymousTokensRsaBssaClientTest, SuccessMultipleMessages) {
                                    client_->CreateRequest(input_messages));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
                                    CreateResponse(request, private_key_));
-  EXPECT_EQ(response.anonymous_tokens_size(), 4);
+  EXPECT_THAT(response.anonymous_tokens(), SizeIs(4));
   QUICHE_EXPECT_OK(client_->ProcessResponse(response));
 }
 
@@ -325,6 +325,144 @@ TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseFromDifferentClient) {
               StatusIs(absl::StatusCode::kInvalidArgument));
   EXPECT_THAT(client2->ProcessResponse(response1),
               StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+class AnonymousTokensRsaBssaClientWithPublicMetadataTest
+    : public testing::Test {
+ protected:
+  void SetUp() override {
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+        std::tie(public_key_, private_key_),
+        CreateClientTestKey("TEST_USE_CASE", /*key_version=*/1,
+                            AT_MESSAGE_MASK_CONCAT,
+                            kRsaMessageMaskSizeInBytes32,
+                            /*enable_public_metadata=*/true));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+        public_metadata_client_,
+        AnonymousTokensRsaBssaClient::Create(public_key_));
+  }
+
+  RSAPrivateKey private_key_;
+  RSABlindSignaturePublicKey public_key_;
+  std::unique_ptr<AnonymousTokensRsaBssaClient> public_metadata_client_;
+};
+
+TEST_F(AnonymousTokensRsaBssaClientWithPublicMetadataTest,
+       SuccessOneMessageWithPublicMetadata) {
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::vector<PlaintextMessageWithPublicMetadata> input_messages,
+      CreateInput({"message"}, {"md1"}));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignRequest request,
+      public_metadata_client_->CreateRequest(input_messages));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignResponse response,
+      CreateResponse(request, private_key_, /*enable_public_metadata=*/true));
+  EXPECT_THAT(response.anonymous_tokens(), SizeIs(1));
+  QUICHE_EXPECT_OK(public_metadata_client_->ProcessResponse(response));
+}
+
+TEST_F(AnonymousTokensRsaBssaClientWithPublicMetadataTest,
+       FailureWithEmptyPublicMetadata) {
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::vector<PlaintextMessageWithPublicMetadata> input_messages,
+      CreateInput({"message"}, {"md1"}));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignRequest request,
+      public_metadata_client_->CreateRequest(input_messages));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignResponse response,
+      CreateResponse(request, private_key_, /*enable_public_metadata=*/false));
+  EXPECT_THAT(public_metadata_client_->ProcessResponse(response),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(AnonymousTokensRsaBssaClientWithPublicMetadataTest,
+       FailureWithWrongPublicMetadata) {
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::vector<PlaintextMessageWithPublicMetadata> input_messages,
+      CreateInput({"message"}, {"md1"}));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignRequest request,
+      public_metadata_client_->CreateRequest(input_messages));
+  request.mutable_blinded_tokens(0)->set_public_metadata(
+      "wrong_public_metadata");
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignResponse response,
+      CreateResponse(request, private_key_, /*enable_public_metadata=*/true));
+  EXPECT_THAT(public_metadata_client_->ProcessResponse(response),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(AnonymousTokensRsaBssaClientWithPublicMetadataTest,
+       FailureWithPublicMetadataSupportOff) {
+  // Create a client with public metadata support disabled.
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto key_pair, CreateClientTestKey());
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<AnonymousTokensRsaBssaClient> non_public_metadata_client,
+      AnonymousTokensRsaBssaClient::Create(key_pair.first));
+
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::vector<PlaintextMessageWithPublicMetadata> input_messages,
+      CreateInput({"message"}, {"md1"}));
+  // Use client_ that does not support public metadata.
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignRequest request,
+      non_public_metadata_client->CreateRequest(input_messages));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignResponse response,
+      CreateResponse(request, private_key_, /*enable_public_metadata=*/true));
+  EXPECT_THAT(non_public_metadata_client->ProcessResponse(response),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(AnonymousTokensRsaBssaClientWithPublicMetadataTest,
+       SuccessMultipleMessagesWithDistinctPublicMetadata) {
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::vector<PlaintextMessageWithPublicMetadata> input_messages,
+      CreateInput({"message1", "msg2", "anotherMessage", "one_more_message"},
+                  {"md1", "md2", "md3", "md4"}));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignRequest request,
+      public_metadata_client_->CreateRequest(input_messages));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignResponse response,
+      CreateResponse(request, private_key_, /*enable_public_metadata=*/true));
+  EXPECT_THAT(response.anonymous_tokens(), SizeIs(4));
+  QUICHE_EXPECT_OK(public_metadata_client_->ProcessResponse(response));
+}
+
+TEST_F(AnonymousTokensRsaBssaClientWithPublicMetadataTest,
+       SuccessMultipleMessagesWithRepeatedPublicMetadata) {
+  // Create input with repeated public metadata
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::vector<PlaintextMessageWithPublicMetadata> input_messages,
+      CreateInput({"message1", "msg2", "anotherMessage", "one_more_message"},
+                  {"md1", "md2", "md2", "md1"}));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignRequest request,
+      public_metadata_client_->CreateRequest(input_messages));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignResponse response,
+      CreateResponse(request, private_key_, /*enable_public_metadata=*/true));
+  EXPECT_THAT(response.anonymous_tokens(), SizeIs(4));
+  QUICHE_EXPECT_OK(public_metadata_client_->ProcessResponse(response));
+}
+
+TEST_F(AnonymousTokensRsaBssaClientWithPublicMetadataTest,
+       SuccessMultipleMessagesWithEmptyStringPublicMetadata) {
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::vector<PlaintextMessageWithPublicMetadata> input_messages,
+      CreateInput({"message1", "msg2", "anotherMessage", "one_more_message"},
+                  {"md1", "", "", "md4"}));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignRequest request,
+      public_metadata_client_->CreateRequest(input_messages));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      AnonymousTokensSignResponse response,
+      CreateResponse(request, private_key_, /*enable_public_metadata=*/true));
+  EXPECT_THAT(response.anonymous_tokens(), SizeIs(4));
+  QUICHE_EXPECT_OK(public_metadata_client_->ProcessResponse(response));
 }
 
 }  // namespace
