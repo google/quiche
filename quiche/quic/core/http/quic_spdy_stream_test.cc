@@ -277,8 +277,7 @@ class TestStream : public QuicSpdyStream {
   size_t headers_payload_length() const { return headers_payload_length_; }
 
   bool AreHeadersValid(const QuicHeaderList& header_list) const override {
-    return !GetQuicReloadableFlag(quic_verify_request_headers_2) ||
-           QuicSpdyStream::AreHeadersValid(header_list);
+    return QuicSpdyStream::AreHeadersValid(header_list);
   }
 
  private:

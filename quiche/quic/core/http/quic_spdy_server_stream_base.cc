@@ -50,10 +50,6 @@ void QuicSpdyServerStreamBase::StopReading() {
 
 bool QuicSpdyServerStreamBase::AreHeadersValid(
     const QuicHeaderList& header_list) const {
-  if (!GetQuicReloadableFlag(quic_verify_request_headers_2)) {
-    return true;
-  }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_verify_request_headers_2, 2, 3);
   if (!QuicSpdyStream::AreHeadersValid(header_list)) {
     return false;
   }

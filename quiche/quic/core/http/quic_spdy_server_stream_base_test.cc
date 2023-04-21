@@ -110,8 +110,7 @@ TEST_F(QuicSpdyServerStreamBaseTest, AllowExtendedConnect) {
   header_list.OnHeader(":scheme", "http");
   header_list.OnHeaderBlockEnd(128, 128);
   stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
-  EXPECT_EQ(GetQuicReloadableFlag(quic_verify_request_headers_2) &&
-                GetQuicReloadableFlag(quic_act_upon_invalid_header) &&
+  EXPECT_EQ(GetQuicReloadableFlag(quic_act_upon_invalid_header) &&
                 !session_.allow_extended_connect(),
             stream_->rst_sent());
 }
@@ -126,8 +125,7 @@ TEST_F(QuicSpdyServerStreamBaseTest, AllowExtendedConnectProtocolFirst) {
   header_list.OnHeader(":scheme", "http");
   header_list.OnHeaderBlockEnd(128, 128);
   stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
-  EXPECT_EQ(GetQuicReloadableFlag(quic_verify_request_headers_2) &&
-                GetQuicReloadableFlag(quic_act_upon_invalid_header) &&
+  EXPECT_EQ(GetQuicReloadableFlag(quic_act_upon_invalid_header) &&
                 !session_.allow_extended_connect(),
             stream_->rst_sent());
 }
@@ -136,7 +134,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidExtendedConnect) {
   if (!session_.version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   QuicHeaderList header_list;
   header_list.OnHeaderBlockStart();
@@ -166,7 +163,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, VanillaConnectAllowed) {
 }
 
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidVanillaConnect) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   QuicHeaderList header_list;
   header_list.OnHeaderBlockStart();
@@ -185,7 +181,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidVanillaConnect) {
 }
 
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidNonConnectWithProtocol) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   QuicHeaderList header_list;
   header_list.OnHeaderBlockStart();
@@ -206,7 +201,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidNonConnectWithProtocol) {
 }
 
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutScheme) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // A request without :scheme should be rejected.
   QuicHeaderList header_list;
@@ -226,7 +220,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutScheme) {
 }
 
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutAuthority) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // A request without :authority should be rejected.
   QuicHeaderList header_list;
@@ -246,7 +239,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutAuthority) {
 }
 
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutMethod) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // A request without :method should be rejected.
   QuicHeaderList header_list;
@@ -266,7 +258,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutMethod) {
 }
 
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutPath) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // A request without :path should be rejected.
   QuicHeaderList header_list;
@@ -286,7 +277,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutPath) {
 }
 
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestHeader) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // A request without :path should be rejected.
   QuicHeaderList header_list;
@@ -307,7 +297,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestHeader) {
 }
 
 TEST_F(QuicSpdyServerStreamBaseTest, EmptyHeaders) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   spdy::Http2HeaderBlock empty_header;
   quic::test::NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;

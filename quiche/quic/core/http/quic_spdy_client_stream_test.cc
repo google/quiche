@@ -121,7 +121,6 @@ TEST_P(QuicSpdyClientStreamTest, TestReceivingIllegalResponseStatusCode) {
 }
 
 TEST_P(QuicSpdyClientStreamTest, InvalidResponseHeader) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   auto headers = AsHeaderList(std::vector<std::pair<std::string, std::string>>{
       {":status", "200"}, {":path", "/foo"}});
@@ -134,7 +133,6 @@ TEST_P(QuicSpdyClientStreamTest, InvalidResponseHeader) {
 }
 
 TEST_P(QuicSpdyClientStreamTest, MissingStatusCode) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   auto headers = AsHeaderList(
       std::vector<std::pair<std::string, std::string>>{{"key", "value"}});

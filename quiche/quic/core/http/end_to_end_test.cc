@@ -7060,7 +7060,6 @@ TEST_P(EndToEndTest, WebTransportSession404) {
 }
 
 TEST_P(EndToEndTest, InvalidExtendedConnect) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   ASSERT_TRUE(Initialize());
 
@@ -7081,7 +7080,6 @@ TEST_P(EndToEndTest, InvalidExtendedConnect) {
 }
 
 TEST_P(EndToEndTest, RejectExtendedConnect) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // Disable extended CONNECT.
   memory_cache_backend_.set_enable_extended_connect(false);
@@ -7115,7 +7113,6 @@ TEST_P(EndToEndTest, RejectExtendedConnect) {
 }
 
 TEST_P(EndToEndTest, RejectInvalidRequestHeader) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   ASSERT_TRUE(Initialize());
 
@@ -7133,7 +7130,6 @@ TEST_P(EndToEndTest, RejectInvalidRequestHeader) {
 }
 
 TEST_P(EndToEndTest, RejectTransferEncodingResponse) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   ASSERT_TRUE(Initialize());
 
@@ -7154,7 +7150,6 @@ TEST_P(EndToEndTest, RejectTransferEncodingResponse) {
 }
 
 TEST_P(EndToEndTest, RejectUpperCaseRequest) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   ASSERT_TRUE(Initialize());
 
@@ -7171,7 +7166,6 @@ TEST_P(EndToEndTest, RejectUpperCaseRequest) {
 }
 
 TEST_P(EndToEndTest, RejectRequestWithInvalidToken) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   ASSERT_TRUE(Initialize());
 

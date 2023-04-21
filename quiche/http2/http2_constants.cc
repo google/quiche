@@ -160,18 +160,7 @@ constexpr char const* kHttp2InvalidHeaderNames[] = {
     "transfer-encoding", "",
 };
 
-constexpr char const* kHttp2InvalidHeaderNamesOld[] = {
-    "connection", "host", "keep-alive", "proxy-connection", "transfer-encoding",
-};
-
 const InvalidHeaderSet& GetInvalidHttp2HeaderSet() {
-  if (!GetQuicheReloadableFlag(quic, quic_verify_request_headers_2)) {
-    static const auto* invalid_header_set_old =
-        new InvalidHeaderSet(std::begin(http2::kHttp2InvalidHeaderNamesOld),
-                             std::end(http2::kHttp2InvalidHeaderNamesOld));
-    return *invalid_header_set_old;
-  }
-  QUICHE_RELOADABLE_FLAG_COUNT_N(quic_verify_request_headers_2, 3, 3);
   static const auto* invalid_header_set =
       new InvalidHeaderSet(std::begin(http2::kHttp2InvalidHeaderNames),
                            std::end(http2::kHttp2InvalidHeaderNames));

@@ -57,9 +57,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_flush_pending_frames_and_padding_bytes_on_mi
 QUIC_FLAG(quic_reloadable_flag_quic_remove_connection_migration_connection_option_v2, true)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
-// If true, quic server will send ENABLE_CONNECT_PROTOCOL setting and and endpoint will validate required request/response headers and extended CONNECT mechanism and update code counts of valid/invalid headers.
-QUIC_FLAG(quic_reloadable_flag_quic_verify_request_headers_2, true)
-// If true, reject or send error response code upon receiving invalid request or response headers. This flag depends on --gfe2_reloadable_flag_quic_verify_request_headers_2.
+// If true, reject or send error response code upon receiving invalid request or response headers.
 QUIC_FLAG(quic_reloadable_flag_quic_act_upon_invalid_header, false)
 // If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.
 QUIC_FLAG(quic_reloadable_flag_quic_require_handshake_confirmation, false)

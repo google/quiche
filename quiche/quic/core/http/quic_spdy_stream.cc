@@ -632,8 +632,7 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   }
   QUIC_CODE_COUNT_N(quic_validate_request_header, 2, 2);
 
-  if (!GetQuicReloadableFlag(quic_verify_request_headers_2) ||
-      !header_too_large) {
+  if (!header_too_large) {
     MaybeProcessReceivedWebTransportHeaders();
   }
 
@@ -1628,7 +1627,6 @@ constexpr bool isInvalidHeaderNameCharacter(unsigned char c) {
 }  // namespace
 
 bool QuicSpdyStream::AreHeadersValid(const QuicHeaderList& header_list) const {
-  QUICHE_DCHECK(GetQuicReloadableFlag(quic_verify_request_headers_2));
   for (const std::pair<std::string, std::string>& pair : header_list) {
     const std::string& name = pair.first;
     if (std::any_of(name.begin(), name.end(), isInvalidHeaderNameCharacter)) {

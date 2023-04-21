@@ -422,8 +422,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
             SupportedVersions(GetParam()))),
         session_(connection_) {
     if (perspective == Perspective::IS_SERVER &&
-        VersionUsesHttp3(transport_version()) &&
-        GetQuicReloadableFlag(quic_verify_request_headers_2)) {
+        VersionUsesHttp3(transport_version())) {
       session_.set_allow_extended_connect(allow_extended_connect);
     }
     session_.Initialize();
@@ -3643,7 +3642,6 @@ TEST_P(QuicSpdySessionTestClient, WebTransportWithoutExtendedConnect) {
   if (!version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   session_.set_local_http_datagram_support(HttpDatagramSupport::kDraft04);
   session_.set_supports_webtransport(true);
@@ -3753,7 +3751,6 @@ TEST_P(QuicSpdySessionTestServerNoExtendedConnect, BadExtendedConnectSetting) {
   if (!version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
 
   EXPECT_FALSE(session_.SupportsWebTransport());

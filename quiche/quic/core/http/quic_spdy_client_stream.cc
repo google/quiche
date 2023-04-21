@@ -205,9 +205,6 @@ size_t QuicSpdyClientStream::SendRequest(Http2HeaderBlock headers,
 
 bool QuicSpdyClientStream::AreHeadersValid(
     const QuicHeaderList& header_list) const {
-  if (!GetQuicReloadableFlag(quic_verify_request_headers_2)) {
-    return true;
-  }
   if (!QuicSpdyStream::AreHeadersValid(header_list)) {
     return false;
   }
