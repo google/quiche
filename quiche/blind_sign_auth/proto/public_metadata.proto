@@ -42,6 +42,13 @@ message PublicMetadata {
 
   // When the token and metadata expire.
   quiche.protobuf.Timestamp expiration = 3;
+
+  // Indicates the debug context of this payload.
+  enum DebugMode {
+    UNSPECIFIED_DEBUG_MODE = 0;
+    DEBUG_ALL = 1;
+  }
+  DebugMode debug_mode = 4;
 }
 
 // Contains PublicMetadata and associated information. Only the public_metadata
