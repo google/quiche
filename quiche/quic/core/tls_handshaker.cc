@@ -152,10 +152,7 @@ void TlsHandshaker::AdvanceHandshake() {
     QUIC_VLOG(1) << "SSL_do_handshake failed; SSL_get_error returns "
                  << ssl_error;
     ERR_print_errors_fp(stderr);
-    if (dont_close_connection_in_tls_alert_callback_ &&
-        last_tls_alert_.has_value()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_dont_close_connection_in_tls_alert_callback, 2, 2);
+    if (last_tls_alert_.has_value()) {
       std::string error_details =
           absl::StrCat("TLS handshake failure (",
                        EncryptionLevelToString(last_tls_alert_->level), ") ",
@@ -384,23 +381,10 @@ void TlsHandshaker::WriteMessage(EncryptionLevel level,
 void TlsHandshaker::FlushFlight() {}
 
 void TlsHandshaker::SendAlert(EncryptionLevel level, uint8_t desc) {
-  if (dont_close_connection_in_tls_alert_callback_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_dont_close_connection_in_tls_alert_callback, 1, 2);
-    TlsAlert tls_alert;
-    tls_alert.level = level;
-    tls_alert.desc = desc;
-    last_tls_alert_ = tls_alert;
-  } else {
-    std::string error_details = absl::StrCat(
-        "TLS handshake failure (", EncryptionLevelToString(level), ") ",
-        static_cast<int>(desc), ": ", SSL_alert_desc_string_long(desc));
-    QUIC_DLOG(ERROR) << error_details;
-    CloseConnection(
-        TlsAlertToQuicErrorCode(desc),
-        static_cast<QuicIetfTransportErrorCodes>(CRYPTO_ERROR_FIRST + desc),
-        error_details);
-  }
+  TlsAlert tls_alert;
+  tls_alert.level = level;
+  tls_alert.desc = desc;
+  last_tls_alert_ = tls_alert;
 }
 
 }  // namespace quic

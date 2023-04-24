@@ -45,8 +45,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_disable_server_blackhole_detection, false)
 QUIC_FLAG(quic_reloadable_flag_quic_enable_disable_resumption, true)
 // If true, discard INITIAL packet if the key has been dropped.
 QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
-// If true, do not close QUIC connection in SSL_QUIC_METHOD.send_alert, instead close it after SSL_do_handshake failed.
-QUIC_FLAG(quic_reloadable_flag_quic_dont_close_connection_in_tls_alert_callback, true)
 // If true, do not issue a new connection ID that has been claimed by another connection.
 QUIC_FLAG(quic_reloadable_flag_quic_check_cid_collision_when_issue_new_cid, true)
 // If true, enable server retransmittable on wire PING.

@@ -221,8 +221,6 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
     uint8_t desc;
   };
   absl::optional<TlsAlert> last_tls_alert_;
-  const bool dont_close_connection_in_tls_alert_callback_ =
-      GetQuicReloadableFlag(quic_dont_close_connection_in_tls_alert_callback);
 };
 
 }  // namespace quic
