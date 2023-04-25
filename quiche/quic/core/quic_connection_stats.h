@@ -225,6 +225,10 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   size_t num_new_connection_id_sent = 0;
   // Number of RETIRE_CONNECTION_ID frames sent.
   size_t num_retire_connection_id_sent = 0;
+  // Number of path degrading.
+  size_t num_path_degrading = 0;
+  // Number of forward progress made after path degrading.
+  size_t num_forward_progress_after_path_degrading = 0;
 
   bool server_preferred_address_validated = false;
   bool failed_to_validate_server_preferred_address = false;

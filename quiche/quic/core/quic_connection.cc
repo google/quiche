@@ -6147,6 +6147,7 @@ void QuicConnection::OnForwardProgressMade() {
   }
   if (is_path_degrading_) {
     visitor_->OnForwardProgressMadeAfterPathDegrading();
+    stats_.num_forward_progress_after_path_degrading++;
     is_path_degrading_ = false;
   }
   if (sent_packet_manager_.HasInFlightPackets()) {
@@ -6290,8 +6291,8 @@ void QuicConnection::set_client_connection_id(
 void QuicConnection::OnPathDegradingDetected() {
   is_path_degrading_ = true;
   visitor_->OnPathDegrading();
+  stats_.num_path_degrading++;
   if (multi_port_stats_) {
-    multi_port_stats_->num_path_degrading++;
     MaybeMigrateToMultiPortPath();
   }
 }

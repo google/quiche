@@ -492,8 +492,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     RttStats rtt_stats;
     // rtt stats for the multi-port path when the default path is degrading.
     RttStats rtt_stats_when_default_path_degrading;
-    // number of path degrading triggered when multi-port is enabled.
-    size_t num_path_degrading = 0;
     // number of multi-port probe failures when path is not degrading
     size_t num_multi_port_probe_failures_when_path_not_degrading = 0;
     // number of multi-port probe failure when path is degrading
