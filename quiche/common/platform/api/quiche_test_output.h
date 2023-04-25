@@ -6,6 +6,7 @@
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_OUTPUT_H_
 
 #include "quiche_platform_impl/quiche_test_output_impl.h"
+
 #include "absl/strings/string_view.h"
 
 namespace quiche {

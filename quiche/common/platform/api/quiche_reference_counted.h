@@ -6,6 +6,7 @@
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_REFERENCE_COUNTED_H_
 
 #include "quiche_platform_impl/quiche_reference_counted_impl.h"
+
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {

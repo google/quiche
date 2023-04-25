@@ -8,6 +8,7 @@
 #include <string>
 
 #include "quiche_platform_impl/quiche_thread_impl.h"
+
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
