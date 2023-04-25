@@ -645,18 +645,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(kINVC, perspective_)) {
     send_connection_close_for_invalid_version_ = true;
   }
-  const bool remove_connection_migration_connection_option =
-      GetQuicReloadableFlag(
-          quic_remove_connection_migration_connection_option_v2);
-  if (remove_connection_migration_connection_option) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_remove_connection_migration_connection_option_v2);
-  }
-  if (framer_.version().HasIetfQuicFrames() &&
-      (remove_connection_migration_connection_option ||
-       config.HasClientSentConnectionOption(kRVCM, perspective_))) {
-    validate_client_addresses_ = true;
-  }
+  validate_client_addresses_ = framer_.version().HasIetfQuicFrames();
   // Having connection_migration_use_new_cid_ depends on the same set of flags
   // and connection option on both client and server sides has the advantage of:
   // 1) Less chance of skew in using new connection ID or not between client

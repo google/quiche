@@ -51,8 +51,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_check_cid_collision_when_issue_new_cid, true
 QUIC_FLAG(quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, flush pending frames as well as pending padding bytes on connection migration.
 QUIC_FLAG(quic_reloadable_flag_quic_flush_pending_frames_and_padding_bytes_on_migration, true)
-// If true, ietf connection migration is no longer conditioned on connection option RVCM.
-QUIC_FLAG(quic_reloadable_flag_quic_remove_connection_migration_connection_option_v2, true)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, reject or send error response code upon receiving invalid request or response headers.
