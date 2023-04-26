@@ -19,6 +19,8 @@
 
 #if defined(_WIN32)
 #include <winsock2.h>
+#else
+#include <sys/socket.h>
 #endif  // defined(_WIN32)
 
 namespace quic {

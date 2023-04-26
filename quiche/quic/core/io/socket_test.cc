@@ -16,11 +16,13 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_loopback.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace {
 
 using quiche::test::QuicheTest;
+using quiche::test::StatusIs;
 using testing::Lt;
 using testing::SizeIs;
 
@@ -42,47 +44,46 @@ TEST(SocketTest, CreateAndCloseSocket) {
   absl::StatusOr<SocketFd> created_socket = socket_api::CreateSocket(
       localhost_address.address_family(), socket_api::SocketProtocol::kUdp);
 
-  EXPECT_TRUE(created_socket.ok());
+  QUICHE_EXPECT_OK(created_socket.status());
 
-  EXPECT_TRUE(socket_api::Close(created_socket.value()).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(created_socket.value()));
 }
 
 TEST(SocketTest, SetSocketBlocking) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp,
                                      /*blocking=*/true);
 
-  EXPECT_TRUE(socket_api::SetSocketBlocking(socket, /*blocking=*/false).ok());
+  QUICHE_EXPECT_OK(socket_api::SetSocketBlocking(socket, /*blocking=*/false));
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, SetReceiveBufferSize) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp,
                                      /*blocking=*/true);
 
-  EXPECT_TRUE(socket_api::SetReceiveBufferSize(socket, /*size=*/100).ok());
+  QUICHE_EXPECT_OK(socket_api::SetReceiveBufferSize(socket, /*size=*/100));
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, SetSendBufferSize) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp,
                                      /*blocking=*/true);
 
-  EXPECT_TRUE(socket_api::SetSendBufferSize(socket, /*size=*/100).ok());
+  QUICHE_EXPECT_OK(socket_api::SetSendBufferSize(socket, /*size=*/100));
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, Connect) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp);
 
   // UDP, so "connecting" should succeed without any listening sockets.
-  EXPECT_TRUE(socket_api::Connect(
-                  socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0))
-                  .ok());
+  QUICHE_EXPECT_OK(socket_api::Connect(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0)));
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, GetSocketError) {
@@ -90,62 +91,57 @@ TEST(SocketTest, GetSocketError) {
                                      /*blocking=*/true);
 
   absl::Status error = socket_api::GetSocketError(socket);
-  EXPECT_TRUE(error.ok());
+  QUICHE_EXPECT_OK(error);
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, Bind) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp);
 
-  EXPECT_TRUE(socket_api::Bind(
-                  socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0))
-                  .ok());
+  QUICHE_EXPECT_OK(socket_api::Bind(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0)));
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, GetSocketAddress) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp);
-  ASSERT_TRUE(socket_api::Bind(
-                  socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0))
-                  .ok());
+  QUICHE_ASSERT_OK(socket_api::Bind(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0)));
 
   absl::StatusOr<QuicSocketAddress> address =
       socket_api::GetSocketAddress(socket);
-  EXPECT_TRUE(address.ok());
+  QUICHE_EXPECT_OK(address);
   EXPECT_TRUE(address.value().IsInitialized());
   EXPECT_EQ(address.value().host(), quiche::TestLoopback());
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, Listen) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kTcp);
-  ASSERT_TRUE(socket_api::Bind(
-                  socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0))
-                  .ok());
+  QUICHE_ASSERT_OK(socket_api::Bind(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0)));
 
-  EXPECT_TRUE(socket_api::Listen(socket, /*backlog=*/5).ok());
+  QUICHE_EXPECT_OK(socket_api::Listen(socket, /*backlog=*/5));
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, Accept) {
   // Need a non-blocking socket to avoid waiting when no connection comes.
   SocketFd socket =
       CreateTestSocket(socket_api::SocketProtocol::kTcp, /*blocking=*/false);
-  ASSERT_TRUE(socket_api::Bind(
-                  socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0))
-                  .ok());
-  ASSERT_TRUE(socket_api::Listen(socket, /*backlog=*/5).ok());
+  QUICHE_ASSERT_OK(socket_api::Bind(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0)));
+  QUICHE_ASSERT_OK(socket_api::Listen(socket, /*backlog=*/5));
 
   // Nothing set up to connect, so expect kUnavailable.
   absl::StatusOr<socket_api::AcceptResult> result = socket_api::Accept(socket);
-  ASSERT_FALSE(result.ok());
-  EXPECT_TRUE(absl::IsUnavailable(result.status()));
+  EXPECT_THAT(result, StatusIs(absl::StatusCode::kUnavailable));
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, Receive) {
@@ -153,13 +149,16 @@ TEST(SocketTest, Receive) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp,
                                      /*blocking=*/false);
 
+  // On Windows, recv() fails on a socket that is connectionless and not bound.
+  QUICHE_ASSERT_OK(socket_api::Bind(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0)));
+
   std::string buffer(100, 0);
   absl::StatusOr<absl::Span<char>> result =
       socket_api::Receive(socket, absl::MakeSpan(buffer));
-  ASSERT_FALSE(result.ok());
-  EXPECT_TRUE(absl::IsUnavailable(result.status()));
+  EXPECT_THAT(result, StatusIs(absl::StatusCode::kUnavailable));
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, Peek) {
@@ -167,30 +166,32 @@ TEST(SocketTest, Peek) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp,
                                      /*blocking=*/false);
 
+  // On Windows, recv() fails on a socket that is connectionless and not bound.
+  QUICHE_ASSERT_OK(socket_api::Bind(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0)));
+
   std::string buffer(100, 0);
   absl::StatusOr<absl::Span<char>> result =
       socket_api::Receive(socket, absl::MakeSpan(buffer), /*peek=*/true);
-  ASSERT_FALSE(result.ok());
-  EXPECT_TRUE(absl::IsUnavailable(result.status()));
+  EXPECT_THAT(result, StatusIs(absl::StatusCode::kUnavailable));
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 TEST(SocketTest, Send) {
   SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp);
   // UDP, so "connecting" should succeed without any listening sockets.
-  ASSERT_TRUE(socket_api::Connect(
-                  socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0))
-                  .ok());
+  QUICHE_ASSERT_OK(socket_api::Connect(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0)));
 
   char buffer[] = {12, 34, 56, 78};
   // Expect at least some data to be sent successfully.
   absl::StatusOr<absl::string_view> result =
       socket_api::Send(socket, absl::string_view(buffer, sizeof(buffer)));
-  ASSERT_TRUE(result.ok());
+  QUICHE_ASSERT_OK(result.status());
   EXPECT_THAT(result.value(), SizeIs(Lt(4)));
 
-  EXPECT_TRUE(socket_api::Close(socket).ok());
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
 }  // namespace
