@@ -4666,6 +4666,39 @@ TEST_P(QuicConnectionTest, NoSendAlarmAfterProcessPacketWhenWriteBlocked) {
   EXPECT_FALSE(connection_.GetSendAlarm()->IsSet());
 }
 
+TEST_P(QuicConnectionTest, SendAlarmNonZeroDelay) {
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  // Set a 10 ms send alarm delay. The send alarm after processing the packet
+  // should fire after waiting 10ms, not immediately.
+  connection_.set_defer_send_in_response_to_packets(true);
+  connection_.sent_packet_manager().SetDeferredSendAlarmDelay(
+      QuicTime::Delta::FromMilliseconds(10));
+  EXPECT_FALSE(connection_.GetSendAlarm()->IsSet());
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  // Process packet number 1. Can not call ProcessPacket or ProcessDataPacket
+  // here, because they will fire the alarm after QuicConnection::ProcessPacket
+  // is returned.
+  const uint64_t received_packet_num = 1;
+  const bool has_stop_waiting = false;
+  const EncryptionLevel level = ENCRYPTION_FORWARD_SECURE;
+  std::unique_ptr<QuicPacket> packet(
+      ConstructDataPacket(received_packet_num, has_stop_waiting, level));
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length =
+      peer_framer_.EncryptPayload(level, QuicPacketNumber(received_packet_num),
+                                  *packet, buffer, kMaxOutgoingPacketSize);
+  connection_.ProcessUdpPacket(
+      kSelfAddress, kPeerAddress,
+      QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
+
+  EXPECT_TRUE(connection_.GetSendAlarm()->IsSet());
+  // It was set to be 10 ms in the future, so it should at the least be greater
+  // than now + 5 ms.
+  EXPECT_TRUE(connection_.GetSendAlarm()->deadline() >
+              clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(5));
+}
+
 TEST_P(QuicConnectionTest, AddToWriteBlockedListIfWriterBlockedWhenProcessing) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);

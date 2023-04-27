@@ -2451,7 +2451,9 @@ void QuicConnection::MaybeSendInResponseToPacket() {
   // Now that we have received an ack, we might be able to send packets which
   // are queued locally, or drain streams which are blocked.
   if (defer_send_in_response_to_packets_) {
-    send_alarm_->Update(clock_->ApproximateNow(), QuicTime::Delta::Zero());
+    send_alarm_->Update(clock_->ApproximateNow() +
+                            sent_packet_manager_.GetDeferredSendAlarmDelay(),
+                        QuicTime::Delta::Zero());
   } else {
     WriteIfNotBlocked();
   }

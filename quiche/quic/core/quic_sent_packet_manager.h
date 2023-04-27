@@ -152,6 +152,18 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     pacing_sender_.set_max_pacing_rate(max_pacing_rate);
   }
 
+  // The delay to use for the send alarm. If zero, it essentially means
+  // to queue the send call immediately.
+  // WARNING: This is currently an experimental API.
+  // TODO(genioshelo): This should implement a dynamic delay based on the
+  // underlying connection properties and lumpy pacing.
+  QuicTime::Delta GetDeferredSendAlarmDelay() const {
+    return deferred_send_alarm_delay_.value_or(QuicTime::Delta::Zero());
+  }
+  void SetDeferredSendAlarmDelay(QuicTime::Delta delay) {
+    deferred_send_alarm_delay_ = delay;
+  }
+
   QuicBandwidth MaxPacingRate() const {
     return pacing_sender_.max_pacing_rate();
   }
@@ -703,6 +715,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Most recent ECN codepoint counts received in an ACK frame sent by the peer.
   QuicEcnCounts peer_ack_ecn_counts_[NUM_PACKET_NUMBER_SPACES];
+
+  absl::optional<QuicTime::Delta> deferred_send_alarm_delay_;
 };
 
 }  // namespace quic
