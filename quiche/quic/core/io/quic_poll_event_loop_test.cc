@@ -46,7 +46,7 @@ constexpr QuicTime::Delta kDefaultTimeout = QuicTime::Delta::FromSeconds(100);
 class MockQuicSocketEventListener : public QuicSocketEventListener {
  public:
   MOCK_METHOD(void, OnSocketEvent,
-              (QuicEventLoop* /*event_loop*/, QuicUdpSocketFd /*fd*/,
+              (QuicEventLoop* /*event_loop*/, SocketFd /*fd*/,
                QuicSocketEventMask /*events*/),
               (override));
 };

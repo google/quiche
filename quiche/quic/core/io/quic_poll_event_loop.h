@@ -5,17 +5,21 @@
 #ifndef QUICHE_QUIC_CORE_IO_QUIC_POLL_EVENT_LOOP_H_
 #define QUICHE_QUIC_CORE_IO_QUIC_POLL_EVENT_LOOP_H_
 
+#if defined(_WIN32)
+#include <winsock2.h>
+#else
 #include <poll.h>
+#endif
 
 #include <memory>
 
 #include "absl/container/btree_map.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
-#include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 
 namespace quic {
@@ -42,22 +46,20 @@ class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
   // QuicEventLoop implementation.
   bool SupportsEdgeTriggered() const override { return false; }
   ABSL_MUST_USE_RESULT bool RegisterSocket(
-      QuicUdpSocketFd fd, QuicSocketEventMask events,
+      SocketFd fd, QuicSocketEventMask events,
       QuicSocketEventListener* listener) override;
-  ABSL_MUST_USE_RESULT bool UnregisterSocket(QuicUdpSocketFd fd) override;
-  ABSL_MUST_USE_RESULT bool RearmSocket(QuicUdpSocketFd fd,
+  ABSL_MUST_USE_RESULT bool UnregisterSocket(SocketFd fd) override;
+  ABSL_MUST_USE_RESULT bool RearmSocket(SocketFd fd,
                                         QuicSocketEventMask events) override;
   ABSL_MUST_USE_RESULT bool ArtificiallyNotifyEvent(
-      QuicUdpSocketFd fd, QuicSocketEventMask events) override;
+      SocketFd fd, QuicSocketEventMask events) override;
   void RunEventLoopOnce(QuicTime::Delta default_timeout) override;
   std::unique_ptr<QuicAlarmFactory> CreateAlarmFactory() override;
   const QuicClock* GetClock() override { return clock_; }
 
  protected:
   // Allows poll(2) calls to be mocked out in unit tests.
-  virtual int PollSyscall(pollfd* fds, nfds_t nfds, int timeout) {
-    return ::poll(fds, nfds, timeout);
-  }
+  virtual int PollSyscall(pollfd* fds, size_t nfds, int timeout);
 
  private:
   friend class QuicPollEventLoopPeer;
@@ -105,7 +107,7 @@ class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
 
   // Used for deferred execution of I/O callbacks.
   struct ReadyListEntry {
-    QuicUdpSocketFd fd;
+    SocketFd fd;
     std::weak_ptr<Registration> registration;
     QuicSocketEventMask events;
   };
@@ -114,8 +116,7 @@ class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
   // registration order.  This isn't strictly speaking necessary, but makes
   // testing things easier.
   using RegistrationMap =
-      quiche::QuicheLinkedHashMap<QuicUdpSocketFd,
-                                  std::shared_ptr<Registration>>;
+      quiche::QuicheLinkedHashMap<SocketFd, std::shared_ptr<Registration>>;
   // Alarms are stored as weak pointers, since the alarm can be cancelled and
   // disappear while in the queue.
   using AlarmList = absl::btree_multimap<QuicTime, std::weak_ptr<Alarm*>>;
@@ -131,8 +132,8 @@ class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
   void ProcessAlarmsUpTo(QuicTime time);
 
   // Adds the I/O callbacks for |fd| to the |ready_lits| as appopriate.
-  void DispatchIoEvent(std::vector<ReadyListEntry>& ready_list,
-                       QuicUdpSocketFd fd, short mask);  // NOLINT(runtime/int)
+  void DispatchIoEvent(std::vector<ReadyListEntry>& ready_list, SocketFd fd,
+                       short mask);  // NOLINT(runtime/int)
   // Runs all of the callbacks on the ready list.
   void RunReadyCallbacks(std::vector<ReadyListEntry>& ready_list);
 

@@ -96,7 +96,7 @@ class IcmpReachable : public IcmpReachableInterface {
     EpollCallback(EpollCallback&&) = delete;
     EpollCallback& operator=(EpollCallback&&) = delete;
 
-    void OnSocketEvent(QuicEventLoop* event_loop, QuicUdpSocketFd fd,
+    void OnSocketEvent(QuicEventLoop* event_loop, SocketFd fd,
                        QuicSocketEventMask events) override;
 
    private:

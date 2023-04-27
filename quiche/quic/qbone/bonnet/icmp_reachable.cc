@@ -196,7 +196,7 @@ absl::string_view IcmpReachable::StatusName(IcmpReachable::Status status) {
 }
 
 void IcmpReachable::EpollCallback::OnSocketEvent(QuicEventLoop* event_loop,
-                                                 QuicUdpSocketFd fd,
+                                                 SocketFd fd,
                                                  QuicSocketEventMask events) {
   bool can_read_more = reachable_->OnEvent(fd);
   if (can_read_more) {

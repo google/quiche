@@ -4,8 +4,6 @@
 
 #include "quiche/quic/core/io/quic_poll_event_loop.h"
 
-#include <poll.h>
-
 #include <algorithm>
 #include <cerrno>
 #include <memory>
@@ -38,8 +36,7 @@ QuicSocketEventMask GetEventMask(PollMask poll_mask) {
 
 QuicPollEventLoop::QuicPollEventLoop(QuicClock* clock) : clock_(clock) {}
 
-bool QuicPollEventLoop::RegisterSocket(QuicUdpSocketFd fd,
-                                       QuicSocketEventMask events,
+bool QuicPollEventLoop::RegisterSocket(SocketFd fd, QuicSocketEventMask events,
                                        QuicSocketEventListener* listener) {
   auto [it, success] =
       registrations_.insert({fd, std::make_shared<Registration>()});
@@ -52,12 +49,11 @@ bool QuicPollEventLoop::RegisterSocket(QuicUdpSocketFd fd,
   return true;
 }
 
-bool QuicPollEventLoop::UnregisterSocket(QuicUdpSocketFd fd) {
+bool QuicPollEventLoop::UnregisterSocket(SocketFd fd) {
   return registrations_.erase(fd);
 }
 
-bool QuicPollEventLoop::RearmSocket(QuicUdpSocketFd fd,
-                                    QuicSocketEventMask events) {
+bool QuicPollEventLoop::RearmSocket(SocketFd fd, QuicSocketEventMask events) {
   auto it = registrations_.find(fd);
   if (it == registrations_.end()) {
     return false;
@@ -66,7 +62,7 @@ bool QuicPollEventLoop::RearmSocket(QuicUdpSocketFd fd,
   return true;
 }
 
-bool QuicPollEventLoop::ArtificiallyNotifyEvent(QuicUdpSocketFd fd,
+bool QuicPollEventLoop::ArtificiallyNotifyEvent(SocketFd fd,
                                                 QuicSocketEventMask events) {
   auto it = registrations_.find(fd);
   if (it == registrations_.end()) {
@@ -168,7 +164,7 @@ void QuicPollEventLoop::ProcessIoEvents(QuicTime start_time,
 }
 
 void QuicPollEventLoop::DispatchIoEvent(std::vector<ReadyListEntry>& ready_list,
-                                        QuicUdpSocketFd fd, PollMask mask) {
+                                        SocketFd fd, PollMask mask) {
   auto it = registrations_.find(fd);
   if (it == registrations_.end()) {
     QUIC_BUG(poll returned an unregistered fd) << fd;
@@ -258,6 +254,14 @@ void QuicPollEventLoop::Alarm::CancelImpl() {
 
 std::unique_ptr<QuicAlarmFactory> QuicPollEventLoop::CreateAlarmFactory() {
   return std::make_unique<AlarmFactory>(this);
+}
+
+int QuicPollEventLoop::PollSyscall(pollfd* fds, size_t nfds, int timeout) {
+#if defined(_WIN32)
+  return WSAPoll(fds, nfds, timeout);
+#else
+  return ::poll(fds, nfds, timeout);
+#endif  // defined(_WIN32)
 }
 
 }  // namespace quic
