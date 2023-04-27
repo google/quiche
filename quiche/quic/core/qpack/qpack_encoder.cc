@@ -268,7 +268,10 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
         // Encode entry as string literals.
         // TODO(b/112770235): Consider also adding to dynamic table to improve
         // compression ratio for subsequent header blocks with peers that do not
-        // allow any blocked streams.
+        // allow any blocked streams. However, RFC 9204 Section 2.1.1 forbids
+        // evicting an unacknowledged entry even if it has no outstanding
+        // references, so `smallest_blocking_index` would need to be updated to
+        // consider that.
         representations.push_back(EncodeLiteralHeaderField(name, value));
 
         break;
