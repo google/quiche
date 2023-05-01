@@ -1397,13 +1397,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return connection_id_generator_;
   }
 
-  bool count_reverse_path_validation_stats() const {
-    return count_reverse_path_validation_stats_;
-  }
-  void set_count_reverse_path_validation_stats(bool value) {
-    count_reverse_path_validation_stats_ = value;
-  }
-
  private:
   friend class test::QuicConnectionPeer;
 
@@ -2379,9 +2372,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // received. Also, send all coalesced packets on both paths until handshake is
   // confirmed.
   bool accelerated_server_preferred_address_ = false;
-
-  // TODO(b/223634460) Remove this.
-  bool count_reverse_path_validation_stats_ = false;
 
   // If true, throttle sending if next created packet will exceed amplification
   // limit.
