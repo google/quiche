@@ -17531,7 +17531,7 @@ TEST_P(QuicConnectionTest, RtoDoesntDisableEcnMarkingIfEcnAcked) {
       QuicConnectionPeer::GetPacketCreator(&connection_), 1);
   if (!GetQuicReloadableFlag(quic_send_ect1)) {
     EXPECT_QUIC_BUG(connection_.OnInFlightEcnPacketAcked(),
-                    "Unexpected call to OnInFlightEcnPacketAcked()");
+                    "Unexpected call to OnInFlightEcnPacketAcked\\(\\)");
     return;
   } else {
     connection_.OnInFlightEcnPacketAcked();
@@ -17556,7 +17556,7 @@ TEST_P(QuicConnectionTest, InvalidFeedbackCancelsEcn) {
   EXPECT_EQ(per_packet_options.ecn_codepoint, ECN_ECT1);
   if (!GetQuicReloadableFlag(quic_send_ect1)) {
     EXPECT_QUIC_BUG(connection_.OnInvalidEcnFeedback(),
-                    "Unexpected call to OnInvalidEcnFeedback().");
+                    "Unexpected call to OnInvalidEcnFeedback\\(\\)\\.");
     return;
   } else {
     connection_.OnInvalidEcnFeedback();
