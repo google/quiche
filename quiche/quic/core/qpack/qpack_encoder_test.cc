@@ -10,6 +10,7 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
@@ -626,6 +627,81 @@ TEST_F(QpackEncoderTest, EncoderStreamWritesAllowedThenDisallowed) {
       Encode(header_list2));
 
   EXPECT_EQ(0u, encoder_stream_sent_byte_count_);
+}
+
+// Regression test for https://crbug.com/1441880.
+TEST_F(QpackEncoderTest, UnackedEntryCannotBeEvicted) {
+  EXPECT_CALL(encoder_stream_sender_delegate_, NumBytesBuffered())
+      .WillRepeatedly(Return(0));
+  encoder_.SetMaximumBlockedStreams(2);
+  // With 32 byte overhead per entry, only one entry fits in the dynamic table.
+  encoder_.SetMaximumDynamicTableCapacity(40);
+  encoder_.SetDynamicTableCapacity(40);
+
+  QpackEncoderHeaderTable* header_table =
+      QpackEncoderPeer::header_table(&encoder_);
+  EXPECT_EQ(0u, header_table->inserted_entry_count());
+  EXPECT_EQ(0u, header_table->dropped_entry_count());
+
+  spdy::Http2HeaderBlock header_list1;
+  header_list1["foo"] = "bar";
+
+  // Set Dynamic Table Capacity instruction.
+  std::string set_dyanamic_table_capacity = absl::HexStringToBytes("3f09");
+  // Insert one entry into the dynamic table.
+  std::string insert_entries1 = absl::HexStringToBytes(
+      "62"          // insert without name reference
+      "94e7"        // Huffman-encoded name "foo"
+      "03626172");  // value "bar"
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(
+                  absl::StrCat(set_dyanamic_table_capacity, insert_entries1))));
+
+  EXPECT_EQ(
+      absl::HexStringToBytes("0200"  // prefix
+                             "80"),  // dynamic entry with relative index 0
+      encoder_.EncodeHeaderList(/* stream_id = */ 1, header_list1,
+                                &encoder_stream_sent_byte_count_));
+
+  EXPECT_EQ(1u, header_table->inserted_entry_count());
+  EXPECT_EQ(0u, header_table->dropped_entry_count());
+
+  encoder_.OnStreamCancellation(/* stream_id = */ 1);
+
+  // At this point, entry 0 has no references to it, because stream 1 is
+  // cancelled.  However, this entry is unacknowledged, therefore it must not be
+  // evicted according to RFC 9204 Section 2.1.1.
+
+  spdy::Http2HeaderBlock header_list2;
+  header_list2["bar"] = "baz";
+
+  if (GetQuicReloadableFlag(quic_do_not_evict_unacked_entry)) {
+    EXPECT_EQ(absl::HexStringToBytes("0000"        // prefix
+                                     "23626172"    // literal name "bar"
+                                     "0362617a"),  // literal value "baz"
+              encoder_.EncodeHeaderList(/* stream_id = */ 2, header_list2,
+                                        &encoder_stream_sent_byte_count_));
+
+    EXPECT_EQ(1u, header_table->inserted_entry_count());
+    EXPECT_EQ(0u, header_table->dropped_entry_count());
+  } else {
+    // Insert one entry into the dynamic table, evicting the first entry.
+    std::string insert_entries2 = absl::HexStringToBytes(
+        "43"          // insert without name reference
+        "626172"      // name "bar"
+        "0362617a");  // value "baz"
+    EXPECT_CALL(encoder_stream_sender_delegate_,
+                WriteStreamData(Eq(insert_entries2)));
+
+    EXPECT_EQ(
+        absl::HexStringToBytes("0100"  // prefix
+                               "80"),  // dynamic entry with relative index 0
+        encoder_.EncodeHeaderList(/* stream_id = */ 2, header_list2,
+                                  &encoder_stream_sent_byte_count_));
+
+    EXPECT_EQ(2u, header_table->inserted_entry_count());
+    EXPECT_EQ(1u, header_table->dropped_entry_count());
+  }
 }
 
 }  // namespace
