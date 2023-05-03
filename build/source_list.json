@@ -11,6 +11,7 @@
     "quiche/balsa/balsa_enums.h",
     "quiche/balsa/balsa_frame.h",
     "quiche/balsa/balsa_headers.h",
+    "quiche/balsa/balsa_headers_sequence.h",
     "quiche/balsa/balsa_visitor_interface.h",
     "quiche/balsa/framer_interface.h",
     "quiche/balsa/header_api.h",
@@ -406,6 +407,7 @@
     "quiche/balsa/balsa_enums.cc",
     "quiche/balsa/balsa_frame.cc",
     "quiche/balsa/balsa_headers.cc",
+    "quiche/balsa/balsa_headers_sequence.cc",
     "quiche/balsa/header_properties.cc",
     "quiche/balsa/simple_buffer.cc",
     "quiche/balsa/standard_header_map.cc",
@@ -1023,6 +1025,7 @@
   ],
   "quiche_tests_srcs": [
     "quiche/balsa/balsa_frame_test.cc",
+    "quiche/balsa/balsa_headers_sequence_test.cc",
     "quiche/balsa/balsa_headers_test.cc",
     "quiche/balsa/header_properties_test.cc",
     "quiche/balsa/simple_buffer_test.cc",

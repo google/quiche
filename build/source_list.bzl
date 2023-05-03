@@ -12,6 +12,7 @@ quiche_core_hdrs = [
     "balsa/balsa_enums.h",
     "balsa/balsa_frame.h",
     "balsa/balsa_headers.h",
+    "balsa/balsa_headers_sequence.h",
     "balsa/balsa_visitor_interface.h",
     "balsa/framer_interface.h",
     "balsa/header_api.h",
@@ -407,6 +408,7 @@ quiche_core_srcs = [
     "balsa/balsa_enums.cc",
     "balsa/balsa_frame.cc",
     "balsa/balsa_headers.cc",
+    "balsa/balsa_headers_sequence.cc",
     "balsa/header_properties.cc",
     "balsa/simple_buffer.cc",
     "balsa/standard_header_map.cc",
@@ -1024,6 +1026,7 @@ quiche_tests_hdrs = [
 ]
 quiche_tests_srcs = [
     "balsa/balsa_frame_test.cc",
+    "balsa/balsa_headers_sequence_test.cc",
     "balsa/balsa_headers_test.cc",
     "balsa/header_properties_test.cc",
     "balsa/simple_buffer_test.cc",
