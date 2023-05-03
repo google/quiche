@@ -181,9 +181,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool ValidateToken(absl::string_view token) override;
   bool MaybeSendAddressToken() override;
   void OnBandwidthUpdateTimeout() override {}
-  std::unique_ptr<QuicPathValidationContext> CreateContextForMultiPortPath()
-      override {
-    return nullptr;
+  void CreateContextForMultiPortPath(
+      std::function<void(std::unique_ptr<QuicPathValidationContext>)>
+          create_context) override {
+    create_context(nullptr);
   }
   void MigrateToMultiPortPath(
       std::unique_ptr<QuicPathValidationContext> /*context*/) override {}

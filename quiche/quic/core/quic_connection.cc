@@ -4095,18 +4095,21 @@ void QuicConnection::MaybeCreateMultiPortPath() {
       kMaxNumMultiPortPaths) {
     return;
   }
-  auto path_context = visitor_->CreateContextForMultiPortPath();
-  if (!path_context) {
-    return;
-  }
-  auto multi_port_validation_result_delegate =
-      std::make_unique<MultiPortPathValidationResultDelegate>(this);
-  multi_port_probing_alarm_->Cancel();
-  multi_port_path_context_ = nullptr;
-  multi_port_stats_->num_multi_port_paths_created++;
-  ValidatePath(std::move(path_context),
-               std::move(multi_port_validation_result_delegate),
-               PathValidationReason::kMultiPort);
+
+  visitor_->CreateContextForMultiPortPath(
+      [this](std::unique_ptr<QuicPathValidationContext> path_context) {
+        if (!path_context) {
+          return;
+        }
+        auto multi_port_validation_result_delegate =
+            std::make_unique<MultiPortPathValidationResultDelegate>(this);
+        multi_port_probing_alarm_->Cancel();
+        multi_port_path_context_ = nullptr;
+        multi_port_stats_->num_multi_port_paths_created++;
+        ValidatePath(std::move(path_context),
+                     std::move(multi_port_validation_result_delegate),
+                     PathValidationReason::kMultiPort);
+      });
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {

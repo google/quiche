@@ -504,8 +504,9 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, BeforeConnectionCloseSent, (), (override));
   MOCK_METHOD(bool, ValidateToken, (absl::string_view), (override));
   MOCK_METHOD(bool, MaybeSendAddressToken, (), (override));
-  MOCK_METHOD(std::unique_ptr<QuicPathValidationContext>,
-              CreateContextForMultiPortPath, (), (override));
+  MOCK_METHOD(void, CreateContextForMultiPortPath,
+              (std::function<void(std::unique_ptr<QuicPathValidationContext>)>),
+              (override));
   MOCK_METHOD(void, MigrateToMultiPortPath,
               (std::unique_ptr<QuicPathValidationContext>), (override));
   MOCK_METHOD(void, OnServerPreferredAddressAvailable,

@@ -50,24 +50,28 @@ HttpDatagramSupport QuicSimpleClientSession::LocalHttpDatagramSupport() {
                                : HttpDatagramSupport::kNone;
 }
 
-std::unique_ptr<QuicPathValidationContext>
-QuicSimpleClientSession::CreateContextForMultiPortPath() {
+void QuicSimpleClientSession::CreateContextForMultiPortPath(
+    std::function<void(std::unique_ptr<QuicPathValidationContext>)>
+        create_context) {
   if (!network_helper_ || connection()->multi_port_stats() == nullptr) {
-    return nullptr;
+    create_context(nullptr);
+    return;
   }
   auto self_address = connection()->self_address();
   auto server_address = connection()->peer_address();
   if (!network_helper_->CreateUDPSocketAndBind(
           server_address, self_address.host(), self_address.port() + 1)) {
-    return nullptr;
+    create_context(nullptr);
+    return;
   }
   QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
   if (writer == nullptr) {
-    return nullptr;
+    create_context(nullptr);
+    return;
   }
-  return std::make_unique<PathMigrationContext>(
+  create_context(std::make_unique<PathMigrationContext>(
       std::unique_ptr<QuicPacketWriter>(writer),
-      network_helper_->GetLatestClientAddress(), peer_address());
+      network_helper_->GetLatestClientAddress(), peer_address()));
 }
 
 void QuicSimpleClientSession::MigrateToMultiPortPath(

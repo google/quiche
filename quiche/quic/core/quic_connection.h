@@ -237,9 +237,14 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // When bandwidth update alarms.
   virtual void OnBandwidthUpdateTimeout() = 0;
 
-  // Returns context needed for the connection to probe on the alternative path.
-  virtual std::unique_ptr<QuicPathValidationContext>
-  CreateContextForMultiPortPath() = 0;
+  // Runs |create_context| with context needed for the connection to probe on
+  // the alternative path. The callback must be called exactly once. May run
+  // |create_context| synchronously or asynchronously. If |create_context| is
+  // run asynchronously, it must be called on the same thread as QuicConnection
+  // is not thread safe.
+  virtual void CreateContextForMultiPortPath(
+      std::function<void(std::unique_ptr<QuicPathValidationContext>)>
+          create_context) = 0;
 
   // Migrate to the multi-port path which is identified by |context|.
   virtual void MigrateToMultiPortPath(
