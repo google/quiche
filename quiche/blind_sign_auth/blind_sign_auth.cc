@@ -284,6 +284,7 @@ absl::Status BlindSignAuth::FingerprintPublicMetadata(
       metadata.service_type(),
       OmitDefault(metadata.expiration().seconds()),
       OmitDefault(metadata.expiration().nanos()),
+      OmitDefault(metadata.debug_mode()),
   };
   const std::string input = absl::StrJoin(parts, "|");
   if (EVP_Digest(input.data(), input.length(),
