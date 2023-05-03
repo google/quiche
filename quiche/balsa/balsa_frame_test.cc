@@ -3978,6 +3978,40 @@ TEST_F(HTTPBalsaFrameTest, MultipleInterimHeaders) {
   EXPECT_EQ(balsa_frame_.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
 }
 
+TEST_F(HTTPBalsaFrameTest, SwitchingProtocols) {
+  const std::string headers =
+      "HTTP/1.1 101 Switching Protocols\r\n"
+      "\r\n";
+  const std::string body = "Bytes for the new protocol";
+  const std::string message = absl::StrCat(headers, body);
+
+  // Even with the interim headers callback set, the 101 response is delivered
+  // as final response headers.
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.set_use_interim_headers_callback(true);
+
+  InSequence s;
+  EXPECT_CALL(visitor_mock_, ProcessHeaders);
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+
+  ASSERT_EQ(balsa_frame_.ProcessInput(message.data(), message.size()),
+            headers.size())
+      << balsa_frame_.ErrorCode();
+  ASSERT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(headers_.parsed_response_code(), 101);
+
+  balsa_frame_.AllowArbitraryBody();
+
+  EXPECT_CALL(visitor_mock_, OnRawBodyInput("Bytes for the new protocol"));
+  EXPECT_CALL(visitor_mock_, OnBodyChunkInput("Bytes for the new protocol"));
+  EXPECT_CALL(visitor_mock_, MessageDone()).Times(0);
+
+  ASSERT_EQ(balsa_frame_.ProcessInput(body.data(), body.size()), body.size());
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(balsa_frame_.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
+}
+
 TEST_F(HTTPBalsaFrameTest, Http09) {
   constexpr absl::string_view request = "GET /\r\n";
 

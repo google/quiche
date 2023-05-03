@@ -43,7 +43,8 @@ namespace quiche {
 
 namespace {
 
-const size_t kContinueStatusCode = 100;
+constexpr size_t kContinueStatusCode = 100;
+constexpr size_t kSwitchingProtocolsStatusCode = 101;
 
 constexpr absl::string_view kChunked = "chunked";
 constexpr absl::string_view kContentLength = "content-length";
@@ -850,9 +851,11 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
     }
 
     if (use_interim_headers_callback_ &&
-        IsInterimResponse(headers_->parsed_response_code())) {
+        IsInterimResponse(headers_->parsed_response_code()) &&
+        headers_->parsed_response_code() != kSwitchingProtocolsStatusCode) {
       // Deliver headers from this interim response but reset everything else to
-      // prepare for the next set of headers.
+      // prepare for the next set of headers. Skip 101 Switching Protocols
+      // because these are considered final headers for the current protocol.
       visitor_->OnInterimHeaders(std::move(*headers_));
       Reset();
       checkpoint = message_start = message_current;
