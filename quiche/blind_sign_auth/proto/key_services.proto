@@ -20,8 +20,8 @@ option java_multiple_files = true;
 
 // Indicates client's desired or capable key support.
 enum KeyType {
+  reserved 3;
   UNKNOWN_KEY_TYPE = 0;
   ZINC_KEY_TYPE = 1;
   AT_PUBLIC_METADATA_KEY_TYPE = 2;
-  AT_PUBLIC_METADATA_VERIFIED_KEY_TYPE = 3;
 }
