@@ -182,5 +182,17 @@ QuicEcnCounts* QuicSentPacketManagerPeer::GetPeerEcnCounts(
   return &(sent_packet_manager->peer_ack_ecn_counts_[space]);
 }
 
+// static
+QuicPacketCount QuicSentPacketManagerPeer::GetEct0Sent(
+    QuicSentPacketManager* sent_packet_manager, PacketNumberSpace space) {
+  return sent_packet_manager->ect0_packets_sent_[space];
+}
+
+// static
+QuicPacketCount QuicSentPacketManagerPeer::GetEct1Sent(
+    QuicSentPacketManager* sent_packet_manager, PacketNumberSpace space) {
+  return sent_packet_manager->ect1_packets_sent_[space];
+}
+
 }  // namespace test
 }  // namespace quic

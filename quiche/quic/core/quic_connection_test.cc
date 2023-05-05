@@ -17571,6 +17571,66 @@ TEST_P(QuicConnectionTest, InvalidFeedbackCancelsEcn) {
   EXPECT_EQ(per_packet_options.ecn_codepoint, ECN_NOT_ECT);
 }
 
+TEST_P(QuicConnectionTest, StateMatchesSentEcn) {
+  SetQuicReloadableFlag(quic_send_ect1, true);
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
+  TestPerPacketOptions per_packet_options;
+  per_packet_options.ecn_codepoint = ECN_ECT1;
+  connection_.set_per_packet_options(&per_packet_options);
+  SendPing();
+  QuicSentPacketManager* sent_packet_manager =
+      QuicConnectionPeer::GetSentPacketManager(&connection_);
+  EXPECT_EQ(writer_->last_ecn_sent(), ECN_ECT1);
+  EXPECT_EQ(
+      QuicSentPacketManagerPeer::GetEct1Sent(sent_packet_manager, INITIAL_DATA),
+      1);
+}
+
+TEST_P(QuicConnectionTest, CoalescedPacketSplitsEcn) {
+  if (!connection_.version().CanSendCoalescedPackets()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_send_ect1, true);
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
+  TestPerPacketOptions per_packet_options;
+  per_packet_options.ecn_codepoint = ECN_ECT1;
+  connection_.set_per_packet_options(&per_packet_options);
+  // All these steps are necessary to send an INITIAL ping and save it to be
+  // coalesced, instead of just calling SendPing() and sending it immediately.
+  char buffer[1000];
+  creator_->set_encryption_level(ENCRYPTION_INITIAL);
+  QuicFrames frames;
+  QuicPingFrame ping;
+  frames.emplace_back(QuicFrame(ping));
+  SerializedPacket packet1 = QuicPacketCreatorPeer::SerializeAllFrames(
+      creator_, frames, buffer, sizeof(buffer));
+  connection_.SendOrQueuePacket(std::move(packet1));
+  creator_->set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(*send_algorithm_, SupportsECT0()).WillRepeatedly(Return(true));
+  // If not for the line below, these packets would coalesce.
+  per_packet_options.ecn_codepoint = ECN_ECT0;
+  EXPECT_EQ(writer_->packets_write_attempts(), 0);
+  SendPing();
+  EXPECT_EQ(writer_->packets_write_attempts(), 2);
+  EXPECT_EQ(writer_->last_ecn_sent(), ECN_ECT0);
+}
+
+TEST_P(QuicConnectionTest, BufferedPacketRetainsOldEcn) {
+  SetQuicReloadableFlag(quic_send_ect1, true);
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
+  TestPerPacketOptions per_packet_options;
+  per_packet_options.ecn_codepoint = ECN_ECT1;
+  connection_.set_per_packet_options(&per_packet_options);
+  writer_->SetWriteBlocked();
+  EXPECT_CALL(visitor_, OnWriteBlocked()).Times(2);
+  SendPing();
+  EXPECT_CALL(*send_algorithm_, SupportsECT0()).WillRepeatedly(Return(true));
+  per_packet_options.ecn_codepoint = ECN_ECT0;
+  writer_->SetWritable();
+  connection_.OnCanWrite();
+  EXPECT_EQ(writer_->last_ecn_sent(), ECN_ECT1);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

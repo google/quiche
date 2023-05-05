@@ -11,7 +11,7 @@
 namespace quic {
 
 QuicCoalescedPacket::QuicCoalescedPacket()
-    : length_(0), max_packet_length_(0) {}
+    : length_(0), max_packet_length_(0), ecn_codepoint_(ECN_NOT_ECT) {}
 
 QuicCoalescedPacket::~QuicCoalescedPacket() { Clear(); }
 
@@ -19,7 +19,8 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
     const SerializedPacket& packet, const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address,
     quiche::QuicheBufferAllocator* allocator,
-    QuicPacketLength current_max_packet_length) {
+    QuicPacketLength current_max_packet_length,
+    QuicEcnCodepoint ecn_codepoint) {
   if (packet.encrypted_length == 0) {
     QUIC_BUG(quic_bug_10611_1) << "Trying to coalesce an empty packet";
     return true;
@@ -52,6 +53,10 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
       // Do not coalesce packets of the same encryption level.
       return false;
     }
+    if (ecn_codepoint != ecn_codepoint_) {
+      // Do not coalesce packets with different ECN codepoints.
+      return false;
+    }
   }
 
   if (length_ + packet.encrypted_length > max_packet_length_) {
@@ -66,6 +71,7 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
   if (length_ > 0) {
     QUIC_CODE_COUNT(QUIC_SUCCESSFULLY_COALESCED_MULTIPLE_PACKETS);
   }
+  ecn_codepoint_ = ecn_codepoint;
   length_ += packet.encrypted_length;
   transmission_types_[packet.encryption_level] = packet.transmission_type;
   if (packet.encryption_level == ENCRYPTION_INITIAL) {

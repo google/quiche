@@ -2276,9 +2276,9 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
     SerializedPacket serialized = SerializeAllFrames(frames_);
     EXPECT_EQ(level, serialized.encryption_level);
     frames_.clear();
-    ASSERT_TRUE(coalesced.MaybeCoalescePacket(serialized, self_address,
-                                              peer_address, &allocator,
-                                              creator_.max_packet_length()));
+    ASSERT_TRUE(coalesced.MaybeCoalescePacket(
+        serialized, self_address, peer_address, &allocator,
+        creator_.max_packet_length(), ECN_NOT_ECT));
   }
   char buffer[kMaxOutgoingPacketSize];
   size_t coalesced_length = creator_.SerializeCoalescedPacket(

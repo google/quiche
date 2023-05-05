@@ -3119,7 +3119,7 @@ void QuicConnection::WriteQueuedPackets() {
     const BufferedPacket& packet = buffered_packets_.front();
     WriteResult result = SendPacketToWriter(
         packet.data.get(), packet.length, packet.self_address.host(),
-        packet.peer_address, per_packet_options_, writer_);
+        packet.peer_address, writer_, packet.ecn_codepoint);
     QUIC_DVLOG(1) << ENDPOINT << "Sending buffered packet, result: " << result;
     if (IsMsgTooBig(writer_, result) && packet.length > long_term_mtu_) {
       // When MSG_TOO_BIG is returned, the system typically knows what the
@@ -3438,7 +3438,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       if (!coalesced_packet_.MaybeCoalescePacket(
               *packet, send_from_address, send_to_address,
               helper_->GetStreamSendBufferAllocator(),
-              packet_creator_.max_packet_length())) {
+              packet_creator_.max_packet_length(),
+              GetEcnCodepointToSend(send_to_address))) {
         // Failed to coalesce packet, flush current coalesced packet.
         if (!FlushCoalescedPacket()) {
           QUIC_BUG_IF(quic_connection_connected_after_flush_coalesced_failure,
@@ -3451,7 +3452,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
         if (!coalesced_packet_.MaybeCoalescePacket(
                 *packet, send_from_address, send_to_address,
                 helper_->GetStreamSendBufferAllocator(),
-                packet_creator_.max_packet_length())) {
+                packet_creator_.max_packet_length(),
+                GetEcnCodepointToSend(send_to_address))) {
           // Failed to coalesce packet even it is the only packet, raise a write
           // error.
           QUIC_DLOG(ERROR) << ENDPOINT << "Failed to coalesce packet";
@@ -3466,12 +3468,14 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
         packet_creator_.SetSoftMaxPacketLength(
             coalesced_packet_.max_packet_length() - coalesced_packet_.length());
       }
+      last_ecn_codepoint_sent_ = coalesced_packet_.ecn_codepoint();
       break;
     case BUFFER:
       QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
                     << " to buffered packets";
+      last_ecn_codepoint_sent_ = GetEcnCodepointToSend(send_to_address);
       buffered_packets_.emplace_back(*packet, send_from_address,
-                                     send_to_address);
+                                     send_to_address, last_ecn_codepoint_sent_);
       break;
     case SEND_TO_WRITER:
       // Stop using coalescer from now on.
@@ -3484,9 +3488,9 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       //
       // writer_->WritePacket transfers buffer ownership back to the writer.
       packet->release_encrypted_buffer = nullptr;
-      result = SendPacketToWriter(packet->encrypted_buffer, encrypted_length,
-                                  send_from_address.host(), send_to_address,
-                                  per_packet_options_, writer_);
+      result = SendPacketToWriter(
+          packet->encrypted_buffer, encrypted_length, send_from_address.host(),
+          send_to_address, writer_, GetEcnCodepointToSend(send_to_address));
       // This is a work around for an issue with linux UDP GSO batch writers.
       // When sending a GSO packet with 2 segments, if the first segment is
       // larger than the path MTU, instead of EMSGSIZE, the linux kernel returns
@@ -3521,7 +3525,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
                     << " to buffered packets";
       buffered_packets_.emplace_back(*packet, send_from_address,
-                                     send_to_address);
+                                     send_to_address, last_ecn_codepoint_sent_);
     }
   }
 
@@ -3946,7 +3950,8 @@ void QuicConnection::OnSerializedPacket(SerializedPacket serialized_packet) {
       first_serialized_one_rtt_packet_ == nullptr &&
       serialized_packet.encryption_level == ENCRYPTION_FORWARD_SECURE) {
     first_serialized_one_rtt_packet_ = std::make_unique<BufferedPacket>(
-        serialized_packet, self_address(), peer_address());
+        serialized_packet, self_address(), peer_address(),
+        GetEcnCodepointToSend(peer_address()));
   }
   SendOrQueuePacket(std::move(serialized_packet));
 }
@@ -4212,13 +4217,13 @@ void QuicConnection::MaybeSetEcnCodepoint(QuicEcnCodepoint ecn_codepoint) {
 
 WriteResult QuicConnection::SendPacketToWriter(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
-    const QuicSocketAddress& destination_address, PerPacketOptions* options,
-    QuicPacketWriter* writer) {
+    const QuicSocketAddress& destination_address, QuicPacketWriter* writer,
+    const QuicEcnCodepoint ecn_codepoint) {
   QuicEcnCodepoint original_codepoint = GetNextEcnCodepoint();
-  last_ecn_codepoint_sent_ = GetEcnCodepointToSend(destination_address);
-  MaybeSetEcnCodepoint(last_ecn_codepoint_sent_);
-  WriteResult result = writer->WritePacket(buffer, buf_len, self_address,
-                                           destination_address, options);
+  last_ecn_codepoint_sent_ = ecn_codepoint;
+  MaybeSetEcnCodepoint(ecn_codepoint);
+  WriteResult result = writer->WritePacket(
+      buffer, buf_len, self_address, destination_address, per_packet_options_);
   MaybeSetEcnCodepoint(original_codepoint);
   return result;
 }
@@ -4970,17 +4975,18 @@ QuicConnection::ScopedEncryptionLevelContext::~ScopedEncryptionLevelContext() {
 
 QuicConnection::BufferedPacket::BufferedPacket(
     const SerializedPacket& packet, const QuicSocketAddress& self_address,
-    const QuicSocketAddress& peer_address)
+    const QuicSocketAddress& peer_address, const QuicEcnCodepoint ecn_codepoint)
     : BufferedPacket(packet.encrypted_buffer, packet.encrypted_length,
-                     self_address, peer_address) {}
+                     self_address, peer_address, ecn_codepoint) {}
 
 QuicConnection::BufferedPacket::BufferedPacket(
     const char* encrypted_buffer, QuicPacketLength encrypted_length,
     const QuicSocketAddress& self_address,
-    const QuicSocketAddress& peer_address)
+    const QuicSocketAddress& peer_address, const QuicEcnCodepoint ecn_codepoint)
     : length(encrypted_length),
       self_address(self_address),
-      peer_address(peer_address) {
+      peer_address(peer_address),
+      ecn_codepoint(ecn_codepoint) {
   data = std::make_unique<char[]>(encrypted_length);
   memcpy(data.get(), encrypted_buffer, encrypted_length);
 }
@@ -5159,7 +5165,7 @@ bool QuicConnection::WritePacketUsingWriter(
                        packet->encrypted_buffer, packet->encrypted_length));
   WriteResult result = SendPacketToWriter(
       packet->encrypted_buffer, packet->encrypted_length, self_address.host(),
-      peer_address, per_packet_options_, writer);
+      peer_address, writer, GetEcnCodepointToSend(peer_address));
 
   // If using a batch writer and the probing packet is buffered, flush it.
   if (writer->IsBatchMode() && result.status == WRITE_STATUS_OK &&
@@ -6057,11 +6063,13 @@ bool QuicConnection::FlushCoalescedPacket() {
                   << "Buffering coalesced packet of len: " << length;
     buffered_packets_.emplace_back(
         buffer, static_cast<QuicPacketLength>(length),
-        coalesced_packet_.self_address(), coalesced_packet_.peer_address());
+        coalesced_packet_.self_address(), coalesced_packet_.peer_address(),
+        coalesced_packet_.ecn_codepoint());
   } else {
     WriteResult result = SendPacketToWriter(
         buffer, length, coalesced_packet_.self_address().host(),
-        coalesced_packet_.peer_address(), per_packet_options_, writer_);
+        coalesced_packet_.peer_address(), writer_,
+        coalesced_packet_.ecn_codepoint());
     if (IsWriteError(result.status)) {
       OnWriteError(result.error_code);
       return false;
@@ -6073,7 +6081,8 @@ bool QuicConnection::FlushCoalescedPacket() {
                       << "Buffering coalesced packet of len: " << length;
         buffered_packets_.emplace_back(
             buffer, static_cast<QuicPacketLength>(length),
-            coalesced_packet_.self_address(), coalesced_packet_.peer_address());
+            coalesced_packet_.self_address(), coalesced_packet_.peer_address(),
+            coalesced_packet_.ecn_codepoint());
       }
     }
   }
@@ -6425,7 +6434,7 @@ void QuicConnection::OnRetransmittableOnWireTimeout() {
         buffered_packets_.emplace_back(
             first_serialized_one_rtt_packet_->data.get(),
             first_serialized_one_rtt_packet_->length, self_address(),
-            peer_address());
+            peer_address(), first_serialized_one_rtt_packet_->ecn_codepoint);
         packet_buffered = true;
       }
       break;

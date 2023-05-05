@@ -1480,11 +1480,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   struct QUIC_EXPORT_PRIVATE BufferedPacket {
     BufferedPacket(const SerializedPacket& packet,
                    const QuicSocketAddress& self_address,
-                   const QuicSocketAddress& peer_address);
+                   const QuicSocketAddress& peer_address,
+                   QuicEcnCodepoint ecn_codepoint);
     BufferedPacket(const char* encrypted_buffer,
                    QuicPacketLength encrypted_length,
                    const QuicSocketAddress& self_address,
-                   const QuicSocketAddress& peer_address);
+                   const QuicSocketAddress& peer_address,
+                   QuicEcnCodepoint ecn_codepoint);
     // Please note, this buffered packet contains random bytes (and is not
     // *actually* a QUIC packet).
     BufferedPacket(QuicRandom& random, QuicPacketLength encrypted_length,
@@ -1500,6 +1502,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     // Self and peer addresses when the packet is serialized.
     const QuicSocketAddress self_address;
     const QuicSocketAddress peer_address;
+    QuicEcnCodepoint ecn_codepoint = ECN_NOT_ECT;
   };
 
   // ReceivedPacketInfo comprises the received packet information.
@@ -1983,18 +1986,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Set the ECN codepoint, but only if set_per_packet_options has been called.
   void MaybeSetEcnCodepoint(QuicEcnCodepoint ecn_codepoint);
 
-  // Writes the packet to |writer| with the ECN mark specified in |options|. If
-  // by spec the connection should not send an ECN mark, or the packet is
-  // not on the default path, or it's PTO probe before an ECN packet has been
-  // successfully acked on the path, or QUIC reloadable flag quic_send_ect1 is
-  // false, then it sends Not-ECT instead. Will also set last_ecn_sent_
-  // appropriately. At the end, restores the original setting unless the flag
-  // is false.
+  // Writes the packet to |writer| with the ECN mark specified in
+  // |ecn_codepoint|. Will also set last_ecn_sent_ appropriately.
   WriteResult SendPacketToWriter(const char* buffer, size_t buf_len,
                                  const QuicIpAddress& self_address,
                                  const QuicSocketAddress& destination_address,
-                                 PerPacketOptions* options,
-                                 QuicPacketWriter* writer);
+                                 QuicPacketWriter* writer,
+                                 const QuicEcnCodepoint ecn_codepoint);
 
   QuicConnectionContext context_;
 
