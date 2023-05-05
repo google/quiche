@@ -58,20 +58,19 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
 
   // Accessors provided for convenience, not part of any interface.
   QuicEventLoop* event_loop() { return event_loop_; }
-  const quiche::QuicheLinkedHashMap<int, QuicSocketAddress>& fd_address_map()
-      const {
+  const quiche::QuicheLinkedHashMap<SocketFd, QuicSocketAddress>&
+  fd_address_map() const {
     return fd_address_map_;
   }
 
   // If the client has at least one UDP socket, return the latest created one.
   // Otherwise, return -1.
-  int GetLatestFD() const;
+  SocketFd GetLatestFD() const;
 
-  // Create socket for connection to |server_address| with default socket
-  // options.
-  // Return fd index.
-  virtual int CreateUDPSocket(QuicSocketAddress server_address,
-                              bool* overflow_supported);
+  // Create a socket for connection to |server_address| with default socket
+  // options. Returns the FD of the resulting socket.
+  virtual SocketFd CreateUDPSocket(QuicSocketAddress server_address,
+                                   bool* overflow_supported);
 
   QuicClientBase* client() { return client_; }
 
@@ -80,7 +79,7 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
   }
   // If |fd| is an open UDP socket, unregister and close it. Otherwise, do
   // nothing.
-  void CleanUpUDPSocket(int fd);
+  void CleanUpUDPSocket(SocketFd fd);
 
   // Used for testing.
   void SetClientPort(int port);
@@ -94,10 +93,10 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
   }
 
   // Bind a socket to a specific network interface.
-  bool BindInterfaceNameIfNeeded(int fd);
+  bool BindInterfaceNameIfNeeded(SocketFd fd);
 
   // Actually clean up |fd|.
-  virtual void CleanUpUDPSocketImpl(int fd);
+  virtual void CleanUpUDPSocketImpl(SocketFd fd);
 
  private:
   // Listens for events on the client socket.
@@ -105,7 +104,7 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
 
   // Map mapping created UDP sockets to their addresses. By using linked hash
   // map, the order of socket creation can be recorded.
-  quiche::QuicheLinkedHashMap<int, QuicSocketAddress> fd_address_map_;
+  quiche::QuicheLinkedHashMap<SocketFd, QuicSocketAddress> fd_address_map_;
 
   // If overflow_supported_ is true, this will be the number of packets dropped
   // during the lifetime of the server.

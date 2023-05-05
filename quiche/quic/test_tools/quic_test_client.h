@@ -115,18 +115,18 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   void SetUserAgentID(const std::string& user_agent_id);
 
   // Wraps data in a quic packet and sends it.
-  ssize_t SendData(const std::string& data, bool last_data);
+  int64_t SendData(const std::string& data, bool last_data);
   // As above, but |delegate| will be notified when |data| is ACKed.
-  ssize_t SendData(
+  int64_t SendData(
       const std::string& data, bool last_data,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
 
   // Clears any outstanding state and sends a simple GET of 'uri' to the
   // server.  Returns 0 if the request failed and no bytes were written.
-  ssize_t SendRequest(const std::string& uri);
+  int64_t SendRequest(const std::string& uri);
   // Send a request R and a RST_FRAME which resets R, in the same packet.
-  ssize_t SendRequestAndRstTogether(const std::string& uri);
+  int64_t SendRequestAndRstTogether(const std::string& uri);
   // Sends requests for all the urls and waits for the responses.  To process
   // the individual responses as they are returned, the caller should use the
   // set the response_listener on the client().
@@ -134,18 +134,18 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
       const std::vector<std::string>& url_list);
   // Sends a request containing |headers| and |body| and returns the number of
   // bytes sent (the size of the serialized request headers and body).
-  ssize_t SendMessage(const spdy::Http2HeaderBlock& headers,
+  int64_t SendMessage(const spdy::Http2HeaderBlock& headers,
                       absl::string_view body);
   // Sends a request containing |headers| and |body| with the fin bit set to
   // |fin| and returns the number of bytes sent (the size of the serialized
   // request headers and body).
-  ssize_t SendMessage(const spdy::Http2HeaderBlock& headers,
+  int64_t SendMessage(const spdy::Http2HeaderBlock& headers,
                       absl::string_view body, bool fin);
   // Sends a request containing |headers| and |body| with the fin bit set to
   // |fin| and returns the number of bytes sent (the size of the serialized
   // request headers and body). If |flush| is true, will wait for the message to
   // be flushed before returning.
-  ssize_t SendMessage(const spdy::Http2HeaderBlock& headers,
+  int64_t SendMessage(const spdy::Http2HeaderBlock& headers,
                       absl::string_view body, bool fin, bool flush);
   // Sends a request containing |headers| and |body|, waits for the response,
   // and returns the response body.
@@ -161,7 +161,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   QuicSocketAddress local_address() const;
   void ClearPerRequestState();
   bool WaitUntil(int timeout_ms, std::function<bool()> trigger);
-  ssize_t Send(absl::string_view data);
+  int64_t Send(absl::string_view data);
   bool connected() const;
   bool buffer_body() const;
   void set_buffer_body(bool buffer_body);
@@ -259,7 +259,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // Calls GetOrCreateStream(), sends the request on the stream, and
   // stores the request in case it needs to be resent.  If |headers| is
   // null, only the body will be sent on the stream.
-  ssize_t GetOrCreateStreamAndSendRequest(
+  int64_t GetOrCreateStreamAndSendRequest(
       const spdy::Http2HeaderBlock* headers, absl::string_view body, bool fin,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);

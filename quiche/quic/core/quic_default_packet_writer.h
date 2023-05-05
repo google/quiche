@@ -7,6 +7,7 @@
 
 #include <cstddef>
 
+#include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -18,7 +19,7 @@ struct WriteResult;
 // Default packet writer which wraps QuicSocketUtils WritePacket.
 class QUIC_EXPORT_PRIVATE QuicDefaultPacketWriter : public QuicPacketWriter {
  public:
-  explicit QuicDefaultPacketWriter(int fd);
+  explicit QuicDefaultPacketWriter(SocketFd fd);
   QuicDefaultPacketWriter(const QuicDefaultPacketWriter&) = delete;
   QuicDefaultPacketWriter& operator=(const QuicDefaultPacketWriter&) = delete;
   ~QuicDefaultPacketWriter() override;
@@ -40,14 +41,14 @@ class QUIC_EXPORT_PRIVATE QuicDefaultPacketWriter : public QuicPacketWriter {
       const QuicSocketAddress& peer_address) override;
   WriteResult Flush() override;
 
-  void set_fd(int fd) { fd_ = fd; }
+  void set_fd(SocketFd fd) { fd_ = fd; }
 
  protected:
   void set_write_blocked(bool is_blocked);
-  int fd() { return fd_; }
+  SocketFd fd() { return fd_; }
 
  private:
-  int fd_;
+  SocketFd fd_;
   bool write_blocked_;
 };
 

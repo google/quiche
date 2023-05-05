@@ -8,7 +8,7 @@
 
 namespace quic {
 
-QuicDefaultPacketWriter::QuicDefaultPacketWriter(int fd)
+QuicDefaultPacketWriter::QuicDefaultPacketWriter(SocketFd fd)
     : fd_(fd), write_blocked_(false) {}
 
 QuicDefaultPacketWriter::~QuicDefaultPacketWriter() = default;
@@ -36,7 +36,7 @@ bool QuicDefaultPacketWriter::IsWriteBlocked() const { return write_blocked_; }
 void QuicDefaultPacketWriter::SetWritable() { write_blocked_ = false; }
 
 absl::optional<int> QuicDefaultPacketWriter::MessageTooBigErrorCode() const {
-  return EMSGSIZE;
+  return kSocketErrorMsgSize;
 }
 
 QuicByteCount QuicDefaultPacketWriter::GetMaxPacketSize(

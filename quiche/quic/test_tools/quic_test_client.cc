@@ -365,7 +365,7 @@ void QuicTestClient::SetUserAgentID(const std::string& user_agent_id) {
   client_->SetUserAgentID(user_agent_id);
 }
 
-ssize_t QuicTestClient::SendRequest(const std::string& uri) {
+int64_t QuicTestClient::SendRequest(const std::string& uri) {
   spdy::Http2HeaderBlock headers;
   if (!PopulateHeaderBlockFromUrl(uri, &headers)) {
     return 0;
@@ -373,7 +373,7 @@ ssize_t QuicTestClient::SendRequest(const std::string& uri) {
   return SendMessage(headers, "");
 }
 
-ssize_t QuicTestClient::SendRequestAndRstTogether(const std::string& uri) {
+int64_t QuicTestClient::SendRequestAndRstTogether(const std::string& uri) {
   spdy::Http2HeaderBlock headers;
   if (!PopulateHeaderBlockFromUrl(uri, &headers)) {
     return 0;
@@ -381,7 +381,7 @@ ssize_t QuicTestClient::SendRequestAndRstTogether(const std::string& uri) {
 
   QuicSpdyClientSession* session = client()->client_session();
   QuicConnection::ScopedPacketFlusher flusher(session->connection());
-  ssize_t ret = SendMessage(headers, "", /*fin=*/true, /*flush=*/false);
+  int64_t ret = SendMessage(headers, "", /*fin=*/true, /*flush=*/false);
 
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalStreamId(
       session->transport_version(), 0);
@@ -398,7 +398,7 @@ void QuicTestClient::SendRequestsAndWaitForResponses(
   }
 }
 
-ssize_t QuicTestClient::GetOrCreateStreamAndSendRequest(
+int64_t QuicTestClient::GetOrCreateStreamAndSendRequest(
     const spdy::Http2HeaderBlock* headers, absl::string_view body, bool fin,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
@@ -426,7 +426,7 @@ ssize_t QuicTestClient::GetOrCreateStreamAndSendRequest(
   }
   QuicSpdyStreamPeer::set_ack_listener(stream, ack_listener);
 
-  ssize_t ret = 0;
+  int64_t ret = 0;
   if (headers != nullptr) {
     spdy::Http2HeaderBlock spdy_headers(headers->Clone());
     if (spdy_headers[":authority"].as_string().empty()) {
@@ -441,23 +441,23 @@ ssize_t QuicTestClient::GetOrCreateStreamAndSendRequest(
   return ret;
 }
 
-ssize_t QuicTestClient::SendMessage(const spdy::Http2HeaderBlock& headers,
+int64_t QuicTestClient::SendMessage(const spdy::Http2HeaderBlock& headers,
                                     absl::string_view body) {
   return SendMessage(headers, body, /*fin=*/true);
 }
 
-ssize_t QuicTestClient::SendMessage(const spdy::Http2HeaderBlock& headers,
+int64_t QuicTestClient::SendMessage(const spdy::Http2HeaderBlock& headers,
                                     absl::string_view body, bool fin) {
   return SendMessage(headers, body, fin, /*flush=*/true);
 }
 
-ssize_t QuicTestClient::SendMessage(const spdy::Http2HeaderBlock& headers,
+int64_t QuicTestClient::SendMessage(const spdy::Http2HeaderBlock& headers,
                                     absl::string_view body, bool fin,
                                     bool flush) {
   // Always force creation of a stream for SendMessage.
   latest_created_stream_ = nullptr;
 
-  ssize_t ret = GetOrCreateStreamAndSendRequest(&headers, body, fin, nullptr);
+  int64_t ret = GetOrCreateStreamAndSendRequest(&headers, body, fin, nullptr);
 
   if (flush) {
     WaitForWriteToFlush();
@@ -465,11 +465,11 @@ ssize_t QuicTestClient::SendMessage(const spdy::Http2HeaderBlock& headers,
   return ret;
 }
 
-ssize_t QuicTestClient::SendData(const std::string& data, bool last_data) {
+int64_t QuicTestClient::SendData(const std::string& data, bool last_data) {
   return SendData(data, last_data, nullptr);
 }
 
-ssize_t QuicTestClient::SendData(
+int64_t QuicTestClient::SendData(
     const std::string& data, bool last_data,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
@@ -645,7 +645,7 @@ bool QuicTestClient::WaitUntil(int timeout_ms, std::function<bool()> trigger) {
   return true;
 }
 
-ssize_t QuicTestClient::Send(absl::string_view data) {
+int64_t QuicTestClient::Send(absl::string_view data) {
   return SendData(std::string(data), false);
 }
 

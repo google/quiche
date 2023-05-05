@@ -22,7 +22,7 @@ namespace {
 // listener whenever the socket gets blocked.
 class LevelTriggeredPacketWriter : public QuicDefaultPacketWriter {
  public:
-  explicit LevelTriggeredPacketWriter(int fd, QuicEventLoop* event_loop)
+  explicit LevelTriggeredPacketWriter(SocketFd fd, QuicEventLoop* event_loop)
       : QuicDefaultPacketWriter(fd), event_loop_(event_loop) {
     QUICHE_DCHECK(!event_loop->SupportsEdgeTriggered());
   }
@@ -68,11 +68,11 @@ QuicClientDefaultNetworkHelper::~QuicClientDefaultNetworkHelper() {
 bool QuicClientDefaultNetworkHelper::CreateUDPSocketAndBind(
     QuicSocketAddress server_address, QuicIpAddress bind_to_address,
     int bind_to_port) {
-  int fd = CreateUDPSocket(server_address, &overflow_supported_);
-  if (fd < 0) {
+  SocketFd fd = CreateUDPSocket(server_address, &overflow_supported_);
+  if (fd == kInvalidSocketFd) {
     return false;
   }
-  auto closer = absl::MakeCleanup([fd] { close(fd); });
+  auto closer = absl::MakeCleanup([fd] { (void)socket_api::Close(fd); });
 
   QuicSocketAddress client_address;
   if (bind_to_address.IsInitialized()) {
@@ -124,7 +124,7 @@ bool QuicClientDefaultNetworkHelper::CreateUDPSocketAndBind(
   return false;
 }
 
-void QuicClientDefaultNetworkHelper::CleanUpUDPSocket(int fd) {
+void QuicClientDefaultNetworkHelper::CleanUpUDPSocket(SocketFd fd) {
   CleanUpUDPSocketImpl(fd);
   fd_address_map_.erase(fd);
 }
@@ -136,12 +136,12 @@ void QuicClientDefaultNetworkHelper::CleanUpAllUDPSockets() {
   fd_address_map_.clear();
 }
 
-void QuicClientDefaultNetworkHelper::CleanUpUDPSocketImpl(int fd) {
-  if (fd > -1) {
+void QuicClientDefaultNetworkHelper::CleanUpUDPSocketImpl(SocketFd fd) {
+  if (fd != kInvalidSocketFd) {
     bool success = event_loop_->UnregisterSocket(fd);
     QUICHE_DCHECK(success || fds_unregistered_externally_);
-    int rc = close(fd);
-    QUICHE_DCHECK_EQ(0, rc);
+    absl::Status rc = socket_api::Close(fd);
+    QUICHE_DCHECK(rc.ok()) << rc;
   }
 }
 
@@ -207,7 +207,7 @@ QuicSocketAddress QuicClientDefaultNetworkHelper::GetLatestClientAddress()
   return fd_address_map_.back().second;
 }
 
-int QuicClientDefaultNetworkHelper::GetLatestFD() const {
+SocketFd QuicClientDefaultNetworkHelper::GetLatestFD() const {
   if (fd_address_map_.empty()) {
     return -1;
   }
@@ -221,13 +221,13 @@ void QuicClientDefaultNetworkHelper::ProcessPacket(
   client_->session()->ProcessUdpPacket(self_address, peer_address, packet);
 }
 
-int QuicClientDefaultNetworkHelper::CreateUDPSocket(
+SocketFd QuicClientDefaultNetworkHelper::CreateUDPSocket(
     QuicSocketAddress server_address, bool* overflow_supported) {
   QuicUdpSocketApi api;
-  int fd = api.Create(server_address.host().AddressFamilyToInt(),
-                      /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
-                      /*send_buffer_size =*/kDefaultSocketReceiveBuffer);
-  if (fd < 0) {
+  SocketFd fd = api.Create(server_address.host().AddressFamilyToInt(),
+                           /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
+                           /*send_buffer_size =*/kDefaultSocketReceiveBuffer);
+  if (fd == kInvalidSocketFd) {
     return fd;
   }
 
@@ -242,7 +242,7 @@ int QuicClientDefaultNetworkHelper::CreateUDPSocket(
   return fd;
 }
 
-bool QuicClientDefaultNetworkHelper::BindInterfaceNameIfNeeded(int fd) {
+bool QuicClientDefaultNetworkHelper::BindInterfaceNameIfNeeded(SocketFd fd) {
   QuicUdpSocketApi api;
   std::string interface_name = client_->interface_name();
   if (!interface_name.empty()) {

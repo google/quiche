@@ -97,8 +97,8 @@ void QuicServer::Initialize() {
 }
 
 QuicServer::~QuicServer() {
-  close(fd_);
-  fd_ = -1;
+  (void)socket_api::Close(fd_);
+  fd_ = kInvalidSocketFd;
 
   // Should be fine without because nothing should send requests to the backend
   // after `this` is destroyed, but for extra pointer safety, clear the socket
