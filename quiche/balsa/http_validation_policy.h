@@ -29,6 +29,14 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // https://tools.ietf.org/html/rfc7230#section-3.3.2 disallows
   // Transfer-Encoding and Content-Length header fields together.
   bool disallow_transfer_encoding_with_content_length = false;
+
+  // If true, signal an error if Transfer-Encoding has a value other than
+  // "chunked" or "identity", or if there are multiple Transfer-Encoding field
+  // lines. If false, ignore inconsistencies with Transfer-Encoding field lines,
+  // also force `disallow_transfer_encoding_with_content_length` to false, but
+  // still make an effort to determine whether chunked transfer encoding is
+  // indicated.
+  bool validate_transfer_encoding = true;
 };
 
 }  // namespace quiche

@@ -141,10 +141,10 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
     return invalid_chars_level_ == InvalidCharsLevel::kError;
   }
 
-  void set_http_validation_policy(const quiche::HttpValidationPolicy& policy) {
+  void set_http_validation_policy(const HttpValidationPolicy& policy) {
     http_validation_policy_ = policy;
   }
-  const quiche::HttpValidationPolicy& http_validation_policy() const {
+  const HttpValidationPolicy& http_validation_policy() const {
     return http_validation_policy_;
   }
 
@@ -309,7 +309,7 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
                            // in Reset().
   InvalidCharsLevel invalid_chars_level_;  // This is not reset in Reset().
 
-  quiche::HttpValidationPolicy http_validation_policy_;
+  HttpValidationPolicy http_validation_policy_;
 
   // This is not reset in Reset().
   // TODO(b/68801833): Default-enable and then deprecate this field, along with

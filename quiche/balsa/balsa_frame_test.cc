@@ -2952,6 +2952,7 @@ TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingHeadersIsAnError) {
       "HTTP/1.1 200 OK\r\n"
       "transfer-encoding: chunked\r\n"
       "transfer-encoding: identity\r\n"
+      "content-length: 3\r\n"
       "\r\n";
   balsa_frame_.set_is_request(false);
   balsa_frame_.ProcessInput(header.data(), header.size());
@@ -2960,10 +2961,29 @@ TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingHeadersIsAnError) {
             balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingHeaders) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.validate_transfer_encoding = false;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  std::string header =
+      "HTTP/1.1 200 OK\r\n"
+      "transfer-encoding: chunked\r\n"
+      "transfer-encoding: identity\r\n"
+      "content-length: 3\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.ProcessInput(header.data(), header.size());
+
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+}
+
 TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingTokensIsAnError) {
   std::string header =
       "HTTP/1.1 200 OK\r\n"
       "transfer-encoding: chunked, identity\r\n"
+      "content-length: 3\r\n"
       "\r\n";
   balsa_frame_.set_is_request(false);
   balsa_frame_.ProcessInput(header.data(), header.size());
@@ -2972,16 +2992,51 @@ TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingTokensIsAnError) {
             balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingTokens) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.validate_transfer_encoding = false;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  std::string header =
+      "HTTP/1.1 200 OK\r\n"
+      "transfer-encoding: chunked, identity\r\n"
+      "content-length: 3\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.ProcessInput(header.data(), header.size());
+
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+}
+
 TEST_F(HTTPBalsaFrameTest, UnknownTransferEncodingTokenIsAnError) {
   std::string header =
       "HTTP/1.1 200 OK\r\n"
       "transfer-encoding: chunked-identity\r\n"
+      "content-length: 3\r\n"
       "\r\n";
   balsa_frame_.set_is_request(false);
   balsa_frame_.ProcessInput(header.data(), header.size());
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::UNKNOWN_TRANSFER_ENCODING,
             balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, AcceptUnknownTransferEncodingToken) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.validate_transfer_encoding = false;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  std::string header =
+      "HTTP/1.1 200 OK\r\n"
+      "transfer-encoding: chunked-identity\r\n"
+      "content-length: 3\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.ProcessInput(header.data(), header.size());
+
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 class DetachOnDoneFramer : public NoOpBalsaVisitor {

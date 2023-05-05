@@ -529,7 +529,9 @@ void BalsaFrame::ProcessTransferEncodingLine(HeaderLines::size_type line_idx) {
     return;
   }
 
-  HandleError(BalsaFrameEnums::UNKNOWN_TRANSFER_ENCODING);
+  if (http_validation_policy().validate_transfer_encoding) {
+    HandleError(BalsaFrameEnums::UNKNOWN_TRANSFER_ENCODING);
+  }
 }
 
 bool BalsaFrame::CheckHeaderLinesForInvalidChars(const Lines& lines,
@@ -636,7 +638,8 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
       continue;
     }
     if (absl::EqualsIgnoreCase(key, kTransferEncoding)) {
-      if (transfer_encoding_idx != 0) {
+      if (http_validation_policy().validate_transfer_encoding &&
+          transfer_encoding_idx != 0) {
         HandleError(BalsaFrameEnums::MULTIPLE_TRANSFER_ENCODING_KEYS);
         return;
       }
@@ -645,7 +648,8 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
   }
 
   if (!is_trailer) {
-    if (http_validation_policy()
+    if (http_validation_policy().validate_transfer_encoding &&
+        http_validation_policy()
             .disallow_transfer_encoding_with_content_length &&
         content_length_idx != 0 && transfer_encoding_idx != 0) {
       HandleError(BalsaFrameEnums::BOTH_TRANSFER_ENCODING_AND_CONTENT_LENGTH);
