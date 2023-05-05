@@ -23,6 +23,7 @@
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_endian.h"
 #include "quiche/common/quiche_random.h"
 
 namespace quiche {
@@ -116,7 +117,11 @@ void BlindSignAuth::GetInitialDataCallback(
       callback(fingerprint_status);
       return;
     }
-    plaintext_message.set_public_metadata(absl::StrCat(fingerprint));
+    uint64_t fingerprint_big_endian = QuicheEndian::HostToNet64(fingerprint);
+    std::string key;
+    key.resize(sizeof(fingerprint_big_endian));
+    memcpy(key.data(), &fingerprint_big_endian, sizeof(fingerprint_big_endian));
+    plaintext_message.set_public_metadata(key);
     plaintext_tokens.push_back(plaintext_message);
   }
 
