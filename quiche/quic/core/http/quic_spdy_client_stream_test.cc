@@ -166,7 +166,9 @@ TEST_P(QuicSpdyClientStreamTest, Test100ContinueBeforeSuccessful) {
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
                               headers);
-  EXPECT_EQ("100", stream_->preliminary_headers().find(":status")->second);
+  ASSERT_EQ(stream_->preliminary_headers().size(), 1);
+  EXPECT_EQ("100",
+            stream_->preliminary_headers().front().find(":status")->second);
   EXPECT_EQ(0u, stream_->response_headers().size());
   EXPECT_EQ(100, stream_->response_code());
   EXPECT_EQ("", stream_->data());
@@ -187,7 +189,9 @@ TEST_P(QuicSpdyClientStreamTest, Test100ContinueBeforeSuccessful) {
   EXPECT_EQ(200, stream_->response_code());
   EXPECT_EQ(body_, stream_->data());
   // Make sure the 100 response is still available.
-  EXPECT_EQ("100", stream_->preliminary_headers().find(":status")->second);
+  ASSERT_EQ(stream_->preliminary_headers().size(), 1);
+  EXPECT_EQ("100",
+            stream_->preliminary_headers().front().find(":status")->second);
 }
 
 TEST_P(QuicSpdyClientStreamTest, TestUnknownInformationalBeforeSuccessful) {
@@ -196,6 +200,9 @@ TEST_P(QuicSpdyClientStreamTest, TestUnknownInformationalBeforeSuccessful) {
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
                               headers);
+  ASSERT_EQ(stream_->preliminary_headers().size(), 1);
+  EXPECT_EQ("199",
+            stream_->preliminary_headers().front().find(":status")->second);
   EXPECT_EQ(0u, stream_->response_headers().size());
   EXPECT_EQ(199, stream_->response_code());
   EXPECT_EQ("", stream_->data());
@@ -215,6 +222,63 @@ TEST_P(QuicSpdyClientStreamTest, TestUnknownInformationalBeforeSuccessful) {
   EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
   EXPECT_EQ(200, stream_->response_code());
   EXPECT_EQ(body_, stream_->data());
+  // Make sure the 199 response is still available.
+  ASSERT_EQ(stream_->preliminary_headers().size(), 1);
+  EXPECT_EQ("199",
+            stream_->preliminary_headers().front().find(":status")->second);
+}
+
+TEST_P(QuicSpdyClientStreamTest, TestMultipleInformationalBeforeSuccessful) {
+  // First send 100 Continue.
+  headers_[":status"] = "100";
+  auto headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  ASSERT_EQ(stream_->preliminary_headers().size(), 1);
+  EXPECT_EQ("100",
+            stream_->preliminary_headers().front().find(":status")->second);
+  EXPECT_EQ(0u, stream_->response_headers().size());
+  EXPECT_EQ(100, stream_->response_code());
+  EXPECT_EQ("", stream_->data());
+
+  // Then send 199, an unknown Informational (1XX).
+  headers_[":status"] = "199";
+  headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  ASSERT_EQ(stream_->preliminary_headers().size(), 2);
+  EXPECT_EQ("100",
+            stream_->preliminary_headers().front().find(":status")->second);
+  EXPECT_EQ("199",
+            stream_->preliminary_headers().back().find(":status")->second);
+  EXPECT_EQ(0u, stream_->response_headers().size());
+  EXPECT_EQ(199, stream_->response_code());
+  EXPECT_EQ("", stream_->data());
+
+  // Then send 200 OK.
+  headers_[":status"] = "200";
+  headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
+      body_.length(), quiche::SimpleBufferAllocator::Get());
+  std::string data = VersionUsesHttp3(connection_->transport_version())
+                         ? absl::StrCat(header.AsStringView(), body_)
+                         : body_;
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
+
+  // Make sure the 200 response got parsed correctly.
+  EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
+  EXPECT_EQ(200, stream_->response_code());
+  EXPECT_EQ(body_, stream_->data());
+
+  // Make sure the informational responses are still available.
+  ASSERT_EQ(stream_->preliminary_headers().size(), 2);
+  EXPECT_EQ("100",
+            stream_->preliminary_headers().front().find(":status")->second);
+  EXPECT_EQ("199",
+            stream_->preliminary_headers().back().find(":status")->second);
 }
 
 TEST_P(QuicSpdyClientStreamTest, TestReceiving101) {

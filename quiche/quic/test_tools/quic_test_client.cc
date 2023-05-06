@@ -616,7 +616,6 @@ void QuicTestClient::ClearPerRequestState() {
   response_ = "";
   response_complete_ = false;
   response_headers_complete_ = false;
-  preliminary_headers_.clear();
   response_headers_.clear();
   response_trailers_.clear();
   bytes_read_ = 0;
@@ -666,18 +665,6 @@ const spdy::Http2HeaderBlock* QuicTestClient::response_headers() const {
     }
   }
   return &response_headers_;
-}
-
-const spdy::Http2HeaderBlock* QuicTestClient::preliminary_headers() const {
-  for (std::pair<QuicStreamId, QuicSpdyClientStream*> stream : open_streams_) {
-    size_t bytes_read =
-        stream.second->stream_bytes_read() + stream.second->header_bytes_read();
-    if (bytes_read > 0) {
-      preliminary_headers_ = stream.second->preliminary_headers().Clone();
-      break;
-    }
-  }
-  return &preliminary_headers_;
 }
 
 const spdy::Http2HeaderBlock& QuicTestClient::response_trailers() const {
@@ -737,7 +724,6 @@ void QuicTestClient::OnClose(QuicSpdyStream* stream) {
           client_stream->stream_error(), connected(),
           client_stream->headers_decompressed(),
           client_stream->response_headers(),
-          client_stream->preliminary_headers(),
           (buffer_body() ? std::string(client_stream->data()) : ""),
           client_stream->received_trailers(),
           // Use NumBytesConsumed to avoid counting retransmitted stream frames.
@@ -844,7 +830,6 @@ QuicTestClient::PerStreamState::PerStreamState(const PerStreamState& other)
       response_complete(other.response_complete),
       response_headers_complete(other.response_headers_complete),
       response_headers(other.response_headers.Clone()),
-      preliminary_headers(other.preliminary_headers.Clone()),
       response(other.response),
       response_trailers(other.response_trailers.Clone()),
       bytes_read(other.bytes_read),
@@ -855,7 +840,6 @@ QuicTestClient::PerStreamState::PerStreamState(
     QuicRstStreamErrorCode stream_error, bool response_complete,
     bool response_headers_complete,
     const spdy::Http2HeaderBlock& response_headers,
-    const spdy::Http2HeaderBlock& preliminary_headers,
     const std::string& response,
     const spdy::Http2HeaderBlock& response_trailers, uint64_t bytes_read,
     uint64_t bytes_written, int64_t response_body_size)
@@ -863,7 +847,6 @@ QuicTestClient::PerStreamState::PerStreamState(
       response_complete(response_complete),
       response_headers_complete(response_headers_complete),
       response_headers(response_headers.Clone()),
-      preliminary_headers(preliminary_headers.Clone()),
       response(response),
       response_trailers(response_trailers.Clone()),
       bytes_read(bytes_read),
@@ -896,7 +879,6 @@ void QuicTestClient::ReadNextResponse() {
   response_ = state.response;
   response_complete_ = state.response_complete;
   response_headers_complete_ = state.response_headers_complete;
-  preliminary_headers_ = state.preliminary_headers.Clone();
   response_headers_ = state.response_headers.Clone();
   response_trailers_ = state.response_trailers.Clone();
   bytes_read_ = state.bytes_read;

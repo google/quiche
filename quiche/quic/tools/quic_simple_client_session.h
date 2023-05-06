@@ -5,9 +5,13 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_SESSION_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_SESSION_H_
 
+#include <functional>
+#include <utility>
+
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/tools/quic_client_base.h"
 #include "quiche/quic/tools/quic_simple_client_stream.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -42,7 +46,13 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
       std::unique_ptr<QuicPathValidationContext> context) override;
   bool drop_response_body() const { return drop_response_body_; }
 
+  void set_on_interim_headers(
+      std::function<void(const spdy::Http2HeaderBlock&)> on_interim_headers) {
+    on_interim_headers_ = std::move(on_interim_headers);
+  }
+
  private:
+  std::function<void(const spdy::Http2HeaderBlock&)> on_interim_headers_;
   QuicClientBase::NetworkHelper* network_helper_;
   const bool drop_response_body_;
   const bool enable_web_transport_;

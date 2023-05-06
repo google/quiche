@@ -5,6 +5,9 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_STREAM_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_STREAM_H_
 
+#include <functional>
+#include <utility>
+
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 
 namespace quic {
@@ -17,7 +20,16 @@ class QuicSimpleClientStream : public QuicSpdyClientStream {
         drop_response_body_(drop_response_body) {}
   void OnBodyAvailable() override;
 
+  void set_on_interim_headers(
+      std::function<void(const spdy::Http2HeaderBlock&)> on_interim_headers) {
+    on_interim_headers_ = std::move(on_interim_headers);
+  }
+
+ protected:
+  bool ParseAndValidateStatusCode() override;
+
  private:
+  std::function<void(const spdy::Http2HeaderBlock&)> on_interim_headers_;
   const bool drop_response_body_;
 };
 

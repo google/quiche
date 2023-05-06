@@ -36,9 +36,11 @@ QuicSimpleClientSession::QuicSimpleClientSession(
 
 std::unique_ptr<QuicSpdyClientStream>
 QuicSimpleClientSession::CreateClientStream() {
-  return std::make_unique<QuicSimpleClientStream>(
+  auto stream = std::make_unique<QuicSimpleClientStream>(
       GetNextOutgoingBidirectionalStreamId(), this, BIDIRECTIONAL,
       drop_response_body_);
+  stream->set_on_interim_headers(on_interim_headers_);
+  return stream;
 }
 
 bool QuicSimpleClientSession::ShouldNegotiateWebTransport() {
