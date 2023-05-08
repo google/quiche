@@ -143,7 +143,6 @@ class MasqueTunSession : public MasqueClientSession::EncapsulatedIpSession,
 };
 
 int RunMasqueClient(int argc, char* argv[]) {
-  quiche::QuicheSystemEventLoop system_event_loop("masque_client");
   const char* usage = "Usage: masque_client [options] <url>";
 
   // The first non-flag argument is the URI template of the MASQUE server.
@@ -159,6 +158,7 @@ int RunMasqueClient(int argc, char* argv[]) {
     return 1;
   }
 
+  quiche::QuicheSystemEventLoop system_event_loop("masque_client");
   const bool disable_certificate_verification =
       quiche::GetQuicheCommandLineFlag(FLAGS_disable_certificate_verification);
   std::unique_ptr<QuicEventLoop> event_loop =
