@@ -11,149 +11,133 @@
 #ifndef QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_LOGGING_IMPL_H_
 #define QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_LOGGING_IMPL_H_
 
-#include <cstdlib>
-#include <iostream>
-#include <sstream>
-#include <string>
+#include "absl/base/log_severity.h"
+#include "absl/flags/declare.h"
+#include "absl/flags/flag.h"
+#include "absl/log/absl_check.h"
+#include "absl/log/absl_log.h"
 
-#include "absl/base/attributes.h"
-#include "quiche/common/platform/api/quiche_export.h"
-#include "quiche_platform_impl/quiche_stack_trace_impl.h"
-
-namespace quiche {
-
-class QUICHE_EXPORT LogStreamVoidHelper {
- public:
-  // This operator has lower precedence than << but higher than ?:, which is
-  // useful for implementing QUICHE_DISREGARD_LOG_STREAM below.
-  constexpr void operator&(std::ostream&) {}
-};
-
-// NoopLogSink provides a log sink that does not put the data that it logs
-// anywhere.
-class QUICHE_EXPORT NoopLogSink {
- public:
-  NoopLogSink() {}
-
-  template <typename T>
-  constexpr NoopLogSink(const T&) {}
-
-  template <typename T1, typename T2>
-  constexpr NoopLogSink(const T1&, const T2&) {}
-
-  constexpr std::ostream& stream() { return stream_; }
-
- protected:
-  std::string str() { return stream_.str(); }
-
- private:
-  std::stringstream stream_;
-};
-
-// We need to actually implement LOG(FATAL), otherwise some functions will fail
-// to compile due to the "failed to return value from non-void function" error.
-class QUICHE_EXPORT FatalLogSink : public NoopLogSink {
- public:
-  ABSL_ATTRIBUTE_NORETURN ~FatalLogSink() {
-    std::cerr << str() << std::endl;
-    std::cerr << quiche::QuicheStackTraceImpl() << std::endl;
-    abort();
-  }
-};
-
-class QUICHE_EXPORT CheckLogSink : public NoopLogSink {
- public:
-  CheckLogSink(bool condition) : condition_(condition) {}
-  ~CheckLogSink() {
-    if (!condition_) {
-      std::cerr << "Check failed: " << str() << std::endl;
-      std::cerr << quiche::QuicheStackTraceImpl() << std::endl;
-      abort();
-    }
-  }
-
- private:
-  const bool condition_;
-};
-
-}  // namespace quiche
-
-// This is necessary because we sometimes call QUICHE_DCHECK inside constexpr
-// functions, and then write non-constexpr expressions into the resulting log.
-#define QUICHE_CONDITIONAL_LOG_STREAM(stream, condition) \
-  !(condition) ? (void)0 : ::quiche::LogStreamVoidHelper() & (stream)
-#define QUICHE_DISREGARD_LOG_STREAM(stream) \
-  QUICHE_CONDITIONAL_LOG_STREAM(stream, /*condition=*/false)
-#define QUICHE_NOOP_STREAM() \
-  QUICHE_DISREGARD_LOG_STREAM(::quiche::NoopLogSink().stream())
-#define QUICHE_NOOP_STREAM_WITH_CONDITION(condition) \
-  QUICHE_DISREGARD_LOG_STREAM(::quiche::NoopLogSink(condition).stream())
-
-#define QUICHE_DVLOG_IMPL(verbose_level) QUICHE_NOOP_STREAM()
-#define QUICHE_DVLOG_IF_IMPL(verbose_level, condition) \
-  QUICHE_NOOP_STREAM_WITH_CONDITION(condition)
-#define QUICHE_DLOG_IMPL(severity) QUICHE_NOOP_STREAM()
-#define QUICHE_VLOG_IMPL(verbose_level) QUICHE_NOOP_STREAM()
-#define QUICHE_LOG_FIRST_N_IMPL(severity, n) QUICHE_NOOP_STREAM()
-#define QUICHE_LOG_EVERY_N_SEC_IMPL(severity, seconds) QUICHE_NOOP_STREAM()
+ABSL_DECLARE_FLAG(int, v);
 
 #define QUICHE_LOG_IMPL(severity) QUICHE_LOG_IMPL_##severity()
-#define QUICHE_LOG_IMPL_FATAL() ::quiche::FatalLogSink().stream()
-#define QUICHE_LOG_IMPL_ERROR() ::quiche::NoopLogSink().stream()
-#define QUICHE_LOG_IMPL_WARNING() ::quiche::NoopLogSink().stream()
-#define QUICHE_LOG_IMPL_INFO() ::quiche::NoopLogSink().stream()
+#define QUICHE_LOG_IMPL_FATAL() ABSL_LOG(FATAL)
+#define QUICHE_LOG_IMPL_ERROR() ABSL_LOG(ERROR)
+#define QUICHE_LOG_IMPL_WARNING() ABSL_LOG(WARNING)
+#define QUICHE_LOG_IMPL_INFO() ABSL_LOG(INFO)
+
+#define QUICHE_PLOG_IMPL(severity) QUICHE_PLOG_IMPL_##severity()
+#define QUICHE_PLOG_IMPL_FATAL() ABSL_PLOG(FATAL)
+#define QUICHE_PLOG_IMPL_ERROR() ABSL_PLOG(ERROR)
+#define QUICHE_PLOG_IMPL_WARNING() ABSL_PLOG(WARNING)
+#define QUICHE_PLOG_IMPL_INFO() ABSL_PLOG(INFO)
+
+#define QUICHE_DLOG_IMPL(severity) QUICHE_DLOG_IMPL_##severity()
+#define QUICHE_DLOG_IMPL_FATAL() ABSL_DLOG(FATAL)
+#define QUICHE_DLOG_IMPL_ERROR() ABSL_DLOG(ERROR)
+#define QUICHE_DLOG_IMPL_WARNING() ABSL_DLOG(WARNING)
+#define QUICHE_DLOG_IMPL_INFO() ABSL_DLOG(INFO)
 
 #define QUICHE_LOG_IF_IMPL(severity, condition) \
-  QUICHE_CONDITIONAL_LOG_STREAM(QUICHE_LOG_IMPL_##severity(), condition)
+  QUICHE_LOG_IF_IMPL_##severity(condition)
+#define QUICHE_LOG_IF_IMPL_FATAL(condition) ABSL_LOG_IF(FATAL, condition)
+#define QUICHE_LOG_IF_IMPL_ERROR(condition) ABSL_LOG_IF(ERROR, condition)
+#define QUICHE_LOG_IF_IMPL_WARNING(condition) ABSL_LOG_IF(WARNING, condition)
+#define QUICHE_LOG_IF_IMPL_INFO(condition) ABSL_LOG_IF(INFO, condition)
+
+#define QUICHE_PLOG_IF_IMPL(severity, condition) \
+  QUICHE_PLOG_IF_IMPL_##severity(condition)
+#define QUICHE_PLOG_IF_IMPL_FATAL(condition) ABSL_PLOG_IF(FATAL, condition)
+#define QUICHE_PLOG_IF_IMPL_ERROR(condition) ABSL_PLOG_IF(ERROR, condition)
+#define QUICHE_PLOG_IF_IMPL_WARNING(condition) ABSL_PLOG_IF(WARNING, condition)
+#define QUICHE_PLOG_IF_IMPL_INFO(condition) ABSL_PLOG_IF(INFO, condition)
+
+#define QUICHE_DLOG_IF_IMPL(severity, condition) \
+  QUICHE_DLOG_IF_IMPL_##severity(condition)
+#define QUICHE_DLOG_IF_IMPL_FATAL(condition) ABSL_DLOG_IF(FATAL, condition)
+#define QUICHE_DLOG_IF_IMPL_ERROR(condition) ABSL_DLOG_IF(ERROR, condition)
+#define QUICHE_DLOG_IF_IMPL_WARNING(condition) ABSL_DLOG_IF(WARNING, condition)
+#define QUICHE_DLOG_IF_IMPL_INFO(condition) ABSL_DLOG_IF(INFO, condition)
+
+#define QUICHE_LOG_FIRST_N_IMPL(severity, n) \
+  QUICHE_LOG_FIRST_N_IMPL_##severity(n)
+#define QUICHE_LOG_FIRST_N_IMPL_FATAL(n) ABSL_LOG_FIRST_N(FATAL, n)
+#define QUICHE_LOG_FIRST_N_IMPL_ERROR(n) ABSL_LOG_FIRST_N(ERROR, n)
+#define QUICHE_LOG_FIRST_N_IMPL_WARNING(n) ABSL_LOG_FIRST_N(WARNING, n)
+#define QUICHE_LOG_FIRST_N_IMPL_INFO(n) ABSL_LOG_FIRST_N(INFO, n)
+
+#define QUICHE_LOG_EVERY_N_SEC_IMPL(severity, seconds) \
+  QUICHE_LOG_EVERY_N_SEC_IMPL_##severity(seconds)
+#define QUICHE_LOG_EVERY_N_SEC_IMPL_FATAL(seconds) \
+  ABSL_LOG_EVERY_N_SEC(FATAL, seconds)
+#define QUICHE_LOG_EVERY_N_SEC_IMPL_ERROR(seconds) \
+  ABSL_LOG_EVERY_N_SEC(ERROR, seconds)
+#define QUICHE_LOG_EVERY_N_SEC_IMPL_WARNING(seconds) \
+  ABSL_LOG_EVERY_N_SEC(WARNING, seconds)
+#define QUICHE_LOG_EVERY_N_SEC_IMPL_INFO(seconds) \
+  ABSL_LOG_EVERY_N_SEC(INFO, seconds)
+
+// Implement DFATAL pseudo-severity locally until Abseil exports one.
+#ifdef NDEBUG
+#define QUICHE_LOG_IMPL_DFATAL() ABSL_LOG(ERROR)
+#define QUICHE_PLOG_IMPL_DFATAL() ABSL_PLOG(ERROR)
+#define QUICHE_DLOG_IMPL_DFATAL() ABSL_DLOG(ERROR)
+#define QUICHE_LOG_IF_IMPL_DFATAL(condition) ABSL_LOG_IF(ERROR, condition)
+#define QUICHE_PLOG_IF_IMPL_DFATAL(condition) ABSL_PLOG_IF(ERROR, condition)
+#define QUICHE_DLOG_IF_IMPL_DFATAL(condition) ABSL_DLOG_IF(ERROR, condition)
+#define QUICHE_LOG_FIRST_N_IMPL_DFATAL(n) ABSL_LOG_FIRST_N(ERROR, n)
+#define QUICHE_LOG_EVERY_N_SEC_IMPL_DFATAL(seconds) \
+  ABSL_LOG_EVERY_N_SEC(ERROR, seconds)
+#else
+#define QUICHE_LOG_IMPL_DFATAL() ABSL_LOG(FATAL)
+#define QUICHE_PLOG_IMPL_DFATAL() ABSL_PLOG(FATAL)
+#define QUICHE_DLOG_IMPL_DFATAL() ABSL_DLOG(FATAL)
+#define QUICHE_LOG_IF_IMPL_DFATAL(condition) ABSL_LOG_IF(FATAL, condition)
+#define QUICHE_PLOG_IF_IMPL_DFATAL(condition) ABSL_PLOG_IF(FATAL, condition)
+#define QUICHE_DLOG_IF_IMPL_DFATAL(condition) ABSL_DLOG_IF(FATAL, condition)
+#define QUICHE_LOG_FIRST_N_IMPL_DFATAL(n) ABSL_LOG_FIRST_N(FATAL, n)
+#define QUICHE_LOG_EVERY_N_SEC_IMPL_DFATAL(seconds) \
+  ABSL_LOG_EVERY_N_SEC(FATAL, seconds)
+#endif  // NDEBUG
+
+// Implement VLOG and DVLOG in terms of LOG and DLOG.
+#define QUICHE_VLOG_PREDICATE(verbose_level) \
+  (verbose_level <= absl::GetFlag(FLAGS_v))
+
+#define QUICHE_VLOG_IMPL(verbose_level) \
+  QUICHE_LOG_IF_IMPL(INFO, QUICHE_VLOG_PREDICATE(verbose_level))
+#define QUICHE_VLOG_IF_IMPL(verbose_level, condition) \
+  QUICHE_LOG_IF_IMPL(INFO, (QUICHE_VLOG_PREDICATE(verbose_level) && condition))
+#define QUICHE_DVLOG_IMPL(verbose_level) \
+  QUICHE_DLOG_IF_IMPL(INFO, QUICHE_VLOG_PREDICATE(verbose_level))
+#define QUICHE_DVLOG_IF_IMPL(verbose_level, condition) \
+  QUICHE_DLOG_IF_IMPL(INFO, (QUICHE_VLOG_PREDICATE(verbose_level) && condition))
+
+#define QUICHE_LOG_INFO_IS_ON_IMPL() 1
+#define QUICHE_LOG_WARNING_IS_ON_IMPL() 1
+#define QUICHE_LOG_ERROR_IS_ON_IMPL() 1
 
 #ifdef NDEBUG
-#define QUICHE_LOG_IMPL_DFATAL() ::quiche::NoopLogSink().stream()
-#define QUICHE_DLOG_IF_IMPL(severity, condition) \
-  QUICHE_NOOP_STREAM_WITH_CONDITION(condition)
+#define QUICHE_DLOG_INFO_IS_ON_IMPL() 0
 #else
-#define QUICHE_LOG_IMPL_DFATAL() ::quiche::FatalLogSink().stream()
-#define QUICHE_DLOG_IF_IMPL(severity, condition) \
-  QUICHE_CONDITIONAL_LOG_STREAM(QUICHE_LOG_IMPL_##severity(), condition)
-#endif
+#define QUICHE_DLOG_INFO_IS_ON_IMPL() 1
+#endif  // NDEBUG
 
-#define QUICHE_PLOG_IMPL(severity) QUICHE_NOOP_STREAM()
+#define QUICHE_CHECK_IMPL ABSL_CHECK
+#define QUICHE_CHECK_EQ_IMPL ABSL_CHECK_EQ
+#define QUICHE_CHECK_NE_IMPL ABSL_CHECK_NE
+#define QUICHE_CHECK_LE_IMPL ABSL_CHECK_LE
+#define QUICHE_CHECK_LT_IMPL ABSL_CHECK_LT
+#define QUICHE_CHECK_GE_IMPL ABSL_CHECK_GE
+#define QUICHE_CHECK_GT_IMPL ABSL_CHECK_GT
+#define QUICHE_CHECK_OK_IMPL ABSL_CHECK_OK
 
-#define QUICHE_DLOG_INFO_IS_ON_IMPL() false
-#define QUICHE_LOG_INFO_IS_ON_IMPL() false
-#define QUICHE_LOG_WARNING_IS_ON_IMPL() false
-#define QUICHE_LOG_ERROR_IS_ON_IMPL() false
-
-#define QUICHE_CHECK_IMPL(condition) \
-  ::quiche::CheckLogSink(static_cast<bool>(condition)).stream()
-#define QUICHE_CHECK_EQ_IMPL(val1, val2) \
-  ::quiche::CheckLogSink((val1) == (val2)).stream()
-#define QUICHE_CHECK_NE_IMPL(val1, val2) \
-  ::quiche::CheckLogSink((val1) != (val2)).stream()
-#define QUICHE_CHECK_LE_IMPL(val1, val2) \
-  ::quiche::CheckLogSink((val1) <= (val2)).stream()
-#define QUICHE_CHECK_LT_IMPL(val1, val2) \
-  ::quiche::CheckLogSink((val1) < (val2)).stream()
-#define QUICHE_CHECK_GE_IMPL(val1, val2) \
-  ::quiche::CheckLogSink((val1) >= (val2)).stream()
-#define QUICHE_CHECK_GT_IMPL(val1, val2) \
-  ::quiche::CheckLogSink((val1) > (val2)).stream()
-#define QUICHE_CHECK_OK_IMPL(status) \
-  QUICHE_CHECK_EQ_IMPL(absl::OkStatus(), (status))
-
-#ifdef NDEBUG
-#define QUICHE_DCHECK_IMPL(condition) \
-  QUICHE_NOOP_STREAM_WITH_CONDITION((condition))
-#else
-#define QUICHE_DCHECK_IMPL(condition)                       \
-  QUICHE_LOG_IF_IMPL(DFATAL, !static_cast<bool>(condition)) \
-      << "Check failed: " << #condition
-#endif
-#define QUICHE_DCHECK_EQ_IMPL(val1, val2) QUICHE_DCHECK_IMPL((val1) == (val2))
-#define QUICHE_DCHECK_NE_IMPL(val1, val2) QUICHE_DCHECK_IMPL((val1) != (val2))
-#define QUICHE_DCHECK_LE_IMPL(val1, val2) QUICHE_DCHECK_IMPL((val1) <= (val2))
-#define QUICHE_DCHECK_LT_IMPL(val1, val2) QUICHE_DCHECK_IMPL((val1) < (val2))
-#define QUICHE_DCHECK_GE_IMPL(val1, val2) QUICHE_DCHECK_IMPL((val1) >= (val2))
-#define QUICHE_DCHECK_GT_IMPL(val1, val2) QUICHE_DCHECK_IMPL((val1) > (val2))
+#define QUICHE_DCHECK_IMPL ABSL_DCHECK
+#define QUICHE_DCHECK_EQ_IMPL ABSL_DCHECK_EQ
+#define QUICHE_DCHECK_NE_IMPL ABSL_DCHECK_NE
+#define QUICHE_DCHECK_LE_IMPL ABSL_DCHECK_LE
+#define QUICHE_DCHECK_LT_IMPL ABSL_DCHECK_LT
+#define QUICHE_DCHECK_GE_IMPL ABSL_DCHECK_GE
+#define QUICHE_DCHECK_GT_IMPL ABSL_DCHECK_GT
 
 #define QUICHE_NOTREACHED_IMPL() QUICHE_DCHECK_IMPL(false)
 

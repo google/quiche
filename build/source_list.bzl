@@ -1409,6 +1409,7 @@ default_platform_impl_hdrs = [
 ]
 default_platform_impl_srcs = [
     "common/platform/default/quiche_platform_impl/quiche_flags_impl.cc",
+    "common/platform/default/quiche_platform_impl/quiche_logging_impl.cc",
     "common/platform/default/quiche_platform_impl/quiche_mutex_impl.cc",
     "common/platform/default/quiche_platform_impl/quiche_stack_trace_impl.cc",
     "common/platform/default/quiche_platform_impl/quiche_time_utils_impl.cc",

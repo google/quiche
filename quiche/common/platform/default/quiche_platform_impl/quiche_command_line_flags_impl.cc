@@ -4,10 +4,16 @@
 
 #include "quiche_platform_impl/quiche_command_line_flags_impl.h"
 
+#include <stddef.h>
+
 #include <iostream>
+#include <string>
+#include <vector>
 
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
+#include "absl/log/initialize.h"
+#include "absl/strings/string_view.h"
 
 namespace quiche {
 
@@ -24,6 +30,7 @@ std::vector<std::string> QuicheParseCommandLineFlagsImpl(
   SetUsage(usage);
   std::vector<char*> parsed =
       absl::ParseCommandLine(argc, const_cast<char**>(argv));
+  absl::InitializeLog();
   std::vector<std::string> result;
   result.reserve(parsed.size());
   // Remove the first argument, which is the name of the binary.
