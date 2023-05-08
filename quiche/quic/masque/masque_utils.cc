@@ -56,7 +56,8 @@ int CreateTunInterface(const QuicIpAddress& client_address, bool server) {
     QUIC_LOG(ERROR) << "CreateTunInterface currently only supports IPv4";
     return -1;
   }
-  int tun_fd = open("/dev/net/tun", O_RDWR);
+  // TODO(b/281517862): add test to validate O_NONBLOCK
+  int tun_fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
   int ip_fd = -1;
   do {
     if (tun_fd < 0) {
