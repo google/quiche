@@ -70,7 +70,12 @@ int SyscallListen(int sockfd, int backlog) {
   return SyscallWrapper(&::listen, sockfd, backlog);
 }
 ssize_t SyscallRecv(int sockfd, void* buf, size_t len, int flags) {
-  return SyscallWrapper(&::recv, sockfd, buf, len, flags);
+  // When compiled with _FORTIFY_SOURCE, there are two overloads of recv()
+  // available, which prevents SyscallWrapper from being able to infer its
+  // template arguments. This currently happens in Chrome OS builds of Chrome.
+  // Specify the template arguments explicitly as a workaround.
+  return SyscallWrapper<ssize_t, int, void*, size_t, int>(&::recv, sockfd, buf,
+                                                          len, flags);
 }
 ssize_t SyscallSend(int sockfd, const void* buf, size_t len, int flags) {
   return SyscallWrapper(&::send, sockfd, buf, len, flags);
