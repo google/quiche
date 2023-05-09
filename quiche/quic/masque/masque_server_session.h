@@ -55,6 +55,11 @@ class QUIC_NO_EXPORT MasqueServerSession
   QuicEventLoop* event_loop() const { return event_loop_; }
 
  private:
+  bool HandleConnectUdpSocketEvent(QuicUdpSocketFd fd,
+                                   QuicSocketEventMask events);
+  bool HandleConnectIpSocketEvent(QuicUdpSocketFd fd,
+                                  QuicSocketEventMask events);
+
   // State that the MasqueServerSession keeps for each CONNECT-UDP request.
   class QUIC_NO_EXPORT ConnectUdpServerState
       : public QuicSpdyStream::Http3DatagramVisitor {
