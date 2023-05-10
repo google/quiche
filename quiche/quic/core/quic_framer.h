@@ -632,9 +632,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     version_ = versions[0];
   }
 
-  // Tell framer to infer packet header type from version_.
-  void InferPacketHeaderTypeFromVersion();
-
   // Returns true if |header| is considered as an stateless reset packet.
   bool IsIetfStatelessResetPacket(const QuicPacketHeader& header) const;
 
@@ -1182,11 +1179,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Whether we are in the middle of a call to this->ProcessPacket.
   bool is_processing_packet_ = false;
-
-  // If true, framer infers packet header type (IETF/GQUIC) from version_.
-  // Otherwise, framer infers packet header type from first byte of a received
-  // packet.
-  bool infer_packet_header_type_from_version_;
 
   // IETF short headers contain a destination connection ID but do not
   // encode its length. These variables contains the length we expect to read.

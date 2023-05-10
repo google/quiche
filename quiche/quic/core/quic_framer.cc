@@ -429,8 +429,6 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       potential_peer_key_update_attempt_count_(0),
       first_sending_packet_number_(FirstSendingPacketNumber()),
       data_producer_(nullptr),
-      infer_packet_header_type_from_version_(perspective ==
-                                             Perspective::IS_CLIENT),
       expected_server_connection_id_length_(
           expected_server_connection_id_length),
       expected_client_connection_id_length_(0),
@@ -1485,13 +1483,7 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
 bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
   QuicDataReader reader(packet.data(), packet.length());
 
-  bool packet_has_ietf_packet_header = false;
-  if (infer_packet_header_type_from_version_) {
-    packet_has_ietf_packet_header = version_.HasIetfInvariantHeader();
-  } else if (!reader.IsDoneReading()) {
-    uint8_t type = reader.PeekByte();
-    packet_has_ietf_packet_header = QuicUtils::IsIetfPacketHeader(type);
-  }
+  const bool packet_has_ietf_packet_header = version_.HasIetfInvariantHeader();
   if (packet_has_ietf_packet_header) {
     QUIC_DVLOG(1) << ENDPOINT << "Processing IETF QUIC packet.";
   }
@@ -6781,14 +6773,6 @@ uint8_t QuicFramer::GetIetfStreamFrameTypeByte(
     type_byte |= IETF_STREAM_FRAME_FIN_BIT;
   }
   return type_byte;
-}
-
-void QuicFramer::InferPacketHeaderTypeFromVersion() {
-  // This function should only be called when server connection negotiates the
-  // version.
-  QUICHE_DCHECK_EQ(perspective_, Perspective::IS_SERVER);
-  QUICHE_DCHECK(!infer_packet_header_type_from_version_);
-  infer_packet_header_type_from_version_ = true;
 }
 
 void QuicFramer::EnableMultiplePacketNumberSpacesSupport() {

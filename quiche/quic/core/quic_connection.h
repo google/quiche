@@ -648,9 +648,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // will ignore received version negotiation packets.
   void SetVersionNegotiated() {
     version_negotiated_ = true;
-    if (perspective_ == Perspective::IS_SERVER) {
-      framer_.InferPacketHeaderTypeFromVersion();
-    }
   }
 
   // From QuicFramerVisitorInterface

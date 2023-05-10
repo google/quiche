@@ -381,7 +381,7 @@ QuicConnection::QuicConnection(
   // On the server side, version negotiation has been done by the dispatcher,
   // and the server connection is created with the right version.
   if (perspective_ == Perspective::IS_SERVER) {
-    SetVersionNegotiated();
+    version_negotiated_ = true;
   }
   if (default_enable_5rto_blackhole_detection_) {
     num_rtos_for_blackhole_detection_ = 5;
