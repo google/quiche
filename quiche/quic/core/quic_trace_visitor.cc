@@ -22,9 +22,13 @@ quic_trace::EncryptionLevel EncryptionLevelToProto(EncryptionLevel level) {
     case ENCRYPTION_FORWARD_SECURE:
       return quic_trace::ENCRYPTION_1RTT;
     case NUM_ENCRYPTION_LEVELS:
-      QUIC_BUG(quic_bug_10284_1) << "Invalid encryption level specified";
+      QUIC_BUG(EncryptionLevelToProto.Invalid)
+          << "Invalid encryption level specified";
       return quic_trace::ENCRYPTION_UNKNOWN;
   }
+  QUIC_BUG(EncryptionLevelToProto.Unknown)
+      << "Unknown encryption level specified " << static_cast<int>(level);
+  return quic_trace::ENCRYPTION_UNKNOWN;
 }
 
 QuicTraceVisitor::QuicTraceVisitor(const QuicConnection* connection)
