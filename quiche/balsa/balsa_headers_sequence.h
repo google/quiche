@@ -21,14 +21,18 @@ class QUICHE_EXPORT BalsaHeadersSequence {
 
   // Returns a non-owning pointer to the next BalsaHeaders in the sequence, or
   // nullptr if the next does not exist.
-  const BalsaHeaders* Next();
+  BalsaHeaders* Next();
+
+  // Similar to `Next()` but does not advance the sequence.
+  // TODO(b/68801833): Consider removing after full refactoring is in place.
+  BalsaHeaders* PeekNext() const;
 
   // Clears the sequence. Any previously returned BalsaHeaders become invalid.
   void Clear();
 
  private:
   std::list<BalsaHeaders> sequence_;
-  std::list<BalsaHeaders>::const_iterator iter_ = sequence_.end();
+  std::list<BalsaHeaders>::iterator iter_ = sequence_.end();
 };
 
 }  // namespace quiche

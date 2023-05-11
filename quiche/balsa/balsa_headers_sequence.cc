@@ -16,7 +16,14 @@ void BalsaHeadersSequence::Append(BalsaHeaders headers) {
 
 bool BalsaHeadersSequence::HasNext() const { return iter_ != sequence_.end(); }
 
-const BalsaHeaders* BalsaHeadersSequence::Next() {
+BalsaHeaders* BalsaHeadersSequence::PeekNext() const {
+  if (!HasNext()) {
+    return nullptr;
+  }
+  return &*iter_;
+}
+
+BalsaHeaders* BalsaHeadersSequence::Next() {
   if (!HasNext()) {
     return nullptr;
   }
