@@ -436,7 +436,7 @@ void WebTransportHttp3UnidirectionalStream::OnWriteSideInDataRecvdState() {
 
 namespace {
 constexpr uint64_t kWebTransportMappedErrorCodeFirst = 0x52e4a40fa8db;
-constexpr uint64_t kWebTransportMappedErrorCodeLast = 0x52e4a40fa9e2;
+constexpr uint64_t kWebTransportMappedErrorCodeLast = 0x52e5ac983162;
 constexpr WebTransportStreamError kDefaultWebTransportError = 0;
 }  // namespace
 
@@ -454,7 +454,8 @@ absl::optional<WebTransportStreamError> Http3ErrorToWebTransport(
 
   uint64_t shifted = http3_error_code - kWebTransportMappedErrorCodeFirst;
   uint64_t result = shifted - shifted / 0x1f;
-  QUICHE_DCHECK_LE(result, std::numeric_limits<uint8_t>::max());
+  QUICHE_DCHECK_LE(result,
+                   std::numeric_limits<webtransport::StreamErrorCode>::max());
   return static_cast<WebTransportStreamError>(result);
 }
 

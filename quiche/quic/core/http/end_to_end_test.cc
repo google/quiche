@@ -6964,12 +6964,12 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
   QuicStreamId id2 = stream->GetStreamId();
   ASSERT_TRUE(stream != nullptr);
   QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
-  stream->SendStopSending(24);
+  stream->SendStopSending(100024);
 
   std::array<std::string, 2> expected_log = {
       absl::StrCat("Received reset for stream ", id1, " with error code 42"),
       absl::StrCat("Received stop sending for stream ", id2,
-                   " with error code 24"),
+                   " with error code 100024"),
   };
   client_->WaitUntil(2000, [this, &expected_log]() {
     return received_webtransport_unidirectional_streams_.size() >=

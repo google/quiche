@@ -30,7 +30,7 @@ namespace webtransport {
 using StreamId = uint32_t;
 // Application-specific error code used for resetting either the read or the
 // write half of the stream.
-using StreamErrorCode = uint8_t;
+using StreamErrorCode = uint32_t;
 // Application-specific error code used for closing a WebTransport session.
 using SessionErrorCode = uint32_t;
 
