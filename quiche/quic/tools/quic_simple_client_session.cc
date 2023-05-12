@@ -53,27 +53,24 @@ HttpDatagramSupport QuicSimpleClientSession::LocalHttpDatagramSupport() {
 }
 
 void QuicSimpleClientSession::CreateContextForMultiPortPath(
-    std::function<void(std::unique_ptr<QuicPathValidationContext>)>
-        create_context) {
+    std::unique_ptr<MultiPortPathContextObserver> context_observer) {
   if (!network_helper_ || connection()->multi_port_stats() == nullptr) {
-    create_context(nullptr);
     return;
   }
   auto self_address = connection()->self_address();
   auto server_address = connection()->peer_address();
   if (!network_helper_->CreateUDPSocketAndBind(
           server_address, self_address.host(), self_address.port() + 1)) {
-    create_context(nullptr);
     return;
   }
   QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
   if (writer == nullptr) {
-    create_context(nullptr);
     return;
   }
-  create_context(std::make_unique<PathMigrationContext>(
-      std::unique_ptr<QuicPacketWriter>(writer),
-      network_helper_->GetLatestClientAddress(), peer_address()));
+  context_observer->OnMultiPortPathContextAvailable(
+      std::make_unique<PathMigrationContext>(
+          std::unique_ptr<QuicPacketWriter>(writer),
+          network_helper_->GetLatestClientAddress(), peer_address()));
 }
 
 void QuicSimpleClientSession::MigrateToMultiPortPath(

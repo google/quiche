@@ -73,6 +73,16 @@ namespace test {
 class QuicConnectionPeer;
 }  // namespace test
 
+// Class that receives callbacks from the connection when the path context is
+// available.
+class QUIC_EXPORT_PRIVATE MultiPortPathContextObserver {
+ public:
+  virtual void OnMultiPortPathContextAvailable(
+      std::unique_ptr<QuicPathValidationContext>) = 0;
+
+  virtual ~MultiPortPathContextObserver() = default;
+};
+
 // Class that receives callbacks from the connection when frames are received
 // and when other interesting events happen.
 class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
@@ -237,14 +247,14 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // When bandwidth update alarms.
   virtual void OnBandwidthUpdateTimeout() = 0;
 
-  // Runs |create_context| with context needed for the connection to probe on
-  // the alternative path. The callback must be called exactly once. May run
-  // |create_context| synchronously or asynchronously. If |create_context| is
+  // Runs OnMultiPortPathContextAvailable() from |context_observer| with context
+  // needed for the connection to probe on the alternative path. The callback
+  // must be called exactly once. May run OnMultiPortPathContextAvailable()
+  // synchronously or asynchronously. If OnMultiPortPathContextAvailable() is
   // run asynchronously, it must be called on the same thread as QuicConnection
   // is not thread safe.
   virtual void CreateContextForMultiPortPath(
-      std::function<void(std::unique_ptr<QuicPathValidationContext>)>
-          create_context) = 0;
+      std::unique_ptr<MultiPortPathContextObserver> context_observer) = 0;
 
   // Migrate to the multi-port path which is identified by |context|.
   virtual void MigrateToMultiPortPath(
@@ -646,9 +656,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Mark version negotiated for this connection. Once called, the connection
   // will ignore received version negotiation packets.
-  void SetVersionNegotiated() {
-    version_negotiated_ = true;
-  }
+  void SetVersionNegotiated() { version_negotiated_ = true; }
 
   // From QuicFramerVisitorInterface
   void OnError(QuicFramer* framer) override;
@@ -1573,6 +1581,18 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     QuicSocketAddress peer_address_default_path_;
     QuicSocketAddress peer_address_alternative_path_;
     AddressChangeType active_effective_peer_migration_type_;
+  };
+
+  class ContextObserver final : public MultiPortPathContextObserver {
+   public:
+    explicit ContextObserver(QuicConnection* connection)
+        : connection_(connection) {}
+
+    void OnMultiPortPathContextAvailable(
+        std::unique_ptr<QuicPathValidationContext> path_context) override;
+
+   private:
+    QuicConnection* connection_;
   };
 
   // Keeps an ongoing alternative path. The connection will not migrate upon

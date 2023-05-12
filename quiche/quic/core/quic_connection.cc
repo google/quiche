@@ -4101,20 +4101,8 @@ void QuicConnection::MaybeCreateMultiPortPath() {
     return;
   }
 
-  visitor_->CreateContextForMultiPortPath(
-      [this](std::unique_ptr<QuicPathValidationContext> path_context) {
-        if (!path_context) {
-          return;
-        }
-        auto multi_port_validation_result_delegate =
-            std::make_unique<MultiPortPathValidationResultDelegate>(this);
-        multi_port_probing_alarm_->Cancel();
-        multi_port_path_context_ = nullptr;
-        multi_port_stats_->num_multi_port_paths_created++;
-        ValidatePath(std::move(path_context),
-                     std::move(multi_port_validation_result_delegate),
-                     PathValidationReason::kMultiPort);
-      });
+  auto context_observer = std::make_unique<ContextObserver>(this);
+  visitor_->CreateContextForMultiPortPath(std::move(context_observer));
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
@@ -7274,6 +7262,21 @@ void QuicConnection::MaybeProbeMultiPortPath() {
       PathValidationReason::kMultiPort);
 }
 
+void QuicConnection::ContextObserver::OnMultiPortPathContextAvailable(
+    std::unique_ptr<QuicPathValidationContext> path_context) {
+  if (!path_context) {
+    return;
+  }
+  auto multi_port_validation_result_delegate =
+      std::make_unique<MultiPortPathValidationResultDelegate>(connection_);
+  connection_->multi_port_probing_alarm_->Cancel();
+  connection_->multi_port_path_context_ = nullptr;
+  connection_->multi_port_stats_->num_multi_port_paths_created++;
+  connection_->ValidatePath(std::move(path_context),
+                            std::move(multi_port_validation_result_delegate),
+                            PathValidationReason::kMultiPort);
+}
+
 QuicConnection::MultiPortPathValidationResultDelegate::
     MultiPortPathValidationResultDelegate(QuicConnection* connection)
     : connection_(connection) {
@@ -7304,8 +7307,7 @@ QuicConnection::ReversePathValidationResultDelegate::
       peer_address_alternative_path_(
           connection_->alternative_path_.peer_address),
       active_effective_peer_migration_type_(
-          connection_->active_effective_peer_migration_type_) {
-}
+          connection_->active_effective_peer_migration_type_) {}
 
 void QuicConnection::ReversePathValidationResultDelegate::
     OnPathValidationSuccess(std::unique_ptr<QuicPathValidationContext> context,

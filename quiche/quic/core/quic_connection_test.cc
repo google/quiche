@@ -13383,9 +13383,10 @@ TEST_P(QuicConnectionTest, MultiPortConnection) {
   frame.retire_prior_to = 0u;
   frame.sequence_number = 1u;
   EXPECT_CALL(visitor_, CreateContextForMultiPortPath)
-      .WillRepeatedly(testing::WithArgs<0>([&](auto&& fn) {
-        fn(std::move(std::make_unique<TestQuicPathValidationContext>(
-            kNewSelfAddress, connection_.peer_address(), &new_writer)));
+      .WillRepeatedly(testing::WithArgs<0>([&](auto&& observer) {
+        observer->OnMultiPortPathContextAvailable(
+            std::move(std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, connection_.peer_address(), &new_writer)));
       }));
   connection_.OnNewConnectionIdFrame(frame);
   EXPECT_TRUE(connection_.HasPendingPathValidation());
@@ -13519,9 +13520,10 @@ TEST_P(QuicConnectionTest, TooManyMultiPortPathCreations) {
   frame.retire_prior_to = 0u;
   frame.sequence_number = 1u;
   EXPECT_CALL(visitor_, CreateContextForMultiPortPath)
-      .WillRepeatedly(testing::WithArgs<0>([&](auto&& fn) {
-        fn(std::move(std::make_unique<TestQuicPathValidationContext>(
-            kNewSelfAddress, connection_.peer_address(), &new_writer)));
+      .WillRepeatedly(testing::WithArgs<0>([&](auto&& observer) {
+        observer->OnMultiPortPathContextAvailable(
+            std::move(std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, connection_.peer_address(), &new_writer)));
       }));
   EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame));
   EXPECT_TRUE(connection_.HasPendingPathValidation());
@@ -13558,9 +13560,10 @@ TEST_P(QuicConnectionTest, TooManyMultiPortPathCreations) {
     frame.retire_prior_to = 0u;
     frame.sequence_number = i + 2;
     EXPECT_CALL(visitor_, CreateContextForMultiPortPath)
-        .WillRepeatedly(testing::WithArgs<0>([&](auto&& fn) {
-          fn(std::move(std::make_unique<TestQuicPathValidationContext>(
-              kNewSelfAddress, connection_.peer_address(), &new_writer)));
+        .WillRepeatedly(testing::WithArgs<0>([&](auto&& observer) {
+          observer->OnMultiPortPathContextAvailable(
+              std::move(std::make_unique<TestQuicPathValidationContext>(
+                  kNewSelfAddress, connection_.peer_address(), &new_writer)));
         }));
     EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame));
     EXPECT_TRUE(connection_.HasPendingPathValidation());
@@ -13630,9 +13633,10 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsNotReady) {
   frame.retire_prior_to = 0u;
   frame.sequence_number = 1u;
   EXPECT_CALL(visitor_, CreateContextForMultiPortPath)
-      .WillRepeatedly(testing::WithArgs<0>([&](auto&& fn) {
-        fn(std::move(std::make_unique<TestQuicPathValidationContext>(
-            kNewSelfAddress, connection_.peer_address(), &new_writer)));
+      .WillRepeatedly(testing::WithArgs<0>([&](auto&& observer) {
+        observer->OnMultiPortPathContextAvailable(
+            std::move(std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, connection_.peer_address(), &new_writer)));
       }));
   EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame));
   EXPECT_TRUE(connection_.HasPendingPathValidation());
@@ -13700,9 +13704,10 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsReadyAndNotProbing) {
   frame.retire_prior_to = 0u;
   frame.sequence_number = 1u;
   EXPECT_CALL(visitor_, CreateContextForMultiPortPath)
-      .WillRepeatedly(testing::WithArgs<0>([&](auto&& fn) {
-        fn(std::move(std::make_unique<TestQuicPathValidationContext>(
-            kNewSelfAddress, connection_.peer_address(), &new_writer)));
+      .WillRepeatedly(testing::WithArgs<0>([&](auto&& observer) {
+        observer->OnMultiPortPathContextAvailable(
+            std::move(std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, connection_.peer_address(), &new_writer)));
       }));
   EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame));
   EXPECT_TRUE(connection_.HasPendingPathValidation());
@@ -13778,9 +13783,10 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsReadyAndProbing) {
   frame.retire_prior_to = 0u;
   frame.sequence_number = 1u;
   EXPECT_CALL(visitor_, CreateContextForMultiPortPath)
-      .WillRepeatedly(testing::WithArgs<0>([&](auto&& fn) {
-        fn(std::move(std::make_unique<TestQuicPathValidationContext>(
-            kNewSelfAddress, connection_.peer_address(), &new_writer)));
+      .WillRepeatedly(testing::WithArgs<0>([&](auto&& observer) {
+        observer->OnMultiPortPathContextAvailable(
+            std::move(std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, connection_.peer_address(), &new_writer)));
       }));
   EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame));
   EXPECT_TRUE(connection_.HasPendingPathValidation());
@@ -16849,9 +16855,10 @@ TEST_P(QuicConnectionTest, MultiPortCreationAfterServerMigration) {
   frame.retire_prior_to = 0u;
   frame.sequence_number = 2u;
   EXPECT_CALL(visitor_, CreateContextForMultiPortPath)
-      .WillOnce(testing::WithArgs<0>([&](auto&& fn) {
-        fn(std::move(std::make_unique<TestQuicPathValidationContext>(
-            kNewSelfAddress2, connection_.peer_address(), &new_writer2)));
+      .WillOnce(testing::WithArgs<0>([&](auto&& observer) {
+        observer->OnMultiPortPathContextAvailable(
+            std::move(std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress2, connection_.peer_address(), &new_writer2)));
       }));
   connection_.OnNewConnectionIdFrame(frame);
   EXPECT_TRUE(connection_.HasPendingPathValidation());

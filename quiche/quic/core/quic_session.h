@@ -182,10 +182,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool MaybeSendAddressToken() override;
   void OnBandwidthUpdateTimeout() override {}
   void CreateContextForMultiPortPath(
-      std::function<void(std::unique_ptr<QuicPathValidationContext>)>
-          create_context) override {
-    create_context(nullptr);
-  }
+      std::unique_ptr<MultiPortPathContextObserver> /*context_observer*/)
+      override {}
   void MigrateToMultiPortPath(
       std::unique_ptr<QuicPathValidationContext> /*context*/) override {}
   void OnServerPreferredAddressAvailable(

@@ -40,8 +40,7 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
   bool ShouldNegotiateWebTransport() override;
   HttpDatagramSupport LocalHttpDatagramSupport() override;
   void CreateContextForMultiPortPath(
-      std::function<void(std::unique_ptr<QuicPathValidationContext>)>
-          create_context) override;
+      std::unique_ptr<MultiPortPathContextObserver> context_observer) override;
   void MigrateToMultiPortPath(
       std::unique_ptr<QuicPathValidationContext> context) override;
   bool drop_response_body() const { return drop_response_body_; }
