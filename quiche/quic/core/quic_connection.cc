@@ -5924,6 +5924,9 @@ void QuicConnection::SendAllPendingAcks() {
           << PacketNumberSpaceToString(static_cast<PacketNumberSpace>(i))
           << ", connected: " << connected_
           << ", fill_coalesced_packet: " << fill_coalesced_packet_
+          << ", blocked_by_no_connection_id: "
+          << (peer_issued_cid_manager_ != nullptr &&
+              packet_creator_.GetDestinationConnectionId().IsEmpty())
           << ", has_soft_max_packet_length: "
           << packet_creator_.HasSoftMaxPacketLength()
           << ", max_packet_length: " << packet_creator_.max_packet_length()
