@@ -25,12 +25,6 @@ void QuicFramerPeer::SetLastSerializedServerConnectionId(
 }
 
 // static
-void QuicFramerPeer::SetLastSerializedClientConnectionId(
-    QuicFramer* framer, QuicConnectionId client_connection_id) {
-  framer->last_serialized_client_connection_id_ = client_connection_id;
-}
-
-// static
 void QuicFramerPeer::SetLastWrittenPacketNumberLength(
     QuicFramer* framer, size_t packet_number_length) {
   framer->last_written_packet_number_length_ = packet_number_length;

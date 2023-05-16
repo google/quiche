@@ -1102,8 +1102,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   QuicPacketNumber largest_decrypted_packet_numbers_[NUM_PACKET_NUMBER_SPACES];
   // Last server connection ID seen on the wire.
   QuicConnectionId last_serialized_server_connection_id_;
-  // Last client connection ID seen on the wire.
-  QuicConnectionId last_serialized_client_connection_id_;
   // Version of the protocol being used.
   ParsedQuicVersion version_;
   // This vector contains QUIC versions which we currently support.

@@ -206,9 +206,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (receiver_perspective == Perspective::IS_CLIENT) {
     QuicFramerPeer::SetLastSerializedServerConnectionId(
         &receiver_framer, header.source_connection_id);
-  } else {
-    QuicFramerPeer::SetLastSerializedClientConnectionId(
-        &receiver_framer, header.source_connection_id);
   }
 
   std::array<char, kEthernetMTU> packet_buffer;

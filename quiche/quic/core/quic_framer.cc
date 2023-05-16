@@ -411,7 +411,6 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
     : visitor_(nullptr),
       error_(QUIC_NO_ERROR),
       last_serialized_server_connection_id_(EmptyQuicConnectionId()),
-      last_serialized_client_connection_id_(EmptyQuicConnectionId()),
       version_(ParsedQuicVersion::Unsupported()),
       supported_versions_(supported_versions),
       decrypter_level_(ENCRYPTION_INITIAL),
@@ -2285,10 +2284,6 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   }
 
   last_serialized_server_connection_id_ = server_connection_id;
-  if (version_.SupportsClientConnectionIds()) {
-    last_serialized_client_connection_id_ =
-        GetClientConnectionIdAsSender(header, perspective_);
-  }
 
   // TODO(b/141924462) Remove this QUIC_BUG once we do support sending RETRY.
   QUIC_BUG_IF(quic_bug_12975_7,

@@ -1541,8 +1541,6 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToServer) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
-  QuicFramerPeer::SetLastSerializedClientConnectionId(&framer_,
-                                                      TestConnectionId(0x33));
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   // clang-format off
   unsigned char packet[] = {
