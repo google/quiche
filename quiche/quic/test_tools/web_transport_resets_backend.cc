@@ -36,7 +36,7 @@ class ResetsVisitor : public WebTransportVisitor {
  public:
   ResetsVisitor(WebTransportSession* session) : session_(session) {}
 
-  void OnSessionReady(const spdy::Http2HeaderBlock& /*headers*/) override {}
+  void OnSessionReady() override {}
   void OnSessionClosed(WebTransportSessionError /*error_code*/,
                        const std::string& /*error_message*/) override {}
 

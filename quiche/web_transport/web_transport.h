@@ -19,7 +19,6 @@
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_stream.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace webtransport {
 
@@ -136,7 +135,7 @@ class QUICHE_EXPORT SessionVisitor {
 
   // Notifies the visitor when the session is ready to exchange application
   // data.
-  virtual void OnSessionReady(const spdy::Http2HeaderBlock& headers) = 0;
+  virtual void OnSessionReady() = 0;
 
   // Notifies the visitor when the session has been closed.
   virtual void OnSessionClosed(SessionErrorCode error_code,

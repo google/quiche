@@ -14,6 +14,7 @@ namespace webtransport {
 namespace test {
 
 class QUICHE_NO_EXPORT MockStreamVisitor : public StreamVisitor {
+ public:
   MOCK_METHOD(void, OnCanRead, (), (override));
   MOCK_METHOD(void, OnCanWrite, (), (override));
   MOCK_METHOD(void, OnResetStreamReceived, (StreamErrorCode), (override));
@@ -22,6 +23,7 @@ class QUICHE_NO_EXPORT MockStreamVisitor : public StreamVisitor {
 };
 
 class QUICHE_NO_EXPORT MockStream : public Stream {
+ public:
   MOCK_METHOD(ReadResult, Read, (absl::Span<char> buffer), (override));
   MOCK_METHOD(ReadResult, Read, (std::string * output), (override));
   MOCK_METHOD(absl::Status, Writev,
@@ -42,8 +44,8 @@ class QUICHE_NO_EXPORT MockStream : public Stream {
 };
 
 class QUICHE_NO_EXPORT MockSessionVisitor : public SessionVisitor {
-  MOCK_METHOD(void, OnSessionReady, (const spdy::Http2HeaderBlock& headers),
-              (override));
+ public:
+  MOCK_METHOD(void, OnSessionReady, (), (override));
   MOCK_METHOD(void, OnSessionClosed,
               (SessionErrorCode error_code, const std::string& error_message),
               (override));
