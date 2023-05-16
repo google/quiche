@@ -166,6 +166,12 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // See |SSL_CTX_set_info_callback| for the meaning of |type| and |value|.
   void InfoCallback(int /*type*/, int /*value*/) override {}
 
+  // Message callback from BoringSSL, for debugging purposes. See
+  // |SSL_CTX_set_msg_callback| for how to interpret |version|, |content_type|,
+  // and |data|.
+  void MessageCallback(bool is_write, int version, int content_type,
+                       absl::string_view data) override;
+
  private:
   // ProofVerifierCallbackImpl handles the result of an asynchronous certificate
   // verification operation.

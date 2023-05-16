@@ -324,6 +324,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void OnHandshakeCallbackDone() override;
   bool PacketFlusherAttached() const override;
   ParsedQuicVersion parsed_version() const override { return version(); }
+  void OnEncryptedClientHelloSent(
+      absl::string_view client_hello) const override;
+  void OnEncryptedClientHelloReceived(
+      absl::string_view client_hello) const override;
 
   // Implement StreamDelegateInterface.
   void OnStreamError(QuicErrorCode error_code,

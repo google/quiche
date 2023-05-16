@@ -387,4 +387,18 @@ void TlsHandshaker::SendAlert(EncryptionLevel level, uint8_t desc) {
   last_tls_alert_ = tls_alert;
 }
 
+void TlsHandshaker::MessageCallback(bool is_write, int /*version*/,
+                                    int content_type, absl::string_view data) {
+  if (content_type == SSL3_RT_CLIENT_HELLO_INNER) {
+    // Notify QuicConnectionDebugVisitor. Most TLS messages can be seen in
+    // CRYPTO frames, but, with ECH enabled, the ClientHelloInner is encrypted
+    // separately.
+    if (is_write) {
+      handshaker_delegate_->OnEncryptedClientHelloSent(data);
+    } else {
+      handshaker_delegate_->OnEncryptedClientHelloReceived(data);
+    }
+  }
+}
+
 }  // namespace quic

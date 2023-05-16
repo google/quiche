@@ -78,6 +78,14 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
   // Get the QUIC version currently in use. tls_handshaker needs this to pass
   // to crypto_utils to apply version-dependent HKDF labels.
   virtual ParsedQuicVersion parsed_version() const = 0;
+
+  // Called after an ClientHelloInner is encrypted and sent as a client.
+  virtual void OnEncryptedClientHelloSent(
+      absl::string_view client_hello) const = 0;
+
+  // Called after an ClientHelloInner is received and decrypted as a server.
+  virtual void OnEncryptedClientHelloReceived(
+      absl::string_view client_hello) const = 0;
 };
 
 }  // namespace quic

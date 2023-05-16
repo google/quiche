@@ -1172,6 +1172,20 @@ void QuicConnection::OnTransportParametersResumed(
   }
 }
 
+void QuicConnection::OnEncryptedClientHelloSent(
+    absl::string_view client_hello) const {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnEncryptedClientHelloSent(client_hello);
+  }
+}
+
+void QuicConnection::OnEncryptedClientHelloReceived(
+    absl::string_view client_hello) const {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnEncryptedClientHelloReceived(client_hello);
+  }
+}
+
 bool QuicConnection::HasPendingAcks() const { return ack_alarm_->IsSet(); }
 
 void QuicConnection::OnUserAgentIdKnown(const std::string& /*user_agent_id*/) {

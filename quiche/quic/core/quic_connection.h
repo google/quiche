@@ -459,6 +459,13 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called after peer migration is validated.
   virtual void OnPeerMigrationValidated(QuicTime::Delta /*connection_time*/) {}
+
+  // Called after an ClientHelloInner is encrypted and sent as a client.
+  virtual void OnEncryptedClientHelloSent(absl::string_view /*client_hello*/) {}
+
+  // Called after an ClientHelloInner is received and decrypted as a server.
+  virtual void OnEncryptedClientHelloReceived(
+      absl::string_view /*client_hello*/) {}
 };
 
 class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {
@@ -1170,6 +1177,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // 0-RTT.
   void OnTransportParametersResumed(
       const TransportParameters& transport_parameters) const;
+
+  // Called after an ClientHelloInner is encrypted and sent as a client.
+  void OnEncryptedClientHelloSent(absl::string_view client_hello) const;
+
+  // Called after an ClientHelloInner is received and decrypted as a server.
+  void OnEncryptedClientHelloReceived(absl::string_view client_hello) const;
 
   // Returns true if ack_alarm_ is set.
   bool HasPendingAcks() const;

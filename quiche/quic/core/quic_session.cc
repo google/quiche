@@ -1824,6 +1824,16 @@ bool QuicSession::PacketFlusherAttached() const {
   return connection()->packet_creator().PacketFlusherAttached();
 }
 
+void QuicSession::OnEncryptedClientHelloSent(
+    absl::string_view client_hello) const {
+  connection()->OnEncryptedClientHelloSent(client_hello);
+}
+
+void QuicSession::OnEncryptedClientHelloReceived(
+    absl::string_view client_hello) const {
+  connection()->OnEncryptedClientHelloReceived(client_hello);
+}
+
 void QuicSession::OnCryptoHandshakeMessageSent(
     const CryptoHandshakeMessage& /*message*/) {}
 
