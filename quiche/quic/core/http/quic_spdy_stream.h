@@ -328,6 +328,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   void WriteGreaseCapsule();
 
+  const std::string& invalid_request_details() const {
+    return invalid_request_details_;
+  }
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.
@@ -359,14 +363,17 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   void OnWriteSideInDataRecvdState() override;
 
-  virtual bool AreHeadersValid(const QuicHeaderList& header_list) const;
-  // TODO(b/202433856) Merge AreHeaderFieldValueValid into AreHeadersValid once
-  // all flags guarding the behavior of AreHeadersValid has been rolled out.
+  virtual bool ValidatedRequestHeaders(const QuicHeaderList& header_list);
+  // TODO(b/202433856) Merge AreHeaderFieldValueValid into
+  // ValidatedRequestHeaders once all flags guarding the behavior of
+  // ValidatedRequestHeaders has been rolled out.
   virtual bool AreHeaderFieldValuesValid(
       const QuicHeaderList& header_list) const;
 
   // Reset stream upon invalid request headers.
   virtual void OnInvalidHeaders();
+
+  void set_invalid_request_details(std::string invalid_request_details);
 
  private:
   friend class test::QuicSpdyStreamPeer;
@@ -493,6 +500,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   Http3DatagramVisitor* datagram_visitor_ = nullptr;
   // CONNECT-IP support.
   ConnectIpVisitor* connect_ip_visitor_ = nullptr;
+
+  // Empty if the headers are valid.
+  std::string invalid_request_details_;
 };
 
 }  // namespace quic

@@ -72,7 +72,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
   using QuicSpdyStream::SetPriority;
 
  protected:
-  bool AreHeadersValid(const QuicHeaderList& header_list) const override;
+  bool ValidatedRequestHeaders(const QuicHeaderList& header_list) override;
 
   // Called by OnInitialHeadersComplete to set response_header_. Returns false
   // on error.

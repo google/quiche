@@ -622,8 +622,11 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   }
   // Validate request headers if it did not exceed size limit. If it did,
   // OnHeadersTooLarge() should have already handled it previously.
-  if (!header_too_large && !AreHeadersValid(header_list)) {
+  if (!header_too_large && !ValidatedRequestHeaders(header_list)) {
     QUIC_CODE_COUNT_N(quic_validate_request_header, 1, 2);
+    QUICHE_DCHECK(!invalid_request_details().empty())
+        << "ValidatedRequestHeaders() returns false without populating "
+           "invalid_request_details_";
     if (GetQuicReloadableFlag(quic_act_upon_invalid_header)) {
       QUIC_RELOADABLE_FLAG_COUNT(quic_act_upon_invalid_header);
       OnInvalidHeaders();
@@ -1626,19 +1629,30 @@ constexpr bool isInvalidHeaderNameCharacter(unsigned char c) {
 }
 }  // namespace
 
-bool QuicSpdyStream::AreHeadersValid(const QuicHeaderList& header_list) const {
+bool QuicSpdyStream::ValidatedRequestHeaders(
+    const QuicHeaderList& header_list) {
   for (const std::pair<std::string, std::string>& pair : header_list) {
     const std::string& name = pair.first;
     if (std::any_of(name.begin(), name.end(), isInvalidHeaderNameCharacter)) {
-      QUIC_DLOG(ERROR) << "Invalid request header " << name;
+      invalid_request_details_ = absl::StrCat("Invalid request header ", name);
+      QUIC_DLOG(ERROR) << invalid_request_details_;
       return false;
     }
     if (http2::GetInvalidHttp2HeaderSet().contains(name)) {
-      QUIC_DLOG(ERROR) << name << " header is not allowed";
+      invalid_request_details_ = absl::StrCat(name, " header is not allowed");
+      QUIC_DLOG(ERROR) << invalid_request_details_;
       return false;
     }
   }
   return true;
+}
+
+void QuicSpdyStream::set_invalid_request_details(
+    std::string invalid_request_details) {
+  QUIC_BUG_IF(
+      empty invalid request detail,
+      !invalid_request_details_.empty() || invalid_request_details.empty());
+  invalid_request_details_ = std::move(invalid_request_details);
 }
 
 bool QuicSpdyStream::AreHeaderFieldValuesValid(

@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/quic_client_promised_info.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
@@ -195,9 +196,9 @@ size_t QuicSpdyClientStream::SendRequest(Http2HeaderBlock headers,
   return bytes_sent;
 }
 
-bool QuicSpdyClientStream::AreHeadersValid(
-    const QuicHeaderList& header_list) const {
-  if (!QuicSpdyStream::AreHeadersValid(header_list)) {
+bool QuicSpdyClientStream::ValidatedRequestHeaders(
+    const QuicHeaderList& header_list) {
+  if (!QuicSpdyStream::ValidatedRequestHeaders(header_list)) {
     return false;
   }
   // Verify the presence of :status header.
@@ -206,9 +207,16 @@ bool QuicSpdyClientStream::AreHeadersValid(
     if (pair.first == ":status") {
       saw_status = true;
     } else if (absl::StrContains(pair.first, ":")) {
-      QUIC_DLOG(ERROR) << "Unexpected ':' in header " << pair.first << ".";
+      set_invalid_request_details(
+          absl::StrCat("Unexpected ':' in header ", pair.first, "."));
+      QUIC_DLOG(ERROR) << invalid_request_details();
       return false;
     }
+  }
+  if (!saw_status) {
+    set_invalid_request_details("Missing :status in response header.");
+    QUIC_DLOG(ERROR) << invalid_request_details();
+    return false;
   }
   return saw_status;
 }

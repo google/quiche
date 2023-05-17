@@ -276,10 +276,6 @@ class TestStream : public QuicSpdyStream {
 
   size_t headers_payload_length() const { return headers_payload_length_; }
 
-  bool AreHeadersValid(const QuicHeaderList& header_list) const override {
-    return QuicSpdyStream::AreHeadersValid(header_list);
-  }
-
  private:
   bool should_process_data_;
   spdy::Http2HeaderBlock saved_headers_;
