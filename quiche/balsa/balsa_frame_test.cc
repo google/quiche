@@ -3039,6 +3039,34 @@ TEST_F(HTTPBalsaFrameTest, AcceptUnknownTransferEncodingToken) {
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, MissingContentLength) {
+  std::string header = "HTTP/1.1 200 OK\r\n\r\n";
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.ProcessInput(header.data(), header.size());
+
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::MAYBE_BODY_BUT_NO_CONTENT_LENGTH,
+            balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, MultipleTransferEncodingsWithMissingContentLength) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.validate_transfer_encoding = false;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  std::string header =
+      "HTTP/1.1 200 OK\r\n"
+      "transfer-encoding: chunked\r\n"
+      "transfer-encoding: identity\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.ProcessInput(header.data(), header.size());
+
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::MAYBE_BODY_BUT_NO_CONTENT_LENGTH,
+            balsa_frame_.ErrorCode());
+}
+
 class DetachOnDoneFramer : public NoOpBalsaVisitor {
  public:
   DetachOnDoneFramer() {
