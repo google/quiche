@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "quiche/blind_sign_auth/proto/auth_and_sign.pb.h"
@@ -38,8 +39,7 @@ std::string OmitDefault(T value) {
 
 void BlindSignAuth::GetTokens(
     absl::string_view oauth_token, int num_tokens,
-    std::function<void(absl::StatusOr<absl::Span<const std::string>>)>
-        callback) {
+    std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback) {
   // Create GetInitialData RPC.
   privacy::ppn::GetInitialDataRequest request;
   request.set_use_attestation(false);
@@ -61,7 +61,7 @@ void BlindSignAuth::GetTokens(
 void BlindSignAuth::GetInitialDataCallback(
     absl::StatusOr<BlindSignHttpResponse> response,
     absl::string_view oauth_token, int num_tokens,
-    std::function<void(absl::StatusOr<absl::Span<std::string>>)> callback) {
+    std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback) {
   if (!response.ok()) {
     QUICHE_LOG(WARNING) << "GetInitialDataRequest failed: "
                         << response.status();
@@ -91,6 +91,14 @@ void BlindSignAuth::GetInitialDataCallback(
     QUICHE_LOG(WARNING) << "Failed to create AT BSSA client: "
                         << bssa_client.status();
     callback(bssa_client.status());
+    return;
+  }
+  absl::StatusOr<absl::Time> public_key_expiry_time =
+      private_membership::anonymous_tokens::TimeFromProto(
+          initial_data_response.at_public_metadata_public_key()
+              .expiration_time());
+  if (!public_key_expiry_time.ok()) {
+    callback(absl::InternalError("Failed to parse public key expiration time"));
     return;
   }
 
@@ -155,21 +163,23 @@ void BlindSignAuth::GetInitialDataCallback(
       "/v1/authWithHeaderCreds", oauth_token.data(),
       sign_request.SerializeAsString(),
       [this, at_sign_request, public_metadata_info,
+       expiry_time_ = public_key_expiry_time.value(),
        bssa_client_ = bssa_client.value().get(),
        callback](absl::StatusOr<BlindSignHttpResponse> response) {
-        AuthAndSignCallback(response, public_metadata_info, *at_sign_request,
-                            bssa_client_, callback);
+        AuthAndSignCallback(response, public_metadata_info, expiry_time_,
+                            *at_sign_request, bssa_client_, callback);
       });
 }
 
 void BlindSignAuth::AuthAndSignCallback(
     absl::StatusOr<BlindSignHttpResponse> response,
     privacy::ppn::PublicMetadataInfo public_metadata_info,
+    absl::Time public_key_expiry_time,
     private_membership::anonymous_tokens::AnonymousTokensSignRequest
         at_sign_request,
     private_membership::anonymous_tokens::AnonymousTokensRsaBssaClient*
         bssa_client,
-    std::function<void(absl::StatusOr<absl::Span<std::string>>)> callback) {
+    std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback) {
   // Validate response.
   if (!response.ok()) {
     QUICHE_LOG(WARNING) << "AuthAndSign failed: " << response.status();
@@ -245,7 +255,7 @@ void BlindSignAuth::AuthAndSignCallback(
   }
 
   // Output SpendTokenData with data for the redeemer to make a SpendToken RPC.
-  std::vector<std::string> tokens_vec;
+  std::vector<BlindSignToken> tokens_vec;
   for (size_t i = 0; i < signed_tokens->size(); i++) {
     privacy::ppn::SpendTokenData spend_token_data;
     *spend_token_data.mutable_public_metadata() =
@@ -266,10 +276,11 @@ void BlindSignAuth::AuthAndSignCallback(
     spend_token_data.set_use_case(*use_case);
     spend_token_data.set_message_mask(
         signed_tokens->at(i).token().message_mask());
-    tokens_vec.push_back(spend_token_data.SerializeAsString());
+    tokens_vec.push_back(BlindSignToken{spend_token_data.SerializeAsString(),
+                                        public_key_expiry_time});
   }
 
-  callback(absl::Span<std::string>(tokens_vec));
+  callback(absl::Span<BlindSignToken>(tokens_vec));
 }
 
 absl::Status BlindSignAuth::FingerprintPublicMetadata(

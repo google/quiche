@@ -35,29 +35,29 @@ class QUICHE_EXPORT CachedBlindSignAuth : public BlindSignAuthInterface {
       : blind_sign_auth_(blind_sign_auth),
         max_tokens_per_request_(max_tokens_per_request) {}
 
-  // Returns signed unblinded tokens in a callback. Tokens are single-use.
+  // Returns signed unblinded tokens and expiration time in a callback.
+  // Tokens are single-use. They will not be usable after the expiration time.
   //
   // The GetTokens callback may be called synchronously on the calling thread,
   // or asynchronously on BlindSignAuth's BlindSignHttpInterface thread.
   // The GetTokens callback must not acquire any locks that the calling thread
   // owns, otherwise the callback will deadlock.
-  void GetTokens(
-      absl::string_view oauth_token, int num_tokens,
-      std::function<void(absl::StatusOr<absl::Span<const std::string>>)>
-          callback) override;
+  void GetTokens(absl::string_view oauth_token, int num_tokens,
+                 std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)>
+                     callback) override;
 
  private:
   void HandleGetTokensResponse(
-      absl::StatusOr<absl::Span<const std::string>> tokens, int num_tokens,
-      std::function<void(absl::StatusOr<absl::Span<const std::string>>)>
-          callback);
-  std::vector<std::string> CreateOutputTokens(int num_tokens)
+      absl::StatusOr<absl::Span<BlindSignToken>> tokens, int num_tokens,
+      std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback);
+  std::vector<BlindSignToken> CreateOutputTokens(int num_tokens)
       QUICHE_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void RemoveExpiredTokens() QUICHE_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   BlindSignAuthInterface* blind_sign_auth_;
   int max_tokens_per_request_;
   QuicheMutex mutex_;
-  QuicheCircularDeque<std::string> cached_tokens_ QUICHE_GUARDED_BY(mutex_);
+  QuicheCircularDeque<BlindSignToken> cached_tokens_ QUICHE_GUARDED_BY(mutex_);
 };
 
 }  // namespace quiche

@@ -129,10 +129,10 @@ class BlindSignAuthTest : public QuicheTest {
     sign_response_ = response;
   }
 
-  void ValidateGetTokensOutput(const absl::Span<const std::string>& tokens) {
+  void ValidateGetTokensOutput(const absl::Span<BlindSignToken>& tokens) {
     for (const auto& token : tokens) {
       privacy::ppn::SpendTokenData spend_token_data;
-      ASSERT_TRUE(spend_token_data.ParseFromString(token));
+      ASSERT_TRUE(spend_token_data.ParseFromString(token.token));
       // Validate token structure.
       EXPECT_EQ(spend_token_data.public_metadata().SerializeAsString(),
                 public_metadata_info_.public_metadata().SerializeAsString());
@@ -191,9 +191,9 @@ TEST_F(BlindSignAuthTest, TestGetTokensSuccessful) {
 
   int num_tokens = 1;
   QuicheNotification done;
-  std::function<void(absl::StatusOr<absl::Span<const std::string>>)> callback =
+  std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback =
       [this, &done,
-       num_tokens](absl::StatusOr<absl::Span<const std::string>> tokens) {
+       num_tokens](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
         EXPECT_EQ(tokens->size(), num_tokens);
         ValidateGetTokensOutput(*tokens);
@@ -216,8 +216,8 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
 
   int num_tokens = 1;
   QuicheNotification done;
-  std::function<void(absl::StatusOr<absl::Span<const std::string>>)> callback =
-      [&done](absl::StatusOr<absl::Span<const std::string>> tokens) {
+  std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback =
+      [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
         done.Notify();
       };
@@ -245,8 +245,8 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadGetInitialDataResponse) {
 
   int num_tokens = 1;
   QuicheNotification done;
-  std::function<void(absl::StatusOr<absl::Span<const std::string>>)> callback =
-      [&done](absl::StatusOr<absl::Span<const std::string>> tokens) {
+  std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback =
+      [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);
         done.Notify();
       };
@@ -286,8 +286,8 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
 
   int num_tokens = 1;
   QuicheNotification done;
-  std::function<void(absl::StatusOr<absl::Span<const std::string>>)> callback =
-      [&done](absl::StatusOr<absl::Span<const std::string>> tokens) {
+  std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback =
+      [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
         done.Notify();
       };

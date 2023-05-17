@@ -10,10 +10,19 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
+
+// A BlindSignToken is used to authenticate a request to a privacy proxy.
+// The token string contains a serialized SpendTokenData proto.
+// The token cannot be successfully redeemed after the expiration time.
+struct QUICHE_EXPORT BlindSignToken {
+  std::string token;
+  absl::Time expiration;
+};
 
 // BlindSignAuth provides signed, unblinded tokens to callers.
 class QUICHE_EXPORT BlindSignAuthInterface {
@@ -23,7 +32,7 @@ class QUICHE_EXPORT BlindSignAuthInterface {
   // Returns signed unblinded tokens in a callback. Tokens are single-use.
   virtual void GetTokens(
       absl::string_view oauth_token, int num_tokens,
-      std::function<void(absl::StatusOr<absl::Span<const std::string>>)>
+      std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)>
           callback) = 0;
 };
 

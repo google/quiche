@@ -20,12 +20,11 @@ namespace quiche::test {
 class QUICHE_NO_EXPORT MockBlindSignAuthInterface
     : public BlindSignAuthInterface {
  public:
-  MOCK_METHOD(
-      void, GetTokens,
-      (absl::string_view oauth_token, int num_tokens,
-       std::function<void(absl::StatusOr<absl::Span<const std::string>>)>
-           callback),
-      (override));
+  MOCK_METHOD(void, GetTokens,
+              (absl::string_view oauth_token, int num_tokens,
+               std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)>
+                   callback),
+              (override));
 };
 
 }  // namespace quiche::test
