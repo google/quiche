@@ -33,7 +33,8 @@ class QuicTestServer : public QuicServer {
         QuicCryptoServerStreamBase::Helper* helper,
         const QuicCryptoServerConfig* crypto_config,
         QuicCompressedCertsCache* compressed_certs_cache,
-        QuicSimpleServerBackend* quic_simple_server_backend) = 0;
+        QuicSimpleServerBackend* quic_simple_server_backend,
+        absl::string_view alpn) = 0;
   };
 
   // Factory for creating QuicSimpleServerStreams.
