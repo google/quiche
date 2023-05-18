@@ -725,6 +725,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
 
+  // Whether destination connection ID is required but missing in the packet
+  // creator.
+  bool IsMissingDestinationConnectionID() const;
   // QuicPacketCreator::DelegateInterface
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;

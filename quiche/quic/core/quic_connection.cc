@@ -47,6 +47,7 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/platform/api/quiche_testvalue.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -2455,6 +2456,16 @@ void QuicConnection::MaybeSendInResponseToPacket() {
     return;
   }
 
+  if (GetQuicReloadableFlag(quic_do_not_write_when_no_client_cid_available)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_do_not_write_when_no_client_cid_available,
+                                 1, 3);
+    if (IsMissingDestinationConnectionID()) {
+      QUICHE_RELOADABLE_FLAG_COUNT_N(
+          quic_do_not_write_when_no_client_cid_available, 2, 3);
+      return;
+    }
+  }
+
   // If the writer is blocked, don't attempt to send packets now or in the send
   // alarm. When the writer unblocks, OnCanWrite() will be called for this
   // connection to send.
@@ -3186,14 +3197,18 @@ void QuicConnection::NeuterUnencryptedPackets() {
   }
 }
 
+bool QuicConnection::IsMissingDestinationConnectionID() const {
+  return peer_issued_cid_manager_ != nullptr &&
+         packet_creator_.GetDestinationConnectionId().IsEmpty();
+}
+
 bool QuicConnection::ShouldGeneratePacket(
     HasRetransmittableData retransmittable, IsHandshake handshake) {
   QUICHE_DCHECK(handshake != IS_HANDSHAKE ||
                 QuicVersionUsesCryptoFrames(transport_version()))
       << ENDPOINT
       << "Handshake in STREAM frames should not check ShouldGeneratePacket";
-  if (peer_issued_cid_manager_ != nullptr &&
-      packet_creator_.GetDestinationConnectionId().IsEmpty()) {
+  if (IsMissingDestinationConnectionID()) {
     QUICHE_DCHECK(version().HasIetfQuicFrames());
     QUIC_CODE_COUNT(quic_generate_packet_blocked_by_no_connection_id);
     QUIC_BUG_IF(quic_bug_90265_1, perspective_ == Perspective::IS_CLIENT);
@@ -3254,6 +3269,14 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
 bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
   if (!connected_) {
     return false;
+  }
+
+  if (GetQuicReloadableFlag(quic_do_not_write_when_no_client_cid_available)) {
+    if (IsMissingDestinationConnectionID()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(
+          quic_do_not_write_when_no_client_cid_available, 3, 3);
+      return false;
+    }
   }
 
   if (version().CanSendCoalescedPackets() &&
@@ -6282,9 +6305,15 @@ void QuicConnection::set_client_connection_id(
               kMinNumOfActiveConnectionIds, client_connection_id, clock_,
               alarm_factory_, this, context());
     } else {
+      bool create_client_self_issued_cid_manager = true;
+      quiche::AdjustTestValue(
+          "quic::QuicConnection::create_cid_manager_when_set_client_cid",
+          &create_client_self_issued_cid_manager);
       // Note in Chromium client, set_client_connection_id is not called and
       // thus self_issued_cid_manager_ should be null.
-      self_issued_cid_manager_ = MakeSelfIssuedConnectionIdManager();
+      if (create_client_self_issued_cid_manager) {
+        self_issued_cid_manager_ = MakeSelfIssuedConnectionIdManager();
+      }
     }
   }
   QUIC_DLOG(INFO) << ENDPOINT << "setting client connection ID to "
