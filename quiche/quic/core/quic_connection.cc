@@ -292,7 +292,6 @@ QuicConnection::QuicConnection(
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET),
       num_rtos_for_blackhole_detection_(0),
       uber_received_packet_manager_(&stats_),
-      stop_waiting_count_(0),
       pending_retransmission_alarm_(false),
       defer_send_in_response_to_packets_(false),
       arena_(),
@@ -328,7 +327,6 @@ QuicConnection::QuicConnection(
       peer_max_packet_size_(kDefaultMaxPacketSizeTransportParam),
       largest_received_packet_size_(0),
       write_error_occurred_(false),
-      no_stop_waiting_frames_(version().HasIetfInvariantHeader()),
       consecutive_num_packets_with_no_retransmittable_frames_(0),
       max_consecutive_num_packets_with_no_retransmittable_frames_(
           kMaxConsecutiveNonRetransmittablePackets),
@@ -627,9 +625,6 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       config.HasClientSentConnectionOption(k8PTO, perspective_)) {
     num_rtos_for_blackhole_detection_ = 5;
   }
-  if (config.HasClientSentConnectionOption(kNSTP, perspective_)) {
-    no_stop_waiting_frames_ = true;
-  }
   if (config.HasReceivedStatelessResetToken()) {
     default_path_.stateless_reset_token = config.ReceivedStatelessResetToken();
   }
@@ -827,26 +822,6 @@ void QuicConnection::OnError(QuicFramer* framer) {
 
 void QuicConnection::OnPacket() {
   last_received_packet_info_.decrypted = false;
-}
-
-void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
-  // Check that any public reset packet with a different connection ID that was
-  // routed to this QuicConnection has been redirected before control reaches
-  // here.  (Check for a bug regression.)
-  QUICHE_DCHECK_EQ(default_path_.server_connection_id, packet.connection_id);
-  QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-  QUICHE_DCHECK(!version().HasIetfInvariantHeader());
-  if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnPublicResetPacket(packet);
-  }
-  std::string error_details = "Received public reset.";
-  if (perspective_ == Perspective::IS_CLIENT && !packet.endpoint_id.empty()) {
-    absl::StrAppend(&error_details, " From ", packet.endpoint_id, ".");
-  }
-  QUIC_DLOG(INFO) << ENDPOINT << error_details;
-  QUIC_CODE_COUNT(quic_tear_down_local_connection_on_public_reset);
-  TearDownLocalConnectionState(QUIC_PUBLIC_RESET, NO_IETF_QUIC_ERROR,
-                               error_details, ConnectionCloseSource::FROM_PEER);
 }
 
 bool QuicConnection::OnProtocolVersionMismatch(
@@ -1578,21 +1553,12 @@ bool QuicConnection::OnAckFrameEnd(
   }
   SetLargestReceivedPacketWithAck(
       last_received_packet_info_.header.packet_number);
-  // If the incoming ack's packets set expresses missing packets: peer is still
-  // waiting for a packet lower than a packet that we are no longer planning to
-  // send.
-  // If the incoming ack's packets set expresses received packets: peer is still
-  // acking packets which we never care about.
-  // Send an ack to raise the high water mark.
-  const bool send_stop_waiting =
-      no_stop_waiting_frames_ ? false : GetLeastUnacked() > start;
-  PostProcessAfterAckFrame(send_stop_waiting,
-                           ack_result == PACKETS_NEWLY_ACKED);
+  PostProcessAfterAckFrame(ack_result == PACKETS_NEWLY_ACKED);
   processing_ack_frame_ = false;
   return connected_;
 }
 
-bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
+bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& /*frame*/) {
   QUIC_BUG_IF(quic_bug_12714_8, !connected_)
       << "Processing STOP_WAITING frame when connection is closed. Received "
          "packet info: "
@@ -1603,33 +1569,6 @@ bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
   if (!UpdatePacketContent(STOP_WAITING_FRAME)) {
     return false;
   }
-
-  if (no_stop_waiting_frames_) {
-    return true;
-  }
-  if (largest_seen_packet_with_stop_waiting_.IsInitialized() &&
-      last_received_packet_info_.header.packet_number <=
-          largest_seen_packet_with_stop_waiting_) {
-    QUIC_DLOG(INFO) << ENDPOINT
-                    << "Received an old stop waiting frame: ignoring";
-    return true;
-  }
-
-  const char* error = ValidateStopWaitingFrame(frame);
-  if (error != nullptr) {
-    CloseConnection(QUIC_INVALID_STOP_WAITING_DATA, error,
-                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
-  }
-
-  if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnStopWaitingFrame(frame);
-  }
-
-  largest_seen_packet_with_stop_waiting_ =
-      last_received_packet_info_.header.packet_number;
-  uber_received_packet_manager_.DontWaitForPacketsBefore(
-      last_received_packet_info_.decrypted_level, frame.least_unacked);
   return connected_;
 }
 
@@ -1667,31 +1606,6 @@ bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
   }
   MaybeUpdateAckTimeout();
   return true;
-}
-
-const char* QuicConnection::ValidateStopWaitingFrame(
-    const QuicStopWaitingFrame& stop_waiting) {
-  const QuicPacketNumber peer_least_packet_awaiting_ack =
-      uber_received_packet_manager_.peer_least_packet_awaiting_ack();
-  if (peer_least_packet_awaiting_ack.IsInitialized() &&
-      stop_waiting.least_unacked < peer_least_packet_awaiting_ack) {
-    QUIC_DLOG(ERROR) << ENDPOINT << "Peer's sent low least_unacked: "
-                     << stop_waiting.least_unacked << " vs "
-                     << peer_least_packet_awaiting_ack;
-    // We never process old ack frames, so this number should only increase.
-    return "Least unacked too small.";
-  }
-
-  if (stop_waiting.least_unacked >
-      last_received_packet_info_.header.packet_number) {
-    QUIC_DLOG(ERROR) << ENDPOINT
-                     << "Peer sent least_unacked:" << stop_waiting.least_unacked
-                     << " greater than the enclosing packet number:"
-                     << last_received_packet_info_.header.packet_number;
-    return "Least unacked too large.";
-  }
-
-  return nullptr;
 }
 
 bool QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
@@ -2334,7 +2248,6 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
     const QuicIetfStatelessResetPacket& /*packet*/) {
   // TODO(fayang): Add OnAuthenticatedIetfStatelessResetPacket to
   // debug_visitor_.
-  QUICHE_DCHECK(version().HasIetfInvariantHeader());
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
 
   if (!IsDefaultPath(last_received_packet_info_.destination_address,
@@ -2431,11 +2344,6 @@ const QuicFrame QuicConnection::GetUpdatedAckFrame() {
   return uber_received_packet_manager_.GetUpdatedAckFrame(
       QuicUtils::GetPacketNumberSpace(encryption_level_),
       clock_->ApproximateNow());
-}
-
-void QuicConnection::PopulateStopWaitingFrame(
-    QuicStopWaitingFrame* stop_waiting) {
-  stop_waiting->least_unacked = GetLeastUnacked();
 }
 
 QuicPacketNumber QuicConnection::GetLeastUnacked() const {
@@ -3083,13 +2991,6 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   if (!version_negotiated_) {
     if (perspective_ == Perspective::IS_CLIENT) {
       QUICHE_DCHECK(!header.version_flag || header.form != GOOGLE_QUIC_PACKET);
-      if (!version().HasIetfInvariantHeader()) {
-        // If the client gets a packet without the version flag from the server
-        // it should stop sending version since the version negotiation is done.
-        // IETF QUIC stops sending version once encryption level switches to
-        // forward secure.
-        packet_creator_.StopSendingVersion();
-      }
       version_negotiated_ = true;
       OnSuccessfulVersionNegotiation();
     }
@@ -3244,7 +3145,7 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
       uber_received_packet_manager_
           .GetAckTimeout(QuicUtils::GetPacketNumberSpace(encryption_level_))
           .IsInitialized();
-  if (!has_pending_ack && stop_waiting_count_ <= 1) {
+  if (!has_pending_ack) {
     // No need to send an ACK.
     return frames;
   }
@@ -3255,14 +3156,8 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
   QUIC_BUG_IF(quic_bug_12714_23, updated_ack_frame.ack_frame->packets.Empty())
       << ENDPOINT << "Attempted to opportunistically bundle an empty "
       << encryption_level_ << " ACK, " << (has_pending_ack ? "" : "!")
-      << "has_pending_ack, stop_waiting_count_ " << stop_waiting_count_;
+      << "has_pending_ack";
   frames.push_back(updated_ack_frame);
-
-  if (!no_stop_waiting_frames_) {
-    QuicStopWaitingFrame stop_waiting;
-    PopulateStopWaitingFrame(&stop_waiting);
-    frames.push_back(QuicFrame(stop_waiting));
-  }
   return frames;
 }
 
@@ -3938,11 +3833,7 @@ void QuicConnection::OnWriteError(int error_code) {
     return;
   }
   // We can't send an error as the socket is presumably borked.
-  if (version().HasIetfInvariantHeader()) {
-    QUIC_CODE_COUNT(quic_tear_down_local_connection_on_write_error_ietf);
-  } else {
-    QUIC_CODE_COUNT(quic_tear_down_local_connection_on_write_error_non_ietf);
-  }
+  QUIC_CODE_COUNT(quic_tear_down_local_connection_on_write_error_ietf);
   CloseConnection(QUIC_PACKET_WRITE_ERROR, error_details,
                   ConnectionCloseBehavior::SILENT_CLOSE);
 }
@@ -3963,13 +3854,7 @@ void QuicConnection::OnSerializedPacket(SerializedPacket serialized_packet) {
     // loop here.
     // TODO(ianswett): This is actually an internal error, not an
     // encryption failure.
-    if (version().HasIetfInvariantHeader()) {
-      QUIC_CODE_COUNT(
-          quic_tear_down_local_connection_on_serialized_packet_ietf);
-    } else {
-      QUIC_CODE_COUNT(
-          quic_tear_down_local_connection_on_serialized_packet_non_ietf);
-    }
+    QUIC_CODE_COUNT(quic_tear_down_local_connection_on_serialized_packet_ietf);
     CloseConnection(QUIC_ENCRYPTION_FAILURE,
                     "Serialized packet does not have an encrypted buffer.",
                     ConnectionCloseBehavior::SILENT_CLOSE);
@@ -3997,13 +3882,7 @@ void QuicConnection::OnUnrecoverableError(QuicErrorCode error,
                                           const std::string& error_details) {
   // The packet creator or generator encountered an unrecoverable error: tear
   // down local connection state immediately.
-  if (version().HasIetfInvariantHeader()) {
-    QUIC_CODE_COUNT(
-        quic_tear_down_local_connection_on_unrecoverable_error_ietf);
-  } else {
-    QUIC_CODE_COUNT(
-        quic_tear_down_local_connection_on_unrecoverable_error_non_ietf);
-  }
+  QUIC_CODE_COUNT(quic_tear_down_local_connection_on_unrecoverable_error_ietf);
   CloseConnection(error, error_details, ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
@@ -4152,11 +4031,6 @@ void QuicConnection::SendAck() {
   QUIC_DVLOG(1) << ENDPOINT << "Sending an ACK proactively";
   QuicFrames frames;
   frames.push_back(GetUpdatedAckFrame());
-  if (!no_stop_waiting_frames_) {
-    QuicStopWaitingFrame stop_waiting;
-    PopulateStopWaitingFrame(&stop_waiting);
-    frames.push_back(QuicFrame(stop_waiting));
-  }
   if (!packet_creator_.FlushAckFrame(frames)) {
     return;
   }
@@ -5750,9 +5624,8 @@ void QuicConnection::MaybeStartIetfPeerMigration() {
   current_effective_peer_migration_type_ = NO_CHANGE;
 }
 
-void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
-                                              bool acked_new_packet) {
-  if (no_stop_waiting_frames_ && !packet_creator_.has_ack()) {
+void QuicConnection::PostProcessAfterAckFrame(bool acked_new_packet) {
+  if (!packet_creator_.has_ack()) {
     uber_received_packet_manager_.DontWaitForPacketsBefore(
         last_received_packet_info_.decrypted_level,
         SupportsMultiplePacketNumberSpaces()
@@ -5772,12 +5645,6 @@ void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
     // detected lost because of time based loss detection. Cancel blackhole
     // detection if there is no packets in flight.
     blackhole_detector_.StopDetection(/*permanent=*/false);
-  }
-
-  if (send_stop_waiting) {
-    ++stop_waiting_count_;
-  } else {
-    stop_waiting_count_ = 0;
   }
 }
 
@@ -5812,18 +5679,12 @@ void QuicConnection::UpdateReleaseTimeIntoFuture() {
 
 void QuicConnection::ResetAckStates() {
   ack_alarm_->Cancel();
-  stop_waiting_count_ = 0;
   uber_received_packet_manager_.ResetAckStates(encryption_level_);
 }
 
 MessageStatus QuicConnection::SendMessage(
     QuicMessageId message_id, absl::Span<quiche::QuicheMemSlice> message,
     bool flush) {
-  if (!VersionSupportsMessageFrames(transport_version())) {
-    QUIC_BUG(quic_bug_10511_38)
-        << "MESSAGE frame is not supported for version " << transport_version();
-    return MESSAGE_STATUS_UNSUPPORTED;
-  }
   if (MemSliceSpanTotalSize(message) > GetCurrentLargestMessagePayload()) {
     return MESSAGE_STATUS_TOO_LARGE;
   }
@@ -5864,11 +5725,7 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   }
   if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT)) {
     if (encryption_level_ != ENCRYPTION_ZERO_RTT) {
-      if (version().HasIetfInvariantHeader()) {
-        QUIC_CODE_COUNT(quic_wrong_encryption_level_connection_close_ietf);
-      } else {
-        QUIC_CODE_COUNT(quic_wrong_encryption_level_connection_close);
-      }
+      QUIC_CODE_COUNT(quic_wrong_encryption_level_connection_close_ietf);
     }
     return ENCRYPTION_ZERO_RTT;
   }

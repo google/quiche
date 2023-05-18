@@ -80,10 +80,6 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // packets of the largest observed.
   virtual bool HasNewMissingPackets() const;
 
-  QuicPacketNumber peer_least_packet_awaiting_ack() const {
-    return peer_least_packet_awaiting_ack_;
-  }
-
   virtual bool ack_frame_updated() const;
 
   QuicPacketNumber GetLargestObserved() const;

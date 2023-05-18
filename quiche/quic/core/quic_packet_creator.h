@@ -119,9 +119,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   ~QuicPacketCreator();
 
-  // Makes the framer not serialize the protocol version in sent packets.
-  void StopSendingVersion();
-
   // SetDiversificationNonce sets the nonce that will be sent in each public
   // header of packets encrypted at the initial encryption level. Should only
   // be called by servers.
@@ -622,10 +619,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   QuicFramer* framer_;
   QuicRandom* random_;
 
-  // Controls whether version should be included while serializing the packet.
-  // send_version_in_packet_ should never be read directly, use
-  // IncludeVersionInHeader() instead.
-  bool send_version_in_packet_;
   // If true, then |diversification_nonce_| will be included in the header of
   // all packets created at the initial encryption level.
   bool have_diversification_nonce_;

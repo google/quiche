@@ -185,12 +185,6 @@ bool UberReceivedPacketManager::IsAckFrameEmpty(
   return received_packet_managers_[packet_number_space].IsAckFrameEmpty();
 }
 
-QuicPacketNumber UberReceivedPacketManager::peer_least_packet_awaiting_ack()
-    const {
-  QUICHE_DCHECK(!supports_multiple_packet_number_spaces_);
-  return received_packet_managers_[0].peer_least_packet_awaiting_ack();
-}
-
 size_t UberReceivedPacketManager::min_received_before_ack_decimation() const {
   return received_packet_managers_[0].min_received_before_ack_decimation();
 }

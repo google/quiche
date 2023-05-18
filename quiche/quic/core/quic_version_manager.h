@@ -65,8 +65,6 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   bool disable_version_q050_ = true;
   // quic_disable_version_q046 flag
   bool disable_version_q046_ = true;
-  // quic_disable_version_q043 flag
-  bool disable_version_q043_ = true;
 
   // The list of versions that may be supported.
   const ParsedQuicVersionVector allowed_supported_versions_;

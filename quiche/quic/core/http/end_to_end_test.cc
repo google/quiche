@@ -679,8 +679,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   bool SupportsIetfQuicWithTls(ParsedQuicVersion version) {
-    return version.HasIetfInvariantHeader() &&
-           version.handshake_protocol == PROTOCOL_TLS1_3;
+    return version.handshake_protocol == PROTOCOL_TLS1_3;
   }
 
   static void ExpectFlowControlsSynced(QuicSession* client,
@@ -2747,58 +2746,6 @@ TEST_P(EndToEndTest, MinInitialRTT) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTest, 0ByteConnectionId) {
-  if (version_.HasIetfInvariantHeader()) {
-    // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
-    ASSERT_TRUE(Initialize());
-    return;
-  }
-  client_config_.SetBytesForConnectionIdToSend(0);
-  ASSERT_TRUE(Initialize());
-
-  SendSynchronousFooRequestAndCheckResponse();
-  QuicConnection* client_connection = GetClientConnection();
-  ASSERT_TRUE(client_connection);
-  QuicPacketHeader* header =
-      QuicConnectionPeer::GetLastHeader(client_connection);
-  EXPECT_EQ(CONNECTION_ID_ABSENT, header->source_connection_id_included);
-}
-
-TEST_P(EndToEndTest, 8ByteConnectionId) {
-  if (version_.HasIetfInvariantHeader()) {
-    // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
-    ASSERT_TRUE(Initialize());
-    return;
-  }
-  client_config_.SetBytesForConnectionIdToSend(8);
-  ASSERT_TRUE(Initialize());
-
-  SendSynchronousFooRequestAndCheckResponse();
-  QuicConnection* client_connection = GetClientConnection();
-  ASSERT_TRUE(client_connection);
-  QuicPacketHeader* header =
-      QuicConnectionPeer::GetLastHeader(client_connection);
-  EXPECT_EQ(CONNECTION_ID_PRESENT, header->destination_connection_id_included);
-}
-
-TEST_P(EndToEndTest, 15ByteConnectionId) {
-  if (version_.HasIetfInvariantHeader()) {
-    // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
-    ASSERT_TRUE(Initialize());
-    return;
-  }
-  client_config_.SetBytesForConnectionIdToSend(15);
-  ASSERT_TRUE(Initialize());
-
-  // Our server is permissive and allows for out of bounds values.
-  SendSynchronousFooRequestAndCheckResponse();
-  QuicConnection* client_connection = GetClientConnection();
-  ASSERT_TRUE(client_connection);
-  QuicPacketHeader* header =
-      QuicConnectionPeer::GetLastHeader(client_connection);
-  EXPECT_EQ(CONNECTION_ID_PRESENT, header->destination_connection_id_included);
-}
-
 TEST_P(EndToEndTest, ResetConnection) {
   ASSERT_TRUE(Initialize());
 
@@ -4039,17 +3986,11 @@ TEST_P(EndToEndTest, ServerSendPublicReset) {
   QuicConnection* client_connection = GetClientConnection();
   ASSERT_TRUE(client_connection);
   QuicConnectionId connection_id = client_connection->connection_id();
-  QuicPublicResetPacket header;
-  header.connection_id = connection_id;
   QuicFramer framer(server_supported_versions_, QuicTime::Zero(),
                     Perspective::IS_SERVER, kQuicDefaultConnectionIdLength);
-  std::unique_ptr<QuicEncryptedPacket> packet;
-  if (version_.HasIetfInvariantHeader()) {
-    packet = framer.BuildIetfStatelessResetPacket(
-        connection_id, /*received_packet_length=*/100, stateless_reset_token);
-  } else {
-    packet = framer.BuildPublicResetPacket(header);
-  }
+  std::unique_ptr<QuicEncryptedPacket> packet =
+      framer.BuildIetfStatelessResetPacket(
+          connection_id, /*received_packet_length=*/100, stateless_reset_token);
   // We must pause the server's thread in order to call WritePacket without
   // race conditions.
   server_thread_->Pause();
@@ -4082,24 +4023,16 @@ TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
   ASSERT_TRUE(client_connection);
   QuicConnectionId incorrect_connection_id = TestConnectionId(
       TestConnectionIdToUInt64(client_connection->connection_id()) + 1);
-  QuicPublicResetPacket header;
-  header.connection_id = incorrect_connection_id;
   QuicFramer framer(server_supported_versions_, QuicTime::Zero(),
                     Perspective::IS_SERVER, kQuicDefaultConnectionIdLength);
-  std::unique_ptr<QuicEncryptedPacket> packet;
   NiceMock<MockQuicConnectionDebugVisitor> visitor;
   client_connection->set_debug_visitor(&visitor);
-  if (version_.HasIetfInvariantHeader()) {
-    packet = framer.BuildIetfStatelessResetPacket(
-        incorrect_connection_id, /*received_packet_length=*/100,
-        stateless_reset_token);
-    EXPECT_CALL(visitor, OnIncorrectConnectionId(incorrect_connection_id))
-        .Times(0);
-  } else {
-    packet = framer.BuildPublicResetPacket(header);
-    EXPECT_CALL(visitor, OnIncorrectConnectionId(incorrect_connection_id))
-        .Times(1);
-  }
+  std::unique_ptr<QuicEncryptedPacket> packet =
+      framer.BuildIetfStatelessResetPacket(incorrect_connection_id,
+                                           /*received_packet_length=*/100,
+                                           stateless_reset_token);
+  EXPECT_CALL(visitor, OnIncorrectConnectionId(incorrect_connection_id))
+      .Times(0);
   // We must pause the server's thread in order to call WritePacket without
   // race conditions.
   server_thread_->Pause();
@@ -4108,16 +4041,11 @@ TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
                               server_address_.host(), client_address, nullptr);
   server_thread_->Resume();
 
-  if (version_.HasIetfInvariantHeader()) {
-    // The request should fail. IETF stateless reset does not include connection
-    // ID.
-    EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
-    EXPECT_TRUE(client_->response_headers()->empty());
-    EXPECT_THAT(client_->connection_error(), IsError(QUIC_PUBLIC_RESET));
-  } else {
-    // The connection should be unaffected.
-    SendSynchronousFooRequestAndCheckResponse();
-  }
+  // The request should fail. IETF stateless reset does not include connection
+  // ID.
+  EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
+  EXPECT_TRUE(client_->response_headers()->empty());
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_PUBLIC_RESET));
 
   client_connection->set_debug_visitor(nullptr);
 }
@@ -4179,8 +4107,7 @@ TEST_P(EndToEndTest, ServerSendVersionNegotiationWithDifferentConnectionId) {
       TestConnectionIdToUInt64(client_connection->connection_id()) + 1);
   std::unique_ptr<QuicEncryptedPacket> packet(
       QuicFramer::BuildVersionNegotiationPacket(
-          incorrect_connection_id, EmptyQuicConnectionId(),
-          version_.HasIetfInvariantHeader(),
+          incorrect_connection_id, EmptyQuicConnectionId(), /*ietf_quic=*/true,
           version_.HasLengthPrefixedConnectionIds(),
           server_supported_versions_));
   NiceMock<MockQuicConnectionDebugVisitor> visitor;
@@ -4255,9 +4182,8 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
     // Send a version negotiation packet.
     std::unique_ptr<QuicEncryptedPacket> packet(
         QuicFramer::BuildVersionNegotiationPacket(
-            destination_connection_id, source_connection_id,
-            parsed_version.HasIetfInvariantHeader(), has_length_prefix,
-            supported_versions_));
+            destination_connection_id, source_connection_id, /*ietf_quic=*/true,
+            has_length_prefix, supported_versions_));
     server_writer_->WritePacket(
         packet->data(), packet->length(), peer_address.host(),
         client_->client()->network_helper()->GetLatestClientAddress(), nullptr);
@@ -4834,49 +4760,6 @@ TEST_P(EndToEndTest, DISABLED_TestHugeResponseWithPacketLoss) {
   VerifyCleanConnection(true);
 }
 
-// Regression test for b/111515567
-TEST_P(EndToEndTest, AgreeOnStopWaiting) {
-  ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
-
-  QuicConnection* client_connection = GetClientConnection();
-  ASSERT_TRUE(client_connection);
-  server_thread_->Pause();
-  QuicConnection* server_connection = GetServerConnection();
-  if (server_connection != nullptr) {
-    // Verify client and server connections agree on the value of
-    // no_stop_waiting_frames.
-    EXPECT_EQ(QuicConnectionPeer::GetNoStopWaitingFrames(client_connection),
-              QuicConnectionPeer::GetNoStopWaitingFrames(server_connection));
-  } else {
-    ADD_FAILURE() << "Missing server connection";
-  }
-  server_thread_->Resume();
-}
-
-// Regression test for b/111515567
-TEST_P(EndToEndTest, AgreeOnStopWaitingWithNoStopWaitingOption) {
-  QuicTagVector options;
-  options.push_back(kNSTP);
-  client_config_.SetConnectionOptionsToSend(options);
-  ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
-
-  QuicConnection* client_connection = GetClientConnection();
-  ASSERT_TRUE(client_connection);
-  server_thread_->Pause();
-  QuicConnection* server_connection = GetServerConnection();
-  if (server_connection != nullptr) {
-    // Verify client and server connections agree on the value of
-    // no_stop_waiting_frames.
-    EXPECT_EQ(QuicConnectionPeer::GetNoStopWaitingFrames(client_connection),
-              QuicConnectionPeer::GetNoStopWaitingFrames(server_connection));
-  } else {
-    ADD_FAILURE() << "Missing server connection";
-  }
-  server_thread_->Resume();
-}
-
 TEST_P(EndToEndTest, ReleaseHeadersStreamBufferWhenIdle) {
   // Tests that when client side has no active request and no waiting
   // PUSH_PROMISE, its headers stream's sequencer buffer should be released.
@@ -5243,10 +5126,6 @@ TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
 }
 
 TEST_P(EndToEndTest, SendMessages) {
-  if (!version_.SupportsMessageFrames()) {
-    Initialize();
-    return;
-  }
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   QuicSession* client_session = GetClientSession();
@@ -6001,11 +5880,6 @@ class BadShloPacketWriter : public QuicPacketWriterWrapper {
 };
 
 TEST_P(EndToEndTest, ConnectionCloseBeforeHandshakeComplete) {
-  if (!version_.HasIetfInvariantHeader()) {
-    // Only runs for IETF QUIC header.
-    Initialize();
-    return;
-  }
   // This test ensures ZERO_RTT_PROTECTED connection close could close a client
   // which has switched to forward secure.
   connect_to_server_on_initialize_ = false;
@@ -6076,12 +5950,8 @@ class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
 TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
   // This test ensures ZERO_RTT_PROTECTED connection close is sent to a client
   // which has ZERO_RTT_PROTECTED encryption level.
-  connect_to_server_on_initialize_ = !version_.HasIetfInvariantHeader();
+  connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfInvariantHeader()) {
-    // Only runs for IETF QUIC header.
-    return;
-  }
   server_thread_->Pause();
   QuicDispatcher* dispatcher =
       QuicServerPeer::GetDispatcher(server_thread_->server());

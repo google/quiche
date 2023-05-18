@@ -331,9 +331,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   // Called when a CRYPTO frame containing handshake data is received.
   virtual void OnCryptoFrame(const QuicCryptoFrame& /*frame*/) {}
 
-  // Called when a StopWaitingFrame has been parsed.
-  virtual void OnStopWaitingFrame(const QuicStopWaitingFrame& /*frame*/) {}
-
   // Called when a QuicPaddingFrame has been parsed.
   virtual void OnPaddingFrame(const QuicPaddingFrame& /*frame*/) {}
 
@@ -376,9 +373,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when a HandshakeDoneFrame has been parsed.
   virtual void OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& /*frame*/) {}
-
-  // Called when a public reset packet has been received.
-  virtual void OnPublicResetPacket(const QuicPublicResetPacket& /*packet*/) {}
 
   // Called when a version negotiation packet has been received.
   virtual void OnVersionNegotiationPacket(
@@ -669,7 +663,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnError(QuicFramer* framer) override;
   bool OnProtocolVersionMismatch(ParsedQuicVersion received_version) override;
   void OnPacket() override;
-  void OnPublicResetPacket(const QuicPublicResetPacket& packet) override;
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) override;
   void OnRetryPacket(QuicConnectionId original_connection_id,
@@ -1648,11 +1641,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Notifies the visitor of the close and marks the connection as disconnected.
   // Does not send a connection close frame to the peer. It should only be
-  // called by CloseConnection or OnConnectionCloseFrame, OnPublicResetPacket,
-  // and OnAuthenticatedIetfStatelessResetPacket.
-  // |ietf_error| may optionally be be used to directly specify the wire
-  // error code. Otherwise if |ietf_error| is NO_IETF_QUIC_ERROR, the
-  // QuicErrorCodeToTransportErrorCode mapping of |error| will be used.
+  // called by CloseConnection or OnConnectionCloseFrame, and
+  // OnAuthenticatedIetfStatelessResetPacket. |ietf_error| may optionally be be
+  // used to directly specify the wire error code. Otherwise if |ietf_error| is
+  // NO_IETF_QUIC_ERROR, the QuicErrorCodeToTransportErrorCode mapping of
+  // |error| will be used.
   void TearDownLocalConnectionState(QuicErrorCode error,
                                     QuicIetfTransportErrorCodes ietf_error,
                                     const std::string& details,
@@ -1720,11 +1713,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Flush packets buffered in the writer, if any.
   void FlushPackets();
-
-  // Make sure a stop waiting we got from our peer is sane.
-  // Returns nullptr if the frame is valid or an error string if it was invalid.
-  const char* ValidateStopWaitingFrame(
-      const QuicStopWaitingFrame& stop_waiting);
 
   // Clears any accumulated frames from the last received packet.
   void ClearLastFrames();
@@ -1799,9 +1787,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   ABSL_MUST_USE_RESULT bool UpdatePacketContent(QuicFrameType type);
 
   // Called when last received ack frame has been processed.
-  // |send_stop_waiting| indicates whether a stop waiting needs to be sent.
   // |acked_new_packet| is true if a previously-unacked packet was acked.
-  void PostProcessAfterAckFrame(bool send_stop_waiting, bool acked_new_packet);
+  void PostProcessAfterAckFrame(bool acked_new_packet);
 
   // Updates the release time into the future.
   void UpdateReleaseTimeIntoFuture();
@@ -1818,8 +1805,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Returns true if the ACK frame should be bundled with ACK-eliciting frame.
   bool ShouldBundleRetransmittableFrameWithAck() const;
-
-  void PopulateStopWaitingFrame(QuicStopWaitingFrame* stop_waiting);
 
   // Enables multiple packet number spaces support based on handshake protocol
   // and flags.
@@ -2142,11 +2127,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   UberReceivedPacketManager uber_received_packet_manager_;
 
-  // Indicates how many consecutive times an ack has arrived which indicates
-  // the peer needs to stop waiting for some packets.
-  // TODO(fayang): remove this when deprecating Q043.
-  int stop_waiting_count_;
-
   // Indicates the retransmission alarm needs to be set.
   bool pending_retransmission_alarm_;
 
@@ -2239,9 +2219,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Indicates whether a write error is encountered currently. This is used to
   // avoid infinite write errors.
   bool write_error_occurred_;
-
-  // Indicates not to send or process stop waiting frames.
-  bool no_stop_waiting_frames_;
 
   // Consecutive number of sent packets which have no retransmittable frames.
   size_t consecutive_num_packets_with_no_retransmittable_frames_;

@@ -49,14 +49,6 @@ class FramerVisitorCapturingPublicReset : public NoOpFramerVisitor {
       : connection_id_(connection_id) {}
   ~FramerVisitorCapturingPublicReset() override = default;
 
-  void OnPublicResetPacket(const QuicPublicResetPacket& public_reset) override {
-    public_reset_packet_ = public_reset;
-  }
-
-  const QuicPublicResetPacket public_reset_packet() {
-    return public_reset_packet_;
-  }
-
   bool IsValidStatelessResetToken(
       const StatelessResetToken& token) const override {
     return token == QuicUtils::GenerateStatelessResetToken(connection_id_);
@@ -72,7 +64,6 @@ class FramerVisitorCapturingPublicReset : public NoOpFramerVisitor {
   }
 
  private:
-  QuicPublicResetPacket public_reset_packet_;
   QuicIetfStatelessResetPacket stateless_reset_packet_;
   QuicConnectionId connection_id_;
 };
@@ -144,7 +135,7 @@ class QuicTimeWaitListManagerTest : public QuicTest {
 
   void AddConnectionId(QuicConnectionId connection_id,
                        QuicTimeWaitListManager::TimeWaitAction action) {
-    AddConnectionId(connection_id, QuicVersionMax(), action, nullptr);
+    AddConnectionId(connection_id, action, nullptr);
   }
 
   void AddStatelessConnectionId(QuicConnectionId connection_id) {
@@ -157,12 +148,12 @@ class QuicTimeWaitListManagerTest : public QuicTest {
   }
 
   void AddConnectionId(
-      QuicConnectionId connection_id, ParsedQuicVersion version,
+      QuicConnectionId connection_id,
       QuicTimeWaitListManager::TimeWaitAction action,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets) {
     time_wait_list_manager_.AddConnectionIdToTimeWait(
-        action, TimeWaitConnectionInfo(version.HasIetfInvariantHeader(),
-                                       packets, {connection_id}));
+        action,
+        TimeWaitConnectionInfo(/*ietf_quic=*/true, packets, {connection_id}));
   }
 
   bool IsConnectionIdInTimeWait(QuicConnectionId connection_id) {
@@ -204,11 +195,6 @@ bool ValidPublicResetPacketPredicate(
   QuicEncryptedPacket encrypted(std::get<0>(packet_buffer),
                                 std::get<1>(packet_buffer));
   framer.ProcessPacket(encrypted);
-  QuicPublicResetPacket packet = visitor.public_reset_packet();
-  bool public_reset_is_valid =
-      expected_connection_id == packet.connection_id &&
-      TestPeerIPAddress() == packet.client_address.host() &&
-      kTestPort == packet.client_address.port();
 
   QuicIetfStatelessResetPacket stateless_reset =
       visitor.stateless_reset_packet();
@@ -216,10 +202,8 @@ bool ValidPublicResetPacketPredicate(
   StatelessResetToken expected_stateless_reset_token =
       QuicUtils::GenerateStatelessResetToken(expected_connection_id);
 
-  bool stateless_reset_is_valid =
-      stateless_reset.stateless_reset_token == expected_stateless_reset_token;
-
-  return public_reset_is_valid || stateless_reset_is_valid;
+  return stateless_reset.stateless_reset_token ==
+         expected_stateless_reset_token;
 }
 
 Matcher<const std::tuple<const char*, int>> PublicResetPacketEq(
@@ -319,7 +303,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendConnectionClose) {
   termination_packets.push_back(
       std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(
           new char[kConnectionCloseLength], kConnectionCloseLength, true)));
-  AddConnectionId(connection_id_, QuicVersionMax(),
+  AddConnectionId(connection_id_,
                   QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
                   &termination_packets);
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
@@ -339,7 +323,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendTwoConnectionCloses) {
   termination_packets.push_back(
       std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(
           new char[kConnectionCloseLength], kConnectionCloseLength, true)));
-  AddConnectionId(connection_id_, QuicVersionMax(),
+  AddConnectionId(connection_id_,
                   QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
                   &termination_packets);
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
@@ -536,7 +520,7 @@ TEST_F(QuicTimeWaitListManagerTest, AddConnectionIdTwice) {
   termination_packets.push_back(
       std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(
           new char[kConnectionCloseLength], kConnectionCloseLength, true)));
-  AddConnectionId(connection_id_, QuicVersionMax(),
+  AddConnectionId(connection_id_,
                   QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
                   &termination_packets);
   EXPECT_TRUE(IsConnectionIdInTimeWait(connection_id_));

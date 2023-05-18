@@ -74,8 +74,6 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   // Return true if ack frame of |packet_number_space| is empty.
   bool IsAckFrameEmpty(PacketNumberSpace packet_number_space) const;
 
-  QuicPacketNumber peer_least_packet_awaiting_ack() const;
-
   size_t min_received_before_ack_decimation() const;
   void set_min_received_before_ack_decimation(size_t new_value);
 

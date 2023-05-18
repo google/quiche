@@ -639,10 +639,7 @@ TEST_F(QuicCryptoStreamTest, CryptoMessageFramingOverhead) {
   for (const ParsedQuicVersion& version :
        AllSupportedVersionsWithQuicCrypto()) {
     SCOPED_TRACE(version);
-    QuicByteCount expected_overhead = 48;
-    if (version.HasIetfInvariantHeader()) {
-      expected_overhead += 4;
-    }
+    QuicByteCount expected_overhead = 52;
     if (version.HasLongHeaderLengths()) {
       expected_overhead += 3;
     }

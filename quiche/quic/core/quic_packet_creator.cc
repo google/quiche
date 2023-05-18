@@ -115,7 +115,6 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       debug_delegate_(nullptr),
       framer_(framer),
       random_(random),
-      send_version_in_packet_(framer->perspective() == Perspective::IS_CLIENT),
       have_diversification_nonce_(false),
       max_packet_length_(0),
       server_connection_id_included_(CONNECTION_ID_PRESENT),
@@ -213,19 +212,6 @@ void QuicPacketCreator::SetSoftMaxPacketLength(QuicByteCount length) {
   latched_hard_max_packet_length_ = max_packet_length_;
   max_packet_length_ = length;
   max_plaintext_size_ = framer_->GetMaxPlaintextSize(length);
-}
-
-// Stops serializing version of the protocol in packets sent after this call.
-// A packet that is already open might send kQuicVersionSize bytes less than the
-// maximum packet size if we stop sending version before it is serialized.
-void QuicPacketCreator::StopSendingVersion() {
-  QUICHE_DCHECK(send_version_in_packet_) << ENDPOINT;
-  QUICHE_DCHECK(!version().HasIetfInvariantHeader()) << ENDPOINT;
-  send_version_in_packet_ = false;
-  if (packet_size_ > 0) {
-    QUICHE_DCHECK_LT(kQuicVersionSize, packet_size_) << ENDPOINT;
-    packet_size_ -= kQuicVersionSize;
-  }
 }
 
 void QuicPacketCreator::SetDiversificationNonce(
@@ -366,8 +352,8 @@ bool QuicPacketCreator::HasRoomForStreamFrame(QuicStreamId id,
 }
 
 bool QuicPacketCreator::HasRoomForMessageFrame(QuicByteCount length) {
-  const size_t message_frame_size = QuicFramer::GetMessageFrameSize(
-      framer_->transport_version(), /*last_frame_in_packet=*/true, length);
+  const size_t message_frame_size =
+      QuicFramer::GetMessageFrameSize(/*last_frame_in_packet=*/true, length);
   if (static_cast<QuicByteCount>(message_frame_size) >
       max_datagram_frame_size_) {
     return false;
@@ -609,7 +595,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
 
   QuicDataWriter writer(kMaxOutgoingPacketSize, encrypted_buffer);
   size_t length_field_offset = 0;
-  if (!framer_->AppendPacketHeader(header, &writer, &length_field_offset)) {
+  if (!framer_->AppendIetfPacketHeader(header, &writer, &length_field_offset)) {
     QUIC_BUG(quic_bug_10752_9) << ENDPOINT << "AppendPacketHeader failed";
     return;
   }
@@ -1968,10 +1954,7 @@ bool QuicPacketCreator::IncludeNonceInPublicHeader() const {
 }
 
 bool QuicPacketCreator::IncludeVersionInHeader() const {
-  if (version().HasIetfInvariantHeader()) {
-    return packet_.encryption_level < ENCRYPTION_FORWARD_SECURE;
-  }
-  return send_version_in_packet_;
+  return packet_.encryption_level < ENCRYPTION_FORWARD_SECURE;
 }
 
 void QuicPacketCreator::AddPendingPadding(QuicByteCount size) {
@@ -2016,9 +1999,6 @@ void QuicPacketCreator::SetClientConnectionId(
 }
 
 QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {
-  if (!VersionSupportsMessageFrames(framer_->transport_version())) {
-    return 0;
-  }
   const size_t packet_header_size = GetPacketHeaderSize(
       framer_->transport_version(), GetDestinationConnectionIdLength(),
       GetSourceConnectionIdLength(), IncludeVersionInHeader(),
@@ -2040,9 +2020,6 @@ QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {
 }
 
 QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
-  if (!VersionSupportsMessageFrames(framer_->transport_version())) {
-    return 0;
-  }
   // QUIC Crypto server packets may include a diversification nonce.
   const bool may_include_nonce =
       framer_->version().handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
@@ -2097,8 +2074,7 @@ bool QuicPacketCreator::AttemptingToSendUnencryptedStreamData() {
 }
 
 bool QuicPacketCreator::HasIetfLongHeader() const {
-  return version().HasIetfInvariantHeader() &&
-         packet_.encryption_level < ENCRYPTION_FORWARD_SECURE;
+  return packet_.encryption_level < ENCRYPTION_FORWARD_SECURE;
 }
 
 // static

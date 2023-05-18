@@ -39,16 +39,7 @@ using ::testing::ElementsAre;
 ParsedQuicVersionVector GetTestParams() {
   ParsedQuicVersionVector test_versions;
   SetQuicReloadableFlag(quic_disable_version_q046, false);
-  // TODO(b/113130636): Make QBONE work with TLS.
-  for (const auto& version : CurrentSupportedVersionsWithQuicCrypto()) {
-    // QBONE requires MESSAGE frames
-    if (!version.SupportsMessageFrames()) {
-      continue;
-    }
-    test_versions.push_back(version);
-  }
-
-  return test_versions;
+  return CurrentSupportedVersionsWithQuicCrypto();
 }
 
 std::string TestPacketIn(const std::string& body) {

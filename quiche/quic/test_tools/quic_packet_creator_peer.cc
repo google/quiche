@@ -19,12 +19,6 @@ bool QuicPacketCreatorPeer::SendVersionInPacket(QuicPacketCreator* creator) {
 // static
 void QuicPacketCreatorPeer::SetSendVersionInPacket(
     QuicPacketCreator* creator, bool send_version_in_packet) {
-  ParsedQuicVersion version = creator->framer_->version();
-  if (!VersionHasIetfQuicFrames(version.transport_version) &&
-      version.handshake_protocol != PROTOCOL_TLS1_3) {
-    creator->send_version_in_packet_ = send_version_in_packet;
-    return;
-  }
   if (!send_version_in_packet) {
     creator->packet_.encryption_level = ENCRYPTION_FORWARD_SECURE;
     return;

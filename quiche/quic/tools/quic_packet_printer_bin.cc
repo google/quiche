@@ -57,9 +57,6 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     return true;
   }
   void OnPacket() override { std::cerr << "OnPacket\n"; }
-  void OnPublicResetPacket(const QuicPublicResetPacket& /*packet*/) override {
-    std::cerr << "OnPublicResetPacket\n";
-  }
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& /*packet*/) override {
     std::cerr << "OnVersionNegotiationPacket\n";

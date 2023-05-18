@@ -106,8 +106,7 @@ enum QuicTransportVersion {
   //            or v41 are present in subsequent versions.
   // Version 42 allowed receiving overlapping stream data.
 
-  QUIC_VERSION_43 = 43,  // PRIORITY frames are sent by client and accepted by
-                         // server.
+  // Version 43 PRIORITY frames are sent by client and accepted by server.
   // Version 44 used IETF header format from draft-ietf-quic-invariants-05.
 
   // Version 45 added MESSAGE frame.
@@ -166,8 +165,8 @@ QUIC_EXPORT_PRIVATE constexpr bool QuicVersionUsesCryptoFrames(
 }
 
 // Returns whether this combination of handshake protocol and transport
-// version is allowed. For example, {PROTOCOL_TLS1_3, QUIC_VERSION_43} is NOT
-// allowed as TLS requires crypto frames which v43 does not support. Note that
+// version is allowed. For example, {PROTOCOL_TLS1_3, QUIC_VERSION_46} is NOT
+// allowed as TLS requires crypto frames which v46 does not support. Note that
 // UnsupportedQuicVersion is a valid version.
 QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
     HandshakeProtocol handshake_protocol,
@@ -179,7 +178,6 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
       QUIC_VERSION_IETF_DRAFT_29,
       QUIC_VERSION_50,
       QUIC_VERSION_46,
-      QUIC_VERSION_43,
       QUIC_VERSION_RESERVED_FOR_NEGOTIATION,
       QUIC_VERSION_UNSUPPORTED,
   };
@@ -270,10 +268,6 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
     return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46);
   }
 
-  static constexpr ParsedQuicVersion Q043() {
-    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43);
-  }
-
   static constexpr ParsedQuicVersion Unsupported() {
     return ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
   }
@@ -332,12 +326,6 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // Returns true if this version supports the old Google-style Alt-Svc
   // advertisement format.
   bool SupportsGoogleAltSvcFormat() const;
-
-  // Returns true if |transport_version| uses IETF invariant headers.
-  bool HasIetfInvariantHeader() const;
-
-  // Returns true if |transport_version| supports MESSAGE frames.
-  bool SupportsMessageFrames() const;
 
   // If true, HTTP/3 instead of gQUIC will be used at the HTTP layer.
   // Notable changes are:
@@ -410,11 +398,11 @@ constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
   return {PROTOCOL_TLS1_3, PROTOCOL_QUIC_CRYPTO};
 }
 
-constexpr std::array<ParsedQuicVersion, 6> SupportedVersions() {
+constexpr std::array<ParsedQuicVersion, 5> SupportedVersions() {
   return {
       ParsedQuicVersion::V2Draft08(), ParsedQuicVersion::RFCv1(),
       ParsedQuicVersion::Draft29(),   ParsedQuicVersion::Q050(),
-      ParsedQuicVersion::Q046(),      ParsedQuicVersion::Q043(),
+      ParsedQuicVersion::Q046(),
   };
 }
 
@@ -561,19 +549,6 @@ QUIC_EXPORT_PRIVATE inline std::string ParsedQuicVersionVectorToString(
     const ParsedQuicVersionVector& versions) {
   return ParsedQuicVersionVectorToString(versions, ",",
                                          std::numeric_limits<size_t>::max());
-}
-
-// Returns true if |transport_version| uses IETF invariant headers.
-QUIC_EXPORT_PRIVATE constexpr bool VersionHasIetfInvariantHeader(
-    QuicTransportVersion transport_version) {
-  return transport_version > QUIC_VERSION_43;
-}
-
-// Returns true if |transport_version| supports MESSAGE frames.
-QUIC_EXPORT_PRIVATE constexpr bool VersionSupportsMessageFrames(
-    QuicTransportVersion transport_version) {
-  // MESSAGE frames were added in version 45.
-  return transport_version > QUIC_VERSION_43;
 }
 
 // If true, HTTP/3 instead of gQUIC will be used at the HTTP layer.

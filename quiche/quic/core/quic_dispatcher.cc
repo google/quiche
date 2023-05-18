@@ -703,19 +703,6 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
     return result;
   }
 
-  // We only apply this check for versions that do not use the IETF
-  // invariant header because those versions are already checked in
-  // QuicDispatcher::MaybeDispatchPacket.
-  if (packet_info.version_flag &&
-      !packet_info.version.HasIetfInvariantHeader() &&
-      crypto_config()->validate_chlo_size() &&
-      packet_info.packet.length() < kMinClientInitialPacketLength) {
-    QUIC_DVLOG(1) << "Dropping CHLO packet which is too short, length: "
-                  << packet_info.packet.length();
-    QUIC_CODE_COUNT(quic_drop_small_chlo_packets);
-    return result;
-  }
-
   ParsedClientHello& parsed_chlo = result.parsed_chlo.emplace();
   parsed_chlo.sni = alpn_extractor.ConsumeSni();
   parsed_chlo.uaid = alpn_extractor.ConsumeUaid();
@@ -769,11 +756,7 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
     if (!connection->IsHandshakeComplete()) {
       // TODO(fayang): Do not serialize connection close packet if the
       // connection is closed by the client.
-      if (!connection->version().HasIetfInvariantHeader()) {
-        QUIC_CODE_COUNT(gquic_add_to_time_wait_list_with_handshake_failed);
-      } else {
-        QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_handshake_failed);
-      }
+      QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_handshake_failed);
       // This serializes a connection close termination packet and adds the
       // connection to the time wait list.
       StatelessConnectionTerminator terminator(
@@ -783,8 +766,7 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
       terminator.CloseConnection(
           QUIC_HANDSHAKE_FAILED,
           "Connection is closed by server before handshake confirmed",
-          connection->version().HasIetfInvariantHeader(),
-          connection->GetActiveServerConnectionIds());
+          /*ietf_quic=*/true, connection->GetActiveServerConnectionIds());
       return;
     }
     QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_stateless_reset);
@@ -792,8 +774,7 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
   time_wait_list_manager_->AddConnectionIdToTimeWait(
       action,
       TimeWaitConnectionInfo(
-          connection->version().HasIetfInvariantHeader(),
-          connection->termination_packets(),
+          /*ietf_quic=*/true, connection->termination_packets(),
           connection->GetActiveServerConnectionIds(),
           connection->sent_packet_manager().GetRttStats()->smoothed_rtt()));
 }

@@ -277,8 +277,6 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD(bool, OnProtocolVersionMismatch, (ParsedQuicVersion version),
               (override));
   MOCK_METHOD(void, OnPacket, (), (override));
-  MOCK_METHOD(void, OnPublicResetPacket, (const QuicPublicResetPacket& header),
-              (override));
   MOCK_METHOD(void, OnVersionNegotiationPacket,
               (const QuicVersionNegotiationPacket& packet), (override));
   MOCK_METHOD(void, OnRetryPacket,
@@ -371,7 +369,6 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
 
   void OnError(QuicFramer* /*framer*/) override {}
   void OnPacket() override {}
-  void OnPublicResetPacket(const QuicPublicResetPacket& /*packet*/) override {}
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& /*packet*/) override {}
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
@@ -1348,9 +1345,6 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
 
   MOCK_METHOD(void, OnCryptoFrame, (const QuicCryptoFrame&), (override));
 
-  MOCK_METHOD(void, OnStopWaitingFrame, (const QuicStopWaitingFrame&),
-              (override));
-
   MOCK_METHOD(void, OnRstStreamFrame, (const QuicRstStreamFrame&), (override));
 
   MOCK_METHOD(void, OnConnectionCloseFrame, (const QuicConnectionCloseFrame&),
@@ -1375,9 +1369,6 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
               (override));
 
   MOCK_METHOD(void, OnPathResponseFrame, (const QuicPathResponseFrame&),
-              (override));
-
-  MOCK_METHOD(void, OnPublicResetPacket, (const QuicPublicResetPacket&),
               (override));
 
   MOCK_METHOD(void, OnVersionNegotiationPacket,

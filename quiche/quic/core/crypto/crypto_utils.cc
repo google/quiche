@@ -94,7 +94,7 @@ std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
 
 const std::string getLabelForVersion(const ParsedQuicVersion& version,
                                      const absl::string_view& predicate) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync with HKDF labels");
   if (version == ParsedQuicVersion::V2Draft08()) {
     return absl::StrCat("quicv2 ", predicate);
@@ -172,7 +172,7 @@ const uint8_t kReservedForNegotiationSalt[] = {
 
 const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
                                      size_t* out_len) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync with initial encryption salts");
   if (version == ParsedQuicVersion::V2Draft08()) {
     *out_len = ABSL_ARRAYSIZE(kV2Draft08InitialSalt);
@@ -230,7 +230,7 @@ const uint8_t kReservedForNegotiationRetryIntegrityNonce[] = {
 bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
                                   absl::string_view* key,
                                   absl::string_view* nonce) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync with retry integrity keys");
   if (!version.UsesTls()) {
     QUIC_BUG(quic_bug_10699_2)

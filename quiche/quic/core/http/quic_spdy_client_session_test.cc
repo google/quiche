@@ -569,16 +569,11 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
   // Verify that a decryptable packet with bad frames does close the connection.
   QuicConnectionId destination_connection_id =
       session_->connection()->connection_id();
-  QuicConnectionId source_connection_id = EmptyQuicConnectionId();
+  QuicConnectionId source_connection_id = destination_connection_id;
   QuicFramerPeer::SetLastSerializedServerConnectionId(
       QuicConnectionPeer::GetFramer(connection_), destination_connection_id);
-  bool version_flag = false;
-  QuicConnectionIdIncluded scid_included = CONNECTION_ID_ABSENT;
-  if (version.HasIetfInvariantHeader()) {
-    version_flag = true;
-    source_connection_id = destination_connection_id;
-    scid_included = CONNECTION_ID_PRESENT;
-  }
+  bool version_flag = true;
+  QuicConnectionIdIncluded scid_included = CONNECTION_ID_PRESENT;
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructMisFramedEncryptedPacket(
       destination_connection_id, source_connection_id, version_flag, false, 100,
       "data", CONNECTION_ID_ABSENT, scid_included, PACKET_4BYTE_PACKET_NUMBER,
