@@ -389,6 +389,7 @@ void TlsHandshaker::SendAlert(EncryptionLevel level, uint8_t desc) {
 
 void TlsHandshaker::MessageCallback(bool is_write, int /*version*/,
                                     int content_type, absl::string_view data) {
+#if BORINGSSL_API_VERSION >= 17
   if (content_type == SSL3_RT_CLIENT_HELLO_INNER) {
     // Notify QuicConnectionDebugVisitor. Most TLS messages can be seen in
     // CRYPTO frames, but, with ECH enabled, the ClientHelloInner is encrypted
@@ -399,6 +400,11 @@ void TlsHandshaker::MessageCallback(bool is_write, int /*version*/,
       handshaker_delegate_->OnEncryptedClientHelloReceived(data);
     }
   }
+#else   // BORINGSSL_API_VERSION
+  (void)is_write;
+  (void)content_type;
+  (void)data;
+#endif  // BORINGSSL_API_VERSION
 }
 
 }  // namespace quic
