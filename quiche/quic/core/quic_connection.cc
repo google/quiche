@@ -2760,10 +2760,10 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   // Ensure the time coming from the packet reader is within 2 minutes of now.
   if (std::abs((packet.receipt_time() - clock_->ApproximateNow()).ToSeconds()) >
       2 * 60) {
-    QUIC_BUG(quic_bug_10511_21)
-        << "Packet receipt time:" << packet.receipt_time().ToDebuggingValue()
-        << " too far from current time:"
-        << clock_->ApproximateNow().ToDebuggingValue();
+    QUIC_LOG(WARNING) << "(Formerly quic_bug_10511_21): Packet receipt time: "
+                      << packet.receipt_time().ToDebuggingValue()
+                      << " too far from current time: "
+                      << clock_->ApproximateNow().ToDebuggingValue();
   }
   QUIC_DVLOG(1) << ENDPOINT << "time of last received packet: "
                 << packet.receipt_time().ToDebuggingValue() << " from peer "
