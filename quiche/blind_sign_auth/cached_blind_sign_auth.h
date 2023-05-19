@@ -46,6 +46,12 @@ class QUICHE_EXPORT CachedBlindSignAuth : public BlindSignAuthInterface {
                  std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)>
                      callback) override;
 
+  // Removes all tokens in the cache.
+  void ClearCache() {
+    QuicheWriterMutexLock lock(&mutex_);
+    cached_tokens_.clear();
+  }
+
  private:
   void HandleGetTokensResponse(
       absl::StatusOr<absl::Span<BlindSignToken>> tokens, int num_tokens,
