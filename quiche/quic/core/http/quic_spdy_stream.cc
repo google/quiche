@@ -32,6 +32,7 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/platform/api/quic_testvalue.h"
 #include "quiche/common/capsule.h"
 #include "quiche/common/quiche_mem_slice_storage.h"
 #include "quiche/common/quiche_text_utils.h"
@@ -1631,6 +1632,15 @@ constexpr bool isInvalidHeaderNameCharacter(unsigned char c) {
 
 bool QuicSpdyStream::ValidatedRequestHeaders(
     const QuicHeaderList& header_list) {
+  bool force_fail_validation = false;
+  AdjustTestValue("quic::QuicSpdyStream::request_header_validation_adjust",
+                  &force_fail_validation);
+  if (force_fail_validation) {
+    invalid_request_details_ =
+        "request_header_validation_adjust force failed the validation.";
+    QUIC_DLOG(ERROR) << invalid_request_details_;
+    return false;
+  }
   for (const std::pair<std::string, std::string>& pair : header_list) {
     const std::string& name = pair.first;
     if (std::any_of(name.begin(), name.end(), isInvalidHeaderNameCharacter)) {
