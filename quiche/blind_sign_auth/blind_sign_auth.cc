@@ -82,6 +82,16 @@ void BlindSignAuth::GetInitialDataCallback(
     callback(absl::InternalError("Failed to parse GetInitialDataResponse"));
     return;
   }
+  absl::StatusOr<absl::Time> public_metadata_expiry_time =
+      private_membership::anonymous_tokens::TimeFromProto(
+          initial_data_response.public_metadata_info()
+              .public_metadata()
+              .expiration());
+  if (!public_metadata_expiry_time.ok()) {
+    callback(
+        absl::InternalError("Failed to parse public metadata expiration time"));
+    return;
+  }
 
   // Create RSA BSSA client.
   auto bssa_client =
@@ -91,14 +101,6 @@ void BlindSignAuth::GetInitialDataCallback(
     QUICHE_LOG(WARNING) << "Failed to create AT BSSA client: "
                         << bssa_client.status();
     callback(bssa_client.status());
-    return;
-  }
-  absl::StatusOr<absl::Time> public_key_expiry_time =
-      private_membership::anonymous_tokens::TimeFromProto(
-          initial_data_response.at_public_metadata_public_key()
-              .expiration_time());
-  if (!public_key_expiry_time.ok()) {
-    callback(absl::InternalError("Failed to parse public key expiration time"));
     return;
   }
 
@@ -163,7 +165,7 @@ void BlindSignAuth::GetInitialDataCallback(
       "/v1/authWithHeaderCreds", oauth_token.data(),
       sign_request.SerializeAsString(),
       [this, at_sign_request, public_metadata_info,
-       expiry_time_ = public_key_expiry_time.value(),
+       expiry_time_ = public_metadata_expiry_time.value(),
        bssa_client_ = bssa_client.value().get(),
        callback](absl::StatusOr<BlindSignHttpResponse> response) {
         AuthAndSignCallback(response, public_metadata_info, expiry_time_,
