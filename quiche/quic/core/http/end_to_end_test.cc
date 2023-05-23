@@ -7113,7 +7113,7 @@ TEST_P(EndToEndTest, ServerReportsNotEct) {
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
   EXPECT_EQ(ecn->ce, 0);
-  client_connection->set_ecn_codepoint(ECN_NOT_ECT);
+  EXPECT_TRUE(client_connection->set_ecn_codepoint(ECN_NOT_ECT));
   client_->SendSynchronousRequest("/foo");
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
@@ -7133,7 +7133,7 @@ TEST_P(EndToEndTest, ServerReportsEct0) {
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
   EXPECT_EQ(ecn->ce, 0);
-  client_connection->set_ecn_codepoint(ECN_ECT0);
+  EXPECT_TRUE(client_connection->set_ecn_codepoint(ECN_ECT0));
   client_->SendSynchronousRequest("/foo");
   if (!GetQuicRestartFlag(quic_receive_ecn) ||
       !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
@@ -7159,7 +7159,7 @@ TEST_P(EndToEndTest, ServerReportsEct1) {
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
   EXPECT_EQ(ecn->ce, 0);
-  client_connection->set_ecn_codepoint(ECN_ECT1);
+  EXPECT_TRUE(client_connection->set_ecn_codepoint(ECN_ECT1));
   client_->SendSynchronousRequest("/foo");
   if (!GetQuicRestartFlag(quic_receive_ecn) ||
       !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
@@ -7185,7 +7185,7 @@ TEST_P(EndToEndTest, ServerReportsCe) {
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
   EXPECT_EQ(ecn->ce, 0);
-  client_connection->set_ecn_codepoint(ECN_CE);
+  EXPECT_TRUE(client_connection->set_ecn_codepoint(ECN_CE));
   client_->SendSynchronousRequest("/foo");
   if (!GetQuicRestartFlag(quic_receive_ecn) ||
       !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
@@ -7210,7 +7210,7 @@ TEST_P(EndToEndTest, ClientReportsEct1) {
   QuicEcnCounts* ecn = QuicSentPacketManagerPeer::GetPeerEcnCounts(
       QuicConnectionPeer::GetSentPacketManager(server_connection),
       APPLICATION_DATA);
-  server_connection->set_ecn_codepoint(ECN_ECT1);
+  EXPECT_TRUE(server_connection->set_ecn_codepoint(ECN_ECT1));
   client_->SendSynchronousRequest("/foo");
   // A second request provides a packet for the client ACKs to go with.
   client_->SendSynchronousRequest("/foo");

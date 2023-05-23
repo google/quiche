@@ -3915,7 +3915,7 @@ void QuicConnection::OnInFlightEcnPacketAcked() {
   // Only packets on the default path are in-flight.
   if (!default_path_.ecn_marked_packet_acked) {
     QUIC_DVLOG(1) << ENDPOINT << "First ECT packet acked on active path.";
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 2, 2);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 2, 3);
     default_path_.ecn_marked_packet_acked = true;
   }
 }
@@ -4073,11 +4073,6 @@ bool QuicConnection::IsKnownServerAddress(
 
 QuicEcnCodepoint QuicConnection::GetEcnCodepointToSend(
     const QuicSocketAddress& destination_address) const {
-  const QuicEcnCodepoint original_codepoint =
-      packet_writer_params_.ecn_codepoint;
-  if (disable_ecn_codepoint_validation_) {
-    return original_codepoint;
-  }
   // Don't send ECN marks on alternate paths. Sending ECN marks might
   // cause the connectivity check to fail on some networks.
   if (destination_address != peer_address()) {
@@ -4088,23 +4083,7 @@ QuicEcnCodepoint QuicConnection::GetEcnCodepointToSend(
   if (in_probe_time_out_ && !default_path_.ecn_marked_packet_acked) {
     return ECN_NOT_ECT;
   }
-  switch (original_codepoint) {
-    case ECN_NOT_ECT:
-      break;
-    case ECN_ECT0:
-      if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT0()) {
-        return ECN_NOT_ECT;
-      }
-      break;
-    case ECN_ECT1:
-      if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT1()) {
-        return ECN_NOT_ECT;
-      }
-      break;
-    case ECN_CE:
-      return ECN_NOT_ECT;
-  }
-  return original_codepoint;
+  return packet_writer_params_.ecn_codepoint;
 }
 
 WriteResult QuicConnection::SendPacketToWriter(
@@ -7369,6 +7348,36 @@ void QuicConnection::OnServerPreferredAddressValidated(
   QUIC_BUG_IF(failed to migrate to server preferred address, !success)
       << "Failed to migrate to server preferred address: "
       << context.peer_address() << " after successful validation";
+}
+
+bool QuicConnection::set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint) {
+  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+    return false;
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 3, 3);
+  if (disable_ecn_codepoint_validation_ || ecn_codepoint == ECN_NOT_ECT) {
+    packet_writer_params_.ecn_codepoint = ecn_codepoint;
+    return true;
+  }
+  switch (ecn_codepoint) {
+    case ECN_NOT_ECT:
+      QUICHE_DCHECK(false);
+      break;
+    case ECN_ECT0:
+      if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT0()) {
+        return false;
+      }
+      break;
+    case ECN_ECT1:
+      if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT1()) {
+        return false;
+      }
+      break;
+    case ECN_CE:
+      return false;
+  }
+  packet_writer_params_.ecn_codepoint = ecn_codepoint;
+  return true;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

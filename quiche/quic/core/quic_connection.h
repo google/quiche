@@ -1322,12 +1322,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Sets the ECN marking for all outgoing packets, assuming that the congestion
   // control supports that codepoint. QuicConnection will revert to sending
   // ECN_NOT_ECT if there is evidence the path is dropping ECN-marked packets,
-  // or if the peer provides invalid ECN feedback.
-  void set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint) {
-    if (GetQuicReloadableFlag(quic_send_ect1)) {
-      packet_writer_params_.ecn_codepoint = ecn_codepoint;
-    }
-  }
+  // or if the peer provides invalid ECN feedback. Returns false if the current
+  // configuration prevents setting the desired codepoint.
+  bool set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint);
 
   QuicEcnCodepoint ecn_codepoint() const {
     return packet_writer_params_.ecn_codepoint;

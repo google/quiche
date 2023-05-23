@@ -17111,15 +17111,19 @@ TEST_P(QuicConnectionTest,
 TEST_P(QuicConnectionTest, EcnCodepointsRejected) {
   SetQuicReloadableFlag(quic_send_ect1, true);
   for (QuicEcnCodepoint ecn : {ECN_NOT_ECT, ECN_ECT0, ECN_ECT1, ECN_CE}) {
-    connection_.set_ecn_codepoint(ecn);
     if (ecn == ECN_ECT0) {
       EXPECT_CALL(*send_algorithm_, SupportsECT0()).WillOnce(Return(false));
     } else if (ecn == ECN_ECT1) {
       EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillOnce(Return(false));
     }
+    if (ecn == ECN_NOT_ECT) {
+      EXPECT_TRUE(connection_.set_ecn_codepoint(ecn));
+    } else {
+      EXPECT_FALSE(connection_.set_ecn_codepoint(ecn));
+    }
+    EXPECT_EQ(connection_.ecn_codepoint(), ECN_NOT_ECT);
     EXPECT_CALL(connection_, OnSerializedPacket(_));
     SendPing();
-    EXPECT_EQ(connection_.ecn_codepoint(), ecn);
     EXPECT_EQ(writer_->last_ecn_sent(), ECN_NOT_ECT);
   }
 }
@@ -17127,19 +17131,23 @@ TEST_P(QuicConnectionTest, EcnCodepointsRejected) {
 TEST_P(QuicConnectionTest, EcnCodepointsAccepted) {
   SetQuicReloadableFlag(quic_send_ect1, true);
   for (QuicEcnCodepoint ecn : {ECN_NOT_ECT, ECN_ECT0, ECN_ECT1, ECN_CE}) {
-    connection_.set_ecn_codepoint(ecn);
     if (ecn == ECN_ECT0) {
       EXPECT_CALL(*send_algorithm_, SupportsECT0()).WillOnce(Return(true));
     } else if (ecn == ECN_ECT1) {
       EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillOnce(Return(true));
     }
+    if (ecn == ECN_CE) {
+      EXPECT_FALSE(connection_.set_ecn_codepoint(ecn));
+    } else {
+      EXPECT_TRUE(connection_.set_ecn_codepoint(ecn));
+    }
     EXPECT_CALL(connection_, OnSerializedPacket(_));
     SendPing();
     QuicEcnCodepoint expected_codepoint = ecn;
     if (ecn == ECN_CE) {
-      expected_codepoint = ECN_NOT_ECT;
+      expected_codepoint = ECN_ECT1;
     }
-    EXPECT_EQ(connection_.ecn_codepoint(), ecn);
+    EXPECT_EQ(connection_.ecn_codepoint(), expected_codepoint);
     EXPECT_EQ(writer_->last_ecn_sent(), expected_codepoint);
   }
 }
@@ -17147,7 +17155,7 @@ TEST_P(QuicConnectionTest, EcnCodepointsAccepted) {
 TEST_P(QuicConnectionTest, EcnCodepointsRejectedIfFlagIsFalse) {
   SetQuicReloadableFlag(quic_send_ect1, false);
   for (QuicEcnCodepoint ecn : {ECN_NOT_ECT, ECN_ECT0, ECN_ECT1, ECN_CE}) {
-    connection_.set_ecn_codepoint(ecn);
+    EXPECT_FALSE(connection_.set_ecn_codepoint(ecn));
     EXPECT_CALL(connection_, OnSerializedPacket(_));
     SendPing();
     EXPECT_EQ(connection_.ecn_codepoint(), ECN_NOT_ECT);
@@ -17159,7 +17167,7 @@ TEST_P(QuicConnectionTest, EcnValidationDisabled) {
   SetQuicReloadableFlag(quic_send_ect1, true);
   QuicConnectionPeer::DisableEcnCodepointValidation(&connection_);
   for (QuicEcnCodepoint ecn : {ECN_NOT_ECT, ECN_ECT0, ECN_ECT1, ECN_CE}) {
-    connection_.set_ecn_codepoint(ecn);
+    EXPECT_TRUE(connection_.set_ecn_codepoint(ecn));
     EXPECT_CALL(connection_, OnSerializedPacket(_));
     SendPing();
     EXPECT_EQ(connection_.ecn_codepoint(), ecn);
@@ -17169,8 +17177,8 @@ TEST_P(QuicConnectionTest, EcnValidationDisabled) {
 
 TEST_P(QuicConnectionTest, RtoDisablesEcnMarking) {
   SetQuicReloadableFlag(quic_send_ect1, true);
-  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
-  connection_.set_ecn_codepoint(ECN_ECT1);
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillOnce(Return(true));
+  EXPECT_TRUE(connection_.set_ecn_codepoint(ECN_ECT1));
   QuicPacketCreatorPeer::SetPacketNumber(
       QuicConnectionPeer::GetPacketCreator(&connection_), 1);
   SendPing();
@@ -17184,8 +17192,9 @@ TEST_P(QuicConnectionTest, RtoDisablesEcnMarking) {
 }
 
 TEST_P(QuicConnectionTest, RtoDoesntDisableEcnMarkingIfEcnAcked) {
-  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
-  connection_.set_ecn_codepoint(ECN_ECT1);
+  SetQuicReloadableFlag(quic_send_ect1, true);
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillOnce(Return(true));
+  EXPECT_TRUE(connection_.set_ecn_codepoint(ECN_ECT1));
   QuicPacketCreatorPeer::SetPacketNumber(
       QuicConnectionPeer::GetPacketCreator(&connection_), 1);
   if (!GetQuicReloadableFlag(quic_send_ect1)) {
@@ -17209,8 +17218,8 @@ TEST_P(QuicConnectionTest, RtoDoesntDisableEcnMarkingIfEcnAcked) {
 
 TEST_P(QuicConnectionTest, InvalidFeedbackCancelsEcn) {
   SetQuicReloadableFlag(quic_send_ect1, true);
-  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
-  connection_.set_ecn_codepoint(ECN_ECT1);
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillOnce(Return(true));
+  EXPECT_TRUE(connection_.set_ecn_codepoint(ECN_ECT1));
   EXPECT_EQ(connection_.ecn_codepoint(), ECN_ECT1);
   if (!GetQuicReloadableFlag(quic_send_ect1)) {
     EXPECT_QUIC_BUG(connection_.OnInvalidEcnFeedback(),
@@ -17224,8 +17233,8 @@ TEST_P(QuicConnectionTest, InvalidFeedbackCancelsEcn) {
 
 TEST_P(QuicConnectionTest, StateMatchesSentEcn) {
   SetQuicReloadableFlag(quic_send_ect1, true);
-  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
-  connection_.set_ecn_codepoint(ECN_ECT1);
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillOnce(Return(true));
+  EXPECT_TRUE(connection_.set_ecn_codepoint(ECN_ECT1));
   SendPing();
   QuicSentPacketManager* sent_packet_manager =
       QuicConnectionPeer::GetSentPacketManager(&connection_);
@@ -17240,8 +17249,8 @@ TEST_P(QuicConnectionTest, CoalescedPacketSplitsEcn) {
     return;
   }
   SetQuicReloadableFlag(quic_send_ect1, true);
-  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
-  connection_.set_ecn_codepoint(ECN_ECT1);
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillOnce(Return(true));
+  EXPECT_TRUE(connection_.set_ecn_codepoint(ECN_ECT1));
   // All these steps are necessary to send an INITIAL ping and save it to be
   // coalesced, instead of just calling SendPing() and sending it immediately.
   char buffer[1000];
@@ -17253,9 +17262,9 @@ TEST_P(QuicConnectionTest, CoalescedPacketSplitsEcn) {
       creator_, frames, buffer, sizeof(buffer));
   connection_.SendOrQueuePacket(std::move(packet1));
   creator_->set_encryption_level(ENCRYPTION_FORWARD_SECURE);
-  EXPECT_CALL(*send_algorithm_, SupportsECT0()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*send_algorithm_, SupportsECT0()).WillOnce(Return(true));
   // If not for the line below, these packets would coalesce.
-  connection_.set_ecn_codepoint(ECN_ECT0);
+  EXPECT_TRUE(connection_.set_ecn_codepoint(ECN_ECT0));
   EXPECT_EQ(writer_->packets_write_attempts(), 0);
   SendPing();
   EXPECT_EQ(writer_->packets_write_attempts(), 2);
@@ -17264,13 +17273,13 @@ TEST_P(QuicConnectionTest, CoalescedPacketSplitsEcn) {
 
 TEST_P(QuicConnectionTest, BufferedPacketRetainsOldEcn) {
   SetQuicReloadableFlag(quic_send_ect1, true);
-  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillRepeatedly(Return(true));
-  connection_.set_ecn_codepoint(ECN_ECT1);
+  EXPECT_CALL(*send_algorithm_, SupportsECT1()).WillOnce(Return(true));
+  EXPECT_TRUE(connection_.set_ecn_codepoint(ECN_ECT1));
   writer_->SetWriteBlocked();
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(2);
   SendPing();
-  EXPECT_CALL(*send_algorithm_, SupportsECT0()).WillRepeatedly(Return(true));
-  connection_.set_ecn_codepoint(ECN_ECT0);
+  EXPECT_CALL(*send_algorithm_, SupportsECT0()).WillOnce(Return(true));
+  EXPECT_TRUE(connection_.set_ecn_codepoint(ECN_ECT0));
   writer_->SetWritable();
   connection_.OnCanWrite();
   EXPECT_EQ(writer_->last_ecn_sent(), ECN_ECT1);
