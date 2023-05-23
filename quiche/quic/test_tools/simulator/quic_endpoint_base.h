@@ -88,6 +88,7 @@ class QuicEndpointBase : public Endpoint,
         const QuicSocketAddress& peer_address) const override;
     bool SupportsReleaseTime() const override;
     bool IsBatchMode() const override;
+    bool SupportsEcn() const override { return false; }
     QuicPacketBuffer GetNextWriteLocation(
         const QuicIpAddress& self_address,
         const QuicSocketAddress& peer_address) override;

@@ -52,6 +52,8 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
 
   bool IsBatchMode() const final { return true; }
 
+  bool SupportsEcn() const override { return false; }
+
   QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& /*self_address*/,
       const QuicSocketAddress& /*peer_address*/) final {

@@ -1196,6 +1196,7 @@ class MockPacketWriter : public QuicPacketWriter {
               (const QuicSocketAddress& peer_address), (const, override));
   MOCK_METHOD(bool, SupportsReleaseTime, (), (const, override));
   MOCK_METHOD(bool, IsBatchMode, (), (const, override));
+  MOCK_METHOD(bool, SupportsEcn, (), (const, override));
   MOCK_METHOD(QuicPacketBuffer, GetNextWriteLocation,
               (const QuicIpAddress& self_address,
                const QuicSocketAddress& peer_address),
@@ -1858,6 +1859,8 @@ class TestPacketWriter : public QuicPacketWriter {
   bool SupportsReleaseTime() const override { return supports_release_time_; }
 
   bool IsBatchMode() const override { return is_batch_mode_; }
+
+  bool SupportsEcn() const override { return true; }
 
   QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& /*self_address*/,

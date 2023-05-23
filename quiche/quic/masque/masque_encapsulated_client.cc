@@ -199,6 +199,8 @@ class MasquePacketWriter : public QuicPacketWriter {
   bool SupportsReleaseTime() const override { return false; }
 
   bool IsBatchMode() const override { return false; }
+
+  bool SupportsEcn() const override { return false; }
   QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& /*self_address*/,
       const QuicSocketAddress& /*peer_address*/) override {

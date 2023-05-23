@@ -141,6 +141,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
   // True=Batch mode. False=PassThrough mode.
   virtual bool IsBatchMode() const = 0;
 
+  // Returns true if the writer will mark ECN on packets it writes.
+  virtual bool SupportsEcn() const = 0;
+
   // PassThrough mode: Return {nullptr, nullptr}
   //
   // Batch mode:
