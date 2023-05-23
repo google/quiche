@@ -27,7 +27,8 @@ class QUIC_NO_EXPORT QuicPacketWriterWrapper : public QuicPacketWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override;
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override;
   bool IsWriteBlocked() const override;
   void SetWritable() override;
   absl::optional<int> MessageTooBigErrorCode() const override;

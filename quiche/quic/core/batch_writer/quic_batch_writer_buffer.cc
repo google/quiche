@@ -54,7 +54,7 @@ char* QuicBatchWriterBuffer::GetNextWriteLocation() const {
 QuicBatchWriterBuffer::PushResult QuicBatchWriterBuffer::PushBufferedWrite(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
     const QuicSocketAddress& peer_address, const PerPacketOptions* options,
-    uint64_t release_time) {
+    const QuicPacketWriterParams& params, uint64_t release_time) {
   QUICHE_DCHECK(Invariants());
   QUICHE_DCHECK_LE(buf_len, kMaxOutgoingPacketSize);
 
@@ -84,7 +84,7 @@ QuicBatchWriterBuffer::PushResult QuicBatchWriterBuffer::PushBufferedWrite(
   }
   buffered_writes_.emplace_back(
       next_write_location, buf_len, self_address, peer_address,
-      options ? options->Clone() : std::unique_ptr<PerPacketOptions>(),
+      options ? options->Clone() : std::unique_ptr<PerPacketOptions>(), params,
       release_time);
 
   QUICHE_DCHECK(Invariants());

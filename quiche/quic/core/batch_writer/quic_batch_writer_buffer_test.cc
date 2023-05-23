@@ -52,7 +52,8 @@ class QuicBatchWriterBufferTest : public QuicTest {
   void CheckBufferedWriteContent(int buffered_write_index, char buffer_content,
                                  size_t buf_len, const QuicIpAddress& self_addr,
                                  const QuicSocketAddress& peer_addr,
-                                 const PerPacketOptions* options) {
+                                 const PerPacketOptions* /*options*/,
+                                 const QuicPacketWriterParams& params) {
     const BufferedWrite& buffered_write =
         batch_buffer_->buffered_writes()[buffered_write_index];
     EXPECT_EQ(buf_len, buffered_write.buf_len);
@@ -64,12 +65,8 @@ class QuicBatchWriterBufferTest : public QuicTest {
     }
     EXPECT_EQ(self_addr, buffered_write.self_address);
     EXPECT_EQ(peer_addr, buffered_write.peer_address);
-    if (options == nullptr) {
-      EXPECT_EQ(nullptr, buffered_write.options);
-    } else {
-      EXPECT_EQ(options->release_time_delay,
-                buffered_write.options->release_time_delay);
-    }
+    EXPECT_EQ(params.release_time_delay,
+              buffered_write.params.release_time_delay);
   }
 
  protected:
@@ -141,7 +138,8 @@ TEST_F(QuicBatchWriterBufferTest, InPlacePushes) {
                    << ", batch_buffer=" << batch_buffer_->DebugString());
 
       auto push_result = batch_buffer_->PushBufferedWrite(
-          buffer, buf_len, self_addr_, peer_addr_, nullptr, release_time_);
+          buffer, buf_len, self_addr_, peer_addr_, nullptr,
+          QuicPacketWriterParams(), release_time_);
       if (!push_result.succeeded) {
         ++num_push_failures;
       }
@@ -160,49 +158,51 @@ TEST_F(QuicBatchWriterBufferTest, InPlacePushes) {
 TEST_F(QuicBatchWriterBufferTest, MixedPushes) {
   // First, a in-place push.
   char* buffer = batch_buffer_->GetNextWriteLocation();
+  QuicPacketWriterParams params;
   auto push_result = batch_buffer_->PushBufferedWrite(
       FillPacketBuffer('A', buffer), kDefaultMaxPacketSize, self_addr_,
-      peer_addr_, nullptr, release_time_);
+      peer_addr_, nullptr, params, release_time_);
   EXPECT_TRUE(push_result.succeeded);
   EXPECT_FALSE(push_result.buffer_copied);
   CheckBufferedWriteContent(0, 'A', kDefaultMaxPacketSize, self_addr_,
-                            peer_addr_, nullptr);
+                            peer_addr_, nullptr, params);
 
   // Then a push with external buffer.
   push_result = batch_buffer_->PushBufferedWrite(
       FillPacketBuffer('B'), kDefaultMaxPacketSize, self_addr_, peer_addr_,
-      nullptr, release_time_);
+      nullptr, params, release_time_);
   EXPECT_TRUE(push_result.succeeded);
   EXPECT_TRUE(push_result.buffer_copied);
   CheckBufferedWriteContent(1, 'B', kDefaultMaxPacketSize, self_addr_,
-                            peer_addr_, nullptr);
+                            peer_addr_, nullptr, params);
 
   // Then another in-place push.
   buffer = batch_buffer_->GetNextWriteLocation();
   push_result = batch_buffer_->PushBufferedWrite(
       FillPacketBuffer('C', buffer), kDefaultMaxPacketSize, self_addr_,
-      peer_addr_, nullptr, release_time_);
+      peer_addr_, nullptr, params, release_time_);
   EXPECT_TRUE(push_result.succeeded);
   EXPECT_FALSE(push_result.buffer_copied);
   CheckBufferedWriteContent(2, 'C', kDefaultMaxPacketSize, self_addr_,
-                            peer_addr_, nullptr);
+                            peer_addr_, nullptr, params);
 
   // Then another push with external buffer.
   push_result = batch_buffer_->PushBufferedWrite(
       FillPacketBuffer('D'), kDefaultMaxPacketSize, self_addr_, peer_addr_,
-      nullptr, release_time_);
+      nullptr, params, release_time_);
   EXPECT_TRUE(push_result.succeeded);
   EXPECT_TRUE(push_result.buffer_copied);
   CheckBufferedWriteContent(3, 'D', kDefaultMaxPacketSize, self_addr_,
-                            peer_addr_, nullptr);
+                            peer_addr_, nullptr, params);
 }
 
 TEST_F(QuicBatchWriterBufferTest, PopAll) {
   const int kNumBufferedWrites = 10;
+  QuicPacketWriterParams params;
   for (int i = 0; i < kNumBufferedWrites; ++i) {
     EXPECT_TRUE(batch_buffer_
                     ->PushBufferedWrite(packet_buffer_, kDefaultMaxPacketSize,
-                                        self_addr_, peer_addr_, nullptr,
+                                        self_addr_, peer_addr_, nullptr, params,
                                         release_time_)
                     .succeeded);
   }
@@ -217,11 +217,12 @@ TEST_F(QuicBatchWriterBufferTest, PopAll) {
 
 TEST_F(QuicBatchWriterBufferTest, PopPartial) {
   const int kNumBufferedWrites = 10;
+  QuicPacketWriterParams params;
   for (int i = 0; i < kNumBufferedWrites; ++i) {
     EXPECT_TRUE(batch_buffer_
-                    ->PushBufferedWrite(FillPacketBuffer('A' + i),
-                                        kDefaultMaxPacketSize - i, self_addr_,
-                                        peer_addr_, nullptr, release_time_)
+                    ->PushBufferedWrite(
+                        FillPacketBuffer('A' + i), kDefaultMaxPacketSize - i,
+                        self_addr_, peer_addr_, nullptr, params, release_time_)
                     .succeeded);
   }
 
@@ -239,7 +240,7 @@ TEST_F(QuicBatchWriterBufferTest, PopPartial) {
         kDefaultMaxPacketSize - kNumBufferedWrites + expect_size_after_pop;
     for (size_t j = 0; j < expect_size_after_pop; ++j) {
       CheckBufferedWriteContent(j, first_write_content + j, first_write_len - j,
-                                self_addr_, peer_addr_, nullptr);
+                                self_addr_, peer_addr_, nullptr, params);
     }
   }
 }
@@ -248,13 +249,14 @@ TEST_F(QuicBatchWriterBufferTest, InPlacePushWithPops) {
   // First, a in-place push.
   char* buffer = batch_buffer_->GetNextWriteLocation();
   const size_t first_packet_len = 2;
+  QuicPacketWriterParams params;
   auto push_result = batch_buffer_->PushBufferedWrite(
       FillPacketBuffer('A', buffer, first_packet_len), first_packet_len,
-      self_addr_, peer_addr_, nullptr, release_time_);
+      self_addr_, peer_addr_, nullptr, params, release_time_);
   EXPECT_TRUE(push_result.succeeded);
   EXPECT_FALSE(push_result.buffer_copied);
   CheckBufferedWriteContent(0, 'A', first_packet_len, self_addr_, peer_addr_,
-                            nullptr);
+                            nullptr, params);
 
   // Simulate the case where the writer wants to do another in-place push, but
   // can't do so because it can't be batched with the first buffer.
@@ -269,11 +271,11 @@ TEST_F(QuicBatchWriterBufferTest, InPlacePushWithPops) {
   // Now the second push.
   push_result = batch_buffer_->PushBufferedWrite(
       FillPacketBuffer('B', buffer, second_packet_len), second_packet_len,
-      self_addr_, peer_addr_, nullptr, release_time_);
+      self_addr_, peer_addr_, nullptr, params, release_time_);
   EXPECT_TRUE(push_result.succeeded);
   EXPECT_TRUE(push_result.buffer_copied);
   CheckBufferedWriteContent(0, 'B', second_packet_len, self_addr_, peer_addr_,
-                            nullptr);
+                            nullptr, params);
 }
 
 }  // namespace

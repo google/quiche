@@ -3251,7 +3251,7 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
 
 QuicTime QuicConnection::CalculatePacketSentTime() {
   const QuicTime now = clock_->Now();
-  if (!supports_release_time_ || per_packet_options_ == nullptr) {
+  if (!supports_release_time_) {
     // Don't change the release delay.
     return now;
   }
@@ -3261,8 +3261,8 @@ QuicTime QuicConnection::CalculatePacketSentTime() {
   // Release before |now| is impossible.
   QuicTime next_release_time =
       std::max(now, next_release_time_result.release_time);
-  per_packet_options_->release_time_delay = next_release_time - now;
-  per_packet_options_->allow_burst = next_release_time_result.allow_burst;
+  packet_writer_params_.release_time_delay = next_release_time - now;
+  packet_writer_params_.allow_burst = next_release_time_result.allow_burst;
   return next_release_time;
 }
 
@@ -3929,7 +3929,7 @@ void QuicConnection::OnInvalidEcnFeedback() {
     return;
   }
   QUIC_DVLOG(1) << ENDPOINT << "ECN feedback is invalid, stop marking.";
-  ClearEcnCodepoint();
+  packet_writer_params_.ecn_codepoint = ECN_NOT_ECT;
 }
 
 std::unique_ptr<QuicSelfIssuedConnectionIdManager>
@@ -4073,7 +4073,8 @@ bool QuicConnection::IsKnownServerAddress(
 
 QuicEcnCodepoint QuicConnection::GetEcnCodepointToSend(
     const QuicSocketAddress& destination_address) const {
-  const QuicEcnCodepoint original_codepoint = GetNextEcnCodepoint();
+  const QuicEcnCodepoint original_codepoint =
+      packet_writer_params_.ecn_codepoint;
   if (disable_ecn_codepoint_validation_) {
     return original_codepoint;
   }
@@ -4106,24 +4107,16 @@ QuicEcnCodepoint QuicConnection::GetEcnCodepointToSend(
   return original_codepoint;
 }
 
-void QuicConnection::ClearEcnCodepoint() { MaybeSetEcnCodepoint(ECN_NOT_ECT); }
-
-void QuicConnection::MaybeSetEcnCodepoint(QuicEcnCodepoint ecn_codepoint) {
-  if (per_packet_options_ != nullptr) {
-    per_packet_options_->ecn_codepoint = ecn_codepoint;
-  }
-}
-
 WriteResult QuicConnection::SendPacketToWriter(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
     const QuicSocketAddress& destination_address, QuicPacketWriter* writer,
     const QuicEcnCodepoint ecn_codepoint) {
-  QuicEcnCodepoint original_codepoint = GetNextEcnCodepoint();
+  QuicPacketWriterParams params = packet_writer_params_;
+  params.ecn_codepoint = ecn_codepoint;
   last_ecn_codepoint_sent_ = ecn_codepoint;
-  MaybeSetEcnCodepoint(ecn_codepoint);
-  WriteResult result = writer->WritePacket(
-      buffer, buf_len, self_address, destination_address, per_packet_options_);
-  MaybeSetEcnCodepoint(original_codepoint);
+  WriteResult result =
+      writer->WritePacket(buffer, buf_len, self_address, destination_address,
+                          per_packet_options_, params);
   return result;
 }
 
@@ -4231,7 +4224,7 @@ void QuicConnection::OnRetransmissionTimeout() {
   if (!HasQueuedData() && !retransmission_alarm_->IsSet()) {
     SetRetransmissionAlarm();
   }
-  if (GetNextEcnCodepoint() == ECN_NOT_ECT ||
+  if (packet_writer_params_.ecn_codepoint == ECN_NOT_ECT ||
       default_path_.ecn_marked_packet_acked) {
     return;
   }

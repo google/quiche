@@ -30,9 +30,10 @@ class LevelTriggeredPacketWriter : public QuicDefaultPacketWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override {
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override {
     WriteResult result = QuicDefaultPacketWriter::WritePacket(
-        buffer, buf_len, self_address, peer_address, options);
+        buffer, buf_len, self_address, peer_address, options, params);
     if (IsWriteBlockedStatus(result.status)) {
       bool success = event_loop_->RearmSocket(fd(), kSocketEventWritable);
       QUICHE_DCHECK(success);

@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_PACKET_REORDERING_WRITER_H_
 #define QUICHE_QUIC_TEST_TOOLS_PACKET_REORDERING_WRITER_H_
 
+#include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
 
 namespace quic {
@@ -25,7 +26,8 @@ class PacketReorderingWriter : public QuicPacketWriterWrapper {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override;
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override;
 
   void SetDelay(size_t num_packets_to_wait);
 
@@ -36,6 +38,7 @@ class PacketReorderingWriter : public QuicPacketWriterWrapper {
   QuicIpAddress delayed_self_address_;
   QuicSocketAddress delayed_peer_address_;
   std::unique_ptr<PerPacketOptions> delayed_options_;
+  QuicPacketWriterParams delayed_params_;
 };
 
 }  // namespace test

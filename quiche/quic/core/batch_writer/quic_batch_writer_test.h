@@ -195,7 +195,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTest
 
       result = GetWriter()->WritePacket(&packet_buffer_[0], this_packet_size,
                                         self_address_.host(), peer_address_,
-                                        nullptr);
+                                        nullptr, QuicPacketWriterParams());
 
       ASSERT_EQ(WRITE_STATUS_OK, result.status) << strerror(result.error_code);
       bytes_flushed += result.bytes_written;

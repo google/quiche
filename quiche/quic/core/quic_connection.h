@@ -1319,6 +1319,20 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return sent_server_preferred_address_;
   }
 
+  // Sets the ECN marking for all outgoing packets, assuming that the congestion
+  // control supports that codepoint. QuicConnection will revert to sending
+  // ECN_NOT_ECT if there is evidence the path is dropping ECN-marked packets,
+  // or if the peer provides invalid ECN feedback.
+  void set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint) {
+    if (GetQuicReloadableFlag(quic_send_ect1)) {
+      packet_writer_params_.ecn_codepoint = ecn_codepoint;
+    }
+  }
+
+  QuicEcnCodepoint ecn_codepoint() const {
+    return packet_writer_params_.ecn_codepoint;
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1985,24 +1999,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns true if |address| is known server address.
   bool IsKnownServerAddress(const QuicSocketAddress& address) const;
 
-  // Retrieves the ECN codepoint stored in per_packet_options_, unless the flag
-  // is not set.
-  QuicEcnCodepoint GetNextEcnCodepoint() const {
-    return (per_packet_options_ != nullptr &&
-            GetQuicReloadableFlag(quic_send_ect1))
-               ? per_packet_options_->ecn_codepoint
-               : ECN_NOT_ECT;
-  }
-
   // Retrieves the ECN codepoint to be sent on the next packet.
   QuicEcnCodepoint GetEcnCodepointToSend(
       const QuicSocketAddress& destination_address) const;
-
-  // Sets the ECN codepoint to Not-ECT.
-  void ClearEcnCodepoint();
-
-  // Set the ECN codepoint, but only if set_per_packet_options has been called.
-  void MaybeSetEcnCodepoint(QuicEcnCodepoint ecn_codepoint);
 
   // Writes the packet to |writer| with the ECN mark specified in
   // |ecn_codepoint|. Will also set last_ecn_sent_ appropriately.
@@ -2033,6 +2032,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicConnectionHelperInterface* helper_;  // Not owned.
   QuicAlarmFactory* alarm_factory_;        // Not owned.
   PerPacketOptions* per_packet_options_;   // Not owned.
+  QuicPacketWriterParams packet_writer_params_;
   QuicPacketWriter* writer_;  // Owned or not depending on |owns_writer_|.
   bool owns_writer_;
   // Encryption level for new packets. Should only be changed via

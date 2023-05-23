@@ -169,7 +169,7 @@ void QuicPathValidator::MaybeWritePacketToAddress(
                 << path_context_->peer_address();
   path_context_->WriterToUse()->WritePacket(
       buffer, buf_len, path_context_->self_address().host(),
-      path_context_->peer_address(), nullptr);
+      path_context_->peer_address(), nullptr, QuicPacketWriterParams());
 }
 
 }  // namespace quic

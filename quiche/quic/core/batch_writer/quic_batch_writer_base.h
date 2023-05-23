@@ -32,7 +32,8 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override;
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override;
 
   bool IsWriteBlocked() const final { return write_blocked_; }
 
@@ -78,7 +79,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
     QuicTime::Delta release_time_offset = QuicTime::Delta::Zero();
   };
   virtual ReleaseTime GetReleaseTime(
-      const PerPacketOptions* /*options*/) const {
+      const QuicPacketWriterParams& /*params*/) const {
     QUICHE_DCHECK(false)
         << "Should not be called since release time is unsupported.";
     return ReleaseTime{0, QuicTime::Delta::Zero()};
@@ -101,6 +102,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
                                   const QuicIpAddress& self_address,
                                   const QuicSocketAddress& peer_address,
                                   const PerPacketOptions* options,
+                                  const QuicPacketWriterParams& params,
                                   uint64_t release_time) const = 0;
 
   struct QUIC_EXPORT_PRIVATE FlushImplResult {
@@ -129,7 +131,8 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
   WriteResult InternalWritePacket(const char* buffer, size_t buf_len,
                                   const QuicIpAddress& self_address,
                                   const QuicSocketAddress& peer_address,
-                                  PerPacketOptions* options);
+                                  PerPacketOptions* options,
+                                  const QuicPacketWriterParams& params);
 
   // Calls FlushImpl() and check its post condition.
   FlushImplResult CheckedFlush();

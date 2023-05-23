@@ -355,11 +355,12 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     // Hook everything up!
     MockPacketWriter* client_writer = static_cast<MockPacketWriter*>(
         QuicConnectionPeer::GetWriter(client_peer_->connection()));
-    ON_CALL(*client_writer, WritePacket(_, _, _, _, _))
+    ON_CALL(*client_writer, WritePacket(_, _, _, _, _, _))
         .WillByDefault(Invoke([this](const char* buffer, size_t buf_len,
                                      const QuicIpAddress& self_address,
                                      const QuicSocketAddress& peer_address,
-                                     PerPacketOptions* options) {
+                                     PerPacketOptions* option,
+                                     const QuicPacketWriterParams& params) {
           char* copy = new char[1024 * 1024];
           memcpy(copy, buffer, buf_len);
           runner_.Schedule([this, copy, buf_len] {
@@ -373,11 +374,12 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         }));
     MockPacketWriter* server_writer = static_cast<MockPacketWriter*>(
         QuicConnectionPeer::GetWriter(server_peer_->connection()));
-    ON_CALL(*server_writer, WritePacket(_, _, _, _, _))
+    ON_CALL(*server_writer, WritePacket(_, _, _, _, _, _))
         .WillByDefault(Invoke([this](const char* buffer, size_t buf_len,
                                      const QuicIpAddress& self_address,
                                      const QuicSocketAddress& peer_address,
-                                     PerPacketOptions* options) {
+                                     PerPacketOptions* options,
+                                     const QuicPacketWriterParams& params) {
           char* copy = new char[1024 * 1024];
           memcpy(copy, buffer, buf_len);
           runner_.Schedule([this, copy, buf_len] {

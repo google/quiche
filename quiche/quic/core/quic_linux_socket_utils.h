@@ -109,18 +109,19 @@ struct QUIC_EXPORT_PRIVATE BufferedWrite {
                 const QuicSocketAddress& peer_address)
       : BufferedWrite(buffer, buf_len, self_address, peer_address,
                       std::unique_ptr<PerPacketOptions>(),
-                      /*release_time=*/0) {}
+                      QuicPacketWriterParams(), /*release_time=*/0) {}
 
   BufferedWrite(const char* buffer, size_t buf_len,
                 const QuicIpAddress& self_address,
                 const QuicSocketAddress& peer_address,
                 std::unique_ptr<PerPacketOptions> options,
-                uint64_t release_time)
+                const QuicPacketWriterParams& params, uint64_t release_time)
       : buffer(buffer),
         buf_len(buf_len),
         self_address(self_address),
         peer_address(peer_address),
         options(std::move(options)),
+        params(params),
         release_time(release_time) {}
 
   const char* buffer;  // Not owned.
@@ -128,6 +129,7 @@ struct QUIC_EXPORT_PRIVATE BufferedWrite {
   QuicIpAddress self_address;
   QuicSocketAddress peer_address;
   std::unique_ptr<PerPacketOptions> options;
+  QuicPacketWriterParams params;
 
   // The release time according to the owning packet writer's clock, which is
   // often not a QuicClock. Calculated from packet writer's Now() and the

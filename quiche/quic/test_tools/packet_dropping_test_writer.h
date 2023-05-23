@@ -49,7 +49,8 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override;
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override;
 
   bool IsWriteBlocked() const override;
 
@@ -142,7 +143,8 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
     DelayedWrite(const char* buffer, size_t buf_len,
                  const QuicIpAddress& self_address,
                  const QuicSocketAddress& peer_address,
-                 std::unique_ptr<PerPacketOptions> options, QuicTime send_time);
+                 std::unique_ptr<PerPacketOptions> options,
+                 const QuicPacketWriterParams& params, QuicTime send_time);
     DelayedWrite(const DelayedWrite&) = delete;
     DelayedWrite(DelayedWrite&&) = default;
     DelayedWrite& operator=(const DelayedWrite&) = delete;
@@ -153,6 +155,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
     QuicIpAddress self_address;
     QuicSocketAddress peer_address;
     std::unique_ptr<PerPacketOptions> options;
+    QuicPacketWriterParams params;
     QuicTime send_time;
   };
 

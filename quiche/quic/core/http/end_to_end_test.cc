@@ -31,6 +31,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packet_creator.h"
+#include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_session.h"
@@ -947,6 +948,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   std::vector<std::string> received_webtransport_unidirectional_streams_;
   bool use_preferred_address_ = false;
   QuicSocketAddress server_preferred_address_;
+  QuicPacketWriterParams packet_writer_params_;
 };
 
 // Run all end to end tests with all supported versions.
@@ -3206,15 +3208,17 @@ class DuplicatePacketWithSpoofedSelfAddressWriter
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override {
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override {
     if (self_address_to_overwrite_.IsInitialized()) {
       // Send the same packet on the overwriting address before sending on the
       // actual self address.
-      QuicPacketWriterWrapper::WritePacket(
-          buffer, buf_len, self_address_to_overwrite_, peer_address, options);
+      QuicPacketWriterWrapper::WritePacket(buffer, buf_len,
+                                           self_address_to_overwrite_,
+                                           peer_address, options, params);
     }
     return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
-                                                peer_address, options);
+                                                peer_address, options, params);
   }
 
   void set_self_address_to_overwrite(const QuicIpAddress& self_address) {
@@ -3996,7 +4000,8 @@ TEST_P(EndToEndTest, ServerSendPublicReset) {
   server_thread_->Pause();
   auto client_address = client_connection->self_address();
   server_writer_->WritePacket(packet->data(), packet->length(),
-                              server_address_.host(), client_address, nullptr);
+                              server_address_.host(), client_address, nullptr,
+                              packet_writer_params_);
   server_thread_->Resume();
 
   // The request should fail.
@@ -4038,7 +4043,8 @@ TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
   server_thread_->Pause();
   auto client_address = client_connection->self_address();
   server_writer_->WritePacket(packet->data(), packet->length(),
-                              server_address_.host(), client_address, nullptr);
+                              server_address_.host(), client_address, nullptr,
+                              packet_writer_params_);
   server_thread_->Resume();
 
   // The request should fail. IETF stateless reset does not include connection
@@ -4087,7 +4093,7 @@ TEST_P(EndToEndTest, ClientSendPublicResetWithDifferentConnectionId) {
   client_writer_->WritePacket(
       packet->data(), packet->length(),
       client_->client()->network_helper()->GetLatestClientAddress().host(),
-      server_address_, nullptr);
+      server_address_, nullptr, packet_writer_params_);
 
   // The connection should be unaffected.
   SendSynchronousFooRequestAndCheckResponse();
@@ -4119,7 +4125,8 @@ TEST_P(EndToEndTest, ServerSendVersionNegotiationWithDifferentConnectionId) {
   server_thread_->Pause();
   server_writer_->WritePacket(
       packet->data(), packet->length(), server_address_.host(),
-      client_->client()->network_helper()->GetLatestClientAddress(), nullptr);
+      client_->client()->network_helper()->GetLatestClientAddress(), nullptr,
+      packet_writer_params_);
   server_thread_->Resume();
 
   // The connection should be unaffected.
@@ -4149,10 +4156,11 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          quic::PerPacketOptions* options) override {
+                          quic::PerPacketOptions* options,
+                          const quic::QuicPacketWriterParams& params) override {
     if (!intercept_enabled_) {
       return PacketDroppingTestWriter::WritePacket(
-          buffer, buf_len, self_address, peer_address, options);
+          buffer, buf_len, self_address, peer_address, options, params);
     }
     PacketHeaderFormat format;
     QuicLongHeaderType long_packet_type;
@@ -4177,16 +4185,19 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
       intercept_enabled_ = false;
       server_thread_->Resume();
       // Pass the client-sent packet through.
-      return WritePacket(buffer, buf_len, self_address, peer_address, options);
+      return WritePacket(buffer, buf_len, self_address, peer_address, options,
+                         params);
     }
     // Send a version negotiation packet.
     std::unique_ptr<QuicEncryptedPacket> packet(
         QuicFramer::BuildVersionNegotiationPacket(
             destination_connection_id, source_connection_id, /*ietf_quic=*/true,
             has_length_prefix, supported_versions_));
+    QuicPacketWriterParams default_params;
     server_writer_->WritePacket(
         packet->data(), packet->length(), peer_address.host(),
-        client_->client()->network_helper()->GetLatestClientAddress(), nullptr);
+        client_->client()->network_helper()->GetLatestClientAddress(), nullptr,
+        default_params);
     // Drop the client-sent packet but pretend it was sent.
     return WriteResult(WRITE_STATUS_OK, buf_len);
   }
@@ -4248,7 +4259,7 @@ TEST_P(EndToEndTest, BadPacketHeaderTruncated) {
   client_writer_->WritePacket(
       &packet[0], sizeof(packet),
       client_->client()->network_helper()->GetLatestClientAddress().host(),
-      server_address_, nullptr);
+      server_address_, nullptr, packet_writer_params_);
   EXPECT_TRUE(server_thread_->WaitUntil(
       [&] {
         return QuicDispatcherPeer::GetAndClearLastError(
@@ -4295,7 +4306,7 @@ TEST_P(EndToEndTest, BadPacketHeaderFlags) {
   client_writer_->WritePacket(
       reinterpret_cast<const char*>(packet), sizeof(packet),
       client_->client()->network_helper()->GetLatestClientAddress().host(),
-      server_address_, nullptr);
+      server_address_, nullptr, packet_writer_params_);
 
   EXPECT_TRUE(server_thread_->WaitUntil(
       [&] {
@@ -4331,7 +4342,7 @@ TEST_P(EndToEndTest, QUICHE_SLOW_TEST(BadEncryptedData)) {
   client_writer_->WritePacket(
       damaged_packet.data(), damaged_packet.length(),
       client_->client()->network_helper()->GetLatestClientAddress().host(),
-      server_address_, nullptr);
+      server_address_, nullptr, packet_writer_params_);
   // Give the server time to process the packet.
   absl::SleepFor(absl::Seconds(1));
   // This error is sent to the connection's OnError (which ignores it), so the
@@ -5261,10 +5272,11 @@ class PacketHoldingWriter : public QuicPacketWriterWrapper {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override {
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override {
     if (!hold_next_packet_) {
-      return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
-                                                  peer_address, options);
+      return QuicPacketWriterWrapper::WritePacket(
+          buffer, buf_len, self_address, peer_address, options, params);
     }
     QUIC_DLOG(INFO) << "Packet is held by the writer";
     packet_content_ = std::string(buffer, buf_len);
@@ -5286,7 +5298,7 @@ class PacketHoldingWriter : public QuicPacketWriterWrapper {
     ASSERT_EQ(WRITE_STATUS_OK,
               QuicPacketWriterWrapper::WritePacket(
                   packet_content_.data(), packet_content_.length(),
-                  self_address_, peer_address_, options_.release())
+                  self_address_, peer_address_, options_.release(), params_)
                   .status);
     packet_content_.clear();
   }
@@ -5297,6 +5309,7 @@ class PacketHoldingWriter : public QuicPacketWriterWrapper {
   QuicIpAddress self_address_;
   QuicSocketAddress peer_address_;
   std::unique_ptr<PerPacketOptions> options_;
+  QuicPacketWriterParams params_;
 };
 
 TEST_P(EndToEndTest, ClientValidateNewNetwork) {
@@ -5849,9 +5862,10 @@ class BadShloPacketWriter : public QuicPacketWriterWrapper {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          quic::PerPacketOptions* options) override {
+                          quic::PerPacketOptions* options,
+                          const quic::QuicPacketWriterParams& params) override {
     const WriteResult result = QuicPacketWriterWrapper::WritePacket(
-        buffer, buf_len, self_address, peer_address, options);
+        buffer, buf_len, self_address, peer_address, options, params);
     const uint8_t type_byte = buffer[0];
     if (!error_returned_ && (type_byte & FLAGS_LONG_HEADER) &&
         TypeByteIsServerHello(type_byte)) {
@@ -5924,7 +5938,8 @@ class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          quic::PerPacketOptions* options) override {
+                          quic::PerPacketOptions* options,
+                          const quic::QuicPacketWriterParams& params) override {
     const uint8_t type_byte = buffer[0];
 
     if (type_byte & FLAGS_LONG_HEADER) {
@@ -5939,7 +5954,7 @@ class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
       return WriteResult(WRITE_STATUS_ERROR, *MessageTooBigErrorCode());
     }
     return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
-                                                peer_address, options);
+                                                peer_address, options, params);
   }
 
  private:
@@ -6076,14 +6091,15 @@ class CopyingPacketWriter : public PacketDroppingTestWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override {
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override {
     if (num_packets_to_copy_ > 0) {
       num_packets_to_copy_--;
       packets_.push_back(
           QuicEncryptedPacket(buffer, buf_len, /*owns_buffer=*/false).Clone());
     }
     return PacketDroppingTestWriter::WritePacket(buffer, buf_len, self_address,
-                                                 peer_address, options);
+                                                 peer_address, options, params);
   }
 
   std::vector<std::unique_ptr<QuicEncryptedPacket>>& packets() {
@@ -7097,9 +7113,7 @@ TEST_P(EndToEndTest, ServerReportsNotEct) {
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
   EXPECT_EQ(ecn->ce, 0);
-  TestPerPacketOptions options;
-  client_connection->set_per_packet_options(&options);
-  options.ecn_codepoint = ECN_NOT_ECT;
+  client_connection->set_ecn_codepoint(ECN_NOT_ECT);
   client_->SendSynchronousRequest("/foo");
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
@@ -7119,9 +7133,7 @@ TEST_P(EndToEndTest, ServerReportsEct0) {
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
   EXPECT_EQ(ecn->ce, 0);
-  TestPerPacketOptions options;
-  client_connection->set_per_packet_options(&options);
-  options.ecn_codepoint = ECN_ECT0;
+  client_connection->set_ecn_codepoint(ECN_ECT0);
   client_->SendSynchronousRequest("/foo");
   if (!GetQuicRestartFlag(quic_receive_ecn) ||
       !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
@@ -7147,9 +7159,7 @@ TEST_P(EndToEndTest, ServerReportsEct1) {
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
   EXPECT_EQ(ecn->ce, 0);
-  TestPerPacketOptions options;
-  client_connection->set_per_packet_options(&options);
-  options.ecn_codepoint = ECN_ECT1;
+  client_connection->set_ecn_codepoint(ECN_ECT1);
   client_->SendSynchronousRequest("/foo");
   if (!GetQuicRestartFlag(quic_receive_ecn) ||
       !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
@@ -7175,9 +7185,7 @@ TEST_P(EndToEndTest, ServerReportsCe) {
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ect1, 0);
   EXPECT_EQ(ecn->ce, 0);
-  TestPerPacketOptions options;
-  client_connection->set_per_packet_options(&options);
-  options.ecn_codepoint = ECN_CE;
+  client_connection->set_ecn_codepoint(ECN_CE);
   client_->SendSynchronousRequest("/foo");
   if (!GetQuicRestartFlag(quic_receive_ecn) ||
       !GetQuicRestartFlag(quic_quiche_ecn_sockets) ||
@@ -7202,9 +7210,7 @@ TEST_P(EndToEndTest, ClientReportsEct1) {
   QuicEcnCounts* ecn = QuicSentPacketManagerPeer::GetPeerEcnCounts(
       QuicConnectionPeer::GetSentPacketManager(server_connection),
       APPLICATION_DATA);
-  TestPerPacketOptions options;
-  options.ecn_codepoint = ECN_ECT1;
-  server_connection->set_per_packet_options(&options);
+  server_connection->set_ecn_codepoint(ECN_ECT1);
   client_->SendSynchronousRequest("/foo");
   // A second request provides a packet for the client ACKs to go with.
   client_->SendSynchronousRequest("/foo");

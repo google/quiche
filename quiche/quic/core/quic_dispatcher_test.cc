@@ -1544,7 +1544,8 @@ class SavingWriter : public QuicPacketWriterWrapper {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& /*self_client_address*/,
                           const QuicSocketAddress& /*peer_client_address*/,
-                          PerPacketOptions* /*options*/) override {
+                          PerPacketOptions* /*options*/,
+                          const QuicPacketWriterParams& /*params*/) override {
     packets_.push_back(
         QuicEncryptedPacket(buffer, buf_len, /*owns_buffer=*/false).Clone());
     return WriteResult(WRITE_STATUS_OK, buf_len);
@@ -1877,7 +1878,8 @@ class BlockingWriter : public QuicPacketWriterWrapper {
   WriteResult WritePacket(const char* /*buffer*/, size_t /*buf_len*/,
                           const QuicIpAddress& /*self_client_address*/,
                           const QuicSocketAddress& /*peer_client_address*/,
-                          PerPacketOptions* /*options*/) override {
+                          PerPacketOptions* /*options*/,
+                          const QuicPacketWriterParams& /*params*/) override {
     // It would be quite possible to actually implement this method here with
     // the fake blocked status, but it would be significantly more work in
     // Chromium, and since it's not called anyway, don't bother.

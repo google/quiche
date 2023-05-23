@@ -101,7 +101,8 @@ class DummyPacketWriter : public QuicPacketWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override {
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override {
     return WriteResult(WRITE_STATUS_ERROR, 0);
   }
 

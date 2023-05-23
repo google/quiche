@@ -44,6 +44,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBuffer {
                                const QuicIpAddress& self_address,
                                const QuicSocketAddress& peer_address,
                                const PerPacketOptions* options,
+                               const QuicPacketWriterParams& params,
                                uint64_t release_time);
 
   void UndoLastPush();

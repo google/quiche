@@ -1185,7 +1185,8 @@ class MockPacketWriter : public QuicPacketWriter {
 
   MOCK_METHOD(WriteResult, WritePacket,
               (const char*, size_t buf_len, const QuicIpAddress& self_address,
-               const QuicSocketAddress& peer_address, PerPacketOptions*),
+               const QuicSocketAddress& peer_address, PerPacketOptions*,
+               const QuicPacketWriterParams&),
               (override));
   MOCK_METHOD(bool, IsWriteBlocked, (), (const, override));
   MOCK_METHOD(void, SetWritable, (), (override));
@@ -1832,7 +1833,8 @@ class TestPacketWriter : public QuicPacketWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override;
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override;
 
   bool ShouldWriteFail() { return write_should_fail_; }
 
@@ -2176,13 +2178,6 @@ inline std::string EscapeTestParamName(absl::string_view name) {
   }
   return result;
 }
-
-struct TestPerPacketOptions : PerPacketOptions {
- public:
-  std::unique_ptr<quic::PerPacketOptions> Clone() const override {
-    return std::make_unique<TestPerPacketOptions>(*this);
-  }
-};
 
 }  // namespace test
 }  // namespace quic

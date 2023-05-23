@@ -13,14 +13,15 @@ LimitedMtuTestWriter::~LimitedMtuTestWriter() = default;
 
 WriteResult LimitedMtuTestWriter::WritePacket(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
+    const QuicSocketAddress& peer_address, PerPacketOptions* options,
+    const QuicPacketWriterParams& params) {
   if (buf_len > mtu_) {
     // Drop the packet.
     return WriteResult(WRITE_STATUS_OK, buf_len);
   }
 
   return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
-                                              peer_address, options);
+                                              peer_address, options, params);
 }
 
 }  // namespace test

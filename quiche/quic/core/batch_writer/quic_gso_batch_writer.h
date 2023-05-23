@@ -25,6 +25,7 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           const PerPacketOptions* options,
+                          const QuicPacketWriterParams& params,
                           uint64_t release_time) const override;
 
   FlushImplResult FlushImpl() override;
@@ -36,7 +37,8 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
                      int fd, clockid_t clockid_for_release_time,
                      ReleaseTimeForceEnabler enabler);
 
-  ReleaseTime GetReleaseTime(const PerPacketOptions* options) const override;
+  ReleaseTime GetReleaseTime(
+      const QuicPacketWriterParams& params) const override;
 
   // Get the current time in nanos from |clockid_for_release_time_|.
   virtual uint64_t NowInNanosForReleaseTime() const;

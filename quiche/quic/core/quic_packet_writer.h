@@ -18,7 +18,11 @@ namespace quic {
 
 struct WriteResult;
 
-struct QUIC_EXPORT_PRIVATE PerPacketOptions {
+// This class allows a platform to pass instructions to an associated child of
+// QuicWriter without intervening QUIC code understanding anything about its
+// contents.
+class QUIC_EXPORT_PRIVATE PerPacketOptions {
+ public:
   virtual ~PerPacketOptions() {}
 
   // Returns a heap-allocated copy of |this|.
@@ -29,7 +33,10 @@ struct QUIC_EXPORT_PRIVATE PerPacketOptions {
   // This method is declared pure virtual in order to ensure the subclasses
   // would not forget to override it.
   virtual std::unique_ptr<PerPacketOptions> Clone() const = 0;
+};
 
+// The owner of QuicPacketWriter can pass control information via this struct.
+struct QUIC_EXPORT_PRIVATE QuicPacketWriterParams {
   // Specifies ideal release time delay for this packet.
   QuicTime::Delta release_time_delay = QuicTime::Delta::Zero();
   // Whether it is allowed to send this packet without |release_time_delay|.
@@ -107,7 +114,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
   virtual WriteResult WritePacket(const char* buffer, size_t buf_len,
                                   const QuicIpAddress& self_address,
                                   const QuicSocketAddress& peer_address,
-                                  PerPacketOptions* options) = 0;
+                                  PerPacketOptions* options,
+                                  const QuicPacketWriterParams& params) = 0;
 
   // Returns true if the network socket is not writable.
   virtual bool IsWriteBlocked() const = 0;

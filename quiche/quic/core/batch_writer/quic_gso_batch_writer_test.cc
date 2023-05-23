@@ -75,7 +75,7 @@ struct QUIC_EXPORT_PRIVATE TestBufferedWrite : public BufferedWrite {
                       other.peer_address,
                       other.options ? other.options->Clone()
                                     : std::unique_ptr<PerPacketOptions>(),
-                      other.release_time) {}
+                      QuicPacketWriterParams(), other.release_time) {}
 };
 
 // Pointed to by all instances of |BatchCriteriaTestData|. Content not used.
@@ -87,7 +87,7 @@ struct QUIC_EXPORT_PRIVATE BatchCriteriaTestData {
                         uint64_t release_time, bool can_batch, bool must_flush)
       : buffered_write(unused_packet_buffer, buf_len, self_address,
                        peer_address, std::unique_ptr<PerPacketOptions>(),
-                       release_time),
+                       QuicPacketWriterParams(), release_time),
         can_batch(can_batch),
         must_flush(must_flush) {}
 
@@ -203,13 +203,14 @@ class QuicGsoBatchWriterTest : public QuicTest {
  protected:
   WriteResult WritePacket(QuicGsoBatchWriter* writer, size_t packet_size) {
     return writer->WritePacket(&packet_buffer_[0], packet_size, self_address_,
-                               peer_address_, nullptr);
+                               peer_address_, nullptr,
+                               QuicPacketWriterParams());
   }
 
-  WriteResult WritePacketWithOptions(QuicGsoBatchWriter* writer,
-                                     PerPacketOptions* options) {
+  WriteResult WritePacketWithParams(QuicGsoBatchWriter* writer,
+                                    QuicPacketWriterParams& params) {
     return writer->WritePacket(&packet_buffer_[0], 1350, self_address_,
-                               peer_address_, options);
+                               peer_address_, nullptr, params);
   }
 
   QuicIpAddress self_address_ = QuicIpAddress::Any4();
@@ -239,13 +240,13 @@ TEST_F(QuicGsoBatchWriterTest, BatchCriteria) {
     for (size_t j = 0; j < test_data_table.size(); ++j) {
       const BatchCriteriaTestData& test_data = test_data_table[j];
       SCOPED_TRACE(testing::Message() << "i=" << i << ", j=" << j);
-      TestPerPacketOptions options;
-      options.release_time_delay = QuicTime::Delta::FromMicroseconds(
+      QuicPacketWriterParams params;
+      params.release_time_delay = QuicTime::Delta::FromMicroseconds(
           test_data.buffered_write.release_time);
       TestQuicGsoBatchWriter::CanBatchResult result = writer->CanBatch(
           test_data.buffered_write.buffer, test_data.buffered_write.buf_len,
           test_data.buffered_write.self_address,
-          test_data.buffered_write.peer_address, &options,
+          test_data.buffered_write.peer_address, nullptr, params,
           test_data.buffered_write.release_time);
 
       ASSERT_EQ(test_data.can_batch, result.can_batch);
@@ -257,8 +258,8 @@ TEST_F(QuicGsoBatchWriterTest, BatchCriteria) {
                             test_data.buffered_write.buffer,
                             test_data.buffered_write.buf_len,
                             test_data.buffered_write.self_address,
-                            test_data.buffered_write.peer_address, &options,
-                            test_data.buffered_write.release_time)
+                            test_data.buffered_write.peer_address, nullptr,
+                            params, test_data.buffered_write.release_time)
                         .succeeded);
       }
     }
@@ -379,32 +380,27 @@ TEST_F(QuicGsoBatchWriterTest, FlushError) {
   ASSERT_EQ(0u, writer.buffered_writes().size());
 }
 
-TEST_F(QuicGsoBatchWriterTest, ReleaseTimeNullOptions) {
-  auto writer = TestQuicGsoBatchWriter::NewInstanceWithReleaseTimeSupport();
-  EXPECT_EQ(0u, writer->GetReleaseTime(nullptr).actual_release_time);
-}
-
 TEST_F(QuicGsoBatchWriterTest, ReleaseTime) {
   const WriteResult write_buffered(WRITE_STATUS_OK, 0);
 
   auto writer = TestQuicGsoBatchWriter::NewInstanceWithReleaseTimeSupport();
 
-  TestPerPacketOptions options;
-  EXPECT_TRUE(options.release_time_delay.IsZero());
-  EXPECT_FALSE(options.allow_burst);
+  QuicPacketWriterParams params;
+  EXPECT_TRUE(params.release_time_delay.IsZero());
+  EXPECT_FALSE(params.allow_burst);
   EXPECT_EQ(MillisToNanos(1),
-            writer->GetReleaseTime(&options).actual_release_time);
+            writer->GetReleaseTime(params).actual_release_time);
 
   // The 1st packet has no delay.
-  WriteResult result = WritePacketWithOptions(writer.get(), &options);
+  WriteResult result = WritePacketWithParams(writer.get(), params);
   ASSERT_EQ(write_buffered, result);
   EXPECT_EQ(MillisToNanos(1), writer->buffered_writes().back().release_time);
   EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());
 
   // The 2nd packet has some delay, but allows burst.
-  options.release_time_delay = QuicTime::Delta::FromMilliseconds(3);
-  options.allow_burst = true;
-  result = WritePacketWithOptions(writer.get(), &options);
+  params.release_time_delay = QuicTime::Delta::FromMilliseconds(3);
+  params.allow_burst = true;
+  result = WritePacketWithParams(writer.get(), params);
   ASSERT_EQ(write_buffered, result);
   EXPECT_EQ(MillisToNanos(1), writer->buffered_writes().back().release_time);
   EXPECT_EQ(result.send_time_offset, QuicTime::Delta::FromMilliseconds(-3));
@@ -417,16 +413,16 @@ TEST_F(QuicGsoBatchWriterTest, ReleaseTime) {
         errno = 0;
         return 0;
       }));
-  options.release_time_delay = QuicTime::Delta::FromMilliseconds(5);
-  options.allow_burst = false;
-  result = WritePacketWithOptions(writer.get(), &options);
+  params.release_time_delay = QuicTime::Delta::FromMilliseconds(5);
+  params.allow_burst = false;
+  result = WritePacketWithParams(writer.get(), params);
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 2700), result);
   EXPECT_EQ(MillisToNanos(6), writer->buffered_writes().back().release_time);
   EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());
 
   // The 4th packet has same delay, but allows burst.
-  options.allow_burst = true;
-  result = WritePacketWithOptions(writer.get(), &options);
+  params.allow_burst = true;
+  result = WritePacketWithParams(writer.get(), params);
   ASSERT_EQ(write_buffered, result);
   EXPECT_EQ(MillisToNanos(6), writer->buffered_writes().back().release_time);
   EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());
@@ -439,19 +435,19 @@ TEST_F(QuicGsoBatchWriterTest, ReleaseTime) {
         errno = 0;
         return 0;
       }));
-  options.allow_burst = true;
+  params.allow_burst = true;
   EXPECT_EQ(MillisToNanos(6),
-            writer->GetReleaseTime(&options).actual_release_time);
+            writer->GetReleaseTime(params).actual_release_time);
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 3000),
             writer->WritePacket(&packet_buffer_[0], 300, self_address_,
-                                peer_address_, &options));
+                                peer_address_, nullptr, params));
   EXPECT_TRUE(writer->buffered_writes().empty());
 
   // Pretend 1ms has elapsed and the 6th packet has 1ms less delay. In other
   // words, the release time should still be the same as packets 3-5.
   writer->ForceReleaseTimeMs(2);
-  options.release_time_delay = QuicTime::Delta::FromMilliseconds(4);
-  result = WritePacketWithOptions(writer.get(), &options);
+  params.release_time_delay = QuicTime::Delta::FromMilliseconds(4);
+  result = WritePacketWithParams(writer.get(), params);
   ASSERT_EQ(write_buffered, result);
   EXPECT_EQ(MillisToNanos(6), writer->buffered_writes().back().release_time);
   EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());

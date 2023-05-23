@@ -75,11 +75,14 @@ class FirstFlightExtractor : public DelegatedPacketWriter::Delegate {
   void OnDelegatedPacket(const char* buffer, size_t buf_len,
                          const QuicIpAddress& /*self_client_address*/,
                          const QuicSocketAddress& /*peer_client_address*/,
-                         PerPacketOptions* /*options*/) override {
+                         PerPacketOptions* /*options*/,
+                         const QuicPacketWriterParams& params) override {
     packets_.emplace_back(
         QuicReceivedPacket(buffer, buf_len,
                            connection_helper_.GetClock()->ApproximateNow(),
-                           /*owns_buffer=*/false)
+                           /*owns_buffer=*/false, /*ttl=*/0, /*ttl_valid=*/true,
+                           /*packet_headers=*/nullptr, /*headers_length=*/0,
+                           /*owns_header_buffer=*/false, params.ecn_codepoint)
             .Clone());
   }
 

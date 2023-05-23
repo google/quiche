@@ -18,9 +18,10 @@ QuicBatchWriterBase::QuicBatchWriterBase(
 
 WriteResult QuicBatchWriterBase::WritePacket(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
-  const WriteResult result =
-      InternalWritePacket(buffer, buf_len, self_address, peer_address, options);
+    const QuicSocketAddress& peer_address, PerPacketOptions* options,
+    const QuicPacketWriterParams& params) {
+  const WriteResult result = InternalWritePacket(buffer, buf_len, self_address,
+                                                 peer_address, options, params);
 
   if (IsWriteBlockedStatus(result.status)) {
     write_blocked_ = true;
@@ -31,14 +32,15 @@ WriteResult QuicBatchWriterBase::WritePacket(
 
 WriteResult QuicBatchWriterBase::InternalWritePacket(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
+    const QuicSocketAddress& peer_address, PerPacketOptions* options,
+    const QuicPacketWriterParams& params) {
   if (buf_len > kMaxOutgoingPacketSize) {
     return WriteResult(WRITE_STATUS_MSG_TOO_BIG, EMSGSIZE);
   }
 
   ReleaseTime release_time{0, QuicTime::Delta::Zero()};
   if (SupportsReleaseTime()) {
-    release_time = GetReleaseTime(options);
+    release_time = GetReleaseTime(params);
     if (release_time.release_time_offset >= QuicTime::Delta::Zero()) {
       QUIC_SERVER_HISTOGRAM_TIMES(
           "batch_writer_positive_release_time_offset",
@@ -55,7 +57,7 @@ WriteResult QuicBatchWriterBase::InternalWritePacket(
   }
 
   const CanBatchResult can_batch_result =
-      CanBatch(buffer, buf_len, self_address, peer_address, options,
+      CanBatch(buffer, buf_len, self_address, peer_address, options, params,
                release_time.actual_release_time);
 
   bool buffered = false;
@@ -64,7 +66,7 @@ WriteResult QuicBatchWriterBase::InternalWritePacket(
   if (can_batch_result.can_batch) {
     QuicBatchWriterBuffer::PushResult push_result =
         batch_buffer_->PushBufferedWrite(buffer, buf_len, self_address,
-                                         peer_address, options,
+                                         peer_address, options, params,
                                          release_time.actual_release_time);
     if (push_result.succeeded) {
       buffered = true;
@@ -111,7 +113,7 @@ WriteResult QuicBatchWriterBase::InternalWritePacket(
   if (!buffered) {
     QuicBatchWriterBuffer::PushResult push_result =
         batch_buffer_->PushBufferedWrite(buffer, buf_len, self_address,
-                                         peer_address, options,
+                                         peer_address, options, params,
                                          release_time.actual_release_time);
     buffered = push_result.succeeded;
 

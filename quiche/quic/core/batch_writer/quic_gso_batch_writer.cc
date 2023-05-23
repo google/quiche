@@ -49,8 +49,8 @@ QuicGsoBatchWriter::QuicGsoBatchWriter(
 
 QuicGsoBatchWriter::CanBatchResult QuicGsoBatchWriter::CanBatch(
     const char* /*buffer*/, size_t buf_len, const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address, const PerPacketOptions* options,
-    uint64_t release_time) const {
+    const QuicSocketAddress& peer_address, const PerPacketOptions* /*options*/,
+    const QuicPacketWriterParams& params, uint64_t release_time) const {
   // If there is nothing buffered already, this write will be included in this
   // batch.
   if (buffered_writes().empty()) {
@@ -70,9 +70,9 @@ QuicGsoBatchWriter::CanBatchResult QuicGsoBatchWriter::CanBatch(
   const BufferedWrite& first = buffered_writes().front();
   const BufferedWrite& last = buffered_writes().back();
   // Whether this packet can be sent without delay, regardless of release time.
-  const bool can_burst = !SupportsReleaseTime() || !options ||
-                         options->release_time_delay.IsZero() ||
-                         options->allow_burst;
+  const bool can_burst = !SupportsReleaseTime() ||
+                         params.release_time_delay.IsZero() ||
+                         params.allow_burst;
   size_t max_segments = MaxSegments(first.buf_len);
   bool can_batch =
       buffered_writes().size() < max_segments &&                    // [0]
@@ -96,18 +96,14 @@ QuicGsoBatchWriter::CanBatchResult QuicGsoBatchWriter::CanBatch(
 }
 
 QuicGsoBatchWriter::ReleaseTime QuicGsoBatchWriter::GetReleaseTime(
-    const PerPacketOptions* options) const {
+    const QuicPacketWriterParams& params) const {
   QUICHE_DCHECK(SupportsReleaseTime());
-
-  if (options == nullptr) {
-    return {0, QuicTime::Delta::Zero()};
-  }
 
   const uint64_t now = NowInNanosForReleaseTime();
   const uint64_t ideal_release_time =
-      now + options->release_time_delay.ToMicroseconds() * 1000;
+      now + params.release_time_delay.ToMicroseconds() * 1000;
 
-  if ((options->release_time_delay.IsZero() || options->allow_burst) &&
+  if ((params.release_time_delay.IsZero() || params.allow_burst) &&
       !buffered_writes().empty() &&
       // If release time of buffered packets is in the past, flush buffered
       // packets and buffer this packet at the ideal release time.

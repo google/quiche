@@ -78,7 +78,8 @@ class MasquePacketWriter : public QuicPacketWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& /*self_address*/,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* /*options*/) override {
+                          PerPacketOptions* /*options*/,
+                          const QuicPacketWriterParams& /*params*/) override {
     QUICHE_DCHECK(peer_address.IsInitialized());
     QUIC_DVLOG(1) << "MasquePacketWriter trying to write " << buf_len
                   << " bytes to " << peer_address;

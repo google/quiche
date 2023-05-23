@@ -236,7 +236,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendVersionNegotiationPacket) {
           connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/false,
           /*use_length_prefix=*/false, AllSupportedVersions()));
   EXPECT_CALL(writer_, WritePacket(_, packet->length(), self_address_.host(),
-                                   peer_address_, _))
+                                   peer_address_, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   time_wait_list_manager_.SendVersionNegotiationPacket(
@@ -253,7 +253,7 @@ TEST_F(QuicTimeWaitListManagerTest,
           connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/true,
           /*use_length_prefix=*/false, AllSupportedVersions()));
   EXPECT_CALL(writer_, WritePacket(_, packet->length(), self_address_.host(),
-                                   peer_address_, _))
+                                   peer_address_, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   time_wait_list_manager_.SendVersionNegotiationPacket(
@@ -269,7 +269,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendIetfVersionNegotiationPacket) {
           connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/true,
           /*use_length_prefix=*/true, AllSupportedVersions()));
   EXPECT_CALL(writer_, WritePacket(_, packet->length(), self_address_.host(),
-                                   peer_address_, _))
+                                   peer_address_, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   time_wait_list_manager_.SendVersionNegotiationPacket(
@@ -286,7 +286,7 @@ TEST_F(QuicTimeWaitListManagerTest,
           connection_id_, TestConnectionId(0x33), /*ietf_quic=*/true,
           /*use_length_prefix=*/true, AllSupportedVersions()));
   EXPECT_CALL(writer_, WritePacket(_, packet->length(), self_address_.host(),
-                                   peer_address_, _))
+                                   peer_address_, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   time_wait_list_manager_.SendVersionNegotiationPacket(
@@ -307,7 +307,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendConnectionClose) {
                   QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
                   &termination_packets);
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
-                                   self_address_.host(), peer_address_, _))
+                                   self_address_.host(), peer_address_, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   ProcessPacket(connection_id_);
@@ -327,7 +327,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendTwoConnectionCloses) {
                   QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
                   &termination_packets);
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
-                                   self_address_.host(), peer_address_, _))
+                                   self_address_.host(), peer_address_, _, _))
       .Times(2)
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
@@ -339,7 +339,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendPublicReset) {
   AddConnectionId(connection_id_,
                   QuicTimeWaitListManager::SEND_STATELESS_RESET);
   EXPECT_CALL(writer_,
-              WritePacket(_, _, self_address_.host(), peer_address_, _))
+              WritePacket(_, _, self_address_.host(), peer_address_, _, _))
       .With(Args<0, 1>(PublicResetPacketEq(connection_id_)))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
 
@@ -353,7 +353,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendPublicResetWithExponentialBackOff) {
   EXPECT_EQ(1u, time_wait_list_manager_.num_connections());
   for (int packet_number = 1; packet_number < 101; ++packet_number) {
     if ((packet_number & (packet_number - 1)) == 0) {
-      EXPECT_CALL(writer_, WritePacket(_, _, _, _, _))
+      EXPECT_CALL(writer_, WritePacket(_, _, _, _, _, _))
           .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
     }
     ProcessPacket(connection_id_);
@@ -373,7 +373,7 @@ TEST_F(QuicTimeWaitListManagerTest, NoPublicResetForStatelessConnections) {
   AddStatelessConnectionId(connection_id_);
 
   EXPECT_CALL(writer_,
-              WritePacket(_, _, self_address_.host(), peer_address_, _))
+              WritePacket(_, _, self_address_.host(), peer_address_, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   ProcessPacket(connection_id_);
@@ -468,14 +468,14 @@ TEST_F(QuicTimeWaitListManagerTest, SendQueuedPackets) {
       connection_id, EmptyQuicConnectionId(), /*packet_number=*/234));
   // Let first write through.
   EXPECT_CALL(writer_,
-              WritePacket(_, _, self_address_.host(), peer_address_, _))
+              WritePacket(_, _, self_address_.host(), peer_address_, _, _))
       .With(Args<0, 1>(PublicResetPacketEq(connection_id)))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, packet->length())));
   ProcessPacket(connection_id);
 
   // write block for the next packet.
   EXPECT_CALL(writer_,
-              WritePacket(_, _, self_address_.host(), peer_address_, _))
+              WritePacket(_, _, self_address_.host(), peer_address_, _, _))
       .With(Args<0, 1>(PublicResetPacketEq(connection_id)))
       .WillOnce(DoAll(Assign(&writer_is_blocked_, true),
                       Return(WriteResult(WRITE_STATUS_BLOCKED, EAGAIN))));
@@ -492,7 +492,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendQueuedPackets) {
                   QuicTimeWaitListManager::SEND_STATELESS_RESET);
   std::unique_ptr<QuicEncryptedPacket> other_packet(ConstructEncryptedPacket(
       other_connection_id, EmptyQuicConnectionId(), /*packet_number=*/23423));
-  EXPECT_CALL(writer_, WritePacket(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(writer_, WritePacket(_, _, _, _, _, _)).Times(0);
   EXPECT_CALL(visitor_, OnWriteBlocked(&time_wait_list_manager_));
   ProcessPacket(other_connection_id);
   EXPECT_EQ(2u, time_wait_list_manager_.num_connections());
@@ -500,11 +500,11 @@ TEST_F(QuicTimeWaitListManagerTest, SendQueuedPackets) {
   // Now expect all the write blocked public reset packets to be sent again.
   writer_is_blocked_ = false;
   EXPECT_CALL(writer_,
-              WritePacket(_, _, self_address_.host(), peer_address_, _))
+              WritePacket(_, _, self_address_.host(), peer_address_, _, _))
       .With(Args<0, 1>(PublicResetPacketEq(connection_id)))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, packet->length())));
   EXPECT_CALL(writer_,
-              WritePacket(_, _, self_address_.host(), peer_address_, _))
+              WritePacket(_, _, self_address_.host(), peer_address_, _, _))
       .With(Args<0, 1>(PublicResetPacketEq(other_connection_id)))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, packet->length())));
   time_wait_list_manager_.OnBlockedWriterCanWrite();
@@ -527,7 +527,7 @@ TEST_F(QuicTimeWaitListManagerTest, AddConnectionIdTwice) {
   EXPECT_EQ(1u, time_wait_list_manager_.num_connections());
 
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
-                                   self_address_.host(), peer_address_, _))
+                                   self_address_.host(), peer_address_, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   ProcessPacket(connection_id_);
@@ -653,7 +653,7 @@ TEST_F(QuicTimeWaitListManagerTest,
 
   // Termination packet is not encrypted, instead, send stateless reset.
   EXPECT_CALL(writer_,
-              WritePacket(_, _, self_address_.host(), peer_address_, _))
+              WritePacket(_, _, self_address_.host(), peer_address_, _, _))
       .With(Args<0, 1>(PublicResetPacketEq(connection_id_)))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   // Processes IETF short header packet.
@@ -677,7 +677,7 @@ TEST_F(QuicTimeWaitListManagerTest,
       TimeWaitConnectionInfo(/*ietf_quic=*/true, &termination_packets,
                              {connection_id_}));
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
-                                   self_address_.host(), peer_address_, _))
+                                   self_address_.host(), peer_address_, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   // Processes IETF short header packet.
@@ -707,7 +707,7 @@ TEST_F(QuicTimeWaitListManagerTest,
                              active_connection_ids, QuicTime::Delta::Zero()));
 
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
-                                   self_address_.host(), peer_address_, _))
+                                   self_address_.host(), peer_address_, _, _))
       .Times(2)
       .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 1)));
   // Processes IETF short header packet.
@@ -743,7 +743,7 @@ TEST_F(QuicTimeWaitListManagerTest, TooManyPendingPackets) {
       .Times(testing::AnyNumber());
   // Write block for the next packets.
   EXPECT_CALL(writer_,
-              WritePacket(_, _, self_address_.host(), peer_address_, _))
+              WritePacket(_, _, self_address_.host(), peer_address_, _, _))
       .With(Args<0, 1>(PublicResetPacketEq(TestConnectionId(1))))
       .WillOnce(DoAll(Assign(&writer_is_blocked_, true),
                       Return(WriteResult(WRITE_STATUS_BLOCKED, EAGAIN))));

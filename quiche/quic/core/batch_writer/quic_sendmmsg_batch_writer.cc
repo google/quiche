@@ -14,7 +14,8 @@ QuicSendmmsgBatchWriter::CanBatchResult QuicSendmmsgBatchWriter::CanBatch(
     const char* /*buffer*/, size_t /*buf_len*/,
     const QuicIpAddress& /*self_address*/,
     const QuicSocketAddress& /*peer_address*/,
-    const PerPacketOptions* /*options*/, uint64_t /*release_time*/) const {
+    const PerPacketOptions* /*options*/,
+    const QuicPacketWriterParams& /*params*/, uint64_t /*release_time*/) const {
   return CanBatchResult(/*can_batch=*/true, /*must_flush=*/false);
 }
 

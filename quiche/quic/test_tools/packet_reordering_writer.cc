@@ -13,18 +13,19 @@ PacketReorderingWriter::~PacketReorderingWriter() = default;
 
 WriteResult PacketReorderingWriter::WritePacket(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
+    const QuicSocketAddress& peer_address, PerPacketOptions* options,
+    const QuicPacketWriterParams& params) {
   if (!delay_next_) {
     QUIC_VLOG(2) << "Writing a non-delayed packet";
     WriteResult wr = QuicPacketWriterWrapper::WritePacket(
-        buffer, buf_len, self_address, peer_address, options);
+        buffer, buf_len, self_address, peer_address, options, params);
     --num_packets_to_wait_;
     if (num_packets_to_wait_ == 0) {
       QUIC_VLOG(2) << "Writing a delayed packet";
       // It's time to write the delayed packet.
       QuicPacketWriterWrapper::WritePacket(
           delayed_data_.data(), delayed_data_.length(), delayed_self_address_,
-          delayed_peer_address_, delayed_options_.get());
+          delayed_peer_address_, delayed_options_.get(), delayed_params_);
     }
     return wr;
   }
@@ -37,6 +38,7 @@ WriteResult PacketReorderingWriter::WritePacket(
   if (options != nullptr) {
     delayed_options_ = options->Clone();
   }
+  delayed_params_ = params;
   delay_next_ = false;
   return WriteResult(WRITE_STATUS_OK, buf_len);
 }

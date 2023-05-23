@@ -1301,10 +1301,10 @@ TestPacketWriter::~TestPacketWriter() {
   }
 }
 
-WriteResult TestPacketWriter::WritePacket(const char* buffer, size_t buf_len,
-                                          const QuicIpAddress& self_address,
-                                          const QuicSocketAddress& peer_address,
-                                          PerPacketOptions* options) {
+WriteResult TestPacketWriter::WritePacket(
+    const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
+    const QuicSocketAddress& peer_address, PerPacketOptions* /*options*/,
+    const QuicPacketWriterParams& params) {
   last_write_source_address_ = self_address;
   last_write_peer_address_ = peer_address;
   // If the buffer is allocated from the pool, return it back to the pool.
@@ -1377,7 +1377,7 @@ WriteResult TestPacketWriter::WritePacket(const char* buffer, size_t buf_len,
     bytes_buffered_ += last_packet_size_;
     return WriteResult(WRITE_STATUS_OK, 0);
   }
-  last_ecn_sent_ = (options == nullptr) ? ECN_NOT_ECT : options->ecn_codepoint;
+  last_ecn_sent_ = params.ecn_codepoint;
   return WriteResult(WRITE_STATUS_OK, last_packet_size_);
 }
 

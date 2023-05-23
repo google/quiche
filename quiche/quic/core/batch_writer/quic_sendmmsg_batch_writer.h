@@ -19,6 +19,7 @@ class QUIC_EXPORT_PRIVATE QuicSendmmsgBatchWriter : public QuicUdpBatchWriter {
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           const PerPacketOptions* options,
+                          const QuicPacketWriterParams& params,
                           uint64_t release_time) const override;
 
   FlushImplResult FlushImpl() override;

@@ -88,7 +88,8 @@ void PacketDroppingTestWriter::Initialize(
 
 WriteResult PacketDroppingTestWriter::WritePacket(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
+    const QuicSocketAddress& peer_address, PerPacketOptions* options,
+    const QuicPacketWriterParams& params) {
   ++num_calls_to_write_;
   ReleaseOldPackets();
 
@@ -157,7 +158,7 @@ WriteResult PacketDroppingTestWriter::WritePacket(
     }
     delayed_packets_.push_back(
         DelayedWrite(buffer, buf_len, self_address, peer_address,
-                     std::move(delayed_options), send_time));
+                     std::move(delayed_options), params, send_time));
     cur_buffer_size_ += buf_len;
 
     // Set the alarm if it's not yet set.
@@ -169,7 +170,7 @@ WriteResult PacketDroppingTestWriter::WritePacket(
   }
 
   return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
-                                              peer_address, options);
+                                              peer_address, options, params);
 }
 
 bool PacketDroppingTestWriter::IsWriteBlocked() const {
@@ -207,7 +208,7 @@ QuicTime PacketDroppingTestWriter::ReleaseNextPacket() {
   // Grab the next one off the queue and send it.
   QuicPacketWriterWrapper::WritePacket(
       iter->buffer.data(), iter->buffer.length(), iter->self_address,
-      iter->peer_address, iter->options.get());
+      iter->peer_address, iter->options.get(), iter->params);
   QUICHE_DCHECK_GE(cur_buffer_size_, iter->buffer.length());
   cur_buffer_size_ -= iter->buffer.length();
   delayed_packets_.erase(iter);
@@ -239,11 +240,13 @@ void PacketDroppingTestWriter::OnCanWrite() { on_can_write_->OnCanWrite(); }
 PacketDroppingTestWriter::DelayedWrite::DelayedWrite(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
     const QuicSocketAddress& peer_address,
-    std::unique_ptr<PerPacketOptions> options, QuicTime send_time)
+    std::unique_ptr<PerPacketOptions> options,
+    const QuicPacketWriterParams& params, QuicTime send_time)
     : buffer(buffer, buf_len),
       self_address(self_address),
       peer_address(peer_address),
       options(std::move(options)),
+      params(params),
       send_time(send_time) {}
 
 PacketDroppingTestWriter::DelayedWrite::~DelayedWrite() = default;
