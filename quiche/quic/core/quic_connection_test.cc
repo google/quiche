@@ -17285,6 +17285,15 @@ TEST_P(QuicConnectionTest, BufferedPacketRetainsOldEcn) {
   EXPECT_EQ(writer_->last_ecn_sent(), ECN_ECT1);
 }
 
+TEST_P(QuicConnectionTest, RejectEcnIfWriterDoesNotSupport) {
+  SetQuicReloadableFlag(quic_send_ect1, true);
+  MockPacketWriter mock_writer;
+  QuicConnectionPeer::SetWriter(&connection_, &mock_writer, false);
+  EXPECT_CALL(mock_writer, SupportsEcn()).WillOnce(Return(false));
+  EXPECT_FALSE(connection_.set_ecn_codepoint(ECN_ECT1));
+  EXPECT_EQ(connection_.ecn_codepoint(), ECN_NOT_ECT);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

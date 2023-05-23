@@ -7359,6 +7359,9 @@ bool QuicConnection::set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint) {
     packet_writer_params_.ecn_codepoint = ecn_codepoint;
     return true;
   }
+  if (!writer_->SupportsEcn()) {
+    return false;
+  }
   switch (ecn_codepoint) {
     case ECN_NOT_ECT:
       QUICHE_DCHECK(false);
