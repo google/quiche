@@ -1319,6 +1319,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return sent_server_preferred_address_;
   }
 
+  // True if received long packet header contains source connection ID.
+  bool PeerIssuesConnectionIds() const {
+    return peer_issued_cid_manager_ != nullptr;
+  }
+
   // Sets the ECN marking for all outgoing packets, assuming that the congestion
   // control supports that codepoint. QuicConnection will revert to sending
   // ECN_NOT_ECT if there is evidence the path is dropping ECN-marked packets,
