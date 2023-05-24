@@ -68,7 +68,7 @@ QUIC_FLAG(quic_restart_flag_quic_enable_sending_bandwidth_estimate_when_network_
 // If true, set burst token to 2 in cwnd bootstrapping experiment.
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_bursts, false)
 // If true, unacked QPACK entries with no references will not be evicted.
-QUIC_FLAG(quic_reloadable_flag_quic_do_not_evict_unacked_entry, false)
+QUIC_FLAG(quic_reloadable_flag_quic_do_not_evict_unacked_entry, true)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr_v2, false)
 // If true, use a LRU cache to record client addresses of packets received on server\'s original address.
