@@ -457,7 +457,8 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
     for (Header to_add : kSampleRequestPseudoheaders) {
       if (to_add.first == ":path") {
         EXPECT_EQ(HeaderValidator::HEADER_OK,
-                  validator.ValidateSingleHeader(to_add.first, value));
+                  validator.ValidateSingleHeader(to_add.first, value))
+            << "Problematic char: [" << c << "]";
       } else {
         EXPECT_EQ(HeaderValidator::HEADER_OK,
                   validator.ValidateSingleHeader(to_add.first, to_add.second));
@@ -466,7 +467,7 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
     EXPECT_TRUE(validator.FinishHeaderBlock(HeaderType::REQUEST));
   }
 
-  // BUG: Various invalid path characters.
+  // Various invalid path characters.
   for (const absl::string_view c : {"[", "<", "}", "`", "\\", " ", "\t"}) {
     const std::string value = absl::StrCat("/shawa", c, "rma");
 
@@ -474,14 +475,14 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
     validator.StartHeaderBlock();
     for (Header to_add : kSampleRequestPseudoheaders) {
       if (to_add.first == ":path") {
-        EXPECT_EQ(HeaderValidator::HEADER_OK,
+        EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
                   validator.ValidateSingleHeader(to_add.first, value));
       } else {
         EXPECT_EQ(HeaderValidator::HEADER_OK,
                   validator.ValidateSingleHeader(to_add.first, to_add.second));
       }
     }
-    EXPECT_TRUE(validator.FinishHeaderBlock(HeaderType::REQUEST));
+    EXPECT_FALSE(validator.FinishHeaderBlock(HeaderType::REQUEST));
   }
 }
 
