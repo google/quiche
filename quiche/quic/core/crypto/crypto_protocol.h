@@ -466,6 +466,10 @@ const QuicTag kPAD  = TAG('P', 'A', 'D', '\0');  // Padding
 // Stats collection tags
 const QuicTag kEPID = TAG('E', 'P', 'I', 'D');  // Endpoint identifier.
 
+const QuicTag kMCS1 = TAG('M', 'C', 'S', '1');
+const QuicTag kMCS2 = TAG('M', 'C', 'S', '2');
+const QuicTag kMCS3 = TAG('M', 'C', 'S', '3');
+
 // clang-format on
 
 // These tags have a special form so that they appear either at the beginning
