@@ -137,6 +137,57 @@ TEST(OgHttp2AdapterTest, HeaderValuesWithObsTextDisallowed) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
+TEST(OgHttp2AdapterTest, RequestPathWithSpaceOrTab) {
+  DataSavingVisitor visitor;
+  OgHttp2Session::Options options;
+  options.allow_obs_text = false;
+  options.perspective = Perspective::kServer;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/ fragment"}},
+                                          /*fin=*/true)
+                                 .Headers(3,
+                                          {{":method", "GET"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/\tfragment2"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/ fragment"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+  // Stream 3
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":path", "/\tfragment2"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnEndStream(3));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
+}
+
 TEST(OgHttp2AdapterTest, InitialSettingsNoExtendedConnect) {
   DataSavingVisitor client_visitor;
   OgHttp2Adapter::Options client_options;
