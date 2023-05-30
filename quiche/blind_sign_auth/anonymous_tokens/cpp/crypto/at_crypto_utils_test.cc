@@ -264,6 +264,93 @@ TEST(PublicMetadataCryptoUtilsTest,
   }
 }
 
+// copybara:strip_begin(internal comment)
+// The input public key and the expected DER encoding are taken from the
+// following Goa test:
+// http://google3/privacy/net/boq/common/tokens/token_types_test.go;l=21;rcl=528885322
+// copybara:strip_end
+TEST(CryptoUtilsTest, RsaPssDerEncodingTest) {
+  RSAPublicKey public_key_e_not_padded;
+  RSAPublicKey public_key_e_padded;
+
+  public_key_e_not_padded.set_n(absl::HexStringToBytes(
+      "b259758bb02bc75b68b17612c9bf68c5fa05958a334c61e167bc20bcc75757c126e892"
+      "10b9df3989072cf6260e6883c7cd4af4d31dde9915b69b301fbef962de8c71bd2db5ec62"
+      "5da259712f86a8dc3d241e9688c82391b7bf1ebc358311f55c26be910b76f61fea408ed6"
+      "92f1a9578a622c82c0fcf6f69ef3670e38bfc90f63da4f3bbbd088c8ae7a3c5a55e66f64"
+      "74d562d32cce7b7edd7cf0149ca0e96cb6525e81fbba815a8f12748e34e5135f572b2e17"
+      "b7ba430081597e6fb9033c005884d5935118c60d75b010f6fece7ecdcc1cb7d58d138969"
+      "3d43377f4f3de949cb1e4105e792b96d7f04b0cd262ac33cffc5a890d267425e61c19e93"
+      "63550f2285"));
+  // A hex string of 3 bytes in length is passed.
+  public_key_e_not_padded.set_e(absl::HexStringToBytes("010001"));
+
+  public_key_e_padded.set_n(public_key_e_not_padded.n());
+  // A hex string of 4 bytes in length is passed.
+  public_key_e_padded.set_e(absl::HexStringToBytes("00010001"));
+
+  // Convert both padded and not padded rsa public keys to rsa structs.
+  ASSERT_OK_AND_ASSIGN(
+      bssl::UniquePtr<RSA> rsa_e_not_padded,
+      AnonymousTokensRSAPublicKeyToRSA(public_key_e_not_padded));
+  ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<RSA> rsa_e_padded,
+                       AnonymousTokensRSAPublicKeyToRSA(public_key_e_padded));
+  // Encode both padded and not padded rsa structs to DER.
+  ASSERT_OK_AND_ASSIGN(std::string result_e_not_padded,
+                       RsaSsaPssPublicKeyToDerEncoding(rsa_e_not_padded.get()));
+  ASSERT_OK_AND_ASSIGN(std::string result_e_padded,
+                       RsaSsaPssPublicKeyToDerEncoding(rsa_e_padded.get()));
+
+  std::string expected_der_encoding = absl::HexStringToBytes(
+      "30820152303d06092a864886f70d01010a3030a00d300b0609608648016503040202a11a"
+      "301806092a864886f70d010108300b0609608648016503040202a2030201300382010f00"
+      "3082010a0282010100b259758bb02bc75b68b17612c9bf68c5fa05958a334c61e167bc20"
+      "bcc75757c126e89210b9df3989072cf6260e6883c7cd4af4d31dde9915b69b301fbef962"
+      "de8c71bd2db5ec625da259712f86a8dc3d241e9688c82391b7bf1ebc358311f55c26be91"
+      "0b76f61fea408ed692f1a9578a622c82c0fcf6f69ef3670e38bfc90f63da4f3bbbd088c8"
+      "ae7a3c5a55e66f6474d562d32cce7b7edd7cf0149ca0e96cb6525e81fbba815a8f12748e"
+      "34e5135f572b2e17b7ba430081597e6fb9033c005884d5935118c60d75b010f6fece7ecd"
+      "cc1cb7d58d1389693d43377f4f3de949cb1e4105e792b96d7f04b0cd262ac33cffc5a890"
+      "d267425e61c19e9363550f22850203010001");
+
+  EXPECT_EQ(result_e_not_padded, expected_der_encoding);
+  EXPECT_EQ(result_e_padded, expected_der_encoding);
+}
+
+// The public key used in this test is taken from the test vectors found here:
+// https://www.ietf.org/archive/id/draft-ietf-privacypass-protocol-10.html#name-issuance-protocol-2-blind-rs
+TEST(CryptoUtilsTest, IetfPrivacyPassBlindRsaPublicKeyToDerTest) {
+  RSAPublicKey public_key;
+  public_key.set_n(absl::HexStringToBytes(
+      "cb1aed6b6a95f5b1ce013a4cfcab25b94b2e64a23034e4250a7eab43c0df3a8c12993af1"
+      "2b111908d4b471bec31d4b6c9ad9cdda90612a2ee903523e6de5a224d6b02f09e5c374d0"
+      "cfe01d8f529c500a78a2f67908fa682b5a2b430c81eaf1af72d7b5e794fc98a313927687"
+      "9757ce453b526ef9bf6ceb99979b8423b90f4461a22af37aab0cf5733f7597abe44d31c7"
+      "32db68a181c6cbbe607d8c0e52e0655fd9996dc584eca0be87afbcd78a337d17b1dba9e8"
+      "28bbd81e291317144e7ff89f55619709b096cbb9ea474cead264c2073fe49740c01f00e1"
+      "09106066983d21e5f83f086e2e823c879cd43cef700d2a352a9babd612d03cad02db134b"
+      "7e225a5f"));
+  public_key.set_e(absl::HexStringToBytes("010001"));
+  ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<RSA> rsa,
+                       AnonymousTokensRSAPublicKeyToRSA(public_key));
+  ASSERT_OK_AND_ASSIGN(std::string result,
+                       RsaSsaPssPublicKeyToDerEncoding(rsa.get()));
+
+  std::string expected_der_encoding = absl::HexStringToBytes(
+      "30820152303d06092a864886f70d01010a3030a00d300b0609608648016503040202a11a"
+      "301806092a864886f70d010108300b0609608648016503040202a2030201300382010f00"
+      "3082010a0282010100cb1aed6b6a95f5b1ce013a4cfcab25b94b2e64a23034e4250a7eab"
+      "43c0df3a8c12993af12b111908d4b471bec31d4b6c9ad9cdda90612a2ee903523e6de5a2"
+      "24d6b02f09e5c374d0cfe01d8f529c500a78a2f67908fa682b5a2b430c81eaf1af72d7b5"
+      "e794fc98a3139276879757ce453b526ef9bf6ceb99979b8423b90f4461a22af37aab0cf5"
+      "733f7597abe44d31c732db68a181c6cbbe607d8c0e52e0655fd9996dc584eca0be87afbc"
+      "d78a337d17b1dba9e828bbd81e291317144e7ff89f55619709b096cbb9ea474cead264c2"
+      "073fe49740c01f00e109106066983d21e5f83f086e2e823c879cd43cef700d2a352a9bab"
+      "d612d03cad02db134b7e225a5f0203010001");
+
+  EXPECT_EQ(result, expected_der_encoding);
+}
+
 using CreateTestKeyPairFunction =
     absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>>();
 

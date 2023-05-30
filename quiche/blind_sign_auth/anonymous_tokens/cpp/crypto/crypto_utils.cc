@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -30,8 +31,10 @@
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/status_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
+#include "openssl/bytestring.h"
 #include "openssl/err.h"
 #include "openssl/hkdf.h"
+#include "openssl/mem.h"
 #include "openssl/rand.h"
 #include "openssl/rsa.h"
 
@@ -92,6 +95,27 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> PublicMetadataHashWithHKDF(
 }
 
 }  // namespace internal
+
+namespace {
+
+// Marshals an RSA public key in the DER format.
+absl::StatusOr<std::string> MarshalRsaPublicKey(const RSA* rsa) {
+  uint8_t* rsa_public_key_bytes;
+  size_t rsa_public_key_bytes_len = 0;
+  if (!RSA_public_key_to_bytes(&rsa_public_key_bytes, &rsa_public_key_bytes_len,
+                               rsa)) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Failed to marshall rsa public key to a DER encoded RSAPublicKey "
+        "structure (RFC 8017): ",
+        GetSslErrors()));
+  }
+  std::string rsa_public_key_str(reinterpret_cast<char*>(rsa_public_key_bytes),
+                                 rsa_public_key_bytes_len);
+  OPENSSL_free(rsa_public_key_bytes);
+  return rsa_public_key_str;
+}
+
+}  // namespace
 
 absl::StatusOr<BnCtxPtr> GetAndStartBigNumCtx() {
   // Create context to be used in intermediate computation.
@@ -223,10 +247,10 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> GetRsaSqrtTwo(int x) {
           "Cannot add word to compute RSA sqrt(2): ", GetSslErrors()));
     }
     if (BN_lshift(sqrt2.get(), sqrt2.get(), 32) != 1) {
-        return absl::InternalError(absl::StrCat(
-            "Cannot shift to compute RSA sqrt(2): ", GetSslErrors()));
+      return absl::InternalError(absl::StrCat(
+          "Cannot shift to compute RSA sqrt(2): ", GetSslErrors()));
     }
-    if (BN_add_word(sqrt2.get(), internal::kBoringSSLRSASqrtTwo[i+1]) != 1) {
+    if (BN_add_word(sqrt2.get(), internal::kBoringSSLRSASqrtTwo[i + 1]) != 1) {
       return absl::InternalError(absl::StrCat(
           "Cannot add word to compute RSA sqrt(2): ", GetSslErrors()));
     }
@@ -521,6 +545,127 @@ absl::Status RsaBlindSignatureVerify(
         absl::StrCat("PSS padding verification failed: ", GetSslErrors()));
   }
   return absl::OkStatus();
+}
+
+absl::StatusOr<std::string> RsaSsaPssPublicKeyToDerEncoding(const RSA* rsa) {
+  if (rsa == NULL) {
+    return absl::InvalidArgumentError("Public Key rsa is null.");
+  }
+  // Create DER encoded RSA public key string.
+  ANON_TOKENS_ASSIGN_OR_RETURN(std::string rsa_public_key_str,
+                               MarshalRsaPublicKey(rsa));
+  // Main CRYPTO ByteBuilder object cbb which will be passed to CBB_finish to
+  // finalize and output the DER encoding of the RsaSsaPssPublicKey.
+  bssl::ScopedCBB cbb;
+  // initial_capacity only serves as a hint.
+  if (!CBB_init(cbb.get(), /*initial_capacity=*/2 * RSA_size(rsa))) {
+    return absl::InternalError("CBB_init() failed.");
+  }
+
+  // Temporary CBB objects to write ASN1 sequences and object identifiers into.
+  CBB outer_seq, inner_seq, param_seq, sha384_seq, mgf1_seq, mgf1_sha384_seq;
+  CBB param0_tag, param1_tag, param2_tag;
+  CBB rsassa_pss_oid, sha384_oid, mgf1_oid, mgf1_sha384_oid;
+  CBB public_key_bit_str_cbb;
+  // RsaSsaPssPublicKey ASN.1 structure example:
+  //
+  //  SEQUENCE {                                               # outer_seq
+  //    SEQUENCE {                                             # inner_seq
+  //      OBJECT_IDENTIFIER{1.2.840.113549.1.1.10}             # rsassa_pss_oid
+  //      SEQUENCE {                                           # param_seq
+  //        [0] {                                              # param0_tag
+  //              {                                            # sha384_seq
+  //                OBJECT_IDENTIFIER{2.16.840.1.101.3.4.2.2}  # sha384_oid
+  //              }
+  //            }
+  //        [1] {                                              # param1_tag
+  //              {                                            # mgf1_seq
+  //                OBJECT_IDENTIFIER{1.2.840.113549.1.1.8}    # mgf1_oid
+  //                {                                          # mgf1_sha384_seq
+  //                  OBJECT_IDENTIFIER{2.16.840.1.101.3.4.2.2}# mgf1_sha384_oid
+  //                }
+  //              }
+  //            }
+  //        [2] {                                              # param2_tag
+  //              INTEGER { 48 }                               # salt length
+  //            }
+  //      }
+  //    }
+  //    BIT STRING {                                    # public_key_bit_str_cbb
+  //      0                                             # unused bits
+  //      der_encoded_rsa_public_key_structure
+  //    }
+  //  }
+  //
+  // Start with the outer sequence.
+  if (!CBB_add_asn1(cbb.get(), &outer_seq, CBS_ASN1_SEQUENCE) ||
+      // The outer sequence consists of two parts; the inner sequence and the
+      // encoded rsa public key.
+      //
+      // Add the inner sequence to the outer sequence.
+      !CBB_add_asn1(&outer_seq, &inner_seq, CBS_ASN1_SEQUENCE) ||
+      // Add object identifier for RSASSA-PSS algorithm to the inner sequence.
+      !CBB_add_asn1(&inner_seq, &rsassa_pss_oid, CBS_ASN1_OBJECT) ||
+      !CBB_add_asn1_oid_from_text(&rsassa_pss_oid, kRsaSsaPssOid,
+                                  strlen(kRsaSsaPssOid)) ||
+      // Add a parameter sequence to the inner sequence.
+      !CBB_add_asn1(&inner_seq, &param_seq, CBS_ASN1_SEQUENCE) ||
+      // SHA384 hash function algorithm identifier will be parameter 0 in the
+      // parameter sequence.
+      !CBB_add_asn1(&param_seq, &param0_tag,
+                    CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 0) ||
+      !CBB_add_asn1(&param0_tag, &sha384_seq, CBS_ASN1_SEQUENCE) ||
+      // Add SHA384 object identifier to finish the SHA384 algorithm identifier
+      // and parameter 0.
+      !CBB_add_asn1(&sha384_seq, &sha384_oid, CBS_ASN1_OBJECT) ||
+      !CBB_add_asn1_oid_from_text(&sha384_oid, kSha384Oid,
+                                  strlen(kSha384Oid)) ||
+      // mgf1-SHA384 algorithm identifier as parameter 1 to the parameter
+      // sequence.
+      !CBB_add_asn1(&param_seq, &param1_tag,
+                    CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 1) ||
+      !CBB_add_asn1(&param1_tag, &mgf1_seq, CBS_ASN1_SEQUENCE) ||
+      // Add mgf1 object identifier to the mgf1-SHA384 algorithm identifier.
+      !CBB_add_asn1(&mgf1_seq, &mgf1_oid, CBS_ASN1_OBJECT) ||
+      !CBB_add_asn1_oid_from_text(&mgf1_oid, kRsaSsaPssMgf1Oid,
+                                  strlen(kRsaSsaPssMgf1Oid)) ||
+      // Add SHA384 algorithm identifier to the mgf1-SHA384 algorithm
+      // identifier.
+      !CBB_add_asn1(&mgf1_seq, &mgf1_sha384_seq, CBS_ASN1_SEQUENCE) ||
+      // Add SHA384 object identifier to finish SHA384 algorithm identifier,
+      // mgf1-SHA384 algorithm identifier and parameter 1.
+      !CBB_add_asn1(&mgf1_sha384_seq, &mgf1_sha384_oid, CBS_ASN1_OBJECT) ||
+      !CBB_add_asn1_oid_from_text(&mgf1_sha384_oid, kSha384Oid,
+                                  strlen(kSha384Oid)) ||
+      // Add salt length as parameter 2 to the parameter sequence to finish the
+      // parameter sequence and the inner sequence.
+      !CBB_add_asn1(&param_seq, &param2_tag,
+                    CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 2) ||
+      !CBB_add_asn1_int64(&param2_tag, kSaltLengthInBytes48) ||
+      // Add public key to the outer sequence as an ASN1 bitstring.
+      !CBB_add_asn1(&outer_seq, &public_key_bit_str_cbb, CBS_ASN1_BITSTRING) ||
+      !CBB_add_u8(&public_key_bit_str_cbb, 0 /* no unused bits */) ||
+      !CBB_add_bytes(
+          &public_key_bit_str_cbb,
+          reinterpret_cast<const uint8_t*>(rsa_public_key_str.data()),
+          rsa_public_key_str.size())) {
+    return absl::InvalidArgumentError(
+        "Failed to generate encoded self-signed certificate");
+  }
+  // Finish creating the DER-encoding of RsaSsaPssPublicKey.
+  uint8_t* rsa_ssa_pss_public_key_der;
+  size_t rsa_ssa_pss_public_key_der_len;
+  if (!CBB_finish(cbb.get(), &rsa_ssa_pss_public_key_der,
+                  &rsa_ssa_pss_public_key_der_len)) {
+    return absl::InternalError("CBB_finish() failed.");
+  }
+  std::string rsa_ssa_pss_public_key_der_str(
+      reinterpret_cast<const char*>(rsa_ssa_pss_public_key_der),
+      rsa_ssa_pss_public_key_der_len);
+  // Free memory.
+  OPENSSL_free(rsa_ssa_pss_public_key_der);
+  // Return the DER encoding as string.
+  return rsa_ssa_pss_public_key_der_str;
 }
 
 }  // namespace anonymous_tokens

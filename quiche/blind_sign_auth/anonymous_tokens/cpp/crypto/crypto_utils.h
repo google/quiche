@@ -183,6 +183,22 @@ absl::Status QUICHE_EXPORT RsaBlindSignatureVerify(
     absl::string_view message,
     std::optional<absl::string_view> public_metadata = std::nullopt);
 
+// This method outputs a DER encoding of RSASSA-PSS (RSA Signature Scheme with
+// Appendix - Probabilistic Signature Scheme) Public Key as described here
+// https://datatracker.ietf.org/doc/html/rfc3447.html using the object
+// identifier(s) here: https://oidref.com/1.2.840.113549.1.1.10  and using a
+// fixed salt length of 48 bytes, SHA384 as the signature's hash function as
+// well as the hash function that the signature's mask generating function is
+// based on. A publicly availble equivalent function is available in Goa here:
+// https://github.com/cloudflare/pat-go/blob/11579ba5b0b9b77d3e8e3d5247a98811227ac82e/x509util.go#L56
+//
+// copybara:strip_begin(internal comment)
+// This method serves as a C++ version for the following Goa method:
+// http://google3/privacy/net/boq/common/tokens/token_types.go;l=85;rcl=515461856
+// copybara:strip_end
+absl::StatusOr<std::string> QUICHE_EXPORT RsaSsaPssPublicKeyToDerEncoding(
+    const RSA* rsa);
+
 }  // namespace anonymous_tokens
 }  // namespace private_membership
 
