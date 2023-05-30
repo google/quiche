@@ -147,6 +147,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     int32_t, num_requests, 1,
     "How many sequential requests to make on a single connection.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, ignore_errors, false,
+                                "If true, ignore connection/response errors "
+                                "and send all num_requests anyway.");
+
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
     "If true, don't verify the server certificate.");
@@ -504,7 +508,9 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       std::cerr << "Request caused connection failure. Error: "
                 << quic::QuicErrorCodeToString(client->session()->error())
                 << std::endl;
-      return 1;
+      if (!quiche::GetQuicheCommandLineFlag(FLAGS_ignore_errors)) {
+        return 1;
+      }
     }
 
     int response_code = client->latest_response_code();
@@ -517,11 +523,15 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       } else {
         std::cout << "Request failed (redirect " << response_code << ")."
                   << std::endl;
-        return 1;
+        if (!quiche::GetQuicheCommandLineFlag(FLAGS_ignore_errors)) {
+          return 1;
+        }
       }
     } else {
       std::cout << "Request failed (" << response_code << ")." << std::endl;
-      return 1;
+      if (!quiche::GetQuicheCommandLineFlag(FLAGS_ignore_errors)) {
+        return 1;
+      }
     }
 
     if (i + 1 < num_requests) {  // There are more requests to perform.
@@ -536,7 +546,9 @@ int QuicToyClient::SendRequestsAndPrintResponses(
         if (!client->Connect()) {
           std::cerr << "Failed to reconnect client between requests."
                     << std::endl;
-          return 1;
+          if (!quiche::GetQuicheCommandLineFlag(FLAGS_ignore_errors)) {
+            return 1;
+          }
         }
       } else if (!quiche::GetQuicheCommandLineFlag(
                      FLAGS_disable_port_changes)) {
