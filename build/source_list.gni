@@ -1317,6 +1317,7 @@ fuzzers_hdrs = [
 ]
 fuzzers_srcs = [
     "src/quiche/common/structured_headers_fuzzer.cc",
+    "src/quiche/http2/decoder/http2_frame_decoder_fuzzer.cc",
     "src/quiche/quic/core/crypto/certificate_view_der_fuzzer.cc",
     "src/quiche/quic/core/crypto/certificate_view_pem_fuzzer.cc",
     "src/quiche/quic/core/qpack/fuzzer/qpack_decoder_fuzzer.cc",

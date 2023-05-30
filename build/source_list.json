@@ -1316,6 +1316,7 @@
   ],
   "fuzzers_srcs": [
     "quiche/common/structured_headers_fuzzer.cc",
+    "quiche/http2/decoder/http2_frame_decoder_fuzzer.cc",
     "quiche/quic/core/crypto/certificate_view_der_fuzzer.cc",
     "quiche/quic/core/crypto/certificate_view_pem_fuzzer.cc",
     "quiche/quic/core/qpack/fuzzer/qpack_decoder_fuzzer.cc",

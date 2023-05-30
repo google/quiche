@@ -1317,6 +1317,7 @@ fuzzers_hdrs = [
 ]
 fuzzers_srcs = [
     "common/structured_headers_fuzzer.cc",
+    "http2/decoder/http2_frame_decoder_fuzzer.cc",
     "quic/core/crypto/certificate_view_der_fuzzer.cc",
     "quic/core/crypto/certificate_view_pem_fuzzer.cc",
     "quic/core/qpack/fuzzer/qpack_decoder_fuzzer.cc",
