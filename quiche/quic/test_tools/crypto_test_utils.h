@@ -18,6 +18,7 @@
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 
@@ -114,13 +115,12 @@ void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
 // 4) Returns true if both conditions are met.
 // 5) Returns false if either connection is closed or there is no more packet to
 // deliver before both conditions are met.
-bool CommunicateHandshakeMessagesUntil(PacketSavingConnection* client_conn,
-                                       QuicCryptoStream* client,
-                                       std::function<bool()> client_condition,
-                                       PacketSavingConnection* server_conn,
-                                       QuicCryptoStream* server,
-                                       std::function<bool()> server_condition,
-                                       bool process_stream_data);
+bool CommunicateHandshakeMessagesUntil(
+    PacketSavingConnection* client_conn, QuicCryptoStream* client,
+    quiche::UnretainedCallback<bool()> client_condition,
+    PacketSavingConnection* server_conn, QuicCryptoStream* server,
+    quiche::UnretainedCallback<bool()> server_condition,
+    bool process_stream_data);
 
 // AdvanceHandshake attempts to moves messages from |client| to |server| and
 // |server| to |client|. Returns the number of messages moved.

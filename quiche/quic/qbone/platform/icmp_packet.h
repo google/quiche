@@ -12,6 +12,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 
@@ -20,7 +21,7 @@ namespace quic {
 // stack allocated inside CreateIcmpPacket.
 void CreateIcmpPacket(in6_addr src, in6_addr dst, const icmp6_hdr& icmp_header,
                       absl::string_view body,
-                      const std::function<void(absl::string_view)>& cb);
+                      quiche::UnretainedCallback<void(absl::string_view)> cb);
 
 }  // namespace quic
 

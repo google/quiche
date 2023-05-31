@@ -27,6 +27,7 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_stack_trace.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -791,7 +792,7 @@ void QuicDispatcher::StopAcceptingNewConnections() {
 }
 
 void QuicDispatcher::PerformActionOnActiveSessions(
-    std::function<void(QuicSession*)> operation) const {
+    quiche::UnretainedCallback<void(QuicSession*)> operation) const {
   absl::flat_hash_set<QuicSession*> visited_session;
   visited_session.reserve(reference_counted_session_map_.size());
   for (auto const& kv : reference_counted_session_map_) {

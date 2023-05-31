@@ -24,6 +24,7 @@
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/quiche_callbacks.h"
 
 #ifndef SOL_UDP
 #define SOL_UDP 17
@@ -156,11 +157,13 @@ struct QUIC_EXPORT_PRIVATE BufferedWrite {
 //   QuicSocketUtils::WriteMultiplePackets(fd, &mhdr, &num_packets_sent);
 class QUIC_EXPORT_PRIVATE QuicMMsgHdr {
  public:
-  using ControlBufferInitializer = std::function<void(
+  using ControlBufferInitializer = quiche::UnretainedCallback<void(
       QuicMMsgHdr* mhdr, int i, const BufferedWrite& buffered_write)>;
   template <typename IteratorT>
-  QuicMMsgHdr(const IteratorT& first, const IteratorT& last, size_t cbuf_size,
-              ControlBufferInitializer cbuf_initializer)
+  QuicMMsgHdr(
+      const IteratorT& first, const IteratorT& last, size_t cbuf_size,
+      ControlBufferInitializer cbuf_initializer =
+          +[](quic::QuicMMsgHdr*, int, const quic::BufferedWrite&) {})
       : num_msgs_(std::distance(first, last)), cbuf_size_(cbuf_size) {
     static_assert(
         std::is_same<typename std::iterator_traits<IteratorT>::value_type,
@@ -180,9 +183,7 @@ class QUIC_EXPORT_PRIVATE QuicMMsgHdr {
       ++i;
 
       InitOneHeader(i, *it);
-      if (cbuf_initializer) {
-        cbuf_initializer(this, i, *it);
-      }
+      cbuf_initializer(this, i, *it);
     }
   }
 

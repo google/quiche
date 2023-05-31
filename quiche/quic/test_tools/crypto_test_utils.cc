@@ -47,6 +47,7 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_quic_framer.h"
 #include "quiche/quic/test_tools/test_certificates.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
@@ -399,13 +400,12 @@ void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
   }
 }
 
-bool CommunicateHandshakeMessagesUntil(PacketSavingConnection* client_conn,
-                                       QuicCryptoStream* client,
-                                       std::function<bool()> client_condition,
-                                       PacketSavingConnection* server_conn,
-                                       QuicCryptoStream* server,
-                                       std::function<bool()> server_condition,
-                                       bool process_stream_data) {
+bool CommunicateHandshakeMessagesUntil(
+    PacketSavingConnection* client_conn, QuicCryptoStream* client,
+    quiche::UnretainedCallback<bool()> client_condition,
+    PacketSavingConnection* server_conn, QuicCryptoStream* server,
+    quiche::UnretainedCallback<bool()> server_condition,
+    bool process_stream_data) {
   size_t client_next_packet_to_deliver =
       client_conn->number_of_packets_delivered_;
   size_t server_next_packet_to_deliver =

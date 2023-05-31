@@ -10,6 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/platform/internet_checksum.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_endian.h"
 
 namespace quic {
@@ -31,8 +32,9 @@ struct TCPv6PseudoHeader {
 
 }  // namespace
 
-void CreateTcpResetPacket(absl::string_view original_packet,
-                          const std::function<void(absl::string_view)>& cb) {
+void CreateTcpResetPacket(
+    absl::string_view original_packet,
+    quiche::UnretainedCallback<void(absl::string_view)> cb) {
   // By the time this method is called, original_packet should be fairly
   // strongly validated. However, it's better to be more paranoid than not, so
   // here are a bunch of very obvious checks.

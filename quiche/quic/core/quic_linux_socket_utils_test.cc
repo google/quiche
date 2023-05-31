@@ -178,7 +178,7 @@ TEST_F(QuicLinuxSocketUtilsTest, QuicMMsgHdr) {
       QuicSocketAddress(QuicIpAddress::Loopback6(), 6));
 
   QuicMMsgHdr quic_mhdr_without_cbuf(buffered_writes.begin(),
-                                     buffered_writes.end(), 0, nullptr);
+                                     buffered_writes.end(), 0);
   for (size_t i = 0; i < buffered_writes.size(); ++i) {
     const BufferedWrite& bw = buffered_writes[i];
     CheckMsghdrWithoutCbuf(&quic_mhdr_without_cbuf.mhdr()[i].msg_hdr, bw.buffer,

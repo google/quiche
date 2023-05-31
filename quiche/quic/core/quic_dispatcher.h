@@ -30,6 +30,7 @@
 #include "quiche/quic/core/quic_version_manager.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 
 namespace quic {
@@ -163,7 +164,7 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   // Apply an operation for each session.
   void PerformActionOnActiveSessions(
-      std::function<void(QuicSession*)> operation) const;
+      quiche::UnretainedCallback<void(QuicSession*)> operation) const;
 
   // Get a snapshot of all sessions.
   std::vector<std::shared_ptr<QuicSession>> GetSessionsSnapshot() const;

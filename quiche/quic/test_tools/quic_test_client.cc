@@ -29,6 +29,7 @@
 #include "quiche/quic/test_tools/quic_spdy_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/tools/quic_url.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -627,17 +628,19 @@ bool QuicTestClient::HaveActiveStream() {
   return push_promise_data_to_resend_.get() || !open_streams_.empty();
 }
 
-bool QuicTestClient::WaitUntil(int timeout_ms, std::function<bool()> trigger) {
+bool QuicTestClient::WaitUntil(
+    int timeout_ms,
+    absl::optional<quiche::UnretainedCallback<bool()>> trigger) {
   QuicTime::Delta timeout = QuicTime::Delta::FromMilliseconds(timeout_ms);
   const QuicClock* clock = client()->session()->connection()->clock();
   QuicTime end_waiting_time = clock->Now() + timeout;
-  while (connected() && !(trigger && trigger()) &&
+  while (connected() && !(trigger.has_value() && (*trigger)()) &&
          (timeout_ms < 0 || clock->Now() < end_waiting_time)) {
     event_loop_->RunEventLoopOnce(timeout);
     client_->WaitForEventsPostprocessing();
   }
   ReadNextResponse();
-  if (trigger && !trigger()) {
+  if (trigger.has_value() && !(*trigger)()) {
     QUIC_VLOG(1) << "Client WaitUntil returning with trigger returning false.";
     return false;
   }
@@ -839,8 +842,7 @@ QuicTestClient::PerStreamState::PerStreamState(const PerStreamState& other)
 QuicTestClient::PerStreamState::PerStreamState(
     QuicRstStreamErrorCode stream_error, bool response_complete,
     bool response_headers_complete,
-    const spdy::Http2HeaderBlock& response_headers,
-    const std::string& response,
+    const spdy::Http2HeaderBlock& response_headers, const std::string& response,
     const spdy::Http2HeaderBlock& response_trailers, uint64_t bytes_read,
     uint64_t bytes_written, int64_t response_body_size)
     : stream_error(stream_error),

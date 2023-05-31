@@ -873,8 +873,8 @@ std::string BalsaHeaders::DebugString() const {
 }
 
 bool BalsaHeaders::ForEachHeader(
-    std::function<bool(const absl::string_view key,
-                       const absl::string_view value)>
+    quiche::UnretainedCallback<bool(const absl::string_view key,
+                                    const absl::string_view value)>
         fn) const {
   int s = header_lines_.size();
   for (int i = 0; i < s; ++i) {
@@ -980,7 +980,7 @@ void BalsaHeaders::ReplaceOrAppendAuthority(absl::string_view value) {
 void BalsaHeaders::RemoveAuthority() { RemoveAllOfHeader(kHost); }
 
 void BalsaHeaders::ApplyToCookie(
-    std::function<void(absl::string_view cookie)> f) const {
+    quiche::UnretainedCallback<void(absl::string_view cookie)> f) const {
   f(GetHeader(kCookie));
 }
 

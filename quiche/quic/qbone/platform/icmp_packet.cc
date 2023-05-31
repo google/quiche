@@ -8,6 +8,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/qbone/platform/internet_checksum.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_endian.h"
 
 namespace quic {
@@ -41,7 +42,7 @@ struct IPv6PseudoHeader {
 
 void CreateIcmpPacket(in6_addr src, in6_addr dst, const icmp6_hdr& icmp_header,
                       absl::string_view body,
-                      const std::function<void(absl::string_view)>& cb) {
+                      quiche::UnretainedCallback<void(absl::string_view)> cb) {
   const size_t body_size = std::min(body.size(), kICMPv6BodyMaxSize);
   const size_t payload_size = kICMPv6HeaderSize + body_size;
 

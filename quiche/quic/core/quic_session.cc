@@ -29,6 +29,7 @@
 #include "quiche/quic/platform/api/quic_server_stats.h"
 #include "quiche/quic/platform/api/quic_stack_trace.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -2641,7 +2642,7 @@ void QuicSession::NeuterCryptoDataOfEncryptionLevel(EncryptionLevel level) {
 }
 
 void QuicSession::PerformActionOnActiveStreams(
-    std::function<bool(QuicStream*)> action) {
+    quiche::UnretainedCallback<bool(QuicStream*)> action) {
   std::vector<QuicStream*> active_streams;
   for (const auto& it : stream_map_) {
     if (!it.second->is_static() && !it.second->IsZombie()) {
@@ -2657,7 +2658,7 @@ void QuicSession::PerformActionOnActiveStreams(
 }
 
 void QuicSession::PerformActionOnActiveStreams(
-    std::function<bool(QuicStream*)> action) const {
+    quiche::UnretainedCallback<bool(QuicStream*)> action) const {
   for (const auto& it : stream_map_) {
     if (!it.second->is_static() && !it.second->IsZombie() &&
         !action(it.second.get())) {

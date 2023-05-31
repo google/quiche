@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/tools/quic_default_client.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
@@ -160,7 +161,8 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   void Disconnect();
   QuicSocketAddress local_address() const;
   void ClearPerRequestState();
-  bool WaitUntil(int timeout_ms, std::function<bool()> trigger);
+  bool WaitUntil(int timeout_ms,
+                 absl::optional<quiche::UnretainedCallback<bool()>> trigger);
   int64_t Send(absl::string_view data);
   bool connected() const;
   bool buffer_body() const;

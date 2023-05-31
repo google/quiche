@@ -45,6 +45,7 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 
 namespace quic {
@@ -804,9 +805,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Called by applications to perform |action| on active streams.
   // Stream iteration will be stopped if action returns false.
-  void PerformActionOnActiveStreams(std::function<bool(QuicStream*)> action);
   void PerformActionOnActiveStreams(
-      std::function<bool(QuicStream*)> action) const;
+      quiche::UnretainedCallback<bool(QuicStream*)> action);
+  void PerformActionOnActiveStreams(
+      quiche::UnretainedCallback<bool(QuicStream*)> action) const;
 
   // Return the largest peer created stream id depending on directionality
   // indicated by |unidirectional|.
