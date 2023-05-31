@@ -290,16 +290,19 @@ TEST(CryptoUtilsTest, RsaPssDerEncodingTest) {
   public_key_e_padded.set_e(absl::HexStringToBytes("00010001"));
 
   // Convert both padded and not padded rsa public keys to rsa structs.
-  ASSERT_OK_AND_ASSIGN(
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<RSA> rsa_e_not_padded,
       AnonymousTokensRSAPublicKeyToRSA(public_key_e_not_padded));
-  ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<RSA> rsa_e_padded,
-                       AnonymousTokensRSAPublicKeyToRSA(public_key_e_padded));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      bssl::UniquePtr<RSA> rsa_e_padded,
+      AnonymousTokensRSAPublicKeyToRSA(public_key_e_padded));
   // Encode both padded and not padded rsa structs to DER.
-  ASSERT_OK_AND_ASSIGN(std::string result_e_not_padded,
-                       RsaSsaPssPublicKeyToDerEncoding(rsa_e_not_padded.get()));
-  ASSERT_OK_AND_ASSIGN(std::string result_e_padded,
-                       RsaSsaPssPublicKeyToDerEncoding(rsa_e_padded.get()));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::string result_e_not_padded,
+      RsaSsaPssPublicKeyToDerEncoding(rsa_e_not_padded.get()));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::string result_e_padded,
+      RsaSsaPssPublicKeyToDerEncoding(rsa_e_padded.get()));
 
   std::string expected_der_encoding = absl::HexStringToBytes(
       "30820152303d06092a864886f70d01010a3030a00d300b0609608648016503040202a11a"
@@ -331,10 +334,10 @@ TEST(CryptoUtilsTest, IetfPrivacyPassBlindRsaPublicKeyToDerTest) {
       "09106066983d21e5f83f086e2e823c879cd43cef700d2a352a9babd612d03cad02db134b"
       "7e225a5f"));
   public_key.set_e(absl::HexStringToBytes("010001"));
-  ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<RSA> rsa,
-                       AnonymousTokensRSAPublicKeyToRSA(public_key));
-  ASSERT_OK_AND_ASSIGN(std::string result,
-                       RsaSsaPssPublicKeyToDerEncoding(rsa.get()));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      bssl::UniquePtr<RSA> rsa, AnonymousTokensRSAPublicKeyToRSA(public_key));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string result,
+                                   RsaSsaPssPublicKeyToDerEncoding(rsa.get()));
 
   std::string expected_der_encoding = absl::HexStringToBytes(
       "30820152303d06092a864886f70d01010a3030a00d300b0609608648016503040202a11a"
