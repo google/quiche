@@ -269,7 +269,7 @@ TEST(PublicMetadataCryptoUtilsTest,
 // following Goa test:
 // http://google3/privacy/net/boq/common/tokens/token_types_test.go;l=21;rcl=528885322
 // copybara:strip_end
-TEST(CryptoUtilsTest, RsaPssDerEncodingTest) {
+TEST(AnonymousTokensCryptoUtilsTest, RsaPssDerEncoding) {
   RSAPublicKey public_key_e_not_padded;
   RSAPublicKey public_key_e_padded;
 
@@ -322,7 +322,7 @@ TEST(CryptoUtilsTest, RsaPssDerEncodingTest) {
 
 // The public key used in this test is taken from the test vectors found here:
 // https://www.ietf.org/archive/id/draft-ietf-privacypass-protocol-10.html#name-issuance-protocol-2-blind-rs
-TEST(CryptoUtilsTest, IetfPrivacyPassBlindRsaPublicKeyToDerTest) {
+TEST(AnonymousTokensCryptoUtilsTest, IetfPrivacyPassBlindRsaPublicKeyToDer) {
   RSAPublicKey public_key;
   public_key.set_n(absl::HexStringToBytes(
       "cb1aed6b6a95f5b1ce013a4cfcab25b94b2e64a23034e4250a7eab43c0df3a8c12993af1"
