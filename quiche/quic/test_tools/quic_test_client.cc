@@ -70,13 +70,20 @@ class RecordingProofVerifier : public ProofVerifier {
   }
 
   QuicAsyncStatus VerifyCertChain(
-      const std::string& /*hostname*/, const uint16_t /*port*/,
-      const std::vector<std::string>& certs,
-      const std::string& /*ocsp_response*/, const std::string& cert_sct,
-      const ProofVerifyContext* /*context*/, std::string* /*error_details*/,
-      std::unique_ptr<ProofVerifyDetails>* /*details*/, uint8_t* /*out_alert*/,
-      std::unique_ptr<ProofVerifierCallback> /*callback*/) override {
-    return ProcessCerts(certs, cert_sct);
+      const std::string& hostname, const uint16_t port,
+      const std::vector<std::string>& certs, const std::string& ocsp_response,
+      const std::string& cert_sct, const ProofVerifyContext* context,
+      std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
+      uint8_t* out_alert,
+      std::unique_ptr<ProofVerifierCallback> callback) override {
+    // Record the cert.
+    QuicAsyncStatus status = ProcessCerts(certs, cert_sct);
+    if (verifier_ == NULL) {
+      return status;
+    }
+    return verifier_->VerifyCertChain(hostname, port, certs, ocsp_response,
+                                      cert_sct, context, error_details, details,
+                                      out_alert, std::move(callback));
   }
 
   std::unique_ptr<ProofVerifyContext> CreateDefaultContext() override {
