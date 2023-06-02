@@ -31,7 +31,7 @@ using ServerConfigID = std::string;
 // "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL", "CHSP",
 // "BPTE", "ACKD", "AKD2", "AKD4", "MAD1", "MAD4", "MAD5", "ACD0", "ACKQ",
 // "TLPR", "CCS\0", "PDP4", "NCHP", "NBPE", "2RTO", "3RTO", "4RTO", "6RTO",
-// "PDP1", "PDP2", "PDP3", "PDP5" "QLVE"
+// "PDP1", "PDP2", "PDP3", "PDP5", "QLVE", "RVCM"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
