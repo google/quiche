@@ -466,7 +466,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       server_writer_ = new PacketDroppingTestWriter();
       StartServer();
 
-      client_config_.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
+      client_config_.SetConnectionOptionsToSend(QuicTagVector{kSPAD});
     }
 
     if (!connect_to_server_on_initialize_) {

@@ -1476,7 +1476,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_EQ(kPeerAddress, connection_.peer_address());
     EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
     QuicConfig config;
-    config.SetInitialReceivedConnectionOptions(QuicTagVector{kRVCM});
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
     connection_.SetFromConfig(config);
     connection_.set_sent_server_preferred_address(kServerPreferredAddress);
@@ -1504,7 +1503,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
-    config.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
+    config.SetConnectionOptionsToSend(QuicTagVector{kSPAD});
     QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                    kTestStatelessResetToken);
     QuicConfigPeer::SetReceivedAlternateServerAddress(&config,
@@ -3083,7 +3082,7 @@ TEST_P(QuicConnectionTest,
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
   QuicConfig config;
-  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM, kSPAD});
+  config.SetConnectionOptionsToSend(QuicTagVector{kSPAD});
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                  kTestStatelessResetToken);
   QuicConfigPeer::SetReceivedAlternateServerAddress(&config,
@@ -13011,7 +13010,6 @@ TEST_P(QuicConnectionTest, MigrateToNewPathDuringProbing) {
 TEST_P(QuicConnectionTest, MultiPortConnection) {
   set_perspective(Perspective::IS_CLIENT);
   QuicConfig config;
-  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
@@ -13146,7 +13144,6 @@ TEST_P(QuicConnectionTest, MultiPortConnection) {
 TEST_P(QuicConnectionTest, TooManyMultiPortPathCreations) {
   set_perspective(Perspective::IS_CLIENT);
   QuicConfig config;
-  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
@@ -13262,7 +13259,6 @@ TEST_P(QuicConnectionTest, TooManyMultiPortPathCreations) {
 TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsNotReady) {
   set_perspective(Perspective::IS_CLIENT);
   QuicConfig config;
-  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
@@ -13333,7 +13329,6 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsReadyAndNotProbing) {
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   set_perspective(Perspective::IS_CLIENT);
   QuicConfig config;
-  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
@@ -13412,7 +13407,6 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsReadyAndProbing) {
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   set_perspective(Perspective::IS_CLIENT);
   QuicConfig config;
-  config.SetConnectionOptionsToSend(QuicTagVector{kRVCM});
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);

@@ -2133,7 +2133,6 @@ TEST_P(QuicSessionTestClient, AvailableBidirectionalStreamsClient) {
 }
 
 TEST_P(QuicSessionTestClient, NewStreamCreationResumesMultiPortProbing) {
-  session_.config()->SetConnectionOptionsToSend({kRVCM});
   session_.config()->SetClientConnectionOptions({kMPQC});
   session_.Initialize();
   connection_->CreateConnectionIdManager();

@@ -279,11 +279,6 @@ const QuicTag kAPTO = TAG('A', 'P', 'T', 'O');   // Use 1.5 * initial RTT before
 
 const QuicTag kELDT = TAG('E', 'L', 'D', 'T');   // Enable Loss Detection Tuning
 
-// TODO(haoyuewang) Remove RVCM option once
-// --quic_remove_connection_migration_connection_option_v2 is deprecated.
-const QuicTag kRVCM = TAG('R', 'V', 'C', 'M');   // Validate the new address
-                                                 // upon client address change.
-
 const QuicTag kSPAD = TAG('S', 'P', 'A', 'D');   // Use server preferred address
 const QuicTag kSPA2 = TAG('S', 'P', 'A', '2');   // Start validating server
                                                  // preferred address once it is
