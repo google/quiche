@@ -39,7 +39,7 @@ void QuicVersionManager::MaybeRefilterSupportedVersions() {
   static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync");
   if (enable_version_2_draft_08_ !=
-          GetQuicReloadableFlag(quic_enable_version_2_draft_08) ||
+          GetQuicReloadableFlag(quic_enable_version_rfcv2) ||
       disable_version_rfcv1_ !=
           GetQuicReloadableFlag(quic_disable_version_rfcv1) ||
       disable_version_draft_29_ !=
@@ -49,7 +49,7 @@ void QuicVersionManager::MaybeRefilterSupportedVersions() {
       disable_version_q046_ !=
           GetQuicReloadableFlag(quic_disable_version_q046)) {
     enable_version_2_draft_08_ =
-        GetQuicReloadableFlag(quic_enable_version_2_draft_08);
+        GetQuicReloadableFlag(quic_enable_version_rfcv2);
     disable_version_rfcv1_ = GetQuicReloadableFlag(quic_disable_version_rfcv1);
     disable_version_draft_29_ =
         GetQuicReloadableFlag(quic_disable_version_draft_29);

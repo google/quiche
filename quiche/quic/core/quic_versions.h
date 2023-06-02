@@ -125,7 +125,7 @@ enum QuicTransportVersion {
   QUIC_VERSION_IETF_DRAFT_29 = 73,  // draft-ietf-quic-transport-29.
   QUIC_VERSION_IETF_RFC_V1 = 80,    // RFC 9000.
   // Number 81 used to represent draft-ietf-quic-v2-01.
-  QUIC_VERSION_IETF_2_DRAFT_08 = 82,  // draft-ietf-quic-v2-08.
+  QUIC_VERSION_IETF_RFC_V2 = 82,  // RFC 9369.
   // Version 99 was a dumping ground for IETF QUIC changes which were not yet
   // ready for production between 2018-02 and 2020-02.
 
@@ -173,7 +173,7 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
     QuicTransportVersion transport_version) {
   bool transport_version_is_valid = false;
   constexpr QuicTransportVersion valid_transport_versions[] = {
-      QUIC_VERSION_IETF_2_DRAFT_08,
+      QUIC_VERSION_IETF_RFC_V2,
       QUIC_VERSION_IETF_RFC_V1,
       QUIC_VERSION_IETF_DRAFT_29,
       QUIC_VERSION_50,
@@ -198,7 +198,7 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
              transport_version != QUIC_VERSION_RESERVED_FOR_NEGOTIATION &&
              transport_version != QUIC_VERSION_IETF_DRAFT_29 &&
              transport_version != QUIC_VERSION_IETF_RFC_V1 &&
-             transport_version != QUIC_VERSION_IETF_2_DRAFT_08;
+             transport_version != QUIC_VERSION_IETF_RFC_V2;
     case PROTOCOL_TLS1_3:
       return transport_version != QUIC_VERSION_UNSUPPORTED &&
              transport_version != QUIC_VERSION_50 &&
@@ -248,8 +248,8 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
            transport_version != other.transport_version;
   }
 
-  static constexpr ParsedQuicVersion V2Draft08() {
-    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_2_DRAFT_08);
+  static constexpr ParsedQuicVersion RFCv2() {
+    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_RFC_V2);
   }
 
   static constexpr ParsedQuicVersion RFCv1() {
@@ -400,8 +400,8 @@ constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
 
 constexpr std::array<ParsedQuicVersion, 5> SupportedVersions() {
   return {
-      ParsedQuicVersion::V2Draft08(), ParsedQuicVersion::RFCv1(),
-      ParsedQuicVersion::Draft29(),   ParsedQuicVersion::Q050(),
+      ParsedQuicVersion::RFCv2(),   ParsedQuicVersion::RFCv1(),
+      ParsedQuicVersion::Draft29(), ParsedQuicVersion::Q050(),
       ParsedQuicVersion::Q046(),
   };
 }

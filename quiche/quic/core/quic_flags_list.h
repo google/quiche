@@ -91,8 +91,8 @@ QUIC_FLAG(quic_restart_flag_quic_quiche_ecn_sockets, true)
 QUIC_FLAG(quic_restart_flag_quic_receive_ecn, true)
 // When true, sends QUIC packets marked ECT(1).
 QUIC_FLAG(quic_reloadable_flag_quic_send_ect1, false)
-// When true, support draft-ietf-quic-v2-08
-QUIC_FLAG(quic_reloadable_flag_quic_enable_version_2_draft_08, false)
+// When true, support RFC9369.
+QUIC_FLAG(quic_reloadable_flag_quic_enable_version_rfcv2, false)
 // When true, the BB2U copt causes BBR2 to wait two rounds with out draining the queue before exiting PROBE_UP and BB2S has the same effect in STARTUP.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_probe_two_rounds, true)
 // When true, the BBHI copt causes QUIC BBRv2 to use a simpler algorithm for raising inflight_hi in PROBE_UP.

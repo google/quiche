@@ -10117,7 +10117,7 @@ void QuicConnectionTest::TestClientRetryHandling(
 
   uint8_t* retry_packet;
   size_t retry_packet_length;
-  if (version() == ParsedQuicVersion::V2Draft08()) {
+  if (version() == ParsedQuicVersion::RFCv2()) {
     retry_packet = retry_packet_rfcv2;
     retry_packet_length = ABSL_ARRAYSIZE(retry_packet_rfcv2);
   } else if (version() == ParsedQuicVersion::RFCv1()) {
