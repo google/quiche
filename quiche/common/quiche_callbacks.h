@@ -40,7 +40,7 @@ template <class Sig>
 class QUICHE_EXPORT SignatureChanger {};
 
 template <typename ReturnType, typename... Args>
-class QUICHE_EXPORT SignatureChanger<ReturnType(Args...)> {
+class QUICHE_NO_EXPORT SignatureChanger<ReturnType(Args...)> {
  public:
   using Rvalue = ReturnType(Args...) &&;
   using Const = ReturnType(Args...) const;
