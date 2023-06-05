@@ -83,17 +83,18 @@ TEST_P(RsaBlindSignerTest, StandardSignerWorks) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       const auto verifier,
       RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_));
-  QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
+  EXPECT_TRUE(verifier->Verify(potentially_insecure_signature, message).ok());
 }
 
 TEST_P(RsaBlindSignerTest, SignerFails) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlindSigner> signer,
                                    RsaBlindSigner::New(private_key_));
   absl::string_view message = "Hello World!";
-  EXPECT_THAT(signer->Sign(message),
-              quiche::test::StatusIs(
-                  absl::StatusCode::kInternal,
-                  ::testing::HasSubstr("Expected blind data size")));
+
+  absl::StatusOr<std::string> signature = signer->Sign(message);
+  EXPECT_EQ(signature.status().code(), absl::StatusCode::kInternal);
+  EXPECT_THAT(signature.status().message(),
+              ::testing::HasSubstr("Expected blind data size"));
 
   int sig_size = public_key_.n().size();
   std::string message2 = RandomString(sig_size, &distr_u8_, &generator_);
@@ -102,10 +103,10 @@ TEST_P(RsaBlindSignerTest, SignerFails) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       const auto verifier,
       RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_));
-  EXPECT_THAT(
-      verifier->Verify(insecure_sig, message2),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                  ::testing::HasSubstr("verification failed")));
+  absl::Status verification_result = verifier->Verify(insecure_sig, message2);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              ::testing::HasSubstr("verification failed"));
 }
 
 INSTANTIATE_TEST_SUITE_P(RsaBlindSignerTest, RsaBlindSignerTest,
@@ -155,7 +156,7 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata, SignerWorksWithPublicMetadata) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata));
-  QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
+  EXPECT_TRUE(verifier->Verify(potentially_insecure_signature, message).ok());
 }
 
 TEST_P(RsaBlindSignerTestWithPublicMetadata,
@@ -177,7 +178,7 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
       auto verifier,
       RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_,
                              empty_public_metadata));
-  QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
+  EXPECT_TRUE(verifier->Verify(potentially_insecure_signature, message).ok());
 }
 
 TEST_P(RsaBlindSignerTestWithPublicMetadata,
@@ -199,10 +200,11 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata_2));
-  EXPECT_THAT(
-      verifier->Verify(potentially_insecure_signature, message),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                  ::testing::HasSubstr("verification failed")));
+  absl::Status verification_result =
+      verifier->Verify(potentially_insecure_signature, message);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              ::testing::HasSubstr("verification failed"));
 }
 
 TEST_P(RsaBlindSignerTestWithPublicMetadata,
@@ -224,10 +226,11 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata_2));
-  EXPECT_THAT(
-      verifier->Verify(potentially_insecure_signature, message),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                  ::testing::HasSubstr("verification failed")));
+  absl::Status verification_result =
+      verifier->Verify(potentially_insecure_signature, message);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              ::testing::HasSubstr("verification failed"));
 }
 
 INSTANTIATE_TEST_SUITE_P(

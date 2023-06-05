@@ -47,7 +47,7 @@ TEST(RsaSsaPssVerifier, SuccessfulVerification) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       const auto verifier, RsaSsaPssVerifier::New(salt_length, sig_hash,
                                                   mgf1_hash, test_keys.first));
-  QUICHE_EXPECT_OK(verifier->Verify(test_vec.signature, test_vec.message));
+  EXPECT_TRUE(verifier->Verify(test_vec.signature, test_vec.message).ok());
 }
 
 TEST(RsaSsaPssVerifier, InvalidSignature) {
@@ -65,10 +65,11 @@ TEST(RsaSsaPssVerifier, InvalidSignature) {
   std::string wrong_sig = test_vec.signature;
   wrong_sig.replace(10, 1, "x");
 
-  EXPECT_THAT(
-      verifier->Verify(wrong_sig, test_vec.message),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                testing::HasSubstr("verification failed")));
+  absl::Status verification_result =
+      verifier->Verify(wrong_sig, test_vec.message);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              testing::HasSubstr("verification failed"));
 }
 
 TEST(RsaSsaPssVerifier, InvalidVerificationKey) {
@@ -84,10 +85,11 @@ TEST(RsaSsaPssVerifier, InvalidVerificationKey) {
       RsaSsaPssVerifier::New(salt_length, sig_hash, mgf1_hash,
                              new_keys_pair.first));
 
-  EXPECT_THAT(
-      verifier->Verify(test_vec.signature, test_vec.message),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                testing::HasSubstr("verification failed")));
+  absl::Status verification_result =
+      verifier->Verify(test_vec.signature, test_vec.message);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              testing::HasSubstr("verification failed"));
 }
 
 TEST(RsaSsaPssVerifierTestWithPublicMetadata,
@@ -110,7 +112,7 @@ TEST(RsaSsaPssVerifierTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier,
       RsaSsaPssVerifier::New(salt_length, sig_hash, mgf1_hash, test_key.first));
-  QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
+  EXPECT_TRUE(verifier->Verify(potentially_insecure_signature, message).ok());
 }
 
 // TODO(b/275956922): Consolidate all tests that use IETF test vectors into one
@@ -129,9 +131,11 @@ TEST(RsaSsaPssVerifierTestWithPublicMetadata,
         auto verifier,
         RsaSsaPssVerifier::New(salt_length, sig_hash, mgf1_hash, test_key.first,
                                test_vector.public_metadata));
-    QUICHE_EXPECT_OK(verifier->Verify(
-        test_vector.signature,
-        MaskMessageConcat(test_vector.message_mask, test_vector.message)));
+    EXPECT_TRUE(verifier
+                    ->Verify(test_vector.signature,
+                             MaskMessageConcat(test_vector.message_mask,
+                                               test_vector.message))
+                    .ok());
   }
 }
 
@@ -180,7 +184,7 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata));
-  QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
+  EXPECT_TRUE(verifier->Verify(potentially_insecure_signature, message).ok());
 }
 
 TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
@@ -201,10 +205,11 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata_2));
-  EXPECT_THAT(
-      verifier->Verify(potentially_insecure_signature, message),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                  ::testing::HasSubstr("verification failed")));
+  absl::Status verification_result =
+      verifier->Verify(potentially_insecure_signature, message);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              testing::HasSubstr("verification failed"));
 }
 
 TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
@@ -226,10 +231,11 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
       auto verifier,
       RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_,
                              empty_public_metadata));
-  EXPECT_THAT(
-      verifier->Verify(potentially_insecure_signature, message),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                  ::testing::HasSubstr("verification failed")));
+  absl::Status verification_result =
+      verifier->Verify(potentially_insecure_signature, message);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              testing::HasSubstr("verification failed"));
 }
 
 TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
@@ -249,10 +255,11 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier,
       RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_));
-  EXPECT_THAT(
-      verifier->Verify(potentially_insecure_signature, message),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                  ::testing::HasSubstr("verification failed")));
+  absl::Status verification_result =
+      verifier->Verify(potentially_insecure_signature, message);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              testing::HasSubstr("verification failed"));
 }
 
 TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
@@ -272,7 +279,7 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata));
-  QUICHE_EXPECT_OK(verifier->Verify(potentially_insecure_signature, message));
+  EXPECT_TRUE(verifier->Verify(potentially_insecure_signature, message).ok());
 }
 
 INSTANTIATE_TEST_SUITE_P(RsaSsaPssVerifierTestWithPublicMetadata,

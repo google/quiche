@@ -77,9 +77,9 @@ TEST(AnonymousTokensCryptoUtilsTest, ComputeHashAcceptsNullStringView) {
   std::string str;
   absl::StatusOr<std::string> empty_str_hash = ComputeHash(str, *EVP_sha512());
 
-  QUICHE_EXPECT_OK(null_hash);
-  QUICHE_EXPECT_OK(empty_hash);
-  QUICHE_EXPECT_OK(empty_str_hash);
+  ASSERT_TRUE(null_hash.ok());
+  ASSERT_TRUE(empty_hash.ok());
+  ASSERT_TRUE(empty_str_hash.ok());
 
   EXPECT_EQ(*null_hash, *empty_hash);
   EXPECT_EQ(*null_hash, *empty_str_hash);

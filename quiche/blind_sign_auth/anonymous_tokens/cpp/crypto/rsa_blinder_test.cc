@@ -98,7 +98,7 @@ TEST_P(RsaBlinderTest, BlindSignUnblindEnd2EndTest) {
   EXPECT_NE(signature, blinded_message);
   EXPECT_NE(signature, message);
 
-  QUICHE_EXPECT_OK(blinder->Verify(signature, message));
+  EXPECT_TRUE(blinder->Verify(signature, message).ok());
 }
 
 TEST_P(RsaBlinderTest, DoubleBlindingFailure) {
@@ -148,7 +148,7 @@ TEST_P(RsaBlinderTest, InvalidSignature) {
                                    TestSign(blinded_message, rsa_key_.get()));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string signature,
                                    blinder->Unblind(blinded_signature));
-  QUICHE_EXPECT_OK(blinder->Verify(signature, message));
+  EXPECT_TRUE(blinder->Verify(signature, message).ok());
 
   // Invalidate the signature by replacing the last 10 characters by 10 '0's
   for (int i = 0; i < 10; i++) {
@@ -235,7 +235,7 @@ TEST_P(RsaBlinderWithPublicMetadataTest,
   EXPECT_NE(signature, blinded_message);
   EXPECT_NE(signature, message);
 
-  QUICHE_EXPECT_OK(blinder->Verify(signature, message));
+  EXPECT_TRUE(blinder->Verify(signature, message).ok());
 }
 
 TEST_P(RsaBlinderWithPublicMetadataTest,
@@ -263,7 +263,7 @@ TEST_P(RsaBlinderWithPublicMetadataTest,
   EXPECT_NE(signature, blinded_message);
   EXPECT_NE(signature, message);
 
-  QUICHE_EXPECT_OK(blinder->Verify(signature, message));
+  EXPECT_TRUE(blinder->Verify(signature, message).ok());
 }
 
 TEST_P(RsaBlinderWithPublicMetadataTest, WrongPublicMetadata) {
@@ -290,10 +290,10 @@ TEST_P(RsaBlinderWithPublicMetadataTest, WrongPublicMetadata) {
   EXPECT_NE(signature, blinded_signature);
   EXPECT_NE(signature, blinded_message);
   EXPECT_NE(signature, message);
-  EXPECT_THAT(
-      blinder->Verify(signature, message),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                  ::testing::HasSubstr("verification failed")));
+  absl::Status verification_result = blinder->Verify(signature, message);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              ::testing::HasSubstr("verification failed"));
 }
 
 TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataForSigning) {
@@ -317,10 +317,10 @@ TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataForSigning) {
   EXPECT_NE(signature, blinded_signature);
   EXPECT_NE(signature, blinded_message);
   EXPECT_NE(signature, message);
-  EXPECT_THAT(
-      blinder->Verify(signature, message),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                  ::testing::HasSubstr("verification failed")));
+  absl::Status verification_result = blinder->Verify(signature, message);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              ::testing::HasSubstr("verification failed"));
 }
 
 TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataInBlinding) {
@@ -344,10 +344,10 @@ TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataInBlinding) {
   EXPECT_NE(signature, blinded_signature);
   EXPECT_NE(signature, blinded_message);
   EXPECT_NE(signature, message);
-  EXPECT_THAT(
-      blinder->Verify(signature, message),
-      quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
-                                  ::testing::HasSubstr("verification failed")));
+  absl::Status verification_result = blinder->Verify(signature, message);
+  EXPECT_EQ(verification_result.code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(verification_result.message(),
+              ::testing::HasSubstr("verification failed"));
 }
 
 INSTANTIATE_TEST_SUITE_P(
