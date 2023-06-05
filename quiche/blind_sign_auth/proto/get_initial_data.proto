@@ -51,11 +51,14 @@ message GetInitialDataResponse {
   private_membership.anonymous_tokens.RSABlindSignaturePublicKey
       at_public_metadata_public_key = 1;
 
-  // Metadata to associate with the token. Version will match the validation
-  // version in the request.
+  // Version will match the validation version in the request.
   privacy.ppn.PublicMetadataInfo public_metadata_info = 2;
 
   // Data needed to set up attestation, included if use_attestation is true or
   // if the service_type input requires it.
   privacy.ppn.PrepareAttestationData attestation = 3;
+
+  // General public metadata. Use metadata deserializer to inspect. Only set one
+  // of this or public_metadata_info.
+  bytes binary_public_metadata = 4 ;
 }

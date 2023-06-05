@@ -21,7 +21,7 @@ import "quiche/blind_sign_auth/proto/key_services.proto";
 import "quiche/blind_sign_auth/proto/public_metadata.proto";
 
 // Client is requesting to auth using the provided auth token.
-// Next ID: 9
+// Next ID: 14
 message AuthAndSignRequest {
   reserved 3;
 
@@ -56,6 +56,9 @@ message AuthAndSignRequest {
   // Indicates which key to use for signing. Only set if key type is
   // PUBLIC_METADATA.
   int64 key_version = 12 ;
+
+  // Only set one of this or public_metadata_info.
+  bytes binary_public_metadata = 13 ;
 }
 
 message AuthAndSignResponse {

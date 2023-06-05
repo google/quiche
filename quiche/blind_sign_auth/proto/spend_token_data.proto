@@ -35,4 +35,7 @@ message SpendTokenData {
   private_membership.anonymous_tokens.AnonymousTokensUseCase use_case = 5;
   // Nonce used to mask plaintext message before cryptographic verification.
   bytes message_mask = 6;
+  // General public metadata. Use deserializer to inspect. Only set one of this
+  // or public_metadata.
+  bytes binary_public_metadata = 7;
 }
