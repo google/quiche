@@ -1421,7 +1421,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
   // Validate ECN feedback.
   absl::optional<QuicEcnCounts> valid_ecn_counts;
   if (GetQuicReloadableFlag(quic_send_ect1)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 1, 3);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 1, 8);
     if (IsEcnFeedbackValid(acked_packet_number_space, ecn_counts,
                            newly_acked_ect0, newly_acked_ect1)) {
       valid_ecn_counts = ecn_counts;

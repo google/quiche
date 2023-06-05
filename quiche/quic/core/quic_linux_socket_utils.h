@@ -57,6 +57,8 @@ const int kCmsgSpaceForTxTime = CMSG_SPACE(sizeof(uint64_t));
 
 const int kCmsgSpaceForTTL = CMSG_SPACE(sizeof(int));
 
+const int kCmsgSpaceForTOS = CMSG_SPACE(sizeof(int));
+
 // QuicMsgHdr is used to build msghdr objects that can be used send packets via
 // ::sendmsg.
 //

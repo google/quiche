@@ -21,6 +21,10 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
 
   bool SupportsReleaseTime() const final { return supports_release_time_; }
 
+  bool SupportsEcn() const override {
+    return GetQuicReloadableFlag(quic_send_ect1);
+  }
+
   CanBatchResult CanBatch(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
@@ -52,10 +56,11 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
     return gso_size <= 2 ? 16 : 45;
   }
 
-  static const int kCmsgSpace =
-      kCmsgSpaceForIp + kCmsgSpaceForSegmentSize + kCmsgSpaceForTxTime;
+  static const int kCmsgSpace = kCmsgSpaceForIp + kCmsgSpaceForSegmentSize +
+                                kCmsgSpaceForTxTime + kCmsgSpaceForTOS;
   static void BuildCmsg(QuicMsgHdr* hdr, const QuicIpAddress& self_address,
-                        uint16_t gso_size, uint64_t release_time);
+                        uint16_t gso_size, uint64_t release_time,
+                        QuicEcnCodepoint ecn_codepoint);
 
   template <size_t CmsgSpace, typename CmsgBuilderT>
   FlushImplResult InternalFlushImpl(CmsgBuilderT cmsg_builder) {
@@ -73,7 +78,8 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
                    sizeof(cbuf));
 
     uint16_t gso_size = buffered_writes().size() > 1 ? first.buf_len : 0;
-    cmsg_builder(&hdr, first.self_address, gso_size, first.release_time);
+    cmsg_builder(&hdr, first.self_address, gso_size, first.release_time,
+                 first.params.ecn_codepoint);
 
     write_result = QuicLinuxSocketUtils::WritePacket(fd(), hdr);
     QUIC_DVLOG(1) << "Write GSO packet result: " << write_result

@@ -3915,7 +3915,7 @@ void QuicConnection::OnInFlightEcnPacketAcked() {
   // Only packets on the default path are in-flight.
   if (!default_path_.ecn_marked_packet_acked) {
     QUIC_DVLOG(1) << ENDPOINT << "First ECT packet acked on active path.";
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 2, 3);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 2, 8);
     default_path_.ecn_marked_packet_acked = true;
   }
 }
@@ -7354,7 +7354,7 @@ bool QuicConnection::set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint) {
   if (!GetQuicReloadableFlag(quic_send_ect1)) {
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 3, 3);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 3, 8);
   if (disable_ecn_codepoint_validation_ || ecn_codepoint == ECN_NOT_ECT) {
     packet_writer_params_.ecn_codepoint = ecn_codepoint;
     return true;

@@ -65,7 +65,8 @@ QuicGsoBatchWriter::CanBatchResult QuicGsoBatchWriter::CanBatch(
   // [2] It won't cause this batch to exceed kMaxGsoPacketSize.
   // [3] Already buffered writes all have the same length.
   // [4] Length of already buffered writes must >= length of the new write.
-  // [5] The new packet can be released without delay, or it has the same
+  // [5] The ECN markings match.
+  // [6] The new packet can be released without delay, or it has the same
   //     release time as buffered writes.
   const BufferedWrite& first = buffered_writes().front();
   const BufferedWrite& last = buffered_writes().back();
@@ -81,7 +82,8 @@ QuicGsoBatchWriter::CanBatchResult QuicGsoBatchWriter::CanBatch(
       batch_buffer().SizeInUse() + buf_len <= kMaxGsoPacketSize &&  // [2]
       first.buf_len == last.buf_len &&                              // [3]
       first.buf_len >= buf_len &&                                   // [4]
-      (can_burst || first.release_time == release_time);            // [5]
+      first.params.ecn_codepoint == params.ecn_codepoint &&         // [5]
+      (can_burst || first.release_time == release_time);            // [6]
 
   // A flush is required if any of the following is true:
   // [a] The new write can't be batched.
@@ -138,13 +140,24 @@ uint64_t QuicGsoBatchWriter::NowInNanosForReleaseTime() const {
 // static
 void QuicGsoBatchWriter::BuildCmsg(QuicMsgHdr* hdr,
                                    const QuicIpAddress& self_address,
-                                   uint16_t gso_size, uint64_t release_time) {
+                                   uint16_t gso_size, uint64_t release_time,
+                                   QuicEcnCodepoint ecn_codepoint) {
   hdr->SetIpInNextCmsg(self_address);
   if (gso_size > 0) {
     *hdr->GetNextCmsgData<uint16_t>(SOL_UDP, UDP_SEGMENT) = gso_size;
   }
   if (release_time != 0) {
     *hdr->GetNextCmsgData<uint64_t>(SOL_SOCKET, SO_TXTIME) = release_time;
+  }
+  if (ecn_codepoint != ECN_NOT_ECT && GetQuicReloadableFlag(quic_send_ect1)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 8, 8);
+    if (self_address.IsIPv4()) {
+      *hdr->GetNextCmsgData<int>(IPPROTO_IP, IP_TOS) =
+          static_cast<int>(ecn_codepoint);
+    } else {
+      *hdr->GetNextCmsgData<int>(IPPROTO_IPV6, IPV6_TCLASS) =
+          static_cast<int>(ecn_codepoint);
+    }
   }
 }
 

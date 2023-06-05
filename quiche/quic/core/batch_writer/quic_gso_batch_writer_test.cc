@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/batch_writer/quic_gso_batch_writer.h"
 
+#include <sys/socket.h>
+
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -59,12 +61,6 @@ class QUIC_EXPORT_PRIVATE TestQuicGsoBatchWriter : public QuicGsoBatchWriter {
 
  private:
   uint64_t forced_release_time_ms_ = 1;
-};
-
-struct QUIC_EXPORT_PRIVATE TestPerPacketOptions : public PerPacketOptions {
-  std::unique_ptr<quic::PerPacketOptions> Clone() const override {
-    return std::make_unique<TestPerPacketOptions>(*this);
-  }
 };
 
 // TestBufferedWrite is a copy-constructible BufferedWrite.
@@ -451,6 +447,97 @@ TEST_F(QuicGsoBatchWriterTest, ReleaseTime) {
   ASSERT_EQ(write_buffered, result);
   EXPECT_EQ(MillisToNanos(6), writer->buffered_writes().back().release_time);
   EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());
+}
+
+TEST_F(QuicGsoBatchWriterTest, EcnCodepoint) {
+  const WriteResult write_buffered(WRITE_STATUS_OK, 0);
+
+  auto writer = TestQuicGsoBatchWriter::NewInstanceWithReleaseTimeSupport();
+
+  QuicPacketWriterParams params;
+  EXPECT_TRUE(params.release_time_delay.IsZero());
+  EXPECT_FALSE(params.allow_burst);
+  params.ecn_codepoint = ECN_ECT0;
+
+  // The 1st packet has no delay.
+  WriteResult result = WritePacketWithParams(writer.get(), params);
+  ASSERT_EQ(write_buffered, result);
+  EXPECT_EQ(MillisToNanos(1), writer->buffered_writes().back().release_time);
+  EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());
+
+  // The 2nd packet should be buffered.
+  params.allow_burst = true;
+  result = WritePacketWithParams(writer.get(), params);
+  ASSERT_EQ(write_buffered, result);
+
+  // The 3rd packet changes the ECN codepoint.
+  // The first 2 packets are flushed due to different codepoint.
+  params.ecn_codepoint = ECN_ECT1;
+  EXPECT_CALL(mock_syscalls_, Sendmsg(_, _, _))
+      .WillOnce(Invoke([](int /*sockfd*/, const msghdr* msg, int /*flags*/) {
+        const int kEct0 = 0x01;
+        EXPECT_EQ(2700u, PacketLength(msg));
+        msghdr mutable_msg;
+        memcpy(&mutable_msg, msg, sizeof(*msg));
+        for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&mutable_msg); cmsg != NULL;
+             cmsg = CMSG_NXTHDR(&mutable_msg, cmsg)) {
+          if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TOS) {
+            EXPECT_EQ(*reinterpret_cast<int*> CMSG_DATA(cmsg), kEct0);
+            break;
+          }
+        }
+        errno = 0;
+        return 0;
+      }));
+  result = WritePacketWithParams(writer.get(), params);
+  ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 2700), result);
+}
+
+TEST_F(QuicGsoBatchWriterTest, EcnCodepointIPv6) {
+  const WriteResult write_buffered(WRITE_STATUS_OK, 0);
+
+  self_address_ = QuicIpAddress::Any6();
+  peer_address_ = QuicSocketAddress(QuicIpAddress::Any6(), 443);
+  auto writer = TestQuicGsoBatchWriter::NewInstanceWithReleaseTimeSupport();
+
+  QuicPacketWriterParams params;
+  EXPECT_TRUE(params.release_time_delay.IsZero());
+  EXPECT_FALSE(params.allow_burst);
+  params.ecn_codepoint = ECN_ECT0;
+
+  // The 1st packet has no delay.
+  WriteResult result = WritePacketWithParams(writer.get(), params);
+  ASSERT_EQ(write_buffered, result);
+  EXPECT_EQ(MillisToNanos(1), writer->buffered_writes().back().release_time);
+  EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());
+
+  // The 2nd packet should be buffered.
+  params.allow_burst = true;
+  result = WritePacketWithParams(writer.get(), params);
+  ASSERT_EQ(write_buffered, result);
+
+  // The 3rd packet changes the ECN codepoint.
+  // The first 2 packets are flushed due to different codepoint.
+  params.ecn_codepoint = ECN_ECT1;
+  EXPECT_CALL(mock_syscalls_, Sendmsg(_, _, _))
+      .WillOnce(Invoke([](int /*sockfd*/, const msghdr* msg, int /*flags*/) {
+        const int kEct0 = 0x01;
+        EXPECT_EQ(2700u, PacketLength(msg));
+        msghdr mutable_msg;
+        memcpy(&mutable_msg, msg, sizeof(*msg));
+        for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&mutable_msg); cmsg != NULL;
+             cmsg = CMSG_NXTHDR(&mutable_msg, cmsg)) {
+          if (cmsg->cmsg_level == IPPROTO_IPV6 &&
+              cmsg->cmsg_type == IPV6_TCLASS) {
+            EXPECT_EQ(*reinterpret_cast<int*> CMSG_DATA(cmsg), kEct0);
+            break;
+          }
+        }
+        errno = 0;
+        return 0;
+      }));
+  result = WritePacketWithParams(writer.get(), params);
+  ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 2700), result);
 }
 
 }  // namespace
