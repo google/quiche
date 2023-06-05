@@ -7,6 +7,7 @@
 #include <functional>
 
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace http2 {
 namespace adapter {
@@ -20,12 +21,12 @@ class WindowManagerPeer;
 class QUICHE_EXPORT WindowManager {
  public:
   // A WindowUpdateListener is invoked when it is time to send a window update.
-  using WindowUpdateListener = std::function<void(int64_t)>;
+  using WindowUpdateListener = quiche::MultiUseCallback<void(int64_t)>;
 
   // Invoked to determine whether to call the listener based on the window
   // limit, window size, and delta that would be sent.
-  using ShouldWindowUpdateFn =
-      std::function<bool(int64_t limit, int64_t size, int64_t delta)>;
+  using ShouldWindowUpdateFn = bool (*)(int64_t limit, int64_t size,
+                                        int64_t delta);
 
   WindowManager(int64_t window_size_limit, WindowUpdateListener listener,
                 ShouldWindowUpdateFn should_window_update_fn = {},

@@ -7,6 +7,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/spdy/core/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/http2_header_block.h"
@@ -28,9 +29,9 @@ class QUICHE_EXPORT MetadataVisitor : public spdy::ExtensionVisitorInterface {
   static_assert(!std::is_copy_constructible<MetadataPayload>::value,
                 "MetadataPayload should be a move-only type!");
 
-  using OnMetadataSupport = std::function<void(bool)>;
+  using OnMetadataSupport = quiche::MultiUseCallback<void(bool)>;
   using OnCompletePayload =
-      std::function<void(spdy::SpdyStreamId, MetadataPayload)>;
+      quiche::MultiUseCallback<void(spdy::SpdyStreamId, MetadataPayload)>;
 
   // The HTTP/2 SETTINGS ID that is used to indicate support for METADATA
   // frames.

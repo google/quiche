@@ -11,6 +11,7 @@
 #include "quiche/http2/adapter/nghttp2.h"
 #include "quiche/http2/adapter/nghttp2_util.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace http2 {
 namespace adapter {
@@ -20,7 +21,8 @@ namespace adapter {
 class QUICHE_EXPORT CallbackVisitor : public Http2VisitorInterface {
  public:
   // Called when the visitor receives a close event for `stream_id`.
-  using StreamCloseListener = std::function<void(Http2StreamId stream_id)>;
+  using StreamCloseListener =
+      quiche::MultiUseCallback<void(Http2StreamId stream_id)>;
 
   explicit CallbackVisitor(Perspective perspective,
                            const nghttp2_session_callbacks& callbacks,

@@ -10,6 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/recording_headers_handler.h"
 #include "quiche/spdy/core/spdy_headers_handler_interface.h"
@@ -41,7 +42,8 @@ class QUICHE_EXPORT Http2TraceLogger : public spdy::SpdyFramerVisitorInterface {
 
   Http2TraceLogger(SpdyFramerVisitorInterface* parent,
                    absl::string_view perspective,
-                   std::function<bool()> is_enabled, const void* connection_id);
+                   quiche::MultiUseCallback<bool()> is_enabled,
+                   const void* connection_id);
   ~Http2TraceLogger() override;
 
   Http2TraceLogger(const Http2TraceLogger&) = delete;
@@ -98,7 +100,7 @@ class QUICHE_EXPORT Http2TraceLogger : public spdy::SpdyFramerVisitorInterface {
 
   SpdyFramerVisitorInterface* wrapped_;
   const absl::string_view perspective_;
-  const std::function<bool()> is_enabled_;
+  const quiche::MultiUseCallback<bool()> is_enabled_;
   const void* connection_id_;
 };
 
@@ -108,7 +110,8 @@ class QUICHE_EXPORT Http2FrameLogger : public spdy::SpdyFrameVisitor {
   // This class will preface all of its log messages with the value of
   // |connection_id| in hexadecimal.
   Http2FrameLogger(absl::string_view perspective,
-                   std::function<bool()> is_enabled, const void* connection_id)
+                   quiche::MultiUseCallback<bool()> is_enabled,
+                   const void* connection_id)
       : perspective_(perspective),
         is_enabled_(std::move(is_enabled)),
         connection_id_(connection_id) {}
@@ -135,7 +138,7 @@ class QUICHE_EXPORT Http2FrameLogger : public spdy::SpdyFrameVisitor {
 
  private:
   const absl::string_view perspective_;
-  const std::function<bool()> is_enabled_;
+  const quiche::MultiUseCallback<bool()> is_enabled_;
   const void* connection_id_;
 };
 

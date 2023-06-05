@@ -11,6 +11,7 @@
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace http2 {
 namespace test {
@@ -27,7 +28,7 @@ class RandomDecoderTestTest : public RandomDecoderTest {
   }
 
  protected:
-  typedef std::function<DecodeStatus(DecodeBuffer* db)> DecodingFn;
+  typedef quiche::MultiUseCallback<DecodeStatus(DecodeBuffer* db)> DecodingFn;
 
   DecodeStatus StartDecoding(DecodeBuffer* db) override {
     ++start_decoding_calls_;

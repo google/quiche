@@ -25,6 +25,7 @@
 #include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace http2 {
 namespace test {
@@ -119,7 +120,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
   // size of payload, else false to skip that size. Typically used for negative
   // tests; for example, decoding a SETTINGS frame at all sizes except for
   // multiples of 6.
-  typedef std::function<bool(size_t size)> ApproveSize;
+  typedef quiche::MultiUseCallback<bool(size_t size)> ApproveSize;
 
   AbstractPayloadDecoderTest() {}
 
@@ -303,13 +304,13 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
   // As above, but for frames without padding.
   ::testing::AssertionResult VerifyDetectsFrameSizeError(
       uint8_t required_flags, absl::string_view unpadded_payload,
-      const ApproveSize& approve_size) {
+      ApproveSize approve_size) {
     Http2FrameType frame_type = DecoderPeer::FrameType();
     uint8_t known_flags = KnownFlagsMaskForFrameType(frame_type);
     HTTP2_VERIFY_EQ(0, known_flags & Http2FrameFlag::PADDED);
     HTTP2_VERIFY_EQ(0, required_flags & Http2FrameFlag::PADDED);
     return VerifyDetectsMultipleFrameSizeErrors(
-        required_flags, unpadded_payload, approve_size, 0);
+        required_flags, unpadded_payload, std::move(approve_size), 0);
   }
 
   Listener listener_;

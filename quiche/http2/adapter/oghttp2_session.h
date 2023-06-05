@@ -24,6 +24,7 @@
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_flags.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/http2_header_block.h"
@@ -468,7 +469,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
 
   // Stores the queue of callbacks to invoke upon receiving SETTINGS acks. At
   // most one callback is invoked for each SETTINGS ack.
-  using SettingsAckCallback = std::function<void()>;
+  using SettingsAckCallback = quiche::SingleUseCallback<void()>;
   std::list<SettingsAckCallback> settings_ack_callbacks_;
 
   // Delivers header name-value pairs to the visitor.
