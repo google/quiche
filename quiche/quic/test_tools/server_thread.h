@@ -12,6 +12,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_thread.h"
 #include "quiche/quic/tools/quic_server.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 namespace test {
@@ -34,7 +35,7 @@ class ServerThread : public QuicThread {
   void Run() override;
 
   // Schedules the given action for execution in the event loop.
-  void Schedule(std::function<void()> action);
+  void Schedule(quiche::SingleUseCallback<void()> action);
 
   // Waits for the handshake to be confirmed for the first session created.
   void WaitForCryptoHandshakeConfirmed();
@@ -43,7 +44,7 @@ class ServerThread : public QuicThread {
   // reached |timeout|. Must be called from an external thread.
   // Return whether the function returned after |termination_predicate| become
   // true.
-  bool WaitUntil(std::function<bool()> termination_predicate,
+  bool WaitUntil(quiche::UnretainedCallback<bool()> termination_predicate,
                  QuicTime::Delta timeout);
 
   // Pauses execution of the server until Resume() is called.  May only be
@@ -86,8 +87,8 @@ class ServerThread : public QuicThread {
   bool initialized_;
 
   QuicMutex scheduled_actions_lock_;
-  quiche::QuicheCircularDeque<std::function<void()>> scheduled_actions_
-      QUIC_GUARDED_BY(scheduled_actions_lock_);
+  quiche::QuicheCircularDeque<quiche::SingleUseCallback<void()>>
+      scheduled_actions_ QUIC_GUARDED_BY(scheduled_actions_lock_);
 };
 
 }  // namespace test

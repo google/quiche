@@ -15,6 +15,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
 
@@ -56,10 +57,10 @@ absl::StatusOr<BinaryHttpRequest::ControlData> DecodeControlData(
   return control_data;
 }
 
-absl::Status DecodeFields(
-    quiche::QuicheDataReader& reader,
-    const std::function<void(absl::string_view name, absl::string_view value)>&
-        callback) {
+absl::Status DecodeFields(quiche::QuicheDataReader& reader,
+                          quiche::UnretainedCallback<void(
+                              absl::string_view name, absl::string_view value)>
+                              callback) {
   absl::string_view fields;
   if (!reader.ReadStringPieceVarInt62(&fields)) {
     return absl::InvalidArgumentError("Failed to read fields.");

@@ -9,6 +9,7 @@
 #include "absl/time/clock.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/qbone_constants.h"
+#include "quiche/common/quiche_callbacks.h"
 
 ABSL_FLAG(bool, qbone_tun_device_replace_default_routing_rules, true,
           "If true, will define a rule that points packets sourced from the "
@@ -169,8 +170,8 @@ QuicIpAddress TunDeviceController::current_address() {
 }
 
 void TunDeviceController::RegisterAddressUpdateCallback(
-    const std::function<void(QuicIpAddress)>& cb) {
-  address_update_cbs_.push_back(cb);
+    quiche::MultiUseCallback<void(QuicIpAddress)> cb) {
+  address_update_cbs_.push_back(std::move(cb));
 }
 
 }  // namespace quic

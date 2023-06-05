@@ -26,6 +26,7 @@
 #include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_session_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 namespace test {
@@ -238,7 +239,7 @@ class FakeTaskRunner {
 
     void Run() {
       if (!cancelled_) {
-        task_();
+        std::move(task_)();
       }
     }
 
@@ -246,7 +247,7 @@ class FakeTaskRunner {
 
    private:
     bool cancelled_ = false;
-    std::function<void()> task_;
+    quiche::SingleUseCallback<void()> task_;
     QuicTime time_;
   };
 
@@ -260,8 +261,9 @@ class FakeTaskRunner {
 
  private:
   using TaskType = std::shared_ptr<InnerTask>;
-  std::priority_queue<TaskType, std::vector<TaskType>,
-                      std::function<bool(const TaskType&, const TaskType&)>>
+  std::priority_queue<
+      TaskType, std::vector<TaskType>,
+      quiche::UnretainedCallback<bool(const TaskType&, const TaskType&)>>
       tasks_;
   MockQuicConnectionHelper* helper_;
 };

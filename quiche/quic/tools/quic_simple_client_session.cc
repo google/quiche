@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "quiche/quic/core/quic_path_validator.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -39,7 +40,9 @@ QuicSimpleClientSession::CreateClientStream() {
   auto stream = std::make_unique<QuicSimpleClientStream>(
       GetNextOutgoingBidirectionalStreamId(), this, BIDIRECTIONAL,
       drop_response_body_);
-  stream->set_on_interim_headers(on_interim_headers_);
+  stream->set_on_interim_headers([this](const spdy::Http2HeaderBlock& headers) {
+    on_interim_headers_(headers);
+  });
   return stream;
 }
 

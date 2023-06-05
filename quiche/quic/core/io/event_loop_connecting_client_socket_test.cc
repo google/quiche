@@ -32,6 +32,7 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_loopback.h"
 #include "quiche/common/platform/api/quiche_thread.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 namespace quic::test {
@@ -43,7 +44,7 @@ using ::testing::ValuesIn;
 
 class TestServerSocketRunner : public quiche::QuicheThread {
  public:
-  using SocketBehavior = std::function<void(
+  using SocketBehavior = quiche::MultiUseCallback<void(
       SocketFd connected_socket, socket_api::SocketProtocol protocol)>;
 
   TestServerSocketRunner(SocketFd server_socket_descriptor,
@@ -80,7 +81,7 @@ class TestTcpServerSocketRunner : public TestServerSocketRunner {
   // closes the accepted connection socket.
   TestTcpServerSocketRunner(SocketFd server_socket_descriptor,
                             SocketBehavior behavior)
-      : TestServerSocketRunner(server_socket_descriptor, behavior) {
+      : TestServerSocketRunner(server_socket_descriptor, std::move(behavior)) {
     Start();
   }
 
@@ -119,7 +120,7 @@ class TestUdpServerSocketRunner : public TestServerSocketRunner {
   TestUdpServerSocketRunner(SocketFd server_socket_descriptor,
                             SocketBehavior behavior,
                             QuicSocketAddress client_socket_address)
-      : TestServerSocketRunner(server_socket_descriptor, behavior),
+      : TestServerSocketRunner(server_socket_descriptor, std::move(behavior)),
         client_socket_address_(std::move(client_socket_address)) {
     Start();
   }

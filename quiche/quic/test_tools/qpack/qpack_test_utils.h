@@ -11,13 +11,14 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 namespace test {
 
 // Called repeatedly to determine the size of each fragment when encoding or
 // decoding.  Must return a positive value.
-using FragmentSizeGenerator = std::function<size_t()>;
+using FragmentSizeGenerator = quiche::MultiUseCallback<size_t()>;
 
 enum class FragmentMode {
   kSingleChunk,

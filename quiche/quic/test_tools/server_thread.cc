@@ -9,6 +9,7 @@
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_dispatcher_peer.h"
 #include "quiche/quic/test_tools/quic_server_peer.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 namespace test {
@@ -62,7 +63,7 @@ int ServerThread::GetPort() {
   return rc;
 }
 
-void ServerThread::Schedule(std::function<void()> action) {
+void ServerThread::Schedule(quiche::SingleUseCallback<void()> action) {
   QUICHE_DCHECK(!quit_.HasBeenNotified());
   QuicWriterMutexLock lock(&scheduled_actions_lock_);
   scheduled_actions_.push_back(std::move(action));
@@ -72,8 +73,9 @@ void ServerThread::WaitForCryptoHandshakeConfirmed() {
   confirmed_.WaitForNotification();
 }
 
-bool ServerThread::WaitUntil(std::function<bool()> termination_predicate,
-                             QuicTime::Delta timeout) {
+bool ServerThread::WaitUntil(
+    quiche::UnretainedCallback<bool()> termination_predicate,
+    QuicTime::Delta timeout) {
   const QuicTime deadline = clock_->Now() + timeout;
   while (clock_->Now() < deadline) {
     QuicNotification done_checking;
@@ -128,13 +130,13 @@ void ServerThread::MaybeNotifyOfHandshakeConfirmation() {
 }
 
 void ServerThread::ExecuteScheduledActions() {
-  quiche::QuicheCircularDeque<std::function<void()>> actions;
+  quiche::QuicheCircularDeque<quiche::SingleUseCallback<void()>> actions;
   {
     QuicWriterMutexLock lock(&scheduled_actions_lock_);
     actions.swap(scheduled_actions_);
   }
   while (!actions.empty()) {
-    actions.front()();
+    std::move(actions.front())();
     actions.pop_front();
   }
 }

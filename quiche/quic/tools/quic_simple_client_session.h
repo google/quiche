@@ -11,6 +11,7 @@
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/tools/quic_client_base.h"
 #include "quiche/quic/tools/quic_simple_client_stream.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
@@ -46,12 +47,14 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
   bool drop_response_body() const { return drop_response_body_; }
 
   void set_on_interim_headers(
-      std::function<void(const spdy::Http2HeaderBlock&)> on_interim_headers) {
+      quiche::MultiUseCallback<void(const spdy::Http2HeaderBlock&)>
+          on_interim_headers) {
     on_interim_headers_ = std::move(on_interim_headers);
   }
 
  private:
-  std::function<void(const spdy::Http2HeaderBlock&)> on_interim_headers_;
+  quiche::MultiUseCallback<void(const spdy::Http2HeaderBlock&)>
+      on_interim_headers_;
   QuicClientBase::NetworkHelper* network_helper_;
   const bool drop_response_body_;
   const bool enable_web_transport_;

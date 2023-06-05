@@ -5,10 +5,12 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_CONTROLLER_H_
 #define QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_CONTROLLER_H_
 
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/qbone/bonnet/tun_device.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
 #include "quiche/quic/qbone/qbone_control.pb.h"
 #include "quiche/quic/qbone/qbone_control_stream.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 
@@ -50,7 +52,7 @@ class TunDeviceController {
       int retries);
 
   virtual void RegisterAddressUpdateCallback(
-      const std::function<void(QuicIpAddress)>& cb);
+      quiche::MultiUseCallback<void(QuicIpAddress)> cb);
 
   virtual QuicIpAddress current_address();
 
@@ -65,7 +67,8 @@ class TunDeviceController {
 
   QuicIpAddress current_address_;
 
-  std::vector<std::function<void(QuicIpAddress)>> address_update_cbs_;
+  std::vector<quiche::MultiUseCallback<void(QuicIpAddress)>>
+      address_update_cbs_;
 };
 
 }  // namespace quic

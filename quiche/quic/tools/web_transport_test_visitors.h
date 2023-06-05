@@ -12,6 +12,7 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
@@ -111,7 +112,7 @@ class WebTransportBidirectionalEchoVisitor : public WebTransportStreamVisitor {
 class WebTransportUnidirectionalEchoReadVisitor
     : public WebTransportStreamVisitor {
  public:
-  using Callback = std::function<void(const std::string&)>;
+  using Callback = quiche::MultiUseCallback<void(const std::string&)>;
 
   WebTransportUnidirectionalEchoReadVisitor(WebTransportStream* stream,
                                             Callback callback)
