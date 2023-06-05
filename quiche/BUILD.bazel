@@ -322,6 +322,31 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "http_frame_fuzzer",
+    srcs = ["http2/decoder/http2_frame_decoder_test.cc"],
+    deps = [
+        ":binary_http",
+        ":quiche_core",
+        ":quiche_platform_default_testonly",
+        ":quiche_protobufs_testonly_cc_proto",
+        ":quiche_tool_support",
+        ":quiche_test_support",
+        "@boringssl//:crypto",
+        "@boringssl//:ssl",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:optional",
+        "@com_google_fuzztest//fuzztest",
+        "@com_google_fuzztest//fuzztest:fuzztest_gtest_main",
+        "@com_google_googleurl//url",
+    ],
+)
+
 test_suite_from_source_list(
     name = "quiche_tests",
     srcs = quiche_tests_srcs,
@@ -354,6 +379,7 @@ test_suite_from_source_list(
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:optional",
         "@com_google_absl//absl/types:span",
+        "@com_google_fuzztest//fuzztest",
         "@com_google_googletest//:gtest_main",
         "@com_google_googleurl//url",
     ],
