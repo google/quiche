@@ -13254,6 +13254,64 @@ TEST_P(QuicConnectionTest, TooManyMultiPortPathCreations) {
             stats->num_multi_port_probe_failures_when_path_degrading);
 }
 
+TEST_P(QuicConnectionTest, MultiPortPathReceivesStatelessReset) {
+  set_perspective(Perspective::IS_CLIENT);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedStatelessResetToken(&config,
+                                                 kTestStatelessResetToken);
+  config.SetClientConnectionOptions(QuicTagVector{kMPQC});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  if (!connection_.connection_migration_use_new_cid()) {
+    return;
+  }
+  connection_.CreateConnectionIdManager();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+
+  EXPECT_CALL(visitor_, OnPathDegrading());
+  connection_.OnPathDegradingDetected();
+
+  auto self_address = connection_.self_address();
+  const QuicSocketAddress kNewSelfAddress(self_address.host(),
+                                          self_address.port() + 1);
+  EXPECT_NE(kNewSelfAddress, self_address);
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+
+  QuicNewConnectionIdFrame frame;
+  frame.connection_id = TestConnectionId(1234);
+  ASSERT_NE(frame.connection_id, connection_.connection_id());
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  frame.retire_prior_to = 0u;
+  frame.sequence_number = 1u;
+  EXPECT_CALL(visitor_, CreateContextForMultiPortPath)
+      .WillRepeatedly(testing::WithArgs<0>([&](auto&& observer) {
+        observer->OnMultiPortPathContextAvailable(
+            std::move(std::make_unique<TestQuicPathValidationContext>(
+                kNewSelfAddress, connection_.peer_address(), &new_writer)));
+      }));
+  connection_.OnNewConnectionIdFrame(frame);
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
+      &connection_, kNewSelfAddress, connection_.peer_address()));
+  auto* alt_path = QuicConnectionPeer::GetAlternativePath(&connection_);
+  EXPECT_FALSE(alt_path->validated);
+  EXPECT_EQ(PathValidationReason::kMultiPort,
+            QuicConnectionPeer::path_validator(&connection_)
+                ->GetPathValidationReason());
+
+  std::unique_ptr<QuicEncryptedPacket> packet(
+      QuicFramer::BuildIetfStatelessResetPacket(connection_id_,
+                                                /*received_packet_length=*/100,
+                                                kTestStatelessResetToken));
+  std::unique_ptr<QuicReceivedPacket> received(
+      ConstructReceivedPacket(*packet, QuicTime::Zero()));
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_PEER))
+      .Times(0);
+  connection_.ProcessUdpPacket(kNewSelfAddress, kPeerAddress, *received);
+}
+
 // Verify that when multi-port is enabled and path degrading is triggered, if
 // the alt-path is not ready, nothing happens.
 TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsNotReady) {
