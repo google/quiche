@@ -45,7 +45,7 @@ namespace internal {
 
 // Approximation of sqrt(2) taken from
 // //depot/google3/third_party/openssl/boringssl/src/crypto/fipsmodule/rsa/rsa_impl.c;l=997
-const std::vector<uint32_t> kBoringSSLRSASqrtTwo = {
+constexpr uint32_t kBoringSSLRSASqrtTwo[] = {
     0x4d7c60a5, 0xe633e3e1, 0x5fcf8f7b, 0xca3ea33b, 0xc246785e, 0x92957023,
     0xf9acce41, 0x797f2805, 0xfdfe170f, 0xd3b1f780, 0xd24f4a76, 0x3facb882,
     0x18838a2e, 0xaff5f3b2, 0xc1fcbdde, 0xa2f7dc33, 0xdea06241, 0xf7aa81c2,
@@ -239,7 +239,9 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> GetRsaSqrtTwo(int x) {
   // Compute hard-coded sqrt(2).
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> sqrt2, NewBigNum());
   // TODO(b/277606961): simplify RsaSqrtTwo initialization logic
-  for (int i = internal::kBoringSSLRSASqrtTwo.size() - 2; i >= 0; i = i - 2) {
+  const int sqrt2_size = sizeof(internal::kBoringSSLRSASqrtTwo) /
+                         sizeof(*internal::kBoringSSLRSASqrtTwo);
+  for (int i = sqrt2_size - 2; i >= 0; i = i - 2) {
     // Add the uint32_t values as words directly and shift.
     // 'i' is the "hi" value of a uint64_t, and 'i+1' is the "lo" value.
     if (BN_add_word(sqrt2.get(), internal::kBoringSSLRSASqrtTwo[i]) != 1) {
@@ -263,7 +265,7 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> GetRsaSqrtTwo(int x) {
   }
 
   // Check that hard-coded result is correct length.
-  int sqrt2_bits = 32 * internal::kBoringSSLRSASqrtTwo.size();
+  int sqrt2_bits = 32 * sqrt2_size;
   if (BN_num_bits(sqrt2.get()) != sqrt2_bits) {
     return absl::InternalError("RSA sqrt(2) is not correct length.");
   }
