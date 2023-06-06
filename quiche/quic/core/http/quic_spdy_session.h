@@ -454,11 +454,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   QuicSpdyStream* GetOrCreateSpdyDataStream(const QuicStreamId stream_id);
 
-  // Indicates whether the client should check that the
-  // `Sec-Webtransport-Http3-Draft` header is valid.
-  // TODO(vasilvv): remove this once this is enabled in Chromium.
-  virtual bool ShouldValidateWebTransportVersion() const;
-
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to

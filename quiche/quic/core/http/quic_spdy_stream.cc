@@ -1245,14 +1245,6 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
                           "Datagram-Flow-Id header";
       return;
     }
-    if (header_name == "sec-webtransport-http3-draft02") {
-      if (header_value != "1") {
-        QUIC_DLOG(ERROR) << ENDPOINT
-                         << "Rejecting WebTransport due to invalid value of "
-                            "Sec-Webtransport-Http3-Draft02 header";
-        return;
-      }
-    }
   }
 
   if (method != "CONNECT" || protocol != "webtransport") {

@@ -179,28 +179,6 @@ void WebTransportHttp3::HeadersReceived(const spdy::Http2HeaderBlock& headers) {
       rejection_reason_ = WebTransportHttp3RejectionReason::kWrongStatusCode;
       return;
     }
-    bool should_validate_version =
-        session_->ShouldValidateWebTransportVersion();
-    if (should_validate_version) {
-      auto draft_version_it = headers.find("sec-webtransport-http3-draft");
-      if (draft_version_it == headers.end()) {
-        QUIC_DVLOG(1) << ENDPOINT
-                      << "Received WebTransport headers from server without "
-                         "a draft version, rejecting.";
-        rejection_reason_ =
-            WebTransportHttp3RejectionReason::kMissingDraftVersion;
-        return;
-      }
-      if (draft_version_it->second != "draft02") {
-        QUIC_DVLOG(1) << ENDPOINT
-                      << "Received WebTransport headers from server with "
-                         "an unknown draft version ("
-                      << draft_version_it->second << "), rejecting.";
-        rejection_reason_ =
-            WebTransportHttp3RejectionReason::kUnsupportedDraftVersion;
-        return;
-      }
-    }
   }
 
   QUIC_DVLOG(1) << ENDPOINT << "WebTransport session " << id_ << " ready.";

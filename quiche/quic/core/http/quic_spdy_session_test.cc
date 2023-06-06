@@ -566,7 +566,6 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     headers.OnHeaderBlockStart();
     headers.OnHeader(":method", "CONNECT");
     headers.OnHeader(":protocol", "webtransport");
-    headers.OnHeader("sec-webtransport-http3-draft02", "1");
     stream->OnStreamHeaderList(/*fin=*/true, 0, headers);
     WebTransportHttp3* web_transport =
         session_.GetWebTransportSession(session_id);
