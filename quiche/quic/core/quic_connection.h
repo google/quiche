@@ -1260,8 +1260,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // session map.
   virtual std::vector<QuicConnectionId> GetActiveServerConnectionIds() const;
 
-  bool validate_client_address() const { return validate_client_addresses_; }
-
   bool connection_migration_use_new_cid() const {
     return connection_migration_use_new_cid_;
   }
@@ -1418,10 +1416,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   void AddBytesReceivedBeforeAddressValidation(size_t length) {
     default_path_.bytes_received_before_address_validation += length;
-  }
-
-  void set_validate_client_addresses(bool value) {
-    validate_client_addresses_ = value;
   }
 
   bool defer_send_in_response_to_packets() const {
@@ -1968,11 +1962,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Return true if the current incoming packet is from a peer address that is
   // validated.
   bool IsReceivedPeerAddressValidated() const;
-
-  // Called after receiving PATH_CHALLENGE. Update packet content and
-  // alternative path state if the current packet is from a non-default path.
-  // Return true if framer should continue processing the packet.
-  bool OnPathChallengeFrameInternal(const QuicPathChallengeFrame& frame);
 
   // Check the state of the multi-port alternative path and initiate path
   // migration.

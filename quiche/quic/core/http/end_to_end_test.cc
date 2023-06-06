@@ -2873,8 +2873,7 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
   // Send a request using the new socket.
   SendSynchronousBarRequestAndCheckResponse();
 
-  if (!version_.HasIetfQuicFrames() ||
-      !client_->client()->session()->connection()->validate_client_address()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   QuicConnection* client_connection = GetClientConnection();
@@ -3149,7 +3148,6 @@ TEST_P(EndToEndTest,
 TEST_P(EndToEndTest, ConnectionMigrationNewTokenForNewIp) {
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames() ||
-      !client_->client()->session()->connection()->validate_client_address() ||
       GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
@@ -3476,8 +3474,7 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
   EXPECT_EQ(old_address.host(), new_address.host());
   EXPECT_NE(old_address.port(), new_address.port());
 
-  if (!version_.HasIetfQuicFrames() ||
-      !GetClientConnection()->validate_client_address()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
 
@@ -5314,8 +5311,7 @@ class PacketHoldingWriter : public QuicPacketWriterWrapper {
 
 TEST_P(EndToEndTest, ClientValidateNewNetwork) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames() ||
-      !GetClientConnection()->validate_client_address()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -5539,7 +5535,7 @@ TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
   // Client should have received a PATH_CHALLENGE.
   QuicConnection* client_connection = GetClientConnection();
   ASSERT_TRUE(client_connection);
-  EXPECT_EQ(client_connection->validate_client_address() ? 1u : 0,
+  EXPECT_EQ(1u,
             client_connection->GetStats().num_connectivity_probing_received);
 
   server_thread_->Pause();
