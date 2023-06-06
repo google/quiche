@@ -555,6 +555,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     OnNewConnectionIdFrameInner(frame);
   }
 
+  if (config.DisableConnectionMigration()) {
+    active_migration_disabled_ = true;
+  }
+
   sent_packet_manager_.SetFromConfig(config);
   if (perspective_ == Perspective::IS_SERVER &&
       config.HasClientSentConnectionOption(kAFF2, perspective_)) {
@@ -3992,6 +3996,14 @@ void QuicConnection::OnHandshakeComplete() {
 
 void QuicConnection::MaybeCreateMultiPortPath() {
   QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+  QUIC_CLIENT_HISTOGRAM_BOOL(
+      "QuicConnection.ServerAllowsActiveMigrationForMultiPort",
+      !active_migration_disabled_,
+      "Whether the server allows active migration that's required for "
+      "multi-port");
+  if (active_migration_disabled_) {
+    return;
+  }
   if (path_validator_.HasPendingPathValidation()) {
     QUIC_CLIENT_HISTOGRAM_ENUM("QuicConnection.MultiPortPathCreationCancelled",
                                path_validator_.GetPathValidationReason(),

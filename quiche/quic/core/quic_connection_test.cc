@@ -13265,6 +13265,39 @@ TEST_P(QuicConnectionTest, MultiPortPathReceivesStatelessReset) {
   connection_.ProcessUdpPacket(kNewSelfAddress, kPeerAddress, *received);
 }
 
+// Test that if the client's active migration is disabled, multi-port will not
+// be attempted.
+TEST_P(QuicConnectionTest, MultiPortPathRespectsActiveMigrationConfig) {
+  set_perspective(Perspective::IS_CLIENT);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedStatelessResetToken(&config,
+                                                 kTestStatelessResetToken);
+  QuicConfigPeer::SetReceivedDisableConnectionMigration(&config);
+  config.SetClientConnectionOptions(QuicTagVector{kMPQC});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  if (!connection_.connection_migration_use_new_cid()) {
+    return;
+  }
+  connection_.CreateConnectionIdManager();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+
+  EXPECT_CALL(visitor_, OnPathDegrading());
+  connection_.OnPathDegradingDetected();
+
+  QuicNewConnectionIdFrame frame;
+  frame.connection_id = TestConnectionId(1234);
+  ASSERT_NE(frame.connection_id, connection_.connection_id());
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  frame.retire_prior_to = 0u;
+  frame.sequence_number = 1u;
+  EXPECT_CALL(visitor_, CreateContextForMultiPortPath).Times(0);
+  connection_.OnNewConnectionIdFrame(frame);
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
+}
+
 // Verify that when multi-port is enabled and path degrading is triggered, if
 // the alt-path is not ready, nothing happens.
 TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsNotReady) {

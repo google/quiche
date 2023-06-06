@@ -2360,6 +2360,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   std::unique_ptr<MultiPortStats> multi_port_stats_;
 
+  bool active_migration_disabled_ = false;
+
   RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
 
   // Server addresses that are known to the client.
