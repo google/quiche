@@ -35,7 +35,7 @@ class QUICHE_EXPORT HeaderValidator : public HeaderValidatorBase {
 
   // Returns whether `path` is valid according to RFC 3986 Section 3.3. May
   // contain the query part of a URI.
-  static bool IsValidPath(absl::string_view path);
+  static bool IsValidPath(absl::string_view path, bool allow_fragment);
 
  private:
   enum ContentLengthStatus {

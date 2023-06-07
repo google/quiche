@@ -55,6 +55,7 @@ class QUICHE_EXPORT HeaderValidatorBase {
   void SetObsTextOption(ObsTextOption option) { obs_text_option_ = option; }
   // Allows the "extended CONNECT" syntax described in RFC 8441.
   void SetAllowExtendedConnect() { allow_extended_connect_ = true; }
+  void SetAllowFragmentInPath() { allow_fragment_in_path_ = true; }
 
  protected:
   std::string status_;
@@ -62,6 +63,7 @@ class QUICHE_EXPORT HeaderValidatorBase {
   absl::optional<size_t> content_length_;
   ObsTextOption obs_text_option_ = ObsTextOption::kDisallow;
   bool allow_extended_connect_ = false;
+  bool allow_fragment_in_path_ = false;
 };
 
 }  // namespace adapter

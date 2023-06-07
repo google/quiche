@@ -32,6 +32,10 @@ const absl::string_view kValidPathChars =
     "/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~%!$&'()"
     "*+,;=:@?";
 
+const absl::string_view kValidPathCharsWithFragment =
+    "/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~%!$&'()"
+    "*+,;=:@?#";
+
 using CharMap = std::array<bool, 256>;
 
 CharMap BuildValidCharMap(absl::string_view valid_chars) {
@@ -181,7 +185,7 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
     } else if (key == ":authority" && !ValidateAndSetAuthority(value)) {
       return HEADER_FIELD_INVALID;
     } else if (key == ":path") {
-      if (value.empty() || !IsValidPath(value)) {
+      if (value.empty() || !IsValidPath(value, allow_fragment_in_path_)) {
         return HEADER_FIELD_INVALID;
       }
       path_ = std::string(value);
@@ -255,9 +259,15 @@ bool HeaderValidator::IsValidAuthority(absl::string_view authority) {
   return AllCharsInMap(authority, valid_chars);
 }
 
-bool HeaderValidator::IsValidPath(absl::string_view path) {
+bool HeaderValidator::IsValidPath(absl::string_view path, bool allow_fragment) {
   static const CharMap valid_chars = BuildValidCharMap(kValidPathChars);
-  return AllCharsInMap(path, valid_chars);
+  static const CharMap valid_chars_with_fragment =
+      BuildValidCharMap(kValidPathCharsWithFragment);
+  if (allow_fragment) {
+    return AllCharsInMap(path, valid_chars_with_fragment);
+  } else {
+    return AllCharsInMap(path, valid_chars);
+  }
 }
 
 HeaderValidator::ContentLengthStatus HeaderValidator::HandleContentLength(
