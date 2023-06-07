@@ -290,6 +290,13 @@ void WebTransportHttp3::MaybeNotifyClose() {
   visitor_->OnSessionClosed(error_code_, error_message_);
 }
 
+void WebTransportHttp3::OnGoAwayReceived() {
+  if (drain_callback_ != nullptr) {
+    std::move(drain_callback_)();
+    drain_callback_ = nullptr;
+  }
+}
+
 WebTransportHttp3UnidirectionalStream::WebTransportHttp3UnidirectionalStream(
     PendingStream* pending, QuicSpdySession* session)
     : QuicStream(pending, session, /*is_static=*/false),

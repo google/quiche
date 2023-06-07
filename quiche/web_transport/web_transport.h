@@ -18,6 +18,7 @@
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_stream.h"
 
 namespace webtransport {
@@ -213,6 +214,11 @@ class QUICHE_EXPORT Session {
   // Sets the largest duration that a datagram can spend in the queue before
   // being silently dropped.
   virtual void SetDatagramMaxTimeInQueue(absl::Duration max_time_in_queue) = 0;
+
+  // Notifies that either the session itself (DRAIN_WEBTRANSPORT_SESSION
+  // capsule), or the underlying connection (HTTP GOAWAY) is being drained by
+  // the peer.
+  virtual void SetOnDraining(quiche::SingleUseCallback<void()> callback) = 0;
 };
 
 }  // namespace webtransport

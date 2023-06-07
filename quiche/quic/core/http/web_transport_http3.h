@@ -18,6 +18,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/web_transport/web_transport.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
@@ -89,6 +90,10 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   QuicByteCount GetMaxDatagramSize() const override;
   void SetDatagramMaxTimeInQueue(absl::Duration max_time_in_queue) override;
 
+  void SetOnDraining(quiche::SingleUseCallback<void()> callback) override {
+    drain_callback_ = std::move(callback);
+  }
+
   // From QuicSpdyStream::Http3DatagramVisitor.
   void OnHttp3Datagram(QuicStreamId stream_id,
                        absl::string_view payload) override;
@@ -99,6 +104,8 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   WebTransportHttp3RejectionReason rejection_reason() const {
     return rejection_reason_;
   }
+
+  void OnGoAwayReceived();
 
  private:
   // Notifies the visitor that the connection has been closed.  Ensures that the
@@ -118,6 +125,8 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   bool close_sent_ = false;
   bool close_received_ = false;
   bool close_notified_ = false;
+
+  quiche::SingleUseCallback<void()> drain_callback_ = nullptr;
 
   WebTransportHttp3RejectionReason rejection_reason_ =
       WebTransportHttp3RejectionReason::kNone;

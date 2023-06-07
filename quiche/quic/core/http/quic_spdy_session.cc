@@ -19,6 +19,7 @@
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/http/quic_headers_stream.h"
+#include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
@@ -740,6 +741,24 @@ void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
     CloseConnectionWithDetails(QUIC_HTTP_GOAWAY_INVALID_STREAM_ID,
                                "GOAWAY with invalid stream ID");
     return;
+  }
+
+  if (SupportsWebTransport()) {
+    PerformActionOnActiveStreams([](QuicStream* stream) {
+      if (!QuicUtils::IsBidirectionalStreamId(stream->id(),
+                                              stream->version()) ||
+          !QuicUtils::IsClientInitiatedStreamId(
+              stream->version().transport_version, stream->id())) {
+        return true;
+      }
+      QuicSpdyStream* spdy_stream = static_cast<QuicSpdyStream*>(stream);
+      WebTransportHttp3* web_transport = spdy_stream->web_transport();
+      if (web_transport == nullptr) {
+        return true;
+      }
+      web_transport->OnGoAwayReceived();
+      return true;
+    });
   }
 
   // TODO(b/161252736): Cancel client requests with ID larger than |id|.

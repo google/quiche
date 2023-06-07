@@ -21,6 +21,7 @@
 #include "quiche/quic/core/frames/quic_blocked_frame.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
+#include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
@@ -6935,6 +6936,67 @@ TEST_P(EndToEndTest, WebTransportSession404) {
     return GetClientSession()->GetOrCreateSpdyDataStream(connect_stream_id) ==
            nullptr;
   }));
+}
+TEST_P(EndToEndTest, WebTransportSessionGoaway) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_TRUE(session != nullptr);
+
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
+  bool goaway_received = false;
+  session->SetOnDraining([&goaway_received] { goaway_received = true; });
+  server_thread_->Schedule([server_session = GetServerSession()]() {
+    server_session->SendHttp3GoAway(QUIC_PEER_GOING_AWAY,
+                                    "server shutting down");
+  });
+  client_->WaitUntil(2000, [&]() { return goaway_received; });
+  EXPECT_TRUE(goaway_received);
+
+  // Ensure that we can still send and receive unidirectional streams after
+  // GOAWAY has been processed.
+  WebTransportStream* outgoing_stream =
+      session->OpenOutgoingUnidirectionalStream();
+  ASSERT_TRUE(outgoing_stream != nullptr);
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*outgoing_stream, "test"));
+  EXPECT_TRUE(outgoing_stream->SendFin());
+
+  EXPECT_CALL(visitor, OnIncomingUnidirectionalStreamAvailable())
+      .WillRepeatedly([this, session]() {
+        ReadAllIncomingWebTransportUnidirectionalStreams(session);
+      });
+  client_->WaitUntil(2000, [this]() {
+    return !received_webtransport_unidirectional_streams_.empty();
+  });
+  EXPECT_THAT(received_webtransport_unidirectional_streams_,
+              testing::ElementsAre("test"));
+
+// TODO(b/283160645): fix this and re-enable the test.
+#if 0
+  // Ensure that we can still send and receive bidirectional data streams after
+  // GOAWAY has been processed.
+  WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+
+  auto stream_visitor_owned =
+      std::make_unique<NiceMock<MockWebTransportStreamVisitor>>();
+  MockWebTransportStreamVisitor* stream_visitor = stream_visitor_owned.get();
+  stream->SetVisitor(std::move(stream_visitor_owned));
+
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
+  EXPECT_TRUE(stream->SendFin());
+
+  std::string received_data =
+      ReadDataFromWebTransportStreamUntilFin(stream, stream_visitor);
+  EXPECT_EQ(received_data, "test");
+#endif
 }
 
 TEST_P(EndToEndTest, InvalidExtendedConnect) {

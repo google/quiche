@@ -8,6 +8,7 @@
 #define QUICHE_WEB_TRANSPORT_TEST_TOOLS_MOCK_WEB_TRANSPORT_H_
 
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace webtransport {
@@ -74,6 +75,8 @@ class QUICHE_NO_EXPORT MockSession : public Session {
   MOCK_METHOD(uint64_t, GetMaxDatagramSize, (), (const, override));
   MOCK_METHOD(void, SetDatagramMaxTimeInQueue,
               (absl::Duration max_time_in_queue), (override));
+  MOCK_METHOD(void, SetOnDraining, (quiche::SingleUseCallback<void()>),
+              (override));
 };
 
 }  // namespace test
