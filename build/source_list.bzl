@@ -1025,7 +1025,6 @@ io_test_support_srcs = [
     "quic/test_tools/server_thread.cc",
 ]
 quiche_tests_hdrs = [
-
 ]
 quiche_tests_srcs = [
     "balsa/balsa_frame_test.cc",
@@ -1296,7 +1295,6 @@ quiche_tests_srcs = [
     "spdy/core/spdy_simple_arena_test.cc",
 ]
 io_tests_hdrs = [
-
 ]
 io_tests_srcs = [
     "quic/core/chlo_extractor_test.cc",
@@ -1315,7 +1313,6 @@ io_tests_srcs = [
     "quic/tools/quic_url_test.cc",
 ]
 fuzzers_hdrs = [
-
 ]
 fuzzers_srcs = [
     "common/structured_headers_fuzzer.cc",
@@ -1378,7 +1375,6 @@ nghttp2_test_support_srcs = [
     "http2/adapter/nghttp2_test_utils.cc",
 ]
 nghttp2_tests_hdrs = [
-
 ]
 nghttp2_tests_srcs = [
     "http2/adapter/adapter_impl_comparison_test.cc",
@@ -1593,7 +1589,6 @@ blind_sign_auth_srcs = [
     "blind_sign_auth/cached_blind_sign_auth.cc",
 ]
 blind_sign_auth_tests_hdrs = [
-
 ]
 blind_sign_auth_tests_srcs = [
     "blind_sign_auth/anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client_test.cc",
@@ -1639,7 +1634,6 @@ linux_only_srcs = [
     "quic/core/quic_linux_socket_utils.cc",
 ]
 linux_only_tests_hdrs = [
-
 ]
 linux_only_tests_srcs = [
     "quic/core/batch_writer/quic_batch_writer_buffer_test.cc",
