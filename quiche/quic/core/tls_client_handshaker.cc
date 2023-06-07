@@ -52,6 +52,12 @@ TlsClientHandshaker::TlsClientHandshaker(
                                    cert_and_key->private_key.private_key());
     }
   }
+#if BORINGSSL_API_VERSION >= 22
+  if (!crypto_config->preferred_groups().empty()) {
+    SSL_set1_group_ids(ssl(), crypto_config->preferred_groups().data(),
+                       crypto_config->preferred_groups().size());
+  }
+#endif  // BORINGSSL_API_VERSION
 }
 
 TlsClientHandshaker::~TlsClientHandshaker() {}

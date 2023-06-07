@@ -439,6 +439,18 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   SSL_CTX* ssl_ctx() const;
 
+  // The groups to use for key exchange in the TLS handshake;
+  const std::vector<uint16_t>& preferred_groups() const {
+    return preferred_groups_;
+  }
+
+  // Sets the preferred groups that will be used in the TLS handshake. Values
+  // in the |preferred_groups| vector are NamedGroup enum codepoints from
+  // https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.7.
+  void set_preferred_groups(const std::vector<uint16_t>& preferred_groups) {
+    preferred_groups_ = preferred_groups;
+  }
+
   // Pre-shared key used during the handshake.
   const std::string& pre_shared_key() const { return pre_shared_key_; }
   void set_pre_shared_key(absl::string_view psk) {
@@ -894,6 +906,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // ssl_ctx_ contains the server configuration for doing TLS handshakes.
   bssl::UniquePtr<SSL_CTX> ssl_ctx_;
+
+  // The groups to use for key exchange in the TLS handshake;
+  std::vector<uint16_t> preferred_groups_;
 
   // These fields store configuration values. See the comments for their
   // respective setter functions.
