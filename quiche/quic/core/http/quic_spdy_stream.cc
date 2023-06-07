@@ -34,6 +34,7 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_testvalue.h"
 #include "quiche/common/capsule.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_mem_slice_storage.h"
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/spdy/core/spdy_protocol.h"
@@ -954,6 +955,15 @@ bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length,
   }
 
   if (!headers_decompressed_ || trailers_decompressed_) {
+    QUICHE_LOG(INFO) << ENDPOINT << "stream_id: " << id()
+                     << ", headers_decompressed: "
+                     << (headers_decompressed_ ? "true" : "false")
+                     << ", trailers_decompressed: "
+                     << (trailers_decompressed_ ? "true" : "false")
+                     << ", NumBytesConsumed: "
+                     << sequencer()->NumBytesConsumed()
+                     << ", total_body_bytes_received: "
+                     << body_manager_.total_body_bytes_received();
     stream_delegate()->OnStreamError(
         QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
         "Unexpected DATA frame received.");
@@ -1043,6 +1053,13 @@ bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length,
   headers_payload_length_ = payload_length;
 
   if (trailers_decompressed_) {
+    QUICHE_LOG(INFO) << ENDPOINT << "stream_id: " << id()
+                     << ", headers_decompressed: "
+                     << (headers_decompressed_ ? "true" : "false")
+                     << ", NumBytesConsumed: "
+                     << sequencer()->NumBytesConsumed()
+                     << ", total_body_bytes_received: "
+                     << body_manager_.total_body_bytes_received();
     stream_delegate()->OnStreamError(
         QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
         "HEADERS frame received after trailing HEADERS.");
