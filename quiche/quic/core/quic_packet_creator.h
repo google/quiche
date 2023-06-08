@@ -93,13 +93,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
    public:
     ScopedPeerAddressContext(QuicPacketCreator* creator,
                              QuicSocketAddress address,
-                             bool update_connection_id);
-
-    ScopedPeerAddressContext(QuicPacketCreator* creator,
-                             QuicSocketAddress address,
                              const QuicConnectionId& client_connection_id,
-                             const QuicConnectionId& server_connection_id,
-                             bool update_connection_id);
+                             const QuicConnectionId& server_connection_id);
     ~ScopedPeerAddressContext();
 
    private:
@@ -107,7 +102,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     QuicSocketAddress old_peer_address_;
     QuicConnectionId old_client_connection_id_;
     QuicConnectionId old_server_connection_id_;
-    bool update_connection_id_;
   };
 
   QuicPacketCreator(QuicConnectionId server_connection_id, QuicFramer* framer,

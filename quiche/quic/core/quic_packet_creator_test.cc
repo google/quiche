@@ -3945,8 +3945,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   {
     // Set the same address via context which should not trigger flush.
     QuicPacketCreator::ScopedPeerAddressContext context(
-        &creator_, peer_addr, client_connection_id, server_connection_id,
-        /*update_connection_id=*/true);
+        &creator_, peer_addr, client_connection_id, server_connection_id);
     ASSERT_EQ(client_connection_id, creator_.GetClientConnectionId());
     ASSERT_EQ(server_connection_id, creator_.GetServerConnectionId());
     EXPECT_TRUE(creator_.HasPendingFrames());
@@ -4000,8 +3999,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
     QuicConnectionId server_connection_id = TestConnectionId(2);
     // Set a different address via context which should trigger flush.
     QuicPacketCreator::ScopedPeerAddressContext context(
-        &creator_, peer_addr1, client_connection_id, server_connection_id,
-        /*update_connection_id=*/true);
+        &creator_, peer_addr1, client_connection_id, server_connection_id);
     ASSERT_EQ(client_connection_id, creator_.GetClientConnectionId());
     ASSERT_EQ(server_connection_id, creator_.GetServerConnectionId());
     EXPECT_FALSE(creator_.HasPendingFrames());
@@ -4024,8 +4022,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   QuicSocketAddress peer_addr(QuicIpAddress::Any4(), 12345);
   creator_.SetDefaultPeerAddress(peer_addr);
   QuicPacketCreator::ScopedPeerAddressContext context(
-      &creator_, peer_addr, client_connection_id1, server_connection_id1,
-      /*update_connection_id=*/true);
+      &creator_, peer_addr, client_connection_id1, server_connection_id1);
   ASSERT_EQ(client_connection_id1, creator_.GetClientConnectionId());
   ASSERT_EQ(server_connection_id1, creator_.GetServerConnectionId());
 
@@ -4050,8 +4047,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
         QuicConnectionId server_connection_id2 = TestConnectionId(4);
         // Set up another context with a different address.
         QuicPacketCreator::ScopedPeerAddressContext context(
-            &creator_, peer_addr1, client_connection_id2, server_connection_id2,
-            /*update_connection_id=*/true);
+            &creator_, peer_addr1, client_connection_id2,
+            server_connection_id2);
         ASSERT_EQ(client_connection_id2, creator_.GetClientConnectionId());
         ASSERT_EQ(server_connection_id2, creator_.GetServerConnectionId());
         EXPECT_CALL(delegate_, ShouldGeneratePacket(_, _))

@@ -2133,16 +2133,15 @@ TEST_P(QuicSessionTestClient, AvailableBidirectionalStreamsClient) {
 }
 
 TEST_P(QuicSessionTestClient, NewStreamCreationResumesMultiPortProbing) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
   session_.config()->SetClientConnectionOptions({kMPQC});
   session_.Initialize();
   connection_->CreateConnectionIdManager();
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   connection_->OnHandshakeComplete();
   session_.OnConfigNegotiated();
-
-  if (!connection_->connection_migration_use_new_cid()) {
-    return;
-  }
 
   EXPECT_CALL(*connection_, MaybeProbeMultiPortPath());
   session_.CreateOutgoingBidirectionalStream();

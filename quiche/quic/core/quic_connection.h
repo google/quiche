@@ -1260,10 +1260,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // session map.
   virtual std::vector<QuicConnectionId> GetActiveServerConnectionIds() const;
 
-  bool connection_migration_use_new_cid() const {
-    return connection_migration_use_new_cid_;
-  }
-
   // Instantiates connection ID manager.
   void CreateConnectionIdManager();
 
@@ -2339,9 +2335,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Indicates whether we should proactively validate peer address on a
   // PATH_CHALLENGE received.
   bool should_proactively_validate_peer_address_on_path_challenge_ = false;
-
-  // Enable this via reloadable flag once this feature is complete.
-  bool connection_migration_use_new_cid_ = false;
 
   // If true, send connection close packet on INVALID_VERSION.
   bool send_connection_close_for_invalid_version_ = false;

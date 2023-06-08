@@ -2137,25 +2137,18 @@ void QuicPacketCreator::SetDefaultPeerAddress(QuicSocketAddress address) {
 
 QuicPacketCreator::ScopedPeerAddressContext::ScopedPeerAddressContext(
     QuicPacketCreator* creator, QuicSocketAddress address,
-    bool update_connection_id)
-    : ScopedPeerAddressContext(creator, address, EmptyQuicConnectionId(),
-                               EmptyQuicConnectionId(), update_connection_id) {}
-
-QuicPacketCreator::ScopedPeerAddressContext::ScopedPeerAddressContext(
-    QuicPacketCreator* creator, QuicSocketAddress address,
     const QuicConnectionId& client_connection_id,
-    const QuicConnectionId& server_connection_id, bool update_connection_id)
+    const QuicConnectionId& server_connection_id)
     : creator_(creator),
       old_peer_address_(creator_->packet_.peer_address),
       old_client_connection_id_(creator_->GetClientConnectionId()),
-      old_server_connection_id_(creator_->GetServerConnectionId()),
-      update_connection_id_(update_connection_id) {
+      old_server_connection_id_(creator_->GetServerConnectionId()) {
   QUIC_BUG_IF(quic_bug_12398_19, !old_peer_address_.IsInitialized())
       << ENDPOINT2
       << "Context is used before serialized packet's peer address is "
          "initialized.";
   creator_->SetDefaultPeerAddress(address);
-  if (update_connection_id_) {
+  if (creator_->version().HasIetfQuicFrames()) {
     // Flush current packet if connection ID length changes.
     if (address == old_peer_address_ &&
         ((client_connection_id.length() !=
@@ -2171,7 +2164,7 @@ QuicPacketCreator::ScopedPeerAddressContext::ScopedPeerAddressContext(
 
 QuicPacketCreator::ScopedPeerAddressContext::~ScopedPeerAddressContext() {
   creator_->SetDefaultPeerAddress(old_peer_address_);
-  if (update_connection_id_) {
+  if (creator_->version().HasIetfQuicFrames()) {
     creator_->SetClientConnectionId(old_client_connection_id_);
     creator_->SetServerConnectionId(old_server_connection_id_);
   }

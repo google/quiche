@@ -2899,7 +2899,7 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
 
 TEST_P(EndToEndTest, IetfConnectionMigrationClientIPChangedMultipleTimes) {
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid() ||
+  if (!version_.HasIetfQuicFrames() ||
       GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
@@ -3011,16 +3011,13 @@ TEST_P(EndToEndTest, IetfConnectionMigrationClientIPChangedMultipleTimes) {
 
 TEST_P(EndToEndTest,
        ConnectionMigrationWithNonZeroConnectionIDClientIPChangedMultipleTimes) {
-  if (!version_.SupportsClientConnectionIds() ||
+  if (!version_.HasIetfQuicFrames() ||
       GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     ASSERT_TRUE(Initialize());
     return;
   }
   override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
-    return;
-  }
   SendSynchronousFooRequestAndCheckResponse();
 
   // Store the client IP address which was used to send the first request.
@@ -3230,7 +3227,7 @@ class DuplicatePacketWithSpoofedSelfAddressWriter
 
 TEST_P(EndToEndTest, ClientAddressSpoofedForSomePeriod) {
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   auto writer = new DuplicatePacketWithSpoofedSelfAddressWriter();
@@ -3285,7 +3282,7 @@ TEST_P(EndToEndTest, ClientAddressSpoofedForSomePeriod) {
 TEST_P(EndToEndTest,
        AsynchronousConnectionMigrationClientIPChangedMultipleTimes) {
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   client_.reset(CreateQuicClient(nullptr));
@@ -3376,15 +3373,12 @@ TEST_P(EndToEndTest,
 
 TEST_P(EndToEndTest,
        AsynchronousConnectionMigrationClientIPChangedWithNonEmptyClientCID) {
-  if (!version_.SupportsClientConnectionIds()) {
+  if (!version_.HasIetfQuicFrames()) {
     ASSERT_TRUE(Initialize());
     return;
   }
   override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
-    return;
-  }
   client_.reset(CreateQuicClient(nullptr));
 
   SendSynchronousFooRequestAndCheckResponse();
@@ -5352,7 +5346,7 @@ TEST_P(EndToEndTest, ClientValidateNewNetwork) {
 TEST_P(EndToEndTest, ClientMultiPortConnection) {
   client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC});
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -5398,7 +5392,7 @@ TEST_P(EndToEndTest, ClientMultiPortConnection) {
 TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegrading) {
   client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC});
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -5442,7 +5436,7 @@ TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegrading) {
 TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   client_.reset(CreateQuicClient(nullptr));
@@ -5470,7 +5464,7 @@ TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
 TEST_P(EndToEndTest, OptimizedServerPreferredAddress) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   client_config_.SetClientConnectionOptions(QuicTagVector{kSPA2});
@@ -5593,7 +5587,7 @@ TEST_P(EndToEndPacketReorderingTest, PathValidationFailure) {
 
 TEST_P(EndToEndPacketReorderingTest, MigrateAgainAfterPathValidationFailure) {
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
 
@@ -5686,7 +5680,7 @@ TEST_P(EndToEndPacketReorderingTest, MigrateAgainAfterPathValidationFailure) {
 
 TEST_P(EndToEndPacketReorderingTest,
        MigrateAgainAfterPathValidationFailureWithNonZeroClientCid) {
-  if (!version_.SupportsClientConnectionIds()) {
+  if (!version_.HasIetfQuicFrames()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -5694,9 +5688,6 @@ TEST_P(EndToEndPacketReorderingTest,
                         true);
   override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
-    return;
-  }
 
   client_.reset(CreateQuicClient(nullptr));
   // Finish one request to make sure handshake established.
@@ -7290,7 +7281,7 @@ TEST_P(EndToEndTest, ClientReportsEct1) {
 TEST_P(EndToEndTest, ClientMigrationAfterHalfwayServerMigration) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -7348,7 +7339,7 @@ TEST_P(EndToEndTest, ClientMigrationAfterHalfwayServerMigration) {
 TEST_P(EndToEndTest, MultiPortCreationFollowingServerMigration) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
-  if (!GetClientConnection()->connection_migration_use_new_cid()) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
 

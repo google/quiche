@@ -1441,7 +1441,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     set_perspective(Perspective::IS_SERVER);
     connection_.CreateConnectionIdManager();
     QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
-    SetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2, true);
     SetQuicReloadableFlag(quic_use_received_client_addresses_cache, true);
     EXPECT_CALL(visitor_, AllowSelfAddressChange())
         .WillRepeatedly(Return(true));
@@ -1486,7 +1485,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     ASSERT_EQ(Perspective::IS_CLIENT, connection_.perspective());
     ASSERT_TRUE(version().HasIetfQuicFrames());
     ASSERT_TRUE(connection_.self_address().host().IsIPv6());
-    SetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2, true);
     const QuicConnectionId connection_id = TestConnectionId(17);
     const StatelessResetToken reset_token =
         QuicUtils::GenerateStatelessResetToken(connection_id);
@@ -1924,7 +1922,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
 
 TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -1981,7 +1979,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
   peer_creator_.SetServerConnectionId(server_cid1);
   EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE)).Times(1);
   // Do not propagate OnCanWrite() to session notifier.
-  EXPECT_CALL(visitor_, OnCanWrite()).Times(AtLeast(1u));
+  EXPECT_CALL(visitor_, OnCanWrite()).Times(testing::AtMost(1u));
 
   QuicFrames frames2;
   frames2.push_back(QuicFrame(frame2_));
@@ -2134,7 +2132,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
 TEST_P(QuicConnectionTest, ConnectionMigrationWithPendingPaddingBytes) {
   // TODO(haoyuewang) Move these test setup code to a common member function.
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -2193,7 +2191,7 @@ TEST_P(QuicConnectionTest, ConnectionMigrationWithPendingPaddingBytes) {
 TEST_P(QuicConnectionTest,
        ReversePathValidationResponseReceivedFromUnexpectedPeerAddress) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.connection_migration_use_new_cid() ||
+  if (!version().HasIetfQuicFrames() ||
       GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
@@ -2259,7 +2257,7 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -3042,7 +3040,6 @@ TEST_P(QuicConnectionTest,
   }
   ASSERT_EQ(Perspective::IS_CLIENT, connection_.perspective());
   ASSERT_TRUE(connection_.self_address().host().IsIPv6());
-  SetQuicReloadableFlag(quic_connection_migration_use_new_cid_v2, true);
   const QuicConnectionId connection_id = TestConnectionId(17);
   const StatelessResetToken reset_token =
       QuicUtils::GenerateStatelessResetToken(connection_id);
@@ -11440,17 +11437,6 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
   const QuicSocketAddress kNewSelfAddress2(QuicIpAddress::Any4(), 12346);
   EXPECT_NE(kNewSelfAddress2, connection_.self_address());
   TestPacketWriter new_writer2(version(), &clock_, Perspective::IS_CLIENT);
-  if (!connection_.connection_migration_use_new_cid()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-        .Times(AtLeast(1u))
-        .WillOnce(Invoke([&]() {
-          EXPECT_EQ(1u, new_writer2.packets_write_attempts());
-          EXPECT_EQ(1u, new_writer2.path_challenge_frames().size());
-          EXPECT_EQ(1u, new_writer2.padding_frames().size());
-          EXPECT_EQ(kNewSelfAddress2.host(),
-                    new_writer2.last_write_source_address());
-        }));
-  }
   bool success2 = false;
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
@@ -11460,13 +11446,8 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
           &success2),
       PathValidationReason::kReasonUnknown);
   EXPECT_FALSE(success);
-  if (connection_.connection_migration_use_new_cid()) {
-    // There is no pening path validation as there is no available connection
-    // ID.
-    EXPECT_FALSE(connection_.HasPendingPathValidation());
-  } else {
-    EXPECT_TRUE(connection_.HasPendingPathValidation());
-  }
+  // There is no pening path validation as there is no available connection ID.
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
 }
 
 // Regression test for b/182571515.
@@ -11550,8 +11531,7 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
 // Tests that PATH_CHALLENGE is dropped if it is sent via a blocked alternative
 // writer.
 TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
-  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.connection_migration_use_new_cid()) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -12903,6 +12883,9 @@ TEST_P(QuicConnectionTest, ServerHelloGetsReordered) {
 }
 
 TEST_P(QuicConnectionTest, MigratePath) {
+  connection_.CreateConnectionIdManager();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   EXPECT_CALL(visitor_, OnPathDegrading());
@@ -12916,16 +12899,28 @@ TEST_P(QuicConnectionTest, MigratePath) {
   connection_.SendMtuDiscoveryPacket(kMaxOutgoingPacketSize);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
+  if (version().HasIetfQuicFrames()) {
+    QuicNewConnectionIdFrame frame;
+    frame.connection_id = TestConnectionId(1234);
+    ASSERT_NE(frame.connection_id, connection_.connection_id());
+    frame.stateless_reset_token =
+        QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+    frame.retire_prior_to = 0u;
+    frame.sequence_number = 1u;
+    connection_.OnNewConnectionIdFrame(frame);
+  }
+
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   EXPECT_CALL(visitor_, OnForwardProgressMadeAfterPathDegrading());
-  connection_.MigratePath(kNewSelfAddress, connection_.peer_address(),
-                          &new_writer, /*owns_writer=*/false);
+  EXPECT_TRUE(connection_.MigratePath(kNewSelfAddress,
+                                      connection_.peer_address(), &new_writer,
+                                      /*owns_writer=*/false));
 
   EXPECT_EQ(kNewSelfAddress, connection_.self_address());
   EXPECT_EQ(&new_writer, QuicConnectionPeer::GetWriter(&connection_));
   EXPECT_FALSE(connection_.IsPathDegrading());
   // Buffered packet on the old path should be discarded.
-  if (connection_.connection_migration_use_new_cid()) {
+  if (version().HasIetfQuicFrames()) {
     EXPECT_EQ(0u, connection_.NumQueuedPackets());
   } else {
     EXPECT_EQ(1u, connection_.NumQueuedPackets());
@@ -12966,7 +12961,7 @@ TEST_P(QuicConnectionTest, MultiPortConnection) {
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   connection_.CreateConnectionIdManager();
@@ -13100,7 +13095,7 @@ TEST_P(QuicConnectionTest, TooManyMultiPortPathCreations) {
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   connection_.CreateConnectionIdManager();
@@ -13215,7 +13210,7 @@ TEST_P(QuicConnectionTest, MultiPortPathReceivesStatelessReset) {
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   connection_.CreateConnectionIdManager();
@@ -13268,6 +13263,9 @@ TEST_P(QuicConnectionTest, MultiPortPathReceivesStatelessReset) {
 // Test that if the client's active migration is disabled, multi-port will not
 // be attempted.
 TEST_P(QuicConnectionTest, MultiPortPathRespectsActiveMigrationConfig) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
   set_perspective(Perspective::IS_CLIENT);
   QuicConfig config;
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
@@ -13276,9 +13274,6 @@ TEST_P(QuicConnectionTest, MultiPortPathRespectsActiveMigrationConfig) {
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
-  if (!connection_.connection_migration_use_new_cid()) {
-    return;
-  }
   connection_.CreateConnectionIdManager();
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   connection_.OnHandshakeComplete();
@@ -13306,7 +13301,7 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsNotReady) {
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   connection_.CreateConnectionIdManager();
@@ -13376,7 +13371,7 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsReadyAndNotProbing) {
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   connection_.CreateConnectionIdManager();
@@ -13454,7 +13449,7 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsReadyAndProbing) {
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   connection_.CreateConnectionIdManager();
@@ -13792,7 +13787,7 @@ TEST_P(QuicConnectionTest, TryToFlushAckWithAckQueued) {
 
 TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_SERVER);
@@ -13948,7 +13943,7 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
 TEST_P(QuicConnectionTest,
        PathValidationSucceedsBeforePeerIpAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_SERVER);
@@ -14069,7 +14064,7 @@ TEST_P(QuicConnectionTest,
 
 // Regression test of b/228645208.
 TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
 
@@ -14184,7 +14179,7 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
 
 TEST_P(QuicConnectionTest, DoNotIssueNewCidIfVisitorSaysNo) {
   set_perspective(Perspective::IS_SERVER);
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
 
@@ -14268,7 +14263,7 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest,
        PathValidationFailedOnClientDueToLackOfServerConnectionId) {
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT,
@@ -14290,7 +14285,7 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest,
        PathValidationFailedOnClientDueToLackOfClientConnectionIdTheSecondTime) {
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT,
@@ -14378,7 +14373,7 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -14422,7 +14417,7 @@ TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
 
 TEST_P(QuicConnectionTest,
        MigratePathDirectlyFailedDueToLackOfServerConnectionId) {
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT,
@@ -14438,7 +14433,7 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest,
        MigratePathDirectlyFailedDueToLackOfClientConnectionIdTheSecondTime) {
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT,
@@ -14684,8 +14679,7 @@ TEST_P(
 
 TEST_P(QuicConnectionTest,
        CloseConnectionAfterReceiveRetireConnectionIdWhenNoCIDIssued) {
-  if (!version().HasIetfQuicFrames() ||
-      !connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -14704,8 +14698,7 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
-  if (!version().HasIetfQuicFrames() ||
-      !connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -14715,7 +14708,7 @@ TEST_P(QuicConnectionTest, RetireConnectionIdFrameResultsInError) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
   }
-  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(Return(true));
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
 
@@ -14747,24 +14740,23 @@ TEST_P(QuicConnectionTest,
   QuicConnectionId cid0 = connection_id_;
   QuicRetireConnectionIdFrame frame;
   frame.sequence_number = 0u;
-  if (connection_.connection_migration_use_new_cid()) {
-    if (!connection_.connection_id().IsEmpty()) {
-      EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(cid0))
-          .WillOnce(Return(TestConnectionId(456)));
-      EXPECT_CALL(connection_id_generator_,
-                  GenerateNextConnectionId(TestConnectionId(456)))
-          .WillOnce(Return(TestConnectionId(789)));
-    }
-    EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-        .Times(2)
-        .WillRepeatedly(Return(true));
-    EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
+
+  if (!connection_.connection_id().IsEmpty()) {
+    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(cid0))
+        .WillOnce(Return(TestConnectionId(456)));
+    EXPECT_CALL(connection_id_generator_,
+                GenerateNextConnectionId(TestConnectionId(456)))
+        .WillOnce(Return(TestConnectionId(789)));
   }
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
+      .Times(2)
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
   EXPECT_TRUE(connection_.OnRetireConnectionIdFrame(frame));
 }
 
 TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
-  if (!connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -14957,8 +14949,7 @@ TEST_P(QuicConnectionTest, ShouldGeneratePacketBlockedByMissingConnectionId) {
     // No connection ID is available as context is created without any.
     QuicPacketCreator::ScopedPeerAddressContext context(
         packet_creator, peer_address1, EmptyQuicConnectionId(),
-        EmptyQuicConnectionId(),
-        /*update_connection_id=*/true);
+        EmptyQuicConnectionId());
     ASSERT_FALSE(connection_.ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
                                                   NOT_HANDSHAKE));
   }
@@ -15207,8 +15198,7 @@ TEST_P(QuicConnectionTest, PingNotSentAt0RTTLevelWhenInitialAvailable) {
 }
 
 TEST_P(QuicConnectionTest, AckElicitingFrames) {
-  if (!version().HasIetfQuicFrames() ||
-      !connection_.connection_migration_use_new_cid()) {
+  if (!version().HasIetfQuicFrames()) {
     return;
   }
   EXPECT_CALL(connection_id_generator_,
@@ -16482,9 +16472,6 @@ TEST_P(QuicConnectionTest, MultiPortCreationAfterServerMigration) {
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kMPQC});
   ServerPreferredAddressInit(config);
-  if (!connection_.connection_migration_use_new_cid()) {
-    return;
-  }
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   QuicConnectionId cid_for_preferred_address = TestConnectionId(17);
   const QuicSocketAddress kNewSelfAddress =
