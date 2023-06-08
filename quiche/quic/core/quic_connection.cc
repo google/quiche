@@ -5001,6 +5001,7 @@ bool QuicConnection::WritePacketUsingWriter(
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address, bool measure_rtt) {
   const QuicTime packet_send_time = clock_->Now();
+  QUIC_BUG_IF(write using blocked writer, writer->IsWriteBlocked());
   QUIC_DVLOG(2) << ENDPOINT
                 << "Sending path probe packet for server connection ID "
                 << default_path_.server_connection_id << std::endl
@@ -6514,7 +6515,7 @@ bool QuicConnection::SendPathChallenge(
       // other frames. This may cause connection to be closed.
       packet_creator_.AddPathChallengeFrame(data_buffer);
     }
-  } else {
+  } else if (!writer->IsWriteBlocked()) {
     // Switch to the right CID and source/peer addresses.
     QuicPacketCreator::ScopedPeerAddressContext context(
         &packet_creator_, peer_address, client_cid, server_cid);
@@ -6526,6 +6527,9 @@ bool QuicConnection::SendPathChallenge(
     QUICHE_DCHECK_EQ(self_address, alternative_path_.self_address);
     WritePacketUsingWriter(std::move(probing_packet), writer, self_address,
                            peer_address, /*measure_rtt=*/false);
+  } else {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Writer blocked when sending PATH_CHALLENGE.";
   }
   return connected_;
 }
@@ -6631,6 +6635,10 @@ bool QuicConnection::SendPathResponse(
     return true;
   }
   QuicPacketWriter* writer = path_validator_.GetContext()->WriterToUse();
+  if (writer->IsWriteBlocked()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Writer blocked when sending PATH_RESPONSE.";
+    return true;
+  }
 
   std::unique_ptr<SerializedPacket> probing_packet =
       packet_creator_.SerializePathResponseConnectivityProbingPacket(

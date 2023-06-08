@@ -11407,6 +11407,61 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
   EXPECT_TRUE(success);
 }
 
+TEST_P(QuicConnectionTest, PathValidationOnNewSocketWriteBlocked) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Any4(), 12345);
+  EXPECT_NE(kNewSelfAddress, connection_.self_address());
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  new_writer.SetWriteBlocked();
+  bool success = false;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kNewSelfAddress, connection_.peer_address(), &new_writer),
+      std::make_unique<TestValidationResultDelegate>(
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+      PathValidationReason::kReasonUnknown);
+  EXPECT_EQ(0u, new_writer.packets_write_attempts());
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+
+  new_writer.SetWritable();
+  // Retry after time out.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
+  static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, new_writer.packets_write_attempts());
+        EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
+        EXPECT_EQ(1u, new_writer.padding_frames().size());
+        EXPECT_EQ(kNewSelfAddress.host(),
+                  new_writer.last_write_source_address());
+      }));
+  static_cast<TestAlarmFactory::TestAlarm*>(
+      QuicPathValidatorPeer::retry_timer(
+          QuicConnectionPeer::path_validator(&connection_)))
+      ->Fire();
+  EXPECT_EQ(1u, new_writer.packets_write_attempts());
+
+  QuicFrames frames;
+  QuicPathFrameBuffer path_frame_buffer{0, 1, 2, 3, 4, 5, 6, 7};
+  frames.push_back(QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer)));
+  new_writer.SetWriteBlocked();
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .WillRepeatedly(Invoke([&] {
+        // Packets other than PATH_RESPONSE may be sent over the default writer.
+        EXPECT_EQ(1u, new_writer.packets_write_attempts());
+        EXPECT_TRUE(new_writer.path_response_frames().empty());
+        EXPECT_EQ(1u, writer_->packets_write_attempts());
+      }));
+  ProcessFramesPacketWithAddresses(frames, kNewSelfAddress,
+                                   connection_.peer_address(),
+                                   ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(1u, new_writer.packets_write_attempts());
+}
+
 TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
@@ -11970,7 +12025,7 @@ TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
 }
 
 // Tests that a PATH_CHALLENGE is cached if its PATH_RESPONSE can't be sent.
-TEST_P(QuicConnectionTest, FailToWritePathResponse) {
+TEST_P(QuicConnectionTest, FailToWritePathResponseAtServer) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
