@@ -977,11 +977,7 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest, CannotIssueNewCidDueToVisitor) {
   QuicConnectionId cid1 = CheckGenerate(cid0);
   EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid1))
       .WillOnce(Return(false));
-  if (GetQuicReloadableFlag(quic_check_cid_collision_when_issue_new_cid)) {
-    EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_)).Times(0);
-  } else {
-    EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_)).Times(1);
-  }
+  EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_)).Times(0);
   cid_manager_.MaybeSendNewConnectionIds();
 }
 
@@ -1000,11 +996,7 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
   // CID #2 is not issued.
   EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid2))
       .WillOnce(Return(false));
-  if (GetQuicReloadableFlag(quic_check_cid_collision_when_issue_new_cid)) {
-    EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_)).Times(0);
-  } else {
-    EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_)).Times(1);
-  }
+  EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_)).Times(0);
   QuicRetireConnectionIdFrame retire_cid_frame;
   retire_cid_frame.sequence_number = 1;
   ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
@@ -1033,7 +1025,6 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
 // Regression test for b/258450534
 TEST_F(QuicSelfIssuedConnectionIdManagerTest,
        RetireConnectionIdAfterConnectionIdCollisionIsFine) {
-  SetQuicReloadableFlag(quic_check_cid_collision_when_issue_new_cid, true);
   QuicConnectionId cid0 = initial_connection_id_;
   QuicConnectionId cid1 = CheckGenerate(cid0);
   EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid1))

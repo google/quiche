@@ -14199,11 +14199,7 @@ TEST_P(QuicConnectionTest, DoNotIssueNewCidIfVisitorSaysNo) {
         .WillOnce(Return(TestConnectionId(456)));
   }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(Return(false));
-  if (GetQuicReloadableFlag(quic_check_cid_collision_when_issue_new_cid)) {
-    EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(0);
-  } else {
-    EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(1);
-  }
+  EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(0);
   connection_.MaybeSendConnectionIdToClient();
 }
 
