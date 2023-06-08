@@ -86,9 +86,9 @@ void SetV6SelfIpInControlMessage(const QuicIpAddress& self_address,
   memcpy(&pktinfo->ipi6_addr, address_string.c_str(), address_string.length());
 }
 
-void PopulatePacketInfoFromControlMessage(struct cmsghdr* cmsg,
-                                          QuicUdpPacketInfo* packet_info,
-                                          BitMask64 packet_info_interested) {
+void PopulatePacketInfoFromControlMessage(
+    struct cmsghdr* cmsg, QuicUdpPacketInfo* packet_info,
+    QuicUdpPacketInfoBitMask packet_info_interested) {
 #ifdef SOL_UDP
   if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::IS_GRO) &&
       cmsg->cmsg_level == SOL_UDP && cmsg->cmsg_type == UDP_GRO) {
@@ -249,9 +249,9 @@ bool QuicUdpSocketApi::WaitUntilReadable(QuicUdpSocketFd fd,
   return 1 == select(1 + fd, &read_fds, nullptr, nullptr, &select_timeout);
 }
 
-void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
-                                  BitMask64 packet_info_interested,
-                                  ReadPacketResult* result) {
+void QuicUdpSocketApi::ReadPacket(
+    QuicUdpSocketFd fd, QuicUdpPacketInfoBitMask packet_info_interested,
+    ReadPacketResult* result) {
   result->ok = false;
   BufferSpan& packet_buffer = result->packet_buffer;
   BufferSpan& control_buffer = result->control_buffer;
@@ -318,7 +318,7 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
   if (hdr.msg_controllen > 0) {
     for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&hdr); cmsg != nullptr;
          cmsg = CMSG_NXTHDR(&hdr, cmsg)) {
-      BitMask64 prior_bitmask = packet_info->bitmask();
+      QuicUdpPacketInfoBitMask prior_bitmask = packet_info->bitmask();
       PopulatePacketInfoFromControlMessage(cmsg, packet_info,
                                            packet_info_interested);
       if (packet_info->bitmask() == prior_bitmask) {
@@ -331,9 +331,9 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
   result->ok = true;
 }
 
-size_t QuicUdpSocketApi::ReadMultiplePackets(QuicUdpSocketFd fd,
-                                             BitMask64 packet_info_interested,
-                                             ReadPacketResults* results) {
+size_t QuicUdpSocketApi::ReadMultiplePackets(
+    QuicUdpSocketFd fd, QuicUdpPacketInfoBitMask packet_info_interested,
+    ReadPacketResults* results) {
 #if defined(__linux__) && !defined(__ANDROID__)
   if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::IS_GRO)) {
     size_t num_packets = 0;

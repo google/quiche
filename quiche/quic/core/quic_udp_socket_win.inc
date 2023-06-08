@@ -111,9 +111,9 @@ bool QuicUdpSocketApi::SetupSocket(QuicUdpSocketFd fd, int address_family,
   return true;
 }
 
-void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
-                                  BitMask64 packet_info_interested,
-                                  ReadPacketResult* result) {
+void QuicUdpSocketApi::ReadPacket(
+    QuicUdpSocketFd fd, QuicUdpPacketInfoBitMask packet_info_interested,
+    ReadPacketResult* result) {
   result->ok = false;
 
   // WSARecvMsg is an extension to Windows Socket API that requires us to fetch
@@ -175,7 +175,7 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
   if (hdr.Control.len > 0) {
     for (WSACMSGHDR* cmsg = WSA_CMSG_FIRSTHDR(&hdr); cmsg != nullptr;
          cmsg = WSA_CMSG_NXTHDR(&hdr, cmsg)) {
-      BitMask64 prior_bitmask = packet_info->bitmask();
+      QuicUdpPacketInfoBitMask prior_bitmask = packet_info->bitmask();
       PopulatePacketInfoFromControlMessageBase(cmsg, packet_info,
                                                packet_info_interested);
       if (packet_info->bitmask() == prior_bitmask) {
@@ -188,9 +188,9 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
   result->ok = true;
 }
 
-size_t QuicUdpSocketApi::ReadMultiplePackets(QuicUdpSocketFd fd,
-                                             BitMask64 packet_info_interested,
-                                             ReadPacketResults* results) {
+size_t QuicUdpSocketApi::ReadMultiplePackets(
+    QuicUdpSocketFd fd, QuicUdpPacketInfoBitMask packet_info_interested,
+    ReadPacketResults* results) {
   size_t num_packets = 0;
   for (ReadPacketResult& result : *results) {
     result.ok = false;

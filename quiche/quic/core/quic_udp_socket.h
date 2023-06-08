@@ -35,12 +35,15 @@ enum class QuicUdpPacketInfoBit : uint8_t {
   TTL,                   // Read & Write
   ECN,                   // Read
   GOOGLE_PACKET_HEADER,  // Read
-  NUM_BITS,
-  IS_GRO,  // Read
+  IS_GRO,                // Read
+
+  // Must be the last value.
+  NUM_BITS
 };
+using QuicUdpPacketInfoBitMask = BitMask<QuicUdpPacketInfoBit>;
 static_assert(static_cast<size_t>(QuicUdpPacketInfoBit::NUM_BITS) <=
-                  BitMask64::NumBits(),
-              "BitMask64 not wide enough to hold all bits.");
+                  QuicUdpPacketInfoBitMask::NumBits(),
+              "QuicUdpPacketInfoBitMask not wide enough to hold all bits.");
 
 // BufferSpan points to an unowned buffer, copying this structure only copies
 // the pointer and length, not the buffer itself.
@@ -60,7 +63,7 @@ struct QUIC_EXPORT_PRIVATE BufferSpan {
 // receiving.
 class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
  public:
-  BitMask64 bitmask() const { return bitmask_; }
+  QuicUdpPacketInfoBitMask bitmask() const { return bitmask_; }
 
   void Reset() { bitmask_.ClearAll(); }
 
@@ -159,7 +162,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
   }
 
  private:
-  BitMask64 bitmask_;
+  QuicUdpPacketInfoBitMask bitmask_;
   QuicPacketCount dropped_packets_;
   QuicIpAddress self_v4_ip_;
   QuicIpAddress self_v6_ip_;
@@ -238,7 +241,8 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
   //
   // If |*result| is reused for subsequent ReadPacket() calls, caller needs to
   // call result->Reset() before each ReadPacket().
-  void ReadPacket(QuicUdpSocketFd fd, BitMask64 packet_info_interested,
+  void ReadPacket(QuicUdpSocketFd fd,
+                  QuicUdpPacketInfoBitMask packet_info_interested,
                   ReadPacketResult* result);
 
   using ReadPacketResults = std::vector<ReadPacketResult>;
@@ -247,7 +251,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
   // Return the number of elements populated into |*results|, note it is
   // possible for some of the populated elements to have ok=false.
   size_t ReadMultiplePackets(QuicUdpSocketFd fd,
-                             BitMask64 packet_info_interested,
+                             QuicUdpPacketInfoBitMask packet_info_interested,
                              ReadPacketResults* results);
 
   // Write a packet to |fd|.

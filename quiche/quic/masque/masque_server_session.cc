@@ -357,7 +357,8 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
                 << ") stream ID " << it->stream()->id() << " server "
                 << expected_target_server_address;
   QuicUdpSocketApi socket_api;
-  BitMask64 packet_info_interested(QuicUdpPacketInfoBit::PEER_ADDRESS);
+  QuicUdpPacketInfoBitMask packet_info_interested(
+      {QuicUdpPacketInfoBit::PEER_ADDRESS});
   char packet_buffer[1 + kMaxIncomingPacketSize];
   packet_buffer[0] = 0;  // context ID.
   char control_buffer[kDefaultUdpPacketControlBufferSize];

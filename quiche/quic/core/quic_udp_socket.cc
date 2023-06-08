@@ -32,7 +32,7 @@ using PlatformCmsghdr = ::cmsghdr;
 
 void PopulatePacketInfoFromControlMessageBase(
     PlatformCmsghdr* cmsg, QuicUdpPacketInfo* packet_info,
-    BitMask64 packet_info_interested) {
+    QuicUdpPacketInfoBitMask packet_info_interested) {
   if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
     if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::V6_SELF_IP)) {
       const in6_pktinfo* info = reinterpret_cast<in6_pktinfo*>(CMSG_DATA(cmsg));

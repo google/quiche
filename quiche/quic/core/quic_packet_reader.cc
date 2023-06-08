@@ -49,13 +49,11 @@ bool QuicPacketReader::ReadAndDispatchPackets(
   // arriving at the host and now is considered part of the network delay.
   QuicTime now = clock.Now();
 
-  BitMask64 info_bits{QuicUdpPacketInfoBit::DROPPED_PACKETS,
-                      QuicUdpPacketInfoBit::PEER_ADDRESS,
-                      QuicUdpPacketInfoBit::V4_SELF_IP,
-                      QuicUdpPacketInfoBit::V6_SELF_IP,
-                      QuicUdpPacketInfoBit::RECV_TIMESTAMP,
-                      QuicUdpPacketInfoBit::TTL,
-                      QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER};
+  QuicUdpPacketInfoBitMask info_bits(
+      {QuicUdpPacketInfoBit::DROPPED_PACKETS,
+       QuicUdpPacketInfoBit::PEER_ADDRESS, QuicUdpPacketInfoBit::V4_SELF_IP,
+       QuicUdpPacketInfoBit::V6_SELF_IP, QuicUdpPacketInfoBit::RECV_TIMESTAMP,
+       QuicUdpPacketInfoBit::TTL, QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER});
   if (GetQuicRestartFlag(quic_receive_ecn)) {
     QUIC_RESTART_FLAG_COUNT_N(quic_receive_ecn, 3, 3);
     info_bits.Set(QuicUdpPacketInfoBit::ECN);
