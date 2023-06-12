@@ -26,6 +26,7 @@
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/status_utils.h"
+#include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/proto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/base.h"

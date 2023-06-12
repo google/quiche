@@ -23,6 +23,7 @@
 #include "quiche/common/test_tools/quiche_test_utils.h"
 #include "absl/strings/escaping.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/utils.h"
+#include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/proto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/base.h"
 #include "openssl/rsa.h"
