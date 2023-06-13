@@ -200,21 +200,18 @@ bool QuicUdpSocketApi::SetupSocket(QuicUdpSocketFd fd, int address_family,
     return false;
   }
 
-  if (GetQuicRestartFlag(quic_quiche_ecn_sockets)) {
-    QUIC_RESTART_FLAG_COUNT(quic_quiche_ecn_sockets);
-    unsigned int set = 1;
-    if (address_family == AF_INET &&
-        setsockopt(fd, IPPROTO_IP, IP_RECVTOS, &set, sizeof(set)) != 0) {
-      QUIC_LOG_FIRST_N(ERROR, 100) << "Failed to request to receive ECN on "
-                                   << "socket";
-      return false;
-    }
-    if (address_family == AF_INET6 &&
-        setsockopt(fd, IPPROTO_IPV6, IPV6_RECVTCLASS, &set, sizeof(set)) != 0) {
-      QUIC_LOG_FIRST_N(ERROR, 100) << "Failed to request to receive ECN on "
-                                   << "socket";
-      return false;
-    }
+  unsigned int set = 1;
+  if (address_family == AF_INET &&
+      setsockopt(fd, IPPROTO_IP, IP_RECVTOS, &set, sizeof(set)) != 0) {
+    QUIC_LOG_FIRST_N(ERROR, 100) << "Failed to request to receive ECN on "
+                                 << "socket";
+    return false;
+  }
+  if (address_family == AF_INET6 &&
+      setsockopt(fd, IPPROTO_IPV6, IPV6_RECVTCLASS, &set, sizeof(set)) != 0) {
+    QUIC_LOG_FIRST_N(ERROR, 100) << "Failed to request to receive ECN on "
+                                 << "socket";
+    return false;
   }
 
   if (!(address_family == AF_INET6 && ipv6_only)) {

@@ -81,8 +81,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_send_placeholder_ticket_when_encrypt_ticket_
 QUIC_FLAG(quic_restart_flag_quic_platform_tos_sockopt, false)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
-// When true, quiche UDP sockets report Explicit Congestion Notification (ECN) [RFC3168, RFC9330] results.
-QUIC_FLAG(quic_restart_flag_quic_quiche_ecn_sockets, true)
 // When true, report received ECN markings to the peer.
 QUIC_FLAG(quic_restart_flag_quic_receive_ecn, true)
 // When true, sends QUIC packets marked ECT(1).
