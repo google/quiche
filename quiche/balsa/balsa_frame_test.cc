@@ -1070,6 +1070,20 @@ TEST_F(HTTPBalsaFrameTest,
   EXPECT_EQ(error_code, balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, ContentLengthNotRequired) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.require_content_length_if_body_required = false;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  std::string message =
+      "PUT /search?q=fo HTTP/1.1\n"
+      "\n";
+
+  balsa_frame_.ProcessInput(message.data(), message.size());
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+}
+
 TEST_F(HTTPBalsaFrameTest,
        VisitorInvokedProperlyForPermittedMissingContentLength) {
   std::string message =

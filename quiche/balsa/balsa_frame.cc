@@ -719,7 +719,8 @@ void BalsaFrame::AssignParseStateAfterHeadersHaveBeenParsed() {
         const absl::string_view method = headers_->request_method();
         // POSTs and PUTs should have a detectable body length.  If they
         // do not we consider it an error.
-        if (method != "POST" && method != "PUT") {
+        if ((method != "POST" && method != "PUT") ||
+            !http_validation_policy().require_content_length_if_body_required) {
           parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
           break;
         } else if (!allow_reading_until_close_for_request_) {

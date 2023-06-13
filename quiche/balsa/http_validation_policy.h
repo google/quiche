@@ -37,6 +37,11 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // still make an effort to determine whether chunked transfer encoding is
   // indicated.
   bool validate_transfer_encoding = true;
+
+  // If true, signal a REQUIRED_BODY_BUT_NO_CONTENT_LENGTH error if a request
+  // with a method POST or PUT, which requires a body, has neither a
+  // "Content-Length" nor a "Transfer-Encoding: chunked" header.
+  bool require_content_length_if_body_required = true;
 };
 
 }  // namespace quiche
