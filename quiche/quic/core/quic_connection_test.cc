@@ -16838,7 +16838,7 @@ TEST_P(QuicConnectionTest, EcnMarksCorrectlyRecorded) {
     QuicConnectionPeer::SendPing(&connection_);
   }
   QuicConnectionStats stats = connection_.GetStats();
-  if (GetQuicRestartFlag(quic_receive_ecn)) {
+  if (GetQuicRestartFlag(quic_receive_ecn2)) {
     ASSERT_TRUE(ack_frame.ecn_counters.has_value());
     EXPECT_EQ(ack_frame.ecn_counters->ect0, 1);
     EXPECT_EQ(stats.num_ack_frames_sent_with_ecn,
@@ -16854,7 +16854,7 @@ TEST_P(QuicConnectionTest, EcnMarksCorrectlyRecorded) {
 
 TEST_P(QuicConnectionTest, EcnMarksCoalescedPacket) {
   if (!connection_.version().CanSendCoalescedPackets() ||
-      !GetQuicRestartFlag(quic_receive_ecn)) {
+      !GetQuicRestartFlag(quic_receive_ecn2)) {
     return;
   }
   QuicCryptoFrame crypto_frame1{ENCRYPTION_HANDSHAKE, 0, "foo"};
@@ -16906,7 +16906,7 @@ TEST_P(QuicConnectionTest, EcnMarksCoalescedPacket) {
     EXPECT_TRUE(ack_frame.ecn_counters.has_value());
     EXPECT_EQ(ack_frame.ecn_counters->ect0, 1);
   }
-  if (GetQuicRestartFlag(quic_receive_ecn)) {
+  if (GetQuicRestartFlag(quic_receive_ecn2)) {
     EXPECT_EQ(stats.num_ecn_marks_received.ect0, 2);
     EXPECT_EQ(stats.num_ack_frames_sent_with_ecn,
               connection_.version().HasIetfQuicFrames() ? 2 : 0);
@@ -16920,7 +16920,7 @@ TEST_P(QuicConnectionTest, EcnMarksCoalescedPacket) {
 
 TEST_P(QuicConnectionTest, EcnMarksUndecryptableCoalescedPacket) {
   if (!connection_.version().CanSendCoalescedPackets() ||
-      !GetQuicRestartFlag(quic_receive_ecn)) {
+      !GetQuicRestartFlag(quic_receive_ecn2)) {
     return;
   }
   // SetFromConfig is always called after construction from InitializeSession.
@@ -17036,10 +17036,10 @@ TEST_P(QuicConnectionTest, EcnMarksUndecryptableCoalescedPacket) {
             connection_.SupportsMultiplePacketNumberSpaces() ? 1 : 2);
   QuicConnectionStats stats = connection_.GetStats();
   EXPECT_EQ(stats.num_ecn_marks_received.ect0,
-            GetQuicRestartFlag(quic_receive_ecn) ? 2 : 0);
+            GetQuicRestartFlag(quic_receive_ecn2) ? 2 : 0);
   EXPECT_EQ(stats.num_ecn_marks_received.ect1, 0);
   EXPECT_EQ(stats.num_ecn_marks_received.ce,
-            GetQuicRestartFlag(quic_receive_ecn) ? 1 : 0);
+            GetQuicRestartFlag(quic_receive_ecn2) ? 1 : 0);
 }
 
 TEST_P(QuicConnectionTest, ReceivedPacketInfoDefaults) {

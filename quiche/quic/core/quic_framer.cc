@@ -3727,9 +3727,6 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
       set_detailed_error("Unable to read ack ecn_ce_count.");
       return false;
     }
-    if (GetQuicRestartFlag(quic_receive_ecn)) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_receive_ecn, 2, 3);
-    }
   }
 
   if (!visitor_->OnAckFrameEnd(QuicPacketNumber(block_low),

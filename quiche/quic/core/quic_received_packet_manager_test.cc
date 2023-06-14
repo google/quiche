@@ -689,7 +689,7 @@ TEST_F(QuicReceivedPacketManagerTest, CountEcnPackets) {
   RecordPacketReceipt(5, QuicTime::Zero(), ECN_ECT1);
   RecordPacketReceipt(6, QuicTime::Zero(), ECN_CE);
   QuicFrame ack = received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
-  if (GetQuicRestartFlag(quic_receive_ecn)) {
+  if (GetQuicRestartFlag(quic_receive_ecn2)) {
     EXPECT_TRUE(ack.ack_frame->ecn_counters.has_value());
     EXPECT_EQ(ack.ack_frame->ecn_counters->ect0, 1);
     EXPECT_EQ(ack.ack_frame->ecn_counters->ect1, 1);
