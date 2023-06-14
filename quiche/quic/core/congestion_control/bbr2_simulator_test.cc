@@ -1593,6 +1593,12 @@ TEST_F(Bbr2DefaultTopologyTest, InFlightAwareGainCycling) {
                      sender_->ExportDebugState().bandwidth_hi, 0.02f);
   }
 
+  if (GetQuicReloadableFlag(quic_pacing_remove_non_initial_burst)) {
+    QuicSentPacketManagerPeer::GetPacingSender(
+        &sender_connection()->sent_packet_manager())
+        ->SetBurstTokens(10);
+  }
+
   // Now that in-flight is almost zero and the pacing gain is still above 1,
   // send approximately 1.4 BDPs worth of data. This should cause the PROBE_BW
   // mode to enter low gain cycle(PROBE_DOWN), and exit it earlier than one

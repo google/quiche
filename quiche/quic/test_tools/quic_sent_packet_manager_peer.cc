@@ -9,6 +9,7 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_sent_packet_manager.h"
 #include "quiche/quic/test_tools/quic_unacked_packet_map_peer.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 namespace test {
@@ -108,6 +109,13 @@ bool QuicSentPacketManagerPeer::UsingPacing(
 void QuicSentPacketManagerPeer::SetUsingPacing(
     QuicSentPacketManager* sent_packet_manager, bool using_pacing) {
   sent_packet_manager->using_pacing_ = using_pacing;
+}
+
+// static
+PacingSender* QuicSentPacketManagerPeer::GetPacingSender(
+    QuicSentPacketManager* sent_packet_manager) {
+  QUICHE_DCHECK(UsingPacing(sent_packet_manager));
+  return &sent_packet_manager->pacing_sender_;
 }
 
 // static

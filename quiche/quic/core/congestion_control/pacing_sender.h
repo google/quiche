@@ -107,6 +107,9 @@ class QUIC_EXPORT_PRIVATE PacingSender {
   // Indicates whether pacing throttles the sending. If true, make up for lost
   // time.
   bool pacing_limited_;
+
+  const bool remove_non_initial_burst_ =
+      GetQuicReloadableFlag(quic_pacing_remove_non_initial_burst);
 };
 
 }  // namespace quic

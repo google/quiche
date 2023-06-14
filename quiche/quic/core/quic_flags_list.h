@@ -53,6 +53,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_flush_pending_frames_and_padding_bytes_on_mi
 QUIC_FLAG(quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, reject or send error response code upon receiving invalid request or response headers.
 QUIC_FLAG(quic_reloadable_flag_quic_act_upon_invalid_header, false)
+// If true, remove the non-initial burst in QUIC PacingSender.
+QUIC_FLAG(quic_reloadable_flag_quic_pacing_remove_non_initial_burst, false)
 // If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.
 QUIC_FLAG(quic_reloadable_flag_quic_require_handshake_confirmation, false)
 // If true, respect the incremental parameter of each stream in QuicWriteBlockedList.
