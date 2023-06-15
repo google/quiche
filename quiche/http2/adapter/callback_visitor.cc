@@ -471,7 +471,11 @@ bool CallbackVisitor::OnMetadataForStream(Http2StreamId stream_id,
 }
 
 bool CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
-  QUICHE_LOG_IF(DFATAL, current_frame_.hd.flags != kMetadataEndFlag);
+  if (current_frame_.hd.flags != kMetadataEndFlag) {
+    QUICHE_VLOG(1) << "Expected kMetadataEndFlag during call to "
+                   << "OnMetadataEndForStream!";
+    return true;
+  }
   QUICHE_VLOG(1) << "OnMetadataEndForStream(stream_id=" << stream_id << ")";
   if (callbacks_->unpack_extension_callback) {
     void* payload;
