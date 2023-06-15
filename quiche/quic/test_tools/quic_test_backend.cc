@@ -23,7 +23,8 @@ namespace {
 // sends a unidirectional stream of format "code message" to this endpoint, it
 // will close the session with the corresponding error code and error message.
 // For instance, sending "42 test error" will cause it to be closed with code 42
-// and message "test error".
+// and message "test error".  As a special case, sending "DRAIN" would result in
+// a DRAIN_WEBTRANSPORT_SESSION capsule being sent.
 class SessionCloseVisitor : public WebTransportVisitor {
  public:
   SessionCloseVisitor(WebTransportSession* session) : session_(session) {}
@@ -41,6 +42,10 @@ class SessionCloseVisitor : public WebTransportVisitor {
     stream->SetVisitor(
         std::make_unique<WebTransportUnidirectionalEchoReadVisitor>(
             stream, [this](const std::string& data) {
+              if (data == "DRAIN") {
+                session_->NotifySessionDraining();
+                return;
+              }
               std::pair<absl::string_view, absl::string_view> parsed =
                   absl::StrSplit(data, absl::MaxSplits(' ', 1));
               WebTransportSessionError error_code = 0;

@@ -6804,6 +6804,29 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveClose) {
   EXPECT_TRUE(spdy_stream == nullptr);
 }
 
+TEST_P(EndToEndTest, WebTransportSessionReceiveDrain) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session = CreateWebTransportSession(
+      "/session-close", /*wait_for_server_response=*/true);
+  ASSERT_TRUE(session != nullptr);
+
+  WebTransportStream* stream = session->OpenOutgoingUnidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "DRAIN"));
+  EXPECT_TRUE(stream->SendFin());
+
+  bool drain_received = false;
+  session->SetOnDraining([&drain_received] { drain_received = true; });
+  client_->WaitUntil(2000, [&]() { return drain_received; });
+  EXPECT_TRUE(drain_received);
+}
+
 TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());

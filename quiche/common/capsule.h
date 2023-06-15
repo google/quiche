@@ -13,6 +13,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "absl/types/variant.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_ip_address.h"
@@ -29,6 +30,7 @@ enum class CapsuleType : uint64_t {
 
   // <https://datatracker.ietf.org/doc/draft-ietf-webtrans-http3/>
   CLOSE_WEBTRANSPORT_SESSION = 0x2843,
+  DRAIN_WEBTRANSPORT_SESSION = 0x78ae,
 
   // draft-ietf-masque-connect-ip-03.
   ADDRESS_ASSIGN = 0x1ECA6A00,
@@ -105,6 +107,13 @@ struct QUICHE_EXPORT CloseWebTransportSessionCapsule {
     return error_code == other.error_code &&
            error_message == other.error_message;
   }
+};
+struct QUICHE_EXPORT DrainWebTransportSessionCapsule {
+  std::string ToString() const;
+  CapsuleType capsule_type() const {
+    return CapsuleType::DRAIN_WEBTRANSPORT_SESSION;
+  }
+  bool operator==(const DrainWebTransportSessionCapsule&) const { return true; }
 };
 
 // MASQUE CONNECT-IP.
@@ -320,7 +329,8 @@ class QUICHE_EXPORT Capsule {
  private:
   absl::variant<DatagramCapsule, LegacyDatagramCapsule,
                 LegacyDatagramWithoutContextCapsule,
-                CloseWebTransportSessionCapsule, AddressRequestCapsule,
+                CloseWebTransportSessionCapsule,
+                DrainWebTransportSessionCapsule, AddressRequestCapsule,
                 AddressAssignCapsule, RouteAdvertisementCapsule,
                 WebTransportStreamDataCapsule, WebTransportResetStreamCapsule,
                 WebTransportStopSendingCapsule, WebTransportMaxStreamsCapsule,

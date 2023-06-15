@@ -136,6 +136,20 @@ TEST_F(CapsuleTest, CloseWebTransportStreamCapsule) {
   TestSerialization(expected_capsule, capsule_fragment);
 }
 
+TEST_F(CapsuleTest, DrainWebTransportStreamCapsule) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+      "800078ae"  // DRAIN_WEBTRANSPORT_STREAM capsule type
+      "00"        // capsule length
+  );
+  Capsule expected_capsule = Capsule(DrainWebTransportSessionCapsule());
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
 TEST_F(CapsuleTest, AddressAssignCapsule) {
   std::string capsule_fragment = absl::HexStringToBytes(
       "9ECA6A00"  // ADDRESS_ASSIGN capsule type

@@ -1397,6 +1397,14 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
           capsule.close_web_transport_session_capsule().error_code,
           capsule.close_web_transport_session_capsule().error_message);
       return true;
+    case CapsuleType::DRAIN_WEBTRANSPORT_SESSION:
+      if (web_transport_ == nullptr) {
+        QUIC_DLOG(ERROR) << ENDPOINT << "Received capsule " << capsule
+                         << " for a non-WebTransport stream.";
+        return false;
+      }
+      web_transport_->OnDrainSessionReceived();
+      return true;
     case CapsuleType::ADDRESS_ASSIGN:
       if (connect_ip_visitor_ == nullptr) {
         return true;

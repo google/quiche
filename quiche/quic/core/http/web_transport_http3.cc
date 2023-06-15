@@ -276,6 +276,14 @@ void WebTransportHttp3::SetDatagramMaxTimeInQueue(
   connect_stream_->SetMaxDatagramTimeInQueue(QuicTimeDelta(max_time_in_queue));
 }
 
+void WebTransportHttp3::NotifySessionDraining() {
+  if (!drain_sent_) {
+    connect_stream_->WriteCapsule(
+        quiche::Capsule(quiche::DrainWebTransportSessionCapsule()));
+    drain_sent_ = true;
+  }
+}
+
 void WebTransportHttp3::OnHttp3Datagram(QuicStreamId stream_id,
                                         absl::string_view payload) {
   QUICHE_DCHECK_EQ(stream_id, connect_stream_->id());
@@ -296,6 +304,8 @@ void WebTransportHttp3::OnGoAwayReceived() {
     drain_callback_ = nullptr;
   }
 }
+
+void WebTransportHttp3::OnDrainSessionReceived() { OnGoAwayReceived(); }
 
 WebTransportHttp3UnidirectionalStream::WebTransportHttp3UnidirectionalStream(
     PendingStream* pending, QuicSpdySession* session)

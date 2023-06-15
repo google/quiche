@@ -215,6 +215,9 @@ class QUICHE_EXPORT Session {
   // being silently dropped.
   virtual void SetDatagramMaxTimeInQueue(absl::Duration max_time_in_queue) = 0;
 
+  // Sends a DRAIN_WEBTRANSPORT_SESSION capsule or an equivalent signal to the
+  // peer indicating that the session is draining.
+  virtual void NotifySessionDraining() = 0;
   // Notifies that either the session itself (DRAIN_WEBTRANSPORT_SESSION
   // capsule), or the underlying connection (HTTP GOAWAY) is being drained by
   // the peer.

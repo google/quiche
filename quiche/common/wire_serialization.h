@@ -347,6 +347,10 @@ absl::Status SerializeIntoWriterCore(QuicheDataWriter& writer, int argno,
   QUICHE_RETURN_IF_ERROR(SerializeIntoWriterCore(writer, argno, data1));
   return SerializeIntoWriterCore(writer, argno + 1, rest...);
 }
+
+inline absl::Status SerializeIntoWriterCore(QuicheDataWriter&, int) {
+  return absl::OkStatus();
+}
 }  // namespace wire_serialization_internal
 
 // SerializeIntoWriter(writer, d1, d2, ... dN) serializes all of supplied data
@@ -369,6 +373,7 @@ template <typename T1, typename... Ts>
 size_t ComputeLengthOnWire(T1 data1, Ts... rest) {
   return data1.GetLengthOnWire() + ComputeLengthOnWire(rest...);
 }
+inline size_t ComputeLengthOnWire() { return 0; }
 
 // SerializeIntoBuffer(allocator, d1, d2, ... dN) computes the length required
 // to store the supplied data, allocates the buffer of appropriate size using

@@ -36,6 +36,8 @@ std::string CapsuleTypeToString(CapsuleType capsule_type) {
       return "LEGACY_DATAGRAM_WITHOUT_CONTEXT";
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       return "CLOSE_WEBTRANSPORT_SESSION";
+    case CapsuleType::DRAIN_WEBTRANSPORT_SESSION:
+      return "DRAIN_WEBTRANSPORT_SESSION";
     case CapsuleType::ADDRESS_REQUEST:
       return "ADDRESS_REQUEST";
     case CapsuleType::ADDRESS_ASSIGN:
@@ -127,6 +129,10 @@ std::string LegacyDatagramWithoutContextCapsule::ToString() const {
 std::string CloseWebTransportSessionCapsule::ToString() const {
   return absl::StrCat("CLOSE_WEBTRANSPORT_SESSION(error_code=", error_code,
                       ",error_message=\"", error_message, "\")");
+}
+
+std::string DrainWebTransportSessionCapsule::ToString() const {
+  return "DRAIN_WEBTRANSPORT_SESSION()";
 }
 
 std::string AddressRequestCapsule::ToString() const {
@@ -293,6 +299,8 @@ absl::StatusOr<quiche::QuicheBuffer> SerializeCapsuleWithStatus(
           WireUint32(capsule.close_web_transport_session_capsule().error_code),
           WireBytes(
               capsule.close_web_transport_session_capsule().error_message));
+    case CapsuleType::DRAIN_WEBTRANSPORT_SESSION:
+      return SerializeCapsuleFields(capsule.capsule_type(), allocator);
     case CapsuleType::ADDRESS_REQUEST:
       return SerializeCapsuleFields(
           capsule.capsule_type(), allocator,
@@ -414,6 +422,8 @@ absl::StatusOr<Capsule> ParseCapsulePayload(QuicheDataReader& reader,
       capsule.error_message = reader.ReadRemainingPayload();
       return Capsule(std::move(capsule));
     }
+    case CapsuleType::DRAIN_WEBTRANSPORT_SESSION:
+      return Capsule(DrainWebTransportSessionCapsule());
     case CapsuleType::ADDRESS_REQUEST: {
       AddressRequestCapsule capsule;
       while (!reader.IsDoneReading()) {

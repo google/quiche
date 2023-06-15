@@ -90,6 +90,7 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   QuicByteCount GetMaxDatagramSize() const override;
   void SetDatagramMaxTimeInQueue(absl::Duration max_time_in_queue) override;
 
+  void NotifySessionDraining() override;
   void SetOnDraining(quiche::SingleUseCallback<void()> callback) override {
     drain_callback_ = std::move(callback);
   }
@@ -106,6 +107,7 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
   }
 
   void OnGoAwayReceived();
+  void OnDrainSessionReceived();
 
  private:
   // Notifies the visitor that the connection has been closed.  Ensures that the
@@ -130,6 +132,7 @@ class QUIC_EXPORT_PRIVATE WebTransportHttp3
 
   WebTransportHttp3RejectionReason rejection_reason_ =
       WebTransportHttp3RejectionReason::kNone;
+  bool drain_sent_ = false;
   // Those are set to default values, which are used if the session is not
   // closed cleanly using an appropriate capsule.
   WebTransportSessionError error_code_ = 0;

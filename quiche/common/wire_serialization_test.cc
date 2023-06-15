@@ -252,5 +252,7 @@ TEST(SerializationTest, CustomStructWritesTooLittle) {
 #endif
 }
 
+TEST(SerializationTest, Empty) { ExpectEncodingHex("nothing", ""); }
+
 }  // namespace
 }  // namespace quiche::test
