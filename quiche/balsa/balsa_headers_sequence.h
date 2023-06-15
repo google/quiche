@@ -1,8 +1,9 @@
 #ifndef QUICHE_BALSA_BALSA_HEADERS_SEQUENCE_H_
 #define QUICHE_BALSA_BALSA_HEADERS_SEQUENCE_H_
 
-#include <list>
+#include <cstddef>
 
+#include "absl/container/inlined_vector.h"
 #include "quiche/balsa/balsa_headers.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
@@ -25,14 +26,18 @@ class QUICHE_EXPORT BalsaHeadersSequence {
 
   // Similar to `Next()` but does not advance the sequence.
   // TODO(b/68801833): Consider removing after full refactoring is in place.
-  BalsaHeaders* PeekNext() const;
+  BalsaHeaders* PeekNext();
 
   // Clears the sequence. Any previously returned BalsaHeaders become invalid.
   void Clear();
 
  private:
-  std::list<BalsaHeaders> sequence_;
-  std::list<BalsaHeaders>::iterator iter_ = sequence_.end();
+  // Typically at most two interim responses: an optional 100 Continue and an
+  // optional 103 Early Hints.
+  absl::InlinedVector<BalsaHeaders, 2> sequence_;
+
+  // The index of the next entry in the sequence.
+  size_t next_ = 0;
 };
 
 }  // namespace quiche

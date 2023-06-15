@@ -1,38 +1,32 @@
 #include "quiche/balsa/balsa_headers_sequence.h"
 
-#include <iterator>
-
 #include "quiche/balsa/balsa_headers.h"
 
 namespace quiche {
 
 void BalsaHeadersSequence::Append(BalsaHeaders headers) {
   sequence_.push_back(std::move(headers));
-
-  if (iter_ == sequence_.end()) {
-    iter_ = std::prev(sequence_.end());
-  }
 }
 
-bool BalsaHeadersSequence::HasNext() const { return iter_ != sequence_.end(); }
+bool BalsaHeadersSequence::HasNext() const { return next_ < sequence_.size(); }
 
-BalsaHeaders* BalsaHeadersSequence::PeekNext() const {
+BalsaHeaders* BalsaHeadersSequence::PeekNext() {
   if (!HasNext()) {
     return nullptr;
   }
-  return &*iter_;
+  return &sequence_[next_];
 }
 
 BalsaHeaders* BalsaHeadersSequence::Next() {
   if (!HasNext()) {
     return nullptr;
   }
-  return &*iter_++;
+  return &sequence_[next_++];
 }
 
 void BalsaHeadersSequence::Clear() {
   sequence_.clear();
-  iter_ = sequence_.end();
+  next_ = 0;
 }
 
 }  // namespace quiche
