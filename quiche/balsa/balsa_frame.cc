@@ -861,7 +861,8 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
       // Deliver headers from this interim response but reset everything else to
       // prepare for the next set of headers. Skip 101 Switching Protocols
       // because these are considered final headers for the current protocol.
-      visitor_->OnInterimHeaders(std::move(*headers_));
+      visitor_->OnInterimHeaders(
+          std::make_unique<BalsaHeaders>(std::move(*headers_)));
       Reset();
       checkpoint = message_start = message_current;
       continue;

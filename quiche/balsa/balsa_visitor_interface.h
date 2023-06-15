@@ -6,6 +6,7 @@
 #define QUICHE_BALSA_BALSA_VISITOR_INTERFACE_H_
 
 #include <cstddef>
+#include <memory>
 
 #include "absl/strings/string_view.h"
 #include "quiche/balsa/balsa_enums.h"
@@ -131,7 +132,7 @@ class QUICHE_EXPORT BalsaVisitorInterface {
   // Arguments:
   //   headers - contains the parsed headers in the order in which they occurred
   //             in the interim response.
-  virtual void OnInterimHeaders(BalsaHeaders headers) = 0;
+  virtual void OnInterimHeaders(std::unique_ptr<BalsaHeaders> headers) = 0;
 
   // Summary:
   //   Called when the 100 Continue headers are framed and processed. This

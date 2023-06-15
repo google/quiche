@@ -6,6 +6,7 @@
 #define QUICHE_BALSA_NOOP_BALSA_VISITOR_H_
 
 #include <cstddef>
+#include <memory>
 
 #include "absl/strings/string_view.h"
 #include "quiche/balsa/balsa_visitor_interface.h"
@@ -46,7 +47,7 @@ class QUICHE_EXPORT NoOpBalsaVisitor : public BalsaVisitorInterface {
                                 absl::string_view /*reason_input*/) override {}
   void OnChunkLength(size_t /*chunk_length*/) override {}
   void OnChunkExtensionInput(absl::string_view /*input*/) override {}
-  void OnInterimHeaders(BalsaHeaders /*headers*/) override {}
+  void OnInterimHeaders(std::unique_ptr<BalsaHeaders> /*headers*/) override {}
   void ContinueHeaderDone() override {}
   void HeaderDone() override {}
   void MessageDone() override {}

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <memory>
 #include <random>
 #include <sstream>
 #include <string>
@@ -40,6 +41,7 @@ using ::testing::InSequence;
 using ::testing::IsEmpty;
 using ::testing::Mock;
 using ::testing::NiceMock;
+using ::testing::Pointee;
 using ::testing::Property;
 using ::testing::Range;
 using ::testing::StrEq;
@@ -556,7 +558,8 @@ class BalsaVisitorMock : public BalsaVisitorInterface {
   MOCK_METHOD(void, OnChunkLength, (size_t length), (override));
   MOCK_METHOD(void, OnChunkExtensionInput, (absl::string_view input),
               (override));
-  MOCK_METHOD(void, OnInterimHeaders, (BalsaHeaders headers), (override));
+  MOCK_METHOD(void, OnInterimHeaders, (std::unique_ptr<BalsaHeaders> headers),
+              (override));
   MOCK_METHOD(void, ContinueHeaderDone, (), (override));
   MOCK_METHOD(void, HeaderDone, (), (override));
   MOCK_METHOD(void, MessageDone, (), (override));
@@ -3794,8 +3797,8 @@ TEST_F(HTTPBalsaFrameTest, Parse100Continue) {
   balsa_frame_.set_use_interim_headers_callback(true);
 
   InSequence s;
-  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Property(
-                                 &BalsaHeaders::parsed_response_code, 100)));
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
   EXPECT_CALL(visitor_mock_, HeaderDone()).Times(0);
   EXPECT_CALL(visitor_mock_, MessageDone()).Times(0);
 
@@ -3853,8 +3856,8 @@ TEST_F(HTTPBalsaFrameTest, Support100Continue) {
   balsa_frame_.set_use_interim_headers_callback(true);
 
   InSequence s;
-  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Property(
-                                 &BalsaHeaders::parsed_response_code, 100)));
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
   ASSERT_EQ(
       balsa_frame_.ProcessInput(initial_headers.data(), initial_headers.size()),
       initial_headers.size());
@@ -3892,8 +3895,8 @@ TEST_F(HTTPBalsaFrameTest, InterimHeadersCallbackTakesPrecedence) {
   balsa_frame_.set_use_interim_headers_callback(true);
 
   InSequence s;
-  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Property(
-                                 &BalsaHeaders::parsed_response_code, 100)));
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
   EXPECT_CALL(visitor_mock_, ContinueHeaderDone).Times(0);
   ASSERT_EQ(
       balsa_frame_.ProcessInput(initial_headers.data(), initial_headers.size()),
@@ -3960,8 +3963,8 @@ TEST_F(HTTPBalsaFrameTest, Support100Continue401Unauthorized) {
   balsa_frame_.set_use_interim_headers_callback(true);
 
   InSequence s;
-  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Property(
-                                 &BalsaHeaders::parsed_response_code, 100)));
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
   ASSERT_EQ(
       balsa_frame_.ProcessInput(initial_headers.data(), initial_headers.size()),
       initial_headers.size());
@@ -4024,8 +4027,8 @@ TEST_F(HTTPBalsaFrameTest, Support100ContinueRunTogether) {
   balsa_frame_.set_use_interim_headers_callback(true);
 
   InSequence s;
-  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Property(
-                                 &BalsaHeaders::parsed_response_code, 100)));
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
   EXPECT_CALL(visitor_mock_, HeaderDone());
 
   ASSERT_EQ(balsa_frame_.ProcessInput(both_headers.data(), both_headers.size()),
@@ -4056,10 +4059,10 @@ TEST_F(HTTPBalsaFrameTest, MultipleInterimHeaders) {
   balsa_frame_.set_use_interim_headers_callback(true);
 
   InSequence s;
-  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Property(
-                                 &BalsaHeaders::parsed_response_code, 100)));
-  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Property(
-                                 &BalsaHeaders::parsed_response_code, 103)));
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 100))));
+  EXPECT_CALL(visitor_mock_, OnInterimHeaders(Pointee(Property(
+                                 &BalsaHeaders::parsed_response_code, 103))));
   EXPECT_CALL(visitor_mock_, HeaderDone());
 
   ASSERT_EQ(balsa_frame_.ProcessInput(all_headers.data(), all_headers.size()),

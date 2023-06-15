@@ -1,5 +1,6 @@
 #include "quiche/balsa/balsa_headers_sequence.h"
 
+#include <memory>
 #include <utility>
 
 #include "quiche/balsa/balsa_headers.h"
@@ -18,13 +19,13 @@ TEST(BalsaHeadersSequenceTest, Initial) {
 TEST(BalsaHeadersSequenceTest, Basic) {
   BalsaHeadersSequence sequence;
 
-  BalsaHeaders headers_one;
-  headers_one.AppendHeader("one", "fish");
+  auto headers_one = std::make_unique<BalsaHeaders>();
+  headers_one->AppendHeader("one", "fish");
   sequence.Append(std::move(headers_one));
   EXPECT_TRUE(sequence.HasNext());
 
-  BalsaHeaders headers_two;
-  headers_two.AppendHeader("two", "fish");
+  auto headers_two = std::make_unique<BalsaHeaders>();
+  headers_two->AppendHeader("two", "fish");
   sequence.Append(std::move(headers_two));
   EXPECT_TRUE(sequence.HasNext());
 
@@ -44,13 +45,13 @@ TEST(BalsaHeadersSequenceTest, Basic) {
 TEST(BalsaHeadersSequenceTest, Clear) {
   BalsaHeadersSequence sequence;
 
-  BalsaHeaders headers_one;
-  headers_one.AppendHeader("one", "fish");
+  auto headers_one = std::make_unique<BalsaHeaders>();
+  headers_one->AppendHeader("one", "fish");
   sequence.Append(std::move(headers_one));
   EXPECT_TRUE(sequence.HasNext());
 
-  BalsaHeaders headers_two;
-  headers_two.AppendHeader("two", "fish");
+  auto headers_two = std::make_unique<BalsaHeaders>();
+  headers_two->AppendHeader("two", "fish");
   sequence.Append(std::move(headers_two));
   EXPECT_TRUE(sequence.HasNext());
 
@@ -63,8 +64,8 @@ TEST(BalsaHeadersSequenceTest, PeekNext) {
   BalsaHeadersSequence sequence;
   EXPECT_EQ(sequence.PeekNext(), nullptr);
 
-  BalsaHeaders headers_one;
-  headers_one.AppendHeader("one", "fish");
+  auto headers_one = std::make_unique<BalsaHeaders>();
+  headers_one->AppendHeader("one", "fish");
   sequence.Append(std::move(headers_one));
   EXPECT_TRUE(sequence.HasNext());
 
@@ -77,8 +78,8 @@ TEST(BalsaHeadersSequenceTest, PeekNext) {
   EXPECT_EQ(sequence.PeekNext(), headers);
 
   // Adding more headers should not matter for peeking.
-  BalsaHeaders headers_two;
-  headers_two.AppendHeader("two", "fish");
+  auto headers_two = std::make_unique<BalsaHeaders>();
+  headers_two->AppendHeader("two", "fish");
   sequence.Append(std::move(headers_two));
   EXPECT_TRUE(sequence.HasNext());
   EXPECT_EQ(sequence.PeekNext(), headers);
@@ -99,6 +100,21 @@ TEST(BalsaHeadersSequenceTest, PeekNext) {
   EXPECT_FALSE(sequence.HasNext());
 
   EXPECT_EQ(sequence.PeekNext(), nullptr);
+}
+
+TEST(BalsaHeadersSequenceTest, CanRetainValidReference) {
+  BalsaHeadersSequence sequence;
+
+  auto headers = std::make_unique<BalsaHeaders>();
+  headers->AppendHeader("one", "fish");
+
+  // This reference should still be valid, even after transferring ownership to
+  // the sequence.
+  BalsaHeaders* headers_ptr = headers.get();
+
+  sequence.Append(std::move(headers));
+  ASSERT_TRUE(sequence.HasNext());
+  EXPECT_EQ(sequence.Next(), headers_ptr);
 }
 
 }  // namespace

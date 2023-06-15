@@ -2,6 +2,7 @@
 #define QUICHE_BALSA_BALSA_HEADERS_SEQUENCE_H_
 
 #include <cstddef>
+#include <memory>
 
 #include "absl/container/inlined_vector.h"
 #include "quiche/balsa/balsa_headers.h"
@@ -14,7 +15,7 @@ namespace quiche {
 class QUICHE_EXPORT BalsaHeadersSequence {
  public:
   // Appends `headers` to the end of the sequence.
-  void Append(BalsaHeaders headers);
+  void Append(std::unique_ptr<BalsaHeaders> headers);
 
   // Returns true if there is a BalsaHeaders that has not yet been returned from
   // `Next()`. IFF true, `Next()` will return non-nullptr.
@@ -34,7 +35,7 @@ class QUICHE_EXPORT BalsaHeadersSequence {
  private:
   // Typically at most two interim responses: an optional 100 Continue and an
   // optional 103 Early Hints.
-  absl::InlinedVector<BalsaHeaders, 2> sequence_;
+  absl::InlinedVector<std::unique_ptr<BalsaHeaders>, 2> sequence_;
 
   // The index of the next entry in the sequence.
   size_t next_ = 0;
