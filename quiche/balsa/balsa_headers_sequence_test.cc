@@ -14,6 +14,7 @@ TEST(BalsaHeadersSequenceTest, Initial) {
   BalsaHeadersSequence sequence;
   EXPECT_FALSE(sequence.HasNext());
   EXPECT_EQ(sequence.Next(), nullptr);
+  EXPECT_TRUE(sequence.IsEmpty());
 }
 
 TEST(BalsaHeadersSequenceTest, Basic) {
@@ -23,21 +24,25 @@ TEST(BalsaHeadersSequenceTest, Basic) {
   headers_one->AppendHeader("one", "fish");
   sequence.Append(std::move(headers_one));
   EXPECT_TRUE(sequence.HasNext());
+  EXPECT_FALSE(sequence.IsEmpty());
 
   auto headers_two = std::make_unique<BalsaHeaders>();
   headers_two->AppendHeader("two", "fish");
   sequence.Append(std::move(headers_two));
   EXPECT_TRUE(sequence.HasNext());
+  EXPECT_FALSE(sequence.IsEmpty());
 
   const BalsaHeaders* headers = sequence.Next();
   ASSERT_NE(headers, nullptr);
   EXPECT_TRUE(headers->HasHeader("one"));
   EXPECT_TRUE(sequence.HasNext());
+  EXPECT_FALSE(sequence.IsEmpty());
 
   headers = sequence.Next();
   ASSERT_NE(headers, nullptr);
   EXPECT_TRUE(headers->HasHeader("two"));
   EXPECT_FALSE(sequence.HasNext());
+  EXPECT_FALSE(sequence.IsEmpty());
 
   EXPECT_EQ(sequence.Next(), nullptr);
 }
@@ -49,15 +54,18 @@ TEST(BalsaHeadersSequenceTest, Clear) {
   headers_one->AppendHeader("one", "fish");
   sequence.Append(std::move(headers_one));
   EXPECT_TRUE(sequence.HasNext());
+  EXPECT_FALSE(sequence.IsEmpty());
 
   auto headers_two = std::make_unique<BalsaHeaders>();
   headers_two->AppendHeader("two", "fish");
   sequence.Append(std::move(headers_two));
   EXPECT_TRUE(sequence.HasNext());
+  EXPECT_FALSE(sequence.IsEmpty());
 
   sequence.Clear();
   EXPECT_FALSE(sequence.HasNext());
   EXPECT_EQ(sequence.Next(), nullptr);
+  EXPECT_TRUE(sequence.IsEmpty());
 }
 
 TEST(BalsaHeadersSequenceTest, PeekNext) {

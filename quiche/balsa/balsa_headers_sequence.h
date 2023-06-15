@@ -21,6 +21,10 @@ class QUICHE_EXPORT BalsaHeadersSequence {
   // `Next()`. IFF true, `Next()` will return non-nullptr.
   bool HasNext() const;
 
+  // Returns true if the sequence has no BalsaHeaders. It is possible to have
+  // both !HasNext() and !IsEmpty() if all BalsaHeaders have been consumed.
+  bool IsEmpty() const { return sequence_.empty(); }
+
   // Returns a non-owning pointer to the next BalsaHeaders in the sequence, or
   // nullptr if the next does not exist.
   BalsaHeaders* Next();
