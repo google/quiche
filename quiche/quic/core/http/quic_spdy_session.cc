@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 
+#include "base/casts.h"
 #include "absl/base/attributes.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
