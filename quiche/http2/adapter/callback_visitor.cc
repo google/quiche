@@ -470,7 +470,7 @@ bool CallbackVisitor::OnMetadataForStream(Http2StreamId stream_id,
 }
 
 bool CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
-  if (current_frame_.hd.flags != kMetadataEndFlag) {
+  if ((current_frame_.hd.flags & kMetadataEndFlag) == 0) {
     QUICHE_VLOG(1) << "Expected kMetadataEndFlag during call to "
                    << "OnMetadataEndForStream!";
     return true;
