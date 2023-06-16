@@ -214,7 +214,6 @@ bool CallbackVisitor::OnEndHeadersForStream(Http2StreamId stream_id) {
 
 bool CallbackVisitor::OnDataPaddingLength(Http2StreamId /*stream_id*/,
                                           size_t padding_length) {
-  QUICHE_DCHECK_GE(remaining_data_, padding_length);
   current_frame_.data.padlen = padding_length;
   remaining_data_ -= padding_length;
   if (remaining_data_ == 0 &&
