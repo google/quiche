@@ -59,6 +59,22 @@ func validate(path string, contents []byte) {
 	os.Exit(0)
 }
 
+func fetch(path string, contents []byte, outdir string) {
+	rules, err := deps.ParseHTTPArchiveRules(contents)
+	if err != nil {
+		log.Fatalf("Failed to parse %s: %v", path, err)
+	}
+
+	for _, rule := range rules {
+		log.Printf("Fetching %s into %s...", rule.Name, outdir)
+		outfile, err := deps.FetchEntry(rule, outdir)
+		if err != nil {
+			log.Fatalf("Failed to fetch %s: %s", rule.Name, err)
+		}
+		log.Printf("Successfully fetched %s into %s", rule.Name, outfile)
+	}
+}
+
 func usage() {
 	fmt.Fprintf(flag.CommandLine.Output(), `
 usage: depstool [WORKSPACE file] [subcommand]
@@ -66,6 +82,7 @@ usage: depstool [WORKSPACE file] [subcommand]
 Available subcommands:
     list       Lists all of the rules in the file
     validate   Validates that the WORKSPACE file is parsable
+    fetch      Fetches all dependencies into the specified directory
 
 If no subcommand is specified, "list" is assumed.
 `)
@@ -93,6 +110,8 @@ func main() {
 		list(path, contents)
 	case "validate":
 		validate(path, contents)
+	case "fetch":
+		fetch(path, contents, flag.Arg(2))
 	default:
 		log.Fatalf("Unknown command: %s", subcommand)
 	}
