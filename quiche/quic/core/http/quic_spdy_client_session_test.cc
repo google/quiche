@@ -34,6 +34,7 @@
 #include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_framer_peer.h"
 #include "quiche/quic/test_tools/quic_packet_creator_peer.h"
+#include "quiche/quic/test_tools/quic_sent_packet_manager_peer.h"
 #include "quiche/quic/test_tools/quic_session_peer.h"
 #include "quiche/quic/test_tools/quic_spdy_session_peer.h"
 #include "quiche/quic/test_tools/quic_stream_peer.h"
@@ -1225,6 +1226,13 @@ TEST_P(QuicSpdyClientSessionTest,
 
   // Create a second connection, but disable 0-RTT on the server.
   CreateConnection();
+  QuicSentPacketManager* sent_packet_manager =
+      QuicConnectionPeer::GetSentPacketManager(connection_);
+  sent_packet_manager->SetSendAlgorithm(kCubicBytes);
+
+  // Set 20 burst tokens to ensure |data_to_send| can be sent in one batch.
+  QuicSentPacketManagerPeer::GetPacingSender(sent_packet_manager)
+      ->SetBurstTokens(20);
   QuicConfig config = DefaultQuicConfig();
   // Server doesn't allow minimum data in session.
   config.SetInitialSessionFlowControlWindowToSend(

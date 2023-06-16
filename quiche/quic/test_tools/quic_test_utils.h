@@ -516,8 +516,8 @@ class MockQuicConnectionHelper : public QuicConnectionHelperInterface {
   MockQuicConnectionHelper(const MockQuicConnectionHelper&) = delete;
   MockQuicConnectionHelper& operator=(const MockQuicConnectionHelper&) = delete;
   ~MockQuicConnectionHelper() override;
-  const QuicClock* GetClock() const override;
-  QuicClock* GetClock();
+  const MockClock* GetClock() const override;
+  MockClock* GetClock();
   QuicRandom* GetRandomGenerator() override;
   quiche::QuicheBufferAllocator* GetStreamSendBufferAllocator() override;
   void AdvanceTime(QuicTime::Delta delta);
@@ -737,11 +737,11 @@ class MockQuicConnection : public QuicConnection {
 
 class PacketSavingConnection : public MockQuicConnection {
  public:
-  PacketSavingConnection(QuicConnectionHelperInterface* helper,
+  PacketSavingConnection(MockQuicConnectionHelper* helper,
                          QuicAlarmFactory* alarm_factory,
                          Perspective perspective);
 
-  PacketSavingConnection(QuicConnectionHelperInterface* helper,
+  PacketSavingConnection(MockQuicConnectionHelper* helper,
                          QuicAlarmFactory* alarm_factory,
                          Perspective perspective,
                          const ParsedQuicVersionVector& supported_versions);
@@ -761,7 +761,7 @@ class PacketSavingConnection : public MockQuicConnection {
   // Number of packets in encrypted_packets that has been delivered to the peer
   // connection.
   size_t number_of_packets_delivered_ = 0;
-  MockClock clock_;
+  MockQuicConnectionHelper* mock_helper_ = nullptr;
 };
 
 class MockQuicSession : public QuicSession {
@@ -1540,7 +1540,7 @@ class QuicCryptoClientStreamPeer {
 void CreateClientSessionForTest(
     QuicServerId server_id, QuicTime::Delta connection_start_time,
     const ParsedQuicVersionVector& supported_versions,
-    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
+    MockQuicConnectionHelper* helper, QuicAlarmFactory* alarm_factory,
     QuicCryptoClientConfig* crypto_client_config,
     PacketSavingConnection** client_connection,
     TestQuicSpdyClientSession** client_session);
@@ -1563,7 +1563,7 @@ void CreateClientSessionForTest(
 void CreateServerSessionForTest(
     QuicServerId server_id, QuicTime::Delta connection_start_time,
     ParsedQuicVersionVector supported_versions,
-    QuicConnectionHelperInterface* helper, QuicAlarmFactory* alarm_factory,
+    MockQuicConnectionHelper* helper, QuicAlarmFactory* alarm_factory,
     QuicCryptoServerConfig* server_crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     PacketSavingConnection** server_connection,
