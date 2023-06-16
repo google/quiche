@@ -1318,6 +1318,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return peer_issued_cid_manager_ != nullptr;
   }
 
+  bool ignore_gquic_probing() const { return ignore_gquic_probing_; }
+
   // Sets the ECN marking for all outgoing packets, assuming that the congestion
   // control supports that codepoint. QuicConnection will revert to sending
   // ECN_NOT_ECT if there is evidence the path is dropping ECN-marked packets,
@@ -1903,8 +1905,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // response on server side. And no-op on client side. And for both Google Quic
   // and IETF Quic, start migration if the current packet is a non-probing
   // packet.
-  // TODO(danzh) rename to MaybeRespondToPeerMigration() when Google Quic is
-  // deprecated.
+  // TODO(danzh) remove it when deprecating ignore_gquic_probing_.
   void MaybeRespondToConnectivityProbingOrMigration();
 
   // Called in IETF QUIC. Start peer migration if a non-probing frame is
@@ -2002,8 +2003,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicFramer framer_;
 
-  // Contents received in the current packet, especially used to identify
-  // whether the current packet is a padded PING packet.
+  // TODO(danzh) remove below fields once quic_ignore_gquic_probing_ gets
+  // deprecated. Contents received in the current packet, especially used to
+  // identify whether the current packet is a padded PING packet.
   PacketContent current_packet_content_;
   // Set to true as soon as the packet currently being processed has been
   // detected as a connectivity probing.
@@ -2353,7 +2355,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   std::unique_ptr<MultiPortStats> multi_port_stats_;
 
+  // Client side only.
   bool active_migration_disabled_ = false;
+
+  const bool ignore_gquic_probing_ =
+      GetQuicReloadableFlag(quic_ignore_gquic_probing);
 
   RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
 

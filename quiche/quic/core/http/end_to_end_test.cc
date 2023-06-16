@@ -5203,7 +5203,8 @@ INSTANTIATE_TEST_SUITE_P(EndToEndPacketReorderingTests,
 
 TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
   ASSERT_TRUE(Initialize());
-  if (version_.HasIetfQuicFrames()) {
+  if (version_.HasIetfQuicFrames() ||
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
     return;
   }
 

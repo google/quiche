@@ -488,6 +488,7 @@ void QuicSession::OnSuccessfulVersionNegotiation(
 void QuicSession::OnPacketReceived(const QuicSocketAddress& /*self_address*/,
                                    const QuicSocketAddress& peer_address,
                                    bool is_connectivity_probe) {
+  QUICHE_DCHECK(!connection_->ignore_gquic_probing());
   if (is_connectivity_probe && perspective() == Perspective::IS_SERVER) {
     // Server only sends back a connectivity probe after received a
     // connectivity probe from a new peer address.

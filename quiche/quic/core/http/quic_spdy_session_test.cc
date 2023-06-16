@@ -1216,7 +1216,8 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
 // Test that server session will send a connectivity probe in response to a
 // connectivity probe on the same path.
 TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionHasIetfQuicFrames(transport_version()) ||
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
     return;
   }
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -1230,12 +1231,6 @@ TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
   EXPECT_CALL(*connection_,
               SendConnectivityProbingPacket(nullptr, new_peer_address));
 
-  if (VersionHasIetfQuicFrames(transport_version())) {
-    // Need to explicitly do this to emulate the reception of a PathChallenge,
-    // which stores its payload for use in generating the response.
-    connection_->OnPathChallengeFrame(
-        QuicPathChallengeFrame(0, {{0, 1, 2, 3, 4, 5, 6, 7}}));
-  }
   session_.OnPacketReceived(session_.self_address(), new_peer_address,
                             /*is_connectivity_probe=*/true);
   EXPECT_EQ(old_peer_address, session_.peer_address());

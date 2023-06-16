@@ -1196,6 +1196,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
           SerializePathChallengeConnectivityProbingPacket(&peer_creator_,
                                                           payload);
     }
+    QUICHE_DCHECK(!GetQuicReloadableFlag(quic_ignore_gquic_probing));
     return QuicPacketCreatorPeer::SerializeConnectivityProbingPacket(
         &peer_creator_);
   }
@@ -1620,6 +1621,7 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtClient) {
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address, kPeerAddress,
                                   ENCRYPTION_INITIAL);
   EXPECT_TRUE(connection_.connected());
+  EXPECT_NE(connection_.self_address(), self_address);
 }
 
 TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
@@ -2401,6 +2403,10 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
+  if (!version().HasIetfQuicFrames() &&
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
+    return;
+  }
   PathProbeTestInit(Perspective::IS_SERVER);
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
@@ -2569,11 +2575,13 @@ class ServerPreferredAddressTestResultDelegate
   QuicConnection* connection_;
 };
 
-// Receive a path probe request at the server side, i.e.,
-// in non-IETF version: receive a padded PING packet with a peer addess change;
-// in IETF version: receive a packet contains PATH CHALLENGE with peer address
-// change.
+// Receive a path probe request at the server side, in IETF version: receive a
+// packet contains PATH CHALLENGE with peer address change.
 TEST_P(QuicConnectionTest, ReceivePathProbingFromNewPeerAddressAtServer) {
+  if (!version().HasIetfQuicFrames() &&
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
+    return;
+  }
   PathProbeTestInit(Perspective::IS_SERVER);
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
@@ -2757,7 +2765,8 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingWithPortChangeAtServer) {
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
-  if (GetParam().version.HasIetfQuicFrames()) {
+  if (GetParam().version.HasIetfQuicFrames() ||
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
     // In IETF version, a padded PING packet with port change is not taken as
     // connectivity probe.
     EXPECT_CALL(visitor_, GetHandshakeState())
@@ -2790,7 +2799,8 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingWithPortChangeAtServer) {
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_INITIAL);
 
-  if (GetParam().version.HasIetfQuicFrames()) {
+  if (GetParam().version.HasIetfQuicFrames() ||
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
     // Padded PING with port changen is not considered as connectivity probe but
     // a PORT CHANGE.
     EXPECT_EQ(num_probing_received,
@@ -2804,11 +2814,11 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingWithPortChangeAtServer) {
     EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
   }
 
-  if (GetParam().version.HasIetfQuicFrames()) {
+  if (GetParam().version.HasIetfQuicFrames() ||
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
     EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
   }
-  // Process another packet with the old peer address on server side. gQUIC
-  // shouldn't regard this as a peer migration.
+  // Process another packet with the old peer address on server side.
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress, kPeerAddress,
                                   ENCRYPTION_INITIAL);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
@@ -2816,6 +2826,10 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingWithPortChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveReorderedPathProbingAtServer) {
+  if (!GetParam().version.HasIetfQuicFrames() &&
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
+    return;
+  }
   PathProbeTestInit(Perspective::IS_SERVER);
 
   // Decrease packet number to simulate out-of-order packets.
@@ -2846,13 +2860,29 @@ TEST_P(QuicConnectionTest, ReceiveReorderedPathProbingAtServer) {
       connection_.GetStats().num_connectivity_probing_received;
   ProcessReceivedPacket(kSelfAddress, kNewPeerAddress, *received);
 
-  EXPECT_EQ(num_probing_received + 1,
+  EXPECT_EQ(num_probing_received +
+                (!version().HasIetfQuicFrames() &&
+                         GetQuicReloadableFlag(quic_ignore_gquic_probing)
+                     ? 0u
+                     : 1u),
             connection_.GetStats().num_connectivity_probing_received);
-  EXPECT_EQ(kPeerAddress, connection_.peer_address());
-  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+  EXPECT_EQ((!version().HasIetfQuicFrames() &&
+                     GetQuicReloadableFlag(quic_ignore_gquic_probing)
+                 ? kNewPeerAddress
+                 : kPeerAddress),
+            connection_.peer_address());
+  EXPECT_EQ((!version().HasIetfQuicFrames() &&
+                     GetQuicReloadableFlag(quic_ignore_gquic_probing)
+                 ? kNewPeerAddress
+                 : kPeerAddress),
+            connection_.effective_peer_address());
 }
 
 TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
+  if (!GetParam().version.HasIetfQuicFrames() &&
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
+    return;
+  }
   PathProbeTestInit(Perspective::IS_SERVER);
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
@@ -2889,6 +2919,10 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveConnectivityProbingPacketAtClient) {
+  if (!version().HasIetfQuicFrames() &&
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   PathProbeTestInit(Perspective::IS_CLIENT);
 
@@ -2913,10 +2947,8 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingPacketAtClient) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveConnectivityProbingResponseAtClient) {
-  // TODO(b/150095484): add test coverage for IETF to verify that client takes
-  // PATH RESPONSE with peer address change as correct validation on the new
-  // path.
-  if (GetParam().version.HasIetfQuicFrames()) {
+  if (GetParam().version.HasIetfQuicFrames() ||
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
     return;
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -8696,6 +8728,10 @@ TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnAlternativeSocket) {
 
 TEST_P(QuicConnectionTest,
        RestartPathDegradingDetectionAfterMigrationWithProbe) {
+  if (!version().HasIetfQuicFrames() &&
+      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   PathProbeTestInit(Perspective::IS_CLIENT);
 
@@ -8745,7 +8781,8 @@ TEST_P(QuicConnectionTest,
         connection_.GetStats().num_connectivity_probing_received;
     ProcessReceivedPacket(kNewSelfAddress, kPeerAddress, *received);
 
-    EXPECT_EQ(num_probing_received + 1,
+    EXPECT_EQ(num_probing_received +
+                  (GetQuicReloadableFlag(quic_ignore_gquic_probing) ? 0u : 1u),
               connection_.GetStats().num_connectivity_probing_received);
     EXPECT_EQ(kPeerAddress, connection_.peer_address());
     EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());

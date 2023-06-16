@@ -2138,7 +2138,7 @@ void QuicConnection::OnPacketComplete() {
   }
 
   if (IsCurrentPacketConnectivityProbing()) {
-    QUICHE_DCHECK(!version().HasIetfQuicFrames());
+    QUICHE_DCHECK(!version().HasIetfQuicFrames() && !ignore_gquic_probing_);
     ++stats_.num_connectivity_probing_received;
   }
 
@@ -2157,7 +2157,7 @@ void QuicConnection::OnPacketComplete() {
       << ENDPOINT << "Received a padded PING packet. is_probing: "
       << IsCurrentPacketConnectivityProbing();
 
-  if (!version().HasIetfQuicFrames()) {
+  if (!version().HasIetfQuicFrames() && !ignore_gquic_probing_) {
     MaybeRespondToConnectivityProbingOrMigration();
   }
 
@@ -5453,57 +5453,66 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
         last_received_packet_info_.length);
     return connected_;
   }
-  // Packet content is tracked to identify connectivity probe in non-IETF
-  // version, where a connectivity probe is defined as
-  // - a padded PING packet with peer address change received by server,
-  // - a padded PING packet on new path received by client.
 
-  if (current_packet_content_ == NOT_PADDED_PING) {
-    // We have already learned the current packet is not a connectivity
-    // probing packet. Peer migration should have already been started earlier
-    // if needed.
-    return connected_;
-  }
+  if (!ignore_gquic_probing_) {
+    // Packet content is tracked to identify connectivity probe in non-IETF
+    // version, where a connectivity probe is defined as
+    // - a padded PING packet with peer address change received by server,
+    // - a padded PING packet on new path received by client.
 
-  if (type == PING_FRAME) {
-    if (current_packet_content_ == NO_FRAMES_RECEIVED) {
-      current_packet_content_ = FIRST_FRAME_IS_PING;
+    if (current_packet_content_ == NOT_PADDED_PING) {
+      // We have already learned the current packet is not a connectivity
+      // probing packet. Peer migration should have already been started earlier
+      // if needed.
       return connected_;
     }
-  }
 
-  // In Google QUIC, we look for a packet with just a PING and PADDING.
-  // If the condition is met, mark things as connectivity-probing, causing
-  // later processing to generate the correct response.
-  if (type == PADDING_FRAME && current_packet_content_ == FIRST_FRAME_IS_PING) {
-    current_packet_content_ = SECOND_FRAME_IS_PADDING;
-    if (perspective_ == Perspective::IS_SERVER) {
-      is_current_packet_connectivity_probing_ =
-          current_effective_peer_migration_type_ != NO_CHANGE;
-      QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
-          << ENDPOINT
-          << "Detected connectivity probing packet. "
-             "current_effective_peer_migration_type_:"
-          << current_effective_peer_migration_type_;
-    } else {
-      is_current_packet_connectivity_probing_ =
-          (last_received_packet_info_.source_address != peer_address()) ||
-          (last_received_packet_info_.destination_address !=
-           default_path_.self_address);
-      QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
-          << ENDPOINT
-          << "Detected connectivity probing packet. "
-             "last_packet_source_address:"
-          << last_received_packet_info_.source_address
-          << ", peer_address_:" << peer_address()
-          << ", last_packet_destination_address:"
-          << last_received_packet_info_.destination_address
-          << ", default path self_address :" << default_path_.self_address;
+    if (type == PING_FRAME) {
+      if (current_packet_content_ == NO_FRAMES_RECEIVED) {
+        current_packet_content_ = FIRST_FRAME_IS_PING;
+        return connected_;
+      }
     }
-    return connected_;
+
+    // In Google QUIC, we look for a packet with just a PING and PADDING.
+    // If the condition is met, mark things as connectivity-probing, causing
+    // later processing to generate the correct response.
+    if (type == PADDING_FRAME &&
+        current_packet_content_ == FIRST_FRAME_IS_PING) {
+      current_packet_content_ = SECOND_FRAME_IS_PADDING;
+      QUIC_CODE_COUNT(gquic_padded_ping_received);
+      if (perspective_ == Perspective::IS_SERVER) {
+        is_current_packet_connectivity_probing_ =
+            current_effective_peer_migration_type_ != NO_CHANGE;
+        QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
+            << ENDPOINT
+            << "Detected connectivity probing packet. "
+               "current_effective_peer_migration_type_:"
+            << current_effective_peer_migration_type_;
+      } else {
+        is_current_packet_connectivity_probing_ =
+            (last_received_packet_info_.source_address != peer_address()) ||
+            (last_received_packet_info_.destination_address !=
+             default_path_.self_address);
+        QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
+            << ENDPOINT
+            << "Detected connectivity probing packet. "
+               "last_packet_source_address:"
+            << last_received_packet_info_.source_address
+            << ", peer_address_:" << peer_address()
+            << ", last_packet_destination_address:"
+            << last_received_packet_info_.destination_address
+            << ", default path self_address :" << default_path_.self_address;
+      }
+      return connected_;
+    }
+
+    current_packet_content_ = NOT_PADDED_PING;
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_ignore_gquic_probing);
+    QUICHE_DCHECK_EQ(current_packet_content_, NO_FRAMES_RECEIVED);
   }
 
-  current_packet_content_ = NOT_PADDED_PING;
   if (GetLargestReceivedPacket().IsInitialized() &&
       last_received_packet_info_.header.packet_number ==
           GetLargestReceivedPacket()) {
