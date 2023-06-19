@@ -5,13 +5,11 @@
 #include "quiche/balsa/balsa_frame.h"
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
 #include <memory>
-#include <ostream>
 #include <string>
 #include <utility>
 
@@ -69,8 +67,6 @@ void BalsaFrame::Reset() {
   // visitor_ = &do_nothing_visitor_;  // not reset between messages.
   chunk_length_remaining_ = 0;
   content_length_remaining_ = 0;
-  last_slash_n_loc_ = nullptr;
-  last_recorded_slash_n_loc_ = nullptr;
   last_slash_n_idx_ = 0;
   term_chars_ = 0;
   parse_state_ = BalsaFrameEnums::READING_HEADER_AND_FIRSTLINE;

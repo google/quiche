@@ -17,7 +17,6 @@
 #include "quiche/balsa/framer_interface.h"
 #include "quiche/balsa/http_validation_policy.h"
 #include "quiche/balsa/noop_balsa_visitor.h"
-#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_flag_utils.h"
 
@@ -54,8 +53,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
         visitor_(&do_nothing_visitor_),
         chunk_length_remaining_(0),
         content_length_remaining_(0),
-        last_slash_n_loc_(nullptr),
-        last_recorded_slash_n_loc_(nullptr),
         last_slash_n_idx_(0),
         term_chars_(0),
         parse_state_(BalsaFrameEnums::READING_HEADER_AND_FIRSTLINE),
@@ -288,8 +285,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   BalsaVisitorInterface* visitor_;
   size_t chunk_length_remaining_;
   size_t content_length_remaining_;
-  const char* last_slash_n_loc_;
-  const char* last_recorded_slash_n_loc_;
   size_t last_slash_n_idx_;
   uint32_t term_chars_;
   BalsaFrameEnums::ParseState parse_state_;
