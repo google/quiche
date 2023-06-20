@@ -247,6 +247,41 @@ TEST(HeaderValidatorTest, RequestHostAndAuthority) {
             v.ValidateSingleHeader("host", "www.bar.com"));
 }
 
+TEST(HeaderValidatorTest, MethodHasInvalidChar) {
+  HeaderValidator v;
+  v.StartHeaderBlock();
+
+  std::vector<absl::string_view> bad_methods = {
+      "In[]valid{}",   "co,mma", "spac e",     "a@t",    "equals=",
+      "question?mark", "co:lon", "semi;colon", "sla/sh", "back\\slash",
+  };
+
+  std::vector<absl::string_view> good_methods = {
+      "lowercase",   "MiXeDcAsE", "NONCANONICAL", "HASH#",
+      "under_score", "PI|PE",     "Tilde~",       "quote'",
+  };
+
+  for (absl::string_view value : bad_methods) {
+    v.StartHeaderBlock();
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+              v.ValidateSingleHeader(":method", value));
+  }
+
+  for (absl::string_view value : good_methods) {
+    v.StartHeaderBlock();
+    EXPECT_EQ(HeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader(":method", value));
+    for (Header to_add : kSampleRequestPseudoheaders) {
+      if (to_add.first == ":method") {
+        continue;
+      }
+      EXPECT_EQ(HeaderValidator::HEADER_OK,
+                v.ValidateSingleHeader(to_add.first, to_add.second));
+    }
+    EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
+  }
+}
+
 TEST(HeaderValidatorTest, RequestPseudoHeaders) {
   HeaderValidator v;
   for (Header to_skip : kSampleRequestPseudoheaders) {
