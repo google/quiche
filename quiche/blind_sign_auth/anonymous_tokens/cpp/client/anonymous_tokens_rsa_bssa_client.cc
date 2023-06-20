@@ -24,8 +24,8 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/time/time.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/anonymous_tokens_pb_openssl_converters.h"
+#include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/status_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
@@ -118,6 +118,11 @@ AnonymousTokensRsaBssaClient::CreateRequest(
   }
 
   ANON_TOKENS_RETURN_IF_ERROR(CheckPublicKeyValidity(public_key_));
+  RSAPublicKey rsa_public_key_proto;
+  if (!rsa_public_key_proto.ParseFromString(
+          public_key_.serialized_public_key())) {
+    return absl::InvalidArgumentError("Public key is malformed.");
+  }
 
   AnonymousTokensSignRequest request;
   for (const PlaintextMessageWithPublicMetadata& input : inputs) {
@@ -132,9 +137,20 @@ AnonymousTokensRsaBssaClient::CreateRequest(
       // Empty public metadata is a valid value.
       public_metadata = input.public_metadata();
     }
+    // Owned by BoringSSL.
+    ANON_TOKENS_ASSIGN_OR_RETURN(
+        const EVP_MD* sig_hash,
+        ProtoHashTypeToEVPDigest(public_key_.sig_hash_type()));
+    // Owned by BoringSSL.
+    ANON_TOKENS_ASSIGN_OR_RETURN(
+        const EVP_MD* mgf1_hash,
+        ProtoMaskGenFunctionToEVPDigest(public_key_.mask_gen_function()));
     // Generate RSA blinder.
-    ANON_TOKENS_ASSIGN_OR_RETURN(auto rsa_bssa_blinder,
-                                 RsaBlinder::New(public_key_, public_metadata));
+    ANON_TOKENS_ASSIGN_OR_RETURN(
+        auto rsa_bssa_blinder,
+        RsaBlinder::New(rsa_public_key_proto.n(), rsa_public_key_proto.e(),
+                        sig_hash, mgf1_hash, public_key_.salt_length(),
+                        public_metadata));
     ANON_TOKENS_ASSIGN_OR_RETURN(const std::string blinded_message,
                                  rsa_bssa_blinder->Blind(masked_message));
 

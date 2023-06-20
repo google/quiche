@@ -23,9 +23,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/anonymous_tokens_pb_openssl_converters.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/status_utils.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/digest.h"
 #include "openssl/rsa.h"
 
@@ -33,16 +31,11 @@ namespace private_membership {
 namespace anonymous_tokens {
 
 absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
-    const RSABlindSignaturePublicKey& public_key,
-    std::optional<absl::string_view> public_metadata) {
-  RSAPublicKey rsa_public_key_proto;
-  if (!rsa_public_key_proto.ParseFromString(
-          public_key.serialized_public_key())) {
-    return absl::InvalidArgumentError("Public key is malformed.");
-  }
-
-  // Convert to OpenSSL RSA which will be used in the code paths for the
-  // standard RSA blind signature scheme.
+    absl::string_view rsa_modulus, absl::string_view rsa_public_exponent,
+    const EVP_MD* signature_hash_function, const EVP_MD* mgf1_hash_function,
+    int salt_length, std::optional<absl::string_view> public_metadata) {
+  // Creates OpenSSL RSA which will be used in the code paths for the standard
+  // RSA blind signature scheme.
   //
   // Moreover, it will also be passed as an argument to PSS related padding and
   // padding verification methods irrespective of whether RsaBlinder is being
@@ -50,11 +43,11 @@ absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
   // with public metadata support.
   ANON_TOKENS_ASSIGN_OR_RETURN(
       bssl::UniquePtr<RSA> rsa_public_key,
-      AnonymousTokensRSAPublicKeyToRSA(rsa_public_key_proto));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_modulus,
-                               StringToBignum(rsa_public_key_proto.n()));
+      CreatePublicKeyRSA(rsa_modulus, rsa_public_exponent));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_n,
+                               StringToBignum(rsa_modulus));
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_e,
-                               StringToBignum(rsa_public_key_proto.e()));
+                               StringToBignum(rsa_public_exponent));
 
   bssl::UniquePtr<BIGNUM> augmented_rsa_e = nullptr;
   // If public metadata is supported, RsaBlinder will compute a new public
@@ -63,29 +56,18 @@ absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
   // Empty string is a valid public metadata value.
   if (public_metadata.has_value()) {
     ANON_TOKENS_ASSIGN_OR_RETURN(
-        augmented_rsa_e,
-        ComputeFinalExponentUnderPublicMetadata(
-            *rsa_modulus.get(), *rsa_e.get(), *public_metadata));
+        augmented_rsa_e, ComputeFinalExponentUnderPublicMetadata(
+                             *rsa_n.get(), *rsa_e.get(), *public_metadata));
   } else {
     augmented_rsa_e = std::move(rsa_e);
   }
-
-  // Owned by BoringSSL.
-  ANON_TOKENS_ASSIGN_OR_RETURN(
-      const EVP_MD* sig_hash,
-      ProtoHashTypeToEVPDigest(public_key.sig_hash_type()));
-
-  // Owned by BoringSSL.
-  ANON_TOKENS_ASSIGN_OR_RETURN(
-      const EVP_MD* mgf1_hash,
-      ProtoMaskGenFunctionToEVPDigest(public_key.mask_gen_function()));
 
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> r, NewBigNum());
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> r_inv_mont, NewBigNum());
 
   // Limit r between [2, n) so that an r of 1 never happens. An r of 1 doesn't
   // blind.
-  if (BN_rand_range_ex(r.get(), 2, rsa_modulus.get()) != kBsslSuccess) {
+  if (BN_rand_range_ex(r.get(), 2, rsa_n.get()) != kBsslSuccess) {
     return absl::InternalError(
         "BN_rand_range_ex failed when called from RsaBlinder::New.");
   }
@@ -96,7 +78,7 @@ absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
   }
 
   bssl::UniquePtr<BN_MONT_CTX> bn_mont_ctx(
-      BN_MONT_CTX_new_for_modulus(rsa_modulus.get(), bn_ctx.get()));
+      BN_MONT_CTX_new_for_modulus(rsa_n.get(), bn_ctx.get()));
   if (!bn_mont_ctx) {
     return absl::InternalError("BN_MONT_CTX_new_for_modulus failed.");
   }
@@ -118,10 +100,9 @@ absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
   }
 
   return absl::WrapUnique(new RsaBlinder(
-      public_key.salt_length(), public_metadata, sig_hash, mgf1_hash,
-      std::move(rsa_public_key), std::move(rsa_modulus),
-      std::move(augmented_rsa_e), std::move(r), std::move(r_inv_mont),
-      std::move(bn_mont_ctx)));
+      salt_length, public_metadata, signature_hash_function, mgf1_hash_function,
+      std::move(rsa_public_key), std::move(rsa_n), std::move(augmented_rsa_e),
+      std::move(r), std::move(r_inv_mont), std::move(bn_mont_ctx)));
 }
 
 RsaBlinder::RsaBlinder(

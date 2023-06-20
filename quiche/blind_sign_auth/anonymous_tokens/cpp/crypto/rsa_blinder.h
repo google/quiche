@@ -26,7 +26,6 @@
 #include "absl/strings/string_view.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/blinder.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "quiche/common/platform/api/quiche_export.h"
 // copybara:strip_begin(internal comment)
 // The QUICHE_EXPORT annotation is necessary for some classes and functions
@@ -44,7 +43,9 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
   // an empty string, RsaBlinder will assume that partially blind RSA signature
   // protocol is being executed.
   static absl::StatusOr<std::unique_ptr<RsaBlinder>> New(
-      const RSABlindSignaturePublicKey& public_key,
+      absl::string_view rsa_modulus, absl::string_view rsa_public_exponent,
+      const EVP_MD* signature_hash_function, const EVP_MD* mgf1_hash_function,
+      int salt_length,
       std::optional<absl::string_view> public_metadata = std::nullopt);
 
   // Blind `message` using n and e derived from an RSA public key and the public
