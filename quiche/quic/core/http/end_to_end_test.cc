@@ -7416,6 +7416,52 @@ TEST_P(EndToEndTest, DoNotAdvertisePreferredAddressWithoutSPAD) {
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
 }
 
+TEST_P(EndToEndTest, MaxPacingRate) {
+  const std::string huge_response(10 * 1024 * 1024, 'a');  // 10 MB
+  ASSERT_TRUE(Initialize());
+
+  if (!GetQuicReloadableFlag(quic_pacing_remove_non_initial_burst)) {
+    return;
+  }
+
+  AddToCache("/10MB_response", 200, huge_response);
+
+  ASSERT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+
+  auto set_server_max_pacing_rate = [&](QuicBandwidth max_pacing_rate) {
+    QuicSpdySession* server_session = GetServerSession();
+    ASSERT_NE(server_session, nullptr);
+    server_session->connection()->SetMaxPacingRate(max_pacing_rate);
+  };
+
+  // Set up the first response to be paced at 2 MB/s.
+  server_thread_->ScheduleAndWaitForCompletion([&]() {
+    set_server_max_pacing_rate(
+        QuicBandwidth::FromBytesPerSecond(2 * 1024 * 1024));
+  });
+
+  QuicTime start = QuicDefaultClock::Get()->Now();
+  SendSynchronousRequestAndCheckResponse(client_.get(), "/10MB_response",
+                                         huge_response);
+  QuicTime::Delta duration = QuicDefaultClock::Get()->Now() - start;
+  QUIC_LOG(INFO) << "Response 1 duration: " << duration;
+  EXPECT_GE(duration, QuicTime::Delta::FromMilliseconds(5000));
+  EXPECT_LE(duration, QuicTime::Delta::FromMilliseconds(7500));
+
+  // Set up the second response to be paced at 512 KB/s.
+  server_thread_->ScheduleAndWaitForCompletion([&]() {
+    set_server_max_pacing_rate(QuicBandwidth::FromBytesPerSecond(512 * 1024));
+  });
+
+  start = QuicDefaultClock::Get()->Now();
+  SendSynchronousRequestAndCheckResponse(client_.get(), "/10MB_response",
+                                         huge_response);
+  duration = QuicDefaultClock::Get()->Now() - start;
+  QUIC_LOG(INFO) << "Response 2 duration: " << duration;
+  EXPECT_GE(duration, QuicTime::Delta::FromSeconds(20));
+  EXPECT_LE(duration, QuicTime::Delta::FromSeconds(25));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

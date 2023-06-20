@@ -69,6 +69,16 @@ void ServerThread::Schedule(quiche::SingleUseCallback<void()> action) {
   scheduled_actions_.push_back(std::move(action));
 }
 
+void ServerThread::ScheduleAndWaitForCompletion(
+    quiche::SingleUseCallback<void()> action) {
+  QuicNotification action_done;
+  Schedule([&] {
+    std::move(action)();
+    action_done.Notify();
+  });
+  action_done.WaitForNotification();
+}
+
 void ServerThread::WaitForCryptoHandshakeConfirmed() {
   confirmed_.WaitForNotification();
 }

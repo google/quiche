@@ -37,6 +37,9 @@ class ServerThread : public QuicThread {
   // Schedules the given action for execution in the event loop.
   void Schedule(quiche::SingleUseCallback<void()> action);
 
+  // Like |Schedule|, but wait for |action| to complete before function returns.
+  void ScheduleAndWaitForCompletion(quiche::SingleUseCallback<void()> action);
+
   // Waits for the handshake to be confirmed for the first session created.
   void WaitForCryptoHandshakeConfirmed();
 
