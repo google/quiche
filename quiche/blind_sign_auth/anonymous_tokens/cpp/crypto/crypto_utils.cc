@@ -613,7 +613,7 @@ absl::StatusOr<std::string> RsaSsaPssPublicKeyToDerEncoding(const RSA* rsa) {
           reinterpret_cast<const uint8_t*>(rsa_public_key_str.data()),
           rsa_public_key_str.size())) {
     return absl::InvalidArgumentError(
-        "Failed to generate encoded self-signed certificate");
+        "Failed to set the crypto byte builder object.");
   }
   // Finish creating the DER-encoding of RsaSsaPssPublicKey.
   uint8_t* rsa_ssa_pss_public_key_der;
