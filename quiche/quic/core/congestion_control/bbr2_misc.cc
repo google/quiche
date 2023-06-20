@@ -42,6 +42,10 @@ MinRttFilter::MinRttFilter(QuicTime::Delta initial_min_rtt,
       min_rtt_timestamp_(initial_min_rtt_timestamp) {}
 
 void MinRttFilter::Update(QuicTime::Delta sample_rtt, QuicTime now) {
+  if (ignore_bad_rtt_sample_ && sample_rtt <= QuicTime::Delta::Zero()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_ignore_bad_rtt_sample, 1, 2);
+    return;
+  }
   if (sample_rtt < min_rtt_ || min_rtt_timestamp_ == QuicTime::Zero()) {
     min_rtt_ = sample_rtt;
     min_rtt_timestamp_ = now;
@@ -49,6 +53,10 @@ void MinRttFilter::Update(QuicTime::Delta sample_rtt, QuicTime now) {
 }
 
 void MinRttFilter::ForceUpdate(QuicTime::Delta sample_rtt, QuicTime now) {
+  if (ignore_bad_rtt_sample_ && sample_rtt <= QuicTime::Delta::Zero()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_ignore_bad_rtt_sample, 2, 2);
+    return;
+  }
   min_rtt_ = sample_rtt;
   min_rtt_timestamp_ = now;
 }

@@ -264,6 +264,8 @@ class QUIC_EXPORT_PRIVATE MinRttFilter {
   QuicTime::Delta min_rtt_;
   // Time when the current value of |min_rtt_| was assigned.
   QuicTime min_rtt_timestamp_;
+  const bool ignore_bad_rtt_sample_ =
+      GetQuicReloadableFlag(quic_bbr2_ignore_bad_rtt_sample);
 };
 
 class QUIC_EXPORT_PRIVATE Bbr2MaxBandwidthFilter {
