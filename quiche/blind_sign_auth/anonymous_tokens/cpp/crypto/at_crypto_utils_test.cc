@@ -270,10 +270,7 @@ TEST(PublicMetadataCryptoUtilsTest,
 // http://google3/privacy/net/boq/common/tokens/token_types_test.go;l=21;rcl=528885322
 // copybara:strip_end
 TEST(AnonymousTokensCryptoUtilsTest, RsaPssDerEncoding) {
-  RSAPublicKey public_key_e_not_padded;
-  RSAPublicKey public_key_e_padded;
-
-  public_key_e_not_padded.set_n(absl::HexStringToBytes(
+  std::string rsa_modulus = absl::HexStringToBytes(
       "b259758bb02bc75b68b17612c9bf68c5fa05958a334c61e167bc20bcc75757c126e892"
       "10b9df3989072cf6260e6883c7cd4af4d31dde9915b69b301fbef962de8c71bd2db5ec62"
       "5da259712f86a8dc3d241e9688c82391b7bf1ebc358311f55c26be910b76f61fea408ed6"
@@ -281,21 +278,18 @@ TEST(AnonymousTokensCryptoUtilsTest, RsaPssDerEncoding) {
       "74d562d32cce7b7edd7cf0149ca0e96cb6525e81fbba815a8f12748e34e5135f572b2e17"
       "b7ba430081597e6fb9033c005884d5935118c60d75b010f6fece7ecdcc1cb7d58d138969"
       "3d43377f4f3de949cb1e4105e792b96d7f04b0cd262ac33cffc5a890d267425e61c19e93"
-      "63550f2285"));
+      "63550f2285");
   // A hex string of 3 bytes in length is passed.
-  public_key_e_not_padded.set_e(absl::HexStringToBytes("010001"));
-
-  public_key_e_padded.set_n(public_key_e_not_padded.n());
+  std::string e_not_padded = absl::HexStringToBytes("010001");
   // A hex string of 4 bytes in length is passed.
-  public_key_e_padded.set_e(absl::HexStringToBytes("00010001"));
+  std::string e_padded = absl::HexStringToBytes("00010001");
 
   // Convert both padded and not padded rsa public keys to rsa structs.
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<RSA> rsa_e_not_padded,
-      AnonymousTokensRSAPublicKeyToRSA(public_key_e_not_padded));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      bssl::UniquePtr<RSA> rsa_e_padded,
-      AnonymousTokensRSAPublicKeyToRSA(public_key_e_padded));
+      CreatePublicKeyRSA(rsa_modulus, e_not_padded));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<RSA> rsa_e_padded,
+                                   CreatePublicKeyRSA(rsa_modulus, e_padded));
   // Encode both padded and not padded rsa structs to DER.
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string result_e_not_padded,
@@ -323,8 +317,7 @@ TEST(AnonymousTokensCryptoUtilsTest, RsaPssDerEncoding) {
 // The public key used in this test is taken from the test vectors found here:
 // https://www.ietf.org/archive/id/draft-ietf-privacypass-protocol-10.html#name-issuance-protocol-2-blind-rs
 TEST(AnonymousTokensCryptoUtilsTest, IetfPrivacyPassBlindRsaPublicKeyToDer) {
-  RSAPublicKey public_key;
-  public_key.set_n(absl::HexStringToBytes(
+  std::string rsa_modulus = absl::HexStringToBytes(
       "cb1aed6b6a95f5b1ce013a4cfcab25b94b2e64a23034e4250a7eab43c0df3a8c12993af1"
       "2b111908d4b471bec31d4b6c9ad9cdda90612a2ee903523e6de5a224d6b02f09e5c374d0"
       "cfe01d8f529c500a78a2f67908fa682b5a2b430c81eaf1af72d7b5e794fc98a313927687"
@@ -332,10 +325,10 @@ TEST(AnonymousTokensCryptoUtilsTest, IetfPrivacyPassBlindRsaPublicKeyToDer) {
       "32db68a181c6cbbe607d8c0e52e0655fd9996dc584eca0be87afbcd78a337d17b1dba9e8"
       "28bbd81e291317144e7ff89f55619709b096cbb9ea474cead264c2073fe49740c01f00e1"
       "09106066983d21e5f83f086e2e823c879cd43cef700d2a352a9babd612d03cad02db134b"
-      "7e225a5f"));
-  public_key.set_e(absl::HexStringToBytes("010001"));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      bssl::UniquePtr<RSA> rsa, AnonymousTokensRSAPublicKeyToRSA(public_key));
+      "7e225a5f");
+  std::string e = absl::HexStringToBytes("010001");
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<RSA> rsa,
+                                   CreatePublicKeyRSA(rsa_modulus, e));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string result,
                                    RsaSsaPssPublicKeyToDerEncoding(rsa.get()));
 

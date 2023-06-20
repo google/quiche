@@ -150,6 +150,19 @@ AnonymousTokensRSAPrivateKeyToRSA(const RSAPrivateKey& private_key);
 absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
 AnonymousTokensRSAPublicKeyToRSA(const RSAPublicKey& public_key);
 
+// Create bssl::UniquePtr<RSA> representing a RSA private key.
+absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
+CreatePrivateKeyRSA(absl::string_view rsa_modulus,
+                    absl::string_view public_exponent,
+                    absl::string_view private_exponent, absl::string_view p,
+                    absl::string_view q, absl::string_view dp,
+                    absl::string_view dq, absl::string_view crt);
+
+// Create bssl::UniquePtr<RSA> representing a RSA public key.
+absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
+CreatePublicKeyRSA(absl::string_view rsa_modulus,
+                   absl::string_view public_exponent);
+
 // Compute exponent based only on the public metadata. Assumes that n is a safe
 // modulus i.e. it produces a strong RSA key pair. If not, the exponent may be
 // invalid.

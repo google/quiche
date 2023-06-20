@@ -324,73 +324,88 @@ absl::StatusOr<std::string> ComputeHash(absl::string_view input,
 
 absl::StatusOr<bssl::UniquePtr<RSA>> AnonymousTokensRSAPrivateKeyToRSA(
     const RSAPrivateKey& private_key) {
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> n,
-                               StringToBignum(private_key.n()));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> e,
-                               StringToBignum(private_key.e()));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> d,
-                               StringToBignum(private_key.d()));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> p,
-                               StringToBignum(private_key.p()));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> q,
-                               StringToBignum(private_key.q()));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> dp,
-                               StringToBignum(private_key.dp()));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> dq,
-                               StringToBignum(private_key.dq()));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> crt,
-                               StringToBignum(private_key.crt()));
+  return CreatePrivateKeyRSA(private_key.n(), private_key.e(), private_key.d(),
+                             private_key.p(), private_key.q(), private_key.dp(),
+                             private_key.dq(), private_key.crt());
+}
+
+absl::StatusOr<bssl::UniquePtr<RSA>> AnonymousTokensRSAPublicKeyToRSA(
+    const RSAPublicKey& public_key) {
+  return CreatePublicKeyRSA(public_key.n(), public_key.e());
+}
+
+absl::StatusOr<bssl::UniquePtr<RSA>> CreatePrivateKeyRSA(
+    const absl::string_view rsa_modulus,
+    const absl::string_view public_exponent,
+    const absl::string_view private_exponent, const absl::string_view p,
+    const absl::string_view q, const absl::string_view dp,
+    const absl::string_view dq, const absl::string_view crt) {
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> n_bn,
+                               StringToBignum(rsa_modulus));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> e_bn,
+                               StringToBignum(public_exponent));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> d_bn,
+                               StringToBignum(private_exponent));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> p_bn, StringToBignum(p));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> q_bn, StringToBignum(q));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> dp_bn,
+                               StringToBignum(dp));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> dq_bn,
+                               StringToBignum(dq));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> crt_bn,
+                               StringToBignum(crt));
 
   bssl::UniquePtr<RSA> rsa_private_key(RSA_new());
   // Populate private key.
   if (!rsa_private_key.get()) {
     return absl::InternalError(
         absl::StrCat("RSA_new failed: ", GetSslErrors()));
-  } else if (RSA_set0_key(rsa_private_key.get(), n.get(), e.get(), d.get()) !=
-             kBsslSuccess) {
+  } else if (RSA_set0_key(rsa_private_key.get(), n_bn.get(), e_bn.get(),
+                          d_bn.get()) != kBsslSuccess) {
     return absl::InternalError(
         absl::StrCat("RSA_set0_key failed: ", GetSslErrors()));
-  } else if (RSA_set0_factors(rsa_private_key.get(), p.get(), q.get()) !=
+  } else if (RSA_set0_factors(rsa_private_key.get(), p_bn.get(), q_bn.get()) !=
              kBsslSuccess) {
     return absl::InternalError(
         absl::StrCat("RSA_set0_factors failed: ", GetSslErrors()));
-  } else if (RSA_set0_crt_params(rsa_private_key.get(), dp.get(), dq.get(),
-                                 crt.get()) != kBsslSuccess) {
+  } else if (RSA_set0_crt_params(rsa_private_key.get(), dp_bn.get(),
+                                 dq_bn.get(), crt_bn.get()) != kBsslSuccess) {
     return absl::InternalError(
         absl::StrCat("RSA_set0_crt_params failed: ", GetSslErrors()));
-  } else {
-    n.release();
-    e.release();
-    d.release();
-    p.release();
-    q.release();
-    dp.release();
-    dq.release();
-    crt.release();
   }
-  return std::move(rsa_private_key);
+
+  n_bn.release();
+  e_bn.release();
+  d_bn.release();
+  p_bn.release();
+  q_bn.release();
+  dp_bn.release();
+  dq_bn.release();
+  crt_bn.release();
+  return rsa_private_key;
 }
 
-absl::StatusOr<bssl::UniquePtr<RSA>> AnonymousTokensRSAPublicKeyToRSA(
-    const RSAPublicKey& public_key) {
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_modulus,
-                               StringToBignum(public_key.n()));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_e,
-                               StringToBignum(public_key.e()));
+absl::StatusOr<bssl::UniquePtr<RSA>> CreatePublicKeyRSA(
+    const absl::string_view rsa_modulus,
+    const absl::string_view public_exponent) {
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> n_bn,
+                               StringToBignum(rsa_modulus));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> e_bn,
+                               StringToBignum(public_exponent));
   // Convert to OpenSSL RSA.
   bssl::UniquePtr<RSA> rsa_public_key(RSA_new());
   if (!rsa_public_key.get()) {
     return absl::InternalError(
         absl::StrCat("RSA_new failed: ", GetSslErrors()));
-  } else if (RSA_set0_key(rsa_public_key.get(), rsa_modulus.get(), rsa_e.get(),
+  } else if (RSA_set0_key(rsa_public_key.get(), n_bn.get(), e_bn.get(),
                           nullptr) != kBsslSuccess) {
     return absl::InternalError(
         absl::StrCat("RSA_set0_key failed: ", GetSslErrors()));
   }
   // RSA_set0_key takes ownership of the pointers under rsa_modulus, new_e on
   // success.
-  rsa_modulus.release();
-  rsa_e.release();
+  n_bn.release();
+  e_bn.release();
   return rsa_public_key;
 }
 
