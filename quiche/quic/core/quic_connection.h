@@ -1279,6 +1279,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool in_probe_time_out() const { return in_probe_time_out_; }
 
+  QuicNetworkBlackholeDetector& blackhole_detector() {
+    return blackhole_detector_;
+  }
+
   // Ensures the network blackhole delay is longer than path degrading delay.
   static QuicTime::Delta CalculateNetworkBlackholeDelay(
       QuicTime::Delta blackhole_delay, QuicTime::Delta path_degrading_delay,
