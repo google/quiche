@@ -22,8 +22,8 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 #include "absl/strings/escaping.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/proto_utils.h"
+#include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/base.h"
 #include "openssl/rsa.h"
@@ -160,22 +160,22 @@ TEST(PublicMetadataCryptoUtilsInternalTest, PublicMetadataHashWithHKDF) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> max_value,
                                    NewBigNum());
   ASSERT_TRUE(BN_set_word(max_value.get(), 4294967295));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto key_pair, GetStrongRsaKeys2048());
+  const auto [public_key, _] = GetStrongTestRsaKeyPair2048();
   std::string input1 = "ro1";
   std::string input2 = "ro2";
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> output1,
-      internal::PublicMetadataHashWithHKDF(input1, key_pair.first.n(),
+      internal::PublicMetadataHashWithHKDF(input1, public_key.n,
                                            1 + input1.size()));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> another_output1,
-      internal::PublicMetadataHashWithHKDF(input1, key_pair.first.n(),
+      internal::PublicMetadataHashWithHKDF(input1, public_key.n,
                                            1 + input1.size()));
   EXPECT_EQ(BN_cmp(output1.get(), another_output1.get()), 0);
 
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> output2,
-      internal::PublicMetadataHashWithHKDF(input2, key_pair.first.n(),
+      internal::PublicMetadataHashWithHKDF(input2, public_key.n,
                                            1 + input2.size()));
   EXPECT_NE(BN_cmp(output1.get(), output2.get()), 0);
 
@@ -184,19 +184,18 @@ TEST(PublicMetadataCryptoUtilsInternalTest, PublicMetadataHashWithHKDF) {
 }
 
 TEST(PublicMetadataCryptoUtilsTest, PublicExponentHashDifferentModulus) {
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto key_pair_1, GetStrongRsaKeys2048());
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto key_pair_2,
-                                   GetAnotherStrongRsaKeys2048());
+  const auto public_key_1 = std::get<0>(GetStrongTestRsaKeyPair2048());
+  const auto public_key_2 = std::get<0>(GetAnotherStrongTestRsaKeyPair2048());
   std::string metadata = "md";
   // Check that same metadata and different modulus result in different
   // hashes.
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> rsa_modulus_1,
-                                   StringToBignum(key_pair_1.first.n()));
+                                   StringToBignum(public_key_1.n));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> exp1,
       PublicMetadataExponent(*rsa_modulus_1.get(), metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto rsa_modulus_2,
-                                   StringToBignum(key_pair_2.first.n()));
+                                   StringToBignum(public_key_2.n));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> exp2,
       PublicMetadataExponent(*rsa_modulus_2.get(), metadata));
@@ -355,30 +354,25 @@ TEST(AnonymousTokensCryptoUtilsTest, IetfPrivacyPassBlindRsaPublicKeyToDer) {
   EXPECT_EQ(result, expected_der_encoding);
 }
 
-using CreateTestKeyPairFunction =
-    absl::StatusOr<std::pair<RSAPublicKey, RSAPrivateKey>>();
+using CreateTestKeyPairFunction = std::pair<
+    anonymous_tokens::TestRsaPublicKey, anonymous_tokens::TestRsaPrivateKey>();
 
 class CryptoUtilsTest
     : public testing::TestWithParam<CreateTestKeyPairFunction*> {
  protected:
   void SetUp() override {
-    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto keys_pair, (*GetParam())());
-    public_key_ = std::move(keys_pair.first);
+    const auto [_, private_key] = (*GetParam())();
     ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_modulus_,
-                                     StringToBignum(keys_pair.second.n()));
-    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_e_,
-                                     StringToBignum(keys_pair.second.e()));
-    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_p_,
-                                     StringToBignum(keys_pair.second.p()));
-    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_q_,
-                                     StringToBignum(keys_pair.second.q()));
+                                     StringToBignum(private_key.n));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_e_, StringToBignum(private_key.e));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_p_, StringToBignum(private_key.p));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_q_, StringToBignum(private_key.q));
   }
 
   bssl::UniquePtr<BIGNUM> rsa_modulus_;
   bssl::UniquePtr<BIGNUM> rsa_e_;
   bssl::UniquePtr<BIGNUM> rsa_p_;
   bssl::UniquePtr<BIGNUM> rsa_q_;
-  RSAPublicKey public_key_;
 };
 
 TEST_P(CryptoUtilsTest, PublicExponentCoprime) {
@@ -478,10 +472,10 @@ TEST_P(CryptoUtilsTest, ModifiedPublicExponentWithEmptyPublicMetadata) {
 }
 
 INSTANTIATE_TEST_SUITE_P(CryptoUtilsTest, CryptoUtilsTest,
-                         testing::Values(&GetStrongRsaKeys2048,
-                                         &GetAnotherStrongRsaKeys2048,
-                                         &GetStrongRsaKeys3072,
-                                         &GetStrongRsaKeys4096));
+                         testing::Values(&GetStrongTestRsaKeyPair2048,
+                                         &GetAnotherStrongTestRsaKeyPair2048,
+                                         &GetStrongTestRsaKeyPair3072,
+                                         &GetStrongTestRsaKeyPair4096));
 
 }  // namespace
 }  // namespace anonymous_tokens

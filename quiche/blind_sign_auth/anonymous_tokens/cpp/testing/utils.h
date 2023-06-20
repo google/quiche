@@ -17,6 +17,7 @@
 
 #include <random>
 #include <string>
+#include <utility>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -24,6 +25,22 @@
 
 namespace private_membership {
 namespace anonymous_tokens {
+
+struct TestRsaPublicKey {
+  std::string n;
+  std::string e;
+};
+
+struct TestRsaPrivateKey {
+  std::string n;
+  std::string e;
+  std::string d;
+  std::string p;
+  std::string q;
+  std::string dp;
+  std::string dq;
+  std::string crt;
+};
 
 struct IetfStandardRsaBlindSignatureTestVector {
   std::string n;
@@ -76,6 +93,20 @@ GetIetfStandardRsaBlindSignatureTestVector();
 // Note that all test vectors use the same RSA key pair.
 std::vector<IetfRsaBlindSignatureWithPublicMetadataTestVector>
 GetIetfRsaBlindSignatureWithPublicMetadataTestVectors();
+
+// Method returns fixed 2048-bit strong RSA modulus based key pair for testing.
+std::pair<TestRsaPublicKey, TestRsaPrivateKey> GetStrongTestRsaKeyPair2048();
+
+// Method returns another fixed 2048-bit strong RSA modulus based key pair for
+// testing.
+std::pair<TestRsaPublicKey, TestRsaPrivateKey>
+GetAnotherStrongTestRsaKeyPair2048();
+
+// Method returns fixed 3072-bit strong RSA modulus based key pair for testing.
+std::pair<TestRsaPublicKey, TestRsaPrivateKey> GetStrongTestRsaKeyPair3072();
+
+// Method returns fixed 4096-bit strong RSA modulus based key pair for testing.
+std::pair<TestRsaPublicKey, TestRsaPrivateKey> GetStrongTestRsaKeyPair4096();
 
 // Outputs a random string of n characters.
 std::string RandomString(int n, std::uniform_int_distribution<int>* distr_u8,

@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -528,6 +529,300 @@ std::string RandomString(int n, std::uniform_int_distribution<int>* distr_u8,
     rand[i] = static_cast<uint8_t>((*distr_u8)(*generator));
   }
   return rand;
+}
+
+std::pair<anonymous_tokens::TestRsaPublicKey,
+          anonymous_tokens::TestRsaPrivateKey>
+GetStrongTestRsaKeyPair2048() {
+  anonymous_tokens::TestRsaPublicKey public_key = {
+      /*n=*/
+      absl::HexStringToBytes(
+          "b31928fd04c205d364cab9f7a5620dd8db9992dfaa41c1d29b11df91204ddc0d28a5"
+          "869cfc4c8ee2fca229c487b0f529c7d782303d4f5b9d85019031b159e4a7ad7d172c"
+          "cd73915f10550a7f19d63bfe438d6801a226dedc054bee2958c599cfd8513ed26ae2"
+          "9a5521f6ab7ae4991404b6888d60a76eadec189492a988e4c941d3ffd8feb7bdf715"
+          "ec0ceaf53707d83e3cc743ec3b7d88d5dc46b615a63d4fee9a0a391546069b811e29"
+          "095d5a1319fbb70248c35711a46d3c16f1444be285aeddb33256ca775562e755ac94"
+          "49bfec12cdd099c8dac96b3469764c474a88bc7e1dd19db68e9275606a8142861655"
+          "4a918a951bde14ee093dbdbdbbd0892486f9"),
+      /*e=*/absl::HexStringToBytes("010001")};
+  anonymous_tokens::TestRsaPrivateKey private_key = {
+      public_key.n, public_key.e,
+      /*d=*/
+      absl::HexStringToBytes(
+          "1bcda61d5165c57dc1c1ef08d0f5ddec727aeee026103b44b4aa1ba8edf8e8566a9e"
+          "f7bcdb360f609193a3244d645d4af529319ec785d0552dd6c649d09c81f0bdf0136e"
+          "f31e23cd3c3dd7794fcb8058c2a7eb2385c6bf062d14528ebca7406f91c75b17535c"
+          "8654fd06cc2c31dcc9ccc9817d6129dcf6c71631ca6ae3439132921a9c18111b4b11"
+          "b421868feac7c9ed6c73c437a24dbc5b364790cf4e7ac1573e72bab1b1e456b55e2e"
+          "a0a673986f2305c50122ba924db6d281a5e3efc6c03d0fdc690d4d8e4fb5f45a1c4c"
+          "e5c4595fde5563e8be01170e6e7ef6396bd8d435a14028748d4ef182fbffcc4aa1b9"
+          "9f86a6155cd26da9bb218a1e3b2cdce38e19"),
+      /*p=*/
+      absl::HexStringToBytes(
+          "edec7eb7cca858e3fc1c0f4eef5f4574216c96614d3bdee1830930a0036f85f277eb"
+          "6ff33a757fcf6323325b1967eae0f802dffd2a79c2c222f17c6378bc8d08e3d6ba97"
+          "5e13c62e5b93e2bb561fb1587dfeb14b20cf5cce9f4518b8eb052c8e48c0b891dd94"
+          "fa2fef904d45ffe00f7a1a8e77c3c34e337612eba4b40a16078f"),
+      /*q=*/
+      absl::HexStringToBytes(
+          "c0b4895d14c4e4aca5eee0bf0e58b0da5a210a2793ca06ba8f6b8a6b70202cabc545"
+          "c220922f02ca849f4ee79313e3fbdfdbdb85367b307f8fe663e108d3bdac4399836e"
+          "225f1956c3d112167f24db0e429a71d2ad191465f3b99cd3370bfd7b3e8d1a5e5e78"
+          "8dcfab21ddb00f1aaa73d7cb62f0228449a51d032c9f636b04f7"),
+      /*dp=*/
+      absl::HexStringToBytes(
+          "2707b7d5f105e0e72d9170d573213ee48923261c3a2e4b26d5772979e6766213dfa6"
+          "48cc2ed7ddaaa8c9ba560579eda710287094386697137fe5fb90d9da9c8c4bcc0afa"
+          "0fddd0920445e358f60ce6ebec675eb04366a103e84ece7a6f5b7eeeac72a9148cb4"
+          "06c2dc5ae0c24df274b78429c0ede5592bc9ffda963f4eb44473"),
+      /*dq=*/
+      absl::HexStringToBytes(
+          "22c0ac41201cbe0cb0c41abdf9ed5ebf921f81404ff3d030d6ea9304fb2ca241bc0a"
+          "ef8e862e7a3761a1854e5804ef499e3e7d215208f75f19e977bbbea6c8ff0715e950"
+          "f45be82af09784c68fd96ab3f0a8ffbbf9c19b1f23cc268f24cf41c07730653ffd93"
+          "8a27987a3c0ba33db0ddc15e0992baf6d67d33753e17e48b0953"),
+      /*crt=*/
+      absl::HexStringToBytes(
+          "29402f48481599b7e44c7ab9f0cfc673266dfd9ff0e2d7f9f40b6b1d8061808eb631"
+          "935fd5c1e536dd99266d79c04842b121adf361e8c7a8bc04fdb7c5ad053a8b9117cf"
+          "2068142e117bdda6d2a5a01ff8f0ba28d42287612c35e5ff267a20b5da454205cdf6"
+          "d24d22d4968511c16b0f1a1e55865d0b5ace0beaae0ba3bbd68e")};
+  return std::make_pair(public_key, private_key);
+}
+
+std::pair<anonymous_tokens::TestRsaPublicKey,
+          anonymous_tokens::TestRsaPrivateKey>
+GetAnotherStrongTestRsaKeyPair2048() {
+  anonymous_tokens::TestRsaPublicKey public_key = {
+      /*n=*/
+      absl::HexStringToBytes(
+          "cfe2049a15de49dd75e828eb8f5321b44f3d4169f53f9b58b37f1aba52f87ea749b8"
+          "30284857eab7f0ea3bac6b866e5f485be31cea03a7ff2c0ba7cfdbe6f070fc49e37e"
+          "28f2afe90b61e12a877febb1d4ba6fc0932df332afe51e8fa702a762b944a3f80a5f"
+          "ea2612cc75c59400e00df62ba4be83cc50198c39b6ac4bc6a5b4f6edaf0bdeac025d"
+          "6dd03d9f0f7c2127cf3c046a7e4e7cc7bc33f246f52408df49b29696d994e190076a"
+          "78142cd353c4d5fe38d9708466e49131efa416d35218cde5c380d548599b8ce39a9e"
+          "fcfe04df6aa317e122ac981346dbde6af84544d8f04e1c19749e6a8fb1efff4b3c3d"
+          "c3d7d2c95eefc1acd2dd80b5ff585eabfb09"),
+      /*e=*/absl::HexStringToBytes("010001")};
+  anonymous_tokens::TestRsaPrivateKey private_key = {
+      public_key.n, public_key.e,
+      /*d=*/
+      absl::HexStringToBytes(
+          "1176a1bf55fdf603922f9e1c67ce6a82ecb32f271910ae5aadbd8c3fc1cf99483163"
+          "b53bf513d9a679291c393851333d72e53137911b1c864dab6efe01b1ad5a387f768a"
+          "7723280ef24357388ce87ca2d4459334c0c877e936a88f402f1e0474c12e987db255"
+          "6b64a668a1ae26e849ea325769400def607d3cefee3e1c218472ffea639163dd7e80"
+          "2b20e35b3d0cd7c11229cde6ad4d73cb097c1b348f5586585d2727ff62789385665d"
+          "11b16eceffd85582b58a858ca356d7011bb5e4777bf3b67fef77cc528c56a147d6d7"
+          "229398bb7bb057139a9b9e7d33e5ac6f302c538b4c81901ef28adb6c530cd549d61e"
+          "c78e9402fb0deaab176027fda9b0801403e7"),
+      /*p=*/
+      absl::HexStringToBytes(
+          "fda22fbc727c67fa8b5c72c54bf5136a564de2f46697f1953f751da1cc5bde428f5a"
+          "5f7007c775a14ab25d1b6996b374bfc1df6665b8e9d2914754ad1a3cebd8bf6da17e"
+          "9ea0a98d289e609681fd295500d0803522696662a1564eb6d4f1422db8d8da48826d"
+          "f937cd19176e41889481d1309086aee3968c2692dd893f59288b"),
+      /*q=*/
+      absl::HexStringToBytes(
+          "d1d28de5df823cea723f6979d73d44d86c202328cd4914abffd7b2e11245c075d4e5"
+          "01dca7b90249bdb273fe6f78dbc4fdf0229dcb333b9fc24ec6ffd02fcda1a8fa788e"
+          "3b49f0376be5ce222ccdf92e17e651a5a53507d9687f62835b08825f53f7e3d760e9"
+          "8e83533e71721b10cd8832dc1c471875655d66cb19e58bb0493b"),
+      /*dp=*/
+      absl::HexStringToBytes(
+          "8d8e547827a9795ae326e0c36ec64464c7f04667c34eb03d6d224f3c7b5316b42d4f"
+          "f20e13b965d4745d220be79d7d60fe9914b710b4e8836623da85962c44313f7dcf71"
+          "5cd52c6c252c6799f8c8b3a5c68397da8fef257e8caf1fd578f981c704f0babb5758"
+          "4b8cb2427bca447716f3712e5aab60b692d27bc0e235f48e2d4b"),
+      /*dq=*/
+      absl::HexStringToBytes(
+          "72c12850379ca03a4cffb76d26b5e0a849028e982b26340319eadb6f533208dfa8ef"
+          "12c49e8a85e0d4b9fbcc8524e1756cb8e005d2f393417de0dddf5cfa380999445b98"
+          "d67e4abdd4ea1b81ff652b49f55247074442aba7510a92536aff4d665ba330de43a7"
+          "9904e40b3bba7f69022fe23915d220635c6be7e35ea7776d93af"),
+      /*crt=*/
+      absl::HexStringToBytes(
+          "6b7f1d159c6be9a9c4d6d4171f6e90b3c9d40abee51b891f538a653c06da423ece64"
+          "7713a6192babbdc8580cfa941f4cc88952f982fe197fd2fcd29d0b6b01960361419a"
+          "74182cc94acaac94ad88b000677bba8f97f4ba362019a0fe1ffeb64691ca17039ebd"
+          "6ad5fec8269090d2163b54ca25f4840f46f0395fdfec83cac4eb")};
+  return std::make_pair(public_key, private_key);
+}
+
+std::pair<anonymous_tokens::TestRsaPublicKey,
+          anonymous_tokens::TestRsaPrivateKey>
+GetStrongTestRsaKeyPair3072() {
+  anonymous_tokens::TestRsaPublicKey public_key = {
+      /*n=*/
+      absl::HexStringToBytes(
+          "bd8be57544c2b43220d80b377fa22d69226e968b9f04e321e7c9e82ec4a4849386d2"
+          "c4377cf2b8ec93145fbebb6f4508266169e4a83b37671f28285fe91c75a4b721804e"
+          "71a7eaea97d42cd3055e4e46e78ed10898472f92c61d981d1df20d55f89e0558eb95"
+          "a13f5f8ae04aa2cbfbf99c4599702b1498ab337fe36396a39a073c5d5dbedf557e6d"
+          "245f807c28a4c2f44197ae256190d9a410392ede4fdf9d337fc201bb26447fabc442"
+          "b19c79c531e12922a90bada53615b12e9a54ecb033f9a22be859984e296d632c9eb2"
+          "87825bb4bfb7f3d16c4f2ba30b2ca5a04512e62c993351c7039a64d865ba49eb960b"
+          "176dbe7c4853db37911f7bae782732441e428992422754ca3d78a20e9cedbafa8ec2"
+          "460403997c381772be64b72133c1585b0d1fe5e96a3f7e2388228826989766da37f9"
+          "949d1040230cb78f88005e5e92796a285b3acdd90733ed4a111d35f4632eda15dc66"
+          "9e595380331acab1e98cf872126dac05c2d7a7beff889ff39ea60cf7ac69f62bd35e"
+          "6c2ff193c9037d0f500d"),
+      /*e=*/absl::HexStringToBytes("010001")};
+  anonymous_tokens::TestRsaPrivateKey private_key = {
+      public_key.n, public_key.e,
+      /*d=*/
+      absl::HexStringToBytes(
+          "2de57b093b3e1e1de94006ef48537fc56e55f2d41a0c37e754d5da07c10bc92263ca"
+          "134310594197df4156b1bb7704f3253fff4123cf3aea186c43e27d72abb5d7b61ff8"
+          "5ea2f74a18bb82a31230b4a98c96535d4e6a2645d6fd0181436801fca837b339c5c9"
+          "b482c0e2c2ceafbecee3b108555008ce72ed398a25084f488c1a666e812d9fac76f1"
+          "7c96376958fa144ecab72caed68219811580932db78f80e420725cb2f16032bde7c6"
+          "f274de3376917bc16dc76b238f060fa226329c214a642417795cc3efa5337b1b89d6"
+          "b14ac31e681c2e2a8962c086feaf590eb54769d05d5eaa2b96113ab27fd8ecca8e5a"
+          "c717604af7c9e2572f05859d22b5658ba76206ca3f5a8c780bc664f5448927348427"
+          "ac08e5713ebe160d2a4968093fad401547669487775baf5c5605cff96e8170e5cde4"
+          "eab215ee05d3a8a3416426573f2026157aaea1b8626102e969cb7fdfa67d4585d497"
+          "0dd708308a6bd7f1cad1bc916ae3e8be82f2a9444a43cd171ad636f62b5c5b76d970"
+          "9c39ae36f03ec6bbceed"),
+      /*p=*/
+      absl::HexStringToBytes(
+          "e9ca59fe1ddb5c5050192692145220e04623867aff99f70a0224c11144c167dc79f2"
+          "1df61b64c378c82940b78dd5608ff07a00bb83261e6f328ddea1f53a40a7b9a6bc97"
+          "02e05afd1717456416f26b199cdb704d0d5b555deaf4d1d6e738b86db8096fc57c4d"
+          "3c8cd3b510a6d5fa90c05135aec2dc161fd9e38771b7f4d26ff0e8a1d0ec0dd4d832"
+          "128df1adbdf33125f723717efe947c65539ddeadc95e8960b79f0c77ec8761c38bce"
+          "d50a76f145176c0b5dace6b7e3aa0b2ba16646357ec3"),
+      /*q=*/
+      absl::HexStringToBytes(
+          "cf8d8e9c9102b69b76e28aa06431c177320e8ae147db85432507d51a68c587ac5481"
+          "97cc73666ae65ba4de3c5a974a4344f1f804969431537ff31e3f23f3cc50f90d69b4"
+          "f994b41040aef3072b2cf2679094860924a6404b7196386463a074a6fd1b0b4bfcbc"
+          "ab82f81549f44a65ff33a6ce5788fc1a7710759ca59c2040c21f1c97d66ee0f110c4"
+          "f37da1c07508b0e60ea1878ea6133ddf8ba4b29fc1761e5b43b7830ab87768058eec"
+          "47c22a3ff8bbde4f6b10849b78daa6a072c30f7aa8ef"),
+      /*dp=*/
+      absl::HexStringToBytes(
+          "65203e25094d257527f0791a9ee79788eb4dda91c1961ba19ca3c14f72ea25bedc90"
+          "ba1d066463990f1ba8febcbf1b71a7975e51bdbcf3552e0ce7cc2e82f00c9ce55e96"
+          "038c804f1179e36e13eef01cb818c34ed1043cbccf30eec38268aa7deb2949cba6a4"
+          "d218284b1dd4cca20192ee8dc5f64bb4d63a2d8d1cc77182c520f3bf6adb70702cc4"
+          "1bfa821ba11a5c9c0b76ad553d51852d5f29de7455b22ac2472ae8fdc6b618b7b8f5"
+          "d2792051e48ce9135185c496ae4793655fff19477279"),
+      /*dq=*/
+      absl::HexStringToBytes(
+          "1d4340102301d6ed245ddc5db0c2b31c331a89ca296f71e27d9e15159c1ffd78f691"
+          "2eedcc776c2afe50c8648a013a9f31614c2e996c5b68026a2ca18a581d3e6d5ecec0"
+          "8d4fc1f368ab41e888d5d5777492fc32ddcff2d0b03b15c851a395ced570b2af0bfb"
+          "2dd35156ef0e5a4ef72439286e7f09cc516d28a7e55195da8b84076c00f7b10f4be5"
+          "f8ce85b7b4c87ce872b7a37d213d25441754293b0cf3b263fbb02bf19f0076d211cc"
+          "8e7179b37b464199c0e69b4bb04663a7cb8664f04e51"),
+      /*crt=*/
+      absl::HexStringToBytes(
+          "b5b84f7c4868e4de55d37efe7ada9865b0cc73b4b08e111cb8502b39210b17d81a54"
+          "2ea793b970d03557c30b5243e066c7ff46e3abfcf3972a9a6199927d05f64fefb7ef"
+          "bb336d716599e7cf507e87f274541ef5216235fdedfba524879fecedf4455a60071a"
+          "f52d36a0df37b3f4c64b75e564fbdaadc36356e2382efd783ab4e82f4f708fb1addd"
+          "288658dfd4afc14c427e2699d8ed178fb343ebef2afd343d0f3aeb30a96dcac9f6a1"
+          "36d54347a42e318daf23d1d57b1cd964bd665a3f2a67")};
+  return std::make_pair(public_key, private_key);
+}
+
+std::pair<anonymous_tokens::TestRsaPublicKey,
+          anonymous_tokens::TestRsaPrivateKey>
+GetStrongTestRsaKeyPair4096() {
+  anonymous_tokens::TestRsaPublicKey public_key = {
+      /*n=*/
+      absl::HexStringToBytes(
+          "cd7d928f252a882c2ba68c1705970f61b7f63c5e907ea5f34e650e3c35edd7467873"
+          "4d626fca38a1230c52147cb8b16e2db9adbfe7ce4647ef2eb49b4ade458c80ef0e29"
+          "ac4109233d0f512643106fb2e42308fbc2db13c1db24c672a3bfc32acfb429ae5104"
+          "507f2b342473a9aa5eab8a9c24d7fe08fb59bea4049d14fea781484591460e5eef62"
+          "bd67d3c28aa8e360c50b936998565ca12fbc647d32c446f3f326fe0a36388bfb3ed7"
+          "a4c1e8c900a299c88bdaf6dc9ebb032f810f682ddfc2d5fa46e8fa28b8bdfa32131f"
+          "259615f85bde8a4eb8258ccbda83e62cf12795c0cae1498c2b435e27c31b9ef8a1ef"
+          "bf9552bc6f929a76d9d3a997bfe6fe11c155a571446decdb5032b80482d0bcb8ab0a"
+          "23ab82451049a1af692764b69187620005a9d3b5d530d38bfc41938066f505a6e248"
+          "4795ce70a69e5df5a551b5179ff1ed3a34eceb09834317de137d9c2d6b35c745c67b"
+          "05a1412fc0f616581a051f41bf14c48dcc8b558f92cdee22f5d0f4a75c232e4acf45"
+          "d3d2491a2eda3d7ed40fcef81058b8b3b019ef7492453dd3220d5a1ee706abcf4da4"
+          "4a572376eee594dca796f8be05ba104ea08881e68c09132622f233574bd0c3f9dfaa"
+          "9ae7c6579b90312851aeec02b2678c5e530cc8fbc30e389799df92a2898c34208367"
+          "63e199488adc8e5464ff4a67debf35ac2011d4723c3cf1ea1326ce555f80611b2094"
+          "4a31"),
+      /*e=*/absl::HexStringToBytes("010001")};
+  anonymous_tokens::TestRsaPrivateKey private_key = {
+      public_key.n, public_key.e,
+      /*d=*/
+      absl::HexStringToBytes(
+          "1d618f83851a64370094c322058c18486e0fb88902db00ea5d72a88ae66117ef3d08"
+          "ab6f603187504edd139d5749e720ac4c08b2503817a77064fab0db8f155da60fc834"
+          "202b7a5d7dfd032ad7daf145a045fc22573590c91e86cf131423b689980218159302"
+          "ed6989695eaee4faf5a74c5dd00ccc0747bd08bb95e749d9b164944b521eb4ae5147"
+          "0a72de7dc9eaa4fc30a05b96f50fa015f1e7db6c65465828c842f27ece4ade84f172"
+          "cedd64e5dc7fe3421ff1126bf00c2843f20d9c6536c1ba6b9b18f3afbfde75f813f0"
+          "d7a47286bcc8007989ede0884339a9bf124a0928f4392b156e18274dc3215f65086e"
+          "69b3b58d38dcbad6348605912b80a12233c4c418ab6cedeb313207c2567e0754a9f0"
+          "b4ac5365cfbc699ccc3a967a668e9ee9c272c4dfac1a7024bd98ccb7e6de98fe5a3a"
+          "43fcb01e0d354ca7b31c266253a35f7ee1109c59f2523bd03fa6d8c6f03c5b347fc5"
+          "97c3d0011a0d984105b74a2a406a7ab815657da88c8ee56d78925409df32f8698a75"
+          "af8fb2b3576b5676c1ffc8026421b73e72698b3d10695f369874fa681df1b4f1e781"
+          "55ff7238b23a1f1b73541fd4a60831a5d78c6a8b2b86d9a5d24f36c9437f5b8e5e52"
+          "2d078c9f23c6bbd24e0b261b575b4d31b3d05434afb3b45442f981d33954d0b43380"
+          "8aa0cacaba9530f3f6083dd059a0ad36ade853997c575a0036a691851f34c391be7e"
+          "6f43"),
+      /*p=*/
+      absl::HexStringToBytes(
+          "e6503c05c40a5db99f52ae1ae7ae3a313802821e2d93a431f71c21206e7cf683603d"
+          "e565b0788038841f761025f4f50b090a2a828240460d5eba1fc49cec36d93cb7ee2a"
+          "bda6dadeda381b83c3e6f18c1ddea7651a7fe87ee65ce089817baa7998c6db994132"
+          "850d6b47f9afbf6c6fbf7d813173d2d2f904892288dc603f4b11c96d67228b0591f4"
+          "9311f227f81cad39161039028b009155a703ea581d3f10b4b668e59d07f0ca90bc26"
+          "970b854ac17abdd86789ee0d61db5942226f498099076ce05aaa72a52cf6006216a8"
+          "f7d1afbd64e9449b068c65faeec6cdb3b02a2d0f9320d85d963067c38093ad6a3483"
+          "a3db7e5964ba29634540de9ed60b8e1423ab"),
+      /*q=*/
+      absl::HexStringToBytes(
+          "e4689c2d46a1e63dc955942bc34a948b50cc1047cd61b67aec389f7315aac62d9d24"
+          "971525a1d925a93d4da005280298587b3559aba6c2329c63baaa37ab7fabb88c349a"
+          "d34f7cfd3a57d5c4dc2c9a623fdb5724af0e808a00ec3a02d503b02905fa8dbb97d4"
+          "7d588dd9dab46cc03709f54fff79d0c5941372faa9f9b6ff7524b4cb1740b6af34ce"
+          "d5c39b47ce4902387dffffdb7ab6c38a54e55d42b47359cef31e1d993abdaf15fab9"
+          "17a15db3a558660ad5fe3bcd298c2625481bc61b3aecfc960c6c7d732c560fcd99cf"
+          "1d6d56da6c0ed876b2b957d0c2d7e86a1cd57a08380f526f18e4d3ca9000271cbf8e"
+          "87f66e4f908834df312c6a6d62b9137c6d93"),
+      /*dp=*/
+      absl::HexStringToBytes(
+          "8d017a7e1d342b85c5e19ceea401ab670edf9a4257ad18cdee78ae5f68c5e13735e9"
+          "2f553ee1c7bed24560c72a35fb00b29c22c29c74356f621b99ef8a13a4d103b7a87d"
+          "4a77a970df3192c6ed5dab6d19ac83d8068d610eb08314859b5cd756730eeccbbb7a"
+          "eeb2f487b07ac53be27ede9c0666df20838d1f58a16a2b131526e2a7b489158c677b"
+          "d1bf1eff118c9d11624cb45ab637b6c335e9d3c3f6c3f1ba72236ed0e157aeed4604"
+          "6a5d8751e97af85851abc4af34c652b386d993aac40623c6883beaccede5fefe0ed9"
+          "8c4038d43fc0015cd87984c64902365658f8b975dba23455b7ea12dd430f2710eaed"
+          "dd9838970a705f7e839bdfb06763d3acc8d9"),
+      /*dq=*/
+      absl::HexStringToBytes(
+          "469418a658ec103449715b4ec692d621d27eac0d33e69cb79124d20882ca796080ed"
+          "5c8e1949d0cab5680f0382746190e7ce72a6d9c6b6bd62dbe24354de769dfe71bc93"
+          "96f639fe19b828832331d926c0eaab1bd7c8186a0c6cf2640ba48f1bae104519918a"
+          "048d878fa8e815aeb3932d2d6219272cd65bc82cb2b74a17d7ffd6a9e6ee8544d081"
+          "9546534635f5136d9769b28b04795324fca4bf53ac64f47c615d8df1da57e0b15eff"
+          "30d1191e38da7ef59c386a0c34696d241a0b130539091fe7d1c0f866cd6d6e86ae9f"
+          "744d64082c59ce03a7a863fd4b27e2565fc08b6bdcbec74f33170a66ce666daf9175"
+          "9e87c4806b7ddb3098864c00aeffd7889c67"),
+      /*crt=*/
+      absl::HexStringToBytes(
+          "a4e8c9443c2619b6c92c9dd9941422274431e80503dc8a143ce8d97cde3e331fca29"
+          "e1de60ea50f7520d19192e39d0e106b37e20cc3a084afab1ab09c3205e1d7e59050a"
+          "b76101ea7bf014dcccc7f948ff5fb14ddd83ee804de5c659672142b4b7e661e0be8e"
+          "95eddee3b815f1f26741639fd04e5015153375ee1dfaa87ebf5b4340948538d3bfa1"
+          "b4cdc7e81b68c7c0c85879bd5026ea66735e4c3b56294f6c63ac1ba0709edeefc252"
+          "c90723039f1fe227086a2b57299d7f7bcd1f09b82985c7710bb43d342167142629a2"
+          "3094981f3908d0a1be38a5e3f823fad1ef96aa643fb5811cbafe8b134725075d4b66"
+          "4409de70b2571ea6ef53a44615db16b7bda5")};
+  return std::make_pair(public_key, private_key);
 }
 
 }  // namespace anonymous_tokens
