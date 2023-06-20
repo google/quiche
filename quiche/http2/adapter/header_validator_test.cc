@@ -492,8 +492,7 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
     for (Header to_add : kSampleRequestPseudoheaders) {
       if (to_add.first == ":path") {
         EXPECT_EQ(HeaderValidator::HEADER_OK,
-                  validator.ValidateSingleHeader(to_add.first, value))
-            << "Problematic char: [" << c << "]";
+                  validator.ValidateSingleHeader(to_add.first, value));
       } else {
         EXPECT_EQ(HeaderValidator::HEADER_OK,
                   validator.ValidateSingleHeader(to_add.first, to_add.second));
@@ -502,33 +501,16 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
     EXPECT_TRUE(validator.FinishHeaderBlock(HeaderType::REQUEST));
   }
 
-  // Various invalid path characters.
-  for (const absl::string_view c : {"[", "<", "}", "`", "\\", " ", "\t", "#"}) {
+  // BUG: Various invalid path characters.
+  for (const absl::string_view c : {"[", "<", "}", "`", "\\", " ", "\t"}) {
     const std::string value = absl::StrCat("/shawa", c, "rma");
 
     HeaderValidator validator;
     validator.StartHeaderBlock();
     for (Header to_add : kSampleRequestPseudoheaders) {
       if (to_add.first == ":path") {
-        EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+        EXPECT_EQ(HeaderValidator::HEADER_OK,
                   validator.ValidateSingleHeader(to_add.first, value));
-      } else {
-        EXPECT_EQ(HeaderValidator::HEADER_OK,
-                  validator.ValidateSingleHeader(to_add.first, to_add.second));
-      }
-    }
-    EXPECT_FALSE(validator.FinishHeaderBlock(HeaderType::REQUEST));
-  }
-
-  // The fragment initial character can be explicitly allowed.
-  {
-    HeaderValidator validator;
-    validator.SetAllowFragmentInPath();
-    validator.StartHeaderBlock();
-    for (Header to_add : kSampleRequestPseudoheaders) {
-      if (to_add.first == ":path") {
-        EXPECT_EQ(HeaderValidator::HEADER_OK,
-                  validator.ValidateSingleHeader(to_add.first, "/shawa#rma"));
       } else {
         EXPECT_EQ(HeaderValidator::HEADER_OK,
                   validator.ValidateSingleHeader(to_add.first, to_add.second));

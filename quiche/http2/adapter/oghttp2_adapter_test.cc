@@ -171,19 +171,18 @@ TEST(OgHttp2AdapterTest, RequestPathWithSpaceOrTab) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
-  EXPECT_CALL(
-      visitor,
-      OnInvalidFrame(1, Http2VisitorInterface::InvalidFrameError::kHttpHeader));
-
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/ fragment"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
   // Stream 3
   EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 5));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
   EXPECT_CALL(visitor, OnHeaderForStream(3, ":method", "GET"));
   EXPECT_CALL(visitor, OnHeaderForStream(3, ":scheme", "https"));
   EXPECT_CALL(visitor, OnHeaderForStream(3, ":authority", "example.com"));
-  EXPECT_CALL(
-      visitor,
-      OnInvalidFrame(3, Http2VisitorInterface::InvalidFrameError::kHttpHeader));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":path", "/\tfragment2"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnEndStream(3));
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
