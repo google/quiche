@@ -22,9 +22,7 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 #include "absl/strings/escaping.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/proto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/utils.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/base.h"
 #include "openssl/rsa.h"
 
@@ -33,7 +31,8 @@ namespace anonymous_tokens {
 namespace {
 
 struct IetfNewPublicExponentWithPublicMetadataTestVector {
-  RSAPublicKey public_key;
+  std::string rsa_modulus;
+  std::string e;
   std::string public_metadata;
   std::string new_e;
 };
@@ -206,8 +205,7 @@ std::vector<IetfNewPublicExponentWithPublicMetadataTestVector>
 GetIetfNewPublicExponentWithPublicMetadataTestVectors() {
   std::vector<IetfNewPublicExponentWithPublicMetadataTestVector> test_vectors;
 
-  RSAPublicKey public_key;
-  public_key.set_n(absl::HexStringToBytes(
+  std::string modulus = absl::HexStringToBytes(
       "d6930820f71fe517bf3259d14d40209b02a5c0d3d61991c731dd7da39f8d69821552e231"
       "8d6c9ad897e603887a476ea3162c1205da9ac96f02edf31df049bd55f142134c17d4382a"
       "0e78e275345f165fbe8e49cdca6cf5c726c599dd39e09e75e0f330a33121e73976e4facb"
@@ -215,12 +213,13 @@ GetIetfNewPublicExponentWithPublicMetadataTestVectors() {
       "5ec7256da3fddd0718b89c365410fce61bc7c99b115fb4c3c318081fa7e1b65a37774e8e"
       "50c96e8ce2b2cc6b3b367982366a2bf9924c4bafdb3ff5e722258ab705c76d43e5f1f121"
       "b984814e98ea2b2b8725cd9bc905c0bc3d75c2a8db70a7153213c39ae371b2b5dc1dafcb"
-      "19d6fae9"));
-  public_key.set_e(absl::HexStringToBytes("010001"));
+      "19d6fae9");
+  std::string e = absl::HexStringToBytes("010001");
 
   // Test vector 1
   test_vectors.push_back(
-      {.public_key = public_key,
+      {.rsa_modulus = modulus,
+       .e = e,
        .public_metadata = absl::HexStringToBytes("6d65746164617461"),
        .new_e = absl::HexStringToBytes(
            "30584b72f5cb557085106232f051d039e23358feee9204cf30ea567620e90d79e4a"
@@ -230,7 +229,8 @@ GetIetfNewPublicExponentWithPublicMetadataTestVectors() {
 
   // Test vector 2
   test_vectors.push_back(
-      {.public_key = public_key,
+      {.rsa_modulus = modulus,
+       .e = e,
        .public_metadata = "",
        .new_e = absl::HexStringToBytes(
            "2ed5a8d2592a11bbeef728bb39018ef5c3cf343507dd77dd156d5eec7f06f04732e"
@@ -247,12 +247,10 @@ TEST(PublicMetadataCryptoUtilsTest,
       GetIetfNewPublicExponentWithPublicMetadataTestVectors();
   for (const IetfNewPublicExponentWithPublicMetadataTestVector& test_vector :
        test_vectors) {
-    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-        bssl::UniquePtr<BIGNUM> rsa_modulus,
-        StringToBignum(test_vector.public_key.n()));
-    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-        bssl::UniquePtr<BIGNUM> rsa_e,
-        StringToBignum(test_vector.public_key.e()));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> rsa_modulus,
+                                     StringToBignum(test_vector.rsa_modulus));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> rsa_e,
+                                     StringToBignum(test_vector.e));
     ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> expected_new_e,
                                      StringToBignum(test_vector.new_e));
     ANON_TOKENS_ASSERT_OK_AND_ASSIGN(

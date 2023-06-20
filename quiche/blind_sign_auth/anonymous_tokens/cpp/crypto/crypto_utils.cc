@@ -30,7 +30,6 @@
 #include "absl/strings/string_view.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/status_utils.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/bytestring.h"
 #include "openssl/err.h"
 #include "openssl/hkdf.h"
@@ -173,20 +172,6 @@ std::string GetSslErrors() {
   return ret;
 }
 
-absl::StatusOr<std::string> GenerateMask(
-    const RSABlindSignaturePublicKey& public_key) {
-  std::string mask;
-  if (public_key.message_mask_type() == AT_MESSAGE_MASK_CONCAT &&
-      public_key.message_mask_size() >= kRsaMessageMaskSizeInBytes32) {
-    mask = std::string(public_key.message_mask_size(), '\0');
-    RAND_bytes(reinterpret_cast<uint8_t*>(mask.data()), mask.size());
-  } else {
-    return absl::InvalidArgumentError(
-        "Undefined or unsupported message mask type.");
-  }
-  return mask;
-}
-
 std::string MaskMessageConcat(absl::string_view mask,
                               absl::string_view message) {
   return absl::StrCat(mask, message);
@@ -206,33 +191,6 @@ std::string EncodeMessagePublicMetadata(absl::string_view message,
   // Finally append public metadata and then the message to the output.
   std::string encoding(buffer.begin(), buffer.end());
   return absl::StrCat(encoding, public_metadata, message);
-}
-
-absl::StatusOr<const EVP_MD*> ProtoHashTypeToEVPDigest(
-    const HashType hash_type) {
-  switch (hash_type) {
-    case AT_HASH_TYPE_SHA256:
-      return EVP_sha256();
-    case AT_HASH_TYPE_SHA384:
-      return EVP_sha384();
-    case AT_HASH_TYPE_UNDEFINED:
-    default:
-      return absl::InvalidArgumentError("Unknown hash type.");
-  }
-}
-
-absl::StatusOr<const EVP_MD*> ProtoMaskGenFunctionToEVPDigest(
-    const MaskGenFunction mgf) {
-  switch (mgf) {
-    case AT_MGF_SHA256:
-      return EVP_sha256();
-    case AT_MGF_SHA384:
-      return EVP_sha384();
-    case AT_MGF_UNDEFINED:
-    default:
-      return absl::InvalidArgumentError(
-          "Unknown hash type for mask generation hash function.");
-  }
 }
 
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> GetRsaSqrtTwo(int x) {
@@ -320,18 +278,6 @@ absl::StatusOr<std::string> ComputeHash(absl::string_view input,
   }
   digest.resize(digest_length);
   return digest;
-}
-
-absl::StatusOr<bssl::UniquePtr<RSA>> AnonymousTokensRSAPrivateKeyToRSA(
-    const RSAPrivateKey& private_key) {
-  return CreatePrivateKeyRSA(private_key.n(), private_key.e(), private_key.d(),
-                             private_key.p(), private_key.q(), private_key.dp(),
-                             private_key.dq(), private_key.crt());
-}
-
-absl::StatusOr<bssl::UniquePtr<RSA>> AnonymousTokensRSAPublicKeyToRSA(
-    const RSAPublicKey& public_key) {
-  return CreatePublicKeyRSA(public_key.n(), public_key.e());
 }
 
 absl::StatusOr<bssl::UniquePtr<RSA>> CreatePrivateKeyRSA(

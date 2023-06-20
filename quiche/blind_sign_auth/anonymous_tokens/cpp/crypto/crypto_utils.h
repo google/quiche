@@ -23,7 +23,6 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/base.h"
 #include "openssl/bn.h"
 #include "openssl/evp.h"
@@ -96,11 +95,6 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT StringToBignum(
 // Retrieve error messages from OpenSSL.
 std::string QUICHE_EXPORT GetSslErrors();
 
-// Generate a message mask. For more details, see
-// https://datatracker.ietf.org/doc/draft-irtf-cfrg-rsa-blind-signatures/
-absl::StatusOr<std::string> QUICHE_EXPORT GenerateMask(
-    const RSABlindSignaturePublicKey& public_key);
-
 // Mask message using protocol at
 // https://datatracker.ietf.org/doc/draft-irtf-cfrg-rsa-blind-signatures/
 std::string QUICHE_EXPORT MaskMessageConcat(absl::string_view mask,
@@ -121,15 +115,6 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT GetRsaSqrtTwo(
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT ComputePowerOfTwo(
     int x);
 
-// Converts the AnonymousTokens proto hash type to the equivalent EVP digest.
-absl::StatusOr<const EVP_MD*> QUICHE_EXPORT
-ProtoHashTypeToEVPDigest(HashType hash_type);
-
-// Converts the AnonymousTokens proto hash type for mask generation function to
-// the equivalent EVP digest.
-absl::StatusOr<const EVP_MD*> QUICHE_EXPORT
-ProtoMaskGenFunctionToEVPDigest(MaskGenFunction mgf);
-
 // ComputeHash sub-routine used during blindness and verification of RSA blind
 // signatures protocol with or without public metadata.
 absl::StatusOr<std::string> QUICHE_EXPORT ComputeHash(
@@ -139,16 +124,6 @@ absl::StatusOr<std::string> QUICHE_EXPORT ComputeHash(
 // RSA modulus.
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT
 ComputeCarmichaelLcm(const BIGNUM& phi_p, const BIGNUM& phi_q, BN_CTX& bn_ctx);
-
-// Converts AnonymousTokens::RSAPrivateKey to bssl::UniquePtr<RSA> without
-// public metadata augmentation.
-absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
-AnonymousTokensRSAPrivateKeyToRSA(const RSAPrivateKey& private_key);
-
-// Converts AnonymousTokens::RSAPublicKey to bssl::UniquePtr<RSA> without
-// public metadata augmentation.
-absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
-AnonymousTokensRSAPublicKeyToRSA(const RSAPublicKey& public_key);
 
 // Create bssl::UniquePtr<RSA> representing a RSA private key.
 absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT

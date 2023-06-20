@@ -1558,6 +1558,7 @@ qbone_srcs = [
 ]
 blind_sign_auth_hdrs = [
     "blind_sign_auth/anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.h",
+    "blind_sign_auth/anonymous_tokens/cpp/crypto/anonymous_tokens_pb_openssl_converters.h",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/blind_signer.h",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/blinder.h",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h",
@@ -1580,6 +1581,7 @@ blind_sign_auth_hdrs = [
 ]
 blind_sign_auth_srcs = [
     "blind_sign_auth/anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.cc",
+    "blind_sign_auth/anonymous_tokens/cpp/crypto/anonymous_tokens_pb_openssl_converters.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/crypto_utils.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder.cc",
@@ -1594,6 +1596,7 @@ blind_sign_auth_tests_hdrs = [
 ]
 blind_sign_auth_tests_srcs = [
     "blind_sign_auth/anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client_test.cc",
+    "blind_sign_auth/anonymous_tokens/cpp/crypto/anonymous_tokens_pb_openssl_converters_test.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/at_crypto_utils_test.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer_test.cc",
     "blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blinder_test.cc",
