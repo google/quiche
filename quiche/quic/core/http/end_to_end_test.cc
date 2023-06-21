@@ -1895,6 +1895,10 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
+  if (!version_.UsesTls() &&
+      GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    return;
+  }
 
   std::string body(20480, 'a');
   Http2HeaderBlock headers;
@@ -1950,6 +1954,10 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
 // Regression test for b/168020146.
 TEST_P(EndToEndTest, MultipleZeroRtt) {
   ASSERT_TRUE(Initialize());
+  if (!version_.UsesTls() &&
+      GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    return;
+  }
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   QuicSpdyClientSession* client_session = GetClientSession();
@@ -1991,6 +1999,10 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
+  if (!version_.UsesTls() &&
+      GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    return;
+  }
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   QuicSpdyClientSession* client_session = GetClientSession();
@@ -2067,8 +2079,12 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
 
   client_session = GetClientSession();
   ASSERT_TRUE(client_session);
-  EXPECT_TRUE(client_session->EarlyDataAccepted());
-  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
+  EXPECT_EQ((version_.UsesTls() ||
+             !GetQuicReloadableFlag(quic_require_handshake_confirmation)),
+            client_session->EarlyDataAccepted());
+  EXPECT_EQ((version_.UsesTls() ||
+             !GetQuicReloadableFlag(quic_require_handshake_confirmation)),
+            client_->client()->EarlyDataAccepted());
 
   client_->Disconnect();
 
@@ -5788,6 +5804,10 @@ TEST_P(EndToEndPacketReorderingTest,
 
 TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   ASSERT_TRUE(Initialize());
+  if (!version_.UsesTls() &&
+      GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    return;
+  }
   // Finish one request to make sure handshake established.
   client_->SendSynchronousRequest("/foo");
   // Disconnect for next 0-rtt request.

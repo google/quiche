@@ -78,7 +78,8 @@ std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
 
   // Start with all versions, remove highest on each iteration.
-  ParsedQuicVersionVector supported_versions = AllSupportedVersions();
+  ParsedQuicVersionVector supported_versions =
+      AllSupportedVersionsWithQuicCrypto();
   while (!supported_versions.empty()) {
     params.push_back({supported_versions});
     supported_versions.erase(supported_versions.begin());
@@ -566,8 +567,12 @@ TEST_P(CryptoServerTest, BadClientNonce) {
 
     CheckRejectTag();
     const HandshakeFailureReason kRejectReasons1[] = {
-        CLIENT_NONCE_INVALID_FAILURE};
-    CheckRejectReasons(kRejectReasons1, ABSL_ARRAYSIZE(kRejectReasons1));
+        CLIENT_NONCE_INVALID_FAILURE, SERVER_NONCE_REQUIRED_FAILURE};
+    CheckRejectReasons(
+        kRejectReasons1,
+        (GetQuicReloadableFlag(quic_require_handshake_confirmation)
+             ? ABSL_ARRAYSIZE(kRejectReasons1)
+             : 1));
   }
 }
 
@@ -658,7 +663,14 @@ TEST_P(CryptoServerTest, CorruptSourceAddressToken) {
   CheckRejectTag();
   const HandshakeFailureReason kRejectReasons[] = {
       SOURCE_ADDRESS_TOKEN_DECRYPTION_FAILURE};
-  CheckRejectReasons(kRejectReasons, ABSL_ARRAYSIZE(kRejectReasons));
+  const HandshakeFailureReason kRejectReasons1[] = {
+      SOURCE_ADDRESS_TOKEN_DECRYPTION_FAILURE, SERVER_NONCE_REQUIRED_FAILURE};
+  CheckRejectReasons((GetQuicReloadableFlag(quic_require_handshake_confirmation)
+                          ? kRejectReasons1
+                          : kRejectReasons),
+                     (GetQuicReloadableFlag(quic_require_handshake_confirmation)
+                          ? ABSL_ARRAYSIZE(kRejectReasons1)
+                          : ABSL_ARRAYSIZE(kRejectReasons)));
 }
 
 TEST_P(CryptoServerTest, CorruptSourceAddressTokenIsStillAccepted) {
@@ -678,6 +690,16 @@ TEST_P(CryptoServerTest, CorruptSourceAddressTokenIsStillAccepted) {
   config_.set_validate_source_address_token(false);
 
   ShouldSucceed(msg);
+  if (GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    CheckRejectTag();
+    const HandshakeFailureReason kRejectReasons[] = {
+        SERVER_NONCE_REQUIRED_FAILURE};
+    CheckRejectReasons(kRejectReasons, ABSL_ARRAYSIZE(kRejectReasons));
+    absl::string_view server_nonce;
+    ASSERT_TRUE(out_.GetStringPiece(kSourceAddressTokenTag, &server_nonce));
+    msg.SetStringPiece(kServerNonceTag, server_nonce);
+    ShouldSucceed(msg);
+  }
   EXPECT_EQ(kSHLO, out_.tag());
 }
 
@@ -699,7 +721,15 @@ TEST_P(CryptoServerTest, CorruptClientNonceAndSourceAddressToken) {
   CheckRejectTag();
   const HandshakeFailureReason kRejectReasons[] = {
       SOURCE_ADDRESS_TOKEN_DECRYPTION_FAILURE, CLIENT_NONCE_INVALID_FAILURE};
-  CheckRejectReasons(kRejectReasons, ABSL_ARRAYSIZE(kRejectReasons));
+  const HandshakeFailureReason kRejectReasons1[] = {
+      SOURCE_ADDRESS_TOKEN_DECRYPTION_FAILURE, CLIENT_NONCE_INVALID_FAILURE,
+      SERVER_NONCE_REQUIRED_FAILURE};
+  CheckRejectReasons((GetQuicReloadableFlag(quic_require_handshake_confirmation)
+                          ? kRejectReasons1
+                          : kRejectReasons),
+                     (GetQuicReloadableFlag(quic_require_handshake_confirmation)
+                          ? ABSL_ARRAYSIZE(kRejectReasons1)
+                          : ABSL_ARRAYSIZE(kRejectReasons)));
 }
 
 TEST_P(CryptoServerTest, CorruptMultipleTags) {
@@ -727,8 +757,7 @@ TEST_P(CryptoServerTest, CorruptMultipleTags) {
 }
 
 TEST_P(CryptoServerTest, NoServerNonce) {
-  // When no server nonce is present and no strike register is configured,
-  // the CHLO should be rejected.
+  // When no server nonce is present the CHLO should be rejected.
   CryptoHandshakeMessage msg =
       crypto_test_utils::CreateCHLO({{"PDMD", "X509"},
                                      {"AEAD", "AESG"},
@@ -744,10 +773,14 @@ TEST_P(CryptoServerTest, NoServerNonce) {
 
   ShouldSucceed(msg);
 
-  // Even without a server nonce, this ClientHello should be accepted in
-  // version 33.
-  ASSERT_EQ(kSHLO, out_.tag());
-  CheckServerHello(out_);
+  if (GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    CheckRejectTag();
+  } else {
+    // Even without a server nonce, this ClientHello should be accepted in
+    // version 33.
+    ASSERT_EQ(kSHLO, out_.tag());
+    CheckServerHello(out_);
+  }
 }
 
 TEST_P(CryptoServerTest, ProofForSuppliedServerConfig) {
@@ -772,7 +805,15 @@ TEST_P(CryptoServerTest, ProofForSuppliedServerConfig) {
   CheckRejectTag();
   const HandshakeFailureReason kRejectReasons[] = {
       SOURCE_ADDRESS_TOKEN_DIFFERENT_IP_ADDRESS_FAILURE};
-  CheckRejectReasons(kRejectReasons, ABSL_ARRAYSIZE(kRejectReasons));
+  const HandshakeFailureReason kRejectReasons1[] = {
+      SOURCE_ADDRESS_TOKEN_DIFFERENT_IP_ADDRESS_FAILURE,
+      SERVER_NONCE_REQUIRED_FAILURE};
+  CheckRejectReasons((GetQuicReloadableFlag(quic_require_handshake_confirmation)
+                          ? kRejectReasons1
+                          : kRejectReasons),
+                     (GetQuicReloadableFlag(quic_require_handshake_confirmation)
+                          ? ABSL_ARRAYSIZE(kRejectReasons1)
+                          : ABSL_ARRAYSIZE(kRejectReasons)));
 
   absl::string_view cert, proof, scfg_str;
   EXPECT_TRUE(out_.GetStringPiece(kCertificateTag, &cert));
@@ -829,10 +870,23 @@ TEST_P(CryptoServerTest, RejectInvalidXlct) {
 
   ShouldSucceed(msg);
 
-  const HandshakeFailureReason kRejectReasons[] = {
+  if (GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    const HandshakeFailureReason kRejectReasons[] = {
+        SERVER_NONCE_REQUIRED_FAILURE};
+
+    CheckRejectReasons(kRejectReasons, ABSL_ARRAYSIZE(kRejectReasons));
+
+    absl::string_view server_nonce;
+    ASSERT_TRUE(out_.GetStringPiece(kSourceAddressTokenTag, &server_nonce));
+    msg.SetStringPiece(kServerNonceTag, server_nonce);
+
+    ShouldSucceed(msg);
+  }
+
+  const HandshakeFailureReason kRejectReasons1[] = {
       INVALID_EXPECTED_LEAF_CERTIFICATE};
 
-  CheckRejectReasons(kRejectReasons, ABSL_ARRAYSIZE(kRejectReasons));
+  CheckRejectReasons(kRejectReasons1, ABSL_ARRAYSIZE(kRejectReasons1));
 }
 
 TEST_P(CryptoServerTest, ValidXlct) {
@@ -854,6 +908,20 @@ TEST_P(CryptoServerTest, ValidXlct) {
   config_.set_replay_protection(false);
 
   ShouldSucceed(msg);
+
+  if (GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    const HandshakeFailureReason kRejectReasons[] = {
+        SERVER_NONCE_REQUIRED_FAILURE};
+
+    CheckRejectReasons(kRejectReasons, ABSL_ARRAYSIZE(kRejectReasons));
+
+    absl::string_view server_nonce;
+    ASSERT_TRUE(out_.GetStringPiece(kSourceAddressTokenTag, &server_nonce));
+    msg.SetStringPiece(kServerNonceTag, server_nonce);
+
+    ShouldSucceed(msg);
+  }
+
   EXPECT_EQ(kSHLO, out_.tag());
 }
 
@@ -876,9 +944,21 @@ TEST_P(CryptoServerTest, NonceInSHLO) {
   config_.set_replay_protection(false);
 
   ShouldSucceed(msg);
+  absl::string_view nonce;
+
+  if (GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    const HandshakeFailureReason kRejectReasons[] = {
+        SERVER_NONCE_REQUIRED_FAILURE};
+
+    CheckRejectReasons(kRejectReasons, ABSL_ARRAYSIZE(kRejectReasons));
+
+    ASSERT_TRUE(out_.GetStringPiece(kSourceAddressTokenTag, &nonce));
+    msg.SetStringPiece(kServerNonceTag, nonce);
+
+    ShouldSucceed(msg);
+  }
   EXPECT_EQ(kSHLO, out_.tag());
 
-  absl::string_view nonce;
   EXPECT_TRUE(out_.GetStringPiece(kServerNonceTag, &nonce));
 }
 

@@ -54,6 +54,9 @@ class ShloVerifier {
     return std::make_unique<ValidateClientHelloCallback>(this);
   }
 
+  absl::string_view server_nonce() { return server_nonce_; }
+  bool chlo_accepted() const { return chlo_accepted_; }
+
  private:
   void ValidateClientHelloDone(
       const quiche::QuicheReferenceCountedPointer<
@@ -89,9 +92,16 @@ class ShloVerifier {
   }
 
   void ProcessClientHelloDone(std::unique_ptr<CryptoHandshakeMessage> message) {
-    // Verify output is a SHLO.
-    EXPECT_EQ(message->tag(), kSHLO)
-        << "Fail to pass validation. Get " << message->DebugString();
+    if (message->tag() == kSHLO) {
+      chlo_accepted_ = true;
+    } else {
+      QUIC_LOG(INFO) << "Fail to pass validation. Get "
+                     << message->DebugString();
+      chlo_accepted_ = false;
+      EXPECT_EQ(1u, result_->info.reject_reasons.size());
+      EXPECT_EQ(SERVER_NONCE_REQUIRED_FAILURE, result_->info.reject_reasons[0]);
+      server_nonce_ = result_->info.server_nonce;
+    }
   }
 
   QuicCryptoServerConfig* crypto_config_;
@@ -107,6 +117,8 @@ class ShloVerifier {
       result_;
 
   const ParsedQuicVersion version_;
+  bool chlo_accepted_ = false;
+  absl::string_view server_nonce_;
 };
 
 class CryptoTestUtilsTest : public QuicTest {};
@@ -181,6 +193,21 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
   crypto_config.ValidateClientHello(
       full_chlo, client_addr, server_addr, transport_version, &clock,
       signed_config, shlo_verifier.GetValidateClientHelloCallback());
+  ASSERT_EQ(shlo_verifier.chlo_accepted(),
+            !GetQuicReloadableFlag(quic_require_handshake_confirmation));
+  if (!shlo_verifier.chlo_accepted()) {
+    ShloVerifier shlo_verifier2(
+        &crypto_config, server_addr, client_addr, &clock, signed_config,
+        &compressed_certs_cache,
+        ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version));
+    full_chlo.SetStringPiece(
+        kServerNonceTag,
+        "#" + absl::BytesToHexString(shlo_verifier.server_nonce()));
+    crypto_config.ValidateClientHello(
+        full_chlo, client_addr, server_addr, transport_version, &clock,
+        signed_config, shlo_verifier2.GetValidateClientHelloCallback());
+    EXPECT_TRUE(shlo_verifier2.chlo_accepted()) << full_chlo.DebugString();
+  }
 }
 
 }  // namespace test
