@@ -174,8 +174,18 @@ const QuicFrame QuicReceivedPacketManager::GetUpdatedAckFrame(
                                     ? QuicTime::Delta::Zero()
                                     : approximate_now - time_largest_observed_;
   }
+
+  const size_t initial_ack_ranges = ack_frame_.packets.NumIntervals();
+  uint64_t num_iterations = 0;
   while (max_ack_ranges_ > 0 &&
          ack_frame_.packets.NumIntervals() > max_ack_ranges_) {
+    num_iterations++;
+    QUIC_BUG_IF(quic_rpm_too_many_ack_ranges, (num_iterations % 100000) == 0)
+        << "Too many ack ranges to remove, possibly a dead loop. "
+           "initial_ack_ranges:"
+        << initial_ack_ranges << " max_ack_ranges:" << max_ack_ranges_
+        << ", current_ack_ranges:" << ack_frame_.packets.NumIntervals()
+        << " num_iterations:" << num_iterations;
     ack_frame_.packets.RemoveSmallestInterval();
   }
   // Clear all packet times if any are too far from largest observed.
