@@ -22,6 +22,7 @@
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/qpack/qpack_decoder.h"
 #include "quiche/quic/core/qpack/qpack_encoder.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -1126,19 +1127,27 @@ void QuicSpdyStream::OnWebTransportStreamFrameType(
   sequencer()->MarkConsumed(header_length);
 
   if (headers_payload_length_ > 0 || headers_decompressed_) {
+    std::string error =
+        absl::StrCat("Stream ", id(),
+                     " attempted to convert itself into a WebTransport data "
+                     "stream, but it already has HTTP data on it");
     QUIC_PEER_BUG(WEBTRANSPORT_STREAM received on HTTP request)
-        << ENDPOINT << "Stream " << id()
-        << " tried to convert to WebTransport, but it already "
-           "has HTTP data on it";
-    Reset(QUIC_STREAM_FRAME_UNEXPECTED);
+        << ENDPOINT << error;
+    OnUnrecoverableError(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+                         error);
+    return;
   }
   if (QuicUtils::IsOutgoingStreamId(spdy_session_->version(), id(),
                                     spdy_session_->perspective())) {
+    std::string error = absl::StrCat(
+        "Stream ", id(),
+        " attempted to convert itself into a WebTransport data stream, but "
+        "only the initiator of the stream can do that");
     QUIC_PEER_BUG(WEBTRANSPORT_STREAM received on outgoing request)
-        << ENDPOINT << "Stream " << id()
-        << " tried to convert to WebTransport, but only the "
-           "initiator of the stream can do it.";
-    Reset(QUIC_STREAM_FRAME_UNEXPECTED);
+        << ENDPOINT << error;
+    OnUnrecoverableError(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+                         error);
+    return;
   }
 
   QUICHE_DCHECK(web_transport_ == nullptr);
