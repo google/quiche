@@ -27,11 +27,6 @@ class QuicDataReader;
 // session.
 class QUIC_EXPORT_PRIVATE HttpDecoder {
  public:
-  struct QUIC_EXPORT_PRIVATE Options {
-    // Indicates that WEBTRANSPORT_STREAM should be parsed.
-    bool allow_web_transport_stream = false;
-  };
-
   class QUIC_EXPORT_PRIVATE Visitor {
    public:
     virtual ~Visitor() {}
@@ -119,7 +114,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   // |visitor| must be non-null, and must outlive HttpDecoder.
   explicit HttpDecoder(Visitor* visitor);
-  explicit HttpDecoder(Visitor* visitor, Options options);
 
   ~HttpDecoder();
 
@@ -145,6 +139,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   // Returns true if input data processed so far ends on a frame boundary.
   bool AtFrameBoundary() const { return state_ == STATE_READING_FRAME_TYPE; }
+
+  // Indicates that WEBTRANSPORT_STREAM should be parsed.
+  void EnableWebTransportStreamParsing() { allow_web_transport_stream_ = true; }
 
   std::string DebugString() const;
 

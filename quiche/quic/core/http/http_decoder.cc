@@ -31,10 +31,9 @@ constexpr QuicByteCount kPayloadLengthLimit = 1024 * 1024;
 
 }  // anonymous namespace
 
-HttpDecoder::HttpDecoder(Visitor* visitor) : HttpDecoder(visitor, Options()) {}
-HttpDecoder::HttpDecoder(Visitor* visitor, Options options)
+HttpDecoder::HttpDecoder(Visitor* visitor)
     : visitor_(visitor),
-      allow_web_transport_stream_(options.allow_web_transport_stream),
+      allow_web_transport_stream_(false),
       state_(STATE_READING_FRAME_TYPE),
       current_frame_type_(0),
       current_length_field_length_(0),

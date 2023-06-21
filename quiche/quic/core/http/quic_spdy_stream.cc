@@ -168,16 +168,6 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
                                                       : "Client:"  \
                                                         " ")
 
-namespace {
-HttpDecoder::Options HttpDecoderOptionsForBidiStream(
-    QuicSpdySession* spdy_session) {
-  HttpDecoder::Options options;
-  options.allow_web_transport_stream =
-      spdy_session->WillNegotiateWebTransport();
-  return options;
-}
-}  // namespace
-
 QuicSpdyStream::QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session,
                                StreamType type)
     : QuicStream(id, spdy_session, /*is_static=*/false, type),
@@ -191,8 +181,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session,
       trailers_decompressed_(false),
       trailers_consumed_(false),
       http_decoder_visitor_(std::make_unique<HttpDecoderVisitor>(this)),
-      decoder_(http_decoder_visitor_.get(),
-               HttpDecoderOptionsForBidiStream(spdy_session)),
+      decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(0),
       is_decoder_processing_input_(false),
       ack_listener_(nullptr),
@@ -822,6 +811,13 @@ void QuicSpdyStream::OnDataAvailable() {
     return;
   }
 
+  if (spdy_session_->SupportsWebTransport()) {
+    // We do this here, since at this point, we have passed the
+    // ShouldProcessIncomingRequests() check above, meaning we know for a fact
+    // if we should be parsing WEBTRANSPORT_STREAM or not.
+    decoder_.EnableWebTransportStreamParsing();
+  }
+
   iovec iov;
   while (session()->connection()->connected() && !reading_stopped() &&
          decoder_.error() == QUIC_NO_ERROR) {
@@ -1124,19 +1120,36 @@ void QuicSpdyStream::OnWebTransportStreamFrameType(
     QuicByteCount header_length, WebTransportSessionId session_id) {
   QUIC_DVLOG(1) << ENDPOINT << " Received WEBTRANSPORT_STREAM on stream "
                 << id() << " for session " << session_id;
+  QuicStreamOffset offset = sequencer()->NumBytesConsumed();
   sequencer()->MarkConsumed(header_length);
 
-  if (headers_payload_length_ > 0 || headers_decompressed_) {
-    std::string error =
-        absl::StrCat("Stream ", id(),
-                     " attempted to convert itself into a WebTransport data "
-                     "stream, but it already has HTTP data on it");
-    QUIC_PEER_BUG(WEBTRANSPORT_STREAM received on HTTP request)
-        << ENDPOINT << error;
-    OnUnrecoverableError(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
-                         error);
-    return;
+  absl::optional<WebTransportHttp3Version> version =
+      spdy_session_->SupportedWebTransportVersion();
+  QUICHE_DCHECK(version.has_value());
+  if (version == WebTransportHttp3Version::kDraft02) {
+    if (headers_payload_length_ > 0 || headers_decompressed_) {
+      std::string error =
+          absl::StrCat("Stream ", id(),
+                       " attempted to convert itself into a WebTransport data "
+                       "stream, but it already has HTTP data on it");
+      QUIC_PEER_BUG(WEBTRANSPORT_STREAM received on HTTP request)
+          << ENDPOINT << error;
+      OnUnrecoverableError(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+                           error);
+      return;
+    }
+  } else {
+    if (offset > 0) {
+      std::string error =
+          absl::StrCat("Stream ", id(),
+                       " received WEBTRANSPORT_STREAM at a non-zero offset");
+      QUIC_DLOG(ERROR) << ENDPOINT << error;
+      OnUnrecoverableError(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+                           error);
+      return;
+    }
   }
+
   if (QuicUtils::IsOutgoingStreamId(spdy_session_->version(), id(),
                                     spdy_session_->perspective())) {
     std::string error = absl::StrCat(

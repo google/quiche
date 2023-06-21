@@ -15,7 +15,9 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_encoder.h"
+#include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
@@ -51,6 +53,7 @@ using testing::AnyNumber;
 using testing::AtLeast;
 using testing::DoAll;
 using testing::ElementsAre;
+using testing::HasSubstr;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
 using testing::MatchesRegex;
@@ -3110,6 +3113,98 @@ TEST_P(QuicSpdyStreamTest, ProcessIncomingWebTransportHeaders) {
   EXPECT_FALSE(stream_->IsDoneReading());
   ASSERT_TRUE(stream_->web_transport() != nullptr);
   EXPECT_EQ(stream_->id(), stream_->web_transport()->id());
+}
+
+TEST_P(QuicSpdyStreamTest, IncomingWebTransportStreamWhenUnsupported) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  // Support WebTransport locally, but not by the peer.
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  session_->EnableWebTransport();
+  session_->OnSettingsFrame(SettingsFrame());
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+
+  std::string webtransport_stream_frame =
+      absl::HexStringToBytes("40410400000000");
+  QuicStreamFrame stream_frame(stream_->id(), /* fin = */ false,
+                               /* offset = */ 0, webtransport_stream_frame);
+
+  EXPECT_CALL(debug_visitor, OnUnknownFrameReceived(stream_->id(), 0x41, 4));
+  stream_->OnStreamFrame(stream_frame);
+  EXPECT_TRUE(stream_->web_transport_stream() == nullptr);
+}
+
+TEST_P(QuicSpdyStreamTest, IncomingWebTransportStream) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  session_->EnableWebTransport();
+  SettingsFrame settings;
+  settings.values[SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07] = 10;
+  settings.values[SETTINGS_H3_DATAGRAM] = 1;
+  session_->OnSettingsFrame(settings);
+
+  std::string webtransport_stream_frame = absl::HexStringToBytes("404110");
+  QuicStreamFrame stream_frame(stream_->id(), /* fin = */ false,
+                               /* offset = */ 0, webtransport_stream_frame);
+
+  EXPECT_CALL(*session_, CreateIncomingStream(0x10));
+  stream_->OnStreamFrame(stream_frame);
+  EXPECT_TRUE(stream_->web_transport_stream() != nullptr);
+}
+
+TEST_P(QuicSpdyStreamTest, IncomingWebTransportStreamWithPaddingDraft02) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  session_->EnableWebTransport();
+  SettingsFrame settings;
+  settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
+  settings.values[SETTINGS_H3_DATAGRAM] = 1;
+  session_->OnSettingsFrame(settings);
+
+  std::string webtransport_stream_frame = absl::HexStringToBytes("2100404110");
+  QuicStreamFrame stream_frame(stream_->id(), /* fin = */ false,
+                               /* offset = */ 0, webtransport_stream_frame);
+
+  EXPECT_CALL(*session_, CreateIncomingStream(0x10));
+  stream_->OnStreamFrame(stream_frame);
+  EXPECT_TRUE(stream_->web_transport_stream() != nullptr);
+}
+
+TEST_P(QuicSpdyStreamTest, IncomingWebTransportStreamWithPaddingDraft07) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  session_->EnableWebTransport();
+  SettingsFrame settings;
+  settings.values[SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07] = 10;
+  settings.values[SETTINGS_H3_DATAGRAM] = 1;
+  session_->OnSettingsFrame(settings);
+
+  std::string webtransport_stream_frame = absl::HexStringToBytes("2100404110");
+  QuicStreamFrame stream_frame(stream_->id(), /* fin = */ false,
+                               /* offset = */ 0, webtransport_stream_frame);
+
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+                              HasSubstr("non-zero offset"), _));
+  stream_->OnStreamFrame(stream_frame);
+  EXPECT_TRUE(stream_->web_transport_stream() == nullptr);
 }
 
 TEST_P(QuicSpdyStreamTest, ReceiveHttpDatagram) {
