@@ -38,7 +38,8 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
                           bool drop_response_body, bool enable_web_transport);
 
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override;
-  bool ShouldNegotiateWebTransport() override;
+  WebTransportHttp3VersionSet LocallySupportedWebTransportVersions()
+      const override;
   HttpDatagramSupport LocalHttpDatagramSupport() override;
   void CreateContextForMultiPortPath(
       std::unique_ptr<MultiPortPathContextObserver> context_observer) override;

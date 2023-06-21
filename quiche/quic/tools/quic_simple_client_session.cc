@@ -46,12 +46,14 @@ QuicSimpleClientSession::CreateClientStream() {
   return stream;
 }
 
-bool QuicSimpleClientSession::ShouldNegotiateWebTransport() {
-  return enable_web_transport_;
+WebTransportHttp3VersionSet
+QuicSimpleClientSession::LocallySupportedWebTransportVersions() const {
+  return enable_web_transport_ ? kDefaultSupportedWebTransportVersions
+                               : WebTransportHttp3VersionSet();
 }
 
 HttpDatagramSupport QuicSimpleClientSession::LocalHttpDatagramSupport() {
-  return enable_web_transport_ ? HttpDatagramSupport::kDraft04
+  return enable_web_transport_ ? HttpDatagramSupport::kRfcAndDraft04
                                : HttpDatagramSupport::kNone;
 }
 

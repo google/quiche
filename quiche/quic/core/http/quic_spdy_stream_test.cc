@@ -297,8 +297,14 @@ class TestSession : public MockQuicSpdySession {
     return &crypto_stream_;
   }
 
-  bool ShouldNegotiateWebTransport() override { return enable_webtransport_; }
-  void EnableWebTransport() { enable_webtransport_ = true; }
+  WebTransportHttp3VersionSet LocallySupportedWebTransportVersions()
+      const override {
+    return locally_supported_webtransport_versions_;
+  }
+  void EnableWebTransport(WebTransportHttp3VersionSet versions =
+                              kDefaultSupportedWebTransportVersions) {
+    locally_supported_webtransport_versions_ = versions;
+  }
 
   HttpDatagramSupport LocalHttpDatagramSupport() override {
     return local_http_datagram_support_;
@@ -308,7 +314,7 @@ class TestSession : public MockQuicSpdySession {
   }
 
  private:
-  bool enable_webtransport_ = false;
+  WebTransportHttp3VersionSet locally_supported_webtransport_versions_;
   HttpDatagramSupport local_http_datagram_support_ = HttpDatagramSupport::kNone;
   StrictMock<TestCryptoStream> crypto_stream_;
 };

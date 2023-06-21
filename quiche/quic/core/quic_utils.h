@@ -11,9 +11,11 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/numeric/bits.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/frames/quic_frame.h"
@@ -253,10 +255,26 @@ class QUIC_EXPORT_PRIVATE BitMask {
 
   constexpr void ClearAll() { mask_ = 0; }
 
+  // Returns true if any of the bits is set.
+  bool Any() const { return mask_ != 0; }
+
+  // Returns the highest bit set, or nullopt if the mask is all zeroes.
+  absl::optional<Index> Max() const {
+    if (!Any()) {
+      return absl::nullopt;
+    }
+    return static_cast<Index>(NumBits() - absl::countl_zero(mask_) - 1);
+  }
+
   static constexpr size_t NumBits() { return 8 * sizeof(Mask); }
 
   friend bool operator==(const BitMask& lhs, const BitMask& rhs) {
     return lhs.mask_ == rhs.mask_;
+  }
+
+  // Bitwise AND that can act as a set intersection between two bit masks.
+  BitMask<Index, Mask> operator&(const BitMask<Index, Mask>& rhs) const {
+    return BitMask<Index, Mask>(mask_ & rhs.mask_);
   }
 
   std::string DebugString() const {
@@ -266,6 +284,8 @@ class QUIC_EXPORT_PRIVATE BitMask {
   constexpr Mask mask() const { return mask_; }
 
  private:
+  explicit constexpr BitMask(Mask mask) : mask_(mask) {}
+
   template <typename Bit>
   static constexpr std::enable_if_t<std::is_enum_v<Bit>, Mask> MakeMask(
       Bit bit) {

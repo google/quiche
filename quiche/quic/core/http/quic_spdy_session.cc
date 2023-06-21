@@ -16,6 +16,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/http_frames.h"
@@ -63,6 +64,8 @@ namespace {
 // Limit on HPACK encoder dynamic table size.
 // Only used for Google QUIC, not IETF QUIC.
 constexpr uint64_t kHpackEncoderDynamicTableSizeLimit = 16384;
+
+constexpr QuicStreamCount kDefaultMaxWebTransportSessions = 16;
 
 #define ENDPOINT \
   (perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
@@ -537,7 +540,19 @@ void QuicSpdySession::FillSettingsFrame() {
     }
   }
   if (WillNegotiateWebTransport()) {
-    settings_.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
+    WebTransportHttp3VersionSet versions =
+        LocallySupportedWebTransportVersions();
+    if (versions.IsSet(WebTransportHttp3Version::kDraft02)) {
+      settings_.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
+    }
+    if (versions.IsSet(WebTransportHttp3Version::kDraft07)) {
+      QUICHE_BUG_IF(
+          WT_enabled_extended_connect_disabled,
+          perspective() == Perspective::IS_SERVER && !allow_extended_connect())
+          << "WebTransport enabled, but extended CONNECT is not";
+      settings_.values[SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07] =
+          kDefaultMaxWebTransportSessions;
+    }
   }
   if (allow_extended_connect()) {
     settings_.values[SETTINGS_ENABLE_CONNECT_PROTOCOL] = 1;
@@ -889,7 +904,14 @@ void QuicSpdySession::OnNewEncryptionKeyAvailable(
   }
 }
 
-bool QuicSpdySession::ShouldNegotiateWebTransport() { return false; }
+bool QuicSpdySession::ShouldNegotiateWebTransport() const {
+  return LocallySupportedWebTransportVersions().Any();
+}
+
+WebTransportHttp3VersionSet
+QuicSpdySession::LocallySupportedWebTransportVersions() const {
+  return WebTransportHttp3VersionSet();
+}
 
 bool QuicSpdySession::WillNegotiateWebTransport() {
   return LocalHttpDatagramSupport() != HttpDatagramSupport::kNone &&
@@ -1019,6 +1041,10 @@ bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
     }
   }
 
+  if (!ValidateWebTransportSettingsConsistency()) {
+    return false;
+  }
+
   // This is the last point in the connection when we can receive new SETTINGS
   // values (ALPS and settings from the session ticket come before, and only one
   // SETTINGS frame per connection is allowed).  Notify all the streams that are
@@ -1036,6 +1062,40 @@ bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
     stream->OnDataAvailable();
   }
   streams_waiting_for_settings_.clear();
+
+  return true;
+}
+
+bool QuicSpdySession::ValidateWebTransportSettingsConsistency() {
+  // Only apply the following checks to draft-07 or later.
+  absl::optional<WebTransportHttp3Version> version =
+      NegotiatedWebTransportVersion();
+  if (!version.has_value() || *version == WebTransportHttp3Version::kDraft02) {
+    return true;
+  }
+
+  if (!allow_extended_connect_) {
+    CloseConnectionWithDetails(
+        QUIC_HTTP_INVALID_SETTING_VALUE,
+        "Negotiated use of WebTransport over HTTP/3 (draft-07 or later), but "
+        "failed to negotiate extended CONNECT");
+    return false;
+  }
+
+  if (http_datagram_support_ == HttpDatagramSupport::kDraft04) {
+    CloseConnectionWithDetails(
+        QUIC_HTTP_INVALID_SETTING_VALUE,
+        "WebTransport over HTTP/3 version draft-07 and beyond requires the "
+        "RFC version of HTTP datagrams");
+    return false;
+  }
+
+  if (http_datagram_support_ != HttpDatagramSupport::kRfc) {
+    CloseConnectionWithDetails(
+        QUIC_HTTP_INVALID_SETTING_VALUE,
+        "WebTransport over HTTP/3 requires HTTP datagrams support");
+    return false;
+  }
 
   return true;
 }
@@ -1216,14 +1276,32 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
           break;
         }
         QUIC_DVLOG(1) << ENDPOINT
-                      << "SETTINGS_ENABLE_WEBTRANSPORT received with value "
+                      << "SETTINGS_ENABLE_WEBTRANSPORT(02) received with value "
                       << value;
         if (!VerifySettingIsZeroOrOne(id, value)) {
           return false;
         }
-        peer_supports_webtransport_ = (value == 1);
-        if (perspective() == Perspective::IS_CLIENT && value == 1) {
-          allow_extended_connect_ = true;
+        if (value == 1) {
+          peer_web_transport_versions_.Set(WebTransportHttp3Version::kDraft02);
+          if (perspective() == Perspective::IS_CLIENT) {
+            allow_extended_connect_ = true;
+          }
+        }
+        break;
+      case SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07:
+        if (!WillNegotiateWebTransport()) {
+          break;
+        }
+        QUIC_DVLOG(1)
+            << ENDPOINT
+            << "SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07 received with value "
+            << value;
+        if (value > 0) {
+          peer_web_transport_versions_.Set(WebTransportHttp3Version::kDraft07);
+          if (perspective() == Perspective::IS_CLIENT) {
+            max_webtransport_sessions_[WebTransportHttp3Version::kDraft07] =
+                value;
+          }
         }
         break;
       default:
@@ -1699,7 +1777,15 @@ void QuicSpdySession::OnMessageReceived(absl::string_view message) {
 
 bool QuicSpdySession::SupportsWebTransport() {
   return WillNegotiateWebTransport() && SupportsH3Datagram() &&
-         peer_supports_webtransport_ && allow_extended_connect_;
+         NegotiatedWebTransportVersion().has_value() && allow_extended_connect_;
+}
+
+absl::optional<WebTransportHttp3Version>
+QuicSpdySession::SupportedWebTransportVersion() {
+  if (!SupportsWebTransport()) {
+    return absl::nullopt;
+  }
+  return NegotiatedWebTransportVersion();
 }
 
 bool QuicSpdySession::SupportsH3Datagram() const {

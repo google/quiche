@@ -278,8 +278,10 @@ TEST(QuicBitMaskTest, Enum) {
 
 TEST(QuicBitMaskTest, Integer) {
   BitMask<int> mask({1, 3});
+  EXPECT_EQ(mask.Max(), 3);
   mask.Set(3);
   mask.Set({5, 7, 9});
+  EXPECT_EQ(mask.Max(), 9);
   EXPECT_FALSE(mask.IsSet(0));
   EXPECT_TRUE(mask.IsSet(1));
   EXPECT_FALSE(mask.IsSet(2));
@@ -313,6 +315,24 @@ TEST(QuicBitMaskTest, Constructor) {
   }
 
   EXPECT_TRUE(std::is_trivially_copyable<BitMask<int>>::value);
+}
+
+TEST(QuicBitMaskTest, Any) {
+  BitMask<int> mask;
+  EXPECT_FALSE(mask.Any());
+  mask.Set(3);
+  EXPECT_TRUE(mask.Any());
+  mask.Set(2);
+  EXPECT_TRUE(mask.Any());
+  mask.ClearAll();
+  EXPECT_FALSE(mask.Any());
+}
+
+TEST(QuicBitMaskTest, And) {
+  using Mask = BitMask<int>;
+  EXPECT_EQ(Mask({1, 3, 6}) & Mask({3, 5, 6}), Mask({3, 6}));
+  EXPECT_EQ(Mask({1, 2, 4}) & Mask({3, 5}), Mask({}));
+  EXPECT_EQ(Mask({1, 2, 3, 4, 5}) & Mask({}), Mask({}));
 }
 
 }  // namespace

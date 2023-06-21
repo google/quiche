@@ -112,8 +112,8 @@ HttpDatagramSupport QuicSpdySessionPeer::LocalHttpDatagramSupport(
 // static
 void QuicSpdySessionPeer::EnableWebTransport(QuicSpdySession* session) {
   QUICHE_DCHECK(session->WillNegotiateWebTransport());
-  SetHttpDatagramSupport(session, HttpDatagramSupport::kDraft04);
-  session->peer_supports_webtransport_ = true;
+  SetHttpDatagramSupport(session, HttpDatagramSupport::kRfc);
+  session->peer_web_transport_versions_ = kDefaultSupportedWebTransportVersions;
 }
 
 }  // namespace test
