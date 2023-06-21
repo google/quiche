@@ -646,9 +646,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Whether the peer has indicated WebTransport support.
   bool peer_supports_webtransport_ = false;
 
-  // Whether any settings have been received, either from the peer or from a
-  // session ticket.
-  bool any_settings_received_ = false;
+  // Whether the SETTINGS frame has been received on the control stream.
+  bool settings_received_ = false;
 
   // If ShouldBufferRequestsUntilSettings() is true, all streams that are
   // blocked by that are tracked here.

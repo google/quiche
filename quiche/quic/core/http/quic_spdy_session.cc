@@ -465,9 +465,8 @@ QuicSpdySession::QuicSpdySession(
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
       debug_visitor_(nullptr),
       destruction_indicator_(123456789),
-      allow_extended_connect_(
-          perspective() == Perspective::IS_SERVER &&
-          VersionUsesHttp3(transport_version())) {
+      allow_extended_connect_(perspective() == Perspective::IS_SERVER &&
+                              VersionUsesHttp3(transport_version())) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -1019,6 +1018,13 @@ bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
       return false;
     }
   }
+
+  // This is the last point in the connection when we can receive new SETTINGS
+  // values (ALPS and settings from the session ticket come before, and only one
+  // SETTINGS frame per connection is allowed).  Notify all the streams that are
+  // blocking on having the definitive settings list.
+  QUICHE_DCHECK(!settings_received_);
+  settings_received_ = true;
   for (QuicStreamId stream_id : streams_waiting_for_settings_) {
     QUICHE_DCHECK(ShouldBufferRequestsUntilSettings());
     QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
@@ -1030,6 +1036,7 @@ bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
     stream->OnDataAvailable();
   }
   streams_waiting_for_settings_.clear();
+
   return true;
 }
 
@@ -1065,8 +1072,6 @@ bool QuicSpdySession::VerifySettingIsZeroOrOne(uint64_t id, uint64_t value) {
 }
 
 bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
-  any_settings_received_ = true;
-
   if (VersionUsesHttp3(transport_version())) {
     // SETTINGS frame received on the control stream.
     switch (id) {
@@ -1721,7 +1726,7 @@ bool QuicSpdySession::ShouldProcessIncomingRequests() {
     return true;
   }
 
-  return any_settings_received_;
+  return settings_received_;
 }
 
 void QuicSpdySession::OnStreamWaitingForClientSettings(QuicStreamId id) {
