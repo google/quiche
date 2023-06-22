@@ -205,6 +205,9 @@ OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
     if (session_.options_.allow_fragment_in_path) {
       validator_->SetAllowFragmentInPath();
     }
+    if (session_.options_.allow_different_host_and_authority) {
+      validator_->SetAllowDifferentHostAndAuthority();
+    }
   } else {
     QUICHE_VLOG(2) << "instantiating noop header validator";
     validator_ = std::make_unique<NoopHeaderValidator>();

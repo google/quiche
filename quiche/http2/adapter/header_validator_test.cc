@@ -247,6 +247,20 @@ TEST(HeaderValidatorTest, RequestHostAndAuthority) {
             v.ValidateSingleHeader("host", "www.bar.com"));
 }
 
+TEST(HeaderValidatorTest, RequestHostAndAuthorityLax) {
+  HeaderValidator v;
+  v.SetAllowDifferentHostAndAuthority();
+  v.StartHeaderBlock();
+  for (Header to_add : kSampleRequestPseudoheaders) {
+    EXPECT_EQ(HeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader(to_add.first, to_add.second));
+  }
+  // Since the option is set, validation succeeds even if "host" and
+  // ":authority" have different values.
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("host", "www.bar.com"));
+}
+
 TEST(HeaderValidatorTest, MethodHasInvalidChar) {
   HeaderValidator v;
   v.StartHeaderBlock();

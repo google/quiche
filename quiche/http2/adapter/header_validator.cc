@@ -320,6 +320,14 @@ bool HeaderValidator::ValidateAndSetAuthority(absl::string_view authority) {
   if (!IsValidAuthority(authority)) {
     return false;
   }
+  if (allow_different_host_and_authority_) {
+    if (!authority_.has_value()) {
+      authority_ = std::string(authority);
+    } else {
+      absl::StrAppend(&authority_.value(), ", ", authority);
+    }
+    return true;
+  }
   if (authority_.has_value() && authority != authority_.value()) {
     return false;
   }

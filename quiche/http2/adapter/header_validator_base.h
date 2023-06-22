@@ -57,6 +57,9 @@ class QUICHE_EXPORT HeaderValidatorBase {
   void SetAllowExtendedConnect() { allow_extended_connect_ = true; }
   void SetValidatePath() { validate_path_ = true; }
   void SetAllowFragmentInPath() { allow_fragment_in_path_ = true; }
+  void SetAllowDifferentHostAndAuthority() {
+    allow_different_host_and_authority_ = true;
+  }
 
  protected:
   std::string status_;
@@ -66,6 +69,7 @@ class QUICHE_EXPORT HeaderValidatorBase {
   bool allow_extended_connect_ = false;
   bool validate_path_ = false;
   bool allow_fragment_in_path_ = false;
+  bool allow_different_host_and_authority_ = false;
 };
 
 }  // namespace adapter

@@ -82,6 +82,9 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     // contradicts RFC 3986 Section 3.3.
     // TODO(birenroy): Flip the default value to false.
     bool allow_fragment_in_path = true;
+    // If true, allows different values for `host` and `:authority` headers to
+    // be present in request headers.
+    bool allow_different_host_and_authority = false;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);
