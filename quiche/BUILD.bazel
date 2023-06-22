@@ -111,6 +111,7 @@ cc_library(
         ":quic_flags_list",
         ":quiche_flags_list",
         ":quiche_platform_quiche_export",
+        "@boringssl//:crypto",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/base:log_severity",
         "@com_google_absl//absl/container:flat_hash_map",
