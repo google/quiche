@@ -469,6 +469,9 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
   }
   EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::REQUEST));
 
+  // The remainder of the checks require enabling path validation.
+  v.SetValidatePath();
+
   // A path that does not start with a slash should fail on finish.
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
@@ -488,11 +491,13 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
     const std::string value = absl::StrCat("/shawa", c, "rma");
 
     HeaderValidator validator;
+    validator.SetValidatePath();
     validator.StartHeaderBlock();
     for (Header to_add : kSampleRequestPseudoheaders) {
       if (to_add.first == ":path") {
         EXPECT_EQ(HeaderValidator::HEADER_OK,
-                  validator.ValidateSingleHeader(to_add.first, value));
+                  validator.ValidateSingleHeader(to_add.first, value))
+            << "Problematic char: [" << c << "]";
       } else {
         EXPECT_EQ(HeaderValidator::HEADER_OK,
                   validator.ValidateSingleHeader(to_add.first, to_add.second));
@@ -501,16 +506,35 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
     EXPECT_TRUE(validator.FinishHeaderBlock(HeaderType::REQUEST));
   }
 
-  // BUG: Various invalid path characters.
-  for (const absl::string_view c : {"[", "<", "}", "`", "\\", " ", "\t"}) {
+  // Various invalid path characters.
+  for (const absl::string_view c : {"[", "<", "}", "`", "\\", " ", "\t", "#"}) {
     const std::string value = absl::StrCat("/shawa", c, "rma");
 
     HeaderValidator validator;
+    validator.SetValidatePath();
+    validator.StartHeaderBlock();
+    for (Header to_add : kSampleRequestPseudoheaders) {
+      if (to_add.first == ":path") {
+        EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+                  validator.ValidateSingleHeader(to_add.first, value));
+      } else {
+        EXPECT_EQ(HeaderValidator::HEADER_OK,
+                  validator.ValidateSingleHeader(to_add.first, to_add.second));
+      }
+    }
+    EXPECT_FALSE(validator.FinishHeaderBlock(HeaderType::REQUEST));
+  }
+
+  // The fragment initial character can be explicitly allowed.
+  {
+    HeaderValidator validator;
+    validator.SetValidatePath();
+    validator.SetAllowFragmentInPath();
     validator.StartHeaderBlock();
     for (Header to_add : kSampleRequestPseudoheaders) {
       if (to_add.first == ":path") {
         EXPECT_EQ(HeaderValidator::HEADER_OK,
-                  validator.ValidateSingleHeader(to_add.first, value));
+                  validator.ValidateSingleHeader(to_add.first, "/shawa#rma"));
       } else {
         EXPECT_EQ(HeaderValidator::HEADER_OK,
                   validator.ValidateSingleHeader(to_add.first, to_add.second));

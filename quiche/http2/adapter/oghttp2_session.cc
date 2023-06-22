@@ -199,6 +199,12 @@ OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
   if (session_.options_.validate_http_headers) {
     QUICHE_VLOG(2) << "instantiating regular header validator";
     validator_ = std::make_unique<HeaderValidator>();
+    if (session_.options_.validate_path) {
+      validator_->SetValidatePath();
+    }
+    if (session_.options_.allow_fragment_in_path) {
+      validator_->SetAllowFragmentInPath();
+    }
   } else {
     QUICHE_VLOG(2) << "instantiating noop header validator";
     validator_ = std::make_unique<NoopHeaderValidator>();
