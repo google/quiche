@@ -1339,6 +1339,7 @@ void QuicCryptoServerConfig::EvaluateClientHello(
   // for DoS reasons then we must reject the CHLO.
   if (GetQuicReloadableFlag(quic_require_handshake_confirmation) &&
       info->server_nonce.empty()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_require_handshake_confirmation);
     info->reject_reasons.push_back(SERVER_NONCE_REQUIRED_FAILURE);
   }
   helper.ValidationComplete(QUIC_NO_ERROR, "",
