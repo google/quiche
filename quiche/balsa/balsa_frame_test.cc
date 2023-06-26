@@ -829,6 +829,7 @@ TEST(HTTPBalsaFrame, RequestLinesParsedProperly) {
       std::pair<std::string, std::string>("normal_key", "normal_value"),
   };
   const size_t headers_len = ABSL_ARRAYSIZE(headers);
+  HeaderLineTestHelper(firstline, true, headers, headers_len, ":", "\n");
   HeaderLineTestHelper(firstline, true, headers, headers_len, ": ", "\n");
   HeaderLineTestHelper(firstline, true, headers, headers_len, ": ", "\r\n");
   HeaderLineTestHelper(firstline, true, headers, headers_len, ":\t", "\n");
@@ -867,6 +868,7 @@ TEST(HTTPBalsaFrame, ResponseLinesParsedProperly) {
       std::pair<std::string, std::string>("normal_key", "normal_value"),
   };
   const size_t headers_len = ABSL_ARRAYSIZE(headers);
+  HeaderLineTestHelper(firstline, false, headers, headers_len, ":", "\n");
   HeaderLineTestHelper(firstline, false, headers, headers_len, ": ", "\n");
   HeaderLineTestHelper(firstline, false, headers, headers_len, ": ", "\r\n");
   HeaderLineTestHelper(firstline, false, headers, headers_len, ":\t", "\n");
@@ -927,6 +929,15 @@ TEST(HTTPBalsaFrame, WhitespaceInRequestsProcessedProperly) {
       " \r\n"
       "\r\n",
       true, BalsaFrameEnums::BALSA_NO_ERROR);
+  SCOPED_TRACE(
+      "Test a confusing and ambiguous case: is it a line continuation or a new "
+      "header field?");
+  WhitespaceHeaderTestHelper(
+      "GET / HTTP/1.1\r\n"
+      "test: test\r\n"
+      "  confusing:continued\r\n"
+      "\r\n",
+      true, BalsaFrameEnums::BALSA_NO_ERROR);
 }
 
 TEST(HTTPBalsaFrame, WhitespaceInResponsesProcessedProperly) {
@@ -951,6 +962,16 @@ TEST(HTTPBalsaFrame, WhitespaceInResponsesProcessedProperly) {
       "HTTP/1.0 200 Reason\r\n"
       "test: test\r\n"
       " \r\n"
+      "Content-Length: 0\r\n"
+      "\r\n",
+      false, BalsaFrameEnums::BALSA_NO_ERROR);
+  SCOPED_TRACE(
+      "Test a confusing and ambiguous case: is it a line continuation or a new "
+      "header field?");
+  WhitespaceHeaderTestHelper(
+      "HTTP/1.0 200 Reason\r\n"
+      "test: test\r\n"
+      "   confusing:continued\r\n"
       "Content-Length: 0\r\n"
       "\r\n",
       false, BalsaFrameEnums::BALSA_NO_ERROR);
@@ -1001,7 +1022,7 @@ TEST_F(HTTPBalsaFrameTest, VisitorInvokedProperlyForRequestWithBlankLines) {
 }
 
 TEST_F(HTTPBalsaFrameTest,
-       VisitorInvokedProperlyForRequestWitSplithBlankLines) {
+       VisitorInvokedProperlyForRequestWithSplitBlankLines) {
   std::string blanks =
       "\n"
       "\n"
