@@ -2581,9 +2581,6 @@ class BalsaFrameParsingTest : public QuicheTest {
 };
 
 TEST_F(BalsaFrameParsingTest, AppropriateActionTakenWhenHeaderColonsAreFunny) {
-  // Believe it or not, the following message is not structured willy-nilly.
-  // It is structured so that both codepaths in both SSE2 and non SSE2 paths
-  // for finding colons are exersized.
   std::string message =
       "GET / HTTP/1.1\r\n"
       "a\r\n"
@@ -3285,6 +3282,18 @@ TEST_F(HTTPBalsaFrameTest, KeyHasMultipleContinuations) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER,
             balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, KeyHasDoubleQuote) {
+  const std::string message =
+      "GET / HTTP/1.1\r\n"
+      "key\"hasquote: lock\r\n"
+      "\r\n";
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_TRUE(headers_.HasHeader("key\"hasquote"));
 }
 
 // Missing colon is a warning, not an error.
