@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "quiche/blind_sign_auth/proto/public_metadata.pb.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
@@ -58,6 +59,7 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
       std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback);
   absl::Status FingerprintPublicMetadata(
       const privacy::ppn::PublicMetadata& metadata, uint64_t* fingerprint);
+  absl::StatusCode HttpCodeToStatusCode(int http_code);
 
   BlindSignHttpInterface* http_fetcher_ = nullptr;
 };
