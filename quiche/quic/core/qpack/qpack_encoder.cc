@@ -93,16 +93,11 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
       blocking_manager_.known_received_count();
 
   // The index of the oldest entry that must not be evicted. Blocking entries
-  // must not be evicted.
-  uint64_t smallest_non_evictable_index =
-      blocking_manager_.smallest_blocking_index();
-  // Additionally, unacknowledged entries must not be evicted, even if they have
-  // no outstanding references (see https://crbug.com/1441880 for more context).
-  if (GetQuicReloadableFlag(quic_do_not_evict_unacked_entry)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_do_not_evict_unacked_entry);
-    smallest_non_evictable_index =
-        std::min(smallest_non_evictable_index, known_received_count);
-  }
+  // must not be evicted. Also, unacknowledged entries must not be evicted,
+  // even if they have no outstanding references (see https://crbug.com/1441880
+  // for more context).
+  uint64_t smallest_non_evictable_index = std::min(
+      blocking_manager_.smallest_blocking_index(), known_received_count);
 
   // Only entries with index greater than or equal to |draining_index| are
   // allowed to be referenced.

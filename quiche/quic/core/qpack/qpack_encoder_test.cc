@@ -675,33 +675,14 @@ TEST_F(QpackEncoderTest, UnackedEntryCannotBeEvicted) {
   spdy::Http2HeaderBlock header_list2;
   header_list2["bar"] = "baz";
 
-  if (GetQuicReloadableFlag(quic_do_not_evict_unacked_entry)) {
-    EXPECT_EQ(absl::HexStringToBytes("0000"        // prefix
-                                     "23626172"    // literal name "bar"
-                                     "0362617a"),  // literal value "baz"
-              encoder_.EncodeHeaderList(/* stream_id = */ 2, header_list2,
-                                        &encoder_stream_sent_byte_count_));
+  EXPECT_EQ(absl::HexStringToBytes("0000"        // prefix
+                                   "23626172"    // literal name "bar"
+                                   "0362617a"),  // literal value "baz"
+            encoder_.EncodeHeaderList(/* stream_id = */ 2, header_list2,
+                                      &encoder_stream_sent_byte_count_));
 
-    EXPECT_EQ(1u, header_table->inserted_entry_count());
-    EXPECT_EQ(0u, header_table->dropped_entry_count());
-  } else {
-    // Insert one entry into the dynamic table, evicting the first entry.
-    std::string insert_entries2 = absl::HexStringToBytes(
-        "43"          // insert without name reference
-        "626172"      // name "bar"
-        "0362617a");  // value "baz"
-    EXPECT_CALL(encoder_stream_sender_delegate_,
-                WriteStreamData(Eq(insert_entries2)));
-
-    EXPECT_EQ(
-        absl::HexStringToBytes("0100"  // prefix
-                               "80"),  // dynamic entry with relative index 0
-        encoder_.EncodeHeaderList(/* stream_id = */ 2, header_list2,
-                                  &encoder_stream_sent_byte_count_));
-
-    EXPECT_EQ(2u, header_table->inserted_entry_count());
-    EXPECT_EQ(1u, header_table->dropped_entry_count());
-  }
+  EXPECT_EQ(1u, header_table->inserted_entry_count());
+  EXPECT_EQ(0u, header_table->dropped_entry_count());
 }
 
 }  // namespace
