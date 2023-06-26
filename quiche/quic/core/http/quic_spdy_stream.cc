@@ -534,7 +534,7 @@ void QuicSpdyStream::OnStreamHeaderList(bool fin, size_t frame_len,
       return;
     }
   }
-  if (!headers_decompressed_) {
+  if (!NextHeaderIsTrailer()) {
     OnInitialHeadersComplete(fin, frame_len, header_list);
   } else {
     OnTrailingHeadersComplete(fin, frame_len, header_list);

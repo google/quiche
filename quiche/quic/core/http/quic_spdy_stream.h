@@ -425,6 +425,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Called when a datagram frame or capsule is received.
   void HandleReceivedDatagram(absl::string_view payload);
 
+  // Whether the next received header is trailer or not.
+  virtual bool NextHeaderIsTrailer() const { return headers_decompressed_; }
+
   QuicSpdySession* spdy_session_;
 
   bool on_body_available_called_because_sequencer_is_closed_;
