@@ -3296,6 +3296,22 @@ TEST_F(HTTPBalsaFrameTest, KeyHasDoubleQuote) {
   EXPECT_TRUE(headers_.HasHeader("key\"hasquote"));
 }
 
+TEST_F(HTTPBalsaFrameTest, KeyHasDisallowedDoubleQuote) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_double_quote_in_header_name = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  const std::string message =
+      "GET / HTTP/1.1\r\n"
+      "key\"hasquote: lock\r\n"
+      "\r\n";
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER,
+            balsa_frame_.ErrorCode());
+}
+
 // Missing colon is a warning, not an error.
 TEST_F(HTTPBalsaFrameTest, TrailerMissingColon) {
   std::string headers =

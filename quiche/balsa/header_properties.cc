@@ -68,6 +68,15 @@ std::array<bool, 256> buildInvalidHeaderKeyCharLookupTable() {
   return invalidCharTable;
 }
 
+std::array<bool, 256> buildInvalidHeaderKeyCharLookupTableAllowDoubleQuote() {
+  std::array<bool, 256> invalidCharTable;
+  invalidCharTable.fill(false);
+  for (uint8_t c : kInvalidHeaderKeyCharListAllowDoubleQuote) {
+    invalidCharTable[c] = true;
+  }
+  return invalidCharTable;
+}
+
 std::array<bool, 256> buildInvalidCharLookupTable() {
   std::array<bool, 256> invalidCharTable;
   invalidCharTable.fill(false);
@@ -88,6 +97,13 @@ bool IsMultivaluedHeader(absl::string_view header) {
 bool IsInvalidHeaderKeyChar(uint8_t c) {
   static const std::array<bool, 256> invalidHeaderKeyCharTable =
       buildInvalidHeaderKeyCharLookupTable();
+
+  return invalidHeaderKeyCharTable[c];
+}
+
+bool IsInvalidHeaderKeyCharAllowDoubleQuote(uint8_t c) {
+  static const std::array<bool, 256> invalidHeaderKeyCharTable =
+      buildInvalidHeaderKeyCharLookupTableAllowDoubleQuote();
 
   return invalidHeaderKeyCharTable[c];
 }

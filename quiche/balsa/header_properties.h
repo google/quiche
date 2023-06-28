@@ -21,13 +21,23 @@ QUICHE_EXPORT bool IsMultivaluedHeader(absl::string_view header);
 // An array of characters that are invalid in HTTP header field names.
 // These are control characters, including \t, \n, \r, as well as space and
 // (),/;<=>?@[\]{} and \x7f (see
+// https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.2, also
 // https://tools.ietf.org/html/rfc7230#section-3.2.6).
 inline constexpr char kInvalidHeaderKeyCharList[] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
     0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13,
     0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
+    0x1E, 0x1F, ' ',  '"',  '(',  ')',  ',',  '/',  ';',  '<',
+    '=',  '>',  '?',  '@',  '[',  '\\', ']',  '{',  '}',  0x7F};
+
+// This is a non-compliant variant of `kInvalidHeaderKeyCharList`
+// that allows the character '"'.
+inline constexpr char kInvalidHeaderKeyCharListAllowDoubleQuote[] = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13,
+    0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
     0x1E, 0x1F, ' ',  '(',  ')',  ',',  '/',  ';',  '<',  '=',
-    '>',  '?',  '@',  '[',  '\\', ']',  '{',  '}',  0x7f};
+    '>',  '?',  '@',  '[',  '\\', ']',  '{',  '}',  0x7F};
 
 // An array of characters that are invalid in HTTP header field values,
 // according to RFC 7230 Section 3.2.  Valid low characters not in this array
@@ -38,8 +48,10 @@ inline constexpr char kInvalidHeaderCharList[] = {
     0x0C, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
     0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x7F};
 
-// Returns true if the given `c` is invalid in a header field name.
+// Returns true if the given `c` is invalid in a header field name. The first
+// version is spec compliant, the second one incorrectly allows '"'.
 QUICHE_EXPORT bool IsInvalidHeaderKeyChar(uint8_t c);
+QUICHE_EXPORT bool IsInvalidHeaderKeyCharAllowDoubleQuote(uint8_t c);
 // Returns true if the given `c` is invalid in a header field or the `value` has
 // invalid characters.
 QUICHE_EXPORT bool IsInvalidHeaderChar(uint8_t c);
