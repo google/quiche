@@ -127,6 +127,9 @@ class QuicSpdyClientBase : public QuicClientBase,
   const std::string& latest_response_body() const;
   const std::string& latest_response_trailers() const;
 
+  QuicTime::Delta latest_ttlb() const { return latest_ttlb_; }
+  QuicTime::Delta latest_ttfb() const { return latest_ttfb_; }
+
   void set_response_listener(std::unique_ptr<ResponseListener> listener) {
     response_listener_ = std::move(listener);
   }
@@ -214,6 +217,9 @@ class QuicSpdyClientBase : public QuicClientBase,
   std::string latest_response_body_;
   // HTTP/2 trailers from most recent response.
   std::string latest_response_trailers_;
+
+  QuicTime::Delta latest_ttfb_ = QuicTime::Delta::Infinite();
+  QuicTime::Delta latest_ttlb_ = QuicTime::Delta::Infinite();
 
   // Listens for full responses.
   std::unique_ptr<ResponseListener> response_listener_;

@@ -82,7 +82,8 @@ bool QuicSpdyClientStream::ParseAndValidateStatusCode() {
 void QuicSpdyClientStream::OnInitialHeadersComplete(
     bool fin, size_t frame_len, const QuicHeaderList& header_list) {
   QuicSpdyStream::OnInitialHeadersComplete(fin, frame_len, header_list);
-
+  time_to_response_headers_received_ =
+      session()->GetClock()->ApproximateNow() - creation_time();
   QUICHE_DCHECK(headers_decompressed());
   header_bytes_read_ += frame_len;
   if (rst_sent()) {
@@ -219,6 +220,12 @@ bool QuicSpdyClientStream::ValidatedRequestHeaders(
     return false;
   }
   return saw_status;
+}
+
+void QuicSpdyClientStream::OnFinRead() {
+  time_to_response_complete_ =
+      session()->GetClock()->ApproximateNow() - creation_time();
+  QuicSpdyStream::OnFinRead();
 }
 
 }  // namespace quic

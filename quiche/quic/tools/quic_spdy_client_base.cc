@@ -96,6 +96,8 @@ void QuicSpdyClientBase::OnClose(QuicSpdyStream* stream) {
     latest_response_body_ = std::string(client_stream->data());
     latest_response_trailers_ =
         client_stream->received_trailers().DebugString();
+    latest_ttfb_ = client_stream->time_to_response_headers_received();
+    latest_ttlb_ = client_stream->time_to_response_complete();
   }
 }
 

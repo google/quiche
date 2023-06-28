@@ -502,6 +502,9 @@ int QuicToyClient::SendRequestsAndPrintResponses(
                 << std::endl;
       std::cout << "early data accepted: " << client->EarlyDataAccepted()
                 << std::endl;
+      QUIC_LOG(INFO) << "Request completed with TTFB(us): "
+                     << client->latest_ttfb().ToMicroseconds() << ", TTLB(us): "
+                     << client->latest_ttlb().ToMicroseconds();
     }
 
     if (!client->connected()) {
