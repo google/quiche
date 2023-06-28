@@ -91,6 +91,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     virtual void OnOvershootingDetected() {}
 
     virtual void OnConfigProcessed(const SendParameters& /*parameters*/) {}
+
+    virtual void OnSendAlgorithmChanged(CongestionControlType /*type*/) {}
   };
 
   // Interface which gets callbacks from the QuicSentPacketManager when

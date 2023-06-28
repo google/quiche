@@ -1166,6 +1166,10 @@ void QuicSentPacketManager::SetSendAlgorithm(
 
 void QuicSentPacketManager::SetSendAlgorithm(
     SendAlgorithmInterface* send_algorithm) {
+  if (debug_delegate_ != nullptr && send_algorithm != nullptr) {
+    debug_delegate_->OnSendAlgorithmChanged(
+        send_algorithm->GetCongestionControlType());
+  }
   send_algorithm_.reset(send_algorithm);
   pacing_sender_.set_sender(send_algorithm);
 }
