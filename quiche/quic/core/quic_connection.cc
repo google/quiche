@@ -5489,10 +5489,13 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
     if (type == PADDING_FRAME &&
         current_packet_content_ == FIRST_FRAME_IS_PING) {
       current_packet_content_ = SECOND_FRAME_IS_PADDING;
-      QUIC_CODE_COUNT(gquic_padded_ping_received);
+      QUIC_CODE_COUNT_N(gquic_padded_ping_received, 1, 2);
       if (perspective_ == Perspective::IS_SERVER) {
         is_current_packet_connectivity_probing_ =
             current_effective_peer_migration_type_ != NO_CHANGE;
+        if (is_current_packet_connectivity_probing_) {
+          QUIC_CODE_COUNT_N(gquic_padded_ping_received, 2, 2);
+        }
         QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
             << ENDPOINT
             << "Detected connectivity probing packet. "
