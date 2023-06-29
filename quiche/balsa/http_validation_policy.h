@@ -48,6 +48,12 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // INVALID_TRAILER_NAME_CHARACTER error if the header or trailer name contains
   // the character '"'.
   bool disallow_double_quote_in_header_name = false;
+
+  // If true, then signal an INVALID_HEADER_CHARACTER warning or error, or
+  // neither, depending on InvalidCharsLevel, if a response header contains an
+  // invalid character. Invalid characters are always disallowed according to
+  // InvalidCharsLevel in request headers.
+  bool disallow_invalid_header_characters_in_response = false;
 };
 
 }  // namespace quiche

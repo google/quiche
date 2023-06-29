@@ -3576,7 +3576,7 @@ TEST_F(HTTPBalsaFrameTest, InvalidCharsInHeaderKeyError) {
   EXPECT_FALSE(balsa_frame_.MessageFullyRead());
 }
 
-TEST_F(HTTPBalsaFrameTest, InvalidCharsInHeaderError) {
+TEST_F(HTTPBalsaFrameTest, InvalidCharsInRequestHeaderError) {
   balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
   const std::string kEscapedInvalid =
       "GET /foo HTTP/1.1\r\n"
@@ -3591,6 +3591,43 @@ TEST_F(HTTPBalsaFrameTest, InvalidCharsInHeaderError) {
   balsa_frame_.ProcessInput(message.data(), message.size());
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_FALSE(balsa_frame_.MessageFullyRead());
+}
+
+TEST_F(HTTPBalsaFrameTest, InvalidCharsInResponseHeaderAllowed) {
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
+
+  const absl::string_view headers =
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Length: 5\r\n"
+      "foo: a\022b\r\n"
+      "\r\n";
+  EXPECT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, InvalidCharsInResponseHeaderError) {
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
+
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_invalid_header_characters_in_response = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  const absl::string_view headers =
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Length: 5\r\n"
+      "foo: a\022b\r\n"
+      "\r\n";
+  EXPECT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::INVALID_HEADER_CHARACTER,
+            balsa_frame_.ErrorCode());
 }
 
 class HTTPBalsaFrameTestOneChar : public HTTPBalsaFrameTest,

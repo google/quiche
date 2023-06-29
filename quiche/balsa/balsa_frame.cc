@@ -564,7 +564,9 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
   QUICHE_DCHECK(!lines.empty());
   QUICHE_DVLOG(1) << "******@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@**********\n";
 
-  if (is_request() && track_invalid_chars()) {
+  if ((is_request() || http_validation_policy()
+                           .disallow_invalid_header_characters_in_response) &&
+      track_invalid_chars()) {
     if (CheckHeaderLinesForInvalidChars(lines, headers)) {
       if (invalid_chars_error_enabled()) {
         HandleError(BalsaFrameEnums::INVALID_HEADER_CHARACTER);
