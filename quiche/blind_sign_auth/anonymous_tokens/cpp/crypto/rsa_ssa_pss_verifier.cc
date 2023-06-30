@@ -35,30 +35,6 @@
 
 namespace private_membership {
 namespace anonymous_tokens {
-namespace {
-
-absl::StatusOr<bssl::UniquePtr<RSA>> CreatePublicKeyWithPublicMetadata(
-    const absl::string_view rsa_modulus,
-    const absl::string_view rsa_public_exponent,
-    const absl::string_view public_metadata) {
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_n,
-                               StringToBignum(rsa_modulus));
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_e,
-                               StringToBignum(rsa_public_exponent));
-  ANON_TOKENS_ASSIGN_OR_RETURN(
-      bssl::UniquePtr<BIGNUM> derived_rsa_e,
-      ComputeFinalExponentUnderPublicMetadata(*rsa_n.get(), *rsa_e.get(),
-                                              public_metadata));
-  bssl::UniquePtr<RSA> rsa_public_key = bssl::UniquePtr<RSA>(
-      RSA_new_public_key_large_e(rsa_n.get(), derived_rsa_e.get()));
-  if (!rsa_public_key.get()) {
-    return absl::InternalError(
-        absl::StrCat("RSA_new_public_key_large_e failed: ", GetSslErrors()));
-  }
-  return rsa_public_key;
-}
-
-}  // namespace
 
 absl::StatusOr<std::unique_ptr<RsaSsaPssVerifier>> RsaSsaPssVerifier::New(
     const int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
@@ -75,7 +51,7 @@ absl::StatusOr<std::unique_ptr<RsaSsaPssVerifier>> RsaSsaPssVerifier::New(
     //
     // Empty string is a valid public metadata value.
     ANON_TOKENS_ASSIGN_OR_RETURN(
-        rsa_public_key, CreatePublicKeyWithPublicMetadata(
+        rsa_public_key, CreatePublicKeyRSAWithPublicMetadata(
                             public_key.n(), public_key.e(), *public_metadata));
   }
 

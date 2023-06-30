@@ -144,6 +144,13 @@ absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
 CreatePublicKeyRSA(absl::string_view rsa_modulus,
                    absl::string_view public_exponent);
 
+// Create bssl::UniquePtr<RSA> representing a RSA public key derived using
+// public metadata.
+absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
+CreatePublicKeyRSAWithPublicMetadata(absl::string_view rsa_modulus,
+                                     absl::string_view public_exponent,
+                                     absl::string_view public_metadata);
+
 // Compute exponent based only on the public metadata. Assumes that n is a safe
 // modulus i.e. it produces a strong RSA key pair. If not, the exponent may be
 // invalid.

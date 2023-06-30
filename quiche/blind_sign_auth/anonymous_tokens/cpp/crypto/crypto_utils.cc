@@ -328,6 +328,27 @@ absl::StatusOr<bssl::UniquePtr<RSA>> CreatePublicKeyRSA(
   return rsa_public_key;
 }
 
+absl::StatusOr<bssl::UniquePtr<RSA>> CreatePublicKeyRSAWithPublicMetadata(
+    const absl::string_view rsa_modulus,
+    const absl::string_view public_exponent,
+    const absl::string_view public_metadata) {
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_n,
+                               StringToBignum(rsa_modulus));
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_e,
+                               StringToBignum(public_exponent));
+  ANON_TOKENS_ASSIGN_OR_RETURN(
+      bssl::UniquePtr<BIGNUM> derived_rsa_e,
+      ComputeFinalExponentUnderPublicMetadata(*rsa_n.get(), *rsa_e.get(),
+                                              public_metadata));
+  bssl::UniquePtr<RSA> rsa_public_key = bssl::UniquePtr<RSA>(
+      RSA_new_public_key_large_e(rsa_n.get(), derived_rsa_e.get()));
+  if (!rsa_public_key.get()) {
+    return absl::InternalError(
+        absl::StrCat("RSA_new_public_key_large_e failed: ", GetSslErrors()));
+  }
+  return rsa_public_key;
+}
+
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> ComputeCarmichaelLcm(
     const BIGNUM& phi_p, const BIGNUM& phi_q, BN_CTX& bn_ctx) {
   // To compute lcm(phi(p), phi(q)), we first compute phi(n) =

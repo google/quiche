@@ -353,12 +353,16 @@ class CryptoUtilsTest
  protected:
   void SetUp() override {
     const auto [_, private_key] = (*GetParam())();
+    private_key_ = private_key;
+
     ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_modulus_,
-                                     StringToBignum(private_key.n));
-    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_e_, StringToBignum(private_key.e));
-    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_p_, StringToBignum(private_key.p));
-    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_q_, StringToBignum(private_key.q));
+                                     StringToBignum(private_key_.n));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_e_, StringToBignum(private_key_.e));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_p_, StringToBignum(private_key_.p));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(rsa_q_, StringToBignum(private_key_.q));
   }
+
+  TestRsaPrivateKey private_key_;
 
   bssl::UniquePtr<BIGNUM> rsa_modulus_;
   bssl::UniquePtr<BIGNUM> rsa_e_;
@@ -460,6 +464,17 @@ TEST_P(CryptoUtilsTest, ModifiedPublicExponentWithEmptyPublicMetadata) {
                                        *rsa_modulus_.get(), *rsa_e_.get(), ""));
 
   EXPECT_NE(BN_cmp(new_public_exp.get(), rsa_e_.get()), 0);
+}
+
+TEST_P(CryptoUtilsTest, CreateRsaPublicKeyWithPublicMetadataSuccessfully) {
+  std::string metadata = "md";
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      bssl::UniquePtr<RSA> rsa_public_key,
+      CreatePublicKeyRSAWithPublicMetadata(private_key_.n, private_key_.e,
+                                           metadata));
+
+  EXPECT_EQ(BN_cmp(RSA_get0_n(rsa_public_key.get()), rsa_modulus_.get()), 0);
+  EXPECT_NE(BN_cmp(RSA_get0_e(rsa_public_key.get()), rsa_e_.get()), 0);
 }
 
 INSTANTIATE_TEST_SUITE_P(CryptoUtilsTest, CryptoUtilsTest,
