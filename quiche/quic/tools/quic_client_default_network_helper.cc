@@ -16,37 +16,6 @@
 
 namespace quic {
 
-namespace {
-
-// For level-triggered I/O, we need to manually rearm the kSocketEventWritable
-// listener whenever the socket gets blocked.
-class LevelTriggeredPacketWriter : public QuicDefaultPacketWriter {
- public:
-  explicit LevelTriggeredPacketWriter(SocketFd fd, QuicEventLoop* event_loop)
-      : QuicDefaultPacketWriter(fd), event_loop_(event_loop) {
-    QUICHE_DCHECK(!event_loop->SupportsEdgeTriggered());
-  }
-
-  WriteResult WritePacket(const char* buffer, size_t buf_len,
-                          const QuicIpAddress& self_address,
-                          const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options,
-                          const QuicPacketWriterParams& params) override {
-    WriteResult result = QuicDefaultPacketWriter::WritePacket(
-        buffer, buf_len, self_address, peer_address, options, params);
-    if (IsWriteBlockedStatus(result.status)) {
-      bool success = event_loop_->RearmSocket(fd(), kSocketEventWritable);
-      QUICHE_DCHECK(success);
-    }
-    return result;
-  }
-
- private:
-  QuicEventLoop* event_loop_;
-};
-
-}  // namespace
-
 QuicClientDefaultNetworkHelper::QuicClientDefaultNetworkHelper(
     QuicEventLoop* event_loop, QuicClientBase* client)
     : event_loop_(event_loop),
@@ -190,7 +159,7 @@ QuicPacketWriter* QuicClientDefaultNetworkHelper::CreateQuicPacketWriter() {
   if (event_loop_->SupportsEdgeTriggered()) {
     return new QuicDefaultPacketWriter(GetLatestFD());
   } else {
-    return new LevelTriggeredPacketWriter(GetLatestFD(), event_loop_);
+    return new QuicLevelTriggeredPacketWriter(GetLatestFD(), event_loop_);
   }
 }
 

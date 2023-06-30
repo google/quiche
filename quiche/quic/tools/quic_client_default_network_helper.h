@@ -11,6 +11,7 @@
 
 #include "absl/types/optional.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_default_packet_writer.h"
 #include "quiche/quic/core/quic_packet_reader.h"
 #include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/tools/quic_client_base.h"
@@ -21,6 +22,34 @@ namespace quic {
 namespace test {
 class QuicClientPeer;
 }  // namespace test
+
+// For level-triggered I/O, we need to manually rearm the kSocketEventWritable
+// listener whenever the socket gets blocked.
+class QuicLevelTriggeredPacketWriter : public QuicDefaultPacketWriter {
+ public:
+  explicit QuicLevelTriggeredPacketWriter(SocketFd fd,
+                                          QuicEventLoop* event_loop)
+      : QuicDefaultPacketWriter(fd), event_loop_(event_loop) {
+    QUICHE_DCHECK(!event_loop->SupportsEdgeTriggered());
+  }
+
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
+                          const QuicIpAddress& self_address,
+                          const QuicSocketAddress& peer_address,
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override {
+    WriteResult result = QuicDefaultPacketWriter::WritePacket(
+        buffer, buf_len, self_address, peer_address, options, params);
+    if (IsWriteBlockedStatus(result.status)) {
+      bool success = event_loop_->RearmSocket(fd(), kSocketEventWritable);
+      QUICHE_DCHECK(success);
+    }
+    return result;
+  }
+
+ private:
+  QuicEventLoop* event_loop_;
+};
 
 // An implementation of the QuicClientBase::NetworkHelper interface that is
 // based on the QuicEventLoop API.
