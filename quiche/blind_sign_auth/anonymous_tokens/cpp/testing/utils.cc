@@ -79,10 +79,12 @@ absl::StatusOr<std::string> TestSignWithPublicMetadata(
         "Expected blind data size = ", RSA_size(&rsa_key),
         " actual blind data size = ", blinded_data.size(), " bytes."));
   }
+  // Compute new public exponent using the public metadata.
   ANON_TOKENS_ASSIGN_OR_RETURN(
       bssl::UniquePtr<BIGNUM> new_e,
       ComputeFinalExponentUnderPublicMetadata(
           *RSA_get0_n(&rsa_key), *RSA_get0_e(&rsa_key), public_metadata));
+
   // Compute phi(p) = p-1
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> phi_p, NewBigNum());
   if (BN_sub(phi_p.get(), RSA_get0_p(&rsa_key), BN_value_one()) != 1) {
@@ -108,6 +110,7 @@ absl::StatusOr<std::string> TestSignWithPublicMetadata(
     return absl::InternalError(absl::StrCat(
         "Could not compute LCM(phi(p), phi(q)): ", GetSslErrors()));
   }
+
   // Compute the new private exponent new_d
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> new_d, NewBigNum());
   if (!BN_mod_inverse(new_d.get(), new_e.get(), lcm.get(), ctx.get())) {
@@ -115,29 +118,23 @@ absl::StatusOr<std::string> TestSignWithPublicMetadata(
         absl::StrCat("Could not compute private exponent d: ", GetSslErrors()));
   }
 
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> input_bn,
-                               StringToBignum(blinded_data));
-  if (BN_ucmp(input_bn.get(), RSA_get0_n(&rsa_key)) >= 0) {
-    return absl::InvalidArgumentError(
-        "RsaSign input size too large for modulus size");
-  }
+  // Compute new_dpm1 = new_d mod p-1
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> new_dpm1, NewBigNum());
+  BN_mod(new_dpm1.get(), new_d.get(), phi_p.get(), ctx.get());
+  // Compute new_dqm1 = new_d mod q-1
+  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> new_dqm1, NewBigNum());
+  BN_mod(new_dqm1.get(), new_d.get(), phi_q.get(), ctx.get());
 
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> result, NewBigNum());
-  if (!BN_mod_exp(result.get(), input_bn.get(), new_d.get(),
-                  RSA_get0_n(&rsa_key), ctx.get())) {
+  RSA* derived_private_key = RSA_new_private_key_large_e(
+      RSA_get0_n(&rsa_key), new_e.get(), new_d.get(), RSA_get0_p(&rsa_key),
+      RSA_get0_q(&rsa_key), new_dpm1.get(), new_dqm1.get(),
+      RSA_get0_iqmp(&rsa_key));
+  if (!derived_private_key) {
     return absl::InternalError(
-        "BN_mod_exp failed in TestSignWithPublicMetadata");
+        absl::StrCat("RSA_new_private_key_large_e failed: ", GetSslErrors()));
   }
 
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> vrfy, NewBigNum());
-  if (vrfy == nullptr ||
-      !BN_mod_exp(vrfy.get(), result.get(), new_e.get(), RSA_get0_n(&rsa_key),
-                  ctx.get()) ||
-      BN_cmp(vrfy.get(), input_bn.get()) != 0) {
-    return absl::InternalError("Signature verification failed in RsaSign");
-  }
-
-  return BignumToString(*result, BN_num_bytes(RSA_get0_n(&rsa_key)));
+  return TestSign(blinded_data, derived_private_key);
 }
 
 IetfStandardRsaBlindSignatureTestVector
