@@ -60,9 +60,9 @@ absl::StatusOr<std::string> TestSign(const absl::string_view blinded_data,
     return absl::InternalError(
         "RSA_sign_raw failed when called from RsaBlindSigner::Sign");
   }
-  if (out_len != mod_size && out_len == signature.size()) {
+  if (out_len != mod_size || out_len != signature.size()) {
     return absl::InternalError(absl::StrCat(
-        "Expected value of out_len = ", mod_size,
+        "Expected value of out_len and signature.size() = ", mod_size,
         " bytes, actual value of out_len and signature.size() = ", out_len,
         " and ", signature.size(), " bytes."));
   }
