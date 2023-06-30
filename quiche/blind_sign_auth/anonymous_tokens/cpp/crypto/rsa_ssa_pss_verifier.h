@@ -58,21 +58,16 @@ class QUICHE_EXPORT RsaSsaPssVerifier : public Verifier {
   RsaSsaPssVerifier(int salt_length,
                     std::optional<absl::string_view> public_metadata,
                     const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
-                    bssl::UniquePtr<RSA> rsa_public_key,
-                    bssl::UniquePtr<BIGNUM> rsa_modulus,
-                    bssl::UniquePtr<BIGNUM> augmented_rsa_e);
+                    bssl::UniquePtr<RSA> rsa_public_key);
 
   const int salt_length_;
   std::optional<std::string> public_metadata_;
-  const EVP_MD* sig_hash_;   // Owned by BoringSSL.
-  const EVP_MD* mgf1_hash_;  // Owned by BoringSSL.
+  const EVP_MD* const sig_hash_;   // Owned by BoringSSL.
+  const EVP_MD* const mgf1_hash_;  // Owned by BoringSSL.
 
+  // If public metadata is passed to RsaSsaPssVerifier::New, rsa_public_key_
+  // will be initialized using RSA_new_public_key_large_e method.
   const bssl::UniquePtr<RSA> rsa_public_key_;
-  // Storing RSA modulus separately for helping with BN computations.
-  const bssl::UniquePtr<BIGNUM> rsa_modulus_;
-  // If public metadata is not supported, augmented_rsa_e_ will be equal to
-  // public exponent e in rsa_public_key_.
-  const bssl::UniquePtr<BIGNUM> augmented_rsa_e_;
 };
 
 }  // namespace anonymous_tokens
