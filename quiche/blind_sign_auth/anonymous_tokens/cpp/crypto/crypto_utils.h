@@ -126,6 +126,9 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT
 ComputeCarmichaelLcm(const BIGNUM& phi_p, const BIGNUM& phi_q, BN_CTX& bn_ctx);
 
 // Create bssl::UniquePtr<RSA> representing a RSA private key.
+//
+// Note that this method should not be used to create a key with public exponent
+// greater than 2^32.
 absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
 CreatePrivateKeyRSA(absl::string_view rsa_modulus,
                     absl::string_view public_exponent,
@@ -134,6 +137,9 @@ CreatePrivateKeyRSA(absl::string_view rsa_modulus,
                     absl::string_view dq, absl::string_view crt);
 
 // Create bssl::UniquePtr<RSA> representing a RSA public key.
+//
+// Note that this method should not be used to create a key with public exponent
+// greater than 2^32.
 absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
 CreatePublicKeyRSA(absl::string_view rsa_modulus,
                    absl::string_view public_exponent);

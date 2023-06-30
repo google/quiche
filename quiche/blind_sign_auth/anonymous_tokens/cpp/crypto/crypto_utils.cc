@@ -301,33 +301,13 @@ absl::StatusOr<bssl::UniquePtr<RSA>> CreatePrivateKeyRSA(
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> crt_bn,
                                StringToBignum(crt));
 
-  bssl::UniquePtr<RSA> rsa_private_key(RSA_new());
-  // Populate private key.
+  bssl::UniquePtr<RSA> rsa_private_key(
+      RSA_new_private_key(n_bn.get(), e_bn.get(), d_bn.get(), p_bn.get(),
+                          q_bn.get(), dp_bn.get(), dq_bn.get(), crt_bn.get()));
   if (!rsa_private_key.get()) {
     return absl::InternalError(
-        absl::StrCat("RSA_new failed: ", GetSslErrors()));
-  } else if (RSA_set0_key(rsa_private_key.get(), n_bn.get(), e_bn.get(),
-                          d_bn.get()) != kBsslSuccess) {
-    return absl::InternalError(
-        absl::StrCat("RSA_set0_key failed: ", GetSslErrors()));
-  } else if (RSA_set0_factors(rsa_private_key.get(), p_bn.get(), q_bn.get()) !=
-             kBsslSuccess) {
-    return absl::InternalError(
-        absl::StrCat("RSA_set0_factors failed: ", GetSslErrors()));
-  } else if (RSA_set0_crt_params(rsa_private_key.get(), dp_bn.get(),
-                                 dq_bn.get(), crt_bn.get()) != kBsslSuccess) {
-    return absl::InternalError(
-        absl::StrCat("RSA_set0_crt_params failed: ", GetSslErrors()));
+        absl::StrCat("RSA_new_private_key failed: ", GetSslErrors()));
   }
-
-  n_bn.release();
-  e_bn.release();
-  d_bn.release();
-  p_bn.release();
-  q_bn.release();
-  dp_bn.release();
-  dq_bn.release();
-  crt_bn.release();
   return rsa_private_key;
 }
 
@@ -339,19 +319,12 @@ absl::StatusOr<bssl::UniquePtr<RSA>> CreatePublicKeyRSA(
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> e_bn,
                                StringToBignum(public_exponent));
   // Convert to OpenSSL RSA.
-  bssl::UniquePtr<RSA> rsa_public_key(RSA_new());
+  bssl::UniquePtr<RSA> rsa_public_key(
+      RSA_new_public_key(n_bn.get(), e_bn.get()));
   if (!rsa_public_key.get()) {
     return absl::InternalError(
-        absl::StrCat("RSA_new failed: ", GetSslErrors()));
-  } else if (RSA_set0_key(rsa_public_key.get(), n_bn.get(), e_bn.get(),
-                          nullptr) != kBsslSuccess) {
-    return absl::InternalError(
-        absl::StrCat("RSA_set0_key failed: ", GetSslErrors()));
+        absl::StrCat("RSA_new_public_key failed: ", GetSslErrors()));
   }
-  // RSA_set0_key takes ownership of the pointers under rsa_modulus, new_e on
-  // success.
-  n_bn.release();
-  e_bn.release();
   return rsa_public_key;
 }
 
