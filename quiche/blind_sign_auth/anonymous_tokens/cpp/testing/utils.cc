@@ -125,16 +125,16 @@ absl::StatusOr<std::string> TestSignWithPublicMetadata(
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> new_dqm1, NewBigNum());
   BN_mod(new_dqm1.get(), new_d.get(), phi_q.get(), ctx.get());
 
-  RSA* derived_private_key = RSA_new_private_key_large_e(
+  bssl::UniquePtr<RSA> derived_private_key(RSA_new_private_key_large_e(
       RSA_get0_n(&rsa_key), new_e.get(), new_d.get(), RSA_get0_p(&rsa_key),
       RSA_get0_q(&rsa_key), new_dpm1.get(), new_dqm1.get(),
-      RSA_get0_iqmp(&rsa_key));
-  if (!derived_private_key) {
+      RSA_get0_iqmp(&rsa_key)));
+  if (!derived_private_key.get()) {
     return absl::InternalError(
         absl::StrCat("RSA_new_private_key_large_e failed: ", GetSslErrors()));
   }
 
-  return TestSign(blinded_data, derived_private_key);
+  return TestSign(blinded_data, derived_private_key.get());
 }
 
 IetfStandardRsaBlindSignatureTestVector
