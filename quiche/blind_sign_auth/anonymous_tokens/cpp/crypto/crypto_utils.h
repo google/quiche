@@ -147,6 +147,13 @@ CreatePublicKeyRSA(absl::string_view rsa_modulus,
 // Create bssl::UniquePtr<RSA> representing a RSA public key derived using
 // public metadata.
 absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
+CreatePublicKeyRSAWithPublicMetadata(const BIGNUM& rsa_modulus,
+                                     const BIGNUM& public_exponent,
+                                     absl::string_view public_metadata);
+
+// Create bssl::UniquePtr<RSA> representing a RSA public key derived using
+// public metadata.
+absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
 CreatePublicKeyRSAWithPublicMetadata(absl::string_view rsa_modulus,
                                      absl::string_view public_exponent,
                                      absl::string_view public_metadata);

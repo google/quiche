@@ -329,6 +329,22 @@ absl::StatusOr<bssl::UniquePtr<RSA>> CreatePublicKeyRSA(
 }
 
 absl::StatusOr<bssl::UniquePtr<RSA>> CreatePublicKeyRSAWithPublicMetadata(
+    const BIGNUM& rsa_modulus, const BIGNUM& public_exponent,
+    absl::string_view public_metadata) {
+  ANON_TOKENS_ASSIGN_OR_RETURN(
+      bssl::UniquePtr<BIGNUM> derived_rsa_e,
+      ComputeFinalExponentUnderPublicMetadata(rsa_modulus, public_exponent,
+                                              public_metadata));
+  bssl::UniquePtr<RSA> rsa_public_key = bssl::UniquePtr<RSA>(
+      RSA_new_public_key_large_e(&rsa_modulus, derived_rsa_e.get()));
+  if (!rsa_public_key.get()) {
+    return absl::InternalError(
+        absl::StrCat("RSA_new_public_key_large_e failed: ", GetSslErrors()));
+  }
+  return rsa_public_key;
+}
+
+absl::StatusOr<bssl::UniquePtr<RSA>> CreatePublicKeyRSAWithPublicMetadata(
     const absl::string_view rsa_modulus,
     const absl::string_view public_exponent,
     const absl::string_view public_metadata) {
@@ -336,17 +352,8 @@ absl::StatusOr<bssl::UniquePtr<RSA>> CreatePublicKeyRSAWithPublicMetadata(
                                StringToBignum(rsa_modulus));
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_e,
                                StringToBignum(public_exponent));
-  ANON_TOKENS_ASSIGN_OR_RETURN(
-      bssl::UniquePtr<BIGNUM> derived_rsa_e,
-      ComputeFinalExponentUnderPublicMetadata(*rsa_n.get(), *rsa_e.get(),
-                                              public_metadata));
-  bssl::UniquePtr<RSA> rsa_public_key = bssl::UniquePtr<RSA>(
-      RSA_new_public_key_large_e(rsa_n.get(), derived_rsa_e.get()));
-  if (!rsa_public_key.get()) {
-    return absl::InternalError(
-        absl::StrCat("RSA_new_public_key_large_e failed: ", GetSslErrors()));
-  }
-  return rsa_public_key;
+  return CreatePublicKeyRSAWithPublicMetadata(*rsa_n.get(), *rsa_e.get(),
+                                              public_metadata);
 }
 
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> ComputeCarmichaelLcm(
