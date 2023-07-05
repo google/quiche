@@ -56,6 +56,9 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
   absl::StatusOr<std::string> Blind(absl::string_view message) override;
 
   // Unblinds `blind_signature`.
+  //
+  // Callers should run Verify on the returned signature before using it /
+  // passing it on.
   absl::StatusOr<std::string> Unblind(
       absl::string_view blind_signature) override;
 
@@ -66,9 +69,7 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
   // Use `New` to construct
   RsaBlinder(int salt_length, std::optional<absl::string_view> public_metadata,
              const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
-             bssl::UniquePtr<RSA> rsa_public_key,
-             bssl::UniquePtr<BIGNUM> rsa_modulus,
-             bssl::UniquePtr<BIGNUM> augmented_rsa_e, bssl::UniquePtr<BIGNUM> r,
+             bssl::UniquePtr<RSA> rsa_public_key, bssl::UniquePtr<BIGNUM> r,
              bssl::UniquePtr<BIGNUM> r_inv_mont,
              bssl::UniquePtr<BN_MONT_CTX> mont_n);
 
@@ -77,12 +78,9 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
   const EVP_MD* sig_hash_;   // Owned by BoringSSL.
   const EVP_MD* mgf1_hash_;  // Owned by BoringSSL.
 
+  // If public metadata was passed to RsaBlinder::New, rsa_public_key_ will
+  // will be initialized using RSA_new_public_key_large_e method.
   const bssl::UniquePtr<RSA> rsa_public_key_;
-  // Storing RSA modulus separately for helping with BN computations.
-  const bssl::UniquePtr<BIGNUM> rsa_modulus_;
-  // If public metadata is not supported, augmented_rsa_e_ will be equal to
-  // public exponent e in rsa_public_key_.
-  const bssl::UniquePtr<BIGNUM> augmented_rsa_e_;
 
   const bssl::UniquePtr<BIGNUM> r_;
   // r^-1 mod n in the Montgomery domain
