@@ -97,7 +97,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
 
   // Delete the current config and generate unroutable connection IDs from now
   // on.
-  void DeleteConfig();
+  virtual void DeleteConfig();
 
   // Returns the number of additional connection IDs that can be generated with
   // the current config, or 0 if there is no current config.
