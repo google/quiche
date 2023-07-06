@@ -72,12 +72,13 @@ RsaSsaPssVerifier::RsaSsaPssVerifier(
 
 absl::Status RsaSsaPssVerifier::Verify(absl::string_view unblind_token,
                                        absl::string_view message) {
-  // TODO(b/289550754): Only pass RSA struct here and not the modulus and
-  // exponent.
-  return RsaBlindSignatureVerify(
-      salt_length_, sig_hash_, mgf1_hash_, rsa_public_key_.get(),
-      *RSA_get0_n(rsa_public_key_.get()), *RSA_get0_e(rsa_public_key_.get()),
-      unblind_token, message, public_metadata_);
+  std::string augmented_message(message);
+  if (public_metadata_.has_value()) {
+    augmented_message = EncodeMessagePublicMetadata(message, *public_metadata_);
+  }
+  return RsaBlindSignatureVerify(salt_length_, sig_hash_, mgf1_hash_,
+                                 unblind_token, augmented_message,
+                                 rsa_public_key_.get());
 }
 
 }  // namespace anonymous_tokens

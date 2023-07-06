@@ -435,18 +435,14 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> ComputeFinalExponentUnderPublicMetadata(
   return new_e;
 }
 
-absl::Status RsaBlindSignatureVerify(
-    const int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
-    RSA* rsa_public_key, const BIGNUM& rsa_modulus,
-    const BIGNUM& augmented_rsa_e, absl::string_view signature,
-    absl::string_view message,
-    std::optional<absl::string_view> public_metadata) {
-  std::string augmented_message(message);
-  if (public_metadata.has_value()) {
-    augmented_message = EncodeMessagePublicMetadata(message, *public_metadata);
-  }
+absl::Status RsaBlindSignatureVerify(const int salt_length,
+                                     const EVP_MD* sig_hash,
+                                     const EVP_MD* mgf1_hash,
+                                     const absl::string_view signature,
+                                     const absl::string_view message,
+                                     RSA* rsa_public_key) {
   ANON_TOKENS_ASSIGN_OR_RETURN(std::string message_digest,
-                               ComputeHash(augmented_message, *sig_hash));
+                               ComputeHash(message, *sig_hash));
   const int hash_size = EVP_MD_size(sig_hash);
   // Make sure the size of the digest is correct.
   if (message_digest.size() != hash_size) {
@@ -455,50 +451,27 @@ absl::Status RsaBlindSignatureVerify(
                      "of the hashing algorithm; expected ",
                      hash_size, " got ", message_digest.size()));
   }
-  const int rsa_modulus_size = BN_num_bytes(&rsa_modulus);
+  // Make sure the size of the signature is correct.
+  const int rsa_modulus_size = BN_num_bytes(RSA_get0_n(rsa_public_key));
   if (signature.size() != rsa_modulus_size) {
     return absl::InvalidArgumentError(
         "Signature size not equal to modulus size.");
   }
 
   std::string recovered_message_digest(rsa_modulus_size, 0);
-  if (!public_metadata.has_value()) {
-    int recovered_message_digest_size = RSA_public_decrypt(
-        /*flen=*/signature.size(),
-        /*from=*/reinterpret_cast<const uint8_t*>(signature.data()),
-        /*to=*/
-        reinterpret_cast<uint8_t*>(recovered_message_digest.data()),
-        /*rsa=*/rsa_public_key,
-        /*padding=*/RSA_NO_PADDING);
-    if (recovered_message_digest_size != rsa_modulus_size) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Invalid signature size (likely an incorrect key is "
-                       "used); expected ",
-                       rsa_modulus_size, " got ", recovered_message_digest_size,
-                       ": ", GetSslErrors()));
-    }
-  } else {
-    ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> signature_bn,
-                                 StringToBignum(signature));
-    if (BN_ucmp(signature_bn.get(), &rsa_modulus) >= 0) {
-      return absl::InternalError("Data too large for modulus.");
-    }
-    ANON_TOKENS_ASSIGN_OR_RETURN(BnCtxPtr bn_ctx, GetAndStartBigNumCtx());
-    bssl::UniquePtr<BN_MONT_CTX> bn_mont_ctx(
-        BN_MONT_CTX_new_for_modulus(&rsa_modulus, bn_ctx.get()));
-    if (!bn_mont_ctx) {
-      return absl::InternalError("BN_MONT_CTX_new_for_modulus failed.");
-    }
-    ANON_TOKENS_ASSIGN_OR_RETURN(
-        bssl::UniquePtr<BIGNUM> recovered_message_digest_bn, NewBigNum());
-    if (BN_mod_exp_mont(recovered_message_digest_bn.get(), signature_bn.get(),
-                        &augmented_rsa_e, &rsa_modulus, bn_ctx.get(),
-                        bn_mont_ctx.get()) != kBsslSuccess) {
-      return absl::InternalError("Exponentiation failed.");
-    }
-    ANON_TOKENS_ASSIGN_OR_RETURN(
-        recovered_message_digest,
-        BignumToString(*recovered_message_digest_bn, rsa_modulus_size));
+  int recovered_message_digest_size = RSA_public_decrypt(
+      /*flen=*/signature.size(),
+      /*from=*/reinterpret_cast<const uint8_t*>(signature.data()),
+      /*to=*/
+      reinterpret_cast<uint8_t*>(recovered_message_digest.data()),
+      /*rsa=*/rsa_public_key,
+      /*padding=*/RSA_NO_PADDING);
+  if (recovered_message_digest_size != rsa_modulus_size) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid signature size (likely an incorrect key is "
+                     "used); expected ",
+                     rsa_modulus_size, " got ", recovered_message_digest_size,
+                     ": ", GetSslErrors()));
   }
   if (RSA_verify_PKCS1_PSS_mgf1(
           rsa_public_key, reinterpret_cast<const uint8_t*>(&message_digest[0]),

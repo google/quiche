@@ -177,19 +177,20 @@ ComputeFinalExponentUnderPublicMetadata(const BIGNUM& n, const BIGNUM& e,
 // Helper method that implements RSA PSS Blind Signatures verification protocol
 // for both the standard scheme as well as the public metadata version.
 //
-// The standard public exponent e in rsa_public_key should always have a
-// standard value even if the public_metada is not std::nullopt.
+// For the public metadata version,
 //
-// If the public_metadata is set to std::nullopt, augmented_rsa_e should be
-// equal to a standard public exponent same as the value of e in rsa_public_key.
-// Otherwise, it will be equal to a new public exponent value derived using the
-// public metadata.
+// 1) `rsa_public_key' must contain a public exponent derived using the public
+// metadata.
+//
+// 2) The `message' must be an encoding of an original input message
+// and the public metadata e.g. by using EncodeMessagePublicMetadata method in
+// this file. The caller should make sure that its original input message is a
+// random message. In case it is not, it should be concatenated with a random
+// string.
 absl::Status QUICHE_EXPORT RsaBlindSignatureVerify(
     int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
-    RSA* rsa_public_key, const BIGNUM& rsa_modulus,
-    const BIGNUM& augmented_rsa_e, absl::string_view signature,
-    absl::string_view message,
-    std::optional<absl::string_view> public_metadata = std::nullopt);
+    absl::string_view signature, absl::string_view message,
+    RSA* rsa_public_key);
 
 // This method outputs a DER encoding of RSASSA-PSS (RSA Signature Scheme with
 // Appendix - Probabilistic Signature Scheme) Public Key as described here

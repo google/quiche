@@ -62,7 +62,8 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
   absl::StatusOr<std::string> Unblind(
       absl::string_view blind_signature) override;
 
-  // Verifies an `unblinded` signature against the input message.
+  // Verifies an `unblinded` signature against the same `message' that was
+  // passed to Blind.
   absl::Status Verify(absl::string_view signature, absl::string_view message);
 
  private:
