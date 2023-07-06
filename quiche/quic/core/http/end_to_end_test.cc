@@ -1874,8 +1874,8 @@ TEST_P(EndToEndTest, QUICHE_SLOW_TEST(AddressTokenNotReusedByClient)) {
 
   client_->Disconnect();
 
-  QuicClientSessionCache* session_cache = static_cast<QuicClientSessionCache*>(
-      client_crypto_config->mutable_session_cache());
+  QuicClientSessionCache* session_cache =
+      static_cast<QuicClientSessionCache*>(client_crypto_config->session_cache());
   ASSERT_TRUE(
       !QuicClientSessionCachePeer::GetToken(session_cache, server_id).empty());
 

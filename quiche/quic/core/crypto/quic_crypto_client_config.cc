@@ -62,7 +62,7 @@ QuicCryptoClientConfig::QuicCryptoClientConfig(
 
 QuicCryptoClientConfig::QuicCryptoClientConfig(
     std::unique_ptr<ProofVerifier> proof_verifier,
-    std::unique_ptr<SessionCache> session_cache)
+    std::shared_ptr<SessionCache> session_cache)
     : proof_verifier_(std::move(proof_verifier)),
       session_cache_(std::move(session_cache)),
       ssl_ctx_(TlsClientConnection::CreateSslCtx(
@@ -773,6 +773,11 @@ ProofVerifier* QuicCryptoClientConfig::proof_verifier() const {
 
 SessionCache* QuicCryptoClientConfig::session_cache() const {
   return session_cache_.get();
+}
+
+void QuicCryptoClientConfig::set_session_cache(
+    std::shared_ptr<SessionCache> session_cache) {
+  session_cache_ = std::move(session_cache);
 }
 
 ClientProofSource* QuicCryptoClientConfig::proof_source() const {
