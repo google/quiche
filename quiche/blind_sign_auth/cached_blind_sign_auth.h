@@ -5,13 +5,10 @@
 #ifndef QUICHE_BLIND_SIGN_AUTH_CACHED_BLIND_SIGN_AUTH_H_
 #define QUICHE_BLIND_SIGN_AUTH_CACHED_BLIND_SIGN_AUTH_H_
 
-#include <cstddef>
-#include <functional>
 #include <string>
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -42,9 +39,8 @@ class QUICHE_EXPORT CachedBlindSignAuth : public BlindSignAuthInterface {
   // or asynchronously on BlindSignAuth's BlindSignHttpInterface thread.
   // The GetTokens callback must not acquire any locks that the calling thread
   // owns, otherwise the callback will deadlock.
-  void GetTokens(absl::string_view oauth_token, int num_tokens,
-                 std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)>
-                     callback) override;
+  void GetTokens(std::string oauth_token, int num_tokens,
+                 SignedTokenCallback callback) override;
 
   // Removes all tokens in the cache.
   void ClearCache() {
@@ -54,8 +50,8 @@ class QUICHE_EXPORT CachedBlindSignAuth : public BlindSignAuthInterface {
 
  private:
   void HandleGetTokensResponse(
-      absl::StatusOr<absl::Span<BlindSignToken>> tokens, int num_tokens,
-      std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback);
+      SignedTokenCallback callback, int num_tokens,
+      absl::StatusOr<absl::Span<BlindSignToken>> tokens);
   std::vector<BlindSignToken> CreateOutputTokens(int num_tokens)
       QUICHE_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void RemoveExpiredTokens() QUICHE_EXCLUSIVE_LOCKS_REQUIRED(mutex_);

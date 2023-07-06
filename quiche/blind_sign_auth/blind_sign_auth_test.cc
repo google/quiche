@@ -4,7 +4,6 @@
 
 #include "quiche/blind_sign_auth/blind_sign_auth.h"
 
-#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -37,7 +36,6 @@ using ::testing::_;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Invoke;
-using ::testing::InvokeArgument;
 using ::testing::StartsWith;
 using ::testing::Unused;
 
@@ -174,25 +172,25 @@ TEST_F(BlindSignAuthTest, TestGetTokensSuccessful) {
                   Eq(expected_get_initial_data_request_.SerializeAsString()),
                   _))
         .Times(1)
-        .WillOnce(InvokeArgument<3>(fake_public_key_response));
+        .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
+          std::move(get_initial_data_cb)(fake_public_key_response);
+        });
 
     EXPECT_CALL(mock_http_interface_, DoRequest(Eq("/v1/authWithHeaderCreds"),
                                                 Eq(oauth_token_), _, _))
         .Times(1)
-        .WillOnce(Invoke(
-            [this](Unused, Unused, const std::string& body,
-                   std::function<void(absl::StatusOr<BlindSignHttpResponse>)>
-                       callback) {
-              CreateSignResponse(body);
-              BlindSignHttpResponse http_response(
-                  200, sign_response_.SerializeAsString());
-              callback(http_response);
-            }));
+        .WillOnce(Invoke([this](Unused, Unused, const std::string& body,
+                                BlindSignHttpCallback callback) {
+          CreateSignResponse(body);
+          BlindSignHttpResponse http_response(
+              200, sign_response_.SerializeAsString());
+          std::move(callback)(http_response);
+        }));
   }
 
   int num_tokens = 1;
   QuicheNotification done;
-  std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback =
+  SignedTokenCallback callback =
       [this, &done,
        num_tokens](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
@@ -200,7 +198,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensSuccessful) {
         ValidateGetTokensOutput(*tokens);
         done.Notify();
       };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, callback);
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
   done.WaitForNotification();
 }
 
@@ -208,8 +206,10 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
   EXPECT_CALL(mock_http_interface_,
               DoRequest(Eq("/v1/getInitialData"), Eq(oauth_token_), _, _))
       .Times(1)
-      .WillOnce(
-          InvokeArgument<3>(absl::InternalError("Failed to create socket")));
+      .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
+        std::move(get_initial_data_cb)(
+            absl::InternalError("Failed to create socket"));
+      });
 
   EXPECT_CALL(mock_http_interface_,
               DoRequest(Eq("/v1/authWithHeaderCreds"), _, _, _))
@@ -217,12 +217,12 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
 
   int num_tokens = 1;
   QuicheNotification done;
-  std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback =
+  SignedTokenCallback callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
         done.Notify();
       };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, callback);
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
   done.WaitForNotification();
 }
 
@@ -238,7 +238,9 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadGetInitialDataResponse) {
       DoRequest(Eq("/v1/getInitialData"), Eq(oauth_token_),
                 Eq(expected_get_initial_data_request_.SerializeAsString()), _))
       .Times(1)
-      .WillOnce(InvokeArgument<3>(fake_public_key_response));
+      .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
+        std::move(get_initial_data_cb)(fake_public_key_response);
+      });
 
   EXPECT_CALL(mock_http_interface_,
               DoRequest(Eq("/v1/authWithHeaderCreds"), _, _, _))
@@ -246,12 +248,12 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadGetInitialDataResponse) {
 
   int num_tokens = 1;
   QuicheNotification done;
-  std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback =
+  SignedTokenCallback callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);
         done.Notify();
       };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, callback);
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
   done.WaitForNotification();
 }
 
@@ -267,32 +269,32 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
                   Eq(expected_get_initial_data_request_.SerializeAsString()),
                   _))
         .Times(1)
-        .WillOnce(InvokeArgument<3>(fake_public_key_response));
+        .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
+          std::move(get_initial_data_cb)(fake_public_key_response);
+        });
 
     EXPECT_CALL(mock_http_interface_, DoRequest(Eq("/v1/authWithHeaderCreds"),
                                                 Eq(oauth_token_), _, _))
         .Times(1)
-        .WillOnce(Invoke(
-            [this](Unused, Unused, const std::string& body,
-                   std::function<void(absl::StatusOr<BlindSignHttpResponse>)>
-                       callback) {
-              CreateSignResponse(body);
-              // Add an invalid signature that can't be Base64 decoded.
-              sign_response_.add_blinded_token_signature("invalid_signature%");
-              BlindSignHttpResponse http_response(
-                  200, sign_response_.SerializeAsString());
-              callback(http_response);
-            }));
+        .WillOnce(Invoke([this](Unused, Unused, const std::string& body,
+                                BlindSignHttpCallback callback) {
+          CreateSignResponse(body);
+          // Add an invalid signature that can't be Base64 decoded.
+          sign_response_.add_blinded_token_signature("invalid_signature%");
+          BlindSignHttpResponse http_response(
+              200, sign_response_.SerializeAsString());
+          std::move(callback)(http_response);
+        }));
   }
 
   int num_tokens = 1;
   QuicheNotification done;
-  std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback =
+  SignedTokenCallback callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
         done.Notify();
       };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, callback);
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
   done.WaitForNotification();
 }
 

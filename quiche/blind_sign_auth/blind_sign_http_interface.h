@@ -5,16 +5,17 @@
 #ifndef QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_HTTP_INTERFACE_H_
 #define QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_HTTP_INTERFACE_H_
 
-#include <functional>
-#include <map>
 #include <string>
-#include <vector>
 
 #include "absl/status/statusor.h"
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quiche {
+
+using BlindSignHttpCallback =
+    quiche::SingleUseCallback<void(absl::StatusOr<BlindSignHttpResponse>)>;
 
 // Interface for async HTTP POST requests in BlindSignAuth.
 // Implementers must send a request to a signer hostname, using the request's
@@ -31,10 +32,10 @@ class QUICHE_EXPORT BlindSignHttpInterface {
   // "application/x-protobuf".
   // DoRequest is async. When the request completes, the implementer must call
   // the provided callback.
-  virtual void DoRequest(
-      const std::string& path_and_query,
-      const std::string& authorization_header, const std::string& body,
-      std::function<void(absl::StatusOr<BlindSignHttpResponse>)> callback) = 0;
+  virtual void DoRequest(const std::string& path_and_query,
+                         const std::string& authorization_header,
+                         const std::string& body,
+                         BlindSignHttpCallback callback) = 0;
 };
 
 }  // namespace quiche

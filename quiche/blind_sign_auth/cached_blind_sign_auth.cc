@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
@@ -21,17 +22,16 @@ namespace quiche {
 
 constexpr absl::Duration kFreshnessConstant = absl::Minutes(5);
 
-void CachedBlindSignAuth::GetTokens(
-    absl::string_view oauth_token, int num_tokens,
-    std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback) {
+void CachedBlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
+                                    SignedTokenCallback callback) {
   if (num_tokens > max_tokens_per_request_) {
-    callback(absl::InvalidArgumentError(
+    std::move(callback)(absl::InvalidArgumentError(
         absl::StrFormat("Number of tokens requested exceeds maximum: %d",
                         kBlindSignAuthRequestMaxTokens)));
     return;
   }
   if (num_tokens < 0) {
-    callback(absl::InvalidArgumentError(absl::StrFormat(
+    std::move(callback)(absl::InvalidArgumentError(absl::StrFormat(
         "Negative number of tokens requested: %d", num_tokens)));
     return;
   }
@@ -48,28 +48,25 @@ void CachedBlindSignAuth::GetTokens(
   }
 
   if (!output_tokens.empty() || num_tokens == 0) {
-    callback(absl::MakeSpan(output_tokens));
+    std::move(callback)(absl::MakeSpan(output_tokens));
     return;
   }
 
   // Make a GetTokensRequest if the cache can't handle the request size.
-  std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)>
-      caching_callback =
-          [this, num_tokens,
-           callback](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
-            HandleGetTokensResponse(tokens, num_tokens, callback);
-          };
+  SignedTokenCallback caching_callback =
+      absl::bind_front(&CachedBlindSignAuth::HandleGetTokensResponse, this,
+                       std::move(callback), num_tokens);
   blind_sign_auth_->GetTokens(oauth_token, kBlindSignAuthRequestMaxTokens,
-                              caching_callback);
+                              std::move(caching_callback));
 }
 
 void CachedBlindSignAuth::HandleGetTokensResponse(
-    absl::StatusOr<absl::Span<BlindSignToken>> tokens, int num_tokens,
-    std::function<void(absl::StatusOr<absl::Span<BlindSignToken>>)> callback) {
+    SignedTokenCallback callback, int num_tokens,
+    absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
   if (!tokens.ok()) {
     QUICHE_LOG(WARNING) << "BlindSignAuth::GetTokens failed: "
                         << tokens.status();
-    callback(tokens);
+    std::move(callback)(tokens);
     return;
   }
   if (tokens->size() < static_cast<size_t>(num_tokens) ||
@@ -96,10 +93,10 @@ void CachedBlindSignAuth::HandleGetTokensResponse(
   }
 
   if (!output_tokens.empty()) {
-    callback(absl::MakeSpan(output_tokens));
+    std::move(callback)(absl::MakeSpan(output_tokens));
     return;
   }
-  callback(absl::ResourceExhaustedError(absl::StrFormat(
+  std::move(callback)(absl::ResourceExhaustedError(absl::StrFormat(
       "Requested %d tokens, cache only has %d after GetTokensRequest",
       num_tokens, cache_size)));
 }
