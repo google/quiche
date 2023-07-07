@@ -368,6 +368,7 @@ TEST_P(TlsClientHandshakerTest, Resumption) {
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->ResumptionAttempted());
   EXPECT_FALSE(stream()->IsResumption());
 
   // Create a second connection
@@ -377,6 +378,7 @@ TEST_P(TlsClientHandshakerTest, Resumption) {
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->ResumptionAttempted());
   EXPECT_TRUE(stream()->IsResumption());
 }
 
@@ -390,6 +392,7 @@ TEST_P(TlsClientHandshakerTest, ResumptionRejection) {
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->ResumptionAttempted());
   EXPECT_FALSE(stream()->IsResumption());
 
   // Create a second connection, but disable resumption on the server.
@@ -400,6 +403,7 @@ TEST_P(TlsClientHandshakerTest, ResumptionRejection) {
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->ResumptionAttempted());
   EXPECT_FALSE(stream()->IsResumption());
   EXPECT_FALSE(stream()->EarlyDataAccepted());
   EXPECT_EQ(stream()->EarlyDataReason(),

@@ -47,6 +47,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
   // than the number of round-trips needed for the handshake.
   virtual int num_sent_client_hellos() const = 0;
 
+  // Whether TLS resumption was attempted by this client. IETF QUIC only.
+  virtual bool ResumptionAttempted() const = 0;
+
   // Returns true if the handshake performed was a resumption instead of a full
   // handshake. Resumption only makes sense for TLS handshakes - there is no
   // concept of resumption for QUIC crypto even though it supports a 0-RTT
@@ -138,6 +141,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // have been sent. If the handshake has completed then this is one greater
     // than the number of round-trips needed for the handshake.
     virtual int num_sent_client_hellos() const = 0;
+
+    // Whether TLS resumption was attempted by this client. IETF QUIC only.
+    virtual bool ResumptionAttempted() const = 0;
 
     // Returns true if the handshake performed was a resumption instead of a
     // full handshake. Resumption only makes sense for TLS handshakes - there is
@@ -264,6 +270,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   // From QuicCryptoClientStreamBase
   bool CryptoConnect() override;
   int num_sent_client_hellos() const override;
+  bool ResumptionAttempted() const override;
   bool IsResumption() const override;
   bool EarlyDataAccepted() const override;
   ssl_early_data_reason_t EarlyDataReason() const override;

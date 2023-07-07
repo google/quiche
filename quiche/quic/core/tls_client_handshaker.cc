@@ -333,6 +333,11 @@ bool TlsClientHandshaker::ProcessTransportParameters(
 
 int TlsClientHandshaker::num_sent_client_hellos() const { return 0; }
 
+bool TlsClientHandshaker::ResumptionAttempted() const {
+  QUIC_BUG_IF(quic_tls_client_resumption_attempted, !encryption_established_);
+  return cached_state_ != nullptr;
+}
+
 bool TlsClientHandshaker::IsResumption() const {
   QUIC_BUG_IF(quic_bug_12736_1, !one_rtt_keys_available());
   return SSL_session_reused(ssl()) == 1;

@@ -115,6 +115,11 @@ int QuicCryptoClientHandshaker::num_sent_client_hellos() const {
   return num_client_hellos_;
 }
 
+bool QuicCryptoClientHandshaker::ResumptionAttempted() const {
+  QUICHE_DCHECK(false);
+  return false;
+}
+
 bool QuicCryptoClientHandshaker::IsResumption() const {
   QUIC_BUG_IF(quic_bug_12522_1, !one_rtt_keys_available_);
   // While 0-RTT handshakes could be considered to be like resumption, QUIC

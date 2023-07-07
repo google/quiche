@@ -66,6 +66,10 @@ int QuicCryptoClientStream::num_sent_client_hellos() const {
   return handshaker_->num_sent_client_hellos();
 }
 
+bool QuicCryptoClientStream::ResumptionAttempted() const {
+  return handshaker_->ResumptionAttempted();
+}
+
 bool QuicCryptoClientStream::IsResumption() const {
   return handshaker_->IsResumption();
 }
