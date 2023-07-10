@@ -469,7 +469,8 @@ QuicSpdySession::QuicSpdySession(
       debug_visitor_(nullptr),
       destruction_indicator_(123456789),
       allow_extended_connect_(perspective() == Perspective::IS_SERVER &&
-                              VersionUsesHttp3(transport_version())) {
+                              VersionUsesHttp3(transport_version())),
+      force_buffer_requests_until_settings_(false) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -1052,6 +1053,8 @@ bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
   QUICHE_DCHECK(!settings_received_);
   settings_received_ = true;
   for (QuicStreamId stream_id : streams_waiting_for_settings_) {
+    QUICHE_RELOADABLE_FLAG_COUNT_N(quic_block_until_settings_received_copt, 4,
+                                   4);
     QUICHE_DCHECK(ShouldBufferRequestsUntilSettings());
     QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
     if (stream == nullptr) {
@@ -1812,12 +1815,14 @@ bool QuicSpdySession::ShouldProcessIncomingRequests() {
     return true;
   }
 
+  QUICHE_RELOADABLE_FLAG_COUNT_N(quic_block_until_settings_received_copt, 2, 4);
   return settings_received_;
 }
 
 void QuicSpdySession::OnStreamWaitingForClientSettings(QuicStreamId id) {
   QUICHE_DCHECK(ShouldBufferRequestsUntilSettings());
   QUICHE_DCHECK(QuicUtils::IsBidirectionalStreamId(id, version()));
+  QUICHE_RELOADABLE_FLAG_COUNT_N(quic_block_until_settings_received_copt, 3, 4);
   streams_waiting_for_settings_.insert(id);
 }
 
@@ -1958,6 +1963,18 @@ void QuicSpdySession::set_allow_extended_connect(bool allow_extended_connect) {
     return;
   }
   allow_extended_connect_ = allow_extended_connect;
+}
+
+void QuicSpdySession::OnConfigNegotiated() {
+  QuicSession::OnConfigNegotiated();
+
+  if (GetQuicReloadableFlag(quic_block_until_settings_received_copt) &&
+      perspective() == Perspective::IS_SERVER &&
+      config()->HasClientSentConnectionOption(kBSUS, Perspective::IS_SERVER)) {
+    QUICHE_RELOADABLE_FLAG_COUNT_N(quic_block_until_settings_received_copt, 1,
+                                   4);
+    force_buffer_requests_until_settings_ = true;
+  }
 }
 
 #undef ENDPOINT  // undef for jumbo builds

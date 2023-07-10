@@ -441,7 +441,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   bool ShouldBufferRequestsUntilSettings() {
     return version().UsesHttp3() && perspective() == Perspective::IS_SERVER &&
            (ShouldNegotiateWebTransport() ||
-            LocalHttpDatagramSupport() == HttpDatagramSupport::kRfcAndDraft04);
+            LocalHttpDatagramSupport() == HttpDatagramSupport::kRfcAndDraft04 ||
+            force_buffer_requests_until_settings_);
   }
 
   // Returns if the incoming bidirectional streams should process data.  This is
@@ -478,6 +479,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       WebTransportHttp3* session);
 
   QuicSpdyStream* GetOrCreateSpdyDataStream(const QuicStreamId stream_id);
+
+  void OnConfigNegotiated() override;
 
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
@@ -705,6 +708,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // server cannot initiate WebTransport sessions.
   absl::flat_hash_map<WebTransportHttp3Version, QuicStreamCount>
       max_webtransport_sessions_;
+
+  // Allows forcing ShouldBufferRequestsUntilSettings() to true via
+  // a connection option.
+  bool force_buffer_requests_until_settings_;
 };
 
 }  // namespace quic

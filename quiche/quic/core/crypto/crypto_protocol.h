@@ -465,6 +465,10 @@ const QuicTag kMCS1 = TAG('M', 'C', 'S', '1');
 const QuicTag kMCS2 = TAG('M', 'C', 'S', '2');
 const QuicTag kMCS3 = TAG('M', 'C', 'S', '3');
 
+constexpr QuicTag kBSUS = TAG('B', 'S', 'U', 'S');  // Blocks server connection
+                                                    // until the SETTINGS frame
+                                                    // is received.
+
 // clang-format on
 
 // These tags have a special form so that they appear either at the beginning

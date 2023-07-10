@@ -6457,6 +6457,26 @@ TEST_P(EndToEndTest, TlsResumptionDisabledOnTheFly) {
   ADD_FAILURE() << "Client should not have 10 resumption tickets.";
 }
 
+TEST_P(EndToEndTest, BlockServerUntilSettingsReceived) {
+  SetQuicReloadableFlag(quic_block_until_settings_received_copt, true);
+  // Force loss to test data stream being blocked when SETTINGS are missing.
+  SetPacketLossPercentage(30);
+  client_extra_copts_.push_back(kBSUS);
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  SendSynchronousFooRequestAndCheckResponse();
+
+  QuicSpdySession* server_session = GetServerSession();
+  EXPECT_FALSE(GetClientSession()->ShouldBufferRequestsUntilSettings());
+  server_thread_->ScheduleAndWaitForCompletion([server_session] {
+    EXPECT_TRUE(server_session->ShouldBufferRequestsUntilSettings());
+  });
+}
+
 TEST_P(EndToEndTest, WebTransportSessionSetup) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
