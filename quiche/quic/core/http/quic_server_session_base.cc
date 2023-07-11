@@ -258,13 +258,6 @@ bool QuicServerSessionBase::ShouldCreateIncomingStream(QuicStreamId id) {
     return false;
   }
 
-  if (QuicUtils::IsServerInitiatedStreamId(transport_version(), id)) {
-    QUIC_DLOG(INFO) << "Invalid incoming even stream_id:" << id;
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Client created even numbered stream",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
-  }
   return true;
 }
 
