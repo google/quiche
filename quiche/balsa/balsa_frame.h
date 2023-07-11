@@ -201,6 +201,13 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
     use_interim_headers_callback_ = set;
   }
 
+  // If enabled, parse the available portion of headers even on a
+  // HEADERS_TOO_LONG error, so that that portion of headers is available to the
+  // error handler. Generally results in the last header being truncated.
+  void set_parse_truncated_headers_even_when_headers_too_long(bool set) {
+    parse_truncated_headers_even_when_headers_too_long_ = set;
+  }
+
  protected:
   inline BalsaHeadersEnums::ContentLengthStatus ProcessContentLengthLine(
       size_t line_idx, size_t* length);
@@ -271,6 +278,8 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   void HandleError(BalsaFrameEnums::ErrorCode error_code);
   void HandleWarning(BalsaFrameEnums::ErrorCode error_code);
 
+  void HandleHeadersTooLongError();
+
   bool last_char_was_slash_r_;
   bool saw_non_newline_char_;
   bool start_was_space_;
@@ -310,6 +319,9 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   // TODO(b/68801833): Default-enable and then deprecate this field, along with
   // set_continue_headers().
   bool use_interim_headers_callback_;
+
+  // This is not reset in Reset().
+  bool parse_truncated_headers_even_when_headers_too_long_ = false;
 };
 
 }  // namespace quiche

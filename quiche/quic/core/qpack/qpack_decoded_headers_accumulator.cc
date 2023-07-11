@@ -46,10 +46,8 @@ void QpackDecodedHeadersAccumulator::OnHeaderDecoded(absl::string_view name,
           : uncompressed_header_bytes_without_overhead_;
   if (uncompressed_header_bytes > max_header_list_size_) {
     header_list_size_limit_exceeded_ = true;
-    quic_header_list_.Clear();
-  } else {
-    quic_header_list_.OnHeader(name, value);
   }
+  quic_header_list_.OnHeader(name, value);
 }
 
 void QpackDecodedHeadersAccumulator::OnDecodingCompleted() {
