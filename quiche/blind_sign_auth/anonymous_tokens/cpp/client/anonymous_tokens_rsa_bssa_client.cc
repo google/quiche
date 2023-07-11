@@ -56,8 +56,8 @@ absl::Status ValidityChecksForClientCreation(
   } else if (public_key.salt_length() <= 0) {
     return absl::InvalidArgumentError(
         "Non-positive salt length is not allowed.");
-  } else if (public_key.mask_gen_function() == AT_TEST_MGF ||
-             public_key.mask_gen_function() == AT_MGF_UNDEFINED) {
+  } else if (public_key.message_mask_type() == AT_MESSAGE_MASK_TYPE_UNDEFINED ||
+             public_key.message_mask_type() == AT_MESSAGE_MASK_XOR) {
     return absl::InvalidArgumentError("Message mask type must be defined.");
   } else if (public_key.message_mask_size() <= 0) {
     return absl::InvalidArgumentError("Message mask size must be positive.");

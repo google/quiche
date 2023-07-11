@@ -126,6 +126,8 @@ TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidUseCase) {
   absl::StatusOr<std::unique_ptr<AnonymousTokensRsaBssaClient>> client =
       AnonymousTokensRsaBssaClient::Create(rsa_key.first);
   EXPECT_EQ(client.status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(client.status().message(),
+              testing::HasSubstr("Invalid use case for public key"));
 }
 
 TEST(CreateAnonymousTokensRsaBssaClientTest, NotAUseCase) {
@@ -134,6 +136,8 @@ TEST(CreateAnonymousTokensRsaBssaClientTest, NotAUseCase) {
   absl::StatusOr<std::unique_ptr<AnonymousTokensRsaBssaClient>> client =
       AnonymousTokensRsaBssaClient::Create(rsa_key.first);
   EXPECT_EQ(client.status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(client.status().message(),
+              testing::HasSubstr("Invalid use case for public key"));
 }
 
 TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidKeyVersion) {
@@ -142,24 +146,30 @@ TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidKeyVersion) {
   absl::StatusOr<std::unique_ptr<AnonymousTokensRsaBssaClient>> client =
       AnonymousTokensRsaBssaClient::Create(rsa_key.first);
   EXPECT_EQ(client.status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(client.status().message(),
+              testing::HasSubstr("Key version cannot be zero or negative"));
 }
 
 TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidMessageMaskType) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto rsa_key,
-      CreateClientTestKey("TEST_USE_CASE", 0, AT_MESSAGE_MASK_TYPE_UNDEFINED));
+      CreateClientTestKey("TEST_USE_CASE", 1, AT_MESSAGE_MASK_TYPE_UNDEFINED));
   absl::StatusOr<std::unique_ptr<AnonymousTokensRsaBssaClient>> client =
       AnonymousTokensRsaBssaClient::Create(rsa_key.first);
   EXPECT_EQ(client.status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(client.status().message(),
+              testing::HasSubstr("Message mask type must be defined"));
 }
 
 TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidMessageMaskSize) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto rsa_key,
-      CreateClientTestKey("TEST_USE_CASE", 0, AT_MESSAGE_MASK_CONCAT, 0));
+      CreateClientTestKey("TEST_USE_CASE", 1, AT_MESSAGE_MASK_CONCAT, 0));
   absl::StatusOr<std::unique_ptr<AnonymousTokensRsaBssaClient>> client =
       AnonymousTokensRsaBssaClient::Create(rsa_key.first);
   EXPECT_EQ(client.status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(client.status().message(),
+              testing::HasSubstr("Message mask size must be positive"));
 }
 
 class AnonymousTokensRsaBssaClientTest : public testing::Test {
@@ -227,6 +237,8 @@ TEST_F(AnonymousTokensRsaBssaClientTest, EmptyInput) {
   absl::StatusOr<AnonymousTokensSignRequest> request =
       client_->CreateRequest(input_messages);
   EXPECT_EQ(request.status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(request.status().message(),
+              testing::HasSubstr("Cannot create an empty request"));
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, NotYetValidKey) {
@@ -244,6 +256,8 @@ TEST_F(AnonymousTokensRsaBssaClientTest, NotYetValidKey) {
   absl::StatusOr<AnonymousTokensSignRequest> request =
       client->CreateRequest(input_messages);
   EXPECT_EQ(request.status().code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(request.status().message(),
+              testing::HasSubstr("Key is not valid yet"));
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, ExpiredKey) {
@@ -260,6 +274,8 @@ TEST_F(AnonymousTokensRsaBssaClientTest, ExpiredKey) {
   absl::StatusOr<AnonymousTokensSignRequest> request =
       client->CreateRequest(input_messages);
   EXPECT_EQ(request.status().code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(request.status().message(),
+              testing::HasSubstr("Key is already expired"));
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, CreateRequestTwice) {
@@ -270,6 +286,8 @@ TEST_F(AnonymousTokensRsaBssaClientTest, CreateRequestTwice) {
   absl::StatusOr<AnonymousTokensSignRequest> request =
       client_->CreateRequest(input_messages);
   EXPECT_EQ(request.status().code(), absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(request.status().message(),
+              testing::HasSubstr("Blind signature request already created"));
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithoutCreateRequest) {
@@ -278,6 +296,9 @@ TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithoutCreateRequest) {
       processed_response = client_->ProcessResponse(response);
   EXPECT_EQ(processed_response.status().code(),
             absl::StatusCode::kFailedPrecondition);
+  EXPECT_THAT(
+      processed_response.status().message(),
+      testing::HasSubstr("A valid Blind signature request was not created"));
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, ProcessEmptyResponse) {
@@ -291,6 +312,8 @@ TEST_F(AnonymousTokensRsaBssaClientTest, ProcessEmptyResponse) {
       processed_response = client_->ProcessResponse(response);
   EXPECT_EQ(processed_response.status().code(),
             absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(processed_response.status().message(),
+              testing::HasSubstr("Cannot process an empty response"));
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithBadUseCase) {
@@ -306,6 +329,8 @@ TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithBadUseCase) {
       processed_response = client_->ProcessResponse(response);
   EXPECT_EQ(processed_response.status().code(),
             absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(processed_response.status().message(),
+              testing::HasSubstr("Use case does not match public key"));
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithBadKeyVersion) {
@@ -321,6 +346,8 @@ TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseWithBadKeyVersion) {
       processed_response = client_->ProcessResponse(response);
   EXPECT_EQ(processed_response.status().code(),
             absl::StatusCode::kInvalidArgument);
+  EXPECT_THAT(processed_response.status().message(),
+              testing::HasSubstr("Key version does not match public key"));
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, ProcessResponseFromDifferentClient) {
