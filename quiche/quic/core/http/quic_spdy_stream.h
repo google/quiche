@@ -375,6 +375,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   void set_invalid_request_details(std::string invalid_request_details);
 
+  // Called by HttpDecoderVisitor.
+  virtual bool OnDataFrameStart(QuicByteCount header_length,
+                                QuicByteCount payload_length);
+
  private:
   friend class test::QuicSpdyStreamPeer;
   friend class test::QuicStreamPeer;
@@ -390,8 +394,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   };
 
   // Called by HttpDecoderVisitor.
-  bool OnDataFrameStart(QuicByteCount header_length,
-                        QuicByteCount payload_length);
   bool OnDataFramePayload(absl::string_view payload);
   bool OnDataFrameEnd();
   bool OnHeadersFrameStart(QuicByteCount header_length,

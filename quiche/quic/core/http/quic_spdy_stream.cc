@@ -960,7 +960,9 @@ bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length,
                      << ", NumBytesConsumed: "
                      << sequencer()->NumBytesConsumed()
                      << ", total_body_bytes_received: "
-                     << body_manager_.total_body_bytes_received();
+                     << body_manager_.total_body_bytes_received()
+                     << ", header_length: " << header_length
+                     << ", payload_length: " << payload_length;
     stream_delegate()->OnStreamError(
         QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
         "Unexpected DATA frame received.");
