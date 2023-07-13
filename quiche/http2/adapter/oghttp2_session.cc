@@ -1845,7 +1845,6 @@ HeaderType OgHttp2Session::NextHeaderType(
     if (!current_type) {
       return HeaderType::REQUEST;
     } else {
-      QUICHE_DCHECK(current_type == HeaderType::REQUEST);
       return HeaderType::REQUEST_TRAILER;
     }
   } else if (!current_type ||
