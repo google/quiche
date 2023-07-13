@@ -27,6 +27,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_ignore_gquic_probing, false)
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
+// If true, QuicReceivedPacketManager will trim ack ranges when packet is received.
+QUIC_FLAG(quic_reloadable_flag_quic_rpm_trim_ack_ranges_early, true)
 // If true, ack frequency frame can be sent from server to client.
 QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.

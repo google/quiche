@@ -14,6 +14,7 @@
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 
@@ -104,6 +105,7 @@ void QuicReceivedPacketManager::RecordPacketReceived(
     time_largest_observed_ = receipt_time;
   }
   ack_frame_.packets.Add(packet_number);
+  MaybeTrimAckRanges();
 
   if (save_timestamps_) {
     // The timestamp format only handles packets in time order.
@@ -148,6 +150,19 @@ void QuicReceivedPacketManager::RecordPacketReceived(
         std::min(least_received_packet_number_, packet_number);
   } else {
     least_received_packet_number_ = packet_number;
+  }
+}
+
+void QuicReceivedPacketManager::MaybeTrimAckRanges() {
+  if (!trim_ack_ranges_early_) {
+    return;
+  }
+
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_rpm_trim_ack_ranges_early, 1, 2);
+  while (max_ack_ranges_ > 0 &&
+         ack_frame_.packets.NumIntervals() > max_ack_ranges_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_rpm_trim_ack_ranges_early, 2, 2);
+    ack_frame_.packets.RemoveSmallestInterval();
   }
 }
 

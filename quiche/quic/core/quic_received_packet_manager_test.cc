@@ -184,6 +184,21 @@ TEST_F(QuicReceivedPacketManagerTest, LimitAckRanges) {
   }
 }
 
+TEST_F(QuicReceivedPacketManagerTest, TrimAckRangesEarly) {
+  const size_t kMaxAckRanges = 10;
+  received_manager_.set_max_ack_ranges(kMaxAckRanges);
+  for (size_t i = 0; i < kMaxAckRanges + 10; ++i) {
+    RecordPacketReceipt(1 + 2 * i);
+    if (i < kMaxAckRanges ||
+        !GetQuicReloadableFlag(quic_rpm_trim_ack_ranges_early)) {
+      EXPECT_EQ(i + 1, received_manager_.ack_frame().packets.NumIntervals());
+    } else {
+      EXPECT_EQ(kMaxAckRanges,
+                received_manager_.ack_frame().packets.NumIntervals());
+    }
+  }
+}
+
 TEST_F(QuicReceivedPacketManagerTest, IgnoreOutOfOrderTimestamps) {
   EXPECT_FALSE(received_manager_.ack_frame_updated());
   RecordPacketReceipt(1, QuicTime::Zero());
