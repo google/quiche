@@ -1318,7 +1318,8 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
 
   MOCK_METHOD(void, OnPacketSent,
               (QuicPacketNumber, QuicPacketLength, bool, TransmissionType,
-               EncryptionLevel, const QuicFrames&, const QuicFrames&, QuicTime),
+               EncryptionLevel, const QuicFrames&, const QuicFrames&, QuicTime,
+               uint32_t),
               (override));
 
   MOCK_METHOD(void, OnCoalescedPacketSent, (const QuicCoalescedPacket&, size_t),

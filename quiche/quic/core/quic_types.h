@@ -158,10 +158,19 @@ struct QUIC_EXPORT_PRIVATE WriteResult {
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
                                                       const WriteResult& s);
 
+  WriteResult& set_batch_id(uint32_t batch_id) {
+    this->batch_id = batch_id;
+    return *this;
+  }
+
   WriteStatus status;
   // Number of packets dropped as a result of this write.
   // Only used by batch writers. Otherwise always 0.
   uint16_t dropped_packets = 0;
+  // The batch id the packet being written belongs to. For debugging only.
+  // Only used by batch writers. Only valid if the packet being written started
+  // a new batch, or added to an existing batch.
+  uint32_t batch_id = 0;
   // The delta between a packet's ideal and actual send time:
   //     actual_send_time = ideal_send_time + send_time_offset
   //                      = (now + release_time_delay) + send_time_offset

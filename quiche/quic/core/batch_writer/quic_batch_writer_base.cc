@@ -62,6 +62,7 @@ WriteResult QuicBatchWriterBase::InternalWritePacket(
 
   bool buffered = false;
   bool flush = can_batch_result.must_flush;
+  uint32_t packet_batch_id = 0;
 
   if (can_batch_result.can_batch) {
     QuicBatchWriterBuffer::PushResult push_result =
@@ -72,6 +73,7 @@ WriteResult QuicBatchWriterBase::InternalWritePacket(
       buffered = true;
       // If there's no space left after the packet is buffered, force a flush.
       flush = flush || (batch_buffer_->GetNextWriteLocation() == nullptr);
+      packet_batch_id = push_result.batch_id;
     } else {
       // If there's no space without this packet, force a flush.
       flush = true;
@@ -93,9 +95,10 @@ WriteResult QuicBatchWriterBase::InternalWritePacket(
 
   if (result.status != WRITE_STATUS_OK) {
     if (IsWriteBlockedStatus(result.status)) {
-      return WriteResult(
-          buffered ? WRITE_STATUS_BLOCKED_DATA_BUFFERED : WRITE_STATUS_BLOCKED,
-          result.error_code);
+      return WriteResult(buffered ? WRITE_STATUS_BLOCKED_DATA_BUFFERED
+                                  : WRITE_STATUS_BLOCKED,
+                         result.error_code)
+          .set_batch_id(packet_batch_id);
     }
 
     // Drop all packets, including the one being written.
@@ -116,6 +119,7 @@ WriteResult QuicBatchWriterBase::InternalWritePacket(
                                          peer_address, options, params,
                                          release_time.actual_release_time);
     buffered = push_result.succeeded;
+    packet_batch_id = push_result.batch_id;
 
     // Since buffered_writes has been emptied, this write must have been
     // buffered successfully.
@@ -126,6 +130,7 @@ WriteResult QuicBatchWriterBase::InternalWritePacket(
   }
 
   result.send_time_offset = release_time.release_time_offset;
+  result.batch_id = packet_batch_id;
   return result;
 }
 

@@ -278,6 +278,34 @@ TEST_F(QuicBatchWriterBufferTest, InPlacePushWithPops) {
                             nullptr, params);
 }
 
+TEST_F(QuicBatchWriterBufferTest, BatchID) {
+  const int kNumBufferedWrites = 10;
+  QuicPacketWriterParams params;
+  auto first_push_result = batch_buffer_->PushBufferedWrite(
+      packet_buffer_, kDefaultMaxPacketSize, self_addr_, peer_addr_, nullptr,
+      params, release_time_);
+  ASSERT_TRUE(first_push_result.succeeded);
+  ASSERT_NE(first_push_result.batch_id, 0);
+  for (int i = 1; i < kNumBufferedWrites; ++i) {
+    EXPECT_EQ(batch_buffer_
+                  ->PushBufferedWrite(packet_buffer_, kDefaultMaxPacketSize,
+                                      self_addr_, peer_addr_, nullptr, params,
+                                      release_time_)
+                  .batch_id,
+              first_push_result.batch_id);
+  }
+
+  batch_buffer_->PopBufferedWrite(kNumBufferedWrites);
+  EXPECT_TRUE(batch_buffer_->buffered_writes().empty());
+
+  EXPECT_NE(
+      batch_buffer_
+          ->PushBufferedWrite(packet_buffer_, kDefaultMaxPacketSize, self_addr_,
+                              peer_addr_, nullptr, params, release_time_)
+          .batch_id,
+      first_push_result.batch_id);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -38,6 +38,8 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBuffer {
     //    in-place push.
     // Only valid if |succeeded| is true.
     bool buffer_copied;
+    // The batch ID of the packet. Only valid if |succeeded|.
+    uint32_t batch_id = 0;
   };
 
   PushResult PushBufferedWrite(const char* buffer, size_t buf_len,
@@ -88,6 +90,11 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBuffer {
   const char* buffer_end() const { return buffer_ + sizeof(buffer_); }
   ABSL_CACHELINE_ALIGNED char buffer_[kBufferSize];
   quiche::QuicheCircularDeque<BufferedWrite> buffered_writes_;
+  // 0 if a batch has never started. Otherwise
+  // - If |buffered_writes_| is empty, this is the ID of the previous batch.
+  // - If |buffered_writes_| is not empty, this is the ID of the current batch.
+  // For debugging only.
+  uint32_t batch_id_ = 0;
 };
 
 }  // namespace quic

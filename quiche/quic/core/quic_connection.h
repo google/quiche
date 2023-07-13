@@ -281,7 +281,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
                             EncryptionLevel /*encryption_level*/,
                             const QuicFrames& /*retransmittable_frames*/,
                             const QuicFrames& /*nonretransmittable_frames*/,
-                            QuicTime /*sent_time*/) {}
+                            QuicTime /*sent_time*/, uint32_t /*batch_id*/) {}
 
   // Called when a coalesced packet is successfully serialized.
   virtual void OnCoalescedPacketSent(

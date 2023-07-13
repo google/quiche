@@ -24,7 +24,7 @@ class QUIC_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
                     EncryptionLevel encryption_level,
                     const QuicFrames& retransmittable_frames,
                     const QuicFrames& nonretransmittable_frames,
-                    QuicTime sent_time) override;
+                    QuicTime sent_time, uint32_t batch_id) override;
 
   void OnIncomingAck(QuicPacketNumber ack_packet_number,
                      EncryptionLevel ack_decrypted_level,

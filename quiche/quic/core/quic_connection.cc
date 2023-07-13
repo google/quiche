@@ -3540,7 +3540,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
           sent_packet_manager_.unacked_packets()
               .rbegin()
               ->retransmittable_frames,
-          packet->nonretransmittable_frames, packet_send_time);
+          packet->nonretransmittable_frames, packet_send_time, result.batch_id);
     }
   }
   if (packet->encryption_level == ENCRYPTION_HANDSHAKE) {
@@ -5020,6 +5020,8 @@ bool QuicConnection::WritePacketUsingWriter(
       packet->encrypted_buffer, packet->encrypted_length, self_address.host(),
       peer_address, writer, GetEcnCodepointToSend(peer_address));
 
+  const uint32_t writer_batch_id = result.batch_id;
+
   // If using a batch writer and the probing packet is buffered, flush it.
   if (writer->IsBatchMode() && result.status == WRITE_STATUS_OK &&
       result.bytes_written == 0) {
@@ -5051,7 +5053,7 @@ bool QuicConnection::WritePacketUsingWriter(
           sent_packet_manager_.unacked_packets()
               .rbegin()
               ->retransmittable_frames,
-          packet->nonretransmittable_frames, packet_send_time);
+          packet->nonretransmittable_frames, packet_send_time, writer_batch_id);
     }
   }
 

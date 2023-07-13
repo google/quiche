@@ -52,7 +52,8 @@ void QuicTraceVisitor::OnPacketSent(
     QuicPacketNumber packet_number, QuicPacketLength packet_length,
     bool /*has_crypto_handshake*/, TransmissionType /*transmission_type*/,
     EncryptionLevel encryption_level, const QuicFrames& retransmittable_frames,
-    const QuicFrames& /*nonretransmittable_frames*/, QuicTime sent_time) {
+    const QuicFrames& /*nonretransmittable_frames*/, QuicTime sent_time,
+    uint32_t /*batch_id*/) {
   quic_trace::Event* event = trace_.add_events();
   event->set_event_type(quic_trace::PACKET_SENT);
   event->set_time_us(ConvertTimestampToRecordedFormat(sent_time));

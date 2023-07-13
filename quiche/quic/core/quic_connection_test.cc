@@ -6984,10 +6984,10 @@ TEST_P(QuicConnectionTest, OnPacketSentDebugVisitor) {
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
 
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _, _)).Times(1);
   connection_.SendStreamDataWithString(1, "foo", 0, NO_FIN);
 
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _, _)).Times(1);
   connection_.SendConnectivityProbingPacket(writer_.get(),
                                             connection_.peer_address());
 }
@@ -7114,7 +7114,7 @@ TEST_P(QuicConnectionTest, SendPingImmediately) {
   CongestionBlockWrites();
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _, _)).Times(1);
   EXPECT_CALL(debug_visitor, OnPingSent()).Times(1);
   connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
   EXPECT_FALSE(connection_.HasQueuedData());
@@ -7126,7 +7126,7 @@ TEST_P(QuicConnectionTest, SendBlockedImmediately) {
 
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _, _)).Times(1);
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
   connection_.SendControlFrame(QuicFrame(QuicBlockedFrame(1, 3, 0)));
   EXPECT_EQ(1u, connection_.GetStats().blocked_frames_sent);
@@ -7142,7 +7142,7 @@ TEST_P(QuicConnectionTest, FailedToSendBlockedFrames) {
   QuicBlockedFrame blocked(1, 3, 0);
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _, _)).Times(0);
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
   connection_.SendControlFrame(QuicFrame(blocked));
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
@@ -9907,7 +9907,7 @@ TEST_P(QuicConnectionTest, SendCoalescedPackets) {
   }
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(3);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _, _)).Times(3);
   EXPECT_CALL(debug_visitor, OnCoalescedPacketSent(_, _)).Times(1);
   EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   {
@@ -15700,7 +15700,7 @@ TEST_P(QuicConnectionTest, NoExtraPaddingInReserializedInitial) {
   connection_.set_debug_visitor(&debug_visitor);
 
   uint64_t debug_visitor_sent_count = 0;
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _, _))
       .WillRepeatedly([&]() { debug_visitor_sent_count++; });
 
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
