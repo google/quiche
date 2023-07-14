@@ -172,7 +172,7 @@ message AnonymousTokensPublicKeysGetResponse {
 }
 
 message AnonymousTokensSignRequest {
-  // Next ID: 5
+  // Next ID: 6
   message BlindedToken {
     // Use case associated with this request.
     bytes use_case = 1;
@@ -185,6 +185,14 @@ message AnonymousTokensSignRequest {
     // The length of public metadata must fit in 4 bytes.
     bytes public_metadata = 4;
 
+    // This value is disregarded for standard blind RSA signatures.
+    //
+    // For the public metadata protocol, if this value is set to false, the
+    // final public exponent is derived by using the RSA public exponent, the
+    // RSA modulus and the public metadata. If this value is set to true, only
+    // the RSA modulus and the public metadata will be used.
+    bool do_not_use_rsa_public_exponent = 5;
+
     // Serialization of the token.
     bytes serialized_token = 3;
   }
@@ -194,7 +202,7 @@ message AnonymousTokensSignRequest {
 }
 
 message AnonymousTokensSignResponse {
-  //  Next ID: 6
+  //  Next ID: 7
   message AnonymousToken {
     // Use case associated with this anonymous token.
     bytes use_case = 1;
@@ -207,6 +215,14 @@ message AnonymousTokensSignResponse {
     //
     // The length of public metadata must fit in 4 bytes.
     bytes public_metadata = 4;
+
+    // This value is disregarded for standard blind RSA signatures.
+    //
+    // For the public metadata protocol, if this value is set to false, the
+    // final public exponent is derived by using the RSA public exponent, the
+    // RSA modulus and the public metadata. If this value is set to true, only
+    // the RSA modulus and the public metadata will be used.
+    bool do_not_use_rsa_public_exponent = 6;
 
     // The serialized_token in BlindedToken in the AnonymousTokensSignRequest.
     bytes serialized_blinded_message = 5;
