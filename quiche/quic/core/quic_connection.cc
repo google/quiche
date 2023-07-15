@@ -4085,7 +4085,7 @@ void QuicConnection::OnRetransmissionTimeout() {
 #ifndef NDEBUG
   if (sent_packet_manager_.unacked_packets().empty()) {
     QUICHE_DCHECK(sent_packet_manager_.handshake_mode_disabled());
-    QUICHE_DCHECK(!IsHandshakeComplete());
+    QUICHE_DCHECK(!IsHandshakeConfirmed());
   }
 #endif
   if (!connected_) {
