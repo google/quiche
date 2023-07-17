@@ -203,7 +203,11 @@ ssl_early_data_reason_t TlsHandshaker::EarlyDataReason() const {
 }
 
 const EVP_MD* TlsHandshaker::Prf(const SSL_CIPHER* cipher) {
+#if BORINGSSL_API_VERSION >= 23
+  return SSL_CIPHER_get_handshake_digest(cipher);
+#else
   return EVP_get_digestbynid(SSL_CIPHER_get_prf_nid(cipher));
+#endif
 }
 
 enum ssl_verify_result_t TlsHandshaker::VerifyCert(uint8_t* out_alert) {
