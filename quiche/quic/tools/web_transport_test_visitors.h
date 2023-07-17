@@ -16,6 +16,7 @@
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
+#include "quiche/web_transport/web_transport.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
@@ -41,6 +42,47 @@ class WebTransportDiscardVisitor : public WebTransportStreamVisitor {
 
  private:
   WebTransportStream* stream_;
+};
+
+class DiscardWebTransportSessionVisitor : public WebTransportVisitor {
+ public:
+  DiscardWebTransportSessionVisitor(WebTransportSession* session)
+      : session_(session) {}
+
+  void OnSessionReady() override {}
+  void OnSessionClosed(WebTransportSessionError /*error_code*/,
+                       const std::string& /*error_message*/) override {}
+
+  void OnIncomingBidirectionalStreamAvailable() override {
+    while (true) {
+      WebTransportStream* stream =
+          session_->AcceptIncomingBidirectionalStream();
+      if (stream == nullptr) {
+        return;
+      }
+      stream->SetVisitor(std::make_unique<WebTransportDiscardVisitor>(stream));
+      stream->visitor()->OnCanRead();
+    }
+  }
+
+  void OnIncomingUnidirectionalStreamAvailable() override {
+    while (true) {
+      WebTransportStream* stream =
+          session_->AcceptIncomingUnidirectionalStream();
+      if (stream == nullptr) {
+        return;
+      }
+      stream->SetVisitor(std::make_unique<WebTransportDiscardVisitor>(stream));
+      stream->visitor()->OnCanRead();
+    }
+  }
+
+  void OnDatagramReceived(absl::string_view) override {}
+  void OnCanCreateNewOutgoingBidirectionalStream() override {}
+  void OnCanCreateNewOutgoingUnidirectionalStream() override {}
+
+ private:
+  webtransport::Session* session_;
 };
 
 // Echoes any incoming data back on the same stream.
@@ -181,8 +223,10 @@ class WebTransportUnidirectionalEchoWriteVisitor
 // to echo.
 class EchoWebTransportSessionVisitor : public WebTransportVisitor {
  public:
-  EchoWebTransportSessionVisitor(WebTransportSession* session)
-      : session_(session) {}
+  EchoWebTransportSessionVisitor(WebTransportSession* session,
+                                 bool open_server_initiated_echo_stream = true)
+      : session_(session),
+        echo_stream_opened_(!open_server_initiated_echo_stream) {}
 
   void OnSessionReady() override {
     if (session_->CanOpenNextOutgoingBidirectionalStream()) {
@@ -261,7 +305,7 @@ class EchoWebTransportSessionVisitor : public WebTransportVisitor {
  private:
   WebTransportSession* session_;
   quiche::SimpleBufferAllocator allocator_;
-  bool echo_stream_opened_ = false;
+  bool echo_stream_opened_;
 
   quiche::QuicheCircularDeque<std::string> streams_to_echo_back_;
 };
