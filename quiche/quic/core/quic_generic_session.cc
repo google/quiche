@@ -209,12 +209,23 @@ QuicGenericClientSession::QuicGenericClientSession(
       /*proof_handler=*/handler, /*has_application_state=*/false);
 }
 
+QuicGenericClientSession::QuicGenericClientSession(
+    QuicConnection* connection, bool owns_connection, Visitor* owner,
+    const QuicConfig& config, std::string host, uint16_t port, std::string alpn,
+    CreateWebTransportSessionVisitorCallback create_visitor_callback,
+    std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer,
+    QuicCryptoClientConfig* crypto_config)
+    : QuicGenericClientSession(
+          connection, owns_connection, owner, config, std::move(host), port,
+          std::move(alpn), std::move(create_visitor_callback)(*this).release(),
+          /*owns_visitor=*/true, std::move(datagram_observer), crypto_config) {}
+
 QuicGenericServerSession::QuicGenericServerSession(
     QuicConnection* connection, bool owns_connection, Visitor* owner,
     const QuicConfig& config, std::string alpn,
     webtransport::SessionVisitor* visitor, bool owns_visitor,
     std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer,
-    QuicCryptoServerConfig* crypto_config,
+    const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache)
     : QuicGenericSessionBase(connection, owns_connection, owner, config,
                              std::move(alpn), visitor, owns_visitor,
@@ -223,5 +234,18 @@ QuicGenericServerSession::QuicGenericServerSession(
   crypto_stream_ = CreateCryptoServerStream(
       crypto_config, compressed_certs_cache, this, helper);
 }
+
+QuicGenericServerSession::QuicGenericServerSession(
+    QuicConnection* connection, bool owns_connection, Visitor* owner,
+    const QuicConfig& config, std::string alpn,
+    CreateWebTransportSessionVisitorCallback create_visitor_callback,
+    std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer,
+    const QuicCryptoServerConfig* crypto_config,
+    QuicCompressedCertsCache* compressed_certs_cache)
+    : QuicGenericServerSession(
+          connection, owns_connection, owner, config, std::move(alpn),
+          std::move(create_visitor_callback)(*this).release(),
+          /*owns_visitor=*/true, std::move(datagram_observer), crypto_config,
+          compressed_certs_cache) {}
 
 }  // namespace quic

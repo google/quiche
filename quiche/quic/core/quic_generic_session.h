@@ -24,6 +24,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
@@ -32,6 +33,10 @@ class QuicGenericStream;
 
 // Returns QUIC versions to be used with QuicGenericSessionBase.
 ParsedQuicVersionVector GetQuicVersionsForGenericSession();
+
+using CreateWebTransportSessionVisitorCallback =
+    quiche::UnretainedCallback<std::unique_ptr<webtransport::SessionVisitor>(
+        webtransport::Session& session)>;
 
 // QuicGenericSessionBase lets users access raw QUIC connections via
 // WebTransport API.
@@ -132,6 +137,13 @@ class QUICHE_EXPORT QuicGenericClientSession final
       bool owns_visitor,
       std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer,
       QuicCryptoClientConfig* crypto_config);
+  QuicGenericClientSession(
+      QuicConnection* connection, bool owns_connection, Visitor* owner,
+      const QuicConfig& config, std::string host, uint16_t port,
+      std::string alpn,
+      CreateWebTransportSessionVisitorCallback create_visitor_callback,
+      std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer,
+      QuicCryptoClientConfig* crypto_config);
 
   void CryptoConnect() { crypto_stream_->CryptoConnect(); }
 
@@ -155,7 +167,14 @@ class QUICHE_EXPORT QuicGenericServerSession final
       const QuicConfig& config, std::string alpn,
       webtransport::SessionVisitor* visitor, bool owns_visitor,
       std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer,
-      QuicCryptoServerConfig* crypto_config,
+      const QuicCryptoServerConfig* crypto_config,
+      QuicCompressedCertsCache* compressed_certs_cache);
+  QuicGenericServerSession(
+      QuicConnection* connection, bool owns_connection, Visitor* owner,
+      const QuicConfig& config, std::string alpn,
+      CreateWebTransportSessionVisitorCallback create_visitor_callback,
+      std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer,
+      const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache);
 
   // QuicSession implementation.
