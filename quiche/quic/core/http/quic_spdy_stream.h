@@ -381,6 +381,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   virtual bool OnDataFrameStart(QuicByteCount header_length,
                                 QuicByteCount payload_length);
 
+  void CloseReadSide() override;
+
  private:
   friend class test::QuicSpdyStreamPeer;
   friend class test::QuicStreamPeer;

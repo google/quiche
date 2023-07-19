@@ -66,8 +66,8 @@ namespace quic {
 namespace test {
 namespace {
 
-const bool kShouldProcessData = true;
-const char kDataFramePayload[] = "some data";
+constexpr bool kShouldProcessData = true;
+constexpr absl::string_view kDataFramePayload = "some data";
 
 class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
  public:
@@ -2271,7 +2271,7 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
   // DATA frame.
   std::string data = DataFrame(kDataFramePayload);
   EXPECT_CALL(debug_visitor,
-              OnDataFrameReceived(stream_->id(), strlen(kDataFramePayload)));
+              OnDataFrameReceived(stream_->id(), kDataFramePayload.length()));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, /* offset = */
                                          headers.length(), data));
   EXPECT_EQ(kDataFramePayload, stream_->data());
@@ -2344,7 +2344,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   // DATA frame.
   std::string data = DataFrame(kDataFramePayload);
   EXPECT_CALL(debug_visitor,
-              OnDataFrameReceived(stream_->id(), strlen(kDataFramePayload)));
+              OnDataFrameReceived(stream_->id(), kDataFramePayload.length()));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, /* offset = */
                                          headers.length(), data));
   EXPECT_EQ(kDataFramePayload, stream_->data());
@@ -3363,6 +3363,43 @@ TEST_P(QuicSpdyStreamTest,
         EXPECT_FALSE(QuicSpdyStreamPeer::OnHeadersFrameEnd(stream_));
       },
       "b215142466_OnHeadersFrameEnd");
+}
+
+// Regression test for https://crbug.com/1465224.
+TEST_P(QuicSpdyStreamTest, ReadAfterReset) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  SetQuicReloadableFlag(quic_clear_body_manager, true);
+
+  Initialize(!kShouldProcessData);
+
+  ProcessHeaders(false, headers_);
+  stream_->ConsumeHeaderList();
+
+  std::string data_frame = DataFrame(kDataFramePayload);
+  QuicStreamFrame frame(stream_->id(), /* fin = */ false, 0, data_frame);
+  stream_->OnStreamFrame(frame);
+
+  // As a result of resetting the stream, stream type and stream cancellation
+  // are sent on the QPACK decoder stream.
+  auto qpack_decoder_stream =
+      QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+  EXPECT_CALL(*session_,
+              WritevData(qpack_decoder_stream->id(), _, _, NO_FIN, _, _))
+      .Times(2);
+
+  stream_->OnStreamReset(QuicRstStreamFrame(
+      kInvalidControlFrameId, stream_->id(), QUIC_STREAM_NO_ERROR, 0));
+
+  char buffer[100];
+  struct iovec vec;
+  vec.iov_base = buffer;
+  vec.iov_len = ABSL_ARRAYSIZE(buffer);
+
+  size_t bytes_read = stream_->Readv(&vec, 1);
+  EXPECT_EQ(0u, bytes_read);
 }
 
 }  // namespace

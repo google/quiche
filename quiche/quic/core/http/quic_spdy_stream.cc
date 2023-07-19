@@ -1739,5 +1739,16 @@ bool QuicSpdyStream::AreHeaderFieldValuesValid(
 
 void QuicSpdyStream::OnInvalidHeaders() { Reset(QUIC_BAD_APPLICATION_PAYLOAD); }
 
+void QuicSpdyStream::CloseReadSide() {
+  QuicStream::CloseReadSide();
+
+  // QuicStream::CloseReadSide() releases buffered read data from
+  // QuicStreamSequencer, invalidating every reference held by `body_manager_`.
+  if (GetQuicReloadableFlag(quic_clear_body_manager)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_clear_body_manager);
+    body_manager_.Clear();
+  }
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

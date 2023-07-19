@@ -445,6 +445,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
     MaybeSendStopSending(QuicResetStreamError::FromInternal(error));
   }
 
+  // Close the read side of the stream.  May cause the stream to be closed.
+  virtual void CloseReadSide();
+
   // Close the write side of the socket.  Further writes will fail.
   // Can be called by the subclass or internally.
   // Does not send a FIN.  May cause the stream to be closed.
@@ -494,9 +497,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // Write buffered data (in send buffer) at |level|.
   void WriteBufferedData(EncryptionLevel level);
-
-  // Close the read side of the stream.  May cause the stream to be closed.
-  void CloseReadSide();
 
   // Called when bytes are sent to the peer.
   void AddBytesSent(QuicByteCount bytes);

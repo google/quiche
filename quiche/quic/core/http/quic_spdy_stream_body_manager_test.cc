@@ -283,6 +283,25 @@ TEST_F(QuicSpdyStreamBodyManagerTest, ReadBody) {
   }
 }
 
+TEST_F(QuicSpdyStreamBodyManagerTest, Clear) {
+  const QuicByteCount header_length = 3;
+  EXPECT_EQ(header_length, body_manager_.OnNonBody(header_length));
+
+  std::string body("foo");
+  body_manager_.OnBody(body);
+
+  EXPECT_TRUE(body_manager_.HasBytesToRead());
+
+  body_manager_.Clear();
+
+  EXPECT_FALSE(body_manager_.HasBytesToRead());
+
+  iovec iov;
+  size_t total_bytes_read = 5;
+  EXPECT_EQ(0, body_manager_.PeekBody(&iov, 1));
+  EXPECT_EQ(0u, body_manager_.ReadBody(&iov, 1, &total_bytes_read));
+}
+
 }  // anonymous namespace
 
 }  // namespace test

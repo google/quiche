@@ -66,9 +66,19 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
   ABSL_MUST_USE_RESULT size_t ReadBody(const struct iovec* iov, size_t iov_len,
                                        size_t* total_bytes_read);
 
+  // Returns true if there are any body bytes buffered that are not consumed
+  // yet.
   bool HasBytesToRead() const { return !fragments_.empty(); }
 
   size_t ReadableBytes() const;
+
+  // Releases all references to buffered body. Since body is buffered by
+  // QuicStreamSequencer, this method should be called when QuicStreamSequencer
+  // frees up its buffers without reading.
+  // After calling this method, HasBytesToRead() will return false, and
+  // PeekBody() and ReadBody() will read zero bytes.
+  // Does not reset `total_body_bytes_received_`.
+  void Clear() { fragments_.clear(); }
 
   uint64_t total_body_bytes_received() const {
     return total_body_bytes_received_;
