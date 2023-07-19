@@ -94,6 +94,13 @@ GetIetfStandardRsaBlindSignatureTestVector();
 std::vector<IetfRsaBlindSignatureWithPublicMetadataTestVector>
 GetIetfRsaBlindSignatureWithPublicMetadataTestVectors();
 
+// Returns the IETF test with Public Metadata examples that disregard the RSA
+// public exponent during partially blind RSA signatures protocol execution.
+//
+// Note that all test vectors use the same RSA key pair.
+std::vector<IetfRsaBlindSignatureWithPublicMetadataTestVector>
+GetIetfPartiallyBlindRSASignatureNoPublicExponentTestVectors();
+
 // Method returns fixed 2048-bit strong RSA modulus based key pair for testing.
 std::pair<TestRsaPublicKey, TestRsaPrivateKey> GetStrongTestRsaKeyPair2048();
 

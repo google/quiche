@@ -301,7 +301,6 @@ GetIetfStandardRsaBlindSignatureTestVector() {
 
 std::vector<IetfRsaBlindSignatureWithPublicMetadataTestVector>
 GetIetfRsaBlindSignatureWithPublicMetadataTestVectors() {
-  // n
   std::string n = absl::HexStringToBytes(
       "d6930820f71fe517bf3259d14d40209b02a5c0d3d61991c731dd7da39f8d69821552"
       "e2318d6c9ad897e603887a476ea3162c1205da9ac96f02edf31df049bd55f142134c"
@@ -515,6 +514,221 @@ GetIetfRsaBlindSignatureWithPublicMetadataTestVectors() {
           "3ae744fd8e57bff5e83f98014ca502b6ace876b455d1e3673525ba01687dce998406"
           "e89100f55316147ad510e854a064d99835554de8949d3662708d5f1e43bca473c14a"
           "8b1729846c6092f18fc0e08520e9309a32de"),
+  });
+  return test_vectors;
+}
+
+std::vector<IetfRsaBlindSignatureWithPublicMetadataTestVector>
+GetIetfPartiallyBlindRSASignatureNoPublicExponentTestVectors() {
+  std::string n = absl::HexStringToBytes(
+      "d6930820f71fe517bf3259d14d40209b02a5c0d3d61991c731dd7da39f8d69821552"
+      "e2318d6c9ad897e603887a476ea3162c1205da9ac96f02edf31df049bd55f142134c"
+      "17d4382a0e78e275345f165fbe8e49cdca6cf5c726c599dd39e09e75e0f330a33121"
+      "e73976e4facba9cfa001c28b7c96f8134f9981db6750b43a41710f51da4240fe0310"
+      "6c12acb1e7bb53d75ec7256da3fddd0718b89c365410fce61bc7c99b115fb4c3c318"
+      "081fa7e1b65a37774e8e50c96e8ce2b2cc6b3b367982366a2bf9924c4bafdb3ff5e7"
+      "22258ab705c76d43e5f1f121b984814e98ea2b2b8725cd9bc905c0bc3d75c2a8db70"
+      "a7153213c39ae371b2b5dc1dafcb19d6fae9");
+  std::string e = absl::HexStringToBytes("010001");
+  std::string d = absl::HexStringToBytes(
+      "4e21356983722aa1adedb084a483401c1127b781aac89eab103e1cfc52215494981d"
+      "18dd8028566d9d499469c25476358de23821c78a6ae43005e26b394e3051b5ca206a"
+      "a9968d68cae23b5affd9cbb4cb16d64ac7754b3cdba241b72ad6ddfc000facdb0f0d"
+      "d03abd4efcfee1730748fcc47b7621182ef8af2eeb7c985349f62ce96ab373d2689b"
+      "aeaea0e28ea7d45f2d605451920ca4ea1f0c08b0f1f6711eaa4b7cca66d58a6b916f"
+      "9985480f90aca97210685ac7b12d2ec3e30a1c7b97b65a18d38a93189258aa346bf2"
+      "bc572cd7e7359605c20221b8909d599ed9d38164c9c4abf396f897b9993c1e805e57"
+      "4d704649985b600fa0ced8e5427071d7049d");
+  std::string p = absl::HexStringToBytes(
+      "dcd90af1be463632c0d5ea555256a20605af3db667475e190e3af12a34a3324c46a3"
+      "094062c59fb4b249e0ee6afba8bee14e0276d126c99f4784b23009bf6168ff628ac1"
+      "486e5ae8e23ce4d362889de4df63109cbd90ef93db5ae64372bfe1c55f832766f21e"
+      "94ea3322eb2182f10a891546536ba907ad74b8d72469bea396f3");
+  std::string q = absl::HexStringToBytes(
+      "f8ba5c89bd068f57234a3cf54a1c89d5b4cd0194f2633ca7c60b91a795a56fa8c868"
+      "6c0e37b1c4498b851e3420d08bea29f71d195cfbd3671c6ddc49cf4c1db5b478231e"
+      "a9d91377ffa98fe95685fca20ba4623212b2f2def4da5b281ed0100b651f6db32112"
+      "e4017d831c0da668768afa7141d45bbc279f1e0f8735d74395b3");
+
+  std::vector<IetfRsaBlindSignatureWithPublicMetadataTestVector> test_vectors;
+  // test_vector 1.
+  test_vectors.push_back({
+      n,
+      e,
+      d,
+      p,
+      q,
+      // message
+      absl::HexStringToBytes("68656c6c6f20776f726c64"),
+      // public_metadata
+      absl::HexStringToBytes("6d65746164617461"),
+      // message_mask
+      "",
+      // blinded_message
+      absl::HexStringToBytes(
+          "cfd613e27b8eb15ee0b1df0e1bdda7809a61a29e9b6e9f3ec7c345353437638e8559"
+          "3a7309467e36396b0515686fe87330b312b6f89df26dc1cc88dd222186ca0bfd4ffa"
+          "0fd16a9749175f3255425eb299e1807b76235befa57b28f50db02f5df76cf2f8bcb5"
+          "5c3e2d39d8c4b9a0439e71c5362f35f3db768a5865b864fdf979bc48d4a29ae9e7c2"
+          "ea259dc557503e2938b9c3080974bd86ad8b0daaf1d103c31549dcf767798079f888"
+          "33b579424ed5b3d700162136459dc29733256f18ceb74ccf0bc542db8829ca5e0346"
+          "ad3fe36654715a3686ceb69f73540efd20530a59062c13880827607c68d00993b47a"
+          "d6ba017b95dfc52e567c4bf65135072b12a4"),
+      // blinded_signature
+      absl::HexStringToBytes(
+          "ca7d4fd21085de92b514fbe423c5745680cace6ddfa864a9bd97d29f3454d5d475c6"
+          "c1c7d45f5da2b7b6c3b3bc68978bb83929317da25f491fee86ef7e051e7195f35586"
+          "79b18d6cd3788ac989a3960429ad0b7086945e8c4d38a1b3b52a3903381d9b1bf9f3"
+          "d48f75d9bb7a808d37c7ecebfd2fea5e89df59d4014a1a149d5faecfe287a3e9557e"
+          "f153299d49a4918a6dbdef3e086eeb264c0c3621bcd73367195ae9b14e67597eaa9e"
+          "3796616e30e264dc8c86897ae8a6336ed2cd93416c589a058211688cf35edbd22d16"
+          "e31c28ff4a5c20f1627d09a71c71af372edc18d2d7a6e39df9365fe58a34605fa1d9"
+          "dc53efd5a262de849fb083429e20586e210e"),
+      // signature
+      absl::HexStringToBytes(
+          "cdc6243cd9092a8db6175b346912f3cc55e0cf3e842b4582802358dddf6f61decc37"
+          "b7a9ded0a108e0c857c12a8541985a6efad3d17f7f6cce3b5ee20016e5c36c7d552c"
+          "8e8ff6b5f3f7b4ed60d62eaec7fc11e4077d7e67fc6618ee092e2005964b8cf394e3"
+          "e409f331dca20683f5a631b91cae0e5e2aa89eeef4504d24b45127abdb3a79f9c71d"
+          "2f95e4d16c9db0e7571a7f524d2f64438dfb32001c00965ff7a7429ce7d26136a36e"
+          "be14644559d3cefc477859dcd6908053907b325a34aaf654b376fade40df4016ecb3"
+          "f5e1c89fe3ec500a04dfe5c8a56cad5b086047d2f963ca73848e74cf24bb8bf1720c"
+          "c9de4c78c64449e8af3e7cddb0dab1821998"),
+  });
+
+  // test_vector 2.
+  test_vectors.push_back({
+      n,
+      e,
+      d,
+      p,
+      q,
+      // message
+      absl::HexStringToBytes("68656c6c6f20776f726c64"),
+      // public_metadata
+      "",
+      // message_mask
+      "",
+      // blinded_message
+      absl::HexStringToBytes(
+          "5e6568cd0bf7ea71ad91e0a9708abb5e97661c41812eb994b672f10aa8983151113a"
+          "eaabcf1306fa5a493e3dbdd58fc8bdb61aac934fae832676bcab7abacdcc1b9c1f2a"
+          "f3586ae009042293b6945fee0aeffb2d2b8a24f82614b8be39bab71a535f6d65f163"
+          "1e927dbd471b0753e7a63a201c7ecd26e7fbbb5e21e02f865b64e20731004c395b0e"
+          "059a92fffa4c636ac4c00db9aa086b5dd1a3dd101bb04970b12ca3f4936f246e32d3"
+          "94f328cea2510554060e8d291acdbee04b8bc91e967241ba45f3509d63ded5f9b358"
+          "f4216f37a885e563b7baa93a717ca7cdbe10e398d14bb2d5a1376b4a5f83226ce2c5"
+          "75087bc28d743caeff9c1b11cc8bd02f5f14"),
+      // blinded_signature
+      absl::HexStringToBytes(
+          "72c4e0f4f677aa1dbb686e23b5944b3afdc7f824711a1f7486d1ed6fa20aad255a14"
+          "12885aee04c64359964e694a713da2a1684325c1c31401cac1ea39a9e454675b55f7"
+          "43ff144ac605d0ed254b12d9bdd43b0e8a17c0d4711239732e45e4166261d0b16d2f"
+          "29403c5f2584a29b225daa7530ba15fc9af15ed2ce8fcb126ad0b0758fd522fbf99a"
+          "83e4cfe0539aa264d06a1633deee0053f45fc8a944f1468a0c0c449155139779a323"
+          "0c8fa41a81858418151fa195f57ea645699f550d3cb37c549542d436071d1af74e62"
+          "9f938fa4717ca9def382fc35089e4caec9e5d740c38ecb2aa88c90176d2f322866ac"
+          "fd50e2b92313161e81327f889aca0c94bcb8"),
+      // signature
+      absl::HexStringToBytes(
+          "a7ace477c1f416a40e93ddf8a454f9c626b33c5a20067d81bdfef7b88bc15de2b046"
+          "24478b2134b4b23d91285d72ca4eb9c6c911cd7be2437f4e3b24426bce1a1cb52e2c"
+          "8a4d13f7fd5c9b0f943b92b8bbcba805b847a0ea549dbc249f2e812bf03dd6b2588c"
+          "8af22bf8b6bba56ffd8d2872b2f0ebd42ac8bd8339e5e63806199deec3cf392c078f"
+          "66e72d9be817787d4832c45c1f192465d87f6f6c333ce1e8c5641c7069280443d222"
+          "7f6f28ff2045acdc368f2f94c38a3c909591a27c93e1778630aeeeb623805f37c575"
+          "213091f096be14ffa739ee55b3f264450210a4b2e61a9b12141ca36dd45e3b81116f"
+          "c286e469b707864b017634b8a409ae99c9f1"),
+  });
+
+  // test_vector 3.
+  test_vectors.push_back({
+      n,
+      e,
+      d,
+      p,
+      q,
+      // message
+      "",
+      // public_metadata
+      absl::HexStringToBytes("6d65746164617461"),
+      // message_mask
+      "",
+      // blinded_message
+      absl::HexStringToBytes(
+          "92d5456738e0cfe0fa770b51e6a72d633d7cec3a945459f1db96dbc500a5d1bca34a"
+          "839059579759301c098231b102fb1e114bf9f892f42f902a336f4a3585b23efa906d"
+          "fcb94213f4d3b39951551cedecbf51efa213ad030cf821ee3fa46a57d67429f838ff"
+          "728f47111f7f1b22000a979c0f56cc581396935780d76173410d2a8a5688cd596229"
+          "03008fe50af1fcc5e7cf96affad7e60fbed67996c7a377effa0f08d9273cd33536b2"
+          "625c9575d10636cc964636a1500f4fcb22aabbef77fe415cbc7245c1032d34bd480e"
+          "e338f55be0a79c0076d9cf9c94c0db3003a33b23c62dbd1a85f2b15db5d153b318cc"
+          "a53c6d68e1e63bafa39c9a43be72f36d2569"),
+      // blinded_signature
+      absl::HexStringToBytes(
+          "a76a1c53566a9781de04d87e8c3a0bc902b47819e7b900580654215b0a710cb563b0"
+          "85b5e9fff150791f759da03a139dfc9159c21410f1e3d345b8c5dcca35211772900f"
+          "85c5eec065987cbdbf303e9651196223263a713e4135d6b20bfa8fb8212341665647"
+          "a9a7e07a831ccbf9e62d9366ec9ac0bbe96228e6fbb848f8f6f474cce68e3556dc88"
+          "2847e9e61b5b5e02bbfd6152aeca74e8782a54ffe6552d63fb837738a05044b38f7e"
+          "908c4989b202bd858695c61e12cf9d47ef276a17917e39f942871defd9747541957b"
+          "1e2f8950da43c9a05ba4835bded23c24cf64edfee10dd0c70b071427cfcbb8b5eb22"
+          "5daf149a6b4d42bebcc536380a9d753a8b1e"),
+      // signature
+      absl::HexStringToBytes(
+          "02bc0f2728e2b8cd1c1b9873d4b7f5a62017430398165a6f8964842eaa19c1de2922"
+          "07b74dc25ee0aa90493216d3fbf8e1b2947fd64335277b34767f987c482c69262967"
+          "c8a8aaf180a4006f456c804cdc7b92d956a351ad89703cc76f69ed45f24d68e1ae03"
+          "61479e0f6faf10c3b1582de2dcd2af432d57c0c89c8efb1cf3ac5f991fe9c4f0ad24"
+          "473939b053674a2582518b4bd57da109f4f37bc91a2f806e82bb2b80d486d0694e66"
+          "3992c9517c946607b978f557bbb769d4cd836d693c77da480cd89b916e5e4190f317"
+          "711d9c7e64528a314a14bf0b9256f4c60e9ddb550583c21755ab882bdfdf22dc8402"
+          "49389b1e0a2189f58e19b41c5f313cddce29"),
+  });
+
+  // test_vector 4.
+  test_vectors.push_back({
+      n,
+      e,
+      d,
+      p,
+      q,
+      // message
+      "",
+      // public_metadata
+      "",
+      // message_mask
+      "",
+      // blinded_message
+      absl::HexStringToBytes(
+          "ba562cba0e69070dc50384456391defa410d36fa853fd235902ff5d015d688a44def"
+          "6b6a7e71a69bff8ee510f5a9aa44e9afddd3e766f2423b3fc783fd1a9ab618586110"
+          "987c1b3ddce62d25cae500aa92a6b886cb609829d06e67fbf28fbbf3ee7d5cc12548"
+          "1dd002b908097732e0df06f288cc6eb54565f8153d480085b56ab6cb5801b482d12f"
+          "50558eb3cb0eb7a4ff8fcc54d4d7fcc2f8913a401ae1d1303ead7964f2746e4804e2"
+          "848bba87f53cf1412afedc82d9c383dd095e0eb6f90cc74bc4bb5ea7529ded9cde2d"
+          "489575d549b884379abe6d7b71969e6a9c09f1963d2719eefccd5f2a407845961ccc"
+          "1fa580a93c72902b2499d96f89e6c53fc888"),
+      // blinded_signature
+      absl::HexStringToBytes(
+          "280c5934022fd17f7f810d4f7adf1d29ced47d098834411d672163cc793bcaad239d"
+          "07c4c45048a682995950ce84703064cd8c16d6f2579f7a65b66c274faccc6c73c9d2"
+          "99dcf35c96338c9b81af2f93554a78528551e04be931c8502ee6a21ef65d1fa3cd04"
+          "9a993e261f85c841b75857d6bf02dd4532e14702f8f5e1261f7543535cdf9379243b"
+          "5b8ca5cd69d2576276a6c25b78ab7c69d2b0c568eb57cf1731983016dece5b59e753"
+          "01ca1a148154f2592c8406fee83a434f7b3192649c5be06000866ff40bf09b558c7a"
+          "f4bbb9a79d5d13151e7b6e602e30c4ab70bbbce9c098c386e51b98aefab67b8efc03"
+          "f048210a785fd538ee6b75ecd484c1340d91"),
+      // signature
+      absl::HexStringToBytes(
+          "b7d45ec4db11f9b74a6b33806e486f7ee5f87c4fa7c57d08caf0ca6d3ba55e66bf07"
+          "69c84b9187b9a86e49ba0cb58348f01156ac5bc2e9570fe0a8c33d0ad049a965aeb2"
+          "a8d8a3cbb30f89a3da6732a9bb3d9415141be4e9052f49d422301a9cfce49947db7d"
+          "52a1c620b7106ae43afbcb7cb29b9c215e0c2b4cf8d62db67224dd3de9f448f7b660"
+          "7977c608595d29380b591a2bff2dff57ea2c77e9cdf69c1821ff183a7626d45bbe11"
+          "97767ac577715473d18571790b1cf59ee35e64362c826246ae83923d749117b7ec1b"
+          "4478ee15f990dc200745a45f175d23c8a13d2dbe58b1f9d10db71917708b19eeeab2"
+          "30fe6026c249342216ee785d9422c3a8dc89"),
   });
   return test_vectors;
 }
