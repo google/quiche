@@ -68,6 +68,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
 
   bool HasBytesToRead() const { return !fragments_.empty(); }
 
+  size_t ReadableBytes() const;
+
   uint64_t total_body_bytes_received() const {
     return total_body_bytes_received_;
   }

@@ -1186,10 +1186,6 @@ bool QuicStream::IsWaitingForAcks() const {
          (send_buffer_.stream_bytes_outstanding() || fin_outstanding_);
 }
 
-QuicByteCount QuicStream::ReadableBytes() const {
-  return sequencer_.ReadableBytes();
-}
-
 bool QuicStream::WriteStreamData(QuicStreamOffset offset,
                                  QuicByteCount data_length,
                                  QuicDataWriter* writer) {

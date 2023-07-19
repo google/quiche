@@ -464,6 +464,13 @@ bool QuicSpdyStream::HasBytesToRead() const {
   return body_manager_.HasBytesToRead();
 }
 
+QuicByteCount QuicSpdyStream::ReadableBytes() const {
+  if (!VersionUsesHttp3(transport_version())) {
+    return sequencer()->ReadableBytes();
+  }
+  return body_manager_.ReadableBytes();
+}
+
 void QuicSpdyStream::MarkTrailersConsumed() { trailers_consumed_ = true; }
 
 uint64_t QuicSpdyStream::total_body_bytes_read() const {

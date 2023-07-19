@@ -87,6 +87,14 @@ int QuicSpdyStreamBodyManager::PeekBody(iovec* iov, size_t iov_len) const {
   return iov_filled;
 }
 
+size_t QuicSpdyStreamBodyManager::ReadableBytes() const {
+  size_t count = 0;
+  for (auto const& fragment : fragments_) {
+    count += fragment.body.length();
+  }
+  return count;
+}
+
 size_t QuicSpdyStreamBodyManager::ReadBody(const struct iovec* iov,
                                            size_t iov_len,
                                            size_t* total_bytes_read) {

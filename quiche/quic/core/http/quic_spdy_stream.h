@@ -187,10 +187,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   static bool ParseHeaderStatusCode(absl::string_view status_value,
                                     int* status_code);
 
-  // Returns true when all data from the peer has been read and consumed,
-  // including the fin.
+  // Returns true when headers, data and trailers all are read.
   bool IsDoneReading() const;
+  // For IETF QUIC, bytes-to-read/readable-bytes only concern body (not headers
+  // or trailers). For gQUIC, they refer to all the bytes in the sequencer.
   bool HasBytesToRead() const;
+  QuicByteCount ReadableBytes() const;
 
   void set_visitor(Visitor* visitor) { visitor_ = visitor; }
 
