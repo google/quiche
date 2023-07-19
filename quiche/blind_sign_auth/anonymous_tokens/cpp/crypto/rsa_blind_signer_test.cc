@@ -77,8 +77,9 @@ TEST_P(RsaBlindSignerTest, StandardSignerWorks) {
       std::string encoded_message,
       EncodeMessageForTests(message, public_key_, sig_hash_, mgf1_hash_,
                             salt_length_));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlindSigner> signer,
-                                   RsaBlindSigner::New(private_key_));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<RsaBlindSigner> signer,
+      RsaBlindSigner::New(private_key_, /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
@@ -88,8 +89,9 @@ TEST_P(RsaBlindSignerTest, StandardSignerWorks) {
 }
 
 TEST_P(RsaBlindSignerTest, SignerFails) {
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::unique_ptr<RsaBlindSigner> signer,
-                                   RsaBlindSigner::New(private_key_));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<RsaBlindSigner> signer,
+      RsaBlindSigner::New(private_key_, /*use_rsa_public_exponent=*/true));
   absl::string_view message = "Hello World!";
 
   absl::StatusOr<std::string> signature = signer->Sign(message);
@@ -151,7 +153,8 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata, SignerWorksWithPublicMetadata) {
                             mgf1_hash_, salt_length_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlindSigner> signer,
-      RsaBlindSigner::New(private_key_, public_metadata));
+      RsaBlindSigner::New(private_key_, /*use_rsa_public_exponent=*/true,
+                          public_metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
@@ -172,7 +175,8 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
                             mgf1_hash_, salt_length_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlindSigner> signer,
-      RsaBlindSigner::New(private_key_, empty_public_metadata));
+      RsaBlindSigner::New(private_key_, /*use_rsa_public_exponent=*/true,
+                          empty_public_metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
@@ -195,7 +199,8 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
                             mgf1_hash_, salt_length_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlindSigner> signer,
-      RsaBlindSigner::New(private_key_, public_metadata));
+      RsaBlindSigner::New(private_key_, /*use_rsa_public_exponent=*/true,
+                          public_metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
@@ -221,7 +226,8 @@ TEST_P(RsaBlindSignerTestWithPublicMetadata,
                             mgf1_hash_, salt_length_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlindSigner> signer,
-      RsaBlindSigner::New(private_key_, public_metadata));
+      RsaBlindSigner::New(private_key_, /*use_rsa_public_exponent=*/true,
+                          public_metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string potentially_insecure_signature,
                                    signer->Sign(encoded_message));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
@@ -242,9 +248,9 @@ INSTANTIATE_TEST_SUITE_P(
 // TODO(b/275956922): Consolidate all tests that use IETF test vectors into one
 // E2E test.
 //
-// This test uses IETF test vectors for RSA blind signatures with public
-// metadata. The vectors includes tests for public metadata set to an empty
-// string as well as a non-empty value.
+// The following tests use IETF test vectors for RSA blind signatures with
+// public metadata. The vectors includes tests for public metadata set to an
+// empty string as well as a non-empty value.
 TEST(IetfRsaBlindSignerTest,
      IetfRsaBlindSignaturesWithPublicMetadataTestVectorsSuccess) {
   auto test_vectors = GetIetfRsaBlindSignatureWithPublicMetadataTestVectors();
@@ -254,7 +260,26 @@ TEST(IetfRsaBlindSignerTest,
   for (const auto &test_vector : test_vectors) {
     ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
         std::unique_ptr<RsaBlindSigner> signer,
-        RsaBlindSigner::New(test_key.second, test_vector.public_metadata));
+        RsaBlindSigner::New(test_key.second, /*use_rsa_public_exponent=*/true,
+                            test_vector.public_metadata));
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blind_signature,
+                                     signer->Sign(test_vector.blinded_message));
+    EXPECT_EQ(blind_signature, test_vector.blinded_signature);
+  }
+}
+
+TEST(IetfRsaBlindSignerTest,
+     IetfPartiallyBlindRsaSignaturesNoPublicExponentTestVectorsSuccess) {
+  auto test_vectors =
+      GetIetfPartiallyBlindRSASignatureNoPublicExponentTestVectors();
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      const auto test_key,
+      GetIetfRsaBlindSignatureWithPublicMetadataTestKeys());
+  for (const auto &test_vector : test_vectors) {
+    ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+        std::unique_ptr<RsaBlindSigner> signer,
+        RsaBlindSigner::New(test_key.second, /*use_rsa_public_exponent=*/false,
+                            test_vector.public_metadata));
     ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blind_signature,
                                      signer->Sign(test_vector.blinded_message));
     EXPECT_EQ(blind_signature, test_vector.blinded_signature);

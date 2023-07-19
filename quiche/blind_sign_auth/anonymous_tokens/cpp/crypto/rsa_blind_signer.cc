@@ -41,7 +41,8 @@ absl::StatusOr<bssl::UniquePtr<RSA>> CreatePrivateKeyWithPublicMetadata(
     const absl::string_view rsa_public_exponent_str,
     const absl::string_view rsa_p_str, const absl::string_view rsa_q_str,
     const absl::string_view rsa_crt_str,
-    const absl::string_view public_metadata) {
+    const absl::string_view public_metadata,
+    const bool use_rsa_public_exponent) {
   // Convert RSA modulus n (=p*q) to BIGNUM.
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_modulus,
                                StringToBignum(rsa_modulus_str));
@@ -50,10 +51,16 @@ absl::StatusOr<bssl::UniquePtr<RSA>> CreatePrivateKeyWithPublicMetadata(
                                StringToBignum(rsa_public_exponent_str));
 
   // Compute new public exponent based on public metadata.
-  ANON_TOKENS_ASSIGN_OR_RETURN(
-      bssl::UniquePtr<BIGNUM> derived_rsa_e,
-      ComputeExponentWithPublicMetadataAndPublicExponent(*rsa_modulus, *old_e,
-                                                         public_metadata));
+  bssl::UniquePtr<BIGNUM> derived_rsa_e;
+  if (use_rsa_public_exponent) {
+    ANON_TOKENS_ASSIGN_OR_RETURN(
+        derived_rsa_e, ComputeExponentWithPublicMetadataAndPublicExponent(
+                           *rsa_modulus, *old_e, public_metadata));
+  } else {
+    ANON_TOKENS_ASSIGN_OR_RETURN(
+        derived_rsa_e,
+        ComputeExponentWithPublicMetadata(*rsa_modulus, public_metadata));
+  }
 
   // Convert p & q to BIGNUM.
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_p,
@@ -120,7 +127,7 @@ RsaBlindSigner::RsaBlindSigner(std::optional<absl::string_view> public_metadata,
       rsa_private_key_(std::move(rsa_private_key)) {}
 
 absl::StatusOr<std::unique_ptr<RsaBlindSigner>> RsaBlindSigner::New(
-    const RSAPrivateKey& signing_key,
+    const RSAPrivateKey& signing_key, const bool use_rsa_public_exponent,
     std::optional<absl::string_view> public_metadata) {
   bssl::UniquePtr<RSA> rsa_private_key;
   if (!public_metadata.has_value()) {
@@ -137,7 +144,7 @@ absl::StatusOr<std::unique_ptr<RsaBlindSigner>> RsaBlindSigner::New(
         rsa_private_key,
         CreatePrivateKeyWithPublicMetadata(
             signing_key.n(), signing_key.e(), signing_key.p(), signing_key.q(),
-            signing_key.crt(), *public_metadata));
+            signing_key.crt(), *public_metadata, use_rsa_public_exponent));
   }
   return absl::WrapUnique(
       new RsaBlindSigner(public_metadata, std::move(rsa_private_key)));

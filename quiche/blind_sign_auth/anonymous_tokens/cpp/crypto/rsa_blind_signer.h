@@ -45,8 +45,15 @@ class QUICHE_EXPORT RsaBlindSigner : public BlindSigner {
   // Passing of public_metadata is optional. If it is set to any value including
   // an empty string, RsaBlindSigner will assume that partially blind RSA
   // signature protocol is being executed.
+  //
+  // If public metadata is passed and the boolean "use_rsa_public_exponent" is
+  // set to false, the public exponent in the signing_key is not used in any
+  // computations in the protocol.
+  //
+  // Setting "use_rsa_public_exponent" to true is deprecated. All new users
+  // should set it to false.
   static absl::StatusOr<std::unique_ptr<RsaBlindSigner>> New(
-      const RSAPrivateKey& signing_key,
+      const RSAPrivateKey& signing_key, bool use_rsa_public_exponent,
       std::optional<absl::string_view> public_metadata = std::nullopt);
 
   // Computes the signature for 'blinded_data'.

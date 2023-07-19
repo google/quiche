@@ -107,7 +107,8 @@ absl::StatusOr<AnonymousTokensSignResponse> CreateResponse(
     }
     ANON_TOKENS_ASSIGN_OR_RETURN(
         std::unique_ptr<RsaBlindSigner> blind_signer,
-        RsaBlindSigner::New(private_key, public_metadata));
+        RsaBlindSigner::New(private_key, /*use_rsa_public_exponent=*/true,
+                            public_metadata));
     ANON_TOKENS_ASSIGN_OR_RETURN(
         *response_token->mutable_serialized_token(),
         blind_signer->Sign(request_token.serialized_token()));
