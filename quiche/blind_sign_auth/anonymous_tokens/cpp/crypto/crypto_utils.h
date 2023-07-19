@@ -158,21 +158,28 @@ CreatePublicKeyRSAWithPublicMetadata(absl::string_view rsa_modulus,
                                      absl::string_view public_exponent,
                                      absl::string_view public_metadata);
 
-// Compute exponent based only on the public metadata. Assumes that n is a safe
-// modulus i.e. it produces a strong RSA key pair. If not, the exponent may be
-// invalid.
+// Compute exponent using only the public metadata and RSA modulus n. Assumes
+// that n is a safe modulus i.e. it produces a strong RSA key pair. If not, the
+// exponent may be invalid.
+//
+// Empty public metadata is considered to be a valid value for public_metadata
+// and will output a valid exponent.
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT
-PublicMetadataExponent(const BIGNUM& n, absl::string_view public_metadata);
+ComputeExponentWithPublicMetadata(const BIGNUM& n,
+                                  absl::string_view public_metadata);
 
-// Computes final exponent by multiplying the public exponent e with the
-// exponent derived from public metadata. Assumes that n is a safe modulus i.e.
-// it produces a strong RSA key pair. If not, the exponent may be invalid.
+// Computes exponent by multiplying the public exponent e with the
+// exponent derived from public metadata and RSA modulus n. Assumes that n is a
+// safe modulus i.e. it produces a strong RSA key pair. If not, the exponent may
+// be invalid.
 //
 // Empty public metadata is considered to be a valid value for public_metadata
 // and will output an exponent different than `e` as well.
+//
+// This function is now deprecated.
 absl::StatusOr<bssl::UniquePtr<BIGNUM>> QUICHE_EXPORT
-ComputeFinalExponentUnderPublicMetadata(const BIGNUM& n, const BIGNUM& e,
-                                        absl::string_view public_metadata);
+ComputeExponentWithPublicMetadataAndPublicExponent(
+    const BIGNUM& n, const BIGNUM& e, absl::string_view public_metadata);
 
 // Helper method that implements RSA PSS Blind Signatures verification protocol
 // for both the standard scheme as well as the public metadata version.

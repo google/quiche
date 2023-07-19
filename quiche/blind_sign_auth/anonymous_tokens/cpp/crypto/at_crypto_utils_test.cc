@@ -192,12 +192,12 @@ TEST(PublicMetadataCryptoUtilsTest, PublicExponentHashDifferentModulus) {
                                    StringToBignum(public_key_1.n));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> exp1,
-      PublicMetadataExponent(*rsa_modulus_1.get(), metadata));
+      ComputeExponentWithPublicMetadata(*rsa_modulus_1.get(), metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(auto rsa_modulus_2,
                                    StringToBignum(public_key_2.n));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> exp2,
-      PublicMetadataExponent(*rsa_modulus_2.get(), metadata));
+      ComputeExponentWithPublicMetadata(*rsa_modulus_2.get(), metadata));
   EXPECT_NE(BN_cmp(exp1.get(), exp2.get()), 0);
 }
 
@@ -255,7 +255,7 @@ TEST(PublicMetadataCryptoUtilsTest,
                                      StringToBignum(test_vector.new_e));
     ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
         bssl::UniquePtr<BIGNUM> modified_e,
-        ComputeFinalExponentUnderPublicMetadata(
+        ComputeExponentWithPublicMetadataAndPublicExponent(
             *rsa_modulus.get(), *rsa_e.get(), test_vector.public_metadata));
 
     EXPECT_EQ(BN_cmp(modified_e.get(), expected_new_e.get()), 0);
@@ -374,7 +374,7 @@ TEST_P(CryptoUtilsTest, PublicExponentCoprime) {
   std::string metadata = "md";
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> exp,
-      PublicMetadataExponent(*rsa_modulus_.get(), metadata));
+      ComputeExponentWithPublicMetadata(*rsa_modulus_.get(), metadata));
   int rsa_mod_size_bits = BN_num_bits(rsa_modulus_.get());
   // Check that exponent is odd.
   EXPECT_EQ(BN_is_odd(exp.get()), 1);
@@ -392,15 +392,15 @@ TEST_P(CryptoUtilsTest, PublicExponentHash) {
   // Check that hash is deterministic.
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> exp1,
-      PublicMetadataExponent(*rsa_modulus_.get(), metadata1));
+      ComputeExponentWithPublicMetadata(*rsa_modulus_.get(), metadata1));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> another_exp1,
-      PublicMetadataExponent(*rsa_modulus_.get(), metadata1));
+      ComputeExponentWithPublicMetadata(*rsa_modulus_.get(), metadata1));
   EXPECT_EQ(BN_cmp(exp1.get(), another_exp1.get()), 0);
   // Check that hashes are distinct for different metadata.
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> exp2,
-      PublicMetadataExponent(*rsa_modulus_.get(), metadata2));
+      ComputeExponentWithPublicMetadata(*rsa_modulus_.get(), metadata2));
   EXPECT_NE(BN_cmp(exp1.get(), exp2.get()), 0);
 }
 
@@ -408,8 +408,8 @@ TEST_P(CryptoUtilsTest, FinalExponentCoprime) {
   std::string metadata = "md";
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> final_exponent,
-      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus_.get(),
-                                              *rsa_e_.get(), metadata));
+      ComputeExponentWithPublicMetadataAndPublicExponent(
+          *rsa_modulus_.get(), *rsa_e_.get(), metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(BnCtxPtr ctx, GetAndStartBigNumCtx());
 
   // Check that exponent is odd.
@@ -431,12 +431,12 @@ TEST_P(CryptoUtilsTest, DeterministicModificationOfPublicExponentWithMetadata) {
   std::string metadata = "md";
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> public_exp_1,
-      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus_.get(),
-                                              *rsa_e_.get(), metadata));
+      ComputeExponentWithPublicMetadataAndPublicExponent(
+          *rsa_modulus_.get(), *rsa_e_.get(), metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> public_exp_2,
-      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus_.get(),
-                                              *rsa_e_.get(), metadata));
+      ComputeExponentWithPublicMetadataAndPublicExponent(
+          *rsa_modulus_.get(), *rsa_e_.get(), metadata));
 
   EXPECT_EQ(BN_cmp(public_exp_1.get(), public_exp_2.get()), 0);
 }
@@ -446,12 +446,12 @@ TEST_P(CryptoUtilsTest, DifferentPublicExponentWithDifferentPublicMetadata) {
   std::string metadata_2 = "md2";
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> public_exp_1,
-      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus_.get(),
-                                              *rsa_e_.get(), metadata_1));
+      ComputeExponentWithPublicMetadataAndPublicExponent(
+          *rsa_modulus_.get(), *rsa_e_.get(), metadata_1));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       bssl::UniquePtr<BIGNUM> public_exp_2,
-      ComputeFinalExponentUnderPublicMetadata(*rsa_modulus_.get(),
-                                              *rsa_e_.get(), metadata_2));
+      ComputeExponentWithPublicMetadataAndPublicExponent(
+          *rsa_modulus_.get(), *rsa_e_.get(), metadata_2));
   // Check that exponent is different in all keys
   EXPECT_NE(BN_cmp(public_exp_1.get(), public_exp_2.get()), 0);
   EXPECT_NE(BN_cmp(public_exp_1.get(), rsa_e_.get()), 0);
@@ -459,9 +459,10 @@ TEST_P(CryptoUtilsTest, DifferentPublicExponentWithDifferentPublicMetadata) {
 }
 
 TEST_P(CryptoUtilsTest, ModifiedPublicExponentWithEmptyPublicMetadata) {
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(bssl::UniquePtr<BIGNUM> new_public_exp,
-                                   ComputeFinalExponentUnderPublicMetadata(
-                                       *rsa_modulus_.get(), *rsa_e_.get(), ""));
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
+      bssl::UniquePtr<BIGNUM> new_public_exp,
+      ComputeExponentWithPublicMetadataAndPublicExponent(*rsa_modulus_.get(),
+                                                         *rsa_e_.get(), ""));
 
   EXPECT_NE(BN_cmp(new_public_exp.get(), rsa_e_.get()), 0);
 }

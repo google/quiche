@@ -50,9 +50,10 @@ absl::StatusOr<bssl::UniquePtr<RSA>> CreatePrivateKeyWithPublicMetadata(
                                StringToBignum(rsa_public_exponent_str));
 
   // Compute new public exponent based on public metadata.
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> derived_rsa_e,
-                               ComputeFinalExponentUnderPublicMetadata(
-                                   *rsa_modulus, *old_e, public_metadata));
+  ANON_TOKENS_ASSIGN_OR_RETURN(
+      bssl::UniquePtr<BIGNUM> derived_rsa_e,
+      ComputeExponentWithPublicMetadataAndPublicExponent(*rsa_modulus, *old_e,
+                                                         public_metadata));
 
   // Convert p & q to BIGNUM.
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> rsa_p,

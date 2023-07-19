@@ -333,8 +333,8 @@ absl::StatusOr<bssl::UniquePtr<RSA>> CreatePublicKeyRSAWithPublicMetadata(
     absl::string_view public_metadata) {
   ANON_TOKENS_ASSIGN_OR_RETURN(
       bssl::UniquePtr<BIGNUM> derived_rsa_e,
-      ComputeFinalExponentUnderPublicMetadata(rsa_modulus, public_exponent,
-                                              public_metadata));
+      ComputeExponentWithPublicMetadataAndPublicExponent(
+          rsa_modulus, public_exponent, public_metadata));
   bssl::UniquePtr<RSA> rsa_public_key = bssl::UniquePtr<RSA>(
       RSA_new_public_key_large_e(&rsa_modulus, derived_rsa_e.get()));
   if (!rsa_public_key.get()) {
@@ -376,7 +376,7 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> ComputeCarmichaelLcm(
   return lcm;
 }
 
-absl::StatusOr<bssl::UniquePtr<BIGNUM>> PublicMetadataExponent(
+absl::StatusOr<bssl::UniquePtr<BIGNUM>> ComputeExponentWithPublicMetadata(
     const BIGNUM& n, absl::string_view public_metadata) {
   // Check modulus length.
   if (BN_num_bits(&n) % 2 == 1) {
@@ -421,10 +421,12 @@ absl::StatusOr<bssl::UniquePtr<BIGNUM>> PublicMetadataExponent(
   return exponent;
 }
 
-absl::StatusOr<bssl::UniquePtr<BIGNUM>> ComputeFinalExponentUnderPublicMetadata(
+absl::StatusOr<bssl::UniquePtr<BIGNUM>>
+ComputeExponentWithPublicMetadataAndPublicExponent(
     const BIGNUM& n, const BIGNUM& e, absl::string_view public_metadata) {
-  ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> md_exp,
-                               PublicMetadataExponent(n, public_metadata));
+  ANON_TOKENS_ASSIGN_OR_RETURN(
+      bssl::UniquePtr<BIGNUM> md_exp,
+      ComputeExponentWithPublicMetadata(n, public_metadata));
   ANON_TOKENS_ASSIGN_OR_RETURN(BnCtxPtr bn_ctx, GetAndStartBigNumCtx());
   // new_e=e*md_exp
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> new_e, NewBigNum());

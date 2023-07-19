@@ -82,7 +82,7 @@ absl::StatusOr<std::string> TestSignWithPublicMetadata(
   // Compute new public exponent using the public metadata.
   ANON_TOKENS_ASSIGN_OR_RETURN(
       bssl::UniquePtr<BIGNUM> new_e,
-      ComputeFinalExponentUnderPublicMetadata(
+      ComputeExponentWithPublicMetadataAndPublicExponent(
           *RSA_get0_n(&rsa_key), *RSA_get0_e(&rsa_key), public_metadata));
 
   // Compute phi(p) = p-1
