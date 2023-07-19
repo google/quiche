@@ -58,6 +58,9 @@ class QUICHE_EXPORT ObliviousHttpResponse {
   const std::string& EncapsulateAndSerialize() const;
 
   const std::string& GetPlaintextData() const;
+  std::string ConsumePlaintextData() && {
+    return std::move(response_plaintext_);
+  }
 
  private:
   struct CommonAeadParamsResult {
