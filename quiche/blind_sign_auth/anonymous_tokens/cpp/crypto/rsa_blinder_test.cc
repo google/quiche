@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "quiche/common/platform/api/quiche_test.h"
@@ -101,7 +102,8 @@ TEST_P(RsaBlinderTest, BlindSignUnblindEnd2EndTest) {
                       rsa_blinder_test_params_.public_key.e,
                       rsa_blinder_test_params_.sig_hash,
                       rsa_blinder_test_params_.mgf1_hash,
-                      rsa_blinder_test_params_.salt_length));
+                      rsa_blinder_test_params_.salt_length,
+                      /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
@@ -128,7 +130,8 @@ TEST_P(RsaBlinderTest, DoubleBlindingFailure) {
                       rsa_blinder_test_params_.public_key.e,
                       rsa_blinder_test_params_.sig_hash,
                       rsa_blinder_test_params_.mgf1_hash,
-                      rsa_blinder_test_params_.salt_length));
+                      rsa_blinder_test_params_.salt_length,
+                      /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_message,
                                    blinder->Blind(message));
   // Blind the blinded_message
@@ -150,7 +153,8 @@ TEST_P(RsaBlinderTest, DoubleUnblindingFailure) {
                       rsa_blinder_test_params_.public_key.e,
                       rsa_blinder_test_params_.sig_hash,
                       rsa_blinder_test_params_.mgf1_hash,
-                      rsa_blinder_test_params_.salt_length));
+                      rsa_blinder_test_params_.salt_length,
+                      /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_message,
                                    blinder->Blind(message));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_signature,
@@ -175,7 +179,8 @@ TEST_P(RsaBlinderTest, InvalidSignature) {
                       rsa_blinder_test_params_.public_key.e,
                       rsa_blinder_test_params_.sig_hash,
                       rsa_blinder_test_params_.mgf1_hash,
-                      rsa_blinder_test_params_.salt_length));
+                      rsa_blinder_test_params_.salt_length,
+                      /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_message,
                                    blinder->Blind(message));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_signature,
@@ -205,7 +210,8 @@ TEST_P(RsaBlinderTest, InvalidVerificationKey) {
                       rsa_blinder_test_params_.public_key.e,
                       rsa_blinder_test_params_.sig_hash,
                       rsa_blinder_test_params_.mgf1_hash,
-                      rsa_blinder_test_params_.salt_length));
+                      rsa_blinder_test_params_.salt_length,
+                      /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_message,
                                    blinder->Blind(message));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(const std::string blinded_signature,
@@ -218,7 +224,8 @@ TEST_P(RsaBlinderTest, InvalidVerificationKey) {
       std::unique_ptr<RsaBlinder> bad_blinder,
       RsaBlinder::New(bad_key.n, bad_key.e, rsa_blinder_test_params_.sig_hash,
                       rsa_blinder_test_params_.mgf1_hash,
-                      rsa_blinder_test_params_.salt_length));
+                      rsa_blinder_test_params_.salt_length,
+                      /*use_rsa_public_exponent=*/true));
   EXPECT_THAT(bad_blinder->Verify(signature, message).code(),
               absl::StatusCode::kInvalidArgument);
 }
@@ -230,14 +237,17 @@ INSTANTIATE_TEST_SUITE_P(RsaBlinderTest, RsaBlinderTest,
                                          CreateSHA256TestKeyParameters(),
                                          CreateLongerSaltTestKeyParameters()));
 
-using CreateTestKeyPairFunction =
-    std::pair<TestRsaPublicKey, TestRsaPrivateKey>();
+using RsaBlinderPublicMetadataTestParams =
+    std::tuple<std::pair<TestRsaPublicKey, TestRsaPrivateKey>,
+               /*use_rsa_public_exponent*/ bool>;
 
 class RsaBlinderWithPublicMetadataTest
-    : public testing::TestWithParam<CreateTestKeyPairFunction*> {
+    : public testing::TestWithParam<RsaBlinderPublicMetadataTestParams> {
  protected:
   void SetUp() override {
-    const auto [public_key, private_key] = (*GetParam())();
+    std::pair<TestRsaPublicKey, TestRsaPrivateKey> key_pair;
+    std::tie(key_pair, use_rsa_public_exponent_) = GetParam();
+    const auto [public_key, private_key] = key_pair;
     rsa_blinder_test_params_ = {public_key, private_key, EVP_sha384(),
                                 EVP_sha384(), kSaltLengthInBytes48};
     ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
@@ -254,6 +264,7 @@ class RsaBlinderWithPublicMetadataTest
 
   RsaBlinderTestParameters rsa_blinder_test_params_;
   bssl::UniquePtr<RSA> rsa_key_;
+  bool use_rsa_public_exponent_;
 };
 
 TEST_P(RsaBlinderWithPublicMetadataTest,
@@ -267,7 +278,8 @@ TEST_P(RsaBlinderWithPublicMetadataTest,
                       rsa_blinder_test_params_.public_key.e,
                       rsa_blinder_test_params_.sig_hash,
                       rsa_blinder_test_params_.mgf1_hash,
-                      rsa_blinder_test_params_.salt_length, public_metadata));
+                      rsa_blinder_test_params_.salt_length,
+                      use_rsa_public_exponent_, public_metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
@@ -275,7 +287,7 @@ TEST_P(RsaBlinderWithPublicMetadataTest,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
       TestSignWithPublicMetadata(blinded_message, public_metadata, *rsa_key_,
-                                 /*use_rsa_public_exponent=*/true));
+                                 use_rsa_public_exponent_));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
@@ -295,11 +307,12 @@ TEST_P(RsaBlinderWithPublicMetadataTest,
 
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlinder> blinder,
-      RsaBlinder::New(
-          rsa_blinder_test_params_.public_key.n,
-          rsa_blinder_test_params_.public_key.e,
-          rsa_blinder_test_params_.sig_hash, rsa_blinder_test_params_.mgf1_hash,
-          rsa_blinder_test_params_.salt_length, empty_public_metadata));
+      RsaBlinder::New(rsa_blinder_test_params_.public_key.n,
+                      rsa_blinder_test_params_.public_key.e,
+                      rsa_blinder_test_params_.sig_hash,
+                      rsa_blinder_test_params_.mgf1_hash,
+                      rsa_blinder_test_params_.salt_length,
+                      use_rsa_public_exponent_, empty_public_metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
@@ -307,7 +320,7 @@ TEST_P(RsaBlinderWithPublicMetadataTest,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
       TestSignWithPublicMetadata(blinded_message, empty_public_metadata,
-                                 *rsa_key_, /*use_rsa_public_exponent=*/true));
+                                 *rsa_key_, use_rsa_public_exponent_));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
@@ -331,7 +344,8 @@ TEST_P(RsaBlinderWithPublicMetadataTest, WrongPublicMetadata) {
                       rsa_blinder_test_params_.public_key.e,
                       rsa_blinder_test_params_.sig_hash,
                       rsa_blinder_test_params_.mgf1_hash,
-                      rsa_blinder_test_params_.salt_length, public_metadata));
+                      rsa_blinder_test_params_.salt_length,
+                      use_rsa_public_exponent_, public_metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
@@ -339,7 +353,7 @@ TEST_P(RsaBlinderWithPublicMetadataTest, WrongPublicMetadata) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
       TestSignWithPublicMetadata(blinded_message, public_metadata_2, *rsa_key_,
-                                 /*use_rsa_public_exponent=*/true));
+                                 use_rsa_public_exponent_));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
@@ -364,7 +378,8 @@ TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataForSigning) {
                       rsa_blinder_test_params_.public_key.e,
                       rsa_blinder_test_params_.sig_hash,
                       rsa_blinder_test_params_.mgf1_hash,
-                      rsa_blinder_test_params_.salt_length, public_metadata));
+                      rsa_blinder_test_params_.salt_length,
+                      use_rsa_public_exponent_, public_metadata));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
@@ -391,11 +406,11 @@ TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataInBlinding) {
 
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::unique_ptr<RsaBlinder> blinder,
-      RsaBlinder::New(rsa_blinder_test_params_.public_key.n,
-                      rsa_blinder_test_params_.public_key.e,
-                      rsa_blinder_test_params_.sig_hash,
-                      rsa_blinder_test_params_.mgf1_hash,
-                      rsa_blinder_test_params_.salt_length));
+      RsaBlinder::New(
+          rsa_blinder_test_params_.public_key.n,
+          rsa_blinder_test_params_.public_key.e,
+          rsa_blinder_test_params_.sig_hash, rsa_blinder_test_params_.mgf1_hash,
+          rsa_blinder_test_params_.salt_length, use_rsa_public_exponent_));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string blinded_message,
                                    blinder->Blind(message));
   EXPECT_NE(blinded_message, message);
@@ -403,7 +418,7 @@ TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataInBlinding) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
       TestSignWithPublicMetadata(blinded_message, public_metadata, *rsa_key_,
-                                 /*use_rsa_public_exponent=*/true));
+                                 use_rsa_public_exponent_));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
@@ -418,12 +433,13 @@ TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataInBlinding) {
               ::testing::HasSubstr("verification failed"));
 }
 
-INSTANTIATE_TEST_SUITE_P(RsaBlinderWithPublicMetadataTest,
-                         RsaBlinderWithPublicMetadataTest,
-                         testing::Values(&GetStrongTestRsaKeyPair2048,
-                                         &GetAnotherStrongTestRsaKeyPair2048,
-                                         &GetStrongTestRsaKeyPair3072,
-                                         &GetStrongTestRsaKeyPair4096));
+INSTANTIATE_TEST_SUITE_P(
+    RsaBlinderWithPublicMetadataTest, RsaBlinderWithPublicMetadataTest,
+    testing::Combine(testing::Values(GetStrongTestRsaKeyPair2048(),
+                                     GetAnotherStrongTestRsaKeyPair2048(),
+                                     GetStrongTestRsaKeyPair3072(),
+                                     GetStrongTestRsaKeyPair4096()),
+                     /*use_rsa_public_exponent*/ testing::Values(true, false)));
 
 }  // namespace
 }  // namespace anonymous_tokens

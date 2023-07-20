@@ -150,7 +150,7 @@ AnonymousTokensRsaBssaClient::CreateRequest(
         auto rsa_bssa_blinder,
         RsaBlinder::New(rsa_public_key_proto.n(), rsa_public_key_proto.e(),
                         sig_hash, mgf1_hash, public_key_.salt_length(),
-                        public_metadata));
+                        /*use_rsa_public_exponent=*/true, public_metadata));
     ANON_TOKENS_ASSIGN_OR_RETURN(const std::string blinded_message,
                                  rsa_bssa_blinder->Blind(masked_message));
 

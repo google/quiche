@@ -33,7 +33,8 @@ namespace anonymous_tokens {
 absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
     absl::string_view rsa_modulus, absl::string_view rsa_public_exponent,
     const EVP_MD* signature_hash_function, const EVP_MD* mgf1_hash_function,
-    int salt_length, std::optional<absl::string_view> public_metadata) {
+    int salt_length, const bool use_rsa_public_exponent,
+    std::optional<absl::string_view> public_metadata) {
   bssl::UniquePtr<RSA> rsa_public_key;
 
   if (!public_metadata.has_value()) {
@@ -47,7 +48,7 @@ absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
     ANON_TOKENS_ASSIGN_OR_RETURN(
         rsa_public_key, CreatePublicKeyRSAWithPublicMetadata(
                             rsa_modulus, rsa_public_exponent, *public_metadata,
-                            /*use_rsa_public_exponent=*/true));
+                            use_rsa_public_exponent));
   }
 
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> r, NewBigNum());

@@ -42,10 +42,17 @@ class QUICHE_EXPORT RsaBlinder : public Blinder {
   // Passing of public_metadata is optional. If it is set to any value including
   // an empty string, RsaBlinder will assume that partially blind RSA signature
   // protocol is being executed.
+  //
+  // If public metadata is passed and the boolean "use_rsa_public_exponent" is
+  // set to false, the rsa_public_exponent is not used in any computations in
+  // the protocol.
+  //
+  // Setting "use_rsa_public_exponent" to true is deprecated. All new users
+  // should set it to false.
   static absl::StatusOr<std::unique_ptr<RsaBlinder>> New(
       absl::string_view rsa_modulus, absl::string_view rsa_public_exponent,
       const EVP_MD* signature_hash_function, const EVP_MD* mgf1_hash_function,
-      int salt_length,
+      int salt_length, bool use_rsa_public_exponent,
       std::optional<absl::string_view> public_metadata = std::nullopt);
 
   // Blind `message` using n and e derived from an RSA public key and the public
