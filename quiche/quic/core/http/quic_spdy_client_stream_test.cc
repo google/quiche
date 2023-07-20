@@ -160,6 +160,17 @@ TEST_P(QuicSpdyClientStreamTest, TestFraming) {
   EXPECT_EQ(body_, stream_->data());
 }
 
+TEST_P(QuicSpdyClientStreamTest, HostAllowedInResponseHeader) {
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
+  SetQuicReloadableFlag(quic_allow_host_header_in_response, true);
+  auto headers = AsHeaderList(std::vector<std::pair<std::string, std::string>>{
+      {":status", "200"}, {"host", "example.com"}});
+  EXPECT_CALL(*connection_, OnStreamReset(stream_->id(), _)).Times(0u);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_NO_ERROR));
+}
+
 TEST_P(QuicSpdyClientStreamTest, Test100ContinueBeforeSuccessful) {
   // First send 100 Continue.
   headers_[":status"] = "100";

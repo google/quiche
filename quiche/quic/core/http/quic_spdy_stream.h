@@ -365,10 +365,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   void OnWriteSideInDataRecvdState() override;
 
-  virtual bool ValidatedRequestHeaders(const QuicHeaderList& header_list);
+  virtual bool ValidatedReceivedHeaders(const QuicHeaderList& header_list);
   // TODO(b/202433856) Merge AreHeaderFieldValueValid into
-  // ValidatedRequestHeaders once all flags guarding the behavior of
-  // ValidatedRequestHeaders has been rolled out.
+  // ValidatedReceivedHeaders once all flags guarding the behavior of
+  // ValidatedReceivedHeaders has been rolled out.
   virtual bool AreHeaderFieldValuesValid(
       const QuicHeaderList& header_list) const;
 

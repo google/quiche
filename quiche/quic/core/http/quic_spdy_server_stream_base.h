@@ -23,7 +23,7 @@ class QUIC_NO_EXPORT QuicSpdyServerStreamBase : public QuicSpdyStream {
   void StopReading() override;
 
  protected:
-  bool ValidatedRequestHeaders(const QuicHeaderList& header_list) override;
+  bool ValidatedReceivedHeaders(const QuicHeaderList& header_list) override;
 };
 
 }  // namespace quic

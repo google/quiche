@@ -621,7 +621,7 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   }
   // Validate request headers if it did not exceed size limit. If it did,
   // OnHeadersTooLarge() should have already handled it previously.
-  if (!header_too_large && !ValidatedRequestHeaders(header_list)) {
+  if (!header_too_large && !ValidatedReceivedHeaders(header_list)) {
     QUIC_CODE_COUNT_N(quic_validate_request_header, 1, 2);
     QUICHE_DCHECK(!invalid_request_details().empty())
         << "ValidatedRequestHeaders() returns false without populating "
@@ -1678,7 +1678,7 @@ constexpr bool isInvalidHeaderNameCharacter(unsigned char c) {
 }
 }  // namespace
 
-bool QuicSpdyStream::ValidatedRequestHeaders(
+bool QuicSpdyStream::ValidatedReceivedHeaders(
     const QuicHeaderList& header_list) {
   bool force_fail_validation = false;
   AdjustTestValue("quic::QuicSpdyStream::request_header_validation_adjust",
@@ -1689,12 +1689,23 @@ bool QuicSpdyStream::ValidatedRequestHeaders(
     QUIC_DLOG(ERROR) << invalid_request_details_;
     return false;
   }
+  bool is_response = false;
   for (const std::pair<std::string, std::string>& pair : header_list) {
     const std::string& name = pair.first;
     if (std::any_of(name.begin(), name.end(), isInvalidHeaderNameCharacter)) {
       invalid_request_details_ = absl::StrCat("Invalid request header ", name);
       QUIC_DLOG(ERROR) << invalid_request_details_;
       return false;
+    }
+    if (GetQuicReloadableFlag(quic_allow_host_header_in_response)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_allow_host_header_in_response);
+      if (name == ":status") {
+        is_response = !pair.second.empty();
+      }
+      if (is_response && name == "host") {
+        // Host header is allowed in response.
+        continue;
+      }
     }
     if (http2::GetInvalidHttp2HeaderSet().contains(name)) {
       invalid_request_details_ = absl::StrCat(name, " header is not allowed");

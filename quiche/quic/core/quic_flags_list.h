@@ -19,6 +19,8 @@ QUIC_FLAG(quic_restart_flag_quic_testonly_default_true, true)
 QUIC_FLAG(quic_reloadable_flag_quic_block_until_settings_received_copt, false)
 // If trrue, early return before write control frame in OnCanWrite() if the connection is already closed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close, true)
+// If true, HTTP/3 client will allow host header in HTTP/3 response.
+QUIC_FLAG(quic_reloadable_flag_quic_allow_host_header_in_response, true)
 // If true, QUIC BBR2 will ignore non-positive RTT samples.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_ignore_bad_rtt_sample, false)
 // If true, QUIC server will not respond to gQUIC probing packet(PING + PADDING) but treat it as a regular packet.

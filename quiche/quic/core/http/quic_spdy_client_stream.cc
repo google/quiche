@@ -197,9 +197,9 @@ size_t QuicSpdyClientStream::SendRequest(Http2HeaderBlock headers,
   return bytes_sent;
 }
 
-bool QuicSpdyClientStream::ValidatedRequestHeaders(
+bool QuicSpdyClientStream::ValidatedReceivedHeaders(
     const QuicHeaderList& header_list) {
-  if (!QuicSpdyStream::ValidatedRequestHeaders(header_list)) {
+  if (!QuicSpdyStream::ValidatedReceivedHeaders(header_list)) {
     return false;
   }
   // Verify the presence of :status header.
