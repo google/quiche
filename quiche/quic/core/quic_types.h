@@ -158,8 +158,8 @@ struct QUIC_EXPORT_PRIVATE WriteResult {
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
                                                       const WriteResult& s);
 
-  WriteResult& set_batch_id(uint32_t batch_id) {
-    this->batch_id = batch_id;
+  WriteResult& set_batch_id(uint32_t new_batch_id) {
+    batch_id = new_batch_id;
     return *this;
   }
 
