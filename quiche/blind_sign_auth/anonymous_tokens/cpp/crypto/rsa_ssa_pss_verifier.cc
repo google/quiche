@@ -52,7 +52,8 @@ absl::StatusOr<std::unique_ptr<RsaSsaPssVerifier>> RsaSsaPssVerifier::New(
     // Empty string is a valid public metadata value.
     ANON_TOKENS_ASSIGN_OR_RETURN(
         rsa_public_key, CreatePublicKeyRSAWithPublicMetadata(
-                            public_key.n(), public_key.e(), *public_metadata));
+                            public_key.n(), public_key.e(), *public_metadata,
+                            /*use_rsa_public_exponent=*/true));
   }
 
   return absl::WrapUnique(new RsaSsaPssVerifier(salt_length, public_metadata,

@@ -45,9 +45,9 @@ absl::StatusOr<std::unique_ptr<RsaBlinder>> RsaBlinder::New(
     //
     // Empty string is a valid public metadata value.
     ANON_TOKENS_ASSIGN_OR_RETURN(
-        rsa_public_key,
-        CreatePublicKeyRSAWithPublicMetadata(rsa_modulus, rsa_public_exponent,
-                                             *public_metadata));
+        rsa_public_key, CreatePublicKeyRSAWithPublicMetadata(
+                            rsa_modulus, rsa_public_exponent, *public_metadata,
+                            /*use_rsa_public_exponent=*/true));
   }
 
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> r, NewBigNum());

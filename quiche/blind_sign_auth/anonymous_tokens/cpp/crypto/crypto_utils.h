@@ -146,17 +146,29 @@ CreatePublicKeyRSA(absl::string_view rsa_modulus,
 
 // Create bssl::UniquePtr<RSA> representing a RSA public key derived using
 // public metadata.
+//
+// If the boolean "use_rsa_public_exponent" is set to false, the public exponent
+// is not used in any computations.
+//
+// Setting "use_rsa_public_exponent" to true is deprecated.
 absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
 CreatePublicKeyRSAWithPublicMetadata(const BIGNUM& rsa_modulus,
                                      const BIGNUM& public_exponent,
-                                     absl::string_view public_metadata);
+                                     absl::string_view public_metadata,
+                                     bool use_rsa_public_exponent);
 
 // Create bssl::UniquePtr<RSA> representing a RSA public key derived using
 // public metadata.
+//
+// If the boolean "use_rsa_public_exponent" is set to false, the public exponent
+// is not used in any computations.
+//
+// Setting "use_rsa_public_exponent" to true is deprecated.
 absl::StatusOr<bssl::UniquePtr<RSA>> QUICHE_EXPORT
 CreatePublicKeyRSAWithPublicMetadata(absl::string_view rsa_modulus,
                                      absl::string_view public_exponent,
-                                     absl::string_view public_metadata);
+                                     absl::string_view public_metadata,
+                                     bool use_rsa_public_exponent);
 
 // Compute exponent using only the public metadata and RSA modulus n. Assumes
 // that n is a safe modulus i.e. it produces a strong RSA key pair. If not, the
