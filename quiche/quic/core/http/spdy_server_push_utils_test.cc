@@ -138,7 +138,8 @@ TEST_F(PushPromiseUrlTest, GetPushPromiseUrl) {
       {"90af90e0", AUTH},
       {"12foo%20-bar:00001233", AUTH},
       {"192.168.0.5", AUTH},
-      {"[::ffff:192.168.0.1.]", AUTH},
+      // Comment out temporarily. See https://crrev.com/c/4685220 for details.
+      // {"[::ffff:192.168.0.1.]", AUTH},
       {"http:", AUTH},
       {"bife l", AUTH},
       {"/", PATH},
