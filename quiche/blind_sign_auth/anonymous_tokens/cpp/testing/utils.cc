@@ -71,7 +71,7 @@ absl::StatusOr<std::string> TestSign(const absl::string_view blinded_data,
 
 absl::StatusOr<std::string> TestSignWithPublicMetadata(
     const absl::string_view blinded_data, absl::string_view public_metadata,
-    const RSA& rsa_key) {
+    const RSA& rsa_key, const bool use_rsa_public_exponent) {
   if (blinded_data.empty()) {
     return absl::InvalidArgumentError("blinded_data string is empty.");
   } else if (blinded_data.size() != RSA_size(&rsa_key)) {
@@ -80,10 +80,17 @@ absl::StatusOr<std::string> TestSignWithPublicMetadata(
         " actual blind data size = ", blinded_data.size(), " bytes."));
   }
   // Compute new public exponent using the public metadata.
-  ANON_TOKENS_ASSIGN_OR_RETURN(
-      bssl::UniquePtr<BIGNUM> new_e,
-      ComputeExponentWithPublicMetadataAndPublicExponent(
-          *RSA_get0_n(&rsa_key), *RSA_get0_e(&rsa_key), public_metadata));
+  bssl::UniquePtr<BIGNUM> new_e;
+  if (use_rsa_public_exponent) {
+    ANON_TOKENS_ASSIGN_OR_RETURN(
+        new_e,
+        ComputeExponentWithPublicMetadataAndPublicExponent(
+            *RSA_get0_n(&rsa_key), *RSA_get0_e(&rsa_key), public_metadata));
+  } else {
+    ANON_TOKENS_ASSIGN_OR_RETURN(
+        new_e, ComputeExponentWithPublicMetadata(*RSA_get0_n(&rsa_key),
+                                                 public_metadata));
+  }
 
   // Compute phi(p) = p-1
   ANON_TOKENS_ASSIGN_OR_RETURN(bssl::UniquePtr<BIGNUM> phi_p, NewBigNum());

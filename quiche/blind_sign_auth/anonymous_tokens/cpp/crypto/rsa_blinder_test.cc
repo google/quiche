@@ -274,7 +274,8 @@ TEST_P(RsaBlinderWithPublicMetadataTest,
 
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
-      TestSignWithPublicMetadata(blinded_message, public_metadata, *rsa_key_));
+      TestSignWithPublicMetadata(blinded_message, public_metadata, *rsa_key_,
+                                 /*use_rsa_public_exponent=*/true));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
@@ -306,7 +307,7 @@ TEST_P(RsaBlinderWithPublicMetadataTest,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
       TestSignWithPublicMetadata(blinded_message, empty_public_metadata,
-                                 *rsa_key_));
+                                 *rsa_key_, /*use_rsa_public_exponent=*/true));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
@@ -337,8 +338,8 @@ TEST_P(RsaBlinderWithPublicMetadataTest, WrongPublicMetadata) {
 
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
-      TestSignWithPublicMetadata(blinded_message, public_metadata_2,
-                                 *rsa_key_));
+      TestSignWithPublicMetadata(blinded_message, public_metadata_2, *rsa_key_,
+                                 /*use_rsa_public_exponent=*/true));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 
@@ -401,7 +402,8 @@ TEST_P(RsaBlinderWithPublicMetadataTest, NoPublicMetadataInBlinding) {
 
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string blinded_signature,
-      TestSignWithPublicMetadata(blinded_message, public_metadata, *rsa_key_));
+      TestSignWithPublicMetadata(blinded_message, public_metadata, *rsa_key_,
+                                 /*use_rsa_public_exponent=*/true));
   EXPECT_NE(blinded_signature, blinded_message);
   EXPECT_NE(blinded_signature, message);
 

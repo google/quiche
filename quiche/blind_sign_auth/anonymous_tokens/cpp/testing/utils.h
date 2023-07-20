@@ -80,7 +80,7 @@ absl::StatusOr<std::string> TestSign(absl::string_view blinded_data,
 // anonympous_tokens/public/cpp/crypto
 absl::StatusOr<std::string> TestSignWithPublicMetadata(
     absl::string_view blinded_data, absl::string_view public_metadata,
-    const RSA& rsa_key);
+    const RSA& rsa_key, bool use_rsa_public_exponent);
 
 // Returns the IETF test example from
 // https://datatracker.ietf.org/doc/draft-irtf-cfrg-rsa-blind-signatures/

@@ -182,7 +182,8 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
-                                 *private_key_));
+                                 *private_key_,
+                                 /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata));
@@ -203,7 +204,8 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
-                                 *private_key_));
+                                 *private_key_,
+                                 /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata_2));
@@ -228,7 +230,8 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
-                                 *private_key_));
+                                 *private_key_,
+                                 /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier,
       RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_,
@@ -253,7 +256,8 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
-                                 *private_key_));
+                                 *private_key_,
+                                 /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier,
       RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_, public_key_));
@@ -277,7 +281,8 @@ TEST_P(RsaSsaPssVerifierTestWithPublicMetadata,
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       std::string potentially_insecure_signature,
       TestSignWithPublicMetadata(encoded_message, public_metadata,
-                                 *private_key_.get()));
+                                 *private_key_.get(),
+                                 /*use_rsa_public_exponent=*/true));
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto verifier, RsaSsaPssVerifier::New(salt_length_, sig_hash_, mgf1_hash_,
                                             public_key_, public_metadata));
