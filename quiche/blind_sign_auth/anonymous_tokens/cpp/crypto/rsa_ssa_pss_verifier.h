@@ -42,9 +42,16 @@ class QUICHE_EXPORT RsaSsaPssVerifier : public Verifier {
   // Passing of public_metadata is optional. If it is set to any value including
   // an empty string, RsaSsaPssVerifier will assume that partially blind RSA
   // signature protocol is being executed.
+  //
+  // If public metadata is passed and the boolean "use_rsa_public_exponent" is
+  // set to false, the public exponent in the public_key is not used in any
+  // computations in the protocol.
+  //
+  // Setting "use_rsa_public_exponent" to true is deprecated. All new users
+  // should set it to false.
   static absl::StatusOr<std::unique_ptr<RsaSsaPssVerifier>> New(
       int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
-      const RSAPublicKey& public_key,
+      const RSAPublicKey& public_key, bool use_rsa_public_exponent,
       std::optional<absl::string_view> public_metadata = std::nullopt);
 
   // Verifies the signature.

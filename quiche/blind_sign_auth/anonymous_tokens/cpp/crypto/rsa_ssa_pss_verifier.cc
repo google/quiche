@@ -38,7 +38,7 @@ namespace anonymous_tokens {
 
 absl::StatusOr<std::unique_ptr<RsaSsaPssVerifier>> RsaSsaPssVerifier::New(
     const int salt_length, const EVP_MD* sig_hash, const EVP_MD* mgf1_hash,
-    const RSAPublicKey& public_key,
+    const RSAPublicKey& public_key, const bool use_rsa_public_exponent,
     std::optional<absl::string_view> public_metadata) {
   bssl::UniquePtr<RSA> rsa_public_key;
 
@@ -53,7 +53,7 @@ absl::StatusOr<std::unique_ptr<RsaSsaPssVerifier>> RsaSsaPssVerifier::New(
     ANON_TOKENS_ASSIGN_OR_RETURN(
         rsa_public_key, CreatePublicKeyRSAWithPublicMetadata(
                             public_key.n(), public_key.e(), *public_metadata,
-                            /*use_rsa_public_exponent=*/true));
+                            use_rsa_public_exponent));
   }
 
   return absl::WrapUnique(new RsaSsaPssVerifier(salt_length, public_metadata,
