@@ -117,6 +117,10 @@ int QuicSpdyClientSession::GetNumSentClientHellos() const {
   return crypto_stream_->num_sent_client_hellos();
 }
 
+bool QuicSpdyClientSession::ResumptionAttempted() const {
+  return crypto_stream_->ResumptionAttempted();
+}
+
 bool QuicSpdyClientSession::IsResumption() const {
   return crypto_stream_->IsResumption();
 }
