@@ -59,6 +59,8 @@ class QUIC_NO_EXPORT MasqueServerSession
                                    QuicSocketEventMask events);
   bool HandleConnectIpSocketEvent(QuicUdpSocketFd fd,
                                   QuicSocketEventMask events);
+  bool HandleConnectEthernetSocketEvent(QuicUdpSocketFd fd,
+                                        QuicSocketEventMask events);
 
   // State that the MasqueServerSession keeps for each CONNECT-UDP request.
   class QUIC_NO_EXPORT ConnectUdpServerState
@@ -141,6 +143,40 @@ class QUIC_NO_EXPORT MasqueServerSession
     MasqueServerSession* masque_session_;  // Unowned.
   };
 
+  // State that the MasqueServerSession keeps for each CONNECT-ETHERNET request.
+  class QUIC_NO_EXPORT ConnectEthernetServerState
+      : public QuicSpdyStream::Http3DatagramVisitor {
+   public:
+    // ConnectEthernetServerState takes ownership of |fd|. It will unregister it
+    // from |event_loop| and close the file descriptor when destructed.
+    explicit ConnectEthernetServerState(QuicSpdyStream* stream,
+                                        QuicUdpSocketFd fd,
+                                        MasqueServerSession* masque_session);
+
+    ~ConnectEthernetServerState();
+
+    // Disallow copy but allow move.
+    ConnectEthernetServerState(const ConnectEthernetServerState&) = delete;
+    ConnectEthernetServerState(ConnectEthernetServerState&&);
+    ConnectEthernetServerState& operator=(const ConnectEthernetServerState&) =
+        delete;
+    ConnectEthernetServerState& operator=(ConnectEthernetServerState&&);
+
+    QuicSpdyStream* stream() const { return stream_; }
+    QuicUdpSocketFd fd() const { return fd_; }
+
+    // From QuicSpdyStream::Http3DatagramVisitor.
+    void OnHttp3Datagram(QuicStreamId stream_id,
+                         absl::string_view payload) override;
+    void OnUnknownCapsule(QuicStreamId /*stream_id*/,
+                          const quiche::UnknownCapsule& /*capsule*/) override {}
+
+   private:
+    QuicSpdyStream* stream_;
+    QuicUdpSocketFd fd_;                   // Owned.
+    MasqueServerSession* masque_session_;  // Unowned.
+  };
+
   // From QuicSpdySession.
   bool OnSettingsFrame(const SettingsFrame& frame) override;
   HttpDatagramSupport LocalHttpDatagramSupport() override {
@@ -152,6 +188,7 @@ class QUIC_NO_EXPORT MasqueServerSession
   MasqueMode masque_mode_;
   std::list<ConnectUdpServerState> connect_udp_server_states_;
   std::list<ConnectIpServerState> connect_ip_server_states_;
+  std::list<ConnectEthernetServerState> connect_ethernet_server_states_;
   bool masque_initialized_ = false;
 };
 

@@ -21,6 +21,9 @@ QUIC_NO_EXPORT QuicConfig MasqueEncapsulatedConfig();
 enum : QuicByteCount {
   kMasqueMaxEncapsulatedPacketSize = 1250,
   kMasqueMaxOuterPacketSize = 1350,
+  kMasqueIpPacketBufferSize = 1501,
+  // Enough for a VLAN tag, but not Stacked VLANs.
+  kMasqueEthernetFrameBufferSize = 1523,
 };
 
 // Mode that MASQUE is operating in.
@@ -34,6 +37,10 @@ enum class MasqueMode : uint8_t {
       1,  // ConnectIp mode uses MASQUE HTTP CONNECT-IP as documented in
   // <https://datatracker.ietf.org/doc/html/draft-ietf-masque-connect-ip>. This
   // mode also allows unauthenticated clients.
+  kConnectEthernet =
+      3,  // ConnectEthernet mode uses MASQUE HTTP CONNECT-ETHERNET.
+  // <https://datatracker.ietf.org/doc/draft-asedeno-masque-connect-ethernet/>
+  // This mode also allows unauthenticated clients.
 };
 
 QUIC_NO_EXPORT std::string MasqueModeToString(MasqueMode masque_mode);
@@ -42,6 +49,9 @@ QUIC_NO_EXPORT std::ostream& operator<<(std::ostream& os,
 
 // Create a TUN interface, with the specified `client_address`. Requires root.
 int CreateTunInterface(const QuicIpAddress& client_address, bool server = true);
+
+// Create a TAP interface. Requires root.
+int CreateTapInterface();
 
 }  // namespace quic
 

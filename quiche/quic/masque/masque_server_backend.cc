@@ -37,7 +37,8 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
   auto protocol_pair = request_headers.find(":protocol");
   if (method != "CONNECT" || protocol_pair == request_headers.end() ||
       (protocol_pair->second != "connect-udp" &&
-       protocol_pair->second != "connect-ip")) {
+       protocol_pair->second != "connect-ip" &&
+       protocol_pair->second != "connect-ethernet")) {
     // This is not a MASQUE request.
     return false;
   }
