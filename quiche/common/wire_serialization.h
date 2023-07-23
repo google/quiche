@@ -398,6 +398,25 @@ absl::StatusOr<QuicheBuffer> SerializeIntoBuffer(
   return buffer;
 }
 
+// SerializeIntoBuffer() that returns std::string instead of QuicheBuffer.
+template <typename... Ts>
+absl::StatusOr<std::string> SerializeIntoString(Ts... data) {
+  size_t buffer_size = ComputeLengthOnWire(data...);
+  if (buffer_size == 0) {
+    return std::string();
+  }
+
+  std::string buffer;
+  buffer.resize(buffer_size);
+  QuicheDataWriter writer(buffer.size(), buffer.data());
+  QUICHE_RETURN_IF_ERROR(SerializeIntoWriter(writer, data...));
+  if (writer.remaining() != 0) {
+    return absl::InternalError(absl::StrCat(
+        "Excess ", writer.remaining(), " bytes allocated while serializing"));
+  }
+  return buffer;
+}
+
 }  // namespace quiche
 
 #endif  // QUICHE_COMMON_WIRE_SERIALIZATION_H_

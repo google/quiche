@@ -403,6 +403,7 @@
     "quiche/spdy/core/spdy_protocol.h",
     "quiche/spdy/core/spdy_simple_arena.h",
     "quiche/spdy/core/zero_copy_output_buffer.h",
+    "quiche/web_transport/complete_buffer_visitor.h",
     "quiche/web_transport/web_transport.h"
   ],
   "quiche_core_srcs": [
@@ -699,7 +700,8 @@
     "quiche/spdy/core/spdy_pinnable_buffer_piece.cc",
     "quiche/spdy/core/spdy_prefixed_buffer_reader.cc",
     "quiche/spdy/core/spdy_protocol.cc",
-    "quiche/spdy/core/spdy_simple_arena.cc"
+    "quiche/spdy/core/spdy_simple_arena.cc",
+    "quiche/web_transport/complete_buffer_visitor.cc"
   ],
   "quiche_tool_support_hdrs": [
     "quiche/common/platform/api/quiche_command_line_flags.h",
@@ -710,6 +712,7 @@
     "quiche/quic/tools/connect_server_backend.h",
     "quiche/quic/tools/connect_tunnel.h",
     "quiche/quic/tools/connect_udp_tunnel.h",
+    "quiche/quic/tools/devious_baton.h",
     "quiche/quic/tools/fake_proof_verifier.h",
     "quiche/quic/tools/quic_backend_response.h",
     "quiche/quic/tools/quic_client_base.h",
@@ -734,6 +737,7 @@
     "quiche/quic/tools/connect_server_backend.cc",
     "quiche/quic/tools/connect_tunnel.cc",
     "quiche/quic/tools/connect_udp_tunnel.cc",
+    "quiche/quic/tools/devious_baton.cc",
     "quiche/quic/tools/quic_backend_response.cc",
     "quiche/quic/tools/quic_client_base.cc",
     "quiche/quic/tools/quic_memory_cache_backend.cc",
@@ -1352,7 +1356,8 @@
     "quiche/quic/tools/quic_server_bin.cc",
     "quiche/quic/tools/quic_server_factory.cc",
     "quiche/quic/tools/quic_toy_client.cc",
-    "quiche/quic/tools/quic_toy_server.cc"
+    "quiche/quic/tools/quic_toy_server.cc",
+    "quiche/quic/tools/web_transport_test_server.cc"
   ],
   "nghttp2_hdrs": [
     "quiche/http2/adapter/callback_visitor.h",

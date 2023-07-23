@@ -404,6 +404,7 @@ quiche_core_hdrs = [
     "spdy/core/spdy_protocol.h",
     "spdy/core/spdy_simple_arena.h",
     "spdy/core/zero_copy_output_buffer.h",
+    "web_transport/complete_buffer_visitor.h",
     "web_transport/web_transport.h",
 ]
 quiche_core_srcs = [
@@ -701,6 +702,7 @@ quiche_core_srcs = [
     "spdy/core/spdy_prefixed_buffer_reader.cc",
     "spdy/core/spdy_protocol.cc",
     "spdy/core/spdy_simple_arena.cc",
+    "web_transport/complete_buffer_visitor.cc",
 ]
 quiche_tool_support_hdrs = [
     "common/platform/api/quiche_command_line_flags.h",
@@ -711,6 +713,7 @@ quiche_tool_support_hdrs = [
     "quic/tools/connect_server_backend.h",
     "quic/tools/connect_tunnel.h",
     "quic/tools/connect_udp_tunnel.h",
+    "quic/tools/devious_baton.h",
     "quic/tools/fake_proof_verifier.h",
     "quic/tools/quic_backend_response.h",
     "quic/tools/quic_client_base.h",
@@ -735,6 +738,7 @@ quiche_tool_support_srcs = [
     "quic/tools/connect_server_backend.cc",
     "quic/tools/connect_tunnel.cc",
     "quic/tools/connect_udp_tunnel.cc",
+    "quic/tools/devious_baton.cc",
     "quic/tools/quic_backend_response.cc",
     "quic/tools/quic_client_base.cc",
     "quic/tools/quic_memory_cache_backend.cc",
@@ -1351,6 +1355,7 @@ cli_tools_srcs = [
     "quic/tools/quic_server_factory.cc",
     "quic/tools/quic_toy_client.cc",
     "quic/tools/quic_toy_server.cc",
+    "quic/tools/web_transport_test_server.cc",
 ]
 nghttp2_hdrs = [
     "http2/adapter/callback_visitor.h",

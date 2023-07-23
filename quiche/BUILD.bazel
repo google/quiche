@@ -237,6 +237,7 @@ cc_library(
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -528,6 +529,24 @@ cc_binary(
         ":quiche_platform_default_tools",
         ":quiche_tool_support",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "web_transport_test_server",
+    srcs = ["quic/tools/web_transport_test_server.cc"],
+    deps = [
+        ":io_tool_support",
+        ":quic_server_factory",
+        ":quic_toy_server",
+        ":quiche_core",
+        ":quiche_platform_default",
+        ":quiche_platform_default_tools",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_googleurl//url",
     ],
 )
 
