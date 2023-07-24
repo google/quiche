@@ -100,6 +100,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, quiet, false,
                                 "Set to true for a quieter output experience.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, output_resolved_server_address, false,
+    "Set to true to print the resolved IP of the server.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, quic_version, "",
     "QUIC version to speak, e.g. 21. If not set, then all available "
     "versions are offered in the handshake. Also supports wire versions "
@@ -427,7 +431,12 @@ int QuicToyClient::SendRequestsAndPrintResponses(
               << client->session()->error_details() << std::endl;
     return 1;
   }
-  std::cerr << "Connected to " << host << ":" << port << std::endl;
+
+  std::cout << "Connected to " << host << ":" << port;
+  if (quiche::GetQuicheCommandLineFlag(FLAGS_output_resolved_server_address)) {
+    std::cout << ", resolved IP " << client->server_address().host().ToString();
+  }
+  std::cout << std::endl;
 
   // Construct the string body from flags, if provided.
   std::string body = quiche::GetQuicheCommandLineFlag(FLAGS_body);
