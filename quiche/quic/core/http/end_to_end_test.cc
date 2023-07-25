@@ -5701,8 +5701,6 @@ TEST_P(EndToEndPacketReorderingTest,
     ASSERT_TRUE(Initialize());
     return;
   }
-  SetQuicReloadableFlag(quic_retire_cid_on_reverse_path_validation_failure,
-                        true);
   override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
   ASSERT_TRUE(Initialize());
 

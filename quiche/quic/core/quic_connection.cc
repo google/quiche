@@ -6756,21 +6756,6 @@ void QuicConnection::RetirePeerIssuedConnectionIdsNoLongerOnPath() {
   }
 }
 
-void QuicConnection::RetirePeerIssuedConnectionIdsOnPathValidationFailure() {
-  // The alarm to retire connection IDs no longer on paths is scheduled at the
-  // end of writing and reading packet. On path validation failure, there could
-  // be no packet to write or read. Hence the retirement alarm for the
-  // connection ID associated with the failed path needs to be proactively
-  // scheduled here.
-  if (GetQuicReloadableFlag(
-          quic_retire_cid_on_reverse_path_validation_failure) ||
-      perspective_ == Perspective::IS_CLIENT) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_retire_cid_on_reverse_path_validation_failure);
-    RetirePeerIssuedConnectionIdsNoLongerOnPath();
-  }
-}
-
 bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
                                  const QuicSocketAddress& peer_address,
                                  QuicPacketWriter* writer, bool owns_writer) {
@@ -6842,7 +6827,7 @@ void QuicConnection::OnPathValidationFailureAtClient(
     mutable_stats().failed_to_validate_server_preferred_address = true;
   }
 
-  RetirePeerIssuedConnectionIdsOnPathValidationFailure();
+  RetirePeerIssuedConnectionIdsNoLongerOnPath();
 }
 
 QuicConnectionId QuicConnection::GetOneActiveServerConnectionId() const {
@@ -7195,7 +7180,7 @@ void QuicConnection::ReversePathValidationResultDelegate::
     QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 6, 6);
     connection_->alternative_path_.Clear();
   }
-  connection_->RetirePeerIssuedConnectionIdsOnPathValidationFailure();
+  connection_->RetirePeerIssuedConnectionIdsNoLongerOnPath();
 }
 
 QuicConnection::ScopedRetransmissionTimeoutIndicator::
