@@ -40,7 +40,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed
 // If true, clear QuicSpdyStreamBodyManager in QuicSpdyStream::CloseReadSide().
 QUIC_FLAG(quic_reloadable_flag_quic_clear_body_manager, true)
 // If true, consider write blocked when destination CID is required but missing on the default path.
-QUIC_FLAG(quic_reloadable_flag_quic_write_is_blocked_when_cid_is_missing, false)
+QUIC_FLAG(quic_reloadable_flag_quic_write_is_blocked_when_cid_is_missing, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, disable QUIC version Q046.
