@@ -547,6 +547,8 @@ class BalsaVisitorMock : public BalsaVisitorInterface {
   MOCK_METHOD(void, OnTrailerInput, (absl::string_view input), (override));
   MOCK_METHOD(void, ProcessHeaders, (const FakeHeaders& headers));
   MOCK_METHOD(void, ProcessTrailers, (const FakeHeaders& headers));
+  MOCK_METHOD(void, OnTrailers, (std::unique_ptr<BalsaHeaders> trailers),
+              (override));
   MOCK_METHOD(void, OnRequestFirstLineInput,
               (absl::string_view line_input, absl::string_view method_input,
                absl::string_view request_uri, absl::string_view version_input),
