@@ -288,7 +288,17 @@ void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
 bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
                                   const SSL_CIPHER* cipher,
                                   absl::Span<const uint8_t> read_secret) {
-  QUIC_DVLOG(1) << ENDPOINT << "SetReadSecret level=" << level;
+  QUIC_DVLOG(1) << ENDPOINT << "SetReadSecret level=" << level
+                << ", connection_closed=" << is_connection_closed();
+  if (check_connected_before_set_read_secret_) {
+    if (is_connection_closed()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_connected_before_set_read_secret,
+                                   1, 2);
+      return false;
+    }
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_connected_before_set_read_secret, 2,
+                                 2);
+  }
   std::unique_ptr<QuicDecrypter> decrypter =
       QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
   const EVP_MD* prf = Prf(cipher);

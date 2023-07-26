@@ -37,6 +37,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 QUIC_FLAG(quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
 // If true, an endpoint does not detect path degrading or blackholing until handshake gets confirmed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed, true)
+// If true, check connected at the beginning of TlsHandshaker::SetReadSecret.
+QUIC_FLAG(quic_reloadable_flag_quic_check_connected_before_set_read_secret, false)
 // If true, clear QuicSpdyStreamBodyManager in QuicSpdyStream::CloseReadSide().
 QUIC_FLAG(quic_reloadable_flag_quic_clear_body_manager, true)
 // If true, consider write blocked when destination CID is required but missing on the default path.

@@ -205,6 +205,8 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
 
   int expected_ssl_error_ = SSL_ERROR_WANT_READ;
   bool is_connection_closed_ = false;
+  const bool check_connected_before_set_read_secret_ =
+      GetQuicReloadableFlag(quic_check_connected_before_set_read_secret);
 
   QuicCryptoStream* stream_;
   HandshakerDelegateInterface* handshaker_delegate_;
