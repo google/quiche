@@ -2173,20 +2173,12 @@ TEST_P(QuicConnectionTest, ConnectionMigrationWithPendingPaddingBytes) {
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
   ProcessFramesPacketWithAddresses({QuicFrame(&ack_frame)}, kSelfAddress,
                                    kPeerAddress3, ENCRYPTION_FORWARD_SECURE);
-  if (GetQuicReloadableFlag(
-          quic_flush_pending_frames_and_padding_bytes_on_migration)) {
-    // Any pending frames/padding should be flushed before default_path_ is
-    // temporarily reset.
-    ASSERT_EQ(connection_.self_address_on_default_path_while_sending_packet()
-                  .host()
-                  .address_family(),
-              IpAddressFamily::IP_V6);
-  } else {
-    ASSERT_EQ(connection_.self_address_on_default_path_while_sending_packet()
-                  .host()
-                  .address_family(),
-              IpAddressFamily::IP_UNSPEC);
-  }
+  // Any pending frames/padding should be flushed before default_path_ is
+  // temporarily reset.
+  ASSERT_EQ(connection_.self_address_on_default_path_while_sending_packet()
+                .host()
+                .address_family(),
+            IpAddressFamily::IP_V6);
 }
 
 // Regression test for b/196208556.
@@ -4690,7 +4682,7 @@ TEST_P(QuicConnectionTest, DontLatchUnackedPacket) {
   ProcessAckPacket(&frame);
 
   SendStreamDataToPeer(1, "bar", 3, NO_FIN, nullptr);  // Packet 4
-  SendAckPacketToPeer();  // Packet 5
+  SendAckPacketToPeer();                               // Packet 5
 
   // Send two data packets at the end, and ensure if the last one is acked,
   // the least unacked is raised above the ack packets.
