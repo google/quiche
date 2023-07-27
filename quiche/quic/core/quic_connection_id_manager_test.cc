@@ -1046,19 +1046,11 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
       QUIC_NO_ERROR)
       << error_details;
 
-  if (GetQuicReloadableFlag(
-          quic_check_retire_cid_with_next_cid_sequence_number)) {
-    EXPECT_EQ(
-        cid_manager_.OnRetireConnectionIdFrame(
-            retire_cid_frame, QuicTime::Delta::FromSeconds(1), &error_details),
-        QUIC_NO_ERROR)
-        << error_details;
-  } else {
-    EXPECT_EQ(
-        cid_manager_.OnRetireConnectionIdFrame(
-            retire_cid_frame, QuicTime::Delta::FromSeconds(1), &error_details),
-        IETF_QUIC_PROTOCOL_VIOLATION);
-  }
+  EXPECT_EQ(
+      cid_manager_.OnRetireConnectionIdFrame(
+          retire_cid_frame, QuicTime::Delta::FromSeconds(1), &error_details),
+      QUIC_NO_ERROR)
+      << error_details;
 }
 
 }  // namespace

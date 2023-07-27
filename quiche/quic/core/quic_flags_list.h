@@ -83,8 +83,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_conservative_bursts, false)
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr_v2, false)
 // If true, use a LRU cache to record client addresses of packets received on server\'s original address.
 QUIC_FLAG(quic_reloadable_flag_quic_use_received_client_addresses_cache, true)
-// If true, use next_connection_id_sequence_number to validate retired cid number.
-QUIC_FLAG(quic_reloadable_flag_quic_check_retire_cid_with_next_cid_sequence_number, true)
 // If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, when TicketCrypter fails to encrypt a session ticket, quic::TlsServerHandshaker will send a placeholder ticket, instead of an empty one, to the client.
