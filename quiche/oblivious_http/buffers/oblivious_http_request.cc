@@ -40,7 +40,8 @@ ObliviousHttpRequest::ObliviousHttpRequest(
 absl::StatusOr<ObliviousHttpRequest>
 ObliviousHttpRequest::CreateServerObliviousRequest(
     absl::string_view encrypted_data, const EVP_HPKE_KEY& gateway_key,
-    const ObliviousHttpHeaderKeyConfig& ohttp_key_config) {
+    const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
+    absl::string_view request_label) {
   if (EVP_HPKE_KEY_kem(&gateway_key) == nullptr) {
     return absl::InvalidArgumentError(
         "Invalid input param. Failed to import gateway_key.");
@@ -65,7 +66,8 @@ ObliviousHttpRequest::CreateServerObliviousRequest(
         "Failed to extract encapsulation key of expected len=", enc_key_len,
         "from payload."));
   }
-  std::string info = ohttp_key_config.SerializeRecipientContextInfo();
+  std::string info =
+      ohttp_key_config.SerializeRecipientContextInfo(request_label);
   if (!EVP_HPKE_CTX_setup_recipient(
           gateway_ctx.get(), &gateway_key, ohttp_key_config.GetHpkeKdf(),
           ohttp_key_config.GetHpkeAead(),
@@ -97,24 +99,26 @@ ObliviousHttpRequest::CreateServerObliviousRequest(
 absl::StatusOr<ObliviousHttpRequest>
 ObliviousHttpRequest::CreateClientObliviousRequest(
     std::string plaintext_payload, absl::string_view hpke_public_key,
-    const ObliviousHttpHeaderKeyConfig& ohttp_key_config) {
+    const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
+    absl::string_view request_label) {
   return EncapsulateWithSeed(std::move(plaintext_payload), hpke_public_key,
-                             ohttp_key_config, "");
+                             ohttp_key_config, /*seed=*/"", request_label);
 }
 
 absl::StatusOr<ObliviousHttpRequest>
 ObliviousHttpRequest::CreateClientWithSeedForTesting(
     std::string plaintext_payload, absl::string_view hpke_public_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
-    absl::string_view seed) {
+    absl::string_view seed, absl::string_view request_label) {
   return ObliviousHttpRequest::EncapsulateWithSeed(
-      std::move(plaintext_payload), hpke_public_key, ohttp_key_config, seed);
+      std::move(plaintext_payload), hpke_public_key, ohttp_key_config, seed,
+      request_label);
 }
 
 absl::StatusOr<ObliviousHttpRequest> ObliviousHttpRequest::EncapsulateWithSeed(
     std::string plaintext_payload, absl::string_view hpke_public_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
-    absl::string_view seed) {
+    absl::string_view seed, absl::string_view request_label) {
   if (plaintext_payload.empty() || hpke_public_key.empty()) {
     return absl::InvalidArgumentError("Invalid input.");
   }
@@ -130,7 +134,8 @@ absl::StatusOr<ObliviousHttpRequest> ObliviousHttpRequest::EncapsulateWithSeed(
   // Setup the sender (client)
   std::string encapsulated_key(EVP_HPKE_MAX_ENC_LENGTH, '\0');
   size_t enc_len;
-  std::string info = ohttp_key_config.SerializeRecipientContextInfo();
+  std::string info =
+      ohttp_key_config.SerializeRecipientContextInfo(request_label);
   if (seed.empty()) {
     if (!EVP_HPKE_CTX_setup_sender(
             client_ctx.get(),

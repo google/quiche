@@ -55,11 +55,13 @@ class QUICHE_EXPORT ObliviousHttpHeaderKeyConfig {
   uint16_t GetHpkeKdfId() const { return kdf_id_; }
   uint16_t GetHpkeAeadId() const { return aead_id_; }
 
-  // Build HPKE context info ["message/bhttp request", 0x00, keyID(1 byte),
+  // Build HPKE context info [request_label, 0x00, keyID(1 byte),
   // kemID(2 bytes), kdfID(2 bytes), aeadID(2 bytes)] in network byte order and
   // return a sequence of bytes(bytestring).
   // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.1-10
-  std::string SerializeRecipientContextInfo() const;
+  std::string SerializeRecipientContextInfo(
+      absl::string_view request_label =
+          ObliviousHttpHeaderKeyConfig::kOhttpRequestLabel) const;
 
   // Parses the below Header
   // [keyID(1 byte), kemID(2 bytes), kdfID(2 bytes), aeadID(2 bytes)]

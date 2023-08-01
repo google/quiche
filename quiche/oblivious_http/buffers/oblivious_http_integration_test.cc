@@ -105,4 +105,55 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<ObliviousHttpParameterizedTest::ParamType>
            &info) { return info.param.test_case_name; });
 
+TEST(ObliviousHttpIntegrationTest, TestWithCustomRequestResponseLabels) {
+  const std::string kRequestLabel = "test_request_label";
+  const std::string kResponseLabel = "test_response_label";
+
+  ObliviousHttpResponseTestStrings test = {"", 4, "test_request_plaintext",
+                                           "test_response_plaintext"};
+
+  auto ohttp_key_config =
+      GetOhttpKeyConfig(test.key_id, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                        EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM);
+  // Round-trip request flow.
+  auto client_req_encap = ObliviousHttpRequest::CreateClientObliviousRequest(
+      test.request_plaintext, GetHpkePublicKey(), ohttp_key_config,
+      kRequestLabel);
+  EXPECT_TRUE(client_req_encap.ok());
+  ASSERT_FALSE(client_req_encap->EncapsulateAndSerialize().empty());
+  auto server_req_decap = ObliviousHttpRequest::CreateServerObliviousRequest(
+      client_req_encap->EncapsulateAndSerialize(),
+      *(ConstructHpkeKey(GetHpkePrivateKey(), ohttp_key_config)),
+      ohttp_key_config, kRequestLabel);
+  EXPECT_TRUE(server_req_decap.ok());
+  EXPECT_EQ(server_req_decap->GetPlaintextData(), test.request_plaintext);
+
+  auto failed_server_req_decap =
+      ObliviousHttpRequest::CreateServerObliviousRequest(
+          client_req_encap->EncapsulateAndSerialize(),
+          *(ConstructHpkeKey(GetHpkePrivateKey(), ohttp_key_config)),
+          ohttp_key_config);
+  EXPECT_FALSE(failed_server_req_decap.ok());
+
+  // Round-trip response flow.
+  auto server_request_context =
+      std::move(server_req_decap.value()).ReleaseContext();
+  auto server_resp_encap = ObliviousHttpResponse::CreateServerObliviousResponse(
+      test.response_plaintext, server_request_context, kResponseLabel);
+  EXPECT_TRUE(server_resp_encap.ok());
+  ASSERT_FALSE(server_resp_encap->EncapsulateAndSerialize().empty());
+  auto client_request_context =
+      std::move(client_req_encap.value()).ReleaseContext();
+  auto client_resp_decap = ObliviousHttpResponse::CreateClientObliviousResponse(
+      server_resp_encap->EncapsulateAndSerialize(), client_request_context,
+      kResponseLabel);
+  EXPECT_TRUE(client_resp_decap.ok());
+  EXPECT_EQ(client_resp_decap->GetPlaintextData(), test.response_plaintext);
+
+  auto failed_client_resp_decap =
+      ObliviousHttpResponse::CreateClientObliviousResponse(
+          server_resp_encap->EncapsulateAndSerialize(), client_request_context);
+  EXPECT_FALSE(failed_client_resp_decap.ok());
+}
+
 }  // namespace quiche

@@ -115,13 +115,13 @@ const EVP_HPKE_AEAD* ObliviousHttpHeaderKeyConfig::GetHpkeAead() const {
   return aead.value();
 }
 
-std::string ObliviousHttpHeaderKeyConfig::SerializeRecipientContextInfo()
-    const {
+std::string ObliviousHttpHeaderKeyConfig::SerializeRecipientContextInfo(
+    absl::string_view request_label) const {
   uint8_t zero_byte = 0x00;
-  int buf_len = kOhttpRequestLabel.size() + kHeaderLength + sizeof(zero_byte);
+  int buf_len = request_label.size() + kHeaderLength + sizeof(zero_byte);
   std::string info(buf_len, '\0');
   QuicheDataWriter writer(info.size(), info.data());
-  QUICHE_CHECK(writer.WriteStringPiece(kOhttpRequestLabel));
+  QUICHE_CHECK(writer.WriteStringPiece(request_label));
   QUICHE_CHECK(writer.WriteUInt8(zero_byte));  // Zero byte.
   QUICHE_CHECK(writer.WriteUInt8(key_id_));
   QUICHE_CHECK(writer.WriteUInt16(kem_id_));

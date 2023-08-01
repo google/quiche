@@ -47,7 +47,8 @@ ObliviousHttpResponse::ObliviousHttpResponse(std::string encrypted_data,
 absl::StatusOr<ObliviousHttpResponse>
 ObliviousHttpResponse::CreateClientObliviousResponse(
     std::string encrypted_data,
-    ObliviousHttpRequest::Context& oblivious_http_request_context) {
+    ObliviousHttpRequest::Context& oblivious_http_request_context,
+    absl::string_view resp_label) {
   if (oblivious_http_request_context.hpke_context_ == nullptr) {
     return absl::FailedPreconditionError(
         "HPKE context wasn't initialized before proceeding with this Response "
@@ -91,7 +92,7 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
   // Steps (1, 3 to 5) + AEAD context SetUp before 6th step is performed in
   // CommonOperations.
   auto common_ops_st = CommonOperationsToEncapDecap(
-      response_nonce, oblivious_http_request_context,
+      response_nonce, oblivious_http_request_context, resp_label,
       aead_params_st.value().aead_key_len,
       aead_params_st.value().aead_nonce_len, aead_params_st.value().secret_len);
   if (!common_ops_st.ok()) {
@@ -131,7 +132,7 @@ absl::StatusOr<ObliviousHttpResponse>
 ObliviousHttpResponse::CreateServerObliviousResponse(
     std::string plaintext_payload,
     ObliviousHttpRequest::Context& oblivious_http_request_context,
-    QuicheRandom* quiche_random) {
+    absl::string_view response_label, QuicheRandom* quiche_random) {
   if (oblivious_http_request_context.hpke_context_ == nullptr) {
     return absl::FailedPreconditionError(
         "HPKE context wasn't initialized before proceeding with this Response "
@@ -168,7 +169,7 @@ ObliviousHttpResponse::CreateServerObliviousResponse(
   // Steps (1, 3 to 5) + AEAD context SetUp before 6th step is performed in
   // CommonOperations.
   auto common_ops_st = CommonOperationsToEncapDecap(
-      response_nonce, oblivious_http_request_context,
+      response_nonce, oblivious_http_request_context, response_label,
       aead_params_st.value().aead_key_len,
       aead_params_st.value().aead_nonce_len, aead_params_st.value().secret_len);
   if (!common_ops_st.ok()) {
@@ -246,8 +247,8 @@ absl::StatusOr<ObliviousHttpResponse::CommonOperationsResult>
 ObliviousHttpResponse::CommonOperationsToEncapDecap(
     absl::string_view response_nonce,
     ObliviousHttpRequest::Context& oblivious_http_request_context,
-    const size_t aead_key_len, const size_t aead_nonce_len,
-    const size_t secret_len) {
+    absl::string_view resp_label, const size_t aead_key_len,
+    const size_t aead_nonce_len, const size_t secret_len) {
   if (response_nonce.empty()) {
     return absl::InvalidArgumentError("Invalid input params.");
   }
@@ -256,8 +257,6 @@ ObliviousHttpResponse::CommonOperationsToEncapDecap(
   // key and nonce associated with context.
   // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.1
   std::string secret(secret_len, '\0');
-  absl::string_view resp_label =
-      ObliviousHttpHeaderKeyConfig::kOhttpResponseLabel;
   if (!EVP_HPKE_CTX_export(oblivious_http_request_context.hpke_context_.get(),
                            reinterpret_cast<uint8_t*>(secret.data()),
                            secret.size(),

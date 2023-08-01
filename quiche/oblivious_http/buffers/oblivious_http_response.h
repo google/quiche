@@ -9,6 +9,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/common/quiche_random.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
+#include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
 
@@ -21,7 +22,9 @@ class QUICHE_EXPORT ObliviousHttpResponse {
   // alive only for the lifetime of this factory method call.
   static absl::StatusOr<ObliviousHttpResponse> CreateClientObliviousResponse(
       std::string encrypted_data,
-      ObliviousHttpRequest::Context& oblivious_http_request_context);
+      ObliviousHttpRequest::Context& oblivious_http_request_context,
+      absl::string_view resp_label =
+          ObliviousHttpHeaderKeyConfig::kOhttpResponseLabel);
 
   // Encrypt the input param `plaintext_payload` and create OHttp response using
   // ObliviousHttpContext context obj that was returned from
@@ -39,6 +42,8 @@ class QUICHE_EXPORT ObliviousHttpResponse {
   static absl::StatusOr<ObliviousHttpResponse> CreateServerObliviousResponse(
       std::string plaintext_payload,
       ObliviousHttpRequest::Context& oblivious_http_request_context,
+      absl::string_view resp_label =
+          ObliviousHttpHeaderKeyConfig::kOhttpResponseLabel,
       QuicheRandom* quiche_random = nullptr);
 
   // Copyable.
@@ -87,8 +92,8 @@ class QUICHE_EXPORT ObliviousHttpResponse {
   static absl::StatusOr<CommonOperationsResult> CommonOperationsToEncapDecap(
       absl::string_view response_nonce,
       ObliviousHttpRequest::Context& oblivious_http_request_context,
-      const size_t aead_key_len, const size_t aead_nonce_len,
-      const size_t secret_len);
+      absl::string_view resp_label, const size_t aead_key_len,
+      const size_t aead_nonce_len, const size_t secret_len);
   std::string encrypted_data_;
   std::string response_plaintext_;
 };

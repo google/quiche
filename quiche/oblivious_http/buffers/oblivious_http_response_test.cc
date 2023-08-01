@@ -15,6 +15,7 @@
 #include "openssl/hpke.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
+#include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
 
@@ -190,7 +191,8 @@ TEST(ObliviousHttpResponse, TestEncapsulateWithQuicheRandom) {
       std::move(server_seeded_request).ReleaseContext();
   auto server_response_encapsulate =
       ObliviousHttpResponse::CreateServerObliviousResponse(
-          "test response", server_request_context, &random);
+          "test response", server_request_context,
+          ObliviousHttpHeaderKeyConfig::kOhttpResponseLabel, &random);
   EXPECT_TRUE(server_response_encapsulate.ok());
   std::string response_nonce =
       server_response_encapsulate->EncapsulateAndSerialize().substr(

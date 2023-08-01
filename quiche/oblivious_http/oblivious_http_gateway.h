@@ -55,7 +55,9 @@ class QUICHE_EXPORT ObliviousHttpGateway {
   //    ohttp_server_object.DecryptObliviousHttpRequest(<encrypted binary http
   //    2>);
   absl::StatusOr<ObliviousHttpRequest> DecryptObliviousHttpRequest(
-      absl::string_view encrypted_data) const;
+      absl::string_view encrypted_data,
+      absl::string_view request_label =
+          ObliviousHttpHeaderKeyConfig::kOhttpRequestLabel) const;
 
   // After `DecryptObliviousHttpRequest` operation, callers on server-side will
   // extract `oblivious_http_request_context` from the returned object
@@ -63,7 +65,9 @@ class QUICHE_EXPORT ObliviousHttpGateway {
   // response flow back to the client.
   absl::StatusOr<ObliviousHttpResponse> CreateObliviousHttpResponse(
       std::string plaintext_data,
-      ObliviousHttpRequest::Context& oblivious_http_request_context) const;
+      ObliviousHttpRequest::Context& oblivious_http_request_context,
+      absl::string_view response_label =
+          ObliviousHttpHeaderKeyConfig::kOhttpResponseLabel) const;
 
  private:
   explicit ObliviousHttpGateway(
