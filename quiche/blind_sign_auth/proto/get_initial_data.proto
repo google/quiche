@@ -61,4 +61,9 @@ message GetInitialDataResponse {
   // General public metadata. Use metadata deserializer to inspect. Only set one
   // of this or public_metadata_info.
   bytes binary_public_metadata = 4 ;
+
+  message PrivacyPassData {
+    bytes token_key_id = 1;
+  }
+  PrivacyPassData privacy_pass_data = 5;
 }
