@@ -11,11 +11,6 @@
 #include "quiche/quic/qbone/qbone_constants.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 
-DEFINE_QUICHE_COMMAND_LINE_FLAG(
-    bool, qbone_client_defer_control_stream_creation, true,
-    "If true, control stream in QBONE client session is created after "
-    "encryption established.");
-
 namespace quic {
 
 QboneClientSession::QboneClientSession(
@@ -58,18 +53,12 @@ void QboneClientSession::Initialize() {
   QboneSessionBase::Initialize();
   static_cast<QuicCryptoClientStreamBase*>(GetMutableCryptoStream())
       ->CryptoConnect();
-  if (!quiche::GetQuicheCommandLineFlag(
-          FLAGS_qbone_client_defer_control_stream_creation)) {
-    CreateControlStream();
-  }
 }
 
 void QboneClientSession::SetDefaultEncryptionLevel(
     quic::EncryptionLevel level) {
   QboneSessionBase::SetDefaultEncryptionLevel(level);
-  if (quiche::GetQuicheCommandLineFlag(
-          FLAGS_qbone_client_defer_control_stream_creation) &&
-      level == quic::ENCRYPTION_FORWARD_SECURE) {
+  if (level == quic::ENCRYPTION_FORWARD_SECURE) {
     CreateControlStream();
   }
 }
