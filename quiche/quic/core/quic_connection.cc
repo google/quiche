@@ -126,7 +126,7 @@ class SendAlarmDelegate : public QuicConnectionAlarmDelegate {
 
   void OnAlarm() override {
     QUICHE_DCHECK(connection_->connected());
-    connection_->WriteIfNotBlocked();
+    connection_->OnSendAlarm();
   }
 };
 
@@ -2752,6 +2752,8 @@ void QuicConnection::OnCanWrite() {
     send_alarm_->Set(clock_->ApproximateNow());
   }
 }
+
+void QuicConnection::OnSendAlarm() { WriteIfNotBlocked(); }
 
 void QuicConnection::WriteIfNotBlocked() {
   if (framer().is_processing_packet()) {

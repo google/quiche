@@ -625,6 +625,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Whether |result| represents a MSG TOO BIG write error.
   bool IsMsgTooBig(const QuicPacketWriter* writer, const WriteResult& result);
 
+  // Called from the SendAlarmDelegate to initiate writing data.
+  virtual void OnSendAlarm();
+
   // If the socket is not blocked, writes queued packets.
   void WriteIfNotBlocked();
 
