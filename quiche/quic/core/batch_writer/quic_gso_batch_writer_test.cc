@@ -475,7 +475,7 @@ TEST_F(QuicGsoBatchWriterTest, EcnCodepoint) {
   params.ecn_codepoint = ECN_ECT1;
   EXPECT_CALL(mock_syscalls_, Sendmsg(_, _, _))
       .WillOnce(Invoke([](int /*sockfd*/, const msghdr* msg, int /*flags*/) {
-        const int kEct0 = 0x01;
+        const int kEct0 = 0x02;
         EXPECT_EQ(2700u, PacketLength(msg));
         msghdr mutable_msg;
         memcpy(&mutable_msg, msg, sizeof(*msg));
@@ -521,7 +521,7 @@ TEST_F(QuicGsoBatchWriterTest, EcnCodepointIPv6) {
   params.ecn_codepoint = ECN_ECT1;
   EXPECT_CALL(mock_syscalls_, Sendmsg(_, _, _))
       .WillOnce(Invoke([](int /*sockfd*/, const msghdr* msg, int /*flags*/) {
-        const int kEct0 = 0x01;
+        const int kEct0 = 0x02;
         EXPECT_EQ(2700u, PacketLength(msg));
         msghdr mutable_msg;
         memcpy(&mutable_msg, msg, sizeof(*msg));

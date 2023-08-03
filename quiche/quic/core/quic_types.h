@@ -884,12 +884,12 @@ enum QuicEcnCodepoint {
   // The NOT-ECT codepoint, indicating the packet sender is not using (or the
   // network has disabled) ECN.
   ECN_NOT_ECT = 0,
-  // The ECT(0) codepoint, indicating the packet sender is using classic ECN
-  // (RFC3168).
-  ECN_ECT0 = 1,
   // The ECT(1) codepoint, indicating the packet sender is using Low Latency,
   // Low Loss, Scalable Throughput (L4S) ECN (RFC9330).
-  ECN_ECT1 = 2,
+  ECN_ECT1 = 1,
+  // The ECT(0) codepoint, indicating the packet sender is using classic ECN
+  // (RFC3168).
+  ECN_ECT0 = 2,
   // The CE ("Congestion Experienced") codepoint, indicating the packet sender
   // is using ECN, and a router is experiencing congestion.
   ECN_CE = 3,
