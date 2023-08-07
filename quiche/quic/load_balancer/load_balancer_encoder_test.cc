@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "absl/numeric/int128.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -169,8 +170,8 @@ TEST_F(LoadBalancerEncoderTest, UnencryptedConnectionIdTestVectors) {
       },
       {
           *LoadBalancerConfig::CreateUnencrypted(1, 8, 5),
-          QuicConnectionId({0x4d, 0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f,
-                            0x5f, 0xee, 0x15, 0xda, 0x27, 0xc4}),
+          QuicConnectionId({0x2d, 0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f,
+                            0x5f, 0x8e, 0x98, 0x53, 0xfe, 0x93}),
           MakeServerId(kServerId, 8),
       },
   };
@@ -226,13 +227,13 @@ TEST_F(LoadBalancerEncoderTest, EncoderTestVectors) {
       },
       {
           *LoadBalancerConfig::Create(1, 10, 5, kKey),
-          QuicConnectionId({0x4f, 0xcd, 0x3f, 0x57, 0x2d, 0x4e, 0xef, 0xb0,
+          QuicConnectionId({0x2f, 0xcd, 0x3f, 0x57, 0x2d, 0x4e, 0xef, 0xb0,
                             0x46, 0xfd, 0xb5, 0x1d, 0x16, 0x4e, 0xfc, 0xcc}),
           MakeServerId(kServerId, 10),
       },
       {
           *LoadBalancerConfig::Create(2, 8, 8, kKey),
-          QuicConnectionId({0x90, 0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9,
+          QuicConnectionId({0x50, 0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9,
                             0xb2, 0xb9, 0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c,
                             0xc3}),
           MakeServerId(kServerId, 8),
@@ -281,9 +282,9 @@ TEST_F(LoadBalancerEncoderTest, UnroutableConnectionId) {
   ASSERT_TRUE(encoder.has_value());
   EXPECT_EQ(encoder->num_nonces_left(), 0);
   auto connection_id = encoder->GenerateConnectionId();
-  // The first byte is the config_id (0xc0) xored with (0x83 & 0x3f).
+  // The first byte is the config_id (0xe0) xored with (0x83 & 0x1f).
   // The remaining bytes are random, and therefore match kNonceHigh.
-  QuicConnectionId expected({0xc3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
+  QuicConnectionId expected({0xe3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
   EXPECT_EQ(expected, connection_id);
 }
 
@@ -372,7 +373,7 @@ TEST_F(LoadBalancerEncoderTest, MaybeReplaceConnectionIdReturnsChange) {
   ASSERT_TRUE(encoder.has_value());
   // The first byte is the config_id (0xc0) xored with (0x83 & 0x3f).
   // The remaining bytes are random, and therefore match kNonceHigh.
-  QuicConnectionId expected({0xc3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
+  QuicConnectionId expected({0xe3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
   EXPECT_EQ(*encoder->MaybeReplaceConnectionId(TestConnectionId(1),
                                                ParsedQuicVersion::RFCv1()),
             expected);
@@ -393,7 +394,7 @@ TEST_F(LoadBalancerEncoderTest, GenerateNextConnectionIdReturnsChange) {
   ASSERT_TRUE(encoder.has_value());
   // The first byte is the config_id (0xc0) xored with (0x83 & 0x3f).
   // The remaining bytes are random, and therefore match kNonceHigh.
-  QuicConnectionId expected({0xc3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
+  QuicConnectionId expected({0xe3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
   EXPECT_EQ(*encoder->GenerateNextConnectionId(TestConnectionId(1)), expected);
 }
 
@@ -401,13 +402,13 @@ TEST_F(LoadBalancerEncoderTest, ConnectionIdLengthsEncoded) {
   // The first byte literally encodes the length.
   auto len_encoder = LoadBalancerEncoder::Create(random_, nullptr, true);
   ASSERT_TRUE(len_encoder.has_value());
-  EXPECT_EQ(len_encoder->ConnectionIdLength(0xc8), 9);
+  EXPECT_EQ(len_encoder->ConnectionIdLength(0xe8), 9);
   EXPECT_EQ(len_encoder->ConnectionIdLength(0x4a), 11);
   EXPECT_EQ(len_encoder->ConnectionIdLength(0x09), 10);
   // The length is not self-encoded anymore.
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, false);
   ASSERT_TRUE(encoder.has_value());
-  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0xe8), kQuicDefaultConnectionIdLength);
   EXPECT_EQ(encoder->ConnectionIdLength(0x4a), kQuicDefaultConnectionIdLength);
   EXPECT_EQ(encoder->ConnectionIdLength(0x09), kQuicDefaultConnectionIdLength);
   // Add config ID 0, so that ID now returns a different length.
@@ -420,7 +421,7 @@ TEST_F(LoadBalancerEncoderTest, ConnectionIdLengthsEncoded) {
   ASSERT_TRUE(config0.has_value());
   EXPECT_TRUE(
       encoder->UpdateConfig(*config0, MakeServerId(kServerId, server_id_len)));
-  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0xe8), kQuicDefaultConnectionIdLength);
   EXPECT_EQ(encoder->ConnectionIdLength(0x4a), kQuicDefaultConnectionIdLength);
   EXPECT_EQ(encoder->ConnectionIdLength(0x09), config_0_len);
   // Replace config ID 0 with 1. There are probably still packets with config
@@ -434,13 +435,13 @@ TEST_F(LoadBalancerEncoderTest, ConnectionIdLengthsEncoded) {
   // Old config length still there after replacement
   EXPECT_TRUE(
       encoder->UpdateConfig(*config1, MakeServerId(kServerId, server_id_len)));
-  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
-  EXPECT_EQ(encoder->ConnectionIdLength(0x4a), config_1_len);
+  EXPECT_EQ(encoder->ConnectionIdLength(0xe8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x2a), config_1_len);
   EXPECT_EQ(encoder->ConnectionIdLength(0x09), config_0_len);
   // Old config length still there after delete
   encoder->DeleteConfig();
-  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
-  EXPECT_EQ(encoder->ConnectionIdLength(0x4a), config_1_len);
+  EXPECT_EQ(encoder->ConnectionIdLength(0xe8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x2a), config_1_len);
   EXPECT_EQ(encoder->ConnectionIdLength(0x09), config_0_len);
 }
 

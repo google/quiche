@@ -9,7 +9,6 @@
 #include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
 
@@ -27,8 +26,8 @@ class LoadBalancerConfigTest : public QuicTest {};
 TEST_F(LoadBalancerConfigTest, InvalidParams) {
   // Bogus config_id.
   EXPECT_QUIC_BUG(
-      EXPECT_FALSE(LoadBalancerConfig::CreateUnencrypted(3, 4, 10).has_value()),
-      "Invalid LoadBalancerConfig Config ID 3 Server ID Length 4 "
+      EXPECT_FALSE(LoadBalancerConfig::CreateUnencrypted(7, 4, 10).has_value()),
+      "Invalid LoadBalancerConfig Config ID 7 Server ID Length 4 "
       "Nonce Length 10");
   // Bad Server ID lengths.
   EXPECT_QUIC_BUG(EXPECT_FALSE(LoadBalancerConfig::Create(
@@ -37,17 +36,17 @@ TEST_F(LoadBalancerConfigTest, InvalidParams) {
                   "Invalid LoadBalancerConfig Config ID 2 Server ID Length 0 "
                   "Nonce Length 10");
   EXPECT_QUIC_BUG(
-      EXPECT_FALSE(LoadBalancerConfig::CreateUnencrypted(2, 16, 4).has_value()),
-      "Invalid LoadBalancerConfig Config ID 2 Server ID Length 16 "
+      EXPECT_FALSE(LoadBalancerConfig::CreateUnencrypted(6, 16, 4).has_value()),
+      "Invalid LoadBalancerConfig Config ID 6 Server ID Length 16 "
       "Nonce Length 4");
   // Bad Nonce lengths.
   EXPECT_QUIC_BUG(
-      EXPECT_FALSE(LoadBalancerConfig::CreateUnencrypted(2, 4, 2).has_value()),
-      "Invalid LoadBalancerConfig Config ID 2 Server ID Length 4 "
+      EXPECT_FALSE(LoadBalancerConfig::CreateUnencrypted(6, 4, 2).has_value()),
+      "Invalid LoadBalancerConfig Config ID 6 Server ID Length 4 "
       "Nonce Length 2");
   EXPECT_QUIC_BUG(
-      EXPECT_FALSE(LoadBalancerConfig::CreateUnencrypted(2, 1, 17).has_value()),
-      "Invalid LoadBalancerConfig Config ID 2 Server ID Length 1 "
+      EXPECT_FALSE(LoadBalancerConfig::CreateUnencrypted(6, 1, 17).has_value()),
+      "Invalid LoadBalancerConfig Config ID 6 Server ID Length 1 "
       "Nonce Length 17");
   // Bad key lengths.
   EXPECT_QUIC_BUG(

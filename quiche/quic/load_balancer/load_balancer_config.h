@@ -11,7 +11,14 @@
 
 namespace quic {
 
-inline constexpr uint8_t kNumLoadBalancerConfigs = 3;
+// The number of bits in the first byte used for the config ID
+inline constexpr uint8_t kConfigIdBits = 3;
+// The number of bits in the first byte used for the connection ID length, if
+// the encoder uses this option. Otherwise, by spec it's random bits.
+inline constexpr uint8_t kConnectionIdLengthBits = 8 - kConfigIdBits;
+// One codepoint is reserved for unroutable connection IDs, so subtract one to
+// find the maximum number of configs.
+inline constexpr uint8_t kNumLoadBalancerConfigs = (1 << kConfigIdBits) - 1;
 inline constexpr uint8_t kLoadBalancerKeyLen = 16;
 // Regardless of key length, the AES block size is always 16 Bytes.
 inline constexpr uint8_t kLoadBalancerBlockSize = 16;

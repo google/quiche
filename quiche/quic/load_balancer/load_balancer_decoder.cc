@@ -4,6 +4,9 @@
 
 #include "quiche/quic/load_balancer/load_balancer_decoder.h"
 
+#include <cstdint>
+
+#include "quiche/quic/load_balancer/load_balancer_config.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
@@ -80,7 +83,7 @@ absl::optional<uint8_t> LoadBalancerDecoder::GetConfigId(
 
 absl::optional<uint8_t> LoadBalancerDecoder::GetConfigId(
     const uint8_t connection_id_first_byte) {
-  uint8_t codepoint = (connection_id_first_byte >> 6);
+  uint8_t codepoint = (connection_id_first_byte >> kConnectionIdLengthBits);
   if (codepoint < kNumLoadBalancerConfigs) {
     return codepoint;
   }

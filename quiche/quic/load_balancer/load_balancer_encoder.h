@@ -20,16 +20,17 @@ class LoadBalancerEncoderPeer;
 inline constexpr uint8_t kLoadBalancerUnroutableLen = 8;
 // When the encoder is self-encoding the connection ID length, these are the
 // bits of the first byte that do so.
-constexpr uint8_t kLoadBalancerLengthMask = 0x3f;
+constexpr uint8_t kLoadBalancerLengthMask = (1 << kConnectionIdLengthBits) - 1;
+
 // The bits of the connection ID first byte that encode the config ID.
-constexpr uint8_t kLoadBalancerConfigIdMask = 0xc0;
+constexpr uint8_t kLoadBalancerConfigIdMask = ~kLoadBalancerLengthMask;
 // The config ID that means the connection ID does not contain routing
 // information.
 constexpr uint8_t kLoadBalancerUnroutableConfigId = kNumLoadBalancerConfigs;
 // The bits of the connection ID first byte that correspond to a connection ID
 // that does not contain routing information.
 constexpr uint8_t kLoadBalancerUnroutablePrefix =
-    kLoadBalancerUnroutableConfigId << 6;
+    kLoadBalancerUnroutableConfigId << kConnectionIdLengthBits;
 
 // Interface which receives notifications when the current config is updated.
 class QUIC_EXPORT_PRIVATE LoadBalancerEncoderVisitorInterface {
@@ -133,7 +134,8 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
       : random_(random),
         len_self_encoded_(len_self_encoded),
         visitor_(visitor) {
-    std::fill_n(connection_id_lengths_, 4, unroutable_connection_id_len);
+    std::fill_n(connection_id_lengths_, kNumLoadBalancerConfigs + 1,
+                unroutable_connection_id_len);
   }
 
  private:
