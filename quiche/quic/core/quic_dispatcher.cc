@@ -303,6 +303,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
                 << " bytes:" << std::endl
                 << quiche::QuicheTextUtils::HexDump(
                        absl::string_view(packet.data(), packet.length()));
+  ++num_packets_received_;
   ReceivedPacketInfo packet_info(self_address, peer_address, packet);
   std::string detailed_error;
   QuicErrorCode error;

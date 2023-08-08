@@ -171,6 +171,8 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   bool accept_new_connections() const { return accept_new_connections_; }
 
+  uint64_t num_packets_received() const { return num_packets_received_; }
+
  protected:
   // Creates a QUIC session based on the given information.
   // |alpn| is the selected ALPN from |parsed_chlo.alpns|.
@@ -430,6 +432,9 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   // Number of unique session in session map.
   size_t num_sessions_in_session_map_ = 0;
+
+  // Total number of packets received.
+  uint64_t num_packets_received_ = 0;
 
   // A backward counter of how many new sessions can be create within current
   // event loop. When reaches 0, it means can't create sessions for now.
