@@ -70,7 +70,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_act_upon_invalid_header, true)
 // If true, remove the non-initial burst in QUIC PacingSender.
 QUIC_FLAG(quic_reloadable_flag_quic_pacing_remove_non_initial_burst, false)
 // If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.
-QUIC_FLAG(quic_reloadable_flag_quic_require_handshake_confirmation, false)
+QUIC_FLAG(quic_reloadable_flag_quic_require_handshake_confirmation, true)
 // If true, respect the incremental parameter of each stream in QuicWriteBlockedList.
 QUIC_FLAG(quic_reloadable_flag_quic_priority_respect_incremental, false)
 // If true, round-robin stream writes instead of batching in QuicWriteBlockedList.
