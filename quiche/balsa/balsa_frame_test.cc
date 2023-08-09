@@ -3146,7 +3146,7 @@ TEST_F(HTTPBalsaFrameTest, BytesSafeToSpliceAndBytesSplicedWorksWithChunks) {
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
 }
 
-TEST_F(HTTPBalsaFrameTest, TwoDifferentContentHeadersIsAnError) {
+TEST_F(HTTPBalsaFrameTest, TwoDifferentContentLengthHeadersIsAnError) {
   std::string header =
       "HTTP/1.1 200 OK\r\n"
       "content-length: 12\r\n"
@@ -3159,7 +3159,7 @@ TEST_F(HTTPBalsaFrameTest, TwoDifferentContentHeadersIsAnError) {
             balsa_frame_.ErrorCode());
 }
 
-TEST_F(HTTPBalsaFrameTest, TwoSameContentHeadersIsNotAnError) {
+TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsNotAnError) {
   std::string header =
       "POST / HTTP/1.1\r\n"
       "content-length: 1\r\n"
@@ -3173,6 +3173,23 @@ TEST_F(HTTPBalsaFrameTest, TwoSameContentHeadersIsNotAnError) {
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+}
+
+TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsAnError) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_multiple_content_length = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  std::string header =
+      "POST / HTTP/1.1\r\n"
+      "content-length: 1\r\n"
+      "content-length: 1\r\n"
+      "\r\n"
+      "1";
+  balsa_frame_.ProcessInput(header.data(), header.size());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS,
+            balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingHeadersIsAnError) {
