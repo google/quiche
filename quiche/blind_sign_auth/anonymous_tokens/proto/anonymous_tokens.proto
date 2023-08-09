@@ -58,6 +58,7 @@ enum MessageMaskType {
   AT_MESSAGE_MASK_TYPE_UNDEFINED = 0;
   AT_MESSAGE_MASK_XOR = 1;
   AT_MESSAGE_MASK_CONCAT = 2;
+  AT_MESSAGE_MASK_NO_MASK = 3;
 }
 
 //  Proto representation for RSA private key.
