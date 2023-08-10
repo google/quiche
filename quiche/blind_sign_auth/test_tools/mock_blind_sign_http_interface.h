@@ -17,7 +17,7 @@ class QUICHE_NO_EXPORT MockBlindSignHttpInterface
     : public BlindSignHttpInterface {
  public:
   MOCK_METHOD(void, DoRequest,
-              (const std::string& path_and_query,
+              (BlindSignHttpRequestType request_type,
                const std::string& authorization_header, const std::string& body,
                BlindSignHttpCallback callback),
               (override));
