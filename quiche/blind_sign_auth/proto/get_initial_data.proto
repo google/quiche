@@ -48,6 +48,8 @@ message GetInitialDataRequest {
 // Contains data needed to perform blind signing and prepare for calling
 // AuthAndSign.
 message GetInitialDataResponse {
+  reserved 4;
+
   private_membership.anonymous_tokens.RSABlindSignaturePublicKey
       at_public_metadata_public_key = 1;
 
@@ -58,7 +60,11 @@ message GetInitialDataResponse {
   // if the service_type input requires it.
   privacy.ppn.PrepareAttestationData attestation = 3;
 
-  // General public metadata. Use metadata deserializer to inspect. Only set one
-  // of this or public_metadata_info.
-  bytes binary_public_metadata = 4 ;
+  // Data needed to support the privacy pass specification.
+  message PrivacyPassData {
+    bytes token_key_id = 1;
+    bytes public_metadata_extensions = 2
+        ;
+  }
+  PrivacyPassData privacy_pass_data = 5;
 }
