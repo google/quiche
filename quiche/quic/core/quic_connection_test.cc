@@ -689,7 +689,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, GetCongestionControlType())
         .Times(AnyNumber());
-    EXPECT_CALL(visitor_, WillingAndAbleToWrite()).Times(AnyNumber());
+    EXPECT_CALL(visitor_, WillingAndAbleToWrite())
+        .WillRepeatedly(
+            Invoke(&notifier_, &SimpleSessionNotifier::WillingToWrite));
     EXPECT_CALL(visitor_, OnPacketDecrypted(_)).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnCanWrite())
         .WillRepeatedly(Invoke(&notifier_, &SimpleSessionNotifier::OnCanWrite));
@@ -1520,6 +1522,18 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         QuicConnectionPeer::GetReceivedServerPreferredAddress(&connection_));
   }
 
+  // If defer sending is enabled, tell |visitor_| to return true on the next
+  // call to WillingAndAbleToWrite().
+  // This function can be used before a call to ProcessXxxPacket, to allow the
+  // process function to schedule and fire the send alarm at the end.
+  void ForceWillingAndAbleToWriteOnceForDeferSending() {
+    if (GetParam().ack_response == AckResponse::kDefer) {
+      EXPECT_CALL(visitor_, WillingAndAbleToWrite())
+          .WillOnce(Return(true))
+          .RetiresOnSaturation();
+    }
+  }
+
   void TestClientRetryHandling(bool invalid_retry_tag,
                                bool missing_original_id_in_config,
                                bool wrong_original_id_in_config,
@@ -1849,7 +1863,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
               OnPacketSent(_, _, _, _, NO_RETRANSMITTABLE_DATA))
       .Times(0);
   // Do not propagate OnCanWrite() to session notifier.
-  EXPECT_CALL(visitor_, OnCanWrite()).Times(AtLeast(1u));
+  EXPECT_CALL(visitor_, OnCanWrite()).Times(AnyNumber());
 
   QuicFrames frames2;
   frames2.push_back(QuicFrame(frame2_));
@@ -1981,7 +1995,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
   peer_creator_.SetServerConnectionId(server_cid1);
   EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE)).Times(1);
   // Do not propagate OnCanWrite() to session notifier.
-  EXPECT_CALL(visitor_, OnCanWrite()).Times(testing::AtMost(1u));
+  EXPECT_CALL(visitor_, OnCanWrite()).Times(AnyNumber());
 
   QuicFrames frames2;
   frames2.push_back(QuicFrame(frame2_));
@@ -3657,7 +3671,7 @@ TEST_P(QuicConnectionTest, LargestObservedLower) {
   QuicAckFrame frame2 = InitAckFrame(2);
   ProcessAckPacket(&frame2);
 
-  EXPECT_CALL(visitor_, OnCanWrite());
+  EXPECT_CALL(visitor_, OnCanWrite()).Times(AnyNumber());
   ProcessAckPacket(&frame1);
 }
 
@@ -3951,6 +3965,7 @@ TEST_P(QuicConnectionTest, FramePackingAckResponse) {
   SetDecrypter(
       ENCRYPTION_FORWARD_SECURE,
       std::make_unique<StrictTaggingDecrypter>(ENCRYPTION_FORWARD_SECURE));
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessDataPacket(2);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
@@ -4529,6 +4544,7 @@ TEST_P(QuicConnectionTest, SendAlarmNonZeroDelay) {
   size_t encrypted_length =
       peer_framer_.EncryptPayload(level, QuicPacketNumber(received_packet_num),
                                   *packet, buffer, kMaxOutgoingPacketSize);
+  EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(true));
   connection_.ProcessUdpPacket(
       kSelfAddress, kPeerAddress,
       QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
@@ -6501,6 +6517,7 @@ TEST_P(QuicConnectionTest, BundleAckForSecondCHLO) {
   } else {
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   }
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   // Check that ack is sent and that delayed ack alarm is reset.
   EXPECT_EQ(3u, writer_->frame_count());
@@ -6539,6 +6556,7 @@ TEST_P(QuicConnectionTest, BundleAckForSecondCHLOTwoPacketReject) {
           .WillOnce(IgnoreResult(InvokeWithoutArgs(
               &connection_, &TestConnection::SendCryptoStreamData)));
     }
+    ForceWillingAndAbleToWriteOnceForDeferSending();
     ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   }
   // Check that ack is sent and that delayed ack alarm is reset.
@@ -6596,6 +6614,7 @@ TEST_P(QuicConnectionTest, BundleAckWithDataOnIncomingAck) {
   EXPECT_CALL(visitor_, OnCanWrite())
       .WillOnce(IgnoreResult(InvokeWithoutArgs(
           &connection_, &TestConnection::EnsureWritableAndSendStreamData5)));
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessAckPacket(&ack);
 
   // Check that ack is bundled with outgoing data and the delayed ack
@@ -9625,6 +9644,7 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
 
   // Receives packet 1.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
 
   const size_t anti_amplification_factor =
@@ -9644,6 +9664,7 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
 
   // Receives packet 2.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   // Verify more packets can be sent.
   for (size_t i = anti_amplification_factor + 1;
@@ -9657,6 +9678,7 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
                                        2 * anti_amplification_factor * 3);
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessPacket(3);
   // Verify anti-amplification limit is gone after address validation.
   for (size_t i = 0; i < 100; ++i) {
@@ -9695,6 +9717,7 @@ TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
 
   // Receives packet 1.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
 
   const size_t anti_amplification_factor = 3;
@@ -9713,6 +9736,7 @@ TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
 
   // Receives packet 2.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   // Verify more packets can be sent.
   for (size_t i = anti_amplification_factor + 1;
@@ -9726,6 +9750,7 @@ TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
                                        2 * anti_amplification_factor * 3);
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessPacket(3);
   // Verify anti-amplification limit is gone after address validation.
   for (size_t i = 0; i < 100; ++i) {
@@ -9764,6 +9789,7 @@ TEST_P(QuicConnectionTest, 10AntiAmplificationLimit) {
 
   // Receives packet 1.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
 
   const size_t anti_amplification_factor = 10;
@@ -9782,6 +9808,7 @@ TEST_P(QuicConnectionTest, 10AntiAmplificationLimit) {
 
   // Receives packet 2.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   // Verify more packets can be sent.
   for (size_t i = anti_amplification_factor + 1;
@@ -9795,6 +9822,7 @@ TEST_P(QuicConnectionTest, 10AntiAmplificationLimit) {
                                        2 * anti_amplification_factor * 3);
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessPacket(3);
   // Verify anti-amplification limit is gone after address validation.
   for (size_t i = 0; i < 100; ++i) {
@@ -16039,6 +16067,7 @@ TEST_P(QuicConnectionTest, StrictAntiAmplificationLimit) {
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(anti_amplification_factor);
+  ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(0x02));
