@@ -206,9 +206,6 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // Whether the most recent packet was missing before it was received.
   bool was_last_packet_missing_;
 
-  const bool trim_ack_ranges_early_ =
-      GetQuicReloadableFlag(quic_rpm_trim_ack_ranges_early);
-
   // Last sent largest acked, which gets updated when ACK was successfully sent.
   QuicPacketNumber last_sent_largest_acked_;
 
