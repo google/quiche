@@ -94,7 +94,6 @@ absl::StatusOr<AnonymousTokensSignResponse> CreateResponse(
     const AnonymousTokensSignRequest& request, const RSAPrivateKey& private_key,
     bool enable_public_metadata = false) {
   AnonymousTokensSignResponse response;
-  const bool use_rsa_public_exponent = false;
   for (const auto& request_token : request.blinded_tokens()) {
     auto* response_token = response.add_anonymous_tokens();
     response_token->set_use_case(request_token.use_case());
@@ -102,15 +101,13 @@ absl::StatusOr<AnonymousTokensSignResponse> CreateResponse(
     response_token->set_public_metadata(request_token.public_metadata());
     response_token->set_serialized_blinded_message(
         request_token.serialized_token());
-    response_token->set_do_not_use_rsa_public_exponent(
-        !use_rsa_public_exponent);
     std::optional<std::string> public_metadata = std::nullopt;
     if (enable_public_metadata) {
       public_metadata = request_token.public_metadata();
     }
     ANON_TOKENS_ASSIGN_OR_RETURN(
         std::unique_ptr<RsaBlindSigner> blind_signer,
-        RsaBlindSigner::New(private_key, use_rsa_public_exponent,
+        RsaBlindSigner::New(private_key, /*use_rsa_public_exponent=*/true,
                             public_metadata));
     ANON_TOKENS_ASSIGN_OR_RETURN(
         *response_token->mutable_serialized_token(),
