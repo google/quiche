@@ -16,7 +16,7 @@ QUIC_FLAG(quic_restart_flag_quic_testonly_default_false, false)
 // A testonly restart flag that will always default to true.
 QUIC_FLAG(quic_restart_flag_quic_testonly_default_true, true)
 // If enabled and a BSUS connection is received, blocks server connections until SETTINGS frame is received.
-QUIC_FLAG(quic_reloadable_flag_quic_block_until_settings_received_copt, false)
+QUIC_FLAG(quic_reloadable_flag_quic_block_until_settings_received_copt, true)
 // If trrue, early return before write control frame in OnCanWrite() if the connection is already closed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close, true)
 // If true and defer_send_in_response_to_packets is enabled, QuicConnection will schedule send alarms at the end of packet processing only if it\'s necessary.
