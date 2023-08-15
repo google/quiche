@@ -36,9 +36,13 @@ absl::StatusOr<std::string> GenerateMask(
       public_key.message_mask_size() >= kRsaMessageMaskSizeInBytes32) {
     mask = std::string(public_key.message_mask_size(), '\0');
     RAND_bytes(reinterpret_cast<uint8_t*>(mask.data()), mask.size());
+  } else if (public_key.message_mask_type() == AT_MESSAGE_MASK_NO_MASK &&
+             public_key.message_mask_size() == 0) {
+    return "";
   } else {
     return absl::InvalidArgumentError(
-        "Undefined or unsupported message mask type.");
+        "Unsupported message mask type Or invalid message mask size "
+        "requested.");
   }
   return mask;
 }

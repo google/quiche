@@ -42,17 +42,26 @@ TEST(AnonymousTokensPbOpensslConvertersTests, GenerateMaskTestInvalidType) {
   absl::StatusOr<std::string> mask_32_bytes = GenerateMask(public_key);
   EXPECT_EQ(mask_32_bytes.status().code(), absl::StatusCode::kInvalidArgument);
   EXPECT_THAT(mask_32_bytes.status().message(),
-              ::testing::HasSubstr("unsupported message mask"));
+              ::testing::HasSubstr("Unsupported message mask type"));
 }
 
 TEST(AnonymousTokensPbOpensslConvertersTests, GenerateMaskTestInvalidLength) {
   RSABlindSignaturePublicKey public_key;
+  // Mask meant to be concatenated is less than 32 bytes.
   public_key.set_message_mask_type(AT_MESSAGE_MASK_CONCAT);
   public_key.set_message_mask_size(kRsaMessageMaskSizeInBytes32 - 1);
   absl::StatusOr<std::string> mask_32_bytes = GenerateMask(public_key);
+  // Mask type set to no mask but mask length requested is greater than 0.
+  public_key.set_message_mask_type(AT_MESSAGE_MASK_NO_MASK);
+  public_key.set_message_mask_size(kRsaMessageMaskSizeInBytes32);
+  absl::StatusOr<std::string> mask_0_bytes = GenerateMask(public_key);
+
   EXPECT_EQ(mask_32_bytes.status().code(), absl::StatusCode::kInvalidArgument);
+  EXPECT_EQ(mask_0_bytes.status().code(), absl::StatusCode::kInvalidArgument);
   EXPECT_THAT(mask_32_bytes.status().message(),
-              ::testing::HasSubstr("unsupported message mask"));
+              ::testing::HasSubstr("invalid message mask size"));
+  EXPECT_THAT(mask_0_bytes.status().message(),
+              ::testing::HasSubstr("invalid message mask size"));
 }
 
 TEST(AnonymousTokensPbOpensslConvertersTests, GenerateMaskTestSuccess) {
@@ -66,10 +75,18 @@ TEST(AnonymousTokensPbOpensslConvertersTests, GenerateMaskTestSuccess) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string mask_64_bytes,
                                    GenerateMask(public_key));
 
+  // No mask.
+  public_key.set_message_mask_type(AT_MESSAGE_MASK_NO_MASK);
+  public_key.set_message_mask_size(0);
+  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(std::string mask_0_bytes,
+                                   GenerateMask(public_key));
+
   EXPECT_FALSE(mask_32_bytes.empty());
   EXPECT_FALSE(mask_64_bytes.empty());
+  EXPECT_TRUE(mask_0_bytes.empty());
   EXPECT_EQ(mask_32_bytes.size(), kRsaMessageMaskSizeInBytes32);
   EXPECT_EQ(mask_64_bytes.size(), kRsaMessageMaskSizeInBytes32 * 2);
+  EXPECT_EQ(mask_0_bytes.size(), 0);
 }
 
 TEST(AnonymousTokensPbOpensslConvertersTests,
