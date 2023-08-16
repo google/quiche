@@ -541,8 +541,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Initializes HTTP/3 unidirectional streams if not yet initialzed.
   virtual void MaybeInitializeHttp3UnidirectionalStreams();
 
-  // QuicConnectionVisitorInterface method.
+  // QuicConnectionVisitorInterface methods.
   void BeforeConnectionCloseSent() override;
+  void MaybeBundleOpportunistically() override;
 
   // Called whenever a datagram is dequeued or dropped from datagram_queue().
   virtual void OnDatagramProcessed(absl::optional<MessageStatus> status);
@@ -556,6 +557,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // once when encryption is established, and again when 1-RTT keys are
   // available.
   void SendInitialData();
+
+  // Override to skip checking for qpack_decoder_send_stream_ given decoder data
+  // is always bundled opportunistically.
+  bool CheckStreamWriteBlocked(QuicStream* stream) const override;
 
  private:
   friend class test::QuicSpdySessionPeer;

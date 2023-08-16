@@ -60,9 +60,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     // Consults delegate whether a packet should be generated.
     virtual bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                                       IsHandshake handshake) = 0;
-    // Called when there is data to be sent. Retrieves updated ACK frame from
-    // the delegate.
-    virtual const QuicFrames MaybeBundleAckOpportunistically() = 0;
+    // Called when there is data to be sent. Gives delegate a chance to bundle
+    // anything with to-be-sent data.
+    virtual const QuicFrames MaybeBundleOpportunistically() = 0;
 
     // Returns the packet fate for serialized packets which will be handed over
     // to delegate via OnSerializedPacket(). Called when a packet is about to be
@@ -369,9 +369,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Generates an MTU discovery packet of specified size.
   void GenerateMtuDiscoveryPacket(QuicByteCount target_mtu);
 
-  // Called when there is data to be sent, Retrieves updated ACK frame from
-  // delegate_ and flushes it.
-  void MaybeBundleAckOpportunistically();
+  // Called when there is data to be sent. Gives delegate a chance to bundle any
+  // data (including ACK).
+  void MaybeBundleOpportunistically();
 
   // Called to flush ACK and STOP_WAITING frames, returns false if the flush
   // fails.

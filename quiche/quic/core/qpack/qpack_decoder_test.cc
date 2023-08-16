@@ -63,6 +63,8 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
     return qpack_decoder_.CreateProgressiveDecoder(stream_id, &handler_);
   }
 
+  void FlushDecoderStream() { qpack_decoder_.FlushDecoderStream(); }
+
   // Set up |progressive_decoder_|.
   void StartDecoding() {
     progressive_decoder_ = CreateProgressiveDecoder(/* stream_id = */ 1);
@@ -367,10 +369,17 @@ TEST_P(QpackDecoderTest, DynamicTable) {
       .InSequence(s);
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("ZZZ"))).InSequence(s);
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq(":method"), Eq("ZZ"))).InSequence(s);
-  EXPECT_CALL(decoder_stream_sender_delegate_,
-              WriteStreamData(Eq(kHeaderAcknowledgement)))
-      .InSequence(s);
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    EXPECT_CALL(decoder_stream_sender_delegate_,
+                WriteStreamData(Eq(kHeaderAcknowledgement)))
+        .InSequence(s);
+  }
   EXPECT_CALL(handler_, OnDecodingCompleted()).InSequence(s);
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    EXPECT_CALL(decoder_stream_sender_delegate_,
+                WriteStreamData(Eq(kHeaderAcknowledgement)))
+        .InSequence(s);
+  }
 
   DecodeHeaderBlock(absl::HexStringToBytes(
       "0500"  // Required Insert Count 4 and Delta Base 0.
@@ -381,6 +390,9 @@ TEST_P(QpackDecoderTest, DynamicTable) {
       "80"    // Dynamic table entry with relative index 0, absolute index 3.
       "41025a5a"));  // Name of entry 1 (relative index) from dynamic table,
                      // with value "ZZ".
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    FlushDecoderStream();
+  }
 
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar"))).InSequence(s);
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("ZZZ"))).InSequence(s);
@@ -388,10 +400,17 @@ TEST_P(QpackDecoderTest, DynamicTable) {
       .InSequence(s);
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("ZZZ"))).InSequence(s);
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq(":method"), Eq("ZZ"))).InSequence(s);
-  EXPECT_CALL(decoder_stream_sender_delegate_,
-              WriteStreamData(Eq(kHeaderAcknowledgement)))
-      .InSequence(s);
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    EXPECT_CALL(decoder_stream_sender_delegate_,
+                WriteStreamData(Eq(kHeaderAcknowledgement)))
+        .InSequence(s);
+  }
   EXPECT_CALL(handler_, OnDecodingCompleted()).InSequence(s);
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    EXPECT_CALL(decoder_stream_sender_delegate_,
+                WriteStreamData(Eq(kHeaderAcknowledgement)))
+        .InSequence(s);
+  }
 
   DecodeHeaderBlock(absl::HexStringToBytes(
       "0502"  // Required Insert Count 4 and Delta Base 2.
@@ -402,6 +421,9 @@ TEST_P(QpackDecoderTest, DynamicTable) {
       "82"    // Dynamic table entry with relative index 2, absolute index 3.
       "43025a5a"));  // Name of entry 3 (relative index) from dynamic table,
                      // with value "ZZ".
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    FlushDecoderStream();
+  }
 
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar"))).InSequence(s);
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("ZZZ"))).InSequence(s);
@@ -409,10 +431,17 @@ TEST_P(QpackDecoderTest, DynamicTable) {
       .InSequence(s);
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("ZZZ"))).InSequence(s);
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq(":method"), Eq("ZZ"))).InSequence(s);
-  EXPECT_CALL(decoder_stream_sender_delegate_,
-              WriteStreamData(Eq(kHeaderAcknowledgement)))
-      .InSequence(s);
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    EXPECT_CALL(decoder_stream_sender_delegate_,
+                WriteStreamData(Eq(kHeaderAcknowledgement)))
+        .InSequence(s);
+  }
   EXPECT_CALL(handler_, OnDecodingCompleted()).InSequence(s);
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    EXPECT_CALL(decoder_stream_sender_delegate_,
+                WriteStreamData(Eq(kHeaderAcknowledgement)))
+        .InSequence(s);
+  }
 
   DecodeHeaderBlock(absl::HexStringToBytes(
       "0582"  // Required Insert Count 4 and Delta Base 2 with sign bit set.
@@ -423,6 +452,9 @@ TEST_P(QpackDecoderTest, DynamicTable) {
       "12"    // Dynamic table entry with post-base index 2, absolute index 3.
       "01025a5a"));  // Name of entry 1 (post-base index) from dynamic table,
                      // with value "ZZ".
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    FlushDecoderStream();
+  }
 }
 
 TEST_P(QpackDecoderTest, DecreasingDynamicTableCapacityEvictsEntries) {
@@ -453,6 +485,9 @@ TEST_P(QpackDecoderTest, DecreasingDynamicTableCapacityEvictsEntries) {
       "0200"   // Required Insert Count 1 and Delta Base 0.
                // Base is 1 + 0 = 1.
       "80"));  // Dynamic table entry with relative index 0, absolute index 0.
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    FlushDecoderStream();
+  }
 }
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorEntryTooLarge) {
@@ -683,6 +718,9 @@ TEST_P(QpackDecoderTest, WrappedRequiredInsertCount) {
       "0a00"   // Encoded Required Insert Count 10, Required Insert Count 201,
                // Delta Base 0, Base 201.
       "80"));  // Emit dynamic table entry with relative index 0.
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    FlushDecoderStream();
+  }
 }
 
 TEST_P(QpackDecoderTest, NonZeroRequiredInsertCountButNoDynamicEntries) {
@@ -842,6 +880,9 @@ TEST_P(QpackDecoderTest, BlockedDecoding) {
   DecodeEncoderStreamData(absl::HexStringToBytes("3fe107"));
   // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(absl::HexStringToBytes("6294e703626172"));
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    FlushDecoderStream();
+  }
 }
 
 TEST_P(QpackDecoderTest, BlockedDecodingUnblockedBeforeEndOfHeaderBlock) {
@@ -879,6 +920,9 @@ TEST_P(QpackDecoderTest, BlockedDecodingUnblockedBeforeEndOfHeaderBlock) {
   EXPECT_CALL(decoder_stream_sender_delegate_,
               WriteStreamData(Eq(kHeaderAcknowledgement)));
   EndDecoding();
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    FlushDecoderStream();
+  }
 }
 
 // Regression test for https://crbug.com/1024263.
@@ -932,6 +976,9 @@ TEST_P(QpackDecoderTest, BlockedDecodingAndEvictedEntries) {
   // Add literal entry with name "foo" and value "bar".
   // Insert Count is now 6, reaching Required Insert Count of the header block.
   DecodeEncoderStreamData(absl::HexStringToBytes("6294e70362617a"));
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    FlushDecoderStream();
+  }
 }
 
 TEST_P(QpackDecoderTest, TooManyBlockedStreams) {
@@ -972,6 +1019,9 @@ TEST_P(QpackDecoderTest, InsertCountIncrement) {
       "0200"   // Required Insert Count 1 and Delta Base 0.
                // Base is 1 + 0 = 1.
       "80"));  // Dynamic table entry with relative index 0, absolute index 0.
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    FlushDecoderStream();
+  }
 }
 
 }  // namespace

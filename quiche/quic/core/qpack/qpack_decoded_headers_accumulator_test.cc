@@ -175,6 +175,9 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedLimitBlocked) {
 
   EXPECT_CALL(visitor_, OnHeadersDecoded(_, true));
   qpack_decoder_.OnInsertWithoutNameReference("foo", "bar");
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    qpack_decoder_.FlushDecoderStream();
+  }
 }
 
 TEST_F(QpackDecodedHeadersAccumulatorTest, BlockedDecoding) {
@@ -198,6 +201,9 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, BlockedDecoding) {
   EXPECT_EQ(strlen("foo") + strlen("bar"),
             header_list.uncompressed_header_bytes());
   EXPECT_EQ(encoded_data.size(), header_list.compressed_header_bytes());
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    qpack_decoder_.FlushDecoderStream();
+  }
 }
 
 TEST_F(QpackDecodedHeadersAccumulatorTest,
@@ -221,6 +227,9 @@ TEST_F(QpackDecodedHeadersAccumulatorTest,
   accumulator_.EndHeaderBlock();
 
   EXPECT_THAT(header_list, ElementsAre(Pair("foo", "bar"), Pair("foo", "bar")));
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    qpack_decoder_.FlushDecoderStream();
+  }
 }
 
 // Regression test for https://crbug.com/1024263.

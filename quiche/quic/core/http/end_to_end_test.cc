@@ -2856,9 +2856,15 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
       client_connection->GetStats().packets_sent;
 
   if (version_.UsesHttp3()) {
-    // Make sure 2 packets were sent, one for QPACK instructions, another for
-    // RESET_STREAM and STOP_SENDING.
-    EXPECT_EQ(packets_sent_before + 2, packets_sent_now);
+    if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+      // QPACK decoder instructions and RESET_STREAM and STOP_SENDING frames are
+      // sent in a single packet.
+      EXPECT_EQ(packets_sent_before + 1, packets_sent_now);
+    } else {
+      // Make sure 2 packets were sent, one for QPACK instructions, another for
+      // RESET_STREAM and STOP_SENDING.
+      EXPECT_EQ(packets_sent_before + 2, packets_sent_now);
+    }
   }
 
   // WaitForEvents waits 50ms and returns true if there are outstanding
@@ -3144,7 +3150,11 @@ TEST_P(EndToEndTest,
   // received by the server.
   QuicConnection* server_connection = GetServerConnection();
   EXPECT_FALSE(server_connection->HasPendingPathValidation());
-  EXPECT_EQ(3u, server_connection->GetStats().num_validated_peer_migration);
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    EXPECT_EQ(4u, server_connection->GetStats().num_validated_peer_migration);
+  } else {
+    EXPECT_EQ(3u, server_connection->GetStats().num_validated_peer_migration);
+  }
   EXPECT_EQ(server_cid3, server_connection->connection_id());
   EXPECT_EQ(client_cid3, server_connection->client_connection_id());
   EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(

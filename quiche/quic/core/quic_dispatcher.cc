@@ -105,7 +105,7 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
     return true;
   }
 
-  const QuicFrames MaybeBundleAckOpportunistically() override {
+  const QuicFrames MaybeBundleOpportunistically() override {
     QUICHE_DCHECK(false);
     return {};
   }

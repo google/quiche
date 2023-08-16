@@ -106,6 +106,9 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
     return header_table_.dynamic_table_entry_referenced();
   }
 
+  // Flush buffered data on the decoder stream.
+  void FlushDecoderStream();
+
  private:
   EncoderStreamErrorDelegate* const encoder_stream_error_delegate_;
   QpackEncoderStreamReceiver encoder_stream_receiver_;

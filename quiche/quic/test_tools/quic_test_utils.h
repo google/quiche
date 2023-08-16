@@ -507,6 +507,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               (std::unique_ptr<QuicPathValidationContext>), (override));
   MOCK_METHOD(void, OnServerPreferredAddressAvailable,
               (const QuicSocketAddress&), (override));
+  MOCK_METHOD(void, MaybeBundleOpportunistically, (), (override));
   void OnBandwidthUpdateTimeout() override {}
 };
 
@@ -1418,8 +1419,7 @@ class MockPacketCreatorDelegate : public QuicPacketCreator::DelegateInterface {
   MOCK_METHOD(bool, ShouldGeneratePacket,
               (HasRetransmittableData retransmittable, IsHandshake handshake),
               (override));
-  MOCK_METHOD(const QuicFrames, MaybeBundleAckOpportunistically, (),
-              (override));
+  MOCK_METHOD(const QuicFrames, MaybeBundleOpportunistically, (), (override));
   MOCK_METHOD(SerializedPacketFate, GetSerializedPacketFate,
               (bool, EncryptionLevel), (override));
 };

@@ -263,6 +263,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called when the client receives a preferred address from its peer.
   virtual void OnServerPreferredAddressAvailable(
       const QuicSocketAddress& server_preferred_address) = 0;
+
+  // Asks session to bundle data opportunistically with outgoing data.
+  virtual void MaybeBundleOpportunistically() = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting
@@ -727,7 +730,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // QuicPacketCreator::DelegateInterface
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
-  const QuicFrames MaybeBundleAckOpportunistically() override;
+  const QuicFrames MaybeBundleOpportunistically() override;
   QuicPacketBuffer GetPacketBuffer() override;
   void OnSerializedPacket(SerializedPacket packet) override;
   void OnUnrecoverableError(QuicErrorCode error,

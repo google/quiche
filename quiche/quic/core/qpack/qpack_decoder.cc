@@ -31,7 +31,9 @@ QpackDecoder::~QpackDecoder() {}
 void QpackDecoder::OnStreamReset(QuicStreamId stream_id) {
   if (header_table_.maximum_dynamic_table_capacity() > 0) {
     decoder_stream_sender_.SendStreamCancellation(stream_id);
-    decoder_stream_sender_.Flush();
+    if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+      decoder_stream_sender_.Flush();
+    }
   }
 }
 
@@ -66,7 +68,9 @@ void QpackDecoder::OnDecodingCompleted(QuicStreamId stream_id,
     known_received_count_ = header_table_.inserted_entry_count();
   }
 
-  decoder_stream_sender_.Flush();
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    decoder_stream_sender_.Flush();
+  }
 }
 
 void QpackDecoder::OnInsertWithNameReference(bool is_static,
@@ -166,5 +170,7 @@ std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::CreateProgressiveDecoder(
   return std::make_unique<QpackProgressiveDecoder>(stream_id, this, this,
                                                    &header_table_, handler);
 }
+
+void QpackDecoder::FlushDecoderStream() { decoder_stream_sender_.Flush(); }
 
 }  // namespace quic

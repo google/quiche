@@ -112,6 +112,7 @@ class QuicEndpoint : public QuicEndpointBase,
       std::unique_ptr<QuicPathValidationContext> /*context*/) override {}
   void OnServerPreferredAddressAvailable(
       const QuicSocketAddress& /*server_preferred_address*/) override {}
+  void MaybeBundleOpportunistically() override {}
 
   // End QuicConnectionVisitorInterface implementation.
 

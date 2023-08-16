@@ -3171,7 +3171,7 @@ bool QuicConnection::ShouldGeneratePacket(
   return connected_ && !HandleWriteBlocked();
 }
 
-const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
+const QuicFrames QuicConnection::MaybeBundleOpportunistically() {
   if (!ack_frequency_sent_ && sent_packet_manager_.CanSendAckFrequency()) {
     if (packet_creator_.NextSendingPacketNumber() >=
         FirstSendingPacketNumber() + kMinReceivedBeforeAckDecimation) {
@@ -3180,6 +3180,11 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
       auto frame = sent_packet_manager_.GetUpdatedAckFrequencyFrame();
       visitor_->SendAckFrequency(frame);
     }
+  }
+
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data, 1, 3);
+    visitor_->MaybeBundleOpportunistically();
   }
 
   QuicFrames frames;
@@ -3200,6 +3205,7 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
       << encryption_level_ << " ACK, " << (has_pending_ack ? "" : "!")
       << "has_pending_ack";
   frames.push_back(updated_ack_frame);
+  // TODO(fayang): remove return value by FlushAckFrame here.
   return frames;
 }
 
@@ -5786,6 +5792,10 @@ void QuicConnection::SendAllPendingAcks() {
       uber_received_packet_manager_.GetEarliestAckTimeout();
   QUIC_BUG_IF(quic_bug_12714_32, !earliest_ack_timeout.IsInitialized());
   MaybeBundleCryptoDataWithAcks();
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data, 2, 3);
+    visitor_->MaybeBundleOpportunistically();
+  }
   earliest_ack_timeout = uber_received_packet_manager_.GetEarliestAckTimeout();
   if (!earliest_ack_timeout.IsInitialized()) {
     return;

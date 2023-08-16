@@ -189,6 +189,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
       std::unique_ptr<QuicPathValidationContext> /*context*/) override {}
   void OnServerPreferredAddressAvailable(
       const QuicSocketAddress& /*server_preferred_address*/) override;
+  void MaybeBundleOpportunistically() override {}
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,
@@ -841,6 +842,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return absl::nullopt;
   }
 
+  // Debug helper for OnCanWrite. Check that after QuicStream::OnCanWrite(),
+  // if stream has buffered data and is not stream level flow control blocked,
+  // it has to be in the write blocked list.
+  virtual bool CheckStreamWriteBlocked(QuicStream* stream) const;
+
  private:
   friend class test::QuicSessionPeer;
 
@@ -871,11 +877,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool CheckStreamNotBusyLooping(QuicStream* stream,
                                  uint64_t previous_bytes_written,
                                  bool previous_fin_sent);
-
-  // Debug helper for OnCanWrite. Check that after QuicStream::OnCanWrite(),
-  // if stream has buffered data and is not stream level flow control blocked,
-  // it has to be in the write blocked list.
-  bool CheckStreamWriteBlocked(QuicStream* stream) const;
 
   // Called in OnConfigNegotiated for Finch trials to measure performance of
   // starting with larger flow control receive windows.

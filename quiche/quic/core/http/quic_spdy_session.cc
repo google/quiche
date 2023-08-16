@@ -24,6 +24,7 @@
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -857,6 +858,16 @@ void QuicSpdySession::SendInitialData() {
   send_control_stream_->MaybeSendSettingsFrame();
 }
 
+bool QuicSpdySession::CheckStreamWriteBlocked(QuicStream* stream) const {
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data) &&
+      qpack_decoder_send_stream_ != nullptr &&
+      stream->id() == qpack_decoder_send_stream_->id()) {
+    // Decoder data is always bundled opportunistically.
+    return true;
+  }
+  return QuicSession::CheckStreamWriteBlocked(stream);
+}
+
 QpackEncoder* QuicSpdySession::qpack_encoder() {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
@@ -1635,6 +1646,12 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
 
   send_control_stream_->SendGoAway(stream_id);
   last_sent_http3_goaway_id_ = stream_id;
+}
+
+void QuicSpdySession::MaybeBundleOpportunistically() {
+  if (qpack_decoder_ != nullptr) {
+    qpack_decoder_->FlushDecoderStream();
+  }
 }
 
 void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {

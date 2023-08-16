@@ -2476,8 +2476,7 @@ class MockDelegate : public QuicPacketCreator::DelegateInterface {
   MOCK_METHOD(bool, ShouldGeneratePacket,
               (HasRetransmittableData retransmittable, IsHandshake handshake),
               (override));
-  MOCK_METHOD(const QuicFrames, MaybeBundleAckOpportunistically, (),
-              (override));
+  MOCK_METHOD(const QuicFrames, MaybeBundleOpportunistically, (), (override));
   MOCK_METHOD(QuicPacketBuffer, GetPacketBuffer, (), (override));
   MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket), (override));
   MOCK_METHOD(void, OnUnrecoverableError, (QuicErrorCode, const std::string&),
@@ -2556,7 +2555,7 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
       }
       if (delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
                                           NOT_HANDSHAKE)) {
-        EXPECT_CALL(*delegate_, MaybeBundleAckOpportunistically())
+        EXPECT_CALL(*delegate_, MaybeBundleOpportunistically())
             .WillOnce(Return(frames));
       }
     }
@@ -2583,7 +2582,7 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
     }
     if (!has_ack() && delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
                                                       NOT_HANDSHAKE)) {
-      EXPECT_CALL(*delegate_, MaybeBundleAckOpportunistically()).Times(1);
+      EXPECT_CALL(*delegate_, MaybeBundleOpportunistically()).Times(1);
     }
     return QuicPacketCreator::ConsumeData(id, data.length(), offset, state);
   }
@@ -2592,7 +2591,7 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
                                 quiche::QuicheMemSlice message) {
     if (!has_ack() && delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
                                                       NOT_HANDSHAKE)) {
-      EXPECT_CALL(*delegate_, MaybeBundleAckOpportunistically()).Times(1);
+      EXPECT_CALL(*delegate_, MaybeBundleOpportunistically()).Times(1);
     }
     return QuicPacketCreator::AddMessageFrame(message_id,
                                               absl::MakeSpan(&message, 1));
@@ -2603,7 +2602,7 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
     producer_->SaveCryptoData(level, offset, data);
     if (!has_ack() && delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
                                                       NOT_HANDSHAKE)) {
-      EXPECT_CALL(*delegate_, MaybeBundleAckOpportunistically()).Times(1);
+      EXPECT_CALL(*delegate_, MaybeBundleOpportunistically()).Times(1);
     }
     return QuicPacketCreator::ConsumeCryptoData(level, data.length(), offset);
   }
