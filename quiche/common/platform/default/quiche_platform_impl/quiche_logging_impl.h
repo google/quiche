@@ -2,11 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file does not actually implement logging, it merely provides enough of
-// logging code for QUICHE to compile and pass the unit tests.  QUICHE embedders
-// are encouraged to override this file with their own logic.  If at some point
-// logging becomes a part of Abseil, this file will likely start using that
-// instead.
+// This file implements logging using Abseil.
 
 #ifndef QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_LOGGING_IMPL_H_
 #define QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_LOGGING_IMPL_H_
