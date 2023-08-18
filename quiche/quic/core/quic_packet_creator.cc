@@ -1512,6 +1512,11 @@ void QuicPacketCreator::GenerateMtuDiscoveryPacket(QuicByteCount target_mtu) {
 }
 
 void QuicPacketCreator::MaybeBundleOpportunistically() {
+  if (flush_ack_in_maybe_bundle_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_flush_ack_in_maybe_bundle, 1, 3);
+    delegate_->MaybeBundleOpportunistically();
+    return;
+  }
   if (has_ack()) {
     // Ack already queued, nothing to do.
     return;

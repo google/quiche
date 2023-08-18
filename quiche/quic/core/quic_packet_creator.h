@@ -477,6 +477,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   const QuicSocketAddress& peer_address() const { return packet_.peer_address; }
 
+  bool flush_ack_in_maybe_bundle() const { return flush_ack_in_maybe_bundle_; }
+
  private:
   friend class test::QuicPacketCreatorPeer;
 
@@ -673,6 +675,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
+
+  const bool flush_ack_in_maybe_bundle_ =
+      GetQuicReloadableFlag(quic_flush_ack_in_maybe_bundle);
 };
 
 }  // namespace quic

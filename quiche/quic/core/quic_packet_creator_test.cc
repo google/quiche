@@ -2548,11 +2548,17 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
 
   bool ConsumeRetransmittableControlFrame(const QuicFrame& frame,
                                           bool bundle_ack) {
-    if (!has_ack()) {
-      QuicFrames frames;
-      if (bundle_ack) {
-        frames.push_back(QuicFrame(&ack_frame_));
-      }
+    QuicFrames frames;
+    if (bundle_ack) {
+      frames.push_back(QuicFrame(&ack_frame_));
+    }
+    if (GetQuicReloadableFlag(quic_flush_ack_in_maybe_bundle)) {
+      EXPECT_CALL(*delegate_, MaybeBundleOpportunistically())
+          .WillOnce(Invoke([this, frames = std::move(frames)] {
+            FlushAckFrame(frames);
+            return QuicFrames();
+          }));
+    } else if (!has_ack()) {
       if (delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
                                           NOT_HANDSHAKE)) {
         EXPECT_CALL(*delegate_, MaybeBundleOpportunistically())
@@ -2580,8 +2586,10 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
     if (!data.empty()) {
       producer_->SaveStreamData(id, data);
     }
-    if (!has_ack() && delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
-                                                      NOT_HANDSHAKE)) {
+    if (GetQuicReloadableFlag(quic_flush_ack_in_maybe_bundle)) {
+      EXPECT_CALL(*delegate_, MaybeBundleOpportunistically()).Times(1);
+    } else if (!has_ack() && delegate_->ShouldGeneratePacket(
+                                 NO_RETRANSMITTABLE_DATA, NOT_HANDSHAKE)) {
       EXPECT_CALL(*delegate_, MaybeBundleOpportunistically()).Times(1);
     }
     return QuicPacketCreator::ConsumeData(id, data.length(), offset, state);
@@ -2600,8 +2608,10 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
   size_t ConsumeCryptoData(EncryptionLevel level, absl::string_view data,
                            QuicStreamOffset offset) {
     producer_->SaveCryptoData(level, offset, data);
-    if (!has_ack() && delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
-                                                      NOT_HANDSHAKE)) {
+    if (GetQuicReloadableFlag(quic_flush_ack_in_maybe_bundle)) {
+      EXPECT_CALL(*delegate_, MaybeBundleOpportunistically()).Times(1);
+    } else if (!has_ack() && delegate_->ShouldGeneratePacket(
+                                 NO_RETRANSMITTABLE_DATA, NOT_HANDSHAKE)) {
       EXPECT_CALL(*delegate_, MaybeBundleOpportunistically()).Times(1);
     }
     return QuicPacketCreator::ConsumeCryptoData(level, data.length(), offset);

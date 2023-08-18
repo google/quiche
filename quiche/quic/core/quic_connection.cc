@@ -3187,6 +3187,12 @@ const QuicFrames QuicConnection::MaybeBundleOpportunistically() {
     visitor_->MaybeBundleOpportunistically();
   }
 
+  if (packet_creator_.flush_ack_in_maybe_bundle() &&
+      (packet_creator_.has_ack() || !CanWrite(NO_RETRANSMITTABLE_DATA))) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_flush_ack_in_maybe_bundle, 2, 3);
+    return {};
+  }
+
   QuicFrames frames;
   const bool has_pending_ack =
       uber_received_packet_manager_
@@ -3205,7 +3211,15 @@ const QuicFrames QuicConnection::MaybeBundleOpportunistically() {
       << encryption_level_ << " ACK, " << (has_pending_ack ? "" : "!")
       << "has_pending_ack";
   frames.push_back(updated_ack_frame);
-  // TODO(fayang): remove return value by FlushAckFrame here.
+  if (packet_creator_.flush_ack_in_maybe_bundle()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_flush_ack_in_maybe_bundle, 3, 3);
+    const bool flushed = packet_creator_.FlushAckFrame(frames);
+    QUIC_BUG_IF(failed_to_flush_ack, !flushed)
+        << ENDPOINT << "Failed to flush ACK frame";
+    return {};
+  }
+  // TODO(wub): remove return value when deprecating
+  // quic_flush_ack_in_maybe_bundle.
   return frames;
 }
 
