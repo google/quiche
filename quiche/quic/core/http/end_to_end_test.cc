@@ -3039,6 +3039,7 @@ TEST_P(EndToEndTest,
     return;
   }
   override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
+  SetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data, false);
   ASSERT_TRUE(Initialize());
   SendSynchronousFooRequestAndCheckResponse();
 
@@ -3150,11 +3151,7 @@ TEST_P(EndToEndTest,
   // received by the server.
   QuicConnection* server_connection = GetServerConnection();
   EXPECT_FALSE(server_connection->HasPendingPathValidation());
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data)) {
-    EXPECT_EQ(4u, server_connection->GetStats().num_validated_peer_migration);
-  } else {
-    EXPECT_EQ(3u, server_connection->GetStats().num_validated_peer_migration);
-  }
+  EXPECT_EQ(3u, server_connection->GetStats().num_validated_peer_migration);
   EXPECT_EQ(server_cid3, server_connection->connection_id());
   EXPECT_EQ(client_cid3, server_connection->client_connection_id());
   EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
