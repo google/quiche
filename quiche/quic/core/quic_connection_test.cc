@@ -13136,13 +13136,18 @@ TEST_P(QuicConnectionTest, MultiPortConnection) {
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
   EXPECT_TRUE(alt_path->validated);
-
   auto stats = connection_.multi_port_stats();
   EXPECT_EQ(1, connection_.GetStats().num_path_degrading);
   EXPECT_EQ(0, stats->num_multi_port_probe_failures_when_path_degrading);
   EXPECT_EQ(kTestRTT, stats->rtt_stats.latest_rtt());
   EXPECT_EQ(kTestRTT,
             stats->rtt_stats_when_default_path_degrading.latest_rtt());
+
+  // Receiving the retransmitted NEW_CID frame now should still have no effect.
+  if (GetQuicReloadableFlag(quic_ignore_duplicate_new_cid_frame)) {
+    EXPECT_CALL(visitor_, CreateContextForMultiPortPath).Times(0);
+    connection_.OnNewConnectionIdFrame(frame);
+  }
 
   // When there's no active request, the probing shouldn't happen. But the
   // probing context should be saved.
@@ -15346,6 +15351,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   QuicWindowUpdateFrame window_update_frame;
   QuicPathChallengeFrame path_challenge_frame;
   QuicNewConnectionIdFrame new_connection_id_frame;
+  new_connection_id_frame.sequence_number = 1u;
   QuicRetireConnectionIdFrame retire_connection_id_frame;
   retire_connection_id_frame.sequence_number = 1u;
   QuicStopSendingFrame stop_sending_frame;

@@ -1980,7 +1980,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Process NewConnectionIdFrame either sent from peer or synsthesized from
   // preferred_address transport parameter.
-  bool OnNewConnectionIdFrameInner(const QuicNewConnectionIdFrame& frame);
+  NewConnectionIdResult OnNewConnectionIdFrameInner(
+      const QuicNewConnectionIdFrame& frame);
 
   // Called to patch missing client connection ID on default/alternative paths
   // when a new client connection ID is received.
@@ -2366,6 +2367,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool ignore_gquic_probing_ =
       GetQuicReloadableFlag(quic_ignore_gquic_probing);
+
+  const bool ignore_duplicate_new_cid_frame_ =
+      GetQuicReloadableFlag(quic_ignore_duplicate_new_cid_frame);
 
   RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
 

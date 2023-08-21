@@ -68,7 +68,8 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
   ~QuicPeerIssuedConnectionIdManager();
 
   QuicErrorCode OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame,
-                                       std::string* error_detail);
+                                       std::string* error_detail,
+                                       bool* is_duplicate_frame);
 
   bool HasUnusedConnectionId() const {
     return !unused_connection_id_data_.empty();

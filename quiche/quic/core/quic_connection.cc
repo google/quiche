@@ -394,6 +394,9 @@ QuicConnection::QuicConnection(
     AddKnownServerAddress(initial_peer_address);
   }
   packet_creator_.SetDefaultPeerAddress(initial_peer_address);
+  if (ignore_duplicate_new_cid_frame_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_ignore_duplicate_new_cid_frame);
+  }
 }
 
 void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
@@ -1917,28 +1920,32 @@ void QuicConnection::OnClientConnectionIdAvailable() {
   }
 }
 
-bool QuicConnection::OnNewConnectionIdFrameInner(
+NewConnectionIdResult QuicConnection::OnNewConnectionIdFrameInner(
     const QuicNewConnectionIdFrame& frame) {
   if (peer_issued_cid_manager_ == nullptr) {
     CloseConnection(
         IETF_QUIC_PROTOCOL_VIOLATION,
         "Receives NEW_CONNECTION_ID while peer uses zero length connection ID",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
+    return NewConnectionIdResult::kProtocolViolation;
   }
   std::string error_detail;
-  QuicErrorCode error =
-      peer_issued_cid_manager_->OnNewConnectionIdFrame(frame, &error_detail);
+  bool duplicate_new_connection_id = false;
+  QuicErrorCode error = peer_issued_cid_manager_->OnNewConnectionIdFrame(
+      frame, &error_detail, &duplicate_new_connection_id);
   if (error != QUIC_NO_ERROR) {
     CloseConnection(error, error_detail,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
+    return NewConnectionIdResult::kProtocolViolation;
+  }
+  if (duplicate_new_connection_id && ignore_duplicate_new_cid_frame_) {
+    return NewConnectionIdResult::kDuplicateFrame;
   }
   if (perspective_ == Perspective::IS_SERVER) {
     OnClientConnectionIdAvailable();
   }
   MaybeUpdateAckTimeout();
-  return true;
+  return NewConnectionIdResult::kOk;
 }
 
 bool QuicConnection::OnNewConnectionIdFrame(
@@ -1956,11 +1963,17 @@ bool QuicConnection::OnNewConnectionIdFrame(
     debug_visitor_->OnNewConnectionIdFrame(frame);
   }
 
-  if (!OnNewConnectionIdFrameInner(frame)) {
-    return false;
-  }
-  if (multi_port_stats_ != nullptr) {
-    MaybeCreateMultiPortPath();
+  NewConnectionIdResult result = OnNewConnectionIdFrameInner(frame);
+  switch (result) {
+    case NewConnectionIdResult::kOk:
+      if (multi_port_stats_ != nullptr) {
+        MaybeCreateMultiPortPath();
+      }
+      break;
+    case NewConnectionIdResult::kProtocolViolation:
+      return false;
+    case NewConnectionIdResult::kDuplicateFrame:
+      break;
   }
   return true;
 }

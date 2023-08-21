@@ -125,10 +125,12 @@ void QuicPeerIssuedConnectionIdManager::PrepareToRetireConnectionIdPriorTo(
 }
 
 QuicErrorCode QuicPeerIssuedConnectionIdManager::OnNewConnectionIdFrame(
-    const QuicNewConnectionIdFrame& frame, std::string* error_detail) {
+    const QuicNewConnectionIdFrame& frame, std::string* error_detail,
+    bool* is_duplicate_frame) {
   if (recent_new_connection_id_sequence_numbers_.Contains(
           frame.sequence_number)) {
     // This frame has a recently seen sequence number. Ignore.
+    *is_duplicate_frame = true;
     return QUIC_NO_ERROR;
   }
   if (!IsConnectionIdNew(frame)) {

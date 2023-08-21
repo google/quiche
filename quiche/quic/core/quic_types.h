@@ -715,6 +715,13 @@ enum AckResult {
   PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE,
 };
 
+// Used to return the result of processing a received NEW_CID frame.
+enum class NewConnectionIdResult : uint8_t {
+  kOk,
+  kDuplicateFrame,  // Not an error.
+  kProtocolViolation,
+};
+
 // Indicates the fate of a serialized packet in WritePacket().
 enum SerializedPacketFate : uint8_t {
   DISCARD,         // Discard the packet.
