@@ -259,9 +259,9 @@ class QUIC_NO_EXPORT QuicDispatcher
   QuicPacketWriter* writer() { return writer_.get(); }
 
   // Returns true if a session should be created for a connection with an
-  // unknown version identified by |version_label|.
+  // unknown version.
   virtual bool ShouldCreateSessionForUnknownVersion(
-      QuicVersionLabel version_label);
+      const ReceivedPacketInfo& packet_info);
 
   void SetLastError(QuicErrorCode error);
 

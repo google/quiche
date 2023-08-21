@@ -529,7 +529,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
   // processing using our preferred version.
   if (packet_info.version_flag) {
     if (!IsSupportedVersion(packet_info.version)) {
-      if (ShouldCreateSessionForUnknownVersion(packet_info.version_label)) {
+      if (ShouldCreateSessionForUnknownVersion(packet_info)) {
         return false;
       }
       // Since the version is not supported, send a version negotiation
@@ -1057,7 +1057,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
 }
 
 bool QuicDispatcher::ShouldCreateSessionForUnknownVersion(
-    QuicVersionLabel /*version_label*/) {
+    const ReceivedPacketInfo& /*packet_info*/) {
   return false;
 }
 
