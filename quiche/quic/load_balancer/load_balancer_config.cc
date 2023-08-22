@@ -4,10 +4,14 @@
 
 #include "quiche/quic/load_balancer/load_balancer_config.h"
 
-#include <memory>
-#include <string_view>
+#include <cstdint>
+#include <cstring>
 
+#include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
+#include "absl/types/span.h"
 #include "openssl/aes.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {

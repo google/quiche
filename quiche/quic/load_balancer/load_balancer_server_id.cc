@@ -4,9 +4,15 @@
 
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
 
+#include <array>
+#include <cstdint>
+#include <cstring>
+#include <string>
+
 #include "absl/strings/escaping.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "absl/types/span.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {

@@ -5,7 +5,11 @@
 #ifndef QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_SERVER_ID_MAP_H_
 #define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_SERVER_ID_MAP_H_
 
+#include <cstdint>
+#include <memory>
+
 #include "absl/container/flat_hash_map.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
@@ -20,17 +24,16 @@ class QUIC_EXPORT_PRIVATE LoadBalancerServerIdMap {
  public:
   // Returns a newly created pool for server IDs of length |server_id_len|, or
   // nullptr if |server_id_len| is invalid.
-  static std::shared_ptr<LoadBalancerServerIdMap> Create(
-      const uint8_t server_id_len);
+  static std::shared_ptr<LoadBalancerServerIdMap> Create(uint8_t server_id_len);
 
   // Returns the entry associated with |server_id|, if present. For small |T|,
   // use Lookup. For large |T|, use LookupNoCopy.
-  absl::optional<const T> Lookup(const LoadBalancerServerId server_id) const;
-  const T* LookupNoCopy(const LoadBalancerServerId server_id) const;
+  absl::optional<const T> Lookup(LoadBalancerServerId server_id) const;
+  const T* LookupNoCopy(LoadBalancerServerId server_id) const;
 
   // Updates the table so that |value| is associated with |server_id|. Sets
   // QUIC_BUG if the length is incorrect for this map.
-  void AddOrReplace(const LoadBalancerServerId server_id, T value);
+  void AddOrReplace(LoadBalancerServerId server_id, T value);
 
   // Removes the entry associated with |server_id|.
   void Erase(const LoadBalancerServerId server_id) {

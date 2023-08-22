@@ -6,8 +6,12 @@
 #define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_SERVER_ID_H_
 
 #include <array>
+#include <cstdint>
+#include <string>
 
-#include "quiche/quic/core/quic_types.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
+#include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -60,7 +64,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerServerId {
 
  private:
   // The constructor is private because it can't validate the input.
-  LoadBalancerServerId(const absl::Span<const uint8_t> data);
+  LoadBalancerServerId(absl::Span<const uint8_t> data);
 
   std::array<uint8_t, kLoadBalancerMaxServerIdLen> data_;
   uint8_t length_;

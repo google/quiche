@@ -4,11 +4,14 @@
 
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
 
+#include <cstdint>
+#include <cstring>
+
 #include "absl/hash/hash_testing.h"
+#include "absl/types/span.h"
 
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
 

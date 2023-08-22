@@ -5,8 +5,15 @@
 #ifndef QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_ENCODER_H_
 #define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_ENCODER_H_
 
+#include <algorithm>
+#include <cstdint>
+
+#include "absl/numeric/int128.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/load_balancer/load_balancer_config.h"
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
 
@@ -43,14 +50,14 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoderVisitorInterface {
   // connection IDs and replace them with routable ones using the new config,
   // while avoiding sending a sudden storm of packets containing
   // RETIRE_CONNECTION_ID and NEW_CONNECTION_ID frames.
-  virtual void OnConfigAdded(const uint8_t config_id) = 0;
+  virtual void OnConfigAdded(uint8_t config_id) = 0;
   // Called when the config is changed.
   //
   // Existing routable connection IDs should be retired before the decoder stops
   // supporting that config. The timing of this event is deployment-dependent
   // and might be tied to the arrival of a new config at the encoder.
-  virtual void OnConfigChanged(const uint8_t old_config_id,
-                               const uint8_t new_config_id) = 0;
+  virtual void OnConfigChanged(uint8_t old_config_id,
+                               uint8_t new_config_id) = 0;
   // Called when a config is deleted. The encoder will generate unroutable
   // connection IDs from now on.
   //
@@ -59,7 +66,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoderVisitorInterface {
   // deleted config, which will only become unroutable once the decoder also
   // deletes it. The time of that deletion is deployment-dependent and might be
   // tied to the arrival of a new config at the encoder.
-  virtual void OnConfigDeleted(const uint8_t config_id) = 0;
+  virtual void OnConfigDeleted(uint8_t config_id) = 0;
 };
 
 // Manages QUIC-LB configurations to properly encode a given server ID in a
@@ -83,9 +90,9 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   // connection IDs to be generated when there is no active config. It must not
   // be 0 and must not be larger than the RFC9000 maximum of 20.
   static absl::optional<LoadBalancerEncoder> Create(
-      QuicRandom& random, LoadBalancerEncoderVisitorInterface* const visitor,
-      const bool len_self_encoded,
-      const uint8_t unroutable_connection_id_len = kLoadBalancerUnroutableLen);
+      QuicRandom& random, LoadBalancerEncoderVisitorInterface* visitor,
+      bool len_self_encoded,
+      uint8_t unroutable_connection_id_len = kLoadBalancerUnroutableLen);
 
   // Attempts to replace the current config and server_id with |config| and
   // |server_id|. If the length |server_id| does not match the server_id_length
@@ -94,7 +101,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   // true. When the encoder runs out of nonces, it will delete the config and
   // begin generating unroutable connection IDs.
   bool UpdateConfig(const LoadBalancerConfig& config,
-                    const LoadBalancerServerId server_id);
+                    LoadBalancerServerId server_id);
 
   // Delete the current config and generate unroutable connection IDs from now
   // on.

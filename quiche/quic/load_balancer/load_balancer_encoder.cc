@@ -7,14 +7,17 @@
 #include <cstdint>
 
 #include "absl/numeric/int128.h"
+#include "absl/types/optional.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection_id.h"
-#include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
-#include "quiche/quic/core/quic_packet_number.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/load_balancer/load_balancer_config.h"
+#include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/quiche_endian.h"
 
 namespace quic {
 

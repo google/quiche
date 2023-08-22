@@ -5,8 +5,12 @@
 #ifndef QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_CONFIG_H_
 #define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_CONFIG_H_
 
+#include <cstdint>
+
+#include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
+#include "absl/types/span.h"
 #include "openssl/aes.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -42,22 +46,21 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
   // nonce_len: Length of the nonce. Must be at least 4 and no larger than 16.
   // Further the server_id_len + nonce_len must be no larger than 19.
   // key: The encryption key must be 16B long.
-  static absl::optional<LoadBalancerConfig> Create(const uint8_t config_id,
-                                                   const uint8_t server_id_len,
-                                                   const uint8_t nonce_len,
-                                                   const absl::string_view key);
+  static absl::optional<LoadBalancerConfig> Create(uint8_t config_id,
+                                                   uint8_t server_id_len,
+                                                   uint8_t nonce_len,
+                                                   absl::string_view key);
 
   // Creates an unencrypted config.
   static absl::optional<LoadBalancerConfig> CreateUnencrypted(
-      const uint8_t config_id, const uint8_t server_id_len,
-      const uint8_t nonce_len);
+      uint8_t config_id, uint8_t server_id_len, uint8_t nonce_len);
 
   // Handles one pass of 4-pass encryption. Encoder and decoder use of this
   // function varies substantially, so they are not implemented here.
   // Returns false if the config is not encrypted, or if |target| isn't long
   // enough.
   ABSL_MUST_USE_RESULT bool EncryptionPass(absl::Span<uint8_t> target,
-                                           const uint8_t index) const;
+                                           uint8_t index) const;
   // Use the key to do a block encryption, which is used both in all cases of
   // encrypted configs. Returns false if there's no key.
   ABSL_MUST_USE_RESULT bool BlockEncrypt(

@@ -4,10 +4,20 @@
 
 #include "quiche/quic/load_balancer/load_balancer_encoder.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <queue>
 
 #include "absl/numeric/int128.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
+#include "absl/types/span.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/load_balancer/load_balancer_config.h"
+#include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"

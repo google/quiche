@@ -5,8 +5,13 @@
 #include "quiche/quic/load_balancer/load_balancer_decoder.h"
 
 #include <cstdint>
+#include <cstring>
 
+#include "absl/types/optional.h"
+#include "absl/types/span.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/load_balancer/load_balancer_config.h"
+#include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {

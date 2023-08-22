@@ -4,8 +4,11 @@
 
 #include "quiche/quic/load_balancer/load_balancer_config.h"
 
+#include <array>
 #include <cstdint>
+#include <cstring>
 
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
