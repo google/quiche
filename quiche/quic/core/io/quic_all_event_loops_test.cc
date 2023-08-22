@@ -61,9 +61,9 @@ void SetNonBlocking(int fd) {
 class QuicEventLoopFactoryTest
     : public QuicTestWithParam<QuicEventLoopFactory*> {
  public:
-  QuicEventLoopFactoryTest()
-      : loop_(GetParam()->Create(&clock_)),
-        factory_(loop_->CreateAlarmFactory()) {
+  void SetUp() override {
+    loop_ = GetParam()->Create(&clock_);
+    factory_ = loop_->CreateAlarmFactory();
     int fds[2];
     int result = ::pipe(fds);
     QUICHE_CHECK(result >= 0) << "Failed to create a pipe, errno: " << errno;
@@ -74,7 +74,11 @@ class QuicEventLoopFactoryTest
     SetNonBlocking(write_fd_);
   }
 
-  ~QuicEventLoopFactoryTest() {
+  void TearDown() override {
+    factory_.reset();
+    loop_.reset();
+    // Epoll-based event loop automatically removes registered FDs from the
+    // Epoll set, which should happen before these FDs are closed.
     close(read_fd_);
     close(write_fd_);
   }
@@ -280,10 +284,6 @@ TEST_P(QuicEventLoopFactoryTest, UnregisterSelfInsideEventHandler) {
 TEST_P(QuicEventLoopFactoryTest, ReadWriteSocket) {
   int sockets[2];
   ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets), 0);
-  auto close_sockets = absl::MakeCleanup([&]() {
-    close(sockets[0]);
-    close(sockets[1]);
-  });
   SetNonBlocking(sockets[0]);
   SetNonBlocking(sockets[1]);
 
@@ -319,6 +319,10 @@ TEST_P(QuicEventLoopFactoryTest, ReadWriteSocket) {
   EXPECT_CALL(listener,
               OnSocketEvent(_, sockets[0], HasFlagSet(kSocketEventWritable)));
   loop_->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(4));
+
+  EXPECT_TRUE(loop_->UnregisterSocket(sockets[0]));
+  close(sockets[0]);
+  close(sockets[1]);
 }
 
 TEST_P(QuicEventLoopFactoryTest, AlarmInFuture) {

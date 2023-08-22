@@ -97,6 +97,11 @@ void QuicServer::Initialize() {
 }
 
 QuicServer::~QuicServer() {
+  if (event_loop_ != nullptr) {
+    if (!event_loop_->UnregisterSocket(fd_)) {
+      QUIC_LOG(ERROR) << "Failed to unregister socket: " << fd_;
+    }
+  }
   (void)socket_api::Close(fd_);
   fd_ = kInvalidSocketFd;
 
