@@ -56,11 +56,24 @@ absl::Status ValidityChecksForClientCreation(
   } else if (public_key.salt_length() <= 0) {
     return absl::InvalidArgumentError(
         "Non-positive salt length is not allowed.");
-  } else if (public_key.message_mask_type() == AT_MESSAGE_MASK_TYPE_UNDEFINED ||
-             public_key.message_mask_type() == AT_MESSAGE_MASK_XOR) {
-    return absl::InvalidArgumentError("Message mask type must be defined.");
-  } else if (public_key.message_mask_size() <= 0) {
-    return absl::InvalidArgumentError("Message mask size must be positive.");
+  }
+
+  switch (public_key.message_mask_type()) {
+    case AT_MESSAGE_MASK_CONCAT:
+      if (public_key.message_mask_size() < 32) {
+        return absl::InvalidArgumentError(
+            "Message mask concat type must have a size of at least 32 bytes.");
+      }
+      break;
+    case AT_MESSAGE_MASK_NO_MASK:
+      if (public_key.message_mask_size() != 0) {
+        return absl::InvalidArgumentError(
+            "Message mask no mask type must be set to size 0 bytes.");
+      }
+      break;
+    default:
+      return absl::InvalidArgumentError(
+          "Message mask type must be defined and supported.");
   }
 
   RSAPublicKey rsa_public_key;
