@@ -4,21 +4,54 @@
 
 #include "quiche/quic/core/quic_dispatcher.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <list>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
+#include "openssl/_virtual_includes/boringssl_ssl/third_party/openssl/ssl.h"
 #include "quiche/quic/core/chlo_extractor.h"
+#include "quiche/quic/core/connection_id_generator.h"
+#include "quiche/quic/core/crypto/crypto_handshake_message.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
+#include "quiche/quic/core/frames/quic_connection_close_frame.h"
+#include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/frames/quic_rst_stream_frame.h"
+#include "quiche/quic/core/frames/quic_stop_sending_frame.h"
+#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_blocked_writer_interface.h"
+#include "quiche/quic/core/quic_buffered_packet_store.h"
+#include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_crypto_server_stream_base.h"
+#include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_framer.h"
+#include "quiche/quic/core/quic_packet_creator.h"
+#include "quiche/quic/core/quic_packet_writer.h"
+#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_stream_frame_data_producer.h"
+#include "quiche/quic/core/quic_stream_send_buffer.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_time_wait_list_manager.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_version_manager.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/core/tls_chlo_extractor.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
@@ -27,6 +60,8 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_stack_trace.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_text_utils.h"
 
@@ -852,7 +887,7 @@ void QuicDispatcher::OnCanWrite() {
   temp_list.swap(write_blocked_list_);
   QUICHE_DCHECK(write_blocked_list_.empty());
 
-  // Give each blocked writer a chance to write what they indended to write.
+  // Give each blocked writer a chance to write what they intended to write.
   // If they are blocked again, they will call |OnWriteBlocked| to add
   // themselves back into |write_blocked_list_|.
   while (!temp_list.empty()) {

@@ -9,27 +9,38 @@
 #define QUICHE_QUIC_CORE_QUIC_DISPATCHER_H_
 
 #include <cstddef>
+#include <cstdint>
+#include <list>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
-#include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/frames/quic_rst_stream_frame.h"
+#include "quiche/quic/core/frames/quic_stop_sending_frame.h"
+#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_blocked_writer_interface.h"
 #include "quiche/quic/core/quic_buffered_packet_store.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_process_packet_interface.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_time_wait_list_manager.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_version_manager.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/common/platform/api/quiche_reference_counted.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 
@@ -381,10 +392,9 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   // Core CHLO processing logic.
   std::shared_ptr<QuicSession> CreateSessionFromChlo(
-      const QuicConnectionId original_connection_id,
-      const ParsedClientHello& parsed_chlo, const ParsedQuicVersion version,
-      const QuicSocketAddress self_address,
-      const QuicSocketAddress peer_address);
+      QuicConnectionId original_connection_id,
+      const ParsedClientHello& parsed_chlo, ParsedQuicVersion version,
+      QuicSocketAddress self_address, QuicSocketAddress peer_address);
 
   const QuicConfig* config_;
 
