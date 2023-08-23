@@ -16,14 +16,11 @@
 
 #include <memory>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <vector>
 
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/constants.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/crypto/rsa_blind_signer.h"
@@ -165,31 +162,15 @@ TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidMessageMaskType) {
               testing::HasSubstr("Message mask type must be defined"));
 }
 
-TEST(CreateAnonymousTokensRsaBssaClientTest,
-     MessageMaskConcatInvalidMessageMaskSize) {
+TEST(CreateAnonymousTokensRsaBssaClientTest, InvalidMessageMaskSize) {
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       auto rsa_key,
       CreateClientTestKey("TEST_USE_CASE", 1, AT_MESSAGE_MASK_CONCAT, 0));
   absl::StatusOr<std::unique_ptr<AnonymousTokensRsaBssaClient>> client =
       AnonymousTokensRsaBssaClient::Create(rsa_key.first);
   EXPECT_EQ(client.status().code(), absl::StatusCode::kInvalidArgument);
-  EXPECT_THAT(
-      client.status().message(),
-      testing::HasSubstr(
-          "Message mask concat type must have a size of at least 32 bytes"));
-}
-
-TEST(CreateAnonymousTokensRsaBssaClientTest,
-     MessageMaskNoMaskInvalidMessageMaskSize) {
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      auto rsa_key,
-      CreateClientTestKey("TEST_USE_CASE", 1, AT_MESSAGE_MASK_NO_MASK, 32));
-  absl::StatusOr<std::unique_ptr<AnonymousTokensRsaBssaClient>> client =
-      AnonymousTokensRsaBssaClient::Create(rsa_key.first);
-  EXPECT_EQ(client.status().code(), absl::StatusCode::kInvalidArgument);
   EXPECT_THAT(client.status().message(),
-              testing::HasSubstr(
-                  "Message mask no mask type must be set to size 0 bytes."));
+              testing::HasSubstr("Message mask size must be positive"));
 }
 
 class AnonymousTokensRsaBssaClientTest : public testing::Test {
@@ -228,34 +209,6 @@ TEST_F(AnonymousTokensRsaBssaClientTest, SuccessMultipleMessages) {
                                    CreateResponse(request, private_key_));
   EXPECT_THAT(response.anonymous_tokens(), SizeIs(4));
   EXPECT_TRUE(client_->ProcessResponse(response).ok());
-}
-
-TEST_F(AnonymousTokensRsaBssaClientTest, SuccessMultipleMessagesNoMessageMask) {
-  RSABlindSignaturePublicKey public_key;
-  RSAPrivateKey private_key;
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      std::tie(public_key, private_key),
-      CreateClientTestKey("TEST_USE_CASE", /*key_version=*/1,
-                          AT_MESSAGE_MASK_NO_MASK, /*message_mask_size=*/0));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<AnonymousTokensRsaBssaClient> client,
-      AnonymousTokensRsaBssaClient::Create(public_key));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      std::vector<PlaintextMessageWithPublicMetadata> input_messages,
-      CreateInput({"message1", "msg2", "anotherMessage", "one_more_message"}));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignRequest request,
-                                   client->CreateRequest(input_messages));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(AnonymousTokensSignResponse response,
-                                   CreateResponse(request, private_key));
-  ASSERT_EQ(response.anonymous_tokens(), SizeIs(4));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      std::vector<RSABlindSignatureTokenWithInput> finalized_tokens_with_inputs,
-      client->ProcessResponse(response));
-
-  for (const RSABlindSignatureTokenWithInput& token_with_input :
-       finalized_tokens_with_inputs) {
-    EXPECT_TRUE(token_with_input.token().message_mask().empty());
-  }
 }
 
 TEST_F(AnonymousTokensRsaBssaClientTest, EnsureRandomTokens) {
@@ -566,39 +519,6 @@ TEST_F(AnonymousTokensRsaBssaClientWithPublicMetadataTest,
       CreateResponse(request, private_key_, /*enable_public_metadata=*/true));
   EXPECT_THAT(response.anonymous_tokens(), SizeIs(4));
   EXPECT_TRUE(public_metadata_client_->ProcessResponse(response).ok());
-}
-
-TEST_F(AnonymousTokensRsaBssaClientWithPublicMetadataTest,
-       SuccessMultipleMessagesNoMessageMask) {
-  RSABlindSignaturePublicKey public_key;
-  RSAPrivateKey private_key;
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      std::tie(public_key, private_key),
-      CreateClientTestKey("TEST_USE_CASE", /*key_version=*/1,
-                          AT_MESSAGE_MASK_NO_MASK, /*message_mask_size=*/0,
-                          /*enable_public_metadata=*/true));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      std::unique_ptr<AnonymousTokensRsaBssaClient> public_metadata_client,
-      AnonymousTokensRsaBssaClient::Create(public_key));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      std::vector<PlaintextMessageWithPublicMetadata> input_messages,
-      CreateInput({"message1", "msg2", "anotherMessage", "one_more_message"},
-                  {"md1", "md2", "md3", "md4"}));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      AnonymousTokensSignRequest request,
-      public_metadata_client->CreateRequest(input_messages));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      AnonymousTokensSignResponse response,
-      CreateResponse(request, private_key, /*enable_public_metadata=*/true));
-  ASSERT_EQ(response.anonymous_tokens(), SizeIs(4));
-  ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
-      std::vector<RSABlindSignatureTokenWithInput> finalized_tokens_with_inputs,
-      public_metadata_client->ProcessResponse(response));
-
-  for (const RSABlindSignatureTokenWithInput& token_with_input :
-       finalized_tokens_with_inputs) {
-    EXPECT_TRUE(token_with_input.token().message_mask().empty());
-  }
 }
 
 }  // namespace
