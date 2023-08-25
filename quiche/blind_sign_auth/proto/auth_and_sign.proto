@@ -21,7 +21,7 @@ import "quiche/blind_sign_auth/proto/key_services.proto";
 import "quiche/blind_sign_auth/proto/public_metadata.proto";
 
 // Client is requesting to auth using the provided auth token.
-// Next ID: 15
+// Next ID: 16
 message AuthAndSignRequest {
   reserved 3, 13;
 
@@ -61,6 +61,12 @@ message AuthAndSignRequest {
   // extensions spec for format.
   bytes public_metadata_extensions = 14
       ;
+
+  // For PUBLIC_METADATA key types, if this value is set to false, the
+  // final public exponent is derived by using the RSA public exponent, the
+  // RSA modulus and the public metadata. If this value is set to true, only
+  // the RSA modulus and the public metadata will be used.
+  bool do_not_use_rsa_public_exponent = 15;
 }
 
 message AuthAndSignResponse {
