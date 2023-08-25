@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_dispatcher.h"
 
+#include <openssl/ssl.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -20,7 +22,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "openssl/_virtual_includes/boringssl_ssl/third_party/openssl/ssl.h"
 #include "quiche/quic/core/chlo_extractor.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
