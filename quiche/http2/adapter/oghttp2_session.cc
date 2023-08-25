@@ -1012,6 +1012,7 @@ void OgHttp2Session::OnError(SpdyFramerError error,
 
 void OgHttp2Session::OnCommonHeader(spdy::SpdyStreamId stream_id, size_t length,
                                     uint8_t type, uint8_t flags) {
+  current_frame_type_ = type;
   highest_received_stream_id_ = std::max(static_cast<Http2StreamId>(stream_id),
                                          highest_received_stream_id_);
   if (streams_reset_.contains(stream_id)) {
@@ -1952,6 +1953,13 @@ void OgHttp2Session::DecrementQueuedFrameCount(uint32_t stream_id,
 }
 
 void OgHttp2Session::HandleContentLengthError(Http2StreamId stream_id) {
+  if (current_frame_type_ == static_cast<uint8_t>(FrameType::HEADERS)) {
+    // For consistency, either OnInvalidFrame should always be invoked,
+    // regardless of frame type, or perhaps we should introduce an OnStreamError
+    // callback.
+    visitor_.OnInvalidFrame(
+        stream_id, Http2VisitorInterface::InvalidFrameError::kHttpMessaging);
+  }
   EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
       stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
 }

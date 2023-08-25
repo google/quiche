@@ -536,6 +536,8 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   // applied immediately upon receipt.
   absl::optional<uint32_t> encoder_header_table_capacity_when_acking_;
 
+  uint8_t current_frame_type_ = 0;
+
   bool received_goaway_ = false;
   bool queued_preface_ = false;
   bool peer_supports_metadata_ = false;

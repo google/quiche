@@ -7856,15 +7856,18 @@ TEST(OgHttp2AdapterTest, ServerHandlesContentLengthMismatch) {
   EXPECT_CALL(visitor, OnBeginDataForStream(3, 5));
 
   // Stream 5: content-length is invalid and HEADERS ends the stream
-  // Only oghttp2 invokes OnEndHeadersForStream(). Only nghttp2 invokes
+  // Only oghttp2 invokes OnEndHeadersForStream(). Both invoke
   // OnInvalidFrame().
   EXPECT_CALL(visitor, OnFrameHeader(5, _, HEADERS, 5));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(5));
   EXPECT_CALL(visitor, OnHeaderForStream(5, _, _)).Times(5);
   EXPECT_CALL(visitor, OnEndHeadersForStream(5));
+  EXPECT_CALL(visitor,
+              OnInvalidFrame(
+                  5, Http2VisitorInterface::InvalidFrameError::kHttpMessaging));
 
   // Stream 7: content-length is invalid and trailers end the stream
-  // Only oghttp2 invokes OnEndHeadersForStream(). Only nghttp2 invokes
+  // Only oghttp2 invokes OnEndHeadersForStream(). Both invoke
   // OnInvalidFrame().
   EXPECT_CALL(visitor, OnFrameHeader(7, _, HEADERS, 4));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(7));
@@ -7877,6 +7880,9 @@ TEST(OgHttp2AdapterTest, ServerHandlesContentLengthMismatch) {
   EXPECT_CALL(visitor, OnBeginHeadersForStream(7));
   EXPECT_CALL(visitor, OnHeaderForStream(7, _, _));
   EXPECT_CALL(visitor, OnEndHeadersForStream(7));
+  EXPECT_CALL(visitor,
+              OnInvalidFrame(
+                  7, Http2VisitorInterface::InvalidFrameError::kHttpMessaging));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
