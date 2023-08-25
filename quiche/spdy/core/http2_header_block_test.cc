@@ -186,12 +186,17 @@ TEST(Http2HeaderBlockTest, AppendHeaders) {
   block.AppendValueOrAddHeader("h3", "h3v3");
   block.AppendValueOrAddHeader("h4", "singleton");
 
+  // Check for Set-Cookie header folding.
+  block.AppendValueOrAddHeader("set-cookie", "yummy");
+  block.AppendValueOrAddHeader("set-cookie", "scrumptious");
+
   EXPECT_EQ("key1=value1; key2=value2; key3=value3", block["cookie"]);
   EXPECT_EQ("baz", block["foo"]);
   EXPECT_EQ(std::string("h1v1\0h1v2\0h1v3", 14), block["h1"]);
   EXPECT_EQ(std::string("h2v1\0h2v2\0h2v3", 14), block["h2"]);
   EXPECT_EQ(std::string("h3v2\0h3v3", 9), block["h3"]);
   EXPECT_EQ("singleton", block["h4"]);
+  EXPECT_EQ(std::string("yummy\0scrumptious", 17), block["set-cookie"]);
 }
 
 TEST(Http2HeaderBlockTest, CompareValueToStringPiece) {
