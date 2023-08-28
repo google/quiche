@@ -9,18 +9,6 @@ protobuf_test_support = [
     "quic/test_tools/send_algorithm_test_result.proto",
 ]
 quiche_core_hdrs = [
-    "balsa/balsa_enums.h",
-    "balsa/balsa_frame.h",
-    "balsa/balsa_headers.h",
-    "balsa/balsa_headers_sequence.h",
-    "balsa/balsa_visitor_interface.h",
-    "balsa/framer_interface.h",
-    "balsa/header_api.h",
-    "balsa/header_properties.h",
-    "balsa/http_validation_policy.h",
-    "balsa/noop_balsa_visitor.h",
-    "balsa/simple_buffer.h",
-    "balsa/standard_header_map.h",
     "common/btree_scheduler.h",
     "common/capsule.h",
     "common/masque/connect_udp_datagram_payload.h",
@@ -342,7 +330,6 @@ quiche_core_hdrs = [
     "quic/core/quic_time.h",
     "quic/core/quic_time_accumulator.h",
     "quic/core/quic_time_wait_list_manager.h",
-    "quic/core/quic_trace_visitor.h",
     "quic/core/quic_transmission_info.h",
     "quic/core/quic_types.h",
     "quic/core/quic_unacked_packet_map.h",
@@ -408,13 +395,6 @@ quiche_core_hdrs = [
     "web_transport/web_transport.h",
 ]
 quiche_core_srcs = [
-    "balsa/balsa_enums.cc",
-    "balsa/balsa_frame.cc",
-    "balsa/balsa_headers.cc",
-    "balsa/balsa_headers_sequence.cc",
-    "balsa/header_properties.cc",
-    "balsa/simple_buffer.cc",
-    "balsa/standard_header_map.cc",
     "common/capsule.cc",
     "common/masque/connect_udp_datagram_payload.cc",
     "common/platform/api/quiche_hostname_utils.cc",
@@ -666,7 +646,6 @@ quiche_core_srcs = [
     "quic/core/quic_tag.cc",
     "quic/core/quic_time.cc",
     "quic/core/quic_time_wait_list_manager.cc",
-    "quic/core/quic_trace_visitor.cc",
     "quic/core/quic_transmission_info.cc",
     "quic/core/quic_types.cc",
     "quic/core/quic_unacked_packet_map.cc",
@@ -709,6 +688,7 @@ quiche_tool_support_hdrs = [
     "common/platform/api/quiche_default_proof_providers.h",
     "common/platform/api/quiche_file_utils.h",
     "common/platform/api/quiche_system_event_loop.h",
+    "quic/core/quic_trace_visitor.h",
     "quic/platform/api/quic_default_proof_providers.h",
     "quic/tools/connect_server_backend.h",
     "quic/tools/connect_tunnel.h",
@@ -735,6 +715,7 @@ quiche_tool_support_hdrs = [
 ]
 quiche_tool_support_srcs = [
     "common/platform/api/quiche_file_utils.cc",
+    "quic/core/quic_trace_visitor.cc",
     "quic/tools/connect_server_backend.cc",
     "quic/tools/connect_tunnel.cc",
     "quic/tools/connect_udp_tunnel.cc",
@@ -956,6 +937,29 @@ quiche_test_support_srcs = [
     "quic/test_tools/web_transport_resets_backend.cc",
     "spdy/test_tools/mock_spdy_framer_visitor.cc",
     "spdy/test_tools/spdy_test_utils.cc",
+]
+balsa_hdrs = [
+    "balsa/balsa_enums.h",
+    "balsa/balsa_frame.h",
+    "balsa/balsa_headers.h",
+    "balsa/balsa_headers_sequence.h",
+    "balsa/balsa_visitor_interface.h",
+    "balsa/framer_interface.h",
+    "balsa/header_api.h",
+    "balsa/header_properties.h",
+    "balsa/http_validation_policy.h",
+    "balsa/noop_balsa_visitor.h",
+    "balsa/simple_buffer.h",
+    "balsa/standard_header_map.h",
+]
+balsa_srcs = [
+    "balsa/balsa_enums.cc",
+    "balsa/balsa_frame.cc",
+    "balsa/balsa_headers.cc",
+    "balsa/balsa_headers_sequence.cc",
+    "balsa/header_properties.cc",
+    "balsa/simple_buffer.cc",
+    "balsa/standard_header_map.cc",
 ]
 io_tool_support_hdrs = [
     "common/platform/api/quiche_event_loop.h",
