@@ -133,7 +133,7 @@ bool QuicSpdyServerStreamBase::ValidatedReceivedHeaders(
     return true;
   }
   set_invalid_request_details("Missing required pseudo headers.");
-  QUIC_LOG(ERROR) << invalid_request_details();
+  QUIC_DLOG(ERROR) << invalid_request_details();
   return false;
 }
 
