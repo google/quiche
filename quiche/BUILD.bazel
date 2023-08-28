@@ -4,6 +4,8 @@
 
 load(
     "//build:source_list.bzl",
+    "balsa_hdrs",
+    "balsa_srcs",
     "binary_http_hdrs",
     "binary_http_srcs",
     "default_platform_impl_hdrs",
@@ -227,6 +229,25 @@ cc_library(
 )
 
 cc_library(
+  name = "balsa",
+  srcs = balsa_srcs,
+  hdrs = balsa_hdrs,
+  deps = [
+        ":quiche_core",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:optional",
+        "@com_google_absl//absl/types:span",
+        "@com_google_absl//absl/types:variant",
+  ],
+)
+
+cc_library(
     name = "quiche_tool_support",
     srcs = quiche_tool_support_srcs,
     hdrs = quiche_tool_support_hdrs,
@@ -332,6 +353,7 @@ test_suite_from_source_list(
         "quic/test_tools/quic_http_response_cache_data/**",
     ]),
     deps = [
+        ":balsa",
         ":binary_http",
         ":oblivious_http",
         ":quiche_core",
