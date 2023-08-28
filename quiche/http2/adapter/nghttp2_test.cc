@@ -174,7 +174,8 @@ TEST_F(Nghttp2ClientTest, ClientSendsRequest) {
     nvs.push_back({.name = ToUint8Ptr(h.first.data()),
                    .value = ToUint8Ptr(h.second.data()),
                    .namelen = h.first.size(),
-                   .valuelen = h.second.size()});
+                   .valuelen = h.second.size(),
+                   .flags = NGHTTP2_NV_FLAG_NONE});
   }
   const absl::string_view kBody = "This is an example request body.";
   TestDataSource source{kBody};
