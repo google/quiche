@@ -1586,6 +1586,7 @@ blind_sign_auth_hdrs = [
     "blind_sign_auth/anonymous_tokens/cpp/testing/utils.h",
     "blind_sign_auth/blind_sign_auth.h",
     "blind_sign_auth/blind_sign_auth_interface.h",
+    "blind_sign_auth/blind_sign_auth_protos.h",
     "blind_sign_auth/blind_sign_http_interface.h",
     "blind_sign_auth/blind_sign_http_response.h",
     "blind_sign_auth/cached_blind_sign_auth.h",

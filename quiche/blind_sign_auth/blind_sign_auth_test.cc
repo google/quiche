@@ -8,12 +8,6 @@
 #include <string>
 #include <utility>
 
-#include "quiche/blind_sign_auth/proto/timestamp.pb.h"
-#include "quiche/blind_sign_auth/proto/auth_and_sign.pb.h"
-#include "quiche/blind_sign_auth/proto/get_initial_data.pb.h"
-#include "quiche/blind_sign_auth/proto/key_services.pb.h"
-#include "quiche/blind_sign_auth/proto/public_metadata.pb.h"
-#include "quiche/blind_sign_auth/proto/spend_token_data.pb.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
@@ -21,8 +15,8 @@
 #include "absl/time/time.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/proto_utils.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/utils.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "openssl/base.h"
+#include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
 #include "quiche/blind_sign_auth/blind_sign_http_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
 #include "quiche/blind_sign_auth/test_tools/mock_blind_sign_http_interface.h"

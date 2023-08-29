@@ -10,11 +10,6 @@
 #include <utility>
 #include <vector>
 
-#include "quiche/blind_sign_auth/proto/auth_and_sign.pb.h"
-#include "quiche/blind_sign_auth/proto/get_initial_data.pb.h"
-#include "quiche/blind_sign_auth/proto/key_services.pb.h"
-#include "quiche/blind_sign_auth/proto/public_metadata.pb.h"
-#include "quiche/blind_sign_auth/proto/spend_token_data.pb.h"
 #include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -22,7 +17,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
+#include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
