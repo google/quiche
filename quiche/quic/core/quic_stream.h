@@ -437,7 +437,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Send RESET_STREAM if it hasn't been sent yet.
   void MaybeSendRstStream(QuicResetStreamError error);
 
-  // Convenience warppers for two methods above.
+  // Convenience wrappers for two methods above.
   void MaybeSendRstStream(QuicRstStreamErrorCode error) {
     MaybeSendRstStream(QuicResetStreamError::FromInternal(error));
   }
