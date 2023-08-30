@@ -8532,6 +8532,121 @@ TEST(OgHttp2AdapterTest, NegativeFlowControlStreamResumption) {
   adapter->Send();
 }
 
+// Verifies that Set-Cookie headers are not folded in either the sending or
+// receiving direction.
+TEST(OgHttp2AdapterTest, SetCookieRoundtrip) {
+  DataSavingVisitor client_visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kClient;
+  auto client_adapter = OgHttp2Adapter::Create(client_visitor, options);
+
+  DataSavingVisitor server_visitor;
+  options.perspective = Perspective::kServer;
+  auto server_adapter = OgHttp2Adapter::Create(server_visitor, options);
+
+  // Set-Cookie is a response headers. For the server to respond, the client
+  // needs to send a request to open the stream.
+  const std::vector<Header> request_headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+
+  const int32_t stream_id1 =
+      client_adapter->SubmitRequest(request_headers, nullptr, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  // Client visitor expectations on send.
+  // Client preface with SETTINGS.
+  EXPECT_CALL(client_visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(client_visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  // The client request.
+  EXPECT_CALL(client_visitor,
+              OnBeforeFrameSent(HEADERS, stream_id1, _,
+                                END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(client_visitor,
+              OnFrameSent(HEADERS, stream_id1, _,
+                          END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+
+  EXPECT_EQ(0, client_adapter->Send());
+
+  // Server visitor expectations on receive.
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(server_visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(server_visitor, OnSettingsStart());
+  EXPECT_CALL(server_visitor,
+              OnSetting(Http2Setting{Http2KnownSettingsId::ENABLE_PUSH, 0u}));
+  EXPECT_CALL(server_visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(server_visitor, OnFrameHeader(stream_id1, _, HEADERS, 5));
+  EXPECT_CALL(server_visitor, OnBeginHeadersForStream(stream_id1));
+  EXPECT_CALL(server_visitor, OnHeaderForStream).Times(4);
+  EXPECT_CALL(server_visitor, OnEndHeadersForStream(stream_id1));
+  EXPECT_CALL(server_visitor, OnEndStream(stream_id1));
+
+  // The server adapter processes the client's output.
+  ASSERT_EQ(client_visitor.data().size(),
+            server_adapter->ProcessBytes(client_visitor.data()));
+
+  // Response headers contain two individual Set-Cookie fields.
+  const std::vector<Header> response_headers =
+      ToHeaders({{":status", "200"},
+                 {"set-cookie", "chocolate_chip=yummy"},
+                 {"set-cookie", "macadamia_nut=okay"}});
+
+  EXPECT_EQ(
+      0, server_adapter->SubmitResponse(stream_id1, response_headers, nullptr));
+
+  // Server visitor expectations on send.
+  // Server preface with initial SETTINGS.
+  EXPECT_CALL(server_visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(server_visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  // SETTINGS ack
+  EXPECT_CALL(server_visitor, OnBeforeFrameSent(SETTINGS, 0, 0, ACK_FLAG));
+  EXPECT_CALL(server_visitor, OnFrameSent(SETTINGS, 0, 0, ACK_FLAG, 0));
+  // Stream 1 response.
+  EXPECT_CALL(server_visitor,
+              OnBeforeFrameSent(HEADERS, stream_id1, _,
+                                END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(server_visitor,
+              OnFrameSent(HEADERS, stream_id1, _,
+                          END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+  // Stream 1 is complete.
+  EXPECT_CALL(server_visitor,
+              OnCloseStream(stream_id1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  EXPECT_EQ(0, server_adapter->Send());
+
+  // Client visitor expectations on receive.
+  // Server preface with initial SETTINGS.
+  EXPECT_CALL(client_visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(client_visitor, OnSettingsStart());
+  EXPECT_CALL(client_visitor,
+              OnSetting(Http2Setting{
+                  Http2KnownSettingsId::ENABLE_CONNECT_PROTOCOL, 1u}));
+  EXPECT_CALL(client_visitor, OnSettingsEnd());
+  // SETTINGS ack.
+  EXPECT_CALL(client_visitor, OnFrameHeader(0, 0, SETTINGS, ACK_FLAG));
+  EXPECT_CALL(client_visitor, OnSettingsAck());
+  // Stream 1 response.
+  EXPECT_CALL(client_visitor, OnFrameHeader(stream_id1, _, HEADERS, 5));
+  EXPECT_CALL(client_visitor, OnBeginHeadersForStream(stream_id1));
+  EXPECT_CALL(client_visitor, OnHeaderForStream(stream_id1, ":status", "200"));
+  // Note that the Set-Cookie headers are delivered individually.
+  EXPECT_CALL(client_visitor, OnHeaderForStream(stream_id1, "set-cookie",
+                                                "chocolate_chip=yummy"));
+  EXPECT_CALL(client_visitor, OnHeaderForStream(stream_id1, "set-cookie",
+                                                "macadamia_nut=okay"));
+  EXPECT_CALL(client_visitor, OnEndHeadersForStream(stream_id1));
+  EXPECT_CALL(client_visitor, OnEndStream(stream_id1));
+  EXPECT_CALL(client_visitor,
+              OnCloseStream(stream_id1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  // The client adapter processes the server's output.
+  ASSERT_EQ(server_visitor.data().size(),
+            client_adapter->ProcessBytes(server_visitor.data()));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace adapter
