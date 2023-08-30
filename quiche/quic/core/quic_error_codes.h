@@ -249,6 +249,9 @@ enum QuicErrorCode {
 
   // Handshake failed.
   QUIC_HANDSHAKE_FAILED = 28,
+  // Split from QUIC_HANDSHAKE_FAILED and specially indicates handshake failure
+  // due to packets buffered for too long.
+  QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG = 214,
   // Handshake message contained out of order tags.
   QUIC_CRYPTO_TAGS_OUT_OF_ORDER = 29,
   // Handshake message contained too many entries.
@@ -620,7 +623,7 @@ enum QuicErrorCode {
   QUIC_SERVER_UNHEALTHY = 213,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 214,
+  QUIC_LAST_ERROR = 215,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

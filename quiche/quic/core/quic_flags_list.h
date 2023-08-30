@@ -63,6 +63,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_disable_server_blackhole_detection, false)
 QUIC_FLAG(quic_reloadable_flag_quic_enable_disable_resumption, true)
 // If true, discard INITIAL packet if the key has been dropped.
 QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
+// If true, dispatcher sends error code QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG when handshake fails due to packets buffered for too long.
+QUIC_FLAG(quic_reloadable_flag_quic_new_error_code_when_packets_buffered_too_long, true)
 // If true, do not write when client CID is requried but missing in the packet creator.
 QUIC_FLAG(quic_reloadable_flag_quic_do_not_write_when_no_client_cid_available, true)
 // If true, enable server retransmittable on wire PING.
