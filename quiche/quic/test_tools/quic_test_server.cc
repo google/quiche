@@ -8,8 +8,11 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/quic_default_connection_helper.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "quiche/quic/tools/quic_simple_dispatcher.h"
 #include "quiche/quic/tools/quic_simple_server_session.h"
@@ -88,13 +91,14 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
       QuicConnectionId id, const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address, absl::string_view alpn,
       const ParsedQuicVersion& version,
-      const ParsedClientHello& /*parsed_chlo*/) override {
+      const ParsedClientHello& /*parsed_chlo*/,
+      ConnectionIdGeneratorInterface& connection_id_generator) override {
     QuicReaderMutexLock lock(&factory_lock_);
     // The QuicServerSessionBase takes ownership of |connection| below.
     QuicConnection* connection = new QuicConnection(
         id, self_address, peer_address, helper(), alarm_factory(), writer(),
         /* owns_writer= */ false, Perspective::IS_SERVER,
-        ParsedQuicVersionVector{version}, connection_id_generator());
+        ParsedQuicVersionVector{version}, connection_id_generator);
 
     std::unique_ptr<QuicServerSessionBase> session;
     if (session_factory_ == nullptr && stream_factory_ == nullptr &&

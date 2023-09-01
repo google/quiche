@@ -15,6 +15,8 @@
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/core/quic_dispatcher.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -107,12 +109,13 @@ class QuicQboneDispatcher : public QuicDispatcher {
       QuicConnectionId id, const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address, absl::string_view alpn,
       const ParsedQuicVersion& version,
-      const ParsedClientHello& /*parsed_chlo*/) override {
+      const ParsedClientHello& /*parsed_chlo*/,
+      ConnectionIdGeneratorInterface& connection_id_generator) override {
     QUICHE_CHECK_EQ(alpn, "qbone");
     QuicConnection* connection = new QuicConnection(
         id, self_address, peer_address, helper(), alarm_factory(), writer(),
         /* owns_writer= */ false, Perspective::IS_SERVER,
-        ParsedQuicVersionVector{version}, connection_id_generator());
+        ParsedQuicVersionVector{version}, connection_id_generator);
     // The connection owning wrapper owns the connection created.
     auto session = std::make_unique<ConnectionOwningQboneServerSession>(
         GetSupportedVersions(), connection, this, config(), crypto_config(),

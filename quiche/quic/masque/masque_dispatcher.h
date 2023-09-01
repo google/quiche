@@ -5,10 +5,13 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_DISPATCHER_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_DISPATCHER_H_
 
-#include "absl/container/flat_hash_map.h"
+#include <cstdint>
+
+#include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/masque/masque_server_backend.h"
-#include "quiche/quic/masque/masque_server_session.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/tools/quic_simple_dispatcher.h"
@@ -39,7 +42,8 @@ class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher {
       QuicConnectionId connection_id, const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address, absl::string_view alpn,
       const ParsedQuicVersion& version,
-      const quic::ParsedClientHello& parsed_chlo) override;
+      const quic::ParsedClientHello& parsed_chlo,
+      quic::ConnectionIdGeneratorInterface& connection_id_generator) override;
 
  private:
   MasqueMode masque_mode_;

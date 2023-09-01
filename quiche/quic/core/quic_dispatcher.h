@@ -191,8 +191,8 @@ class QUIC_NO_EXPORT QuicDispatcher
       QuicConnectionId server_connection_id,
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address, absl::string_view alpn,
-      const ParsedQuicVersion& version,
-      const ParsedClientHello& parsed_chlo) = 0;
+      const ParsedQuicVersion& version, const ParsedClientHello& parsed_chlo,
+      ConnectionIdGeneratorInterface& connection_id_generator) = 0;
 
   // Tries to validate and dispatch packet based on available information.
   // Returns true if packet is dropped or successfully dispatched (e.g.,
@@ -345,7 +345,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   virtual void MaybeSendVersionNegotiationPacket(
       const ReceivedPacketInfo& packet_info);
 
-  ConnectionIdGeneratorInterface& connection_id_generator() {
+  virtual ConnectionIdGeneratorInterface& ConnectionIdGenerator() {
     return connection_id_generator_;
   }
 

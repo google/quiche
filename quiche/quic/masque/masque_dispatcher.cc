@@ -4,6 +4,9 @@
 
 #include "quiche/quic/masque/masque_dispatcher.h"
 
+#include "quiche/quic/core/connection_id_generator.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/masque/masque_server_session.h"
 
 namespace quic {
@@ -29,14 +32,14 @@ MasqueDispatcher::MasqueDispatcher(
 std::unique_ptr<QuicSession> MasqueDispatcher::CreateQuicSession(
     QuicConnectionId connection_id, const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address, absl::string_view /*alpn*/,
-    const ParsedQuicVersion& version,
-    const ParsedClientHello& /*parsed_chlo*/) {
+    const ParsedQuicVersion& version, const ParsedClientHello& /*parsed_chlo*/,
+    ConnectionIdGeneratorInterface& connection_id_generator) {
   // The MasqueServerSession takes ownership of |connection| below.
   QuicConnection* connection = new QuicConnection(
       connection_id, self_address, peer_address, helper(), alarm_factory(),
       writer(),
       /*owns_writer=*/false, Perspective::IS_SERVER,
-      ParsedQuicVersionVector{version}, connection_id_generator());
+      ParsedQuicVersionVector{version}, connection_id_generator);
 
   auto session = std::make_unique<MasqueServerSession>(
       masque_mode_, config(), GetSupportedVersions(), connection, this,

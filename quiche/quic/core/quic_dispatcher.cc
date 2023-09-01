@@ -1298,7 +1298,7 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
   std::string alpn = SelectAlpn(parsed_chlo.alpns);
   std::unique_ptr<QuicSession> session =
       CreateQuicSession(*server_connection_id, self_address, peer_address, alpn,
-                        version, parsed_chlo);
+                        version, parsed_chlo, ConnectionIdGenerator());
   if (ABSL_PREDICT_FALSE(session == nullptr)) {
     QUIC_BUG(quic_bug_10287_8)
         << "CreateQuicSession returned nullptr for " << *server_connection_id

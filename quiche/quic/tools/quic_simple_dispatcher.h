@@ -6,8 +6,11 @@
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_DISPATCHER_H_
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/http/quic_server_session_base.h"
 #include "quiche/quic/core/quic_dispatcher.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 
 namespace quic {
@@ -34,8 +37,8 @@ class QuicSimpleDispatcher : public QuicDispatcher {
   std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId connection_id, const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address, absl::string_view alpn,
-      const ParsedQuicVersion& version,
-      const ParsedClientHello& parsed_chlo) override;
+      const ParsedQuicVersion& version, const ParsedClientHello& parsed_chlo,
+      ConnectionIdGeneratorInterface& connection_id_generator) override;
 
   QuicSimpleServerBackend* server_backend() {
     return quic_simple_server_backend_;
