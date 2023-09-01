@@ -606,5 +606,10 @@ void QuicConnectionPeer::DisableEcnCodepointValidation(
   connection->disable_ecn_codepoint_validation_ = true;
 }
 
+// static
+void QuicConnectionPeer::OnForwardProgressMade(QuicConnection* connection) {
+  connection->OnForwardProgressMade();
+}
+
 }  // namespace test
 }  // namespace quic

@@ -693,6 +693,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (perspective_ == Perspective::IS_CLIENT && version().HasIetfQuicFrames() &&
       config.HasClientRequestedIndependentOption(kMPQC, perspective_)) {
     multi_port_stats_ = std::make_unique<MultiPortStats>();
+    if (config.HasClientRequestedIndependentOption(kMPQM, perspective_)) {
+      multi_port_migration_enabled_ = true;
+    }
   }
 }
 
@@ -6232,7 +6235,7 @@ void QuicConnection::OnPathDegradingDetected() {
   is_path_degrading_ = true;
   visitor_->OnPathDegrading();
   stats_.num_path_degrading++;
-  if (multi_port_stats_) {
+  if (multi_port_stats_ && multi_port_migration_enabled_) {
     MaybeMigrateToMultiPortPath();
   }
 }

@@ -5368,7 +5368,7 @@ TEST_P(EndToEndTest, ClientValidateNewNetwork) {
 }
 
 TEST_P(EndToEndTest, ClientMultiPortConnection) {
-  client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC});
+  client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPQM});
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
     return;
@@ -5414,7 +5414,7 @@ TEST_P(EndToEndTest, ClientMultiPortConnection) {
 }
 
 TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegrading) {
-  client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC});
+  client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPQM});
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
     return;

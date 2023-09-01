@@ -431,6 +431,8 @@ const QuicTag kINVC = TAG('I', 'N', 'V', 'C');   // Send connection close for
                                                  // INVALID_VERSION
 
 const QuicTag kMPQC = TAG('M', 'P', 'Q', 'C');   // Multi-port QUIC connection
+const QuicTag kMPQM = TAG('M', 'P', 'Q', 'M');   // Enable multi-port QUIC
+                                                 // migration
 
 // Client Hints triggers.
 const QuicTag kGWCH = TAG('G', 'W', 'C', 'H');

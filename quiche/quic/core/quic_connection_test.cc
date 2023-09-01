@@ -13182,11 +13182,21 @@ TEST_P(QuicConnectionTest, MultiPortConnection) {
   EXPECT_EQ(kTestRTT,
             stats->rtt_stats_when_default_path_degrading.latest_rtt());
 
+  EXPECT_CALL(visitor_, OnForwardProgressMadeAfterPathDegrading());
+  QuicConnectionPeer::OnForwardProgressMade(&connection_);
+
   EXPECT_TRUE(connection_.GetMultiPortProbingAlarm()->IsSet());
   // Since there's already a scheduled probing alarm, manual calls won't have
   // any effect.
   connection_.MaybeProbeMultiPortPath();
   EXPECT_FALSE(connection_.HasPendingPathValidation());
+
+  // Since kMPQM is not set, migration shouldn't happen
+  EXPECT_CALL(visitor_, OnPathDegrading());
+  EXPECT_CALL(visitor_, MigrateToMultiPortPath(_)).Times(0);
+  connection_.OnPathDegradingDetected();
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
+      &connection_, kNewSelfAddress, connection_.peer_address()));
 
   // Simulate the case where the path validation fails after retries.
   connection_.GetMultiPortProbingAlarm()->Fire();
@@ -13204,7 +13214,7 @@ TEST_P(QuicConnectionTest, MultiPortConnection) {
   EXPECT_FALSE(connection_.HasPendingPathValidation());
   EXPECT_FALSE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
-  EXPECT_EQ(1, connection_.GetStats().num_path_degrading);
+  EXPECT_EQ(2, connection_.GetStats().num_path_degrading);
   EXPECT_EQ(1, stats->num_multi_port_probe_failures_when_path_degrading);
   EXPECT_EQ(0, stats->num_multi_port_probe_failures_when_path_not_degrading);
 }
@@ -13488,7 +13498,7 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsReadyAndNotProbing) {
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   set_perspective(Perspective::IS_CLIENT);
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kMPQC});
+  config.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPQM});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   if (!version().HasIetfQuicFrames()) {
@@ -13566,7 +13576,7 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsReadyAndProbing) {
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   set_perspective(Perspective::IS_CLIENT);
   QuicConfig config;
-  config.SetClientConnectionOptions(QuicTagVector{kMPQC});
+  config.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPQM});
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   if (!version().HasIetfQuicFrames()) {

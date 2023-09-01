@@ -2362,6 +2362,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   std::unique_ptr<MultiPortStats> multi_port_stats_;
 
+  // If true, connection will migrate to multi-port path upon path degrading.
+  bool multi_port_migration_enabled_ = false;
+
   // Client side only.
   bool active_migration_disabled_ = false;
 

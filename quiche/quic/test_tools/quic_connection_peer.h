@@ -238,6 +238,8 @@ class QuicConnectionPeer {
 
   // Overrides restrictions on sending ECN for test purposes.
   static void DisableEcnCodepointValidation(QuicConnection* connection);
+
+  static void OnForwardProgressMade(QuicConnection* connection);
 };
 
 }  // namespace test
