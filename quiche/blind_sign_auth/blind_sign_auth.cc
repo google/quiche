@@ -152,6 +152,8 @@ void BlindSignAuth::GetInitialDataCallback(
     sign_request.add_blinded_token(absl::Base64Escape(
         at_sign_request->blinded_tokens().at(i).serialized_token()));
   }
+  // TODO(b/295924807): deprecate this option after AT server defaults to it
+  sign_request.set_do_not_use_rsa_public_exponent(true);
 
   privacy::ppn::PublicMetadataInfo public_metadata_info =
       initial_data_response.public_metadata_info();
@@ -231,6 +233,7 @@ void BlindSignAuth::AuthAndSignCallback(
     *anon_token_proto.mutable_serialized_blinded_message() =
         at_sign_request.blinded_tokens(i).serialized_token();
     *anon_token_proto.mutable_serialized_token() = blinded_token;
+    anon_token_proto.set_do_not_use_rsa_public_exponent(true);
     at_sign_response.add_anonymous_tokens()->Swap(&anon_token_proto);
   }
 

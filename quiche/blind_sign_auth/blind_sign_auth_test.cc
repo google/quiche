@@ -100,6 +100,7 @@ class BlindSignAuthTest : public QuicheTest {
     EXPECT_EQ(request.public_metadata_info().SerializeAsString(),
               public_metadata_info_.SerializeAsString());
     EXPECT_EQ(request.key_version(), keypair_.second.key_version());
+    EXPECT_EQ(request.do_not_use_rsa_public_exponent(), true);
 
     // Construct AuthAndSignResponse.
     privacy::ppn::AuthAndSignResponse response;
