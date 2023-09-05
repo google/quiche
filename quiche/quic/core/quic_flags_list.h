@@ -23,8 +23,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close
 QUIC_FLAG(quic_reloadable_flag_quic_no_send_alarm_unless_necessary, false)
 // If true, HTTP/3 client will allow host header in HTTP/3 response.
 QUIC_FLAG(quic_reloadable_flag_quic_allow_host_header_in_response, true)
-// If true, QUIC BBR2 will ignore non-positive RTT samples.
-QUIC_FLAG(quic_reloadable_flag_quic_bbr2_ignore_bad_rtt_sample, true)
 // If true, QUIC server will not respond to gQUIC probing packet(PING + PADDING) but treat it as a regular packet.
 QUIC_FLAG(quic_reloadable_flag_quic_ignore_gquic_probing, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
