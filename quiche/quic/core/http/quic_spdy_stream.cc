@@ -305,10 +305,6 @@ void QuicSpdyStream::WriteOrBufferBody(absl::string_view data, bool fin) {
   }
   QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
 
-  if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnDataFrameSent(id(), data.length());
-  }
-
   const bool success =
       WriteDataFrameHeader(data.length(), /*force_write=*/true);
   QUICHE_DCHECK(success);
