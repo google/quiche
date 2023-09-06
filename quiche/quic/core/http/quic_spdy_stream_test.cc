@@ -3393,8 +3393,6 @@ TEST_P(QuicSpdyStreamTest, ReadAfterReset) {
     return;
   }
 
-  SetQuicReloadableFlag(quic_clear_body_manager, true);
-
   Initialize(!kShouldProcessData);
 
   ProcessHeaders(false, headers_);

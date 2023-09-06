@@ -1751,10 +1751,7 @@ void QuicSpdyStream::CloseReadSide() {
 
   // QuicStream::CloseReadSide() releases buffered read data from
   // QuicStreamSequencer, invalidating every reference held by `body_manager_`.
-  if (GetQuicReloadableFlag(quic_clear_body_manager)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_clear_body_manager);
-    body_manager_.Clear();
-  }
+  body_manager_.Clear();
 }
 
 #undef ENDPOINT  // undef for jumbo builds
