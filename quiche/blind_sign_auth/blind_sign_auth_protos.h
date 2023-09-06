@@ -3,6 +3,7 @@
 
 #include "quiche/blind_sign_auth/proto/timestamp.pb.h"  // IWYU pragma: export
 #include "quiche/blind_sign_auth/proto/auth_and_sign.pb.h"  // IWYU pragma: export
+#include "quiche/blind_sign_auth/proto/blind_sign_auth_options.pb.h"  // IWYU pragma: export
 #include "quiche/blind_sign_auth/proto/get_initial_data.pb.h"  // IWYU pragma: export
 #include "quiche/blind_sign_auth/proto/key_services.pb.h"  // IWYU pragma: export
 #include "quiche/blind_sign_auth/proto/public_metadata.pb.h"  // IWYU pragma: export

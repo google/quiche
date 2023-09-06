@@ -1628,6 +1628,7 @@
     "quiche/blind_sign_auth/proto/any.proto",
     "quiche/blind_sign_auth/proto/attestation.proto",
     "quiche/blind_sign_auth/proto/auth_and_sign.proto",
+    "quiche/blind_sign_auth/proto/blind_sign_auth_options.proto",
     "quiche/blind_sign_auth/proto/get_initial_data.proto",
     "quiche/blind_sign_auth/proto/key_services.proto",
     "quiche/blind_sign_auth/proto/public_metadata.proto",

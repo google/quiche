@@ -35,6 +35,12 @@ std::string OmitDefault(T value) {
 
 void BlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
                               SignedTokenCallback callback) {
+  // Check whether Privacy Pass crypto is enabled.
+  if (auth_options_.enable_privacy_pass()) {
+    std::move(callback)(
+        absl::UnimplementedError("Privacy Pass is not supported."));
+    return;
+  }
   // Create GetInitialData RPC.
   privacy::ppn::GetInitialDataRequest request;
   request.set_use_attestation(false);

@@ -76,7 +76,12 @@ class BlindSignAuthTest : public QuicheTest {
         public_metadata_info_;
     fake_get_initial_data_response_ = fake_get_initial_data_response;
 
-    blind_sign_auth_ = std::make_unique<BlindSignAuth>(&mock_http_interface_);
+    // Create BlindSignAuthOptions.
+    privacy::ppn::BlindSignAuthOptions options;
+    options.set_enable_privacy_pass(false);
+
+    blind_sign_auth_ =
+        std::make_unique<BlindSignAuth>(&mock_http_interface_, options);
   }
 
   void TearDown() override {
@@ -284,6 +289,23 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
   SignedTokenCallback callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
+        done.Notify();
+      };
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
+  done.WaitForNotification();
+}
+
+TEST_F(BlindSignAuthTest, TestGetTokensFailedPrivacyPass) {
+  privacy::ppn::BlindSignAuthOptions options;
+  options.set_enable_privacy_pass(true);
+  blind_sign_auth_ =
+      std::make_unique<BlindSignAuth>(&mock_http_interface_, options);
+
+  int num_tokens = 1;
+  QuicheNotification done;
+  SignedTokenCallback callback =
+      [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
+        EXPECT_THAT(tokens.status().code(), absl::StatusCode::kUnimplemented);
         done.Notify();
       };
   blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));

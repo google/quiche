@@ -1624,6 +1624,7 @@ protobuf_blind_sign_auth = [
     "blind_sign_auth/proto/any.proto",
     "blind_sign_auth/proto/attestation.proto",
     "blind_sign_auth/proto/auth_and_sign.proto",
+    "blind_sign_auth/proto/blind_sign_auth_options.proto",
     "blind_sign_auth/proto/get_initial_data.proto",
     "blind_sign_auth/proto/key_services.proto",
     "blind_sign_auth/proto/public_metadata.proto",

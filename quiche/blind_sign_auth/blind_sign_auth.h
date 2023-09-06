@@ -23,8 +23,9 @@ namespace quiche {
 // BlindSignAuth provides signed, unblinded tokens to callers.
 class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
  public:
-  explicit BlindSignAuth(BlindSignHttpInterface* http_fetcher)
-      : http_fetcher_(http_fetcher) {}
+  explicit BlindSignAuth(BlindSignHttpInterface* http_fetcher,
+                         privacy::ppn::BlindSignAuthOptions auth_options)
+      : http_fetcher_(http_fetcher), auth_options_(std::move(auth_options)) {}
 
   // Returns signed unblinded tokens and their expiration time in a callback.
   // Tokens are single-use.
@@ -55,6 +56,7 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   absl::StatusCode HttpCodeToStatusCode(int http_code);
 
   BlindSignHttpInterface* http_fetcher_ = nullptr;
+  privacy::ppn::BlindSignAuthOptions auth_options_;
 };
 
 }  // namespace quiche

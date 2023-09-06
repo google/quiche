@@ -1629,6 +1629,7 @@ protobuf_blind_sign_auth = [
     "src/quiche/blind_sign_auth/proto/any.proto",
     "src/quiche/blind_sign_auth/proto/attestation.proto",
     "src/quiche/blind_sign_auth/proto/auth_and_sign.proto",
+    "src/quiche/blind_sign_auth/proto/blind_sign_auth_options.proto",
     "src/quiche/blind_sign_auth/proto/get_initial_data.proto",
     "src/quiche/blind_sign_auth/proto/key_services.proto",
     "src/quiche/blind_sign_auth/proto/public_metadata.proto",
