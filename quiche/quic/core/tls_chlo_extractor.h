@@ -26,7 +26,7 @@ namespace quic {
 // then uses a QuicStreamSequencer to reassemble the contents of the crypto
 // stream, and implements QuicStreamSequencer::StreamInterface to access the
 // reassembled data.
-class QUIC_NO_EXPORT TlsChloExtractor
+class QUICHE_EXPORT TlsChloExtractor
     : public QuicFramerVisitorInterface,
       public QuicStreamSequencer::StreamInterface {
  public:
@@ -271,8 +271,8 @@ class QUIC_NO_EXPORT TlsChloExtractor
 };
 
 // Convenience method to facilitate logging TlsChloExtractor::State.
-QUIC_NO_EXPORT std::ostream& operator<<(std::ostream& os,
-                                        const TlsChloExtractor::State& state);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const TlsChloExtractor::State& state);
 
 }  // namespace quic
 

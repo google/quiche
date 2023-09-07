@@ -138,9 +138,9 @@ class QuicIntervalDequePeer;
 //   //   container -> {{2, [25, 30)}, {3, [35, 50)}}
 
 template <class T, class C = quiche::QuicheCircularDeque<T>>
-class QUIC_NO_EXPORT QuicIntervalDeque {
+class QUICHE_EXPORT QuicIntervalDeque {
  public:
-  class QUIC_NO_EXPORT Iterator {
+  class QUICHE_EXPORT Iterator {
    public:
     // Used by |std::lower_bound|
     using iterator_category = std::forward_iterator_tag;
@@ -243,7 +243,7 @@ class QUIC_NO_EXPORT QuicIntervalDeque {
   bool Empty() const;
 
  private:
-  struct QUIC_NO_EXPORT IntervalCompare {
+  struct QUICHE_EXPORT IntervalCompare {
     bool operator()(const T& item, std::size_t interval_begin) const {
       return item.interval().max() <= interval_begin;
     }

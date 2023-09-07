@@ -50,7 +50,7 @@ ParsedQuicVersionVector GetQuicVersionsForGenericSession() {
 
 // QuicGenericStream is a stream that provides a general-purpose implementation
 // of a webtransport::Stream interface.
-class QUIC_EXPORT_PRIVATE QuicGenericStream : public QuicStream {
+class QUICHE_EXPORT QuicGenericStream : public QuicStream {
  public:
   QuicGenericStream(QuicStreamId id, QuicSession* session)
       : QuicStream(id, session, /*is_static=*/false,

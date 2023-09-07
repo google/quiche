@@ -13,7 +13,7 @@
 namespace quic {
 
 class Bbr2Sender;
-class QUIC_EXPORT_PRIVATE Bbr2ProbeRttMode final : public Bbr2ModeBase {
+class QUICHE_EXPORT Bbr2ProbeRttMode final : public Bbr2ModeBase {
  public:
   using Bbr2ModeBase::Bbr2ModeBase;
 
@@ -35,7 +35,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeRttMode final : public Bbr2ModeBase {
   Bbr2Mode OnExitQuiescence(QuicTime now,
                             QuicTime quiescence_start_time) override;
 
-  struct QUIC_EXPORT_PRIVATE DebugState {
+  struct QUICHE_EXPORT DebugState {
     QuicByteCount inflight_target;
     QuicTime exit_time = QuicTime::Zero();
   };
@@ -50,7 +50,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeRttMode final : public Bbr2ModeBase {
   QuicTime exit_time_ = QuicTime::Zero();
 };
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+QUICHE_EXPORT std::ostream& operator<<(
     std::ostream& os, const Bbr2ProbeRttMode::DebugState& state);
 
 }  // namespace quic

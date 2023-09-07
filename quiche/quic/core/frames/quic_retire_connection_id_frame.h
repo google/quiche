@@ -13,12 +13,12 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicRetireConnectionIdFrame {
+struct QUICHE_EXPORT QuicRetireConnectionIdFrame {
   QuicRetireConnectionIdFrame() = default;
   QuicRetireConnectionIdFrame(QuicControlFrameId control_frame_id,
                               QuicConnectionIdSequenceNumber sequence_number);
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const QuicRetireConnectionIdFrame& frame);
 
   // A unique identifier of this control frame. 0 when this frame is received,

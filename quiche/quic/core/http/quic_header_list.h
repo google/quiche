@@ -19,8 +19,7 @@
 namespace quic {
 
 // A simple class that accumulates header pairs
-class QUIC_EXPORT_PRIVATE QuicHeaderList
-    : public spdy::SpdyHeadersHandlerInterface {
+class QUICHE_EXPORT QuicHeaderList : public spdy::SpdyHeadersHandlerInterface {
  public:
   using ListType =
       quiche::QuicheCircularDeque<std::pair<std::string, std::string>>;

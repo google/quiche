@@ -14,7 +14,7 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicNewConnectionIdFrame {
+struct QUICHE_EXPORT QuicNewConnectionIdFrame {
   QuicNewConnectionIdFrame() = default;
   QuicNewConnectionIdFrame(QuicControlFrameId control_frame_id,
                            QuicConnectionId connection_id,
@@ -22,7 +22,7 @@ struct QUIC_EXPORT_PRIVATE QuicNewConnectionIdFrame {
                            StatelessResetToken stateless_reset_token,
                            uint64_t retire_prior_to);
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const QuicNewConnectionIdFrame& frame);
 
   // A unique identifier of this control frame. 0 when this frame is received,

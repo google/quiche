@@ -23,7 +23,7 @@ class QpackDecoder;
 // decoded headers in a QuicHeaderList, and keeps track of uncompressed and
 // compressed size so that it can be passed to
 // QuicHeaderList::OnHeaderBlockEnd().
-class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
+class QUICHE_EXPORT QpackDecodedHeadersAccumulator
     : public QpackProgressiveDecoder::HeadersHandlerInterface {
  public:
   // Visitor interface to signal success or error.
@@ -31,7 +31,7 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
   // Methods may be called synchronously from Decode() and EndHeaderBlock(),
   // or asynchronously.
   // Method implementations are allowed to destroy |this|.
-  class QUIC_EXPORT_PRIVATE Visitor {
+  class QUICHE_EXPORT Visitor {
    public:
     virtual ~Visitor() = default;
 

@@ -22,7 +22,7 @@ namespace quic {
 // The QuicDataWriter supports appending primitive values (int, string, etc)
 // to a frame instance.  The internal memory buffer is exposed as the "data"
 // of the QuicDataWriter.
-class QUIC_EXPORT_PRIVATE QuicDataWriter : public quiche::QuicheDataWriter {
+class QUICHE_EXPORT QuicDataWriter : public quiche::QuicheDataWriter {
  public:
   // Creates a QuicDataWriter where |buffer| is not owned
   // using NETWORK_BYTE_ORDER endianness.

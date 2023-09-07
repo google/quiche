@@ -17,9 +17,9 @@ namespace quic {
 // An alarm may be cancelled, in which case it may or may not be
 // removed from the underlying scheduling system, but in either case
 // the task will not be executed.
-class QUIC_EXPORT_PRIVATE QuicAlarm {
+class QUICHE_EXPORT QuicAlarm {
  public:
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 
@@ -36,7 +36,7 @@ class QUIC_EXPORT_PRIVATE QuicAlarm {
 
   // DelegateWithContext is a Delegate with a QuicConnectionContext* stored as a
   // member variable.
-  class QUIC_EXPORT_PRIVATE DelegateWithContext : public Delegate {
+  class QUICHE_EXPORT DelegateWithContext : public Delegate {
    public:
     explicit DelegateWithContext(QuicConnectionContext* context)
         : context_(context) {}
@@ -50,7 +50,7 @@ class QUIC_EXPORT_PRIVATE QuicAlarm {
   // DelegateWithoutContext is a Delegate that does not have a corresponding
   // context. Typically this means one object of the child class deals with many
   // connections.
-  class QUIC_EXPORT_PRIVATE DelegateWithoutContext : public Delegate {
+  class QUICHE_EXPORT DelegateWithoutContext : public Delegate {
    public:
     ~DelegateWithoutContext() override {}
     QuicConnectionContext* GetConnectionContext() override { return nullptr; }

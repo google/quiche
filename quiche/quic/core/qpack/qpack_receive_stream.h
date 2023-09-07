@@ -15,7 +15,7 @@ class QuicSession;
 
 // QPACK 4.2.1 Encoder and Decoder Streams.
 // The QPACK receive stream is peer initiated and is read only.
-class QUIC_EXPORT_PRIVATE QpackReceiveStream : public QuicStream {
+class QUICHE_EXPORT QpackReceiveStream : public QuicStream {
  public:
   // Construct receive stream from pending stream, the |pending| object needs
   // to be deleted after the construction.

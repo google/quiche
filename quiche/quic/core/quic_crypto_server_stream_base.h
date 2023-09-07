@@ -27,11 +27,11 @@ class QuicCryptoServerStreamBase;
 
 // TODO(alyssar) see what can be moved out of QuicCryptoServerStream with
 // various code and test refactoring.
-class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
+class QUICHE_EXPORT QuicCryptoServerStreamBase : public QuicCryptoStream {
  public:
   explicit QuicCryptoServerStreamBase(QuicSession* session);
 
-  class QUIC_EXPORT_PRIVATE Helper {
+  class QUICHE_EXPORT Helper {
    public:
     virtual ~Helper() {}
 
@@ -111,7 +111,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
 // including the version used by |session|. |crypto_config|, |session|, and
 // |helper| must all outlive the stream. The caller takes ownership of the
 // returned object.
-QUIC_EXPORT_PRIVATE std::unique_ptr<QuicCryptoServerStreamBase>
+QUICHE_EXPORT std::unique_ptr<QuicCryptoServerStreamBase>
 CreateCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
                          QuicCompressedCertsCache* compressed_certs_cache,
                          QuicSession* session,

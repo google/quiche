@@ -15,7 +15,7 @@ class QuicDecrypter;
 class QuicEncrypter;
 
 // Pure virtual class to get notified when particular handshake events occurred.
-class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
+class QUICHE_EXPORT HandshakerDelegateInterface {
  public:
   virtual ~HandshakerDelegateInterface() {}
 

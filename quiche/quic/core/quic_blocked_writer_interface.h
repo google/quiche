@@ -13,7 +13,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE QuicBlockedWriterInterface {
+class QUICHE_EXPORT QuicBlockedWriterInterface {
  public:
   virtual ~QuicBlockedWriterInterface() {}
 

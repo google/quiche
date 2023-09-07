@@ -16,7 +16,7 @@ namespace quic {
 // QuicHKDF implements the key derivation function specified in RFC 5869
 // (using SHA-256) and outputs key material, as needed by QUIC.
 // See https://tools.ietf.org/html/rfc5869 for details.
-class QUIC_EXPORT_PRIVATE QuicHKDF {
+class QUICHE_EXPORT QuicHKDF {
  public:
   // |secret|: the input shared secret (or, from RFC 5869, the IKM).
   // |salt|: an (optional) public salt / non-secret random value. While

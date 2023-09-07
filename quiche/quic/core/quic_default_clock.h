@@ -12,7 +12,7 @@
 namespace quic {
 
 // A QuicClock based on Abseil time API.  Thread-safe.
-class QUIC_EXPORT_PRIVATE QuicDefaultClock : public QuicClock {
+class QUICHE_EXPORT QuicDefaultClock : public QuicClock {
  public:
   // Provides a single default stateless instance of QuicDefaultClock.
   static QuicDefaultClock* Get();

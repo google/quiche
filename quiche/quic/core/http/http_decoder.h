@@ -25,9 +25,9 @@ class QuicDataReader;
 
 // A class for decoding the HTTP frames that are exchanged in an HTTP over QUIC
 // session.
-class QUIC_EXPORT_PRIVATE HttpDecoder {
+class QUICHE_EXPORT HttpDecoder {
  public:
-  class QUIC_EXPORT_PRIVATE Visitor {
+  class QUICHE_EXPORT Visitor {
    public:
     virtual ~Visitor() {}
 

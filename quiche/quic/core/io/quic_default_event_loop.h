@@ -14,12 +14,12 @@ namespace quic {
 // Returns the default implementation of QuicheEventLoop.  The embedders can
 // override this using the platform API.  The factory pointer returned is an
 // unowned static variable.
-QUICHE_NO_EXPORT QuicEventLoopFactory* GetDefaultEventLoop();
+QuicEventLoopFactory* GetDefaultEventLoop();
 
 // Returns the factory objects for all event loops.  This is particularly useful
 // for the unit tests.  The factory pointers returned are unowned static
 // variables.
-QUICHE_NO_EXPORT std::vector<QuicEventLoopFactory*> GetAllSupportedEventLoops();
+std::vector<QuicEventLoopFactory*> GetAllSupportedEventLoops();
 
 }  // namespace quic
 

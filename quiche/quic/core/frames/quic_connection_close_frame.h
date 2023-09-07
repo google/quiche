@@ -15,7 +15,7 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
+struct QUICHE_EXPORT QuicConnectionCloseFrame {
   QuicConnectionCloseFrame() = default;
 
   // Builds a connection close frame based on the transport version
@@ -31,7 +31,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
                            std::string error_phrase,
                            uint64_t transport_close_frame_type);
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const QuicConnectionCloseFrame& c);
 
   // Indicates whether the the frame is a Google QUIC CONNECTION_CLOSE frame,

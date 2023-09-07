@@ -14,12 +14,11 @@ namespace quic {
 
 // A ping frame contains no payload, though it is retransmittable,
 // and ACK'd just like other normal frames.
-struct QUIC_EXPORT_PRIVATE QuicPingFrame
-    : public QuicInlinedFrame<QuicPingFrame> {
+struct QUICHE_EXPORT QuicPingFrame : public QuicInlinedFrame<QuicPingFrame> {
   QuicPingFrame();
   explicit QuicPingFrame(QuicControlFrameId control_frame_id);
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const QuicPingFrame& ping_frame);
 
   QuicFrameType type;

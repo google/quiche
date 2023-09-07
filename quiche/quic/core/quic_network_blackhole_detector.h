@@ -24,9 +24,9 @@ class QuicNetworkBlackholeDetectorPeer;
 // degrading detection mode. After reporting path degrading detected, detector
 // switches to blackhole detection mode. So blackhole detection deadline must
 // be later than path degrading deadline.
-class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
+class QUICHE_EXPORT QuicNetworkBlackholeDetector {
  public:
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 

@@ -14,7 +14,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE AesBaseEncrypter : public AeadBaseEncrypter {
+class QUICHE_EXPORT AesBaseEncrypter : public AeadBaseEncrypter {
  public:
   using AeadBaseEncrypter::AeadBaseEncrypter;
 

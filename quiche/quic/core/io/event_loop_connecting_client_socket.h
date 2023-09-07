@@ -23,9 +23,8 @@ namespace quic {
 
 // A connection-based client socket implemented using an underlying
 // QuicEventLoop.
-class QUICHE_EXPORT EventLoopConnectingClientSocket
-    : public ConnectingClientSocket,
-      public QuicSocketEventListener {
+class EventLoopConnectingClientSocket : public ConnectingClientSocket,
+                                        public QuicSocketEventListener {
  public:
   // Will use platform default buffer size if `receive_buffer_size` or
   // `send_buffer_size` is zero. `async_visitor` may be null if no async

@@ -29,7 +29,7 @@ class QuicCryptoClientStreamPeer;
 
 class TlsClientHandshaker;
 
-class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
+class QUICHE_EXPORT QuicCryptoClientStreamBase : public QuicCryptoStream {
  public:
   explicit QuicCryptoClientStreamBase(QuicSession* session);
 
@@ -101,8 +101,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
   }
 };
 
-class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
-    : public QuicCryptoClientStreamBase {
+class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
  public:
   // kMaxClientHellos is the maximum number of times that we'll send a client
   // hello. The value 4 accounts for:
@@ -126,7 +125,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   // This setup of the crypto stream delegating its implementation to the
   // handshaker results in the handshaker reading and writing bytes on the
   // crypto stream, instead of the handshaker passing the stream bytes to send.
-  class QUIC_EXPORT_PRIVATE HandshakerInterface {
+  class QUICHE_EXPORT HandshakerInterface {
    public:
     virtual ~HandshakerInterface() {}
 
@@ -240,7 +239,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
 
   // ProofHandler is an interface that handles callbacks from the crypto
   // stream when the client has proof verification details of the server.
-  class QUIC_EXPORT_PRIVATE ProofHandler {
+  class QUICHE_EXPORT ProofHandler {
    public:
     virtual ~ProofHandler() {}
 

@@ -21,9 +21,8 @@ namespace test {
 class QuicCryptoServerStreamPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
-    : public QuicCryptoServerStreamBase,
-      public QuicCryptoHandshaker {
+class QUICHE_EXPORT QuicCryptoServerStream : public QuicCryptoServerStreamBase,
+                                             public QuicCryptoHandshaker {
  public:
   QuicCryptoServerStream(const QuicCryptoServerStream&) = delete;
   QuicCryptoServerStream& operator=(const QuicCryptoServerStream&) = delete;
@@ -82,7 +81,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;
 
  protected:
-  QUIC_EXPORT_PRIVATE friend std::unique_ptr<QuicCryptoServerStreamBase>
+  QUICHE_EXPORT friend std::unique_ptr<QuicCryptoServerStreamBase>
   CreateCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
                            QuicCompressedCertsCache* compressed_certs_cache,
                            QuicSession* session,
@@ -124,7 +123,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
  private:
   friend class test::QuicCryptoServerStreamPeer;
 
-  class QUIC_EXPORT_PRIVATE ValidateCallback
+  class QUICHE_EXPORT ValidateCallback
       : public ValidateClientHelloResultCallback {
    public:
     explicit ValidateCallback(QuicCryptoServerStream* parent);

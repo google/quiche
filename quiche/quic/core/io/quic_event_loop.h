@@ -24,7 +24,7 @@ inline constexpr QuicSocketEventMask kSocketEventError = 0x04;
 class QuicEventLoop;
 
 // A listener associated with a file descriptor.
-class QUICHE_NO_EXPORT QuicSocketEventListener {
+class QuicSocketEventListener {
  public:
   virtual ~QuicSocketEventListener() = default;
 
@@ -38,7 +38,7 @@ class QUICHE_NO_EXPORT QuicSocketEventListener {
 // Note on error handling: while most of the methods below return a boolean to
 // indicate whether the operation has succeeded or not, some will QUIC_BUG
 // instead.
-class QUICHE_NO_EXPORT QuicEventLoop {
+class QuicEventLoop {
  public:
   virtual ~QuicEventLoop() = default;
 
@@ -83,7 +83,7 @@ class QUICHE_NO_EXPORT QuicEventLoop {
 
 // A factory object for the event loop. Every implementation is expected to have
 // a static singleton instance.
-class QUICHE_NO_EXPORT QuicEventLoopFactory {
+class QuicEventLoopFactory {
  public:
   virtual ~QuicEventLoopFactory() {}
 

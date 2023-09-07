@@ -26,7 +26,7 @@ namespace quic {
 // it calculates the total number of bytes (including non-body bytes) the caller
 // needs to mark consumed (with QuicStreamSequencer) when non-body bytes are
 // received or when body is consumed.
-class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
+class QUICHE_EXPORT QuicSpdyStreamBodyManager {
  public:
   QuicSpdyStreamBodyManager();
   ~QuicSpdyStreamBodyManager() = default;
@@ -88,7 +88,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
   // A Fragment instance represents a body fragment with a count of bytes
   // received afterwards but before the next body fragment that can be marked
   // consumed as soon as all of the body fragment is read.
-  struct QUIC_EXPORT_PRIVATE Fragment {
+  struct QUICHE_EXPORT Fragment {
     // |body| must not be empty.
     absl::string_view body;
     // Might be zero.

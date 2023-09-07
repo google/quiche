@@ -32,7 +32,7 @@ class ProofVerifyDetails;
 
 // QuicResumptionState stores the state a client needs for performing connection
 // resumption.
-struct QUIC_EXPORT_PRIVATE QuicResumptionState {
+struct QUICHE_EXPORT QuicResumptionState {
   // |tls_session| holds the cryptographic state necessary for a resumption. It
   // includes the ALPN negotiated on the connection where the ticket was
   // received.
@@ -56,7 +56,7 @@ struct QUIC_EXPORT_PRIVATE QuicResumptionState {
 
 // SessionCache is an interface for managing storing and retrieving
 // QuicResumptionState structs.
-class QUIC_EXPORT_PRIVATE SessionCache {
+class QUICHE_EXPORT SessionCache {
  public:
   virtual ~SessionCache() {}
 
@@ -97,12 +97,12 @@ class QUIC_EXPORT_PRIVATE SessionCache {
 // QuicCryptoClientConfig contains crypto-related configuration settings for a
 // client. Note that this object isn't thread-safe. It's designed to be used on
 // a single thread at a time.
-class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
+class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
  public:
   // A CachedState contains the information that the client needs in order to
   // perform a 0-RTT handshake with a server. This information can be reused
   // over several connections to the same server.
-  class QUIC_EXPORT_PRIVATE CachedState {
+  class QUICHE_EXPORT CachedState {
    public:
     // Enum to track if the server config is valid or not. If it is not valid,
     // it specifies why it is invalid.
@@ -227,7 +227,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   };
 
   // Used to filter server ids for partial config deletion.
-  class QUIC_EXPORT_PRIVATE ServerIdFilter {
+  class QUICHE_EXPORT ServerIdFilter {
    public:
     virtual ~ServerIdFilter() {}
 

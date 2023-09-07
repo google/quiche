@@ -14,11 +14,11 @@ namespace quic {
 // A wrapper class around Http2HeaderBlock that splits header values along ';'
 // separators (while also removing optional space following separator) for
 // cookies and along '\0' separators for other header fields.
-class QUIC_EXPORT_PRIVATE ValueSplittingHeaderList {
+class QUICHE_EXPORT ValueSplittingHeaderList {
  public:
   using value_type = spdy::Http2HeaderBlock::value_type;
 
-  class QUIC_EXPORT_PRIVATE const_iterator {
+  class QUICHE_EXPORT const_iterator {
    public:
     // |header_list| must outlive this object.
     const_iterator(const spdy::Http2HeaderBlock* header_list,

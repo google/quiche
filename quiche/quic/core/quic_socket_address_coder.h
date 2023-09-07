@@ -17,7 +17,7 @@ namespace quic {
 // Serializes and parses a socket address (IP address and port), to be used in
 // the kCADR tag in the ServerHello handshake message and the Public Reset
 // packet.
-class QUIC_EXPORT_PRIVATE QuicSocketAddressCoder {
+class QUICHE_EXPORT QuicSocketAddressCoder {
  public:
   QuicSocketAddressCoder();
   explicit QuicSocketAddressCoder(const QuicSocketAddress& address);

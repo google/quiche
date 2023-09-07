@@ -15,7 +15,7 @@ class QuicCoalescedPacketPeer;
 
 // QuicCoalescedPacket is used to buffer multiple packets which can be coalesced
 // into the same UDP datagram.
-class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
+class QUICHE_EXPORT QuicCoalescedPacket {
  public:
   QuicCoalescedPacket();
   ~QuicCoalescedPacket();

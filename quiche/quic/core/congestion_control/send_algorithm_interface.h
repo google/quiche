@@ -29,10 +29,10 @@ using QuicRoundTripCount = uint64_t;
 class CachedNetworkParameters;
 class RttStats;
 
-class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
+class QUICHE_EXPORT SendAlgorithmInterface {
  public:
   // Network Params for AdjustNetworkParameters.
-  struct QUIC_NO_EXPORT NetworkParams {
+  struct QUICHE_EXPORT NetworkParams {
     NetworkParams() = default;
     NetworkParams(const QuicBandwidth& bandwidth, const QuicTime::Delta& rtt,
                   bool allow_cwnd_to_decrease)

@@ -15,7 +15,7 @@
 namespace quic {
 
 // Stores details of a single sent packet.
-struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
+struct QUICHE_EXPORT QuicTransmissionInfo {
   // Used by STL when assigning into a map.
   QuicTransmissionInfo();
 

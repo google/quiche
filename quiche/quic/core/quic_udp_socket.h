@@ -47,7 +47,7 @@ static_assert(static_cast<size_t>(QuicUdpPacketInfoBit::NUM_BITS) <=
 
 // BufferSpan points to an unowned buffer, copying this structure only copies
 // the pointer and length, not the buffer itself.
-struct QUIC_EXPORT_PRIVATE BufferSpan {
+struct QUICHE_EXPORT BufferSpan {
   BufferSpan(char* buffer, size_t buffer_len)
       : buffer(buffer), buffer_len(buffer_len) {}
 
@@ -61,7 +61,7 @@ struct QUIC_EXPORT_PRIVATE BufferSpan {
 
 // QuicUdpPacketInfo contains per-packet information used for sending and
 // receiving.
-class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
+class QUICHE_EXPORT QuicUdpPacketInfo {
  public:
   QuicUdpPacketInfoBitMask bitmask() const { return bitmask_; }
 
@@ -179,7 +179,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
 // versions, the goal of QuicUdpSocketApi is to hide such differences.
 // We use non-static functions because it is easier to be mocked in tests when
 // needed.
-class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
+class QUICHE_EXPORT QuicUdpSocketApi {
  public:
   // Creates a non-blocking udp socket, sets the receive/send buffer and enable
   // receiving of self ip addresses on read.
@@ -215,7 +215,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
   // Return true if |fd| is readable upon return.
   bool WaitUntilReadable(QuicUdpSocketFd fd, QuicTime::Delta timeout);
 
-  struct QUIC_EXPORT_PRIVATE ReadPacketResult {
+  struct QUICHE_EXPORT ReadPacketResult {
     bool ok = false;
     QuicUdpPacketInfo packet_info;
     BufferSpan packet_buffer;

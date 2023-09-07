@@ -11,7 +11,7 @@
 namespace quic {
 
 // This interface decodes QPACK data that are received on a QpackReceiveStream.
-class QUIC_EXPORT_PRIVATE QpackStreamReceiver {
+class QUICHE_EXPORT QpackStreamReceiver {
  public:
   virtual ~QpackStreamReceiver() = default;
 

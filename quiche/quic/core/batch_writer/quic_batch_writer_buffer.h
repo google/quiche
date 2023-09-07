@@ -19,7 +19,7 @@ namespace quic {
 // that they can be sent by a QuicGsoBatchWriter.
 // This class can also be used by a QuicBatchWriter which uses sendmmsg,
 // although it is not optimized for that use case.
-class QUIC_EXPORT_PRIVATE QuicBatchWriterBuffer {
+class QUICHE_EXPORT QuicBatchWriterBuffer {
  public:
   QuicBatchWriterBuffer();
 
@@ -29,7 +29,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBuffer {
   char* GetNextWriteLocation() const;
 
   // Push a buffered write to the back.
-  struct QUIC_EXPORT_PRIVATE PushResult {
+  struct QUICHE_EXPORT PushResult {
     bool succeeded;
     // True in one of the following cases:
     // 1) The packet buffer is external and copied to the internal buffer, or
@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBuffer {
   // Pop |num_buffered_writes| buffered writes from the front.
   // |num_buffered_writes| will be capped to [0, buffered_writes().size()]
   // before it is used.
-  struct QUIC_EXPORT_PRIVATE PopResult {
+  struct QUICHE_EXPORT PopResult {
     int32_t num_buffers_popped;
     // True if after |num_buffers_popped| buffers are popped from front, the
     // remaining buffers are moved to the beginning of the internal buffer.

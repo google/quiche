@@ -22,7 +22,7 @@ namespace test {
 class CubicBytesTest;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE CubicBytes {
+class QUICHE_EXPORT CubicBytes {
  public:
   explicit CubicBytes(const QuicClock* clock);
   CubicBytes(const CubicBytes&) = delete;

@@ -50,7 +50,7 @@ static_assert(kMtuDiscoveryTargetPacketSizeHigh > kDefaultMaxPacketSize,
 // Note the discoverer does not actually send or process probing packets.
 //
 // Unit tests are in QuicConnectionTest.MtuDiscovery*.
-class QUIC_EXPORT_PRIVATE QuicConnectionMtuDiscoverer {
+class QUICHE_EXPORT QuicConnectionMtuDiscoverer {
  public:
   // Construct a discoverer in the disabled state.
   QuicConnectionMtuDiscoverer() = default;
@@ -88,7 +88,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionMtuDiscoverer {
 
   QuicPacketNumber next_probe_at() const { return next_probe_at_; }
 
-  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
+  QUICHE_EXPORT friend std::ostream& operator<<(
       std::ostream& os, const QuicConnectionMtuDiscoverer& d);
 
  private:

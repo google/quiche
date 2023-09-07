@@ -13,7 +13,7 @@
 namespace quic {
 
 // Pure virtual class to listen for packet acknowledgements.
-class QUIC_EXPORT_PRIVATE QuicAckListenerInterface
+class QUICHE_EXPORT QuicAckListenerInterface
     : public quiche::QuicheReferenceCounted {
  public:
   QuicAckListenerInterface() {}

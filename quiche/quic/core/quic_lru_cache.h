@@ -21,7 +21,7 @@ namespace quic {
 // threads.
 template <class K, class V, class Hash = std::hash<K>,
           class Eq = std::equal_to<K>>
-class QUIC_NO_EXPORT QuicLRUCache {
+class QUICHE_EXPORT QuicLRUCache {
  private:
   using HashMapType =
       typename quiche::QuicheLinkedHashMap<K, std::unique_ptr<V>, Hash, Eq>;

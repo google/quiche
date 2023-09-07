@@ -12,7 +12,7 @@
 namespace quic {
 
 // Creates platform-specific alarms used throughout QUIC.
-class QUIC_EXPORT_PRIVATE QuicAlarmFactory {
+class QUICHE_EXPORT QuicAlarmFactory {
  public:
   virtual ~QuicAlarmFactory() {}
 

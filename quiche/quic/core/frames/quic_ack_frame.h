@@ -18,7 +18,7 @@ namespace quic {
 // A sequence of packet numbers where each number is unique. Intended to be used
 // in a sliding window fashion, where smaller old packet numbers are removed and
 // larger new packet numbers are added, with the occasional random access.
-class QUIC_EXPORT_PRIVATE PacketNumberQueue {
+class QUICHE_EXPORT PacketNumberQueue {
  public:
   PacketNumberQueue();
   PacketNumberQueue(const PacketNumberQueue& other);
@@ -81,22 +81,22 @@ class QUIC_EXPORT_PRIVATE PacketNumberQueue {
   const_reverse_iterator rbegin() const;
   const_reverse_iterator rend() const;
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const PacketNumberQueue& q);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const PacketNumberQueue& q);
 
  private:
   QuicIntervalSet<QuicPacketNumber> packet_number_intervals_;
 };
 
-struct QUIC_EXPORT_PRIVATE QuicAckFrame {
+struct QUICHE_EXPORT QuicAckFrame {
   QuicAckFrame();
   QuicAckFrame(const QuicAckFrame& other);
   ~QuicAckFrame();
 
   void Clear();
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const QuicAckFrame& ack_frame);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const QuicAckFrame& ack_frame);
 
   // The highest packet number we've observed from the peer. When |packets| is
   // not empty, it should always be equal to packets.Max(). The |LargestAcked|
@@ -121,8 +121,7 @@ struct QUIC_EXPORT_PRIVATE QuicAckFrame {
 
 // The highest acked packet number we've observed from the peer. If no packets
 // have been observed, return 0.
-inline QUIC_EXPORT_PRIVATE QuicPacketNumber
-LargestAcked(const QuicAckFrame& frame) {
+inline QUICHE_EXPORT QuicPacketNumber LargestAcked(const QuicAckFrame& frame) {
   QUICHE_DCHECK(frame.packets.Empty() ||
                 frame.packets.Max() == frame.largest_acked);
   return frame.largest_acked;
@@ -131,7 +130,7 @@ LargestAcked(const QuicAckFrame& frame) {
 // True if the packet number is greater than largest_observed or is listed
 // as missing.
 // Always returns false for packet numbers less than least_unacked.
-QUIC_EXPORT_PRIVATE bool IsAwaitingPacket(
+QUICHE_EXPORT bool IsAwaitingPacket(
     const QuicAckFrame& ack_frame, QuicPacketNumber packet_number,
     QuicPacketNumber peer_least_packet_awaiting_ack);
 

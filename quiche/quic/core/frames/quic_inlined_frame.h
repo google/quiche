@@ -17,7 +17,7 @@ namespace quic {
 // at offset 0, such that QuicFrame.type can get the correct frame type for both
 // inline and out-of-line frame types.
 template <typename DerivedT>
-struct QUIC_EXPORT_PRIVATE QuicInlinedFrame {
+struct QUICHE_EXPORT QuicInlinedFrame {
   QuicInlinedFrame(QuicFrameType type) {
     static_cast<DerivedT*>(this)->type = type;
     static_assert(std::is_standard_layout<DerivedT>::value,

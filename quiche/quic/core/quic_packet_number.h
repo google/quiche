@@ -17,7 +17,7 @@ namespace quic {
 // QuicPacketNumber can either initialized or uninitialized. An initialized
 // packet number is simply an ordinal number. A sentinel value is used to
 // represent an uninitialized packet number.
-class QUIC_EXPORT_PRIVATE QuicPacketNumber {
+class QUICHE_EXPORT QuicPacketNumber {
  public:
   // Construct an uninitialized packet number.
   constexpr QuicPacketNumber() : packet_number_(UninitializedPacketNumber()) {}
@@ -69,8 +69,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketNumber {
   // Human-readable representation suitable for logging.
   std::string ToString() const;
 
-  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
-      std::ostream& os, const QuicPacketNumber& p);
+  QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
+                                                const QuicPacketNumber& p);
 
  private:
   // All following operators REQUIRE operands.Initialized() == true.
@@ -93,7 +93,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketNumber {
   uint64_t packet_number_;
 };
 
-class QUIC_EXPORT_PRIVATE QuicPacketNumberHash {
+class QUICHE_EXPORT QuicPacketNumberHash {
  public:
   uint64_t operator()(QuicPacketNumber packet_number) const noexcept {
     return packet_number.Hash();

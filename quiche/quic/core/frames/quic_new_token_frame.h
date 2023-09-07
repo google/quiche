@@ -15,13 +15,13 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicNewTokenFrame {
+struct QUICHE_EXPORT QuicNewTokenFrame {
   QuicNewTokenFrame() = default;
   QuicNewTokenFrame(QuicControlFrameId control_frame_id,
                     absl::string_view token);
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const QuicNewTokenFrame& s);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const QuicNewTokenFrame& s);
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.

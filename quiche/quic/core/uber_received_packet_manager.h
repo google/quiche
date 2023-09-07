@@ -13,7 +13,7 @@ namespace quic {
 // This class comprises multiple received packet managers, one per packet number
 // space. Please note, if multiple packet number spaces is not supported, only
 // one received packet manager will be used.
-class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
+class QUICHE_EXPORT UberReceivedPacketManager {
  public:
   explicit UberReceivedPacketManager(QuicConnectionStats* stats);
   UberReceivedPacketManager(const UberReceivedPacketManager&) = delete;

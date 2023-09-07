@@ -665,7 +665,7 @@ enum class QuicHttpQpackErrorCode {
 
 // Represents a reason for resetting a stream in both gQUIC and IETF error code
 // space.  Both error codes have to be present.
-class QUIC_EXPORT_PRIVATE QuicResetStreamError {
+class QUICHE_EXPORT QuicResetStreamError {
  public:
   // Constructs a QuicResetStreamError from QuicRstStreamErrorCode; the IETF
   // error code is inferred.
@@ -705,14 +705,14 @@ class QUIC_EXPORT_PRIVATE QuicResetStreamError {
 };
 
 // Convert TLS alert code to QuicErrorCode.
-QUIC_EXPORT_PRIVATE QuicErrorCode TlsAlertToQuicErrorCode(uint8_t desc);
+QUICHE_EXPORT QuicErrorCode TlsAlertToQuicErrorCode(uint8_t desc);
 
 // Returns the name of the QuicRstStreamErrorCode as a char*
-QUIC_EXPORT_PRIVATE const char* QuicRstStreamErrorCodeToString(
+QUICHE_EXPORT const char* QuicRstStreamErrorCodeToString(
     QuicRstStreamErrorCode error);
 
 // Returns the name of the QuicErrorCode as a char*
-QUIC_EXPORT_PRIVATE const char* QuicErrorCodeToString(QuicErrorCode error);
+QUICHE_EXPORT const char* QuicErrorCodeToString(QuicErrorCode error);
 
 // Wire values for QUIC transport errors.
 // https://quicwg.org/base-drafts/draft-ietf-quic-transport.html#name-transport-error-codes
@@ -736,40 +736,39 @@ enum QuicIetfTransportErrorCodes : uint64_t {
   CRYPTO_ERROR_LAST = 0x1FF,
 };
 
-QUIC_EXPORT_PRIVATE std::string QuicIetfTransportErrorCodeString(
+QUICHE_EXPORT std::string QuicIetfTransportErrorCodeString(
     QuicIetfTransportErrorCodes c);
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const QuicIetfTransportErrorCodes& c);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const QuicIetfTransportErrorCodes& c);
 
 // A transport error code (if is_transport_close is true) or application error
 // code (if is_transport_close is false) to be used in CONNECTION_CLOSE frames.
-struct QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping {
+struct QUICHE_EXPORT QuicErrorCodeToIetfMapping {
   bool is_transport_close;
   uint64_t error_code;
 };
 
 // Convert QuicErrorCode to transport or application IETF error code
 // to be used in CONNECTION_CLOSE frames.
-QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping
+QUICHE_EXPORT QuicErrorCodeToIetfMapping
 QuicErrorCodeToTransportErrorCode(QuicErrorCode error);
 
 // Convert a QuicRstStreamErrorCode to an application error code to be used in
 // an IETF QUIC RESET_STREAM frame
-QUIC_EXPORT_PRIVATE uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
+QUICHE_EXPORT uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
     QuicRstStreamErrorCode rst_stream_error_code);
 
 // Convert the application error code of an IETF QUIC RESET_STREAM frame
 // to QuicRstStreamErrorCode.
-QUIC_EXPORT_PRIVATE QuicRstStreamErrorCode
+QUICHE_EXPORT QuicRstStreamErrorCode
 IetfResetStreamErrorCodeToRstStreamErrorCode(uint64_t ietf_error_code);
 
-QUIC_EXPORT_PRIVATE inline std::string HistogramEnumString(
-    QuicErrorCode enum_value) {
+QUICHE_EXPORT inline std::string HistogramEnumString(QuicErrorCode enum_value) {
   return QuicErrorCodeToString(enum_value);
 }
 
-QUIC_EXPORT_PRIVATE inline std::string HistogramEnumDescription(
+QUICHE_EXPORT inline std::string HistogramEnumDescription(
     QuicErrorCode /*dummy*/) {
   return "cause";
 }

@@ -26,7 +26,7 @@ class QuicDataWriter;
 // contiguous memory space. Please note, BufferedSlice is constructed when
 // stream data is saved in send buffer and is removed when stream data is fully
 // acked. It is move-only.
-struct QUIC_EXPORT_PRIVATE BufferedSlice {
+struct QUICHE_EXPORT BufferedSlice {
   BufferedSlice(quiche::QuicheMemSlice mem_slice, QuicStreamOffset offset);
   BufferedSlice(BufferedSlice&& other);
   BufferedSlice& operator=(BufferedSlice&& other);
@@ -44,7 +44,7 @@ struct QUIC_EXPORT_PRIVATE BufferedSlice {
   QuicStreamOffset offset;
 };
 
-struct QUIC_EXPORT_PRIVATE StreamPendingRetransmission {
+struct QUICHE_EXPORT StreamPendingRetransmission {
   constexpr StreamPendingRetransmission(QuicStreamOffset offset,
                                         QuicByteCount length)
       : offset(offset), length(length) {}
@@ -61,7 +61,7 @@ struct QUIC_EXPORT_PRIVATE StreamPendingRetransmission {
 // are added to the tail of the list. Data slices are removed from the head of
 // the list when they get fully acked. Stream data can be retrieved and acked
 // across slice boundaries.
-class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
+class QUICHE_EXPORT QuicStreamSendBuffer {
  public:
   explicit QuicStreamSendBuffer(quiche::QuicheBufferAllocator* allocator);
   QuicStreamSendBuffer(const QuicStreamSendBuffer& other) = delete;

@@ -17,8 +17,7 @@ namespace quic {
 //
 // It uses an authentication tag of 12 bytes (96 bits). The fixed prefix of the
 // nonce is four bytes.
-class QUIC_EXPORT_PRIVATE ChaCha20Poly1305Encrypter
-    : public ChaChaBaseEncrypter {
+class QUICHE_EXPORT ChaCha20Poly1305Encrypter : public ChaChaBaseEncrypter {
  public:
   enum {
     kAuthTagSize = 12,

@@ -16,7 +16,7 @@
 namespace quic {
 
 // Interface for retrieving the current time.
-class QUIC_EXPORT_PRIVATE QuicClock {
+class QUICHE_EXPORT QuicClock {
  public:
   QuicClock() = default;
   virtual ~QuicClock() = default;

@@ -30,7 +30,7 @@
 namespace quic {
 
 namespace {
-class QUIC_NO_EXPORT NoopWebTransportVisitor : public WebTransportVisitor {
+class NoopWebTransportVisitor : public WebTransportVisitor {
   void OnSessionReady() override {}
   void OnSessionClosed(WebTransportSessionError /*error_code*/,
                        const std::string& /*error_message*/) override {}

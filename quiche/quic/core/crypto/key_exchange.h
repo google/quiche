@@ -18,13 +18,13 @@ namespace quic {
 // Interface for a Diffie-Hellman key exchange with an asynchronous interface.
 // This allows for implementations which hold the private key locally, as well
 // as ones which make an RPC to an external key-exchange service.
-class QUIC_EXPORT_PRIVATE AsynchronousKeyExchange {
+class QUICHE_EXPORT AsynchronousKeyExchange {
  public:
   virtual ~AsynchronousKeyExchange() = default;
 
   // Callback base class for receiving the results of an async call to
   // CalculateSharedKeys.
-  class QUIC_EXPORT_PRIVATE Callback {
+  class QUICHE_EXPORT Callback {
    public:
     Callback() = default;
     virtual ~Callback() = default;
@@ -57,8 +57,7 @@ class QUIC_EXPORT_PRIVATE AsynchronousKeyExchange {
 // Interface for a Diffie-Hellman key exchange with both synchronous and
 // asynchronous interfaces.  Only implementations which hold the private key
 // locally should implement this interface.
-class QUIC_EXPORT_PRIVATE SynchronousKeyExchange
-    : public AsynchronousKeyExchange {
+class QUICHE_EXPORT SynchronousKeyExchange : public AsynchronousKeyExchange {
  public:
   virtual ~SynchronousKeyExchange() = default;
 

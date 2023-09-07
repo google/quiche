@@ -19,7 +19,7 @@ class QuicDataWriter;
 
 // A class for encoding the HTTP frames that are exchanged in an HTTP over QUIC
 // session.
-class QUIC_EXPORT_PRIVATE HttpEncoder {
+class QUICHE_EXPORT HttpEncoder {
  public:
   HttpEncoder() = delete;
 

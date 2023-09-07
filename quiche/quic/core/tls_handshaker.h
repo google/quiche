@@ -26,8 +26,8 @@ class QuicCryptoStream;
 // provides functionality common to both the client and server, such as moving
 // messages between the TLS stack and the QUIC crypto stream, and handling
 // derivation of secrets.
-class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
-                                          public CryptoMessageParser {
+class QUICHE_EXPORT TlsHandshaker : public TlsConnection::Delegate,
+                                    public CryptoMessageParser {
  public:
   // TlsHandshaker does not take ownership of any of its arguments; they must
   // outlive the TlsHandshaker.
@@ -175,8 +175,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
  private:
   // ProofVerifierCallbackImpl handles the result of an asynchronous certificate
   // verification operation.
-  class QUIC_EXPORT_PRIVATE ProofVerifierCallbackImpl
-      : public ProofVerifierCallback {
+  class QUICHE_EXPORT ProofVerifierCallbackImpl : public ProofVerifierCallback {
    public:
     explicit ProofVerifierCallbackImpl(TlsHandshaker* parent);
     ~ProofVerifierCallbackImpl() override;

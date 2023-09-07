@@ -15,7 +15,7 @@
 namespace quic {
 
 // AeadBaseEncrypter is the base class of AEAD QuicEncrypter subclasses.
-class QUIC_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
+class QUICHE_EXPORT AeadBaseEncrypter : public QuicEncrypter {
  public:
   // This takes the function pointer rather than the EVP_AEAD itself so
   // subclasses do not need to call CRYPTO_library_init.

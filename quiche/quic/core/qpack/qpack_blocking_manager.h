@@ -24,7 +24,7 @@ class QpackBlockingManagerPeer;
 // Class to keep track of blocked streams and blocking dynamic table entries:
 // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#blocked-decoding
 // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#blocked-insertion
-class QUIC_EXPORT_PRIVATE QpackBlockingManager {
+class QUICHE_EXPORT QpackBlockingManager {
  public:
   using IndexSet = std::multiset<uint64_t>;
 

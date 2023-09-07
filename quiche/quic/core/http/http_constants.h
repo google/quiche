@@ -51,7 +51,7 @@ enum Http3AndQpackSettingsIdentifiers : uint64_t {
 };
 
 // Returns HTTP/3 SETTINGS identifier as a string.
-QUIC_EXPORT std::string H3SettingsToString(
+QUICHE_EXPORT std::string H3SettingsToString(
     Http3AndQpackSettingsIdentifiers identifier);
 
 // Default maximum dynamic table capacity, communicated via
@@ -70,7 +70,7 @@ enum : QuicByteCount {
 // SETTINGS_QPACK_BLOCKED_STREAMS.
 enum : uint64_t { kDefaultMaximumBlockedStreams = 100 };
 
-ABSL_CONST_INIT QUIC_EXPORT_PRIVATE extern const absl::string_view
+ABSL_CONST_INIT QUICHE_EXPORT extern const absl::string_view
     kUserAgentHeaderName;
 
 }  // namespace quic

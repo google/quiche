@@ -23,9 +23,9 @@ class QuicIdleNetworkDetectorTestPeer;
 // Handshake timeout detection is disabled after handshake completes. Idle
 // network deadline is extended by network activity (e.g., sending or receiving
 // packets).
-class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
+class QUICHE_EXPORT QuicIdleNetworkDetector {
  public:
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 

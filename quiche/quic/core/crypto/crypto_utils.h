@@ -27,14 +27,14 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE CryptoUtils {
+class QUICHE_EXPORT CryptoUtils {
  public:
   CryptoUtils() = delete;
 
   // Diversification is a utility class that's used to act like a union type.
   // Values can be created by calling the functions like |NoDiversification|,
   // below.
-  class QUIC_EXPORT_PRIVATE Diversification {
+  class QUICHE_EXPORT Diversification {
    public:
     enum Mode {
       NEVER,  // Key diversification will never be used. Forward secure

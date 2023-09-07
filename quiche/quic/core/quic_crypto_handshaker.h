@@ -10,8 +10,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE QuicCryptoHandshaker
-    : public CryptoFramerVisitorInterface {
+class QUICHE_EXPORT QuicCryptoHandshaker : public CryptoFramerVisitorInterface {
  public:
   QuicCryptoHandshaker(QuicCryptoStream* stream, QuicSession* session);
   QuicCryptoHandshaker(const QuicCryptoHandshaker&) = delete;

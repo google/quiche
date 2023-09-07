@@ -44,7 +44,7 @@ enum HelloType {
 
 // An abstract base class that stores a value that can be sent in CHLO/SHLO
 // message. These values can be OPTIONAL or REQUIRED, depending on |presence_|.
-class QUIC_EXPORT_PRIVATE QuicConfigValue {
+class QUICHE_EXPORT QuicConfigValue {
  public:
   QuicConfigValue(QuicTag tag, QuicConfigPresence presence);
   virtual ~QuicConfigValue();
@@ -64,7 +64,7 @@ class QUIC_EXPORT_PRIVATE QuicConfigValue {
 };
 
 // Stores uint32_t from CHLO or SHLO messages that are not negotiated.
-class QUIC_EXPORT_PRIVATE QuicFixedUint32 : public QuicConfigValue {
+class QUICHE_EXPORT QuicFixedUint32 : public QuicConfigValue {
  public:
   QuicFixedUint32(QuicTag tag, QuicConfigPresence presence);
   ~QuicFixedUint32() override;
@@ -99,7 +99,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint32 : public QuicConfigValue {
 // Stores 62bit numbers from handshake messages that unilaterally shared by each
 // endpoint. IMPORTANT: these are serialized as 32-bit unsigned integers when
 // using QUIC_CRYPTO versions and CryptoHandshakeMessage.
-class QUIC_EXPORT_PRIVATE QuicFixedUint62 : public QuicConfigValue {
+class QUICHE_EXPORT QuicFixedUint62 : public QuicConfigValue {
  public:
   QuicFixedUint62(QuicTag name, QuicConfigPresence presence);
   ~QuicFixedUint62() override;
@@ -135,8 +135,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint62 : public QuicConfigValue {
 
 // Stores StatelessResetToken from CHLO or SHLO messages that are not
 // negotiated.
-class QUIC_EXPORT_PRIVATE QuicFixedStatelessResetToken
-    : public QuicConfigValue {
+class QUICHE_EXPORT QuicFixedStatelessResetToken : public QuicConfigValue {
  public:
   QuicFixedStatelessResetToken(QuicTag tag, QuicConfigPresence presence);
   ~QuicFixedStatelessResetToken() override;
@@ -169,7 +168,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedStatelessResetToken
 };
 
 // Stores tag from CHLO or SHLO messages that are not negotiated.
-class QUIC_EXPORT_PRIVATE QuicFixedTagVector : public QuicConfigValue {
+class QUICHE_EXPORT QuicFixedTagVector : public QuicConfigValue {
  public:
   QuicFixedTagVector(QuicTag name, QuicConfigPresence presence);
   QuicFixedTagVector(const QuicFixedTagVector& other);
@@ -205,7 +204,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedTagVector : public QuicConfigValue {
 };
 
 // Stores QuicSocketAddress from CHLO or SHLO messages that are not negotiated.
-class QUIC_EXPORT_PRIVATE QuicFixedSocketAddress : public QuicConfigValue {
+class QUICHE_EXPORT QuicFixedSocketAddress : public QuicConfigValue {
  public:
   QuicFixedSocketAddress(QuicTag tag, QuicConfigPresence presence);
   ~QuicFixedSocketAddress() override;
@@ -239,7 +238,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedSocketAddress : public QuicConfigValue {
 
 // QuicConfig contains non-crypto configuration options that are negotiated in
 // the crypto handshake.
-class QUIC_EXPORT_PRIVATE QuicConfig {
+class QUICHE_EXPORT QuicConfig {
  public:
   QuicConfig();
   QuicConfig(const QuicConfig& other);

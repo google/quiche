@@ -11,20 +11,19 @@
 
 namespace quic {
 
-inline QUIC_EXPORT_PRIVATE absl::string_view CbsToStringPiece(CBS cbs) {
+inline QUICHE_EXPORT absl::string_view CbsToStringPiece(CBS cbs) {
   return absl::string_view(reinterpret_cast<const char*>(CBS_data(&cbs)),
                            CBS_len(&cbs));
 }
 
-inline QUIC_EXPORT_PRIVATE CBS StringPieceToCbs(absl::string_view piece) {
+inline QUICHE_EXPORT CBS StringPieceToCbs(absl::string_view piece) {
   CBS result;
   CBS_init(&result, reinterpret_cast<const uint8_t*>(piece.data()),
            piece.size());
   return result;
 }
 
-inline QUIC_EXPORT_PRIVATE bool AddStringToCbb(CBB* cbb,
-                                               absl::string_view piece) {
+inline QUICHE_EXPORT bool AddStringToCbb(CBB* cbb, absl::string_view piece) {
   return 1 == CBB_add_bytes(cbb, reinterpret_cast<const uint8_t*>(piece.data()),
                             piece.size());
 }

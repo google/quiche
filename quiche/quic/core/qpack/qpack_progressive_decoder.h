@@ -22,12 +22,12 @@ namespace quic {
 class QpackDecoderHeaderTable;
 
 // Class to decode a single header block.
-class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
+class QUICHE_EXPORT QpackProgressiveDecoder
     : public QpackInstructionDecoder::Delegate,
       public QpackDecoderHeaderTable::Observer {
  public:
   // Interface for receiving decoded header block from the decoder.
-  class QUIC_EXPORT_PRIVATE HeadersHandlerInterface {
+  class QUICHE_EXPORT HeadersHandlerInterface {
    public:
     virtual ~HeadersHandlerInterface() {}
 
@@ -53,7 +53,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
 
   // Interface for keeping track of blocked streams for the purpose of enforcing
   // the limit communicated to peer via QPACK_BLOCKED_STREAMS settings.
-  class QUIC_EXPORT_PRIVATE BlockedStreamLimitEnforcer {
+  class QUICHE_EXPORT BlockedStreamLimitEnforcer {
    public:
     virtual ~BlockedStreamLimitEnforcer() {}
 
@@ -69,7 +69,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   };
 
   // Visitor to be notified when decoding is completed.
-  class QUIC_EXPORT_PRIVATE DecodingCompletedVisitor {
+  class QUICHE_EXPORT DecodingCompletedVisitor {
    public:
     virtual ~DecodingCompletedVisitor() = default;
 

@@ -14,7 +14,7 @@ struct mmsghdr;
 namespace quic {
 
 // QuicSyscallWrapper is a pass-through proxy to the real syscalls.
-class QUIC_EXPORT_PRIVATE QuicSyscallWrapper {
+class QUICHE_EXPORT QuicSyscallWrapper {
  public:
   virtual ~QuicSyscallWrapper() = default;
 
@@ -32,7 +32,7 @@ void SetGlobalSyscallWrapper(QuicSyscallWrapper* wrapper);
 
 // ScopedGlobalSyscallWrapperOverride changes the global QuicSyscallWrapper
 // during its lifetime, for testing.
-class QUIC_EXPORT_PRIVATE ScopedGlobalSyscallWrapperOverride {
+class QUICHE_EXPORT ScopedGlobalSyscallWrapperOverride {
  public:
   explicit ScopedGlobalSyscallWrapperOverride(
       QuicSyscallWrapper* wrapper_in_scope);

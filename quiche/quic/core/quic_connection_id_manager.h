@@ -31,7 +31,7 @@ namespace test {
 class QuicConnectionIdManagerPeer;
 }  // namespace test
 
-struct QUIC_EXPORT_PRIVATE QuicConnectionIdData {
+struct QUICHE_EXPORT QuicConnectionIdData {
   QuicConnectionIdData(const QuicConnectionId& connection_id,
                        uint64_t sequence_number,
                        const StatelessResetToken& stateless_reset_token);
@@ -43,7 +43,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionIdData {
 
 // Used by QuicSelfIssuedConnectionIdManager
 // and QuicPeerIssuedConnectionIdManager.
-class QUIC_EXPORT_PRIVATE QuicConnectionIdManagerVisitorInterface {
+class QUICHE_EXPORT QuicConnectionIdManagerVisitorInterface {
  public:
   virtual ~QuicConnectionIdManagerVisitorInterface() = default;
   virtual void OnPeerIssuedConnectionIdRetired() = 0;
@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionIdManagerVisitorInterface {
       const QuicConnectionId& connection_id) = 0;
 };
 
-class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
+class QUICHE_EXPORT QuicPeerIssuedConnectionIdManager {
  public:
   // QuicPeerIssuedConnectionIdManager should be instantiated only when a peer
   // issued-non empty connection ID is received.
@@ -121,7 +121,7 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
   uint64_t max_new_connection_id_frame_retire_prior_to_ = 0u;
 };
 
-class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
+class QUICHE_EXPORT QuicSelfIssuedConnectionIdManager {
  public:
   QuicSelfIssuedConnectionIdManager(
       size_t active_connection_id_limit,

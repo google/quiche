@@ -46,7 +46,7 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicFrame {
+struct QUICHE_EXPORT QuicFrame {
   QuicFrame();
   // Please keep the constructors in the same order as the union below.
   explicit QuicFrame(QuicPaddingFrame padding_frame);
@@ -74,8 +74,8 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
   explicit QuicFrame(QuicCryptoFrame* crypto_frame);
   explicit QuicFrame(QuicAckFrequencyFrame* ack_frequency_frame);
 
-  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
-                                                      const QuicFrame& frame);
+  QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
+                                                const QuicFrame& frame);
 
   union {
     // Inlined frames.
@@ -132,42 +132,40 @@ static_assert(offsetof(QuicStreamFrame, type) == offsetof(QuicFrame, type),
 using QuicFrames = absl::InlinedVector<QuicFrame, 1>;
 
 // Deletes all the sub-frames contained in |frames|.
-QUIC_EXPORT_PRIVATE void DeleteFrames(QuicFrames* frames);
+QUICHE_EXPORT void DeleteFrames(QuicFrames* frames);
 
 // Delete the sub-frame contained in |frame|.
-QUIC_EXPORT_PRIVATE void DeleteFrame(QuicFrame* frame);
+QUICHE_EXPORT void DeleteFrame(QuicFrame* frame);
 
 // Deletes all the QuicStreamFrames for the specified |stream_id|.
-QUIC_EXPORT_PRIVATE void RemoveFramesForStream(QuicFrames* frames,
-                                               QuicStreamId stream_id);
+QUICHE_EXPORT void RemoveFramesForStream(QuicFrames* frames,
+                                         QuicStreamId stream_id);
 
 // Returns true if |type| is a retransmittable control frame.
-QUIC_EXPORT_PRIVATE bool IsControlFrame(QuicFrameType type);
+QUICHE_EXPORT bool IsControlFrame(QuicFrameType type);
 
 // Returns control_frame_id of |frame|. Returns kInvalidControlFrameId if
 // |frame| does not have a valid control_frame_id.
-QUIC_EXPORT_PRIVATE QuicControlFrameId
-GetControlFrameId(const QuicFrame& frame);
+QUICHE_EXPORT QuicControlFrameId GetControlFrameId(const QuicFrame& frame);
 
 // Sets control_frame_id of |frame| to |control_frame_id|.
-QUIC_EXPORT_PRIVATE void SetControlFrameId(QuicControlFrameId control_frame_id,
-                                           QuicFrame* frame);
+QUICHE_EXPORT void SetControlFrameId(QuicControlFrameId control_frame_id,
+                                     QuicFrame* frame);
 
 // Returns a copy of |frame|.
-QUIC_EXPORT_PRIVATE QuicFrame
-CopyRetransmittableControlFrame(const QuicFrame& frame);
+QUICHE_EXPORT QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame);
 
 // Returns a copy of |frame|.
-QUIC_EXPORT_PRIVATE QuicFrame
-CopyQuicFrame(quiche::QuicheBufferAllocator* allocator, const QuicFrame& frame);
+QUICHE_EXPORT QuicFrame CopyQuicFrame(quiche::QuicheBufferAllocator* allocator,
+                                      const QuicFrame& frame);
 
 // Returns a copy of |frames|.
-QUIC_EXPORT_PRIVATE QuicFrames CopyQuicFrames(
+QUICHE_EXPORT QuicFrames CopyQuicFrames(
     quiche::QuicheBufferAllocator* allocator, const QuicFrames& frames);
 
 // Human-readable description suitable for logging.
-QUIC_EXPORT_PRIVATE std::string QuicFrameToString(const QuicFrame& frame);
-QUIC_EXPORT_PRIVATE std::string QuicFramesToString(const QuicFrames& frames);
+QUICHE_EXPORT std::string QuicFrameToString(const QuicFrame& frame);
+QUICHE_EXPORT std::string QuicFramesToString(const QuicFrames& frames);
 
 }  // namespace quic
 

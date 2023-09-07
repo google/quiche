@@ -23,7 +23,7 @@ class CryptoFramer;
 class QuicData;
 class QuicDataWriter;
 
-class QUIC_EXPORT_PRIVATE CryptoFramerVisitorInterface {
+class QUICHE_EXPORT CryptoFramerVisitorInterface {
  public:
   virtual ~CryptoFramerVisitorInterface() {}
 
@@ -36,7 +36,7 @@ class QUIC_EXPORT_PRIVATE CryptoFramerVisitorInterface {
 
 // A class for framing the crypto messages that are exchanged in a QUIC
 // session.
-class QUIC_EXPORT_PRIVATE CryptoFramer : public CryptoMessageParser {
+class QUICHE_EXPORT CryptoFramer : public CryptoMessageParser {
  public:
   CryptoFramer();
 

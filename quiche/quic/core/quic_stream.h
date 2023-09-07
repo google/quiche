@@ -50,7 +50,7 @@ class QuicSession;
 class QuicStream;
 
 // Buffers frames for a stream until the first byte of that frame arrives.
-class QUIC_EXPORT_PRIVATE PendingStream
+class QUICHE_EXPORT PendingStream
     : public QuicStreamSequencer::StreamInterface {
  public:
   PendingStream(QuicStreamId id, QuicSession* session);
@@ -135,8 +135,7 @@ class QUIC_EXPORT_PRIVATE PendingStream
   absl::optional<QuicResetStreamError> stop_sending_error_code_;
 };
 
-class QUIC_EXPORT_PRIVATE QuicStream
-    : public QuicStreamSequencer::StreamInterface {
+class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
  public:
   // Creates a new stream with stream_id |id| associated with |session|. If
   // |is_static| is true, then the stream will be given precedence

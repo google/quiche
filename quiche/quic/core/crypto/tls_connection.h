@@ -22,11 +22,11 @@ namespace quic {
 // The owner of the TlsConnection is responsible for driving the TLS handshake
 // (and other interactions with the SSL*). This class only handles mapping
 // callbacks to the correct instance.
-class QUIC_EXPORT_PRIVATE TlsConnection {
+class QUICHE_EXPORT TlsConnection {
  public:
   // A TlsConnection::Delegate implements the methods that are set as callbacks
   // of TlsConnection.
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 

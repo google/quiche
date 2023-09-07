@@ -12,7 +12,7 @@ namespace quic {
 class QuicDataWriter;
 
 // Pure virtual class to retrieve stream data.
-class QUIC_EXPORT_PRIVATE QuicStreamFrameDataProducer {
+class QUICHE_EXPORT QuicStreamFrameDataProducer {
  public:
   virtual ~QuicStreamFrameDataProducer() {}
 

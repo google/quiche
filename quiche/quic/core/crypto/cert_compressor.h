@@ -22,7 +22,7 @@ namespace quic {
 //   2) Otherwise the certificates are compressed with zlib using a pre-shared
 //      dictionary that consists of the certificates handled with the above
 //      methods and a small chunk of common substrings.
-class QUIC_EXPORT_PRIVATE CertCompressor {
+class QUICHE_EXPORT CertCompressor {
  public:
   CertCompressor() = delete;
 

@@ -59,7 +59,7 @@ namespace test {
 class QuicSessionPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE QuicSession
+class QUICHE_EXPORT QuicSession
     : public QuicConnectionVisitorInterface,
       public SessionNotifierInterface,
       public QuicStreamFrameDataProducer,
@@ -74,7 +74,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // TODO(danzh): split this visitor to separate visitors for client and server
   // respectively as not all methods in this class are interesting to both
   // perspectives.
-  class QUIC_EXPORT_PRIVATE Visitor {
+  class QUICHE_EXPORT Visitor {
    public:
     virtual ~Visitor() {}
 
@@ -417,7 +417,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // and ResultDelegate to react upon the validation result.
   // Example implementations of these for path validation for connection
   // migration could be:
-  //  class QUIC_EXPORT_PRIVATE PathMigrationContext
+  //  class QUICHE_EXPORT PathMigrationContext
   //      : public QuicPathValidationContext {
   //   public:
   //    PathMigrationContext(std::unique_ptr<QuicPacketWriter> writer,

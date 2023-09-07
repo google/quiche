@@ -99,7 +99,7 @@ PublicKeyType PublicKeyTypeFromSignatureAlgorithm(
   }
 }
 
-QUIC_EXPORT_PRIVATE QuicSignatureAlgorithmVector
+QUICHE_EXPORT QuicSignatureAlgorithmVector
 SupportedSignatureAlgorithmsForQuic() {
   // This should be kept in sync with the list in
   // PublicKeyTypeFromSignatureAlgorithm().

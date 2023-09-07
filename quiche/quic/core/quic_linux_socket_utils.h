@@ -75,7 +75,7 @@ const int kCmsgSpaceForTOS = CMSG_SPACE(sizeof(int));
 //   *hdr.GetNextCmsgData<uint16_t>(SOL_UDP, UDP_SEGMENT) = 1200;
 //
 //   QuicLinuxSocketUtils::WritePacket(fd, hdr);
-class QUIC_EXPORT_PRIVATE QuicMsgHdr {
+class QUICHE_EXPORT QuicMsgHdr {
  public:
   QuicMsgHdr(const char* buffer, size_t buf_len,
              const QuicSocketAddress& peer_address, char* cbuf,
@@ -106,7 +106,7 @@ class QUIC_EXPORT_PRIVATE QuicMsgHdr {
 };
 
 // BufferedWrite holds all information needed to send a packet.
-struct QUIC_EXPORT_PRIVATE BufferedWrite {
+struct QUICHE_EXPORT BufferedWrite {
   BufferedWrite(const char* buffer, size_t buf_len,
                 const QuicIpAddress& self_address,
                 const QuicSocketAddress& peer_address)
@@ -157,7 +157,7 @@ struct QUIC_EXPORT_PRIVATE BufferedWrite {
 //
 //   int num_packets_sent;
 //   QuicSocketUtils::WriteMultiplePackets(fd, &mhdr, &num_packets_sent);
-class QUIC_EXPORT_PRIVATE QuicMMsgHdr {
+class QUICHE_EXPORT QuicMMsgHdr {
  public:
   using ControlBufferInitializer = quiche::UnretainedCallback<void(
       QuicMMsgHdr* mhdr, int i, const BufferedWrite& buffered_write)>;
@@ -253,7 +253,7 @@ class QUIC_EXPORT_PRIVATE QuicMMsgHdr {
   std::unique_ptr<char[]> storage_;
 };
 
-class QUIC_EXPORT_PRIVATE QuicLinuxSocketUtils {
+class QUICHE_EXPORT QuicLinuxSocketUtils {
  public:
   // Return the UDP segment size of |fd|, 0 means segment size has not been set
   // on this socket. If GSO is not supported, return -1.

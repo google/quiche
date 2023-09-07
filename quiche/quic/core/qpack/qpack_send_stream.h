@@ -19,8 +19,8 @@ class QuicSession;
 
 // QPACK 4.2.1 Encoder and Decoder Streams.
 // The QPACK send stream is self initiated and is write only.
-class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
-                                            public QpackStreamSenderDelegate {
+class QUICHE_EXPORT QpackSendStream : public QuicStream,
+                                      public QpackStreamSenderDelegate {
  public:
   // |session| can't be nullptr, and the ownership is not passed. |session| owns
   // this stream.

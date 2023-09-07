@@ -129,7 +129,7 @@ inline constexpr bool kIncludeDiversificationNonce = true;
 
 // Header key used to identify final offset on data stream when sending HTTP/2
 // trailing headers over QUIC.
-QUIC_EXPORT_PRIVATE extern const char* const kFinalOffsetHeaderKey;
+QUICHE_EXPORT extern const char* const kFinalOffsetHeaderKey;
 
 // Default maximum delayed ack time, in ms.
 // Uses a 25ms delayed ack timer. Helps with better signaling
@@ -247,7 +247,7 @@ inline constexpr QuicByteCount kQuicStreamSendBufferSliceSize = 4 * 1024;
 
 // For When using Random Initial Packet Numbers, they can start
 // anyplace in the range 1...((2^31)-1) or 0x7fffffff
-QUIC_EXPORT_PRIVATE QuicPacketNumber MaxRandomInitialPacketNumber();
+QUICHE_EXPORT QuicPacketNumber MaxRandomInitialPacketNumber();
 
 // Used to represent an invalid or no control frame id.
 inline constexpr QuicControlFrameId kInvalidControlFrameId = 0;
@@ -313,11 +313,11 @@ inline constexpr size_t kMaxNumConnectonIdsInUse = 10u;
 // Packet number of first sending packet of a connection. Please note, this
 // cannot be used as first received packet because peer can choose its starting
 // packet number.
-QUIC_EXPORT_PRIVATE QuicPacketNumber FirstSendingPacketNumber();
+QUICHE_EXPORT QuicPacketNumber FirstSendingPacketNumber();
 
 // Used by clients to tell if a public reset is sent from a Google frontend.
-QUIC_EXPORT_PRIVATE extern const char* const kEPIDGoogleFrontEnd;
-QUIC_EXPORT_PRIVATE extern const char* const kEPIDGoogleFrontEnd0;
+QUICHE_EXPORT extern const char* const kEPIDGoogleFrontEnd;
+QUICHE_EXPORT extern const char* const kEPIDGoogleFrontEnd0;
 
 inline constexpr uint64_t kHttpDatagramStreamIdDivisor = 4;
 

@@ -17,13 +17,13 @@
 namespace quic {
 
 // This class decodes data received on the encoder stream.
-class QUIC_EXPORT_PRIVATE QpackEncoderStreamReceiver
+class QUICHE_EXPORT QpackEncoderStreamReceiver
     : public QpackInstructionDecoder::Delegate,
       public QpackStreamReceiver {
  public:
   // An interface for handling instructions decoded from the encoder stream, see
   // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5.2
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() = default;
 

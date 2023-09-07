@@ -10,7 +10,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE QuicSendmmsgBatchWriter : public QuicUdpBatchWriter {
+class QUICHE_EXPORT QuicSendmmsgBatchWriter : public QuicUdpBatchWriter {
  public:
   QuicSendmmsgBatchWriter(std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
                           int fd);

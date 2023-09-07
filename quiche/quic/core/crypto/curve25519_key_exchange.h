@@ -17,8 +17,7 @@ namespace quic {
 
 // Curve25519KeyExchange implements a SynchronousKeyExchange using
 // elliptic-curve Diffie-Hellman on curve25519. See http://cr.yp.to/ecdh.html
-class QUIC_EXPORT_PRIVATE Curve25519KeyExchange
-    : public SynchronousKeyExchange {
+class QUICHE_EXPORT Curve25519KeyExchange : public SynchronousKeyExchange {
  public:
   ~Curve25519KeyExchange() override;
 

@@ -15,13 +15,13 @@ namespace quic {
 
 // ClientProofSource is the interface for a QUIC client to provide client certs
 // and keys based on server hostname. It is only used by TLS handshakes.
-class QUIC_EXPORT_PRIVATE ClientProofSource {
+class QUICHE_EXPORT ClientProofSource {
  public:
   using Chain = ProofSource::Chain;
 
   virtual ~ClientProofSource() {}
 
-  struct QUIC_EXPORT_PRIVATE CertAndKey {
+  struct QUICHE_EXPORT CertAndKey {
     CertAndKey(quiche::QuicheReferenceCountedPointer<Chain> chain,
                CertificatePrivateKey private_key)
         : chain(std::move(chain)), private_key(std::move(private_key)) {}
@@ -43,7 +43,7 @@ class QUIC_EXPORT_PRIVATE ClientProofSource {
 
 // DefaultClientProofSource is an implementation that simply keeps an in memory
 // map of server hostnames to certs.
-class QUIC_EXPORT_PRIVATE DefaultClientProofSource : public ClientProofSource {
+class QUICHE_EXPORT DefaultClientProofSource : public ClientProofSource {
  public:
   ~DefaultClientProofSource() override {}
 

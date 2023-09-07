@@ -20,7 +20,7 @@ namespace quic {
 // CryptoSecretBoxer encrypts small chunks of plaintext (called 'boxing') and
 // then, later, can authenticate+decrypt the resulting boxes. This object is
 // thread-safe.
-class QUIC_EXPORT_PRIVATE CryptoSecretBoxer {
+class QUICHE_EXPORT CryptoSecretBoxer {
  public:
   CryptoSecretBoxer();
   CryptoSecretBoxer(const CryptoSecretBoxer&) = delete;

@@ -13,7 +13,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE ChaChaBaseDecrypter : public AeadBaseDecrypter {
+class QUICHE_EXPORT ChaChaBaseDecrypter : public AeadBaseDecrypter {
  public:
   using AeadBaseDecrypter::AeadBaseDecrypter;
 

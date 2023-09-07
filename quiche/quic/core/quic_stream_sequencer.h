@@ -22,10 +22,10 @@ class QuicStreamSequencerPeer;
 
 // Buffers frames until we have something which can be passed
 // up to the next layer.
-class QUIC_EXPORT_PRIVATE QuicStreamSequencer final {
+class QUICHE_EXPORT QuicStreamSequencer final {
  public:
   // Interface that thie Sequencer uses to communicate with the Stream.
-  class QUIC_EXPORT_PRIVATE StreamInterface {
+  class QUICHE_EXPORT StreamInterface {
    public:
     virtual ~StreamInterface() = default;
 

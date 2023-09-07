@@ -19,7 +19,7 @@ namespace quic {
 
 // An implementation of QuicCryptoClientStream::HandshakerInterface which uses
 // QUIC crypto as the crypto handshake protocol.
-class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
+class QUICHE_EXPORT QuicCryptoClientHandshaker
     : public QuicCryptoClientStream::HandshakerInterface,
       public QuicCryptoHandshaker {
  public:
@@ -90,8 +90,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   // ProofVerifierCallbackImpl is passed as the callback method to VerifyProof.
   // The ProofVerifier calls this class with the result of proof verification
   // when verification is performed asynchronously.
-  class QUIC_EXPORT_PRIVATE ProofVerifierCallbackImpl
-      : public ProofVerifierCallback {
+  class QUICHE_EXPORT ProofVerifierCallbackImpl : public ProofVerifierCallback {
    public:
     explicit ProofVerifierCallbackImpl(QuicCryptoClientHandshaker* parent);
     ~ProofVerifierCallbackImpl() override;

@@ -39,7 +39,7 @@ namespace quic {
 //      processing, when all of the state for the event loop is consistent.
 //   2. The callbacks are stored as weak pointers, since other callbacks can
 //      cause them to be unregistered.
-class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
+class QuicPollEventLoop : public QuicEventLoop {
  public:
   QuicPollEventLoop(QuicClock* clock);
 
@@ -148,7 +148,7 @@ class QUICHE_NO_EXPORT QuicPollEventLoop : public QuicEventLoop {
   bool has_artificial_events_pending_ = false;
 };
 
-class QUICHE_NO_EXPORT QuicPollEventLoopFactory : public QuicEventLoopFactory {
+class QuicPollEventLoopFactory : public QuicEventLoopFactory {
  public:
   static QuicPollEventLoopFactory* Get() {
     static QuicPollEventLoopFactory* factory = new QuicPollEventLoopFactory();

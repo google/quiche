@@ -22,7 +22,7 @@ class QuicSustainedBandwidthRecorderPeer;
 // to the client in a server config update message. A sustained bandwidth
 // estimate is only marked as valid if the QuicSustainedBandwidthRecorder has
 // been given uninterrupted reliable estimates over a certain period of time.
-class QUIC_EXPORT_PRIVATE QuicSustainedBandwidthRecorder {
+class QUICHE_EXPORT QuicSustainedBandwidthRecorder {
  public:
   QuicSustainedBandwidthRecorder();
   QuicSustainedBandwidthRecorder(const QuicSustainedBandwidthRecorder&) =

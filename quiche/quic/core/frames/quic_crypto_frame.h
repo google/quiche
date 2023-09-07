@@ -14,7 +14,7 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicCryptoFrame {
+struct QUICHE_EXPORT QuicCryptoFrame {
   QuicCryptoFrame() = default;
   QuicCryptoFrame(EncryptionLevel level, QuicStreamOffset offset,
                   QuicPacketLength data_length);
@@ -22,8 +22,8 @@ struct QUIC_EXPORT_PRIVATE QuicCryptoFrame {
                   absl::string_view data);
   ~QuicCryptoFrame();
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                                      const QuicCryptoFrame& s);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const QuicCryptoFrame& s);
 
   // TODO(haoyuewang) Consider replace the EncryptionLevel here with
   // PacketNumberSpace.

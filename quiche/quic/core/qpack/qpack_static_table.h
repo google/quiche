@@ -18,13 +18,12 @@ using QpackStaticTable = spdy::HpackStaticTable;
 
 // QPACK static table defined at
 // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#static-table.
-QUIC_EXPORT_PRIVATE const std::vector<QpackStaticEntry>&
-QpackStaticTableVector();
+QUICHE_EXPORT const std::vector<QpackStaticEntry>& QpackStaticTableVector();
 
 // Returns a QpackStaticTable instance initialized with kQpackStaticTable.
 // The instance is read-only, has static lifetime, and is safe to share amoung
 // threads. This function is thread-safe.
-QUIC_EXPORT_PRIVATE const QpackStaticTable& ObtainQpackStaticTable();
+QUICHE_EXPORT const QpackStaticTable& ObtainQpackStaticTable();
 
 }  // namespace quic
 

@@ -20,7 +20,7 @@ namespace quic {
 // Generic instruction decoder class.  Takes a QpackLanguage that describes a
 // language, that is, a set of instruction opcodes together with a list of
 // fields that follow each instruction.
-class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
+class QUICHE_EXPORT QpackInstructionDecoder {
  public:
   enum class ErrorCode {
     INTEGER_TOO_LARGE,
@@ -30,7 +30,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
 
   // Delegate is notified each time an instruction is decoded or when an error
   // occurs.
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() = default;
 

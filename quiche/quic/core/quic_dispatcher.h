@@ -52,7 +52,7 @@ class QuicDispatcherPeer;
 class QuicConfig;
 class QuicCryptoServerConfig;
 
-class QUIC_NO_EXPORT QuicDispatcher
+class QUICHE_EXPORT QuicDispatcher
     : public QuicTimeWaitListManager::Visitor,
       public ProcessPacketInterface,
       public QuicBufferedPacketStore::VisitorInterface {

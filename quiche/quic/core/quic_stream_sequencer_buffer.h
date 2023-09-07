@@ -77,7 +77,7 @@ namespace test {
 class QuicStreamSequencerBufferPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
+class QUICHE_EXPORT QuicStreamSequencerBuffer {
  public:
   // Size of blocks used by this buffer.
   // Choose 8K to make block large enough to hold multiple frames, each of
@@ -85,7 +85,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   static const size_t kBlockSizeBytes = 8 * 1024;  // 8KB
 
   // The basic storage block used by this buffer.
-  struct QUIC_EXPORT_PRIVATE BufferBlock {
+  struct QUICHE_EXPORT BufferBlock {
     char buffer[kBlockSizeBytes];
   };
 

@@ -13,7 +13,7 @@
 namespace quic {
 
 class Bbr2Sender;
-class QUIC_EXPORT_PRIVATE Bbr2DrainMode final : public Bbr2ModeBase {
+class QUICHE_EXPORT Bbr2DrainMode final : public Bbr2ModeBase {
  public:
   using Bbr2ModeBase::Bbr2ModeBase;
 
@@ -39,7 +39,7 @@ class QUIC_EXPORT_PRIVATE Bbr2DrainMode final : public Bbr2ModeBase {
     return Bbr2Mode::DRAIN;
   }
 
-  struct QUIC_EXPORT_PRIVATE DebugState {
+  struct QUICHE_EXPORT DebugState {
     QuicByteCount drain_target;
   };
 
@@ -51,8 +51,8 @@ class QUIC_EXPORT_PRIVATE Bbr2DrainMode final : public Bbr2ModeBase {
   QuicByteCount DrainTarget() const;
 };
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const Bbr2DrainMode::DebugState& state);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const Bbr2DrainMode::DebugState& state);
 
 }  // namespace quic
 

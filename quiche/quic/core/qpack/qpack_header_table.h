@@ -34,7 +34,7 @@ using QpackDecoderDynamicTable = quiche::QuicheCircularDeque<QpackEntry>;
 // absolute indices.  The caller needs to perform the necessary transformations
 // to and from relative indices and post-base indices.
 template <typename DynamicEntryTable>
-class QUIC_EXPORT_PRIVATE QpackHeaderTableBase {
+class QUICHE_EXPORT QpackHeaderTableBase {
  public:
   QpackHeaderTableBase();
   QpackHeaderTableBase(const QpackHeaderTableBase&) = delete;
@@ -155,21 +155,21 @@ bool QpackHeaderTableBase<DynamicEntryTable>::EntryFitsDynamicTableCapacity(
 
 namespace internal {
 
-QUIC_NO_EXPORT inline size_t GetSize(const QpackEntry& entry) {
+QUICHE_EXPORT inline size_t GetSize(const QpackEntry& entry) {
   return entry.Size();
 }
 
-QUIC_NO_EXPORT inline size_t GetSize(const std::unique_ptr<QpackEntry>& entry) {
+QUICHE_EXPORT inline size_t GetSize(const std::unique_ptr<QpackEntry>& entry) {
   return entry->Size();
 }
 
-QUIC_NO_EXPORT inline std::unique_ptr<QpackEntry> NewEntry(
+QUICHE_EXPORT inline std::unique_ptr<QpackEntry> NewEntry(
     std::string name, std::string value, QpackEncoderDynamicTable& /*t*/) {
   return std::make_unique<QpackEntry>(std::move(name), std::move(value));
 }
 
-QUIC_NO_EXPORT inline QpackEntry NewEntry(std::string name, std::string value,
-                                          QpackDecoderDynamicTable& /*t*/) {
+QUICHE_EXPORT inline QpackEntry NewEntry(std::string name, std::string value,
+                                         QpackDecoderDynamicTable& /*t*/) {
   return QpackEntry{std::move(name), std::move(value)};
 }
 
@@ -242,7 +242,7 @@ void QpackHeaderTableBase<DynamicEntryTable>::EvictDownToCapacity(
   }
 }
 
-class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
+class QUICHE_EXPORT QpackEncoderHeaderTable
     : public QpackHeaderTableBase<QpackEncoderDynamicTable> {
  public:
   // Result of header table lookup.
@@ -307,11 +307,11 @@ class QUIC_EXPORT_PRIVATE QpackEncoderHeaderTable
   NameToEntryMap dynamic_name_index_;
 };
 
-class QUIC_EXPORT_PRIVATE QpackDecoderHeaderTable
+class QUICHE_EXPORT QpackDecoderHeaderTable
     : public QpackHeaderTableBase<QpackDecoderDynamicTable> {
  public:
   // Observer interface for dynamic table insertion.
-  class QUIC_EXPORT_PRIVATE Observer {
+  class QUICHE_EXPORT Observer {
    public:
     virtual ~Observer() = default;
 

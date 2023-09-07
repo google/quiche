@@ -13,7 +13,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE CryptoMessageParser {
+class QUICHE_EXPORT CryptoMessageParser {
  public:
   virtual ~CryptoMessageParser() {}
 

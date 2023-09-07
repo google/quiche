@@ -22,7 +22,7 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE PemReadResult {
+struct QUICHE_EXPORT PemReadResult {
   enum Status { kOk, kEof, kError };
   Status status;
   std::string contents;
@@ -32,7 +32,7 @@ struct QUIC_EXPORT_PRIVATE PemReadResult {
 };
 
 // Reads |input| line-by-line and returns the next available PEM message.
-QUIC_EXPORT_PRIVATE PemReadResult ReadNextPemMessage(std::istream* input);
+QUICHE_EXPORT PemReadResult ReadNextPemMessage(std::istream* input);
 
 // Cryptograhpic algorithms recognized in X.509.
 enum class PublicKeyType {
@@ -42,20 +42,20 @@ enum class PublicKeyType {
   kEd25519,
   kUnknown,
 };
-QUIC_EXPORT_PRIVATE std::string PublicKeyTypeToString(PublicKeyType type);
-QUIC_EXPORT_PRIVATE PublicKeyType
+QUICHE_EXPORT std::string PublicKeyTypeToString(PublicKeyType type);
+QUICHE_EXPORT PublicKeyType
 PublicKeyTypeFromSignatureAlgorithm(uint16_t signature_algorithm);
 
 // Returns the list of the signature algorithms that can be processed by
 // CertificateView::VerifySignature() and CertificatePrivateKey::Sign().
-QUIC_EXPORT_PRIVATE QuicSignatureAlgorithmVector
+QUICHE_EXPORT QuicSignatureAlgorithmVector
 SupportedSignatureAlgorithmsForQuic();
 
 // CertificateView represents a parsed version of a single X.509 certificate. As
 // the word "view" implies, it does not take ownership of the underlying strings
 // and consists primarily of pointers into the certificate that is passed into
 // the parser.
-class QUIC_EXPORT_PRIVATE CertificateView {
+class QUICHE_EXPORT CertificateView {
  public:
   // Parses a single DER-encoded X.509 certificate.  Returns nullptr on parse
   // error.
@@ -109,7 +109,7 @@ class QUIC_EXPORT_PRIVATE CertificateView {
 
 // CertificatePrivateKey represents a private key that can be used with an X.509
 // certificate.
-class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
+class QUICHE_EXPORT CertificatePrivateKey {
  public:
   explicit CertificatePrivateKey(bssl::UniquePtr<EVP_PKEY> private_key)
       : private_key_(std::move(private_key)) {}
@@ -143,12 +143,11 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
 };
 
 // Parses a DER-encoded X.509 NameAttribute.  Exposed primarily for testing.
-QUIC_EXPORT_PRIVATE absl::optional<std::string> X509NameAttributeToString(
-    CBS input);
+QUICHE_EXPORT absl::optional<std::string> X509NameAttributeToString(CBS input);
 
 // Parses a DER time based on the specified ASN.1 tag.  Exposed primarily for
 // testing.
-QUIC_EXPORT_PRIVATE absl::optional<quic::QuicWallTime> ParseDerTime(
+QUICHE_EXPORT absl::optional<quic::QuicWallTime> ParseDerTime(
     unsigned tag, absl::string_view payload);
 
 }  // namespace quic

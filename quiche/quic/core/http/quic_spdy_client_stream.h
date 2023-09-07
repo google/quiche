@@ -21,7 +21,7 @@ class QuicSpdyClientSession;
 
 // All this does right now is send an SPDY request, and aggregate the
 // SPDY response.
-class QUIC_EXPORT_PRIVATE QuicSpdyClientStream : public QuicSpdyStream {
+class QUICHE_EXPORT QuicSpdyClientStream : public QuicSpdyStream {
  public:
   QuicSpdyClientStream(QuicStreamId id, QuicSpdyClientSession* session,
                        StreamType type);

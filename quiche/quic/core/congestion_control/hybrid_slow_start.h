@@ -24,7 +24,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE HybridSlowStart {
+class QUICHE_EXPORT HybridSlowStart {
  public:
   HybridSlowStart();
   HybridSlowStart(const HybridSlowStart&) = delete;

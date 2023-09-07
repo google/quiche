@@ -19,7 +19,7 @@ namespace quic {
 // https://w3c.github.io/webrtc-pc/#dom-rtcdtlsfingerprint.
 // TODO(vasilvv): remove this once all consumers of this API use
 // WebTransportHash.
-struct QUIC_EXPORT_PRIVATE CertificateFingerprint {
+struct QUICHE_EXPORT CertificateFingerprint {
   static constexpr char kSha256[] = "sha-256";
 
   // An algorithm described by one of the names in
@@ -32,7 +32,7 @@ struct QUIC_EXPORT_PRIVATE CertificateFingerprint {
 
 // Represents a fingerprint of an X.509 certificate in a format based on
 // https://w3c.github.io/webtransport/#dictdef-webtransporthash.
-struct QUIC_EXPORT_PRIVATE WebTransportHash {
+struct QUICHE_EXPORT WebTransportHash {
   static constexpr char kSha256[] = "sha-256";
 
   // An algorithm described by one of the names in
@@ -49,7 +49,7 @@ struct QUIC_EXPORT_PRIVATE WebTransportHash {
 // not too long and has not expired.  Only the leaf is checked, the rest of the
 // chain is ignored. Reference specification:
 // https://wicg.github.io/web-transport/#dom-quictransportconfiguration-server_certificate_fingerprints
-class QUIC_EXPORT_PRIVATE WebTransportFingerprintProofVerifier
+class QUICHE_EXPORT WebTransportFingerprintProofVerifier
     : public ProofVerifier {
  public:
   // Note: the entries in this list may be logged into a UMA histogram, and thus
@@ -66,7 +66,7 @@ class QUIC_EXPORT_PRIVATE WebTransportFingerprintProofVerifier
     kMaxValue = kDisallowedKeyAlgorithm,
   };
 
-  class QUIC_EXPORT_PRIVATE Details : public ProofVerifyDetails {
+  class QUICHE_EXPORT Details : public ProofVerifyDetails {
    public:
     explicit Details(Status status) : status_(status) {}
     Status status() const { return status_; }

@@ -11,7 +11,7 @@ namespace quic {
 
 // QuicGsoBatchWriter sends QUIC packets in batches, using UDP socket's generic
 // segmentation offload(GSO) capability.
-class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
+class QUICHE_EXPORT QuicGsoBatchWriter : public QuicUdpBatchWriter {
  public:
   explicit QuicGsoBatchWriter(int fd);
 
@@ -36,7 +36,7 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
 
  protected:
   // Test only constructor to forcefully enable release time.
-  struct QUIC_EXPORT_PRIVATE ReleaseTimeForceEnabler {};
+  struct QUICHE_EXPORT ReleaseTimeForceEnabler {};
   QuicGsoBatchWriter(std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
                      int fd, clockid_t clockid_for_release_time,
                      ReleaseTimeForceEnabler enabler);

@@ -13,7 +13,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE PrrSender {
+class QUICHE_EXPORT PrrSender {
  public:
   PrrSender();
   // OnPacketLost should be called on the first loss that triggers a recovery

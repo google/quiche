@@ -15,7 +15,7 @@
 namespace quic {
 
 // ChannelIDVerifier verifies ChannelID signatures.
-class QUIC_EXPORT_PRIVATE ChannelIDVerifier {
+class QUICHE_EXPORT ChannelIDVerifier {
  public:
   ChannelIDVerifier() = delete;
 

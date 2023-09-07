@@ -19,7 +19,7 @@ namespace quic {
 // ProofVerifyDetails is an abstract class that acts as a container for any
 // implementation specific details that a ProofVerifier wishes to return. These
 // details are saved in the CachedState for the origin in question.
-class QUIC_EXPORT_PRIVATE ProofVerifyDetails {
+class QUICHE_EXPORT ProofVerifyDetails {
  public:
   virtual ~ProofVerifyDetails() {}
 
@@ -30,14 +30,14 @@ class QUIC_EXPORT_PRIVATE ProofVerifyDetails {
 
 // ProofVerifyContext is an abstract class that acts as a container for any
 // implementation specific context that a ProofVerifier needs.
-class QUIC_EXPORT_PRIVATE ProofVerifyContext {
+class QUICHE_EXPORT ProofVerifyContext {
  public:
   virtual ~ProofVerifyContext() {}
 };
 
 // ProofVerifierCallback provides a generic mechanism for a ProofVerifier to
 // call back after an asynchronous verification.
-class QUIC_EXPORT_PRIVATE ProofVerifierCallback {
+class QUICHE_EXPORT ProofVerifierCallback {
  public:
   virtual ~ProofVerifierCallback() {}
 
@@ -53,7 +53,7 @@ class QUIC_EXPORT_PRIVATE ProofVerifierCallback {
 
 // A ProofVerifier checks the signature on a server config, and the certificate
 // chain that backs the public key.
-class QUIC_EXPORT_PRIVATE ProofVerifier {
+class QUICHE_EXPORT ProofVerifier {
  public:
   virtual ~ProofVerifier() {}
 

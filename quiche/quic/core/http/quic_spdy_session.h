@@ -43,9 +43,9 @@ class QuicSpdySessionPeer;
 
 class WebTransportHttp3UnidirectionalStream;
 
-QUIC_EXPORT_PRIVATE extern const size_t kMaxUnassociatedWebTransportStreams;
+QUICHE_EXPORT extern const size_t kMaxUnassociatedWebTransportStreams;
 
-class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
+class QUICHE_EXPORT Http3DebugVisitor {
  public:
   Http3DebugVisitor();
   Http3DebugVisitor(const Http3DebugVisitor&) = delete;
@@ -145,13 +145,13 @@ inline constexpr WebTransportHttp3VersionSet
         WebTransportHttp3VersionSet({WebTransportHttp3Version::kDraft02,
                                      WebTransportHttp3Version::kDraft07});
 
-QUIC_EXPORT_PRIVATE std::string HttpDatagramSupportToString(
+QUICHE_EXPORT std::string HttpDatagramSupportToString(
     HttpDatagramSupport http_datagram_support);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+QUICHE_EXPORT std::ostream& operator<<(
     std::ostream& os, const HttpDatagramSupport& http_datagram_support);
 
 // A QUIC session for HTTP.
-class QUIC_EXPORT_PRIVATE QuicSpdySession
+class QUICHE_EXPORT QuicSpdySession
     : public QuicSession,
       public QpackEncoder::DecoderStreamErrorDelegate,
       public QpackDecoder::EncoderStreamErrorDelegate {
@@ -568,8 +568,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   class SpdyFramerVisitor;
 
   // Proxies OnDatagramProcessed() calls to the session.
-  class QUIC_EXPORT_PRIVATE DatagramObserver
-      : public QuicDatagramQueue::Observer {
+  class QUICHE_EXPORT DatagramObserver : public QuicDatagramQueue::Observer {
    public:
     explicit DatagramObserver(QuicSpdySession* session) : session_(session) {}
     void OnDatagramProcessed(absl::optional<MessageStatus> status) override;
@@ -578,7 +577,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
     QuicSpdySession* session_;  // not owned
   };
 
-  struct QUIC_EXPORT_PRIVATE BufferedWebTransportStream {
+  struct QUICHE_EXPORT BufferedWebTransportStream {
     WebTransportSessionId session_id;
     QuicStreamId stream_id;
   };

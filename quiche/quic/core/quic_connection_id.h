@@ -37,7 +37,7 @@ const uint8_t kQuicDefaultConnectionIdLength = 8;
 // the client must be at least this long.
 const uint8_t kQuicMinimumInitialConnectionIdLength = 8;
 
-class QUIC_EXPORT_PRIVATE QuicConnectionId {
+class QUICHE_EXPORT QuicConnectionId {
  public:
   // Creates a connection ID of length zero.
   QuicConnectionId();
@@ -86,8 +86,8 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
   std::string ToString() const;
 
   // operator<< allows easily logging connection IDs.
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const QuicConnectionId& v);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const QuicConnectionId& v);
 
   bool operator==(const QuicConnectionId& v) const;
   bool operator!=(const QuicConnectionId& v) const;
@@ -118,7 +118,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
 // Creates a connection ID of length zero, unless the restart flag
 // quic_connection_ids_network_byte_order is false in which case
 // it returns an 8-byte all-zeroes connection ID.
-QUIC_EXPORT_PRIVATE QuicConnectionId EmptyQuicConnectionId();
+QUICHE_EXPORT QuicConnectionId EmptyQuicConnectionId();
 
 // QuicConnectionIdHash can be passed as hash argument to hash tables.
 // During the lifetime of a process, the output of QuicConnectionIdHash is
@@ -126,7 +126,7 @@ QUIC_EXPORT_PRIVATE QuicConnectionId EmptyQuicConnectionId();
 // Note however that this property is not guaranteed across process lifetimes.
 // This makes QuicConnectionIdHash suitable for data structures such as hash
 // tables but not for sending a hash over the network.
-class QUIC_EXPORT_PRIVATE QuicConnectionIdHash {
+class QUICHE_EXPORT QuicConnectionIdHash {
  public:
   size_t operator()(QuicConnectionId const& connection_id) const noexcept {
     return connection_id.Hash();

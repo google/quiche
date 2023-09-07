@@ -24,7 +24,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
+class QUICHE_EXPORT Bbr2Sender final : public SendAlgorithmInterface {
  public:
   Bbr2Sender(QuicTime now, const RttStats* rtt_stats,
              const QuicUnackedPacketMap* unacked_packets,
@@ -112,7 +112,7 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
     return model_.IsBandwidthOverestimateAvoidanceEnabled();
   }
 
-  struct QUIC_EXPORT_PRIVATE DebugState {
+  struct QUICHE_EXPORT DebugState {
     Bbr2Mode mode;
 
     // Shared states.
@@ -210,8 +210,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   friend class Bbr2ProbeRttMode;
 };
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const Bbr2Sender::DebugState& state);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const Bbr2Sender::DebugState& state);
 
 }  // namespace quic
 

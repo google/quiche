@@ -16,7 +16,7 @@ namespace quic {
 
 // This class serializes instructions for transmission on the decoder stream.
 // Serialized instructions are buffered until Flush() is called.
-class QUIC_EXPORT_PRIVATE QpackDecoderStreamSender {
+class QUICHE_EXPORT QpackDecoderStreamSender {
  public:
   QpackDecoderStreamSender();
   QpackDecoderStreamSender(const QpackDecoderStreamSender&) = delete;

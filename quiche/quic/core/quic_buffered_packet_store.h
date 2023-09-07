@@ -33,7 +33,7 @@ class QuicBufferedPacketStorePeer;
 // of connections: connections with CHLO buffered and those without CHLO. The
 // latter has its own upper limit along with the max number of connections this
 // store can hold. The former pool can grow till this store is full.
-class QUIC_NO_EXPORT QuicBufferedPacketStore {
+class QUICHE_EXPORT QuicBufferedPacketStore {
  public:
   enum EnqueuePacketResult {
     SUCCESS = 0,
@@ -41,7 +41,7 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
     TOO_MANY_CONNECTIONS  // Too many connections stored up in the store.
   };
 
-  struct QUIC_NO_EXPORT BufferedPacket {
+  struct QUICHE_EXPORT BufferedPacket {
     BufferedPacket(std::unique_ptr<QuicReceivedPacket> packet,
                    QuicSocketAddress self_address,
                    QuicSocketAddress peer_address);
@@ -57,7 +57,7 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
   };
 
   // A queue of BufferedPackets for a connection.
-  struct QUIC_NO_EXPORT BufferedPacketList {
+  struct QUICHE_EXPORT BufferedPacketList {
     BufferedPacketList();
     BufferedPacketList(BufferedPacketList&& other);
 
@@ -81,7 +81,7 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
       quiche::QuicheLinkedHashMap<QuicConnectionId, BufferedPacketList,
                                   QuicConnectionIdHash>;
 
-  class QUIC_NO_EXPORT VisitorInterface {
+  class QUICHE_EXPORT VisitorInterface {
    public:
     virtual ~VisitorInterface() {}
 

@@ -14,13 +14,13 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicGoAwayFrame {
+struct QUICHE_EXPORT QuicGoAwayFrame {
   QuicGoAwayFrame() = default;
   QuicGoAwayFrame(QuicControlFrameId control_frame_id, QuicErrorCode error_code,
                   QuicStreamId last_good_stream_id, const std::string& reason);
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                                      const QuicGoAwayFrame& g);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const QuicGoAwayFrame& g);
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.

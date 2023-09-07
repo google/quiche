@@ -20,11 +20,11 @@ namespace quic {
 // same browser users profile), since cross-origin pushes are allowed
 // (subject to authority constraints).
 
-class QUIC_EXPORT_PRIVATE QuicClientPushPromiseIndex {
+class QUICHE_EXPORT QuicClientPushPromiseIndex {
  public:
   // Delegate is used to complete the rendezvous that began with
   // |Try()|.
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 
@@ -48,7 +48,7 @@ class QUIC_EXPORT_PRIVATE QuicClientPushPromiseIndex {
     virtual void OnRendezvousResult(QuicSpdyStream* stream) = 0;
   };
 
-  class QUIC_EXPORT_PRIVATE TryHandle {
+  class QUICHE_EXPORT TryHandle {
    public:
     // Cancel the request.
     virtual void Cancel() = 0;

@@ -21,7 +21,7 @@
 namespace quic {
 
 template <typename T>
-class QUIC_EXPORT_PRIVATE Limits {
+class QUICHE_EXPORT Limits {
  public:
   Limits(T min, T max) : min_(min), max_(max) {}
 
@@ -40,34 +40,34 @@ class QUIC_EXPORT_PRIVATE Limits {
 };
 
 template <typename T>
-QUIC_EXPORT_PRIVATE inline Limits<T> MinMax(T min, T max) {
+QUICHE_EXPORT inline Limits<T> MinMax(T min, T max) {
   return Limits<T>(min, max);
 }
 
 template <typename T>
-QUIC_EXPORT_PRIVATE inline Limits<T> NoLessThan(T min) {
+QUICHE_EXPORT inline Limits<T> NoLessThan(T min) {
   return Limits<T>(min, std::numeric_limits<T>::max());
 }
 
 template <typename T>
-QUIC_EXPORT_PRIVATE inline Limits<T> NoGreaterThan(T max) {
+QUICHE_EXPORT inline Limits<T> NoGreaterThan(T max) {
   return Limits<T>(std::numeric_limits<T>::min(), max);
 }
 
 template <typename T>
-QUIC_EXPORT_PRIVATE inline Limits<T> Unlimited() {
+QUICHE_EXPORT inline Limits<T> Unlimited() {
   return Limits<T>(std::numeric_limits<T>::min(),
                    std::numeric_limits<T>::max());
 }
 
 template <typename T>
-QUIC_EXPORT_PRIVATE inline std::ostream& operator<<(std::ostream& os,
-                                                    const Limits<T>& limits) {
+QUICHE_EXPORT inline std::ostream& operator<<(std::ostream& os,
+                                              const Limits<T>& limits) {
   return os << "[" << limits.Min() << ", " << limits.Max() << "]";
 }
 
 // Bbr2Params contains all parameters of a Bbr2Sender.
-struct QUIC_EXPORT_PRIVATE Bbr2Params {
+struct QUICHE_EXPORT Bbr2Params {
   Bbr2Params(QuicByteCount cwnd_min, QuicByteCount cwnd_max)
       : cwnd_limits(cwnd_min, cwnd_max) {}
 
@@ -224,7 +224,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   bool decrease_startup_pacing_at_end_of_round = false;
 };
 
-class QUIC_EXPORT_PRIVATE RoundTripCounter {
+class QUICHE_EXPORT RoundTripCounter {
  public:
   RoundTripCounter();
 
@@ -247,7 +247,7 @@ class QUIC_EXPORT_PRIVATE RoundTripCounter {
   QuicPacketNumber end_of_round_trip_;
 };
 
-class QUIC_EXPORT_PRIVATE MinRttFilter {
+class QUICHE_EXPORT MinRttFilter {
  public:
   MinRttFilter(QuicTime::Delta initial_min_rtt,
                QuicTime initial_min_rtt_timestamp);
@@ -266,7 +266,7 @@ class QUIC_EXPORT_PRIVATE MinRttFilter {
   QuicTime min_rtt_timestamp_;
 };
 
-class QUIC_EXPORT_PRIVATE Bbr2MaxBandwidthFilter {
+class QUICHE_EXPORT Bbr2MaxBandwidthFilter {
  public:
   void Update(QuicBandwidth sample) {
     max_bandwidth_[1] = std::max(sample, max_bandwidth_[1]);
@@ -292,7 +292,7 @@ class QUIC_EXPORT_PRIVATE Bbr2MaxBandwidthFilter {
 
 // Information that are meaningful only when Bbr2Sender::OnCongestionEvent is
 // running.
-struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
+struct QUICHE_EXPORT Bbr2CongestionEvent {
   QuicTime event_time = QuicTime::Zero();
 
   // The congestion window prior to the processing of the ack/loss events.
@@ -334,7 +334,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
 // Bbr2NetworkModel takes low level congestion signals(packets sent/acked/lost)
 // as input and produces BBRv2 model parameters like inflight_(hi|lo),
 // bandwidth_(hi|lo), bandwidth and rtt estimates, etc.
-class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
+class QUICHE_EXPORT Bbr2NetworkModel {
  public:
   Bbr2NetworkModel(const Bbr2Params* params, QuicTime::Delta initial_rtt,
                    QuicTime initial_rtt_timestamp, float cwnd_gain,
@@ -613,8 +613,8 @@ enum class Bbr2Mode : uint8_t {
   PROBE_RTT,
 };
 
-QUIC_EXPORT_PRIVATE inline std::ostream& operator<<(std::ostream& os,
-                                                    const Bbr2Mode& mode) {
+QUICHE_EXPORT inline std::ostream& operator<<(std::ostream& os,
+                                              const Bbr2Mode& mode) {
   switch (mode) {
     case Bbr2Mode::STARTUP:
       return os << "STARTUP";
@@ -631,7 +631,7 @@ QUIC_EXPORT_PRIVATE inline std::ostream& operator<<(std::ostream& os,
 // The base class for all BBRv2 modes. A Bbr2Sender is in one mode at a time,
 // this interface is used to implement mode-specific behaviors.
 class Bbr2Sender;
-class QUIC_EXPORT_PRIVATE Bbr2ModeBase {
+class QUICHE_EXPORT Bbr2ModeBase {
  public:
   Bbr2ModeBase(const Bbr2Sender* sender, Bbr2NetworkModel* model)
       : sender_(sender), model_(model) {}
@@ -664,7 +664,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ModeBase {
   Bbr2NetworkModel* model_;
 };
 
-QUIC_EXPORT_PRIVATE inline QuicByteCount BytesInFlight(
+QUICHE_EXPORT inline QuicByteCount BytesInFlight(
     const SendTimeState& send_state) {
   QUICHE_DCHECK(send_state.is_valid);
   if (send_state.bytes_in_flight != 0) {

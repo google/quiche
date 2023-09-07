@@ -18,7 +18,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE QuicDecrypter : public QuicCrypter {
+class QUICHE_EXPORT QuicDecrypter : public QuicCrypter {
  public:
   virtual ~QuicDecrypter() {}
 

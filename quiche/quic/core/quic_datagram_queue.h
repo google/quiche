@@ -20,10 +20,10 @@ class QuicSession;
 // Provides a way to buffer QUIC datagrams (messages) in case they cannot
 // be sent due to congestion control.  Datagrams are buffered for a limited
 // amount of time, and deleted after that time passes.
-class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
+class QUICHE_EXPORT QuicDatagramQueue {
  public:
   // An interface used to monitor events on the associated `QuicDatagramQueue`.
-  class QUIC_EXPORT_PRIVATE Observer {
+  class QUICHE_EXPORT Observer {
    public:
     virtual ~Observer() = default;
 
@@ -73,7 +73,7 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
   bool empty() { return queue_.empty(); }
 
  private:
-  struct QUIC_EXPORT_PRIVATE Datagram {
+  struct QUICHE_EXPORT Datagram {
     quiche::QuicheMemSlice datagram;
     QuicTime expiry;
   };

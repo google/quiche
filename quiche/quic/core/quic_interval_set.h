@@ -68,12 +68,12 @@
 namespace quic {
 
 template <typename T>
-class QUIC_NO_EXPORT QuicIntervalSet {
+class QUICHE_EXPORT QuicIntervalSet {
  public:
   using value_type = QuicInterval<T>;
 
  private:
-  struct QUIC_NO_EXPORT IntervalLess {
+  struct QUICHE_EXPORT IntervalLess {
     using is_transparent = void;
     bool operator()(const value_type& a, const value_type& b) const;
     // These transparent overloads are used when we do all of our searches (via
@@ -386,7 +386,7 @@ class QUIC_NO_EXPORT QuicIntervalSet {
 
  private:
   // Simple member-wise equality, since all intervals are non-empty.
-  struct QUIC_NO_EXPORT NonemptyIntervalEq {
+  struct QUICHE_EXPORT NonemptyIntervalEq {
     bool operator()(const value_type& a, const value_type& b) const {
       return a.min() == b.min() && a.max() == b.max();
     }

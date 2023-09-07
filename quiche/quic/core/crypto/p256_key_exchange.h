@@ -17,7 +17,7 @@ namespace quic {
 
 // P256KeyExchange implements a SynchronousKeyExchange using elliptic-curve
 // Diffie-Hellman on NIST P-256.
-class QUIC_EXPORT_PRIVATE P256KeyExchange : public SynchronousKeyExchange {
+class QUICHE_EXPORT P256KeyExchange : public SynchronousKeyExchange {
  public:
   ~P256KeyExchange() override;
 

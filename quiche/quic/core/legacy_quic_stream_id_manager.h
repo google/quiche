@@ -20,7 +20,7 @@ class QuicSession;
 // Manages Google QUIC stream IDs. This manager is responsible for two
 // questions: 1) can next outgoing stream ID be allocated (if yes, what is the
 // next outgoing stream ID) and 2) can a new incoming stream be opened.
-class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
+class QUICHE_EXPORT LegacyQuicStreamIdManager {
  public:
   LegacyQuicStreamIdManager(Perspective perspective,
                             QuicTransportVersion transport_version,

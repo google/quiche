@@ -21,7 +21,7 @@ class QuicSession;
 // stream's flow control window.
 const float kSessionFlowControlMultiplier = 1.5;
 
-class QUIC_EXPORT_PRIVATE QuicFlowControllerInterface {
+class QUICHE_EXPORT QuicFlowControllerInterface {
  public:
   virtual ~QuicFlowControllerInterface() {}
 
@@ -34,8 +34,7 @@ class QUIC_EXPORT_PRIVATE QuicFlowControllerInterface {
 // control. The stream/connection owns a QuicFlowController which keeps track of
 // bytes sent/received, can tell the owner if it is flow control blocked, and
 // can send WINDOW_UPDATE or BLOCKED frames when needed.
-class QUIC_EXPORT_PRIVATE QuicFlowController
-    : public QuicFlowControllerInterface {
+class QUICHE_EXPORT QuicFlowController : public QuicFlowControllerInterface {
  public:
   QuicFlowController(QuicSession* session, QuicStreamId id,
                      bool is_connection_flow_controller,

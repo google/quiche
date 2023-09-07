@@ -14,7 +14,7 @@ namespace quic {
 
 // Generates connection IDs deterministically from the provided original
 // connection ID.
-class QUIC_EXPORT_PRIVATE DeterministicConnectionIdGenerator
+class QUICHE_EXPORT DeterministicConnectionIdGenerator
     : public ConnectionIdGeneratorInterface {
  public:
   DeterministicConnectionIdGenerator(uint8_t expected_connection_id_length);

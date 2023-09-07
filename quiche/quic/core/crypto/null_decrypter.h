@@ -21,7 +21,7 @@ class QuicDataReader;
 // A NullDecrypter is a QuicDecrypter used before a crypto negotiation
 // has occurred.  It does not actually decrypt the payload, but does
 // verify a hash (fnv128) over both the payload and associated data.
-class QUIC_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
+class QUICHE_EXPORT NullDecrypter : public QuicDecrypter {
  public:
   explicit NullDecrypter(Perspective perspective);
   NullDecrypter(const NullDecrypter&) = delete;

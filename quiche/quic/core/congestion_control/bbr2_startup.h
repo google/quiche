@@ -14,7 +14,7 @@
 namespace quic {
 
 class Bbr2Sender;
-class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
+class QUICHE_EXPORT Bbr2StartupMode final : public Bbr2ModeBase {
  public:
   Bbr2StartupMode(const Bbr2Sender* sender, Bbr2NetworkModel* model,
                   QuicTime now);
@@ -44,7 +44,7 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
     return Bbr2Mode::STARTUP;
   }
 
-  struct QUIC_EXPORT_PRIVATE DebugState {
+  struct QUICHE_EXPORT DebugState {
     bool full_bandwidth_reached;
     QuicBandwidth full_bandwidth_baseline = QuicBandwidth::Zero();
     QuicRoundTripCount round_trips_without_bandwidth_growth;
@@ -60,7 +60,7 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
   QuicBandwidth max_bw_at_round_beginning_ = QuicBandwidth::Zero();
 };
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+QUICHE_EXPORT std::ostream& operator<<(
     std::ostream& os, const Bbr2StartupMode::DebugState& state);
 
 }  // namespace quic

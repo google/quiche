@@ -31,7 +31,7 @@ class QuicTimeWaitListManagerPeer;
 
 // TimeWaitConnectionInfo comprises information of a connection which is in the
 // time wait list.
-struct QUIC_NO_EXPORT TimeWaitConnectionInfo {
+struct QUICHE_EXPORT TimeWaitConnectionInfo {
   TimeWaitConnectionInfo(
       bool ietf_quic,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets,
@@ -62,7 +62,7 @@ struct QUIC_NO_EXPORT TimeWaitConnectionInfo {
 // wait state.  After the connection_id expires its time wait period, a new
 // connection/session will be created if a packet is received for this
 // connection_id.
-class QUIC_NO_EXPORT QuicTimeWaitListManager
+class QUICHE_EXPORT QuicTimeWaitListManager
     : public QuicBlockedWriterInterface {
  public:
   // Specifies what the time wait list manager should do when processing packets
@@ -80,7 +80,7 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
     DO_NOTHING,
   };
 
-  class QUIC_NO_EXPORT Visitor : public QuicSession::Visitor {
+  class QUICHE_EXPORT Visitor : public QuicSession::Visitor {
    public:
     // Called after the given connection is added to the time-wait list.
     virtual void OnConnectionAddedToTimeWaitList(
@@ -183,7 +183,7 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
       QuicConnectionId connection_id) const;
 
   // Internal structure to store pending termination packets.
-  class QUIC_NO_EXPORT QueuedPacket {
+  class QUICHE_EXPORT QueuedPacket {
    public:
     QueuedPacket(const QuicSocketAddress& self_address,
                  const QuicSocketAddress& peer_address,
@@ -258,7 +258,7 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   // A map from a recently closed connection_id to the number of packets
   // received after the termination of the connection bound to the
   // connection_id.
-  struct QUIC_NO_EXPORT ConnectionIdData {
+  struct QUICHE_EXPORT ConnectionIdData {
     ConnectionIdData(int num_packets, QuicTime time_added,
                      TimeWaitAction action, TimeWaitConnectionInfo info);
 

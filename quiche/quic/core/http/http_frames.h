@@ -41,7 +41,7 @@ enum class HttpFrameType {
 //
 //   DATA frames (type=0x0) convey arbitrary, variable-length sequences of
 //   octets associated with an HTTP request or response payload.
-struct QUIC_EXPORT_PRIVATE DataFrame {
+struct QUICHE_EXPORT DataFrame {
   absl::string_view data;
 };
 
@@ -49,7 +49,7 @@ struct QUIC_EXPORT_PRIVATE DataFrame {
 //
 //   The HEADERS frame (type=0x1) is used to carry a header block,
 //   compressed using QPACK.
-struct QUIC_EXPORT_PRIVATE HeadersFrame {
+struct QUICHE_EXPORT HeadersFrame {
   absl::string_view headers;
 };
 
@@ -61,7 +61,7 @@ struct QUIC_EXPORT_PRIVATE HeadersFrame {
 
 using SettingsMap = absl::flat_hash_map<uint64_t, uint64_t>;
 
-struct QUIC_EXPORT_PRIVATE SettingsFrame {
+struct QUICHE_EXPORT SettingsFrame {
   SettingsMap values;
 
   bool operator==(const SettingsFrame& rhs) const {
@@ -79,8 +79,8 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
     }
     return s;
   }
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                                      const SettingsFrame& s) {
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const SettingsFrame& s) {
     os << s.ToString();
     return os;
   }
@@ -90,7 +90,7 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
 //
 //   The GOAWAY frame (type=0x7) is used to initiate shutdown of a connection by
 //   either endpoint.
-struct QUIC_EXPORT_PRIVATE GoAwayFrame {
+struct QUICHE_EXPORT GoAwayFrame {
   // When sent from server to client, |id| is a stream ID that should refer to
   // a client-initiated bidirectional stream.
   // When sent from client to server, |id| is a push ID.
@@ -110,7 +110,7 @@ struct QUIC_EXPORT_PRIVATE GoAwayFrame {
 // Length of a priority frame's first byte.
 const QuicByteCount kPriorityFirstByteLength = 1;
 
-struct QUIC_EXPORT_PRIVATE PriorityUpdateFrame {
+struct QUICHE_EXPORT PriorityUpdateFrame {
   uint64_t prioritized_element_id = 0;
   std::string priority_field_value;
 
@@ -124,8 +124,8 @@ struct QUIC_EXPORT_PRIVATE PriorityUpdateFrame {
         ", priority_field_value: ", priority_field_value, "}");
   }
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const PriorityUpdateFrame& s) {
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const PriorityUpdateFrame& s) {
     os << s.ToString();
     return os;
   }
@@ -134,7 +134,7 @@ struct QUIC_EXPORT_PRIVATE PriorityUpdateFrame {
 // ACCEPT_CH
 // https://tools.ietf.org/html/draft-davidben-http-client-hint-reliability-02
 //
-struct QUIC_EXPORT_PRIVATE AcceptChFrame {
+struct QUICHE_EXPORT AcceptChFrame {
   std::vector<spdy::AcceptChOriginValuePair> entries;
 
   bool operator==(const AcceptChFrame& rhs) const {
@@ -148,8 +148,8 @@ struct QUIC_EXPORT_PRIVATE AcceptChFrame {
     return s.str();
   }
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const AcceptChFrame& frame) {
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const AcceptChFrame& frame) {
     os << "ACCEPT_CH frame with " << frame.entries.size() << " entries: ";
     for (auto& entry : frame.entries) {
       os << "origin: " << entry.origin << "; value: " << entry.value;

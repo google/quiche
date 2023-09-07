@@ -31,13 +31,12 @@ class QpackEncoderPeer;
 }  // namespace test
 
 // QPACK encoder class.  Exactly one instance should exist per QUIC connection.
-class QUIC_EXPORT_PRIVATE QpackEncoder
-    : public QpackDecoderStreamReceiver::Delegate {
+class QUICHE_EXPORT QpackEncoder : public QpackDecoderStreamReceiver::Delegate {
  public:
   // Interface for receiving notification that an error has occurred on the
   // decoder stream.  This MUST be treated as a connection error of type
   // HTTP_QPACK_DECODER_STREAM_ERROR.
-  class QUIC_EXPORT_PRIVATE DecoderStreamErrorDelegate {
+  class QUICHE_EXPORT DecoderStreamErrorDelegate {
    public:
     virtual ~DecoderStreamErrorDelegate() {}
 
@@ -156,7 +155,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
 };
 
 // QpackEncoder::DecoderStreamErrorDelegate implementation that does nothing.
-class QUIC_EXPORT_PRIVATE NoopDecoderStreamErrorDelegate
+class QUICHE_EXPORT NoopDecoderStreamErrorDelegate
     : public QpackEncoder::DecoderStreamErrorDelegate {
  public:
   ~NoopDecoderStreamErrorDelegate() override = default;

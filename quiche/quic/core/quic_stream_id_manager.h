@@ -19,9 +19,9 @@ class QuicStreamIdManagerPeer;
 }  // namespace test
 
 // This class manages the stream ids for IETF QUIC.
-class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
+class QUICHE_EXPORT QuicStreamIdManager {
  public:
-  class QUIC_EXPORT_PRIVATE DelegateInterface {
+  class QUICHE_EXPORT DelegateInterface {
    public:
     virtual ~DelegateInterface() = default;
 

@@ -13,8 +13,7 @@ namespace quic {
 // QuicServerInitiatedSpdyStream is a subclass of QuicSpdyStream meant to handle
 // WebTransport traffic on server-initiated bidirectional streams.  Receiving or
 // sending any other traffic on this stream will result in a CONNECTION_CLOSE.
-class QUIC_EXPORT_PRIVATE QuicServerInitiatedSpdyStream
-    : public QuicSpdyStream {
+class QUICHE_EXPORT QuicServerInitiatedSpdyStream : public QuicSpdyStream {
  public:
   using QuicSpdyStream::QuicSpdyStream;
 

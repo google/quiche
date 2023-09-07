@@ -28,7 +28,7 @@ namespace test {
 class QuicSentPacketManagerPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE PacingSender {
+class QUICHE_EXPORT PacingSender {
  public:
   PacingSender();
   PacingSender(const PacingSender&) = delete;

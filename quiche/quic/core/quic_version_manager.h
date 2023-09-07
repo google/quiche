@@ -11,7 +11,7 @@
 namespace quic {
 
 // Used to generate filtered supported versions based on flags.
-class QUIC_EXPORT_PRIVATE QuicVersionManager {
+class QUICHE_EXPORT QuicVersionManager {
  public:
   // |supported_versions| should be sorted in the order of preference (typically
   // highest supported version to the lowest supported version).

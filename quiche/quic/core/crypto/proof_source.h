@@ -26,7 +26,7 @@ class FakeProofSourceHandle;
 
 // CryptoBuffers is a RAII class to own a std::vector<CRYPTO_BUFFER*> and the
 // buffers the elements point to.
-struct QUIC_EXPORT_PRIVATE CryptoBuffers {
+struct QUICHE_EXPORT CryptoBuffers {
   CryptoBuffers() = default;
   CryptoBuffers(const CryptoBuffers&) = delete;
   CryptoBuffers(CryptoBuffers&&) = default;
@@ -37,11 +37,11 @@ struct QUIC_EXPORT_PRIVATE CryptoBuffers {
 
 // ProofSource is an interface by which a QUIC server can obtain certificate
 // chains and signatures that prove its identity.
-class QUIC_EXPORT_PRIVATE ProofSource {
+class QUICHE_EXPORT ProofSource {
  public:
   // Chain is a reference-counted wrapper for a vector of stringified
   // certificates.
-  struct QUIC_EXPORT_PRIVATE Chain : public quiche::QuicheReferenceCounted {
+  struct QUICHE_EXPORT Chain : public quiche::QuicheReferenceCounted {
     explicit Chain(const std::vector<std::string>& certs);
     Chain(const Chain&) = delete;
     Chain& operator=(const Chain&) = delete;
@@ -56,13 +56,13 @@ class QUIC_EXPORT_PRIVATE ProofSource {
 
   // Details is an abstract class which acts as a container for any
   // implementation-specific details that a ProofSource wants to return.
-  class QUIC_EXPORT_PRIVATE Details {
+  class QUICHE_EXPORT Details {
    public:
     virtual ~Details() {}
   };
 
   // Callback base class for receiving the results of an async call to GetProof.
-  class QUIC_EXPORT_PRIVATE Callback {
+  class QUICHE_EXPORT Callback {
    public:
     Callback() {}
     virtual ~Callback() {}
@@ -93,7 +93,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   };
 
   // Base class for signalling the completion of a call to ComputeTlsSignature.
-  class QUIC_EXPORT_PRIVATE SignatureCallback {
+  class QUICHE_EXPORT SignatureCallback {
    public:
     SignatureCallback() {}
     virtual ~SignatureCallback() = default;
@@ -183,7 +183,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   virtual QuicSignatureAlgorithmVector SupportedTlsSignatureAlgorithms()
       const = 0;
 
-  class QUIC_EXPORT_PRIVATE DecryptCallback {
+  class QUICHE_EXPORT DecryptCallback {
    public:
     DecryptCallback() = default;
     virtual ~DecryptCallback() = default;
@@ -201,7 +201,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   // Encrypt/Seal operation and a potentially asynchronous Decrypt/Open
   // operation. This interface allows for ticket decryptions to be performed on
   // a remote service.
-  class QUIC_EXPORT_PRIVATE TicketCrypter {
+  class QUICHE_EXPORT TicketCrypter {
    public:
     TicketCrypter() = default;
     virtual ~TicketCrypter() = default;
@@ -241,7 +241,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
 // the operations in ProofSourceHandle completes.
 // TODO(wub): Consider deprecating ProofSource by moving all functionalities of
 // ProofSource into ProofSourceHandle.
-class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
+class QUICHE_EXPORT ProofSourceHandleCallback {
  public:
   virtual ~ProofSourceHandleCallback() = default;
 
@@ -290,7 +290,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
 // be invoked.
 //
 // A handle will have at most one async operation pending at a time.
-class QUIC_EXPORT_PRIVATE ProofSourceHandle {
+class QUICHE_EXPORT ProofSourceHandle {
  public:
   virtual ~ProofSourceHandle() = default;
 
@@ -345,7 +345,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandle {
 
 // Returns true if |chain| contains a parsable DER-encoded X.509 leaf cert and
 // it matches with |key|.
-QUIC_EXPORT_PRIVATE bool ValidateCertAndKey(
+QUICHE_EXPORT bool ValidateCertAndKey(
     const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
     const CertificatePrivateKey& key);
 

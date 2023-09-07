@@ -15,7 +15,7 @@ namespace quic {
 // Wraps a writer object to allow dynamically extending functionality. Use
 // cases: replace writer while dispatcher and connections hold on to the
 // wrapper; mix in monitoring; mix in mocks in unit tests.
-class QUIC_NO_EXPORT QuicPacketWriterWrapper : public QuicPacketWriter {
+class QUICHE_EXPORT QuicPacketWriterWrapper : public QuicPacketWriter {
  public:
   QuicPacketWriterWrapper();
   QuicPacketWriterWrapper(const QuicPacketWriterWrapper&) = delete;

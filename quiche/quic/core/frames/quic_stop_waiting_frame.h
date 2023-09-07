@@ -13,12 +13,12 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicStopWaitingFrame
+struct QUICHE_EXPORT QuicStopWaitingFrame
     : public QuicInlinedFrame<QuicStopWaitingFrame> {
   QuicStopWaitingFrame();
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const QuicStopWaitingFrame& s);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const QuicStopWaitingFrame& s);
 
   QuicFrameType type;
 

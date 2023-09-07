@@ -15,13 +15,13 @@
 namespace quic {
 
 // A padding frame contains no payload.
-struct QUIC_EXPORT_PRIVATE QuicPaddingFrame
+struct QUICHE_EXPORT QuicPaddingFrame
     : public QuicInlinedFrame<QuicPaddingFrame> {
   QuicPaddingFrame() : QuicInlinedFrame(PADDING_FRAME) {}
   explicit QuicPaddingFrame(int num_padding_bytes)
       : QuicInlinedFrame(PADDING_FRAME), num_padding_bytes(num_padding_bytes) {}
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const QuicPaddingFrame& padding_frame);
 
   QuicFrameType type;

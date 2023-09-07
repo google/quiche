@@ -37,7 +37,7 @@ namespace quic {
 // TODO(wub): Update the comments when deprecating
 // --quic_bw_sampler_remove_packets_once_per_congestion_event.
 template <typename T>
-class QUIC_NO_EXPORT PacketNumberIndexedQueue {
+class QUICHE_EXPORT PacketNumberIndexedQueue {
  public:
   PacketNumberIndexedQueue() : number_of_present_entries_(0) {}
 
@@ -93,7 +93,7 @@ class QUIC_NO_EXPORT PacketNumberIndexedQueue {
 
  private:
   // Wrapper around T used to mark whether the entry is actually in the map.
-  struct QUIC_NO_EXPORT EntryWrapper : T {
+  struct QUICHE_EXPORT EntryWrapper : T {
     // NOTE(wub): When quic_bw_sampler_remove_packets_once_per_congestion_event
     // is enabled, |present| is false if and only if this is a placeholder entry
     // for holes in the parent's |entries|.

@@ -12,7 +12,7 @@
 namespace quic {
 
 // QuicTimeAccumulator accumulates elapsed times between Start(s) and Stop(s).
-class QUIC_EXPORT_PRIVATE QuicTimeAccumulator {
+class QUICHE_EXPORT QuicTimeAccumulator {
   // TODO(wub): Switch to a data member called kNotRunningSentinel after c++17.
   static constexpr QuicTime NotRunningSentinel() {
     return QuicTime::Infinite();

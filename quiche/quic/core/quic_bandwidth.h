@@ -21,7 +21,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE QuicBandwidth {
+class QUICHE_EXPORT QuicBandwidth {
  public:
   // Creates a new QuicBandwidth with an internal value of 0.
   static constexpr QuicBandwidth Zero() { return QuicBandwidth(0); }

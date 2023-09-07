@@ -15,7 +15,7 @@ namespace quic {
 //
 // It uses an authentication tag of 16 bytes (128 bits). It uses a 12 byte IV
 // that is XOR'd with the packet number to compute the nonce.
-class QUIC_EXPORT_PRIVATE Aes128GcmEncrypter : public AesBaseEncrypter {
+class QUICHE_EXPORT Aes128GcmEncrypter : public AesBaseEncrypter {
  public:
   enum {
     kAuthTagSize = 16,

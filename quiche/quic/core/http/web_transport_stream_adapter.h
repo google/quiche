@@ -16,8 +16,7 @@ namespace quic {
 
 // Converts WebTransportStream API calls into QuicStream API calls.  The users
 // of this class can either subclass it, or wrap around it.
-class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
-    : public WebTransportStream {
+class QUICHE_EXPORT WebTransportStreamAdapter : public WebTransportStream {
  public:
   WebTransportStreamAdapter(QuicSession* session, QuicStream* stream,
                             QuicStreamSequencer* sequencer);

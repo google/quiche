@@ -17,7 +17,7 @@ namespace quic {
 struct WriteResult;
 
 // Default packet writer which wraps QuicSocketUtils WritePacket.
-class QUIC_EXPORT_PRIVATE QuicDefaultPacketWriter : public QuicPacketWriter {
+class QUICHE_EXPORT QuicDefaultPacketWriter : public QuicPacketWriter {
  public:
   explicit QuicDefaultPacketWriter(SocketFd fd);
   QuicDefaultPacketWriter(const QuicDefaultPacketWriter&) = delete;

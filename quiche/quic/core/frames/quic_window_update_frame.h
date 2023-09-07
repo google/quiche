@@ -16,14 +16,14 @@ namespace quic {
 // Flow control updates per-stream and at the connection level.
 // Based on SPDY's WINDOW_UPDATE frame, but uses an absolute max data bytes
 // rather than a window delta.
-struct QUIC_EXPORT_PRIVATE QuicWindowUpdateFrame
+struct QUICHE_EXPORT QuicWindowUpdateFrame
     : public QuicInlinedFrame<QuicWindowUpdateFrame> {
   QuicWindowUpdateFrame();
   QuicWindowUpdateFrame(QuicControlFrameId control_frame_id,
                         QuicStreamId stream_id, QuicByteCount max_data);
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const QuicWindowUpdateFrame& w);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const QuicWindowUpdateFrame& w);
 
   QuicFrameType type;
 

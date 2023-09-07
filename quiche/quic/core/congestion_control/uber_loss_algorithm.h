@@ -18,13 +18,13 @@ class QuicSentPacketManagerPeer;
 
 }  // namespace test
 
-struct QUIC_EXPORT_PRIVATE LossDetectionParameters {
+struct QUICHE_EXPORT LossDetectionParameters {
   // See GeneralLossAlgorithm for the meaning of reordering_(shift|threshold).
   absl::optional<int> reordering_shift;
   absl::optional<QuicPacketCount> reordering_threshold;
 };
 
-class QUIC_EXPORT_PRIVATE LossDetectionTunerInterface {
+class QUICHE_EXPORT LossDetectionTunerInterface {
  public:
   virtual ~LossDetectionTunerInterface() {}
 
@@ -41,7 +41,7 @@ class QUIC_EXPORT_PRIVATE LossDetectionTunerInterface {
 };
 
 // This class comprises multiple loss algorithms, each per packet number space.
-class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
+class QUICHE_EXPORT UberLossAlgorithm : public LossDetectionInterface {
  public:
   UberLossAlgorithm();
   UberLossAlgorithm(const UberLossAlgorithm&) = delete;

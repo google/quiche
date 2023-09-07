@@ -440,8 +440,8 @@ QUICHE_EXPORT std::string QuicPriorityTypeToString(QuicPriorityType type) {
   }
   return "(unknown)";
 }
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             QuicPriorityType type) {
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       QuicPriorityType type) {
   os << QuicPriorityTypeToString(type);
   return os;
 }

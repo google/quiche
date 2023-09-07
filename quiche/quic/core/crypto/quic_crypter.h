@@ -15,7 +15,7 @@ namespace quic {
 // Its purpose is to provide an interface for using methods that are common to
 // both classes when operations are being done that apply to both encrypters and
 // decrypters.
-class QUIC_EXPORT_PRIVATE QuicCrypter {
+class QUICHE_EXPORT QuicCrypter {
  public:
   virtual ~QuicCrypter() {}
 

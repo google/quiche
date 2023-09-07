@@ -75,7 +75,7 @@ class QuicConnectionPeer;
 
 // Class that receives callbacks from the connection when the path context is
 // available.
-class QUIC_EXPORT_PRIVATE MultiPortPathContextObserver {
+class QUICHE_EXPORT MultiPortPathContextObserver {
  public:
   virtual void OnMultiPortPathContextAvailable(
       std::unique_ptr<QuicPathValidationContext>) = 0;
@@ -85,7 +85,7 @@ class QUIC_EXPORT_PRIVATE MultiPortPathContextObserver {
 
 // Class that receives callbacks from the connection when frames are received
 // and when other interesting events happen.
-class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
+class QUICHE_EXPORT QuicConnectionVisitorInterface {
  public:
   virtual ~QuicConnectionVisitorInterface() {}
 
@@ -271,7 +271,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 // Interface which gets callbacks from the QuicConnection at interesting
 // points.  Implementations must not mutate the state of the connection
 // as a result of these callbacks.
-class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
+class QUICHE_EXPORT QuicConnectionDebugVisitor
     : public QuicSentPacketManager::DebugDelegate {
  public:
   ~QuicConnectionDebugVisitor() override {}
@@ -465,7 +465,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
       absl::string_view /*client_hello*/) {}
 };
 
-class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {
+class QUICHE_EXPORT QuicConnectionHelperInterface {
  public:
   virtual ~QuicConnectionHelperInterface() {}
 
@@ -479,7 +479,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {
   virtual quiche::QuicheBufferAllocator* GetStreamSendBufferAllocator() = 0;
 };
 
-class QUIC_EXPORT_PRIVATE QuicConnection
+class QUICHE_EXPORT QuicConnection
     : public QuicFramerVisitorInterface,
       public QuicBlockedWriterInterface,
       public QuicPacketCreator::DelegateInterface,
@@ -963,7 +963,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // pending.  In addition, this flusher can be configured to ensure that an ACK
   // frame is included in the first packet created, if there's new ack
   // information to be sent.
-  class QUIC_EXPORT_PRIVATE ScopedPacketFlusher {
+  class QUICHE_EXPORT ScopedPacketFlusher {
    public:
     explicit ScopedPacketFlusher(QuicConnection* connection);
     ~ScopedPacketFlusher();
@@ -977,7 +977,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     const bool handshake_packet_sent_;
   };
 
-  class QUIC_EXPORT_PRIVATE ScopedEncryptionLevelContext {
+  class QUICHE_EXPORT ScopedEncryptionLevelContext {
    public:
     ScopedEncryptionLevelContext(QuicConnection* connection,
                                  EncryptionLevel level);
@@ -1450,12 +1450,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     kMaxValue,
   };
 
-  struct QUIC_EXPORT_PRIVATE PendingPathChallenge {
+  struct QUICHE_EXPORT PendingPathChallenge {
     QuicPathFrameBuffer received_path_challenge;
     QuicSocketAddress peer_address;
   };
 
-  struct QUIC_EXPORT_PRIVATE PathState {
+  struct QUICHE_EXPORT PathState {
     PathState() = default;
 
     PathState(const QuicSocketAddress& alternative_self_address,
@@ -1509,7 +1509,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // addresses) of those packets which are serialized but failed to send because
   // socket is blocked. From unacked packet map and send algorithm's
   // perspective, buffered packets are treated as sent.
-  struct QUIC_EXPORT_PRIVATE BufferedPacket {
+  struct QUICHE_EXPORT BufferedPacket {
     BufferedPacket(const SerializedPacket& packet,
                    const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address,
@@ -1539,7 +1539,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // ReceivedPacketInfo comprises the received packet information.
   // TODO(fayang): move more fields to ReceivedPacketInfo.
-  struct QUIC_EXPORT_PRIVATE ReceivedPacketInfo {
+  struct QUICHE_EXPORT ReceivedPacketInfo {
     explicit ReceivedPacketInfo(QuicTime receipt_time);
     ReceivedPacketInfo(const QuicSocketAddress& destination_address,
                        const QuicSocketAddress& source_address,
@@ -1565,12 +1565,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     QuicSocketAddress actual_destination_address;
   };
 
-  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
+  QUICHE_EXPORT friend std::ostream& operator<<(
       std::ostream& os, const QuicConnection::ReceivedPacketInfo& info);
 
   // UndecrytablePacket comprises a undecryptable packet and related
   // information.
-  struct QUIC_EXPORT_PRIVATE UndecryptablePacket {
+  struct QUICHE_EXPORT UndecryptablePacket {
     UndecryptablePacket(const QuicEncryptedPacket& packet,
                         EncryptionLevel encryption_level,
                         const ReceivedPacketInfo& packet_info)
@@ -1642,7 +1642,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // A class which sets and clears in_probe_time_out_ when entering
   // and exiting OnRetransmissionTimeout, respectively.
-  class QUIC_EXPORT_PRIVATE ScopedRetransmissionTimeoutIndicator {
+  class QUICHE_EXPORT ScopedRetransmissionTimeoutIndicator {
    public:
     // |connection| must outlive this indicator.
     explicit ScopedRetransmissionTimeoutIndicator(QuicConnection* connection);

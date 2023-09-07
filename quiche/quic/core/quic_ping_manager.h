@@ -24,10 +24,10 @@ class QuicPingManagerPeer;
 // connection alive.
 // 2) retransmittable-on-wire. When alarm fires, send packets to detect path
 // degrading (used in IP/port migrations).
-class QUIC_EXPORT_PRIVATE QuicPingManager {
+class QUICHE_EXPORT QuicPingManager {
  public:
   // Interface that get notified when |alarm_| fires.
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 

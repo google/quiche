@@ -26,8 +26,7 @@ class QuicChaosProtectorTest;
 
 // QuicChaosProtector will take a crypto frame and an amount of padding and
 // build a data packet that will parse to something equivalent.
-class QUIC_EXPORT_PRIVATE QuicChaosProtector
-    : public QuicStreamFrameDataProducer {
+class QUICHE_EXPORT QuicChaosProtector : public QuicStreamFrameDataProducer {
  public:
   // |framer| and |random| must be valid for the lifetime of QuicChaosProtector.
   explicit QuicChaosProtector(const QuicCryptoFrame& crypto_frame,

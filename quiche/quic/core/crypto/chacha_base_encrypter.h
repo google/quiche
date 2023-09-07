@@ -13,7 +13,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE ChaChaBaseEncrypter : public AeadBaseEncrypter {
+class QUICHE_EXPORT ChaChaBaseEncrypter : public AeadBaseEncrypter {
  public:
   using AeadBaseEncrypter::AeadBaseEncrypter;
 

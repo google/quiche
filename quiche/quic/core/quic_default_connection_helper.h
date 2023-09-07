@@ -13,7 +13,7 @@
 namespace quic {
 
 // A default implementation of QuicConnectionHelperInterface.  Thread-safe.
-class QUIC_EXPORT_PRIVATE QuicDefaultConnectionHelper
+class QUICHE_EXPORT QuicDefaultConnectionHelper
     : public QuicConnectionHelperInterface {
  public:
   static QuicDefaultConnectionHelper* Get() {

@@ -20,7 +20,7 @@ namespace quic {
 
 // An intermediate format of a handshake message that's convenient for a
 // CryptoFramer to serialize from or parse into.
-class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
+class QUICHE_EXPORT CryptoHandshakeMessage {
  public:
   CryptoHandshakeMessage();
   CryptoHandshakeMessage(const CryptoHandshakeMessage& other);

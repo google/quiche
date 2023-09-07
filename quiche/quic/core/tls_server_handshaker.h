@@ -27,11 +27,10 @@ namespace quic {
 
 // An implementation of QuicCryptoServerStreamBase which uses
 // TLS 1.3 for the crypto handshake protocol.
-class QUIC_EXPORT_PRIVATE TlsServerHandshaker
-    : public TlsHandshaker,
-      public TlsServerConnection::Delegate,
-      public ProofSourceHandleCallback,
-      public QuicCryptoServerStreamBase {
+class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
+                                          public TlsServerConnection::Delegate,
+                                          public ProofSourceHandleCallback,
+                                          public QuicCryptoServerStreamBase {
  public:
   // |crypto_config| must outlive TlsServerHandshaker.
   TlsServerHandshaker(QuicSession* session,
@@ -194,8 +193,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   void SetIgnoreTicketOpen(bool value) { ignore_ticket_open_ = value; }
 
  private:
-  class QUIC_EXPORT_PRIVATE DecryptCallback
-      : public ProofSource::DecryptCallback {
+  class QUICHE_EXPORT DecryptCallback : public ProofSource::DecryptCallback {
    public:
     explicit DecryptCallback(TlsServerHandshaker* handshaker);
     void Run(std::vector<uint8_t> plaintext) override;
@@ -214,8 +212,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   // DefaultProofSourceHandle delegates all operations to the shared proof
   // source.
-  class QUIC_EXPORT_PRIVATE DefaultProofSourceHandle
-      : public ProofSourceHandle {
+  class QUICHE_EXPORT DefaultProofSourceHandle : public ProofSourceHandle {
    public:
     DefaultProofSourceHandle(TlsServerHandshaker* handshaker,
                              ProofSource* proof_source);
@@ -251,7 +248,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     ProofSourceHandleCallback* callback() override { return handshaker_; }
 
    private:
-    class QUIC_EXPORT_PRIVATE DefaultSignatureCallback
+    class QUICHE_EXPORT DefaultSignatureCallback
         : public ProofSource::SignatureCallback {
      public:
       explicit DefaultSignatureCallback(DefaultProofSourceHandle* handle)
@@ -291,7 +288,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     DefaultSignatureCallback* signature_callback_ = nullptr;
   };
 
-  struct QUIC_NO_EXPORT SetTransportParametersResult {
+  struct QUICHE_EXPORT SetTransportParametersResult {
     bool success = false;
     // Empty vector if QUIC transport params are not set successfully.
     std::vector<uint8_t> quic_transport_params;
@@ -308,7 +305,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool TransportParametersMatch(
       absl::Span<const uint8_t> serialized_params) const;
 
-  struct QUIC_NO_EXPORT SetApplicationSettingsResult {
+  struct QUICHE_EXPORT SetApplicationSettingsResult {
     bool success = false;
     // TODO(b/239676439): Change type to absl::optional<std::string> and make
     // sure SetApplicationSettings() returns nullopt if no ALPS data.

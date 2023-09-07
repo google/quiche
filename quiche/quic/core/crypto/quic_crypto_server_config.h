@@ -41,7 +41,7 @@ struct QuicSignedServerConfig;
 
 // ClientHelloInfo contains information about a client hello message that is
 // only kept for as long as it's being processed.
-struct QUIC_EXPORT_PRIVATE ClientHelloInfo {
+struct QUICHE_EXPORT ClientHelloInfo {
   ClientHelloInfo(const QuicIpAddress& in_client_ip, QuicWallTime in_now);
   ClientHelloInfo(const ClientHelloInfo& other);
   ~ClientHelloInfo();
@@ -68,7 +68,7 @@ class QuicCryptoServerConfigPeer;
 }  // namespace test
 
 // Hook that allows application code to subscribe to primary config changes.
-class QUIC_EXPORT_PRIVATE PrimaryConfigChangedCallback {
+class QUICHE_EXPORT PrimaryConfigChangedCallback {
  public:
   PrimaryConfigChangedCallback();
   PrimaryConfigChangedCallback(const PrimaryConfigChangedCallback&) = delete;
@@ -79,11 +79,11 @@ class QUIC_EXPORT_PRIVATE PrimaryConfigChangedCallback {
 };
 
 // Callback used to accept the result of the |client_hello| validation step.
-class QUIC_EXPORT_PRIVATE ValidateClientHelloResultCallback {
+class QUICHE_EXPORT ValidateClientHelloResultCallback {
  public:
   // Opaque token that holds information about the client_hello and
   // its validity.  Can be interpreted by calling ProcessClientHello.
-  struct QUIC_EXPORT_PRIVATE Result : public quiche::QuicheReferenceCounted {
+  struct QUICHE_EXPORT Result : public quiche::QuicheReferenceCounted {
     Result(const CryptoHandshakeMessage& in_client_hello,
            QuicIpAddress in_client_ip, QuicWallTime in_now);
 
@@ -110,7 +110,7 @@ class QUIC_EXPORT_PRIVATE ValidateClientHelloResultCallback {
 };
 
 // Callback used to accept the result of the ProcessClientHello method.
-class QUIC_EXPORT_PRIVATE ProcessClientHelloResultCallback {
+class QUICHE_EXPORT ProcessClientHelloResultCallback {
  public:
   ProcessClientHelloResultCallback();
   ProcessClientHelloResultCallback(const ProcessClientHelloResultCallback&) =
@@ -126,7 +126,7 @@ class QUIC_EXPORT_PRIVATE ProcessClientHelloResultCallback {
 
 // Callback used to receive the results of a call to
 // BuildServerConfigUpdateMessage.
-class QUIC_EXPORT_PRIVATE BuildServerConfigUpdateMessageResultCallback {
+class QUICHE_EXPORT BuildServerConfigUpdateMessageResultCallback {
  public:
   BuildServerConfigUpdateMessageResultCallback() = default;
   virtual ~BuildServerConfigUpdateMessageResultCallback() {}
@@ -139,7 +139,7 @@ class QUIC_EXPORT_PRIVATE BuildServerConfigUpdateMessageResultCallback {
 
 // Object that is interested in built rejections (which include REJ, SREJ and
 // cheap SREJ).
-class QUIC_EXPORT_PRIVATE RejectionObserver {
+class QUICHE_EXPORT RejectionObserver {
  public:
   RejectionObserver() = default;
   virtual ~RejectionObserver() {}
@@ -151,7 +151,7 @@ class QUIC_EXPORT_PRIVATE RejectionObserver {
 };
 
 // Factory for creating KeyExchange objects.
-class QUIC_EXPORT_PRIVATE KeyExchangeSource {
+class QUICHE_EXPORT KeyExchangeSource {
  public:
   virtual ~KeyExchangeSource() = default;
 
@@ -173,10 +173,10 @@ class QUIC_EXPORT_PRIVATE KeyExchangeSource {
 // order to support clients resuming with a previous configuration.
 // TODO(agl): when adding configurations at runtime is added, this object will
 // need to consider locking.
-class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
+class QUICHE_EXPORT QuicCryptoServerConfig {
  public:
   // ConfigOptions contains options for generating server configs.
-  struct QUIC_EXPORT_PRIVATE ConfigOptions {
+  struct QUICHE_EXPORT ConfigOptions {
     ConfigOptions();
     ConfigOptions(const ConfigOptions& other);
     ~ConfigOptions();
@@ -473,8 +473,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // Config represents a server config: a collection of preferences and
   // Diffie-Hellman public values.
-  class QUIC_EXPORT_PRIVATE Config : public QuicCryptoConfig,
-                                     public quiche::QuicheReferenceCounted {
+  class QUICHE_EXPORT Config : public QuicCryptoConfig,
+                               public quiche::QuicheReferenceCounted {
    public:
     Config();
     Config(const Config&) = delete;
@@ -540,7 +540,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       QUIC_SHARED_LOCKS_REQUIRED(configs_lock_);
 
   // A snapshot of the configs associated with an in-progress handshake.
-  struct QUIC_EXPORT_PRIVATE Configs {
+  struct QUICHE_EXPORT Configs {
     quiche::QuicheReferenceCountedPointer<Config> requested;
     quiche::QuicheReferenceCountedPointer<Config> primary;
     quiche::QuicheReferenceCountedPointer<Config> fallback;
@@ -582,7 +582,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // Convenience class which carries the arguments passed to
   // |ProcessClientHellp| along.
-  class QUIC_EXPORT_PRIVATE ProcessClientHelloContext {
+  class QUICHE_EXPORT ProcessClientHelloContext {
    public:
     ProcessClientHelloContext(
         quiche::QuicheReferenceCountedPointer<
@@ -943,7 +943,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   bool validate_source_address_token_;
 };
 
-struct QUIC_EXPORT_PRIVATE QuicSignedServerConfig
+struct QUICHE_EXPORT QuicSignedServerConfig
     : public quiche::QuicheReferenceCounted {
   QuicSignedServerConfig();
 

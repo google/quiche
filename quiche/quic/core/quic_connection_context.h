@@ -15,7 +15,7 @@ namespace quic {
 // QuicConnectionTracer is responsible for emit trace messages for a single
 // QuicConnection.
 // QuicConnectionTracer is part of the QuicConnectionContext.
-class QUIC_EXPORT_PRIVATE QuicConnectionTracer {
+class QUICHE_EXPORT QuicConnectionTracer {
  public:
   virtual ~QuicConnectionTracer() = default;
 
@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionTracer {
 
 // QuicBugListener is a helper class for implementing QUIC_BUG. The QUIC_BUG
 // implementation can send the bug information into quic::CurrentBugListener().
-class QUIC_EXPORT_PRIVATE QuicBugListener {
+class QUICHE_EXPORT QuicBugListener {
  public:
   virtual ~QuicBugListener() = default;
   virtual void OnQuicBug(const char* bug_id, const char* file, int line,
@@ -64,7 +64,7 @@ class QUIC_EXPORT_PRIVATE QuicBugListener {
 // QuicConnectionProcessPacketContext is a member of QuicConnectionContext that
 // contains information of the packet currently being processed by the owning
 // QuicConnection.
-struct QUIC_EXPORT_PRIVATE QuicConnectionProcessPacketContext final {
+struct QUICHE_EXPORT QuicConnectionProcessPacketContext final {
   // If !empty(), the decrypted payload of the packet currently being processed.
   absl::string_view decrypted_payload;
 
@@ -88,7 +88,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionProcessPacketContext final {
 //
 // Like QuicConnection, all facilities in QuicConnectionContext are assumed to
 // be called from a single thread at a time, they are NOT thread-safe.
-struct QUIC_EXPORT_PRIVATE QuicConnectionContext final {
+struct QUICHE_EXPORT QuicConnectionContext final {
   // Get the context on the current executing thread. nullptr if the current
   // function is not called from a 'top-level' QuicConnection function.
   static QuicConnectionContext* Current();
@@ -102,7 +102,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionContext final {
 
 // QuicConnectionContextSwitcher is a RAII object used for maintaining the
 // thread-local QuicConnectionContext pointer.
-class QUIC_EXPORT_PRIVATE QuicConnectionContextSwitcher final {
+class QUICHE_EXPORT QuicConnectionContextSwitcher final {
  public:
   // The constructor switches from QuicConnectionContext::Current() to
   // |new_context|.

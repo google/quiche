@@ -25,7 +25,7 @@ namespace quic {
 // exchanged during the TLS handshake. This struct is a mirror of the struct in
 // the "Transport Parameter Encoding" section of draft-ietf-quic-transport.
 // This struct currently uses the values from draft 29.
-struct QUIC_EXPORT_PRIVATE TransportParameters {
+struct QUICHE_EXPORT TransportParameters {
   // The identifier used to differentiate transport parameters.
   enum TransportParameterId : uint64_t;
   // A map used to specify custom parameters.
@@ -33,7 +33,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // Represents an individual QUIC transport parameter that only encodes a
   // variable length integer. Can only be created inside the constructor for
   // TransportParameters.
-  class QUIC_EXPORT_PRIVATE IntegerParameter {
+  class QUICHE_EXPORT IntegerParameter {
    public:
     // Forbid constructing and copying apart from TransportParameters.
     IntegerParameter() = delete;
@@ -54,7 +54,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
     // |error_details|.
     bool Read(QuicDataReader* reader, std::string* error_details);
     // operator<< allows easily logging integer transport parameters.
-    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os, const IntegerParameter& param);
 
    private:
@@ -86,7 +86,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // Represents the preferred_address transport parameter that a server can
   // send to clients.
-  struct QUIC_EXPORT_PRIVATE PreferredAddress {
+  struct QUICHE_EXPORT PreferredAddress {
     PreferredAddress();
     PreferredAddress(const PreferredAddress& other) = default;
     PreferredAddress(PreferredAddress&& other) = default;
@@ -101,7 +101,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
     // Allows easily logging.
     std::string ToString() const;
-    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os, const TransportParameters& params);
   };
 
@@ -109,7 +109,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // mechanism ported to QUIC+TLS. It is exchanged using transport parameter ID
   // 0x4752 and will eventually be deprecated in favor of
   // draft-ietf-quic-version-negotiation.
-  struct QUIC_EXPORT_PRIVATE LegacyVersionInformation {
+  struct QUICHE_EXPORT LegacyVersionInformation {
     LegacyVersionInformation();
     LegacyVersionInformation(const LegacyVersionInformation& other) = default;
     LegacyVersionInformation& operator=(const LegacyVersionInformation& other) =
@@ -132,14 +132,14 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
     // Allows easily logging.
     std::string ToString() const;
-    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os,
         const LegacyVersionInformation& legacy_version_information);
   };
 
   // Version information used for version downgrade prevention and compatible
   // version negotiation. See draft-ietf-quic-version-negotiation-05.
-  struct QUIC_EXPORT_PRIVATE VersionInformation {
+  struct QUICHE_EXPORT VersionInformation {
     VersionInformation();
     VersionInformation(const VersionInformation& other) = default;
     VersionInformation& operator=(const VersionInformation& other) = default;
@@ -159,7 +159,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
     // Allows easily logging.
     std::string ToString() const;
-    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os, const VersionInformation& version_information);
   };
 
@@ -268,15 +268,15 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // Allows easily logging transport parameters.
   std::string ToString() const;
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const TransportParameters& params);
 };
 
 // Serializes a TransportParameters struct into the format for sending it in a
 // TLS extension. The serialized bytes are written to |*out|. Returns if the
 // parameters are valid and serialization succeeded.
-QUIC_EXPORT_PRIVATE bool SerializeTransportParameters(
-    const TransportParameters& in, std::vector<uint8_t>* out);
+QUICHE_EXPORT bool SerializeTransportParameters(const TransportParameters& in,
+                                                std::vector<uint8_t>* out);
 
 // Parses bytes from the quic_transport_parameters TLS extension and writes the
 // parsed parameters into |*out|. Input is read from |in| for |in_len| bytes.
@@ -284,9 +284,11 @@ QUIC_EXPORT_PRIVATE bool SerializeTransportParameters(
 // This method returns true if the input was successfully parsed.
 // On failure, this method will write a human-readable error message to
 // |error_details|.
-QUIC_EXPORT_PRIVATE bool ParseTransportParameters(
-    ParsedQuicVersion version, Perspective perspective, const uint8_t* in,
-    size_t in_len, TransportParameters* out, std::string* error_details);
+QUICHE_EXPORT bool ParseTransportParameters(ParsedQuicVersion version,
+                                            Perspective perspective,
+                                            const uint8_t* in, size_t in_len,
+                                            TransportParameters* out,
+                                            std::string* error_details);
 
 // Serializes |in| and |application_data| in a deterministic format so that
 // multiple calls to SerializeTransportParametersForTicket with the same inputs
@@ -296,15 +298,14 @@ QUIC_EXPORT_PRIVATE bool ParseTransportParameters(
 // accepted: Early data will only be accepted if the inputs to this function
 // match what they were on the connection that issued an early data capable
 // ticket.
-QUIC_EXPORT_PRIVATE bool SerializeTransportParametersForTicket(
+QUICHE_EXPORT bool SerializeTransportParametersForTicket(
     const TransportParameters& in, const std::vector<uint8_t>& application_data,
     std::vector<uint8_t>* out);
 
 // Removes reserved values from custom_parameters and versions.
 // The resulting value can be reliably compared with an original or other
 // deserialized value.
-QUIC_EXPORT_PRIVATE void DegreaseTransportParameters(
-    TransportParameters& parameters);
+QUICHE_EXPORT void DegreaseTransportParameters(TransportParameters& parameters);
 
 }  // namespace quic
 

@@ -17,7 +17,7 @@ namespace quic {
 // A NullEncrypter is a QuicEncrypter used before a crypto negotiation
 // has occurred.  It does not actually encrypt the payload, but does
 // generate a MAC (fnv128) over both the payload and associated data.
-class QUIC_EXPORT_PRIVATE NullEncrypter : public QuicEncrypter {
+class QUICHE_EXPORT NullEncrypter : public QuicEncrypter {
  public:
   explicit NullEncrypter(Perspective perspective);
   NullEncrypter(const NullEncrypter&) = delete;

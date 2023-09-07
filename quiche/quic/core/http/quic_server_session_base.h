@@ -30,7 +30,7 @@ class QuicServerSessionBasePeer;
 class QuicSimpleServerSessionPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
+class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
  public:
   // Does not take ownership of |connection|. |crypto_config| must outlive the
   // session. |helper| must outlive any created crypto streams.

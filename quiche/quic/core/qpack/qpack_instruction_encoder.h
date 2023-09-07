@@ -17,7 +17,7 @@ namespace quic {
 // Generic instruction encoder class.  Takes a QpackLanguage that describes a
 // language, that is, a set of instruction opcodes together with a list of
 // fields that follow each instruction.
-class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
+class QUICHE_EXPORT QpackInstructionEncoder {
  public:
   QpackInstructionEncoder();
   QpackInstructionEncoder(const QpackInstructionEncoder&) = delete;

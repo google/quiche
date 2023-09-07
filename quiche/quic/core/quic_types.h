@@ -71,7 +71,7 @@ using QuicConnectionIdSequenceNumber = uint64_t;
 using ApplicationState = std::vector<uint8_t>;
 
 // A struct for functions which consume data payloads and fins.
-struct QUIC_EXPORT_PRIVATE QuicConsumedData {
+struct QUICHE_EXPORT QuicConsumedData {
   constexpr QuicConsumedData(size_t bytes_consumed, bool fin_consumed)
       : bytes_consumed(bytes_consumed), fin_consumed(fin_consumed) {}
 
@@ -79,8 +79,8 @@ struct QUIC_EXPORT_PRIVATE QuicConsumedData {
   // member causes this object to have padding bytes, which causes the
   // default gtest object printer to read uninitialize memory. So we need
   // to teach gtest how to print this object.
-  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
-      std::ostream& os, const QuicConsumedData& s);
+  QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
+                                                const QuicConsumedData& s);
 
   // How many bytes were consumed.
   size_t bytes_consumed;
@@ -116,8 +116,8 @@ enum WriteStatus : int16_t {
 };
 
 std::string HistogramEnumString(WriteStatus enum_value);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             const WriteStatus& status);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const WriteStatus& status);
 
 inline std::string HistogramEnumDescription(WriteStatus /*dummy*/) {
   return "status";
@@ -134,7 +134,7 @@ inline bool IsWriteError(WriteStatus status) {
 
 // A struct used to return the result of write calls including either the number
 // of bytes written or the error code, depending upon the status.
-struct QUIC_EXPORT_PRIVATE WriteResult {
+struct QUICHE_EXPORT WriteResult {
   constexpr WriteResult(WriteStatus status, int bytes_written_or_error_code)
       : status(status), bytes_written(bytes_written_or_error_code) {}
 
@@ -155,8 +155,8 @@ struct QUIC_EXPORT_PRIVATE WriteResult {
     }
   }
 
-  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
-                                                      const WriteResult& s);
+  QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
+                                                const WriteResult& s);
 
   WriteResult& set_batch_id(uint32_t new_batch_id) {
     batch_id = new_batch_id;
@@ -200,11 +200,11 @@ enum TransmissionType : int8_t {
   LAST_TRANSMISSION_TYPE = ALL_INITIAL_RETRANSMISSION,
 };
 
-QUIC_EXPORT_PRIVATE std::string TransmissionTypeToString(
+QUICHE_EXPORT std::string TransmissionTypeToString(
     TransmissionType transmission_type);
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, TransmissionType transmission_type);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       TransmissionType transmission_type);
 
 enum HasRetransmittableData : uint8_t {
   NO_RETRANSMITTABLE_DATA,
@@ -215,16 +215,16 @@ enum IsHandshake : uint8_t { NOT_HANDSHAKE, IS_HANDSHAKE };
 
 enum class Perspective : uint8_t { IS_SERVER, IS_CLIENT };
 
-QUIC_EXPORT_PRIVATE std::string PerspectiveToString(Perspective perspective);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             const Perspective& perspective);
+QUICHE_EXPORT std::string PerspectiveToString(Perspective perspective);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const Perspective& perspective);
 
 // Describes whether a ConnectionClose was originated by the peer.
 enum class ConnectionCloseSource { FROM_PEER, FROM_SELF };
 
-QUIC_EXPORT_PRIVATE std::string ConnectionCloseSourceToString(
+QUICHE_EXPORT std::string ConnectionCloseSourceToString(
     ConnectionCloseSource connection_close_source);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+QUICHE_EXPORT std::ostream& operator<<(
     std::ostream& os, const ConnectionCloseSource& connection_close_source);
 
 // Should a connection be closed silently or not.
@@ -234,9 +234,9 @@ enum class ConnectionCloseBehavior {
   SEND_CONNECTION_CLOSE_PACKET
 };
 
-QUIC_EXPORT_PRIVATE std::string ConnectionCloseBehaviorToString(
+QUICHE_EXPORT std::string ConnectionCloseBehaviorToString(
     ConnectionCloseBehavior connection_close_behavior);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+QUICHE_EXPORT std::ostream& operator<<(
     std::ostream& os, const ConnectionCloseBehavior& connection_close_behavior);
 
 enum QuicFrameType : uint8_t {
@@ -280,9 +280,9 @@ enum QuicFrameType : uint8_t {
 };
 
 // Human-readable string suitable for logging.
-QUIC_EXPORT_PRIVATE std::string QuicFrameTypeToString(QuicFrameType t);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             const QuicFrameType& t);
+QUICHE_EXPORT std::string QuicFrameTypeToString(QuicFrameType t);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const QuicFrameType& t);
 
 // Ietf frame types. These are defined in the IETF QUIC Specification.
 // Explicit values are given in the enum so that we can be sure that
@@ -348,9 +348,9 @@ enum QuicIetfFrameType : uint64_t {
   // TODO(ianswett): Determine a proper value to replace this temporary value.
   IETF_ACK_RECEIVE_TIMESTAMPS = 0x22,
 };
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             const QuicIetfFrameType& c);
-QUIC_EXPORT_PRIVATE std::string QuicIetfFrameTypeString(QuicIetfFrameType t);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const QuicIetfFrameType& c);
+QUICHE_EXPORT std::string QuicIetfFrameTypeString(QuicIetfFrameType t);
 
 // Masks for the bits that indicate the frame is a Stream frame vs the
 // bits used as flags.
@@ -450,7 +450,7 @@ enum CongestionControlType {
   kBBRv2,
 };
 
-QUIC_EXPORT_PRIVATE std::string CongestionControlTypeToString(
+QUICHE_EXPORT std::string CongestionControlTypeToString(
     CongestionControlType cc_type);
 
 // EncryptionLevel enumerates the stages of encryption that a QUIC connection
@@ -470,10 +470,9 @@ inline bool EncryptionLevelIsValid(EncryptionLevel level) {
   return ENCRYPTION_INITIAL <= level && level < NUM_ENCRYPTION_LEVELS;
 }
 
-QUIC_EXPORT_PRIVATE std::string EncryptionLevelToString(EncryptionLevel level);
+QUICHE_EXPORT std::string EncryptionLevelToString(EncryptionLevel level);
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             EncryptionLevel level);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os, EncryptionLevel level);
 
 // Enumeration of whether a server endpoint will request a client certificate,
 // and whether that endpoint requires a valid client certificate to establish a
@@ -484,11 +483,9 @@ enum class ClientCertMode : uint8_t {
   kRequire,  // Require clients to provide a valid certificate.
 };
 
-QUIC_EXPORT_PRIVATE absl::string_view ClientCertModeToString(
-    ClientCertMode mode);
+QUICHE_EXPORT absl::string_view ClientCertModeToString(ClientCertMode mode);
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             ClientCertMode mode);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os, ClientCertMode mode);
 
 enum AddressChangeType : uint8_t {
   // IP address and port remain unchanged.
@@ -507,11 +504,10 @@ enum AddressChangeType : uint8_t {
   IPV6_TO_IPV6_CHANGE,
 };
 
-QUIC_EXPORT_PRIVATE std::string AddressChangeTypeToString(
-    AddressChangeType type);
+QUICHE_EXPORT std::string AddressChangeTypeToString(AddressChangeType type);
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             AddressChangeType type);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       AddressChangeType type);
 
 enum StreamSendingState {
   // Sender has more data to send on this stream.
@@ -558,11 +554,10 @@ enum PacketHeaderFormat : uint8_t {
   GOOGLE_QUIC_PACKET,
 };
 
-QUIC_EXPORT_PRIVATE std::string PacketHeaderFormatToString(
-    PacketHeaderFormat format);
+QUICHE_EXPORT std::string PacketHeaderFormatToString(PacketHeaderFormat format);
 
 // Information about a newly acknowledged packet.
-struct QUIC_EXPORT_PRIVATE AckedPacket {
+struct QUICHE_EXPORT AckedPacket {
   constexpr AckedPacket(QuicPacketNumber packet_number,
                         QuicPacketLength bytes_acked,
                         QuicTime receive_timestamp)
@@ -570,7 +565,7 @@ struct QUIC_EXPORT_PRIVATE AckedPacket {
         bytes_acked(bytes_acked),
         receive_timestamp(receive_timestamp) {}
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const AckedPacket& acked_packet);
 
   QuicPacketNumber packet_number;
@@ -586,12 +581,12 @@ struct QUIC_EXPORT_PRIVATE AckedPacket {
 using AckedPacketVector = absl::InlinedVector<AckedPacket, 2>;
 
 // Information about a newly lost packet.
-struct QUIC_EXPORT_PRIVATE LostPacket {
+struct QUICHE_EXPORT LostPacket {
   LostPacket(QuicPacketNumber packet_number, QuicPacketLength bytes_lost)
       : packet_number(packet_number), bytes_lost(bytes_lost) {}
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const LostPacket& lost_packet);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const LostPacket& lost_packet);
 
   QuicPacketNumber packet_number;
   // Number of bytes sent in the packet that was lost.
@@ -612,8 +607,7 @@ enum QuicLongHeaderType : uint8_t {
   INVALID_PACKET_TYPE,
 };
 
-QUIC_EXPORT_PRIVATE std::string QuicLongHeaderTypeToString(
-    QuicLongHeaderType type);
+QUICHE_EXPORT std::string QuicLongHeaderTypeToString(QuicLongHeaderType type);
 
 enum QuicPacketHeaderTypeFlags : uint8_t {
   // Bit 2: Key phase bit for IETF QUIC short header packets.
@@ -647,27 +641,25 @@ enum MessageStatus {
                                   // reaches an invalid state.
 };
 
-QUIC_EXPORT_PRIVATE std::string MessageStatusToString(
-    MessageStatus message_status);
+QUICHE_EXPORT std::string MessageStatusToString(MessageStatus message_status);
 
 // Used to return the result of SendMessage calls
-struct QUIC_EXPORT_PRIVATE MessageResult {
+struct QUICHE_EXPORT MessageResult {
   MessageResult(MessageStatus status, QuicMessageId message_id);
 
   bool operator==(const MessageResult& other) const {
     return status == other.status && message_id == other.message_id;
   }
 
-  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
-                                                      const MessageResult& mr);
+  QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
+                                                const MessageResult& mr);
 
   MessageStatus status;
   // Only valid when status is MESSAGE_STATUS_SUCCESS.
   QuicMessageId message_id;
 };
 
-QUIC_EXPORT_PRIVATE std::string MessageResultToString(
-    MessageResult message_result);
+QUICHE_EXPORT std::string MessageResultToString(MessageResult message_result);
 
 enum WriteStreamDataResult {
   WRITE_SUCCESS,
@@ -698,7 +690,7 @@ enum PacketNumberSpace : uint8_t {
   NUM_PACKET_NUMBER_SPACES,
 };
 
-QUIC_EXPORT_PRIVATE std::string PacketNumberSpaceToString(
+QUICHE_EXPORT std::string PacketNumberSpaceToString(
     PacketNumberSpace packet_number_space);
 
 // Used to return the result of processing a received ACK frame.
@@ -730,11 +722,11 @@ enum SerializedPacketFate : uint8_t {
   SEND_TO_WRITER,  // Send packet to writer.
 };
 
-QUIC_EXPORT_PRIVATE std::string SerializedPacketFateToString(
+QUICHE_EXPORT std::string SerializedPacketFateToString(
     SerializedPacketFate fate);
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             const SerializedPacketFate fate);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const SerializedPacketFate fate);
 
 // There are three different forms of CONNECTION_CLOSE.
 enum QuicConnectionCloseType {
@@ -743,10 +735,10 @@ enum QuicConnectionCloseType {
   IETF_QUIC_APPLICATION_CONNECTION_CLOSE = 2
 };
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const QuicConnectionCloseType type);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const QuicConnectionCloseType type);
 
-QUIC_EXPORT_PRIVATE std::string QuicConnectionCloseTypeString(
+QUICHE_EXPORT std::string QuicConnectionCloseTypeString(
     QuicConnectionCloseType type);
 
 // Indicate handshake state of a connection.
@@ -770,7 +762,7 @@ enum HandshakeState {
   HANDSHAKE_CONFIRMED,
 };
 
-struct QUIC_NO_EXPORT NextReleaseTimeResult {
+struct QUICHE_EXPORT NextReleaseTimeResult {
   // The ideal release time of the packet being sent.
   QuicTime release_time;
   // Whether it is allowed to send the packet before release_time.
@@ -780,7 +772,7 @@ struct QUIC_NO_EXPORT NextReleaseTimeResult {
 // QuicPacketBuffer bundles a buffer and a function that releases it. Note
 // it does not assume ownership of buffer, i.e. it doesn't release the buffer on
 // destruction.
-struct QUIC_NO_EXPORT QuicPacketBuffer {
+struct QUICHE_EXPORT QuicPacketBuffer {
   QuicPacketBuffer() = default;
 
   QuicPacketBuffer(char* buffer,
@@ -792,7 +784,7 @@ struct QUIC_NO_EXPORT QuicPacketBuffer {
 };
 
 // QuicOwnedPacketBuffer is a QuicPacketBuffer that assumes buffer ownership.
-struct QUIC_NO_EXPORT QuicOwnedPacketBuffer : public QuicPacketBuffer {
+struct QUICHE_EXPORT QuicOwnedPacketBuffer : public QuicPacketBuffer {
   QuicOwnedPacketBuffer(const QuicOwnedPacketBuffer&) = delete;
   QuicOwnedPacketBuffer& operator=(const QuicOwnedPacketBuffer&) = delete;
 
@@ -827,16 +819,16 @@ enum class KeyUpdateReason {
   kMaxValue = kLocalKeyUpdateLimitOverride,
 };
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             const KeyUpdateReason reason);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const KeyUpdateReason reason);
 
-QUIC_EXPORT_PRIVATE std::string KeyUpdateReasonString(KeyUpdateReason reason);
+QUICHE_EXPORT std::string KeyUpdateReasonString(KeyUpdateReason reason);
 
 using QuicSignatureAlgorithmVector = absl::InlinedVector<uint16_t, 8>;
 
 // QuicSSLConfig contains configurations to be applied on a SSL object, which
 // overrides the configurations in SSL_CTX.
-struct QUIC_NO_EXPORT QuicSSLConfig {
+struct QUICHE_EXPORT QuicSSLConfig {
   // Whether TLS early data should be enabled. If not set, default to enabled.
   absl::optional<bool> early_data_enabled;
   // Whether TLS session tickets are supported. If not set, default to
@@ -858,7 +850,7 @@ struct QUIC_NO_EXPORT QuicSSLConfig {
 // QuicDelayedSSLConfig contains a subset of SSL config that can be applied
 // after BoringSSL's early select certificate callback. This overwrites all SSL
 // configs applied before cert selection.
-struct QUIC_NO_EXPORT QuicDelayedSSLConfig {
+struct QUICHE_EXPORT QuicDelayedSSLConfig {
   // Client certificate mode for mTLS support. Only used at server side.
   // absl::nullopt means do not change client certificate mode.
   absl::optional<ClientCertMode> client_cert_mode;
@@ -868,7 +860,7 @@ struct QUIC_NO_EXPORT QuicDelayedSSLConfig {
 
 // ParsedClientHello contains client hello information extracted from a fully
 // received client hello.
-struct QUIC_NO_EXPORT ParsedClientHello {
+struct QUICHE_EXPORT ParsedClientHello {
   std::string sni;                 // QUIC crypto and TLS.
   std::string uaid;                // QUIC crypto only.
   std::vector<std::string> alpns;  // QUIC crypto and TLS.
@@ -879,11 +871,11 @@ struct QUIC_NO_EXPORT ParsedClientHello {
   bool early_data_attempted = false;  // TLS only.
 };
 
-QUIC_EXPORT_PRIVATE bool operator==(const ParsedClientHello& a,
-                                    const ParsedClientHello& b);
+QUICHE_EXPORT bool operator==(const ParsedClientHello& a,
+                              const ParsedClientHello& b);
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const ParsedClientHello& parsed_chlo);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const ParsedClientHello& parsed_chlo);
 
 // The two bits in the IP header for Explicit Congestion Notification can take
 // one of four values.
@@ -907,7 +899,7 @@ QUICHE_EXPORT std::string EcnCodepointToString(QuicEcnCodepoint ecn);
 // This struct reports the Explicit Congestion Notification (ECN) contents of
 // the ACK_ECN frame. They are the cumulative number of QUIC packets received
 // for that codepoint in a given Packet Number Space.
-struct QUIC_EXPORT_PRIVATE QuicEcnCounts {
+struct QUICHE_EXPORT QuicEcnCounts {
   QuicEcnCounts() = default;
   QuicEcnCounts(QuicPacketCount ect0, QuicPacketCount ect1, QuicPacketCount ce)
       : ect0(ect0), ect1(ect1), ce(ce) {}
@@ -937,8 +929,7 @@ enum class QuicPriorityType : uint8_t {
 };
 
 QUICHE_EXPORT std::string QuicPriorityTypeToString(QuicPriorityType type);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             QuicPriorityType type);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os, QuicPriorityType type);
 
 }  // namespace quic
 

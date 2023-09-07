@@ -36,7 +36,7 @@ class RttStats;
 // pacing is disabled.
 //
 // TODO(vasilvv): implement traffic policer (long-term sampling) mode.
-class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
+class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
  public:
   enum Mode {
     // Startup phase of the connection.
@@ -64,7 +64,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
 
   // Debug state can be exported in order to troubleshoot potential congestion
   // control issues.
-  struct QUIC_EXPORT_PRIVATE DebugState {
+  struct QUICHE_EXPORT DebugState {
     explicit DebugState(const BbrSender& sender);
     DebugState(const DebugState& state);
 
@@ -381,10 +381,10 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   QuicByteCount max_congestion_window_with_network_parameters_adjusted_;
 };
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             const BbrSender::Mode& mode);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const BbrSender::DebugState& state);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const BbrSender::Mode& mode);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const BbrSender::DebugState& state);
 
 }  // namespace quic
 

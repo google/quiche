@@ -17,7 +17,7 @@ class QuicStream;
 
 // Pure virtual class to get notified when particular QuicStream events
 // occurred.
-class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
+class QUICHE_EXPORT StreamDelegateInterface {
  public:
   virtual ~StreamDelegateInterface() {}
 

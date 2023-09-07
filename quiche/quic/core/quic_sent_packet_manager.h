@@ -45,14 +45,14 @@ struct QuicConnectionStats;
 // retransmittable data associated with each packet. If a packet is
 // retransmitted, it will keep track of each version of a packet so that if a
 // previous transmission is acked, the data will not be retransmitted.
-class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
+class QUICHE_EXPORT QuicSentPacketManager {
  public:
   // Interface which gets callbacks from the QuicSentPacketManager at
   // interesting points.  Implementations must not mutate the state of
   // the packet manager or connection as a result of these callbacks.
-  class QUIC_EXPORT_PRIVATE DebugDelegate {
+  class QUICHE_EXPORT DebugDelegate {
    public:
-    struct QUIC_EXPORT_PRIVATE SendParameters {
+    struct QUICHE_EXPORT SendParameters {
       CongestionControlType congestion_control_type;
       bool use_pacing;
       QuicPacketCount initial_congestion_window;
@@ -98,7 +98,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Interface which gets callbacks from the QuicSentPacketManager when
   // network-related state changes. Implementations must not mutate the
   // state of the packet manager as a result of these callbacks.
-  class QUIC_EXPORT_PRIVATE NetworkChangeVisitor {
+  class QUICHE_EXPORT NetworkChangeVisitor {
    public:
     virtual ~NetworkChangeVisitor() {}
 

@@ -75,7 +75,7 @@ class QUICHE_EXPORT QuicWriteBlockedListInterface {
 };
 
 // Default implementation of QuicWriteBlockedListInterface.
-class QUIC_EXPORT_PRIVATE QuicWriteBlockedList
+class QUICHE_EXPORT QuicWriteBlockedList
     : public QuicWriteBlockedListInterface {
  public:
   explicit QuicWriteBlockedList();
@@ -166,9 +166,9 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList
 
   // A StaticStreamCollection is a vector of <QuicStreamId, bool> pairs plus a
   // eagerly-computed number of blocked static streams.
-  class QUIC_EXPORT_PRIVATE StaticStreamCollection {
+  class QUICHE_EXPORT StaticStreamCollection {
    public:
-    struct QUIC_EXPORT_PRIVATE StreamIdBlockedPair {
+    struct QUICHE_EXPORT StreamIdBlockedPair {
       QuicStreamId id;
       bool is_blocked;
     };

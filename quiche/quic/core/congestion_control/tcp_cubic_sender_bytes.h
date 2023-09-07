@@ -31,7 +31,7 @@ namespace test {
 class TcpCubicSenderBytesPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
+class QUICHE_EXPORT TcpCubicSenderBytes : public SendAlgorithmInterface {
  public:
   TcpCubicSenderBytes(const QuicClock* clock, const RttStats* rtt_stats,
                       bool reno, QuicPacketCount initial_tcp_congestion_window,

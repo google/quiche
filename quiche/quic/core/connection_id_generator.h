@@ -10,7 +10,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE ConnectionIdGeneratorInterface {
+class QUICHE_EXPORT ConnectionIdGeneratorInterface {
   // Interface which is responsible for generating new connection IDs from an
   // existing connection ID.
  public:

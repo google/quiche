@@ -20,7 +20,7 @@ namespace quic {
 // Class which can be configured to implement's TCP's approach of detecting loss
 // when 3 nacks have been received for a packet or with a time threshold.
 // Also implements TCP's early retransmit(RFC5827).
-class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
+class QUICHE_EXPORT GeneralLossAlgorithm : public LossDetectionInterface {
  public:
   GeneralLossAlgorithm() = default;
   GeneralLossAlgorithm(const GeneralLossAlgorithm&) = delete;

@@ -15,7 +15,7 @@
 namespace quic {
 
 // QuicCompressedCertsCache is a cache to track most recently compressed certs.
-class QUIC_EXPORT_PRIVATE QuicCompressedCertsCache {
+class QUICHE_EXPORT QuicCompressedCertsCache {
  public:
   explicit QuicCompressedCertsCache(int64_t max_num_certs);
   ~QuicCompressedCertsCache();
@@ -50,7 +50,7 @@ class QUIC_EXPORT_PRIVATE QuicCompressedCertsCache {
   // A wrapper of the tuple:
   //   |chain, client_cached_cert_hashes|
   // to identify uncompressed representation of certs.
-  struct QUIC_EXPORT_PRIVATE UncompressedCerts {
+  struct QUICHE_EXPORT UncompressedCerts {
     UncompressedCerts();
     UncompressedCerts(
         const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
@@ -64,7 +64,7 @@ class QUIC_EXPORT_PRIVATE QuicCompressedCertsCache {
   // Certs stored by QuicCompressedCertsCache where uncompressed certs data is
   // used to identify the uncompressed representation of certs and
   // |compressed_cert| is the cached compressed representation.
-  class QUIC_EXPORT_PRIVATE CachedCerts {
+  class QUICHE_EXPORT CachedCerts {
    public:
     CachedCerts();
     CachedCerts(const UncompressedCerts& uncompressed_certs,

@@ -11,7 +11,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE SpdyServerPushUtils {
+class QUICHE_EXPORT SpdyServerPushUtils {
  public:
   SpdyServerPushUtils() = delete;
 

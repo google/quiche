@@ -35,7 +35,7 @@ class QuicSession;
 //
 // For more details:
 // https://docs.google.com/document/d/1g5nIXAIkN_Y-7XJW5K45IblHd_L2f5LTaDUDwvZ5L6g/edit?usp=sharing
-class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
+class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
  public:
   explicit QuicCryptoStream(QuicSession* session);
   QuicCryptoStream(const QuicCryptoStream&) = delete;
@@ -259,7 +259,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // spaces. Some of the state for the single logical crypto stream is split
   // across packet number spaces, and a CryptoSubstream is used to manage that
   // state for a particular packet number space.
-  struct QUIC_EXPORT_PRIVATE CryptoSubstream {
+  struct QUICHE_EXPORT CryptoSubstream {
     CryptoSubstream(QuicCryptoStream* crypto_stream);
 
     QuicStreamSequencer sequencer;

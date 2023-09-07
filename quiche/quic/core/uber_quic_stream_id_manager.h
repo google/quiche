@@ -19,7 +19,7 @@ class QuicSession;
 
 // This class comprises two QuicStreamIdManagers, which manage bidirectional and
 // unidirectional stream IDs, respectively.
-class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
+class QUICHE_EXPORT UberQuicStreamIdManager {
  public:
   UberQuicStreamIdManager(
       Perspective perspective, ParsedQuicVersion version,

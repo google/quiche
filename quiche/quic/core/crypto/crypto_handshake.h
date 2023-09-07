@@ -87,7 +87,7 @@ enum HandshakeFailureReason {
 static_assert(MAX_FAILURE_REASON <= 32, "failure reason out of sync");
 
 // A CrypterPair contains the encrypter and decrypter for an encryption level.
-struct QUIC_EXPORT_PRIVATE CrypterPair {
+struct QUICHE_EXPORT CrypterPair {
   CrypterPair();
   CrypterPair(CrypterPair&&) = default;
   ~CrypterPair();
@@ -97,7 +97,7 @@ struct QUIC_EXPORT_PRIVATE CrypterPair {
 };
 
 // Parameters negotiated by the crypto handshake.
-struct QUIC_EXPORT_PRIVATE QuicCryptoNegotiatedParameters
+struct QUICHE_EXPORT QuicCryptoNegotiatedParameters
     : public quiche::QuicheReferenceCounted {
   // Initializes the members to 0 or empty values.
   QuicCryptoNegotiatedParameters();
@@ -157,7 +157,7 @@ struct QUIC_EXPORT_PRIVATE QuicCryptoNegotiatedParameters
 };
 
 // QuicCryptoConfig contains common configuration between clients and servers.
-class QUIC_EXPORT_PRIVATE QuicCryptoConfig {
+class QUICHE_EXPORT QuicCryptoConfig {
  public:
   // kInitialLabel is a constant that is used when deriving the initial
   // (non-forward secure) keys for the connection in order to tie the resulting

@@ -14,14 +14,14 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicPathResponseFrame
+struct QUICHE_EXPORT QuicPathResponseFrame
     : public QuicInlinedFrame<QuicPathResponseFrame> {
   QuicPathResponseFrame();
   QuicPathResponseFrame(QuicControlFrameId control_frame_id,
                         const QuicPathFrameBuffer& data_buff);
   ~QuicPathResponseFrame() = default;
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const QuicPathResponseFrame& frame);
 
   QuicFrameType type;

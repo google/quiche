@@ -38,14 +38,14 @@ namespace quic {
 // Compares two values and returns true if the first is less than or equal
 // to the second.
 template <class T>
-struct QUIC_EXPORT_PRIVATE MinFilter {
+struct QUICHE_EXPORT MinFilter {
   bool operator()(const T& lhs, const T& rhs) const { return lhs <= rhs; }
 };
 
 // Compares two values and returns true if the first is greater than or equal
 // to the second.
 template <class T>
-struct QUIC_EXPORT_PRIVATE MaxFilter {
+struct QUICHE_EXPORT MaxFilter {
   bool operator()(const T& lhs, const T& rhs) const { return lhs >= rhs; }
 };
 
@@ -63,7 +63,7 @@ struct QUIC_EXPORT_PRIVATE MaxFilter {
 //    two timestamps.  Has to be the type of (a - b) if both |a| and |b| are
 //    of type TimeT.
 template <class T, class Compare, typename TimeT, typename TimeDeltaT>
-class QUIC_EXPORT_PRIVATE WindowedFilter {
+class QUICHE_EXPORT WindowedFilter {
  public:
   // |window_length| is the period after which a best estimate expires.
   // |zero_value| is used as the uninitialized value for objects of T.
@@ -146,7 +146,7 @@ class QUIC_EXPORT_PRIVATE WindowedFilter {
   T GetThirdBest() const { return estimates_[2].sample; }
 
  private:
-  struct QUIC_EXPORT_PRIVATE Sample {
+  struct QUICHE_EXPORT Sample {
     T sample;
     TimeT time;
     Sample(T init_sample, TimeT init_time)

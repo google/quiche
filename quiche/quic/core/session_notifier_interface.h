@@ -12,7 +12,7 @@ namespace quic {
 
 // Pure virtual class to be notified when a packet containing a frame is acked
 // or lost.
-class QUIC_EXPORT_PRIVATE SessionNotifierInterface {
+class QUICHE_EXPORT SessionNotifierInterface {
  public:
   virtual ~SessionNotifierInterface() {}
 

@@ -33,7 +33,7 @@ using QuicPromisedByUrlMap =
 const int64_t kPushPromiseTimeoutSecs = 60;
 
 // Base class for all client-specific QuicSession subclasses.
-class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
+class QUICHE_EXPORT QuicSpdyClientSessionBase
     : public QuicSpdySession,
       public QuicCryptoClientStream::ProofHandler {
  public:

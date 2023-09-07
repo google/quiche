@@ -19,14 +19,14 @@ namespace quic {
 class QuicUnackedPacketMap;
 class RttStats;
 
-class QUIC_EXPORT_PRIVATE LossDetectionInterface {
+class QUICHE_EXPORT LossDetectionInterface {
  public:
   virtual ~LossDetectionInterface() {}
 
   virtual void SetFromConfig(const QuicConfig& config,
                              Perspective perspective) = 0;
 
-  struct QUIC_NO_EXPORT DetectionStats {
+  struct QUICHE_EXPORT DetectionStats {
     // Maximum sequence reordering observed in newly acked packets.
     QuicPacketCount sent_packets_max_sequence_reordering = 0;
     QuicPacketCount sent_packets_num_borderline_time_reorderings = 0;

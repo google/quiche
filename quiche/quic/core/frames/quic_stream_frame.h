@@ -15,7 +15,7 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicStreamFrame
+struct QUICHE_EXPORT QuicStreamFrame
     : public QuicInlinedFrame<QuicStreamFrame> {
   QuicStreamFrame();
   QuicStreamFrame(QuicStreamId stream_id, bool fin, QuicStreamOffset offset,
@@ -23,8 +23,8 @@ struct QUIC_EXPORT_PRIVATE QuicStreamFrame
   QuicStreamFrame(QuicStreamId stream_id, bool fin, QuicStreamOffset offset,
                   QuicPacketLength data_length);
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                                      const QuicStreamFrame& s);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const QuicStreamFrame& s);
 
   bool operator==(const QuicStreamFrame& rhs) const;
 

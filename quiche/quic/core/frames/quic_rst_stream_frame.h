@@ -13,7 +13,7 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicRstStreamFrame {
+struct QUICHE_EXPORT QuicRstStreamFrame {
   QuicRstStreamFrame() = default;
   QuicRstStreamFrame(QuicControlFrameId control_frame_id,
                      QuicStreamId stream_id, QuicRstStreamErrorCode error_code,
@@ -22,8 +22,8 @@ struct QUIC_EXPORT_PRIVATE QuicRstStreamFrame {
                      QuicStreamId stream_id, QuicResetStreamError error,
                      QuicStreamOffset bytes_written);
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const QuicRstStreamFrame& r);
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const QuicRstStreamFrame& r);
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.

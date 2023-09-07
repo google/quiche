@@ -18,7 +18,7 @@ namespace quic {
 //
 // It uses an authentication tag of 12 bytes (96 bits). The fixed prefix
 // of the nonce is four bytes.
-class QUIC_EXPORT_PRIVATE Aes128Gcm12Decrypter : public AesBaseDecrypter {
+class QUICHE_EXPORT Aes128Gcm12Decrypter : public AesBaseDecrypter {
  public:
   enum {
     // Authentication tags are truncated to 96 bits.

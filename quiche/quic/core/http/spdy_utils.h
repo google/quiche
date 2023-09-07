@@ -19,7 +19,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE SpdyUtils {
+class QUICHE_EXPORT SpdyUtils {
  public:
   SpdyUtils() = delete;
 

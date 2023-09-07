@@ -27,7 +27,7 @@ class UberReceivedPacketManagerPeer;
 struct QuicConnectionStats;
 
 // Records all received packets by a connection.
-class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
+class QUICHE_EXPORT QuicReceivedPacketManager {
  public:
   QuicReceivedPacketManager();
   explicit QuicReceivedPacketManager(QuicConnectionStats* stats);

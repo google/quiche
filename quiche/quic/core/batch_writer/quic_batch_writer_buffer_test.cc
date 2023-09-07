@@ -16,8 +16,7 @@ namespace quic {
 namespace test {
 namespace {
 
-class QUIC_EXPORT_PRIVATE TestQuicBatchWriterBuffer
-    : public QuicBatchWriterBuffer {
+class QUICHE_EXPORT TestQuicBatchWriterBuffer : public QuicBatchWriterBuffer {
  public:
   using QuicBatchWriterBuffer::buffer_;
   using QuicBatchWriterBuffer::buffered_writes_;

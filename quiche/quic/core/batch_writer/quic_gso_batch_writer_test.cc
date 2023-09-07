@@ -33,7 +33,7 @@ size_t PacketLength(const msghdr* msg) {
 
 uint64_t MillisToNanos(uint64_t milliseconds) { return milliseconds * 1000000; }
 
-class QUIC_EXPORT_PRIVATE TestQuicGsoBatchWriter : public QuicGsoBatchWriter {
+class QUICHE_EXPORT TestQuicGsoBatchWriter : public QuicGsoBatchWriter {
  public:
   using QuicGsoBatchWriter::batch_buffer;
   using QuicGsoBatchWriter::buffered_writes;
@@ -64,7 +64,7 @@ class QUIC_EXPORT_PRIVATE TestQuicGsoBatchWriter : public QuicGsoBatchWriter {
 };
 
 // TestBufferedWrite is a copy-constructible BufferedWrite.
-struct QUIC_EXPORT_PRIVATE TestBufferedWrite : public BufferedWrite {
+struct QUICHE_EXPORT TestBufferedWrite : public BufferedWrite {
   using BufferedWrite::BufferedWrite;
   TestBufferedWrite(const TestBufferedWrite& other)
       : BufferedWrite(other.buffer, other.buf_len, other.self_address,
@@ -77,7 +77,7 @@ struct QUIC_EXPORT_PRIVATE TestBufferedWrite : public BufferedWrite {
 // Pointed to by all instances of |BatchCriteriaTestData|. Content not used.
 static char unused_packet_buffer[kMaxOutgoingPacketSize];
 
-struct QUIC_EXPORT_PRIVATE BatchCriteriaTestData {
+struct QUICHE_EXPORT BatchCriteriaTestData {
   BatchCriteriaTestData(size_t buf_len, const QuicIpAddress& self_address,
                         const QuicSocketAddress& peer_address,
                         uint64_t release_time, bool can_batch, bool must_flush)

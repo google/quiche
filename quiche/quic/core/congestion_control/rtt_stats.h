@@ -21,12 +21,12 @@ namespace test {
 class RttStatsPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE RttStats {
+class QUICHE_EXPORT RttStats {
  public:
   // Calculates running standard-deviation using Welford's algorithm:
   // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#
   // Welford's_Online_algorithm.
-  struct QUIC_EXPORT_PRIVATE StandardDeviationCaculator {
+  struct QUICHE_EXPORT StandardDeviationCaculator {
     StandardDeviationCaculator() {}
 
     // Called when a new RTT sample is available.

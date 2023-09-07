@@ -21,7 +21,7 @@ namespace quic {
 // A derived batch writer must override the FlushImpl() function to send all
 // buffered writes in a batch. It must also override the CanBatch() function
 // to control whether/when a WritePacket() call should flush.
-class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
+class QUICHE_EXPORT QuicBatchWriterBase : public QuicPacketWriter {
  public:
   explicit QuicBatchWriterBase(
       std::unique_ptr<QuicBatchWriterBuffer> batch_buffer);
@@ -73,7 +73,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
 
   // Given the release delay in |options| and the state of |batch_buffer_|, get
   // the absolute release time.
-  struct QUIC_NO_EXPORT ReleaseTime {
+  struct QUICHE_EXPORT ReleaseTime {
     // The actual (absolute) release time.
     uint64_t actual_release_time = 0;
     // The difference between |actual_release_time| and ideal release time,
@@ -87,7 +87,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
     return ReleaseTime{0, QuicTime::Delta::Zero()};
   }
 
-  struct QUIC_EXPORT_PRIVATE CanBatchResult {
+  struct QUICHE_EXPORT CanBatchResult {
     CanBatchResult(bool can_batch, bool must_flush)
         : can_batch(can_batch), must_flush(must_flush) {}
     // Whether this write can be batched with existing buffered writes.
@@ -107,7 +107,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
                                   const QuicPacketWriterParams& params,
                                   uint64_t release_time) const = 0;
 
-  struct QUIC_EXPORT_PRIVATE FlushImplResult {
+  struct QUICHE_EXPORT FlushImplResult {
     // The return value of the Flush() interface, which is:
     // - WriteResult(WRITE_STATUS_OK, <bytes_flushed>) if all buffered writes
     //   were sent successfully.
@@ -144,7 +144,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
 };
 
 // QuicUdpBatchWriter is a batch writer backed by a UDP socket.
-class QUIC_EXPORT_PRIVATE QuicUdpBatchWriter : public QuicBatchWriterBase {
+class QUICHE_EXPORT QuicUdpBatchWriter : public QuicBatchWriterBase {
  public:
   QuicUdpBatchWriter(std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
                      int fd)

@@ -33,9 +33,9 @@ class QuicControlFrameManagerPeer;
 // the generator. Control frames are removed from the head of the list when they
 // get acked. Control frame manager also keeps track of lost control frames
 // which need to be retransmitted.
-class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
+class QUICHE_EXPORT QuicControlFrameManager {
  public:
-  class QUIC_EXPORT_PRIVATE DelegateInterface {
+  class QUICHE_EXPORT DelegateInterface {
    public:
     virtual ~DelegateInterface() = default;
 

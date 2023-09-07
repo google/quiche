@@ -16,9 +16,8 @@ class QuicSpdySession;
 
 // 3.2.1 Control Stream.
 // The receive control stream is peer initiated and is read only.
-class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
-    : public QuicStream,
-      public HttpDecoder::Visitor {
+class QUICHE_EXPORT QuicReceiveControlStream : public QuicStream,
+                                               public HttpDecoder::Visitor {
  public:
   explicit QuicReceiveControlStream(PendingStream* pending,
                                     QuicSpdySession* spdy_session);

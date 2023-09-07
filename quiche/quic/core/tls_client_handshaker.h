@@ -23,7 +23,7 @@ namespace quic {
 
 // An implementation of QuicCryptoClientStream::HandshakerInterface which uses
 // TLS 1.3 for the crypto handshake protocol.
-class QUIC_EXPORT_PRIVATE TlsClientHandshaker
+class QUICHE_EXPORT TlsClientHandshaker
     : public TlsHandshaker,
       public QuicCryptoClientStream::HandshakerInterface,
       public TlsClientConnection::Delegate {

@@ -17,7 +17,7 @@ namespace quic {
 
 // The id used to identify sessions. Includes the hostname, port, scheme and
 // privacy_mode.
-class QUIC_EXPORT_PRIVATE QuicServerId {
+class QUICHE_EXPORT QuicServerId {
  public:
   // Attempts to parse a QuicServerId from a "host:port" string. Returns nullopt
   // if input could not be parsed. Requires input to contain both host and port

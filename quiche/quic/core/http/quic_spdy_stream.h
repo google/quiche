@@ -52,13 +52,13 @@ class QuicSpdySession;
 class WebTransportHttp3;
 
 // A QUIC stream that can send and receive HTTP2 (SPDY) headers.
-class QUIC_EXPORT_PRIVATE QuicSpdyStream
+class QUICHE_EXPORT QuicSpdyStream
     : public QuicStream,
       public quiche::CapsuleParser::Visitor,
       public QpackDecodedHeadersAccumulator::Visitor {
  public:
   // Visitor receives callbacks from the stream.
-  class QUIC_EXPORT_PRIVATE Visitor {
+  class QUICHE_EXPORT Visitor {
    public:
     Visitor() {}
     Visitor(const Visitor&) = delete;
@@ -266,7 +266,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // to allow mocking in tests.
   virtual MessageStatus SendHttp3Datagram(absl::string_view payload);
 
-  class QUIC_EXPORT_PRIVATE Http3DatagramVisitor {
+  class QUICHE_EXPORT Http3DatagramVisitor {
    public:
     virtual ~Http3DatagramVisitor() {}
 
@@ -293,7 +293,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Mainly meant to be used by the visitors' move operators.
   void ReplaceHttp3DatagramVisitor(Http3DatagramVisitor* visitor);
 
-  class QUIC_EXPORT_PRIVATE ConnectIpVisitor {
+  class QUICHE_EXPORT ConnectIpVisitor {
    public:
     virtual ~ConnectIpVisitor() {}
 
@@ -389,7 +389,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   friend class QuicStreamUtils;
   class HttpDecoderVisitor;
 
-  struct QUIC_EXPORT_PRIVATE WebTransportDataStream {
+  struct QUICHE_EXPORT WebTransportDataStream {
     WebTransportDataStream(QuicSpdyStream* stream,
                            WebTransportSessionId session_id);
 

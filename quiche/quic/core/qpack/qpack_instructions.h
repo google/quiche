@@ -22,7 +22,7 @@ class QpackInstructionWithValuesPeer;
 // Each instruction is identified with an opcode in the first byte.
 // |mask| determines which bits are part of the opcode.
 // |value| is the value of these bits.  (Other bits in value must be zero.)
-struct QUIC_EXPORT_PRIVATE QpackInstructionOpcode {
+struct QUICHE_EXPORT QpackInstructionOpcode {
   uint8_t value;
   uint8_t mask;
 };
@@ -54,7 +54,7 @@ enum class QpackInstructionFieldType {
 
 // Each instruction field has a type and a parameter.
 // The meaning of the parameter depends on the field type.
-struct QUIC_EXPORT_PRIVATE QpackInstructionField {
+struct QUICHE_EXPORT QpackInstructionField {
   QpackInstructionFieldType type;
   // For a kSbit field, |param| is a mask with exactly one bit set.
   // For kVarint fields, |param| is the prefix length of the integer encoding.
@@ -70,7 +70,7 @@ using QpackInstructionFields = std::vector<QpackInstructionField>;
 // followed by a non-empty list of fields.  The last field must be integer or
 // string literal type to guarantee that all bytes of the instruction are
 // consumed.
-struct QUIC_EXPORT_PRIVATE QpackInstruction {
+struct QUICHE_EXPORT QpackInstruction {
   QpackInstruction(QpackInstructionOpcode opcode, QpackInstructionFields fields)
       : opcode(std::move(opcode)), fields(std::move(fields)) {}
 
@@ -148,7 +148,7 @@ const QpackLanguage* QpackRequestStreamLanguage();
 // Storage for instruction and field values to be encoded.
 // This class can only be instantiated using factory methods that take exactly
 // the arguments that the corresponding instruction needs.
-class QUIC_EXPORT_PRIVATE QpackInstructionWithValues {
+class QUICHE_EXPORT QpackInstructionWithValues {
  public:
   // 5.2 Encoder stream instructions
   static QpackInstructionWithValues InsertWithNameReference(

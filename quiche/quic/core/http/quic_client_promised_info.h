@@ -27,7 +27,7 @@ class QuicClientPromisedInfoPeer;
 // stream from the time a PUSH_PROMISE is received until rendezvous
 // between the promised response and the corresponding client request
 // is complete.
-class QUIC_EXPORT_PRIVATE QuicClientPromisedInfo
+class QUICHE_EXPORT QuicClientPromisedInfo
     : public QuicClientPushPromiseIndex::TryHandle {
  public:
   // Interface to QuicSpdyClientStream
@@ -84,8 +84,7 @@ class QUIC_EXPORT_PRIVATE QuicClientPromisedInfo
  private:
   friend class test::QuicClientPromisedInfoPeer;
 
-  class QUIC_EXPORT_PRIVATE CleanupAlarm
-      : public QuicAlarm::DelegateWithoutContext {
+  class QUICHE_EXPORT CleanupAlarm : public QuicAlarm::DelegateWithoutContext {
    public:
     explicit CleanupAlarm(QuicClientPromisedInfo* promised)
         : promised_(promised) {}
