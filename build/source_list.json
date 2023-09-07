@@ -696,6 +696,7 @@
     "quiche/quic/tools/fake_proof_verifier.h",
     "quiche/quic/tools/quic_backend_response.h",
     "quiche/quic/tools/quic_client_base.h",
+    "quiche/quic/tools/quic_client_factory.h",
     "quiche/quic/tools/quic_memory_cache_backend.h",
     "quiche/quic/tools/quic_name_lookup.h",
     "quiche/quic/tools/quic_simple_client_session.h",
@@ -986,7 +987,6 @@
     "quiche/quic/masque/masque_utils.h",
     "quiche/quic/platform/api/quic_udp_socket_platform_api.h",
     "quiche/quic/tools/quic_client_default_network_helper.h",
-    "quiche/quic/tools/quic_client_factory.h",
     "quiche/quic/tools/quic_default_client.h",
     "quiche/quic/tools/quic_epoll_client_factory.h",
     "quiche/quic/tools/quic_server.h"
