@@ -19,7 +19,7 @@
 namespace quic {
 
 template <typename T>
-class QUICHE_EXPORT QuicArenaScopedPtr {
+class QUICHE_NO_EXPORT QuicArenaScopedPtr {
   static_assert(alignof(T*) > 1,
                 "QuicArenaScopedPtr can only store objects that are aligned to "
                 "greater than 1 byte.");

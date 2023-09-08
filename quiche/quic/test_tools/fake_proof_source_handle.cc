@@ -12,14 +12,13 @@ namespace quic {
 namespace test {
 namespace {
 
-struct QUIC_EXPORT_PRIVATE ComputeSignatureResult {
+struct ComputeSignatureResult {
   bool ok;
   std::string signature;
   std::unique_ptr<ProofSource::Details> details;
 };
 
-class QUIC_EXPORT_PRIVATE ResultSavingSignatureCallback
-    : public ProofSource::SignatureCallback {
+class ResultSavingSignatureCallback : public ProofSource::SignatureCallback {
  public:
   explicit ResultSavingSignatureCallback(
       absl::optional<ComputeSignatureResult>* result)

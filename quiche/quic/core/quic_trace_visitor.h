@@ -14,7 +14,7 @@ namespace quic {
 // Records a QUIC trace protocol buffer for a QuicConnection.  It's the
 // responsibility of the user of this visitor to process or store the resulting
 // trace, which can be accessed via trace().
-class QUICHE_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
+class QUICHE_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
  public:
   explicit QuicTraceVisitor(const QuicConnection* connection);
 
