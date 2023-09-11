@@ -13494,6 +13494,12 @@ TEST_P(QuicFramerTest, TestExtendedErrorCodeParser) {
   EXPECT_EQ(1234u,
             frame.quic_error_code);  // this is good
   EXPECT_EQ("", frame.error_details);
+
+  // Value does not fit in uint32_t.
+  frame.error_details = "12345678901:";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_THAT(frame.quic_error_code, IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
+  EXPECT_EQ("12345678901:", frame.error_details);
 }
 
 // Regression test for crbug/1029636.

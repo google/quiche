@@ -124,7 +124,7 @@ static_assert(static_cast<int>(QUIC_STREAM_LAST_ERROR) <=
 // These values must remain stable as they are uploaded to UMA histograms.
 // To add a new error code, use the current value of QUIC_LAST_ERROR and
 // increment QUIC_LAST_ERROR.
-enum QuicErrorCode {
+enum QuicErrorCode : uint32_t {
   QUIC_NO_ERROR = 0,
 
   // Connection has reached an invalid state.
