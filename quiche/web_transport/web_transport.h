@@ -9,6 +9,7 @@
 #define QUICHE_WEB_TRANSPORT_WEB_TRANSPORT_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -61,6 +62,31 @@ struct QUICHE_EXPORT DatagramStatus {
 enum class StreamType {
   kUnidirectional,
   kBidirectional,
+};
+
+// Based on
+// https://w3c.github.io/webtransport/#dictdef-webtransportdatagramstats.
+struct QUICHE_EXPORT DatagramStats {
+  uint64_t expired_outgoing;
+  uint64_t lost_outgoing;
+
+  // droppedIncoming is not present, since in the C++ API, we immediately
+  // deliver datagrams via callback, meaning there is no queue where things
+  // would be dropped.
+};
+
+// Based on https://w3c.github.io/webtransport/#web-transport-stats
+// Note that this is currently not a complete implementation of that API, as
+// some of those still need to be clarified in
+// https://github.com/w3c/webtransport/issues/537
+struct QUICHE_EXPORT SessionStats {
+  absl::Duration min_rtt;
+  absl::Duration smoothed_rtt;
+  absl::Duration rtt_variation;
+
+  uint64_t estimated_send_rate_bps;  // In bits per second.
+
+  DatagramStats datagram_stats;
 };
 
 // The stream visitor is an application-provided object that gets notified about
@@ -214,6 +240,10 @@ class QUICHE_EXPORT Session {
   // Sets the largest duration that a datagram can spend in the queue before
   // being silently dropped.
   virtual void SetDatagramMaxTimeInQueue(absl::Duration max_time_in_queue) = 0;
+
+  // Returns stats that generally follow the semantics of W3C WebTransport API.
+  virtual DatagramStats GetDatagramStats() = 0;
+  virtual SessionStats GetSessionStats() = 0;
 
   // Sends a DRAIN_WEBTRANSPORT_SESSION capsule or an equivalent signal to the
   // peer indicating that the session is draining.

@@ -6,11 +6,16 @@
 #define QUICHE_QUIC_TEST_TOOLS_SIMULATOR_TEST_HARNESS_H_
 
 #include <memory>
+#include <string>
 
 #include "absl/types/optional.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/test_tools/simulator/link.h"
+#include "quiche/quic/test_tools/simulator/packet_filter.h"
 #include "quiche/quic/test_tools/simulator/port.h"
 #include "quiche/quic/test_tools/simulator/quic_endpoint_base.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
@@ -61,6 +66,9 @@ class TestHarness {
   // set_client/set_server are called.
   void WireUpEndpoints();
 
+  // Same as above, except triggers loss of every Nth packet in both directions.
+  void WireUpEndpointsWithLoss(int lose_every_n);
+
   // A convenience wrapper around Simulator::RunUntilOrTimeout().
   template <class TerminationPredicate>
   bool RunUntilWithDefaultTimeout(TerminationPredicate termination_predicate) {
@@ -73,6 +81,8 @@ class TestHarness {
   Switch switch_;
   absl::optional<SymmetricLink> client_link_;
   absl::optional<SymmetricLink> server_link_;
+  std::unique_ptr<PacketFilter> client_filter_;
+  std::unique_ptr<PacketFilter> server_filter_;
 
   Endpoint* client_;
   Endpoint* server_;

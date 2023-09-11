@@ -2310,6 +2310,7 @@ void QuicSession::OnStreamFrameRetransmitted(const QuicStreamFrame& frame) {
 
 void QuicSession::OnFrameLost(const QuicFrame& frame) {
   if (frame.type == MESSAGE_FRAME) {
+    ++total_datagrams_lost_;
     OnMessageLost(frame.message_frame->message_id);
     return;
   }

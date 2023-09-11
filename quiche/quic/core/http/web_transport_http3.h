@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
+#include "quiche/quic/core/web_transport_stats.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/web_transport/web_transport.h"
@@ -89,6 +90,13 @@ class QUICHE_EXPORT WebTransportHttp3
       absl::string_view datagram) override;
   QuicByteCount GetMaxDatagramSize() const override;
   void SetDatagramMaxTimeInQueue(absl::Duration max_time_in_queue) override;
+
+  webtransport::DatagramStats GetDatagramStats() override {
+    return WebTransportDatagramStatsForQuicSession(*session_);
+  }
+  webtransport::SessionStats GetSessionStats() override {
+    return WebTransportStatsForQuicSession(*session_);
+  }
 
   void NotifySessionDraining() override;
   void SetOnDraining(quiche::SingleUseCallback<void()> callback) override {

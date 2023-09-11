@@ -656,6 +656,15 @@ class QUICHE_EXPORT QuicSession
     datagram_queue_.SetForceFlush(force_flush);
   }
 
+  // Returns the total number of expired datagrams dropped in the default
+  // datagram queue.
+  uint64_t expired_datagrams_in_default_queue() const {
+    return datagram_queue_.expired_datagram_count();
+  }
+
+  // Returns the total datagrams ever declared lost within the session.
+  uint64_t total_datagrams_lost() const { return total_datagrams_lost_; }
+
   // Find stream with |id|, returns nullptr if the stream does not exist or
   // closed. static streams and zombie streams are not considered active
   // streams.
@@ -1004,6 +1013,9 @@ class QUICHE_EXPORT QuicSession
 
   // The buffer used to queue the DATAGRAM frames.
   QuicDatagramQueue datagram_queue_;
+
+  // Total number of datagram frames declared lost within the session.
+  uint64_t total_datagrams_lost_ = 0;
 
   // TODO(fayang): switch to linked_hash_set when chromium supports it. The bool
   // is not used here.

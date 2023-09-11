@@ -7,16 +7,24 @@
 
 #include "quiche/quic/core/quic_generic_session.h"
 
+#include <cstddef>
+#include <cstring>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
+#include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_datagram_queue.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_session_peer.h"
@@ -319,6 +327,68 @@ TEST_F(QuicGenericSessionTest, OutgoingStreamFlowControlBlocked) {
   ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout(
       [&can_create_new_stream]() { return can_create_new_stream; }));
   EXPECT_TRUE(client_->session()->CanOpenNextOutgoingUnidirectionalStream());
+}
+
+TEST_F(QuicGenericSessionTest, ExpireDatagrams) {
+  CreateDefaultEndpoints(kEchoServer);
+  WireUpEndpoints();
+  RunHandshake();
+
+  // Set the datagrams to expire very soon.
+  client_->session()->SetDatagramMaxTimeInQueue(
+      (0.2 * simulator::TestHarness::kRtt).ToAbsl());
+  for (int i = 0; i < 1000; i++) {
+    client_->session()->SendOrQueueDatagram(std::string(
+        client_->session()->GetGuaranteedLargestMessagePayload(), 'a'));
+  }
+
+  size_t received = 0;
+  EXPECT_CALL(*client_->visitor(), OnDatagramReceived(_))
+      .WillRepeatedly(
+          [&received](absl::string_view /*datagram*/) { received++; });
+  ASSERT_TRUE(test_harness_.simulator().RunUntilOrTimeout(
+      [this]() { return client_->total_datagrams_processed() >= 1000; },
+      3 * simulator::TestHarness::kServerBandwidth.TransferTime(
+              1000 * kMaxOutgoingPacketSize)));
+  // Allow extra round-trips for the final flight of datagrams to arrive back.
+  test_harness_.simulator().RunFor(2 * simulator::TestHarness::kRtt);
+  EXPECT_LT(received, 500);
+  EXPECT_EQ(received + client_->session()->GetDatagramStats().expired_outgoing,
+            1000);
+}
+
+TEST_F(QuicGenericSessionTest, LoseDatagrams) {
+  CreateDefaultEndpoints(kEchoServer);
+  test_harness_.WireUpEndpointsWithLoss(/*lose_every_n=*/4);
+  RunHandshake();
+
+  // Set the datagrams to effectively never expire.
+  client_->session()->SetDatagramMaxTimeInQueue(
+      (10000 * simulator::TestHarness::kRtt).ToAbsl());
+  for (int i = 0; i < 1000; i++) {
+    client_->session()->SendOrQueueDatagram(std::string(
+        client_->session()->GetGuaranteedLargestMessagePayload(), 'a'));
+  }
+
+  size_t received = 0;
+  EXPECT_CALL(*client_->visitor(), OnDatagramReceived(_))
+      .WillRepeatedly(
+          [&received](absl::string_view /*datagram*/) { received++; });
+  ASSERT_TRUE(test_harness_.simulator().RunUntilOrTimeout(
+      [this]() { return client_->total_datagrams_processed() >= 1000; },
+      3 * simulator::TestHarness::kServerBandwidth.TransferTime(
+              1000 * kMaxOutgoingPacketSize)));
+  // Allow extra round-trips for the final flight of datagrams to arrive back.
+  test_harness_.simulator().RunFor(2 * simulator::TestHarness::kRtt);
+
+  QuicPacketCount client_lost =
+      client_->session()->GetDatagramStats().lost_outgoing;
+  QuicPacketCount server_lost =
+      server_->session()->GetDatagramStats().lost_outgoing;
+  EXPECT_LT(received, 800u);
+  EXPECT_GT(client_lost, 100u);
+  EXPECT_GT(server_lost, 100u);
+  EXPECT_EQ(received + client_lost + server_lost, 1000u);
 }
 
 }  // namespace

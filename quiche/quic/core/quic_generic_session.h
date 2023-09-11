@@ -23,6 +23,7 @@
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/web_transport_stats.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/web_transport/web_transport.h"
@@ -94,6 +95,12 @@ class QUICHE_EXPORT QuicGenericSessionBase : public QuicSession,
       absl::string_view datagram) override;
   void SetDatagramMaxTimeInQueue(absl::Duration max_time_in_queue) override {
     datagram_queue()->SetMaxTimeInQueue(QuicTimeDelta(max_time_in_queue));
+  }
+  webtransport::DatagramStats GetDatagramStats() override {
+    return WebTransportDatagramStatsForQuicSession(*this);
+  }
+  webtransport::SessionStats GetSessionStats() override {
+    return WebTransportStatsForQuicSession(*this);
   }
   void NotifySessionDraining() override {}
   void SetOnDraining(quiche::SingleUseCallback<void()>) override {}

@@ -7,8 +7,19 @@
 #ifndef QUICHE_WEB_TRANSPORT_TEST_TOOLS_MOCK_WEB_TRANSPORT_H_
 #define QUICHE_WEB_TRANSPORT_TEST_TOOLS_MOCK_WEB_TRANSPORT_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "absl/status/status.h"
+#include "absl/strings/string_view.h"
+#include "absl/time/time.h"
+#include "absl/types/span.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace webtransport {
@@ -75,6 +86,8 @@ class QUICHE_NO_EXPORT MockSession : public Session {
   MOCK_METHOD(uint64_t, GetMaxDatagramSize, (), (const, override));
   MOCK_METHOD(void, SetDatagramMaxTimeInQueue,
               (absl::Duration max_time_in_queue), (override));
+  MOCK_METHOD(DatagramStats, GetDatagramStats, (), (override));
+  MOCK_METHOD(SessionStats, GetSessionStats, (), (override));
   MOCK_METHOD(void, NotifySessionDraining, (), (override));
   MOCK_METHOD(void, SetOnDraining, (quiche::SingleUseCallback<void()>),
               (override));

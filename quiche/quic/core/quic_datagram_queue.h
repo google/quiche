@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_DATAGRAM_QUEUE_H_
 #define QUICHE_QUIC_CORE_QUIC_DATAGRAM_QUEUE_H_
 
+#include <cstdint>
 #include <memory>
 
 #include "absl/types/optional.h"
@@ -69,8 +70,8 @@ class QUICHE_EXPORT QuicDatagramQueue {
   void SetForceFlush(bool force_flush) { force_flush_ = force_flush; }
 
   size_t queue_size() { return queue_.size(); }
-
   bool empty() { return queue_.empty(); }
+  uint64_t expired_datagram_count() const { return expired_datagram_count_; }
 
  private:
   struct QUICHE_EXPORT Datagram {
@@ -87,7 +88,8 @@ class QUICHE_EXPORT QuicDatagramQueue {
   QuicTime::Delta max_time_in_queue_ = QuicTime::Delta::Zero();
   quiche::QuicheCircularDeque<Datagram> queue_;
   std::unique_ptr<Observer> observer_;
-  bool force_flush_;
+  uint64_t expired_datagram_count_ = 0;
+  bool force_flush_ = false;
 };
 
 }  // namespace quic
