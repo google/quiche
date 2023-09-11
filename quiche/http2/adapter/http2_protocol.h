@@ -132,12 +132,13 @@ enum Http2KnownSettingsId : Http2SettingsId {
 // Returns a human-readable string representation of the given SETTINGS |id| for
 // logging/debugging. Returns "SETTINGS_UNKNOWN" for IDs outside of the RFC 7540
 // Section 6.5.2 definitions.
-absl::string_view Http2SettingsIdToString(uint16_t id);
+QUICHE_EXPORT absl::string_view Http2SettingsIdToString(uint16_t id);
 
 // Returns a human-readable string representation of the given |error_code| for
 // logging/debugging. Returns "UNKNOWN_ERROR" for errors outside of RFC 7540
 // Section 7 definitions.
-absl::string_view Http2ErrorCodeToString(Http2ErrorCode error_code);
+QUICHE_EXPORT absl::string_view Http2ErrorCodeToString(
+    Http2ErrorCode error_code);
 
 enum class Perspective {
   kClient,
