@@ -19,7 +19,7 @@ package private_membership.anonymous_tokens;
 import "quiche/blind_sign_auth/proto/timestamp.proto";
 
 // Different use cases for the Anonymous Tokens service.
-// Next ID: 9
+// Next ID: 10
 enum AnonymousTokensUseCase {
   // Test use cases here.
   ANONYMOUS_TOKENS_USE_CASE_UNDEFINED = 0;
@@ -28,6 +28,7 @@ enum AnonymousTokensUseCase {
   TEST_USE_CASE_3 = 4;
   TEST_USE_CASE_4 = 5;
   TEST_USE_CASE_5 = 6;
+  TEST_USE_CASE_6 = 9;
 
   PROVABLY_PRIVATE_NETWORK = 3;
   CHROME_IP_BLINDING = 7;
