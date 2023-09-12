@@ -69,6 +69,8 @@ class ClientEndpoint : public simulator::QuicEndpointWithConnection {
                      total_datagrams_processed_),
                  &crypto_config_) {
     session_.Initialize();
+    session_.connection()->sent_packet_manager().SetSendAlgorithm(
+        CongestionControlType::kBBRv2);
     EXPECT_CALL(visitor_, OnSessionReady())
         .Times(AtMost(1))
         .WillOnce(Assign(&session_ready_, true));
@@ -114,6 +116,8 @@ class ServerEndpoint : public simulator::QuicEndpointWithConnection {
                  /*datagram_observer=*/nullptr, &crypto_config_,
                  &compressed_certs_cache_) {
     session_.Initialize();
+    session_.connection()->sent_packet_manager().SetSendAlgorithm(
+        CongestionControlType::kBBRv2);
   }
 
   QuicGenericServerSession* session() { return &session_; }
@@ -376,7 +380,7 @@ TEST_F(QuicGenericSessionTest, LoseDatagrams) {
           [&received](absl::string_view /*datagram*/) { received++; });
   ASSERT_TRUE(test_harness_.simulator().RunUntilOrTimeout(
       [this]() { return client_->total_datagrams_processed() >= 1000; },
-      3 * simulator::TestHarness::kServerBandwidth.TransferTime(
+      4 * simulator::TestHarness::kServerBandwidth.TransferTime(
               1000 * kMaxOutgoingPacketSize)));
   // Allow extra round-trips for the final flight of datagrams to arrive back.
   test_harness_.simulator().RunFor(2 * simulator::TestHarness::kRtt);
