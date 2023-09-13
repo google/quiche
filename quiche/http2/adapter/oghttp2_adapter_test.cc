@@ -1,7 +1,9 @@
 #include "quiche/http2/adapter/oghttp2_adapter.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/strings/str_join.h"
 #include "quiche/http2/adapter/http2_protocol.h"
@@ -585,6 +587,89 @@ TEST(OgHttp2AdapterTest, InvalidConnectProtocolSetting) {
               OnFrameSent(GOAWAY, 0, _, 0x0,
                           static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
   adapter2->Send();
+}
+
+TEST(OgHttp2AdapterTest, ClientSetsRemoteMaxStreamOption) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kClient;
+  // Set a lower-than-default initial remote max_concurrent_streams.
+  options.remote_max_concurrent_streams = 3;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  const std::vector<Header> headers = ToHeaders({{":method", "GET"},
+                                                 {":scheme", "http"},
+                                                 {":authority", "example.com"},
+                                                 {":path", "/"}});
+
+  const int32_t stream_id1 = adapter->SubmitRequest(headers, nullptr, nullptr);
+  const int32_t stream_id2 = adapter->SubmitRequest(headers, nullptr, nullptr);
+  const int32_t stream_id3 = adapter->SubmitRequest(headers, nullptr, nullptr);
+  const int32_t stream_id4 = adapter->SubmitRequest(headers, nullptr, nullptr);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _,
+                                         END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _,
+                                   END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id2, _,
+                                         END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id2, _,
+                                   END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id3, _,
+                                         END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id3, _,
+                                   END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+  // The fourth stream is buffered, since only 3 can be in flight to the server.
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .Headers(stream_id1,
+                   {{":status", "200"},
+                    {"server", "my-fake-server"},
+                    {"date", "Tue, 6 Apr 2021 12:54:01 GMT"}},
+                   /*fin=*/true)
+          .Serialize();
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id1));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id1, ":status", "200"));
+  EXPECT_CALL(visitor,
+              OnHeaderForStream(stream_id1, "server", "my-fake-server"));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id1, "date",
+                                         "Tue, 6 Apr 2021 12:54:01 GMT"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id1));
+  EXPECT_CALL(visitor, OnEndStream(stream_id1));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  ASSERT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  // The fourth stream will be started, since the first has completed.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id4, _,
+                                         END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id4, _,
+                                   END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
 }
 
 TEST(OgHttp2AdapterTest, ClientHandles100Headers) {

@@ -52,6 +52,9 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     absl::optional<uint32_t> max_header_list_bytes = absl::nullopt;
     // The maximum size of an individual header field, including name and value.
     absl::optional<uint32_t> max_header_field_size = absl::nullopt;
+    // The assumed initial value of the remote endpoint's max concurrent streams
+    // setting.
+    absl::optional<uint32_t> remote_max_concurrent_streams = absl::nullopt;
     // Whether to automatically send PING acks when receiving a PING.
     bool auto_ping_ack = true;
     // Whether (as server) to send a RST_STREAM NO_ERROR when sending a fin on
@@ -150,6 +153,10 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
 
   // Returns the size of the HPACK decoder's most recently applied size limit.
   int GetHpackDecoderSizeLimit() const;
+
+  uint32_t GetMaxOutboundConcurrentStreams() const {
+    return max_outbound_concurrent_streams_;
+  }
 
   // From Http2Session.
   int64_t ProcessBytes(absl::string_view bytes) override;
@@ -520,11 +527,12 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   int32_t initial_stream_send_window_ = kInitialFlowControlWindowSize;
   uint32_t max_frame_payload_ = kDefaultFramePayloadSizeLimit;
   // The maximum number of concurrent streams that this connection can open to
-  // its peer and allow from its peer, respectively. Although the initial value
-  // is unlimited, the spec encourages a value of at least 100. We limit
-  // ourselves to opening 100 until told otherwise by the peer and allow an
-  // unlimited number from the peer until updated from SETTINGS we send.
-  uint32_t max_outbound_concurrent_streams_ = 100u;
+  // its peer. Although the initial value
+  // is unlimited, the spec encourages a value of at least 100. Initially 100 or
+  // the specified option until told otherwise by the peer.
+  uint32_t max_outbound_concurrent_streams_;
+  // The maximum number of concurrent streams that this connection allows from
+  // its peer. Unlimited, until SETTINGS with some other value is acknowledged.
   uint32_t pending_max_inbound_concurrent_streams_ =
       std::numeric_limits<uint32_t>::max();
   uint32_t max_inbound_concurrent_streams_ =

@@ -39,6 +39,16 @@ TEST(OgHttp2SessionTest, ClientConstruction) {
   EXPECT_EQ(session.GetRemoteWindowSize(), kInitialFlowControlWindowSize);
   EXPECT_FALSE(session.IsServerSession());
   EXPECT_EQ(0, session.GetHighestReceivedStreamId());
+  EXPECT_EQ(100u, session.GetMaxOutboundConcurrentStreams());
+}
+
+TEST(OgHttp2SessionTest, ClientConstructionWithMaxStreams) {
+  testing::StrictMock<MockHttp2Visitor> visitor;
+  OgHttp2Session::Options options;
+  options.perspective = Perspective::kClient;
+  options.remote_max_concurrent_streams = 200u;
+  OgHttp2Session session(visitor, options);
+  EXPECT_EQ(200u, session.GetMaxOutboundConcurrentStreams());
 }
 
 TEST(OgHttp2SessionTest, ClientHandlesFrames) {

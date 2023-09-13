@@ -346,7 +346,11 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
             SendWindowUpdate(kConnectionStreamId, window_update_delta);
           },
           options.should_window_update_fn,
-          /*update_window_on_notify=*/false) {
+          /*update_window_on_notify=*/false),
+      max_outbound_concurrent_streams_(
+          options.remote_max_concurrent_streams
+              ? options.remote_max_concurrent_streams.value()
+              : 100u) {
   decoder_.set_visitor(&receive_logger_);
   if (options_.max_header_list_bytes) {
     // Limit buffering of encoded HPACK data to 2x the decoded limit.
