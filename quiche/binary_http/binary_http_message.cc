@@ -90,9 +90,12 @@ absl::Status DecodeFieldsAndBody(quiche::QuicheDataReader& reader,
       !status.ok()) {
     return status;
   }
-  // TODO(bschneider): Handle case where remaining message is truncated.
-  // Skip it on encode as well.
-  // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html#name-padding-and-truncation
+  // Exit early if message has been truncated.
+  // https://www.rfc-editor.org/rfc/rfc9292#section-3.8
+  if (reader.IsDoneReading()) {
+    return absl::OkStatus();
+  }
+
   absl::string_view body;
   if (!reader.ReadStringPieceVarInt62(&body)) {
     return absl::InvalidArgumentError("Failed to read body.");

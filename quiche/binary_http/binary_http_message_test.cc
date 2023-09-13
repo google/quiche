@@ -94,6 +94,10 @@ TEST(BinaryHttpRequest, DecodeGetNoBody) {
   for (const auto& word : words) {
     data += WordToBytes(word);
   }
+
+  // Remove all padding
+  data.resize(data.size() - 3);
+
   const auto request_so = BinaryHttpRequest::Create(data);
   ASSERT_TRUE(request_so.ok());
   const BinaryHttpRequest request = *request_so;
