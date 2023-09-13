@@ -8,6 +8,7 @@
 #ifndef QUICHE_QUIC_CORE_WEB_TRANSPORT_INTERFACE_H_
 #define QUICHE_QUIC_CORE_WEB_TRANSPORT_INTERFACE_H_
 
+#include "absl/strings/str_cat.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/web_transport/web_transport.h"
 

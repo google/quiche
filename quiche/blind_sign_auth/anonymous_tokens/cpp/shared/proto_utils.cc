@@ -14,6 +14,12 @@
 
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.h"
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+#include "absl/time/time.h"
+
 namespace private_membership {
 namespace anonymous_tokens {
 

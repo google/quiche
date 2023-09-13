@@ -4,7 +4,12 @@
 
 #include "quiche/common/quiche_crypto_logging.h"
 
+#include <cstdint>
+#include <string>
+
+#include "absl/base/macros.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/err.h"
 #include "quiche/common/platform/api/quiche_logging.h"

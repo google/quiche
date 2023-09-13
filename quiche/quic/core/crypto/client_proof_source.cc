@@ -5,6 +5,8 @@
 #include "quiche/quic/core/crypto/client_proof_source.h"
 
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 
 namespace quic {
 
