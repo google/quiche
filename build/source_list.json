@@ -1077,6 +1077,7 @@
     "quiche/http2/adapter/event_forwarder_test.cc",
     "quiche/http2/adapter/header_validator_test.cc",
     "quiche/http2/adapter/noop_header_validator_test.cc",
+    "quiche/http2/adapter/oghttp2_adapter_metadata_test.cc",
     "quiche/http2/adapter/oghttp2_adapter_test.cc",
     "quiche/http2/adapter/oghttp2_session_test.cc",
     "quiche/http2/adapter/oghttp2_util_test.cc",

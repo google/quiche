@@ -1078,6 +1078,7 @@ quiche_tests_srcs = [
     "src/quiche/http2/adapter/event_forwarder_test.cc",
     "src/quiche/http2/adapter/header_validator_test.cc",
     "src/quiche/http2/adapter/noop_header_validator_test.cc",
+    "src/quiche/http2/adapter/oghttp2_adapter_metadata_test.cc",
     "src/quiche/http2/adapter/oghttp2_adapter_test.cc",
     "src/quiche/http2/adapter/oghttp2_session_test.cc",
     "src/quiche/http2/adapter/oghttp2_util_test.cc",
