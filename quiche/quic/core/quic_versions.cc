@@ -291,6 +291,36 @@ ParsedQuicVersionVector CurrentSupportedVersionsWithTls() {
   return versions;
 }
 
+ParsedQuicVersionVector ObsoleteSupportedVersions() {
+  return ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046(),
+                                 quic::ParsedQuicVersion::Q050(),
+                                 quic::ParsedQuicVersion::Draft29()};
+}
+
+bool IsObsoleteSupportedVersion(ParsedQuicVersion version) {
+  static const ParsedQuicVersionVector obsolete_versions =
+      ObsoleteSupportedVersions();
+  for (const ParsedQuicVersion& obsolete_version : obsolete_versions) {
+    if (version == obsolete_version) {
+      return true;
+    }
+  }
+  return false;
+}
+
+ParsedQuicVersionVector CurrentSupportedVersionsForClients() {
+  ParsedQuicVersionVector versions;
+  for (const ParsedQuicVersion& version : CurrentSupportedVersionsWithTls()) {
+    QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
+    if (version.transport_version >= QUIC_VERSION_IETF_RFC_V1) {
+      versions.push_back(version);
+    }
+  }
+  QUIC_BUG_IF(quic_bug_10589_8, versions.empty())
+      << "No supported client versions found.";
+  return versions;
+}
+
 ParsedQuicVersionVector CurrentSupportedHttp3Versions() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {

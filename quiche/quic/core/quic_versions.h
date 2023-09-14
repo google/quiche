@@ -418,6 +418,18 @@ QUICHE_EXPORT ParsedQuicVersionVector AllSupportedVersions();
 // flags excluded.
 QUICHE_EXPORT ParsedQuicVersionVector CurrentSupportedVersions();
 
+// Obsolete QUIC supported versions are versions that are supported in
+// QUICHE but which should not be used by by modern clients.
+QUICHE_EXPORT ParsedQuicVersionVector ObsoleteSupportedVersions();
+
+// Returns true if `version` is in `ObsoleteSupportedVersions`.
+QUICHE_EXPORT bool IsObsoleteSupportedVersion(ParsedQuicVersion version);
+
+// Returns a vector of supported QUIC versions which should be used by clients.
+// Server need to support old clients, but new client should only be using
+// QUIC versions in this list.
+QUICHE_EXPORT ParsedQuicVersionVector CurrentSupportedVersionsForClients();
+
 // Returns a vector of QUIC versions from |versions| which exclude any versions
 // which are disabled by flags.
 QUICHE_EXPORT ParsedQuicVersionVector

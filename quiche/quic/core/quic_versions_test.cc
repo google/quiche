@@ -502,6 +502,40 @@ TEST(QuicVersionsTest, CurrentSupportedHttp3Versions) {
   }
 }
 
+TEST(QuicVersionsTest, ObsoleteSupportedVersions) {
+  ParsedQuicVersionVector obsolete_versions = ObsoleteSupportedVersions();
+  EXPECT_EQ(quic::ParsedQuicVersion::Q046(), obsolete_versions[0]);
+  EXPECT_EQ(quic::ParsedQuicVersion::Q050(), obsolete_versions[1]);
+  EXPECT_EQ(quic::ParsedQuicVersion::Draft29(), obsolete_versions[2]);
+}
+
+TEST(QuicVersionsTest, IsObsoleteSupportedVersion) {
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    bool is_obsolete = version.handshake_protocol != PROTOCOL_TLS1_3 ||
+                       version.transport_version < QUIC_VERSION_IETF_RFC_V1;
+    EXPECT_EQ(is_obsolete, IsObsoleteSupportedVersion(version));
+  }
+}
+
+TEST(QuicVersionsTest, CurrentSupportedVersionsForClients) {
+  ParsedQuicVersionVector supported_versions = CurrentSupportedVersions();
+  ParsedQuicVersionVector client_versions =
+      CurrentSupportedVersionsForClients();
+  for (auto& version : supported_versions) {
+    const bool is_obsolete = IsObsoleteSupportedVersion(version);
+    const bool is_supported =
+        absl::c_find(client_versions, version) != client_versions.end();
+    // Every supported version which is not obsolete should be a supported
+    // client version.
+    EXPECT_EQ(!is_obsolete, is_supported);
+  }
+  // Every client version should be a supported version, of course.
+  for (auto& version : client_versions) {
+    EXPECT_TRUE(absl::c_find(supported_versions, version) !=
+                supported_versions.end());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
