@@ -66,7 +66,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_do_not_write_when_no_client_cid_available, t
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, flush ACK frame in QuicConnection::MaybeBundleOpportunistically.
-QUIC_FLAG(quic_reloadable_flag_quic_flush_ack_in_maybe_bundle, false)
+QUIC_FLAG(quic_reloadable_flag_quic_flush_ack_in_maybe_bundle, true)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, reject or send error response code upon receiving invalid request or response headers.
