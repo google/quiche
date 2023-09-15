@@ -466,6 +466,8 @@ const QuicTag kEPID = TAG('E', 'P', 'I', 'D');  // Endpoint identifier.
 const QuicTag kMCS1 = TAG('M', 'C', 'S', '1');
 const QuicTag kMCS2 = TAG('M', 'C', 'S', '2');
 const QuicTag kMCS3 = TAG('M', 'C', 'S', '3');
+const QuicTag kMCS4 = TAG('M', 'C', 'S', '4');
+const QuicTag kMCS5 = TAG('M', 'C', 'S', '5');
 
 constexpr QuicTag kBSUS = TAG('B', 'S', 'U', 'S');  // Blocks server connection
                                                     // until the SETTINGS frame
