@@ -36,10 +36,6 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "If true, then URLs which have a numeric path will send a dynamically "
     "generated response of that many bytes.");
 
-DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, quic_ietf_draft, false,
-                                "Only enable IETF draft versions. This also "
-                                "enables required internal QUIC flags.");
-
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, quic_versions, "",
     "QUIC versions to enable, e.g. \"h3-25,h3-27\". If not set, then all "
@@ -132,19 +128,7 @@ QuicToyServer::QuicToyServer(BackendFactory* backend_factory,
     : backend_factory_(backend_factory), server_factory_(server_factory) {}
 
 int QuicToyServer::Start() {
-  ParsedQuicVersionVector supported_versions;
-  if (quiche::GetQuicheCommandLineFlag(FLAGS_quic_ietf_draft)) {
-    QuicVersionInitializeSupportForIetfDraft();
-    for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-      // Add all versions that supports IETF QUIC.
-      if (version.HasIetfQuicFrames() &&
-          version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
-        supported_versions.push_back(version);
-      }
-    }
-  } else {
-    supported_versions = AllSupportedVersions();
-  }
+  ParsedQuicVersionVector supported_versions = AllSupportedVersions();
   std::string versions_string =
       quiche::GetQuicheCommandLineFlag(FLAGS_quic_versions);
   if (!versions_string.empty()) {

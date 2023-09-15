@@ -425,7 +425,6 @@ int main(int argc, char* argv[]) {
   }
 
   // Pick QUIC version to use.
-  quic::QuicVersionInitializeSupportForIetfDraft();
   quic::ParsedQuicVersion version = quic::UnsupportedQuicVersion();
   std::string quic_version_string =
       quiche::GetQuicheCommandLineFlag(FLAGS_quic_version);

@@ -653,11 +653,6 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
   return "h3-" + ParsedQuicVersionToString(parsed_version);
 }
 
-void QuicVersionInitializeSupportForIetfDraft() {
-  // Enable necessary flags.
-  SetQuicRestartFlag(quic_receive_ecn3, true);
-}
-
 void QuicEnableVersion(const ParsedQuicVersion& version) {
   SetVersionFlag(version, /*should_enable=*/true);
 }

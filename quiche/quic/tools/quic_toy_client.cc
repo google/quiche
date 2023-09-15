@@ -119,10 +119,6 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "Client connection options as ASCII tags separated by commas, "
     "e.g. \"ABCD,EFGH\"");
 
-DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, quic_ietf_draft, false,
-                                "Use the IETF draft version. This also enables "
-                                "required internal QUIC flags.");
-
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, version_mismatch_ok, false,
     "If true, a version mismatch in the handshake is not considered a "
@@ -265,17 +261,6 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   }
 
   quic::ParsedQuicVersionVector versions = quic::CurrentSupportedVersions();
-
-  if (quiche::GetQuicheCommandLineFlag(FLAGS_quic_ietf_draft)) {
-    quic::QuicVersionInitializeSupportForIetfDraft();
-    versions = {};
-    for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-      if (version.HasIetfQuicFrames() &&
-          version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
-        versions.push_back(version);
-      }
-    }
-  }
 
   std::string quic_version_string =
       quiche::GetQuicheCommandLineFlag(FLAGS_quic_version);

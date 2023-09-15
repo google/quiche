@@ -614,10 +614,6 @@ QUICHE_EXPORT bool QuicVersionLabelUses4BitConnectionIdLength(
 // Returns the ALPN string to use in TLS for this version of QUIC.
 QUICHE_EXPORT std::string AlpnForVersion(ParsedQuicVersion parsed_version);
 
-// Initializes support for the provided IETF draft version by setting the
-// correct flags.
-QUICHE_EXPORT void QuicVersionInitializeSupportForIetfDraft();
-
 // Configures the flags required to enable support for this version of QUIC.
 QUICHE_EXPORT void QuicEnableVersion(const ParsedQuicVersion& version);
 

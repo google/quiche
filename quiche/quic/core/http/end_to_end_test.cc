@@ -1373,17 +1373,6 @@ TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
                                                 .length());
 }
 
-TEST_P(EndToEndTest, SimpleRequestResponseWithIetfDraftSupport) {
-  if (!version_.HasIetfQuicFrames()) {
-    ASSERT_TRUE(Initialize());
-    return;
-  }
-  QuicVersionInitializeSupportForIetfDraft();
-  ASSERT_TRUE(Initialize());
-
-  SendSynchronousFooRequestAndCheckResponse();
-}
-
 TEST_P(EndToEndTest, SimpleRequestResponseWithLargeReject) {
   chlo_multiplier_ = 1;
   ASSERT_TRUE(Initialize());

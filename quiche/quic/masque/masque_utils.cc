@@ -16,7 +16,6 @@
 namespace quic {
 
 ParsedQuicVersionVector MasqueSupportedVersions() {
-  QuicVersionInitializeSupportForIetfDraft();
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     // Use all versions that support IETF QUIC except QUICv2.
