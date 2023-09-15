@@ -4,10 +4,13 @@
 
 #include "quiche/quic/core/quic_versions.h"
 
+#include <cstddef>
+#include <sstream>
+
+#include "absl/algorithm/container.h"
 #include "absl/base/macros.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
 namespace quic {
