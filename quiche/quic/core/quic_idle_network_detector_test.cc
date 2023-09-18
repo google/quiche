@@ -102,30 +102,11 @@ TEST_F(QuicIdleNetworkDetectorTest,
   detector_->SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::Infinite(),
       /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(600));
-  if (!GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle_v2)) {
-    EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
-              alarm_->deadline());
-
-    // No network activity for 600s.
-    clock_.AdvanceTime(QuicTime::Delta::FromSeconds(600));
-    EXPECT_CALL(delegate_, OnIdleNetworkDetected());
-    alarm_->Fire();
-    return;
-  }
-
-  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(300),
-            alarm_->deadline());
-
-  // No network activity for 300s.
-  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(300));
-  EXPECT_CALL(delegate_, OnBandwidthUpdateTimeout());
-  alarm_->Fire();
-  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(300),
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
             alarm_->deadline());
 
   // No network activity for 600s.
-  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(300));
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(600));
   EXPECT_CALL(delegate_, OnIdleNetworkDetected());
   alarm_->Fire();
 }
@@ -139,16 +120,11 @@ TEST_F(QuicIdleNetworkDetectorTest,
   EXPECT_TRUE(alarm_->IsSet());
 
   // Handshake completes in 200ms.
-  const bool enable_sending_bandwidth_estimate_when_network_idle =
-      GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle_v2);
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
   detector_->OnPacketReceived(clock_.Now());
   detector_->SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::Infinite(),
-      enable_sending_bandwidth_estimate_when_network_idle
-          ? QuicTime::Delta::FromSeconds(1200)
-          : QuicTime::Delta::FromSeconds(600));
+      QuicTime::Delta::FromSeconds(600));
   EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
             alarm_->deadline());
 
@@ -166,27 +142,9 @@ TEST_F(QuicIdleNetworkDetectorTest,
   EXPECT_EQ(packet_sent_time + QuicTime::Delta::FromSeconds(600),
             alarm_->deadline());
 
-  if (!enable_sending_bandwidth_estimate_when_network_idle) {
-    // No network activity for 600s.
-    clock_.AdvanceTime(QuicTime::Delta::FromSeconds(600) -
-                       QuicTime::Delta::FromMilliseconds(200));
-    EXPECT_CALL(delegate_, OnIdleNetworkDetected());
-    alarm_->Fire();
-    return;
-  }
-
-  // Bandwidth update times out after no network activity for 600s.
+  // No network activity for 600s.
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(600) -
                      QuicTime::Delta::FromMilliseconds(200));
-  EXPECT_CALL(delegate_, OnBandwidthUpdateTimeout());
-  alarm_->Fire();
-  EXPECT_TRUE(alarm_->IsSet());
-  EXPECT_EQ(packet_sent_time + QuicTime::Delta::FromSeconds(1200),
-            alarm_->deadline());
-
-  // Network idle time out after no network activity for 1200s.
-  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1200) -
-                     QuicTime::Delta::FromMilliseconds(600));
   EXPECT_CALL(delegate_, OnIdleNetworkDetected());
   alarm_->Fire();
 }
@@ -194,12 +152,7 @@ TEST_F(QuicIdleNetworkDetectorTest,
 TEST_F(QuicIdleNetworkDetectorTest, ShorterIdleTimeoutOnSentPacket) {
   detector_->enable_shorter_idle_timeout_on_sent_packet();
   QuicTime::Delta idle_network_timeout = QuicTime::Delta::Zero();
-  if (GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle_v2)) {
-    idle_network_timeout = QuicTime::Delta::FromSeconds(60);
-  } else {
-    idle_network_timeout = QuicTime::Delta::FromSeconds(30);
-  }
+  idle_network_timeout = QuicTime::Delta::FromSeconds(30);
   detector_->SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::Infinite(), idle_network_timeout);
   EXPECT_TRUE(alarm_->IsSet());
@@ -245,35 +198,6 @@ TEST_F(QuicIdleNetworkDetectorTest, NoAlarmAfterStopped) {
           /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20)),
       "SetAlarm called after stopped");
   EXPECT_FALSE(alarm_->IsSet());
-}
-
-TEST_F(QuicIdleNetworkDetectorTest,
-       ResetBandwidthTimeoutWhenHandshakeTimeoutIsSet) {
-  if (!GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle_v2)) {
-    return;
-  }
-  detector_->SetTimeouts(
-      /*handshake_timeout=*/QuicTime::Delta::Infinite(),
-      /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
-  // The deadline is set based on the bandwidth timeout.
-  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(10),
-            alarm_->deadline());
-
-  detector_->SetTimeouts(
-      /*handshake_timeout=*/QuicTime::Delta::FromSeconds(15),
-      /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
-  // Bandwidth timeout is reset and the deadline is set based on the handshake
-  // timeout.
-  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(15),
-            alarm_->deadline());
-
-  detector_->SetTimeouts(
-      /*handshake_timeout=*/QuicTime::Delta::Infinite(),
-      /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
-  // The deadline is set based on the bandwidth timeout.
-  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(10),
-            alarm_->deadline());
 }
 
 }  // namespace

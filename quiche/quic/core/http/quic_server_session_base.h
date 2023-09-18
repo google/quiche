@@ -75,10 +75,6 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
 
   QuicSSLConfig GetSSLConfig() const override;
 
-  bool enable_sending_bandwidth_estimate_when_network_idle() const {
-    return enable_sending_bandwidth_estimate_when_network_idle_;
-  }
-
  protected:
   // QuicSession methods(override them with return type of QuicSpdyStream*):
   QuicCryptoServerStreamBase* GetMutableCryptoStream() override;
@@ -152,8 +148,6 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
   // should go away once we fix http://b//27897982
   int32_t BandwidthToCachedParameterBytesPerSecond(
       const QuicBandwidth& bandwidth) const;
-
-  bool enable_sending_bandwidth_estimate_when_network_idle_ = false;
 };
 
 }  // namespace quic

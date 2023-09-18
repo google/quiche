@@ -79,8 +79,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_require_handshake_confirmation, true)
 QUIC_FLAG(quic_reloadable_flag_quic_priority_respect_incremental, false)
 // If true, round-robin stream writes instead of batching in QuicWriteBlockedList.
 QUIC_FLAG(quic_reloadable_flag_quic_disable_batch_write, false)
-// If true, server sends bandwidth eastimate when network is idle for a while.
-QUIC_FLAG(quic_restart_flag_quic_enable_sending_bandwidth_estimate_when_network_idle_v2, false)
 // If true, set burst token to 2 in cwnd bootstrapping experiment.
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_bursts, false)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.

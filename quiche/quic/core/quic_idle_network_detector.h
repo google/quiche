@@ -114,6 +114,7 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
   // Idle network timeout. Infinite means no idle network timeout.
   QuicTime::Delta idle_network_timeout_;
 
+  // TODO(b/296840230) Remove this field.
   // Bandwidth update timeout. Infinite means no bandwidth update timeout.
   QuicTime::Delta bandwidth_update_timeout_;
 

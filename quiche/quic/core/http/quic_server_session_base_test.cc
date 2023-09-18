@@ -607,40 +607,35 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
                                     HAS_RETRANSMITTABLE_DATA, true,
                                     ECN_NOT_ECT);
 
-  if (GetQuicRestartFlag(
-          quic_enable_sending_bandwidth_estimate_when_network_idle_v2)) {
-    EXPECT_CALL(*connection_, OnSendConnectionState(_)).Times(0);
-  } else {
-    // Verify that the proto has exactly the values we expect.
-    CachedNetworkParameters expected_network_params;
-    expected_network_params.set_bandwidth_estimate_bytes_per_second(
-        bandwidth_recorder.BandwidthEstimate().ToBytesPerSecond());
-    expected_network_params.set_max_bandwidth_estimate_bytes_per_second(
-        bandwidth_recorder.MaxBandwidthEstimate().ToBytesPerSecond());
-    expected_network_params.set_max_bandwidth_timestamp_seconds(
-        bandwidth_recorder.MaxBandwidthTimestamp());
-    expected_network_params.set_min_rtt_ms(session_->connection()
-                                               ->sent_packet_manager()
-                                               .GetRttStats()
-                                               ->min_rtt()
-                                               .ToMilliseconds());
-    expected_network_params.set_previous_connection_state(
-        CachedNetworkParameters::CONGESTION_AVOIDANCE);
-    expected_network_params.set_timestamp(
-        session_->connection()->clock()->WallNow().ToUNIXSeconds());
-    expected_network_params.set_serving_region(serving_region);
+  // Verify that the proto has exactly the values we expect.
+  CachedNetworkParameters expected_network_params;
+  expected_network_params.set_bandwidth_estimate_bytes_per_second(
+      bandwidth_recorder.BandwidthEstimate().ToBytesPerSecond());
+  expected_network_params.set_max_bandwidth_estimate_bytes_per_second(
+      bandwidth_recorder.MaxBandwidthEstimate().ToBytesPerSecond());
+  expected_network_params.set_max_bandwidth_timestamp_seconds(
+      bandwidth_recorder.MaxBandwidthTimestamp());
+  expected_network_params.set_min_rtt_ms(session_->connection()
+                                             ->sent_packet_manager()
+                                             .GetRttStats()
+                                             ->min_rtt()
+                                             .ToMilliseconds());
+  expected_network_params.set_previous_connection_state(
+      CachedNetworkParameters::CONGESTION_AVOIDANCE);
+  expected_network_params.set_timestamp(
+      session_->connection()->clock()->WallNow().ToUNIXSeconds());
+  expected_network_params.set_serving_region(serving_region);
 
-    if (quic_crypto_stream) {
-      EXPECT_CALL(*quic_crypto_stream,
-                  SendServerConfigUpdate(EqualsProto(expected_network_params)))
-          .Times(1);
-    } else {
-      EXPECT_CALL(*tls_server_stream,
-                  GetAddressToken(EqualsProto(expected_network_params)))
-          .WillOnce(testing::Return("Test address token"));
-    }
-    EXPECT_CALL(*connection_, OnSendConnectionState(_)).Times(1);
+  if (quic_crypto_stream) {
+    EXPECT_CALL(*quic_crypto_stream,
+                SendServerConfigUpdate(EqualsProto(expected_network_params)))
+        .Times(1);
+  } else {
+    EXPECT_CALL(*tls_server_stream,
+                GetAddressToken(EqualsProto(expected_network_params)))
+        .WillOnce(testing::Return("Test address token"));
   }
+  EXPECT_CALL(*connection_, OnSendConnectionState(_)).Times(1);
   session_->OnCongestionWindowChange(now);
 }
 
