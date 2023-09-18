@@ -4,6 +4,7 @@
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_join.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
@@ -91,60 +92,13 @@ bool IsValidMethod(absl::string_view method) {
 bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers,
                             absl::optional<std::string>& authority,
                             absl::string_view method, absl::string_view path,
-                            bool allow_extended_connect) {
-  QUICHE_VLOG(2) << "Request pseudo-headers: ["
-                 << absl::StrJoin(pseudo_headers, ", ")
-                 << "], allow_extended_connect: " << allow_extended_connect
-                 << ", authority: "
-                 << (authority ? authority.value() : "<nullopt>")
-                 << ", method: " << method << ", path: " << path;
-  if (method == "CONNECT") {
-    if (allow_extended_connect) {
-      // See RFC 8441.
-      static const std::vector<std::string>* kExtendedConnectHeaders =
-          new std::vector<std::string>(
-              {":authority", ":method", ":path", ":protocol", ":scheme"});
-      if (pseudo_headers == *kExtendedConnectHeaders) {
-        return true;
-      }
-    }
-    // See RFC 7540 Section 8.3.
-    static const std::vector<std::string>* kConnectHeaders =
-        new std::vector<std::string>({":authority", ":method"});
-    return authority.has_value() && !authority.value().empty() &&
-           pseudo_headers == *kConnectHeaders;
-  }
+                            bool allow_extended_connect);
 
-  if (path.empty()) {
-    return false;
-  }
-  if (path == "*") {
-    if (method != "OPTIONS") {
-      return false;
-    }
-  } else if (path[0] != '/') {
-    return false;
-  }
+bool ValidateRequestTrailers(const std::vector<std::string>& pseudo_headers);
 
-  static const std::vector<std::string>* kRequiredHeaders =
-      new std::vector<std::string>(
-          {":authority", ":method", ":path", ":scheme"});
-  return pseudo_headers == *kRequiredHeaders;
-}
+bool ValidateResponseHeaders(const std::vector<std::string>& pseudo_headers);
 
-bool ValidateRequestTrailers(const std::vector<std::string>& pseudo_headers) {
-  return pseudo_headers.empty();
-}
-
-bool ValidateResponseHeaders(const std::vector<std::string>& pseudo_headers) {
-  static const std::vector<std::string>* kRequiredHeaders =
-      new std::vector<std::string>({":status"});
-  return pseudo_headers == *kRequiredHeaders;
-}
-
-bool ValidateResponseTrailers(const std::vector<std::string>& pseudo_headers) {
-  return pseudo_headers.empty();
-}
+bool ValidateResponseTrailers(const std::vector<std::string>& pseudo_headers);
 
 }  // namespace
 
@@ -334,6 +288,68 @@ bool HeaderValidator::ValidateAndSetAuthority(absl::string_view authority) {
   authority_ = std::string(authority);
   return true;
 }
+
+namespace {
+
+bool ValidateRequestHeaders(const std::vector<std::string>& pseudo_headers,
+                            absl::optional<std::string>& authority,
+                            absl::string_view method, absl::string_view path,
+                            bool allow_extended_connect) {
+  QUICHE_VLOG(2) << "Request pseudo-headers: ["
+                 << absl::StrJoin(pseudo_headers, ", ")
+                 << "], allow_extended_connect: " << allow_extended_connect
+                 << ", authority: "
+                 << (authority ? authority.value() : "<nullopt>")
+                 << ", method: " << method << ", path: " << path;
+  if (method == "CONNECT") {
+    if (allow_extended_connect) {
+      // See RFC 8441.
+      static const std::vector<std::string>* kExtendedConnectHeaders =
+          new std::vector<std::string>(
+              {":authority", ":method", ":path", ":protocol", ":scheme"});
+      if (pseudo_headers == *kExtendedConnectHeaders) {
+        return true;
+      }
+    }
+    // See RFC 7540 Section 8.3.
+    static const std::vector<std::string>* kConnectHeaders =
+        new std::vector<std::string>({":authority", ":method"});
+    return authority.has_value() && !authority.value().empty() &&
+           pseudo_headers == *kConnectHeaders;
+  }
+
+  if (path.empty()) {
+    return false;
+  }
+  if (path == "*") {
+    if (method != "OPTIONS") {
+      return false;
+    }
+  } else if (path[0] != '/') {
+    return false;
+  }
+
+  static const std::vector<std::string>* kRequiredHeaders =
+      new std::vector<std::string>(
+          {":authority", ":method", ":path", ":scheme"});
+  return pseudo_headers == *kRequiredHeaders;
+}
+
+bool ValidateRequestTrailers(const std::vector<std::string>& pseudo_headers) {
+  return pseudo_headers.empty();
+}
+
+bool ValidateResponseHeaders(const std::vector<std::string>& pseudo_headers) {
+  static const std::vector<std::string>* kRequiredHeaders =
+      new std::vector<std::string>({":status"});
+  return pseudo_headers == *kRequiredHeaders;
+}
+
+bool ValidateResponseTrailers(const std::vector<std::string>& pseudo_headers) {
+  return pseudo_headers.empty();
+}
+
+}  // namespace
 
 }  // namespace adapter
 }  // namespace http2
