@@ -44,6 +44,9 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
 
   QuicBandwidth max_pacing_rate() const { return max_pacing_rate_; }
 
+  bool use_quarantine_mode() const;
+  void set_use_quarantine_mode(bool use_quarantine_mode);
+
  protected:
   int GetNumSentClientHellosFromSession() override;
   int GetNumReceivedServerConfigUpdatesFromSession() override;
@@ -77,6 +80,9 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
 
   // When nonzero, the pacing rate set with`QuicConnection::SetMaxPacingRate`.
   QuicBandwidth max_pacing_rate_;
+
+  // When true, the connection will be made in quarantine mode.
+  bool use_quarantine_mode_ = false;
 };
 
 }  // namespace quic

@@ -104,4 +104,8 @@ std::unique_ptr<QuicSession> QboneClient::CreateQuicClientSession(
       supported_versions, server_id(), qbone_writer_, qbone_handler_);
 }
 
+bool QboneClient::use_quarantine_mode() const { return use_quarantine_mode_; }
+void QboneClient::set_use_quarantine_mode(bool use_quarantine_mode) {
+  use_quarantine_mode_ = use_quarantine_mode;
+}
 }  // namespace quic
