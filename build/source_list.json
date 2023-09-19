@@ -1591,6 +1591,7 @@
     "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.h",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/status_utils.h",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/proto_utils.h",
+    "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/testdata_utils.h",
     "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/utils.h",
     "quiche/blind_sign_auth/blind_sign_auth.h",
     "quiche/blind_sign_auth/blind_sign_auth_interface.h",
