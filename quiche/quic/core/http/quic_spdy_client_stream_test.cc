@@ -162,7 +162,6 @@ TEST_P(QuicSpdyClientStreamTest, TestFraming) {
 
 TEST_P(QuicSpdyClientStreamTest, HostAllowedInResponseHeader) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
-  SetQuicReloadableFlag(quic_allow_host_header_in_response, true);
   auto headers = AsHeaderList(std::vector<std::pair<std::string, std::string>>{
       {":status", "200"}, {"host", "example.com"}});
   EXPECT_CALL(*connection_, OnStreamReset(stream_->id(), _)).Times(0u);

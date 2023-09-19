@@ -1693,15 +1693,12 @@ bool QuicSpdyStream::ValidatedReceivedHeaders(
       QUIC_DLOG(ERROR) << invalid_request_details_;
       return false;
     }
-    if (GetQuicReloadableFlag(quic_allow_host_header_in_response)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_allow_host_header_in_response);
-      if (name == ":status") {
-        is_response = !pair.second.empty();
-      }
-      if (is_response && name == "host") {
-        // Host header is allowed in response.
-        continue;
-      }
+    if (name == ":status") {
+      is_response = !pair.second.empty();
+    }
+    if (is_response && name == "host") {
+      // Host header is allowed in response.
+      continue;
     }
     if (http2::GetInvalidHttp2HeaderSet().contains(name)) {
       invalid_request_details_ = absl::StrCat(name, " header is not allowed");
