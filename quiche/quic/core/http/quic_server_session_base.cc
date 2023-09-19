@@ -128,9 +128,6 @@ void QuicServerSessionBase::OnConnectionClosed(
   }
 }
 
-// TODO(b/296840230) Remove this virtual function.
-void QuicServerSessionBase::OnBandwidthUpdateTimeout() {}
-
 void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
   if (!bandwidth_resumption_enabled_) {
     return;

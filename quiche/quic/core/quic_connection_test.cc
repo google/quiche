@@ -5862,7 +5862,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
         &config, connection_.connection_id());
   }
   connection_.SetFromConfig(config);
-  QuicConnectionPeer::DisableBandwidthUpdate(&connection_);
 
   const QuicTime::Delta default_idle_timeout =
       QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs - 1);
@@ -5942,7 +5941,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
         &config, connection_.connection_id());
   }
   connection_.SetFromConfig(config);
-  QuicConnectionPeer::DisableBandwidthUpdate(&connection_);
 
   const QuicTime::Delta default_idle_timeout =
       QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs - 1);
@@ -6038,7 +6036,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceiveNotSendWhenUnacked) {
   connection_.SetNetworkTimeouts(
       QuicTime::Delta::Infinite(),
       initial_idle_timeout + QuicTime::Delta::FromSeconds(1));
-  QuicConnectionPeer::DisableBandwidthUpdate(&connection_);
   const QuicTime::Delta five_ms = QuicTime::Delta::FromMilliseconds(5);
   QuicTime default_timeout = clock_.ApproximateNow() + initial_idle_timeout;
 
@@ -11230,11 +11227,6 @@ TEST_P(QuicConnectionTest, SilentIdleTimeout) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  if (!QuicConnectionPeer::GetBandwidthUpdateTimeout(&connection_)
-           .IsInfinite()) {
-    // Fires the bandwidth update.
-    connection_.GetTimeoutAlarm()->Fire();
-  }
   connection_.GetTimeoutAlarm()->Fire();
   // Verify the connection close packets get serialized and added to
   // termination packets list.

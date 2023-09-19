@@ -244,9 +244,6 @@ class QUICHE_EXPORT QuicConnectionVisitorInterface {
   // Return false if the crypto stream fail to generate one.
   virtual bool MaybeSendAddressToken() = 0;
 
-  // When bandwidth update alarms.
-  virtual void OnBandwidthUpdateTimeout() = 0;
-
   // Runs OnMultiPortPathContextAvailable() from |context_observer| with context
   // needed for the connection to probe on the alternative path. The callback
   // must be called exactly once. May run OnMultiPortPathContextAvailable()
@@ -752,7 +749,6 @@ class QUICHE_EXPORT QuicConnection
   // QuicIdleNetworkDetector::Delegate
   void OnHandshakeTimeout() override;
   void OnIdleNetworkDetected() override;
-  void OnBandwidthUpdateTimeout() override;
 
   // QuicPingManager::Delegate
   void OnKeepAliveTimeout() override;

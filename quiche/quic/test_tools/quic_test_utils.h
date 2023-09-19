@@ -508,7 +508,6 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, OnServerPreferredAddressAvailable,
               (const QuicSocketAddress&), (override));
   MOCK_METHOD(void, MaybeBundleOpportunistically, (), (override));
-  void OnBandwidthUpdateTimeout() override {}
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {

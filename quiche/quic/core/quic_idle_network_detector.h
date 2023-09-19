@@ -34,9 +34,6 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
 
     // Called when idle network has been detected.
     virtual void OnIdleNetworkDetected() = 0;
-
-    // Called when bandwidth update alarms.
-    virtual void OnBandwidthUpdateTimeout() = 0;
   };
 
   QuicIdleNetworkDetector(Delegate* delegate, QuicTime now,
@@ -76,10 +73,6 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
 
   QuicTime::Delta idle_network_timeout() const { return idle_network_timeout_; }
 
-  QuicTime::Delta bandwidth_update_timeout() const {
-    return bandwidth_update_timeout_;
-  }
-
   QuicTime GetIdleNetworkDeadline() const;
 
  private:
@@ -113,10 +106,6 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
 
   // Idle network timeout. Infinite means no idle network timeout.
   QuicTime::Delta idle_network_timeout_;
-
-  // TODO(b/296840230) Remove this field.
-  // Bandwidth update timeout. Infinite means no bandwidth update timeout.
-  QuicTime::Delta bandwidth_update_timeout_;
 
   QuicArenaScopedPtr<QuicAlarm> alarm_;
 

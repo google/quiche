@@ -6348,10 +6348,6 @@ void QuicConnection::OnIdleNetworkDetected() {
                   idle_timeout_connection_close_behavior_);
 }
 
-void QuicConnection::OnBandwidthUpdateTimeout() {
-  visitor_->OnBandwidthUpdateTimeout();
-}
-
 void QuicConnection::OnKeepAliveTimeout() {
   if (retransmission_alarm_->IsSet() ||
       !visitor_->ShouldKeepConnectionAlive()) {

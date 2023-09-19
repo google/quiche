@@ -27,7 +27,6 @@ class MockDelegate : public QuicIdleNetworkDetector::Delegate {
  public:
   MOCK_METHOD(void, OnHandshakeTimeout, (), (override));
   MOCK_METHOD(void, OnIdleNetworkDetected, (), (override));
-  MOCK_METHOD(void, OnBandwidthUpdateTimeout, (), (override));
 };
 
 class QuicIdleNetworkDetectorTest : public QuicTest {

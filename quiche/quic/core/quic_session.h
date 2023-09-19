@@ -181,7 +181,6 @@ class QUICHE_EXPORT QuicSession
   void BeforeConnectionCloseSent() override {}
   bool ValidateToken(absl::string_view token) override;
   bool MaybeSendAddressToken() override;
-  void OnBandwidthUpdateTimeout() override {}
   void CreateContextForMultiPortPath(
       std::unique_ptr<MultiPortPathContextObserver> /*context_observer*/)
       override {}

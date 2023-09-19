@@ -48,9 +48,6 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
 
-  // Override to send bandwidth estimate.
-  void OnBandwidthUpdateTimeout() override;
-
   // Sends a server config update to the client, containing new bandwidth
   // estimate.
   void OnCongestionWindowChange(QuicTime now) override;

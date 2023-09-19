@@ -54,23 +54,6 @@ QuicTime::Delta QuicConnectionPeer::GetHandshakeTimeout(
 }
 
 // static
-QuicTime::Delta QuicConnectionPeer::GetBandwidthUpdateTimeout(
-    QuicConnection* connection) {
-  return connection->idle_network_detector_.bandwidth_update_timeout_;
-}
-
-// static
-void QuicConnectionPeer::DisableBandwidthUpdate(QuicConnection* connection) {
-  if (connection->idle_network_detector_.bandwidth_update_timeout_
-          .IsInfinite()) {
-    return;
-  }
-  connection->idle_network_detector_.bandwidth_update_timeout_ =
-      QuicTime::Delta::Infinite();
-  connection->idle_network_detector_.SetAlarm();
-}
-
-// static
 void QuicConnectionPeer::SetPerspective(QuicConnection* connection,
                                         Perspective perspective) {
   connection->perspective_ = perspective;
