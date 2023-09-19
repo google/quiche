@@ -39,8 +39,6 @@ QUIC_FLAG(quic_restart_flag_quic_opport_bundle_qpack_decoder_data, false)
 QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed, true)
 // If true, check connected at the beginning of TlsHandshaker::SetReadSecret.
 QUIC_FLAG(quic_reloadable_flag_quic_check_connected_before_set_read_secret, true)
-// If true, consider write blocked when destination CID is required but missing on the default path.
-QUIC_FLAG(quic_reloadable_flag_quic_write_is_blocked_when_cid_is_missing, true)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, disable QUIC version Q046.

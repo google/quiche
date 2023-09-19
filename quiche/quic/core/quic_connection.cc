@@ -2843,14 +2843,8 @@ void QuicConnection::WriteIfNotBlocked() {
         << ENDPOINT << "Tried to write in mid of packet processing";
     return;
   }
-  if (GetQuicReloadableFlag(quic_write_is_blocked_when_cid_is_missing)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_write_is_blocked_when_cid_is_missing, 1,
-                                 2);
-    if (IsMissingDestinationConnectionID()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_write_is_blocked_when_cid_is_missing, 2,
-                                   2);
-      return;
-    }
+  if (IsMissingDestinationConnectionID()) {
+    return;
   }
   if (!HandleWriteBlocked()) {
     OnCanWrite();
