@@ -61,7 +61,8 @@ TEST(HeaderValidatorTest, NameHasInvalidChar) {
                                                 : absl::StrCat("na", c, "me");
       HeaderValidator::HeaderStatus status =
           v.ValidateSingleHeader(name, "value");
-      EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
+      EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status)
+          << "with name [" << name << "]";
     }
     // Test nul separately.
     {
@@ -170,7 +171,8 @@ TEST(HeaderValidatorTest, AuthorityHasInvalidChar) {
       HeaderValidator v;
       v.StartHeaderBlock();
       HeaderValidator::HeaderStatus status = v.ValidateSingleHeader(key, value);
-      EXPECT_EQ(HeaderValidator::HEADER_OK, status);
+      EXPECT_EQ(HeaderValidator::HEADER_OK, status)
+          << " with name [" << key << "] and value [" << value << "]";
     }
     // These should not.
     for (const absl::string_view c : {"\r", "\n", "|", "\\", "`"}) {

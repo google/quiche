@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_HEADER_VALIDATOR_H_
 #define QUICHE_HTTP2_ADAPTER_HEADER_VALIDATOR_H_
 
+#include <bitset>
 #include <string>
 #include <vector>
 
@@ -46,10 +47,44 @@ class QUICHE_EXPORT HeaderValidator : public HeaderValidatorBase {
   ContentLengthStatus HandleContentLength(absl::string_view value);
   bool ValidateAndSetAuthority(absl::string_view authority);
 
-  std::vector<std::string> pseudo_headers_;
-  absl::optional<std::string> authority_ = absl::nullopt;
-  std::string method_;
-  std::string path_;
+  enum PseudoHeaderTag {
+    TAG_AUTHORITY = 0,
+    TAG_METHOD,
+    TAG_PATH,
+    TAG_PROTOCOL,
+    TAG_SCHEME,
+    TAG_STATUS,
+    TAG_UNKNOWN_EXTRA,
+    TAG_ENUM_SIZE,
+  };
+  void RecordPseudoHeader(PseudoHeaderTag tag);
+
+  using PseudoHeaderTagSet = std::bitset<TAG_ENUM_SIZE>;
+
+  enum PseudoHeaderState {
+    STATE_AUTHORITY_IS_NONEMPTY,
+    STATE_METHOD_IS_OPTIONS,
+    STATE_METHOD_IS_CONNECT,
+    STATE_PATH_IS_EMPTY,
+    STATE_PATH_IS_STAR,
+    STATE_PATH_INITIAL_SLASH,
+    STATE_ENUM_SIZE,
+  };
+  using PseudoHeaderStateSet = std::bitset<STATE_ENUM_SIZE>;
+
+  static bool ValidateRequestHeaders(
+      const PseudoHeaderTagSet& pseudo_headers,
+      const PseudoHeaderStateSet& pseudo_header_state,
+      bool allow_extended_connect);
+  static bool ValidateRequestTrailers(const PseudoHeaderTagSet& pseudo_headers);
+  static bool ValidateResponseHeaders(const PseudoHeaderTagSet& pseudo_headers);
+  static bool ValidateResponseTrailers(
+      const PseudoHeaderTagSet& pseudo_headers);
+
+  PseudoHeaderTagSet pseudo_headers_;
+  PseudoHeaderStateSet pseudo_header_state_;
+
+  std::string authority_;
 };
 
 }  // namespace adapter
