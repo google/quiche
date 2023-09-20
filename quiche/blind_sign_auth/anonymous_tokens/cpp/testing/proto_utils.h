@@ -15,9 +15,9 @@
 #ifndef THIRD_PARTY_ANONYMOUS_TOKENS_CPP_TESTING_PROTO_UTILS_H_
 #define THIRD_PARTY_ANONYMOUS_TOKENS_CPP_TESTING_PROTO_UTILS_H_
 
+#include <cstdint>
 #include <string>
 #include <utility>
-#include <cstdint>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -31,6 +31,10 @@ namespace anonymous_tokens {
 // Creates a pair containing a standard RSA Private key and an Anonymous Tokens
 // RSABlindSignaturePublicKey using RSA_F4 (65537) as the public exponent and
 // other input parameters.
+//
+// The standard key pair produced by this method should only be used to test
+// standard RSA Blind Signatures. For testing RSA Blind Signatures with Public
+// Metadata please use RSA keys with strong RSA moduli.
 absl::StatusOr<std::pair<bssl::UniquePtr<RSA>, RSABlindSignaturePublicKey>>
 CreateTestKey(int key_size = 512, HashType sig_hash = AT_HASH_TYPE_SHA384,
               MaskGenFunction mfg1_hash = AT_MGF_SHA384, int salt_length = 48,
