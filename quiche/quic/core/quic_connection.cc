@@ -2349,14 +2349,8 @@ void QuicConnection::MaybeSendInResponseToPacket() {
     return;
   }
 
-  if (GetQuicReloadableFlag(quic_do_not_write_when_no_client_cid_available)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_do_not_write_when_no_client_cid_available,
-                                 1, 3);
-    if (IsMissingDestinationConnectionID()) {
-      QUICHE_RELOADABLE_FLAG_COUNT_N(
-          quic_do_not_write_when_no_client_cid_available, 2, 3);
-      return;
-    }
+  if (IsMissingDestinationConnectionID()) {
+    return;
   }
 
   // If the writer is blocked, don't attempt to send packets now or in the send
@@ -3238,12 +3232,8 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return false;
   }
 
-  if (GetQuicReloadableFlag(quic_do_not_write_when_no_client_cid_available)) {
-    if (IsMissingDestinationConnectionID()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_do_not_write_when_no_client_cid_available, 3, 3);
-      return false;
-    }
+  if (IsMissingDestinationConnectionID()) {
+    return false;
   }
 
   if (version().CanSendCoalescedPackets() &&
