@@ -3879,6 +3879,156 @@ TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
   EXPECT_FALSE(adapter->want_write());
 }
 
+TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStream) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames =
+      TestFrameSequence()
+          .ClientPreface()
+          .Headers(1, {{":method", "GET"},
+                       {":scheme", "https"},
+                       {":authority", "example.com"},
+                       {":path", "/this/is/request/one"}})
+          .Data(1, "Example data, woohoo.")
+          .Serialize();
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
+  EXPECT_CALL(visitor, OnDataForStream(1, _));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(result), frames.size());
+
+  // Send a body that will end with the END_STREAM flag.
+  const absl::string_view kBody = "This is an example response body.";
+  auto body = std::make_unique<TestDataFrameSource>(visitor, /*has_fin=*/true);
+  body->AppendPayload(kBody);
+  body->EndData();
+
+  int submit_result = adapter->SubmitResponse(
+      1, ToHeaders({{":status", "200"}}), std::move(body));
+  ASSERT_EQ(submit_result, 0);
+
+  const std::vector<Header> trailers =
+      ToHeaders({{"extra-info", "Trailers are weird but good?"}});
+  submit_result = adapter->SubmitTrailer(1, trailers);
+  ASSERT_EQ(submit_result, 0);
+
+  // It looks like nghttp2 drops the response body altogether and goes straight
+  // to writing the trailers.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, ACK_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, ACK_FLAG, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, END_HEADERS_FLAG, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _,
+                                         END_HEADERS_FLAG | END_STREAM_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _,
+                                   END_HEADERS_FLAG | END_STREAM_FLAG, 0));
+
+  const int send_result = adapter->Send();
+  EXPECT_EQ(send_result, 0);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS,
+                            SpdyFrameType::HEADERS}));
+}
+
+TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStreamAndDeferral) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
+
+  const std::string frames =
+      TestFrameSequence()
+          .ClientPreface()
+          .Headers(1, {{":method", "GET"},
+                       {":scheme", "https"},
+                       {":authority", "example.com"},
+                       {":path", "/this/is/request/one"}})
+          .Data(1, "Example data, woohoo.")
+          .Serialize();
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
+  EXPECT_CALL(visitor, OnDataForStream(1, _));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(result), frames.size());
+
+  // Send a body that will end with the END_STREAM flag. Don't end the body here
+  // so that more body can be added later.
+  const absl::string_view kBody = "This is an example response body.";
+  auto body = std::make_unique<TestDataFrameSource>(visitor, /*has_fin=*/true);
+  body->AppendPayload(kBody);
+  TestDataFrameSource& body_ref = *body;
+
+  int submit_result = adapter->SubmitResponse(
+      1, ToHeaders({{":status", "200"}}), std::move(body));
+  ASSERT_EQ(submit_result, 0);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, ACK_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, ACK_FLAG, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, END_HEADERS_FLAG, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS,
+                            SpdyFrameType::DATA}));
+  visitor.Clear();
+
+  const std::vector<Header> trailers =
+      ToHeaders({{"extra-info", "Trailers are weird but good?"}});
+  submit_result = adapter->SubmitTrailer(1, trailers);
+  ASSERT_EQ(submit_result, 0);
+
+  // Add more body and signal the end of data. Resuming the stream should allow
+  // the new body to be sent, though nghttp2 does not send the body.
+  body_ref.AppendPayload(kBody);
+  body_ref.EndData();
+  adapter->ResumeStream(1);
+
+  // For some reason, nghttp2 drops the new body and goes straight to writing
+  // the trailers.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _,
+                                         END_HEADERS_FLAG | END_STREAM_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _,
+                                   END_HEADERS_FLAG | END_STREAM_FLAG, 0));
+
+  send_result = adapter->Send();
+  EXPECT_EQ(send_result, 0);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
+}
+
 TEST(NgHttp2AdapterTest, ClientDisobeysConnectionFlowControl) {
   DataSavingVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
