@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/spdy/core/http2_header_block.h"
@@ -344,25 +345,23 @@ QUICHE_EXPORT extern const char* const kHttp2StatusHeader;
 
 QUICHE_EXPORT size_t GetNumberRequiredContinuationFrames(size_t size);
 
-// Variant type (i.e. tagged union) that is either a SPDY 3.x priority value,
-// or else an HTTP/2 stream dependency tuple {parent stream ID, weight,
-// exclusive bit}. Templated to allow for use by QUIC code; SPDY and HTTP/2
-// code should use the concrete type instantiation SpdyStreamPrecedence.
+// Variant type that is either a SPDY 3.x priority value, or else an HTTP/2
+// stream dependency tuple {parent stream ID, weight, exclusive bit}. Templated
+// to allow for use by QUIC code; SPDY and HTTP/2 code should use the concrete
+// type instantiation SpdyStreamPrecedence.
 template <typename StreamIdType>
 class QUICHE_EXPORT StreamPrecedence {
  public:
   // Constructs instance that is a SPDY 3.x priority. Clamps priority value to
   // the valid range [0, 7].
   explicit StreamPrecedence(SpdyPriority priority)
-      : is_spdy3_priority_(true),
-        spdy3_priority_(ClampSpdy3Priority(priority)) {}
+      : precedence_(ClampSpdy3Priority(priority)) {}
 
   // Constructs instance that is an HTTP/2 stream weight, parent stream ID, and
   // exclusive bit. Clamps stream weight to the valid range [1, 256].
   StreamPrecedence(StreamIdType parent_id, int weight, bool is_exclusive)
-      : is_spdy3_priority_(false),
-        http2_stream_dependency_{parent_id, ClampHttp2Weight(weight),
-                                 is_exclusive} {}
+      : precedence_(Http2StreamDependency{parent_id, ClampHttp2Weight(weight),
+                                          is_exclusive}) {}
 
   // Intentionally copyable, to support pass by value.
   StreamPrecedence(const StreamPrecedence& other) = default;
@@ -370,7 +369,9 @@ class QUICHE_EXPORT StreamPrecedence {
 
   // Returns true if this instance is a SPDY 3.x priority, or false if this
   // instance is an HTTP/2 stream dependency.
-  bool is_spdy3_priority() const { return is_spdy3_priority_; }
+  bool is_spdy3_priority() const {
+    return absl::holds_alternative<SpdyPriority>(precedence_);
+  }
 
   // Returns SPDY 3.x priority value. If |is_spdy3_priority()| is true, this is
   // the value provided at construction, clamped to the legal priority
@@ -379,16 +380,18 @@ class QUICHE_EXPORT StreamPrecedence {
   // precedence) and maximum weight 256 corresponds to priority 0 (highest
   // precedence).
   SpdyPriority spdy3_priority() const {
-    return is_spdy3_priority_
-               ? spdy3_priority_
-               : Http2WeightToSpdy3Priority(http2_stream_dependency_.weight);
+    return is_spdy3_priority()
+               ? absl::get<SpdyPriority>(precedence_)
+               : Http2WeightToSpdy3Priority(
+                     absl::get<Http2StreamDependency>(precedence_).weight);
   }
 
   // Returns HTTP/2 parent stream ID. If |is_spdy3_priority()| is false, this is
   // the value provided at construction, otherwise it is |kHttp2RootStreamId|.
   StreamIdType parent_id() const {
-    return is_spdy3_priority_ ? kHttp2RootStreamId
-                              : http2_stream_dependency_.parent_id;
+    return is_spdy3_priority()
+               ? kHttp2RootStreamId
+               : absl::get<Http2StreamDependency>(precedence_).parent_id;
   }
 
   // Returns HTTP/2 stream weight. If |is_spdy3_priority()| is false, this is
@@ -398,26 +401,22 @@ class QUICHE_EXPORT StreamPrecedence {
   // maximum weight 256 and priority 7 (lowest precedence) corresponds to
   // minimum weight 1.
   int weight() const {
-    return is_spdy3_priority_ ? Spdy3PriorityToHttp2Weight(spdy3_priority_)
-                              : http2_stream_dependency_.weight;
+    return is_spdy3_priority()
+               ? Spdy3PriorityToHttp2Weight(
+                     absl::get<SpdyPriority>(precedence_))
+               : absl::get<Http2StreamDependency>(precedence_).weight;
   }
 
   // Returns HTTP/2 parent stream exclusivity. If |is_spdy3_priority()| is
   // false, this is the value provided at construction, otherwise it is false.
   bool is_exclusive() const {
-    return !is_spdy3_priority_ && http2_stream_dependency_.is_exclusive;
+    return absl::holds_alternative<Http2StreamDependency>(precedence_) &&
+           absl::get<Http2StreamDependency>(precedence_).is_exclusive;
   }
 
   // Facilitates test assertions.
   bool operator==(const StreamPrecedence& other) const {
-    if (is_spdy3_priority()) {
-      return other.is_spdy3_priority() &&
-             (spdy3_priority() == other.spdy3_priority());
-    } else {
-      return !other.is_spdy3_priority() && (parent_id() == other.parent_id()) &&
-             (weight() == other.weight()) &&
-             (is_exclusive() == other.is_exclusive());
-    }
+    return precedence_ == other.precedence_;
   }
 
   bool operator!=(const StreamPrecedence& other) const {
@@ -429,13 +428,14 @@ class QUICHE_EXPORT StreamPrecedence {
     StreamIdType parent_id;
     int weight;
     bool is_exclusive;
+
+    bool operator==(const Http2StreamDependency& other) const {
+      return parent_id == other.parent_id && weight == other.weight &&
+             is_exclusive == other.is_exclusive;
+    }
   };
 
-  bool is_spdy3_priority_;
-  union {
-    SpdyPriority spdy3_priority_;
-    Http2StreamDependency http2_stream_dependency_;
-  };
+  absl::variant<SpdyPriority, Http2StreamDependency> precedence_;
 };
 
 typedef StreamPrecedence<SpdyStreamId> SpdyStreamPrecedence;
