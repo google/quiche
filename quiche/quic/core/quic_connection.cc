@@ -6624,8 +6624,13 @@ bool QuicConnection::SendPathChallenge(
         packet_creator_.SerializePathChallengeConnectivityProbingPacket(
             data_buffer);
     QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet),
-                     NO_RETRANSMITTABLE_DATA);
-    QUICHE_DCHECK_EQ(self_address, alternative_path_.self_address);
+                     NO_RETRANSMITTABLE_DATA)
+        << ENDPOINT << "Probing Packet contains retransmittable frames";
+    QUICHE_DCHECK_EQ(self_address, alternative_path_.self_address)
+        << ENDPOINT
+        << "Send PATH_CHALLENGE from self_address: " << self_address.ToString()
+        << " which is different from alt_path self address: "
+        << alternative_path_.self_address.ToString();
     WritePacketUsingWriter(std::move(probing_packet), writer, self_address,
                            peer_address, /*measure_rtt=*/false);
   } else {
