@@ -5840,12 +5840,14 @@ void QuicConnection::SendAllPendingAcks() {
     frames.push_back(uber_received_packet_manager_.GetUpdatedAckFrame(
         static_cast<PacketNumberSpace>(i), clock_->ApproximateNow()));
     const bool flushed = packet_creator_.FlushAckFrame(frames);
+    // Consider reset ack states even when flush is not successful.
     if (!flushed) {
       // Connection is write blocked.
       QUIC_BUG_IF(quic_bug_12714_33,
                   !writer_->IsWriteBlocked() &&
                       !LimitedByAmplificationFactor(
-                          packet_creator_.max_packet_length()))
+                          packet_creator_.max_packet_length()) &&
+                      !IsMissingDestinationConnectionID())
           << "Writer not blocked and not throttled by amplification factor, "
              "but ACK not flushed for packet space:"
           << PacketNumberSpaceToString(static_cast<PacketNumberSpace>(i))
