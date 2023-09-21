@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package privacy.ppn;
 
-import "quiche/blind_sign_auth/proto/timestamp.proto";
+import "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.proto";
 
 option java_multiple_files = true;
 
@@ -41,7 +41,7 @@ message PublicMetadata {
   string service_type = 2;
 
   // When the token and metadata expire.
-  quiche.protobuf.Timestamp expiration = 3;
+  private_membership.anonymous_tokens.Timestamp expiration = 3;
 
   // Indicates the debug context of this payload.
   enum DebugMode {

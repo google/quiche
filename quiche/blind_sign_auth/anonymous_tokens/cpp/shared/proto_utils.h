@@ -15,7 +15,7 @@
 #ifndef THIRD_PARTY_ANONYMOUS_TOKENS_CPP_SHARED_PROTO_UTILS_H_
 #define THIRD_PARTY_ANONYMOUS_TOKENS_CPP_SHARED_PROTO_UTILS_H_
 
-#include "quiche/blind_sign_auth/proto/timestamp.pb.h"
+#include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
@@ -33,18 +33,18 @@ namespace anonymous_tokens {
 absl::StatusOr<AnonymousTokensUseCase> QUICHE_EXPORT ParseUseCase(
     absl::string_view use_case);
 
-// Takes in quiche::protobuf::Timestamp and converts it to absl::Time.
+// Takes in private_membership::anonymous_tokens::Timestamp and converts it to absl::Time.
 //
 // Timestamp is defined here:
-// https://developers.google.com/protocol-buffers/docs/reference/quiche.protobuf#timestamp
+// https://developers.google.com/protocol-buffers/docs/reference/private_membership.anonymous_tokens#timestamp
 absl::StatusOr<absl::Time> QUICHE_EXPORT TimeFromProto(
-    const quiche::protobuf::Timestamp& proto);
+    const private_membership::anonymous_tokens::Timestamp& proto);
 
-// Takes in absl::Time and converts it to quiche::protobuf::Timestamp.
+// Takes in absl::Time and converts it to private_membership::anonymous_tokens::Timestamp.
 //
 // Timestamp is defined here:
-// https://developers.google.com/protocol-buffers/docs/reference/quiche.protobuf#timestamp
-absl::StatusOr<quiche::protobuf::Timestamp> QUICHE_EXPORT TimeToProto(
+// https://developers.google.com/protocol-buffers/docs/reference/private_membership.anonymous_tokens#timestamp
+absl::StatusOr<private_membership::anonymous_tokens::Timestamp> QUICHE_EXPORT TimeToProto(
     absl::Time time);
 
 }  // namespace anonymous_tokens

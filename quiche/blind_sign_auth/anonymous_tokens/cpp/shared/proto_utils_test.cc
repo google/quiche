@@ -14,7 +14,7 @@
 
 #include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.h"
 
-#include "quiche/blind_sign_auth/proto/timestamp.pb.h"
+#include "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.pb.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 #include "absl/status/status.h"
@@ -50,7 +50,7 @@ TEST(ProtoUtilsTest, ValidUseCase) {
 }
 
 TEST(ProtoUtilsTest, TimeFromProtoGood) {
-  quiche::protobuf::Timestamp timestamp;
+  private_membership::anonymous_tokens::Timestamp timestamp;
   timestamp.set_seconds(1234567890);
   timestamp.set_nanos(12345);
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(absl::Time time, TimeFromProto(timestamp));
@@ -58,7 +58,7 @@ TEST(ProtoUtilsTest, TimeFromProtoGood) {
 }
 
 TEST(ProtoUtilsTest, TimeFromProtoBad) {
-  quiche::protobuf::Timestamp proto;
+  private_membership::anonymous_tokens::Timestamp proto;
   proto.set_nanos(-1);
   EXPECT_THAT(TimeFromProto(proto).status().code(),
               absl::StatusCode::kInvalidArgument);
@@ -70,7 +70,7 @@ TEST(ProtoUtilsTest, TimeFromProtoBad) {
 }
 
 TEST(ProtoUtilsTest, TimeToProtoGood) {
-  quiche::protobuf::Timestamp proto;
+  private_membership::anonymous_tokens::Timestamp proto;
   ANON_TOKENS_ASSERT_OK_AND_ASSIGN(
       proto, TimeToProto(absl::FromUnixSeconds(1596762373)));
   EXPECT_EQ(proto.seconds(), 1596762373);
@@ -83,7 +83,7 @@ TEST(ProtoUtilsTest, TimeToProtoGood) {
 }
 
 TEST(ProtoUtilsTest, TimeToProtoBad) {
-  absl::StatusOr<quiche::protobuf::Timestamp> proto;
+  absl::StatusOr<private_membership::anonymous_tokens::Timestamp> proto;
   proto = TimeToProto(absl::FromUnixSeconds(253402300800));
   EXPECT_THAT(proto.status().code(), absl::StatusCode::kInvalidArgument);
 }

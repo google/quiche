@@ -16,7 +16,10 @@ syntax = "proto3";
 
 package private_membership.anonymous_tokens;
 
-import "quiche/blind_sign_auth/proto/timestamp.proto";
+message Timestamp {
+ int64 seconds = 1;
+ int32 nanos = 2;
+}
 
 // Different use cases for the Anonymous Tokens service.
 // Next ID: 10
@@ -104,10 +107,10 @@ message RSABlindSignaturePublicKey {
   // Timestamp of expiration.
   //
   // Note that we will not return keys whose expiration times are in the past.
-  quiche.protobuf.Timestamp expiration_time = 3;
+  private_membership.anonymous_tokens.Timestamp expiration_time = 3;
 
   // Key becomes valid at key_validity_start_time.
-  quiche.protobuf.Timestamp key_validity_start_time = 8;
+  private_membership.anonymous_tokens.Timestamp key_validity_start_time = 8;
 
   // Hash function used in computing hash of the signing message
   // (see https://tools.ietf.org/html/rfc8017#section-9.1.1)
@@ -156,7 +159,7 @@ message AnonymousTokensPublicKeysGetRequest {
   // requested key_validity_start_time.
   //
   // If unset it will be set to current time.
-  quiche.protobuf.Timestamp key_validity_start_time = 3
+  private_membership.anonymous_tokens.Timestamp key_validity_start_time = 3
       ;
 
   // Public key that is definitely not valid after this particular time. If
@@ -164,7 +167,7 @@ message AnonymousTokensPublicKeysGetRequest {
   //
   // Note: It is possible that the key becomes invalid before this time. But the
   // key should not be valid after this time.
-  quiche.protobuf.Timestamp key_validity_end_time = 4
+  private_membership.anonymous_tokens.Timestamp key_validity_end_time = 4
       ;
 }
 

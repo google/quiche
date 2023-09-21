@@ -64,7 +64,7 @@ class BlindSignAuthTest : public QuicheTest {
     // Create public metadata info.
     privacy::ppn::PublicMetadata::Location location;
     location.set_country("US");
-    quiche::protobuf::Timestamp expiration;
+    private_membership::anonymous_tokens::Timestamp expiration;
     expiration.set_seconds(absl::ToUnixSeconds(absl::Now() + absl::Hours(1)));
     privacy::ppn::PublicMetadata public_metadata;
     *public_metadata.mutable_exit_location() = location;

@@ -1638,8 +1638,7 @@
     "quiche/blind_sign_auth/proto/get_initial_data.proto",
     "quiche/blind_sign_auth/proto/key_services.proto",
     "quiche/blind_sign_auth/proto/public_metadata.proto",
-    "quiche/blind_sign_auth/proto/spend_token_data.proto",
-    "quiche/blind_sign_auth/proto/timestamp.proto"
+    "quiche/blind_sign_auth/proto/spend_token_data.proto"
   ],
   "libevent_hdrs": [
     "quiche/quic/bindings/quic_libevent.h"

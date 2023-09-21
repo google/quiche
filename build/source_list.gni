@@ -1640,7 +1640,6 @@ protobuf_blind_sign_auth = [
     "src/quiche/blind_sign_auth/proto/key_services.proto",
     "src/quiche/blind_sign_auth/proto/public_metadata.proto",
     "src/quiche/blind_sign_auth/proto/spend_token_data.proto",
-    "src/quiche/blind_sign_auth/proto/timestamp.proto",
 ]
 libevent_hdrs = [
     "src/quiche/quic/bindings/quic_libevent.h",

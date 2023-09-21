@@ -1635,7 +1635,6 @@ protobuf_blind_sign_auth = [
     "blind_sign_auth/proto/key_services.proto",
     "blind_sign_auth/proto/public_metadata.proto",
     "blind_sign_auth/proto/spend_token_data.proto",
-    "blind_sign_auth/proto/timestamp.proto",
 ]
 libevent_hdrs = [
     "quic/bindings/quic_libevent.h",
