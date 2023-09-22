@@ -277,6 +277,8 @@ class QuicClientBase : public QuicSession::Visitor {
 
   QuicConnectionHelperInterface* helper() { return helper_.get(); }
 
+  QuicAlarmFactory* alarm_factory() { return alarm_factory_.get(); }
+
   NetworkHelper* network_helper();
   const NetworkHelper* network_helper() const;
 
@@ -364,8 +366,6 @@ class QuicClientBase : public QuicSession::Visitor {
 
   // Returns the client connection ID to use.
   virtual QuicConnectionId GetClientConnectionId();
-
-  QuicAlarmFactory* alarm_factory() { return alarm_factory_.get(); }
 
   // Subclasses may need to explicitly clear the session on destruction
   // if they create it with objects that will be destroyed before this is.

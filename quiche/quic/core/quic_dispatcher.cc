@@ -547,6 +547,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
     // By adding the connection to time wait list, following packets on this
     // connection will not reach ShouldAcceptNewConnections().
     StatelesslyTerminateConnection(
+        packet_info.self_address, packet_info.peer_address,
         packet_info.destination_connection_id, packet_info.form,
         packet_info.version_flag, packet_info.use_length_prefix,
         packet_info.version, QUIC_HANDSHAKE_FAILED,
@@ -650,6 +651,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
           tls_alert_error_detail.empty() ? "Reject connection"
                                          : tls_alert_error_detail;
       StatelesslyTerminateConnection(
+          packet_info->self_address, packet_info->peer_address,
           server_connection_id, packet_info->form, packet_info->version_flag,
           packet_info->use_length_prefix, packet_info->version,
           connection_close_error_code, connection_close_error_detail,
@@ -1038,6 +1040,8 @@ void QuicDispatcher::OnConnectionAddedToTimeWaitList(
 }
 
 void QuicDispatcher::StatelesslyTerminateConnection(
+    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address,
     QuicConnectionId server_connection_id, PacketHeaderFormat format,
     bool version_flag, bool use_length_prefix, ParsedQuicVersion version,
     QuicErrorCode error_code, const std::string& error_details,
@@ -1071,6 +1075,9 @@ void QuicDispatcher::StatelesslyTerminateConnection(
     QUIC_CODE_COUNT(quic_dispatcher_generated_connection_close);
     QuicSession::RecordConnectionCloseAtServer(
         error_code, ConnectionCloseSource::FROM_SELF);
+    OnStatelessConnectionCloseGenerated(self_address, peer_address,
+                                        server_connection_id, version,
+                                        error_code, error_details);
     return;
   }
 
@@ -1108,8 +1115,13 @@ void QuicDispatcher::OnExpiredPackets(
         quic_new_error_code_when_packets_buffered_too_long);
     error_code = QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG;
   }
+  QuicSocketAddress self_address, peer_address;
+  if (!early_arrived_packets.buffered_packets.empty()) {
+    self_address = early_arrived_packets.buffered_packets.front().self_address;
+    peer_address = early_arrived_packets.buffered_packets.front().peer_address;
+  }
   StatelesslyTerminateConnection(
-      server_connection_id,
+      self_address, peer_address, server_connection_id,
       early_arrived_packets.ietf_quic ? IETF_QUIC_LONG_HEADER_PACKET
                                       : GOOGLE_QUIC_PACKET,
       /*version_flag=*/true,
@@ -1286,7 +1298,8 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
       // The original connection ID does not correspond to an existing
       // session. It is safe to send CONNECTION_CLOSE and add to TIME_WAIT.
       StatelesslyTerminateConnection(
-          original_connection_id, IETF_QUIC_LONG_HEADER_PACKET,
+          self_address, peer_address, original_connection_id,
+          IETF_QUIC_LONG_HEADER_PACKET,
           /*version_flag=*/true, version.HasLengthPrefixedConnectionIds(),
           version, QUIC_HANDSHAKE_FAILED,
           "Connection ID collision, please retry",

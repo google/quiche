@@ -84,6 +84,15 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
     fake_packet_loss_percentage_ = fake_packet_loss_percentage;
   }
 
+  // Once called, the next |passthrough_for_next_n_packets_| WritePacket() calls
+  // will always send the packets immediately, without being affected by the
+  // simulated error conditions.
+  void set_passthrough_for_next_n_packets(
+      uint32_t passthrough_for_next_n_packets) {
+    QuicWriterMutexLock lock(&config_mutex_);
+    passthrough_for_next_n_packets_ = passthrough_for_next_n_packets;
+  }
+
   // Simulate dropping the first n packets unconditionally.
   // Subsequent packets will be lost at fake_packet_loss_percentage_ if set.
   void set_fake_drop_first_n_packets(int32_t fake_drop_first_n_packets) {
@@ -170,6 +179,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   DelayedPacketList delayed_packets_;
   QuicByteCount cur_buffer_size_;
   uint64_t num_calls_to_write_;
+  uint32_t passthrough_for_next_n_packets_ QUIC_GUARDED_BY(config_mutex_);
   int32_t num_consecutive_succesful_writes_;
 
   QuicMutex config_mutex_;

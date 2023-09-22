@@ -52,6 +52,7 @@ PacketDroppingTestWriter::PacketDroppingTestWriter()
     : clock_(nullptr),
       cur_buffer_size_(0),
       num_calls_to_write_(0),
+      passthrough_for_next_n_packets_(0),
       // Do not require any number of successful writes before the first dropped
       // packet.
       num_consecutive_succesful_writes_(kMinSuccesfulWritesAfterPacketLoss),
@@ -94,6 +95,12 @@ WriteResult PacketDroppingTestWriter::WritePacket(
   ReleaseOldPackets();
 
   QuicWriterMutexLock lock(&config_mutex_);
+  if (passthrough_for_next_n_packets_ > 0) {
+    --passthrough_for_next_n_packets_;
+    return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
+                                                peer_address, options, params);
+  }
+
   if (fake_drop_first_n_packets_ > 0 &&
       num_calls_to_write_ <=
           static_cast<uint64_t>(fake_drop_first_n_packets_)) {
