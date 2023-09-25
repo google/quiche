@@ -10,6 +10,8 @@
   "quiche_core_hdrs": [
     "quiche/common/btree_scheduler.h",
     "quiche/common/capsule.h",
+    "quiche/common/http/http_header_block.h",
+    "quiche/common/http/http_header_storage.h",
     "quiche/common/masque/connect_udp_datagram_payload.h",
     "quiche/common/platform/api/quiche_bug_tracker.h",
     "quiche/common/platform/api/quiche_client_stats.h",
@@ -46,6 +48,7 @@
     "quiche/common/quiche_mem_slice_storage.h",
     "quiche/common/quiche_protocol_flags_list.h",
     "quiche/common/quiche_random.h",
+    "quiche/common/quiche_simple_arena.h",
     "quiche/common/quiche_status_utils.h",
     "quiche/common/quiche_stream.h",
     "quiche/common/quiche_text_utils.h",
@@ -375,7 +378,6 @@
     "quiche/spdy/core/http2_frame_decoder_adapter.h",
     "quiche/spdy/core/http2_header_block.h",
     "quiche/spdy/core/http2_header_block_hpack_listener.h",
-    "quiche/spdy/core/http2_header_storage.h",
     "quiche/spdy/core/metadata_extension.h",
     "quiche/spdy/core/no_op_headers_handler.h",
     "quiche/spdy/core/recording_headers_handler.h",
@@ -389,13 +391,14 @@
     "quiche/spdy/core/spdy_pinnable_buffer_piece.h",
     "quiche/spdy/core/spdy_prefixed_buffer_reader.h",
     "quiche/spdy/core/spdy_protocol.h",
-    "quiche/spdy/core/spdy_simple_arena.h",
     "quiche/spdy/core/zero_copy_output_buffer.h",
     "quiche/web_transport/complete_buffer_visitor.h",
     "quiche/web_transport/web_transport.h"
   ],
   "quiche_core_srcs": [
     "quiche/common/capsule.cc",
+    "quiche/common/http/http_header_block.cc",
+    "quiche/common/http/http_header_storage.cc",
     "quiche/common/masque/connect_udp_datagram_payload.cc",
     "quiche/common/platform/api/quiche_hostname_utils.cc",
     "quiche/common/platform/api/quiche_mutex.cc",
@@ -407,6 +410,7 @@
     "quiche/common/quiche_ip_address_family.cc",
     "quiche/common/quiche_mem_slice_storage.cc",
     "quiche/common/quiche_random.cc",
+    "quiche/common/quiche_simple_arena.cc",
     "quiche/common/quiche_text_utils.cc",
     "quiche/common/simple_buffer_allocator.cc",
     "quiche/common/structured_headers.cc",
@@ -670,8 +674,6 @@
     "quiche/spdy/core/hpack/hpack_output_stream.cc",
     "quiche/spdy/core/hpack/hpack_static_table.cc",
     "quiche/spdy/core/http2_frame_decoder_adapter.cc",
-    "quiche/spdy/core/http2_header_block.cc",
-    "quiche/spdy/core/http2_header_storage.cc",
     "quiche/spdy/core/metadata_extension.cc",
     "quiche/spdy/core/recording_headers_handler.cc",
     "quiche/spdy/core/spdy_alt_svc_wire_format.cc",
@@ -681,7 +683,6 @@
     "quiche/spdy/core/spdy_pinnable_buffer_piece.cc",
     "quiche/spdy/core/spdy_prefixed_buffer_reader.cc",
     "quiche/spdy/core/spdy_protocol.cc",
-    "quiche/spdy/core/spdy_simple_arena.cc",
     "quiche/web_transport/complete_buffer_visitor.cc"
   ],
   "quiche_tool_support_hdrs": [
@@ -1050,6 +1051,8 @@
     "quiche/binary_http/binary_http_message_test.cc",
     "quiche/common/btree_scheduler_test.cc",
     "quiche/common/capsule_test.cc",
+    "quiche/common/http/http_header_block_test.cc",
+    "quiche/common/http/http_header_storage_test.cc",
     "quiche/common/masque/connect_udp_datagram_payload_test.cc",
     "quiche/common/platform/api/quiche_file_utils_test.cc",
     "quiche/common/platform/api/quiche_hostname_utils_test.cc",
@@ -1070,6 +1073,7 @@
     "quiche/common/quiche_linked_hash_map_test.cc",
     "quiche/common/quiche_mem_slice_storage_test.cc",
     "quiche/common/quiche_random_test.cc",
+    "quiche/common/quiche_simple_arena_test.cc",
     "quiche/common/quiche_text_utils_test.cc",
     "quiche/common/simple_buffer_allocator_test.cc",
     "quiche/common/structured_headers_generated_test.cc",
@@ -1299,8 +1303,6 @@
     "quiche/spdy/core/hpack/hpack_output_stream_test.cc",
     "quiche/spdy/core/hpack/hpack_round_trip_test.cc",
     "quiche/spdy/core/hpack/hpack_static_table_test.cc",
-    "quiche/spdy/core/http2_header_block_test.cc",
-    "quiche/spdy/core/http2_header_storage_test.cc",
     "quiche/spdy/core/metadata_extension_test.cc",
     "quiche/spdy/core/spdy_alt_svc_wire_format_test.cc",
     "quiche/spdy/core/spdy_frame_builder_test.cc",
@@ -1308,8 +1310,7 @@
     "quiche/spdy/core/spdy_intrusive_list_test.cc",
     "quiche/spdy/core/spdy_pinnable_buffer_piece_test.cc",
     "quiche/spdy/core/spdy_prefixed_buffer_reader_test.cc",
-    "quiche/spdy/core/spdy_protocol_test.cc",
-    "quiche/spdy/core/spdy_simple_arena_test.cc"
+    "quiche/spdy/core/spdy_protocol_test.cc"
   ],
   "io_tests_hdrs": [
 

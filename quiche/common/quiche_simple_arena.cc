@@ -2,23 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/spdy_simple_arena.h"
+#include "quiche/common/quiche_simple_arena.h"
 
 #include <algorithm>
 #include <cstring>
 
 #include "quiche/common/platform/api/quiche_logging.h"
 
-namespace spdy {
+namespace quiche {
 
-SpdySimpleArena::SpdySimpleArena(size_t block_size) : block_size_(block_size) {}
+QuicheSimpleArena::QuicheSimpleArena(size_t block_size)
+    : block_size_(block_size) {}
 
-SpdySimpleArena::~SpdySimpleArena() = default;
+QuicheSimpleArena::~QuicheSimpleArena() = default;
 
-SpdySimpleArena::SpdySimpleArena(SpdySimpleArena&& other) = default;
-SpdySimpleArena& SpdySimpleArena::operator=(SpdySimpleArena&& other) = default;
+QuicheSimpleArena::QuicheSimpleArena(QuicheSimpleArena&& other) = default;
+QuicheSimpleArena& QuicheSimpleArena::operator=(QuicheSimpleArena&& other) =
+    default;
 
-char* SpdySimpleArena::Alloc(size_t size) {
+char* QuicheSimpleArena::Alloc(size_t size) {
   Reserve(size);
   Block& b = blocks_.back();
   QUICHE_DCHECK_GE(b.size, b.used + size);
@@ -27,7 +29,8 @@ char* SpdySimpleArena::Alloc(size_t size) {
   return out;
 }
 
-char* SpdySimpleArena::Realloc(char* original, size_t oldsize, size_t newsize) {
+char* QuicheSimpleArena::Realloc(char* original, size_t oldsize,
+                                 size_t newsize) {
   QUICHE_DCHECK(!blocks_.empty());
   Block& last = blocks_.back();
   if (last.data.get() <= original && original < last.data.get() + last.size) {
@@ -47,13 +50,13 @@ char* SpdySimpleArena::Realloc(char* original, size_t oldsize, size_t newsize) {
   return out;
 }
 
-char* SpdySimpleArena::Memdup(const char* data, size_t size) {
+char* QuicheSimpleArena::Memdup(const char* data, size_t size) {
   char* out = Alloc(size);
   memcpy(out, data, size);
   return out;
 }
 
-void SpdySimpleArena::Free(char* data, size_t size) {
+void QuicheSimpleArena::Free(char* data, size_t size) {
   if (blocks_.empty()) {
     return;
   }
@@ -65,12 +68,12 @@ void SpdySimpleArena::Free(char* data, size_t size) {
   }
 }
 
-void SpdySimpleArena::Reset() {
+void QuicheSimpleArena::Reset() {
   blocks_.clear();
   status_.bytes_allocated_ = 0;
 }
 
-void SpdySimpleArena::Reserve(size_t additional_space) {
+void QuicheSimpleArena::Reserve(size_t additional_space) {
   if (blocks_.empty()) {
     AllocBlock(std::max(additional_space, block_size_));
   } else {
@@ -81,26 +84,27 @@ void SpdySimpleArena::Reserve(size_t additional_space) {
   }
 }
 
-void SpdySimpleArena::AllocBlock(size_t size) {
+void QuicheSimpleArena::AllocBlock(size_t size) {
   blocks_.push_back(Block(size));
   status_.bytes_allocated_ += size;
 }
 
-SpdySimpleArena::Block::Block(size_t s) : data(new char[s]), size(s), used(0) {}
+QuicheSimpleArena::Block::Block(size_t s)
+    : data(new char[s]), size(s), used(0) {}
 
-SpdySimpleArena::Block::~Block() = default;
+QuicheSimpleArena::Block::~Block() = default;
 
-SpdySimpleArena::Block::Block(SpdySimpleArena::Block&& other)
+QuicheSimpleArena::Block::Block(QuicheSimpleArena::Block&& other)
     : size(other.size), used(other.used) {
   data = std::move(other.data);
 }
 
-SpdySimpleArena::Block& SpdySimpleArena::Block::operator=(
-    SpdySimpleArena::Block&& other) {
+QuicheSimpleArena::Block& QuicheSimpleArena::Block::operator=(
+    QuicheSimpleArena::Block&& other) {
   size = other.size;
   used = other.used;
   data = std::move(other.data);
   return *this;
 }
 
-}  // namespace spdy
+}  // namespace quiche

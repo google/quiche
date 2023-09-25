@@ -10,8 +10,8 @@
 #include "quiche/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_simple_arena.h"
 #include "quiche/spdy/core/hpack/hpack_static_table.h"
-#include "quiche/spdy/core/spdy_simple_arena.h"
 
 namespace spdy {
 
@@ -267,7 +267,7 @@ class HpackEncoderTest
   size_t cookie_c_index_;
   size_t dynamic_table_insertions_;
 
-  SpdySimpleArena headers_storage_;
+  quiche::QuicheSimpleArena headers_storage_;
   std::vector<std::pair<absl::string_view, absl::string_view>>
       headers_observed_;
 

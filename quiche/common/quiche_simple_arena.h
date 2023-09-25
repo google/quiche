@@ -2,23 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_CORE_SPDY_SIMPLE_ARENA_H_
-#define QUICHE_SPDY_CORE_SPDY_SIMPLE_ARENA_H_
+#ifndef QUICHE_COMMON_QUICHE_SIMPLE_ARENA_H_
+#define QUICHE_COMMON_QUICHE_SIMPLE_ARENA_H_
 
 #include <memory>
 #include <vector>
 
 #include "quiche/common/platform/api/quiche_export.h"
 
-namespace spdy {
+namespace quiche {
 
 // Allocates large blocks of memory, and doles them out in smaller chunks.
 // Not thread-safe.
-class QUICHE_EXPORT SpdySimpleArena {
+class QUICHE_EXPORT QuicheSimpleArena {
  public:
   class QUICHE_EXPORT Status {
    private:
-    friend class SpdySimpleArena;
+    friend class QuicheSimpleArena;
     size_t bytes_allocated_;
 
    public:
@@ -27,17 +27,17 @@ class QUICHE_EXPORT SpdySimpleArena {
   };
 
   // Blocks allocated by this arena will be at least |block_size| bytes.
-  explicit SpdySimpleArena(size_t block_size);
-  ~SpdySimpleArena();
+  explicit QuicheSimpleArena(size_t block_size);
+  ~QuicheSimpleArena();
 
   // Copy and assign are not allowed.
-  SpdySimpleArena() = delete;
-  SpdySimpleArena(const SpdySimpleArena&) = delete;
-  SpdySimpleArena& operator=(const SpdySimpleArena&) = delete;
+  QuicheSimpleArena() = delete;
+  QuicheSimpleArena(const QuicheSimpleArena&) = delete;
+  QuicheSimpleArena& operator=(const QuicheSimpleArena&) = delete;
 
   // Move is allowed.
-  SpdySimpleArena(SpdySimpleArena&& other);
-  SpdySimpleArena& operator=(SpdySimpleArena&& other);
+  QuicheSimpleArena(QuicheSimpleArena&& other);
+  QuicheSimpleArena& operator=(QuicheSimpleArena&& other);
 
   char* Alloc(size_t size);
   char* Realloc(char* original, size_t oldsize, size_t newsize);
@@ -72,6 +72,6 @@ class QUICHE_EXPORT SpdySimpleArena {
   Status status_;
 };
 
-}  // namespace spdy
+}  // namespace quiche
 
-#endif  // QUICHE_SPDY_CORE_SPDY_SIMPLE_ARENA_H_
+#endif  // QUICHE_COMMON_QUICHE_SIMPLE_ARENA_H_

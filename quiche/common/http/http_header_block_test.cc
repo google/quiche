@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 #include <memory>
 #include <utility>
@@ -12,12 +12,12 @@
 
 using ::testing::ElementsAre;
 
-namespace spdy {
+namespace quiche {
 namespace test {
 
 class ValueProxyPeer {
  public:
-  static absl::string_view key(Http2HeaderBlock::ValueProxy* p) {
+  static absl::string_view key(HttpHeaderBlock::ValueProxy* p) {
     return p->key_;
   }
 };
@@ -27,9 +27,9 @@ std::pair<absl::string_view, absl::string_view> Pair(absl::string_view k,
   return std::make_pair(k, v);
 }
 
-// This test verifies that Http2HeaderBlock behaves correctly when empty.
-TEST(Http2HeaderBlockTest, EmptyBlock) {
-  Http2HeaderBlock block;
+// This test verifies that HttpHeaderBlock behaves correctly when empty.
+TEST(HttpHeaderBlockTest, EmptyBlock) {
+  HttpHeaderBlock block;
   EXPECT_TRUE(block.empty());
   EXPECT_EQ(0u, block.size());
   EXPECT_EQ(block.end(), block.find("foo"));
@@ -40,8 +40,8 @@ TEST(Http2HeaderBlockTest, EmptyBlock) {
   block.erase("bar");
 }
 
-TEST(Http2HeaderBlockTest, KeyMemoryReclaimedOnLookup) {
-  Http2HeaderBlock block;
+TEST(HttpHeaderBlockTest, KeyMemoryReclaimedOnLookup) {
+  HttpHeaderBlock block;
   absl::string_view copied_key1;
   {
     auto proxy1 = block["some key name"];
@@ -63,7 +63,7 @@ TEST(Http2HeaderBlockTest, KeyMemoryReclaimedOnLookup) {
     block["some other key name"] = "some value";
   }
   // Nothing should blow up when proxy1 is destructed, and we should be able to
-  // modify and access the Http2HeaderBlock.
+  // modify and access the HttpHeaderBlock.
   block["key"] = "value";
   EXPECT_EQ("value", block["key"]);
   EXPECT_EQ("some value", block["some other key name"]);
@@ -71,8 +71,8 @@ TEST(Http2HeaderBlockTest, KeyMemoryReclaimedOnLookup) {
 }
 
 // This test verifies that headers can be set in a variety of ways.
-TEST(Http2HeaderBlockTest, AddHeaders) {
-  Http2HeaderBlock block;
+TEST(HttpHeaderBlockTest, AddHeaders) {
+  HttpHeaderBlock block;
   block["foo"] = std::string(300, 'x');
   block["bar"] = "baz";
   block["qux"] = "qux1";
@@ -91,29 +91,29 @@ TEST(Http2HeaderBlockTest, AddHeaders) {
   EXPECT_EQ(block.end(), block.find("key"));
 }
 
-// This test verifies that Http2HeaderBlock can be copied using Clone().
-TEST(Http2HeaderBlockTest, CopyBlocks) {
-  Http2HeaderBlock block1;
+// This test verifies that HttpHeaderBlock can be copied using Clone().
+TEST(HttpHeaderBlockTest, CopyBlocks) {
+  HttpHeaderBlock block1;
   block1["foo"] = std::string(300, 'x');
   block1["bar"] = "baz";
   block1.insert(std::make_pair("qux", "qux1"));
 
-  Http2HeaderBlock block2 = block1.Clone();
-  Http2HeaderBlock block3(block1.Clone());
+  HttpHeaderBlock block2 = block1.Clone();
+  HttpHeaderBlock block3(block1.Clone());
 
   EXPECT_EQ(block1, block2);
   EXPECT_EQ(block1, block3);
 }
 
-TEST(Http2HeaderBlockTest, Equality) {
+TEST(HttpHeaderBlockTest, Equality) {
   // Test equality and inequality operators.
-  Http2HeaderBlock block1;
+  HttpHeaderBlock block1;
   block1["foo"] = "bar";
 
-  Http2HeaderBlock block2;
+  HttpHeaderBlock block2;
   block2["foo"] = "bar";
 
-  Http2HeaderBlock block3;
+  HttpHeaderBlock block3;
   block3["baz"] = "qux";
 
   EXPECT_EQ(block1, block2);
@@ -123,28 +123,28 @@ TEST(Http2HeaderBlockTest, Equality) {
   EXPECT_NE(block1, block2);
 }
 
-Http2HeaderBlock ReturnTestHeaderBlock() {
-  Http2HeaderBlock block;
+HttpHeaderBlock ReturnTestHeaderBlock() {
+  HttpHeaderBlock block;
   block["foo"] = "bar";
   block.insert(std::make_pair("foo2", "baz"));
   return block;
 }
 
 // Test that certain methods do not crash on moved-from instances.
-TEST(Http2HeaderBlockTest, MovedFromIsValid) {
-  Http2HeaderBlock block1;
+TEST(HttpHeaderBlockTest, MovedFromIsValid) {
+  HttpHeaderBlock block1;
   block1["foo"] = "bar";
 
-  Http2HeaderBlock block2(std::move(block1));
+  HttpHeaderBlock block2(std::move(block1));
   EXPECT_THAT(block2, ElementsAre(Pair("foo", "bar")));
 
   block1["baz"] = "qux";  // NOLINT  testing post-move behavior
 
-  Http2HeaderBlock block3(std::move(block1));
+  HttpHeaderBlock block3(std::move(block1));
 
   block1["foo"] = "bar";  // NOLINT  testing post-move behavior
 
-  Http2HeaderBlock block4(std::move(block1));
+  HttpHeaderBlock block4(std::move(block1));
 
   block1.clear();  // NOLINT  testing post-move behavior
   EXPECT_TRUE(block1.empty());
@@ -152,7 +152,7 @@ TEST(Http2HeaderBlockTest, MovedFromIsValid) {
   block1["foo"] = "bar";
   EXPECT_THAT(block1, ElementsAre(Pair("foo", "bar")));
 
-  Http2HeaderBlock block5 = ReturnTestHeaderBlock();
+  HttpHeaderBlock block5 = ReturnTestHeaderBlock();
   block5.AppendValueOrAddHeader("foo", "bar2");
   EXPECT_THAT(block5, ElementsAre(Pair("foo", std::string("bar\0bar2", 8)),
                                   Pair("foo2", "baz")));
@@ -160,8 +160,8 @@ TEST(Http2HeaderBlockTest, MovedFromIsValid) {
 
 // This test verifies that headers can be appended to no matter how they were
 // added originally.
-TEST(Http2HeaderBlockTest, AppendHeaders) {
-  Http2HeaderBlock block;
+TEST(HttpHeaderBlockTest, AppendHeaders) {
+  HttpHeaderBlock block;
   block["foo"] = "foo";
   block.AppendValueOrAddHeader("foo", "bar");
   EXPECT_EQ(Pair("foo", std::string("foo\0bar", 7)), *block.find("foo"));
@@ -199,8 +199,8 @@ TEST(Http2HeaderBlockTest, AppendHeaders) {
   EXPECT_EQ(std::string("yummy\0scrumptious", 17), block["set-cookie"]);
 }
 
-TEST(Http2HeaderBlockTest, CompareValueToStringPiece) {
-  Http2HeaderBlock block;
+TEST(HttpHeaderBlockTest, CompareValueToStringPiece) {
+  HttpHeaderBlock block;
   block["foo"] = "foo";
   block.AppendValueOrAddHeader("foo", "bar");
   const auto& val = block["foo"];
@@ -220,10 +220,10 @@ TEST(Http2HeaderBlockTest, CompareValueToStringPiece) {
   EXPECT_FALSE(val2 == absl::string_view(""));
 }
 
-// This test demonstrates that the Http2HeaderBlock data structure does not
+// This test demonstrates that the HttpHeaderBlock data structure does not
 // place any limitations on the characters present in the header names.
-TEST(Http2HeaderBlockTest, UpperCaseNames) {
-  Http2HeaderBlock block;
+TEST(HttpHeaderBlockTest, UpperCaseNames) {
+  HttpHeaderBlock block;
   block["Foo"] = "foo";
   block.AppendValueOrAddHeader("Foo", "bar");
   EXPECT_NE(block.end(), block.find("foo"));
@@ -237,7 +237,7 @@ TEST(Http2HeaderBlockTest, UpperCaseNames) {
 }
 
 namespace {
-size_t Http2HeaderBlockSize(const Http2HeaderBlock& block) {
+size_t HttpHeaderBlockSize(const HttpHeaderBlock& block) {
   size_t size = 0;
   for (const auto& pair : block) {
     size += pair.first.size() + pair.second.size();
@@ -246,38 +246,38 @@ size_t Http2HeaderBlockSize(const Http2HeaderBlock& block) {
 }
 }  // namespace
 
-// Tests Http2HeaderBlock SizeEstimate().
-TEST(Http2HeaderBlockTest, TotalBytesUsed) {
-  Http2HeaderBlock block;
+// Tests HttpHeaderBlock SizeEstimate().
+TEST(HttpHeaderBlockTest, TotalBytesUsed) {
+  HttpHeaderBlock block;
   const size_t value_size = 300;
   block["foo"] = std::string(value_size, 'x');
-  EXPECT_EQ(block.TotalBytesUsed(), Http2HeaderBlockSize(block));
+  EXPECT_EQ(block.TotalBytesUsed(), HttpHeaderBlockSize(block));
   block.insert(std::make_pair("key", std::string(value_size, 'x')));
-  EXPECT_EQ(block.TotalBytesUsed(), Http2HeaderBlockSize(block));
+  EXPECT_EQ(block.TotalBytesUsed(), HttpHeaderBlockSize(block));
   block.AppendValueOrAddHeader("abc", std::string(value_size, 'x'));
-  EXPECT_EQ(block.TotalBytesUsed(), Http2HeaderBlockSize(block));
+  EXPECT_EQ(block.TotalBytesUsed(), HttpHeaderBlockSize(block));
 
   // Replace value for existing key.
   block["foo"] = std::string(value_size, 'x');
-  EXPECT_EQ(block.TotalBytesUsed(), Http2HeaderBlockSize(block));
+  EXPECT_EQ(block.TotalBytesUsed(), HttpHeaderBlockSize(block));
   block.insert(std::make_pair("key", std::string(value_size, 'x')));
-  EXPECT_EQ(block.TotalBytesUsed(), Http2HeaderBlockSize(block));
+  EXPECT_EQ(block.TotalBytesUsed(), HttpHeaderBlockSize(block));
   // Add value for existing key.
   block.AppendValueOrAddHeader("abc", std::string(value_size, 'x'));
-  EXPECT_EQ(block.TotalBytesUsed(), Http2HeaderBlockSize(block));
+  EXPECT_EQ(block.TotalBytesUsed(), HttpHeaderBlockSize(block));
 
-  // Copies/clones Http2HeaderBlock.
+  // Copies/clones HttpHeaderBlock.
   size_t block_size = block.TotalBytesUsed();
-  Http2HeaderBlock block_copy = std::move(block);
+  HttpHeaderBlock block_copy = std::move(block);
   EXPECT_EQ(block_size, block_copy.TotalBytesUsed());
 
   // Erases key.
   block_copy.erase("foo");
-  EXPECT_EQ(block_copy.TotalBytesUsed(), Http2HeaderBlockSize(block_copy));
+  EXPECT_EQ(block_copy.TotalBytesUsed(), HttpHeaderBlockSize(block_copy));
   block_copy.erase("key");
-  EXPECT_EQ(block_copy.TotalBytesUsed(), Http2HeaderBlockSize(block_copy));
+  EXPECT_EQ(block_copy.TotalBytesUsed(), HttpHeaderBlockSize(block_copy));
   block_copy.erase("abc");
-  EXPECT_EQ(block_copy.TotalBytesUsed(), Http2HeaderBlockSize(block_copy));
+  EXPECT_EQ(block_copy.TotalBytesUsed(), HttpHeaderBlockSize(block_copy));
 }
 
 // The order of header fields is preserved.  Note that all pseudo-header fields
@@ -286,8 +286,8 @@ TEST(Http2HeaderBlockTest, TotalBytesUsed) {
 // https://www.rfc-editor.org/rfc/rfc9114.html#name-http-control-data.  It is
 // the responsibility of the higher layer to add header fields in the correct
 // order.
-TEST(Http2HeaderBlockTest, OrderPreserved) {
-  Http2HeaderBlock block;
+TEST(HttpHeaderBlockTest, OrderPreserved) {
+  HttpHeaderBlock block;
   block[":method"] = "GET";
   block["foo"] = "bar";
   block[":path"] = "/";
@@ -297,4 +297,4 @@ TEST(Http2HeaderBlockTest, OrderPreserved) {
 }
 
 }  // namespace test
-}  // namespace spdy
+}  // namespace quiche

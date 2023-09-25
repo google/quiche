@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/spdy_simple_arena.h"
+#include "quiche/common/quiche_simple_arena.h"
 
 #include <string>
 #include <vector>
@@ -10,19 +10,19 @@
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
-namespace spdy {
+namespace quiche {
 namespace {
 
 size_t kDefaultBlockSize = 2048;
 const char kTestString[] = "This is a decently long test string.";
 
-TEST(SpdySimpleArenaTest, NoAllocationOnConstruction) {
-  SpdySimpleArena arena(kDefaultBlockSize);
+TEST(QuicheSimpleArenaTest, NoAllocationOnConstruction) {
+  QuicheSimpleArena arena(kDefaultBlockSize);
   EXPECT_EQ(0u, arena.status().bytes_allocated());
 }
 
-TEST(SpdySimpleArenaTest, Memdup) {
-  SpdySimpleArena arena(kDefaultBlockSize);
+TEST(QuicheSimpleArenaTest, Memdup) {
+  QuicheSimpleArena arena(kDefaultBlockSize);
   const size_t length = strlen(kTestString);
   char* c = arena.Memdup(kTestString, length);
   EXPECT_NE(nullptr, c);
@@ -30,8 +30,8 @@ TEST(SpdySimpleArenaTest, Memdup) {
   EXPECT_EQ(absl::string_view(c, length), kTestString);
 }
 
-TEST(SpdySimpleArenaTest, MemdupLargeString) {
-  SpdySimpleArena arena(10 /* block size */);
+TEST(QuicheSimpleArenaTest, MemdupLargeString) {
+  QuicheSimpleArena arena(10 /* block size */);
   const size_t length = strlen(kTestString);
   char* c = arena.Memdup(kTestString, length);
   EXPECT_NE(nullptr, c);
@@ -39,8 +39,8 @@ TEST(SpdySimpleArenaTest, MemdupLargeString) {
   EXPECT_EQ(absl::string_view(c, length), kTestString);
 }
 
-TEST(SpdySimpleArenaTest, MultipleBlocks) {
-  SpdySimpleArena arena(40 /* block size */);
+TEST(QuicheSimpleArenaTest, MultipleBlocks) {
+  QuicheSimpleArena arena(40 /* block size */);
   std::vector<std::string> strings = {
       "One decently long string.", "Another string.",
       "A third string that will surely go in a different block."};
@@ -55,8 +55,8 @@ TEST(SpdySimpleArenaTest, MultipleBlocks) {
   }
 }
 
-TEST(SpdySimpleArenaTest, UseAfterReset) {
-  SpdySimpleArena arena(kDefaultBlockSize);
+TEST(QuicheSimpleArenaTest, UseAfterReset) {
+  QuicheSimpleArena arena(kDefaultBlockSize);
   const size_t length = strlen(kTestString);
   char* c = arena.Memdup(kTestString, length);
   arena.Reset();
@@ -66,8 +66,8 @@ TEST(SpdySimpleArenaTest, UseAfterReset) {
   EXPECT_EQ(absl::string_view(c, length), kTestString);
 }
 
-TEST(SpdySimpleArenaTest, Free) {
-  SpdySimpleArena arena(kDefaultBlockSize);
+TEST(QuicheSimpleArenaTest, Free) {
+  QuicheSimpleArena arena(kDefaultBlockSize);
   const size_t length = strlen(kTestString);
   // Freeing memory not owned by the arena should be a no-op, and freeing
   // before any allocations from the arena should be a no-op.
@@ -92,8 +92,8 @@ TEST(SpdySimpleArenaTest, Free) {
   EXPECT_EQ(c4, c5);
 }
 
-TEST(SpdySimpleArenaTest, Alloc) {
-  SpdySimpleArena arena(kDefaultBlockSize);
+TEST(QuicheSimpleArenaTest, Alloc) {
+  QuicheSimpleArena arena(kDefaultBlockSize);
   const size_t length = strlen(kTestString);
   char* c1 = arena.Alloc(length);
   char* c2 = arena.Alloc(2 * length);
@@ -105,8 +105,8 @@ TEST(SpdySimpleArenaTest, Alloc) {
   EXPECT_EQ(absl::string_view(c4, length), kTestString);
 }
 
-TEST(SpdySimpleArenaTest, Realloc) {
-  SpdySimpleArena arena(kDefaultBlockSize);
+TEST(QuicheSimpleArenaTest, Realloc) {
+  QuicheSimpleArena arena(kDefaultBlockSize);
   const size_t length = strlen(kTestString);
   // Simple realloc that fits in the block.
   char* c1 = arena.Memdup(kTestString, length);
@@ -138,4 +138,4 @@ TEST(SpdySimpleArenaTest, Realloc) {
 }
 
 }  // namespace
-}  // namespace spdy
+}  // namespace quiche

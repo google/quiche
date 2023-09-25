@@ -1,8 +1,8 @@
-#include "quiche/spdy/core/http2_header_storage.h"
+#include "quiche/common/http/http_header_storage.h"
 
 #include "quiche/common/platform/api/quiche_test.h"
 
-namespace spdy {
+namespace quiche {
 namespace test {
 
 TEST(JoinTest, JoinEmpty) {
@@ -32,4 +32,4 @@ TEST(JoinTest, JoinMultiple) {
 }
 
 }  // namespace test
-}  // namespace spdy
+}  // namespace quiche

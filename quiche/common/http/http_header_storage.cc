@@ -1,28 +1,28 @@
-#include "quiche/spdy/core/http2_header_storage.h"
+#include "quiche/common/http/http_header_storage.h"
 
 #include <cstring>
 
 #include "quiche/common/platform/api/quiche_logging.h"
 
-namespace spdy {
+namespace quiche {
 namespace {
 
-// Http2HeaderStorage allocates blocks of this size by default.
+// HttpHeaderStorage allocates blocks of this size by default.
 const size_t kDefaultStorageBlockSize = 2048;
 
 }  // namespace
 
-Http2HeaderStorage::Http2HeaderStorage() : arena_(kDefaultStorageBlockSize) {}
+HttpHeaderStorage::HttpHeaderStorage() : arena_(kDefaultStorageBlockSize) {}
 
-absl::string_view Http2HeaderStorage::Write(const absl::string_view s) {
+absl::string_view HttpHeaderStorage::Write(const absl::string_view s) {
   return absl::string_view(arena_.Memdup(s.data(), s.size()), s.size());
 }
 
-void Http2HeaderStorage::Rewind(const absl::string_view s) {
+void HttpHeaderStorage::Rewind(const absl::string_view s) {
   arena_.Free(const_cast<char*>(s.data()), s.size());
 }
 
-absl::string_view Http2HeaderStorage::WriteFragments(
+absl::string_view HttpHeaderStorage::WriteFragments(
     const std::vector<absl::string_view>& fragments,
     absl::string_view separator) {
   if (fragments.empty()) {
@@ -56,4 +56,4 @@ size_t Join(char* dst, const std::vector<absl::string_view>& fragments,
   return dst - original_dst;
 }
 
-}  // namespace spdy
+}  // namespace quiche
