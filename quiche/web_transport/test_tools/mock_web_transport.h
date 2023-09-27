@@ -42,6 +42,8 @@ class QUICHE_NO_EXPORT MockStream : public Stream {
               (absl::Span<const absl::string_view> data,
                const quiche::StreamWriteOptions& options),
               (override));
+  MOCK_METHOD(PeekResult, PeekNextReadableRegion, (), (const, override));
+  MOCK_METHOD(bool, SkipBytes, (size_t bytes), (override));
   MOCK_METHOD(bool, CanWrite, (), (const, override));
   MOCK_METHOD(void, AbruptlyTerminate, (absl::Status), (override));
   MOCK_METHOD(size_t, ReadableBytes, (), (const, override));

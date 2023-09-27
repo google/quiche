@@ -2,15 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// General-purpose abstractions for a write stream.
+// General-purpose abstractions for read/write streams.
 
 #ifndef QUICHE_COMMON_QUICHE_STREAM_H_
 #define QUICHE_COMMON_QUICHE_STREAM_H_
+
+#include <cstddef>
+#include <string>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quiche {
 
@@ -25,6 +29,92 @@ class QUICHE_EXPORT TerminableStream {
   // ends of the stream are terminated.
   virtual void AbruptlyTerminate(absl::Status error) = 0;
 };
+
+// A general-purpose visitor API that gets notifications for ReadStream-related
+// events.
+class QUICHE_EXPORT ReadStreamVisitor {
+ public:
+  virtual ~ReadStreamVisitor() = default;
+
+  // Called whenever the stream has new data available to read. Unless otherwise
+  // specified, QUICHE stream reads are level-triggered, which means that the
+  // callback will be called repeatedly as long as there is still data in the
+  // buffer.
+  virtual void OnCanRead() = 0;
+};
+
+// General purpose abstraction for a stream of data that can be read from the
+// network. The class is designed around the idea that a network stream stores
+// all of the received data in a sequence of contiguous buffers. Because of
+// that, there are two ways to read from a stream:
+//   - Read() will copy data into a user-provided buffer, reassembling it if it
+//     is split across multiple buffers internally.
+//   - PeekNextReadableRegion()/SkipBytes() let the caller access the underlying
+//     buffers directly, potentially avoiding the copying at the cost of the
+//     caller having to deal with discontinuities.
+class QUICHE_EXPORT ReadStream {
+ public:
+  struct QUICHE_EXPORT ReadResult {
+    // Number of bytes actually read.
+    size_t bytes_read = 0;
+    // Whether the FIN has been received; if true, no further data will arrive
+    // on the stream, and the stream object can be soon potentially garbage
+    // collected.
+    bool fin = false;
+  };
+
+  struct PeekResult {
+    // The next available chunk in the sequencer buffer.
+    absl::string_view peeked_data;
+    // True if all of the data up to the FIN has been read.
+    bool fin_next = false;
+    // True if all of the data up to the FIN has been received (but not
+    // necessarily read).
+    bool all_data_received = false;
+
+    // Indicates that `SkipBytes()` will make progress if called.
+    bool has_data() const { return !peeked_data.empty() || fin_next; }
+  };
+
+  virtual ~ReadStream() = default;
+
+  // Reads at most `buffer.size()` bytes into `buffer`.
+  [[nodiscard]] virtual ReadResult Read(absl::Span<char> buffer) = 0;
+
+  // Reads all available data and appends it to the end of `output`.
+  [[nodiscard]] virtual ReadResult Read(std::string* output) = 0;
+
+  // Indicates the total number of bytes that can be read from the stream.
+  virtual size_t ReadableBytes() const = 0;
+
+  // Returns a contiguous buffer to read (or an empty buffer, if there is no
+  // data to read). See `ProcessAllReadableRegions` below for an example of how
+  // to use this method while handling FIN correctly.
+  virtual PeekResult PeekNextReadableRegion() const = 0;
+
+  // Equivalent to reading `bytes`, but does not perform any copying. `bytes`
+  // must be less than or equal to `ReadableBytes()`. The return value indicates
+  // if the FIN has been reached. `SkipBytes(0)` can be used to consume the FIN
+  // if it's the only thing remaining on the stream.
+  [[nodiscard]] virtual bool SkipBytes(size_t bytes) = 0;
+};
+
+// Calls `callback` for every contiguous chunk available inside the stream.
+// Returns true if the FIN has been reached.
+inline bool ProcessAllReadableRegions(
+    ReadStream& stream, UnretainedCallback<void(absl::string_view)> callback) {
+  for (;;) {
+    ReadStream::PeekResult peek_result = stream.PeekNextReadableRegion();
+    if (!peek_result.has_data()) {
+      return false;
+    }
+    callback(peek_result.peeked_data);
+    bool fin = stream.SkipBytes(peek_result.peeked_data.size());
+    if (fin) {
+      return true;
+    }
+  }
+}
 
 // A general-purpose visitor API that gets notifications for WriteStream-related
 // events.
@@ -59,7 +149,7 @@ inline constexpr StreamWriteOptions kDefaultStreamWriteOptions =
 // to either accept all data written into it by returning absl::OkStatus, or ask
 // the caller to try again once via OnCanWrite() by returning
 // absl::UnavailableError.
-class QUICHE_EXPORT WriteStream : public TerminableStream {
+class QUICHE_EXPORT WriteStream {
  public:
   virtual ~WriteStream() {}
 

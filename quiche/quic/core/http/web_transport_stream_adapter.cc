@@ -4,13 +4,26 @@
 
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
 
+#include <cstddef>
+#include <string>
+#include <vector>
+
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/quic/core/web_transport_interface.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/quiche_mem_slice_storage.h"
+#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
@@ -118,6 +131,28 @@ void WebTransportStreamAdapter::AbruptlyTerminate(absl::Status error) {
 
 size_t WebTransportStreamAdapter::ReadableBytes() const {
   return sequencer_->ReadableBytes();
+}
+
+quiche::ReadStream::PeekResult
+WebTransportStreamAdapter::PeekNextReadableRegion() const {
+  iovec iov;
+  PeekResult result;
+  if (sequencer_->GetReadableRegion(&iov)) {
+    result.peeked_data =
+        absl::string_view(static_cast<const char*>(iov.iov_base), iov.iov_len);
+  }
+  result.fin_next = sequencer_->IsClosed();
+  result.all_data_received = sequencer_->IsAllDataAvailable();
+  return result;
+}
+
+bool WebTransportStreamAdapter::SkipBytes(size_t bytes) {
+  sequencer_->MarkConsumed(bytes);
+  if (!fin_read_ && sequencer_->IsClosed()) {
+    fin_read_ = true;
+    stream_->OnFinRead();
+  }
+  return sequencer_->IsClosed();
 }
 
 void WebTransportStreamAdapter::OnDataAvailable() {

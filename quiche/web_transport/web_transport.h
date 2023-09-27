@@ -93,12 +93,10 @@ struct QUICHE_EXPORT SessionStats {
 // events related to a WebTransport stream.  The visitor object is owned by the
 // stream itself, meaning that if the stream is ever fully closed, the visitor
 // will be garbage-collected.
-class QUICHE_EXPORT StreamVisitor : public quiche::WriteStreamVisitor {
+class QUICHE_EXPORT StreamVisitor : public quiche::ReadStreamVisitor,
+                                    public quiche::WriteStreamVisitor {
  public:
   virtual ~StreamVisitor() {}
-
-  // Called whenever the stream has readable data available.
-  virtual void OnCanRead() = 0;
 
   // Called when RESET_STREAM is received for the stream.
   virtual void OnResetStreamReceived(StreamErrorCode error) = 0;
@@ -112,26 +110,11 @@ class QUICHE_EXPORT StreamVisitor : public quiche::WriteStreamVisitor {
 
 // A stream (either bidirectional or unidirectional) that is contained within a
 // WebTransport session.
-class QUICHE_EXPORT Stream : public quiche::WriteStream {
+class QUICHE_EXPORT Stream : public quiche::ReadStream,
+                             public quiche::WriteStream,
+                             public quiche::TerminableStream {
  public:
-  struct QUICHE_EXPORT ReadResult {
-    // Number of bytes actually read.
-    size_t bytes_read;
-    // Whether the FIN has been received; if true, no further data will arrive
-    // on the stream, and the stream object can be soon potentially garbage
-    // collected.
-    bool fin;
-  };
-
   virtual ~Stream() {}
-
-  // Reads at most |buffer.size()| bytes into |buffer|.
-  [[nodiscard]] virtual ReadResult Read(absl::Span<char> buffer) = 0;
-  // Reads all available data and appends it to the end of |output|.
-  [[nodiscard]] virtual ReadResult Read(std::string* output) = 0;
-
-  // Indicates the number of bytes that can be read from the stream.
-  virtual size_t ReadableBytes() const = 0;
 
   // An ID that is unique within the session.  Those are not exposed to the user
   // via the web API, but can be used internally for bookkeeping and

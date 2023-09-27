@@ -33,6 +33,8 @@
 #include "quiche/quic/test_tools/simulator/test_harness.h"
 #include "quiche/quic/test_tools/web_transport_test_tools.h"
 #include "quiche/quic/tools/web_transport_test_visitors.h"
+#include "quiche/common/quiche_stream.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic::test {
@@ -261,6 +263,76 @@ TEST_F(QuicGenericSessionTest, EchoUnidirectionalStreams) {
   EXPECT_GT(result.bytes_read, 0u);
   EXPECT_TRUE(result.fin);
   EXPECT_EQ(buffer, "Stream One");
+}
+
+TEST_F(QuicGenericSessionTest, EchoStreamsUsingPeekApi) {
+  CreateDefaultEndpoints(kEchoServer);
+  WireUpEndpoints();
+  RunHandshake();
+
+  // Send two streams, a bidirectional and a unidirectional one, but only send
+  // FIN on the second one.
+  webtransport::Stream* stream1 =
+      client_->session()->OpenOutgoingBidirectionalStream();
+  EXPECT_TRUE(stream1->Write("Stream One"));
+  webtransport::Stream* stream2 =
+      client_->session()->OpenOutgoingUnidirectionalStream();
+  EXPECT_TRUE(stream2->Write("Stream Two"));
+  EXPECT_TRUE(stream2->SendFin());
+
+  // Wait until the unidirectional stream is received back.
+  bool stream_received_unidi = false;
+  EXPECT_CALL(*client_->visitor(), OnIncomingUnidirectionalStreamAvailable())
+      .WillOnce(Assign(&stream_received_unidi, true));
+  ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return stream_received_unidi; }));
+
+  // Receive the unidirectional echo reply.
+  webtransport::Stream* reply =
+      client_->session()->AcceptIncomingUnidirectionalStream();
+  ASSERT_TRUE(reply != nullptr);
+  std::string buffer;
+  quiche::ReadStream::PeekResult peek_result = reply->PeekNextReadableRegion();
+  EXPECT_EQ(peek_result.peeked_data, "Stream Two");
+  EXPECT_EQ(peek_result.fin_next, false);
+  EXPECT_EQ(peek_result.all_data_received, true);
+  bool fin_received =
+      quiche::ProcessAllReadableRegions(*reply, [&](absl::string_view chunk) {
+        buffer.append(chunk.data(), chunk.size());
+        return true;
+      });
+  EXPECT_TRUE(fin_received);
+  EXPECT_EQ(buffer, "Stream Two");
+
+  // Receive the bidirectional stream reply without a FIN.
+  ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return stream1->PeekNextReadableRegion().has_data(); }));
+  peek_result = stream1->PeekNextReadableRegion();
+  EXPECT_EQ(peek_result.peeked_data, "Stream One");
+  EXPECT_EQ(peek_result.fin_next, false);
+  EXPECT_EQ(peek_result.all_data_received, false);
+  fin_received = stream1->SkipBytes(strlen("Stream One"));
+  EXPECT_FALSE(fin_received);
+  peek_result = stream1->PeekNextReadableRegion();
+  EXPECT_EQ(peek_result.peeked_data, "");
+  EXPECT_EQ(peek_result.fin_next, false);
+  EXPECT_EQ(peek_result.all_data_received, false);
+
+  // Send FIN on the first stream, and expect to receive it back.
+  EXPECT_TRUE(stream1->SendFin());
+  ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return stream1->PeekNextReadableRegion().all_data_received; }));
+  peek_result = stream1->PeekNextReadableRegion();
+  EXPECT_EQ(peek_result.peeked_data, "");
+  EXPECT_EQ(peek_result.fin_next, true);
+  EXPECT_EQ(peek_result.all_data_received, true);
+
+  // Read FIN and expect the stream to get garbage collected.
+  webtransport::StreamId id = stream1->GetStreamId();
+  EXPECT_TRUE(client_->session()->GetStreamById(id) != nullptr);
+  fin_received = stream1->SkipBytes(0);
+  EXPECT_TRUE(fin_received);
+  EXPECT_TRUE(client_->session()->GetStreamById(id) == nullptr);
 }
 
 TEST_F(QuicGenericSessionTest, EchoDatagram) {
