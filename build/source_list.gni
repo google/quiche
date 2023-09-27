@@ -1480,10 +1480,14 @@ load_balancer_srcs = [
     "src/quiche/quic/load_balancer/load_balancer_server_id_test.cc",
 ]
 moqt_hdrs = [
-
+    "src/quiche/quic/moqt/moqt_messages.h",
+    "src/quiche/quic/moqt/moqt_parser.h",
+    "src/quiche/quic/moqt/test_tools/moqt_test_message.h",
 ]
 moqt_srcs = [
-
+    "src/quiche/quic/moqt/moqt_messages.cc",
+    "src/quiche/quic/moqt/moqt_parser.cc",
+    "src/quiche/quic/moqt/moqt_parser_test.cc",
 ]
 binary_http_hdrs = [
     "src/quiche/binary_http/binary_http_message.h",
