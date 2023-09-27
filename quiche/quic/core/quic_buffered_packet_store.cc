@@ -292,9 +292,11 @@ bool QuicBufferedPacketStore::HasChloForConnection(
 
 bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
     const QuicConnectionId& connection_id, const ParsedQuicVersion& version,
-    const QuicReceivedPacket& packet, std::vector<std::string>* out_alpns,
-    std::string* out_sni, bool* out_resumption_attempted,
-    bool* out_early_data_attempted, absl::optional<uint8_t>* tls_alert) {
+    const QuicReceivedPacket& packet,
+    std::vector<uint16_t>* out_supported_groups,
+    std::vector<std::string>* out_alpns, std::string* out_sni,
+    bool* out_resumption_attempted, bool* out_early_data_attempted,
+    absl::optional<uint8_t>* tls_alert) {
   QUICHE_DCHECK_NE(out_alpns, nullptr);
   QUICHE_DCHECK_NE(out_sni, nullptr);
   QUICHE_DCHECK_NE(tls_alert, nullptr);
@@ -311,6 +313,7 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
     return false;
   }
   const TlsChloExtractor& tls_chlo_extractor = it->second.tls_chlo_extractor;
+  *out_supported_groups = tls_chlo_extractor.supported_groups();
   *out_alpns = tls_chlo_extractor.alpns();
   *out_sni = tls_chlo_extractor.server_name();
   *out_resumption_attempted = tls_chlo_extractor.resumption_attempted();

@@ -861,9 +861,10 @@ struct QUICHE_EXPORT QuicDelayedSSLConfig {
 // ParsedClientHello contains client hello information extracted from a fully
 // received client hello.
 struct QUICHE_EXPORT ParsedClientHello {
-  std::string sni;                 // QUIC crypto and TLS.
-  std::string uaid;                // QUIC crypto only.
-  std::vector<std::string> alpns;  // QUIC crypto and TLS.
+  std::string sni;                         // QUIC crypto and TLS.
+  std::string uaid;                        // QUIC crypto only.
+  std::vector<uint16_t> supported_groups;  // TLS only.
+  std::vector<std::string> alpns;          // QUIC crypto and TLS.
   // The unvalidated retry token from the last received packet of a potentially
   // multi-packet client hello. TLS only.
   std::string retry_token;

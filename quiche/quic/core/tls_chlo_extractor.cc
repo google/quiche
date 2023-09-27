@@ -4,8 +4,10 @@
 
 #include "quiche/quic/core/tls_chlo_extractor.h"
 
+#include <cstdint>
 #include <cstring>
 #include <memory>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -18,6 +20,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
@@ -30,6 +33,41 @@ bool HasExtension(const SSL_CLIENT_HELLO* client_hello, uint16_t extension) {
                                                    &unused_extension_bytes,
                                                    &unused_extension_len);
 }
+
+std::vector<uint16_t> GetSupportedGroups(const SSL_CLIENT_HELLO* client_hello) {
+  const uint8_t* extension_data;
+  size_t extension_len;
+  int rv = SSL_early_callback_ctx_extension_get(
+      client_hello, TLSEXT_TYPE_supported_groups, &extension_data,
+      &extension_len);
+  if (rv != 1) {
+    return {};
+  }
+
+  // See https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.7 for the
+  // format of this extension.
+  QuicDataReader named_groups_reader(
+      reinterpret_cast<const char*>(extension_data), extension_len);
+  uint16_t named_groups_len;
+  if (!named_groups_reader.ReadUInt16(&named_groups_len) ||
+      named_groups_len + sizeof(uint16_t) != extension_len) {
+    QUIC_CODE_COUNT(quic_chlo_supported_groups_invalid_length);
+    return {};
+  }
+
+  std::vector<uint16_t> named_groups;
+  while (!named_groups_reader.IsDoneReading()) {
+    uint16_t named_group;
+    if (!named_groups_reader.ReadUInt16(&named_group)) {
+      QUIC_CODE_COUNT(quic_chlo_supported_groups_odd_length);
+      QUIC_LOG_FIRST_N(WARNING, 10) << "Failed to read named groups";
+      break;
+    }
+    named_groups.push_back(named_group);
+  }
+  return named_groups;
+}
+
 }  // namespace
 
 TlsChloExtractor::TlsChloExtractor()
@@ -60,6 +98,7 @@ TlsChloExtractor& TlsChloExtractor::operator=(TlsChloExtractor&& other) {
   error_details_ = std::move(other.error_details_);
   parsed_crypto_frame_in_this_packet_ =
       other.parsed_crypto_frame_in_this_packet_;
+  supported_groups_ = std::move(other.supported_groups_);
   alpns_ = std::move(other.alpns_);
   server_name_ = std::move(other.server_name_);
   client_hello_bytes_ = std::move(other.client_hello_bytes_);
@@ -321,6 +360,11 @@ void TlsChloExtractor::HandleParsedChlo(const SSL_CLIENT_HELLO* client_hello) {
       }
       alpns_.emplace_back(std::string(alpn_payload));
     }
+  }
+
+  if (GetQuicReloadableFlag(quic_extract_supported_groups_early)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_extract_supported_groups_early, 1, 3);
+    supported_groups_ = GetSupportedGroups(client_hello);
   }
 
   // Update our state now that we've parsed a full CHLO.

@@ -64,11 +64,16 @@
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
+using testing::AllOf;
 using testing::ByMove;
+using testing::ElementsAreArray;
 using testing::Eq;
+using testing::Field;
 using testing::InSequence;
 using testing::Invoke;
+using testing::IsEmpty;
 using testing::NiceMock;
+using testing::Not;
 using testing::Ref;
 using testing::Return;
 using testing::ReturnRef;
@@ -517,11 +522,18 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 
   std::string ExpectedAlpn() { return ExpectedAlpnForVersion(version_); }
 
-  ParsedClientHello ParsedClientHelloForTest() {
-    ParsedClientHello parsed_chlo;
-    parsed_chlo.alpns = {ExpectedAlpn()};
-    parsed_chlo.sni = TestHostname();
-    return parsed_chlo;
+  auto MatchParsedClientHello() {
+    if (version_.UsesQuicCrypto() ||
+        !GetQuicReloadableFlag(quic_extract_supported_groups_early)) {
+      return AllOf(
+          Field(&ParsedClientHello::alpns, ElementsAreArray({ExpectedAlpn()})),
+          Field(&ParsedClientHello::sni, Eq(TestHostname())),
+          Field(&ParsedClientHello::supported_groups, IsEmpty()));
+    }
+    return AllOf(
+        Field(&ParsedClientHello::alpns, ElementsAreArray({ExpectedAlpn()})),
+        Field(&ParsedClientHello::sni, Eq(TestHostname())),
+        Field(&ParsedClientHello::supported_groups, Not(IsEmpty())));
   }
 
   void MarkSession1Deleted() { session1_ = nullptr; }
@@ -612,10 +624,10 @@ TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
-  EXPECT_CALL(*dispatcher_,
-              CreateQuicSession(TestConnectionId(1), _, client_address,
-                                Eq(ExpectedAlpn()), _,
-                                Eq(ParsedClientHelloForTest()), _))
+  EXPECT_CALL(
+      *dispatcher_,
+      CreateQuicSession(TestConnectionId(1), _, client_address,
+                        Eq(ExpectedAlpn()), _, MatchParsedClientHello(), _))
       .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, TestConnectionId(1), client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -643,9 +655,9 @@ TEST_P(QuicDispatcherTestAllVersions,
   ConnectionIdGeneratorInterface& expected_generator =
       mock_connection_id_generator;
   EXPECT_CALL(*dispatcher_,
-              CreateQuicSession(
-                  TestConnectionId(1), _, client_address, Eq(ExpectedAlpn()), _,
-                  Eq(ParsedClientHelloForTest()), Ref(expected_generator)))
+              CreateQuicSession(TestConnectionId(1), _, client_address,
+                                Eq(ExpectedAlpn()), _, MatchParsedClientHello(),
+                                Ref(expected_generator)))
       .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, TestConnectionId(1), client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -667,7 +679,7 @@ TEST_P(QuicDispatcherTestAllVersions, VariableServerConnectionIdLength) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(new_id, _, client_address, Eq(ExpectedAlpn()),
-                                _, Eq(ParsedClientHelloForTest()), _))
+                                _, MatchParsedClientHello(), _))
       .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, new_id, client_address, &mock_helper_,
           &mock_alarm_factory_, &crypto_config_,
@@ -732,10 +744,10 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
       << "No session should be created before the rest of the CHLO arrives.";
 
   // Processing the second packet should create the new session.
-  EXPECT_CALL(*dispatcher_,
-              CreateQuicSession(new_connection_id, _, client_address,
-                                Eq(ExpectedAlpn()), _,
-                                Eq(ParsedClientHelloForTest()), _))
+  EXPECT_CALL(
+      *dispatcher_,
+      CreateQuicSession(new_connection_id, _, client_address,
+                        Eq(ExpectedAlpn()), _, MatchParsedClientHello(), _))
       .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, new_connection_id, client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -773,10 +785,10 @@ TEST_P(QuicDispatcherTestAllVersions,
 TEST_P(QuicDispatcherTestAllVersions, ProcessPackets) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
-  EXPECT_CALL(*dispatcher_,
-              CreateQuicSession(TestConnectionId(1), _, client_address,
-                                Eq(ExpectedAlpn()), _,
-                                Eq(ParsedClientHelloForTest()), _))
+  EXPECT_CALL(
+      *dispatcher_,
+      CreateQuicSession(TestConnectionId(1), _, client_address,
+                        Eq(ExpectedAlpn()), _, MatchParsedClientHello(), _))
       .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, TestConnectionId(1), client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -788,10 +800,10 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessPackets) {
       })));
   ProcessFirstFlight(client_address, TestConnectionId(1));
 
-  EXPECT_CALL(*dispatcher_,
-              CreateQuicSession(TestConnectionId(2), _, client_address,
-                                Eq(ExpectedAlpn()), _,
-                                Eq(ParsedClientHelloForTest()), _))
+  EXPECT_CALL(
+      *dispatcher_,
+      CreateQuicSession(TestConnectionId(2), _, client_address,
+                        Eq(ExpectedAlpn()), _, MatchParsedClientHello(), _))
       .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, TestConnectionId(2), client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -2553,7 +2565,7 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketBeforeChlo) {
       .WillOnce(Return(absl::nullopt));
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(conn_id, _, client_addr_, Eq(ExpectedAlpn()), _,
-                                Eq(ParsedClientHelloForTest()), _))
+                                MatchParsedClientHello(), _))
       .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, conn_id, client_addr_, &mock_helper_,
           &mock_alarm_factory_, &crypto_config_,
@@ -2754,10 +2766,10 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
       EXPECT_CALL(connection_id_generator_,
                   MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
           .WillOnce(Return(absl::nullopt));
-      EXPECT_CALL(*dispatcher_,
-                  CreateQuicSession(TestConnectionId(conn_id), _, client_addr_,
-                                    Eq(ExpectedAlpn()), _,
-                                    Eq(ParsedClientHelloForTest()), _))
+      EXPECT_CALL(
+          *dispatcher_,
+          CreateQuicSession(TestConnectionId(conn_id), _, client_addr_,
+                            Eq(ExpectedAlpn()), _, MatchParsedClientHello(), _))
           .WillOnce(Return(ByMove(CreateSession(
               dispatcher_.get(), config_, TestConnectionId(conn_id),
               client_addr_, &mock_helper_, &mock_alarm_factory_,
@@ -2794,10 +2806,10 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
     EXPECT_CALL(connection_id_generator_,
                 MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
         .WillOnce(Return(absl::nullopt));
-    EXPECT_CALL(*dispatcher_,
-                CreateQuicSession(TestConnectionId(conn_id), _, client_addr_,
-                                  Eq(ExpectedAlpn()), _,
-                                  Eq(ParsedClientHelloForTest()), _))
+    EXPECT_CALL(
+        *dispatcher_,
+        CreateQuicSession(TestConnectionId(conn_id), _, client_addr_,
+                          Eq(ExpectedAlpn()), _, MatchParsedClientHello(), _))
         .WillOnce(Return(ByMove(CreateSession(
             dispatcher_.get(), config_, TestConnectionId(conn_id), client_addr_,
             &mock_helper_, &mock_alarm_factory_, &crypto_config_,

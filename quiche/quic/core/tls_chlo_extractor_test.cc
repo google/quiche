@@ -29,18 +29,26 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
   TlsChloExtractorTest() : version_(GetParam()), server_id_(TestServerId()) {}
 
   void Initialize() {
+    tls_chlo_extractor_ = std::make_unique<TlsChloExtractor>();
     AnnotatedPackets packets =
         GetAnnotatedFirstFlightOfPackets(version_, config_);
     packets_ = std::move(packets.packets);
     crypto_stream_size_ = packets.crypto_stream_size;
+    QUIC_DLOG(INFO) << "Initialized with " << packets_.size()
+                    << " packets with crypto_stream_size:"
+                    << crypto_stream_size_;
   }
 
   void Initialize(std::unique_ptr<QuicCryptoClientConfig> crypto_config) {
+    tls_chlo_extractor_ = std::make_unique<TlsChloExtractor>();
     AnnotatedPackets packets = GetAnnotatedFirstFlightOfPackets(
         version_, config_, TestConnectionId(), EmptyQuicConnectionId(),
         std::move(crypto_config));
     packets_ = std::move(packets.packets);
     crypto_stream_size_ = packets.crypto_stream_size;
+    QUIC_DLOG(INFO) << "Initialized with " << packets_.size()
+                    << " packets with crypto_stream_size:"
+                    << crypto_stream_size_;
   }
 
   // Perform a full handshake in order to insert a SSL_SESSION into
@@ -107,14 +115,15 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
           &packet_info.destination_connection_id,
           &packet_info.source_connection_id, &retry_token, &detailed_error);
       ASSERT_THAT(error, IsQuicNoError()) << detailed_error;
-      tls_chlo_extractor_.IngestPacket(packet_info.version, packet_info.packet);
+      tls_chlo_extractor_->IngestPacket(packet_info.version,
+                                        packet_info.packet);
     }
     packets_.clear();
   }
 
   void ValidateChloDetails(const TlsChloExtractor* extractor = nullptr) const {
     if (extractor == nullptr) {
-      extractor = &tls_chlo_extractor_;
+      extractor = tls_chlo_extractor_.get();
     }
 
     EXPECT_TRUE(extractor->HasParsedFullChlo());
@@ -147,7 +156,7 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   ParsedQuicVersion version_;
   QuicServerId server_id_;
-  TlsChloExtractor tls_chlo_extractor_;
+  std::unique_ptr<TlsChloExtractor> tls_chlo_extractor_;
   QuicConfig config_;
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets_;
   uint64_t crypto_stream_size_;
@@ -162,13 +171,13 @@ TEST_P(TlsChloExtractorTest, Simple) {
   EXPECT_EQ(packets_.size(), 1u);
   IngestPackets();
   ValidateChloDetails();
-  EXPECT_EQ(tls_chlo_extractor_.state(),
+  EXPECT_EQ(tls_chlo_extractor_->state(),
             TlsChloExtractor::State::kParsedFullSinglePacketChlo);
-  EXPECT_FALSE(tls_chlo_extractor_.resumption_attempted());
-  EXPECT_FALSE(tls_chlo_extractor_.early_data_attempted());
+  EXPECT_FALSE(tls_chlo_extractor_->resumption_attempted());
+  EXPECT_FALSE(tls_chlo_extractor_->early_data_attempted());
 }
 
-TEST_P(TlsChloExtractorTest, TlsExtentionInfo_ResumptionOnly) {
+TEST_P(TlsChloExtractorTest, TlsExtensionInfo_ResumptionOnly) {
   auto crypto_client_config = std::make_unique<QuicCryptoClientConfig>(
       crypto_test_utils::ProofVerifierForTesting(),
       std::make_unique<SimpleSessionCache>());
@@ -179,13 +188,13 @@ TEST_P(TlsChloExtractorTest, TlsExtentionInfo_ResumptionOnly) {
   EXPECT_GE(packets_.size(), 1u);
   IngestPackets();
   ValidateChloDetails();
-  EXPECT_EQ(tls_chlo_extractor_.state(),
+  EXPECT_EQ(tls_chlo_extractor_->state(),
             TlsChloExtractor::State::kParsedFullSinglePacketChlo);
-  EXPECT_TRUE(tls_chlo_extractor_.resumption_attempted());
-  EXPECT_FALSE(tls_chlo_extractor_.early_data_attempted());
+  EXPECT_TRUE(tls_chlo_extractor_->resumption_attempted());
+  EXPECT_FALSE(tls_chlo_extractor_->early_data_attempted());
 }
 
-TEST_P(TlsChloExtractorTest, TlsExtentionInfo_ZeroRtt) {
+TEST_P(TlsChloExtractorTest, TlsExtensionInfo_ZeroRtt) {
   auto crypto_client_config = std::make_unique<QuicCryptoClientConfig>(
       crypto_test_utils::ProofVerifierForTesting(),
       std::make_unique<SimpleSessionCache>());
@@ -196,10 +205,34 @@ TEST_P(TlsChloExtractorTest, TlsExtentionInfo_ZeroRtt) {
   EXPECT_GE(packets_.size(), 1u);
   IngestPackets();
   ValidateChloDetails();
-  EXPECT_EQ(tls_chlo_extractor_.state(),
+  EXPECT_EQ(tls_chlo_extractor_->state(),
             TlsChloExtractor::State::kParsedFullMultiPacketChlo);
-  EXPECT_TRUE(tls_chlo_extractor_.resumption_attempted());
-  EXPECT_TRUE(tls_chlo_extractor_.early_data_attempted());
+  EXPECT_TRUE(tls_chlo_extractor_->resumption_attempted());
+  EXPECT_TRUE(tls_chlo_extractor_->early_data_attempted());
+}
+
+TEST_P(TlsChloExtractorTest, TlsExtensionInfo_SupportedGroups) {
+  const std::vector<std::vector<uint16_t>> preferred_groups_to_test = {
+      // Only one group
+      {SSL_GROUP_X25519},
+      // Two groups
+      {SSL_GROUP_X25519_KYBER768_DRAFT00, SSL_GROUP_X25519},
+  };
+  for (const std::vector<uint16_t>& preferred_groups :
+       preferred_groups_to_test) {
+    auto crypto_client_config = std::make_unique<QuicCryptoClientConfig>(
+        crypto_test_utils::ProofVerifierForTesting());
+    crypto_client_config->set_preferred_groups(preferred_groups);
+
+    Initialize(std::move(crypto_client_config));
+    IngestPackets();
+    ValidateChloDetails();
+    if (GetQuicReloadableFlag(quic_extract_supported_groups_early)) {
+      EXPECT_EQ(tls_chlo_extractor_->supported_groups(), preferred_groups);
+    } else {
+      EXPECT_TRUE(tls_chlo_extractor_->supported_groups().empty());
+    }
+  }
 }
 
 TEST_P(TlsChloExtractorTest, MultiPacket) {
@@ -208,7 +241,7 @@ TEST_P(TlsChloExtractorTest, MultiPacket) {
   EXPECT_EQ(packets_.size(), 2u);
   IngestPackets();
   ValidateChloDetails();
-  EXPECT_EQ(tls_chlo_extractor_.state(),
+  EXPECT_EQ(tls_chlo_extractor_->state(),
             TlsChloExtractor::State::kParsedFullMultiPacketChlo);
 }
 
@@ -216,11 +249,11 @@ TEST_P(TlsChloExtractorTest, MultiPacketReordered) {
   IncreaseSizeOfChlo();
   Initialize();
   ASSERT_EQ(packets_.size(), 2u);
-  // Artifically reorder both packets.
+  // Artificially reorder both packets.
   std::swap(packets_[0], packets_[1]);
   IngestPackets();
   ValidateChloDetails();
-  EXPECT_EQ(tls_chlo_extractor_.state(),
+  EXPECT_EQ(tls_chlo_extractor_->state(),
             TlsChloExtractor::State::kParsedFullMultiPacketChlo);
 }
 
@@ -228,10 +261,10 @@ TEST_P(TlsChloExtractorTest, MoveAssignment) {
   Initialize();
   EXPECT_EQ(packets_.size(), 1u);
   TlsChloExtractor other_extractor;
-  tls_chlo_extractor_ = std::move(other_extractor);
+  *tls_chlo_extractor_ = std::move(other_extractor);
   IngestPackets();
   ValidateChloDetails();
-  EXPECT_EQ(tls_chlo_extractor_.state(),
+  EXPECT_EQ(tls_chlo_extractor_->state(),
             TlsChloExtractor::State::kParsedFullSinglePacketChlo);
 }
 
@@ -240,10 +273,10 @@ TEST_P(TlsChloExtractorTest, MoveAssignmentAfterExtraction) {
   EXPECT_EQ(packets_.size(), 1u);
   IngestPackets();
   ValidateChloDetails();
-  EXPECT_EQ(tls_chlo_extractor_.state(),
+  EXPECT_EQ(tls_chlo_extractor_->state(),
             TlsChloExtractor::State::kParsedFullSinglePacketChlo);
 
-  TlsChloExtractor other_extractor = std::move(tls_chlo_extractor_);
+  TlsChloExtractor other_extractor = std::move(*tls_chlo_extractor_);
 
   EXPECT_EQ(other_extractor.state(),
             TlsChloExtractor::State::kParsedFullSinglePacketChlo);
@@ -276,13 +309,13 @@ TEST_P(TlsChloExtractorTest, MoveAssignmentBetweenPackets) {
   EXPECT_EQ(packets_.size(), 1u);
 
   // Move the extractor.
-  tls_chlo_extractor_ = std::move(other_extractor);
+  *tls_chlo_extractor_ = std::move(other_extractor);
 
   // Have |tls_chlo_extractor_| parse the second packet.
   IngestPackets();
 
   ValidateChloDetails();
-  EXPECT_EQ(tls_chlo_extractor_.state(),
+  EXPECT_EQ(tls_chlo_extractor_->state(),
             TlsChloExtractor::State::kParsedFullMultiPacketChlo);
 }
 
