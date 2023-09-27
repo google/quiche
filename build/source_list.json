@@ -1478,6 +1478,12 @@
     "quiche/quic/load_balancer/load_balancer_server_id_map_test.cc",
     "quiche/quic/load_balancer/load_balancer_server_id_test.cc"
   ],
+  "moqt_hdrs": [
+
+  ],
+  "moqt_srcs": [
+
+  ],
   "binary_http_hdrs": [
     "quiche/binary_http/binary_http_message.h"
   ],

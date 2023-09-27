@@ -1475,6 +1475,10 @@ load_balancer_srcs = [
     "quic/load_balancer/load_balancer_server_id_map_test.cc",
     "quic/load_balancer/load_balancer_server_id_test.cc",
 ]
+moqt_hdrs = [
+]
+moqt_srcs = [
+]
 binary_http_hdrs = [
     "binary_http/binary_http_message.h",
 ]

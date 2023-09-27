@@ -1479,6 +1479,12 @@ load_balancer_srcs = [
     "src/quiche/quic/load_balancer/load_balancer_server_id_map_test.cc",
     "src/quiche/quic/load_balancer/load_balancer_server_id_test.cc",
 ]
+moqt_hdrs = [
+
+]
+moqt_srcs = [
+
+]
 binary_http_hdrs = [
     "src/quiche/binary_http/binary_http_message.h",
 ]
