@@ -471,7 +471,9 @@ QuicSpdySession::QuicSpdySession(
       destruction_indicator_(123456789),
       allow_extended_connect_(perspective() == Perspective::IS_SERVER &&
                               VersionUsesHttp3(transport_version())),
-      force_buffer_requests_until_settings_(false) {
+      force_buffer_requests_until_settings_(false),
+      quic_enable_h3_datagrams_flag_(
+          GetQuicReloadableFlag(quic_enable_h3_datagrams)) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -533,6 +535,7 @@ void QuicSpdySession::FillSettingsFrame() {
         settings_.values[SETTINGS_H3_DATAGRAM_DRAFT04] = 1;
         break;
       case HttpDatagramSupport::kRfc:
+        QUIC_RELOADABLE_FLAG_COUNT(quic_enable_h3_datagrams);
         settings_.values[SETTINGS_H3_DATAGRAM] = 1;
         break;
       case HttpDatagramSupport::kRfcAndDraft04:
@@ -1941,6 +1944,9 @@ void QuicSpdySession::DatagramObserver::OnDatagramProcessed(
 }
 
 HttpDatagramSupport QuicSpdySession::LocalHttpDatagramSupport() {
+  if (quic_enable_h3_datagrams_flag_) {
+    return HttpDatagramSupport::kRfc;
+  }
   return HttpDatagramSupport::kNone;
 }
 

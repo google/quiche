@@ -101,6 +101,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_bbr2_probe_two_rounds, true)
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_simplify_inflight_hi, true)
 // When true, the BBR4 copt sets the extra_acked window to 20 RTTs and BBR5 sets it to 40 RTTs.
 QUIC_FLAG(quic_reloadable_flag_quic_bbr2_extra_acked_window, true)
+// When true, we will send HTTP/3 setting 0x33 to indicate that we support RFC 9297.
+QUIC_FLAG(quic_reloadable_flag_quic_enable_h3_datagrams, false)
 
 #endif
 
