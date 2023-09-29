@@ -11,7 +11,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.h"
+#include "anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
 #include "quiche/blind_sign_auth/blind_sign_http_interface.h"
@@ -44,10 +44,10 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   void AuthAndSignCallback(
       privacy::ppn::PublicMetadataInfo public_metadata_info,
       absl::Time public_key_expiry_time,
-      private_membership::anonymous_tokens::AnonymousTokensSignRequest
+      anonymous_tokens::AnonymousTokensSignRequest
           at_sign_request,
       std::unique_ptr<
-          private_membership::anonymous_tokens::AnonymousTokensRsaBssaClient>
+          anonymous_tokens::AnonymousTokensRsaBssaClient>
           bssa_client,
       SignedTokenCallback callback,
       absl::StatusOr<BlindSignHttpResponse> response);

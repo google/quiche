@@ -13,8 +13,8 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/proto_utils.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/testing/utils.h"
+#include "anonymous_tokens/cpp/testing/proto_utils.h"
+#include "anonymous_tokens/cpp/testing/utils.h"
 #include "openssl/base.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
 #include "quiche/blind_sign_auth/blind_sign_http_interface.h"
@@ -39,7 +39,7 @@ class BlindSignAuthTest : public QuicheTest {
  protected:
   void SetUp() override {
     // Create public key.
-    auto keypair = private_membership::anonymous_tokens::CreateTestKey();
+    auto keypair = anonymous_tokens::CreateTestKey();
     if (!keypair.ok()) {
       return;
     }
@@ -55,7 +55,7 @@ class BlindSignAuthTest : public QuicheTest {
 
     // Create fake public key response.
     privacy::ppn::GetInitialDataResponse fake_get_initial_data_response;
-    private_membership::anonymous_tokens::RSABlindSignaturePublicKey public_key;
+    anonymous_tokens::RSABlindSignaturePublicKey public_key;
     ASSERT_TRUE(
         public_key.ParseFromString(keypair_.second.SerializeAsString()));
     *fake_get_initial_data_response.mutable_at_public_metadata_public_key() =
@@ -64,7 +64,7 @@ class BlindSignAuthTest : public QuicheTest {
     // Create public metadata info.
     privacy::ppn::PublicMetadata::Location location;
     location.set_country("US");
-    private_membership::anonymous_tokens::Timestamp expiration;
+    anonymous_tokens::Timestamp expiration;
     expiration.set_seconds(absl::ToUnixSeconds(absl::Now() + absl::Hours(1)));
     privacy::ppn::PublicMetadata public_metadata;
     *public_metadata.mutable_exit_location() = location;
@@ -113,7 +113,7 @@ class BlindSignAuthTest : public QuicheTest {
       std::string decoded_blinded_token;
       ASSERT_TRUE(absl::Base64Unescape(request_token, &decoded_blinded_token));
       absl::StatusOr<std::string> serialized_token =
-          private_membership::anonymous_tokens::TestSign(decoded_blinded_token,
+          anonymous_tokens::TestSign(decoded_blinded_token,
                                                          keypair_.first.get());
       QUICHE_EXPECT_OK(serialized_token);
       response.add_blinded_token_signature(
@@ -135,7 +135,7 @@ class BlindSignAuthTest : public QuicheTest {
       EXPECT_EQ(spend_token_data.signing_key_version(),
                 keypair_.second.key_version());
       EXPECT_NE(spend_token_data.use_case(),
-                private_membership::anonymous_tokens::AnonymousTokensUseCase::
+                anonymous_tokens::AnonymousTokensUseCase::
                     ANONYMOUS_TOKENS_USE_CASE_UNDEFINED);
       EXPECT_NE(spend_token_data.message_mask(), "");
     }
@@ -144,7 +144,7 @@ class BlindSignAuthTest : public QuicheTest {
   MockBlindSignHttpInterface mock_http_interface_;
   std::unique_ptr<BlindSignAuth> blind_sign_auth_;
   std::pair<bssl::UniquePtr<RSA>,
-            private_membership::anonymous_tokens::RSABlindSignaturePublicKey>
+            anonymous_tokens::RSABlindSignaturePublicKey>
       keypair_;
   privacy::ppn::PublicMetadataInfo public_metadata_info_;
   privacy::ppn::AuthAndSignResponse sign_response_;

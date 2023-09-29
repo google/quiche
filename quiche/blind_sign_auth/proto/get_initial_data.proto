@@ -18,18 +18,18 @@ package privacy.ppn;
 
 import "quiche/blind_sign_auth/proto/attestation.proto";
 import "quiche/blind_sign_auth/proto/public_metadata.proto";
-import "quiche/blind_sign_auth/anonymous_tokens/proto/anonymous_tokens.proto";
+import "anonymous_tokens/proto/anonymous_tokens.proto";
 
 option java_multiple_files = true;
 
 // Request data needed to prepare for AuthAndSign.
 message GetInitialDataRequest {
   // Whether the client wants to use attestation as part of authentication.
-  bool use_attestation = 1 ;
+  bool use_attestation = 1;
 
   // A string uniquely identifying the strategy this client should be
   // authenticated with.
-  string service_type = 2 ;
+  string service_type = 2;
 
   enum LocationGranularity {
     UNKNOWN = 0;
@@ -38,11 +38,10 @@ message GetInitialDataRequest {
     CITY_GEOS = 2;
   }
   // The user selected granularity of exit IP location.
-  LocationGranularity location_granularity = 3
-      ;
+  LocationGranularity location_granularity = 3;
 
   // Indicates what validation rules the client uses for public metadata.
-  int64 validation_version = 4 ;
+  int64 validation_version = 4;
 }
 
 // Contains data needed to perform blind signing and prepare for calling
@@ -50,7 +49,7 @@ message GetInitialDataRequest {
 message GetInitialDataResponse {
   reserved 4;
 
-  private_membership.anonymous_tokens.RSABlindSignaturePublicKey
+  anonymous_tokens.RSABlindSignaturePublicKey
       at_public_metadata_public_key = 1;
 
   // Version will match the validation version in the request.
@@ -63,8 +62,7 @@ message GetInitialDataResponse {
   // Data needed to support the privacy pass specification.
   message PrivacyPassData {
     bytes token_key_id = 1;
-    bytes public_metadata_extensions = 2
-        ;
+    bytes public_metadata_extensions = 2;
   }
   PrivacyPassData privacy_pass_data = 5;
 }

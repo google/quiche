@@ -27,24 +27,23 @@ message AuthAndSignRequest {
 
   // A 'bearer' oauth token to be validated.
   // https://datatracker.ietf.org/doc/html/rfc6750#section-6.1.1
-  string oauth_token = 1 ;
+  string oauth_token = 1;
 
   // A string uniquely identifying the strategy this client should be
   // authenticated with.
-  string service_type = 2 ;
+  string service_type = 2;
 
   // A set of blinded tokens to be signed by zinc. b64 encoded.
-  repeated string blinded_token = 4
-      ;
+  repeated string blinded_token = 4;
 
   // A sha256 of the public key PEM used in generated `blinded_token`. This
   // Ensures the signer signs with the matching key. Only required if key_type
   // is ZINC_KEY_TYPE.
-  string public_key_hash = 5 ;
+  string public_key_hash = 5;
 
   oneof attestation_data {
-    AndroidAttestationData android_attestation_data = 6 [deprecated = true];
-    IosAttestationData ios_attestation_data = 7 [deprecated = true];
+    AndroidAttestationData android_attestation_data = 6;
+    IosAttestationData ios_attestation_data = 7;
   }
   privacy.ppn.AttestationData attestation = 8;
 
@@ -72,25 +71,15 @@ message AuthAndSignResponse {
 
   // A set of signatures corresponding by index to `blinded_token` in the
   // request. b64 encoded.
-  repeated string blinded_token_signature = 4 [
-
-    json_name = "blinded_token_signature"
-  ];
+  repeated string blinded_token_signature = 4;
 
   // The marconi server hostname bridge-proxy used to set up tunnel.
-  string copper_controller_hostname = 5 [
-
-    json_name = "copper_controller_hostname"
-  ];
+  string copper_controller_hostname = 5;
 
   // The base64 encoding of override_region token and signature for white listed
   // users in the format of "${Region}.${timestamp}.${signature}".
-  string region_token_and_signature = 6 [
-
-    json_name = "region_token_and_signature"
-  ];
+  string region_token_and_signature = 6;
 
   // The APN type bridge-proxy use to deside which APN to use for connecting.
-  string apn_type = 7
-      [ json_name = "apn_type"];
+  string apn_type = 7;
 }

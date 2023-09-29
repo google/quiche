@@ -16,7 +16,7 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
-#include "quiche/blind_sign_auth/anonymous_tokens/cpp/shared/proto_utils.h"
+#include "anonymous_tokens/cpp/shared/proto_utils.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -83,7 +83,7 @@ void BlindSignAuth::GetInitialDataCallback(
     return;
   }
   absl::StatusOr<absl::Time> public_metadata_expiry_time =
-      private_membership::anonymous_tokens::TimeFromProto(
+      anonymous_tokens::TimeFromProto(
           initial_data_response.public_metadata_info()
               .public_metadata()
               .expiration());
@@ -95,7 +95,7 @@ void BlindSignAuth::GetInitialDataCallback(
 
   // Create RSA BSSA client.
   auto bssa_client =
-      private_membership::anonymous_tokens::AnonymousTokensRsaBssaClient::
+      anonymous_tokens::AnonymousTokensRsaBssaClient::
           Create(initial_data_response.at_public_metadata_public_key());
   if (!bssa_client.ok()) {
     QUICHE_LOG(WARNING) << "Failed to create AT BSSA client: "
@@ -107,12 +107,12 @@ void BlindSignAuth::GetInitialDataCallback(
   // Create plaintext tokens.
   // Client blinds plaintext tokens (random 32-byte strings) in CreateRequest.
   std::vector<
-      private_membership::anonymous_tokens::PlaintextMessageWithPublicMetadata>
+      anonymous_tokens::PlaintextMessageWithPublicMetadata>
       plaintext_tokens;
   QuicheRandom* random = QuicheRandom::GetInstance();
   for (int i = 0; i < num_tokens; i++) {
     // Create random 32-byte string prefixed with "blind:".
-    private_membership::anonymous_tokens::PlaintextMessageWithPublicMetadata
+    anonymous_tokens::PlaintextMessageWithPublicMetadata
         plaintext_message;
     std::string rand_bytes(32, '\0');
     random->RandBytes(rand_bytes.data(), rand_bytes.size());
@@ -136,7 +136,7 @@ void BlindSignAuth::GetInitialDataCallback(
   }
 
   absl::StatusOr<
-      private_membership::anonymous_tokens::AnonymousTokensSignRequest>
+      anonymous_tokens::AnonymousTokensSignRequest>
       at_sign_request = bssa_client.value()->CreateRequest(plaintext_tokens);
   if (!at_sign_request.ok()) {
     QUICHE_LOG(WARNING) << "Failed to create AT Sign Request: "
@@ -175,10 +175,10 @@ void BlindSignAuth::GetInitialDataCallback(
 void BlindSignAuth::AuthAndSignCallback(
     privacy::ppn::PublicMetadataInfo public_metadata_info,
     absl::Time public_key_expiry_time,
-    private_membership::anonymous_tokens::AnonymousTokensSignRequest
+    anonymous_tokens::AnonymousTokensSignRequest
         at_sign_request,
     std::unique_ptr<
-        private_membership::anonymous_tokens::AnonymousTokensRsaBssaClient>
+        anonymous_tokens::AnonymousTokensRsaBssaClient>
         bssa_client,
     SignedTokenCallback callback,
     absl::StatusOr<BlindSignHttpResponse> response) {
@@ -206,7 +206,7 @@ void BlindSignAuth::AuthAndSignCallback(
   }
 
   // Create vector of unblinded anonymous tokens.
-  private_membership::anonymous_tokens::AnonymousTokensSignResponse
+  anonymous_tokens::AnonymousTokensSignResponse
       at_sign_response;
 
   if (sign_response.blinded_token_signature_size() !=
@@ -228,7 +228,7 @@ void BlindSignAuth::AuthAndSignCallback(
           absl::InternalError("Failed to unescape blinded token signature"));
       return;
     }
-    private_membership::anonymous_tokens::AnonymousTokensSignResponse::
+    anonymous_tokens::AnonymousTokensSignResponse::
         AnonymousToken anon_token_proto;
     *anon_token_proto.mutable_use_case() =
         at_sign_request.blinded_tokens(i).use_case();
@@ -271,7 +271,7 @@ void BlindSignAuth::AuthAndSignCallback(
         signed_tokens->at(i).token().token();
     spend_token_data.set_signing_key_version(
         at_sign_response.anonymous_tokens(i).key_version());
-    auto use_case = private_membership::anonymous_tokens::ParseUseCase(
+    auto use_case = anonymous_tokens::ParseUseCase(
         at_sign_response.anonymous_tokens(i).use_case());
     if (!use_case.ok()) {
       QUICHE_LOG(WARNING) << "Failed to parse use case: " << use_case.status();
