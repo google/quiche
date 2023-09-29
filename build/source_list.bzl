@@ -1476,11 +1476,14 @@ load_balancer_srcs = [
     "quic/load_balancer/load_balancer_server_id_test.cc",
 ]
 moqt_hdrs = [
+    "quic/moqt/moqt_framer.h",
     "quic/moqt/moqt_messages.h",
     "quic/moqt/moqt_parser.h",
     "quic/moqt/test_tools/moqt_test_message.h",
 ]
 moqt_srcs = [
+    "quic/moqt/moqt_framer.cc",
+    "quic/moqt/moqt_framer_test.cc",
     "quic/moqt/moqt_messages.cc",
     "quic/moqt/moqt_parser.cc",
     "quic/moqt/moqt_parser_test.cc",
