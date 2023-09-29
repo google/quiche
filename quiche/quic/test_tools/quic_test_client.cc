@@ -298,7 +298,7 @@ QuicTestClient::QuicTestClient(
     QuicSocketAddress server_address, const std::string& server_hostname,
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions)
     : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
-      client_(new MockableQuicClient(
+      client_(std::make_unique<MockableQuicClient>(
           server_address,
           QuicServerId(server_hostname, server_address.port(), false), config,
           supported_versions, event_loop_.get())) {
@@ -310,7 +310,7 @@ QuicTestClient::QuicTestClient(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     std::unique_ptr<ProofVerifier> proof_verifier)
     : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
-      client_(new MockableQuicClient(
+      client_(std::make_unique<MockableQuicClient>(
           server_address,
           QuicServerId(server_hostname, server_address.port(), false), config,
           supported_versions, event_loop_.get(), std::move(proof_verifier))) {
@@ -323,7 +323,7 @@ QuicTestClient::QuicTestClient(
     std::unique_ptr<ProofVerifier> proof_verifier,
     std::unique_ptr<SessionCache> session_cache)
     : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
-      client_(new MockableQuicClient(
+      client_(std::make_unique<MockableQuicClient>(
           server_address,
           QuicServerId(server_hostname, server_address.port(), false), config,
           supported_versions, event_loop_.get(), std::move(proof_verifier),
@@ -338,7 +338,7 @@ QuicTestClient::QuicTestClient(
     std::unique_ptr<SessionCache> session_cache,
     std::unique_ptr<QuicEventLoop> event_loop)
     : event_loop_(std::move(event_loop)),
-      client_(new MockableQuicClient(
+      client_(std::make_unique<MockableQuicClient>(
           server_address,
           QuicServerId(server_hostname, server_address.port(), false), config,
           supported_versions, event_loop_.get(), std::move(proof_verifier),
@@ -417,8 +417,8 @@ int64_t QuicTestClient::GetOrCreateStreamAndSendRequest(
     if (rv == QUIC_SUCCESS) return 1;
     if (rv == QUIC_PENDING) {
       // May need to retry request if asynchronous rendezvous fails.
-      std::unique_ptr<spdy::Http2HeaderBlock> new_headers(
-          new spdy::Http2HeaderBlock(headers->Clone()));
+      auto new_headers =
+          std::make_unique<spdy::Http2HeaderBlock>(headers->Clone());
       push_promise_data_to_resend_ = std::make_unique<TestClientDataToResend>(
           std::move(new_headers), body, fin, this, std::move(ack_listener));
       return 1;

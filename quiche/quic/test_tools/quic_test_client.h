@@ -311,7 +311,9 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
 
   void Initialize();
 
-  void set_client(MockableQuicClient* client) { client_.reset(client); }
+  void set_client(std::unique_ptr<MockableQuicClient> client) {
+    client_ = std::move(client);
+  }
 
   // Given |uri|, populates the fields in |headers| for a simple GET
   // request. If |uri| is a relative URL, the QuicServerId will be
