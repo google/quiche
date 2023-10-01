@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// A parser for draft-ietf-moq-transport-00.
+// A parser for draft-ietf-moq-transport-01.
 
 #ifndef QUICHE_QUIC_MOQT_MOQT_PARSER_H_
 #define QUICHE_QUIC_MOQT_MOQT_PARSER_H_
@@ -40,9 +40,11 @@ class QUICHE_EXPORT MoqtParserVisitor {
       const MoqtSubscribeRequest& message) = 0;
   virtual void OnSubscribeOkMessage(const MoqtSubscribeOk& message) = 0;
   virtual void OnSubscribeErrorMessage(const MoqtSubscribeError& message) = 0;
+  virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) = 0;
   virtual void OnAnnounceMessage(const MoqtAnnounce& message) = 0;
   virtual void OnAnnounceOkMessage(const MoqtAnnounceOk& message) = 0;
   virtual void OnAnnounceErrorMessage(const MoqtAnnounceError& message) = 0;
+  virtual void OnUnannounceMessage(const MoqtUnannounce& message) = 0;
   // In an exception to the above, the parser calls this when it gets two bytes,
   // whether or not it includes stream FIN. When a zero-length message has
   // special meaning, a message with an actual length of zero is tricky!
@@ -93,9 +95,11 @@ class QUICHE_EXPORT MoqtParser {
   absl::optional<size_t> ProcessSubscribeRequest(absl::string_view data);
   absl::optional<size_t> ProcessSubscribeOk(absl::string_view data);
   absl::optional<size_t> ProcessSubscribeError(absl::string_view data);
+  absl::optional<size_t> ProcessUnsubscribe(absl::string_view data);
   absl::optional<size_t> ProcessAnnounce(absl::string_view data);
   absl::optional<size_t> ProcessAnnounceOk(absl::string_view data);
   absl::optional<size_t> ProcessAnnounceError(absl::string_view data);
+  absl::optional<size_t> ProcessUnannounce(absl::string_view data);
   absl::optional<size_t> ProcessGoAway(absl::string_view data);
 
   // If the message length field is zero, it runs to the end of the stream.

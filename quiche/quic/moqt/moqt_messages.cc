@@ -20,12 +20,16 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "SUBSCRIBE_OK";
     case MoqtMessageType::kSubscribeError:
       return "SUBSCRIBE_ERROR";
+    case MoqtMessageType::kUnsubscribe:
+      return "UNSUBSCRIBE";
     case MoqtMessageType::kAnnounce:
       return "ANNOUNCE";
     case MoqtMessageType::kAnnounceOk:
       return "ANNOUNCE_OK";
     case MoqtMessageType::kAnnounceError:
       return "ANNOUNCE_ERROR";
+    case MoqtMessageType::kUnannounce:
+      return "UNANNOUNCE";
     case MoqtMessageType::kGoAway:
       return "GOAWAY";
   }

@@ -284,12 +284,16 @@ absl::optional<size_t> MoqtParser::ProcessMessage(absl::string_view data) {
       return ProcessSubscribeOk(data);
     case MoqtMessageType::kSubscribeError:
       return ProcessSubscribeError(data);
+    case MoqtMessageType::kUnsubscribe:
+      return ProcessUnsubscribe(data);
     case MoqtMessageType::kAnnounce:
       return ProcessAnnounce(data);
     case MoqtMessageType::kAnnounceOk:
       return ProcessAnnounceOk(data);
     case MoqtMessageType::kAnnounceError:
       return ProcessAnnounceError(data);
+    case MoqtMessageType::kUnannounce:
+      return ProcessUnannounce(data);
     case MoqtMessageType::kGoAway:
       return ProcessGoAway(data);
     default:
@@ -520,6 +524,18 @@ absl::optional<size_t> MoqtParser::ProcessSubscribeError(
   return reader.PreviouslyReadPayload().length();
 }
 
+absl::optional<size_t> MoqtParser::ProcessUnsubscribe(absl::string_view data) {
+  MoqtUnsubscribe unsubscribe;
+  quic::QuicDataReader reader(data);
+  if (!reader.ReadStringPieceVarInt62(&unsubscribe.full_track_name)) {
+    return absl::nullopt;
+  }
+  if (reader.IsDoneReading()) {
+    visitor_.OnUnsubscribeMessage(unsubscribe);
+  }
+  return reader.PreviouslyReadPayload().length();
+}
+
 absl::optional<size_t> MoqtParser::ProcessAnnounce(absl::string_view data) {
   MoqtAnnounce announce;
   quic::QuicDataReader reader(data);
@@ -585,7 +601,7 @@ absl::optional<size_t> MoqtParser::ProcessAnnounce(absl::string_view data) {
 absl::optional<size_t> MoqtParser::ProcessAnnounceOk(absl::string_view data) {
   MoqtAnnounceOk announce_ok;
   quic::QuicDataReader reader(data);
-  if (!reader.ReadStringPiece(&announce_ok.track_namespace, data.length())) {
+  if (!reader.ReadStringPieceVarInt62(&announce_ok.track_namespace)) {
     return absl::nullopt;
   }
   if (reader.IsDoneReading()) {
@@ -609,6 +625,18 @@ absl::optional<size_t> MoqtParser::ProcessAnnounceError(
   }
   if (reader.IsDoneReading()) {
     visitor_.OnAnnounceErrorMessage(announce_error);
+  }
+  return reader.PreviouslyReadPayload().length();
+}
+
+absl::optional<size_t> MoqtParser::ProcessUnannounce(absl::string_view data) {
+  MoqtUnannounce unannounce;
+  quic::QuicDataReader reader(data);
+  if (!reader.ReadStringPieceVarInt62(&unannounce.track_namespace)) {
+    return absl::nullopt;
+  }
+  if (reader.IsDoneReading()) {
+    visitor_.OnUnannounceMessage(unannounce);
   }
   return reader.PreviouslyReadPayload().length();
 }

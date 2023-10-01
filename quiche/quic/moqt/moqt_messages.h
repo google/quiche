@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Structured data for message types in draft-ietf-moq-transport-00.
+// Structured data for message types in draft-ietf-moq-transport-01.
 
 #ifndef QUICHE_QUIC_MOQT_MOQT_MESSAGES_H_
 #define QUICHE_QUIC_MOQT_MOQT_MESSAGES_H_
@@ -33,6 +33,8 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kAnnounce = 0x06,
   kAnnounceOk = 0x7,
   kAnnounceError = 0x08,
+  kUnannounce = 0x09,
+  kUnsubscribe = 0x0a,
   kGoAway = 0x10,
 };
 
@@ -88,6 +90,10 @@ struct QUICHE_EXPORT MoqtSubscribeError {
   absl::string_view reason_phrase;
 };
 
+struct QUICHE_EXPORT MoqtUnsubscribe {
+  absl::string_view full_track_name;
+};
+
 struct QUICHE_EXPORT MoqtAnnounce {
   absl::string_view track_namespace;
   absl::optional<absl::string_view> authorization_info;
@@ -101,6 +107,10 @@ struct QUICHE_EXPORT MoqtAnnounceError {
   absl::string_view track_namespace;
   uint64_t error_code;
   absl::string_view reason_phrase;
+};
+
+struct QUICHE_EXPORT MoqtUnannounce {
+  absl::string_view track_namespace;
 };
 
 struct QUICHE_EXPORT MoqtGoAway {};

@@ -125,6 +125,14 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     subscribe_error.reason_phrase = absl::string_view(string1_);
     last_message_ = TestMessageBase::MessageStructuredData(subscribe_error);
   }
+  void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override {
+    end_of_message_ = true;
+    messages_received_++;
+    MoqtUnsubscribe unsubscribe = message;
+    string0_ = std::string(unsubscribe.full_track_name);
+    unsubscribe.full_track_name = absl::string_view(string0_);
+    last_message_ = TestMessageBase::MessageStructuredData(unsubscribe);
+  }
   void OnAnnounceMessage(const MoqtAnnounce& message) override {
     end_of_message_ = true;
     messages_received_++;
@@ -154,6 +162,14 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     string1_ = std::string(announce_error.reason_phrase);
     announce_error.reason_phrase = absl::string_view(string1_);
     last_message_ = TestMessageBase::MessageStructuredData(announce_error);
+  }
+  void OnUnannounceMessage(const MoqtUnannounce& message) override {
+    end_of_message_ = true;
+    messages_received_++;
+    MoqtUnannounce unannounce = message;
+    string0_ = std::string(unannounce.track_namespace);
+    unannounce.track_namespace = absl::string_view(string0_);
+    last_message_ = TestMessageBase::MessageStructuredData(unannounce);
   }
   void OnGoAwayMessage() override {
     got_goaway_ = true;

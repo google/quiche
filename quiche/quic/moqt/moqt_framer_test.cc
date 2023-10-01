@@ -130,6 +130,10 @@ class MoqtFramerTest
         auto data = std::get<MoqtSubscribeError>(structured_data);
         return framer_.SerializeSubscribeError(data);
       }
+      case MoqtMessageType::kUnsubscribe: {
+        auto data = std::get<MoqtUnsubscribe>(structured_data);
+        return framer_.SerializeUnsubscribe(data);
+      }
       case MoqtMessageType::kAnnounce: {
         auto data = std::get<MoqtAnnounce>(structured_data);
         return framer_.SerializeAnnounce(data);
@@ -141,6 +145,10 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kAnnounceError: {
         auto data = std::get<MoqtAnnounceError>(structured_data);
         return framer_.SerializeAnnounceError(data);
+      }
+      case MoqtMessageType::kUnannounce: {
+        auto data = std::get<MoqtUnannounce>(structured_data);
+        return framer_.SerializeUnannounce(data);
       }
       case moqt::MoqtMessageType::kGoAway: {
         return framer_.SerializeGoAway();
