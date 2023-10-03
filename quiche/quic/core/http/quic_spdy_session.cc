@@ -359,13 +359,22 @@ class QuicSpdySession::SpdyFramerVisitor
                      bool /*end*/) override {
     QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     if (session_->perspective() != Perspective::IS_CLIENT) {
+      // PUSH_PROMISE sent by a client is a protocol violation.
       CloseConnection("PUSH_PROMISE not supported.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
       return;
     }
+
+    // Push streams are ignored anyway, reset the stream to save bandwidth.
+    session_->MaybeSendRstStreamFrame(
+        promised_stream_id,
+        QuicResetStreamError::FromInternal(QUIC_REFUSED_STREAM),
+        /* bytes_written = */ 0);
     if (!session_->IsConnected()) {
       return;
     }
+    // Notify session nonetheless so that it can identify incoming headers
+    // as belonging to the push.
     session_->OnPushPromise(stream_id, promised_stream_id);
   }
 
@@ -1445,12 +1454,10 @@ void QuicSpdySession::OnHeaderList(const QuicHeaderList& header_list) {
     QUICHE_DCHECK(promised_stream_id_ !=
                   QuicUtils::GetInvalidStreamId(transport_version()));
   }
+  // Ignore push request headers.
   if (promised_stream_id_ ==
       QuicUtils::GetInvalidStreamId(transport_version())) {
     OnStreamHeaderList(stream_id_, fin_, frame_len_, header_list);
-  } else {
-    OnPromiseHeaderList(stream_id_, promised_stream_id_, frame_len_,
-                        header_list);
   }
   // Reset state for the next frame.
   promised_stream_id_ = QuicUtils::GetInvalidStreamId(transport_version());
