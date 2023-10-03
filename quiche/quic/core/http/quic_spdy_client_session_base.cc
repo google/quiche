@@ -21,9 +21,7 @@ QuicSpdyClientSessionBase::QuicSpdyClientSessionBase(
     QuicClientPushPromiseIndex* push_promise_index, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions)
     : QuicSpdySession(connection, visitor, config, supported_versions),
-      push_promise_index_(push_promise_index),
-      largest_promised_stream_id_(
-          QuicUtils::GetInvalidStreamId(connection->transport_version())) {}
+      push_promise_index_(push_promise_index) {}
 
 QuicSpdyClientSessionBase::~QuicSpdyClientSessionBase() {
   //  all promised streams for this session
@@ -49,56 +47,6 @@ void QuicSpdyClientSessionBase::OnInitialHeadersComplete(
   if (!promised) return;
 
   promised->OnResponseHeaders(response_headers);
-}
-
-void QuicSpdyClientSessionBase::OnPromiseHeaderList(
-    QuicStreamId stream_id, QuicStreamId promised_stream_id, size_t frame_len,
-    const QuicHeaderList& header_list) {
-  if (IsStaticStream(stream_id)) {
-    connection()->CloseConnection(
-        QUIC_INVALID_HEADERS_STREAM_DATA, "stream is static",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-  // In HTTP3, push promises are received on individual streams, so they could
-  // be arrive out of order.
-  if (!VersionUsesHttp3(transport_version()) &&
-      promised_stream_id !=
-          QuicUtils::GetInvalidStreamId(transport_version()) &&
-      largest_promised_stream_id_ !=
-          QuicUtils::GetInvalidStreamId(transport_version()) &&
-      promised_stream_id <= largest_promised_stream_id_) {
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID,
-        "Received push stream id lesser or equal to the"
-        " last accepted before",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-  if (!IsIncomingStream(promised_stream_id)) {
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Received push stream id for outgoing stream.",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-
-  if (VersionUsesHttp3(transport_version())) {
-    // Received push stream id is higher than MAX_PUSH_ID
-    // because no MAX_PUSH_ID frame is ever sent.
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID,
-        "Received push stream id higher than MAX_PUSH_ID.",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-  largest_promised_stream_id_ = promised_stream_id;
-
-  QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
-  if (!stream) {
-    // It's quite possible to receive headers after a stream has been reset.
-    return;
-  }
-  stream->OnPromiseHeaderList(promised_stream_id, frame_len, header_list);
 }
 
 bool QuicSpdyClientSessionBase::HandlePromised(

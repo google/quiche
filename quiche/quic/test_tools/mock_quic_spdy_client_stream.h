@@ -20,10 +20,6 @@ class MockQuicSpdyClientStream : public QuicSpdyClientStream {
   ~MockQuicSpdyClientStream() override;
 
   MOCK_METHOD(void, OnStreamFrame, (const QuicStreamFrame& frame), (override));
-  MOCK_METHOD(void, OnPromiseHeaderList,
-              (QuicStreamId promised_stream_id, size_t frame_len,
-               const QuicHeaderList& list),
-              (override));
   MOCK_METHOD(void, OnDataAvailable, (), (override));
 };
 

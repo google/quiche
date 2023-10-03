@@ -52,12 +52,6 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
 
   void OnConfigNegotiated() override;
 
-  // Called by |headers_stream_| when push promise headers have been
-  // completely received.
-  void OnPromiseHeaderList(QuicStreamId stream_id,
-                           QuicStreamId promised_stream_id, size_t frame_len,
-                           const QuicHeaderList& header_list) override;
-
   // Called by |QuicSpdyClientStream| on receipt of response headers,
   // needed to detect promised server push streams, as part of
   // client-request to push-stream rendezvous.
@@ -138,7 +132,6 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
   // arrive.
   QuicClientPushPromiseIndex* push_promise_index_;
   QuicPromisedByIdMap promised_by_id_;
-  QuicStreamId largest_promised_stream_id_;
 };
 
 }  // namespace quic

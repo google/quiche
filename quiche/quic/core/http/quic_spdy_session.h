@@ -187,14 +187,6 @@ class QUICHE_EXPORT QuicSpdySession
                                   size_t frame_len,
                                   const QuicHeaderList& header_list);
 
-  // Called by |headers_stream_| when push promise headers have been
-  // completely received.  |fin| will be true if the fin flag was set
-  // in the headers.
-  virtual void OnPromiseHeaderList(QuicStreamId stream_id,
-                                   QuicStreamId promised_stream_id,
-                                   size_t frame_len,
-                                   const QuicHeaderList& header_list);
-
   // Called by |headers_stream_| when a PRIORITY frame has been received for a
   // stream. This method will only be called for server streams.
   virtual void OnPriorityFrame(QuicStreamId stream_id,

@@ -652,15 +652,6 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   }
 }
 
-void QuicSpdyStream::OnPromiseHeaderList(
-    QuicStreamId /* promised_id */, size_t /* frame_len */,
-    const QuicHeaderList& /*header_list */) {
-  // To be overridden in QuicSpdyClientStream.  Not supported on
-  // server side.
-  stream_delegate()->OnStreamError(QUIC_INVALID_HEADERS_STREAM_DATA,
-                                   "Promise headers received by server");
-}
-
 bool QuicSpdyStream::CopyAndValidateTrailers(const QuicHeaderList& header_list,
                                              bool expect_final_byte_offset,
                                              size_t* final_byte_offset,

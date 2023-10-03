@@ -996,16 +996,6 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
   return frame.size();
 }
 
-void QuicSpdySession::OnPromiseHeaderList(
-    QuicStreamId /*stream_id*/, QuicStreamId /*promised_stream_id*/,
-    size_t /*frame_len*/, const QuicHeaderList& /*header_list*/) {
-  std::string error =
-      "OnPromiseHeaderList should be overridden in client code.";
-  QUIC_BUG(quic_bug_10360_6) << error;
-  connection()->CloseConnection(QUIC_INTERNAL_ERROR, error,
-                                ConnectionCloseBehavior::SILENT_CLOSE);
-}
-
 bool QuicSpdySession::ResumeApplicationState(ApplicationState* cached_state) {
   QUICHE_DCHECK_EQ(perspective(), Perspective::IS_CLIENT);
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));

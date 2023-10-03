@@ -130,26 +130,6 @@ void QuicSpdyClientStream::OnTrailingHeadersComplete(
   MarkTrailersConsumed();
 }
 
-void QuicSpdyClientStream::OnPromiseHeaderList(
-    QuicStreamId promised_id, size_t frame_len,
-    const QuicHeaderList& header_list) {
-  header_bytes_read_ += frame_len;
-  int64_t content_length = -1;
-  Http2HeaderBlock promise_headers;
-  if (!SpdyUtils::CopyAndValidateHeaders(header_list, &content_length,
-                                         &promise_headers)) {
-    QUIC_DLOG(ERROR) << "Failed to parse promise headers: "
-                     << header_list.DebugString();
-    Reset(QUIC_BAD_APPLICATION_PAYLOAD);
-    return;
-  }
-
-  session_->HandlePromised(id(), promised_id, promise_headers);
-  if (visitor() != nullptr) {
-    visitor()->OnPromiseHeadersComplete(promised_id, frame_len);
-  }
-}
-
 void QuicSpdyClientStream::OnBodyAvailable() {
   // For push streams, visitor will not be set until the rendezvous
   // between server promise and client request is complete.

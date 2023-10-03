@@ -1189,7 +1189,6 @@ quiche_tests_srcs = [
     "quic/core/http/http_decoder_test.cc",
     "quic/core/http/http_encoder_test.cc",
     "quic/core/http/http_frames_test.cc",
-    "quic/core/http/quic_client_promised_info_test.cc",
     "quic/core/http/quic_client_push_promise_index_test.cc",
     "quic/core/http/quic_header_list_test.cc",
     "quic/core/http/quic_headers_stream_test.cc",
