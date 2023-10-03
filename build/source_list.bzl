@@ -1478,14 +1478,17 @@ moqt_hdrs = [
     "quic/moqt/moqt_framer.h",
     "quic/moqt/moqt_messages.h",
     "quic/moqt/moqt_parser.h",
+    "quic/moqt/moqt_session.h",
     "quic/moqt/test_tools/moqt_test_message.h",
 ]
 moqt_srcs = [
     "quic/moqt/moqt_framer.cc",
     "quic/moqt/moqt_framer_test.cc",
+    "quic/moqt/moqt_integration_test.cc",
     "quic/moqt/moqt_messages.cc",
     "quic/moqt/moqt_parser.cc",
     "quic/moqt/moqt_parser_test.cc",
+    "quic/moqt/moqt_session.cc",
 ]
 binary_http_hdrs = [
     "binary_http/binary_http_message.h",

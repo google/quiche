@@ -21,6 +21,10 @@ namespace {
 inline size_t NeededVarIntLen(uint64_t value) {
   return static_cast<size_t>(quic::QuicDataWriter::GetVarInt62Len(value));
 }
+inline size_t NeededVarIntLen(MoqtVersion value) {
+  return static_cast<size_t>(
+      quic::QuicDataWriter::GetVarInt62Len(static_cast<uint64_t>(value)));
+}
 inline size_t ParameterLen(uint64_t type, uint64_t value_len) {
   return NeededVarIntLen(type) + NeededVarIntLen(value_len) + value_len;
 }
@@ -87,10 +91,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectPayload(
 quiche::QuicheBuffer MoqtFramer::SerializeSetup(const MoqtSetup& message) {
   size_t message_len;
   if (perspective_ == quic::Perspective::IS_CLIENT) {
-    message_len = NeededVarIntLen(message.number_of_supported_versions);
-    for (uint64_t i : message.supported_versions) {
-      message_len += NeededVarIntLen(i);
+    message_len = NeededVarIntLen(message.supported_versions.size());
+    for (MoqtVersion version : message.supported_versions) {
+      message_len += NeededVarIntLen(version);
     }
+    // TODO: figure out if the role needs to be sent on the client side or on
+    // both sides.
     if (message.role.has_value()) {
       message_len +=
           ParameterLen(static_cast<uint64_t>(MoqtSetupParameter::kRole), 1);
@@ -112,12 +118,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeSetup(const MoqtSetup& message) {
   writer.WriteVarInt62(static_cast<uint64_t>(MoqtMessageType::kSetup));
   writer.WriteVarInt62(message_len);
   if (perspective_ == quic::Perspective::IS_SERVER) {
-    writer.WriteVarInt62(message.supported_versions[0]);
+    writer.WriteVarInt62(static_cast<uint64_t>(message.supported_versions[0]));
     return buffer;
   }
-  writer.WriteVarInt62(message.number_of_supported_versions);
-  for (uint64_t i : message.supported_versions) {
-    writer.WriteVarInt62(i);
+  writer.WriteVarInt62(message.supported_versions.size());
+  for (MoqtVersion version : message.supported_versions) {
+    writer.WriteVarInt62(static_cast<uint64_t>(version));
   }
   if (message.role.has_value()) {
     WriteIntParameter(writer, static_cast<uint64_t>(MoqtSetupParameter::kRole),

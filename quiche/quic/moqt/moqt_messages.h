@@ -15,9 +15,23 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace moqt {
+
+enum class MoqtVersion : uint64_t {
+  kDraft01 = 0xff000001,
+  kUnrecognizedVersionForTests = 0xfe0000ff,
+};
+
+struct QUICHE_EXPORT MoqtSessionParameters {
+  // TODO: support multiple versions.
+  MoqtVersion version;
+  quic::Perspective perspective;
+  bool using_webtrans;
+  std::string path;
+};
 
 // The maximum length of a message, excluding any OBJECT payload. This prevents
 // DoS attack via forcing the parser to buffer a large message (OBJECT payloads
@@ -56,8 +70,7 @@ enum class QUICHE_EXPORT MoqtTrackRequestParameter : uint64_t {
 };
 
 struct QUICHE_EXPORT MoqtSetup {
-  uint64_t number_of_supported_versions;
-  std::vector<uint64_t> supported_versions;
+  std::vector<MoqtVersion> supported_versions;
   absl::optional<MoqtRole> role;
   absl::optional<absl::string_view> path;
 };

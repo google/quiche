@@ -193,6 +193,14 @@ webtransport::DatagramStatus QuicGenericSessionBase::SendOrQueueDatagram(
           quiche::QuicheMemSlice(std::move(buffer))));
 }
 
+void QuicGenericSessionBase::OnConnectionClosed(
+    const QuicConnectionCloseFrame& frame, ConnectionCloseSource source) {
+  QuicSession::OnConnectionClosed(frame, source);
+  visitor_->OnSessionClosed(static_cast<webtransport::SessionErrorCode>(
+                                frame.transport_close_frame_type),
+                            frame.error_details);
+}
+
 QuicGenericClientSession::QuicGenericClientSession(
     QuicConnection* connection, bool owns_connection, Visitor* owner,
     const QuicConfig& config, std::string host, uint16_t port, std::string alpn,

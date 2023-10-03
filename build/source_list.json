@@ -1481,14 +1481,17 @@
     "quiche/quic/moqt/moqt_framer.h",
     "quiche/quic/moqt/moqt_messages.h",
     "quiche/quic/moqt/moqt_parser.h",
+    "quiche/quic/moqt/moqt_session.h",
     "quiche/quic/moqt/test_tools/moqt_test_message.h"
   ],
   "moqt_srcs": [
     "quiche/quic/moqt/moqt_framer.cc",
     "quiche/quic/moqt/moqt_framer_test.cc",
+    "quiche/quic/moqt/moqt_integration_test.cc",
     "quiche/quic/moqt/moqt_messages.cc",
     "quiche/quic/moqt/moqt_parser.cc",
-    "quiche/quic/moqt/moqt_parser_test.cc"
+    "quiche/quic/moqt/moqt_parser_test.cc",
+    "quiche/quic/moqt/moqt_session.cc"
   ],
   "binary_http_hdrs": [
     "quiche/binary_http/binary_http_message.h"

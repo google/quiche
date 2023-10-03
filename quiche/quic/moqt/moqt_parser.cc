@@ -345,19 +345,20 @@ absl::optional<size_t> MoqtParser::ProcessObject(absl::string_view data) {
 absl::optional<size_t> MoqtParser::ProcessSetup(absl::string_view data) {
   MoqtSetup setup;
   quic::QuicDataReader reader(data);
+  uint64_t number_of_supported_versions;
   if (perspective_ == quic::Perspective::IS_SERVER) {
-    if (!reader.ReadVarInt62(&setup.number_of_supported_versions)) {
+    if (!reader.ReadVarInt62(&number_of_supported_versions)) {
       return absl::nullopt;
     }
   } else {
-    setup.number_of_supported_versions = 1;
+    number_of_supported_versions = 1;
   }
   uint64_t value;
-  for (uint64_t i = 0; i < setup.number_of_supported_versions; ++i) {
+  for (uint64_t i = 0; i < number_of_supported_versions; ++i) {
     if (!reader.ReadVarInt62(&value)) {
       return absl::nullopt;
     }
-    setup.supported_versions.push_back(value);
+    setup.supported_versions.push_back(static_cast<MoqtVersion>(value));
   }
   // Parse parameters
   while (!reader.IsDoneReading()) {

@@ -234,12 +234,11 @@ class QUICHE_NO_EXPORT SetupMessage : public TestMessageBase {
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSetup>(values);
     const MoqtSetup* compare = client_ ? &server_setup_ : &client_setup_;
-    if (cast.number_of_supported_versions !=
-        compare->number_of_supported_versions) {
+    if (cast.supported_versions.size() != compare->supported_versions.size()) {
       QUIC_LOG(INFO) << "SETUP number of supported versions mismatch";
       return false;
     }
-    for (uint64_t i = 0; i < cast.number_of_supported_versions; ++i) {
+    for (uint64_t i = 0; i < cast.supported_versions.size(); ++i) {
       // Listed versions are 1 and 2, in that order.
       if (cast.supported_versions[i] != compare->supported_versions[i]) {
         QUIC_LOG(INFO) << "SETUP supported version mismatch";
@@ -284,14 +283,14 @@ class QUICHE_NO_EXPORT SetupMessage : public TestMessageBase {
       0x01,  // version
   };
   MoqtSetup client_setup_ = {
-      /*number_of_supported_versions=*/2,
-      /*supported_versions=*/std::vector<uint64_t>({1, 2}),
+      /*supported_versions=*/std::vector<MoqtVersion>(
+          {static_cast<MoqtVersion>(1), static_cast<MoqtVersion>(2)}),
       /*role=*/MoqtRole::kBoth,
       /*path=*/"foo",
   };
   MoqtSetup server_setup_ = {
-      /*number_of_supported_versions=*/1,
-      /*supported_versions=*/std::vector<uint64_t>({1}),
+      /*supported_versions=*/std::vector<MoqtVersion>(
+          {static_cast<MoqtVersion>(1)}),
       /*role=*/absl::nullopt,
       /*path=*/absl::nullopt,
   };

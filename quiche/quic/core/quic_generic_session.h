@@ -62,6 +62,8 @@ class QUICHE_EXPORT QuicGenericSessionBase : public QuicSession,
   void OnAlpnSelected(absl::string_view alpn) override {
     QUICHE_DCHECK_EQ(alpn, alpn_);
   }
+  void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
+                          ConnectionCloseSource source) override;
 
   bool ShouldKeepConnectionAlive() const override { return true; }
 

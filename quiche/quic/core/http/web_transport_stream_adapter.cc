@@ -147,6 +147,10 @@ WebTransportStreamAdapter::PeekNextReadableRegion() const {
 }
 
 bool WebTransportStreamAdapter::SkipBytes(size_t bytes) {
+  if (stream_->read_side_closed()) {
+    // Useful when the stream has been reset in between Peek() and Skip().
+    return true;
+  }
   sequencer_->MarkConsumed(bytes);
   if (!fin_read_ && sequencer_->IsClosed()) {
     fin_read_ = true;
