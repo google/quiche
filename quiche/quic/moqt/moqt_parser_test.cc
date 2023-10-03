@@ -681,19 +681,6 @@ TEST_F(MoqtParserErrorTest, SetupRoleAppearsTwice) {
   EXPECT_EQ(*visitor_.parsing_error_, "ROLE parameter appears twice in SETUP");
 }
 
-TEST_F(MoqtParserErrorTest, SetupRoleFromServer) {
-  MoqtParser parser(quic::Perspective::IS_CLIENT, kWebTrans, visitor_);
-  char setup[] = {
-      0x01, 0x04,
-      0x01,              // version = 1
-      0x00, 0x01, 0x03,  // role = both
-  };
-  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_, "ROLE parameter sent by server in SETUP");
-}
-
 TEST_F(MoqtParserErrorTest, SetupRoleIsMissing) {
   MoqtParser parser(quic::Perspective::IS_SERVER, kRawQuic, visitor_);
   char setup[] = {

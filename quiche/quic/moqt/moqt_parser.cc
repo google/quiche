@@ -373,10 +373,6 @@ absl::optional<size_t> MoqtParser::ProcessSetup(absl::string_view data) {
           ParseError("ROLE parameter appears twice in SETUP");
           return absl::nullopt;
         }
-        if (perspective_ == quic::Perspective::IS_CLIENT) {
-          ParseError("ROLE parameter sent by server in SETUP");
-          return absl::nullopt;
-        }
         if (!ReadIntegerPieceVarInt62(reader, value)) {
           return absl::nullopt;
         }
