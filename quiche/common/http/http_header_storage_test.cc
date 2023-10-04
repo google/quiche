@@ -6,7 +6,7 @@ namespace quiche {
 namespace test {
 
 TEST(JoinTest, JoinEmpty) {
-  std::vector<absl::string_view> empty;
+  Fragments empty;
   absl::string_view separator = ", ";
   char buf[10] = "";
   size_t written = Join(buf, empty, separator);
@@ -14,7 +14,7 @@ TEST(JoinTest, JoinEmpty) {
 }
 
 TEST(JoinTest, JoinOne) {
-  std::vector<absl::string_view> v = {"one"};
+  Fragments v = {"one"};
   absl::string_view separator = ", ";
   char buf[15];
   size_t written = Join(buf, v, separator);
@@ -23,7 +23,7 @@ TEST(JoinTest, JoinOne) {
 }
 
 TEST(JoinTest, JoinMultiple) {
-  std::vector<absl::string_view> v = {"one", "two", "three"};
+  Fragments v = {"one", "two", "three"};
   absl::string_view separator = ", ";
   char buf[15];
   size_t written = Join(buf, v, separator);

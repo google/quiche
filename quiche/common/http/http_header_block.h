@@ -11,9 +11,9 @@
 #include <list>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/http/http_header_storage.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -84,7 +84,7 @@ class QUICHE_EXPORT HttpHeaderBlock {
     absl::string_view ConsolidatedValue() const;
 
     mutable HttpHeaderStorage* storage_;
-    mutable std::vector<absl::string_view> fragments_;
+    mutable Fragments fragments_;
     // The first element is the key; the second is the consolidated value.
     mutable std::pair<absl::string_view, absl::string_view> pair_;
     size_t size_ = 0;

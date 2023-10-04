@@ -23,8 +23,7 @@ void HttpHeaderStorage::Rewind(const absl::string_view s) {
 }
 
 absl::string_view HttpHeaderStorage::WriteFragments(
-    const std::vector<absl::string_view>& fragments,
-    absl::string_view separator) {
+    const Fragments& fragments, absl::string_view separator) {
   if (fragments.empty()) {
     return absl::string_view();
   }
@@ -38,7 +37,7 @@ absl::string_view HttpHeaderStorage::WriteFragments(
   return absl::string_view(dst, total_size);
 }
 
-size_t Join(char* dst, const std::vector<absl::string_view>& fragments,
+size_t Join(char* dst, const Fragments& fragments,
             absl::string_view separator) {
   if (fragments.empty()) {
     return 0;

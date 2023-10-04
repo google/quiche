@@ -1,11 +1,14 @@
 #ifndef QUICHE_COMMON_HTTP_HTTP_HEADER_STORAGE_H_
 #define QUICHE_COMMON_HTTP_HTTP_HEADER_STORAGE_H_
 
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_simple_arena.h"
 
 namespace quiche {
+
+using Fragments = absl::InlinedVector<absl::string_view, 1>;
 
 // This class provides a backing store for absl::string_views. It previously
 // used custom allocation logic, but now uses an UnsafeArena instead. It has the
@@ -37,9 +40,8 @@ class QUICHE_EXPORT HttpHeaderStorage {
   // Given a list of fragments and a separator, writes the fragments joined by
   // the separator to a contiguous region of memory. Returns a absl::string_view
   // pointing to the region of memory.
-  absl::string_view WriteFragments(
-      const std::vector<absl::string_view>& fragments,
-      absl::string_view separator);
+  absl::string_view WriteFragments(const Fragments& fragments,
+                                   absl::string_view separator);
 
   size_t bytes_allocated() const { return arena_.status().bytes_allocated(); }
 
@@ -49,8 +51,7 @@ class QUICHE_EXPORT HttpHeaderStorage {
 
 // Writes |fragments| to |dst|, joined by |separator|. |dst| must be large
 // enough to hold the result. Returns the number of bytes written.
-QUICHE_EXPORT size_t Join(char* dst,
-                          const std::vector<absl::string_view>& fragments,
+QUICHE_EXPORT size_t Join(char* dst, const Fragments& fragments,
                           absl::string_view separator);
 
 }  // namespace quiche
