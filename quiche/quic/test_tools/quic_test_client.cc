@@ -410,21 +410,6 @@ int64_t QuicTestClient::GetOrCreateStreamAndSendRequest(
     const spdy::Http2HeaderBlock* headers, absl::string_view body, bool fin,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
-  if (headers) {
-    QuicClientPushPromiseIndex::TryHandle* handle;
-    QuicAsyncStatus rv =
-        client()->push_promise_index()->Try(*headers, this, &handle);
-    if (rv == QUIC_SUCCESS) return 1;
-    if (rv == QUIC_PENDING) {
-      // May need to retry request if asynchronous rendezvous fails.
-      auto new_headers =
-          std::make_unique<spdy::Http2HeaderBlock>(headers->Clone());
-      push_promise_data_to_resend_ = std::make_unique<TestClientDataToResend>(
-          std::move(new_headers), body, fin, this, std::move(ack_listener));
-      return 1;
-    }
-  }
-
   // Maybe it's better just to overload this.  it's just that we need
   // for the GetOrCreateStream function to call something else...which
   // is icky and complicated, but maybe not worse than this.

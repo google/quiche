@@ -126,17 +126,6 @@ void QuicSpdyClientBase::SendRequest(const Http2HeaderBlock& headers,
 
 void QuicSpdyClientBase::SendRequestInternal(Http2HeaderBlock sanitized_headers,
                                              absl::string_view body, bool fin) {
-  QuicClientPushPromiseIndex::TryHandle* handle;
-  QuicAsyncStatus rv =
-      push_promise_index()->Try(sanitized_headers, this, &handle);
-  if (rv == QUIC_SUCCESS) return;
-
-  if (rv == QUIC_PENDING) {
-    // May need to retry request if asynchronous rendezvous fails.
-    AddPromiseDataToResend(sanitized_headers, body, fin);
-    return;
-  }
-
   QuicSpdyClientStream* stream = CreateClientStream();
   if (stream == nullptr) {
     QUIC_BUG(quic_bug_10949_1) << "stream creation failed!";
