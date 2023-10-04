@@ -183,13 +183,6 @@ inline constexpr int kMaxStreamsMinimumIncrement = 10;
 // of available streams is 10 times the limit on the number of open streams.
 inline constexpr int kMaxAvailableStreamsMultiplier = 10;
 
-// Track the number of promises that are not yet claimed by a
-// corresponding get.  This must be smaller than
-// kMaxAvailableStreamsMultiplier, because RST on a promised stream my
-// create available streams entries.
-inline constexpr int kMaxPromisedStreamsMultiplier =
-    kMaxAvailableStreamsMultiplier - 1;
-
 // The 1st PTO is armed with max of earliest in flight sent time + PTO
 // delay and kFirstPtoSrttMultiplier * srtt from last in flight packet.
 inline constexpr float kFirstPtoSrttMultiplier = 1.5;

@@ -8,7 +8,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/http/quic_client_promised_info.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
@@ -120,8 +119,6 @@ void QuicSpdyClientStream::OnInitialHeadersComplete(
 
   ConsumeHeaderList();
   QUIC_DVLOG(1) << "headers complete for stream " << id();
-
-  session_->OnInitialHeadersComplete(id(), response_headers_);
 }
 
 void QuicSpdyClientStream::OnTrailingHeadersComplete(

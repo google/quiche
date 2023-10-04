@@ -52,21 +52,6 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
 
   void OnConfigNegotiated() override;
 
-  // Called by |QuicSpdyClientStream| on receipt of response headers,
-  // needed to detect promised server push streams, as part of
-  // client-request to push-stream rendezvous.
-  void OnInitialHeadersComplete(QuicStreamId stream_id,
-                                const spdy::Http2HeaderBlock& response_headers);
-
-  // Called by |QuicSpdyClientStream| on receipt of PUSH_PROMISE, does
-  // some session level validation and creates the
-  // |QuicClientPromisedInfo| inserting into maps by (promised) id and
-  // url. Returns true if a new push promise is accepted. Resets the promised
-  // stream and returns false otherwise.
-  virtual bool HandlePromised(QuicStreamId associated_id,
-                              QuicStreamId promised_id,
-                              const spdy::Http2HeaderBlock& headers);
-
   // For cross-origin server push, this should verify the server is
   // authoritative per [RFC2818], Section 3.  Roughly, subjectAltName
   // list in the certificate should contain a matching DNS name, or IP
@@ -74,28 +59,10 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
   // the PUSH_PROMISE frame, port if present there will be dropped.
   virtual bool IsAuthorized(const std::string& hostname) = 0;
 
-  // Session retains ownership.
-  QuicClientPromisedInfo* GetPromisedByUrl(const std::string& url);
-  // Session retains ownership.
-  QuicClientPromisedInfo* GetPromisedById(const QuicStreamId id);
-
-  //
-  QuicSpdyStream* GetPromisedStream(const QuicStreamId id);
-
   // Removes |promised| from the maps by url.
   void ErasePromisedByUrl(QuicClientPromisedInfo* promised);
 
-  // Removes |promised| from the maps by url and id and destroys
-  // promised.
-  virtual void DeletePromised(QuicClientPromisedInfo* promised);
-
   virtual void OnPushStreamTimedOut(QuicStreamId stream_id);
-
-  // Sends Rst for the stream, and makes sure that future calls to
-  // IsClosedStream(id) return true, which ensures that any subsequent
-  // frames related to this stream will be ignored (modulo flow
-  // control accounting).
-  void ResetPromised(QuicStreamId id, QuicRstStreamErrorCode error_code);
 
   // Release headers stream's sequencer buffer if it's empty.
   void OnStreamClosed(QuicStreamId stream_id) override;
@@ -106,11 +73,6 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
   // Override to wait for all received responses to be consumed by application.
   bool ShouldKeepConnectionAlive() const override;
 
-  size_t get_max_promises() const {
-    return max_open_incoming_unidirectional_streams() *
-           kMaxPromisedStreamsMultiplier;
-  }
-
   QuicClientPushPromiseIndex* push_promise_index() {
     return push_promise_index_;
   }
@@ -119,19 +81,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
   bool OnSettingsFrame(const SettingsFrame& frame) override;
 
  private:
-  // For QuicSpdyClientStream to detect that a response corresponds to a
-  // promise.
-  using QuicPromisedByIdMap =
-      absl::flat_hash_map<QuicStreamId,
-                          std::unique_ptr<QuicClientPromisedInfo>>;
-
-  // As per rfc7540, section 10.5: track promise streams in "reserved
-  // (remote)".  The primary key is URL from the promise request
-  // headers.  The promised stream id is a secondary key used to get
-  // promise info when the response headers of the promised stream
-  // arrive.
   QuicClientPushPromiseIndex* push_promise_index_;
-  QuicPromisedByIdMap promised_by_id_;
 };
 
 }  // namespace quic

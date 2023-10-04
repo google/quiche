@@ -87,11 +87,7 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSession {
 
 class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
  protected:
-  QuicSpdyClientSessionTest()
-      : promised_stream_id_(
-            QuicUtils::GetInvalidStreamId(GetParam().transport_version)),
-        associated_stream_id_(
-            QuicUtils::GetInvalidStreamId(GetParam().transport_version)) {
+  QuicSpdyClientSessionTest() {
     auto client_cache = std::make_unique<test::SimpleSessionCache>();
     client_session_cache_ = client_cache.get();
     client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
@@ -122,16 +118,6 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         std::make_unique<NullEncrypter>(connection_->perspective()));
     crypto_stream_ = static_cast<QuicCryptoClientStream*>(
         session_->GetMutableCryptoStream());
-    push_promise_[":path"] = "/bar";
-    push_promise_[":authority"] = "www.google.com";
-    push_promise_[":method"] = "GET";
-    push_promise_[":scheme"] = "https";
-    promise_url_ =
-        SpdyServerPushUtils::GetPromisedUrlFromHeaders(push_promise_);
-    promised_stream_id_ = GetNthServerInitiatedUnidirectionalStreamId(
-        connection_->transport_version(), 0);
-    associated_stream_id_ = GetNthClientInitiatedBidirectionalStreamId(
-        connection_->transport_version(), 0);
   }
 
   // The function ensures that A) the MAX_STREAMS frames get properly deleted
@@ -217,10 +203,6 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   ::testing::NiceMock<PacketSavingConnection>* connection_;
   std::unique_ptr<TestQuicSpdyClientSession> session_;
   QuicClientPushPromiseIndex push_promise_index_;
-  Http2HeaderBlock push_promise_;
-  std::string promise_url_;
-  QuicStreamId promised_stream_id_;
-  QuicStreamId associated_stream_id_;
   test::SimpleSessionCache* client_session_cache_;
 };
 
@@ -555,216 +537,6 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
       ConstructReceivedPacket(*packet, QuicTime::Zero()));
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
   session_->ProcessUdpPacket(client_address, server_address, *received);
-}
-
-TEST_P(QuicSpdyClientSessionTest, PushPromiseHandlePromise) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-
-  session_->CreateOutgoingBidirectionalStream();
-
-  EXPECT_TRUE(session_->HandlePromised(associated_stream_id_,
-                                       promised_stream_id_, push_promise_));
-
-  EXPECT_NE(session_->GetPromisedById(promised_stream_id_), nullptr);
-  EXPECT_NE(session_->GetPromisedByUrl(promise_url_), nullptr);
-}
-
-TEST_P(QuicSpdyClientSessionTest, PushPromiseAlreadyClosed) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-
-  session_->CreateOutgoingBidirectionalStream();
-  session_->GetOrCreateStream(promised_stream_id_);
-
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_,
-              OnStreamReset(promised_stream_id_, QUIC_REFUSED_STREAM));
-
-  session_->ResetPromised(promised_stream_id_, QUIC_REFUSED_STREAM);
-  Http2HeaderBlock promise_headers;
-  EXPECT_FALSE(session_->HandlePromised(associated_stream_id_,
-                                        promised_stream_id_, promise_headers));
-
-  // Verify that the promise was not created.
-  EXPECT_EQ(session_->GetPromisedById(promised_stream_id_), nullptr);
-  EXPECT_EQ(session_->GetPromisedByUrl(promise_url_), nullptr);
-}
-
-TEST_P(QuicSpdyClientSessionTest, PushPromiseDuplicateUrl) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-
-  session_->CreateOutgoingBidirectionalStream();
-
-  EXPECT_TRUE(session_->HandlePromised(associated_stream_id_,
-                                       promised_stream_id_, push_promise_));
-
-  EXPECT_NE(session_->GetPromisedById(promised_stream_id_), nullptr);
-  EXPECT_NE(session_->GetPromisedByUrl(promise_url_), nullptr);
-
-  promised_stream_id_ +=
-      QuicUtils::StreamIdDelta(connection_->transport_version());
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_,
-              OnStreamReset(promised_stream_id_, QUIC_DUPLICATE_PROMISE_URL));
-
-  EXPECT_FALSE(session_->HandlePromised(associated_stream_id_,
-                                        promised_stream_id_, push_promise_));
-
-  // Verify that the promise was not created.
-  EXPECT_EQ(session_->GetPromisedById(promised_stream_id_), nullptr);
-}
-
-TEST_P(QuicSpdyClientSessionTest, ReceivingPromiseEnhanceYourCalm) {
-  CompleteCryptoHandshake();
-  for (size_t i = 0u; i < session_->get_max_promises(); i++) {
-    push_promise_[":path"] = absl::StrCat("/bar", i);
-
-    QuicStreamId id =
-        promised_stream_id_ +
-        i * QuicUtils::StreamIdDelta(connection_->transport_version());
-
-    EXPECT_TRUE(
-        session_->HandlePromised(associated_stream_id_, id, push_promise_));
-
-    // Verify that the promise is in the unclaimed streams map.
-    std::string promise_url(
-        SpdyServerPushUtils::GetPromisedUrlFromHeaders(push_promise_));
-    EXPECT_NE(session_->GetPromisedByUrl(promise_url), nullptr);
-    EXPECT_NE(session_->GetPromisedById(id), nullptr);
-  }
-
-  // One more promise, this should be refused.
-  int i = session_->get_max_promises();
-  push_promise_[":path"] = absl::StrCat("/bar", i);
-
-  QuicStreamId id =
-      promised_stream_id_ +
-      i * QuicUtils::StreamIdDelta(connection_->transport_version());
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_, OnStreamReset(id, QUIC_REFUSED_STREAM));
-  EXPECT_FALSE(
-      session_->HandlePromised(associated_stream_id_, id, push_promise_));
-
-  // Verify that the promise was not created.
-  std::string promise_url(
-      SpdyServerPushUtils::GetPromisedUrlFromHeaders(push_promise_));
-  EXPECT_EQ(session_->GetPromisedById(id), nullptr);
-  EXPECT_EQ(session_->GetPromisedByUrl(promise_url), nullptr);
-}
-
-TEST_P(QuicSpdyClientSessionTest, IsClosedTrueAfterResetPromisedAlreadyOpen) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-
-  session_->GetOrCreateStream(promised_stream_id_);
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_,
-              OnStreamReset(promised_stream_id_, QUIC_REFUSED_STREAM));
-  session_->ResetPromised(promised_stream_id_, QUIC_REFUSED_STREAM);
-  EXPECT_TRUE(session_->IsClosedStream(promised_stream_id_));
-}
-
-TEST_P(QuicSpdyClientSessionTest, IsClosedTrueAfterResetPromisedNonexistant) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_,
-              OnStreamReset(promised_stream_id_, QUIC_REFUSED_STREAM));
-  session_->ResetPromised(promised_stream_id_, QUIC_REFUSED_STREAM);
-  EXPECT_TRUE(session_->IsClosedStream(promised_stream_id_));
-}
-
-TEST_P(QuicSpdyClientSessionTest, OnInitialHeadersCompleteIsPush) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-  session_->GetOrCreateStream(promised_stream_id_);
-  EXPECT_TRUE(session_->HandlePromised(associated_stream_id_,
-                                       promised_stream_id_, push_promise_));
-  EXPECT_NE(session_->GetPromisedById(promised_stream_id_), nullptr);
-  EXPECT_NE(session_->GetPromisedStream(promised_stream_id_), nullptr);
-  EXPECT_NE(session_->GetPromisedByUrl(promise_url_), nullptr);
-
-  session_->OnInitialHeadersComplete(promised_stream_id_, Http2HeaderBlock());
-}
-
-TEST_P(QuicSpdyClientSessionTest, OnInitialHeadersCompleteIsNotPush) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-  session_->CreateOutgoingBidirectionalStream();
-  session_->OnInitialHeadersComplete(promised_stream_id_, Http2HeaderBlock());
-}
-
-TEST_P(QuicSpdyClientSessionTest, DeletePromised) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-  session_->GetOrCreateStream(promised_stream_id_);
-  EXPECT_TRUE(session_->HandlePromised(associated_stream_id_,
-                                       promised_stream_id_, push_promise_));
-  QuicClientPromisedInfo* promised =
-      session_->GetPromisedById(promised_stream_id_);
-  EXPECT_NE(promised, nullptr);
-  EXPECT_NE(session_->GetPromisedStream(promised_stream_id_), nullptr);
-  EXPECT_NE(session_->GetPromisedByUrl(promise_url_), nullptr);
-
-  session_->DeletePromised(promised);
-  EXPECT_EQ(session_->GetPromisedById(promised_stream_id_), nullptr);
-  EXPECT_EQ(session_->GetPromisedByUrl(promise_url_), nullptr);
-}
-
-TEST_P(QuicSpdyClientSessionTest, ResetPromised) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-  session_->GetOrCreateStream(promised_stream_id_);
-  EXPECT_TRUE(session_->HandlePromised(associated_stream_id_,
-                                       promised_stream_id_, push_promise_));
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_,
-              OnStreamReset(promised_stream_id_, QUIC_STREAM_PEER_GOING_AWAY));
-  session_->ResetStream(promised_stream_id_, QUIC_STREAM_PEER_GOING_AWAY);
-  QuicClientPromisedInfo* promised =
-      session_->GetPromisedById(promised_stream_id_);
-  EXPECT_NE(promised, nullptr);
-  EXPECT_NE(session_->GetPromisedByUrl(promise_url_), nullptr);
-  EXPECT_EQ(session_->GetPromisedStream(promised_stream_id_), nullptr);
-}
-
-TEST_P(QuicSpdyClientSessionTest, PushPromiseInvalidMethod) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-
-  session_->CreateOutgoingBidirectionalStream();
-
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_,
-              OnStreamReset(promised_stream_id_, QUIC_INVALID_PROMISE_METHOD));
-
-  push_promise_[":method"] = "POST";
-  EXPECT_FALSE(session_->HandlePromised(associated_stream_id_,
-                                        promised_stream_id_, push_promise_));
-
-  EXPECT_EQ(session_->GetPromisedById(promised_stream_id_), nullptr);
-  EXPECT_EQ(session_->GetPromisedByUrl(promise_url_), nullptr);
-}
-
-TEST_P(QuicSpdyClientSessionTest, PushPromiseInvalidHost) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-
-  session_->CreateOutgoingBidirectionalStream();
-
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_,
-              OnStreamReset(promised_stream_id_, QUIC_INVALID_PROMISE_URL));
-
-  push_promise_[":authority"] = "";
-  EXPECT_FALSE(session_->HandlePromised(associated_stream_id_,
-                                        promised_stream_id_, push_promise_));
-
-  EXPECT_EQ(session_->GetPromisedById(promised_stream_id_), nullptr);
-  EXPECT_EQ(session_->GetPromisedByUrl(promise_url_), nullptr);
 }
 
 TEST_P(QuicSpdyClientSessionTest,
