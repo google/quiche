@@ -211,6 +211,13 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
     }
   }
 
+  // Returns once a goaway a connection close has been
+  // received from the server, or once the timeout expires.
+  // Passing in a timeout value of -1 disables the timeout.
+  void WaitForGoAway(int timeout_ms) {
+    WaitUntil(timeout_ms, [this]() { return client()->goaway_received(); });
+  }
+
   // Returns once some data is received on any open streams or at least one
   // complete response is received from the server, or once the timeout
   // expires. -1 means no timeout.

@@ -352,6 +352,9 @@ class QUICHE_EXPORT QuicSpdySession
   // received or sent.
   bool goaway_received() const;
   bool goaway_sent() const;
+  absl::optional<uint64_t> last_received_http3_goaway_id() {
+    return last_received_http3_goaway_id_;
+  }
 
   // Log header compression ratio histogram.
   // |using_qpack| is true for QPACK, false for HPACK.
