@@ -777,22 +777,6 @@ void TestQuicSpdyClientSession::RealOnConfigNegotiated() {
   QuicSpdyClientSessionBase::OnConfigNegotiated();
 }
 
-TestPushPromiseDelegate::TestPushPromiseDelegate(bool match)
-    : match_(match), rendezvous_fired_(false), rendezvous_stream_(nullptr) {}
-
-bool TestPushPromiseDelegate::CheckVary(
-    const spdy::Http2HeaderBlock& /*client_request*/,
-    const spdy::Http2HeaderBlock& /*promise_request*/,
-    const spdy::Http2HeaderBlock& /*promise_response*/) {
-  QUIC_DVLOG(1) << "match " << match_;
-  return match_;
-}
-
-void TestPushPromiseDelegate::OnRendezvousResult(QuicSpdyStream* stream) {
-  rendezvous_fired_ = true;
-  rendezvous_stream_ = stream;
-}
-
 MockPacketWriter::MockPacketWriter() {
   ON_CALL(*this, GetMaxPacketSize(_))
       .WillByDefault(testing::Return(kMaxOutgoingPacketSize));

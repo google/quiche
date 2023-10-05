@@ -226,24 +226,6 @@ void QuicSpdyClientBase::AddPromiseDataToResend(const Http2HeaderBlock& headers,
       new ClientQuicDataToResend(std::move(new_headers), body, fin, this));
 }
 
-bool QuicSpdyClientBase::CheckVary(
-    const Http2HeaderBlock& /*client_request*/,
-    const Http2HeaderBlock& /*promise_request*/,
-    const Http2HeaderBlock& /*promise_response*/) {
-  return true;
-}
-
-void QuicSpdyClientBase::OnRendezvousResult(QuicSpdyStream* stream) {
-  std::unique_ptr<ClientQuicDataToResend> data_to_resend =
-      std::move(push_promise_data_to_resend_);
-  if (stream) {
-    stream->set_visitor(this);
-    stream->OnBodyAvailable();
-  } else if (data_to_resend) {
-    data_to_resend->Resend();
-  }
-}
-
 int QuicSpdyClientBase::latest_response_code() const {
   QUIC_BUG_IF(quic_bug_10949_3, !store_response_) << "Response not stored!";
   return latest_response_code_;

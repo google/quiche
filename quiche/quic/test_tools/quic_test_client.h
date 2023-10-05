@@ -85,8 +85,7 @@ class MockableQuicClient : public QuicDefaultClient {
 };
 
 // A toy QUIC client used for testing.
-class QuicTestClient : public QuicSpdyStream::Visitor,
-                       public QuicClientPushPromiseIndex::Delegate {
+class QuicTestClient : public QuicSpdyStream::Visitor {
  public:
   QuicTestClient(QuicSocketAddress server_address,
                  const std::string& server_hostname,
@@ -238,12 +237,6 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
 
   // From QuicSpdyStream::Visitor
   void OnClose(QuicSpdyStream* stream) override;
-
-  // From QuicClientPushPromiseIndex::Delegate
-  bool CheckVary(const spdy::Http2HeaderBlock& client_request,
-                 const spdy::Http2HeaderBlock& promise_request,
-                 const spdy::Http2HeaderBlock& promise_response) override;
-  void OnRendezvousResult(QuicSpdyStream*) override;
 
   // Configures client_ to take ownership of and use the writer.
   // Must be called before initial connect.

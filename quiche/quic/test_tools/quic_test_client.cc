@@ -730,24 +730,6 @@ void QuicTestClient::OnClose(QuicSpdyStream* stream) {
   open_streams_.erase(id);
 }
 
-bool QuicTestClient::CheckVary(
-    const spdy::Http2HeaderBlock& /*client_request*/,
-    const spdy::Http2HeaderBlock& /*promise_request*/,
-    const spdy::Http2HeaderBlock& /*promise_response*/) {
-  return true;
-}
-
-void QuicTestClient::OnRendezvousResult(QuicSpdyStream* stream) {
-  std::unique_ptr<TestClientDataToResend> data_to_resend =
-      std::move(push_promise_data_to_resend_);
-  SetLatestCreatedStream(static_cast<QuicSpdyClientStream*>(stream));
-  if (stream) {
-    stream->OnBodyAvailable();
-  } else if (data_to_resend) {
-    data_to_resend->Resend();
-  }
-}
-
 void QuicTestClient::UseWriter(QuicPacketWriterWrapper* writer) {
   client_->UseWriter(writer);
 }

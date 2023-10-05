@@ -27,7 +27,6 @@ class QuicServerId;
 class SessionCache;
 
 class QuicSpdyClientBase : public QuicClientBase,
-                           public QuicClientPushPromiseIndex::Delegate,
                            public QuicSpdyStream::Visitor {
  public:
   // A ResponseListener is notified when a complete response is received.
@@ -106,11 +105,6 @@ class QuicSpdyClientBase : public QuicClientBase,
   QuicClientPushPromiseIndex* push_promise_index() {
     return &push_promise_index_;
   }
-
-  bool CheckVary(const spdy::Http2HeaderBlock& client_request,
-                 const spdy::Http2HeaderBlock& promise_request,
-                 const spdy::Http2HeaderBlock& promise_response) override;
-  void OnRendezvousResult(QuicSpdyStream*) override;
 
   // If the crypto handshake has not yet been confirmed, adds the data to the
   // queue of data to resend if the client receives a stateless reject.

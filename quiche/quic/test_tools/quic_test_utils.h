@@ -1084,28 +1084,6 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
   absl::optional<ClientCertMode> client_cert_mode_;
 };
 
-// A test implementation of QuicClientPushPromiseIndex::Delegate.
-class TestPushPromiseDelegate : public QuicClientPushPromiseIndex::Delegate {
- public:
-  // |match| sets the validation result for checking whether designated header
-  // fields match for promise request and client request.
-  explicit TestPushPromiseDelegate(bool match);
-
-  bool CheckVary(const spdy::Http2HeaderBlock& client_request,
-                 const spdy::Http2HeaderBlock& promise_request,
-                 const spdy::Http2HeaderBlock& promise_response) override;
-
-  void OnRendezvousResult(QuicSpdyStream* stream) override;
-
-  QuicSpdyStream* rendezvous_stream() { return rendezvous_stream_; }
-  bool rendezvous_fired() { return rendezvous_fired_; }
-
- private:
-  bool match_;
-  bool rendezvous_fired_;
-  QuicSpdyStream* rendezvous_stream_;
-};
-
 class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
  public:
   TestQuicSpdyClientSession(
