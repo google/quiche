@@ -15,22 +15,7 @@
 
 namespace quic {
 
-class QuicClientPromisedInfo;
 class QuicClientPushPromiseIndex;
-class QuicSpdyClientStream;
-
-// For client/http layer code. Lookup promised streams based on
-// matching promised request url. The same map can be shared across
-// multiple sessions, since cross-origin pushes are allowed (subject
-// to authority constraints).  Clients should use this map to enforce
-// session affinity for requests corresponding to cross-origin push
-// promised streams.
-using QuicPromisedByUrlMap =
-    absl::flat_hash_map<std::string, QuicClientPromisedInfo*>;
-
-// The maximum time a promises stream can be reserved without being
-// claimed by a client request.
-const int64_t kPushPromiseTimeoutSecs = 60;
 
 // Base class for all client-specific QuicSession subclasses.
 class QUICHE_EXPORT QuicSpdyClientSessionBase
@@ -58,9 +43,6 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
   // address.  |hostname| is derived from the ":authority" header field of
   // the PUSH_PROMISE frame, port if present there will be dropped.
   virtual bool IsAuthorized(const std::string& hostname) = 0;
-
-  // Removes |promised| from the maps by url.
-  void ErasePromisedByUrl(QuicClientPromisedInfo* promised);
 
   virtual void OnPushStreamTimedOut(QuicStreamId stream_id);
 
