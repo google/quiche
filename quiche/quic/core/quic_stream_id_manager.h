@@ -91,6 +91,11 @@ class QUICHE_EXPORT QuicStreamIdManager {
   // Returns true if |id| is still available.
   bool IsAvailableStream(QuicStreamId id) const;
 
+  // Once called, the incoming max streams limit will never be increased.
+  void StopIncreasingIncomingMaxStreams() {
+    stop_increasing_incoming_max_streams_ = true;
+  }
+
   QuicStreamCount incoming_initial_max_open_streams() const {
     return incoming_initial_max_open_streams_;
   }
@@ -178,6 +183,9 @@ class QUICHE_EXPORT QuicStreamIdManager {
   absl::flat_hash_set<QuicStreamId> available_streams_;
 
   QuicStreamId largest_peer_created_stream_id_;
+
+  // If true, then the stream limit will never be increased.
+  bool stop_increasing_incoming_max_streams_;
 };
 }  // namespace quic
 

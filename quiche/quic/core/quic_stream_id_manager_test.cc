@@ -377,6 +377,44 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
   stream_id_manager_.OnStreamClosed(stream_id);
 }
 
+TEST_P(QuicStreamIdManagerTest, MaxStreamsWindowStopsIncreasing) {
+  // Verify that the incoming stream limit does not increase after
+  // StopIncreasingIncomingMaxStreams() is called, even when streams ar closed.
+
+  QuicStreamId stream_count =
+      stream_id_manager_.incoming_initial_max_open_streams();
+  // Open up to the stream limit.
+  QuicStreamId stream_id = GetNthIncomingStreamId(0);
+  for (QuicStreamCount i = 0; i < stream_count; ++i) {
+    EXPECT_TRUE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id,
+                                                                    nullptr));
+
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
+  }
+
+  // Prevent max streams from increasing.
+  stream_id_manager_.StopIncreasingIncomingMaxStreams();
+
+  // Since the limit does not increase, a MAX_STREAMS frame will not be sent.
+  EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
+
+  // Now close them.
+  stream_id = GetNthIncomingStreamId(0);
+  QuicStreamCount expected_actual_max =
+      stream_id_manager_.incoming_actual_max_streams();
+  QuicStreamCount expected_advertised_max_streams =
+      stream_id_manager_.incoming_advertised_max_streams();
+  for (QuicStreamCount i = 0; i < stream_count; ++i) {
+    stream_id_manager_.OnStreamClosed(stream_id);
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
+    // Limits should not change.
+    EXPECT_EQ(expected_actual_max,
+              stream_id_manager_.incoming_actual_max_streams());
+    EXPECT_EQ(expected_advertised_max_streams,
+              stream_id_manager_.incoming_advertised_max_streams());
+  }
+}
+
 TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
   QuicStreamsBlockedFrame frame;
   frame.unidirectional = IsUnidirectional();

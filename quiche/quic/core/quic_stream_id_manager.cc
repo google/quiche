@@ -37,7 +37,8 @@ QuicStreamIdManager::QuicStreamIdManager(
       incoming_initial_max_open_streams_(max_allowed_incoming_streams),
       incoming_stream_count_(0),
       largest_peer_created_stream_id_(
-          QuicUtils::GetInvalidStreamId(version.transport_version)) {}
+          QuicUtils::GetInvalidStreamId(version.transport_version)),
+      stop_increasing_incoming_max_streams_(false) {}
 
 QuicStreamIdManager::~QuicStreamIdManager() {}
 
@@ -129,9 +130,11 @@ void QuicStreamIdManager::OnStreamClosed(QuicStreamId stream_id) {
     // supports. Nothing can be done here.
     return;
   }
-  // One stream closed, and another one can be opened.
-  incoming_actual_max_streams_++;
-  MaybeSendMaxStreamsFrame();
+  if (!stop_increasing_incoming_max_streams_) {
+    // One stream closed, and another one can be opened.
+    incoming_actual_max_streams_++;
+    MaybeSendMaxStreamsFrame();
+  }
 }
 
 QuicStreamId QuicStreamIdManager::GetNextOutgoingStreamId() {
