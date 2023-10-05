@@ -120,10 +120,4 @@ QuicAsyncStatus QuicClientPromisedInfo::HandleClientRequest(
   return FinalValidation();
 }
 
-void QuicClientPromisedInfo::Cancel() {
-  // Don't fire OnRendezvousResult() for client initiated cancel.
-  client_request_delegate_ = nullptr;
-  Reset(QUIC_STREAM_CANCELLED);
-}
-
 }  // namespace quic

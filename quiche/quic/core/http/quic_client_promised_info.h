@@ -27,8 +27,7 @@ class QuicClientPromisedInfoPeer;
 // stream from the time a PUSH_PROMISE is received until rendezvous
 // between the promised response and the corresponding client request
 // is complete.
-class QUICHE_EXPORT QuicClientPromisedInfo
-    : public QuicClientPushPromiseIndex::TryHandle {
+class QUICHE_EXPORT QuicClientPromisedInfo {
  public:
   // Interface to QuicSpdyClientStream
   QuicClientPromisedInfo(QuicSpdyClientSessionBase* session, QuicStreamId id,
@@ -50,8 +49,6 @@ class QUICHE_EXPORT QuicClientPromisedInfo
   virtual QuicAsyncStatus HandleClientRequest(
       const spdy::Http2HeaderBlock& headers,
       QuicClientPushPromiseIndex::Delegate* delegate);
-
-  void Cancel() override;
 
   void Reset(QuicRstStreamErrorCode error_code);
 
