@@ -836,7 +836,7 @@ class QUICHE_EXPORT QuicSession
     connection()->SetLossDetectionTuner(std::move(tuner));
   }
 
-  const UberQuicStreamIdManager& ietf_streamid_manager() const {
+  UberQuicStreamIdManager& ietf_streamid_manager() {
     QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version()));
     return ietf_streamid_manager_;
   }

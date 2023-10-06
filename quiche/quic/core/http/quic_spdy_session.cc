@@ -482,7 +482,9 @@ QuicSpdySession::QuicSpdySession(
                               VersionUsesHttp3(transport_version())),
       force_buffer_requests_until_settings_(false),
       quic_enable_h3_datagrams_flag_(
-          GetQuicReloadableFlag(quic_enable_h3_datagrams)) {
+          GetQuicReloadableFlag(quic_enable_h3_datagrams)),
+      do_not_increase_max_streams_after_h3_goaway_flag_(GetQuicReloadableFlag(
+          quic_do_not_increase_max_streams_after_h3_goaway)) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -821,10 +823,14 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
-  QuicStreamId stream_id;
-
-  stream_id = QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
-      transport_version());
+  if (do_not_increase_max_streams_after_h3_goaway_flag_) {
+    QUICHE_RELOADABLE_FLAG_COUNT(
+        quic_do_not_increase_max_streams_after_h3_goaway);
+    ietf_streamid_manager().StopIncreasingIncomingMaxStreams();
+  }
+  QuicStreamId stream_id =
+      QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
+          transport_version());
   if (last_sent_http3_goaway_id_.has_value() &&
       last_sent_http3_goaway_id_.value() <= stream_id) {
     // Do not send GOAWAY frame with a higher id, because it is forbidden.

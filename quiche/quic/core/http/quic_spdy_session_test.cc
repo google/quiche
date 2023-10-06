@@ -1153,6 +1153,48 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
   session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
 }
 
+TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAndNoMoreMaxStreams) {
+  if (!VersionUsesHttp3(transport_version()) ||
+      !GetQuicReloadableFlag(
+          quic_do_not_increase_max_streams_after_h3_goaway)) {
+    return;
+  }
+
+  CompleteHandshake();
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  // Send max stream id (currently 32 bits).
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0xfffffffc));
+  session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
+  EXPECT_TRUE(session_.goaway_sent());
+
+  // No MAX_STREAMS frames should be sent, even after all available
+  // streams are opened and then closed.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+
+  const QuicStreamCount max_streams =
+      QuicSessionPeer::ietf_streamid_manager(&session_)
+          ->max_incoming_bidirectional_streams();
+  for (QuicStreamCount i = 0; i < max_streams; ++i) {
+    QuicStreamId stream_id = StreamCountToId(
+        i + 1,
+        Perspective::IS_CLIENT,  // Client initates stream, allocs stream id.
+        /*bidirectional=*/true);
+    EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
+
+    CloseStream(stream_id);
+    QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_id,
+                                 QUIC_STREAM_CANCELLED,
+                                 /* bytes_written = */ 0);
+    session_.OnRstStream(rst_frame);
+  }
+  EXPECT_EQ(max_streams, QuicSessionPeer::ietf_streamid_manager(&session_)
+                             ->max_incoming_bidirectional_streams());
+}
+
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayWithoutEncryption) {
   if (!VersionUsesHttp3(transport_version())) {
     return;

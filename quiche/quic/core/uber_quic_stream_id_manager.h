@@ -68,6 +68,9 @@ class QUICHE_EXPORT UberQuicStreamIdManager {
   // Returns true if |id| is still available.
   bool IsAvailableStream(QuicStreamId id) const;
 
+  // Once called, the incoming max streams limit will never be increased.
+  void StopIncreasingIncomingMaxStreams();
+
   QuicStreamCount GetMaxAllowdIncomingBidirectionalStreams() const;
 
   QuicStreamCount GetMaxAllowdIncomingUnidirectionalStreams() const;

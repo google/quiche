@@ -98,6 +98,11 @@ bool UberQuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {
   return unidirectional_stream_id_manager_.IsAvailableStream(id);
 }
 
+void UberQuicStreamIdManager::StopIncreasingIncomingMaxStreams() {
+  unidirectional_stream_id_manager_.StopIncreasingIncomingMaxStreams();
+  bidirectional_stream_id_manager_.StopIncreasingIncomingMaxStreams();
+}
+
 QuicStreamCount
 UberQuicStreamIdManager::GetMaxAllowdIncomingBidirectionalStreams() const {
   return bidirectional_stream_id_manager_.incoming_initial_max_open_streams();
