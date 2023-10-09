@@ -2733,5 +2733,9 @@ void QuicSession::OnServerPreferredAddressAvailable(
   }
 }
 
+bool QuicSession::ShouldProcessPendingStreamImmediately() const {
+  return IsEncryptionEstablished();
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

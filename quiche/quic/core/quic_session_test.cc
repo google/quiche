@@ -416,17 +416,8 @@ class TestSession : public QuicSession {
     }
   }
 
-  bool ShouldProcessPendingStreamImmediately() const override {
-    return process_pending_stream_immediately_;
-  }
-
   void set_uses_pending_streams(bool uses_pending_streams) {
     uses_pending_streams_ = uses_pending_streams;
-  }
-
-  void set_process_pending_stream_immediately(
-      bool process_pending_stream_immediately) {
-    process_pending_stream_immediately_ = process_pending_stream_immediately;
   }
 
   int num_incoming_streams_created() const {
@@ -445,7 +436,6 @@ class TestSession : public QuicSession {
 
   bool writev_consumes_all_data_;
   bool uses_pending_streams_;
-  bool process_pending_stream_immediately_ = true;
   QuicFrame save_frame_;
   int num_incoming_streams_created_;
 };
@@ -1832,8 +1822,8 @@ TEST_P(QuicSessionTestServer, PendingStreams) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
+  CompleteHandshake();
   session_.set_uses_pending_streams(true);
-  session_.set_process_pending_stream_immediately(true);
 
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
       transport_version(), Perspective::IS_CLIENT);
@@ -1853,7 +1843,6 @@ TEST_P(QuicSessionTestServer, BufferAllIncomingStreams) {
     return;
   }
   session_.set_uses_pending_streams(true);
-  session_.set_process_pending_stream_immediately(false);
 
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
       transport_version(), Perspective::IS_CLIENT);
@@ -1891,7 +1880,6 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
     return;
   }
   session_.set_uses_pending_streams(true);
-  session_.set_process_pending_stream_immediately(false);
 
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
       transport_version(), Perspective::IS_CLIENT);
@@ -1936,23 +1924,32 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
 }
 
-TEST_P(QuicSessionTestServer, OnFinPendingStreams) {
+TEST_P(QuicSessionTestServer, OnFinPendingStreamsReadUnidirectional) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
+  CompleteHandshake();
   session_.set_uses_pending_streams(true);
-  session_.set_process_pending_stream_immediately(true);
 
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
       transport_version(), Perspective::IS_CLIENT);
   QuicStreamFrame data(stream_id, true, 0, "");
   session_.OnStreamFrame(data);
 
+  // The pending stream will be immediately converted to a normal unidirectional
+  // stream, but because its FIN has been received, it should be closed
+  // immediately.
   EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
+  EXPECT_EQ(nullptr, QuicSessionPeer::GetStream(&session_, stream_id));
+}
 
-  session_.set_process_pending_stream_immediately(false);
+TEST_P(QuicSessionTestServer, OnFinPendingStreamsBidirectional) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  session_.set_uses_pending_streams(true);
   // Bidirectional pending stream remains after Fin is received.
   // Bidirectional stream is buffered.
   QuicStreamId bidirectional_stream_id =
@@ -2002,7 +1999,6 @@ TEST_P(QuicSessionTestServer, BidirectionalPendingStreamOnWindowUpdate) {
   }
 
   session_.set_uses_pending_streams(true);
-  session_.set_process_pending_stream_immediately(false);
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       transport_version(), Perspective::IS_CLIENT);
   QuicStreamFrame data(stream_id, true, 10, absl::string_view("HT"));
@@ -2050,7 +2046,6 @@ TEST_P(QuicSessionTestServer, BidirectionalPendingStreamOnStopSending) {
   }
 
   session_.set_uses_pending_streams(true);
-  session_.set_process_pending_stream_immediately(false);
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       transport_version(), Perspective::IS_CLIENT);
   QuicStreamFrame data(stream_id, true, 0, absl::string_view("HT"));

@@ -593,7 +593,8 @@ MockQuicSession::MockQuicSession(QuicConnection* connection,
                   connection->supported_versions(),
                   /*num_expected_unidirectional_static_streams = */ 0) {
   if (create_mock_crypto_stream) {
-    crypto_stream_ = std::make_unique<MockQuicCryptoStream>(this);
+    crypto_stream_ =
+        std::make_unique<testing::NiceMock<MockQuicCryptoStream>>(this);
   }
   ON_CALL(*this, WritevData(_, _, _, _, _, _))
       .WillByDefault(testing::Return(QuicConsumedData(0, false)));
@@ -637,8 +638,6 @@ MockQuicCryptoStream::~MockQuicCryptoStream() {}
 ssl_early_data_reason_t MockQuicCryptoStream::EarlyDataReason() const {
   return ssl_early_data_unknown;
 }
-
-bool MockQuicCryptoStream::encryption_established() const { return false; }
 
 bool MockQuicCryptoStream::one_rtt_keys_available() const { return false; }
 
