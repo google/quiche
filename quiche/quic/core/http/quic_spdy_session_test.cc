@@ -404,6 +404,7 @@ class TestSession : public QuicSpdySession {
   MOCK_METHOD(void, OnAcceptChFrame, (const AcceptChFrame&), (override));
 
   using QuicSession::closed_streams;
+  using QuicSession::pending_streams_size;
   using QuicSession::ShouldKeepConnectionAlive;
   using QuicSpdySession::ProcessPendingStream;
   using QuicSpdySession::UsesPendingStreamForFrame;
@@ -3728,6 +3729,32 @@ TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreamsLimit) {
   EXPECT_CALL(*connection_, OnStreamReset(_, _))
       .Times(kMaxUnassociatedWebTransportStreams + 1);
   session_.ResetStream(session_id, QUIC_STREAM_INTERNAL_ERROR);
+}
+
+TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreamsWithFin) {
+  if (!version().UsesHttp3()) {
+    return;
+  }
+
+  CompleteHandshake();
+
+  const UberQuicStreamIdManager& stream_id_manager =
+      *QuicSessionPeer::ietf_streamid_manager(&session_);
+  const QuicStreamId initial_advertized_max_streams =
+      stream_id_manager.advertised_max_incoming_unidirectional_streams();
+  const size_t num_streams_to_open =
+      session_.max_open_incoming_unidirectional_streams();
+  // The max_streams limit should be increased repeatedly.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(testing::AnyNumber());
+  for (size_t i = 0; i < num_streams_to_open; i++) {
+    const QuicStreamId stream_id =
+        GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 4 + i);
+    QuicStreamFrame frame(stream_id, /*fin=*/true, /*offset=*/0, /*data=*/"");
+    session_.OnStreamFrame(frame);
+  }
+  EXPECT_LT(initial_advertized_max_streams,
+            stream_id_manager.advertised_max_incoming_unidirectional_streams());
+  EXPECT_EQ(0, session_.pending_streams_size());
 }
 
 TEST_P(QuicSpdySessionTestServer, ResetOutgoingWebTransportStreams) {
