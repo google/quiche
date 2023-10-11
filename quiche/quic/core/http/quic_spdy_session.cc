@@ -843,31 +843,6 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
   last_sent_http3_goaway_id_ = stream_id;
 }
 
-void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
-                                       QuicStreamId promised_stream_id,
-                                       Http2HeaderBlock headers) {
-  if (perspective() == Perspective::IS_CLIENT) {
-    QUIC_BUG(quic_bug_10360_4) << "Client shouldn't send PUSH_PROMISE";
-    return;
-  }
-
-  if (VersionUsesHttp3(transport_version())) {
-    QUIC_BUG(quic_bug_12477_6)
-        << "Support for server push over HTTP/3 has been removed.";
-    return;
-  }
-
-  SpdyPushPromiseIR push_promise(original_stream_id, promised_stream_id,
-                                 std::move(headers));
-  // PUSH_PROMISE must not be the last frame sent out, at least followed by
-  // response headers.
-  push_promise.set_fin(false);
-
-  SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
-  headers_stream()->WriteOrBufferData(
-      absl::string_view(frame.data(), frame.size()), false, nullptr);
-}
-
 void QuicSpdySession::SendInitialData() {
   if (!VersionUsesHttp3(transport_version())) {
     return;

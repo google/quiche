@@ -245,12 +245,6 @@ class QUICHE_EXPORT QuicSpdySession
   // before encryption gets established.
   void SendHttp3GoAway(QuicErrorCode error_code, const std::string& reason);
 
-  // Write |headers| for |promised_stream_id| on |original_stream_id| in a
-  // PUSH_PROMISE frame to peer.
-  virtual void WritePushPromise(QuicStreamId original_stream_id,
-                                QuicStreamId promised_stream_id,
-                                spdy::Http2HeaderBlock headers);
-
   QpackEncoder* qpack_encoder();
   QpackDecoder* qpack_decoder();
   QuicHeadersStream* headers_stream() { return headers_stream_; }

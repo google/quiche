@@ -397,40 +397,6 @@ TEST_P(QuicHeadersStreamTest, WriteHeaders) {
   }
 }
 
-TEST_P(QuicHeadersStreamTest, WritePushPromises) {
-  for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
-       stream_id += next_stream_id_) {
-    QuicStreamId promised_stream_id = NextPromisedStreamId();
-    if (perspective() == Perspective::IS_SERVER) {
-      // Write the headers and capture the outgoing data
-      EXPECT_CALL(session_, WritevData(QuicUtils::GetHeadersStreamId(
-                                           connection_->transport_version()),
-                                       _, _, NO_FIN, _, _))
-          .WillOnce(WithArgs<1>(Invoke(this, &QuicHeadersStreamTest::SaveIov)));
-      session_.WritePushPromise(stream_id, promised_stream_id,
-                                headers_.Clone());
-
-      // Parse the outgoing data and check that it matches was was written.
-      EXPECT_CALL(visitor_,
-                  OnPushPromise(stream_id, promised_stream_id, kFrameComplete));
-      headers_handler_ = std::make_unique<RecordingHeadersHandler>();
-      EXPECT_CALL(visitor_, OnHeaderFrameStart(stream_id))
-          .WillOnce(Return(headers_handler_.get()));
-      EXPECT_CALL(visitor_, OnHeaderFrameEnd(stream_id)).Times(1);
-      deframer_->ProcessInput(saved_data_.data(), saved_data_.length());
-      EXPECT_FALSE(deframer_->HasError())
-          << http2::Http2DecoderAdapter::SpdyFramerErrorToString(
-                 deframer_->spdy_framer_error());
-      CheckHeaders();
-      saved_data_.clear();
-    } else {
-      EXPECT_QUIC_BUG(session_.WritePushPromise(stream_id, promised_stream_id,
-                                                headers_.Clone()),
-                      "Client shouldn't send PUSH_PROMISE");
-    }
-  }
-}
-
 TEST_P(QuicHeadersStreamTest, ProcessRawData) {
   for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
        stream_id += next_stream_id_) {
