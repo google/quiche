@@ -12,6 +12,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.h"
+#include "anonymous_tokens/cpp/privacy_pass/rsa_bssa_public_metadata_client.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
 #include "quiche/blind_sign_auth/blind_sign_http_interface.h"
@@ -41,6 +42,14 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   void GetInitialDataCallback(std::string oauth_token, int num_tokens,
                               SignedTokenCallback callback,
                               absl::StatusOr<BlindSignHttpResponse> response);
+  void GeneratePrivacyPassTokens(
+      privacy::ppn::GetInitialDataResponse initial_data_response,
+      absl::Time public_metadata_expiry_time, std::string oauth_token,
+      int num_tokens, SignedTokenCallback callback);
+  void GenerateRsaBssaTokens(
+      privacy::ppn::GetInitialDataResponse initial_data_response,
+      absl::Time public_metadata_expiry_time, std::string oauth_token,
+      int num_tokens, SignedTokenCallback callback);
   void AuthAndSignCallback(
       privacy::ppn::PublicMetadataInfo public_metadata_info,
       absl::Time public_key_expiry_time,
@@ -49,6 +58,14 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
       std::unique_ptr<
           anonymous_tokens::AnonymousTokensRsaBssaClient>
           bssa_client,
+      SignedTokenCallback callback,
+      absl::StatusOr<BlindSignHttpResponse> response);
+  void PrivacyPassAuthAndSignCallback(
+      std::string encoded_extensions, absl::Time public_key_expiry_time,
+      anonymous_tokens::AnonymousTokensUseCase use_case,
+      std::vector<std::unique_ptr<anonymous_tokens::
+                                      PrivacyPassRsaBssaPublicMetadataClient>>
+          privacy_pass_clients,
       SignedTokenCallback callback,
       absl::StatusOr<BlindSignHttpResponse> response);
   absl::Status FingerprintPublicMetadata(

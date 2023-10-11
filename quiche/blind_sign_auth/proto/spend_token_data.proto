@@ -39,3 +39,13 @@ message SpendTokenData {
   // or public_metadata.
   bytes binary_public_metadata = 7;
 }
+
+message PrivacyPassTokenData {
+  // The base64 encoded Privacy Pass token.
+  string token = 1;
+  // The base64 encoded, Privacy Pass compliant binary public metadata.
+  string encoded_extensions = 2;
+  // Populate only for testing, this will affect which public key is used.
+  anonymous_tokens.AnonymousTokensUseCase use_case_override =
+      3;
+}
