@@ -63,10 +63,9 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
                                    Perspective::IS_CLIENT, supported_versions);
     // Advance the time, because timers do not like uninitialized times.
     client_connection->AdvanceTime(QuicTime::Delta::FromSeconds(1));
-    QuicClientPushPromiseIndex push_promise_index;
     QuicSpdyClientSession client_session(config_, supported_versions,
                                          client_connection, server_id_,
-                                         crypto_config, &push_promise_index);
+                                         crypto_config);
     client_session.Initialize();
 
     std::unique_ptr<QuicCryptoServerConfig> server_crypto_config =

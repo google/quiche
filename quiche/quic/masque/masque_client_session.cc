@@ -39,10 +39,9 @@ MasqueClientSession::MasqueClientSession(
     MasqueMode masque_mode, const std::string& uri_template,
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, const QuicServerId& server_id,
-    QuicCryptoClientConfig* crypto_config,
-    QuicClientPushPromiseIndex* push_promise_index, Owner* owner)
+    QuicCryptoClientConfig* crypto_config, Owner* owner)
     : QuicSpdyClientSession(config, supported_versions, connection, server_id,
-                            crypto_config, push_promise_index),
+                            crypto_config),
       masque_mode_(masque_mode),
       uri_template_(uri_template),
       owner_(owner) {}

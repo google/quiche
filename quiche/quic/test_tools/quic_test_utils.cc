@@ -743,8 +743,8 @@ TestQuicSpdyClientSession::TestQuicSpdyClientSession(
     const ParsedQuicVersionVector& supported_versions,
     const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
     absl::optional<QuicSSLConfig> ssl_config)
-    : QuicSpdyClientSessionBase(connection, nullptr, &push_promise_index_,
-                                config, supported_versions),
+    : QuicSpdyClientSessionBase(connection, nullptr, config,
+                                supported_versions),
       ssl_config_(std::move(ssl_config)) {
   // TODO(b/153726130): Consider adding SetServerApplicationStateForResumption
   // calls in tests and set |has_application_state| to true.

@@ -86,16 +86,14 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
     virtual void CloseEthernetSession(const std::string& details) = 0;
   };
 
-  // Takes ownership of |connection|, but not of |crypto_config| or
-  // |push_promise_index| or |owner|. All pointers must be non-null. Caller
-  // must ensure that |push_promise_index| and |owner| stay valid for the
-  // lifetime of the newly created MasqueClientSession.
+  // Takes ownership of |connection|, but not of |crypto_config| or |owner|.
+  // All pointers must be non-null. Caller must ensure that |owner| stays valid
+  // for the lifetime of the newly created MasqueClientSession.
   MasqueClientSession(MasqueMode masque_mode, const std::string& uri_template,
                       const QuicConfig& config,
                       const ParsedQuicVersionVector& supported_versions,
                       QuicConnection* connection, const QuicServerId& server_id,
                       QuicCryptoClientConfig* crypto_config,
-                      QuicClientPushPromiseIndex* push_promise_index,
                       Owner* owner);
 
   // Disallow copy and assign.

@@ -23,16 +23,14 @@ class QUIC_NO_EXPORT MasqueEncapsulatedClientSession
       public MasqueClientSession::EncapsulatedIpSession {
  public:
   // Takes ownership of |connection|, but not of |crypto_config| or
-  // |push_promise_index| or |masque_client_session|. All pointers must be
-  // non-null. Caller must ensure that |push_promise_index| and
-  // |masque_client_session| stay valid for the lifetime of the newly created
-  // MasqueEncapsulatedClientSession.
+  // |masque_client_session|. All pointers must be non-null. Caller must ensure
+  // that |masque_client_session| stays valid for the lifetime of the newly
+  // created MasqueEncapsulatedClientSession.
   MasqueEncapsulatedClientSession(
       const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection, const QuicServerId& server_id,
       QuicCryptoClientConfig* crypto_config,
-      QuicClientPushPromiseIndex* push_promise_index,
       MasqueClientSession* masque_client_session);
 
   // Disallow copy and assign.

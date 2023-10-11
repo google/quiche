@@ -15,7 +15,6 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/deterministic_connection_id_generator.h"
-#include "quiche/quic/core/http/quic_client_push_promise_index.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/quic_config.h"

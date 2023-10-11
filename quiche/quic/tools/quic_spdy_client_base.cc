@@ -105,8 +105,7 @@ std::unique_ptr<QuicSession> QuicSpdyClientBase::CreateQuicClientSession(
     const quic::ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection) {
   return std::make_unique<QuicSpdyClientSession>(
-      *config(), supported_versions, connection, server_id(), crypto_config(),
-      &push_promise_index_);
+      *config(), supported_versions, connection, server_id(), crypto_config());
 }
 
 void QuicSpdyClientBase::SendRequest(const Http2HeaderBlock& headers,

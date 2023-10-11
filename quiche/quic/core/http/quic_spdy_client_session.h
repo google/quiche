@@ -28,16 +28,14 @@ class QUICHE_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
                         const ParsedQuicVersionVector& supported_versions,
                         QuicConnection* connection,
                         const QuicServerId& server_id,
-                        QuicCryptoClientConfig* crypto_config,
-                        QuicClientPushPromiseIndex* push_promise_index);
+                        QuicCryptoClientConfig* crypto_config);
 
   QuicSpdyClientSession(const QuicConfig& config,
                         const ParsedQuicVersionVector& supported_versions,
                         QuicConnection* connection,
                         QuicSession::Visitor* visitor,
                         const QuicServerId& server_id,
-                        QuicCryptoClientConfig* crypto_config,
-                        QuicClientPushPromiseIndex* push_promise_index);
+                        QuicCryptoClientConfig* crypto_config);
 
   QuicSpdyClientSession(const QuicSpdyClientSession&) = delete;
   QuicSpdyClientSession& operator=(const QuicSpdyClientSession&) = delete;

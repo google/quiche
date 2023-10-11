@@ -24,7 +24,6 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
                           QuicClientBase::NetworkHelper* network_helper,
                           const QuicServerId& server_id,
                           QuicCryptoClientConfig* crypto_config,
-                          QuicClientPushPromiseIndex* push_promise_index,
                           bool drop_response_body, bool enable_web_transport);
 
   QuicSimpleClientSession(const QuicConfig& config,
@@ -34,7 +33,6 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
                           QuicClientBase::NetworkHelper* network_helper,
                           const QuicServerId& server_id,
                           QuicCryptoClientConfig* crypto_config,
-                          QuicClientPushPromiseIndex* push_promise_index,
                           bool drop_response_body, bool enable_web_transport);
 
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override;

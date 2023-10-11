@@ -64,10 +64,9 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSession {
       const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection, const QuicServerId& server_id,
-      QuicCryptoClientConfig* crypto_config,
-      QuicClientPushPromiseIndex* push_promise_index)
+      QuicCryptoClientConfig* crypto_config)
       : QuicSpdyClientSession(config, supported_versions, connection, server_id,
-                              crypto_config, push_promise_index) {}
+                              crypto_config) {}
 
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override {
     return std::make_unique<MockQuicSpdyClientStream>(
@@ -111,7 +110,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     session_ = std::make_unique<TestQuicSpdyClientSession>(
         DefaultQuicConfig(), SupportedVersions(GetParam()), connection_,
         QuicServerId(kServerHostname, kPort, false),
-        client_crypto_config_.get(), &push_promise_index_);
+        client_crypto_config_.get());
     session_->Initialize();
     connection_->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
@@ -176,7 +175,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     session_ = std::make_unique<TestQuicSpdyClientSession>(
         DefaultQuicConfig(), SupportedVersions(GetParam()), connection_,
         QuicServerId(kServerHostname, kPort, false),
-        client_crypto_config_.get(), &push_promise_index_);
+        client_crypto_config_.get());
     session_->Initialize();
     crypto_stream_ = static_cast<QuicCryptoClientStream*>(
         session_->GetMutableCryptoStream());
@@ -202,7 +201,6 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   MockAlarmFactory alarm_factory_;
   ::testing::NiceMock<PacketSavingConnection>* connection_;
   std::unique_ptr<TestQuicSpdyClientSession> session_;
-  QuicClientPushPromiseIndex push_promise_index_;
   test::SimpleSessionCache* client_session_cache_;
 };
 

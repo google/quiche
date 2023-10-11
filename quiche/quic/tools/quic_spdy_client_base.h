@@ -12,7 +12,6 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
-#include "quiche/quic/core/http/quic_client_push_promise_index.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/quic_config.h"
@@ -101,10 +100,6 @@ class QuicSpdyClientBase : public QuicClientBase,
   // QuicSpdyClientSession.
   QuicSpdyClientSession* client_session();
   const QuicSpdyClientSession* client_session() const;
-
-  QuicClientPushPromiseIndex* push_promise_index() {
-    return &push_promise_index_;
-  }
 
   // If the crypto handshake has not yet been confirmed, adds the data to the
   // queue of data to resend if the client receives a stateless reject.
@@ -195,9 +190,6 @@ class QuicSpdyClientBase : public QuicClientBase,
 
   void SendRequestInternal(spdy::Http2HeaderBlock sanitized_headers,
                            absl::string_view body, bool fin);
-
-  // Index of pending promised streams. Must outlive |session_|.
-  QuicClientPushPromiseIndex push_promise_index_;
 
   // If true, store the latest response code, headers, and body.
   bool store_response_;

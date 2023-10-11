@@ -218,7 +218,6 @@
     "quiche/quic/core/http/http_decoder.h",
     "quiche/quic/core/http/http_encoder.h",
     "quiche/quic/core/http/http_frames.h",
-    "quiche/quic/core/http/quic_client_push_promise_index.h",
     "quiche/quic/core/http/quic_header_list.h",
     "quiche/quic/core/http/quic_headers_stream.h",
     "quiche/quic/core/http/quic_receive_control_stream.h",

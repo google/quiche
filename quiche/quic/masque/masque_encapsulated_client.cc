@@ -253,7 +253,7 @@ std::unique_ptr<QuicSession> MasqueEncapsulatedClient::CreateQuicClientSession(
                   << connection->connection_id();
   return std::make_unique<MasqueEncapsulatedClientSession>(
       *config(), supported_versions, connection, server_id(), crypto_config(),
-      push_promise_index(), masque_client_->masque_client_session());
+      masque_client_->masque_client_session());
 }
 
 MasqueEncapsulatedClientSession*

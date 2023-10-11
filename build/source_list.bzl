@@ -219,7 +219,6 @@ quiche_core_hdrs = [
     "quic/core/http/http_decoder.h",
     "quic/core/http/http_encoder.h",
     "quic/core/http/http_frames.h",
-    "quic/core/http/quic_client_push_promise_index.h",
     "quic/core/http/quic_header_list.h",
     "quic/core/http/quic_headers_stream.h",
     "quic/core/http/quic_receive_control_stream.h",

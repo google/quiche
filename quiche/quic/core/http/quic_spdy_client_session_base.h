@@ -15,8 +15,6 @@
 
 namespace quic {
 
-class QuicClientPushPromiseIndex;
-
 // Base class for all client-specific QuicSession subclasses.
 class QUICHE_EXPORT QuicSpdyClientSessionBase
     : public QuicSpdySession,
@@ -26,7 +24,6 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
   // |promised_by_url|.
   QuicSpdyClientSessionBase(QuicConnection* connection,
                             QuicSession::Visitor* visitor,
-                            QuicClientPushPromiseIndex* push_promise_index,
                             const QuicConfig& config,
                             const ParsedQuicVersionVector& supported_versions);
   QuicSpdyClientSessionBase(const QuicSpdyClientSessionBase&) = delete;
@@ -55,15 +52,8 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
   // Override to wait for all received responses to be consumed by application.
   bool ShouldKeepConnectionAlive() const override;
 
-  QuicClientPushPromiseIndex* push_promise_index() {
-    return push_promise_index_;
-  }
-
   // Override to serialize the settings and pass it down to the handshaker.
   bool OnSettingsFrame(const SettingsFrame& frame) override;
-
- private:
-  QuicClientPushPromiseIndex* push_promise_index_;
 };
 
 }  // namespace quic

@@ -18,10 +18,9 @@ MasqueEncapsulatedClientSession::MasqueEncapsulatedClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, const QuicServerId& server_id,
     QuicCryptoClientConfig* crypto_config,
-    QuicClientPushPromiseIndex* push_promise_index,
     MasqueClientSession* masque_client_session)
     : QuicSpdyClientSession(config, supported_versions, connection, server_id,
-                            crypto_config, push_promise_index),
+                            crypto_config),
       masque_client_session_(masque_client_session) {}
 
 void MasqueEncapsulatedClientSession::ProcessPacket(

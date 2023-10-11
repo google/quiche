@@ -34,12 +34,10 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
  public:
   explicit MockQuicSpdyClientSession(
       const ParsedQuicVersionVector& supported_versions,
-      QuicConnection* connection,
-      QuicClientPushPromiseIndex* push_promise_index)
-      : QuicSpdyClientSession(DefaultQuicConfig(), supported_versions,
-                              connection,
-                              QuicServerId("example.com", 443, false),
-                              &crypto_config_, push_promise_index),
+      QuicConnection* connection)
+      : QuicSpdyClientSession(
+            DefaultQuicConfig(), supported_versions, connection,
+            QuicServerId("example.com", 443, false), &crypto_config_),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {}
   MockQuicSpdyClientSession(const MockQuicSpdyClientSession&) = delete;
   MockQuicSpdyClientSession& operator=(const MockQuicSpdyClientSession&) =
@@ -63,8 +61,7 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       : connection_(new StrictMock<MockQuicConnection>(
             &helper_, &alarm_factory_, Perspective::IS_CLIENT,
             SupportedVersions(GetParam()))),
-        session_(connection_->supported_versions(), connection_,
-                 &push_promise_index_),
+        session_(connection_->supported_versions(), connection_),
         body_("hello world") {
     session_.Initialize();
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
@@ -94,7 +91,6 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   StrictMock<MockQuicConnection>* connection_;
-  QuicClientPushPromiseIndex push_promise_index_;
 
   MockQuicSpdyClientSession session_;
   QuicSpdyClientStream* stream_;

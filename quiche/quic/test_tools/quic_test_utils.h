@@ -21,8 +21,8 @@
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/http/http_decoder.h"
-#include "quiche/quic/core/http/quic_client_push_promise_index.h"
 #include "quiche/quic/core/http/quic_server_session_base.h"
+#include "quiche/quic/core/http/quic_spdy_client_session_base.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -1146,7 +1146,6 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
   void RealOnConfigNegotiated();
 
   std::unique_ptr<QuicCryptoClientStream> crypto_stream_;
-  QuicClientPushPromiseIndex push_promise_index_;
   std::vector<CryptoHandshakeMessage> sent_crypto_handshake_messages_;
   absl::optional<QuicSSLConfig> ssl_config_;
 };
