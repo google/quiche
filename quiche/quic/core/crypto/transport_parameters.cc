@@ -384,14 +384,14 @@ std::string TransportParameters::ToString() const {
     rv += "Client";
   }
   if (legacy_version_information.has_value()) {
-    rv += " " + legacy_version_information.value().ToString();
+    rv += " " + legacy_version_information->ToString();
   }
   if (version_information.has_value()) {
-    rv += " " + version_information.value().ToString();
+    rv += " " + version_information->ToString();
   }
   if (original_destination_connection_id.has_value()) {
     rv += " " + TransportParameterIdToString(kOriginalDestinationConnectionId) +
-          " " + original_destination_connection_id.value().ToString();
+          " " + original_destination_connection_id->ToString();
   }
   rv += max_idle_timeout_ms.ToString(/*for_use_in_list=*/true);
   if (!stateless_reset_token.empty()) {
@@ -420,23 +420,23 @@ std::string TransportParameters::ToString() const {
   rv += active_connection_id_limit.ToString(/*for_use_in_list=*/true);
   if (initial_source_connection_id.has_value()) {
     rv += " " + TransportParameterIdToString(kInitialSourceConnectionId) + " " +
-          initial_source_connection_id.value().ToString();
+          initial_source_connection_id->ToString();
   }
   if (retry_source_connection_id.has_value()) {
     rv += " " + TransportParameterIdToString(kRetrySourceConnectionId) + " " +
-          retry_source_connection_id.value().ToString();
+          retry_source_connection_id->ToString();
   }
   rv += max_datagram_frame_size.ToString(/*for_use_in_list=*/true);
   if (google_handshake_message.has_value()) {
     absl::StrAppend(&rv, " ",
                     TransportParameterIdToString(kGoogleHandshakeMessage),
-                    " length: ", google_handshake_message.value().length());
+                    " length: ", google_handshake_message->length());
   }
   rv += initial_round_trip_time_us.ToString(/*for_use_in_list=*/true);
   if (google_connection_options.has_value()) {
     rv += " " + TransportParameterIdToString(kGoogleConnectionOptions) + " ";
     bool first = true;
-    for (const QuicTag& connection_option : google_connection_options.value()) {
+    for (const QuicTag& connection_option : *google_connection_options) {
       if (first) {
         first = false;
       } else {
@@ -642,9 +642,9 @@ bool TransportParameters::AreValid(std::string* error_details) const {
   }
   if (version_information.has_value()) {
     const QuicVersionLabel& chosen_version =
-        version_information.value().chosen_version;
+        version_information->chosen_version;
     const QuicVersionLabelVector& other_versions =
-        version_information.value().other_versions;
+        version_information->other_versions;
     if (chosen_version == 0) {
       *error_details = "Invalid chosen version";
       return false;
@@ -690,9 +690,9 @@ bool SerializeTransportParameters(const TransportParameters& in,
     return false;
   }
   if (!in.legacy_version_information.has_value() ||
-      in.legacy_version_information.value().version == 0 ||
+      in.legacy_version_information->version == 0 ||
       (in.perspective == Perspective::IS_SERVER &&
-       in.legacy_version_information.value().supported_versions.empty())) {
+       in.legacy_version_information->supported_versions.empty())) {
     QUIC_BUG(missing versions) << "Refusing to serialize without versions";
     return false;
   }
@@ -781,27 +781,27 @@ bool SerializeTransportParameters(const TransportParameters& in,
   // google_connection_options.
   if (in.google_connection_options.has_value()) {
     max_transport_param_length +=
-        in.google_connection_options.value().size() * sizeof(QuicTag);
+        in.google_connection_options->size() * sizeof(QuicTag);
   }
   // Google-specific version extension.
   if (in.legacy_version_information.has_value()) {
     max_transport_param_length +=
-        sizeof(in.legacy_version_information.value().version) +
+        sizeof(in.legacy_version_information->version) +
         1 /* versions length */ +
-        in.legacy_version_information.value().supported_versions.size() *
+        in.legacy_version_information->supported_versions.size() *
             sizeof(QuicVersionLabel);
   }
   // version_information.
   if (in.version_information.has_value()) {
     max_transport_param_length +=
-        sizeof(in.version_information.value().chosen_version) +
+        sizeof(in.version_information->chosen_version) +
         // Add one for the added GREASE version.
-        (in.version_information.value().other_versions.size() + 1) *
+        (in.version_information->other_versions.size() + 1) *
             sizeof(QuicVersionLabel);
   }
   // google_handshake_message.
   if (in.google_handshake_message.has_value()) {
-    max_transport_param_length += in.google_handshake_message.value().length();
+    max_transport_param_length += in.google_handshake_message->length();
   }
 
   // Add a random GREASE transport parameter, as defined in the
@@ -846,7 +846,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
         if (in.original_destination_connection_id.has_value()) {
           QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
           QuicConnectionId original_destination_connection_id =
-              in.original_destination_connection_id.value();
+              *in.original_destination_connection_id;
           if (!writer.WriteVarInt62(
                   TransportParameters::kOriginalDestinationConnectionId) ||
               !writer.WriteStringPieceVarInt62(absl::string_view(
@@ -989,11 +989,10 @@ bool SerializeTransportParameters(const TransportParameters& in,
         if (in.google_handshake_message.has_value()) {
           if (!writer.WriteVarInt62(
                   TransportParameters::kGoogleHandshakeMessage) ||
-              !writer.WriteStringPieceVarInt62(
-                  in.google_handshake_message.value())) {
+              !writer.WriteStringPieceVarInt62(*in.google_handshake_message)) {
             QUIC_BUG(Failed to write google_handshake_message)
                 << "Failed to write google_handshake_message: "
-                << in.google_handshake_message.value() << " for " << in;
+                << *in.google_handshake_message << " for " << in;
             return false;
           }
         }
@@ -1066,7 +1065,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       case TransportParameters::kInitialSourceConnectionId: {
         if (in.initial_source_connection_id.has_value()) {
           QuicConnectionId initial_source_connection_id =
-              in.initial_source_connection_id.value();
+              *in.initial_source_connection_id;
           if (!writer.WriteVarInt62(
                   TransportParameters::kInitialSourceConnectionId) ||
               !writer.WriteStringPieceVarInt62(
@@ -1084,7 +1083,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
         if (in.retry_source_connection_id.has_value()) {
           QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
           QuicConnectionId retry_source_connection_id =
-              in.retry_source_connection_id.value();
+              *in.retry_source_connection_id;
           if (!writer.WriteVarInt62(
                   TransportParameters::kRetrySourceConnectionId) ||
               !writer.WriteStringPieceVarInt62(
@@ -1100,11 +1099,10 @@ bool SerializeTransportParameters(const TransportParameters& in,
       // Google-specific connection options.
       case TransportParameters::kGoogleConnectionOptions: {
         if (in.google_connection_options.has_value()) {
-          static_assert(
-              sizeof(in.google_connection_options.value().front()) == 4,
-              "bad size");
+          static_assert(sizeof(in.google_connection_options->front()) == 4,
+                        "bad size");
           uint64_t connection_options_length =
-              in.google_connection_options.value().size() * 4;
+              in.google_connection_options->size() * 4;
           if (!writer.WriteVarInt62(
                   TransportParameters::kGoogleConnectionOptions) ||
               !writer.WriteVarInt62(
@@ -1115,7 +1113,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
             return false;
           }
           for (const QuicTag& connection_option :
-               in.google_connection_options.value()) {
+               *in.google_connection_options) {
             if (!writer.WriteTag(connection_option)) {
               QUIC_BUG(Failed to write google_connection_option)
                   << "Failed to write google_connection_option "
@@ -1133,32 +1131,31 @@ bool SerializeTransportParameters(const TransportParameters& in,
         static_assert(sizeof(QuicVersionLabel) == sizeof(uint32_t),
                       "bad length");
         uint64_t google_version_length =
-            sizeof(in.legacy_version_information.value().version);
+            sizeof(in.legacy_version_information->version);
         if (in.perspective == Perspective::IS_SERVER) {
           google_version_length +=
               /* versions length */ sizeof(uint8_t) +
-              sizeof(QuicVersionLabel) * in.legacy_version_information.value()
-                                             .supported_versions.size();
+              sizeof(QuicVersionLabel) *
+                  in.legacy_version_information->supported_versions.size();
         }
         if (!writer.WriteVarInt62(TransportParameters::kGoogleQuicVersion) ||
             !writer.WriteVarInt62(
                 /* transport parameter length */ google_version_length) ||
-            !writer.WriteUInt32(
-                in.legacy_version_information.value().version)) {
+            !writer.WriteUInt32(in.legacy_version_information->version)) {
           QUIC_BUG(Failed to write Google version extension)
               << "Failed to write Google version extension for " << in;
           return false;
         }
         if (in.perspective == Perspective::IS_SERVER) {
-          if (!writer.WriteUInt8(sizeof(QuicVersionLabel) *
-                                 in.legacy_version_information.value()
-                                     .supported_versions.size())) {
+          if (!writer.WriteUInt8(
+                  sizeof(QuicVersionLabel) *
+                  in.legacy_version_information->supported_versions.size())) {
             QUIC_BUG(Failed to write versions length)
                 << "Failed to write versions length for " << in;
             return false;
           }
           for (QuicVersionLabel version_label :
-               in.legacy_version_information.value().supported_versions) {
+               in.legacy_version_information->supported_versions) {
             if (!writer.WriteUInt32(version_label)) {
               QUIC_BUG(Failed to write supported version)
                   << "Failed to write supported version for " << in;
@@ -1175,7 +1172,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
         static_assert(sizeof(QuicVersionLabel) == sizeof(uint32_t),
                       "bad length");
         QuicVersionLabelVector other_versions =
-            in.version_information.value().other_versions;
+            in.version_information->other_versions;
         // Insert one GREASE version at a random index.
         const size_t grease_index =
             random->InsecureRandUint64() % (other_versions.size() + 1);
@@ -1183,13 +1180,12 @@ bool SerializeTransportParameters(const TransportParameters& in,
             other_versions.begin() + grease_index,
             CreateQuicVersionLabel(QuicVersionReservedForNegotiation()));
         const uint64_t version_information_length =
-            sizeof(in.version_information.value().chosen_version) +
+            sizeof(in.version_information->chosen_version) +
             sizeof(QuicVersionLabel) * other_versions.size();
         if (!writer.WriteVarInt62(TransportParameters::kVersionInformation) ||
             !writer.WriteVarInt62(
                 /* transport parameter length */ version_information_length) ||
-            !writer.WriteUInt32(
-                in.version_information.value().chosen_version)) {
+            !writer.WriteUInt32(in.version_information->chosen_version)) {
           QUIC_BUG(Failed to write chosen version)
               << "Failed to write chosen version for " << in;
           return false;
@@ -1450,7 +1446,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
             *error_details = "Failed to read a google_connection_options";
             return false;
           }
-          out->google_connection_options.value().push_back(connection_option);
+          out->google_connection_options->push_back(connection_option);
         }
       } break;
       case TransportParameters::kGoogleQuicVersion: {
@@ -1459,7 +1455,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
               TransportParameters::LegacyVersionInformation();
         }
         if (!value_reader.ReadUInt32(
-                &out->legacy_version_information.value().version)) {
+                &out->legacy_version_information->version)) {
           *error_details = "Failed to read Google version extension version";
           return false;
         }
@@ -1476,8 +1472,8 @@ bool ParseTransportParameters(ParsedQuicVersion version,
               *error_details = "Failed to parse Google supported version";
               return false;
             }
-            out->legacy_version_information.value()
-                .supported_versions.push_back(version);
+            out->legacy_version_information->supported_versions.push_back(
+                version);
           }
         }
       } break;
@@ -1488,7 +1484,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         }
         out->version_information = TransportParameters::VersionInformation();
         if (!value_reader.ReadUInt32(
-                &out->version_information.value().chosen_version)) {
+                &out->version_information->chosen_version)) {
           *error_details = "Failed to read chosen version";
           return false;
         }
@@ -1498,8 +1494,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
             *error_details = "Failed to parse other version";
             return false;
           }
-          out->version_information.value().other_versions.push_back(
-              other_version);
+          out->version_information->other_versions.push_back(other_version);
         }
       } break;
       case TransportParameters::kMinAckDelay:

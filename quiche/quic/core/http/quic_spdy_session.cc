@@ -747,12 +747,12 @@ void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
       << "HTTP/3 GOAWAY received on version " << version();
 
   if (last_received_http3_goaway_id_.has_value() &&
-      id > last_received_http3_goaway_id_.value()) {
+      id > *last_received_http3_goaway_id_) {
     CloseConnectionWithDetails(
         QUIC_HTTP_GOAWAY_ID_LARGER_THAN_PREVIOUS,
         absl::StrCat("GOAWAY received with ID ", id,
                      " greater than previously received ID ",
-                     last_received_http3_goaway_id_.value()));
+                     *last_received_http3_goaway_id_));
     return;
   }
   last_received_http3_goaway_id_ = id;
@@ -832,7 +832,7 @@ void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
       QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
           transport_version());
   if (last_sent_http3_goaway_id_.has_value() &&
-      last_sent_http3_goaway_id_.value() <= stream_id) {
+      *last_sent_http3_goaway_id_ <= stream_id) {
     // Do not send GOAWAY frame with a higher id, because it is forbidden.
     // Do not send one with same stream id as before, since frames on the
     // control stream are guaranteed to be processed in order.
@@ -1643,7 +1643,7 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
     stream_id += QuicUtils::StreamIdDelta(transport_version());
   }
   if (last_sent_http3_goaway_id_.has_value() &&
-      last_sent_http3_goaway_id_.value() <= stream_id) {
+      *last_sent_http3_goaway_id_ <= stream_id) {
     // Do not send GOAWAY frame with a higher id, because it is forbidden.
     // Do not send one with same stream id as before, since frames on the
     // control stream are guaranteed to be processed in order.

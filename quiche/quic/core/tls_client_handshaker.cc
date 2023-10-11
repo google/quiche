@@ -236,12 +236,12 @@ bool TlsClientHandshaker::SetTransportParameters() {
   params.perspective = Perspective::IS_CLIENT;
   params.legacy_version_information =
       TransportParameters::LegacyVersionInformation();
-  params.legacy_version_information.value().version =
+  params.legacy_version_information->version =
       CreateQuicVersionLabel(session()->supported_versions().front());
   params.version_information = TransportParameters::VersionInformation();
   const QuicVersionLabel version = CreateQuicVersionLabel(session()->version());
-  params.version_information.value().chosen_version = version;
-  params.version_information.value().other_versions.push_back(version);
+  params.version_information->chosen_version = version;
+  params.version_information->other_versions.push_back(version);
 
   if (!handshaker_delegate()->FillTransportParameters(&params)) {
     return false;
@@ -282,15 +282,14 @@ bool TlsClientHandshaker::ProcessTransportParameters(
       *received_transport_params_);
 
   if (received_transport_params_->legacy_version_information.has_value()) {
-    if (received_transport_params_->legacy_version_information.value()
-            .version !=
+    if (received_transport_params_->legacy_version_information->version !=
         CreateQuicVersionLabel(session()->connection()->version())) {
       *error_details = "Version mismatch detected";
       return false;
     }
     if (CryptoUtils::ValidateServerHelloVersions(
-            received_transport_params_->legacy_version_information.value()
-                .supported_versions,
+            received_transport_params_->legacy_version_information
+                ->supported_versions,
             session()->connection()->server_supported_versions(),
             error_details) != QUIC_NO_ERROR) {
       QUICHE_DCHECK(!error_details->empty());
@@ -299,15 +298,13 @@ bool TlsClientHandshaker::ProcessTransportParameters(
   }
   if (received_transport_params_->version_information.has_value()) {
     if (!CryptoUtils::ValidateChosenVersion(
-            received_transport_params_->version_information.value()
-                .chosen_version,
+            received_transport_params_->version_information->chosen_version,
             session()->version(), error_details)) {
       QUICHE_DCHECK(!error_details->empty());
       return false;
     }
     if (!CryptoUtils::CryptoUtils::ValidateServerVersions(
-            received_transport_params_->version_information.value()
-                .other_versions,
+            received_transport_params_->version_information->other_versions,
             session()->version(),
             session()->client_original_supported_versions(), error_details)) {
       QUICHE_DCHECK(!error_details->empty());
@@ -559,12 +556,11 @@ void TlsClientHandshaker::FinishHandshake() {
   SSL_get0_peer_application_settings(ssl(), &alps_data, &alps_length);
   if (alps_length > 0) {
     auto error = session()->OnAlpsData(alps_data, alps_length);
-    if (error) {
+    if (error.has_value()) {
       // Calling CloseConnection() is safe even in case OnAlpsData() has
       // already closed the connection.
-      CloseConnection(
-          QUIC_HANDSHAKE_FAILED,
-          absl::StrCat("Error processing ALPS data: ", error.value()));
+      CloseConnection(QUIC_HANDSHAKE_FAILED,
+                      absl::StrCat("Error processing ALPS data: ", *error));
       return;
     }
   }

@@ -114,9 +114,9 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
     return HEADER_FIELD_INVALID;
   }
   if (max_field_size_.has_value() &&
-      key.size() + value.size() > max_field_size_.value()) {
+      key.size() + value.size() > *max_field_size_) {
     QUICHE_VLOG(2) << "Header field size is " << key.size() + value.size()
-                   << ", exceeds max size of " << max_field_size_.value();
+                   << ", exceeds max size of " << *max_field_size_;
     return HEADER_FIELD_TOO_LONG;
   }
   if (key[0] == ':') {
@@ -289,8 +289,8 @@ HeaderValidator::ContentLengthStatus HeaderValidator::HandleContentLength(
   }
 
   if (content_length_.has_value()) {
-    return content_length == content_length_.value() ? CONTENT_LENGTH_SKIP
-                                                     : CONTENT_LENGTH_ERROR;
+    return content_length == *content_length_ ? CONTENT_LENGTH_SKIP
+                                              : CONTENT_LENGTH_ERROR;
   }
   content_length_ = content_length;
   return CONTENT_LENGTH_OK;

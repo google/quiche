@@ -192,7 +192,7 @@ absl::StatusOr<AcceptResult> AcceptWithFlags(SocketFd fd, int flags) {
       ValidateAndConvertAddress(peer_addr, peer_addr_len);
 
   if (peer_address.ok()) {
-    return AcceptResult{connection_socket, peer_address.value()};
+    return AcceptResult{connection_socket, *peer_address};
   } else {
     return peer_address.status();
   }
@@ -228,13 +228,13 @@ absl::StatusOr<SocketFd> CreateSocket(IpAddressFamily address_family,
   // If non-blocking could not be set directly on socket creation, need to do
   // it now.
   absl::Status set_non_blocking_result =
-      SetSocketBlocking(socket.value(), /*blocking=*/false);
+      SetSocketBlocking(*socket, /*blocking=*/false);
   if (!set_non_blocking_result.ok()) {
-    QUICHE_LOG_FIRST_N(ERROR, 100) << "Failed to set socket " << socket.value()
+    QUICHE_LOG_FIRST_N(ERROR, 100) << "Failed to set socket " << *socket
                                    << " as non-blocking on creation.";
-    if (!Close(socket.value()).ok()) {
+    if (!Close(*socket).ok()) {
       QUICHE_LOG_FIRST_N(ERROR, 100)
-          << "Failed to close socket " << socket.value()
+          << "Failed to close socket " << *socket
           << " after set-non-blocking error on creation.";
     }
     return set_non_blocking_result;

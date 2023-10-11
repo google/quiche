@@ -91,7 +91,7 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
     // Return success to continue the handshake.
     return QUIC_SUCCESS;
   }
-  return handshaker_->select_cert_status().value();
+  return *handshaker_->select_cert_status();
 }
 
 QuicAsyncStatus TlsServerHandshaker::DefaultProofSourceHandle::ComputeSignature(
@@ -481,7 +481,7 @@ bool TlsServerHandshaker::ProcessTransportParameters(
 
   if (client_params.legacy_version_information.has_value() &&
       CryptoUtils::ValidateClientHelloVersion(
-          client_params.legacy_version_information.value().version,
+          client_params.legacy_version_information->version,
           session()->connection()->version(), session()->supported_versions(),
           error_details) != QUIC_NO_ERROR) {
     return false;
@@ -489,7 +489,7 @@ bool TlsServerHandshaker::ProcessTransportParameters(
 
   if (client_params.version_information.has_value() &&
       !CryptoUtils::ValidateChosenVersion(
-          client_params.version_information.value().chosen_version,
+          client_params.version_information->chosen_version,
           session()->version(), error_details)) {
     QUICHE_DCHECK(!error_details->empty());
     return false;
@@ -514,15 +514,15 @@ TlsServerHandshaker::SetTransportParameters() {
   server_params_.perspective = Perspective::IS_SERVER;
   server_params_.legacy_version_information =
       TransportParameters::LegacyVersionInformation();
-  server_params_.legacy_version_information.value().supported_versions =
+  server_params_.legacy_version_information->supported_versions =
       CreateQuicVersionLabelVector(session()->supported_versions());
-  server_params_.legacy_version_information.value().version =
+  server_params_.legacy_version_information->version =
       CreateQuicVersionLabel(session()->connection()->version());
   server_params_.version_information =
       TransportParameters::VersionInformation();
-  server_params_.version_information.value().chosen_version =
+  server_params_.version_information->chosen_version =
       CreateQuicVersionLabel(session()->version());
-  server_params_.version_information.value().other_versions =
+  server_params_.version_information->other_versions =
       CreateQuicVersionLabelVector(session()->supported_versions());
 
   if (!handshaker_delegate()->FillTransportParameters(&server_params_)) {
@@ -857,10 +857,9 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     // This is the second call, return the result directly.
     QUIC_DVLOG(1) << "EarlySelectCertCallback called to continue handshake, "
                      "returning directly. success:"
-                  << (select_cert_status_.value() == QUIC_SUCCESS);
-    return (select_cert_status_.value() == QUIC_SUCCESS)
-               ? ssl_select_cert_success
-               : ssl_select_cert_error;
+                  << (*select_cert_status_ == QUIC_SUCCESS);
+    return (*select_cert_status_ == QUIC_SUCCESS) ? ssl_select_cert_success
+                                                  : ssl_select_cert_error;
   }
 
   // This is the first call.
@@ -959,7 +958,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
       set_transport_params_result.early_data_context,
       tls_connection_.ssl_config());
 
-  QUICHE_DCHECK_EQ(status, select_cert_status().value());
+  QUICHE_DCHECK_EQ(status, *select_cert_status());
 
   if (status == QUIC_PENDING) {
     set_expected_ssl_error(SSL_ERROR_PENDING_CERTIFICATE);

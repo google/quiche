@@ -348,9 +348,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
           options.should_window_update_fn,
           /*update_window_on_notify=*/false),
       max_outbound_concurrent_streams_(
-          options.remote_max_concurrent_streams
-              ? options.remote_max_concurrent_streams.value()
-              : 100u) {
+          options.remote_max_concurrent_streams.value_or(100u)) {
   decoder_.set_visitor(&receive_logger_);
   if (options_.max_header_list_bytes) {
     // Limit buffering of encoded HPACK data to 2x the decoded limit.
@@ -365,7 +363,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
                           spdy::kHttp2ConnectionHeaderPrefixSize};
   }
   if (options_.max_header_field_size.has_value()) {
-    headers_handler_.SetMaxFieldSize(options_.max_header_field_size.value());
+    headers_handler_.SetMaxFieldSize(*options_.max_header_field_size);
   }
   headers_handler_.SetAllowObsText(options_.allow_obs_text);
 }
@@ -740,7 +738,7 @@ bool OgHttp2Session::AfterFrameSent(uint8_t frame_type_int, uint32_t stream_id,
       const bool is_settings_ack = (flags & ACK_FLAG);
       if (is_settings_ack && encoder_header_table_capacity_when_acking_) {
         framer_.UpdateHeaderEncoderTableSize(
-            encoder_header_table_capacity_when_acking_.value());
+            *encoder_header_table_capacity_when_acking_);
         encoder_header_table_capacity_when_acking_ = absl::nullopt;
       } else if (!is_settings_ack) {
         sent_non_ack_settings_ = true;
@@ -1864,8 +1862,7 @@ HeaderType OgHttp2Session::NextHeaderType(
     } else {
       return HeaderType::REQUEST_TRAILER;
     }
-  } else if (!current_type ||
-             current_type.value() == HeaderType::RESPONSE_100) {
+  } else if (!current_type || *current_type == HeaderType::RESPONSE_100) {
     return HeaderType::RESPONSE;
   } else {
     return HeaderType::RESPONSE_TRAILER;

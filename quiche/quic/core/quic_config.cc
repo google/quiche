@@ -556,7 +556,7 @@ QuicTime::Delta QuicConfig::IdleNetworkTimeout() const {
   if (!received_max_idle_timeout_.has_value()) {
     return max_idle_timeout_to_send_;
   }
-  return received_max_idle_timeout_.value();
+  return *received_max_idle_timeout_;
 }
 
 void QuicConfig::SetMaxBidirectionalStreamsToSend(uint32_t max_streams) {
@@ -934,7 +934,7 @@ QuicConnectionId QuicConfig::ReceivedOriginalConnectionId() const {
     QUIC_BUG(quic_bug_10575_13) << "No received original connection ID";
     return EmptyQuicConnectionId();
   }
-  return received_original_destination_connection_id_.value();
+  return *received_original_destination_connection_id_;
 }
 
 void QuicConfig::SetInitialSourceConnectionIdToSend(
@@ -951,7 +951,7 @@ QuicConnectionId QuicConfig::ReceivedInitialSourceConnectionId() const {
     QUIC_BUG(quic_bug_10575_14) << "No received initial source connection ID";
     return EmptyQuicConnectionId();
   }
-  return received_initial_source_connection_id_.value();
+  return *received_initial_source_connection_id_;
 }
 
 void QuicConfig::SetRetrySourceConnectionIdToSend(
@@ -968,7 +968,7 @@ QuicConnectionId QuicConfig::ReceivedRetrySourceConnectionId() const {
     QUIC_BUG(quic_bug_10575_15) << "No received retry source connection ID";
     return EmptyQuicConnectionId();
   }
-  return received_retry_source_connection_id_.value();
+  return *received_retry_source_connection_id_;
 }
 
 void QuicConfig::SetStatelessResetTokenToSend(
@@ -1161,7 +1161,7 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
 bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   if (original_destination_connection_id_to_send_.has_value()) {
     params->original_destination_connection_id =
-        original_destination_connection_id_to_send_.value();
+        *original_destination_connection_id_to_send_;
   }
 
   params->max_idle_timeout_ms.set_value(
@@ -1238,12 +1238,11 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
 
   if (initial_source_connection_id_to_send_.has_value()) {
     params->initial_source_connection_id =
-        initial_source_connection_id_to_send_.value();
+        *initial_source_connection_id_to_send_;
   }
 
   if (retry_source_connection_id_to_send_.has_value()) {
-    params->retry_source_connection_id =
-        retry_source_connection_id_to_send_.value();
+    params->retry_source_connection_id = *retry_source_connection_id_to_send_;
   }
 
   if (initial_round_trip_time_us_.HasSendValue()) {
@@ -1269,7 +1268,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     std::string* error_details) {
   if (!is_resumption && params.original_destination_connection_id.has_value()) {
     received_original_destination_connection_id_ =
-        params.original_destination_connection_id.value();
+        *params.original_destination_connection_id;
   }
 
   if (params.max_idle_timeout_ms.value() > 0 &&
@@ -1374,11 +1373,10 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   if (!is_resumption) {
     if (params.initial_source_connection_id.has_value()) {
       received_initial_source_connection_id_ =
-          params.initial_source_connection_id.value();
+          *params.initial_source_connection_id;
     }
     if (params.retry_source_connection_id.has_value()) {
-      received_retry_source_connection_id_ =
-          params.retry_source_connection_id.value();
+      received_retry_source_connection_id_ = *params.retry_source_connection_id;
     }
   }
 
@@ -1387,8 +1385,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
         params.initial_round_trip_time_us.value());
   }
   if (params.google_connection_options.has_value()) {
-    connection_options_.SetReceivedValues(
-        params.google_connection_options.value());
+    connection_options_.SetReceivedValues(*params.google_connection_options);
   }
   if (params.google_handshake_message.has_value()) {
     received_google_handshake_message_ = params.google_handshake_message;

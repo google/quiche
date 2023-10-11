@@ -286,9 +286,9 @@ absl::Status EventLoopConnectingClientSocket::Open() {
                     << " with error: " << descriptor.status();
     return descriptor.status();
   }
-  QUICHE_DCHECK_NE(descriptor.value(), kInvalidSocketFd);
+  QUICHE_DCHECK_NE(*descriptor, kInvalidSocketFd);
 
-  descriptor_ = descriptor.value();
+  descriptor_ = *descriptor;
 
   if (async_visitor_) {
     bool registered;
@@ -443,35 +443,34 @@ EventLoopConnectingClientSocket::ReceiveInternal() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnected);
   QUICHE_CHECK(receive_max_size_.has_value());
-  QUICHE_DCHECK_GE(receive_max_size_.value(), 1u);
-  QUICHE_DCHECK_LE(receive_max_size_.value(),
-                   std::numeric_limits<size_t>::max());
+  QUICHE_DCHECK_GE(*receive_max_size_, 1u);
+  QUICHE_DCHECK_LE(*receive_max_size_, std::numeric_limits<size_t>::max());
 
   // Before allocating a buffer, do a 1-byte peek to determine if needed.
-  if (receive_max_size_.value() > 1) {
+  if (*receive_max_size_ > 1) {
     absl::StatusOr<bool> peek_data = OneBytePeek();
     if (!peek_data.ok()) {
       if (!absl::IsUnavailable(peek_data.status())) {
         receive_max_size_.reset();
       }
       return peek_data.status();
-    } else if (!peek_data.value()) {
+    } else if (!*peek_data) {
       receive_max_size_.reset();
       return quiche::QuicheMemSlice();
     }
   }
 
-  quiche::QuicheBuffer buffer(buffer_allocator_, receive_max_size_.value());
+  quiche::QuicheBuffer buffer(buffer_allocator_, *receive_max_size_);
   absl::StatusOr<absl::Span<char>> received = socket_api::Receive(
       descriptor_, absl::MakeSpan(buffer.data(), buffer.size()));
 
   if (received.ok()) {
-    QUICHE_DCHECK_LE(received.value().size(), buffer.size());
-    QUICHE_DCHECK_EQ(received.value().data(), buffer.data());
+    QUICHE_DCHECK_LE(received->size(), buffer.size());
+    QUICHE_DCHECK_EQ(received->data(), buffer.data());
 
     receive_max_size_.reset();
     return quiche::QuicheMemSlice(
-        quiche::QuicheBuffer(buffer.Release(), received.value().size()));
+        quiche::QuicheBuffer(buffer.Release(), received->size()));
   } else {
     if (!absl::IsUnavailable(received.status())) {
       QUICHE_DVLOG(1) << "Failed to receive from socket to address: "
@@ -510,7 +509,7 @@ absl::StatusOr<bool> EventLoopConnectingClientSocket::OneBytePeek() {
   if (!peek_received.ok()) {
     return peek_received.status();
   } else {
-    return !peek_received.value().empty();
+    return !peek_received->empty();
   }
 }
 
@@ -574,14 +573,14 @@ absl::Status EventLoopConnectingClientSocket::SendInternal() {
         socket_api::Send(descriptor_, send_remaining_);
 
     if (remainder.ok()) {
-      QUICHE_DCHECK(remainder.value().empty() ||
-                    (remainder.value().data() >= send_remaining_.data() &&
-                     remainder.value().data() <
+      QUICHE_DCHECK(remainder->empty() ||
+                    (remainder->data() >= send_remaining_.data() &&
+                     remainder->data() <
                          send_remaining_.data() + send_remaining_.size()));
-      QUICHE_DCHECK(remainder.value().empty() ||
-                    (remainder.value().data() + remainder.value().size() ==
+      QUICHE_DCHECK(remainder->empty() ||
+                    (remainder->data() + remainder->size() ==
                      send_remaining_.data() + send_remaining_.size()));
-      send_remaining_ = remainder.value();
+      send_remaining_ = *remainder;
     } else {
       if (!absl::IsUnavailable(remainder.status())) {
         QUICHE_DVLOG(1) << "Failed to send to socket to address: "

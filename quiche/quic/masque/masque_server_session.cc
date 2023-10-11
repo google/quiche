@@ -298,8 +298,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   hint.ai_protocol = IPPROTO_UDP;
 
   addrinfo* info_list = nullptr;
-  int result = getaddrinfo(host.value().c_str(), port.value().c_str(), &hint,
-                           &info_list);
+  int result = getaddrinfo(host->c_str(), port->c_str(), &hint, &info_list);
   if (result != 0 || info_list == nullptr) {
     QUIC_DLOG(ERROR) << "Failed to resolve " << authority << ": "
                      << gai_strerror(result);

@@ -490,7 +490,7 @@ bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
       // connection ID from the config matches the one from the RETRY.
       if (!config.HasReceivedRetrySourceConnectionId() ||
           config.ReceivedRetrySourceConnectionId() !=
-              retry_source_connection_id_.value()) {
+              *retry_source_connection_id_) {
         std::string received_value;
         if (config.HasReceivedRetrySourceConnectionId()) {
           received_value = config.ReceivedRetrySourceConnectionId().ToString();
@@ -499,8 +499,8 @@ bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
         }
         std::string error_details =
             absl::StrCat("Bad retry_source_connection_id: expected ",
-                         retry_source_connection_id_.value().ToString(),
-                         ", received ", received_value);
+                         retry_source_connection_id_->ToString(), ", received ",
+                         received_value);
         CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
                         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
         return false;
@@ -925,7 +925,7 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
     original_destination_connection_id_ = default_path_.server_connection_id;
   }
   QUICHE_DCHECK(!retry_source_connection_id_.has_value())
-      << retry_source_connection_id_.value();
+      << *retry_source_connection_id_;
   retry_source_connection_id_ = new_connection_id;
   ReplaceInitialServerConnectionId(new_connection_id);
   packet_creator_.SetRetryToken(retry_token);
@@ -946,7 +946,7 @@ void QuicConnection::SetOriginalDestinationConnectionId(
                    default_path_.server_connection_id);
   InstallInitialCrypters(original_destination_connection_id);
   QUICHE_DCHECK(!original_destination_connection_id_.has_value())
-      << original_destination_connection_id_.value();
+      << *original_destination_connection_id_;
   original_destination_connection_id_ = original_destination_connection_id;
   original_destination_connection_id_replacement_ =
       default_path_.server_connection_id;
@@ -954,7 +954,7 @@ void QuicConnection::SetOriginalDestinationConnectionId(
 
 QuicConnectionId QuicConnection::GetOriginalDestinationConnectionId() const {
   if (original_destination_connection_id_.has_value()) {
-    return original_destination_connection_id_.value();
+    return *original_destination_connection_id_;
   }
   return default_path_.server_connection_id;
 }
@@ -5296,13 +5296,16 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
 
     if (alternative_path_.peer_address.host() ==
             current_effective_peer_address.host() &&
-        alternative_path_.send_algorithm != nullptr) {
+        alternative_path_.send_algorithm != nullptr &&
+        alternative_path_.rtt_stats.has_value()) {
       // Update the default path with the congestion controller of the
       // alternative path.
       sent_packet_manager_.SetSendAlgorithm(
           alternative_path_.send_algorithm.release());
-      sent_packet_manager_.SetRttStats(
-          std::move(alternative_path_.rtt_stats).value());
+      sent_packet_manager_.SetRttStats(*alternative_path_.rtt_stats);
+
+      // Explicitly clear alternative_path_.rtt_stats
+      alternative_path_.rtt_stats = absl::nullopt;
     }
   }
   // Update to the new peer address.
@@ -6946,13 +6949,13 @@ std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
   }
   // Add the original connection ID
   if (std::find(result.begin(), result.end(),
-                original_destination_connection_id_.value()) != result.end()) {
+                *original_destination_connection_id_) != result.end()) {
     QUIC_BUG(quic_unexpected_original_destination_connection_id)
         << "original_destination_connection_id: "
-        << original_destination_connection_id_.value()
+        << *original_destination_connection_id_
         << " is unexpectedly in active list";
   } else {
-    result.insert(result.end(), original_destination_connection_id_.value());
+    result.insert(result.end(), *original_destination_connection_id_);
   }
   return result;
 }
@@ -7098,7 +7101,7 @@ QuicConnection::PathState& QuicConnection::PathState::operator=(
     send_algorithm = std::move(other.send_algorithm);
     if (other.rtt_stats.has_value()) {
       rtt_stats.emplace();
-      rtt_stats->CloneFrom(other.rtt_stats.value());
+      rtt_stats->CloneFrom(*other.rtt_stats);
     } else {
       rtt_stats.reset();
     }
@@ -7301,10 +7304,13 @@ void QuicConnection::RestoreToLastValidatedPath(
   if (alternative_path_.send_algorithm != nullptr) {
     sent_packet_manager_.SetSendAlgorithm(
         alternative_path_.send_algorithm.release());
-    sent_packet_manager_.SetRttStats(alternative_path_.rtt_stats.value());
   } else {
     QUIC_BUG(quic_bug_10511_42)
         << "Fail to store congestion controller before migration.";
+  }
+
+  if (alternative_path_.rtt_stats.has_value()) {
+    sent_packet_manager_.SetRttStats(*alternative_path_.rtt_stats);
   }
 
   UpdatePeerAddress(original_direct_peer_address);

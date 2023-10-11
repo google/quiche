@@ -44,7 +44,7 @@ absl::StatusOr<AcceptResult> AcceptInternal(SocketFd fd) {
       ValidateAndConvertAddress(peer_addr, peer_addr_len);
 
   if (peer_address.ok()) {
-    return AcceptResult{connection_socket, peer_address.value()};
+    return AcceptResult{connection_socket, *peer_address};
   } else {
     return peer_address.status();
   }
@@ -201,13 +201,13 @@ absl::StatusOr<AcceptResult> Accept(SocketFd fd, bool blocking) {
   // If non-blocking could not be set directly on socket acceptance, need to
   // do it now.
   absl::Status set_non_blocking_result =
-      SetSocketBlocking(accept_result.value().fd, /*blocking=*/false);
+      SetSocketBlocking(accept_result->fd, /*blocking=*/false);
   if (!set_non_blocking_result.ok()) {
     QUICHE_LOG_FIRST_N(ERROR, 100)
         << "Failed to set socket " << fd << " as non-blocking on acceptance.";
-    if (!Close(accept_result.value().fd).ok()) {
+    if (!Close(accept_result->fd).ok()) {
       QUICHE_LOG_FIRST_N(ERROR, 100)
-          << "Failed to close socket " << accept_result.value().fd
+          << "Failed to close socket " << accept_result->fd
           << " after error setting non-blocking on acceptance.";
     }
     return set_non_blocking_result;

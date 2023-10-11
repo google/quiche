@@ -260,7 +260,7 @@ PemReadResult ReadNextPemMessage(std::istream* input) {
           QuicheTextUtils::Base64Decode(encoded_message_contents);
       if (data.has_value()) {
         result.status = PemReadResult::kOk;
-        result.contents = data.value();
+        result.contents = *data;
       } else {
         result.status = PemReadResult::kError;
       }

@@ -167,7 +167,7 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
       }
       index_++;
       if (deque_->cached_index_.has_value()) {
-        const std::size_t cached_index = deque_->cached_index_.value();
+        const std::size_t cached_index = *deque_->cached_index_;
         // If all items are iterated then reset the |cached_index_|
         if (index_ == container_size) {
           deque_->cached_index_.reset();
@@ -286,7 +286,7 @@ void QuicIntervalDeque<T, C>::PopFront() {
     cached_index_.reset();
   }
   if (cached_index_.value_or(0) > 0) {
-    cached_index_ = cached_index_.value() - 1;
+    cached_index_ = *cached_index_ - 1;
   }
 }
 
@@ -309,7 +309,7 @@ typename QuicIntervalDeque<T, C>::Iterator QuicIntervalDeque<T, C>::DataAt(
     return Search(interval_begin, 0, container_.size());
   }
 
-  const std::size_t cached_index = cached_index_.value();
+  const std::size_t cached_index = *cached_index_;
   QUICHE_DCHECK(cached_index < container_.size());
 
   const QuicInterval<size_t> cached_interval =

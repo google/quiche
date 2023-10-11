@@ -1444,7 +1444,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
                                last_ack_frame_, ack_receive_time, rtt_updated_,
                                prior_bytes_in_flight, valid_ecn_counts);
   if (valid_ecn_counts.has_value()) {
-    peer_ack_ecn_counts_[acked_packet_number_space] = valid_ecn_counts.value();
+    peer_ack_ecn_counts_[acked_packet_number_space] = *valid_ecn_counts;
   }
   return acked_new_packet ? PACKETS_NEWLY_ACKED : NO_PACKETS_NEWLY_ACKED;
 }

@@ -783,7 +783,7 @@ std::string QuicSession::on_closed_frame_string() const {
   std::stringstream ss;
   ss << on_closed_frame_;
   if (source_.has_value()) {
-    ss << " " << ConnectionCloseSourceToString(source_.value());
+    ss << " " << ConnectionCloseSourceToString(*source_);
   }
   return ss.str();
 }
@@ -1344,8 +1344,7 @@ void QuicSession::OnConfigNegotiated() {
           config_.SetPreferredAddressConnectionIdAndTokenToSend(
               frame->connection_id, frame->stateless_reset_token);
         }
-        connection_->set_sent_server_preferred_address(
-            preferred_address.value());
+        connection_->set_sent_server_preferred_address(*preferred_address);
       }
       // Clear the alternative address of the other address family in the
       // config.
@@ -1720,8 +1719,7 @@ bool QuicSession::MaybeSendAddressToken() {
       GenerateCachedNetworkParameters();
 
   std::string address_token = GetCryptoStream()->GetAddressToken(
-      cached_network_params.has_value() ? &cached_network_params.value()
-                                        : nullptr);
+      cached_network_params.has_value() ? &*cached_network_params : nullptr);
   if (address_token.empty()) {
     return false;
   }

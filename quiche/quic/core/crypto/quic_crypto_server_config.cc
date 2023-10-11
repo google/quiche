@@ -915,7 +915,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     context->Fail(QUIC_CRYPTO_INTERNAL_ERROR, "Failed to get certs");
     return;
   }
-  hkdf_suffix.append(context->signed_config()->chain->certs.at(0));
+  hkdf_suffix.append(context->signed_config()->chain->certs[0]);
 
   absl::string_view cetv_ciphertext;
   if (configs.requested->channel_id_enabled &&
@@ -1873,7 +1873,7 @@ bool QuicCryptoServerConfig::ValidateExpectedLeafCertificate(
   if (client_hello.GetUint64(kXLCT, &hash_from_client) != QUIC_NO_ERROR) {
     return false;
   }
-  return CryptoUtils::ComputeLeafCertHash(certs.at(0)) == hash_from_client;
+  return CryptoUtils::ComputeLeafCertHash(certs[0]) == hash_from_client;
 }
 
 bool QuicCryptoServerConfig::IsNextConfigReady(QuicWallTime now) const {

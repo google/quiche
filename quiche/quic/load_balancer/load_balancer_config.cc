@@ -177,7 +177,7 @@ bool LoadBalancerConfig::BlockEncrypt(
   if (!key_.has_value()) {
     return false;
   }
-  AES_encrypt(plaintext, ciphertext, &key_.value());
+  AES_encrypt(plaintext, ciphertext, &*key_);
   return true;
 }
 
@@ -187,7 +187,7 @@ bool LoadBalancerConfig::BlockDecrypt(
   if (!block_decrypt_key_.has_value()) {
     return false;
   }
-  AES_decrypt(ciphertext, plaintext, &block_decrypt_key_.value());
+  AES_decrypt(ciphertext, plaintext, &*block_decrypt_key_);
   return true;
 }
 

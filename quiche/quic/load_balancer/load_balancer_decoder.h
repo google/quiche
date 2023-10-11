@@ -33,7 +33,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerDecoder {
       return nullptr;
     }
 
-    return &config_[config_id].value();
+    return &*config_[config_id];
   }
 
   // Extract a server ID from |connection_id|. If there is no config for the

@@ -617,7 +617,7 @@ class QUICHE_EXPORT QuicSession
   // TODO(wub): remove saving user-agent to QuicSession.
   void SetUserAgentId(std::string user_agent_id) {
     user_agent_id_ = std::move(user_agent_id);
-    connection()->OnUserAgentIdKnown(user_agent_id_.value());
+    connection()->OnUserAgentIdKnown(*user_agent_id_);
   }
 
   void SetSourceAddressTokenToSend(absl::string_view token) {

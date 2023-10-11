@@ -552,10 +552,10 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
       !packet_.initial_header.has_value()) {
     QUIC_BUG(missing initial packet header)
         << "initial serialized packet does not have header populated";
-  } else if (packet.initial_header.value() != packet_.initial_header.value()) {
+  } else if (*packet.initial_header != *packet_.initial_header) {
     QUIC_BUG(initial packet header changed before reserialization)
-        << ENDPOINT << "original header: " << packet.initial_header.value()
-        << ", new header: " << packet_.initial_header.value();
+        << ENDPOINT << "original header: " << *packet.initial_header
+        << ", new header: " << *packet_.initial_header;
   }
   const size_t encrypted_length = packet_.encrypted_length;
   // Clear frames in packet_. No need to DeleteFrames since frames are owned by
@@ -846,7 +846,7 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
   absl::optional<size_t> length_with_chaos_protection =
       MaybeBuildDataPacketWithChaosProtection(header, encrypted_buffer.buffer);
   if (length_with_chaos_protection.has_value()) {
-    length = length_with_chaos_protection.value();
+    length = *length_with_chaos_protection;
   } else {
     length = framer_->BuildDataPacket(header, queued_frames_,
                                       encrypted_buffer.buffer, packet_size_,

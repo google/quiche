@@ -203,7 +203,7 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
               bandwidth_estimate_sent_to_client_),
           cached_network_params->bandwidth_estimate_bytes_per_second());
 
-      crypto_stream_->SendServerConfigUpdate(&cached_network_params.value());
+      crypto_stream_->SendServerConfigUpdate(&*cached_network_params);
 
       connection()->OnSendConnectionState(*cached_network_params);
     }

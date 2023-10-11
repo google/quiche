@@ -5522,7 +5522,7 @@ int64_t QuicFramer::FrameAckTimestampRanges(
                       << ", effective_prev_time:" << *effective_prev_time
                       << ", recv_time:" << receive_timestamp;
         time_delta = time_delta >> receive_timestamps_exponent_;
-        effective_prev_time = effective_prev_time.value() -
+        effective_prev_time = *effective_prev_time -
                               QuicTime::Delta::FromMicroseconds(
                                   time_delta << receive_timestamps_exponent_);
       } else {

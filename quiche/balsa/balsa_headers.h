@@ -1260,7 +1260,7 @@ class QUICHE_EXPORT BalsaHeaders::iterator_base
                          absl::string_view(stream_begin + line.value_begin_idx,
                                            line.ValuesLength()));
     }
-    return value_.value();
+    return *value_;
   }
 
   const BalsaHeaders* headers_;
