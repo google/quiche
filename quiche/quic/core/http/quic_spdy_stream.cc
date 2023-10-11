@@ -554,18 +554,12 @@ void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers,
       /* is_sent = */ false, headers.compressed_header_bytes(),
       headers.uncompressed_header_bytes());
 
-  const QuicStreamId promised_stream_id = spdy_session()->promised_stream_id();
   Http3DebugVisitor* const debug_visitor = spdy_session()->debug_visitor();
-  if (promised_stream_id ==
-      QuicUtils::GetInvalidStreamId(transport_version())) {
-    if (debug_visitor) {
-      debug_visitor->OnHeadersDecoded(id(), headers);
-    }
-
-    OnStreamHeaderList(/* fin = */ false, headers_payload_length_, headers);
-  } else {
-    spdy_session_->OnHeaderList(headers);
+  if (debug_visitor) {
+    debug_visitor->OnHeadersDecoded(id(), headers);
   }
+
+  OnStreamHeaderList(/* fin = */ false, headers_payload_length_, headers);
 
   if (blocked_on_decoding_headers_) {
     blocked_on_decoding_headers_ = false;

@@ -1420,11 +1420,8 @@ void QuicSpdySession::OnPriority(SpdyStreamId stream_id,
 void QuicSpdySession::OnHeaderList(const QuicHeaderList& header_list) {
   QUIC_DVLOG(1) << ENDPOINT << "Received header list for stream " << stream_id_
                 << ": " << header_list.DebugString();
-  // This code path is only executed for push promise in IETF QUIC.
-  if (VersionUsesHttp3(transport_version())) {
-    QUICHE_DCHECK(promised_stream_id_ !=
-                  QuicUtils::GetInvalidStreamId(transport_version()));
-  }
+  QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
+
   // Ignore push request headers.
   if (promised_stream_id_ ==
       QuicUtils::GetInvalidStreamId(transport_version())) {
