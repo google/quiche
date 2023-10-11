@@ -326,8 +326,6 @@ class QUICHE_EXPORT QuicSpdySession
   // Called when the complete list of headers is available.
   void OnHeaderList(const QuicHeaderList& header_list);
 
-  QuicStreamId promised_stream_id() const { return promised_stream_id_; }
-
   // Initialze HTTP/3 unidirectional streams if |unidirectional| is true and
   // those streams are not initialized yet.
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
@@ -644,7 +642,6 @@ class QUICHE_EXPORT QuicSpdySession
 
   // Data about the stream whose headers are being processed.
   QuicStreamId stream_id_;
-  QuicStreamId promised_stream_id_;
   size_t frame_len_;
   bool fin_;
 

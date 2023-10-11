@@ -197,9 +197,11 @@ class QuicSpdySession::SpdyFramerVisitor
         /* is_sent = */ false, header_list_.compressed_header_bytes(),
         header_list_.uncompressed_header_bytes());
 
-    if (session_->IsConnected()) {
+    // Ignore pushed request headers.
+    if (session_->IsConnected() && !expecting_pushed_headers_) {
       session_->OnHeaderList(header_list_);
     }
+    expecting_pushed_headers_ = false;
     header_list_.Clear();
   }
 
@@ -355,8 +357,8 @@ class QuicSpdySession::SpdyFramerVisitor
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
 
-  void OnPushPromise(SpdyStreamId stream_id, SpdyStreamId promised_stream_id,
-                     bool /*end*/) override {
+  void OnPushPromise(SpdyStreamId /*stream_id*/,
+                     SpdyStreamId promised_stream_id, bool /*end*/) override {
     QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     if (session_->perspective() != Perspective::IS_CLIENT) {
       // PUSH_PROMISE sent by a client is a protocol violation.
@@ -370,12 +372,9 @@ class QuicSpdySession::SpdyFramerVisitor
         promised_stream_id,
         QuicResetStreamError::FromInternal(QUIC_REFUSED_STREAM),
         /* bytes_written = */ 0);
-    if (!session_->IsConnected()) {
-      return;
-    }
-    // Notify session nonetheless so that it can identify incoming headers
-    // as belonging to the push.
-    session_->OnPushPromise(stream_id, promised_stream_id);
+
+    QUICHE_DCHECK(!expecting_pushed_headers_);
+    expecting_pushed_headers_ = true;
   }
 
   void OnContinuation(SpdyStreamId /*stream_id*/, size_t /*payload_size*/,
@@ -439,6 +438,10 @@ class QuicSpdySession::SpdyFramerVisitor
 
   QuicSpdySession* session_;
   QuicHeaderList header_list_;
+
+  // True if the next OnHeaderFrameEnd() call signals the end of pushed request
+  // headers.
+  bool expecting_pushed_headers_ = false;
 };
 
 Http3DebugVisitor::Http3DebugVisitor() {}
@@ -469,8 +472,6 @@ QuicSpdySession::QuicSpdySession(
       max_inbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
       max_outbound_header_list_size_(std::numeric_limits<size_t>::max()),
       stream_id_(
-          QuicUtils::GetInvalidStreamId(connection->transport_version())),
-      promised_stream_id_(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
       frame_len_(0),
       fin_(false),
@@ -1389,20 +1390,8 @@ void QuicSpdySession::OnHeaders(SpdyStreamId stream_id, bool has_priority,
   }
   QUICHE_DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
                    stream_id_);
-  QUICHE_DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
-                   promised_stream_id_);
   stream_id_ = stream_id;
   fin_ = fin;
-}
-
-void QuicSpdySession::OnPushPromise(SpdyStreamId stream_id,
-                                    SpdyStreamId promised_stream_id) {
-  QUICHE_DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
-                   stream_id_);
-  QUICHE_DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
-                   promised_stream_id_);
-  stream_id_ = stream_id;
-  promised_stream_id_ = promised_stream_id;
 }
 
 // TODO (wangyix): Why is SpdyStreamId used instead of QuicStreamId?
@@ -1422,13 +1411,9 @@ void QuicSpdySession::OnHeaderList(const QuicHeaderList& header_list) {
                 << ": " << header_list.DebugString();
   QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
 
-  // Ignore push request headers.
-  if (promised_stream_id_ ==
-      QuicUtils::GetInvalidStreamId(transport_version())) {
-    OnStreamHeaderList(stream_id_, fin_, frame_len_, header_list);
-  }
+  OnStreamHeaderList(stream_id_, fin_, frame_len_, header_list);
+
   // Reset state for the next frame.
-  promised_stream_id_ = QuicUtils::GetInvalidStreamId(transport_version());
   stream_id_ = QuicUtils::GetInvalidStreamId(transport_version());
   fin_ = false;
   frame_len_ = 0;
