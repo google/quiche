@@ -178,7 +178,7 @@ TEST_F(RttStatsTest, ResetAfterConnectionMigrations) {
   EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.min_rtt());
 }
 
-TEST_F(RttStatsTest, StandardDeviationCaculatorTest1) {
+TEST_F(RttStatsTest, StandardDeviationCalculatorTest1) {
   // All samples are the same.
   rtt_stats_.EnableStandardDeviationCalculation();
   rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(10),
@@ -193,7 +193,7 @@ TEST_F(RttStatsTest, StandardDeviationCaculatorTest1) {
   EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.GetStandardOrMeanDeviation());
 }
 
-TEST_F(RttStatsTest, StandardDeviationCaculatorTest2) {
+TEST_F(RttStatsTest, StandardDeviationCalculatorTest2) {
   // Small variance.
   rtt_stats_.EnableStandardDeviationCalculation();
   rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(10),
@@ -212,7 +212,7 @@ TEST_F(RttStatsTest, StandardDeviationCaculatorTest2) {
             rtt_stats_.GetStandardOrMeanDeviation());
 }
 
-TEST_F(RttStatsTest, StandardDeviationCaculatorTest3) {
+TEST_F(RttStatsTest, StandardDeviationCalculatorTest3) {
   // Some variance.
   rtt_stats_.EnableStandardDeviationCalculation();
   rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(50),
