@@ -21,12 +21,6 @@ using spdy::Http2HeaderBlock;
 
 namespace quic {
 
-QuicSpdyClientBase::QuicDataToResend::QuicDataToResend(
-    std::unique_ptr<Http2HeaderBlock> headers, absl::string_view body, bool fin)
-    : headers_(std::move(headers)), body_(body), fin_(fin) {}
-
-QuicSpdyClientBase::QuicDataToResend::~QuicDataToResend() = default;
-
 QuicSpdyClientBase::QuicSpdyClientBase(
     const QuicServerId& server_id,
     const ParsedQuicVersionVector& supported_versions, const QuicConfig& config,
@@ -190,25 +184,6 @@ int QuicSpdyClientBase::GetNumSentClientHellosFromSession() {
 
 int QuicSpdyClientBase::GetNumReceivedServerConfigUpdatesFromSession() {
   return client_session()->GetNumReceivedServerConfigUpdates();
-}
-
-void QuicSpdyClientBase::MaybeAddQuicDataToResend(
-    std::unique_ptr<QuicDataToResend> data_to_resend) {
-  data_to_resend_on_connect_.push_back(std::move(data_to_resend));
-}
-
-void QuicSpdyClientBase::ClearDataToResend() {
-  data_to_resend_on_connect_.clear();
-}
-
-void QuicSpdyClientBase::ResendSavedData() {
-  // Calling Resend will re-enqueue the data, so swap out
-  //  data_to_resend_on_connect_ before iterating.
-  std::vector<std::unique_ptr<QuicDataToResend>> old_data;
-  old_data.swap(data_to_resend_on_connect_);
-  for (const auto& data : old_data) {
-    data->Resend();
-  }
 }
 
 int QuicSpdyClientBase::latest_response_code() const {

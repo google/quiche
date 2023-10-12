@@ -38,29 +38,6 @@ class QuicSpdyClientBase : public QuicClientBase,
         absl::string_view response_body) = 0;
   };
 
-  // A piece of data that can be sent multiple times. For example, it can be a
-  // HTTP request that is resent after a connect=>version negotiation=>reconnect
-  // sequence.
-  class QuicDataToResend {
-   public:
-    // |headers| may be null, since it's possible to send data without headers.
-    QuicDataToResend(std::unique_ptr<spdy::Http2HeaderBlock> headers,
-                     absl::string_view body, bool fin);
-    QuicDataToResend(const QuicDataToResend&) = delete;
-    QuicDataToResend& operator=(const QuicDataToResend&) = delete;
-
-    virtual ~QuicDataToResend();
-
-    // Must be overridden by specific classes with the actual method for
-    // re-sending data.
-    virtual void Resend() = 0;
-
-   protected:
-    std::unique_ptr<spdy::Http2HeaderBlock> headers_;
-    absl::string_view body_;
-    bool fin_;
-  };
-
   QuicSpdyClientBase(const QuicServerId& server_id,
                      const ParsedQuicVersionVector& supported_versions,
                      const QuicConfig& config,
@@ -100,12 +77,6 @@ class QuicSpdyClientBase : public QuicClientBase,
   // QuicSpdyClientSession.
   QuicSpdyClientSession* client_session();
   const QuicSpdyClientSession* client_session() const;
-
-  // If the crypto handshake has not yet been confirmed, adds the data to the
-  // queue of data to resend if the client receives a stateless reject.
-  // Otherwise, deletes the data.
-  void MaybeAddQuicDataToResend(
-      std::unique_ptr<QuicDataToResend> data_to_resend);
 
   void set_store_response(bool val) { store_response_ = val; }
 
@@ -158,9 +129,9 @@ class QuicSpdyClientBase : public QuicClientBase,
       const quic::ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection) override;
 
-  void ClearDataToResend() override;
+  void ClearDataToResend() override {}
 
-  void ResendSavedData() override;
+  void ResendSavedData() override {}
 
   bool HasActiveRequests() override;
 
@@ -188,10 +159,6 @@ class QuicSpdyClientBase : public QuicClientBase,
 
   // Listens for full responses.
   std::unique_ptr<ResponseListener> response_listener_;
-
-  // Keeps track of any data that must be resent upon a subsequent successful
-  // connection, in case the client receives a stateless reject.
-  std::vector<std::unique_ptr<QuicDataToResend>> data_to_resend_on_connect_;
 
   bool drop_response_body_ = false;
   bool enable_web_transport_ = false;
