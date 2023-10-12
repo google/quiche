@@ -337,24 +337,6 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
   QuicTestClient& operator=(const QuicTestClient&&) = delete;
 
  private:
-  class TestClientDataToResend : public QuicDefaultClient::QuicDataToResend {
-   public:
-    TestClientDataToResend(
-        std::unique_ptr<spdy::Http2HeaderBlock> headers, absl::string_view body,
-        bool fin, QuicTestClient* test_client,
-        quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
-            ack_listener);
-
-    ~TestClientDataToResend() override;
-
-    void Resend() override;
-
-   protected:
-    QuicTestClient* test_client_;
-    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
-        ack_listener_;
-  };
-
   // PerStreamState of a stream is updated when it is closed.
   struct PerStreamState {
     PerStreamState(const PerStreamState& other);
@@ -424,9 +406,6 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
   bool auto_reconnect_;
   // Should we buffer the response body? Defaults to true.
   bool buffer_body_;
-  // For async push promise rendezvous, validation may fail in which
-  // case the request should be retried.
-  std::unique_ptr<TestClientDataToResend> push_promise_data_to_resend_;
   // Number of requests/responses this client has sent/received.
   size_t num_requests_;
   size_t num_responses_;

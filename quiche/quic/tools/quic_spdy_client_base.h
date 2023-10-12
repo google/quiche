@@ -162,32 +162,9 @@ class QuicSpdyClientBase : public QuicClientBase,
 
   void ResendSavedData() override;
 
-  void AddPromiseDataToResend(const spdy::Http2HeaderBlock& headers,
-                              absl::string_view body, bool fin);
   bool HasActiveRequests() override;
 
  private:
-  // Specific QuicClient class for storing data to resend.
-  class ClientQuicDataToResend : public QuicDataToResend {
-   public:
-    ClientQuicDataToResend(std::unique_ptr<spdy::Http2HeaderBlock> headers,
-                           absl::string_view body, bool fin,
-                           QuicSpdyClientBase* client)
-        : QuicDataToResend(std::move(headers), body, fin), client_(client) {
-      QUICHE_DCHECK(headers_);
-      QUICHE_DCHECK(client);
-    }
-
-    ClientQuicDataToResend(const ClientQuicDataToResend&) = delete;
-    ClientQuicDataToResend& operator=(const ClientQuicDataToResend&) = delete;
-    ~ClientQuicDataToResend() override {}
-
-    void Resend() override;
-
-   private:
-    QuicSpdyClientBase* client_;
-  };
-
   void SendRequestInternal(spdy::Http2HeaderBlock sanitized_headers,
                            absl::string_view body, bool fin);
 
@@ -215,8 +192,6 @@ class QuicSpdyClientBase : public QuicClientBase,
   // Keeps track of any data that must be resent upon a subsequent successful
   // connection, in case the client receives a stateless reject.
   std::vector<std::unique_ptr<QuicDataToResend>> data_to_resend_on_connect_;
-
-  std::unique_ptr<ClientQuicDataToResend> push_promise_data_to_resend_;
 
   bool drop_response_body_ = false;
   bool enable_web_transport_ = false;

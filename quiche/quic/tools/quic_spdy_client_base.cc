@@ -21,11 +21,6 @@ using spdy::Http2HeaderBlock;
 
 namespace quic {
 
-void QuicSpdyClientBase::ClientQuicDataToResend::Resend() {
-  client_->SendRequest(*headers_, body_, fin_);
-  headers_ = nullptr;
-}
-
 QuicSpdyClientBase::QuicDataToResend::QuicDataToResend(
     std::unique_ptr<Http2HeaderBlock> headers, absl::string_view body, bool fin)
     : headers_(std::move(headers)), body_(body), fin_(fin) {}
@@ -214,15 +209,6 @@ void QuicSpdyClientBase::ResendSavedData() {
   for (const auto& data : old_data) {
     data->Resend();
   }
-}
-
-void QuicSpdyClientBase::AddPromiseDataToResend(const Http2HeaderBlock& headers,
-                                                absl::string_view body,
-                                                bool fin) {
-  std::unique_ptr<Http2HeaderBlock> new_headers(
-      new Http2HeaderBlock(headers.Clone()));
-  push_promise_data_to_resend_.reset(
-      new ClientQuicDataToResend(std::move(new_headers), body, fin, this));
 }
 
 int QuicSpdyClientBase::latest_response_code() const {

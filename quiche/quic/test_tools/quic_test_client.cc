@@ -611,9 +611,7 @@ void QuicTestClient::ClearPerRequestState() {
   response_body_size_ = 0;
 }
 
-bool QuicTestClient::HaveActiveStream() {
-  return push_promise_data_to_resend_.get() || !open_streams_.empty();
-}
+bool QuicTestClient::HaveActiveStream() { return !open_streams_.empty(); }
 
 bool QuicTestClient::WaitUntil(
     int timeout_ms,
@@ -778,23 +776,6 @@ void QuicTestClient::WaitForWriteToFlush() {
   while (connected() && client()->session()->HasDataToWrite()) {
     client_->WaitForEvents();
   }
-}
-
-QuicTestClient::TestClientDataToResend::TestClientDataToResend(
-    std::unique_ptr<spdy::Http2HeaderBlock> headers, absl::string_view body,
-    bool fin, QuicTestClient* test_client,
-    quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
-        ack_listener)
-    : QuicDefaultClient::QuicDataToResend(std::move(headers), body, fin),
-      test_client_(test_client),
-      ack_listener_(std::move(ack_listener)) {}
-
-QuicTestClient::TestClientDataToResend::~TestClientDataToResend() = default;
-
-void QuicTestClient::TestClientDataToResend::Resend() {
-  test_client_->GetOrCreateStreamAndSendRequest(headers_.get(), body_, fin_,
-                                                ack_listener_);
-  headers_.reset();
 }
 
 QuicTestClient::PerStreamState::PerStreamState(const PerStreamState& other)
