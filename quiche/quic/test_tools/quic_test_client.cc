@@ -54,15 +54,10 @@ class RecordingProofVerifier : public ProofVerifier {
       const ProofVerifyContext* context, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
-    QuicAsyncStatus process_certs_result = ProcessCerts(certs, cert_sct);
-    if (process_certs_result != QUIC_SUCCESS) {
-      return process_certs_result;
+    QuicAsyncStatus status = ProcessCerts(certs, cert_sct);
+    if (verifier_ == nullptr) {
+      return status;
     }
-
-    if (!verifier_) {
-      return QUIC_SUCCESS;
-    }
-
     return verifier_->VerifyProof(hostname, port, server_config,
                                   transport_version, chlo_hash, certs, cert_sct,
                                   signature, context, error_details, details,
@@ -78,7 +73,7 @@ class RecordingProofVerifier : public ProofVerifier {
       std::unique_ptr<ProofVerifierCallback> callback) override {
     // Record the cert.
     QuicAsyncStatus status = ProcessCerts(certs, cert_sct);
-    if (verifier_ == NULL) {
+    if (verifier_ == nullptr) {
       return status;
     }
     return verifier_->VerifyCertChain(hostname, port, certs, ocsp_response,
