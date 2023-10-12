@@ -18,7 +18,6 @@
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
-#include "quiche/quic/core/http/spdy_server_push_utils.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_utils.h"

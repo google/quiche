@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "quiche/quic/core/http/spdy_server_push_utils.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
