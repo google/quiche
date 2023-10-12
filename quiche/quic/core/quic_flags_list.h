@@ -8,15 +8,29 @@
 
 QUIC_FLAG(quic_restart_flag_quic_offload_pacing_to_usps2, false)
 // A testonly reloadable flag that will always default to false.
+QUIC_FLAG(quic_reloadable_flag_http2_testonly_default_false, false)
+// A testonly reloadable flag that will always default to false.
 QUIC_FLAG(quic_reloadable_flag_quic_testonly_default_false, false)
 // A testonly reloadable flag that will always default to false.
 QUIC_FLAG(quic_reloadable_flag_spdy_testonly_default_false, false)
 // A testonly reloadable flag that will always default to true.
+QUIC_FLAG(quic_reloadable_flag_http2_testonly_default_true, false)
+// A testonly reloadable flag that will always default to true.
 QUIC_FLAG(quic_reloadable_flag_quic_testonly_default_true, true)
+// A testonly reloadable flag that will always default to true.
+QUIC_FLAG(quic_reloadable_flag_spdy_testonly_default_true, false)
+// A testonly restart flag that will always default to false.
+QUIC_FLAG(quic_restart_flag_http2_testonly_default_false, false)
 // A testonly restart flag that will always default to false.
 QUIC_FLAG(quic_restart_flag_quic_testonly_default_false, false)
+// A testonly restart flag that will always default to false.
+QUIC_FLAG(quic_restart_flag_spdy_testonly_default_false, false)
+// A testonly restart flag that will always default to true.
+QUIC_FLAG(quic_restart_flag_http2_testonly_default_true, false)
 // A testonly restart flag that will always default to true.
 QUIC_FLAG(quic_restart_flag_quic_testonly_default_true, true)
+// A testonly restart flag that will always default to true.
+QUIC_FLAG(quic_restart_flag_spdy_testonly_default_true, false)
 // If enabled and a BSUS connection is received, blocks server connections until SETTINGS frame is received.
 QUIC_FLAG(quic_reloadable_flag_quic_block_until_settings_received_copt, true)
 // If trrue, early return before write control frame in OnCanWrite() if the connection is already closed.
