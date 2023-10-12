@@ -734,10 +734,6 @@ class QUICHE_EXPORT QuicSession
     return false;
   }
 
-  // Returns true if a pending stream should be converted to a real stream after
-  // a corresponding STREAM_FRAME is received.
-  bool ShouldProcessPendingStreamImmediately() const;
-
   spdy::SpdyPriority GetSpdyPriorityofStream(QuicStreamId stream_id) const {
     return write_blocked_streams_->GetPriorityOfStream(stream_id)
         .http()

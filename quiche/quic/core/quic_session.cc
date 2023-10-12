@@ -240,7 +240,7 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
 
   if (ShouldProcessFrameByPendingStream(STREAM_FRAME, stream_id)) {
     PendingStream* pending = PendingStreamOnStreamFrame(frame);
-    if (pending != nullptr && ShouldProcessPendingStreamImmediately()) {
+    if (pending != nullptr && IsEncryptionEstablished()) {
       MaybeProcessPendingStream(pending);
     }
     return;
@@ -2729,10 +2729,6 @@ void QuicSession::OnServerPreferredAddressAvailable(
   if (visitor_ != nullptr) {
     visitor_->OnServerPreferredAddressAvailable(server_preferred_address);
   }
-}
-
-bool QuicSession::ShouldProcessPendingStreamImmediately() const {
-  return IsEncryptionEstablished();
 }
 
 #undef ENDPOINT  // undef for jumbo builds
