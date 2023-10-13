@@ -800,11 +800,17 @@ class QUICHE_EXPORT QuicSession
 
   size_t num_draining_streams() const { return num_draining_streams_; }
 
-  // Processes the stream type information of |pending| depending on
-  // different kinds of sessions' own rules. If the pending stream has been
-  // converted to a normal stream, returns a pointer to the new stream;
-  // otherwise, returns nullptr.
-  virtual QuicStream* ProcessPendingStream(PendingStream* /*pending*/) {
+  // How a pending stream is converted to a full QuicStream depends on subclass
+  // implementations. Here as UsesPendingStreamForFrame() returns false, this
+  // method is not supposed to be called at all.
+  virtual QuicStream* ProcessReadUnidirectionalPendingStream(
+      PendingStream* /*pending*/) {
+    QUICHE_BUG(received unexpected pending read unidirectional stream);
+    return nullptr;
+  }
+  virtual QuicStream* ProcessBidirectionalPendingStream(
+      PendingStream* /*pending*/) {
+    QUICHE_BUG(received unexpected bidirectional pending stream);
     return nullptr;
   }
 
@@ -926,6 +932,11 @@ class QUICHE_EXPORT QuicSession
   // Creates or gets pending stream, feeds it with |frame|, and records the
   // ietf_error_code in the pending stream.
   void PendingStreamOnStopSendingFrame(const QuicStopSendingFrame& frame);
+
+  // Processes the |pending| stream according to its stream type.
+  // If the pending stream has been converted to a normal stream, returns a
+  // pointer to the new stream; otherwise, returns nullptr.
+  QuicStream* ProcessPendingStream(PendingStream* pending);
 
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.

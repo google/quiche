@@ -406,7 +406,6 @@ class TestSession : public QuicSpdySession {
   using QuicSession::closed_streams;
   using QuicSession::pending_streams_size;
   using QuicSession::ShouldKeepConnectionAlive;
-  using QuicSpdySession::ProcessPendingStream;
   using QuicSpdySession::UsesPendingStreamForFrame;
 
  private:

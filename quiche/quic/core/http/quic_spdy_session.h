@@ -499,10 +499,13 @@ class QUICHE_EXPORT QuicSpdySession
   bool UsesPendingStreamForFrame(QuicFrameType type,
                                  QuicStreamId stream_id) const override;
 
-  // Processes incoming unidirectional streams; parses the stream type, and
-  // creates a new stream of the corresponding type.  Returns the pointer to the
-  // newly created stream, or nullptr if the stream type is not yet available.
-  QuicStream* ProcessPendingStream(PendingStream* pending) override;
+  // Called when a STREAM_FRAME is received on |pending| stream or
+  // ProcessAllPendingStreams() gets called. Processes incoming unidirectional
+  // streams; parses the stream type, and creates a new stream of the
+  // corresponding type. Returns the pointer to the newly created stream, or
+  // nullptr if the stream type is not yet available.
+  QuicStream* ProcessReadUnidirectionalPendingStream(
+      PendingStream* pending) override;
 
   size_t WriteHeadersOnHeadersStreamImpl(
       QuicStreamId id, spdy::Http2HeaderBlock headers, bool fin,

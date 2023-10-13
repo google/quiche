@@ -1433,9 +1433,8 @@ bool QuicSpdySession::HasActiveRequestStreams() const {
   return GetNumActiveStreams() + num_draining_streams() > 0;
 }
 
-QuicStream* QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
-  QUICHE_DCHECK(connection()->connected());
+QuicStream* QuicSpdySession::ProcessReadUnidirectionalPendingStream(
+    PendingStream* pending) {
   struct iovec iov;
   if (!pending->sequencer()->GetReadableRegion(&iov)) {
     // The first byte hasn't been received yet.

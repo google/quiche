@@ -312,13 +312,15 @@ class TestSession : public QuicSession {
     return stream;
   }
 
-  // QuicSession doesn't do anything in this method. So it's overridden here to
-  // test that the session handles pending streams correctly in terms of
+  // QuicSession doesn't do anything in these methods. So they are overridden
+  // here to test that the session handles pending streams correctly in terms of
   // receiving stream frames.
-  QuicStream* ProcessPendingStream(PendingStream* pending) override {
-    if (pending->is_bidirectional()) {
-      return CreateIncomingStream(pending);
-    }
+  QuicStream* ProcessBidirectionalPendingStream(
+      PendingStream* pending) override {
+    return CreateIncomingStream(pending);
+  }
+  QuicStream* ProcessReadUnidirectionalPendingStream(
+      PendingStream* pending) override {
     struct iovec iov;
     if (pending->sequencer()->GetReadableRegion(&iov)) {
       // Create TestStream once the first byte is received.

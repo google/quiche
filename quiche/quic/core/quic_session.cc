@@ -2731,5 +2731,32 @@ void QuicSession::OnServerPreferredAddressAvailable(
   }
 }
 
+QuicStream* QuicSession::ProcessPendingStream(PendingStream* pending) {
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(connection()->connected());
+  QuicStreamId stream_id = pending->id();
+  QUIC_BUG_IF(bad pending stream, !IsIncomingStream(stream_id))
+      << "Pending stream " << stream_id << " is not an incoming stream.";
+  // TODO(b/305051334) check if this stream is incoming stream before making it
+  // pending. If not, connection should be closed.
+  StreamType stream_type = QuicUtils::GetStreamType(
+      stream_id, perspective(), /*peer_initiated=*/true, version());
+  switch (stream_type) {
+    case BIDIRECTIONAL: {
+      return ProcessBidirectionalPendingStream(pending);
+    }
+    case READ_UNIDIRECTIONAL: {
+      return ProcessReadUnidirectionalPendingStream(pending);
+    }
+    case WRITE_UNIDIRECTIONAL:
+      ABSL_FALLTHROUGH_INTENDED;
+    case CRYPTO:
+      QUICHE_BUG(unexpected pending stream)
+          << "Unexpected pending stream " << stream_id << " with type "
+          << stream_type;
+      return nullptr;
+  }
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic
