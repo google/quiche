@@ -243,7 +243,8 @@ void HttpHeaderBlock::clear() {
   storage_.Clear();
 }
 
-void HttpHeaderBlock::insert(const HttpHeaderBlock::value_type& value) {
+HttpHeaderBlock::InsertResult HttpHeaderBlock::insert(
+    const HttpHeaderBlock::value_type& value) {
   // TODO(birenroy): Write new value in place of old value, if it fits.
   value_size_ += value.second.size();
 
@@ -252,12 +253,14 @@ void HttpHeaderBlock::insert(const HttpHeaderBlock::value_type& value) {
     QUICHE_DVLOG(1) << "Inserting: (" << value.first << ", " << value.second
                     << ")";
     AppendHeader(value.first, value.second);
+    return InsertResult::kInserted;
   } else {
     QUICHE_DVLOG(1) << "Updating key: " << iter->first
                     << " with value: " << value.second;
     value_size_ -= iter->second.SizeEstimate();
     iter->second =
         HeaderValue(&storage_, iter->first, storage_.Write(value.second));
+    return InsertResult::kReplaced;
   }
 }
 

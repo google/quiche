@@ -296,5 +296,13 @@ TEST(HttpHeaderBlockTest, OrderPreserved) {
                                  Pair(":path", "/")));
 }
 
+TEST(HttpHeaderBlockTest, InsertReturnValue) {
+  HttpHeaderBlock block;
+  EXPECT_EQ(HttpHeaderBlock::InsertResult::kInserted,
+            block.insert({"foo", "bar"}));
+  EXPECT_EQ(HttpHeaderBlock::InsertResult::kReplaced,
+            block.insert({"foo", "baz"}));
+}
+
 }  // namespace test
 }  // namespace quiche
