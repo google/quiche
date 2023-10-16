@@ -356,10 +356,10 @@ class QUICHE_EXPORT QuicSpdyStream
 
   void OnWriteSideInDataRecvdState() override;
 
-  virtual bool ValidatedReceivedHeaders(const QuicHeaderList& header_list);
+  virtual bool ValidateReceivedHeaders(const QuicHeaderList& header_list);
   // TODO(b/202433856) Merge AreHeaderFieldValueValid into
-  // ValidatedReceivedHeaders once all flags guarding the behavior of
-  // ValidatedReceivedHeaders has been rolled out.
+  // ValidateReceivedHeaders once all flags guarding the behavior of
+  // ValidateReceivedHeaders has been rolled out.
   virtual bool AreHeaderFieldValuesValid(
       const QuicHeaderList& header_list) const;
 

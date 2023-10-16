@@ -78,7 +78,7 @@ class QUICHE_EXPORT QuicSpdyClientStream : public QuicSpdyStream {
   using QuicSpdyStream::SetPriority;
 
  protected:
-  bool ValidatedReceivedHeaders(const QuicHeaderList& header_list) override;
+  bool ValidateReceivedHeaders(const QuicHeaderList& header_list) override;
 
   // Called by OnInitialHeadersComplete to set response_header_. Returns false
   // on error.

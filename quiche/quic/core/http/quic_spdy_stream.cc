@@ -611,7 +611,7 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   }
   // Validate request headers if it did not exceed size limit. If it did,
   // OnHeadersTooLarge() should have already handled it previously.
-  if (!header_too_large && !ValidatedReceivedHeaders(header_list)) {
+  if (!header_too_large && !ValidateReceivedHeaders(header_list)) {
     QUIC_CODE_COUNT_N(quic_validate_request_header, 1, 2);
     QUICHE_DCHECK(!invalid_request_details().empty())
         << "ValidatedRequestHeaders() returns false without populating "
@@ -1659,7 +1659,7 @@ constexpr bool isInvalidHeaderNameCharacter(unsigned char c) {
 }
 }  // namespace
 
-bool QuicSpdyStream::ValidatedReceivedHeaders(
+bool QuicSpdyStream::ValidateReceivedHeaders(
     const QuicHeaderList& header_list) {
   bool force_fail_validation = false;
   AdjustTestValue("quic::QuicSpdyStream::request_header_validation_adjust",

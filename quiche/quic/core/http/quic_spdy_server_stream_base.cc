@@ -49,9 +49,9 @@ void QuicSpdyServerStreamBase::StopReading() {
   QuicSpdyStream::StopReading();
 }
 
-bool QuicSpdyServerStreamBase::ValidatedReceivedHeaders(
+bool QuicSpdyServerStreamBase::ValidateReceivedHeaders(
     const QuicHeaderList& header_list) {
-  if (!QuicSpdyStream::ValidatedReceivedHeaders(header_list)) {
+  if (!QuicSpdyStream::ValidateReceivedHeaders(header_list)) {
     return false;
   }
 

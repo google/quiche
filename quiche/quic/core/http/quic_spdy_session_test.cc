@@ -257,8 +257,7 @@ class TestStream : public QuicSpdyStream {
   MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
 
  protected:
-  bool ValidatedReceivedHeaders(
-      const QuicHeaderList& /*header_list*/) override {
+  bool ValidateReceivedHeaders(const QuicHeaderList& /*header_list*/) override {
     return true;
   }
 };
