@@ -25,6 +25,8 @@ class QUICHE_EXPORT QuicStreamIdManager {
    public:
     virtual ~DelegateInterface() = default;
 
+    // Returns true if a MAX_STREAMS frame can be sent.
+    virtual bool CanSendMaxStreams() = 0;
     // Send a MAX_STREAMS frame.
     virtual void SendMaxStreams(QuicStreamCount stream_count,
                                 bool unidirectional) = 0;
@@ -122,13 +124,13 @@ class QUICHE_EXPORT QuicStreamIdManager {
     return outgoing_stream_count_;
   }
 
- private:
-  friend class test::QuicSessionPeer;
-  friend class test::QuicStreamIdManagerPeer;
-
   // Check whether the MAX_STREAMS window has opened up enough and, if so,
   // generate and send a MAX_STREAMS frame.
   void MaybeSendMaxStreamsFrame();
+
+ private:
+  friend class test::QuicSessionPeer;
+  friend class test::QuicStreamIdManagerPeer;
 
   // Get what should be the first incoming/outgoing stream ID that
   // this stream id manager will manage, taking into account directionality and
@@ -187,6 +189,7 @@ class QUICHE_EXPORT QuicStreamIdManager {
   // If true, then the stream limit will never be increased.
   bool stop_increasing_incoming_max_streams_;
 };
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_STREAM_ID_MANAGER_H_

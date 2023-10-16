@@ -109,7 +109,9 @@ QuicSession::QuicSession(
       supported_versions_(supported_versions),
       is_configured_(false),
       was_zero_rtt_rejected_(false),
-      liveness_testing_in_progress_(false) {
+      liveness_testing_in_progress_(false),
+      limit_sending_max_streams_(
+          GetQuicReloadableFlag(quic_limit_sending_max_streams)) {
   closed_streams_clean_up_alarm_ =
       absl::WrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -976,6 +978,14 @@ void QuicSession::OnStreamError(QuicErrorCode error_code,
   connection_->CloseConnection(
       error_code, ietf_error, error_details,
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+}
+
+bool QuicSession::CanSendMaxStreams() {
+  if (!limit_sending_max_streams_) {
+    return true;
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams, 1, 2);
+  return control_frame_manager_.NumBufferedMaxStreams() < 2;
 }
 
 void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
@@ -2273,7 +2283,16 @@ bool QuicSession::OnFrameAcked(const QuicFrame& frame,
                                                         ack_delay_time);
   }
   if (frame.type != STREAM_FRAME) {
-    return control_frame_manager_.OnControlFrameAcked(frame);
+    bool acked = control_frame_manager_.OnControlFrameAcked(frame);
+    if (limit_sending_max_streams_ && acked &&
+        frame.type == MAX_STREAMS_FRAME) {
+      // Since there is a 2 frame limit on the number of outstanding max_streams
+      // frames, when an outstanding max_streams frame is ack'd that frees up
+      // room to potntially send another.
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams, 2, 2);
+      ietf_streamid_manager_.MaybeSendMaxStreamsFrame();
+    }
+    return acked;
   }
   bool new_stream_data_acked = false;
   QuicStream* stream = GetStream(frame.stream_frame.stream_id);

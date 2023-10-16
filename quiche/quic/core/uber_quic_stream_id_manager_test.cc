@@ -46,6 +46,7 @@ std::vector<TestParams> GetTestParams() {
 
 class MockDelegate : public QuicStreamIdManager::DelegateInterface {
  public:
+  MOCK_METHOD(bool, CanSendMaxStreams, (), (override));
   MOCK_METHOD(void, SendMaxStreams,
               (QuicStreamCount stream_count, bool unidirectional), (override));
 };

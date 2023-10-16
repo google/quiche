@@ -135,6 +135,9 @@ class QUICHE_EXPORT QuicControlFrameManager {
   // sent.
   bool WillingToWrite() const;
 
+  // Returns the number of buffered MAX_STREAM frames.
+  size_t NumBufferedMaxStreams() const;
+
  private:
   friend class test::QuicControlFrameManagerPeer;
 
@@ -185,6 +188,9 @@ class QUICHE_EXPORT QuicControlFrameManager {
 
   // Last sent window update frame for each stream.
   absl::flat_hash_map<QuicStreamId, QuicControlFrameId> window_update_frames_;
+
+  // Number of MAX_STREAM frames which are currently buffered.
+  size_t num_buffered_max_stream_frames_;
 };
 
 }  // namespace quic

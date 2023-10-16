@@ -26,6 +26,7 @@ class MockDelegate : public QuicStreamIdManager::DelegateInterface {
  public:
   MOCK_METHOD(void, SendMaxStreams,
               (QuicStreamCount stream_count, bool unidirectional), (override));
+  MOCK_METHOD(bool, CanSendMaxStreams, (), (override));
 };
 
 struct TestParams {
@@ -251,6 +252,7 @@ TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrame) {
   // MAX_STREAMS sent earler.
   frame.stream_count = advertised_stream_count;
 
+  EXPECT_CALL(delegate_, CanSendMaxStreams()).WillOnce(testing::Return(true));
   EXPECT_CALL(delegate_,
               SendMaxStreams(stream_id_manager_.incoming_actual_max_streams(),
                              IsUnidirectional()));
@@ -258,6 +260,51 @@ TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrame) {
   EXPECT_TRUE(stream_id_manager_.OnStreamsBlockedFrame(frame, &error_details));
   // Check that the saved frame is correct.
   EXPECT_EQ(stream_id_manager_.incoming_actual_max_streams(),
+            stream_id_manager_.incoming_advertised_max_streams());
+}
+
+TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrameCantSend) {
+  // Get the current maximum allowed incoming stream count.
+  QuicStreamCount advertised_stream_count =
+      stream_id_manager_.incoming_advertised_max_streams();
+
+  QuicStreamsBlockedFrame frame;
+
+  frame.unidirectional = IsUnidirectional();
+
+  // First, need to bump up the actual max so there is room for the MAX
+  // STREAMS frame to send a larger ID.
+  QuicStreamCount actual_stream_count =
+      stream_id_manager_.incoming_actual_max_streams();
+
+  // Closing a stream will result in the ability to initiate one more
+  // stream
+  stream_id_manager_.OnStreamClosed(
+      QuicStreamIdManagerPeer::GetFirstIncomingStreamId(&stream_id_manager_));
+  EXPECT_EQ(actual_stream_count + 1u,
+            stream_id_manager_.incoming_actual_max_streams());
+  EXPECT_EQ(stream_id_manager_.incoming_actual_max_streams(),
+            stream_id_manager_.incoming_advertised_max_streams() + 1u);
+
+  // Now simulate receiving a STREAMS_BLOCKED frame...
+  // Changing the actual maximum, above, forces a MAX_STREAMS frame to be
+  // sent, so the logic for that (SendMaxStreamsFrame(), etc) is tested.
+
+  // The STREAMS_BLOCKED frame contains the previous advertised count,
+  // not the one that the peer would have received as a result of the
+  // MAX_STREAMS sent earler.
+  frame.stream_count = advertised_stream_count;
+
+  // Since the delegate returns false, no MAX_STREAMS frame should be sent,
+  // and the advertised limit should not increse.
+  EXPECT_CALL(delegate_, CanSendMaxStreams()).WillOnce(testing::Return(false));
+  EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
+
+  const QuicStreamCount advertised_max_streams =
+      stream_id_manager_.incoming_advertised_max_streams();
+  std::string error_details;
+  EXPECT_TRUE(stream_id_manager_.OnStreamsBlockedFrame(frame, &error_details));
+  EXPECT_EQ(advertised_max_streams,
             stream_id_manager_.incoming_advertised_max_streams());
 }
 
@@ -323,6 +370,7 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
 
   // Should not get a control-frame transmission since the peer should have
   // "plenty" of stream IDs to use.
+  EXPECT_CALL(delegate_, CanSendMaxStreams()).Times(0);
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
 
   // Get the first incoming stream ID to try and allocate.
@@ -371,15 +419,83 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
   //  EXPECT_CALL(delegate_,
   //  SendMaxStreams(stream_id_manager_.incoming_actual_max_streams(),
   //  IsUnidirectional()));
+  EXPECT_CALL(delegate_, CanSendMaxStreams()).WillOnce(testing::Return(true));
   EXPECT_CALL(delegate_, SendMaxStreams(_, IsUnidirectional()));
   EXPECT_TRUE(
       stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id, nullptr));
   stream_id_manager_.OnStreamClosed(stream_id);
 }
 
+TEST_P(QuicStreamIdManagerTest, MaxStreamsWindowCantSend) {
+  // Open and then close a number of streams to get close to the threshold of
+  // sending a MAX_STREAM_FRAME.
+  int stream_count = stream_id_manager_.incoming_initial_max_open_streams() /
+                         GetQuicFlag(quic_max_streams_window_divisor) -
+                     1;
+
+  // Should not get a control-frame transmission since the peer should have
+  // "plenty" of stream IDs to use.
+  EXPECT_CALL(delegate_, CanSendMaxStreams()).Times(0);
+  EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
+
+  // Get the first incoming stream ID to try and allocate.
+  QuicStreamId stream_id = GetNthIncomingStreamId(0);
+  size_t old_available_incoming_streams =
+      stream_id_manager_.available_incoming_streams();
+  auto i = stream_count;
+  while (i) {
+    EXPECT_TRUE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id,
+                                                                    nullptr));
+
+    // This node should think that the peer believes it has one fewer
+    // stream it can create.
+    old_available_incoming_streams--;
+    EXPECT_EQ(old_available_incoming_streams,
+              stream_id_manager_.available_incoming_streams());
+
+    i--;
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
+  }
+
+  // Now close them, still should get no MAX_STREAMS
+  stream_id = GetNthIncomingStreamId(0);
+  QuicStreamCount expected_actual_max =
+      stream_id_manager_.incoming_actual_max_streams();
+  QuicStreamCount expected_advertised_max_streams =
+      stream_id_manager_.incoming_advertised_max_streams();
+  while (stream_count) {
+    stream_id_manager_.OnStreamClosed(stream_id);
+    stream_count--;
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
+    expected_actual_max++;
+    EXPECT_EQ(expected_actual_max,
+              stream_id_manager_.incoming_actual_max_streams());
+    // Advertised maximum should remain the same.
+    EXPECT_EQ(expected_advertised_max_streams,
+              stream_id_manager_.incoming_advertised_max_streams());
+  }
+
+  // This should not change.
+  EXPECT_EQ(old_available_incoming_streams,
+            stream_id_manager_.available_incoming_streams());
+
+  // Now whenever we close a stream we should get a MAX_STREAMS frame,
+  // but since the delegate returns false, no MAX_STREAMS frame should
+  // be send and the advertised limit will not change.
+  // Above code closed all the open streams, so we have to open/close
+  EXPECT_CALL(delegate_, CanSendMaxStreams()).WillOnce(testing::Return(false));
+  EXPECT_CALL(delegate_, SendMaxStreams(_, IsUnidirectional())).Times(0);
+  EXPECT_TRUE(
+      stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id, nullptr));
+  stream_id_manager_.OnStreamClosed(stream_id);
+  // Advertised maximum should remain the same.
+  EXPECT_EQ(expected_advertised_max_streams,
+            stream_id_manager_.incoming_advertised_max_streams());
+}
+
 TEST_P(QuicStreamIdManagerTest, MaxStreamsWindowStopsIncreasing) {
   // Verify that the incoming stream limit does not increase after
-  // StopIncreasingIncomingMaxStreams() is called, even when streams ar closed.
+  // StopIncreasingIncomingMaxStreams() is called, even when streams are closed.
 
   QuicStreamId stream_count =
       stream_id_manager_.incoming_initial_max_open_streams();
@@ -396,6 +512,7 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsWindowStopsIncreasing) {
   stream_id_manager_.StopIncreasingIncomingMaxStreams();
 
   // Since the limit does not increase, a MAX_STREAMS frame will not be sent.
+  EXPECT_CALL(delegate_, CanSendMaxStreams()).Times(0);
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
 
   // Now close them.
@@ -421,6 +538,7 @@ TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
 
   // Check that receipt of a STREAMS BLOCKED with stream-count = 0 does nothing
   // when max_allowed_incoming_streams is 0.
+  EXPECT_CALL(delegate_, CanSendMaxStreams()).Times(0);
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
   stream_id_manager_.SetMaxOpenIncomingStreams(0);
   frame.stream_count = 0;
@@ -429,6 +547,7 @@ TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
 
   // Check that receipt of a STREAMS BLOCKED with stream-count = 0 invokes a
   // MAX STREAMS, count = 123, when the MaxOpen... is set to 123.
+  EXPECT_CALL(delegate_, CanSendMaxStreams()).WillOnce(testing::Return(true));
   EXPECT_CALL(delegate_, SendMaxStreams(123u, IsUnidirectional()));
   QuicStreamIdManagerPeer::set_incoming_actual_max_streams(&stream_id_manager_,
                                                            123);
@@ -452,6 +571,7 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsSlidingWindow) {
                        GetQuicFlag(quic_max_streams_window_divisor));
   QuicStreamId id =
       QuicStreamIdManagerPeer::GetFirstIncomingStreamId(&stream_id_manager_);
+  EXPECT_CALL(delegate_, CanSendMaxStreams()).WillOnce(testing::Return(true));
   EXPECT_CALL(delegate_, SendMaxStreams(first_advert + i, IsUnidirectional()));
   while (i) {
     EXPECT_TRUE(

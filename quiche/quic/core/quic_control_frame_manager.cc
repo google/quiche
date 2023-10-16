@@ -33,7 +33,8 @@ QuicControlFrameManager::QuicControlFrameManager(QuicSession* session)
     : last_control_frame_id_(kInvalidControlFrameId),
       least_unacked_(1),
       least_unsent_(1),
-      delegate_(session) {}
+      delegate_(session),
+      num_buffered_max_stream_frames_(0) {}
 
 QuicControlFrameManager::~QuicControlFrameManager() {
   while (!control_frames_.empty()) {
@@ -103,6 +104,7 @@ void QuicControlFrameManager::WriteOrBufferMaxStreams(QuicStreamCount count,
   QUIC_CODE_COUNT(quic_max_streams_transmits);
   WriteOrBufferQuicFrame(QuicFrame(
       QuicMaxStreamsFrame(++last_control_frame_id_, count, unidirectional)));
+  ++num_buffered_max_stream_frames_;
 }
 
 void QuicControlFrameManager::WriteOrBufferStopSending(
@@ -198,6 +200,13 @@ bool QuicControlFrameManager::OnControlFrameAcked(const QuicFrame& frame) {
       window_update_frames_.erase(stream_id);
     }
   }
+  if (frame.type == MAX_STREAMS_FRAME) {
+    if (num_buffered_max_stream_frames_ == 0) {
+      QUIC_BUG(invalid_num_buffered_max_stream_frames);
+    } else {
+      --num_buffered_max_stream_frames_;
+    }
+  }
   return true;
 }
 
@@ -247,6 +256,10 @@ bool QuicControlFrameManager::HasPendingRetransmission() const {
 
 bool QuicControlFrameManager::WillingToWrite() const {
   return HasPendingRetransmission() || HasBufferedFrames();
+}
+
+size_t QuicControlFrameManager::NumBufferedMaxStreams() const {
+  return num_buffered_max_stream_frames_;
 }
 
 QuicFrame QuicControlFrameManager::NextPendingRetransmission() const {

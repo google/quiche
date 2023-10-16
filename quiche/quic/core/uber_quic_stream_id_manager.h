@@ -71,6 +71,10 @@ class QUICHE_EXPORT UberQuicStreamIdManager {
   // Once called, the incoming max streams limit will never be increased.
   void StopIncreasingIncomingMaxStreams();
 
+  // Check whether the MAX_STREAMS window has opened up enough and, if so,
+  // generate and send a MAX_STREAMS frame.
+  void MaybeSendMaxStreamsFrame();
+
   QuicStreamCount GetMaxAllowdIncomingBidirectionalStreams() const;
 
   QuicStreamCount GetMaxAllowdIncomingUnidirectionalStreams() const;

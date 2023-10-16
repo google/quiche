@@ -521,6 +521,31 @@ TEST_F(QuicControlFrameManagerTest, TooManyBufferedControlFrames) {
       0);
 }
 
+TEST_F(QuicControlFrameManagerTest, NumBufferedMaxStreams) {
+  std::vector<QuicMaxStreamsFrame> max_streams_frames;
+  size_t expected_buffered_frames = 0;
+  for (int i = 0; i < 5; ++i) {
+    // Save the frame so it can be ACK'd later.
+    EXPECT_CALL(*session_, WriteControlFrame(_, _))
+        .WillOnce(Invoke([&max_streams_frames](const QuicFrame& frame,
+                                               TransmissionType /*type*/) {
+          max_streams_frames.push_back(frame.max_streams_frame);
+          ClearControlFrame(frame);
+          return true;
+        }));
+
+    // The contents of the frame don't matter for this test.
+    manager_->WriteOrBufferMaxStreams(0, false);
+    EXPECT_EQ(++expected_buffered_frames, manager_->NumBufferedMaxStreams());
+  }
+
+  for (const QuicMaxStreamsFrame& frame : max_streams_frames) {
+    manager_->OnControlFrameAcked(QuicFrame(frame));
+    EXPECT_EQ(--expected_buffered_frames, manager_->NumBufferedMaxStreams());
+  }
+  EXPECT_EQ(0, manager_->NumBufferedMaxStreams());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

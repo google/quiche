@@ -210,8 +210,11 @@ class QUICHE_EXPORT QuicSession
   bool HasUnackedCryptoData() const override;
   bool HasUnackedStreamData() const override;
 
+  // QuicStreamIdManager::DelegateInterface
+  bool CanSendMaxStreams() override;
   void SendMaxStreams(QuicStreamCount stream_count,
                       bool unidirectional) override;
+
   // The default implementation does nothing. Subclasses should override if
   // for example they queue up stream requests.
   virtual void OnCanCreateNewOutgoingStream(bool /*unidirectional*/) {}
@@ -1053,6 +1056,10 @@ class QUICHE_EXPORT QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
+
+  // If true, then do not send MAX_STREAM frames if there are already two
+  // outstanding. Latched value of flag quic_limit_sending_max_streams.
+  bool limit_sending_max_streams_;
 };
 
 }  // namespace quic

@@ -73,6 +73,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_enable_disable_resumption, true)
 QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
 // If true, dispatcher sends error code QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG when handshake fails due to packets buffered for too long.
 QUIC_FLAG(quic_reloadable_flag_quic_new_error_code_when_packets_buffered_too_long, true)
+// If true, do not send MAX_STREAM frames if there are already 2 outstanding.
+QUIC_FLAG(quic_reloadable_flag_quic_limit_sending_max_streams, false)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, flush ACK frame in QuicConnection::MaybeBundleOpportunistically.

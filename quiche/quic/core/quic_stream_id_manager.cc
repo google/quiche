@@ -58,7 +58,8 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
     // We have told peer about current max.
     return true;
   }
-  if (frame.stream_count < incoming_actual_max_streams_) {
+  if (frame.stream_count < incoming_actual_max_streams_ &&
+      delegate_->CanSendMaxStreams()) {
     // Peer thinks it's blocked on a stream count that is less than our current
     // max. Inform the peer of the correct stream count.
     SendMaxStreamsFrame();
@@ -106,7 +107,10 @@ void QuicStreamIdManager::MaybeSendMaxStreamsFrame() {
       return;
     }
   }
-  SendMaxStreamsFrame();
+  if (delegate_->CanSendMaxStreams() &&
+      incoming_advertised_max_streams_ < incoming_actual_max_streams_) {
+    SendMaxStreamsFrame();
+  }
 }
 
 void QuicStreamIdManager::SendMaxStreamsFrame() {
