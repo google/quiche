@@ -26,6 +26,9 @@ struct QUICHE_EXPORT QuicBlockedFrame
   friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                                 const QuicBlockedFrame& b);
 
+  bool operator==(const QuicBlockedFrame& rhs) const;
+  bool operator!=(const QuicBlockedFrame& rhs) const;
+
   QuicFrameType type;
 
   // A unique identifier of this control frame. 0 when this frame is received,

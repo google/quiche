@@ -25,6 +25,9 @@ struct QUICHE_EXPORT QuicRstStreamFrame {
   friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                                 const QuicRstStreamFrame& r);
 
+  bool operator==(const QuicRstStreamFrame& rhs) const;
+  bool operator!=(const QuicRstStreamFrame& rhs) const;
+
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.
   QuicControlFrameId control_frame_id = kInvalidControlFrameId;

@@ -34,4 +34,14 @@ std::ostream& operator<<(std::ostream& os, const QuicStopSendingFrame& frame) {
   return os;
 }
 
+bool QuicStopSendingFrame::operator==(const QuicStopSendingFrame& rhs) const {
+  return control_frame_id == rhs.control_frame_id &&
+         stream_id == rhs.stream_id && error_code == rhs.error_code &&
+         ietf_error_code == rhs.ietf_error_code;
+}
+
+bool QuicStopSendingFrame::operator!=(const QuicStopSendingFrame& rhs) const {
+  return !(*this == rhs);
+}
+
 }  // namespace quic

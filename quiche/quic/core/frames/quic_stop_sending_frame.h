@@ -26,6 +26,9 @@ struct QUICHE_EXPORT QuicStopSendingFrame
   friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const QuicStopSendingFrame& frame);
 
+  bool operator==(const QuicStopSendingFrame& rhs) const;
+  bool operator!=(const QuicStopSendingFrame& rhs) const;
+
   QuicFrameType type;
 
   // A unique identifier of this control frame. 0 when this frame is received,

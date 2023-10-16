@@ -38,4 +38,14 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+bool QuicRstStreamFrame::operator==(const QuicRstStreamFrame& rhs) const {
+  return control_frame_id == rhs.control_frame_id &&
+         stream_id == rhs.stream_id && byte_offset == rhs.byte_offset &&
+         error_code == rhs.error_code && ietf_error_code == rhs.ietf_error_code;
+}
+
+bool QuicRstStreamFrame::operator!=(const QuicRstStreamFrame& rhs) const {
+  return !(*this == rhs);
+}
+
 }  // namespace quic

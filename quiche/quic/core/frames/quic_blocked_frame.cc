@@ -26,4 +26,13 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+bool QuicBlockedFrame::operator==(const QuicBlockedFrame& rhs) const {
+  return control_frame_id == rhs.control_frame_id &&
+         stream_id == rhs.stream_id && offset == rhs.offset;
+}
+
+bool QuicBlockedFrame::operator!=(const QuicBlockedFrame& rhs) const {
+  return !(*this == rhs);
+}
+
 }  // namespace quic

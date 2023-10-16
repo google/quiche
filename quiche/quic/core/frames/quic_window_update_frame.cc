@@ -27,4 +27,13 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+bool QuicWindowUpdateFrame::operator==(const QuicWindowUpdateFrame& rhs) const {
+  return control_frame_id == rhs.control_frame_id &&
+         stream_id == rhs.stream_id && max_data == rhs.max_data;
+}
+
+bool QuicWindowUpdateFrame::operator!=(const QuicWindowUpdateFrame& rhs) const {
+  return !(*this == rhs);
+}
+
 }  // namespace quic

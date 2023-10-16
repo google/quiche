@@ -25,6 +25,9 @@ struct QUICHE_EXPORT QuicWindowUpdateFrame
   friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                                 const QuicWindowUpdateFrame& w);
 
+  bool operator==(const QuicWindowUpdateFrame& rhs) const;
+  bool operator!=(const QuicWindowUpdateFrame& rhs) const;
+
   QuicFrameType type;
 
   // A unique identifier of this control frame. 0 when this frame is received,

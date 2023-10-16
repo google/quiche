@@ -26,4 +26,15 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+bool QuicGoAwayFrame::operator==(const QuicGoAwayFrame& rhs) const {
+  return control_frame_id == rhs.control_frame_id &&
+         error_code == rhs.error_code &&
+         last_good_stream_id == rhs.last_good_stream_id &&
+         reason_phrase == rhs.reason_phrase;
+}
+
+bool QuicGoAwayFrame::operator!=(const QuicGoAwayFrame& rhs) const {
+  return !(*this == rhs);
+}
+
 }  // namespace quic
