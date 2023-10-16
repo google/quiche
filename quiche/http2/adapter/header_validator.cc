@@ -330,14 +330,14 @@ bool HeaderValidator::ValidateRequestHeaders(
       // protocol and scheme pseudo-headers. The tags corresponding to status
       // and unknown_extra should not be set.
       static const auto* kExtendedConnectHeaders =
-          new PseudoHeaderTagSet("0011111");
+          new PseudoHeaderTagSet(0b0011111);
       if (pseudo_headers == *kExtendedConnectHeaders) {
         return true;
       }
     }
     // See RFC 7540 Section 8.3. Regular CONNECT should have authority and
     // method, but no other pseudo headers.
-    static const auto* kConnectHeaders = new PseudoHeaderTagSet("0000011");
+    static const auto* kConnectHeaders = new PseudoHeaderTagSet(0b0000011);
     return pseudo_header_state[STATE_AUTHORITY_IS_NONEMPTY] &&
            pseudo_headers == *kConnectHeaders;
   }
@@ -354,7 +354,7 @@ bool HeaderValidator::ValidateRequestHeaders(
   }
 
   // Regular HTTP requests require authority, method, path and scheme.
-  static const auto* kRequiredHeaders = new PseudoHeaderTagSet("0010111");
+  static const auto* kRequiredHeaders = new PseudoHeaderTagSet(0b0010111);
   return pseudo_headers == *kRequiredHeaders;
 }
 
@@ -366,7 +366,7 @@ bool HeaderValidator::ValidateRequestTrailers(
 bool HeaderValidator::ValidateResponseHeaders(
     const PseudoHeaderTagSet& pseudo_headers) {
   // HTTP responses require only the status pseudo header.
-  static const auto* kRequiredHeaders = new PseudoHeaderTagSet("0100000");
+  static const auto* kRequiredHeaders = new PseudoHeaderTagSet(0b0100000);
   return pseudo_headers == *kRequiredHeaders;
 }
 
