@@ -83,7 +83,7 @@ bool ValidateAuthority(
 
   QUICHE_DVLOG(1) << "CONNECT request authority: "
                   << authority.ToHostPortString()
-                  << " is not an acceptable allow-listed destiation ";
+                  << " is not an acceptable allow-listed destination ";
   return false;
 }
 
