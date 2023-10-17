@@ -2559,7 +2559,7 @@ TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
   // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream->headers_decompressed());
 
-  // |session_| gets destoyed.  That destroys QpackDecoder, a member of
+  // |session_| gets destroyed.  That destroys QpackDecoder, a member of
   // QuicSpdySession (derived class), which destroys QpackDecoderHeaderTable.
   // Then |*stream|, owned by QuicSession (base class) get destroyed, which
   // destroys QpackProgessiveDecoder, a registered Observer of
