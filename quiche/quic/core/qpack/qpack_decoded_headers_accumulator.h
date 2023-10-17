@@ -93,7 +93,7 @@ class QUICHE_EXPORT QpackDecodedHeadersAccumulator
 
   // The following two members are only used for QUICHE_DCHECKs.
 
-  // True if headers have been completedly and successfully decoded.
+  // True if headers have been completely and successfully decoded.
   bool headers_decoded_;
   // True if an error has been detected during decoding.
   bool error_detected_;
