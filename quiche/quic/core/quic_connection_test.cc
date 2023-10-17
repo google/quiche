@@ -13310,7 +13310,7 @@ TEST_P(QuicConnectionTest, TooManyMultiPortPathCreations) {
     EXPECT_EQ(i + 2, stats->num_multi_port_probe_failures_when_path_degrading);
   }
 
-  // The 6th attemp should fail.
+  // The 6th attempt should fail.
   QuicNewConnectionIdFrame frame2;
   frame2.connection_id = TestConnectionId(1239);
   ASSERT_NE(frame2.connection_id, connection_.connection_id());
