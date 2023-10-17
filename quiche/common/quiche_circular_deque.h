@@ -33,7 +33,7 @@ namespace quiche {
 //    end of the buffer and the second part occupies the beginning of the
 //    buffer.
 //
-// Currently, elements can only be pushed or poped from either ends, it can't be
+// Currently, elements can only be pushed or popped from either ends, it can't be
 // inserted or erased in the middle.
 //
 // TODO(wub): Make memory grow/shrink strategies customizable.
