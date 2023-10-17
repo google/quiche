@@ -190,7 +190,7 @@ class QUICHE_EXPORT CryptoUtils {
 
   // Validates that |client_hello| is actually a CHLO and that this is not part
   // of a downgrade attack.
-  // This includes verifiying versions and detecting downgrade attacks.
+  // This includes verifying versions and detecting downgrade attacks.
   //
   // Returns QUIC_NO_ERROR if this is the case or returns the appropriate error
   // code and sets |error_details|.
