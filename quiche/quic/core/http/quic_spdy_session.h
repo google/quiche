@@ -462,6 +462,12 @@ class QUICHE_EXPORT QuicSpdySession
 
   QuicSpdyStream* GetOrCreateSpdyDataStream(const QuicStreamId stream_id);
 
+  // Returns a pointer to the incoming QPACK encoder stream (the one that
+  // belongs to the local decoding context). Might return nullptr.
+  QpackReceiveStream* GetQpackEncoderReceiveStream() const {
+    return qpack_encoder_receive_stream_;
+  }
+
   void OnConfigNegotiated() override;
 
  protected:
