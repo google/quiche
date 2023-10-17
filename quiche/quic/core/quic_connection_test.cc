@@ -16292,7 +16292,7 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress) {
   QuicFrames frames;
   frames.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
   // Verify send_algorithm gets reset after migration (new sent packet is not
-  // updated to exsting send_algorithm_).
+  // updated to existing send_algorithm_).
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   ProcessFramesPacketWithAddresses(frames, kNewSelfAddress,
                                    kServerPreferredAddress,
