@@ -60,7 +60,7 @@ TEST_F(CopyAndValidateHeaders, NormalUsage) {
                            {"empty-joined", ""},
                            {"empty-joined", ""},
 
-                           // Non-continguous cookie crumb.
+                           // Non-contiguous cookie crumb.
                            {"cookie", " fin!"}});
 
   int64_t content_length = -1;
