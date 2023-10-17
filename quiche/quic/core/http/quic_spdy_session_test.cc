@@ -1274,7 +1274,7 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
 
 // Test that server session will send a connectivity probe in response to a
 // connectivity probe on the same path.
-TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
+TEST_P(QuicSpdySessionTestServer, ServerReplyToConnectivityProbe) {
   if (VersionHasIetfQuicFrames(transport_version()) ||
       GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
     return;
