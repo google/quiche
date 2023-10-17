@@ -328,7 +328,7 @@ TEST_F(QuicStreamSequencerBufferTest, Readv100Bytes) {
 
 TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossBlocks) {
   std::string source(kBlockSizeBytes + 50, 'a');
-  // Write 1st block to full and extand 50 bytes to next block.
+  // Write 1st block to full and extend 50 bytes to next block.
   buffer_->OnStreamData(0, source, &written_, &error_details_);
   EXPECT_EQ(source.size(), helper_->ReadableBytes());
   // Iteratively read 512 bytes from buffer_-> Overwrite dest[] each time.

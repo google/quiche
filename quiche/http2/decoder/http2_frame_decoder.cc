@@ -107,7 +107,7 @@ DecodeStatus Http2FrameDecoder::StartDecodingPayload(DecodeBuffer* db) {
 
   // The decode buffer can extend across many frames. Make sure that the
   // buffer we pass to the start method that is specific to the frame type
-  // does not exend beyond this frame.
+  // does not extend beyond this frame.
   DecodeBufferSubset subset(db, header.payload_length);
   DecodeStatus status;
   switch (header.type) {
@@ -179,7 +179,7 @@ DecodeStatus Http2FrameDecoder::StartDecodingPayload(DecodeBuffer* db) {
 DecodeStatus Http2FrameDecoder::ResumeDecodingPayload(DecodeBuffer* db) {
   // The decode buffer can extend across many frames. Make sure that the
   // buffer we pass to the start method that is specific to the frame type
-  // does not exend beyond this frame.
+  // does not extend beyond this frame.
   size_t remaining = frame_decoder_state_.remaining_total_payload();
   QUICHE_DCHECK_LE(remaining, frame_header().payload_length);
   DecodeBufferSubset subset(db, remaining);
