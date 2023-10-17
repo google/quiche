@@ -94,7 +94,7 @@ class DummyProofSource : public ProofSource {
   void ComputeTlsSignature(
       const QuicSocketAddress& /*server_address*/,
       const QuicSocketAddress& /*client_address*/,
-      const std::string& /*hostname*/, uint16_t /*signature_algorit*/,
+      const std::string& /*hostname*/, uint16_t /*signature_algorithm*/,
       absl::string_view /*in*/,
       std::unique_ptr<SignatureCallback> callback) override {
     callback->Run(true, "Dummy signature", /*details=*/nullptr);
