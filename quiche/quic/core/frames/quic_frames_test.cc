@@ -281,7 +281,7 @@ TEST_F(QuicFramesTest, HandshakeDoneFrameToString) {
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 
-TEST_F(QuicFramesTest, QuicAckFreuqncyFrameToString) {
+TEST_F(QuicFramesTest, QuicAckFrequencyFrameToString) {
   QuicAckFrequencyFrame ack_frequency_frame;
   ack_frequency_frame.sequence_number = 1;
   ack_frequency_frame.packet_tolerance = 2;
