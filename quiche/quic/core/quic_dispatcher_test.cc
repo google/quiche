@@ -2798,7 +2798,7 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
     }
   }
 
-  // Graduately consume buffered CHLOs. The buffered connections should be
+  // Gradually consume buffered CHLOs. The buffered connections should be
   // created but the dropped one shouldn't.
   for (uint64_t conn_id = kMaxNumSessionsToCreate + 1;
        conn_id <= kMaxNumSessionsToCreate + kDefaultMaxConnectionsInStore;
