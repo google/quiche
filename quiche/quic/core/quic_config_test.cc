@@ -639,7 +639,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   EXPECT_FALSE(config_.HasReceivedInitialSourceConnectionId());
   EXPECT_FALSE(config_.HasReceivedRetrySourceConnectionId());
 
-  // Let the config process another slightly tweaked transport paramters.
+  // Let the config process another slightly tweaked transport parameters.
   // Note that the values for flow control and stream limit cannot be smaller
   // than before. This rule is enforced in QuicSession::OnConfigNegotiated().
   params.initial_max_stream_data_bidi_local.set_value(
