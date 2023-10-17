@@ -26,7 +26,7 @@ QuicDatagramQueue::QuicDatagramQueue(QuicSession* session,
 
 MessageStatus QuicDatagramQueue::SendOrQueueDatagram(
     quiche::QuicheMemSlice datagram) {
-  // If the queue is non-empty, always queue the daragram.  This ensures that
+  // If the queue is non-empty, always queue the datagram.  This ensures that
   // the datagrams are sent in the same order that they were sent by the
   // application.
   if (queue_.empty()) {
