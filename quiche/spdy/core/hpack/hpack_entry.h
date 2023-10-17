@@ -19,7 +19,7 @@ namespace spdy {
 
 // The constant amount added to name().size() and value().size() to
 // get the size of an HpackEntry as defined in 5.1.
-constexpr size_t kHpackEntrySizeOverhead = 32;
+inline constexpr size_t kHpackEntrySizeOverhead = 32;
 
 // A structure for looking up entries in the static and dynamic tables.
 struct QUICHE_EXPORT HpackLookupEntry {

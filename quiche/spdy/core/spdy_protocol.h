@@ -11,13 +11,13 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <iosfwd>
-#include <limits>
 #include <map>
 #include <memory>
-#include <new>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "absl/types/variant.h"
@@ -37,44 +37,46 @@ using SpdySettingsId = uint16_t;
 
 // Specifies the stream ID used to denote the current session (for
 // flow control).
-const SpdyStreamId kSessionFlowControlStreamId = 0;
+inline constexpr SpdyStreamId kSessionFlowControlStreamId = 0;
 
 // 0 is not a valid stream ID for any other purpose than flow control.
-const SpdyStreamId kInvalidStreamId = 0;
+inline constexpr SpdyStreamId kInvalidStreamId = 0;
 
 // Max stream id.
-const SpdyStreamId kMaxStreamId = 0x7fffffff;
+inline constexpr SpdyStreamId kMaxStreamId = 0x7fffffff;
 
 // The maximum possible frame payload size allowed by the spec.
-const uint32_t kSpdyMaxFrameSizeLimit = (1 << 24) - 1;
+inline constexpr uint32_t kSpdyMaxFrameSizeLimit = (1 << 24) - 1;
 
 // The initial value for the maximum frame payload size as per the spec. This is
 // the maximum control frame size we accept.
-const uint32_t kHttp2DefaultFramePayloadLimit = 1 << 14;
+inline constexpr uint32_t kHttp2DefaultFramePayloadLimit = 1 << 14;
 
 // The maximum size of the control frames that we send, including the size of
 // the header. This limit is arbitrary. We can enforce it here or at the
 // application layer. We chose the framing layer, but this can be changed (or
 // removed) if necessary later down the line.
-const size_t kHttp2MaxControlFrameSendSize = kHttp2DefaultFramePayloadLimit - 1;
+inline constexpr size_t kHttp2MaxControlFrameSendSize =
+    kHttp2DefaultFramePayloadLimit - 1;
 
 // Number of octets in the frame header.
-const size_t kFrameHeaderSize = 9;
+inline constexpr size_t kFrameHeaderSize = 9;
 
 // The initial value for the maximum frame payload size as per the spec. This is
 // the maximum control frame size we accept.
-const uint32_t kHttp2DefaultFrameSizeLimit =
+inline constexpr uint32_t kHttp2DefaultFrameSizeLimit =
     kHttp2DefaultFramePayloadLimit + kFrameHeaderSize;
 
 // The initial value for the maximum size of the header list, "unlimited" (max
 // unsigned 32-bit int) as per the spec.
-const uint32_t kSpdyInitialHeaderListSizeLimit = 0xFFFFFFFF;
+inline constexpr uint32_t kSpdyInitialHeaderListSizeLimit = 0xFFFFFFFF;
 
 // Maximum window size for a Spdy stream or session.
-const int32_t kSpdyMaximumWindowSize = 0x7FFFFFFF;  // Max signed 32bit int
+inline constexpr int32_t kSpdyMaximumWindowSize =
+    0x7FFFFFFF;  // Max signed 32bit int
 
 // Maximum padding size in octets for one DATA or HEADERS or PUSH_PROMISE frame.
-const int32_t kPaddingSizePerFrame = 256;
+inline constexpr int32_t kPaddingSizePerFrame = 256;
 
 // The HTTP/2 connection preface, which must be the first bytes sent by the
 // client upon starting an HTTP/2 connection, and which must be followed by a
@@ -83,7 +85,7 @@ const int32_t kPaddingSizePerFrame = 256;
 // preface is only the first |kHttp2ConnectionHeaderPrefixSize| bytes, which
 // excludes the null terminator.
 QUICHE_EXPORT extern const char* const kHttp2ConnectionHeaderPrefix;
-const int kHttp2ConnectionHeaderPrefixSize = 24;
+inline constexpr int kHttp2ConnectionHeaderPrefixSize = 24;
 
 // Wire values for HTTP2 frame types.
 enum class SpdyFrameType : uint8_t {
@@ -208,17 +210,17 @@ typedef uint8_t SpdyPriority;
 
 // Lowest and Highest here refer to SPDY priorities as described in
 // https://www.chromium.org/spdy/spdy-protocol/spdy-protocol-draft3-1#TOC-2.3.3-Stream-priority
-const SpdyPriority kV3HighestPriority = 0;
-const SpdyPriority kV3LowestPriority = 7;
+inline constexpr SpdyPriority kV3HighestPriority = 0;
+inline constexpr SpdyPriority kV3LowestPriority = 7;
 
 // Returns SPDY 3.x priority value clamped to the valid range of [0, 7].
 QUICHE_EXPORT SpdyPriority ClampSpdy3Priority(SpdyPriority priority);
 
 // HTTP/2 stream weights are integers in range [1, 256], as specified in RFC
 // 7540 section 5.3.2. Default stream weight is defined in section 5.3.5.
-const int kHttp2MinStreamWeight = 1;
-const int kHttp2MaxStreamWeight = 256;
-const int kHttp2DefaultStreamWeight = 16;
+inline constexpr int kHttp2MinStreamWeight = 1;
+inline constexpr int kHttp2MaxStreamWeight = 256;
+inline constexpr int kHttp2DefaultStreamWeight = 16;
 
 // Returns HTTP/2 weight clamped to the valid range of [1, 256].
 QUICHE_EXPORT int ClampHttp2Weight(int weight);
@@ -285,53 +287,54 @@ QUICHE_EXPORT const char* ErrorCodeToString(SpdyErrorCode error_code);
 QUICHE_EXPORT const char* WriteSchedulerTypeToString(WriteSchedulerType type);
 
 // Minimum size of a frame, in octets.
-const size_t kFrameMinimumSize = kFrameHeaderSize;
+inline constexpr size_t kFrameMinimumSize = kFrameHeaderSize;
 
 // Minimum frame size for variable size frame types (includes mandatory fields),
 // frame size for fixed size frames, in octets.
 
-const size_t kDataFrameMinimumSize = kFrameHeaderSize;
-const size_t kHeadersFrameMinimumSize = kFrameHeaderSize;
+inline constexpr size_t kDataFrameMinimumSize = kFrameHeaderSize;
+inline constexpr size_t kHeadersFrameMinimumSize = kFrameHeaderSize;
 // PRIORITY frame has stream_dependency (4 octets) and weight (1 octet) fields.
-const size_t kPriorityFrameSize = kFrameHeaderSize + 5;
+inline constexpr size_t kPriorityFrameSize = kFrameHeaderSize + 5;
 // RST_STREAM frame has error_code (4 octets) field.
-const size_t kRstStreamFrameSize = kFrameHeaderSize + 4;
-const size_t kSettingsFrameMinimumSize = kFrameHeaderSize;
-const size_t kSettingsOneSettingSize =
+inline constexpr size_t kRstStreamFrameSize = kFrameHeaderSize + 4;
+inline constexpr size_t kSettingsFrameMinimumSize = kFrameHeaderSize;
+inline constexpr size_t kSettingsOneSettingSize =
     sizeof(uint32_t) + sizeof(SpdySettingsId);
 // PUSH_PROMISE frame has promised_stream_id (4 octet) field.
-const size_t kPushPromiseFrameMinimumSize = kFrameHeaderSize + 4;
+inline constexpr size_t kPushPromiseFrameMinimumSize = kFrameHeaderSize + 4;
 // PING frame has opaque_bytes (8 octet) field.
-const size_t kPingFrameSize = kFrameHeaderSize + 8;
+inline constexpr size_t kPingFrameSize = kFrameHeaderSize + 8;
 // GOAWAY frame has last_stream_id (4 octet) and error_code (4 octet) fields.
-const size_t kGoawayFrameMinimumSize = kFrameHeaderSize + 8;
+inline constexpr size_t kGoawayFrameMinimumSize = kFrameHeaderSize + 8;
 // WINDOW_UPDATE frame has window_size_increment (4 octet) field.
-const size_t kWindowUpdateFrameSize = kFrameHeaderSize + 4;
-const size_t kContinuationFrameMinimumSize = kFrameHeaderSize;
+inline constexpr size_t kWindowUpdateFrameSize = kFrameHeaderSize + 4;
+inline constexpr size_t kContinuationFrameMinimumSize = kFrameHeaderSize;
 // ALTSVC frame has origin_len (2 octets) field.
-const size_t kGetAltSvcFrameMinimumSize = kFrameHeaderSize + 2;
+inline constexpr size_t kGetAltSvcFrameMinimumSize = kFrameHeaderSize + 2;
 // PRIORITY_UPDATE frame has prioritized_stream_id (4 octets) field.
-const size_t kPriorityUpdateFrameMinimumSize = kFrameHeaderSize + 4;
+inline constexpr size_t kPriorityUpdateFrameMinimumSize = kFrameHeaderSize + 4;
 // ACCEPT_CH frame may have empty payload.
-const size_t kAcceptChFrameMinimumSize = kFrameHeaderSize;
+inline constexpr size_t kAcceptChFrameMinimumSize = kFrameHeaderSize;
 // Each ACCEPT_CH frame entry has a 16-bit origin length and a 16-bit value
 // length.
-const size_t kAcceptChFramePerEntryOverhead = 4;
+inline constexpr size_t kAcceptChFramePerEntryOverhead = 4;
 
 // Maximum possible configurable size of a frame in octets.
-const size_t kMaxFrameSizeLimit = kSpdyMaxFrameSizeLimit + kFrameHeaderSize;
+inline constexpr size_t kMaxFrameSizeLimit =
+    kSpdyMaxFrameSizeLimit + kFrameHeaderSize;
 // Size of a header block size field.
-const size_t kSizeOfSizeField = sizeof(uint32_t);
+inline constexpr size_t kSizeOfSizeField = sizeof(uint32_t);
 // Initial window size for a stream in bytes.
-const int32_t kInitialStreamWindowSize = 64 * 1024 - 1;
+inline constexpr int32_t kInitialStreamWindowSize = 64 * 1024 - 1;
 // Initial window size for a session in bytes.
-const int32_t kInitialSessionWindowSize = 64 * 1024 - 1;
+inline constexpr int32_t kInitialSessionWindowSize = 64 * 1024 - 1;
 // The NPN string for HTTP2, "h2".
 QUICHE_EXPORT extern const char* const kHttp2Npn;
 // An estimate size of the HPACK overhead for each header field. 1 bytes for
 // indexed literal, 1 bytes for key literal and length encoding, and 2 bytes for
 // value literal and length encoding.
-const size_t kPerHeaderHpackOverhead = 4;
+inline constexpr size_t kPerHeaderHpackOverhead = 4;
 
 // Names of pseudo-headers defined for HTTP/2 requests.
 QUICHE_EXPORT extern const char* const kHttp2AuthorityHeader;

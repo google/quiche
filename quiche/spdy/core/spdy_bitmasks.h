@@ -8,10 +8,10 @@
 namespace spdy {
 
 // StreamId mask from the SpdyHeader
-const unsigned int kStreamIdMask = 0x7fffffff;
+inline constexpr unsigned int kStreamIdMask = 0x7fffffff;
 
 // Mask the lower 24 bits.
-const unsigned int kLengthMask = 0xffffff;
+inline constexpr unsigned int kLengthMask = 0xffffff;
 
 }  // namespace spdy
 

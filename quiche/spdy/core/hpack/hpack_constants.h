@@ -43,23 +43,23 @@ struct QUICHE_EXPORT HpackStaticEntry {
 class HpackStaticTable;
 
 // RFC 7540, 6.5.2: Initial value for SETTINGS_HEADER_TABLE_SIZE.
-const uint32_t kDefaultHeaderTableSizeSetting = 4096;
+inline constexpr uint32_t kDefaultHeaderTableSizeSetting = 4096;
 
 // RFC 7541, 5.2: Flag for a string literal that is stored unmodified (i.e.,
 // without Huffman encoding).
-const HpackPrefix kStringLiteralIdentityEncoded = {0x0, 1};
+inline constexpr HpackPrefix kStringLiteralIdentityEncoded = {0x0, 1};
 
 // RFC 7541, 5.2: Flag for a Huffman-coded string literal.
-const HpackPrefix kStringLiteralHuffmanEncoded = {0x1, 1};
+inline constexpr HpackPrefix kStringLiteralHuffmanEncoded = {0x1, 1};
 
 // RFC 7541, 6.1: Opcode for an indexed header field.
-const HpackPrefix kIndexedOpcode = {0b1, 1};
+inline constexpr HpackPrefix kIndexedOpcode = {0b1, 1};
 
 // RFC 7541, 6.2.1: Opcode for a literal header field with incremental indexing.
-const HpackPrefix kLiteralIncrementalIndexOpcode = {0b01, 2};
+inline constexpr HpackPrefix kLiteralIncrementalIndexOpcode = {0b01, 2};
 
 // RFC 7541, 6.2.2: Opcode for a literal header field without indexing.
-const HpackPrefix kLiteralNoIndexOpcode = {0b0000, 4};
+inline constexpr HpackPrefix kLiteralNoIndexOpcode = {0b0000, 4};
 
 // RFC 7541, 6.2.3: Opcode for a literal header field which is never indexed.
 // Currently unused.
@@ -67,7 +67,7 @@ const HpackPrefix kLiteralNoIndexOpcode = {0b0000, 4};
 
 // RFC 7541, 6.3: Opcode for maximum header table size update. Begins a
 // varint-encoded table size with a 5-bit prefix.
-const HpackPrefix kHeaderTableSizeUpdateOpcode = {0b001, 3};
+inline constexpr HpackPrefix kHeaderTableSizeUpdateOpcode = {0b001, 3};
 
 // RFC 7541, Appendix B: Huffman Code.
 QUICHE_EXPORT const std::vector<HpackHuffmanSymbol>& HpackHuffmanCodeVector();
@@ -81,7 +81,7 @@ QUICHE_EXPORT const std::vector<HpackStaticEntry>& HpackStaticTableVector();
 QUICHE_EXPORT const HpackStaticTable& ObtainHpackStaticTable();
 
 // RFC 7541, 8.1.2.1: Pseudo-headers start with a colon.
-const char kPseudoHeaderPrefix = ':';
+inline constexpr char kPseudoHeaderPrefix = ':';
 
 }  // namespace spdy
 

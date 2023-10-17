@@ -26,7 +26,7 @@ class HpackHeaderTablePeer;
 // Return value of GetByName() and GetByNameAndValue() if matching entry is not
 // found.  This value is never used in HPACK for indexing entries, see
 // https://httpwg.org/specs/rfc7541.html#index.address.space.
-constexpr size_t kHpackEntryNotFound = 0;
+inline constexpr size_t kHpackEntryNotFound = 0;
 
 // A data structure for the static table (2.3.1) and the dynamic table (2.3.2).
 class QUICHE_EXPORT HpackHeaderTable {
