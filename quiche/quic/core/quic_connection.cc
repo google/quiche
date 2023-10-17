@@ -3171,7 +3171,7 @@ bool QuicConnection::ShouldGeneratePacket(
   // This is checking on the alternative path with a different peer address. The
   // self address and the writer used are the same as the default path. In the
   // case of different self address and writer, writing packet would use a
-  // differnt code path without checking the states of the default writer.
+  // different code path without checking the states of the default writer.
   return connected_ && !HandleWriteBlocked();
 }
 
