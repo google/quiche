@@ -206,7 +206,7 @@ void QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
   }
   // At this point, none of the bytes has been successfully consumed by the
   // application layer. We should close the pending stream even if it is
-  // bidirectionl as no application will be able to write in a bidirectional
+  // bidirectional as no application will be able to write in a bidirectional
   // stream with zero byte as input.
   if (pending->sequencer()->IsClosed()) {
     ClosePendingStream(stream_id);
@@ -355,7 +355,7 @@ void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
 
   pending->OnRstStreamFrame(frame);
   // At this point, none of the bytes has been consumed by the application
-  // layer. It is safe to close the pending stream even if it is bidirectionl as
+  // layer. It is safe to close the pending stream even if it is bidirectional as
   // no application will be able to write in a bidirectional stream with zero
   // byte as input.
   ClosePendingStream(stream_id);
