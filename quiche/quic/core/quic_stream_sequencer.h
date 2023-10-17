@@ -105,7 +105,7 @@ class QUICHE_EXPORT QuicStreamSequencer final {
   // data as consumed.
   void Read(std::string* buffer);
 
-  // Returns true if the sequncer has bytes available for reading.
+  // Returns true if the sequencer has bytes available for reading.
   bool HasBytesToRead() const;
 
   // Number of bytes available to read.
