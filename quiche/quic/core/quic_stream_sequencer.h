@@ -24,7 +24,7 @@ class QuicStreamSequencerPeer;
 // up to the next layer.
 class QUICHE_EXPORT QuicStreamSequencer final {
  public:
-  // Interface that thie Sequencer uses to communicate with the Stream.
+  // Interface that this Sequencer uses to communicate with the Stream.
   class QUICHE_EXPORT StreamInterface {
    public:
     virtual ~StreamInterface() = default;
