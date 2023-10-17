@@ -196,7 +196,7 @@ void BalsaHeaders::ParseTokenList(absl::string_view header_value,
     // found. marked.
     const char* nws = start;
 
-    // search for next whitspace or separator char.
+    // search for next whitespace or separator char.
     while (*start != ',' && static_cast<unsigned char>(*start) > ' ') {
       ++start;
       if (start == end) {
