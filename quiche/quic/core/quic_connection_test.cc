@@ -2810,7 +2810,7 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingWithPortChangeAtServer) {
 
   if (GetParam().version.HasIetfQuicFrames() ||
       GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
-    // Padded PING with port changen is not considered as connectivity probe but
+    // Padded PING with port change is not considered as connectivity probe but
     // a PORT CHANGE.
     EXPECT_EQ(num_probing_received,
               connection_.GetStats().num_connectivity_probing_received);
