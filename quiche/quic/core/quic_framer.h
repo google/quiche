@@ -778,7 +778,7 @@ class QUICHE_EXPORT QuicFramer {
   // The packet number, after removing header protection and decoding it, is
   // written to |full_packet_number|. Finally, the header, with header
   // protection removed, is written to |associated_data| to be used in packet
-  // decryption. |packet| is used in computing the asociated data.
+  // decryption. |packet| is used in computing the associated data.
   bool RemoveHeaderProtection(QuicDataReader* reader,
                               const QuicEncryptedPacket& packet,
                               QuicPacketHeader* header,
