@@ -1715,7 +1715,7 @@ class QUICHE_EXPORT QuicConnection
   // writer is write blocked.
   bool WritePacket(SerializedPacket* packet);
 
-  // Enforce AEAD Confidentiality limits by iniating key update or closing
+  // Enforce AEAD Confidentiality limits by initiating key update or closing
   // connection if too many packets have been encrypted with the current key.
   // Returns true if the connection was closed. Should not be called for
   // termination packets.
