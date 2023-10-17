@@ -64,7 +64,7 @@ ParsedQuicVersion ConsumeParsedQuicVersion(FuzzedDataProvider* provider) {
           0, ABSL_ARRAYSIZE(transport_versions) - 1)]);
 }
 
-// QuicSelfContainedPacketHeader is a QuicPacketHeader with built-in stroage for
+// QuicSelfContainedPacketHeader is a QuicPacketHeader with built-in storage for
 // diversification nonce.
 struct QuicSelfContainedPacketHeader : public QuicPacketHeader {
   DiversificationNonce nonce_storage;
