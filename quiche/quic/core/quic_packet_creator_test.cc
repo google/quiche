@@ -2384,7 +2384,7 @@ TEST_P(QuicPacketCreatorTest,
   EXPECT_EQ(creator_.max_packet_length(), min_acceptable_packet_size);
   // Now set the encryption level to handshake which increases the header size.
   creator_.set_encryption_level(ENCRYPTION_HANDSHAKE);
-  // Make sure that adding a frame removes the the soft max packet length.
+  // Make sure that adding a frame removes the soft max packet length.
   QuicAckFrame ack_frame(InitAckFrame(1));
   frames_.push_back(QuicFrame(&ack_frame));
   SerializedPacket serialized = SerializeAllFrames(frames_);

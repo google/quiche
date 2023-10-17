@@ -147,7 +147,7 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
 
   void MaybeTrimAckRanges();
 
-  // Least packet number of the the packet sent by the peer for which it
+  // Least packet number of the packet sent by the peer for which it
   // hasn't received an ack.
   QuicPacketNumber peer_least_packet_awaiting_ack_;
 
