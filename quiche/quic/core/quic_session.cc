@@ -2214,14 +2214,14 @@ bool QuicSession::IsStreamFlowControlBlocked() {
 
 size_t QuicSession::MaxAvailableBidirectionalStreams() const {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    return ietf_streamid_manager_.GetMaxAllowdIncomingBidirectionalStreams();
+    return ietf_streamid_manager_.GetMaxAllowedIncomingBidirectionalStreams();
   }
   return stream_id_manager_.MaxAvailableStreams();
 }
 
 size_t QuicSession::MaxAvailableUnidirectionalStreams() const {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    return ietf_streamid_manager_.GetMaxAllowdIncomingUnidirectionalStreams();
+    return ietf_streamid_manager_.GetMaxAllowedIncomingUnidirectionalStreams();
   }
   return stream_id_manager_.MaxAvailableStreams();
 }
@@ -2628,14 +2628,14 @@ bool QuicSession::OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) {
 
 size_t QuicSession::max_open_incoming_bidirectional_streams() const {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    return ietf_streamid_manager_.GetMaxAllowdIncomingBidirectionalStreams();
+    return ietf_streamid_manager_.GetMaxAllowedIncomingBidirectionalStreams();
   }
   return stream_id_manager_.max_open_incoming_streams();
 }
 
 size_t QuicSession::max_open_incoming_unidirectional_streams() const {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    return ietf_streamid_manager_.GetMaxAllowdIncomingUnidirectionalStreams();
+    return ietf_streamid_manager_.GetMaxAllowedIncomingUnidirectionalStreams();
   }
   return stream_id_manager_.max_open_incoming_streams();
 }

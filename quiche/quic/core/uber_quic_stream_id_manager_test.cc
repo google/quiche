@@ -171,9 +171,9 @@ TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenIncomingStreams) {
   // Do +1 for bidirectional to ensure that uni- and bi- get properly set.
   manager_.SetMaxOpenIncomingBidirectionalStreams(kNumMaxIncomingStreams + 1);
   EXPECT_EQ(kNumMaxIncomingStreams + 1,
-            manager_.GetMaxAllowdIncomingBidirectionalStreams());
+            manager_.GetMaxAllowedIncomingBidirectionalStreams());
   EXPECT_EQ(kNumMaxIncomingStreams,
-            manager_.GetMaxAllowdIncomingUnidirectionalStreams());
+            manager_.GetMaxAllowedIncomingUnidirectionalStreams());
   EXPECT_EQ(manager_.max_incoming_bidirectional_streams(),
             manager_.advertised_max_incoming_bidirectional_streams());
   EXPECT_EQ(manager_.max_incoming_unidirectional_streams(),

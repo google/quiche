@@ -75,9 +75,9 @@ class QUICHE_EXPORT UberQuicStreamIdManager {
   // generate and send a MAX_STREAMS frame.
   void MaybeSendMaxStreamsFrame();
 
-  QuicStreamCount GetMaxAllowdIncomingBidirectionalStreams() const;
+  QuicStreamCount GetMaxAllowedIncomingBidirectionalStreams() const;
 
-  QuicStreamCount GetMaxAllowdIncomingUnidirectionalStreams() const;
+  QuicStreamCount GetMaxAllowedIncomingUnidirectionalStreams() const;
 
   QuicStreamId GetLargestPeerCreatedStreamId(bool unidirectional) const;
 
