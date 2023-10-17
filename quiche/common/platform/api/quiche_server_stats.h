@@ -70,7 +70,7 @@ namespace quiche {
 
 // Sample usage:
 //   QUICHE_SERVER_SERVER_HISTOGRAM_CUSTOM_COUNTS("My.Histogram", 1, 100000000,
-//   100, "Counters of hitting certian code.");
+//   100, "Counters of hitting certain code.");
 
 #define QUICHE_SERVER_HISTOGRAM_COUNTS(name, sample, min, max, bucket_count, \
                                        docstring)                            \
