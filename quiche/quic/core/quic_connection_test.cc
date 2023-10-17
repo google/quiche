@@ -7616,7 +7616,7 @@ TEST_P(QuicConnectionTest, NoPathDegradingDetectionBeforeHandshakeConfirmed) {
   }
 }
 
-// This test verifies that the connection unmarks path as degrarding and spins
+// This test verifies that the connection unmarks path as degrading and spins
 // the timer to detect future path degrading when forward progress is made
 // after path has been marked degrading.
 TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
