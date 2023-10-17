@@ -92,7 +92,7 @@ class QuicClientBase : public QuicSession::Visitor {
 
   virtual ~QuicClientBase();
 
-  // Implmenets QuicSession::Visitor
+  // Implements QuicSession::Visitor
   void OnConnectionClosed(QuicConnectionId /*server_connection_id*/,
                           QuicErrorCode /*error*/,
                           const std::string& /*error_details*/,
