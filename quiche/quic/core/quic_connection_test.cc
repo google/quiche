@@ -16088,7 +16088,7 @@ TEST_P(QuicConnectionTest, StrictAntiAmplificationLimit) {
   for (size_t i = 1; i < anti_amplification_factor - 1; ++i) {
     connection_.SendCryptoDataWithString("foo", i * 3);
   }
-  // Send an addtion packet with max_packet_size - 1.
+  // Send an additional packet with max_packet_size - 1.
   connection_.SetMaxPacketLength(connection_.max_packet_length() - 1);
   connection_.SendCryptoDataWithString("bar",
                                        (anti_amplification_factor - 1) * 3);
