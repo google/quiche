@@ -29,6 +29,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packet_writer.h"
+#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_sent_packet_manager.h"
 #include "quiche/quic/core/quic_server_id.h"
@@ -735,7 +736,17 @@ class MockQuicConnection : public QuicConnection {
   MockConnectionIdGenerator connection_id_generator_;
 };
 
-class PacketSavingConnection : public MockQuicConnection {
+// Helper that allows retrieving and clearing queued packets.
+class PacketProvider {
+ public:
+  virtual ~PacketProvider() = default;
+
+  virtual std::vector<const QuicEncryptedPacket*> GetPackets() const = 0;
+  virtual void ClearPackets() = 0;
+};
+
+class PacketSavingConnection : public MockQuicConnection,
+                               public PacketProvider {
  public:
   PacketSavingConnection(MockQuicConnectionHelper* helper,
                          QuicAlarmFactory* alarm_factory,
@@ -757,10 +768,14 @@ class PacketSavingConnection : public MockQuicConnection {
 
   MOCK_METHOD(void, OnPacketSent, (EncryptionLevel, TransmissionType));
 
+  // PacketProvider:
+  std::vector<const QuicEncryptedPacket*> GetPackets() const override;
+  void ClearPackets() override;
+
   std::vector<std::unique_ptr<QuicEncryptedPacket>> encrypted_packets_;
-  // Number of packets in encrypted_packets that has been delivered to the peer
-  // connection.
-  size_t number_of_packets_delivered_ = 0;
+
+ private:
+  size_t num_cleared_packets_ = 0;
   MockQuicConnectionHelper* mock_helper_ = nullptr;
 };
 

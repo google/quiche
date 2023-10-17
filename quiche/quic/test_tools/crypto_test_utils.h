@@ -8,15 +8,19 @@
 #include <cstdarg>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "openssl/evp.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_callbacks.h"
 
@@ -35,6 +39,7 @@ class QuicServerId;
 
 namespace test {
 
+class PacketSaver;
 class PacketSavingConnection;
 
 namespace crypto_test_utils {
@@ -100,36 +105,67 @@ void SendHandshakeMessageToStream(QuicCryptoStream* stream,
                                   const CryptoHandshakeMessage& message,
                                   Perspective perspective);
 
-// CommunicateHandshakeMessages moves messages from |client| to |server| and
-// back until |clients|'s handshake has completed.
+// CommunicateHandshakeMessages moves messages from `client` (or
+// `packets_from_client`) to `server` from `server` (or `packets_from_server`)
+// to `client` until `clients`'s handshake has completed.
 void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
                                   QuicCryptoStream* client,
                                   PacketSavingConnection* server_conn,
                                   QuicCryptoStream* server);
+void CommunicateHandshakeMessages(QuicConnection& client_conn,
+                                  QuicCryptoStream& client,
+                                  QuicConnection& server_conn,
+                                  QuicCryptoStream& server,
+                                  PacketProvider& packets_from_client,
+                                  PacketProvider& packets_from_server);
 
 // CommunicateHandshakeMessagesUntil:
-// 1) Moves messages from |client| to |server| until |server_condition| is met.
-// 2) Moves messages from |server| to |client| until |client_condition| is met.
+// 1) Moves messages from `client` (or `packets_from_client`) to `server` until
+//    `server_condition` is met.
+// 2) Moves messages from `server` (or `packets_from_server`) to `client` until
+//    `client_condition` is met.
 // 3)  For IETF QUIC, if `process_stream_data` is true, STREAM_FRAME within the
 // packet containing crypto messages is also processed.
 // 4) Returns true if both conditions are met.
 // 5) Returns false if either connection is closed or there is no more packet to
 // deliver before both conditions are met.
+// TODO(ericorth): If the callers are eventually converted and these overloads
+// are merged, consider also converting `process_stream_data` to an enum.
 bool CommunicateHandshakeMessagesUntil(
     PacketSavingConnection* client_conn, QuicCryptoStream* client,
     quiche::UnretainedCallback<bool()> client_condition,
     PacketSavingConnection* server_conn, QuicCryptoStream* server,
     quiche::UnretainedCallback<bool()> server_condition,
     bool process_stream_data);
+bool CommunicateHandshakeMessagesUntil(
+    QuicConnection& client_conn, QuicCryptoStream& client,
+    quiche::UnretainedCallback<bool()> client_condition,
+    QuicConnection& server_conn, QuicCryptoStream& server,
+    quiche::UnretainedCallback<bool()> server_condition,
+    bool process_stream_data, PacketProvider& packets_from_client,
+    PacketProvider& packets_from_server);
 
-// AdvanceHandshake attempts to moves messages from |client| to |server| and
-// |server| to |client|. Returns the number of messages moved.
+// AdvanceHandshake attempts to move all current messages:
+// * Starting at `client_i`, from `client` to `server`
+// * Starting at `server_i`, from `server` to `client`
+//
+// Returns the total number of messages attempted to be moved so far from each
+// of `client` and `server` (number moved in this call plus `client_i` or
+// `server_i`).
 std::pair<size_t, size_t> AdvanceHandshake(PacketSavingConnection* client_conn,
                                            QuicCryptoStream* client,
                                            size_t client_i,
                                            PacketSavingConnection* server_conn,
                                            QuicCryptoStream* server,
                                            size_t server_i);
+
+// AdvanceHandshake attempts to move all messages from `packets_from_client` to
+// `server` and from `packets_from_server` to `client`.
+void AdvanceHandshake(
+    absl::Span<const QuicEncryptedPacket* const> packets_from_client,
+    QuicConnection& client_conn, QuicCryptoStream& client,
+    absl::Span<const QuicEncryptedPacket* const> packets_from_server,
+    QuicConnection& server_conn, QuicCryptoStream& server);
 
 // Returns the value for the tag |tag| in the tag value map of |message|.
 std::string GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag);
@@ -175,17 +211,6 @@ CryptoHandshakeMessage CreateCHLO(
 CryptoHandshakeMessage CreateCHLO(
     std::vector<std::pair<std::string, std::string>> tags_and_values,
     int minimum_size_bytes);
-
-// MovePackets parses crypto handshake messages from packet number
-// |*inout_packet_index| through to the last packet (or until a packet fails
-// to decrypt) and has |dest_stream| process them. |*inout_packet_index| is
-// updated with an index one greater than the last packet processed. For IETF
-// QUIC, if `process_stream_data` is true, STREAM_FRAME within the packet
-// containing crypto messages is also processed.
-void MovePackets(PacketSavingConnection* source_conn,
-                 size_t* inout_packet_index, QuicCryptoStream* dest_stream,
-                 PacketSavingConnection* dest_conn,
-                 Perspective dest_perspective, bool process_stream_data);
 
 // Return an inchoate CHLO with some basic tag value pairs.
 CryptoHandshakeMessage GenerateDefaultInchoateCHLO(

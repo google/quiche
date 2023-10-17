@@ -5,9 +5,11 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
@@ -582,6 +584,19 @@ void PacketSavingConnection::SendOrQueuePacket(SerializedPacket packet) {
   QuicConnectionPeer::GetSentPacketManager(this)->OnPacketSent(
       &packet, clock.ApproximateNow(), NOT_RETRANSMISSION,
       HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+}
+
+std::vector<const QuicEncryptedPacket*> PacketSavingConnection::GetPackets()
+    const {
+  std::vector<const QuicEncryptedPacket*> packets;
+  for (size_t i = num_cleared_packets_; i < encrypted_packets_.size(); ++i) {
+    packets.push_back(encrypted_packets_[i].get());
+  }
+  return packets;
+}
+
+void PacketSavingConnection::ClearPackets() {
+  num_cleared_packets_ = encrypted_packets_.size();
 }
 
 MockQuicSession::MockQuicSession(QuicConnection* connection)
