@@ -48,7 +48,7 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, dns_on_client, false,
     "If set to true, masque_client will perform DNS for encapsulated URLs and "
-    "send the IP litteral in the CONNECT request. If set to false, "
+    "send the IP literal in the CONNECT request. If set to false, "
     "masque_client send the hostname in the CONNECT request.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
