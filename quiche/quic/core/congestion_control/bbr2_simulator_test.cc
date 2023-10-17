@@ -1746,7 +1746,7 @@ TEST_F(Bbr2DefaultTopologyTest, StartupStats) {
 
   const QuicConnectionStats& stats = sender_connection_stats();
   // The test explicitly replaces the default-created send algorithm with the
-  // one created by the test. slowstart_count increaments every time a BBR
+  // one created by the test. slowstart_count increments every time a BBR
   // sender is created.
   EXPECT_GE(stats.slowstart_count, 1u);
   EXPECT_FALSE(stats.slowstart_duration.IsRunning());
