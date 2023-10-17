@@ -29,7 +29,7 @@ namespace quiche {
 // all elements. At any point in time, either
 // a) All elements are placed in a contiguous portion of this buffer, like a
 //    c-array, or
-// b) Elements are phycially divided into two parts: the first part occupies the
+// b) Elements are physically divided into two parts: the first part occupies the
 //    end of the buffer and the second part occupies the beginning of the
 //    buffer.
 //
