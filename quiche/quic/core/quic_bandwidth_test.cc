@@ -36,18 +36,18 @@ TEST_F(QuicBandwidthTest, FromTo) {
 }
 
 TEST_F(QuicBandwidthTest, Add) {
-  QuicBandwidth bandwidht_1 = QuicBandwidth::FromKBitsPerSecond(1);
-  QuicBandwidth bandwidht_2 = QuicBandwidth::FromKBytesPerSecond(1);
+  QuicBandwidth bandwidth_1 = QuicBandwidth::FromKBitsPerSecond(1);
+  QuicBandwidth bandwidth_2 = QuicBandwidth::FromKBytesPerSecond(1);
 
-  EXPECT_EQ(9000, (bandwidht_1 + bandwidht_2).ToBitsPerSecond());
-  EXPECT_EQ(9000, (bandwidht_2 + bandwidht_1).ToBitsPerSecond());
+  EXPECT_EQ(9000, (bandwidth_1 + bandwidth_2).ToBitsPerSecond());
+  EXPECT_EQ(9000, (bandwidth_2 + bandwidth_1).ToBitsPerSecond());
 }
 
 TEST_F(QuicBandwidthTest, Subtract) {
-  QuicBandwidth bandwidht_1 = QuicBandwidth::FromKBitsPerSecond(1);
-  QuicBandwidth bandwidht_2 = QuicBandwidth::FromKBytesPerSecond(1);
+  QuicBandwidth bandwidth_1 = QuicBandwidth::FromKBitsPerSecond(1);
+  QuicBandwidth bandwidth_2 = QuicBandwidth::FromKBytesPerSecond(1);
 
-  EXPECT_EQ(7000, (bandwidht_2 - bandwidht_1).ToBitsPerSecond());
+  EXPECT_EQ(7000, (bandwidth_2 - bandwidth_1).ToBitsPerSecond());
 }
 
 TEST_F(QuicBandwidthTest, TimeDelta) {
