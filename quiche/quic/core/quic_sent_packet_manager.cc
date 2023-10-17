@@ -31,7 +31,7 @@ namespace quic {
 namespace {
 static const int64_t kDefaultRetransmissionTimeMs = 500;
 
-// Ensure the handshake timer isnt't faster than 10ms.
+// Ensure the handshake timer isn't faster than 10ms.
 // This limits the tenth retransmitted packet to 10s after the initial CHLO.
 static const int64_t kMinHandshakeTimeoutMs = 10;
 
