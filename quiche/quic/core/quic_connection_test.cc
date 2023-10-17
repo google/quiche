@@ -15371,7 +15371,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
     bool skipped = false;
     QuicFrame frame;
     QuicFrames frames;
-    // Add some padding to fullfill the min size requirement of header
+    // Add some padding to fulfill the min size requirement of header
     // protection.
     frames.push_back(QuicFrame(QuicPaddingFrame(10)));
     switch (frame_type) {
