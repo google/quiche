@@ -162,7 +162,7 @@ const QuicTag kBSAO = TAG('B', 'S', 'A', 'O');   // Avoid Overestimation in
                                                  // Bandwidth Sampler with ack
                                                  // aggregation
 const QuicTag kB2DL = TAG('B', '2', 'D', 'L');   // Increase inflight_hi based
-                                                 // on delievered, not inflight.
+                                                 // on delivered, not inflight.
 const QuicTag kB201 = TAG('B', '2', '0', '1');   // DEPRECATED
 const QuicTag kB202 = TAG('B', '2', '0', '2');   // Do not exit PROBE_UP if
                                                  // inflight dips below 1.25*BW.
