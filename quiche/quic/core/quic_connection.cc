@@ -5909,7 +5909,7 @@ void QuicConnection::MaybeCoalescePacketOfHigherSpace() {
     return;
   }
   if (fill_coalesced_packet_) {
-    // Make sure MaybeCoalescePacketOfHigherSpace is not re-entrant.
+    // Make sure MaybeCoalescePacketOfHigherSpace is not reentrant.
     QUIC_BUG(quic_coalesce_packet_reentrant);
     return;
   }
