@@ -1468,7 +1468,7 @@ void QuicSpdyStream::WriteCapsule(const Capsule& capsule, bool fin) {
 }
 
 void QuicSpdyStream::WriteGreaseCapsule() {
-  // GREASE capsulde IDs have a form of 41 * N + 23.
+  // GREASE capsule IDs have a form of 41 * N + 23.
   QuicRandom* random = spdy_session_->connection()->random_generator();
   uint64_t type = random->InsecureRandUint64() >> 4;
   type = (type / 41) * 41 + 23;
