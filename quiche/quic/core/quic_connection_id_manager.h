@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// QuicPeerIssuedConnectionIdManager handles the states associated with receving
+// QuicPeerIssuedConnectionIdManager handles the states associated with receiving
 // and retiring peer issued connection Ids.
 // QuicSelfIssuedConnectionIdManager handles the states associated with
 // connection Ids issued by the current end point.
