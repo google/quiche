@@ -2523,7 +2523,7 @@ TEST(BalsaHeaders, TestSettingMissingFirstlineElementsAfterBalsaHeadersParsed) {
   }
 }
 
-// Here we exersize the codepaths involved in setting a new firstine when the
+// Here we exercise the codepaths involved in setting a new firstine when the
 // previously set firstline is stored in the 'additional_data_stream_'
 // variable, and the new firstline is larger than the previously set firstline.
 TEST(BalsaHeaders,
@@ -2549,7 +2549,7 @@ TEST(BalsaHeaders,
               StrEq("HTTP/1.10 2000 REALLY don't need a reason"));
 }
 
-// Here we exersize the codepaths involved in setting a new firstine when the
+// Here we exercise the codepaths involved in setting a new firstine when the
 // previously set firstline is stored in the 'additional_data_stream_'
 // variable, and the new firstline is smaller than the previously set firstline.
 TEST(BalsaHeaders,
