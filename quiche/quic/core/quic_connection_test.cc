@@ -9482,7 +9482,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
 
   EXPECT_EQ(5u, connection_.sent_packet_manager().GetConsecutivePtoCount());
   // Closes connection on 6th PTO.
-  // May send multiple connecction close packets with multiple PN spaces.
+  // May send multiple connection close packets with multiple PN spaces.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));

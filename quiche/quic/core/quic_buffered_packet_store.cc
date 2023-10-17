@@ -279,7 +279,7 @@ BufferedPacketList QuicBufferedPacketStore::DeliverPacketsForNextConnection(
   BufferedPacketList packets = DeliverPackets(*connection_id);
   QUICHE_DCHECK(!packets.buffered_packets.empty() &&
                 packets.parsed_chlo.has_value())
-      << "Try to deliver connectons without CHLO. # packets:"
+      << "Try to deliver connections without CHLO. # packets:"
       << packets.buffered_packets.size()
       << ", has_parsed_chlo:" << packets.parsed_chlo.has_value();
   return packets;

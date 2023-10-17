@@ -227,7 +227,7 @@ inline constexpr size_t kDiversificationNonceSize = 32;
 inline constexpr QuicPacketCount kMaxPacketGap = 5000;
 
 // The max number of sequence number intervals that
-// QuicPeerIssuedConnetionIdManager can maintain.
+// QuicPeerIssuedConnectionIdManager can maintain.
 inline constexpr size_t kMaxNumConnectionIdSequenceNumberIntervals = 20;
 
 // The maximum number of random padding bytes to add.
@@ -301,7 +301,7 @@ inline constexpr QuicTime::Delta kAlarmGranularity =
     QuicTime::Delta::FromMilliseconds(1);
 
 // Maximum number of unretired connection IDs a connection can have.
-inline constexpr size_t kMaxNumConnectonIdsInUse = 10u;
+inline constexpr size_t kMaxNumConnectionIdsInUse = 10u;
 
 // Packet number of first sending packet of a connection. Please note, this
 // cannot be used as first received packet because peer can choose its starting

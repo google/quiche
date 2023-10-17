@@ -100,7 +100,7 @@ class QUICHE_EXPORT QuicControlFrameManager {
       uint64_t retire_prior_to,
       const StatelessResetToken& stateless_reset_token);
 
-  // Tries to send a RETIRE_CONNNECTION_ID frame. The frame is buffered if it
+  // Tries to send a RETIRE_CONNECTION_ID frame. The frame is buffered if it
   // cannot be sent immediately.
   void WriteOrBufferRetireConnectionId(uint64_t sequence_number);
 

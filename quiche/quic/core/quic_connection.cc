@@ -3488,7 +3488,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       // This is a work around for an issue with linux UDP GSO batch writers.
       // When sending a GSO packet with 2 segments, if the first segment is
       // larger than the path MTU, instead of EMSGSIZE, the linux kernel returns
-      // EINVAL, which translates to WRITE_STATUS_ERROR and causes conneciton to
+      // EINVAL, which translates to WRITE_STATUS_ERROR and causes connection to
       // be closed. By manually flush the writer here, the MTU probe is sent in
       // a normal(non-GSO) packet, so the kernel can return EMSGSIZE and we will
       // not close the connection.
