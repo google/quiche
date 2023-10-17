@@ -689,7 +689,7 @@ class QUICHE_EXPORT QuicSpdySession
 
   // WebTransport streams that do not have a session associated with them.
   // Limited to kMaxUnassociatedWebTransportStreams; when the list is full,
-  // oldest streams are evicated first.
+  // oldest streams are evicted first.
   std::list<BufferedWebTransportStream> buffered_streams_;
 
   // On the server side, if true, advertise and accept extended CONNECT method.
