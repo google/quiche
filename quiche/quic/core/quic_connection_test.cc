@@ -14656,7 +14656,7 @@ TEST_P(QuicConnectionTest, NewConnectionIdFrameResultsInError) {
       .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
   QuicNewConnectionIdFrame frame;
   frame.sequence_number = 1u;
-  frame.connection_id = connection_id_;  // Reuses connection ID casuing error.
+  frame.connection_id = connection_id_;  // Reuses connection ID causing error.
   frame.stateless_reset_token =
       QuicUtils::GenerateStatelessResetToken(frame.connection_id);
   frame.retire_prior_to = 0u;
