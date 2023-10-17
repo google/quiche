@@ -3041,7 +3041,7 @@ TEST(BalsaHeaders, TestAppendToHeaderWithCommaAndSpace) {
 }
 
 TEST(BalsaHeaders, TestInitialAppendWithCommaAndSpace) {
-  // Test that AppendToHeadeWithCommaAndSpace works properly when the
+  // Test that AppendToHeaderWithCommaAndSpace works properly when the
   // header did not already exist.
   BalsaHeaders headers;
   headers.AppendToHeaderWithCommaAndSpace("foo", "foo_value");
@@ -3051,7 +3051,7 @@ TEST(BalsaHeaders, TestInitialAppendWithCommaAndSpace) {
 }
 
 TEST(BalsaHeaders, TestAppendWithCommaAndSpaceAndRemove) {
-  // Test that AppendToHeadeWithCommaAndSpace works properly with removing.
+  // Test that AppendToHeaderWithCommaAndSpace works properly with removing.
   BalsaHeaders headers;
   headers.AppendToHeaderWithCommaAndSpace("foo", "foo_value");
   EXPECT_THAT(headers.GetHeader("foo"), StrEq("foo_value"));
