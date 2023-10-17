@@ -303,7 +303,7 @@ TEST_F(QuicBufferedPacketStoreTest, PacketQueueExpiredBeforeDelivery) {
   // CHLO on connection 3 arrives 1ms later.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
   QuicConnectionId connection_id3 = TestConnectionId(3);
-  // Use different client address to differetiate packets from different
+  // Use different client address to differentiate packets from different
   // connections.
   QuicSocketAddress another_client_address(QuicIpAddress::Any4(), 255);
   store_.EnqueuePacket(connection_id3, false, packet_, self_address_,
