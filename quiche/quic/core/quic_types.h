@@ -287,7 +287,7 @@ QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
 // Ietf frame types. These are defined in the IETF QUIC Specification.
 // Explicit values are given in the enum so that we can be sure that
 // the symbol will map to the correct stream type.
-// All types are defined here, even if we have not yet implmented the
+// All types are defined here, even if we have not yet implemented the
 // quic/core/stream/.... stuff needed.
 // Note: The protocol specifies that frame types are varint-62 encoded,
 // further stating that the shortest encoding must be used.  The current set of
