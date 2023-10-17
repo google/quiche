@@ -922,7 +922,7 @@ class QUICHE_EXPORT QuicSession
   // pending stream. Can return NULL, e.g., if the stream ID is invalid.
   PendingStream* PendingStreamOnStreamFrame(const QuicStreamFrame& frame);
 
-  // Creates or gets pending strea, feed it with |frame|, and closes the pending
+  // Creates or gets pending stream, feed it with |frame|, and closes the pending
   // stream.
   void PendingStreamOnRstStream(const QuicRstStreamFrame& frame);
 

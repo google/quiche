@@ -54,7 +54,7 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
               (override));
 
   MOCK_METHOD(bool, OnDataPaddingLength,
-              (Http2StreamId strema_id, size_t padding_length), (override));
+              (Http2StreamId stream_id, size_t padding_length), (override));
 
   MOCK_METHOD(bool, OnBeginDataForStream,
               (Http2StreamId stream_id, size_t payload_length), (override));
