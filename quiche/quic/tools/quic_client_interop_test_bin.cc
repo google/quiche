@@ -64,7 +64,7 @@ enum class Feature {
   // Third row of features (H3 tests)
   // An H3 transaction succeeded.
   kHttp3,
-  // One or both endpoints insert entries into dynamic table and subsequenly
+  // One or both endpoints insert entries into dynamic table and subsequently
   // reference them from header blocks.
   kDynamicEntryReferenced,
 };
