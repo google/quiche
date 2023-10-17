@@ -4505,7 +4505,7 @@ TEST_P(QuicConnectionTest, NoSendAlarmAfterProcessPacketWhenWriteBlocked) {
   EXPECT_FALSE(connection_.GetSendAlarm()->IsSet());
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  // Process packet number 1. Can not call ProcessPacket or ProcessDataPacket
+  // Process packet number 1. Cannot call ProcessPacket or ProcessDataPacket
   // here, because they will fire the alarm after QuicConnection::ProcessPacket
   // is returned.
   const uint64_t received_packet_num = 1;
@@ -4535,7 +4535,7 @@ TEST_P(QuicConnectionTest, SendAlarmNonZeroDelay) {
   EXPECT_FALSE(connection_.GetSendAlarm()->IsSet());
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  // Process packet number 1. Can not call ProcessPacket or ProcessDataPacket
+  // Process packet number 1. Cannot call ProcessPacket or ProcessDataPacket
   // here, because they will fire the alarm after QuicConnection::ProcessPacket
   // is returned.
   const uint64_t received_packet_num = 1;
@@ -4801,7 +4801,7 @@ TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {
         ENCRYPTION_ZERO_RTT, std::make_unique<TaggingDecrypter>());
   }
 
-  // Process an encrypted packet which can not yet be decrypted which should
+  // Process an encrypted packet which cannot yet be decrypted which should
   // result in the packet being buffered.
   ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
 
@@ -4837,7 +4837,7 @@ TEST_P(QuicConnectionTest, Buffer100NonDecryptablePacketsThenKeyChange) {
       ENCRYPTION_ZERO_RTT,
       std::make_unique<TaggingEncrypter>(ENCRYPTION_ZERO_RTT));
 
-  // Process an encrypted packet which can not yet be decrypted which should
+  // Process an encrypted packet which cannot yet be decrypted which should
   // result in the packet being buffered.
   for (uint64_t i = 1; i <= 100; ++i) {
     ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);

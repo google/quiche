@@ -266,7 +266,7 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {
   EXPECT_FALSE(session_->CreateOutgoingBidirectionalStream());
 
   // Close the stream, but without having received a FIN or a RST_STREAM
-  // or MAX_STREAMS (IETF QUIC) and check that a new one can not be created.
+  // or MAX_STREAMS (IETF QUIC) and check that a new one cannot be created.
   session_->ResetStream(stream->id(), QUIC_STREAM_CANCELLED);
   EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 

@@ -80,11 +80,11 @@ class QUICHE_EXPORT QuicControlFrameManager {
   void WriteOrBufferMaxStreams(QuicStreamCount count, bool unidirectional);
 
   // Tries to send an IETF-QUIC STOP_SENDING frame. The frame is buffered if it
-  // can not be sent immediately.
+  // cannot be sent immediately.
   void WriteOrBufferStopSending(QuicResetStreamError error,
                                 QuicStreamId stream_id);
 
-  // Tries to send an HANDSHAKE_DONE frame. The frame is buffered if it can not
+  // Tries to send an HANDSHAKE_DONE frame. The frame is buffered if it cannot
   // be sent immediately.
   void WriteOrBufferHandshakeDone();
 

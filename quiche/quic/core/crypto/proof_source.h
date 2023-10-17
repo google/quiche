@@ -134,7 +134,7 @@ class QUICHE_EXPORT ProofSource {
   // The signature uses SHA-256 as the hash function when the key is ECDSA.
   // The signature may use an ECDSA key.
   //
-  // The signature depends on |chlo_hash| which means that the signature can not
+  // The signature depends on |chlo_hash| which means that the signature cannot
   // be cached.
   //
   // |hostname| may be empty to signify that a default certificate should be

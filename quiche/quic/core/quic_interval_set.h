@@ -136,7 +136,7 @@ class QUICHE_NO_EXPORT QuicIntervalSet {
     const_reverse_iterator last_interval = intervals_.rbegin();
 
     // If interval.min() is outside of [last_interval->min, last_interval->max],
-    // we can not simply extend last_interval->max.
+    // we cannot simply extend last_interval->max.
     if (interval.min() < last_interval->min() ||
         interval.min() > last_interval->max()) {
       Add(interval);

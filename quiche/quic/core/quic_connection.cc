@@ -811,7 +811,7 @@ bool QuicConnection::SelectMutualVersion(
 }
 
 void QuicConnection::OnError(QuicFramer* framer) {
-  // Packets that we can not or have not decrypted are dropped.
+  // Packets that we cannot or have not decrypted are dropped.
   // TODO(rch): add stats to measure this.
   if (!connected_ || !last_received_packet_info_.decrypted) {
     return;
@@ -2431,7 +2431,7 @@ void QuicConnection::MaybeSendInResponseToPacket() {
     send_alarm_->Set(max_deadline);
     return;
   }
-  // Can not send data due to other reasons: congestion blocked, anti
+  // Cannot send data due to other reasons: congestion blocked, anti
   // amplification throttled, etc.
   QUIC_DVLOG(1) << "No send alarm after processing packet. Other reasons.";
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_send_alarm_unless_necessary, 7, 7);

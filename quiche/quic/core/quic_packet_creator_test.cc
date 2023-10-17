@@ -3375,7 +3375,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, PacketTransmissionType) {
       << "Test setup failed: Please increase data_len to "
       << data_len + creator_.BytesFree() << " bytes.";
 
-  // The second ConsumeData can not be added to the packet and will flush.
+  // The second ConsumeData cannot be added to the packet and will flush.
   creator_.SetTransmissionType(NOT_RETRANSMISSION);
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))

@@ -3320,7 +3320,7 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
          { kVarInt62TwoBytes + 0x0e, 0xae }},   // 3759
 
        // pre-version-99 test includes an ack block of 0 length. this
-       // can not happen in version 99. ergo the second block is not
+       // cannot happen in version 99. ergo the second block is not
        // present in the v99 test and the gap length of the next block
        // is the sum of the two gaps in the pre-version-99 tests.
        // Additional ACK Block #2
@@ -4526,7 +4526,7 @@ TEST_P(QuicFramerTest, MaxDataFrame) {
       {"",
        {0x10}},
       // byte offset
-      {"Can not read MAX_DATA byte-offset",
+      {"Cannot read MAX_DATA byte-offset",
        {kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
         0x32, 0x10, 0x76, 0x54}},
   };
@@ -4573,7 +4573,7 @@ TEST_P(QuicFramerTest, MaxStreamDataFrame) {
       {"Unable to read IETF_MAX_STREAM_DATA frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       // byte offset
-      {"Can not read MAX_STREAM_DATA byte-count",
+      {"Cannot read MAX_STREAM_DATA byte-count",
        {kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
         0x32, 0x10, 0x76, 0x54}},
   };
@@ -4633,7 +4633,7 @@ TEST_P(QuicFramerTest, BlockedFrame) {
       {"Unable to read IETF_STREAM_DATA_BLOCKED frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       // Offset
-      {"Can not read stream blocked offset.",
+      {"Cannot read stream blocked offset.",
        {kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54}},
   };
   // clang-format on
@@ -8990,7 +8990,7 @@ TEST_P(QuicFramerTest, IetfBlockedFrame) {
       {"",
        {0x14}},
       // blocked offset
-      {"Can not read blocked offset.",
+      {"Cannot read blocked offset.",
        {kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54}},
   };
   // clang-format on
@@ -9075,7 +9075,7 @@ TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
       // blocked offset
       {"Unable to read IETF_STREAM_DATA_BLOCKED frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
-      {"Can not read stream blocked offset.",
+      {"Cannot read stream blocked offset.",
        {kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54}},
   };
   // clang-format on
@@ -9950,7 +9950,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
        {0x08}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11}},
-      {"Can not read new connection ID frame reset token.",
+      {"Cannot read new connection ID frame reset token.",
        {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
         0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f}}
   };
@@ -10009,7 +10009,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
        {0x09}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42}},
-      {"Can not read new connection ID frame reset token.",
+      {"Cannot read new connection ID frame reset token.",
        {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
         0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f}}
   };
@@ -10077,7 +10077,7 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
         0xF0, 0xD2, 0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E,
         0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
         0xF0, 0xD2, 0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E}},
-      {"Can not read new connection ID frame reset token.",
+      {"Cannot read new connection ID frame reset token.",
        {0xb5, 0x69, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
   };
@@ -10122,7 +10122,7 @@ TEST_P(QuicFramerTest, InvalidRetirePriorToNewConnectionIdFrame) {
        {0x08}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11}},
-      {"Can not read new connection ID frame reset token.",
+      {"Cannot read new connection ID frame reset token.",
        {0xb5, 0x69, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
   };
@@ -10400,7 +10400,7 @@ TEST_P(QuicFramerTest, IetfPathChallengeFrame) {
       {"",
        {0x1a}},
       // data
-      {"Can not read path challenge data.",
+      {"Cannot read path challenge data.",
        {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}},
   };
   // clang-format on
@@ -10483,7 +10483,7 @@ TEST_P(QuicFramerTest, IetfPathResponseFrame) {
       {"",
        {0x1b}},
       // data
-      {"Can not read path response data.",
+      {"Cannot read path response data.",
        {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}},
   };
   // clang-format on

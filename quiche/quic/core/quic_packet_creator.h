@@ -447,7 +447,7 @@ class QUICHE_EXPORT QuicPacketCreator {
 
   // Serialize a probing response packet that uses IETF QUIC's PATH RESPONSE
   // frame. Also fills the packet with padding if |is_padded| is
-  // true. |payloads| is always emptied, even if the packet can not be
+  // true. |payloads| is always emptied, even if the packet cannot be
   // successfully built.
   size_t BuildPathResponsePacket(
       const QuicPacketHeader& header, char* buffer, size_t packet_length,

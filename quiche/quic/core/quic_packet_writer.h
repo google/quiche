@@ -81,7 +81,7 @@ class QUICHE_EXPORT QuicPacketWriter {
   // If the writer is blocked, return WRITE_STATUS_BLOCKED immediately.
   // If the packet can be batched with other buffered packets, save the packet
   // to the internal buffer.
-  // If the packet can not be batched, or the internal buffer is near full after
+  // If the packet cannot be batched, or the internal buffer is near full after
   // it is buffered, the internal buffer is flushed to free up space.
   // Return WriteResult(WRITE_STATUS_OK, <bytes_flushed>) on success. When
   // <bytes_flushed> is zero, it means the packet is buffered and not flushed.

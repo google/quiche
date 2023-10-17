@@ -1773,7 +1773,7 @@ class QUICHE_EXPORT QuicConnection
   QuicByteCount GetLimitedMaxPacketSize(
       QuicByteCount suggested_max_packet_size);
 
-  // Do any work which logically would be done in OnPacket but can not be
+  // Do any work which logically would be done in OnPacket but cannot be
   // safely done until the packet is validated. Returns true if packet can be
   // handled, false otherwise.
   bool ProcessValidatedPacket(const QuicPacketHeader& header);

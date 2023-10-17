@@ -900,7 +900,7 @@ void QuicConfig::SetPreferredAddressConnectionIdAndTokenToSend(
        !alternate_server_address_ipv6_.HasSendValue()) ||
       preferred_address_connection_id_and_token_.has_value()) {
     QUIC_BUG(quic_bug_10575_17)
-        << "Can not send connection ID and token for preferred address";
+        << "Cannot send connection ID and token for preferred address";
     return;
   }
   preferred_address_connection_id_and_token_ =

@@ -453,7 +453,7 @@ bool TlsServerHandshaker::ProcessTransportParameters(
     extension_type = TLSEXT_TYPE_quic_transport_parameters_legacy;
   }
   // When using early select cert callback, SSL_get_peer_quic_transport_params
-  // can not be used to retrieve the client's transport parameters, but we can
+  // cannot be used to retrieve the client's transport parameters, but we can
   // use SSL_early_callback_ctx_extension_get to do that.
   if (!SSL_early_callback_ctx_extension_get(client_hello, extension_type,
                                             &client_params_bytes,

@@ -24,7 +24,7 @@ enum QuicRstStreamErrorCode : uint32_t {
   QUIC_ERROR_PROCESSING_STREAM = 1,
   // We got two fin or reset offsets which did not match.
   QUIC_MULTIPLE_TERMINATION_OFFSETS = 2,
-  // We got bad payload and can not respond to it at the protocol level.
+  // We got bad payload and cannot respond to it at the protocol level.
   QUIC_BAD_APPLICATION_PAYLOAD = 3,
   // Stream closed due to connection error. No reset frame is sent when this
   // happens.

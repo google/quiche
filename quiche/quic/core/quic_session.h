@@ -691,7 +691,7 @@ class QUICHE_EXPORT QuicSession
 
   // Creates a new stream to handle a peer-initiated stream.
   // Caller does not own the returned stream.
-  // Returns nullptr and does error handling if the stream can not be created.
+  // Returns nullptr and does error handling if the stream cannot be created.
   virtual QuicStream* CreateIncomingStream(QuicStreamId id) = 0;
   virtual QuicStream* CreateIncomingStream(PendingStream* pending) = 0;
 
