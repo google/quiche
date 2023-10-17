@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file is reponsible for the masque_client binary. It allows testing
+// This file is responsible for the masque_client binary. It allows testing
 // our MASQUE client code by connecting to a MASQUE proxy and then sending
 // HTTP/3 requests to web servers tunnelled over that MASQUE connection.
 // e.g.: masque_client $PROXY_HOST:$PROXY_PORT $URL1 $URL2
