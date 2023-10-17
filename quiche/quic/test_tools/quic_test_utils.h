@@ -208,7 +208,7 @@ QuicAckFrame InitAckFrame(QuicPacketNumber largest_acked);
 QuicAckFrame MakeAckFrameWithAckBlocks(size_t num_ack_blocks,
                                        uint64_t least_unacked);
 
-// Testing convenice method to construct a QuicAckFrame with |largest_acked|,
+// Testing convenience method to construct a QuicAckFrame with |largest_acked|,
 // ack blocks of width 1 packet and |gap_size|.
 QuicAckFrame MakeAckFrameWithGaps(uint64_t gap_size, size_t max_num_gaps,
                                   uint64_t largest_acked);
