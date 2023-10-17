@@ -348,7 +348,7 @@ QuicErrorCode QuicSelfIssuedConnectionIdManager::OnRetireConnectionIdFrame(
 
   if (to_be_retired_connection_ids_.size() + active_connection_ids_.size() >=
       kMaxNumConnectionIdsInUse) {
-    // Close connection if the number of connection IDs in use will exeed the
+    // Close connection if the number of connection IDs in use will exceed the
     // limit, i.e., peer retires connection ID too fast.
     *error_detail = "There are too many connection IDs in use.";
     return QUIC_TOO_MANY_CONNECTION_ID_WAITING_TO_RETIRE;
