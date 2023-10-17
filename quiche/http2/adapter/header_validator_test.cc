@@ -432,7 +432,7 @@ TEST(HeaderValidatorTest, WebsocketPseudoHeaders) {
   }
   EXPECT_EQ(HeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":protocol", "websocket"));
-  // After allowing the method, `:protocol` is acepted for CONNECT requests.
+  // After allowing the method, `:protocol` is accepted for CONNECT requests.
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 }
 
