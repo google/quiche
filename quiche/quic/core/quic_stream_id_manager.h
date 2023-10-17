@@ -86,7 +86,7 @@ class QUICHE_EXPORT QuicStreamIdManager {
   bool MaybeAllowNewOutgoingStreams(QuicStreamCount max_open_streams);
 
   // Checks if the incoming stream ID exceeds the MAX_STREAMS limit.  If the
-  // limit is exceeded, populates |error_detials| and returns false.
+  // limit is exceeded, populates |error_details| and returns false.
   bool MaybeIncreaseLargestPeerStreamId(const QuicStreamId stream_id,
                                         std::string* error_details);
 
