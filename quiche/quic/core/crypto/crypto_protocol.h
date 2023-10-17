@@ -169,7 +169,7 @@ const QuicTag kB202 = TAG('B', '2', '0', '2');   // Do not exit PROBE_UP if
 const QuicTag kB203 = TAG('B', '2', '0', '3');   // Ignore inflight_hi until
                                                  // PROBE_UP is exited.
 const QuicTag kB204 = TAG('B', '2', '0', '4');   // Reduce extra acked when
-                                                 // MaxBW incrases.
+                                                 // MaxBW increases.
 const QuicTag kB205 = TAG('B', '2', '0', '5');   // Add extra acked to CWND in
                                                  // STARTUP.
 const QuicTag kB206 = TAG('B', '2', '0', '6');   // Exit STARTUP after 2 losses.
