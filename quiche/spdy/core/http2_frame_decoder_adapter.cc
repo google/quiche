@@ -13,12 +13,14 @@
 
 #include <cstdint>
 #include <cstring>
-#include <utility>
+#include <memory>
+#include <string>
 
+#include "absl/strings/string_view.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/decoder/http2_frame_decoder.h"
-#include "quiche/http2/decoder/http2_frame_decoder_listener.h"
+#include "quiche/http2/hpack/decoder/hpack_decoding_error.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"

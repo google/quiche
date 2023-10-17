@@ -10,16 +10,13 @@
 
 #include <stddef.h>
 
-#include <cstdint>
-#include <memory>
+#include <string>
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_listener.h"
-#include "quiche/http2/hpack/decoder/hpack_decoder_tables.h"
-#include "quiche/http2/hpack/http2_hpack_constants.h"
+#include "quiche/http2/hpack/decoder/hpack_decoding_error.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/spdy/core/hpack/hpack_header_table.h"
 #include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_headers_handler_interface.h"
 

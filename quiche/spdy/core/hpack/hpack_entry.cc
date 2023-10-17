@@ -4,7 +4,12 @@
 
 #include "quiche/spdy/core/hpack/hpack_entry.h"
 
+#include <cstddef>
+#include <string>
+#include <utility>
+
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 
 namespace spdy {
 

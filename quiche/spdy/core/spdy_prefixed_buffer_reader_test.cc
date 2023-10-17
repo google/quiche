@@ -8,6 +8,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/spdy/core/spdy_pinnable_buffer_piece.h"
 
 namespace spdy {
 

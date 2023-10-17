@@ -5,8 +5,8 @@
 #ifndef QUICHE_SPDY_CORE_HPACK_HPACK_OUTPUT_STREAM_H_
 #define QUICHE_SPDY_CORE_HPACK_HPACK_OUTPUT_STREAM_H_
 
+#include <cstddef>
 #include <cstdint>
-#include <map>
 #include <string>
 
 #include "absl/strings/string_view.h"

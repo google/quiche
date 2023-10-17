@@ -6,7 +6,6 @@
 #define QUICHE_SPDY_CORE_HPACK_HPACK_ENTRY_H_
 
 #include <cstddef>
-#include <cstdint>
 #include <string>
 #include <utility>
 

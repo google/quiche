@@ -1,9 +1,10 @@
 #ifndef QUICHE_SPDY_CORE_METADATA_EXTENSION_H_
 #define QUICHE_SPDY_CORE_METADATA_EXTENSION_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
-#include <string>
-#include <vector>
+#include <type_traits>
 
 #include "absl/container/flat_hash_map.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -12,7 +13,6 @@
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
-#include "quiche/spdy/core/zero_copy_output_buffer.h"
 
 namespace spdy {
 

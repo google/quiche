@@ -6,9 +6,13 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <limits>
+#include <string>
+#include <utility>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace spdy {

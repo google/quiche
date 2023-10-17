@@ -4,6 +4,11 @@
 
 #include "quiche/spdy/core/recording_headers_handler.h"
 
+#include <cstddef>
+
+#include "absl/strings/string_view.h"
+#include "quiche/spdy/core/spdy_headers_handler_interface.h"
+
 namespace spdy {
 
 RecordingHeadersHandler::RecordingHeadersHandler(

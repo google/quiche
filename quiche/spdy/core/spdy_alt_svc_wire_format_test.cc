@@ -4,6 +4,11 @@
 
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
+
+#include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace spdy {

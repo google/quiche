@@ -87,6 +87,7 @@
 
 #include <stddef.h>
 
+#include <cstddef>
 #include <iterator>
 
 #include "quiche/common/platform/api/quiche_export.h"

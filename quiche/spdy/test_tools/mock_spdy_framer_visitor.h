@@ -5,15 +5,19 @@
 #ifndef QUICHE_SPDY_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_
 #define QUICHE_SPDY_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <utility>
+#include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/recording_headers_handler.h"
-#include "quiche/spdy/test_tools/spdy_test_utils.h"
+#include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
+#include "quiche/spdy/core/spdy_headers_handler_interface.h"
+#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {
 

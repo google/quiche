@@ -4,7 +4,8 @@
 
 #include "quiche/spdy/core/hpack/hpack_output_stream.h"
 
-#include <cstddef>
+#include <cstdint>
+#include <string>
 
 #include "quiche/common/platform/api/quiche_test.h"
 

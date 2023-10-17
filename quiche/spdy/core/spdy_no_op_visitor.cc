@@ -4,7 +4,11 @@
 
 #include "quiche/spdy/core/spdy_no_op_visitor.h"
 
+#include <cstdint>
 #include <type_traits>
+
+#include "quiche/spdy/core/spdy_headers_handler_interface.h"
+#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {
 

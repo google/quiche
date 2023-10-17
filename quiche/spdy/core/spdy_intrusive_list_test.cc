@@ -5,7 +5,7 @@
 #include "quiche/spdy/core/spdy_intrusive_list.h"
 
 #include <algorithm>
-#include <cstddef>
+#include <iterator>
 #include <list>
 #include <string>
 #include <utility>

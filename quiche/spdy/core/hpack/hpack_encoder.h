@@ -7,8 +7,6 @@
 
 #include <stddef.h>
 
-#include <functional>
-#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -20,7 +18,6 @@
 #include "quiche/spdy/core/hpack/hpack_header_table.h"
 #include "quiche/spdy/core/hpack/hpack_output_stream.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 // An HpackEncoder encodes header sets as outlined in
 // http://tools.ietf.org/html/rfc7541.

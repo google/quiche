@@ -5,7 +5,7 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_H_
 
-#include "quiche_platform_impl/quiche_test_impl.h"
+#include "quiche_platform_impl/quiche_test_impl.h"  // IWYU pragma: export
 
 namespace quiche::test {
 

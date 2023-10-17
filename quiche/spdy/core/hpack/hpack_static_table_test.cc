@@ -10,6 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/spdy/core/hpack/hpack_constants.h"
+#include "quiche/spdy/core/hpack/hpack_header_table.h"
 
 namespace spdy {
 

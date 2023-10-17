@@ -5,15 +5,15 @@
 #include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <memory>
-#include <new>
-#include <utility>
-#include <vector>
+#include <string>
 
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_endian.h"
+#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {
 namespace test {

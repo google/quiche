@@ -4,6 +4,9 @@
 
 #include "quiche/spdy/core/array_output_buffer.h"
 
+#include <cstdint>
+#include <cstring>
+
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace spdy {

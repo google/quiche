@@ -5,18 +5,23 @@
 #include "quiche/spdy/core/spdy_framer.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <iterator>
-#include <list>
-#include <new>
+#include <memory>
+#include <string>
 #include <utility>
 
-#include "absl/base/macros.h"
+#include "absl/base/attributes.h"
 #include "absl/memory/memory.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/spdy_bitmasks.h"
+#include "quiche/spdy/core/hpack/hpack_constants.h"
+#include "quiche/spdy/core/hpack/hpack_encoder.h"
+#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 #include "quiche/spdy/core/spdy_frame_builder.h"
+#include "quiche/spdy/core/spdy_protocol.h"
+#include "quiche/spdy/core/zero_copy_output_buffer.h"
 
 namespace spdy {
 

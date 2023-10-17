@@ -1,6 +1,9 @@
 #ifndef QUICHE_SPDY_CORE_HTTP2_HEADER_BLOCK_HPACK_LISTENER_H_
 #define QUICHE_SPDY_CORE_HTTP2_HEADER_BLOCK_HPACK_LISTENER_H_
 
+#include <string>
+#include <utility>
+
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_listener.h"
 #include "quiche/common/platform/api/quiche_export.h"

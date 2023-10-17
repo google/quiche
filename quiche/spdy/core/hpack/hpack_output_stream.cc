@@ -4,9 +4,14 @@
 
 #include "quiche/spdy/core/hpack/hpack_output_stream.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/spdy/core/hpack/hpack_constants.h"
 
 namespace spdy {
 

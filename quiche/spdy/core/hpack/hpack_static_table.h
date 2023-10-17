@@ -5,6 +5,8 @@
 #ifndef QUICHE_SPDY_CORE_HPACK_HPACK_STATIC_TABLE_H_
 #define QUICHE_SPDY_CORE_HPACK_HPACK_STATIC_TABLE_H_
 
+#include <cstddef>
+
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/hpack/hpack_header_table.h"
 

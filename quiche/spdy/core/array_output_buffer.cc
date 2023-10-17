@@ -4,6 +4,8 @@
 
 #include "quiche/spdy/core/array_output_buffer.h"
 
+#include <cstdint>
+
 namespace spdy {
 
 void ArrayOutputBuffer::Next(char** data, int* size) {

@@ -4,11 +4,20 @@
 
 #include "quiche/spdy/core/spdy_protocol.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <memory>
 #include <ostream>
+#include <string>
+#include <utility>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 
 namespace spdy {
 

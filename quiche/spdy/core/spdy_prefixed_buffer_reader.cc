@@ -4,9 +4,11 @@
 
 #include "quiche/spdy/core/spdy_prefixed_buffer_reader.h"
 
-#include <new>
+#include <algorithm>
+#include <cstddef>
 
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/spdy/core/spdy_pinnable_buffer_piece.h"
 
 namespace spdy {
 

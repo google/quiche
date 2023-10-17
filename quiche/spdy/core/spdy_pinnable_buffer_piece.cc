@@ -4,7 +4,8 @@
 
 #include "quiche/spdy/core/spdy_pinnable_buffer_piece.h"
 
-#include <new>
+#include <algorithm>
+#include <cstddef>
 
 namespace spdy {
 

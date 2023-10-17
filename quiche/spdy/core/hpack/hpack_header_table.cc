@@ -5,9 +5,15 @@
 #include "quiche/spdy/core/hpack/hpack_header_table.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <utility>
 
+#include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/spdy/core/hpack/hpack_constants.h"
+#include "quiche/spdy/core/hpack/hpack_entry.h"
 #include "quiche/spdy/core/hpack/hpack_static_table.h"
 
 namespace spdy {

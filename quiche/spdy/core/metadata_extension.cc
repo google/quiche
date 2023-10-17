@@ -1,16 +1,20 @@
 #include "quiche/spdy/core/metadata_extension.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <string>
+#include <utility>
 
-#include "absl/memory/memory.h"
-#include "absl/strings/str_cat.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/spdy/core/hpack/hpack_encoder.h"
+#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/http2_header_block_hpack_listener.h"
+#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {
 

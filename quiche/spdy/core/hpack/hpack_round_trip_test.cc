@@ -2,18 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <ctime>
+#include <string>
 #include <vector>
 
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/hpack/hpack_constants.h"
 #include "quiche/spdy/core/hpack/hpack_decoder_adapter.h"
 #include "quiche/spdy/core/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 namespace spdy {
 namespace test {

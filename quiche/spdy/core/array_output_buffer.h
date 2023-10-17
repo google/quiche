@@ -6,6 +6,7 @@
 #define QUICHE_SPDY_CORE_ARRAY_OUTPUT_BUFFER_H_
 
 #include <cstddef>
+#include <cstdint>
 
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/zero_copy_output_buffer.h"

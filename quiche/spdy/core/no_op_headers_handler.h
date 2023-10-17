@@ -1,6 +1,9 @@
 #ifndef QUICHE_SPDY_CORE_NO_OP_HEADERS_HANDLER_H_
 #define QUICHE_SPDY_CORE_NO_OP_HEADERS_HANDLER_H_
 
+#include <cstddef>
+
+#include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/header_byte_listener_interface.h"
 #include "quiche/spdy/core/spdy_headers_handler_interface.h"

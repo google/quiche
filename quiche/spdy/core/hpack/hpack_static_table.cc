@@ -4,7 +4,10 @@
 
 #include "quiche/spdy/core/hpack/hpack_static_table.h"
 
-#include "absl/strings/string_view.h"
+#include <cstddef>
+#include <string>
+#include <utility>
+
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/spdy/core/hpack/hpack_constants.h"
 #include "quiche/spdy/core/hpack/hpack_entry.h"

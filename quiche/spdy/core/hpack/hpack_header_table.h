@@ -6,14 +6,10 @@
 #define QUICHE_SPDY_CORE_HPACK_HPACK_HEADER_TABLE_H_
 
 #include <cstddef>
-#include <cstdint>
-#include <deque>
 #include <memory>
+#include <vector>
 
-#include "absl/base/attributes.h"
 #include "absl/container/flat_hash_map.h"
-#include "absl/container/flat_hash_set.h"
-#include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_circular_deque.h"

@@ -4,8 +4,6 @@
 
 #include "quiche/spdy/core/hpack/hpack_constants.h"
 
-#include <cstddef>
-#include <memory>
 #include <vector>
 
 #include "absl/base/macros.h"
