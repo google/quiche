@@ -612,7 +612,7 @@ bool TlsClientHandshaker::ShouldCloseConnectionOnUnexpectedError(
 void TlsClientHandshaker::HandleZeroRttReject() {
   QUIC_LOG(INFO) << "0-RTT handshake attempted but was rejected by the server";
   QUICHE_DCHECK(session_cache_);
-  // Disable encrytion to block outgoing data until 1-RTT keys are available.
+  // Disable encryption to block outgoing data until 1-RTT keys are available.
   encryption_established_ = false;
   handshaker_delegate()->OnZeroRttRejected(EarlyDataReason());
   SSL_reset_early_data_reject(ssl());
