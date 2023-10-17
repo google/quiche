@@ -80,6 +80,6 @@ message AuthAndSignResponse {
   // users in the format of "${Region}.${timestamp}.${signature}".
   string region_token_and_signature = 6;
 
-  // The APN type bridge-proxy use to deside which APN to use for connecting.
+  // The APN type bridge-proxy use to decide which APN to use for connecting.
   string apn_type = 7;
 }
