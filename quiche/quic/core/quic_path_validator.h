@@ -112,8 +112,8 @@ class QUICHE_EXPORT QuicPathValidator {
    public:
     virtual ~ResultDelegate() = default;
 
-    // Called when a PATH_RESPONSE is received with a matching PATH_CHALLANGE.
-    // |start_time| is the time when the matching PATH_CHALLANGE was sent.
+    // Called when a PATH_RESPONSE is received with a matching PATH_CHALLENGE.
+    // |start_time| is the time when the matching PATH_CHALLENGE was sent.
     virtual void OnPathValidationSuccess(
         std::unique_ptr<QuicPathValidationContext> context,
         QuicTime start_time) = 0;
@@ -132,7 +132,7 @@ class QUICHE_EXPORT QuicPathValidator {
                            PathValidationReason reason);
 
   // Called when a PATH_RESPONSE frame has been received. Matches the received
-  // PATH_RESPONSE payload with the payloads previously sent in PATH_CHALLANGE
+  // PATH_RESPONSE payload with the payloads previously sent in PATH_CHALLENGE
   // frames and the self address on which it was sent.
   void OnPathResponse(const QuicPathFrameBuffer& probing_data,
                       QuicSocketAddress self_address);

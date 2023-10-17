@@ -11768,7 +11768,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnNewSocket) {
   EXPECT_TRUE(connection_.connected());
 }
 
-// Tests that write error while sending PATH_CHALLANGE from the default socket
+// Tests that write error while sending PATH_CHALLENGE from the default socket
 // should close the connection.
 TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {

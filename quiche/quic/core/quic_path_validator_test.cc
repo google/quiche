@@ -149,7 +149,7 @@ TEST_F(QuicPathValidatorTest, RespondAfter1stRetry) {
       .WillOnce(Invoke([&](const QuicPathFrameBuffer& payload,
                            const QuicSocketAddress&, const QuicSocketAddress&,
                            const QuicSocketAddress&, QuicPacketWriter*) {
-        // Store up the 1st PATH_CHALLANGE payload.
+        // Store up the 1st PATH_CHALLENGE payload.
         memcpy(challenge_data.data(), payload.data(), payload.size());
         return true;
       }))
