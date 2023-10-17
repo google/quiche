@@ -44,7 +44,7 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
   QuicServerSessionBase(const QuicServerSessionBase&) = delete;
   QuicServerSessionBase& operator=(const QuicServerSessionBase&) = delete;
 
-  // Override the base class to cancel any ongoing asychronous crypto.
+  // Override the base class to cancel any ongoing asynchronous crypto.
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
 
