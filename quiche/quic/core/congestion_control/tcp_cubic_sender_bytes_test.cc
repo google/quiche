@@ -68,7 +68,7 @@ class TcpCubicSenderBytesTest : public QuicTest {
     while (can_send) {
       sender_->OnPacketSent(clock_.Now(), bytes_in_flight_,
                             QuicPacketNumber(packet_number_++), kDefaultTCPMSS,
-                            HAS_RETRANSMITTABLE_DATA);
+                            HAS_RETRANSMISSIBLE_DATA);
       ++packets_sent;
       bytes_in_flight_ += kDefaultTCPMSS;
       can_send = sender_->CanSend(bytes_in_flight_);

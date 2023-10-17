@@ -49,7 +49,7 @@ std::string QuicTransmissionInfo::DebugString() const {
       ", has_ack_frequency: ", has_ack_frequency,
       ", first_sent_after_loss: ", first_sent_after_loss.ToString(),
       ", largest_acked: ", largest_acked.ToString(),
-      ", retransmittable_frames: ", QuicFramesToString(retransmittable_frames),
+      ", retransmissible_frames: ", QuicFramesToString(retransmissible_frames),
       "}");
 }
 

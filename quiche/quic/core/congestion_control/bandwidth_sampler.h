@@ -195,7 +195,7 @@ class QUICHE_EXPORT BandwidthSamplerInterface {
   virtual void OnPacketSent(
       QuicTime sent_time, QuicPacketNumber packet_number, QuicByteCount bytes,
       QuicByteCount bytes_in_flight,
-      HasRetransmittableData has_retransmittable_data) = 0;
+      HasRetransmissibleData has_retransmissible_data) = 0;
 
   virtual void OnPacketNeutered(QuicPacketNumber packet_number) = 0;
 
@@ -344,7 +344,7 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
 
   void OnPacketSent(QuicTime sent_time, QuicPacketNumber packet_number,
                     QuicByteCount bytes, QuicByteCount bytes_in_flight,
-                    HasRetransmittableData has_retransmittable_data) override;
+                    HasRetransmissibleData has_retransmissible_data) override;
   void OnPacketNeutered(QuicPacketNumber packet_number) override;
 
   CongestionEventSample OnCongestionEvent(

@@ -96,7 +96,7 @@ enum QuicTransportVersion {
 
   // Version 39 writes integers and floating numbers in big endian, stops acking
   // acks, sends a connection level WINDOW_UPDATE every 20 sent packets which do
-  // not contain retransmittable frames.
+  // not contain retransmissible frames.
 
   // Version 40 was an attempt to convert QUIC to IETF frame format; it was
   //            never shipped due to a bug.

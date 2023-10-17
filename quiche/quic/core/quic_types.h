@@ -206,9 +206,9 @@ QUICHE_EXPORT std::string TransmissionTypeToString(
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                        TransmissionType transmission_type);
 
-enum HasRetransmittableData : uint8_t {
-  NO_RETRANSMITTABLE_DATA,
-  HAS_RETRANSMITTABLE_DATA,
+enum HasRetransmissibleData : uint8_t {
+  NO_RETRANSMISSIBLE_DATA,
+  HAS_RETRANSMISSIBLE_DATA,
 };
 
 enum IsHandshake : uint8_t { NOT_HANDSHAKE, IS_HANDSHAKE };

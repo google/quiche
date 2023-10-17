@@ -1032,7 +1032,7 @@ bool QuicStream::MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
       QUIC_BUG_IF(quic_bug_12570_8, perspective_ == Perspective::IS_SERVER)
           << "Server streams' flow control should never be configured twice.";
       OnUnrecoverableError(
-          QUIC_ZERO_RTT_UNRETRANSMITTABLE,
+          QUIC_ZERO_RTT_UNRETRANSMISSIBLE,
           absl::StrCat(
               "Server rejected 0-RTT, aborting because new stream max data ",
               new_offset, " for stream ", id_, " is less than currently used: ",

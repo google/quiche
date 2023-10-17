@@ -12,7 +12,7 @@
 
 namespace quic {
 
-// A HANDSHAKE_DONE frame contains no payload, and it is retransmittable,
+// A HANDSHAKE_DONE frame contains no payload, and it is retransmissible,
 // and ACK'd just like other normal frames.
 struct QUICHE_EXPORT QuicHandshakeDoneFrame
     : public QuicInlinedFrame<QuicHandshakeDoneFrame> {

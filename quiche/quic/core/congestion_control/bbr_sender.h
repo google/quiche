@@ -116,7 +116,7 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
                          QuicPacketCount num_ce) override;
   void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                     QuicPacketNumber packet_number, QuicByteCount bytes,
-                    HasRetransmittableData is_retransmittable) override;
+                    HasRetransmissibleData is_retransmissible) override;
   void OnPacketNeutered(QuicPacketNumber packet_number) override;
   void OnRetransmissionTimeout(bool /*packets_retransmitted*/) override {}
   void OnConnectionMigration() override {}

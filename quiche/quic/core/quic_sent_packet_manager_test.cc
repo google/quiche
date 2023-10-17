@@ -66,13 +66,13 @@ class QuicSentPacketManagerTest : public QuicTest {
     EXPECT_CALL(
         *send_algorithm_,
         OnPacketSent(_, BytesInFlight(), QuicPacketNumber(packet_number),
-                     kDefaultLength, HAS_RETRANSMITTABLE_DATA));
+                     kDefaultLength, HAS_RETRANSMISSIBLE_DATA));
     SerializedPacket packet(CreatePacket(packet_number, false));
-    packet.retransmittable_frames.push_back(
+    packet.retransmissible_frames.push_back(
         QuicFrame(QuicStreamFrame(1, false, 0, absl::string_view())));
     packet.has_crypto_handshake = IS_HANDSHAKE;
     manager_.OnPacketSent(&packet, clock_.Now(), HANDSHAKE_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+                          HAS_RETRANSMISSIBLE_DATA, true, ECN_NOT_ECT);
     return true;
   }
 
@@ -81,10 +81,10 @@ class QuicSentPacketManagerTest : public QuicTest {
     EXPECT_CALL(
         *send_algorithm_,
         OnPacketSent(_, BytesInFlight(), QuicPacketNumber(packet_number),
-                     kDefaultLength, HAS_RETRANSMITTABLE_DATA));
+                     kDefaultLength, HAS_RETRANSMISSIBLE_DATA));
     SerializedPacket packet(CreatePacket(packet_number, true));
     packet.encryption_level = level;
-    manager_.OnPacketSent(&packet, clock_.Now(), type, HAS_RETRANSMITTABLE_DATA,
+    manager_.OnPacketSent(&packet, clock_.Now(), type, HAS_RETRANSMISSIBLE_DATA,
                           true, ECN_NOT_ECT);
     return true;
   }
@@ -129,7 +129,7 @@ class QuicSentPacketManagerTest : public QuicTest {
   void VerifyUnackedPackets(uint64_t* packets, size_t num_packets) {
     if (num_packets == 0) {
       EXPECT_TRUE(manager_.unacked_packets().empty());
-      EXPECT_EQ(0u, QuicSentPacketManagerPeer::GetNumRetransmittablePackets(
+      EXPECT_EQ(0u, QuicSentPacketManagerPeer::GetNumRetransmissiblePackets(
                         &manager_));
       return;
     }
@@ -143,12 +143,12 @@ class QuicSentPacketManagerTest : public QuicTest {
     }
   }
 
-  void VerifyRetransmittablePackets(uint64_t* packets, size_t num_packets) {
+  void VerifyRetransmissiblePackets(uint64_t* packets, size_t num_packets) {
     EXPECT_EQ(
         num_packets,
-        QuicSentPacketManagerPeer::GetNumRetransmittablePackets(&manager_));
+        QuicSentPacketManagerPeer::GetNumRetransmissiblePackets(&manager_));
     for (size_t i = 0; i < num_packets; ++i) {
-      EXPECT_TRUE(QuicSentPacketManagerPeer::HasRetransmittableFrames(
+      EXPECT_TRUE(QuicSentPacketManagerPeer::HasRetransmissibleFrames(
           &manager_, packets[i]))
           << " packets[" << i << "]:" << packets[i];
     }
@@ -229,22 +229,22 @@ class QuicSentPacketManagerTest : public QuicTest {
     EXPECT_CALL(
         *send_algorithm_,
         OnPacketSent(_, BytesInFlight(), QuicPacketNumber(new_packet_number),
-                     kDefaultLength, HAS_RETRANSMITTABLE_DATA));
+                     kDefaultLength, HAS_RETRANSMISSIBLE_DATA));
     SerializedPacket packet(CreatePacket(new_packet_number, true));
     manager_.OnPacketSent(&packet, clock_.Now(), transmission_type,
-                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+                          HAS_RETRANSMISSIBLE_DATA, true, ECN_NOT_ECT);
   }
 
   SerializedPacket CreateDataPacket(uint64_t packet_number) {
     return CreatePacket(packet_number, true);
   }
 
-  SerializedPacket CreatePacket(uint64_t packet_number, bool retransmittable) {
+  SerializedPacket CreatePacket(uint64_t packet_number, bool retransmissible) {
     SerializedPacket packet(QuicPacketNumber(packet_number),
                             PACKET_4BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                             false, false);
-    if (retransmittable) {
-      packet.retransmittable_frames.push_back(
+    if (retransmissible) {
+      packet.retransmissible_frames.push_back(
           QuicFrame(QuicStreamFrame(kStreamId, false, 0, absl::string_view())));
     }
     return packet;
@@ -254,7 +254,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     SerializedPacket packet(QuicPacketNumber(packet_number),
                             PACKET_4BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                             false, false);
-    packet.retransmittable_frames.push_back(QuicFrame(QuicPingFrame()));
+    packet.retransmissible_frames.push_back(QuicFrame(QuicPingFrame()));
     return packet;
   }
 
@@ -275,7 +275,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     SerializedPacket packet(CreateDataPacket(packet_number));
     packet.encryption_level = encryption_level;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, true, ecn_codepoint);
+                          HAS_RETRANSMISSIBLE_DATA, true, ecn_codepoint);
   }
 
   void SendPingPacket(uint64_t packet_number,
@@ -286,20 +286,20 @@ class QuicSentPacketManagerTest : public QuicTest {
     SerializedPacket packet(CreatePingPacket(packet_number));
     packet.encryption_level = encryption_level;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+                          HAS_RETRANSMISSIBLE_DATA, true, ECN_NOT_ECT);
   }
 
   void SendCryptoPacket(uint64_t packet_number) {
     EXPECT_CALL(
         *send_algorithm_,
         OnPacketSent(_, BytesInFlight(), QuicPacketNumber(packet_number),
-                     kDefaultLength, HAS_RETRANSMITTABLE_DATA));
+                     kDefaultLength, HAS_RETRANSMISSIBLE_DATA));
     SerializedPacket packet(CreatePacket(packet_number, false));
-    packet.retransmittable_frames.push_back(
+    packet.retransmissible_frames.push_back(
         QuicFrame(QuicStreamFrame(1, false, 0, absl::string_view())));
     packet.has_crypto_handshake = IS_HANDSHAKE;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+                          HAS_RETRANSMISSIBLE_DATA, true, ECN_NOT_ECT);
     EXPECT_CALL(notifier_, HasUnackedCryptoData()).WillRepeatedly(Return(true));
   }
 
@@ -312,12 +312,12 @@ class QuicSentPacketManagerTest : public QuicTest {
     EXPECT_CALL(
         *send_algorithm_,
         OnPacketSent(_, BytesInFlight(), QuicPacketNumber(packet_number),
-                     kDefaultLength, NO_RETRANSMITTABLE_DATA));
+                     kDefaultLength, NO_RETRANSMISSIBLE_DATA));
     SerializedPacket packet(CreatePacket(packet_number, false));
     packet.largest_acked = QuicPacketNumber(largest_acked);
     packet.encryption_level = level;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          NO_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+                          NO_RETRANSMISSIBLE_DATA, true, ECN_NOT_ECT);
   }
 
   quiche::SimpleBufferAllocator allocator_;
@@ -335,9 +335,9 @@ TEST_F(QuicSentPacketManagerTest, IsUnacked) {
 
   uint64_t unacked[] = {1};
   VerifyUnackedPackets(unacked, ABSL_ARRAYSIZE(unacked));
-  uint64_t retransmittable[] = {1};
-  VerifyRetransmittablePackets(retransmittable,
-                               ABSL_ARRAYSIZE(retransmittable));
+  uint64_t retransmissible[] = {1};
+  VerifyRetransmissiblePackets(retransmissible,
+                               ABSL_ARRAYSIZE(retransmissible));
 }
 
 TEST_F(QuicSentPacketManagerTest, IsUnAckedRetransmit) {
@@ -347,8 +347,8 @@ TEST_F(QuicSentPacketManagerTest, IsUnAckedRetransmit) {
   EXPECT_TRUE(QuicSentPacketManagerPeer::IsRetransmission(&manager_, 2));
   uint64_t unacked[] = {1, 2};
   VerifyUnackedPackets(unacked, ABSL_ARRAYSIZE(unacked));
-  std::vector<uint64_t> retransmittable = {1, 2};
-  VerifyRetransmittablePackets(&retransmittable[0], retransmittable.size());
+  std::vector<uint64_t> retransmissible = {1, 2};
+  VerifyRetransmissiblePackets(&retransmissible[0], retransmissible.size());
 }
 
 TEST_F(QuicSentPacketManagerTest, RetransmitThenAck) {
@@ -364,11 +364,11 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAck) {
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
-  // Packet 1 is unacked, pending, but not retransmittable.
+  // Packet 1 is unacked, pending, but not retransmissible.
   uint64_t unacked[] = {1};
   VerifyUnackedPackets(unacked, ABSL_ARRAYSIZE(unacked));
   EXPECT_TRUE(manager_.HasInFlightPackets());
-  VerifyRetransmittablePackets(nullptr, 0);
+  VerifyRetransmissiblePackets(nullptr, 0);
 }
 
 TEST_F(QuicSentPacketManagerTest, RetransmitThenAckBeforeSend) {
@@ -392,7 +392,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAckBeforeSend) {
   uint64_t unacked[] = {2};
   VerifyUnackedPackets(unacked, ABSL_ARRAYSIZE(unacked));
   // We do not know packet 2 is a spurious retransmission until it gets acked.
-  VerifyRetransmittablePackets(nullptr, 0);
+  VerifyRetransmissiblePackets(nullptr, 0);
   EXPECT_EQ(0u, stats_.packets_spuriously_retransmitted);
 }
 
@@ -406,7 +406,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenStopRetransmittingBeforeSend) {
 
   uint64_t unacked[] = {1};
   VerifyUnackedPackets(unacked, ABSL_ARRAYSIZE(unacked));
-  VerifyRetransmittablePackets(nullptr, 0);
+  VerifyRetransmissiblePackets(nullptr, 0);
   EXPECT_EQ(0u, stats_.packets_spuriously_retransmitted);
 }
 
@@ -425,11 +425,11 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAckPrevious) {
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
-  // 2 remains unacked, but no packets have retransmittable data.
+  // 2 remains unacked, but no packets have retransmissible data.
   uint64_t unacked[] = {2};
   VerifyUnackedPackets(unacked, ABSL_ARRAYSIZE(unacked));
   EXPECT_TRUE(manager_.HasInFlightPackets());
-  VerifyRetransmittablePackets(nullptr, 0);
+  VerifyRetransmissiblePackets(nullptr, 0);
   // Ack 2 causes 2 be considered as spurious retransmission.
   EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).WillOnce(Return(false));
   ExpectAck(2);
@@ -449,7 +449,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAckPreviousThenNackRetransmit) {
   QuicTime::Delta rtt = QuicTime::Delta::FromMilliseconds(15);
   clock_.AdvanceTime(rtt);
 
-  // First, ACK packet 1 which makes packet 2 non-retransmittable.
+  // First, ACK packet 1 which makes packet 2 non-retransmissible.
   ExpectAck(1);
   manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
                            clock_.Now());
@@ -496,10 +496,10 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAckPreviousThenNackRetransmit) {
   uint64_t unacked[] = {2};
   VerifyUnackedPackets(unacked, ABSL_ARRAYSIZE(unacked));
   EXPECT_FALSE(manager_.HasInFlightPackets());
-  VerifyRetransmittablePackets(nullptr, 0);
+  VerifyRetransmissiblePackets(nullptr, 0);
 
   // Verify that the retransmission alarm would not fire,
-  // since there is no retransmittable data outstanding.
+  // since there is no retransmissible data outstanding.
   EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
 }
 
@@ -528,10 +528,10 @@ TEST_F(QuicSentPacketManagerTest,
   uint64_t unacked[] = {2};
   VerifyUnackedPackets(unacked, ABSL_ARRAYSIZE(unacked));
   EXPECT_FALSE(manager_.HasInFlightPackets());
-  VerifyRetransmittablePackets(nullptr, 0);
+  VerifyRetransmissiblePackets(nullptr, 0);
 
   // Verify that the retransmission alarm would not fire,
-  // since there is no retransmittable data outstanding.
+  // since there is no retransmissible data outstanding.
   EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
 }
 
@@ -561,11 +561,11 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
       .Times(2)
       .WillRepeatedly(Return(false));
 
-  // 2 and 3 remain unacked, but no packets have retransmittable data.
+  // 2 and 3 remain unacked, but no packets have retransmissible data.
   uint64_t unacked[] = {2, 3};
   VerifyUnackedPackets(unacked, ABSL_ARRAYSIZE(unacked));
   EXPECT_TRUE(manager_.HasInFlightPackets());
-  VerifyRetransmittablePackets(nullptr, 0);
+  VerifyRetransmissiblePackets(nullptr, 0);
 
   // Ensure packet 2 is lost when 4 is sent and 3 and 4 are acked.
   SendDataPacket(4);
@@ -956,7 +956,7 @@ TEST_F(QuicSentPacketManagerTest,
   EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
   uint64_t unacked[] = {1, 2, 3};
   VerifyUnackedPackets(unacked, ABSL_ARRAYSIZE(unacked));
-  VerifyRetransmittablePackets(nullptr, 0);
+  VerifyRetransmissiblePackets(nullptr, 0);
   EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
   EXPECT_FALSE(manager_.HasInFlightPackets());
 
@@ -970,7 +970,7 @@ TEST_F(QuicSentPacketManagerTest,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
   VerifyUnackedPackets(nullptr, 0);
-  VerifyRetransmittablePackets(nullptr, 0);
+  VerifyRetransmissiblePackets(nullptr, 0);
 }
 
 TEST_F(QuicSentPacketManagerTest, GetTransmissionTime) {
@@ -1521,7 +1521,7 @@ TEST_F(QuicSentPacketManagerTest,
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(30),
             manager_.GetRttStats()->latest_rtt());
 
-  // Migrate again with in-flight packet5 whose retransmittable frames are all
+  // Migrate again with in-flight packet5 whose retransmissible frames are all
   // ACKed. Packet5 should be marked for retransmission but nothing to
   // retransmit.
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillOnce(Return(false));
@@ -1561,7 +1561,7 @@ TEST_F(QuicSentPacketManagerTest, PathMtuIncreased) {
   SerializedPacket packet(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,
                           nullptr, kDefaultLength + 100, false, false);
   manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+                        HAS_RETRANSMISSIBLE_DATA, true, ECN_NOT_ECT);
 
   // Ack the large packet and expect the path MTU to increase.
   ExpectAck(1);
@@ -1650,18 +1650,18 @@ TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
       QuicSentPacketManagerPeer::GetUnackedPacketMap(&manager_);
   EXPECT_FALSE(
       unacked_packets
-          ->GetLargestSentRetransmittableOfPacketNumberSpace(INITIAL_DATA)
+          ->GetLargestSentRetransmissibleOfPacketNumberSpace(INITIAL_DATA)
           .IsInitialized());
   EXPECT_FALSE(
       manager_.GetLargestAckedPacket(ENCRYPTION_INITIAL).IsInitialized());
   // Send packet 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);
   EXPECT_EQ(QuicPacketNumber(1),
-            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+            unacked_packets->GetLargestSentRetransmissibleOfPacketNumberSpace(
                 INITIAL_DATA));
   EXPECT_FALSE(
       unacked_packets
-          ->GetLargestSentRetransmittableOfPacketNumberSpace(HANDSHAKE_DATA)
+          ->GetLargestSentRetransmissibleOfPacketNumberSpace(HANDSHAKE_DATA)
           .IsInitialized());
   // Ack packet 1.
   ExpectAck(1);
@@ -1679,14 +1679,14 @@ TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
   SendDataPacket(2, ENCRYPTION_HANDSHAKE);
   SendDataPacket(3, ENCRYPTION_HANDSHAKE);
   EXPECT_EQ(QuicPacketNumber(1),
-            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+            unacked_packets->GetLargestSentRetransmissibleOfPacketNumberSpace(
                 INITIAL_DATA));
   EXPECT_EQ(QuicPacketNumber(3),
-            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+            unacked_packets->GetLargestSentRetransmissibleOfPacketNumberSpace(
                 HANDSHAKE_DATA));
   EXPECT_FALSE(
       unacked_packets
-          ->GetLargestSentRetransmittableOfPacketNumberSpace(APPLICATION_DATA)
+          ->GetLargestSentRetransmissibleOfPacketNumberSpace(APPLICATION_DATA)
           .IsInitialized());
   // Ack packet 2.
   ExpectAck(2);
@@ -1716,13 +1716,13 @@ TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
   SendDataPacket(4, ENCRYPTION_ZERO_RTT);
   SendDataPacket(5, ENCRYPTION_ZERO_RTT);
   EXPECT_EQ(QuicPacketNumber(1),
-            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+            unacked_packets->GetLargestSentRetransmissibleOfPacketNumberSpace(
                 INITIAL_DATA));
   EXPECT_EQ(QuicPacketNumber(3),
-            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+            unacked_packets->GetLargestSentRetransmissibleOfPacketNumberSpace(
                 HANDSHAKE_DATA));
   EXPECT_EQ(QuicPacketNumber(5),
-            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+            unacked_packets->GetLargestSentRetransmissibleOfPacketNumberSpace(
                 APPLICATION_DATA));
   // Ack packet 5.
   ExpectAck(5);
@@ -1744,13 +1744,13 @@ TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
   SendDataPacket(7, ENCRYPTION_FORWARD_SECURE);
   SendDataPacket(8, ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(QuicPacketNumber(1),
-            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+            unacked_packets->GetLargestSentRetransmissibleOfPacketNumberSpace(
                 INITIAL_DATA));
   EXPECT_EQ(QuicPacketNumber(3),
-            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+            unacked_packets->GetLargestSentRetransmissibleOfPacketNumberSpace(
                 HANDSHAKE_DATA));
   EXPECT_EQ(QuicPacketNumber(8),
-            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+            unacked_packets->GetLargestSentRetransmissibleOfPacketNumberSpace(
                 APPLICATION_DATA));
   // Ack all packets.
   uint64_t acked[] = {4, 6, 7, 8};
@@ -2740,11 +2740,11 @@ TEST_F(QuicSentPacketManagerTest, SendPathChallengeAndGetAck) {
   SerializedPacket packet(packet_number, PACKET_4BYTE_PACKET_NUMBER, nullptr,
                           kDefaultLength, false, false);
   QuicPathFrameBuffer path_frame_buffer{0, 1, 2, 3, 4, 5, 6, 7};
-  packet.nonretransmittable_frames.push_back(
+  packet.nonretransmissible_frames.push_back(
       QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer)));
   packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
   manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                        NO_RETRANSMITTABLE_DATA, false, ECN_NOT_ECT);
+                        NO_RETRANSMISSIBLE_DATA, false, ECN_NOT_ECT);
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   EXPECT_CALL(
       *send_algorithm_,
@@ -2771,7 +2771,7 @@ SerializedPacket MakePacketWithAckFrequencyFrame(
                           PACKET_4BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                           /*has_ack=*/false,
                           /*has_stop_waiting=*/false);
-  packet.retransmittable_frames.push_back(QuicFrame(ack_frequency_frame));
+  packet.retransmissible_frames.push_back(QuicFrame(ack_frequency_frame));
   packet.has_ack_frequency = true;
   packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
   return packet;
@@ -2796,7 +2796,7 @@ TEST_F(QuicSentPacketManagerTest,
       plus_1_ms_delay);
   // Higher on the fly max_ack_delay changes peer_max_ack_delay.
   manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        HAS_RETRANSMISSIBLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), plus_1_ms_delay);
   manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
@@ -2812,7 +2812,7 @@ TEST_F(QuicSentPacketManagerTest,
       minus_1_ms_delay);
   // Lower on the fly max_ack_delay does not change peer_max_ack_delay.
   manager_.OnPacketSent(&packet2, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        HAS_RETRANSMISSIBLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), plus_1_ms_delay);
   manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
@@ -2845,15 +2845,15 @@ TEST_F(QuicSentPacketManagerTest,
 
   // Send frame1, frame2, frame3.
   manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        HAS_RETRANSMISSIBLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_1_ms);
   manager_.OnPacketSent(&packet2, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        HAS_RETRANSMISSIBLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_3_ms);
   manager_.OnPacketSent(&packet3, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        HAS_RETRANSMISSIBLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_3_ms);
 
@@ -2903,16 +2903,16 @@ TEST_F(QuicSentPacketManagerTest,
 
   // Send frame1, frame2, frame3, frame4.
   manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        HAS_RETRANSMISSIBLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
   manager_.OnPacketSent(&packet2, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        HAS_RETRANSMISSIBLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
   manager_.OnPacketSent(&packet3, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        HAS_RETRANSMISSIBLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
   manager_.OnPacketSent(&packet4, clock_.Now(), NOT_RETRANSMISSION,
-                        NO_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                        NO_RETRANSMISSIBLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_4_ms);
 
@@ -2962,10 +2962,10 @@ TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
                             /*has_ack=*/false,
                             /*has_stop_waiting*/ false);
     packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
-    packet.retransmittable_frames.push_back(QuicFrame(message_frame));
+    packet.retransmissible_frames.push_back(QuicFrame(message_frame));
     packet.has_message = true;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
+                          HAS_RETRANSMISSIBLE_DATA, /*measure_rtt=*/true,
                           ECN_NOT_ECT);
   }
 

@@ -285,10 +285,10 @@ inline constexpr int kDefaultLossDelayShift = 2;
 // Default fraction (1/8) of an RTT when doing IETF loss detection.
 inline constexpr int kDefaultIetfLossDelayShift = 3;
 
-// Maximum number of retransmittable packets received before sending an ack.
-inline constexpr QuicPacketCount kDefaultRetransmittablePacketsBeforeAck = 2;
-// Wait for up to 10 retransmittable packets before sending an ack.
-inline constexpr QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 10;
+// Maximum number of retransmissible packets received before sending an ack.
+inline constexpr QuicPacketCount kDefaultRetransmissiblePacketsBeforeAck = 2;
+// Wait for up to 10 retransmissible packets before sending an ack.
+inline constexpr QuicPacketCount kMaxRetransmissiblePacketsBeforeAck = 10;
 // Minimum number of packets received before ack decimation is enabled.
 // This intends to avoid the beginning of slow start, when CWNDs may be
 // rapidly increasing.

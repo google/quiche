@@ -58,7 +58,7 @@ class QUICHE_EXPORT PacingSender {
 
   void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                     QuicPacketNumber packet_number, QuicByteCount bytes,
-                    HasRetransmittableData has_retransmittable_data);
+                    HasRetransmissibleData has_retransmissible_data);
 
   // Called when application throttles the sending, so that pacing sender stops
   // making up for lost time.

@@ -12,7 +12,7 @@
 
 namespace quic {
 
-// A ping frame contains no payload, though it is retransmittable,
+// A ping frame contains no payload, though it is retransmissible,
 // and ACK'd just like other normal frames.
 struct QUICHE_EXPORT QuicPingFrame : public QuicInlinedFrame<QuicPingFrame> {
   QuicPingFrame();

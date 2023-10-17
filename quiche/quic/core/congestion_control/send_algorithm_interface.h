@@ -93,12 +93,12 @@ class QUICHE_EXPORT SendAlgorithmInterface {
                                  QuicPacketCount num_ce) = 0;
 
   // Inform that we sent |bytes| to the wire, and if the packet is
-  // retransmittable.  |bytes_in_flight| is the number of bytes in flight before
+  // retransmissible.  |bytes_in_flight| is the number of bytes in flight before
   // the packet was sent.
   // Note: this function must be called for every packet sent to the wire.
   virtual void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                             QuicPacketNumber packet_number, QuicByteCount bytes,
-                            HasRetransmittableData is_retransmittable) = 0;
+                            HasRetransmissibleData is_retransmissible) = 0;
 
   // Inform that |packet_number| has been neutered.
   virtual void OnPacketNeutered(QuicPacketNumber packet_number) = 0;

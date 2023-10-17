@@ -51,7 +51,7 @@ class UberLossAlgorithmTest : public QuicTest {
                             PACKET_1BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                             false, false);
     packet.encryption_level = encryption_level;
-    packet.retransmittable_frames.push_back(QuicFrame(frame));
+    packet.retransmissible_frames.push_back(QuicFrame(frame));
     unacked_packets_->AddSentPacket(&packet, NOT_RETRANSMISSION, clock_.Now(),
                                     true, true, ECN_NOT_ECT);
   }

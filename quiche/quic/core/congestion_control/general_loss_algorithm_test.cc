@@ -41,7 +41,7 @@ class GeneralLossAlgorithmTest : public QuicTest {
     SerializedPacket packet(QuicPacketNumber(packet_number),
                             PACKET_1BYTE_PACKET_NUMBER, nullptr,
                             encrypted_length, false, false);
-    packet.retransmittable_frames.push_back(QuicFrame(frame));
+    packet.retransmissible_frames.push_back(QuicFrame(frame));
     unacked_packets_.AddSentPacket(&packet, NOT_RETRANSMISSION, clock_.Now(),
                                    true, true, ECN_NOT_ECT);
   }

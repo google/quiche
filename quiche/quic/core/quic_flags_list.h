@@ -75,7 +75,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, tru
 QUIC_FLAG(quic_reloadable_flag_quic_new_error_code_when_packets_buffered_too_long, true)
 // If true, do not send MAX_STREAM frames if there are already 2 outstanding.
 QUIC_FLAG(quic_reloadable_flag_quic_limit_sending_max_streams, false)
-// If true, enable server retransmittable on wire PING.
+// If true, enable server retransmissible on wire PING.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, flush ACK frame in QuicConnection::MaybeBundleOpportunistically.
 QUIC_FLAG(quic_reloadable_flag_quic_flush_ack_in_maybe_bundle, true)

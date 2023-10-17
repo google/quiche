@@ -135,7 +135,7 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
   void OnUnrecoverableError(QuicErrorCode /*error*/,
                             const std::string& /*error_details*/) override {}
 
-  bool ShouldGeneratePacket(HasRetransmittableData /*retransmittable*/,
+  bool ShouldGeneratePacket(HasRetransmissibleData /*retransmissible*/,
                             IsHandshake /*handshake*/) override {
     QUICHE_DCHECK(false);
     return true;

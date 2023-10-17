@@ -57,8 +57,8 @@ class QuicEncrypter;
 
 namespace {
 
-// Maximum number of consecutive sent nonretransmittable packets.
-const QuicPacketCount kMaxConsecutiveNonRetransmittablePackets = 19;
+// Maximum number of consecutive sent nonretransmissible packets.
+const QuicPacketCount kMaxConsecutiveNonRetransmissiblePackets = 19;
 
 // The minimum release time into future in ms.
 const int kMinReleaseTimeIntoFutureMs = 1;
@@ -236,12 +236,12 @@ CongestionControlType GetDefaultCongestionControlType() {
 }
 
 bool ContainsNonProbingFrame(const SerializedPacket& packet) {
-  for (const QuicFrame& frame : packet.nonretransmittable_frames) {
+  for (const QuicFrame& frame : packet.nonretransmissible_frames) {
     if (!QuicUtils::IsProbingFrame(frame.type)) {
       return true;
     }
   }
-  for (const QuicFrame& frame : packet.retransmittable_frames) {
+  for (const QuicFrame& frame : packet.retransmissible_frames) {
     if (!QuicUtils::IsProbingFrame(frame.type)) {
       return true;
     }
@@ -327,10 +327,10 @@ QuicConnection::QuicConnection(
       peer_max_packet_size_(kDefaultMaxPacketSizeTransportParam),
       largest_received_packet_size_(0),
       write_error_occurred_(false),
-      consecutive_num_packets_with_no_retransmittable_frames_(0),
-      max_consecutive_num_packets_with_no_retransmittable_frames_(
-          kMaxConsecutiveNonRetransmittablePackets),
-      bundle_retransmittable_with_pto_ack_(false),
+      consecutive_num_packets_with_no_retransmissible_frames_(0),
+      max_consecutive_num_packets_with_no_retransmissible_frames_(
+          kMaxConsecutiveNonRetransmissiblePackets),
+      bundle_retransmissible_with_pto_ack_(false),
       last_control_frame_id_(kInvalidControlFrameId),
       is_path_degrading_(false),
       processing_ack_frame_(false),
@@ -599,10 +599,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     // Only conduct those experiments in IETF QUIC because random packets may
     // elicit reset and gQUIC PUBLIC_RESET will cause connection close.
     if (config.HasClientRequestedIndependentOption(kROWF, perspective_)) {
-      retransmittable_on_wire_behavior_ = SEND_FIRST_FORWARD_SECURE_PACKET;
+      retransmissible_on_wire_behavior_ = SEND_FIRST_FORWARD_SECURE_PACKET;
     }
     if (config.HasClientRequestedIndependentOption(kROWR, perspective_)) {
-      retransmittable_on_wire_behavior_ = SEND_RANDOM_BYTES;
+      retransmissible_on_wire_behavior_ = SEND_RANDOM_BYTES;
     }
   }
   if (config.HasClientRequestedIndependentOption(k3AFF, perspective_)) {
@@ -616,7 +616,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       perspective_ == Perspective::IS_SERVER &&
       config.HasClientSentConnectionOption(kSRWP, perspective_)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_enable_server_on_wire_ping);
-    set_initial_retransmittable_on_wire_timeout(
+    set_initial_retransmissible_on_wire_timeout(
         QuicTime::Delta::FromMilliseconds(200));
   }
 
@@ -639,7 +639,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     framer_.set_peer_ack_delay_exponent(config.ReceivedAckDelayExponent());
   }
   if (config.HasClientSentConnectionOption(kEACK, perspective_)) {
-    bundle_retransmittable_with_pto_ack_ = true;
+    bundle_retransmissible_with_pto_ack_ = true;
   }
   if (config.HasClientSentConnectionOption(kDFER, perspective_)) {
     defer_send_in_response_to_packets_ = false;
@@ -1386,7 +1386,7 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
   MaybeUpdateAckTimeout();
   visitor_->OnStreamFrame(frame);
   stats_.stream_bytes_received += frame.data_length;
-  ping_manager_.reset_consecutive_retransmittable_on_wire_count();
+  ping_manager_.reset_consecutive_retransmissible_on_wire_count();
   return connected_;
 }
 
@@ -2396,7 +2396,7 @@ void QuicConnection::MaybeSendInResponseToPacket() {
     send_alarm_->Cancel();
   }
 
-  if (CanWrite(HAS_RETRANSMITTABLE_DATA)) {
+  if (CanWrite(HAS_RETRANSMISSIBLE_DATA)) {
     // Some data can be written immediately. Register for immediate resumption
     // so we'll keep writing after other connections.
     QUIC_BUG_IF(quic_send_alarm_set_with_data_to_send, send_alarm_->IsSet());
@@ -2497,7 +2497,7 @@ bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
   }
   ScopedPacketFlusher flusher(this);
   const bool consumed =
-      packet_creator_.ConsumeRetransmittableControlFrame(frame);
+      packet_creator_.ConsumeRetransmissibleControlFrame(frame);
   if (!consumed) {
     QUIC_DVLOG(1) << ENDPOINT << "Failed to send control frame: " << frame;
     return false;
@@ -2812,7 +2812,7 @@ void QuicConnection::OnCanWrite() {
 
   // Sending queued packets may have caused the socket to become write blocked,
   // or the congestion manager to prohibit sending.
-  if (!CanWrite(HAS_RETRANSMITTABLE_DATA)) {
+  if (!CanWrite(HAS_RETRANSMISSIBLE_DATA)) {
     return;
   }
 
@@ -2822,7 +2822,7 @@ void QuicConnection::OnCanWrite() {
   // After the visitor writes, it may have caused the socket to become write
   // blocked or the congestion manager to prohibit sending, so check again.
   if (visitor_->WillingAndAbleToWrite() && !send_alarm_->IsSet() &&
-      CanWrite(HAS_RETRANSMITTABLE_DATA)) {
+      CanWrite(HAS_RETRANSMISSIBLE_DATA)) {
     // We're not write blocked, but some data wasn't written. Register for
     // 'immediate' resumption so we'll keep writing after other connections.
     send_alarm_->Set(clock_->ApproximateNow());
@@ -3150,7 +3150,7 @@ bool QuicConnection::IsMissingDestinationConnectionID() const {
 }
 
 bool QuicConnection::ShouldGeneratePacket(
-    HasRetransmittableData retransmittable, IsHandshake handshake) {
+    HasRetransmissibleData retransmissible, IsHandshake handshake) {
   QUICHE_DCHECK(handshake != IS_HANDSHAKE ||
                 QuicVersionUsesCryptoFrames(transport_version()))
       << ENDPOINT
@@ -3166,7 +3166,7 @@ bool QuicConnection::ShouldGeneratePacket(
   }
   if (IsDefaultPath(default_path_.self_address,
                     packet_creator_.peer_address())) {
-    return CanWrite(retransmittable);
+    return CanWrite(retransmissible);
   }
   // This is checking on the alternative path with a different peer address. The
   // self address and the writer used are the same as the default path. In the
@@ -3192,7 +3192,7 @@ const QuicFrames QuicConnection::MaybeBundleOpportunistically() {
   }
 
   if (packet_creator_.flush_ack_in_maybe_bundle() &&
-      (packet_creator_.has_ack() || !CanWrite(NO_RETRANSMITTABLE_DATA))) {
+      (packet_creator_.has_ack() || !CanWrite(NO_RETRANSMISSIBLE_DATA))) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_flush_ack_in_maybe_bundle, 2, 3);
     return {};
   }
@@ -3227,7 +3227,7 @@ const QuicFrames QuicConnection::MaybeBundleOpportunistically() {
   return frames;
 }
 
-bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
+bool QuicConnection::CanWrite(HasRetransmissibleData retransmissible) {
   if (!connected_) {
     return false;
   }
@@ -3281,7 +3281,7 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
   }
 
   // Allow acks and probing frames to be sent immediately.
-  if (retransmittable == NO_RETRANSMITTABLE_DATA) {
+  if (retransmissible == NO_RETRANSMISSIBLE_DATA) {
     return true;
   }
   // If the send alarm is set, wait for it to fire.
@@ -3339,7 +3339,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     return true;
   }
   const bool is_mtu_discovery = QuicUtils::ContainsFrameType(
-      packet->nonretransmittable_frames, MTU_DISCOVERY_FRAME);
+      packet->nonretransmissible_frames, MTU_DISCOVERY_FRAME);
   const SerializedPacketFate fate = packet->fate;
   // Termination packets are encrypted and saved, so don't exit early.
   QuicErrorCode error_code = QUIC_NO_ERROR;
@@ -3376,7 +3376,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       << " > packet_creator max_packet_length="
       << packet_creator_.max_packet_length();
   QUIC_DVLOG(1) << ENDPOINT << "Sending packet " << packet_number << " : "
-                << (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA
+                << (IsRetransmissible(*packet) == HAS_RETRANSMISSIBLE_DATA
                         ? "data bearing "
                         : " ack or probing only ")
                 << ", encryption level: " << packet->encryption_level
@@ -3414,10 +3414,10 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                 ContainsNonProbingFrame(*packet))
         << "Packet " << packet->packet_number
         << " with non-probing frames was sent on alternative path: "
-           "nonretransmittable_frames: "
-        << QuicFramesToString(packet->nonretransmittable_frames)
-        << " retransmittable_frames: "
-        << QuicFramesToString(packet->retransmittable_frames);
+           "nonretransmissible_frames: "
+        << QuicFramesToString(packet->nonretransmissible_frames)
+        << " retransmissible_frames: "
+        << QuicFramesToString(packet->retransmissible_frames);
   }
   switch (fate) {
     case DISCARD:
@@ -3567,10 +3567,10 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     packet_send_time = packet_send_time + result.send_time_offset;
   }
 
-  if (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA &&
+  if (IsRetransmissible(*packet) == HAS_RETRANSMISSIBLE_DATA &&
       !is_termination_packet) {
     // Start blackhole/path degrading detections if the sent packet is not
-    // termination packet and contains retransmittable data.
+    // termination packet and contains retransmissible data.
     // Do not restart detection if detection is in progress indicating no
     // forward progress has been made since last event (i.e., packet was sent
     // or new packets were acknowledged).
@@ -3606,7 +3606,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       << " while current path has peer address " << peer_address();
   const bool in_flight = sent_packet_manager_.OnPacketSent(
       packet, packet_send_time, packet->transmission_type,
-      IsRetransmittable(*packet), /*measure_rtt=*/send_on_current_path,
+      IsRetransmissible(*packet), /*measure_rtt=*/send_on_current_path,
       last_ecn_codepoint_sent_);
   QUIC_BUG_IF(quic_bug_12714_25,
               perspective_ == Perspective::IS_SERVER &&
@@ -3627,8 +3627,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
           packet->encryption_level,
           sent_packet_manager_.unacked_packets()
               .rbegin()
-              ->retransmittable_frames,
-          packet->nonretransmittable_frames, packet_send_time, result.batch_id);
+              ->retransmissible_frames,
+          packet->nonretransmissible_frames, packet_send_time, result.batch_id);
     }
   }
   if (packet->encryption_level == ENCRYPTION_HANDSHAKE) {
@@ -3923,14 +3923,14 @@ void QuicConnection::OnSerializedPacket(SerializedPacket serialized_packet) {
     return;
   }
 
-  if (serialized_packet.retransmittable_frames.empty()) {
-    // Increment consecutive_num_packets_with_no_retransmittable_frames_ if
-    // this packet is a new transmission with no retransmittable frames.
-    ++consecutive_num_packets_with_no_retransmittable_frames_;
+  if (serialized_packet.retransmissible_frames.empty()) {
+    // Increment consecutive_num_packets_with_no_retransmissible_frames_ if
+    // this packet is a new transmission with no retransmissible frames.
+    ++consecutive_num_packets_with_no_retransmissible_frames_;
   } else {
-    consecutive_num_packets_with_no_retransmittable_frames_ = 0;
+    consecutive_num_packets_with_no_retransmissible_frames_ = 0;
   }
-  if (retransmittable_on_wire_behavior_ == SEND_FIRST_FORWARD_SECURE_PACKET &&
+  if (retransmissible_on_wire_behavior_ == SEND_FIRST_FORWARD_SECURE_PACKET &&
       first_serialized_one_rtt_packet_ == nullptr &&
       serialized_packet.encryption_level == ENCRYPTION_FORWARD_SECURE) {
     first_serialized_one_rtt_packet_ = std::make_unique<BufferedPacket>(
@@ -4030,7 +4030,7 @@ void QuicConnection::OnHandshakeComplete() {
     // This AckFrequencyFrame is meant to only update the max_ack_delay. Set
     // packet tolerance to the default value for now.
     ack_frequency_frame.packet_tolerance =
-        kDefaultRetransmittablePacketsBeforeAck;
+        kDefaultRetransmissiblePacketsBeforeAck;
     visitor_->SendAckFrequency(ack_frequency_frame);
     if (!connected_) {
       return;
@@ -4104,17 +4104,17 @@ void QuicConnection::SendAck() {
     return;
   }
   ResetAckStates();
-  if (!ShouldBundleRetransmittableFrameWithAck()) {
+  if (!ShouldBundleRetransmissibleFrameWithAck()) {
     return;
   }
-  consecutive_num_packets_with_no_retransmittable_frames_ = 0;
-  if (packet_creator_.HasPendingRetransmittableFrames() ||
+  consecutive_num_packets_with_no_retransmissible_frames_ = 0;
+  if (packet_creator_.HasPendingRetransmissibleFrames() ||
       visitor_->WillingAndAbleToWrite()) {
-    // There are pending retransmittable frames.
+    // There are pending retransmissible frames.
     return;
   }
 
-  visitor_->OnAckNeedsRetransmittableFrame();
+  visitor_->OnAckNeedsRetransmissibleFrame();
 }
 
 EncryptionLevel QuicConnection::GetEncryptionLevelToSendPingForSpace(
@@ -4589,7 +4589,7 @@ void QuicConnection::SendConnectionClosePacket(
     frame = new QuicConnectionCloseFrame(transport_version(), error, ietf_error,
                                          details,
                                          framer_.current_received_frame_type());
-    packet_creator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
+    packet_creator_.ConsumeRetransmissibleControlFrame(QuicFrame(frame));
     packet_creator_.FlushCurrentPacket();
     if (version().CanSendCoalescedPackets()) {
       FlushCoalescedPacket();
@@ -4634,7 +4634,7 @@ void QuicConnection::SendConnectionClosePacket(
     auto* frame = new QuicConnectionCloseFrame(
         transport_version(), error, ietf_error, details,
         framer_.current_received_frame_type());
-    packet_creator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
+    packet_creator_.ConsumeRetransmissibleControlFrame(QuicFrame(frame));
     packet_creator_.FlushCurrentPacket();
   }
   if (version().CanSendCoalescedPackets()) {
@@ -4812,7 +4812,7 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
         connection_->uber_received_packet_manager_.GetEarliestAckTimeout();
     if (ack_timeout.IsInitialized()) {
       if (ack_timeout <= connection_->clock_->ApproximateNow() &&
-          !connection_->CanWrite(NO_RETRANSMITTABLE_DATA)) {
+          !connection_->CanWrite(NO_RETRANSMISSIBLE_DATA)) {
         // Cancel ACK alarm if connection is write blocked, and ACK will be
         // sent when connection gets unblocked.
         connection_->ack_alarm_->Cancel();
@@ -4975,24 +4975,24 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-HasRetransmittableData QuicConnection::IsRetransmittable(
+HasRetransmissibleData QuicConnection::IsRetransmissible(
     const SerializedPacket& packet) {
-  // Retransmitted packets retransmittable frames are owned by the unacked
+  // Retransmitted packets retransmissible frames are owned by the unacked
   // packet map, but are not present in the serialized packet.
   if (packet.transmission_type != NOT_RETRANSMISSION ||
-      !packet.retransmittable_frames.empty()) {
-    return HAS_RETRANSMITTABLE_DATA;
+      !packet.retransmissible_frames.empty()) {
+    return HAS_RETRANSMISSIBLE_DATA;
   } else {
-    return NO_RETRANSMITTABLE_DATA;
+    return NO_RETRANSMISSIBLE_DATA;
   }
 }
 
 bool QuicConnection::IsTerminationPacket(const SerializedPacket& packet,
                                          QuicErrorCode* error_code) {
-  if (packet.retransmittable_frames.empty()) {
+  if (packet.retransmissible_frames.empty()) {
     return false;
   }
-  for (const QuicFrame& frame : packet.retransmittable_frames) {
+  for (const QuicFrame& frame : packet.retransmissible_frames) {
     if (frame.type == CONNECTION_CLOSE_FRAME) {
       *error_code = frame.connection_close_frame->quic_error_code;
       return true;
@@ -5087,7 +5087,7 @@ bool QuicConnection::SendConnectivityProbingPacket(
         packet_creator_.SerializePathChallengeConnectivityProbingPacket(
             transmitted_connectivity_probe_payload);
   }
-  QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet), NO_RETRANSMITTABLE_DATA);
+  QUICHE_DCHECK_EQ(IsRetransmissible(*probing_packet), NO_RETRANSMISSIBLE_DATA);
   return WritePacketUsingWriter(std::move(probing_packet), probing_writer,
                                 self_address(), peer_address,
                                 /*measure_rtt=*/true);
@@ -5127,7 +5127,7 @@ bool QuicConnection::WritePacketUsingWriter(
   // Send in current path. Call OnPacketSent regardless of the write result.
   sent_packet_manager_.OnPacketSent(
       packet.get(), packet_send_time, packet->transmission_type,
-      NO_RETRANSMITTABLE_DATA, measure_rtt, last_ecn_codepoint_sent_);
+      NO_RETRANSMISSIBLE_DATA, measure_rtt, last_ecn_codepoint_sent_);
 
   if (debug_visitor_ != nullptr) {
     if (sent_packet_manager_.unacked_packets().empty()) {
@@ -5140,8 +5140,8 @@ bool QuicConnection::WritePacketUsingWriter(
           packet->encryption_level,
           sent_packet_manager_.unacked_packets()
               .rbegin()
-              ->retransmittable_frames,
-          packet->nonretransmittable_frames, packet_send_time, writer_batch_id);
+              ->retransmissible_frames,
+          packet->nonretransmissible_frames, packet_send_time, writer_batch_id);
     }
   }
 
@@ -5720,7 +5720,7 @@ MessageStatus QuicConnection::SendMessage(
   if (MemSliceSpanTotalSize(message) > GetCurrentLargestMessagePayload()) {
     return MESSAGE_STATUS_TOO_LARGE;
   }
-  if (!connected_ || (!flush && !CanWrite(HAS_RETRANSMITTABLE_DATA))) {
+  if (!connected_ || (!flush && !CanWrite(HAS_RETRANSMISSIBLE_DATA))) {
     return MESSAGE_STATUS_BLOCKED;
   }
   ScopedPacketFlusher flusher(this);
@@ -5874,30 +5874,30 @@ void QuicConnection::SendAllPendingAcks() {
     // If there are ACKs pending, re-arm ack alarm.
     ack_alarm_->Update(timeout, kAlarmGranularity);
   }
-  // Only try to bundle retransmittable data with ACK frame if default
+  // Only try to bundle retransmissible data with ACK frame if default
   // encryption level is forward secure.
   if (encryption_level_ != ENCRYPTION_FORWARD_SECURE ||
-      !ShouldBundleRetransmittableFrameWithAck()) {
+      !ShouldBundleRetransmissibleFrameWithAck()) {
     return;
   }
-  consecutive_num_packets_with_no_retransmittable_frames_ = 0;
-  if (packet_creator_.HasPendingRetransmittableFrames() ||
+  consecutive_num_packets_with_no_retransmissible_frames_ = 0;
+  if (packet_creator_.HasPendingRetransmissibleFrames() ||
       visitor_->WillingAndAbleToWrite()) {
-    // There are pending retransmittable frames.
+    // There are pending retransmissible frames.
     return;
   }
 
-  visitor_->OnAckNeedsRetransmittableFrame();
+  visitor_->OnAckNeedsRetransmissibleFrame();
 }
 
-bool QuicConnection::ShouldBundleRetransmittableFrameWithAck() const {
-  if (consecutive_num_packets_with_no_retransmittable_frames_ >=
-      max_consecutive_num_packets_with_no_retransmittable_frames_) {
+bool QuicConnection::ShouldBundleRetransmissibleFrameWithAck() const {
+  if (consecutive_num_packets_with_no_retransmissible_frames_ >=
+      max_consecutive_num_packets_with_no_retransmissible_frames_) {
     return true;
   }
-  if (bundle_retransmittable_with_pto_ack_ &&
+  if (bundle_retransmissible_with_pto_ack_ &&
       sent_packet_manager_.GetConsecutivePtoCount() > 0) {
-    // Bundle a retransmittable frame with an ACK if PTO has fired in order to
+    // Bundle a retransmissible frame with an ACK if PTO has fired in order to
     // recover more quickly in cases of temporary network outage.
     return true;
   }
@@ -6345,13 +6345,13 @@ void QuicConnection::OnKeepAliveTimeout() {
   SendPingAtLevel(framer().GetEncryptionLevelToSendApplicationData());
 }
 
-void QuicConnection::OnRetransmittableOnWireTimeout() {
+void QuicConnection::OnRetransmissibleOnWireTimeout() {
   if (retransmission_alarm_->IsSet() ||
       !visitor_->ShouldKeepConnectionAlive()) {
     return;
   }
   bool packet_buffered = false;
-  switch (retransmittable_on_wire_behavior_) {
+  switch (retransmissible_on_wire_behavior_) {
     case DEFAULT:
       break;
     case SEND_FIRST_FORWARD_SECURE_PACKET:
@@ -6379,7 +6379,7 @@ void QuicConnection::OnRetransmittableOnWireTimeout() {
     }
     if (connected_) {
       // Always reset PING alarm with has_in_flight_packets=true. This is used
-      // to avoid re-arming the alarm in retransmittable-on-wire mode.
+      // to avoid re-arming the alarm in retransmissible-on-wire mode.
       ping_manager_.SetAlarm(clock_->ApproximateNow(),
                              visitor_->ShouldKeepConnectionAlive(),
                              /*has_in_flight_packets=*/true);
@@ -6626,9 +6626,9 @@ bool QuicConnection::SendPathChallenge(
     std::unique_ptr<SerializedPacket> probing_packet =
         packet_creator_.SerializePathChallengeConnectivityProbingPacket(
             data_buffer);
-    QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet),
-                     NO_RETRANSMITTABLE_DATA)
-        << ENDPOINT << "Probing Packet contains retransmittable frames";
+    QUICHE_DCHECK_EQ(IsRetransmissible(*probing_packet),
+                     NO_RETRANSMISSIBLE_DATA)
+        << ENDPOINT << "Probing Packet contains retransmissible frames";
     QUICHE_DCHECK_EQ(self_address, alternative_path_.self_address)
         << ENDPOINT
         << "Send PATH_CHALLENGE from self_address: " << self_address.ToString()
@@ -6752,7 +6752,7 @@ bool QuicConnection::SendPathResponse(
   std::unique_ptr<SerializedPacket> probing_packet =
       packet_creator_.SerializePathResponseConnectivityProbingPacket(
           {data_buffer}, /*is_padded=*/true);
-  QUICHE_DCHECK_EQ(IsRetransmittable(*probing_packet), NO_RETRANSMITTABLE_DATA);
+  QUICHE_DCHECK_EQ(IsRetransmissible(*probing_packet), NO_RETRANSMISSIBLE_DATA);
   QUIC_DVLOG(1) << ENDPOINT
                 << "Send PATH_RESPONSE from alternative socket with address "
                 << last_received_packet_info_.destination_address;
@@ -7345,10 +7345,10 @@ void QuicConnection::set_keep_alive_ping_timeout(
   ping_manager_.set_keep_alive_timeout(keep_alive_ping_timeout);
 }
 
-void QuicConnection::set_initial_retransmittable_on_wire_timeout(
-    QuicTime::Delta retransmittable_on_wire_timeout) {
-  ping_manager_.set_initial_retransmittable_on_wire_timeout(
-      retransmittable_on_wire_timeout);
+void QuicConnection::set_initial_retransmissible_on_wire_timeout(
+    QuicTime::Delta retransmissible_on_wire_timeout) {
+  ping_manager_.set_initial_retransmissible_on_wire_timeout(
+      retransmissible_on_wire_timeout);
 }
 
 bool QuicConnection::IsValidatingServerPreferredAddress() const {

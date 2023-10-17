@@ -190,10 +190,10 @@ BandwidthSampler::~BandwidthSampler() {}
 void BandwidthSampler::OnPacketSent(
     QuicTime sent_time, QuicPacketNumber packet_number, QuicByteCount bytes,
     QuicByteCount bytes_in_flight,
-    HasRetransmittableData has_retransmittable_data) {
+    HasRetransmissibleData has_retransmissible_data) {
   last_sent_packet_ = packet_number;
 
-  if (has_retransmittable_data != HAS_RETRANSMITTABLE_DATA) {
+  if (has_retransmissible_data != HAS_RETRANSMISSIBLE_DATA) {
     return;
   }
 

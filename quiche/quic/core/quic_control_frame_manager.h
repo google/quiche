@@ -26,7 +26,7 @@ class QuicControlFrameManagerPeer;
 
 // Control frame manager contains a list of sent control frames with valid
 // control frame IDs. Control frames without valid control frame IDs include:
-// (1) non-retransmittable frames (e.g., ACK_FRAME, PADDING_FRAME,
+// (1) non-retransmissible frames (e.g., ACK_FRAME, PADDING_FRAME,
 // STOP_WAITING_FRAME, etc.), (2) CONNECTION_CLOSE and IETF Quic
 // APPLICATION_CLOSE frames.
 // New control frames are added to the tail of the list when they are added to

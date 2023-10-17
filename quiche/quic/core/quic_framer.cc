@@ -637,7 +637,7 @@ size_t QuicFramer::GetPathResponseFrameSize(
 }
 
 // static
-size_t QuicFramer::GetRetransmittableControlFrameSize(
+size_t QuicFramer::GetRetransmissibleControlFrameSize(
     QuicTransportVersion version, const QuicFrame& frame) {
   switch (frame.type) {
     case PING_FRAME:
@@ -4775,7 +4775,7 @@ size_t QuicFramer::ComputeFrameLength(
       QUICHE_DCHECK(false);
       return 0;
     default:
-      return GetRetransmittableControlFrameSize(version_.transport_version,
+      return GetRetransmissibleControlFrameSize(version_.transport_version,
                                                 frame);
   }
 }

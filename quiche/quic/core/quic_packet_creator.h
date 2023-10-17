@@ -58,7 +58,7 @@ class QUICHE_EXPORT QuicPacketCreator {
                                       const std::string& error_details) = 0;
 
     // Consults delegate whether a packet should be generated.
-    virtual bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
+    virtual bool ShouldGeneratePacket(HasRetransmissibleData retransmissible,
                                       IsHandshake handshake) = 0;
     // Called when there is data to be sent. Gives delegate a chance to bundle
     // anything with to-be-sent data.
@@ -191,8 +191,8 @@ class QUICHE_EXPORT QuicPacketCreator {
   // Returns the information of pending frames as a string.
   std::string GetPendingFramesInfo() const;
 
-  // Returns true if there are retransmittable frames pending to be serialized.
-  bool HasPendingRetransmittableFrames() const;
+  // Returns true if there are retransmissible frames pending to be serialized.
+  bool HasPendingRetransmissibleFrames() const;
 
   // Returns true if there are stream frames for |id| pending to be serialized.
   bool HasPendingStreamFramesOfStream(QuicStreamId id) const;
@@ -336,9 +336,9 @@ class QUICHE_EXPORT QuicPacketCreator {
   // Sets the retry token to be sent over the wire in IETF Initial packets.
   void SetRetryToken(absl::string_view retry_token);
 
-  // Consumes retransmittable control |frame|. Returns true if the frame is
+  // Consumes retransmissible control |frame|. Returns true if the frame is
   // successfully consumed. Returns false otherwise.
-  bool ConsumeRetransmittableControlFrame(const QuicFrame& frame);
+  bool ConsumeRetransmissibleControlFrame(const QuicFrame& frame);
 
   // Given some data, may consume part or all of it and pass it to the
   // packet creator to be serialized into packets. If not in batch
@@ -518,7 +518,7 @@ class QUICHE_EXPORT QuicPacketCreator {
   void MaybeAddPadding();
 
   // Serializes all frames which have been added and adds any which should be
-  // retransmitted to packet_.retransmittable_frames. All frames must fit into
+  // retransmitted to packet_.retransmissible_frames. All frames must fit into
   // a single packet. Returns true on success, otherwise, returns false.
   // Fails if |encrypted_buffer| is not large enough for the encrypted packet.
   //

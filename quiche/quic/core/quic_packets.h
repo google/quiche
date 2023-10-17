@@ -365,8 +365,8 @@ struct QUICHE_EXPORT SerializedPacket {
   QuicPacketLength encrypted_length;
   std::function<void(const char*)> release_encrypted_buffer;
 
-  QuicFrames retransmittable_frames;
-  QuicFrames nonretransmittable_frames;
+  QuicFrames retransmissible_frames;
+  QuicFrames nonretransmissible_frames;
   IsHandshake has_crypto_handshake;
   QuicPacketNumber packet_number;
   QuicPacketNumberLength packet_number_length;
@@ -380,7 +380,7 @@ struct QUICHE_EXPORT SerializedPacket {
   // 0 otherwise.
   QuicPacketNumber largest_acked;
   // Indicates whether this packet has a copy of ack frame in
-  // nonretransmittable_frames.
+  // nonretransmissible_frames.
   bool has_ack_frame_copy;
   bool has_ack_frequency;
   bool has_message;

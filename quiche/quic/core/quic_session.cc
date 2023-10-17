@@ -1167,7 +1167,7 @@ void QuicSession::OnConfigNegotiated() {
         max_streams <
             ietf_streamid_manager_.outgoing_bidirectional_stream_count()) {
       connection_->CloseConnection(
-          QUIC_ZERO_RTT_UNRETRANSMITTABLE,
+          QUIC_ZERO_RTT_UNRETRANSMISSIBLE,
           absl::StrCat(
               "Server rejected 0-RTT, aborting because new bidirectional "
               "initial stream limit ",
@@ -1209,7 +1209,7 @@ void QuicSession::OnConfigNegotiated() {
         max_streams <
             ietf_streamid_manager_.outgoing_unidirectional_stream_count()) {
       connection_->CloseConnection(
-          QUIC_ZERO_RTT_UNRETRANSMITTABLE,
+          QUIC_ZERO_RTT_UNRETRANSMISSIBLE,
           absl::StrCat(
               "Server rejected 0-RTT, aborting because new unidirectional "
               "initial stream limit ",
@@ -1578,7 +1578,7 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
         ", which is below currently used: ", flow_controller_.bytes_sent());
     QUIC_LOG(ERROR) << error_details;
     connection_->CloseConnection(
-        QUIC_ZERO_RTT_UNRETRANSMITTABLE, error_details,
+        QUIC_ZERO_RTT_UNRETRANSMISSIBLE, error_details,
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
@@ -2161,7 +2161,7 @@ bool QuicSession::HasDataToWrite() const {
          control_frame_manager_.WillingToWrite();
 }
 
-void QuicSession::OnAckNeedsRetransmittableFrame() {
+void QuicSession::OnAckNeedsRetransmissibleFrame() {
   flow_controller_.SendWindowUpdate();
 }
 
@@ -2462,7 +2462,7 @@ bool QuicSession::CanWriteStreamData() const {
   if (HasPendingHandshake()) {
     return true;
   }
-  return connection_->CanWrite(HAS_RETRANSMITTABLE_DATA);
+  return connection_->CanWrite(HAS_RETRANSMISSIBLE_DATA);
 }
 
 bool QuicSession::RetransmitLostData() {

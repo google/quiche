@@ -451,8 +451,8 @@ SerializedPacket::SerializedPacket(SerializedPacket&& other)
     release_encrypted_buffer = std::move(other.release_encrypted_buffer);
     other.release_encrypted_buffer = nullptr;
 
-    retransmittable_frames.swap(other.retransmittable_frames);
-    nonretransmittable_frames.swap(other.nonretransmittable_frames);
+    retransmissible_frames.swap(other.retransmissible_frames);
+    nonretransmissible_frames.swap(other.nonretransmissible_frames);
   }
 }
 
@@ -461,10 +461,10 @@ SerializedPacket::~SerializedPacket() {
     release_encrypted_buffer(encrypted_buffer);
   }
 
-  if (!retransmittable_frames.empty()) {
-    DeleteFrames(&retransmittable_frames);
+  if (!retransmissible_frames.empty()) {
+    DeleteFrames(&retransmissible_frames);
   }
-  for (auto& frame : nonretransmittable_frames) {
+  for (auto& frame : nonretransmissible_frames) {
     if (!has_ack_frame_copy && frame.type == ACK_FRAME) {
       // Do not delete ack frame if the packet does not own a copy of it.
       continue;
@@ -497,14 +497,14 @@ SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
     copy->release_encrypted_buffer = [](const char* p) { delete[] p; };
   }
   // Copy underlying frames.
-  copy->retransmittable_frames =
-      CopyQuicFrames(allocator, serialized.retransmittable_frames);
-  QUICHE_DCHECK(copy->nonretransmittable_frames.empty());
-  for (const auto& frame : serialized.nonretransmittable_frames) {
+  copy->retransmissible_frames =
+      CopyQuicFrames(allocator, serialized.retransmissible_frames);
+  QUICHE_DCHECK(copy->nonretransmissible_frames.empty());
+  for (const auto& frame : serialized.nonretransmissible_frames) {
     if (frame.type == ACK_FRAME) {
       copy->has_ack_frame_copy = true;
     }
-    copy->nonretransmittable_frames.push_back(CopyQuicFrame(allocator, frame));
+    copy->nonretransmissible_frames.push_back(CopyQuicFrame(allocator, frame));
   }
   return copy;
 }

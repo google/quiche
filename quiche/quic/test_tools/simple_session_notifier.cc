@@ -367,7 +367,7 @@ bool SimpleSessionNotifier::RetransmitFrames(const QuicFrames& frames,
       if (GetControlFrameId(frame) == kInvalidControlFrameId) {
         continue;
       }
-      QuicFrame copy = CopyRetransmittableControlFrame(frame);
+      QuicFrame copy = CopyRetransmissibleControlFrame(frame);
       if (!connection_->SendControlFrame(copy)) {
         // Connection is write blocked.
         DeleteFrame(&copy);
@@ -556,7 +556,7 @@ bool SimpleSessionNotifier::RetransmitLostControlFrames() {
   while (!lost_control_frames_.empty()) {
     QuicFrame pending = control_frames_.at(lost_control_frames_.begin()->first -
                                            least_unacked_);
-    QuicFrame copy = CopyRetransmittableControlFrame(pending);
+    QuicFrame copy = CopyRetransmissibleControlFrame(pending);
     connection_->SetTransmissionType(LOSS_RETRANSMISSION);
     if (!connection_->SendControlFrame(copy)) {
       // Connection is write blocked.
@@ -708,7 +708,7 @@ bool SimpleSessionNotifier::WriteBufferedControlFrames() {
   while (HasBufferedControlFrames()) {
     QuicFrame frame_to_send =
         control_frames_.at(least_unsent_ - least_unacked_);
-    QuicFrame copy = CopyRetransmittableControlFrame(frame_to_send);
+    QuicFrame copy = CopyRetransmissibleControlFrame(frame_to_send);
     connection_->SetTransmissionType(NOT_RETRANSMISSION);
     if (!connection_->SendControlFrame(copy)) {
       // Connection is write blocked.

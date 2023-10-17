@@ -22,7 +22,7 @@ class QuicPingManagerPeer;
 // QuicPingManager manages an alarm that has two modes:
 // 1) keep-alive. When alarm fires, send packet to extend idle timeout to keep
 // connection alive.
-// 2) retransmittable-on-wire. When alarm fires, send packets to detect path
+// 2) retransmissible-on-wire. When alarm fires, send packets to detect path
 // degrading (used in IP/port migrations).
 class QUICHE_EXPORT QuicPingManager {
  public:
@@ -33,8 +33,8 @@ class QUICHE_EXPORT QuicPingManager {
 
     // Called when alarm fires in keep-alive mode.
     virtual void OnKeepAliveTimeout() = 0;
-    // Called when alarm fires in retransmittable-on-wire mode.
-    virtual void OnRetransmittableOnWireTimeout() = 0;
+    // Called when alarm fires in retransmissible-on-wire mode.
+    virtual void OnRetransmissibleOnWireTimeout() = 0;
   };
 
   QuicPingManager(Perspective perspective, Delegate* delegate,
@@ -56,25 +56,25 @@ class QUICHE_EXPORT QuicPingManager {
     keep_alive_timeout_ = keep_alive_timeout;
   }
 
-  void set_initial_retransmittable_on_wire_timeout(
-      QuicTime::Delta retransmittable_on_wire_timeout) {
+  void set_initial_retransmissible_on_wire_timeout(
+      QuicTime::Delta retransmissible_on_wire_timeout) {
     QUICHE_DCHECK(!alarm_->IsSet());
-    initial_retransmittable_on_wire_timeout_ = retransmittable_on_wire_timeout;
+    initial_retransmissible_on_wire_timeout_ = retransmissible_on_wire_timeout;
   }
 
-  void reset_consecutive_retransmittable_on_wire_count() {
-    consecutive_retransmittable_on_wire_count_ = 0;
+  void reset_consecutive_retransmissible_on_wire_count() {
+    consecutive_retransmissible_on_wire_count_ = 0;
   }
 
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicPingManagerPeer;
 
-  // Update |retransmittable_on_wire_deadline_| and |keep_alive_deadline_|.
+  // Update |retransmissible_on_wire_deadline_| and |keep_alive_deadline_|.
   void UpdateDeadlines(QuicTime now, bool should_keep_alive,
                        bool has_in_flight_packets);
 
-  // Get earliest deadline of |retransmittable_on_wire_deadline_| and
+  // Get earliest deadline of |retransmissible_on_wire_deadline_| and
   // |keep_alive_deadline_|. Returns 0 if both deadlines are not initialized.
   QuicTime GetEarliestDeadline() const;
 
@@ -82,21 +82,21 @@ class QUICHE_EXPORT QuicPingManager {
 
   Delegate* delegate_;  // Not owned.
 
-  // Initial timeout for how long the wire can have no retransmittable packets.
-  QuicTime::Delta initial_retransmittable_on_wire_timeout_ =
+  // Initial timeout for how long the wire can have no retransmissible packets.
+  QuicTime::Delta initial_retransmissible_on_wire_timeout_ =
       QuicTime::Delta::Infinite();
 
-  // Indicates how many consecutive retransmittable-on-wire has been armed
+  // Indicates how many consecutive retransmissible-on-wire has been armed
   // (since last reset).
-  int consecutive_retransmittable_on_wire_count_ = 0;
+  int consecutive_retransmissible_on_wire_count_ = 0;
 
-  // Indicates how many retransmittable-on-wire has been armed in total.
-  int retransmittable_on_wire_count_ = 0;
+  // Indicates how many retransmissible-on-wire has been armed in total.
+  int retransmissible_on_wire_count_ = 0;
 
   QuicTime::Delta keep_alive_timeout_ =
       QuicTime::Delta::FromSeconds(kPingTimeoutSecs);
 
-  QuicTime retransmittable_on_wire_deadline_ = QuicTime::Zero();
+  QuicTime retransmissible_on_wire_deadline_ = QuicTime::Zero();
 
   QuicTime keep_alive_deadline_ = QuicTime::Zero();
 

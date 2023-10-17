@@ -149,7 +149,7 @@ class QUICHE_EXPORT QuicSession
   void OnCongestionWindowChange(QuicTime /*now*/) override {}
   void OnConnectionMigration(AddressChangeType /*type*/) override {}
   // Adds a connection level WINDOW_UPDATE frame.
-  void OnAckNeedsRetransmittableFrame() override;
+  void OnAckNeedsRetransmissibleFrame() override;
   void SendAckFrequency(const QuicAckFrequencyFrame& frame) override;
   void SendNewConnectionId(const QuicNewConnectionIdFrame& frame) override;
   void SendRetireConnectionId(uint64_t sequence_number) override;

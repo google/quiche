@@ -27,8 +27,8 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
                            buffer, 500, false, false);
   packet1.transmission_type = PTO_RETRANSMISSION;
   QuicAckFrame ack_frame(InitAckFrame(1));
-  packet1.nonretransmittable_frames.push_back(QuicFrame(&ack_frame));
-  packet1.retransmittable_frames.push_back(
+  packet1.nonretransmissible_frames.push_back(QuicFrame(&ack_frame));
+  packet1.retransmissible_frames.push_back(
       QuicFrame(QuicStreamFrame(1, true, 0, 100)));
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
                                             &allocator, 1500, ECN_NOT_ECT));
@@ -51,7 +51,7 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
 
   SerializedPacket packet3(QuicPacketNumber(3), PACKET_4BYTE_PACKET_NUMBER,
                            buffer, 500, false, false);
-  packet3.nonretransmittable_frames.push_back(QuicFrame(QuicPaddingFrame(100)));
+  packet3.nonretransmissible_frames.push_back(QuicFrame(QuicPaddingFrame(100)));
   packet3.encryption_level = ENCRYPTION_ZERO_RTT;
   packet3.transmission_type = LOSS_RETRANSMISSION;
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet3, self_address, peer_address,
@@ -155,8 +155,8 @@ TEST(QuicCoalescedPacketTest, NeuterInitialPacket) {
                            buffer, 500, false, false);
   packet1.transmission_type = PTO_RETRANSMISSION;
   QuicAckFrame ack_frame(InitAckFrame(1));
-  packet1.nonretransmittable_frames.push_back(QuicFrame(&ack_frame));
-  packet1.retransmittable_frames.push_back(
+  packet1.nonretransmissible_frames.push_back(QuicFrame(&ack_frame));
+  packet1.retransmissible_frames.push_back(
       QuicFrame(QuicStreamFrame(1, true, 0, 100)));
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
                                             &allocator, 1500, ECN_NOT_ECT));
@@ -181,7 +181,7 @@ TEST(QuicCoalescedPacketTest, NeuterInitialPacket) {
 
   SerializedPacket packet2(QuicPacketNumber(3), PACKET_4BYTE_PACKET_NUMBER,
                            buffer, 500, false, false);
-  packet2.nonretransmittable_frames.push_back(QuicFrame(QuicPaddingFrame(100)));
+  packet2.nonretransmissible_frames.push_back(QuicFrame(QuicPaddingFrame(100)));
   packet2.encryption_level = ENCRYPTION_ZERO_RTT;
   packet2.transmission_type = LOSS_RETRANSMISSION;
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet2, self_address, peer_address,
@@ -234,8 +234,8 @@ TEST(QuicCoalescedPacketTest, DoNotCoalesceDifferentEcn) {
                            buffer, 500, false, false);
   packet1.transmission_type = PTO_RETRANSMISSION;
   QuicAckFrame ack_frame(InitAckFrame(1));
-  packet1.nonretransmittable_frames.push_back(QuicFrame(&ack_frame));
-  packet1.retransmittable_frames.push_back(
+  packet1.nonretransmissible_frames.push_back(QuicFrame(&ack_frame));
+  packet1.retransmissible_frames.push_back(
       QuicFrame(QuicStreamFrame(1, true, 0, 100)));
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
                                             &allocator, 1500, ECN_ECT1));
@@ -243,7 +243,7 @@ TEST(QuicCoalescedPacketTest, DoNotCoalesceDifferentEcn) {
 
   SerializedPacket packet2(QuicPacketNumber(2), PACKET_4BYTE_PACKET_NUMBER,
                            buffer, 500, false, false);
-  packet2.nonretransmittable_frames.push_back(QuicFrame(QuicPaddingFrame(100)));
+  packet2.nonretransmissible_frames.push_back(QuicFrame(QuicPaddingFrame(100)));
   packet2.encryption_level = ENCRYPTION_ZERO_RTT;
   packet2.transmission_type = LOSS_RETRANSMISSION;
   EXPECT_FALSE(coalesced.MaybeCoalescePacket(

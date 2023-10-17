@@ -246,9 +246,9 @@ void QuicConnectionPeer::SetAckDecimationDelay(QuicConnection* connection,
 }
 
 // static
-bool QuicConnectionPeer::HasRetransmittableFrames(QuicConnection* connection,
+bool QuicConnectionPeer::HasRetransmissibleFrames(QuicConnection* connection,
                                                   uint64_t packet_number) {
-  return QuicSentPacketManagerPeer::HasRetransmittableFrames(
+  return QuicSentPacketManagerPeer::HasRetransmissibleFrames(
       GetSentPacketManager(connection), packet_number);
 }
 
@@ -264,9 +264,9 @@ void QuicConnectionPeer::SetNegotiatedVersion(QuicConnection* connection) {
 }
 
 // static
-void QuicConnectionPeer::SetMaxConsecutiveNumPacketsWithNoRetransmittableFrames(
+void QuicConnectionPeer::SetMaxConsecutiveNumPacketsWithNoRetransmissibleFrames(
     QuicConnection* connection, size_t new_value) {
-  connection->max_consecutive_num_packets_with_no_retransmittable_frames_ =
+  connection->max_consecutive_num_packets_with_no_retransmissible_frames_ =
       new_value;
 }
 

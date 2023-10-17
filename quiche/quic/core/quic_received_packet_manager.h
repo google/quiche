@@ -178,8 +178,8 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
 
   QuicConnectionStats* stats_;
 
-  // How many retransmittable packets have arrived without sending an ack.
-  QuicPacketCount num_retransmittable_packets_received_since_last_ack_sent_;
+  // How many retransmissible packets have arrived without sending an ack.
+  QuicPacketCount num_retransmissible_packets_received_since_last_ack_sent_;
   // Ack decimation will start happening after this many packets are received.
   size_t min_received_before_ack_decimation_;
   // Ack every n-th packet.

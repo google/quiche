@@ -412,7 +412,7 @@ const QuicTag kIGNP = TAG('I', 'G', 'N', 'P');   // Do not use PING only packet
                                                  // for RTT measure or
                                                  // congestion control.
 
-const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmittable on
+const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmissible on
                                                  // wire PING (ROWP) on the
                                                  // server side.
 const QuicTag kROWF = TAG('R', 'O', 'W', 'F');   // Send first 1-RTT packet on

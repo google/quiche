@@ -342,7 +342,7 @@ class QUICHE_EXPORT Bbr2NetworkModel {
 
   void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                     QuicPacketNumber packet_number, QuicByteCount bytes,
-                    HasRetransmittableData is_retransmittable);
+                    HasRetransmissibleData is_retransmissible);
 
   void OnCongestionEventStart(QuicTime event_time,
                               const AckedPacketVector& acked_packets,

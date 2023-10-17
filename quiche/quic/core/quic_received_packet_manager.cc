@@ -43,9 +43,9 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       save_timestamps_(false),
       save_timestamps_for_in_order_packets_(false),
       stats_(stats),
-      num_retransmittable_packets_received_since_last_ack_sent_(0),
+      num_retransmissible_packets_received_since_last_ack_sent_(0),
       min_received_before_ack_decimation_(kMinReceivedBeforeAckDecimation),
-      ack_frequency_(kDefaultRetransmittablePacketsBeforeAck),
+      ack_frequency_(kDefaultRetransmissiblePacketsBeforeAck),
       ack_decimation_delay_(kAckDecimationDelay),
       unlimited_ack_decimation_(false),
       one_immediate_ack_(false),
@@ -270,7 +270,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckFrequency(
   }
   ack_frequency_ = unlimited_ack_decimation_
                        ? std::numeric_limits<size_t>::max()
-                       : kMaxRetransmittablePacketsBeforeAck;
+                       : kMaxRetransmissiblePacketsBeforeAck;
 }
 
 void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
@@ -296,10 +296,10 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  ++num_retransmittable_packets_received_since_last_ack_sent_;
+  ++num_retransmissible_packets_received_since_last_ack_sent_;
 
   MaybeUpdateAckFrequency(last_received_packet_number);
-  if (num_retransmittable_packets_received_since_last_ack_sent_ >=
+  if (num_retransmissible_packets_received_since_last_ack_sent_ >=
       ack_frequency_) {
     ack_timeout_ = now;
     return;
@@ -321,7 +321,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
 void QuicReceivedPacketManager::ResetAckStates() {
   ack_frame_updated_ = false;
   ack_timeout_ = QuicTime::Zero();
-  num_retransmittable_packets_received_since_last_ack_sent_ = 0;
+  num_retransmissible_packets_received_since_last_ack_sent_ = 0;
   last_sent_largest_acked_ = LargestAcked(ack_frame_);
 }
 

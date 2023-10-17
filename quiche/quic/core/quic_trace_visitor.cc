@@ -51,8 +51,8 @@ QuicTraceVisitor::QuicTraceVisitor(const QuicConnection* connection)
 void QuicTraceVisitor::OnPacketSent(
     QuicPacketNumber packet_number, QuicPacketLength packet_length,
     bool /*has_crypto_handshake*/, TransmissionType /*transmission_type*/,
-    EncryptionLevel encryption_level, const QuicFrames& retransmittable_frames,
-    const QuicFrames& /*nonretransmittable_frames*/, QuicTime sent_time,
+    EncryptionLevel encryption_level, const QuicFrames& retransmissible_frames,
+    const QuicFrames& /*nonretransmissible_frames*/, QuicTime sent_time,
     uint32_t /*batch_id*/) {
   quic_trace::Event* event = trace_.add_events();
   event->set_event_type(quic_trace::PACKET_SENT);
@@ -61,7 +61,7 @@ void QuicTraceVisitor::OnPacketSent(
   event->set_packet_size(packet_length);
   event->set_encryption_level(EncryptionLevelToProto(encryption_level));
 
-  for (const QuicFrame& frame : retransmittable_frames) {
+  for (const QuicFrame& frame : retransmissible_frames) {
     switch (frame.type) {
       case STREAM_FRAME:
       case RST_STREAM_FRAME:
@@ -79,8 +79,8 @@ void QuicTraceVisitor::OnPacketSent(
       case STOP_WAITING_FRAME:
       case ACK_FRAME:
         QUIC_BUG(quic_bug_12732_1)
-            << "Frames of type are not retransmittable and are not supposed "
-               "to be in retransmittable_frames";
+            << "Frames of type are not retransmissible and are not supposed "
+               "to be in retransmissible_frames";
         break;
 
       // New IETF frames, not used in current gQUIC version.

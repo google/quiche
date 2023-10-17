@@ -1783,7 +1783,7 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
 
   // Send and Ack one packet to exit app limited and enter PROBE_UP.
   sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
-                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+                        kDefaultMaxPacketSize, HAS_RETRANSMISSIBLE_DATA);
   now = now + params.RTT();
   sender_->OnCongestionEvent(
       /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
@@ -1795,7 +1795,7 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
   for (uint64_t i = 0; i < 2; ++i) {
     sender_->OnPacketSent(now, /*bytes_in_flight=*/i * kDefaultMaxPacketSize,
                           next_packet_number++, kDefaultMaxPacketSize,
-                          HAS_RETRANSMITTABLE_DATA);
+                          HAS_RETRANSMISSIBLE_DATA);
   }
   now = now + params.RTT();
   sender_->OnCongestionEvent(
@@ -1878,7 +1878,7 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeRttAfterQuiescenceImmediatelyExits) {
   EXPECT_EQ(sender_->ExportDebugState().mode, Bbr2Mode::PROBE_RTT);
   sender_->OnPacketSent(SimulatedNow(), /*bytes_in_flight=*/0,
                         sender_unacked_map()->largest_sent_packet() + 1,
-                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+                        kDefaultMaxPacketSize, HAS_RETRANSMISSIBLE_DATA);
 
   EXPECT_EQ(sender_->ExportDebugState().mode, Bbr2Mode::PROBE_BW);
 }
@@ -1936,7 +1936,7 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
     now = now + QuicTime::Delta::FromMilliseconds(10);
 
     old_sender.OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
-                            /*bytes=*/1350, HAS_RETRANSMITTABLE_DATA);
+                            /*bytes=*/1350, HAS_RETRANSMISSIBLE_DATA);
   }
 
   // Switch from |old_sender| to |sender_|.
@@ -1947,18 +1947,18 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
   // Send packets 5-7.
   now = now + QuicTime::Delta::FromMilliseconds(10);
   sender_->OnPacketSent(now, /*bytes_in_flight=*/1350, next_packet_number++,
-                        /*bytes=*/23, NO_RETRANSMITTABLE_DATA);
+                        /*bytes=*/23, NO_RETRANSMISSIBLE_DATA);
 
   now = now + QuicTime::Delta::FromMilliseconds(10);
   sender_->OnPacketSent(now, /*bytes_in_flight=*/1350, next_packet_number++,
-                        /*bytes=*/767, HAS_RETRANSMITTABLE_DATA);
+                        /*bytes=*/767, HAS_RETRANSMISSIBLE_DATA);
 
   QuicByteCount bytes_in_flight = 767;
   while (next_packet_number < QuicPacketNumber(30)) {
     now = now + QuicTime::Delta::FromMilliseconds(10);
     bytes_in_flight += 1350;
     sender_->OnPacketSent(now, bytes_in_flight, next_packet_number++,
-                          /*bytes=*/1350, HAS_RETRANSMITTABLE_DATA);
+                          /*bytes=*/1350, HAS_RETRANSMISSIBLE_DATA);
   }
 
   // Ack 1 & 2.
@@ -1974,7 +1974,7 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
     now = now + QuicTime::Delta::FromMilliseconds(10);
     bytes_in_flight += 1350;
     sender_->OnPacketSent(now, bytes_in_flight, next_packet_number++,
-                          /*bytes=*/1350, HAS_RETRANSMITTABLE_DATA);
+                          /*bytes=*/1350, HAS_RETRANSMISSIBLE_DATA);
   }
 
   // Ack 3.
@@ -1988,7 +1988,7 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
   now = now + QuicTime::Delta::FromMilliseconds(10);
   bytes_in_flight += 1350;
   sender_->OnPacketSent(now, bytes_in_flight, next_packet_number++,
-                        /*bytes=*/1350, HAS_RETRANSMITTABLE_DATA);
+                        /*bytes=*/1350, HAS_RETRANSMISSIBLE_DATA);
 
   // Ack 4-7.
   acked = {

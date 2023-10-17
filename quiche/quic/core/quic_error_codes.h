@@ -562,7 +562,7 @@ enum QuicErrorCode : uint32_t {
   // Stream/flow control limit from 1-RTT handshake is too low to retransmit
   // 0-RTT data. This is our implementation error. We could in theory keep the
   // connection alive but chose not to for simplicity.
-  QUIC_ZERO_RTT_UNRETRANSMITTABLE = 161,
+  QUIC_ZERO_RTT_UNRETRANSMISSIBLE = 161,
   // Stream/flow control limit from 0-RTT rejection reduces cached limit.
   // This is our implementation error. We could in theory keep the connection
   // alive but chose not to for simplicity.

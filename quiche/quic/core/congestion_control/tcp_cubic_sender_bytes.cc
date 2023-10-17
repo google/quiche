@@ -131,12 +131,12 @@ void TcpCubicSenderBytes::OnPacketAcked(QuicPacketNumber acked_packet_number,
 void TcpCubicSenderBytes::OnPacketSent(
     QuicTime /*sent_time*/, QuicByteCount /*bytes_in_flight*/,
     QuicPacketNumber packet_number, QuicByteCount bytes,
-    HasRetransmittableData is_retransmittable) {
+    HasRetransmissibleData is_retransmissible) {
   if (InSlowStart()) {
     ++(stats_->slowstart_packets_sent);
   }
 
-  if (is_retransmittable != HAS_RETRANSMITTABLE_DATA) {
+  if (is_retransmissible != HAS_RETRANSMISSIBLE_DATA) {
     return;
   }
   if (InRecovery()) {

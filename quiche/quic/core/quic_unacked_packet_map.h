@@ -24,7 +24,7 @@ class QuicUnackedPacketMapPeer;
 }  // namespace test
 
 // Class which tracks unacked packets for three purposes:
-// 1) Track retransmittable data, including multiple transmissions of frames.
+// 1) Track retransmissible data, including multiple transmissions of frames.
 // 2) Track packets and bytes in flight for congestion control.
 // 3) Track sent time of packets to provide RTT measurements from acks.
 class QUICHE_EXPORT QuicUnackedPacketMap {
@@ -38,7 +38,7 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
   // Marks the packet as in flight if |set_in_flight| is true.
   // Packets marked as in flight are expected to be marked as missing when they
   // don't arrive, indicating the need for retransmission.
-  // Any retransmittible_frames in |mutable_packet| are swapped from
+  // Any retransmissible_frames in |mutable_packet| are swapped from
   // |mutable_packet| into the QuicTransmissionInfo.
   void AddSentPacket(SerializedPacket* mutable_packet,
                      TransmissionType transmission_type, QuicTime sent_time,
@@ -76,19 +76,19 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
   // TODO(fayang): Consider to combine this with NeuterUnencryptedPackets.
   absl::InlinedVector<QuicPacketNumber, 2> NeuterHandshakePackets();
 
-  // Returns true if |packet_number| has retransmittable frames. This will
-  // return false if all frames of this packet are either non-retransmittable or
+  // Returns true if |packet_number| has retransmissible frames. This will
+  // return false if all frames of this packet are either non-retransmissible or
   // have been acked.
-  bool HasRetransmittableFrames(QuicPacketNumber packet_number) const;
+  bool HasRetransmissibleFrames(QuicPacketNumber packet_number) const;
 
-  // Returns true if |info| has retransmittable frames. This will return false
-  // if all frames of this packet are either non-retransmittable or have been
+  // Returns true if |info| has retransmissible frames. This will return false
+  // if all frames of this packet are either non-retransmissible or have been
   // acked.
-  bool HasRetransmittableFrames(const QuicTransmissionInfo& info) const;
+  bool HasRetransmissibleFrames(const QuicTransmissionInfo& info) const;
 
-  // Returns true if there are any unacked packets which have retransmittable
+  // Returns true if there are any unacked packets which have retransmissible
   // frames.
-  bool HasUnackedRetransmittableFrames() const;
+  bool HasUnackedRetransmissibleFrames() const;
 
   // Returns true if there are no packets present in the unacked packet map.
   bool empty() const { return unacked_packets_.empty(); }
@@ -158,7 +158,7 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
     return session_notifier_->HasUnackedStreamData();
   }
 
-  // Removes any retransmittable frames from this transmission or an associated
+  // Removes any retransmissible frames from this transmission or an associated
   // transmission.  It removes now useless transmissions, and disconnects any
   // other packets from other transmissions.
   void RemoveRetransmissibility(QuicTransmissionInfo* info);
@@ -205,9 +205,9 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
   QuicPacketNumber GetLargestAckedOfPacketNumberSpace(
       PacketNumberSpace packet_number_space) const;
 
-  // Returns largest sent retransmittable packet number of
+  // Returns largest sent retransmissible packet number of
   // |packet_number_space|.
-  QuicPacketNumber GetLargestSentRetransmittableOfPacketNumberSpace(
+  QuicPacketNumber GetLargestSentRetransmissibleOfPacketNumberSpace(
       PacketNumberSpace packet_number_space) const;
 
   // Returns largest sent packet number of |encryption_level|.
@@ -230,7 +230,7 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
 
   void EnableMultiplePacketNumberSpacesSupport();
 
-  // Returns a bitfield of retransmittable frames of last packet in
+  // Returns a bitfield of retransmissible frames of last packet in
   // unacked_packets_. For example, if the packet contains STREAM_FRAME, content
   // & (1 << STREAM_FRAME) would be set. Returns max uint32_t if
   // unacked_packets_ is empty.
@@ -267,9 +267,9 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
   bool IsPacketUsefulForCongestionControl(
       const QuicTransmissionInfo& info) const;
 
-  // Returns true if packet may be associated with retransmittable data
+  // Returns true if packet may be associated with retransmissible data
   // directly or through retransmissions.
-  bool IsPacketUsefulForRetransmittableData(
+  bool IsPacketUsefulForRetransmissibleData(
       const QuicTransmissionInfo& info) const;
 
   // Returns true if the packet no longer has a purpose in the map.
@@ -282,7 +282,7 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
   // The largest sent packet we expect to receive an ack for per packet number
   // space.
   QuicPacketNumber
-      largest_sent_retransmittable_packets_[NUM_PACKET_NUMBER_SPACES];
+      largest_sent_retransmissible_packets_[NUM_PACKET_NUMBER_SPACES];
   // The largest sent largest_acked in an ACK frame.
   QuicPacketNumber largest_sent_largest_acked_;
   // The largest received largest_acked from an ACK frame.
@@ -290,13 +290,13 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
   // The largest received largest_acked from ACK frame per packet number space.
   QuicPacketNumber largest_acked_packets_[NUM_PACKET_NUMBER_SPACES];
 
-  // Newly serialized retransmittable packets are added to this map, which
+  // Newly serialized retransmissible packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is
   // retransmitted, this map will contain entries for both the old and the new
-  // packet. The old packet's retransmittable frames entry will be nullptr,
+  // packet. The old packet's retransmissible frames entry will be nullptr,
   // while the new packet's entry will contain the frames to retransmit.
   // If the old packet is acked before the new packet, then the old entry will
-  // be removed from the map and the new entry's retransmittable frames will be
+  // be removed from the map and the new entry's retransmissible frames will be
   // set to nullptr.
   quiche::QuicheCircularDeque<QuicTransmissionInfo> unacked_packets_;
 

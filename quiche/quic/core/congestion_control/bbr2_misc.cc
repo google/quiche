@@ -81,7 +81,7 @@ void Bbr2NetworkModel::OnPacketSent(QuicTime sent_time,
                                     QuicByteCount bytes_in_flight,
                                     QuicPacketNumber packet_number,
                                     QuicByteCount bytes,
-                                    HasRetransmittableData is_retransmittable) {
+                                    HasRetransmissibleData is_retransmissible) {
   // Updating the min here ensures a more realistic (0) value when flows exit
   // quiescence.
   if (bytes_in_flight < min_bytes_in_flight_in_round_) {
@@ -93,7 +93,7 @@ void Bbr2NetworkModel::OnPacketSent(QuicTime sent_time,
   round_trip_counter_.OnPacketSent(packet_number);
 
   bandwidth_sampler_.OnPacketSent(sent_time, packet_number, bytes,
-                                  bytes_in_flight, is_retransmittable);
+                                  bytes_in_flight, is_retransmissible);
 }
 
 void Bbr2NetworkModel::OnCongestionEventStart(

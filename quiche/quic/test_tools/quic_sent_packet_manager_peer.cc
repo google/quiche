@@ -57,8 +57,8 @@ RttStats* QuicSentPacketManagerPeer::GetRttStats(
 // static
 bool QuicSentPacketManagerPeer::IsRetransmission(
     QuicSentPacketManager* sent_packet_manager, uint64_t packet_number) {
-  QUICHE_DCHECK(HasRetransmittableFrames(sent_packet_manager, packet_number));
-  if (!HasRetransmittableFrames(sent_packet_manager, packet_number)) {
+  QUICHE_DCHECK(HasRetransmissibleFrames(sent_packet_manager, packet_number));
+  if (!HasRetransmissibleFrames(sent_packet_manager, packet_number)) {
     return false;
   }
   return sent_packet_manager->unacked_packets_
@@ -75,12 +75,12 @@ void QuicSentPacketManagerPeer::MarkForRetransmission(
 }
 
 // static
-size_t QuicSentPacketManagerPeer::GetNumRetransmittablePackets(
+size_t QuicSentPacketManagerPeer::GetNumRetransmissiblePackets(
     const QuicSentPacketManager* sent_packet_manager) {
   size_t num_unacked_packets = 0;
   for (auto it = sent_packet_manager->unacked_packets_.begin();
        it != sent_packet_manager->unacked_packets_.end(); ++it) {
-    if (sent_packet_manager->unacked_packets_.HasRetransmittableFrames(*it)) {
+    if (sent_packet_manager->unacked_packets_.HasRetransmissibleFrames(*it)) {
       ++num_unacked_packets;
     }
   }
@@ -119,9 +119,9 @@ PacingSender* QuicSentPacketManagerPeer::GetPacingSender(
 }
 
 // static
-bool QuicSentPacketManagerPeer::HasRetransmittableFrames(
+bool QuicSentPacketManagerPeer::HasRetransmissibleFrames(
     QuicSentPacketManager* sent_packet_manager, uint64_t packet_number) {
-  return sent_packet_manager->unacked_packets_.HasRetransmittableFrames(
+  return sent_packet_manager->unacked_packets_.HasRetransmissibleFrames(
       QuicPacketNumber(packet_number));
 }
 
