@@ -16,7 +16,7 @@ namespace quic {
 
 namespace {
 
-// If QUIC stream bufferes more that this number of bytes,
+// If QUIC stream buffers more that this number of bytes,
 // CanWrite() will return false.
 constexpr uint64_t kMaxBytesBufferedByStream = 64 * 1024;
 
