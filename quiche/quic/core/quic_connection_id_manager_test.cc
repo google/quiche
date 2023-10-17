@@ -122,12 +122,12 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
                 IsQuicNoError());
 
     // Start to use CID #1 for alternative path.
-    const QuicConnectionIdData* aternative_connection_id_data =
+    const QuicConnectionIdData* alternative_connection_id_data =
         peer_issued_cid_manager_.ConsumeOneUnusedConnectionId();
-    ASSERT_THAT(aternative_connection_id_data, testing::NotNull());
-    EXPECT_EQ(aternative_connection_id_data->connection_id,
+    ASSERT_THAT(alternative_connection_id_data, testing::NotNull());
+    EXPECT_EQ(alternative_connection_id_data->connection_id,
               TestConnectionId(1));
-    EXPECT_EQ(aternative_connection_id_data->stateless_reset_token,
+    EXPECT_EQ(alternative_connection_id_data->stateless_reset_token,
               frame.stateless_reset_token);
 
     // Connection migration succeed. Prepares to retire CID #0.

@@ -5387,7 +5387,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
                 alternative_path_.peer_address.host() !=
                     default_path_.peer_address.host());
 
-  // Save previous default path to the altenative path.
+  // Save previous default path to the alternative path.
   if (previous_default_path.validated) {
     // The old path is a validated path which the connection might revert back
     // to later. Store it as the alternative path.
@@ -6405,7 +6405,7 @@ void QuicConnection::OnPeerIssuedConnectionIdRetired() {
       !peer_issued_cid_manager_->IsConnectionIdActive(*default_path_cid)) {
     *default_path_cid = QuicConnectionId();
   }
-  // TODO(haoyuewang) Handle the change for default_path_ & alternatvie_path_
+  // TODO(haoyuewang) Handle the change for default_path_ & alternative_path_
   // via the same helper function.
   if (default_path_cid->IsEmpty()) {
     // Try setting a new connection ID now such that subsequent
