@@ -44,7 +44,7 @@ bool ValidateCertAndKey(
       CertificateView::ParseSingleCertificate(chain->certs[0]);
   if (leaf == nullptr) {
     QUIC_BUG(quic_proof_source_unparsable_leaf_cert)
-        << "Unabled to parse leaf certificate";
+        << "Unable to parse leaf certificate";
     return false;
   }
 
