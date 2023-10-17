@@ -69,7 +69,7 @@ class PacingSenderTest : public QuicTest {
                                         lost_packets, 0, 0);
     } else if (burst_size != kInitialBurstPackets) {
       QUIC_LOG(FATAL) << "Unsupported burst_size " << burst_size
-                      << " specificied, only 0 and " << kInitialBurstPackets
+                      << " specified, only 0 and " << kInitialBurstPackets
                       << " are supported.";
     }
   }
