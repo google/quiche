@@ -759,10 +759,6 @@ TestQuicSpdyClientSession::TestQuicSpdyClientSession(
 
 TestQuicSpdyClientSession::~TestQuicSpdyClientSession() {}
 
-bool TestQuicSpdyClientSession::IsAuthorized(const std::string& /*authority*/) {
-  return true;
-}
-
 QuicCryptoClientStream* TestQuicSpdyClientSession::GetMutableCryptoStream() {
   return crypto_stream_.get();
 }

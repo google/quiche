@@ -1097,8 +1097,6 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
       delete;
   ~TestQuicSpdyClientSession() override;
 
-  bool IsAuthorized(const std::string& authority) override;
-
   // QuicSpdyClientSessionBase
   MOCK_METHOD(void, OnProofValid,
               (const QuicCryptoClientConfig::CachedState& cached), (override));

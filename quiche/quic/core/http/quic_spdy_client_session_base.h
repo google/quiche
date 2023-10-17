@@ -34,15 +34,6 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
 
   void OnConfigNegotiated() override;
 
-  // For cross-origin server push, this should verify the server is
-  // authoritative per [RFC2818], Section 3.  Roughly, subjectAltName
-  // list in the certificate should contain a matching DNS name, or IP
-  // address.  |hostname| is derived from the ":authority" header field of
-  // the PUSH_PROMISE frame, port if present there will be dropped.
-  virtual bool IsAuthorized(const std::string& hostname) = 0;
-
-  virtual void OnPushStreamTimedOut(QuicStreamId stream_id);
-
   // Release headers stream's sequencer buffer if it's empty.
   void OnStreamClosed(QuicStreamId stream_id) override;
 

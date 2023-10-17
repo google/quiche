@@ -318,11 +318,6 @@ class QUICHE_EXPORT QuicSpdySession
   // Called when the size of the compressed frame payload is available.
   void OnCompressedFrameSize(size_t frame_len);
 
-  // Called when a PUSH_PROMISE frame has been received.
-  // TODO(b/171463363): Remove.
-  void OnPushPromise(spdy::SpdyStreamId stream_id,
-                     spdy::SpdyStreamId promised_stream_id);
-
   // Called when the complete list of headers is available.
   void OnHeaderList(const QuicHeaderList& header_list);
 

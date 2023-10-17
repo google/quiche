@@ -27,9 +27,6 @@ void QuicSpdyClientSessionBase::OnConfigNegotiated() {
   QuicSpdySession::OnConfigNegotiated();
 }
 
-void QuicSpdyClientSessionBase::OnPushStreamTimedOut(
-    QuicStreamId /*stream_id*/) {}
-
 void QuicSpdyClientSessionBase::OnStreamClosed(QuicStreamId stream_id) {
   QuicSpdySession::OnStreamClosed(stream_id);
   if (!VersionUsesHttp3(transport_version())) {

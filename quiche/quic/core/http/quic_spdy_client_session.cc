@@ -209,8 +209,4 @@ QuicSpdyClientSession::CreateQuicCryptoStream() {
       this, /*has_application_state = */ version().UsesHttp3());
 }
 
-bool QuicSpdyClientSession::IsAuthorized(const std::string& /*authority*/) {
-  return true;
-}
-
 }  // namespace quic
