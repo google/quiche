@@ -287,7 +287,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
         &session_, stream_id, headers_.Clone(), fin,
         spdy::SpdyStreamPrecedence(priority), nullptr);
 
-    // Parse the outgoing data and check that it matches was was written.
+    // Parse the outgoing data and check that it matches was written.
     if (is_request) {
       EXPECT_CALL(
           visitor_,
