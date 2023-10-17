@@ -95,7 +95,7 @@ class QUICHE_EXPORT QuicSpdyStream
   virtual void OnStreamHeaderList(bool fin, size_t frame_len,
                                   const QuicHeaderList& header_list);
 
-  // Called by the session when a PRIORITY frame has been been received for this
+  // Called by the session when a PRIORITY frame has been received for this
   // stream. This method will only be called for server streams.
   void OnPriorityFrame(const spdy::SpdyStreamPrecedence& precedence);
 
