@@ -401,7 +401,7 @@ absl::Status EventLoopConnectingClientSocket::GetConnectResult() {
   // 2) With the various platforms and event systems involved, less than 100%
   //    trust that it's impossible to end up in this method before the async
   //    connect has completed/errored. Given that Connect() and GetSocketError()
-  //    does not difinitevely differentiate between success and
+  //    does not definitively differentiate between success and
   //    still-in-progress, and given that there's a very simple and performant
   //    way to positively confirm the socket is connected (peek), do that here.
   //    (Could consider making the not-connected case a QUIC_BUG if a way is
