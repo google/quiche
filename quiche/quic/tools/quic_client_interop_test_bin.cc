@@ -43,7 +43,7 @@ enum class Feature {
   kHandshake,
   // Stream data is being exchanged and ACK'ed.
   kStreamData,
-  // The connection close procedcure completes with a zero error code.
+  // The connection close procedure completes with a zero error code.
   kConnectionClose,
   // The connection was established using TLS resumption.
   kResumption,
