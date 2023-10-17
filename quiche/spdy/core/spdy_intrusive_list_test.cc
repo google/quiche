@@ -182,7 +182,7 @@ TEST(NewIntrusiveListTest, Insert) {
 }
 
 TEST(NewIntrusiveListTest, Move) {
-  // Move contructible.
+  // Move constructible.
 
   {  // Move-construct from an empty list.
     TestList src;
