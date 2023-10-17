@@ -35,8 +35,6 @@ QuicSpdyClientBase::QuicSpdyClientBase(
       latest_response_code_(-1) {}
 
 QuicSpdyClientBase::~QuicSpdyClientBase() {
-  // We own the push promise index. We need to explicitly kill
-  // the session before the push promise index goes out of scope.
   ResetSession();
 }
 

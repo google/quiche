@@ -97,7 +97,6 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   ~QuicSpdyClientSessionTest() override {
-    // Session must be destroyed before promised_by_url_
     session_.reset(nullptr);
   }
 

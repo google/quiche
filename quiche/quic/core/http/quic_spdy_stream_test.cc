@@ -748,7 +748,7 @@ TEST_P(QuicSpdyStreamTest, Http3FrameError) {
 
   Initialize(kShouldProcessData);
 
-  // PUSH_PROMISE frame with empty payload is considered invalid.
+  // PUSH_PROMISE frame is considered invalid.
   std::string invalid_http3_frame = absl::HexStringToBytes("0500");
   QuicStreamFrame stream_frame(stream_->id(), /* fin = */ false,
                                /* offset = */ 0, invalid_http3_frame);

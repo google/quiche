@@ -128,8 +128,6 @@ void QuicSpdyClientStream::OnTrailingHeadersComplete(
 }
 
 void QuicSpdyClientStream::OnBodyAvailable() {
-  // For push streams, visitor will not be set until the rendezvous
-  // between server promise and client request is complete.
   if (visitor() == nullptr) return;
 
   while (HasBytesToRead()) {

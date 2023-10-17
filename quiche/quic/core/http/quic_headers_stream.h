@@ -22,9 +22,9 @@ namespace test {
 class QuicHeadersStreamPeer;
 }  // namespace test
 
-// Headers in QUIC are sent as HTTP/2 HEADERS or PUSH_PROMISE frames over a
-// reserved stream with the id 3.  Each endpoint (client and server) will
-// allocate an instance of QuicHeadersStream to send and receive headers.
+// Headers in QUIC are sent as HTTP/2 HEADERS frames over a reserved stream with
+// the id 3.  Each endpoint (client and server) will allocate an instance of
+// QuicHeadersStream to send and receive headers.
 class QUICHE_EXPORT QuicHeadersStream : public QuicStream {
  public:
   explicit QuicHeadersStream(QuicSpdySession* session);

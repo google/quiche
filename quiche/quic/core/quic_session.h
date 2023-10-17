@@ -760,11 +760,9 @@ class QUICHE_EXPORT QuicSession
   // Returns true if the stream is a static stream.
   bool IsStaticStream(QuicStreamId id) const;
 
-  // Close connection when receive a frame for a locally-created nonexistent
+  // Close connection when receiving a frame for a locally-created nonexistent
   // stream.
   // Prerequisite: IsClosedStream(stream_id) == false
-  // Server session might need to override this method to allow server push
-  // stream to be promised before creating an active stream.
   virtual void HandleFrameOnNonexistentOutgoingStream(QuicStreamId stream_id);
 
   virtual bool MaybeIncreaseLargestPeerStreamId(const QuicStreamId stream_id);

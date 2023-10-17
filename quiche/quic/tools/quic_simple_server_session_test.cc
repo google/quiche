@@ -443,8 +443,8 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUnencrypted) {
             QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 }
 
-// Tests that calling GetOrCreateStream() on an outgoing stream not promised yet
-// should result close connection.
+// Tests that calling GetOrCreateStream() on an outgoing stream should result in
+// the connection being closed.
 TEST_P(QuicSimpleServerSessionTest, GetEvenIncomingError) {
   const size_t initial_num_open_stream =
       QuicSessionPeer::GetNumOpenDynamicStreams(session_.get());

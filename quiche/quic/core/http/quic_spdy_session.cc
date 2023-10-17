@@ -51,7 +51,6 @@ using spdy::SpdyHeadersIR;
 using spdy::SpdyPingId;
 using spdy::SpdyPriority;
 using spdy::SpdyPriorityIR;
-using spdy::SpdyPushPromiseIR;
 using spdy::SpdySerializedFrame;
 using spdy::SpdySettingsId;
 using spdy::SpdyStreamId;

@@ -22,8 +22,7 @@ class QuicServerId;
 
 class QUICHE_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
  public:
-  // Takes ownership of |connection|. Caller retains ownership of
-  // |promised_by_url|.
+  // Takes ownership of |connection|.
   QuicSpdyClientSession(const QuicConfig& config,
                         const ParsedQuicVersionVector& supported_versions,
                         QuicConnection* connection,

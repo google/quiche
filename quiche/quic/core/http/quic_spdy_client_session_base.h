@@ -20,8 +20,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
     : public QuicSpdySession,
       public QuicCryptoClientStream::ProofHandler {
  public:
-  // Takes ownership of |connection|. Caller retains ownership of
-  // |promised_by_url|.
+  // Takes ownership of |connection|.
   QuicSpdyClientSessionBase(QuicConnection* connection,
                             QuicSession::Visitor* visitor,
                             const QuicConfig& config,
@@ -37,7 +36,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
   // Release headers stream's sequencer buffer if it's empty.
   void OnStreamClosed(QuicStreamId stream_id) override;
 
-  // Returns true if there are no active requests and no promised streams.
+  // Returns true if there are no active requests.
   bool ShouldReleaseHeadersStreamSequencerBuffer() override;
 
   // Override to wait for all received responses to be consumed by application.

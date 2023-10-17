@@ -4776,8 +4776,8 @@ TEST_P(EndToEndTest, DISABLED_TestHugeResponseWithPacketLoss) {
 }
 
 TEST_P(EndToEndTest, ReleaseHeadersStreamBufferWhenIdle) {
-  // Tests that when client side has no active request and no waiting
-  // PUSH_PROMISE, its headers stream's sequencer buffer should be released.
+  // Tests that when client side has no active request,
+  // its headers stream's sequencer buffer should be released.
   ASSERT_TRUE(Initialize());
   client_->SendSynchronousRequest("/foo");
   if (version_.UsesHttp3()) {
