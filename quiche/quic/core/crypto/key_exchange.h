@@ -61,7 +61,7 @@ class QUICHE_EXPORT SynchronousKeyExchange : public AsynchronousKeyExchange {
  public:
   virtual ~SynchronousKeyExchange() = default;
 
-  // AyncKeyExchange API.  Note that this method is marked 'final.'  Subclasses
+  // AsyncKeyExchange API.  Note that this method is marked 'final.'  Subclasses
   // should implement CalculateSharedKeySync only.
   void CalculateSharedKeyAsync(absl::string_view peer_public_value,
                                std::string* shared_key,
