@@ -316,7 +316,7 @@ class QUICHE_EXPORT QuicConnectionDebugVisitor
   // Called when a duplicate packet has been received.
   virtual void OnDuplicatePacket(QuicPacketNumber /*packet_number*/) {}
 
-  // Called when the protocol version on the received packet doensn't match
+  // Called when the protocol version on the received packet doesn't match
   // current protocol version of the connection.
   virtual void OnProtocolVersionMismatch(ParsedQuicVersion /*version*/) {}
 

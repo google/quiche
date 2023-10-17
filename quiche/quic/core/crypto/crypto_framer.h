@@ -93,7 +93,7 @@ class QUICHE_EXPORT CryptoFramer : public CryptoMessageParser {
   // Clears per-message state.  Does not clear the visitor.
   void Clear();
 
-  // Process does does the work of |ProcessInput|, but returns an error code,
+  // Process does the work of |ProcessInput|, but returns an error code,
   // doesn't set error_ and doesn't call |visitor_->OnError()|.
   QuicErrorCode Process(absl::string_view input);
 
