@@ -171,7 +171,7 @@ TEST_F(CubicBytesTest, DISABLED_AboveOrigin) {
     current_cwnd = cubic_.CongestionWindowAfterAck(
         kDefaultTCPMSS, current_cwnd, rtt_min, clock_.ApproximateNow());
     // When we fix convex mode and the uint64 arithmetic, we
-    // increase the expected_cwnd only after after the first 100ms,
+    // increase the expected_cwnd only after the first 100ms,
     // rather than after the initial 1ms.
     expected_cwnd += kDefaultTCPMSS;
     ASSERT_NEAR(expected_cwnd, current_cwnd, kDefaultTCPMSS);
