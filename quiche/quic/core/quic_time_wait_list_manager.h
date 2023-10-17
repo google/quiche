@@ -287,9 +287,9 @@ class QUICHE_EXPORT QuicTimeWaitListManager
   // and remove the indirect map.
   // A connection can have multiple unretired ConnectionIds when it is closed.
   // These Ids have the same ConnectionIdData entry in connection_id_map_. To
-  // find the entry, look up the cannoical ConnectionId in
+  // find the entry, look up the canonical ConnectionId in
   // indirect_connection_id_map_ first, and look up connection_id_map_ with the
-  // cannoical ConnectionId.
+  // canonical ConnectionId.
   absl::flat_hash_map<QuicConnectionId, QuicConnectionId, QuicConnectionIdHash>
       indirect_connection_id_map_;
 
