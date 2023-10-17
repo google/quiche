@@ -8646,7 +8646,7 @@ TEST_P(QuicConnectionTest, ServerResponseToPathChallenge) {
                       sizeof(challenge_data)));
 }
 
-TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnDefaulSocket) {
+TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnDefaultSocket) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
