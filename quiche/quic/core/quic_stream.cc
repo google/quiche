@@ -1390,7 +1390,7 @@ void QuicStream::OnDeadlinePassed() { Reset(QUIC_STREAM_TTL_EXPIRED); }
 bool QuicStream::IsFlowControlBlocked() const {
   if (!flow_controller_.has_value()) {
     QUIC_BUG(quic_bug_10586_15)
-        << "Trying to access non-existent flow controller.";
+        << "Trying to access nonexistent flow controller.";
     return false;
   }
   return flow_controller_->IsBlocked();
@@ -1399,7 +1399,7 @@ bool QuicStream::IsFlowControlBlocked() const {
 QuicStreamOffset QuicStream::highest_received_byte_offset() const {
   if (!flow_controller_.has_value()) {
     QUIC_BUG(quic_bug_10586_16)
-        << "Trying to access non-existent flow controller.";
+        << "Trying to access nonexistent flow controller.";
     return 0;
   }
   return flow_controller_->highest_received_byte_offset();
@@ -1408,7 +1408,7 @@ QuicStreamOffset QuicStream::highest_received_byte_offset() const {
 void QuicStream::UpdateReceiveWindowSize(QuicStreamOffset size) {
   if (!flow_controller_.has_value()) {
     QUIC_BUG(quic_bug_10586_17)
-        << "Trying to access non-existent flow controller.";
+        << "Trying to access nonexistent flow controller.";
     return;
   }
   flow_controller_->UpdateReceiveWindowSize(size);

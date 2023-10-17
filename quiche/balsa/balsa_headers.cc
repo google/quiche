@@ -1102,7 +1102,7 @@ void BalsaHeaders::RemoveLastTokenFromHeaderValue(absl::string_view key) {
       GetHeaderLinesIterator(key, header_lines_.begin());
   if (it == header_lines_.end()) {
     QUICHE_DLOG(WARNING)
-        << "Attempting to remove last token from a non-existent "
+        << "Attempting to remove last token from a nonexistent "
         << "header \"" << key << "\"";
     return;
   }

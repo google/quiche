@@ -35,7 +35,7 @@ TEST(AdapterImplComparisonTest, ClientHandlesFrames) {
             oghttp2_visitor.GetEventSequence());
 
   // TODO(b/181586191): Consider consistent behavior for delivering events on
-  // non-existent streams between nghttp2_adapter and oghttp2_adapter.
+  // nonexistent streams between nghttp2_adapter and oghttp2_adapter.
 }
 
 TEST(AdapterImplComparisonTest, SubmitWindowUpdateBumpsWindow) {

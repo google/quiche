@@ -1473,7 +1473,7 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
         LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
                             ConnectionError::kWrongFrameSequence);
       }
-      // Do not inform the visitor of a WINDOW_UPDATE for a non-existent stream.
+      // Do not inform the visitor of a WINDOW_UPDATE for a nonexistent stream.
       return;
     } else {
       if (streams_reset_.contains(stream_id)) {
