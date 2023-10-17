@@ -87,7 +87,7 @@ bool QuicStreamSequencerBufferPeer::CheckBufferInvariants() {
       (buffer_->max_buffer_capacity_bytes_ >
        (buffer_->max_blocks_count_ - 1) * kBlockSizeBytes);
   if (!capacity_sane) {
-    QUIC_LOG(ERROR) << "block number not match capcaity.";
+    QUIC_LOG(ERROR) << "block number not match capacity.";
   }
   bool block_retired_when_empty = CheckEmptyInvariants();
   if (!block_retired_when_empty) {
