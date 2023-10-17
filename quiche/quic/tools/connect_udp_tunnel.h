@@ -32,7 +32,7 @@ class ConnectUdpTunnel : public ConnectingClientSocket::AsyncVisitor,
  public:
   // `client_stream_request_handler` and `socket_factory` must both outlive the
   // created ConnectUdpTunnel. `server_label` is an identifier (typically
-  // randomly generated) to indentify the server or backend in error headers,
+  // randomly generated) to identify the server or backend in error headers,
   // per the requirements of RFC 9209, Section 2.
   ConnectUdpTunnel(
       QuicSimpleServerBackend::RequestHandler* client_stream_request_handler,
