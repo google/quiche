@@ -42,7 +42,7 @@ class QUICHE_EXPORT CryptoUtils {
 
       PENDING,  // Key diversification will happen when a nonce is later
                 // received. This should only be used by clients initial
-                // decrypters which are waiting on the divesification nonce
+                // decrypters which are waiting on the diversification nonce
                 // from the server.
 
       NOW,  // Key diversification will happen immediate based on the nonce.
