@@ -337,7 +337,7 @@ QuicUnackedPacketMap::NeuterUnencryptedPackets() {
         it->encryption_level == ENCRYPTION_INITIAL) {
       QUIC_DVLOG(2) << "Neutering unencrypted packet " << packet_number;
       // Once the connection swithes to forward secure, no unencrypted packets
-      // will be sent. The data has been abandoned in the cryto stream. Remove
+      // will be sent. The data has been abandoned in the crypto stream. Remove
       // it from in flight.
       RemoveFromInFlight(packet_number);
       it->state = NEUTERED;
