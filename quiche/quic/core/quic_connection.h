@@ -2138,7 +2138,7 @@ class QUICHE_EXPORT QuicConnection
   QuicArenaScopedPtr<QuicAlarm> send_alarm_;
   // An alarm that fires when an MTU probe should be sent.
   QuicArenaScopedPtr<QuicAlarm> mtu_discovery_alarm_;
-  // An alarm that fires to process undecryptable packets when new decyrption
+  // An alarm that fires to process undecryptable packets when new decryption
   // keys are available.
   QuicArenaScopedPtr<QuicAlarm> process_undecryptable_packets_alarm_;
   // An alarm that fires to discard keys for the previous key phase some time
