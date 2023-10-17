@@ -21,7 +21,7 @@ using QpackStaticTable = spdy::HpackStaticTable;
 QUICHE_EXPORT const std::vector<QpackStaticEntry>& QpackStaticTableVector();
 
 // Returns a QpackStaticTable instance initialized with kQpackStaticTable.
-// The instance is read-only, has static lifetime, and is safe to share amoung
+// The instance is read-only, has static lifetime, and is safe to share among
 // threads. This function is thread-safe.
 QUICHE_EXPORT const QpackStaticTable& ObtainQpackStaticTable();
 
