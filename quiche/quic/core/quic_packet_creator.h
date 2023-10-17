@@ -256,7 +256,7 @@ class QUICHE_EXPORT QuicPacketCreator {
   bool AddPathResponseFrame(const QuicPathFrameBuffer& data_buffer);
 
   // Add PATH_CHALLENGE to current packet, flush before or afterwards if needed.
-  // This is a best effort adding. It may fail becasue of delegate state, but
+  // This is a best effort adding. It may fail because of delegate state, but
   // it's okay because of path validation retry mechanism.
   void AddPathChallengeFrame(const QuicPathFrameBuffer& payload);
 
