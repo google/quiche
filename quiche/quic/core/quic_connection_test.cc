@@ -11995,7 +11995,7 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameFollowingPathChallenge) {
   EXPECT_CALL(visitor_, OnStreamFrame(_))
       .WillOnce(Invoke([=](const QuicStreamFrame& frame) {
         // Send some data on the stream. The STREAM_FRAME should be built into a
-        // new packet but throttled by anti-amplifciation limit.
+        // new packet but throttled by anti-amplification limit.
         const std::string data{"response body"};
         connection_.producer()->SaveStreamData(frame.stream_id, data);
         return notifier_.WriteOrBufferData(frame.stream_id, data.length(),

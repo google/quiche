@@ -5978,7 +5978,7 @@ bool QuicConnection::FlushCoalescedPacket() {
                 << coalesced_packet_.ToString(length);
   const size_t padding_size =
       length - std::min<size_t>(length, coalesced_packet_.length());
-  // Buffer coalesced packet if padding + bytes_sent exceeds amplifcation limit.
+  // Buffer coalesced packet if padding + bytes_sent exceeds amplification limit.
   if (!buffered_packets_.empty() || HandleWriteBlocked() ||
       (enforce_strict_amplification_factor_ &&
        LimitedByAmplificationFactor(padding_size))) {
