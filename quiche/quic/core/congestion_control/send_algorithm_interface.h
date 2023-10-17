@@ -153,7 +153,7 @@ class QUICHE_EXPORT SendAlgorithmInterface {
 
   // Called when the connection has no outstanding data to send. Specifically,
   // this means that none of the data streams are write-blocked, there are no
-  // packets in the connection queue, and there are no pending retransmissins,
+  // packets in the connection queue, and there are no pending retransmissions,
   // i.e. the sender cannot send anything for reasons other than being blocked
   // by congestion controller. This includes cases when the connection is
   // blocked by the flow controller.
