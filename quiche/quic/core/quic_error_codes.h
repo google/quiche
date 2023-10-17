@@ -456,7 +456,7 @@ enum QuicErrorCode : uint32_t {
   // Insert Count Increment instruction causes uint64_t overflow.
   QUIC_QPACK_DECODER_STREAM_INCREMENT_OVERFLOW = 188,
   // Insert Count Increment instruction increases Known Received Count beyond
-  // inserted entry cound.
+  // inserted entry count.
   QUIC_QPACK_DECODER_STREAM_IMPOSSIBLE_INSERT_COUNT = 189,
   // Header Acknowledgement received for stream that has no outstanding header
   // blocks.
