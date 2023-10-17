@@ -36,7 +36,7 @@ const int kSendError = -902;
 
 constexpr absl::string_view kHeadValue = "HEAD";
 
-// TODO(birenroy): Consider incorporating spdy::FlagsSerializionVisitor here.
+// TODO(birenroy): Consider incorporating spdy::FlagsSerializationVisitor here.
 class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
  public:
   FrameAttributeCollector() = default;
