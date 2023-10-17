@@ -133,7 +133,7 @@ class QUICHE_EXPORT MoqtParser {
   absl::optional<MoqtObject> object_metadata_ = absl::nullopt;
 
   bool processing_ = false;  // True if currently in ProcessData(), to prevent
-                             // re-entrancy.
+                             // reentrancy.
 };
 
 }  // namespace moqt
