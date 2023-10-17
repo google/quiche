@@ -2032,7 +2032,7 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
       QUICHE_DCHECK_NE(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0,
                        header.retry_token_length_length)
           << ENDPOINT << ParsedQuicVersionToString(version_)
-          << " bad retry token length length in header: " << header;
+          << " bad retry token length in header: " << header;
       // Write retry token length.
       if (!writer->WriteVarInt62WithForcedLength(
               header.retry_token.length(), header.retry_token_length_length)) {
