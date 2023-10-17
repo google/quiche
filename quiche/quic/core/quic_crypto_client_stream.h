@@ -106,7 +106,7 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
   // kMaxClientHellos is the maximum number of times that we'll send a client
   // hello. The value 4 accounts for:
   //   * One failure due to an incorrect or missing source-address token.
-  //   * One failure due the server's certificate chain being unavailible and
+  //   * One failure due the server's certificate chain being unavailable and
   //     the server being unwilling to send it without a valid source-address
   //     token.
   //   * One failure due to the ServerConfig private key being located on a
