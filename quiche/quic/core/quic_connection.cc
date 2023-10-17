@@ -5124,7 +5124,7 @@ bool QuicConnection::WritePacketUsingWriter(
     return false;
   }
 
-  // Send in currrent path. Call OnPacketSent regardless of the write result.
+  // Send in current path. Call OnPacketSent regardless of the write result.
   sent_packet_manager_.OnPacketSent(
       packet.get(), packet_send_time, packet->transmission_type,
       NO_RETRANSMITTABLE_DATA, measure_rtt, last_ecn_codepoint_sent_);
