@@ -54,7 +54,7 @@ class QuicBufferedPacketStoreVisitor
     last_expired_packet_queue_ = std::move(early_arrived_packets);
   }
 
-  // The packets queue for most recently expirect connection.
+  // The packets queue for most recently expired connection.
   BufferedPacketList last_expired_packet_queue_;
 };
 
