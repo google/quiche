@@ -215,7 +215,7 @@ class QUICHE_EXPORT QuicUtils {
   static bool AreStatelessResetTokensEqual(const StatelessResetToken& token1,
                                            const StatelessResetToken& token2);
 
-  // Return ture if this frame is an ack-eliciting frame.
+  // Return true if this frame is an ack-eliciting frame.
   static bool IsAckElicitingFrame(QuicFrameType type);
 };
 
