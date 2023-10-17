@@ -581,7 +581,7 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
       std::unique_ptr<ValidateClientHelloResultCallback> done_cb) const;
 
   // Convenience class which carries the arguments passed to
-  // |ProcessClientHellp| along.
+  // |ProcessClientHello| along.
   class QUICHE_EXPORT ProcessClientHelloContext {
    public:
     ProcessClientHelloContext(
