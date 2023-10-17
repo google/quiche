@@ -87,7 +87,7 @@ QuicTestBackend::ProcessWebTransportRequest(
   if (absl::StartsWith(path, "/echo")) {
     WebTransportResponse response;
     response.response_headers[":status"] = "200";
-    // Add response headers if the paramer has "set-header=XXX:YYY" query.
+    // Add response headers if the parameter has "set-header=XXX:YYY" query.
     GURL url = GURL(absl::StrCat("https://localhost", path));
     const std::vector<std::string>& params = absl::StrSplit(url.query(), '&');
     for (const auto& param : params) {
