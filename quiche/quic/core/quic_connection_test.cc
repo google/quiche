@@ -2246,7 +2246,7 @@ TEST_P(QuicConnectionTest,
   QuicPathFrameBuffer reverse_path_challenge_payload =
       writer_->path_challenge_frames().front().data_buffer;
 
-  // Receiveds a packet from path 3 with PATH_RESPONSE frame intended to
+  // Received a packet from path 3 with PATH_RESPONSE frame intended to
   // validate path 2 and a non-probing frame.
   {
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
