@@ -728,7 +728,7 @@ TEST_F(QuicStreamSequencerBufferTest, PeekAfterConsumed) {
   EXPECT_FALSE(buffer_->PeekRegion(1500, &iov));
 }
 
-TEST_F(QuicStreamSequencerBufferTest, PeekContinously) {
+TEST_F(QuicStreamSequencerBufferTest, PeekContinuously) {
   std::string source1(kBlockSizeBytes, 'a');
   buffer_->OnStreamData(0, source1, &written_, &error_details_);
 
