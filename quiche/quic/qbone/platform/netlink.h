@@ -78,7 +78,7 @@ class Netlink : public NetlinkInterface {
   //
   // For Verb::kRemove, rule matching is done by (destination_subnet, scope,
   // preferred_source, interface_index). Return true if a matching rule is
-  // found. interface_index can be 0 for wilecard.
+  // found. interface_index can be 0 for wildcard.
   //
   // For Verb::kAdd, rule matching is done by destination_subnet. If a rule for
   // the given destination_subnet already exists, nothing will happen and false
