@@ -3949,7 +3949,7 @@ TEST_P(QuicConnectionTest, FramePackingAckResponse) {
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), "foo", 0,
         NO_FIN, &last_packet);
   }
-  // Verify ack is bundled with outging packet.
+  // Verify ack is bundled with outgoing packet.
   EXPECT_FALSE(writer_->ack_frames().empty());
 
   EXPECT_CALL(visitor_, OnCanWrite())

@@ -211,7 +211,7 @@ bool QuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {
   QUICHE_DCHECK_NE(QuicUtils::IsBidirectionalStreamId(id, version_),
                    unidirectional_);
   if (QuicUtils::IsOutgoingStreamId(version_, id, perspective_)) {
-    // Stream IDs under next_ougoing_stream_id_ are either open or previously
+    // Stream IDs under next_outgoing_stream_id_ are either open or previously
     // open but now closed.
     return id >= next_outgoing_stream_id_;
   }
