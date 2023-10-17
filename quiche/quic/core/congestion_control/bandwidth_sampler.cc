@@ -495,7 +495,7 @@ bool BandwidthSampler::ChooseA0Point(QuicByteCount total_bytes_acked,
                                      AckPoint* a0) {
   if (a0_candidates_.empty()) {
     QUIC_BUG(quic_bug_10437_5)
-        << "No A0 point candicates. total_bytes_acked:" << total_bytes_acked;
+        << "No A0 point candidates. total_bytes_acked:" << total_bytes_acked;
     return false;
   }
 
