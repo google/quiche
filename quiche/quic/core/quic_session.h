@@ -729,7 +729,7 @@ class QUICHE_EXPORT QuicSession
   virtual void OnFinalByteOffsetReceived(QuicStreamId id,
                                          QuicStreamOffset final_byte_offset);
 
-  // Returns true if a frame with the given type and id can be prcoessed by a
+  // Returns true if a frame with the given type and id can be processed by a
   // PendingStream. However, the frame will always be processed by a QuicStream
   // if one exists with the given stream_id.
   virtual bool UsesPendingStreamForFrame(QuicFrameType /*type*/,

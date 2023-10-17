@@ -2929,7 +2929,7 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
       .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
 
   // Receive more data.
-  std::string data2 = DataFrame("This payload should not be proccessed.");
+  std::string data2 = DataFrame("This payload should not be processed.");
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, offset, data2));
 }
 

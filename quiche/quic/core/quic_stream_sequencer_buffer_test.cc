@@ -1074,7 +1074,7 @@ TEST_F(QuicStreamSequencerBufferRandomIOTest, RandomWriteAndConsumeInPlace) {
                       << num_read << " readable regions, actually get "
                       << actually_num_read
                       << " from offset: " << total_bytes_read_
-                      << "\nprocesse bytes: " << bytes_processed;
+                      << "\nprocessed bytes: " << bytes_processed;
         total_bytes_read_ += bytes_processed;
         ASSERT_EQ(total_bytes_read_, buffer_->BytesConsumed());
         ASSERT_TRUE(helper_->CheckBufferInvariants());
