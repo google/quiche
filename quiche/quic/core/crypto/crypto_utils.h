@@ -149,7 +149,7 @@ class QUICHE_EXPORT CryptoUtils {
   // configured to never perform key diversification. If the mode is
   // NOW (which is only for servers, then the encrypter will be keyed via a
   // two-step process that uses the nonce from |diversification|.
-  // If the mode is PENDING (which is only for servres), then the
+  // If the mode is PENDING (which is only for servers), then the
   // decrypter will only be keyed to a preliminary state: a call to
   // |SetDiversificationNonce| with a diversification nonce will be needed to
   // complete keying.
