@@ -28,7 +28,7 @@ const int kSupportedFeatures =
 // Quite a bit of EXPECT_CALL().Times(AnyNumber()).WillRepeatedly() are used to
 // make sure we can correctly set common expectations and override the
 // expectation with later call to EXPECT_CALL(). ON_CALL cannot be used here
-// since when EPXECT_CALL overrides ON_CALL, it ignores the parameter matcher
+// since when EXPECT_CALL overrides ON_CALL, it ignores the parameter matcher
 // which results in unexpected call even if ON_CALL exists.
 class TunDeviceTest : public QuicTest {
  protected:
