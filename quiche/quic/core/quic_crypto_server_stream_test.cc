@@ -178,7 +178,7 @@ class QuicCryptoServerStreamTest : public QuicTest {
       AllSupportedVersionsWithQuicCrypto();
 };
 
-TEST_F(QuicCryptoServerStreamTest, NotInitiallyConected) {
+TEST_F(QuicCryptoServerStreamTest, NotInitiallyConnected) {
   Initialize();
   EXPECT_FALSE(server_stream()->encryption_established());
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());

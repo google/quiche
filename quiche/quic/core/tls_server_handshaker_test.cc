@@ -449,7 +449,7 @@ INSTANTIATE_TEST_SUITE_P(TlsServerHandshakerTests, TlsServerHandshakerTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
-TEST_P(TlsServerHandshakerTest, NotInitiallyConected) {
+TEST_P(TlsServerHandshakerTest, NotInitiallyConnected) {
   EXPECT_FALSE(server_stream()->encryption_established());
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
 }

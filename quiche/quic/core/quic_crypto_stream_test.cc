@@ -161,7 +161,7 @@ class QuicCryptoStreamTest : public QuicTest {
   std::unique_ptr<QuicData> message_data_;
 };
 
-TEST_F(QuicCryptoStreamTest, NotInitiallyConected) {
+TEST_F(QuicCryptoStreamTest, NotInitiallyConnected) {
   EXPECT_FALSE(stream_->encryption_established());
   EXPECT_FALSE(stream_->one_rtt_keys_available());
 }
