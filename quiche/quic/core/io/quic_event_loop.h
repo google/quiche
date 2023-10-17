@@ -33,7 +33,7 @@ class QuicSocketEventListener {
 };
 
 // An abstraction for an event loop that can handle alarms and notify the
-// listener about I/O events occuring to the registered UDP sockets.
+// listener about I/O events occurring to the registered UDP sockets.
 //
 // Note on error handling: while most of the methods below return a boolean to
 // indicate whether the operation has succeeded or not, some will QUIC_BUG
