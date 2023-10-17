@@ -69,7 +69,7 @@ class QUICHE_EXPORT TlsConnection {
     virtual void FlushFlight() = 0;
 
     // SendAlert causes this TlsConnection to close the QUIC connection with an
-    // error code corersponding to the TLS alert description |desc| sent at
+    // error code corresponding to the TLS alert description |desc| sent at
     // level |level|.
     virtual void SendAlert(EncryptionLevel level, uint8_t desc) = 0;
 
