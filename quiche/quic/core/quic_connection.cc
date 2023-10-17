@@ -5512,7 +5512,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
         // Skip reverse path validation because either handshake hasn't
         // completed or the connection is validating the default path. Using
         // PATH_CHALLENGE to validate alternative client address before
-        // handshake gets comfirmed is meaningless because anyone can respond to
+        // handshake gets confirmed is meaningless because anyone can respond to
         // it. If the connection is validating the default path, this
         // alternative path is currently the only validated path which shouldn't
         // be overridden.
@@ -5520,7 +5520,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
                          "validating a recent peer address change.";
         QUIC_BUG_IF(quic_bug_12714_30,
                     IsHandshakeConfirmed() && !alternative_path_.validated)
-            << "No validated peer address to send after handshake comfirmed.";
+            << "No validated peer address to send after handshake confirmed.";
       } else if (!IsReceivedPeerAddressValidated()) {
         QuicConnectionId client_connection_id;
         absl::optional<StatelessResetToken> stateless_reset_token;
