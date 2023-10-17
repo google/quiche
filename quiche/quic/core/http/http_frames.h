@@ -103,7 +103,7 @@ struct QUICHE_EXPORT GoAwayFrame {
 //
 // The PRIORITY_UPDATE frame specifies the sender-advised priority of a stream.
 // Frame type 0xf0700 (called PRIORITY_UPDATE_REQUEST_STREAM in the
-// implementation) is used for for request streams.
+// implementation) is used for request streams.
 // Frame type 0xf0701 would be used for push streams but it is not implemented;
 // incoming 0xf0701 frames are treated as frames of unknown type.
 

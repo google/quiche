@@ -101,7 +101,7 @@ void QuicClientSessionCache::ClearEarlyData(const QuicServerId& server_id) {
   if (iter == cache_.end()) return;
   for (auto& session : iter->second->sessions) {
     if (session) {
-      QUIC_DLOG(INFO) << "Clear early data for for host: " << server_id.host();
+      QUIC_DLOG(INFO) << "Clear early data for host: " << server_id.host();
       session.reset(SSL_SESSION_copy_without_early_data(session.get()));
     }
   }
