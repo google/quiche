@@ -98,9 +98,9 @@ TEST_F(QuicIntervalDequeTest, InsertIterateWhole) {
   auto end = qid_.DataEnd();
   for (int32_t i = 0; i < kSize; ++i, ++it) {
     EXPECT_EQ(it->val, i);
-    const std::size_t current_iteraval_begin = i * kIntervalStep;
+    const std::size_t current_interval_begin = i * kIntervalStep;
     // The |DataAt| method should find the correct interval.
-    auto lookup = qid_.DataAt(current_iteraval_begin);
+    auto lookup = qid_.DataAt(current_interval_begin);
     EXPECT_EQ(i, lookup->val);
     // Make sure the index hasn't changed just from using |DataAt|
     const int32_t index_before = QuicIntervalDequePeer::GetCachedIndex(&qid_);
@@ -128,12 +128,12 @@ TEST_F(QuicIntervalDequeTest, OffByOne) {
   for (int32_t i = 0; i < kSize - 1; ++i, ++it) {
     EXPECT_EQ(it->val, i);
     const int32_t off_by_one_i = i + 1;
-    const std::size_t current_iteraval_begin = off_by_one_i * kIntervalStep;
+    const std::size_t current_interval_begin = off_by_one_i * kIntervalStep;
     // Make sure the index has changed just from using |DataAt|
     const int32_t index_before = QuicIntervalDequePeer::GetCachedIndex(&qid_);
     EXPECT_EQ(index_before, i);
     // The |DataAt| method should find the correct interval.
-    auto lookup = qid_.DataAt(current_iteraval_begin);
+    auto lookup = qid_.DataAt(current_interval_begin);
     EXPECT_EQ(off_by_one_i, lookup->val);
     // Check that the index has changed.
     const int32_t index_after = QuicIntervalDequePeer::GetCachedIndex(&qid_);
@@ -150,12 +150,12 @@ TEST_F(QuicIntervalDequeTest, IteratorInvalidation) {
   const int32_t cached_index = QuicIntervalDequePeer::GetCachedIndex(&qid_);
   EXPECT_EQ(cached_index, 0);
 
-  const std::size_t iteraval_begin = (kSize - 1) * kIntervalStep;
-  auto lookup = qid_.DataAt(iteraval_begin);
+  const std::size_t interval_begin = (kSize - 1) * kIntervalStep;
+  auto lookup = qid_.DataAt(interval_begin);
   EXPECT_EQ((*lookup).val, (kSize - 1));
   qid_.PopFront();
   EXPECT_QUIC_BUG(lookup++, "Iterator out of bounds.");
-  auto lookup_end = qid_.DataAt(iteraval_begin + kIntervalStep);
+  auto lookup_end = qid_.DataAt(interval_begin + kIntervalStep);
   EXPECT_EQ(lookup_end, qid_.DataEnd());
 }
 
@@ -172,9 +172,9 @@ TEST_F(QuicIntervalDequeTest, InsertIterateSkip) {
       const int32_t before_i = (i - (step - 1));
       EXPECT_EQ(QuicIntervalDequePeer::GetCachedIndex(&qid_), before_i);
     }
-    const std::size_t current_iteraval_begin = i * kIntervalStep;
+    const std::size_t current_interval_begin = i * kIntervalStep;
     // The |DataAt| method should find the correct interval.
-    auto lookup = qid_.DataAt(current_iteraval_begin);
+    auto lookup = qid_.DataAt(current_interval_begin);
     EXPECT_EQ(i, lookup->val);
     // Make sure the index _has_ changed just from using |DataAt| since we're
     // skipping data.
@@ -203,8 +203,8 @@ TEST_F(QuicIntervalDequeTest, InsertDeleteIterate) {
     EXPECT_EQ(it->val, i);
 
     // Get an iterator.
-    const std::size_t current_iteraval_begin = i * kIntervalStep;
-    auto lookup = qid_.DataAt(current_iteraval_begin);
+    const std::size_t current_interval_begin = i * kIntervalStep;
+    auto lookup = qid_.DataAt(current_interval_begin);
     const int32_t index_before = QuicIntervalDequePeer::GetCachedIndex(&qid_);
     // The index should always point to 0.
     EXPECT_EQ(index_before, 0);
@@ -231,8 +231,8 @@ TEST_F(QuicIntervalDequeTest, InsertIterateInsert) {
   int32_t iterated_elements = 0;
   for (int32_t i = 0; i < kSize; ++i, ++iterated_elements) {
     // Get an iterator.
-    const std::size_t current_iteraval_begin = i * kIntervalStep;
-    auto lookup = qid_.DataAt(current_iteraval_begin);
+    const std::size_t current_interval_begin = i * kIntervalStep;
+    auto lookup = qid_.DataAt(current_interval_begin);
     const int32_t index_before = QuicIntervalDequePeer::GetCachedIndex(&qid_);
     // The index should always point to i.
     EXPECT_EQ(index_before, i);
@@ -294,9 +294,9 @@ TEST_F(QuicIntervalDequeTest, RescanData) {
   auto end = qid_.DataEnd();
   for (int32_t i = 0; i < kSize - 1; ++i, ++it) {
     EXPECT_EQ(it->val, i);
-    const std::size_t current_iteraval_begin = i * kIntervalStep;
+    const std::size_t current_interval_begin = i * kIntervalStep;
     // The |DataAt| method should find the correct interval.
-    auto lookup = qid_.DataAt(current_iteraval_begin);
+    auto lookup = qid_.DataAt(current_interval_begin);
     EXPECT_EQ(i, lookup->val);
     // Make sure the index has changed just from using |DataAt|
     const int32_t cached_index_before =
@@ -320,9 +320,9 @@ TEST_F(QuicIntervalDequeTest, RescanData) {
   // Iterate over items which have been consumed before.
   int32_t expected_index = static_cast<int32_t>(kSize - 1);
   for (int32_t i = 0; i < kSize - 1; ++i) {
-    const std::size_t current_iteraval_begin = i * kIntervalStep;
+    const std::size_t current_interval_begin = i * kIntervalStep;
     // The |DataAt| method should find the correct interval.
-    auto lookup = qid_.DataAt(current_iteraval_begin);
+    auto lookup = qid_.DataAt(current_interval_begin);
     EXPECT_EQ(i, lookup->val);
     // This increment shouldn't move the index forward as the index is currently
     // ahead.
