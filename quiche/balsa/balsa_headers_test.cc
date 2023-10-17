@@ -2450,7 +2450,7 @@ TEST(BalsaHeaders,
   SCOPED_TRACE(
       "This test tests the codepath where the new firstline is"
       " too large to fit within the space used by the original"
-      " firstline, but large enuogh to space in the free space"
+      " firstline, but large enough to space in the free space"
       " available in both firstline plus the space made available"
       " with deleted header lines (specifically, the first one");
   BalsaHeaders headers = CreateHTTPHeaders(
