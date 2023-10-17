@@ -5,7 +5,7 @@
 // This class is a helper class to TcpCubicSender.
 // Slow start is the initial startup phase of TCP, it lasts until first packet
 // loss. This class implements hybrid slow start of the TCP cubic send side
-// congestion algorithm. The key feaure of hybrid slow start is that it tries to
+// congestion algorithm. The key feature of hybrid slow start is that it tries to
 // avoid running into the wall too hard during the slow start phase, which
 // the traditional TCP implementation does.
 // This does not implement ack train detection because it interacts poorly with
