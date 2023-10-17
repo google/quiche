@@ -45,7 +45,7 @@ static_assert(kMtuDiscoveryTargetPacketSizeHigh > kDefaultMaxPacketSize,
 // questions:
 // 1) Probe scheduling: Whether a connection should send a MTU probe packet
 //    right now.
-// 2) MTU search stradegy: When it is time to send, what should be the size of
+// 2) MTU search strategy: When it is time to send, what should be the size of
 //    the probing packet.
 // Note the discoverer does not actually send or process probing packets.
 //
