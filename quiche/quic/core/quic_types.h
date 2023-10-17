@@ -35,7 +35,7 @@ using QuicMessageId = uint32_t;
 // 62-bit numbers. However, we have decided to only support up to 2^32-1 streams
 // in order to reduce the size of data structures such as QuicStreamFrame
 // and QuicTransmissionInfo, as that allows them to fit in cache lines and has
-// visible perfomance impact.
+// visible performance impact.
 using QuicStreamId = uint32_t;
 
 // Count of stream IDs. Used in MAX_STREAMS and STREAMS_BLOCKED frames.
