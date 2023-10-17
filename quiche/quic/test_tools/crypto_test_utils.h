@@ -199,7 +199,7 @@ QuicTag ParseTag(const char* tagstr);
 // Message constructs a CHLO message from a provided vector of tag/value pairs.
 // The first of each pair is the tag of a tag/value and is given as an argument
 // to |ParseTag|. The second is the value of the tag/value pair and is either a
-// hex dump, preceeded by a '#', or a raw value. If minimum_size_bytes is
+// hex dump, preceded by a '#', or a raw value. If minimum_size_bytes is
 // provided then the message will be padded to this minimum size.
 //
 //   CreateCHLO(
