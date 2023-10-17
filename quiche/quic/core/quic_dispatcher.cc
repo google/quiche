@@ -1197,7 +1197,7 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
                                  ReceivedPacketInfo* packet_info) {
   if (GetQuicFlag(quic_allow_chlo_buffering) &&
       new_sessions_allowed_per_event_loop_ <= 0) {
-    // Can't create new session any more. Wait till next event loop.
+    // Can't create new session anymore. Wait till next event loop.
     QUIC_BUG_IF(quic_bug_12724_7, buffered_packets_.HasChloForConnection(
                                       packet_info->destination_connection_id));
     EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(

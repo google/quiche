@@ -794,7 +794,7 @@ struct QUICHE_EXPORT QuicOwnedPacketBuffer : public QuicPacketBuffer {
 
   QuicOwnedPacketBuffer(QuicOwnedPacketBuffer&& owned_buffer)
       : QuicPacketBuffer(std::move(owned_buffer)) {
-    // |owned_buffer| does not own a buffer any more.
+    // |owned_buffer| does not own a buffer anymore.
     owned_buffer.buffer = nullptr;
   }
 
