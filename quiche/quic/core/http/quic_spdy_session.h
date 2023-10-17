@@ -529,7 +529,7 @@ class QUICHE_EXPORT QuicSpdySession
 
   const SettingsFrame& settings() const { return settings_; }
 
-  // Initializes HTTP/3 unidirectional streams if not yet initialzed.
+  // Initializes HTTP/3 unidirectional streams if not yet initialized.
   virtual void MaybeInitializeHttp3UnidirectionalStreams();
 
   // QuicConnectionVisitorInterface methods.

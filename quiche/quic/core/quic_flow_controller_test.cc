@@ -200,7 +200,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesFastIncreasesFlowWindow) {
   EXPECT_CALL(*session_, WriteControlFrame(_, _)).Times(1);
   EXPECT_TRUE(flow_controller_->auto_tune_receive_window());
 
-  // Make sure clock is inititialized.
+  // Make sure clock is initialized.
   connection_->AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
 
   QuicSentPacketManager* manager =
@@ -254,7 +254,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesFastNoAutoTune) {
       .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
   EXPECT_FALSE(flow_controller_->auto_tune_receive_window());
 
-  // Make sure clock is inititialized.
+  // Make sure clock is initialized.
   connection_->AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
 
   QuicSentPacketManager* manager =
@@ -307,7 +307,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesNormalStableFlowWindow) {
   EXPECT_CALL(*session_, WriteControlFrame(_, _)).Times(1);
   EXPECT_TRUE(flow_controller_->auto_tune_receive_window());
 
-  // Make sure clock is inititialized.
+  // Make sure clock is initialized.
   connection_->AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
 
   QuicSentPacketManager* manager =
@@ -364,7 +364,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesNormalNoAutoTune) {
       .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
   EXPECT_FALSE(flow_controller_->auto_tune_receive_window());
 
-  // Make sure clock is inititialized.
+  // Make sure clock is initialized.
   connection_->AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
 
   QuicSentPacketManager* manager =
