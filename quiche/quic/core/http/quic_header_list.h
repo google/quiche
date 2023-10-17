@@ -33,7 +33,7 @@ class QUICHE_EXPORT QuicHeaderList : public spdy::SpdyHeadersHandlerInterface {
   QuicHeaderList& operator=(const QuicHeaderList& other);
   ~QuicHeaderList() override;
 
-  // From SpdyHeadersHandlerInteface.
+  // From SpdyHeadersHandlerInterface.
   void OnHeaderBlockStart() override;
   void OnHeader(absl::string_view name, absl::string_view value) override;
   void OnHeaderBlockEnd(size_t uncompressed_header_bytes,
