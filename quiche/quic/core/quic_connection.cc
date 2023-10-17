@@ -3485,7 +3485,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       result = SendPacketToWriter(
           packet->encrypted_buffer, encrypted_length, send_from_address.host(),
           send_to_address, writer_, GetEcnCodepointToSend(send_to_address));
-      // This is a work around for an issue with linux UDP GSO batch writers.
+      // This is a workaround for an issue with linux UDP GSO batch writers.
       // When sending a GSO packet with 2 segments, if the first segment is
       // larger than the path MTU, instead of EMSGSIZE, the linux kernel returns
       // EINVAL, which translates to WRITE_STATUS_ERROR and causes connection to
