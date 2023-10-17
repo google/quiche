@@ -9,7 +9,7 @@
 
 namespace quiche {
 
-// IP address family type used in QUIC. This hides platform dependant IP address
+// IP address family type used in QUIC. This hides platform dependent IP address
 // family types.
 enum class IpAddressFamily {
   IP_V4,
