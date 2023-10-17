@@ -98,7 +98,7 @@ const ItemTestCase sh09_item_test_cases[] = {
     {"basic binary", "*aGVsbG8=*", Item("hello", Item::kByteSequenceType),
      nullptr},
     {"empty binary", "**", Item("", Item::kByteSequenceType), nullptr},
-    {"bad paddding", "*aGVsbG8*", Item("hello", Item::kByteSequenceType),
+    {"bad padding", "*aGVsbG8*", Item("hello", Item::kByteSequenceType),
      "*aGVsbG8=*"},
     {"bad end delimiter", "*aGVsbG8=", absl::nullopt, nullptr},
     {"extra whitespace", "*aGVsb G8=*", absl::nullopt, nullptr},

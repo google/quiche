@@ -64,7 +64,7 @@ const struct ParameterizedItemTestCase {
      2,
      {{Item("", Item::kByteSequenceType), {}}},
      nullptr},
-    {"bad paddding",
+    {"bad padding",
      ":aGVsbG8:",
      9,
      {{Item("hello", Item::kByteSequenceType), {}}},
