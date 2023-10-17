@@ -309,7 +309,7 @@ TEST_F(QuicIntervalDequeTest, RescanData) {
     EXPECT_EQ(index_before, before_i);
     // This increment should move the cached index forward.
     lookup++;
-    // Check that the cached index has moved foward.
+    // Check that the cached index has moved forward.
     const int32_t cached_index_after =
         QuicIntervalDequePeer::GetCachedIndex(&qid_);
     const int32_t after_i = (i + 1);
@@ -327,7 +327,7 @@ TEST_F(QuicIntervalDequeTest, RescanData) {
     // This increment shouldn't move the index forward as the index is currently
     // ahead.
     lookup++;
-    // Check that the index hasn't moved foward.
+    // Check that the index hasn't moved forward.
     const int32_t index_after = QuicIntervalDequePeer::GetCachedIndex(&qid_);
     EXPECT_EQ(index_after, expected_index);
     EXPECT_NE(it, end);
