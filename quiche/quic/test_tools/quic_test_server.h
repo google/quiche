@@ -102,7 +102,7 @@ class QuicTestServer : public QuicServer {
 
 // Useful test sessions for the QuicTestServer.
 
-// Test session which sends a GOAWAY immedaitely on creation, before crypto
+// Test session which sends a GOAWAY immediately on creation, before crypto
 // credentials have even been established.
 class ImmediateGoAwaySession : public QuicSimpleServerSession {
  public:
