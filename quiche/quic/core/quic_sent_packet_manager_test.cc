@@ -2843,7 +2843,7 @@ TEST_F(QuicSentPacketManagerTest,
   SerializedPacket packet3 = MakePacketWithAckFrequencyFrame(
       /*packet_number=*/3, /*ack_frequency_sequence_number=*/3, extra_2_ms);
 
-  // Send frame1, farme2, frame3.
+  // Send frame1, frame2, frame3.
   manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
                         HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
@@ -2857,7 +2857,7 @@ TEST_F(QuicSentPacketManagerTest,
                         ECN_NOT_ECT);
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_3_ms);
 
-  // Ack frame1, farme2, frame3.
+  // Ack frame1, frame2, frame3.
   manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
@@ -2901,7 +2901,7 @@ TEST_F(QuicSentPacketManagerTest,
   SerializedPacket packet4 = MakePacketWithAckFrequencyFrame(
       /*packet_number=*/4, /*ack_frequency_sequence_number=*/4, extra_1_ms);
 
-  // Send frame1, farme2, frame3, frame4.
+  // Send frame1, frame2, frame3, frame4.
   manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
                         HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
                         ECN_NOT_ECT);
