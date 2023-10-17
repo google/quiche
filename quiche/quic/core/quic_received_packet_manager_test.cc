@@ -594,7 +594,7 @@ TEST_F(QuicReceivedPacketManagerTest,
 }
 
 TEST_F(QuicReceivedPacketManagerTest,
-       DisableMissingPaketsAckByIgnoreOrderFromAckFrequencyFrame) {
+       DisableMissingPacketsAckByIgnoreOrderFromAckFrequencyFrame) {
   EXPECT_FALSE(HasPendingAck());
   QuicConfig config;
   config.SetConnectionOptionsToSend({kAFFE});

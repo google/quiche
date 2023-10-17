@@ -146,7 +146,7 @@ TEST_F(QuicBufferedPacketStoreTest,
   // buffered.
   size_t num_packets = kDefaultMaxUndecryptablePackets + 1;
   QuicConnectionId connection_id = TestConnectionId(1);
-  // Arrived CHLO packet shouldn't affect how many non-CHLO pacekts store can
+  // Arrived CHLO packet shouldn't affect how many non-CHLO packets store can
   // keep.
   EXPECT_EQ(
       QuicBufferedPacketStore::SUCCESS,
