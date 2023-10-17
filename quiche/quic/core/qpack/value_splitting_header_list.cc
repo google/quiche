@@ -40,7 +40,7 @@ bool ValueSplittingHeaderList::const_iterator::operator!=(
 const ValueSplittingHeaderList::const_iterator&
 ValueSplittingHeaderList::const_iterator::operator++() {
   if (value_end_ == absl::string_view::npos) {
-    // This was the last frament within |*header_list_iterator_|,
+    // This was the last fragment within |*header_list_iterator_|,
     // move on to the next header element of |header_list_|.
     ++header_list_iterator_;
     value_start_ = 0;
