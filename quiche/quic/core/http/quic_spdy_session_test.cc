@@ -730,7 +730,7 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
     QuicStreamId stream_id = StreamCountToId(
         QuicSessionPeer::ietf_streamid_manager(&session_)
             ->max_incoming_bidirectional_streams(),
-        Perspective::IS_CLIENT,  // Client initates stream, allocs stream id.
+        Perspective::IS_CLIENT,  // Client initiates stream, allocs stream id.
         /*bidirectional=*/true);
     EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
     stream_id =
@@ -1180,7 +1180,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAndNoMoreMaxStreams) {
   for (QuicStreamCount i = 0; i < max_streams; ++i) {
     QuicStreamId stream_id = StreamCountToId(
         i + 1,
-        Perspective::IS_CLIENT,  // Client initates stream, allocs stream id.
+        Perspective::IS_CLIENT,  // Client initiates stream, allocs stream id.
         /*bidirectional=*/true);
     EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
 
