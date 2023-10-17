@@ -77,7 +77,7 @@ struct QUICHE_EXPORT SendTimeState {
 };
 
 struct QUICHE_EXPORT ExtraAckedEvent {
-  // The excess bytes acknowlwedged in the time delta for this event.
+  // The excess bytes acknowledged in the time delta for this event.
   QuicByteCount extra_acked = 0;
 
   // The bytes acknowledged and time delta from the event.

@@ -5278,7 +5278,7 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
   if (num_ack_blocks > 0) {
     size_t num_ack_blocks_written = 0;
     // Append, in descending order from the largest ACKed packet, a series of
-    // ACK blocks that represents the successfully acknoweldged packets. Each
+    // ACK blocks that represents the successfully acknowledged packets. Each
     // appended gap/block length represents a descending delta from the previous
     // block. i.e.:
     // |--- length ---|--- gap ---|--- length ---|--- gap ---|--- largest ---|
