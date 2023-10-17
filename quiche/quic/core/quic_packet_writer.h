@@ -170,7 +170,7 @@ class QUICHE_EXPORT QuicPacketWriter {
   // - Return WRITE_STATUS_BLOCKED if the underlying socket is blocked while
   //   sending. Some packets may have been sent, packets not sent will stay in
   //   the internal buffer.
-  // - Return a status >= WRITE_STATUS_ERROR if an error was encuontered while
+  // - Return a status >= WRITE_STATUS_ERROR if an error was encountered while
   //   sending. As this is not a re-tryable error, any batched packets which
   //   were on memory acquired via GetNextWriteLocation() should be released and
   //   the batch should be dropped.
