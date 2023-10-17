@@ -39,7 +39,7 @@ class OneWayLink : public Actor, public ConstrainedPortInterface {
 
  protected:
   // Get the value of a random delay imposed on each packet.  By default, this
-  // is a short random delay in order to avoid artifical synchronization
+  // is a short random delay in order to avoid artificial synchronization
   // artifacts during the simulation.  Subclasses may override this behavior
   // (for example, to provide a random component of delay).
   virtual QuicTime::Delta GetRandomDelay(QuicTime::Delta transfer_time);
