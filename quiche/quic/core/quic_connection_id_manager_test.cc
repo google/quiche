@@ -1039,7 +1039,7 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
   QuicRetireConnectionIdFrame retire_cid_frame(/*control_frame_id=*/0,
                                                /*sequence_number=*/1);
   QuicConnectionId cid2 = CheckGenerate(cid1);
-  // This happens when cid2 is aleady present in the dispatcher map.
+  // This happens when cid2 is already present in the dispatcher map.
   EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid2))
       .WillOnce(Return(false));
   std::string error_details;
