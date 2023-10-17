@@ -34,7 +34,7 @@ struct QUICHE_EXPORT PemReadResult {
 // Reads |input| line-by-line and returns the next available PEM message.
 QUICHE_EXPORT PemReadResult ReadNextPemMessage(std::istream* input);
 
-// Cryptograhpic algorithms recognized in X.509.
+// Cryptographic algorithms recognized in X.509.
 enum class PublicKeyType {
   kRsa,
   kP256,
