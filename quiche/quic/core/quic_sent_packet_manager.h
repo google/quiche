@@ -254,7 +254,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
   const QuicTime::Delta GetNetworkBlackholeDelay(
       int8_t num_rtos_for_blackhole_detection) const;
 
-  // Returns the delay before reducing max packet size. This delay is guranteed
+  // Returns the delay before reducing max packet size. This delay is guaranteed
   // to be smaller than the network blackhole delay.
   QuicTime::Delta GetMtuReductionDelay(
       int8_t num_rtos_for_blackhole_detection) const;
