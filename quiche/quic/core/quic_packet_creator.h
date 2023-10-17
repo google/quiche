@@ -528,7 +528,7 @@ class QUICHE_EXPORT QuicPacketCreator {
       QuicOwnedPacketBuffer encrypted_buffer, size_t encrypted_buffer_len,
       bool allow_padding);
 
-  // Called after a new SerialiedPacket is created to call the delegate's
+  // Called after a new SerializedPacket is created to call the delegate's
   // OnSerializedPacket and reset state.
   void OnSerializedPacket();
 

@@ -71,7 +71,7 @@ struct QuicSelfContainedPacketHeader : public QuicPacketHeader {
 };
 
 // Construct a random data packet header that 1) can be successfully serialized
-// at sender, and 2) the serialzied buffer can pass the receiver framer's
+// at sender, and 2) the serialized buffer can pass the receiver framer's
 // ProcessPublicHeader and DecryptPayload functions.
 QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
     FuzzedDataProvider* provider, Perspective receiver_perspective) {
