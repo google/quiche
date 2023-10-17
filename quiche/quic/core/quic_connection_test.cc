@@ -10601,7 +10601,7 @@ TEST_P(QuicConnectionTest, BundleAckWithImmediateResponse) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([this]() {
-    notifier_.WriteOrBufferWindowUpate(0, 0);
+    notifier_.WriteOrBufferWindowUpdate(0, 0);
   }));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessDataPacket(1);

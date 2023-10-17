@@ -113,7 +113,7 @@ void SimpleSessionNotifier::WriteOrBufferRstStream(
   WriteBufferedControlFrames();
 }
 
-void SimpleSessionNotifier::WriteOrBufferWindowUpate(
+void SimpleSessionNotifier::WriteOrBufferWindowUpdate(
     QuicStreamId id, QuicStreamOffset byte_offset) {
   QUIC_DVLOG(1) << "Writing WINDOW_UPDATE";
   const bool had_buffered_data =

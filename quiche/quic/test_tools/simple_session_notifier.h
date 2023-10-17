@@ -37,7 +37,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
                               QuicStreamOffset bytes_written);
 
   // Tries to write WINDOW_UPDATE.
-  void WriteOrBufferWindowUpate(QuicStreamId id, QuicStreamOffset byte_offset);
+  void WriteOrBufferWindowUpdate(QuicStreamId id, QuicStreamOffset byte_offset);
 
   // Tries to write PING.
   void WriteOrBufferPing();
