@@ -165,7 +165,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
 
   // Returns random flags, but only those valid for the frame type, yet not
   // those that the DecoderPeer says will affect the decoding of the payload
-  // (e.g. the PRIORTY flag on a HEADERS frame or PADDED on DATA frames).
+  // (e.g. the PRIORITY flag on a HEADERS frame or PADDED on DATA frames).
   uint8_t RandFlags() {
     return Random().Rand8() &
            KnownFlagsMaskForFrameType(DecoderPeer::FrameType()) &

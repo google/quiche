@@ -1712,7 +1712,7 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
       // The perspective is server
       // The PATH_CHALLENGE is received on an unvalidated alternative path.
       // The connection isn't validating migrated peer address, which is of
-      // higher prority.
+      // higher priority.
       QUIC_DVLOG(1) << "Proactively validate the effective peer address "
                     << effective_peer_address_to_respond;
       QUIC_CODE_COUNT_N(quic_kick_off_client_address_validation, 2, 6);
