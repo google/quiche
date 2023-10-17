@@ -217,7 +217,7 @@ void PendingStream::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
   QUICHE_DCHECK_EQ(frame.stream_id, id_);
 
   if (frame.byte_offset > kMaxStreamLength) {
-    // Peer are not suppose to write bytes more than maxium allowed.
+    // Peer are not suppose to write bytes more than maximum allowed.
     OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
                          "Reset frame stream offset overflow.");
     return;
@@ -515,7 +515,7 @@ int QuicStream::num_duplicate_frames_received() const {
 void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   rst_received_ = true;
   if (frame.byte_offset > kMaxStreamLength) {
-    // Peer are not suppose to write bytes more than maxium allowed.
+    // Peer are not suppose to write bytes more than maximum allowed.
     OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
                          "Reset frame stream offset overflow.");
     return;
