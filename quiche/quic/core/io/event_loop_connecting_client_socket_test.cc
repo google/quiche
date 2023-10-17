@@ -673,7 +673,7 @@ TEST_P(EventLoopConnectingClientSocketTest, SendAsync) {
 
 TEST_P(EventLoopConnectingClientSocketTest, DisconnectCancelsSendAsync) {
   if (protocol_ == socket_api::SocketProtocol::kUdp) {
-    // UDP sends are always immediate, so cannot disconect mid-send.
+    // UDP sends are always immediate, so cannot disconnect mid-send.
     return;
   }
 
