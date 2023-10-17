@@ -141,7 +141,7 @@ class QUICHE_EXPORT QuicStreamIdManager {
   // Back reference to the session containing this Stream ID Manager.
   DelegateInterface* delegate_;
 
-  // Whether this stream id manager is for unidrectional (true) or bidirectional
+  // Whether this stream id manager is for unidirectional (true) or bidirectional
   // (false) streams.
   const bool unidirectional_;
 
