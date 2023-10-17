@@ -3743,7 +3743,7 @@ TEST_P(QuicConnectionTest, BasicSending) {
 TEST_P(QuicConnectionTest, RecordSentTimeBeforePacketSent) {
   // We're using a MockClock for the tests, so we have complete control over the
   // time.
-  // Our recorded timestamp for the last packet sent time will be passed in to
+  // Our recorded timestamp for the last packet sent time will be passed into
   // the send_algorithm.  Make sure that it is set to the correct value.
   QuicTime actual_recorded_send_time = QuicTime::Zero();
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))

@@ -2052,7 +2052,7 @@ class TestPacketWriter : public QuicPacketWriter {
 // which must point to at least |*destination_connection_id_length_out| bytes in
 // memory. |*destination_connection_id_length_out| will contain the length of
 // the received destination connection ID, which on success will match the
-// contents of the destination connection ID passed in to
+// contents of the destination connection ID passed into
 // WriteClientVersionNegotiationProbePacket.
 bool ParseClientVersionNegotiationProbePacket(
     const char* packet_bytes, size_t packet_length,

@@ -81,10 +81,10 @@ class QUICHE_EXPORT QpackDecodedHeadersAccumulator
   size_t uncompressed_header_bytes_including_overhead_;
   QuicHeaderList quic_header_list_;
   // Uncompressed header list size with overhead,
-  // for passing in to QuicHeaderList::OnHeaderBlockEnd().
+  // for passing into QuicHeaderList::OnHeaderBlockEnd().
   size_t uncompressed_header_bytes_without_overhead_;
   // Compressed header list size
-  // for passing in to QuicHeaderList::OnHeaderBlockEnd().
+  // for passing into QuicHeaderList::OnHeaderBlockEnd().
   size_t compressed_header_bytes_;
 
   // True if the header size limit has been exceeded.

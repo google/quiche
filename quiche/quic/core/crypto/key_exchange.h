@@ -32,7 +32,7 @@ class QUICHE_EXPORT AsynchronousKeyExchange {
     // Invoked upon completion of CalculateSharedKeysAsync.
     //
     // |ok| indicates whether the operation completed successfully.  If false,
-    // then the value pointed to by |shared_key| passed in to
+    // then the value pointed to by |shared_key| passed into
     // CalculateSharedKeyAsync is undefined.
     virtual void Run(bool ok) = 0;
 

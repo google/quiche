@@ -218,7 +218,7 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
 
   // Updates the ack aggregation max filter in bytes.
   // Returns the most recent addition to the filter, or |newly_acked_bytes| if
-  // nothing was fed in to the filter.
+  // nothing was fed into the filter.
   QuicByteCount UpdateAckAggregationBytes(QuicTime ack_time,
                                           QuicByteCount newly_acked_bytes);
 

@@ -61,7 +61,7 @@ class QUICHE_EXPORT ObliviousHttpGateway {
 
   // After `DecryptObliviousHttpRequest` operation, callers on server-side will
   // extract `oblivious_http_request_context` from the returned object
-  // `ObliviousHttpRequest` and pass in to this method in order to handle the
+  // `ObliviousHttpRequest` and pass into this method in order to handle the
   // response flow back to the client.
   absl::StatusOr<ObliviousHttpResponse> CreateObliviousHttpResponse(
       std::string plaintext_data,

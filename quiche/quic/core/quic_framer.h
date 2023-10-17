@@ -700,7 +700,7 @@ class QUICHE_EXPORT QuicFramer {
   // |*source_connection_id_length_out| must be at least 18.
   // |*source_connection_id_length_out| will contain the length of the received
   // source connection ID, which on success will match the contents of the
-  // destination connection ID passed in to
+  // destination connection ID passed into
   // WriteClientVersionNegotiationProbePacket. In the case of a failure,
   // |detailed_error| will be filled in with an explanation of what failed.
   static bool ParseServerVersionNegotiationProbeResponse(
