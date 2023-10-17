@@ -39,7 +39,7 @@ struct QUICHE_EXPORT QuicWindowUpdateFrame
   QuicStreamId stream_id = 0;
 
   // Maximum data allowed in the stream or connection. The receiver of this
-  // frame must not send data which would excedes this restriction.
+  // frame must not send data which would exceeds this restriction.
   QuicByteCount max_data = 0;
 };
 
