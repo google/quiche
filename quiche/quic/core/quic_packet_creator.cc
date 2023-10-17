@@ -62,7 +62,7 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
 
 void LogCoalesceStreamFrameStatus(bool success) {
   QUIC_HISTOGRAM_BOOL("QuicSession.CoalesceStreamFrameStatus", success,
-                      "Success rate of coalesing stream frames attempt.");
+                      "Success rate of coalescing stream frames attempt.");
 }
 
 // ScopedPacketContextSwitcher saves |packet|'s states and change states
