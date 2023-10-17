@@ -28,7 +28,7 @@ class QuicToyServer {
         const ParsedQuicVersionVector& supported_versions) = 0;
   };
 
-  // A facotry for creating QuicSimpleServerBackend instances.
+  // A factory for creating QuicSimpleServerBackend instances.
   class BackendFactory {
    public:
     virtual ~BackendFactory() = default;
