@@ -79,7 +79,7 @@ class QUICHE_EXPORT MoqtParser {
                                 bool end_of_stream);
 
   // The central switch statement to dispatch a message to the correct
-  // Process* function. Returns nullopt if it could not parse the full messsage
+  // Process* function. Returns nullopt if it could not parse the full message
   // (except for object payload). Otherwise, returns the number of bytes
   // processed.
   absl::optional<size_t> ProcessMessage(absl::string_view data);
