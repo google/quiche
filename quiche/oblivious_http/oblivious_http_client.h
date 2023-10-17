@@ -13,7 +13,7 @@
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
-// 1. Facilitates client side to intiate OHttp request flow by initializing the
+// 1. Facilitates client side to initiate OHttp request flow by initializing the
 // HPKE public key obtained from server, and subsequently uses it to encrypt the
 // Binary HTTP request payload.
 // 2. After initializing this class with server's HPKE public key, users can

@@ -239,7 +239,7 @@ class QUICHE_EXPORT QuicSpdySession
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
 
   // Write GOAWAY frame with maximum stream ID on the control stream.  Called to
-  // initite graceful connection shutdown.  Do not use smaller stream ID, in
+  // initiate graceful connection shutdown.  Do not use smaller stream ID, in
   // case client does not implement retry on GOAWAY.  Do not send GOAWAY if one
   // has already been sent. Send connection close with |error_code| and |reason|
   // before encryption gets established.
