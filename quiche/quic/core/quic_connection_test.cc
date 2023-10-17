@@ -8766,7 +8766,7 @@ TEST_P(QuicConnectionTest,
   EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
 
   if (!GetParam().version.HasIetfQuicFrames()) {
-    // Simulate path degrading handling by sending a probe on an alternet path.
+    // Simulate path degrading handling by sending a probe on an alternate path.
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
     TestPacketWriter probing_writer(version(), &clock_, Perspective::IS_CLIENT);
     connection_.SendConnectivityProbingPacket(&probing_writer,
