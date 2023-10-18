@@ -1114,7 +1114,7 @@ void QuicStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,
 
 void QuicStream::OnStreamFrameLost(QuicStreamOffset offset,
                                    QuicByteCount data_length, bool fin_lost) {
-  QUIC_DVLOG(1) << ENDPOINT << "stream " << id_ << " Losting "
+  QUIC_DVLOG(1) << ENDPOINT << "stream " << id_ << " Lost "
                 << "[" << offset << ", " << offset + data_length << "]"
                 << " fin = " << fin_lost;
   if (data_length > 0) {

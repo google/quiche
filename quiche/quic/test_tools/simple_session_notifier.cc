@@ -301,7 +301,7 @@ bool SimpleSessionNotifier::OnFrameAcked(const QuicFrame& frame,
 }
 
 void SimpleSessionNotifier::OnFrameLost(const QuicFrame& frame) {
-  QUIC_DVLOG(1) << "Losting " << frame;
+  QUIC_DVLOG(1) << "Lost " << frame;
   if (frame.type == CRYPTO_FRAME) {
     StreamState* state = &crypto_state_[frame.crypto_frame->level];
     QuicStreamOffset offset = frame.crypto_frame->offset;
