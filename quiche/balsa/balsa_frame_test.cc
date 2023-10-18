@@ -1709,7 +1709,7 @@ TEST_F(HTTPBalsaFrameTest,
       "trAnsfer-eNcoding:  chunked\r\n"
       "\r\n";
   std::string message_body =
-      "A            chunkjed extension  \r\n"
+      "A             chunked extension  \r\n"
       "01234567890            more crud including numbers 123123\r\n"
       "3f\n"
       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
@@ -1734,7 +1734,7 @@ TEST_F(HTTPBalsaFrameTest,
     EXPECT_CALL(visitor_mock_, HeaderDone());
     EXPECT_CALL(visitor_mock_, OnChunkLength(10));
     EXPECT_CALL(visitor_mock_,
-                OnChunkExtensionInput("            chunkjed extension  "));
+                OnChunkExtensionInput("             chunked extension  "));
     EXPECT_CALL(visitor_mock_, OnChunkLength(63));
     EXPECT_CALL(visitor_mock_, OnChunkExtensionInput(""));
     EXPECT_CALL(visitor_mock_, OnChunkLength(0));
@@ -1777,7 +1777,7 @@ TEST_P(HTTPBalsaFrameWithTrailersTest,
       "  \t includes a continuation\n"
       "\r\n";
   std::string message_body =
-      "A            chunkjed extension  \r\n"
+      "A             chunked extension  \r\n"
       "01234567890            more crud including numbers 123123\r\n"
       "3f\n"
       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
@@ -2192,7 +2192,7 @@ TEST_F(HTTPBalsaFrameTest,
       "trAnsfer-eNcoding:  chunked\r\n"
       "\r\n";
   std::string message_body =
-      "A            chunkjed extension  \r\n"
+      "A             chunked extension  \r\n"
       "01234567890            more crud including numbers 123123\r\n"
       "3f\n"
       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
@@ -2254,7 +2254,7 @@ TEST_P(HTTPBalsaFrameWithTrailersTest,
       "trAnsfer-eNcoding:  chunked\r\n"
       "\r\n";
   std::string message_body =
-      "A            chunkjed extension  \r\n"
+      "A             chunked extension  \r\n"
       "01234567890            more crud including numbers 123123\r\n"
       "3f\n"
       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
@@ -2331,7 +2331,7 @@ TEST_P(
       "trAnsfer-eNcoding:  chunked\r\n"
       "\r\n";
   std::string message_body =
-      "A            chunkjed extension  \r\n"
+      "A             chunked extension  \r\n"
       "01234567890            more crud including numbers 123123\r\n"
       "3f\n"
       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
@@ -2414,7 +2414,7 @@ TEST(HTTPBalsaFrame,
         "trAnsfer-eNcoding:  chunked\r\n"
         "\r\n";
     std::string message_body =
-        "A            chunkjed extension  \r\n"
+        "A             chunked extension  \r\n"
         "01234567890            more crud including numbers 123123\r\n"
         "3f\n"
         "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
@@ -2510,7 +2510,7 @@ TEST(
         "trAnsfer-eNcoding:  chunked\r\n"
         "\r\n";
     std::string message_body =
-        "A            chunkjed extension  \r\n"
+        "A             chunked extension  \r\n"
         "01234567890            more crud including numbers 123123\r\n"
         "3f\n"
         "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
