@@ -13,6 +13,7 @@
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
@@ -128,7 +129,11 @@ void QuicSpdyClientStream::OnTrailingHeadersComplete(
 }
 
 void QuicSpdyClientStream::OnBodyAvailable() {
-  if (visitor() == nullptr) return;
+  if (visitor() == nullptr) {
+    // TODO(b/171463363): Remove this early return if safe.
+    QUICHE_CODE_COUNT(quic_spdy_client_stream_visitor_null_on_body_available);
+    return;
+  }
 
   while (HasBytesToRead()) {
     struct iovec iov;
