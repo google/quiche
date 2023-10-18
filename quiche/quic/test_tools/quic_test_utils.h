@@ -2038,7 +2038,7 @@ class TestPacketWriter : public QuicPacketWriter {
       packet_buffer_pool_index_;
   // Indices in packet_buffer_pool_ that are not allocated.
   std::list<PacketBuffer*> packet_buffer_free_list_;
-  // The soruce/peer address passed into WritePacket().
+  // The source/peer address passed into WritePacket().
   QuicIpAddress last_write_source_address_;
   QuicSocketAddress last_write_peer_address_;
   int write_error_code_{0};
