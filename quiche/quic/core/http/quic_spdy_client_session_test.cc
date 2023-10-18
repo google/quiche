@@ -468,7 +468,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
   session_->ProcessUdpPacket(client_address, server_address,
                              zero_length_packet);
 
-  // Verifiy that small, invalid packets don't close the connection.
+  // Verify that small, invalid packets don't close the connection.
   char buf[2] = {0x00, 0x01};
   QuicConnectionId connection_id = session_->connection()->connection_id();
   QuicReceivedPacket valid_packet(buf, 2, QuicTime::Zero(), false);
