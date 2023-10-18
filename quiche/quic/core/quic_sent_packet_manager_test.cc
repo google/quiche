@@ -2464,7 +2464,7 @@ TEST_F(QuicSentPacketManagerTest, SetHandshakeConfirmed) {
   manager_.SetHandshakeConfirmed();
 }
 
-// Regresstion test for b/148841700.
+// Regression test for b/148841700.
 TEST_F(QuicSentPacketManagerTest, NeuterUnencryptedPackets) {
   SendCryptoPacket(1);
   SendPingPacket(2, ENCRYPTION_INITIAL);

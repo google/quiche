@@ -3911,7 +3911,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConnectionId) {
   EXPECT_EQ(TestConnectionId(0x33), creator_.GetSourceConnectionId());
 }
 
-// Regresstion test for b/159812345.
+// Regression test for b/159812345.
 TEST_F(QuicPacketCreatorMultiplePacketsTest, ExtraPaddingNeeded) {
   if (!framer_.version().HasHeaderProtection()) {
     return;

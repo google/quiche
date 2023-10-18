@@ -9363,7 +9363,7 @@ TEST_P(QuicConnectionTest, CoalescedPacketThatSavesFrames) {
   SendAckPacketToPeer();
 }
 
-// Regresstion test for b/138962304.
+// Regression test for b/138962304.
 TEST_P(QuicConnectionTest, RtoAndWriteBlocked) {
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
@@ -9389,7 +9389,7 @@ TEST_P(QuicConnectionTest, RtoAndWriteBlocked) {
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
 
-// Regresstion test for b/138962304.
+// Regression test for b/138962304.
 TEST_P(QuicConnectionTest, PtoAndWriteBlocked) {
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
@@ -10692,7 +10692,7 @@ TEST_P(QuicConnectionTest, ClientOnlyBlackholeDetectionServer) {
   EXPECT_FALSE(connection_.GetBlackholeDetectorAlarm()->IsSet());
 }
 
-// Regresstion test for b/158491591.
+// Regression test for b/158491591.
 TEST_P(QuicConnectionTest, MadeForwardProgressOnDiscardingKeys) {
   if (!connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
@@ -10879,7 +10879,7 @@ TEST_P(QuicConnectionTest, ClientBundlesHandshakeDataWithHandshakeAck) {
   EXPECT_FALSE(writer_->crypto_frames().empty());
 }
 
-// Regresstion test for b/156232673.
+// Regression test for b/156232673.
 TEST_P(QuicConnectionTest, CoalescePacketOfLowerEncryptionLevel) {
   if (!connection_.version().CanSendCoalescedPackets()) {
     return;
@@ -12187,7 +12187,7 @@ TEST_P(QuicConnectionTest, CoalescerHandlesInitialKeyDiscard) {
   EXPECT_TRUE(connection_.connected());
 }
 
-// Regresstion test for b/168294218
+// Regression test for b/168294218
 TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
   if (!connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
@@ -13881,7 +13881,7 @@ TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
   EXPECT_FALSE(connection_.connected());
 }
 
-// Regresstion test for b/175685916
+// Regression test for b/175685916
 TEST_P(QuicConnectionTest, TryToFlushAckWithAckQueued) {
   if (!version().HasIetfQuicFrames()) {
     return;
