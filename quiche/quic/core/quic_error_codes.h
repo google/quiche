@@ -274,7 +274,7 @@ enum QuicErrorCode : uint32_t {
   // A crypto message was received that contained a parameter with too few
   // values.
   QUIC_CRYPTO_MESSAGE_INDEX_NOT_FOUND = 37,
-  // A demand for an unsupport proof type was received.
+  // A demand for an unsupported proof type was received.
   QUIC_UNSUPPORTED_PROOF_DEMAND = 94,
   // An internal error occurred in crypto processing.
   QUIC_CRYPTO_INTERNAL_ERROR = 38,
