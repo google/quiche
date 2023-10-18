@@ -2679,7 +2679,7 @@ TEST_P(QuicFramerTest, AckFrameOneAckBlock) {
        {kVarInt62OneByte + 0x00}},
        // first ack block length - 1.
        // IETF Quic defines the ack block's value as the "number of
-       // packets that preceed the largest packet number in the block"
+       // packets that precede the largest packet number in the block"
        // which for the 1st ack block is the largest acked field,
        // above. This means that if we are acking just packet 0x1234
        // then the 1st ack block will be 0.
@@ -3065,8 +3065,8 @@ TEST_P(QuicFramerTest, AckBlockAcksEverything) {
 TEST_P(QuicFramerTest, AckFrameFirstAckBlockLengthZero) {
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     // Not applicable to version 99 -- first ack block contains the
-    // number of packets that preceed the largest_acked packet.
-    // A value of 0 means no packets preceed --- that the block's
+    // number of packets that precede the largest_acked packet.
+    // A value of 0 means no packets precede --- that the block's
     // length is 1. Therefore the condition that this test checks can
     // not arise.
     return;
