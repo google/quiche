@@ -1333,7 +1333,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
     wire_versions = {QuicVersionReservedForNegotiation(),
                      QuicVersionReservedForNegotiation()};
   } else {
-    // This is not uniformely distributed but is acceptable since no security
+    // This is not uniformly distributed but is acceptable since no security
     // depends on this randomness.
     size_t version_index = 0;
     const bool disable_randomness =
