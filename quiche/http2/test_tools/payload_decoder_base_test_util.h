@@ -81,7 +81,7 @@ class QUICHE_NO_EXPORT PayloadDecoderBaseTest : public RandomDecoderTest {
   DecodeStatus ResumeDecoding(DecodeBuffer* db) final;
 
   // Given the specified payload (without the common frame header), decode
-  // it with several partitionings of the payload.
+  // it with several partitions of the payload.
   ::testing::AssertionResult DecodePayloadAndValidateSeveralWays(
       absl::string_view payload, Validator validator);
 
@@ -188,7 +188,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
 
   // Decode one frame's payload and confirm that the listener recorded the
   // expected FrameParts instance, and only FrameParts instance. The payload
-  // will be decoded several times with different partitionings of the payload,
+  // will be decoded several times with different partitions of the payload,
   // and after each the validator will be called.
   AssertionResult DecodePayloadAndValidateSeveralWays(
       absl::string_view payload, const FrameParts& expected) {
@@ -204,7 +204,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
   // Decode one frame's payload, expecting that the final status will be
   // kDecodeError, and that OnFrameSizeError will have been called on the
   // listener. The payload will be decoded several times with different
-  // partitionings of the payload. The type WrappedValidator is either
+  // partitions of the payload. The type WrappedValidator is either
   // RandomDecoderTest::Validator, RandomDecoderTest::NoArgValidator or
   // std::nullptr_t (not extra validation).
   template <typename WrappedValidator>

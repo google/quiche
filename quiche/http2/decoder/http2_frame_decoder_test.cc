@@ -108,7 +108,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
 
   // Decode one frame's payload and confirm that the listener recorded the
   // expected FrameParts instance, and only one FrameParts instance. The
-  // payload will be decoded several times with different partitionings
+  // payload will be decoded several times with different partitions
   // of the payload, and after each the validator will be called.
   AssertionResult DecodePayloadAndValidateSeveralWays(
       absl::string_view payload, const FrameParts& expected) {
