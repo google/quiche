@@ -1514,7 +1514,7 @@ class QuicCryptoClientStreamPeer {
 // server_id: The server id associated with this stream.
 // connection_start_time: The time to set for the connection clock.
 //   Needed for strike-register nonce verification.  The client
-//   connection_start_time should be synchronized witht the server
+//   connection_start_time should be synchronized with the server
 //   start time, otherwise nonce verification will fail.
 // supported_versions: Set of QUIC versions this client supports.
 // helper: Pointer to the MockQuicConnectionHelper to use for the session.
@@ -1537,7 +1537,7 @@ void CreateClientSessionForTest(
 // server_id: The server id associated with this stream.
 // connection_start_time: The time to set for the connection clock.
 //   Needed for strike-register nonce verification.  The server
-//   connection_start_time should be synchronized witht the client
+//   connection_start_time should be synchronized with the client
 //   start time, otherwise nonce verification will fail.
 // supported_versions: Set of QUIC versions this server supports.
 // helper: Pointer to the MockQuicConnectionHelper to use for the session.
