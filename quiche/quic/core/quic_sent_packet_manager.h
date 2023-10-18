@@ -304,7 +304,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
     return send_algorithm_->PacingRate(GetBytesInFlight());
   }
 
-  // Returns the size of the slow start congestion window in nume of 1460 byte
+  // Returns the size of the slow start congestion window in number of 1460 byte
   // TCP segments, aka ssthresh.  Some send algorithms do not define a slow
   // start threshold and will return 0.
   QuicPacketCount GetSlowStartThresholdInTcpMss() const {
