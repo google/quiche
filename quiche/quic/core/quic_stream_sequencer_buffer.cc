@@ -322,7 +322,7 @@ int QuicStreamSequencerBuffer::GetReadableRegions(struct iovec* iov,
   size_t end_block_offset = GetInBlockOffset(readable_offset_end);
   size_t end_block_idx = GetBlockIndex(readable_offset_end);
 
-  // If readable region is within one block, deal with it seperately.
+  // If readable region is within one block, deal with it separately.
   if (start_block_idx == end_block_idx && ReadOffset() <= end_block_offset) {
     iov[0].iov_base = blocks_[start_block_idx]->buffer + ReadOffset();
     iov[0].iov_len = ReadableBytes();
