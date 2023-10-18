@@ -14928,7 +14928,7 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
       ConstructPacket({QuicFrame(QuicPingFrame())}, ENCRYPTION_FORWARD_SECURE,
                       buffers[2], kMaxOutgoingPacketSize);
 
-  // Packet2 with RetireConnectionId frame trigers sending NewConnectionId
+  // Packet2 with RetireConnectionId frame triggers sending NewConnectionId
   // immediately.
   if (!connection_.connection_id().IsEmpty()) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
