@@ -2465,7 +2465,7 @@ TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
 }
 
 TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
-       TimeWaitListPoplulateCorrectly) {
+       TimeWaitListPopulateCorrectly) {
   QuicTimeWaitListManager* time_wait_list_manager =
       QuicDispatcherPeer::GetTimeWaitListManager(dispatcher_.get());
   AddConnection1();
