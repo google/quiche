@@ -297,7 +297,7 @@ TEST_F(UberLossAlgorithmTest, LossDetectionTuning_OnMinRttAvailableFirst) {
   EXPECT_EQ(old_reordering_threshold,
             loss_algorithm_.GetPacketReorderingThreshold());
 
-  // Pretend a reodering has happened.
+  // Pretend a reordering has happened.
   loss_algorithm_.OnReorderingDetected();
   EXPECT_FALSE(test_tuner->start_called());
 
@@ -343,7 +343,7 @@ TEST_F(UberLossAlgorithmTest, LossDetectionTuning_StartFailed) {
   EXPECT_EQ(old_reordering_threshold,
             loss_algorithm_.GetPacketReorderingThreshold());
 
-  // Pretend a reodering has happened.
+  // Pretend a reordering has happened.
   loss_algorithm_.OnReorderingDetected();
   EXPECT_FALSE(test_tuner->start_called());
 
