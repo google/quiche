@@ -2032,7 +2032,7 @@ bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  // NEW_TOKEN frame should insitgate ACKs.
+  // NEW_TOKEN frame should instigate ACKs.
   MaybeUpdateAckTimeout();
   visitor_->OnNewTokenReceived(frame.token);
   return true;
