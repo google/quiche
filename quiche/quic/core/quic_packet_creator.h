@@ -535,7 +535,7 @@ class QUICHE_EXPORT QuicPacketCreator {
   // Clears all fields of packet_ that should be cleared between serializations.
   void ClearPacket();
 
-  // Re-serialzes frames of ENCRYPTION_INITIAL packet in coalesced packet with
+  // Reserializes frames of ENCRYPTION_INITIAL packet in coalesced packet with
   // the original packet's packet number and packet number length.
   // |padding_size| indicates the size of necessary padding. Returns 0 if
   // serialization fails.
