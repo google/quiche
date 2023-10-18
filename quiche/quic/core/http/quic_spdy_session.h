@@ -348,7 +348,7 @@ class QUICHE_EXPORT QuicSpdySession
   // |is_sent| is true for sent headers, false for received ones.
   // Ratio is recorded as percentage.  Smaller value means more efficient
   // compression.  Compressed size might be larger than uncompressed size, but
-  // recorded ratio is trunckated at 200%.
+  // recorded ratio is truncated at 200%.
   // Uncompressed size can be zero for an empty header list, and compressed size
   // can be zero for an empty header list when using HPACK.  (QPACK always emits
   // a header block prefix of at least two bytes.)  This method records nothing
