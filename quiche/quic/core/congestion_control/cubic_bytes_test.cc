@@ -245,7 +245,7 @@ TEST_F(CubicBytesTest, AboveOriginFineGrainedCubing) {
 }
 
 // Constructs an artificial scenario to show what happens when we
-// allow per-ack updates, rather than limititing update frequency.  In
+// allow per-ack updates, rather than limiting update frequency.  In
 // this scenario, the first two acks of the epoch produce the same
 // cwnd.  When we limit per-ack updates, this would cause the
 // cessation of cubic updates for 30ms.  When we allow per-ack
