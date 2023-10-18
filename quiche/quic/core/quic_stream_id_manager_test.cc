@@ -296,7 +296,7 @@ TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrameCantSend) {
   frame.stream_count = advertised_stream_count;
 
   // Since the delegate returns false, no MAX_STREAMS frame should be sent,
-  // and the advertised limit should not increse.
+  // and the advertised limit should not increase.
   EXPECT_CALL(delegate_, CanSendMaxStreams()).WillOnce(testing::Return(false));
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
 
