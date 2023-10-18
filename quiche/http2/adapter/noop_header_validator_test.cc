@@ -40,7 +40,7 @@ TEST(NoopHeaderValidatorTest, ExceedsMaxSize) {
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK, status);
   status = v.ValidateSingleHeader(
       "name2",
-      "Antidisestablishmentariansism is supercalifragilisticexpialodocious.");
+      "Antidisestablishmentariansism is supercalifragilisticexpealidocious.");
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK, status);
 }
 

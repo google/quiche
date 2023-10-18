@@ -39,7 +39,7 @@ TEST(HeaderValidatorTest, ExceedsMaxSize) {
   EXPECT_EQ(HeaderValidator::HEADER_OK, status);
   status = v.ValidateSingleHeader(
       "name2",
-      "Antidisestablishmentariansism is supercalifragilisticexpialodocious.");
+      "Antidisestablishmentariansism is supercalifragilisticexpealidocious.");
   EXPECT_EQ(HeaderValidator::HEADER_FIELD_TOO_LONG, status);
 }
 
