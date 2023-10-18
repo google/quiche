@@ -351,7 +351,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
       QUIC_DLOG(DFATAL) << "max_packet_length (" << max_packet_size
                         << ") has no room for framing overhead.";
       stream_->OnUnrecoverableError(QUIC_INTERNAL_ERROR,
-                                    "max_packet_size too smalll");
+                                    "max_packet_size too small");
       return;
     }
     if (kClientHelloMinimumSize > max_packet_size - kFramingOverhead) {
