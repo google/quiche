@@ -4067,7 +4067,7 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
   // Set the ack alarm by processing a ping frame.
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
-  // Processs a PING frame.
+  // Process a PING frame.
   ProcessFramePacket(QuicFrame(QuicPingFrame()));
   // Ensure that this has caused the ACK alarm to be set.
   EXPECT_TRUE(connection_.HasPendingAcks());
