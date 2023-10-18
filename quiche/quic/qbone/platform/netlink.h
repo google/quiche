@@ -53,7 +53,7 @@ class Netlink : public NetlinkInterface {
   // Performs the given verb that modifies local addresses on the given
   // interface_index.
   //
-  // additional_attributes are RTAs (man 7 rtnelink) that will be sent together
+  // additional_attributes are RTAs (man 7 rtnetlink) that will be sent together
   // with the netlink message. Note that rta_len in each RTA is used to decide
   // the length of the payload. The caller is responsible for making sure
   // payload bytes are accessible after the RTA header.
