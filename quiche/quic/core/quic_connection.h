@@ -1974,7 +1974,7 @@ class QUICHE_EXPORT QuicConnection
   // QUIC.
   std::unique_ptr<SendAlgorithmInterface> OnPeerIpAddressChanged();
 
-  // Process NewConnectionIdFrame either sent from peer or synsthesized from
+  // Process NewConnectionIdFrame either sent from peer or synthesized from
   // preferred_address transport parameter.
   NewConnectionIdResult OnNewConnectionIdFrameInner(
       const QuicNewConnectionIdFrame& frame);
