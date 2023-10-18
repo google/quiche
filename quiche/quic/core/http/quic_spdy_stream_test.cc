@@ -1744,7 +1744,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersAfterFIN) {
                   "Trailers cannot be sent after a FIN");
 }
 
-TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
+TEST_P(QuicSpdyStreamTest, HeaderStreamNotifierCorrespondingSpdyStream) {
   // There is no headers stream if QPACK is used.
   if (UsesHttp3()) {
     return;
