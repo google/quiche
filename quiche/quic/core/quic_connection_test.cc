@@ -15799,7 +15799,7 @@ TEST_P(QuicConnectionTest, NoExtraPaddingInReserializedInitial) {
         connection_.QuicConnection::OnSerializedPacket(std::move(packet));
       });
 
-  // Server receives INITIAL 3, this will serialzie FS 7 (stream 4, stream 8),
+  // Server receives INITIAL 3, this will serialize FS 7 (stream 4, stream 8),
   // which will trigger a flush of a coalesced packet consists of INITIAL 4,
   // HS 5 and FS 6 (stream 4).
 
