@@ -625,7 +625,7 @@ void BalsaHeaders::RemoveAllOfHeaderInList(const HeaderTokenList& keys) {
   // This extra copy sacrifices some performance to prevent the possible
   // mistakes that the caller does not lower case the headers in keys.
   // Better performance can be achieved by asking caller to lower case
-  // the keys and RemoveAllOfheaderInlist just does lookup.
+  // the keys and RemoveAllOfheaderInList just does lookup.
   absl::flat_hash_set<std::string> lowercase_keys;
   for (const auto& key : keys) {
     MaybeClearSpecialHeaderValues(key);
