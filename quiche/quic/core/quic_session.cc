@@ -2288,7 +2288,7 @@ bool QuicSession::OnFrameAcked(const QuicFrame& frame,
         frame.type == MAX_STREAMS_FRAME) {
       // Since there is a 2 frame limit on the number of outstanding max_streams
       // frames, when an outstanding max_streams frame is ack'd that frees up
-      // room to potntially send another.
+      // room to potentially send another.
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams, 2, 2);
       ietf_streamid_manager_.MaybeSendMaxStreamsFrame();
     }
