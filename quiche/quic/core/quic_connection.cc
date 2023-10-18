@@ -6682,7 +6682,7 @@ void QuicConnection::ValidatePath(
         (peer_issued_cid_manager_ != nullptr &&
          !peer_issued_cid_manager_->HasUnusedConnectionId())) {
       QUIC_DVLOG(1) << "Client cannot start new path validation as there is no "
-                       "requried connection ID is available.";
+                       "required connection ID is available.";
       result_delegate->OnPathValidationFailure(std::move(context));
       return;
     }
