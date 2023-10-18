@@ -414,7 +414,7 @@ class QUICHE_NO_EXPORT AbstractPaddablePayloadDecoderTest
       fb.AppendUInt8(pad_length());
       fb.AppendZeroes(pad_length());
       QUICHE_VLOG(1) << "fb.size=" << fb.size();
-      // Pick a random length for the payload that is shorter than neccesary.
+      // Pick a random length for the payload that is shorter than necessary.
       payload_length = Random().Uniform(fb.size());
     }
 
