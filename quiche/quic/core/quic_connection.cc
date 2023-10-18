@@ -2302,7 +2302,7 @@ void QuicConnection::ClearLastFrames() {
 
 void QuicConnection::CloseIfTooManyOutstandingSentPackets() {
   // This occurs if we don't discard old packets we've seen fast enough. It's
-  // possible largest observed is less than leaset unacked.
+  // possible largest observed is less than least unacked.
   const bool should_close =
       sent_packet_manager_.GetLargestSentPacket().IsInitialized() &&
       sent_packet_manager_.GetLargestSentPacket() >
