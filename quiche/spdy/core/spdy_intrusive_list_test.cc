@@ -240,7 +240,7 @@ TEST_F(IntrusiveListTest, Splice) {
   // Test the basic cases:
   // - The lists range from 0 to 2 elements.
   // - The insertion point ranges from begin() to end()
-  // - The transfered range has multiple sizes and locations in the source.
+  // - The transferred range has multiple sizes and locations in the source.
   for (int l1_count = 0; l1_count < 3; ++l1_count) {
     for (int l2_count = 0; l2_count < 3; ++l2_count) {
       for (int pos = 0; pos <= l1_count; ++pos) {
