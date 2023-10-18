@@ -342,7 +342,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossBlocks) {
   }
   // The last read only reads the rest 50 bytes in 2nd block.
   EXPECT_EQ(std::string(50, 'a'), std::string(dest, 50));
-  EXPECT_EQ(0, dest[50]) << "Dest[50] shouln't be filled.";
+  EXPECT_EQ(0, dest[50]) << "Dest[50] shouldn't be filled.";
   EXPECT_EQ(source.size(), buffer_->BytesConsumed());
   EXPECT_TRUE(buffer_->Empty());
   EXPECT_TRUE(helper_->CheckBufferInvariants());
