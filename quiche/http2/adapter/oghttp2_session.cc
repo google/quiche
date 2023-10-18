@@ -1158,7 +1158,7 @@ void OgHttp2Session::OnStreamPadLength(spdy::SpdyStreamId stream_id,
 void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId /*stream_id*/, size_t
                                      /*len*/) {
   // Flow control was accounted for in OnStreamPadLength().
-  // TODO(181586191): Pass padding to the visitor?
+  // TODO(b/181586191): Pass padding to the visitor?
 }
 
 spdy::SpdyHeadersHandlerInterface* OgHttp2Session::OnHeaderFrameStart(
