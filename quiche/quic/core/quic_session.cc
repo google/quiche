@@ -2775,6 +2775,8 @@ QuicStream* QuicSession::ProcessPendingStream(PendingStream* pending) {
           << stream_type;
       return nullptr;
   }
+  return nullptr;  // Unreachable, unless the enum value is out-of-range
+                   // (potentially undefined behavior)
 }
 
 #undef ENDPOINT  // undef for jumbo builds
