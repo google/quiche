@@ -8076,7 +8076,7 @@ TEST_P(QuicFramerTest, BuildAckFrequencyPacket) {
     0x05,
     // max_ack_delay_us
     0x7f, 0xff,
-    // ignore_oder
+    // ignore_order
     0x00
   };
   // clang-format on
