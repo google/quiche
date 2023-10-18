@@ -543,7 +543,7 @@ bool CommunicateHandshakeMessagesUntil(
   }
   bool result = client_condition() && server_condition();
   if (!result) {
-    QUIC_LOG(INFO) << "CommunicateHandshakeMessagesUnti failed with state: "
+    QUIC_LOG(INFO) << "CommunicateHandshakeMessagesUntil failed with state: "
                       "client connected? "
                    << client_conn.connected() << " server connected? "
                    << server_conn.connected() << " client condition met? "
