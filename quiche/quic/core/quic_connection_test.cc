@@ -11553,7 +11553,7 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
           &success2),
       PathValidationReason::kReasonUnknown);
   EXPECT_FALSE(success);
-  // There is no pening path validation as there is no available connection ID.
+  // There is no pending path validation as there is no available connection ID.
   EXPECT_FALSE(connection_.HasPendingPathValidation());
 }
 
