@@ -16431,7 +16431,7 @@ TEST_P(QuicConnectionTest, ClientFailedToValidateServerPreferredAddress) {
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, kServerPreferredAddress));
 
-  // Simluate path validation times out.
+  // Simulate path validation times out.
   for (size_t i = 0; i < QuicPathValidator::kMaxRetryTimes + 1; ++i) {
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
     static_cast<TestAlarmFactory::TestAlarm*>(
@@ -16528,7 +16528,7 @@ TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress2) {
   EXPECT_FALSE(writer_->stream_frames().empty());
   EXPECT_FALSE(new_writer.stream_frames().empty());
 
-  // Simluate path validation times out.
+  // Simulate path validation times out.
   for (size_t i = 0; i < QuicPathValidator::kMaxRetryTimes + 1; ++i) {
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
     static_cast<TestAlarmFactory::TestAlarm*>(

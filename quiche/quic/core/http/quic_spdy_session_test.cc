@@ -832,7 +832,7 @@ TEST_P(QuicSpdySessionTestServer, TooLargeStreamBlocked) {
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_.set_debug_visitor(&debug_visitor);
 
-  // Simualte the situation where the incoming stream count is at its limit and
+  // Simulate the situation where the incoming stream count is at its limit and
   // the peer is blocked.
   QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
       static_cast<QuicSession*>(&session_), QuicUtils::GetMaxStreamCount());
