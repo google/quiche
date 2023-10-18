@@ -402,7 +402,7 @@ class QUICHE_NO_EXPORT QuicIntervalSet {
   const_iterator FindIntersectionCandidate(const QuicIntervalSet& other) const;
 
   // Finds the first interval that potentially intersects 'interval'.  More
-  // precisely, return an interator it pointing at the last interval J such that
+  // precisely, return an iterator it pointing at the last interval J such that
   // interval <= J.  If all the intervals are > J then return begin().
   const_iterator FindIntersectionCandidate(const value_type& interval) const;
 
