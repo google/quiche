@@ -53,7 +53,7 @@ class QUICHE_EXPORT Http3DebugVisitor {
 
   virtual ~Http3DebugVisitor();
 
-  // TODO(https://crbug.com/1062700): Remove default implementation of all
+  // TODO(crbug.com/1062700): Remove default implementation of all
   // methods after Chrome's QuicHttp3Logger has overrides.  This is to make sure
   // QUICHE merge is not blocked on having to add those overrides, they can
   // happen asynchronously.
