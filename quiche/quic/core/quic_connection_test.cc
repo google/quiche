@@ -17168,7 +17168,7 @@ TEST_P(QuicConnectionTest, DetectMigrationToPreferredAddress) {
 }
 
 TEST_P(QuicConnectionTest,
-       DetectSimutanuousServerAndClientAddressChangeWithProbe) {
+       DetectSimultaneousServerAndClientAddressChangeWithProbe) {
   if (!GetParam().version.HasIetfQuicFrames()) {
     return;
   }
