@@ -287,7 +287,7 @@ TEST_F(CubicBytesTest, PerAckUpdates) {
     const QuicByteCount next_cwnd = cubic_.CongestionWindowAfterAck(
         kDefaultTCPMSS, current_cwnd, rtt_min, clock_.ApproximateNow());
     reno_cwnd = RenoCwndInBytes(reno_cwnd);
-    // The window shoud increase on every ack.
+    // The window should increase on every ack.
     ASSERT_LT(current_cwnd, next_cwnd);
     ASSERT_EQ(reno_cwnd, next_cwnd);
     current_cwnd = next_cwnd;
