@@ -232,7 +232,7 @@ TEST_F(GeneralLossAlgorithmTest, DontEarlyRetransmitNeuteredPacket) {
   }
   AckedPacketVector packets_acked;
   // Neuter packet 1.
-  unacked_packets_.RemoveRetransmittability(QuicPacketNumber(1));
+  unacked_packets_.RemoveRetransmissibility(QuicPacketNumber(1));
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt());
 
   // Early retransmit when the final packet gets acked and the first is nacked.

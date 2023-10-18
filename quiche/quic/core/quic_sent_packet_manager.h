@@ -526,7 +526,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
                                   absl::optional<QuicEcnCounts> ecn_counts,
                                   const QuicEcnCounts& previous_counts);
 
-  // Removes the retransmittability and in flight properties from the packet at
+  // Removes the retransmissibility and in flight properties from the packet at
   // |info| due to receipt by the peer.
   void MarkPacketHandled(QuicPacketNumber packet_number,
                          QuicTransmissionInfo* info, QuicTime ack_receive_time,

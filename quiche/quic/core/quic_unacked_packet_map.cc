@@ -223,19 +223,19 @@ bool QuicUnackedPacketMap::HasRetransmittableFrames(
   return false;
 }
 
-void QuicUnackedPacketMap::RemoveRetransmittability(
+void QuicUnackedPacketMap::RemoveRetransmissibility(
     QuicTransmissionInfo* info) {
   DeleteFrames(&info->retransmittable_frames);
   info->first_sent_after_loss.Clear();
 }
 
-void QuicUnackedPacketMap::RemoveRetransmittability(
+void QuicUnackedPacketMap::RemoveRetransmissibility(
     QuicPacketNumber packet_number) {
   QUICHE_DCHECK_GE(packet_number, least_unacked_);
   QUICHE_DCHECK_LT(packet_number, least_unacked_ + unacked_packets_.size());
   QuicTransmissionInfo* info =
       &unacked_packets_[packet_number - least_unacked_];
-  RemoveRetransmittability(info);
+  RemoveRetransmissibility(info);
 }
 
 void QuicUnackedPacketMap::IncreaseLargestAcked(

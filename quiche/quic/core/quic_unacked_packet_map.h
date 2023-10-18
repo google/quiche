@@ -161,11 +161,11 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
   // Removes any retransmittable frames from this transmission or an associated
   // transmission.  It removes now useless transmissions, and disconnects any
   // other packets from other transmissions.
-  void RemoveRetransmittability(QuicTransmissionInfo* info);
+  void RemoveRetransmissibility(QuicTransmissionInfo* info);
 
   // Looks up the QuicTransmissionInfo by |packet_number| and calls
-  // RemoveRetransmittability.
-  void RemoveRetransmittability(QuicPacketNumber packet_number);
+  // RemoveRetransmissibility.
+  void RemoveRetransmissibility(QuicPacketNumber packet_number);
 
   // Increases the largest acked.  Any packets less or equal to
   // |largest_acked| are discarded if they are only for the RTT purposes.

@@ -613,7 +613,7 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
     network_change_visitor_->OnPathMtuIncreased(largest_mtu_acked_);
   }
   unacked_packets_.RemoveFromInFlight(info);
-  unacked_packets_.RemoveRetransmittability(info);
+  unacked_packets_.RemoveRetransmissibility(info);
   info->state = ACKED;
 }
 
