@@ -954,7 +954,7 @@ class QUICHE_EXPORT QuicSession
   Visitor* visitor_;
 
   // A list of streams which need to write more data.  Stream register
-  // themselves in their constructor, and unregisterm themselves in their
+  // themselves in their constructor, and unregister themselves in their
   // destructors, so the write blocked list must outlive all streams.
   std::unique_ptr<QuicWriteBlockedList> write_blocked_streams_;
 
