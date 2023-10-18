@@ -1212,7 +1212,7 @@ class QUICHE_EXPORT QuicConnection
   QuicTime GetRetryTimeout(const QuicSocketAddress& peer_address_to_use,
                            QuicPacketWriter* writer_to_use) const override;
 
-  // Start vaildating the path defined by |context| asynchronously and call the
+  // Start validating the path defined by |context| asynchronously and call the
   // |result_delegate| after validation finishes. If the connection is
   // validating another path, cancel and fail that validation before starting
   // this one.

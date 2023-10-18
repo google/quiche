@@ -306,7 +306,7 @@ class QUICHE_EXPORT QuicReceivedPacket : public QuicEncryptedPacket {
   // Returns the time at which the packet was received.
   QuicTime receipt_time() const { return receipt_time_; }
 
-  // This is the TTL of the packet, assuming ttl_vaild_ is true.
+  // This is the TTL of the packet, assuming ttl_valid_ is true.
   int ttl() const { return ttl_; }
 
   // Start of packet headers.
