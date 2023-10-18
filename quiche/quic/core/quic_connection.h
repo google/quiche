@@ -1564,7 +1564,7 @@ class QUICHE_EXPORT QuicConnection
   QUICHE_EXPORT friend std::ostream& operator<<(
       std::ostream& os, const QuicConnection::ReceivedPacketInfo& info);
 
-  // UndecrytablePacket comprises a undecryptable packet and related
+  // UndecryptablePacket comprises a undecryptable packet and related
   // information.
   struct QUICHE_EXPORT UndecryptablePacket {
     UndecryptablePacket(const QuicEncryptedPacket& packet,
