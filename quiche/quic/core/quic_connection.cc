@@ -6082,7 +6082,7 @@ void QuicConnection::OnForwardProgressMade() {
                                          GetNetworkBlackholeDeadline(),
                                          GetPathMtuReductionDeadline());
   } else {
-    // Stop detections in quiecense.
+    // Stop detections in quiescence.
     blackhole_detector_.StopDetection(/*permanent=*/false);
   }
   QUIC_BUG_IF(quic_bug_12714_35,
@@ -7335,7 +7335,7 @@ QuicConnection::OnPeerIpAddressChanged() {
   // OnConnectionMigration() may have changed the retransmission timer, so
   // re-arm it.
   SetRetransmissionAlarm();
-  // Stop detections in quiecense.
+  // Stop detections in quiescence.
   blackhole_detector_.StopDetection(/*permanent=*/false);
   return old_send_algorithm;
 }
