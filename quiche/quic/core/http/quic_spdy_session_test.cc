@@ -2562,7 +2562,7 @@ TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
   // |session_| gets destroyed.  That destroys QpackDecoder, a member of
   // QuicSpdySession (derived class), which destroys QpackDecoderHeaderTable.
   // Then |*stream|, owned by QuicSession (base class) get destroyed, which
-  // destroys QpackProgessiveDecoder, a registered Observer of
+  // destroys QpackProgressiveDecoder, a registered Observer of
   // QpackDecoderHeaderTable.  This must not cause a crash.
 }
 
