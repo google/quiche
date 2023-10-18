@@ -1631,7 +1631,7 @@ TEST_P(QuicSpdySessionTestServer, WindowUpdateUnblocksHeadersStream) {
     return;
   }
 
-  // Test that a flow control blocked headers stream gets unblocked on recipt of
+  // Test that a flow control blocked headers stream gets unblocked on receipt of
   // a WINDOW_UPDATE frame.
 
   // Set the headers stream to be flow control blocked.
