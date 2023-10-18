@@ -1008,7 +1008,7 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
 }
 
 TEST_F(QuicSelfIssuedConnectionIdManagerTest,
-       DoNotIssueConnectionIdVoluntarilyIfOneHasIssuedForPerferredAddress) {
+       DoNotIssueConnectionIdVoluntarilyIfOneHasIssuedForPreferredAddress) {
   QuicConnectionId cid0 = initial_connection_id_;
   QuicConnectionId cid1 = CheckGenerate(cid0);
   EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid1))
