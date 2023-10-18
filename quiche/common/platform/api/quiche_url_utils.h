@@ -18,7 +18,7 @@ namespace quiche {
 
 // Produces concrete URLs in |target| from templated ones in |uri_template|.
 // Parameters are URL-encoded. Collects the names of any expanded variables in
-// |vars_found|. Returns true if the template was parseable, false if it was
+// |vars_found|. Returns true if the template was parsable, false if it was
 // malformed.
 inline bool ExpandURITemplate(
     const std::string& uri_template,

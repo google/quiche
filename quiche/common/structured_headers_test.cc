@@ -581,8 +581,8 @@ TEST(StructuredHeaderTest, UnserializableDecimals) {
 
 // These values cannot be directly parsed from headers, but are valid doubles
 // which can be serialized as sh-floats (though rounding is expected.)
-TEST(StructuredHeaderTest, SerializeUnparseableDecimals) {
-  struct UnparseableDecimal {
+TEST(StructuredHeaderTest, SerializeUnparsableDecimals) {
+  struct UnparsableDecimal {
     const char* name;
     double value;
     const char* canonical;
