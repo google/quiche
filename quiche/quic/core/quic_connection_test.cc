@@ -1905,7 +1905,7 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
   EXPECT_EQ(1u,
-            connection_.GetStats().num_reverse_path_validtion_upon_migration);
+            connection_.GetStats().num_reverse_path_validation_upon_migration);
 
   // Verify server is throttled by anti-amplification limit.
   connection_.SendCryptoDataWithString("foo", 0);

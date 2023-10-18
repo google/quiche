@@ -210,7 +210,7 @@ struct QUICHE_EXPORT QuicConnectionStats {
   size_t num_peer_migration_to_proactively_validated_address = 0;
   // Number of detected peer address changes which triggers reverse path
   // validation.
-  size_t num_reverse_path_validtion_upon_migration = 0;
+  size_t num_reverse_path_validation_upon_migration = 0;
   // Number of detected peer migrations which either succeed reverse path
   // validation or no need to be validated.
   size_t num_validated_peer_migration = 0;

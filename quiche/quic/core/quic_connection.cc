@@ -5399,7 +5399,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
   // validating that address, a new reverse path validation is needed.
   if (!path_validator_.IsValidatingPeerAddress(
           current_effective_peer_address)) {
-    ++stats_.num_reverse_path_validtion_upon_migration;
+    ++stats_.num_reverse_path_validation_upon_migration;
     ValidatePath(std::make_unique<ReversePathValidationContext>(
                      default_path_.self_address, peer_address(),
                      default_path_.peer_address, this),
