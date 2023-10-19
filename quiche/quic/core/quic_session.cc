@@ -111,7 +111,7 @@ QuicSession::QuicSession(
       was_zero_rtt_rejected_(false),
       liveness_testing_in_progress_(false),
       limit_sending_max_streams_(
-          GetQuicReloadableFlag(quic_limit_sending_max_streams)) {
+          GetQuicReloadableFlag(quic_limit_sending_max_streams2)) {
   closed_streams_clean_up_alarm_ =
       absl::WrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -880,6 +880,12 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
     // Suppress the write before encryption gets established.
     return false;
   }
+  if (limit_sending_max_streams_ &&
+      connection_->framer().is_processing_packet()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams2, 3, 3);
+    // The frame will be sent when OnCanWrite() is called.
+    return false;
+  }
   SetTransmissionType(type);
   QuicConnection::ScopedEncryptionLevelContext context(
       connection(), GetEncryptionLevelToSendApplicationData());
@@ -984,7 +990,7 @@ bool QuicSession::CanSendMaxStreams() {
   if (!limit_sending_max_streams_) {
     return true;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams, 1, 2);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams2, 1, 3);
   return control_frame_manager_.NumBufferedMaxStreams() < 2;
 }
 
@@ -2289,7 +2295,7 @@ bool QuicSession::OnFrameAcked(const QuicFrame& frame,
       // Since there is a 2 frame limit on the number of outstanding max_streams
       // frames, when an outstanding max_streams frame is ack'd that frees up
       // room to potntially send another.
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams, 2, 2);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams2, 2, 3);
       ietf_streamid_manager_.MaybeSendMaxStreamsFrame();
     }
     return acked;
