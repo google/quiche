@@ -16,7 +16,7 @@
 namespace quic {
 
 // QuicBatchWriterBase implements logic common to all derived batch writers,
-// including maintaining write blockage state and a skeleton implemention of
+// including maintaining write blockage state and a skeleton implementation of
 // WritePacket().
 // A derived batch writer must override the FlushImpl() function to send all
 // buffered writes in a batch. It must also override the CanBatch() function

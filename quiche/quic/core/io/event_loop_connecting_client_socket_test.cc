@@ -208,7 +208,7 @@ class EventLoopConnectingClientSocketTest
       ConnectingClientSocket::AsyncVisitor* async_visitor) {
     switch (protocol_) {
       case socket_api::SocketProtocol::kUdp:
-        // Nothing special for UDP since UDP does not gaurantee packets will be
+        // Nothing special for UDP since UDP does not guarantee packets will be
         // sent once send buffers are full.
         return socket_factory_->CreateConnectingUdpClientSocket(
             peer_address, /*receive_buffer_size=*/0, /*send_buffer_size=*/0,
@@ -673,7 +673,7 @@ TEST_P(EventLoopConnectingClientSocketTest, SendAsync) {
 
 TEST_P(EventLoopConnectingClientSocketTest, DisconnectCancelsSendAsync) {
   if (protocol_ == socket_api::SocketProtocol::kUdp) {
-    // UDP sends are always immediate, so cannot disconect mid-send.
+    // UDP sends are always immediate, so cannot disconnect mid-send.
     return;
   }
 

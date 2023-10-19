@@ -31,7 +31,7 @@ namespace quic {
 namespace {
 static const int64_t kDefaultRetransmissionTimeMs = 500;
 
-// Ensure the handshake timer isnt't faster than 10ms.
+// Ensure the handshake timer isn't faster than 10ms.
 // This limits the tenth retransmitted packet to 10s after the initial CHLO.
 static const int64_t kMinHandshakeTimeoutMs = 10;
 
@@ -413,7 +413,7 @@ void QuicSentPacketManager::MarkInitialPacketsForRetransmission() {
       if (transmission_info->in_flight) {
         unacked_packets_.RemoveFromInFlight(transmission_info);
       }
-      if (unacked_packets_.HasRetransmittableFrames(*transmission_info)) {
+      if (unacked_packets_.HasRetransmissibleFrames(*transmission_info)) {
         MarkForRetransmission(packet_number, ALL_INITIAL_RETRANSMISSION);
       }
     }
@@ -435,7 +435,7 @@ void QuicSentPacketManager::MarkZeroRttPacketsForRetransmission() {
         // because neither can be processed by the peer.
         unacked_packets_.RemoveFromInFlight(transmission_info);
       }
-      if (unacked_packets_.HasRetransmittableFrames(*transmission_info)) {
+      if (unacked_packets_.HasRetransmissibleFrames(*transmission_info)) {
         MarkForRetransmission(packet_number, ALL_ZERO_RTT_RETRANSMISSION);
       }
     }
@@ -497,17 +497,17 @@ void QuicSentPacketManager::MarkForRetransmission(
     QuicPacketNumber packet_number, TransmissionType transmission_type) {
   QuicTransmissionInfo* transmission_info =
       unacked_packets_.GetMutableTransmissionInfo(packet_number);
-  // Packets without retransmittable frames can only be marked for loss
+  // Packets without retransmissible frames can only be marked for loss
   // retransmission.
   QUIC_BUG_IF(quic_bug_12552_2, transmission_type != LOSS_RETRANSMISSION &&
-                                    !unacked_packets_.HasRetransmittableFrames(
+                                    !unacked_packets_.HasRetransmissibleFrames(
                                         *transmission_info))
       << "packet number " << packet_number
       << " transmission_type: " << transmission_type << " transmission_info "
       << transmission_info->DebugString();
   if (ShouldForceRetransmission(transmission_type)) {
     if (!unacked_packets_.RetransmitFrames(
-            QuicFrames(transmission_info->retransmittable_frames),
+            QuicFrames(transmission_info->retransmissible_frames),
             transmission_type)) {
       // Do not set packet state if the data is not fully retransmitted.
       // This should only happen if packet payload size decreases which can be
@@ -524,7 +524,7 @@ void QuicSentPacketManager::MarkForRetransmission(
   } else {
     unacked_packets_.NotifyFramesLost(*transmission_info, transmission_type);
 
-    if (!transmission_info->retransmittable_frames.empty()) {
+    if (!transmission_info->retransmissible_frames.empty()) {
       if (transmission_type == LOSS_RETRANSMISSION) {
         // Record the first packet sent after loss, which allows to wait 1
         // more RTT before giving up on this lost packet.
@@ -564,7 +564,7 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
                                               QuicTime::Delta ack_delay_time,
                                               QuicTime receive_timestamp) {
   if (info->has_ack_frequency) {
-    for (const auto& frame : info->retransmittable_frames) {
+    for (const auto& frame : info->retransmissible_frames) {
       if (frame.type == ACK_FREQUENCY_FRAME) {
         OnAckFrequencyFrameAcked(*frame.ack_frequency_frame);
       }
@@ -613,7 +613,7 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
     network_change_visitor_->OnPathMtuIncreased(largest_mtu_acked_);
   }
   unacked_packets_.RemoveFromInFlight(info);
-  unacked_packets_.RemoveRetransmittability(info);
+  unacked_packets_.RemoveRetransmissibility(info);
   info->state = ACKED;
 }
 
@@ -631,7 +631,7 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
   }
 
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 1, 3);
-  frame.packet_tolerance = kMaxRetransmittablePacketsBeforeAck;
+  frame.packet_tolerance = kMaxRetransmissiblePacketsBeforeAck;
   auto rtt = use_smoothed_rtt_in_ack_delay_ ? rtt_stats_.SmoothedOrInitialRtt()
                                             : rtt_stats_.MinOrInitialRtt();
   frame.max_ack_delay = rtt * kAckDecimationDelay;
@@ -669,7 +669,7 @@ void QuicSentPacketManager::RecordEcnMarkingSent(QuicEcnCodepoint ecn_codepoint,
 bool QuicSentPacketManager::OnPacketSent(
     SerializedPacket* mutable_packet, QuicTime sent_time,
     TransmissionType transmission_type,
-    HasRetransmittableData has_retransmittable_data, bool measure_rtt,
+    HasRetransmissibleData has_retransmissible_data, bool measure_rtt,
     QuicEcnCodepoint ecn_codepoint) {
   const SerializedPacket& packet = *mutable_packet;
   QuicPacketNumber packet_number = packet.packet_number;
@@ -681,9 +681,9 @@ bool QuicSentPacketManager::OnPacketSent(
     --pending_timer_transmission_count_;
   }
 
-  bool in_flight = has_retransmittable_data == HAS_RETRANSMITTABLE_DATA;
-  if (ignore_pings_ && mutable_packet->retransmittable_frames.size() == 1 &&
-      mutable_packet->retransmittable_frames[0].type == PING_FRAME) {
+  bool in_flight = has_retransmissible_data == HAS_RETRANSMISSIBLE_DATA;
+  if (ignore_pings_ && mutable_packet->retransmissible_frames.size() == 1 &&
+      mutable_packet->retransmissible_frames[0].type == PING_FRAME) {
     // Dot not use PING only packet for RTT measure or congestion control.
     in_flight = false;
     measure_rtt = false;
@@ -691,17 +691,17 @@ bool QuicSentPacketManager::OnPacketSent(
   if (using_pacing_) {
     pacing_sender_.OnPacketSent(sent_time, unacked_packets_.bytes_in_flight(),
                                 packet_number, packet.encrypted_length,
-                                has_retransmittable_data);
+                                has_retransmissible_data);
   } else {
     send_algorithm_->OnPacketSent(sent_time, unacked_packets_.bytes_in_flight(),
                                   packet_number, packet.encrypted_length,
-                                  has_retransmittable_data);
+                                  has_retransmissible_data);
   }
 
   // Deallocate message data in QuicMessageFrame immediately after packet
   // sent.
   if (packet.has_message) {
-    for (auto& frame : mutable_packet->retransmittable_frames) {
+    for (auto& frame : mutable_packet->retransmissible_frames) {
       if (frame.type == MESSAGE_FRAME) {
         frame.message_frame->message_data.clear();
         frame.message_frame->message_length = 0;
@@ -710,7 +710,7 @@ bool QuicSentPacketManager::OnPacketSent(
   }
 
   if (packet.has_ack_frequency) {
-    for (const auto& frame : packet.retransmittable_frames) {
+    for (const auto& frame : packet.retransmissible_frames) {
       if (frame.type == ACK_FREQUENCY_FRAME) {
         OnAckFrequencyFrameSent(*frame.ack_frequency_frame);
       }
@@ -781,7 +781,7 @@ void QuicSentPacketManager::RetransmitCryptoPackets() {
       if (!transmission_info->in_flight ||
           transmission_info->state != OUTSTANDING ||
           !transmission_info->has_crypto_handshake ||
-          !unacked_packets_.HasRetransmittableFrames(*transmission_info)) {
+          !unacked_packets_.HasRetransmissibleFrames(*transmission_info)) {
         continue;
       }
       packet_retransmitted = true;
@@ -808,7 +808,7 @@ bool QuicSentPacketManager::MaybeRetransmitOldestPacket(TransmissionType type) {
       // sent.
       if (!transmission_info->in_flight ||
           transmission_info->state != OUTSTANDING ||
-          !unacked_packets_.HasRetransmittableFrames(*transmission_info)) {
+          !unacked_packets_.HasRetransmissibleFrames(*transmission_info)) {
         continue;
       }
       MarkForRetransmission(packet_number, type);
@@ -816,7 +816,7 @@ bool QuicSentPacketManager::MaybeRetransmitOldestPacket(TransmissionType type) {
     }
   }
   QUIC_DVLOG(1)
-      << "No retransmittable packets, so RetransmitOldestPacket failed.";
+      << "No retransmissible packets, so RetransmitOldestPacket failed.";
   return false;
 }
 
@@ -845,7 +845,7 @@ void QuicSentPacketManager::MaybeSendProbePacket() {
       QuicTransmissionInfo* transmission_info =
           unacked_packets_.GetMutableTransmissionInfo(packet_number);
       if (transmission_info->state == OUTSTANDING &&
-          unacked_packets_.HasRetransmittableFrames(*transmission_info) &&
+          unacked_packets_.HasRetransmissibleFrames(*transmission_info) &&
           (!supports_multiple_packet_number_spaces() ||
            unacked_packets_.GetPacketNumberSpace(
                transmission_info->encryption_level) == packet_number_space)) {
@@ -887,7 +887,7 @@ void QuicSentPacketManager::RetransmitDataOfSpaceIfAny(
     QuicTransmissionInfo* transmission_info =
         unacked_packets_.GetMutableTransmissionInfo(packet_number);
     if (transmission_info->state == OUTSTANDING &&
-        unacked_packets_.HasRetransmittableFrames(*transmission_info) &&
+        unacked_packets_.HasRetransmissibleFrames(*transmission_info) &&
         unacked_packets_.GetPacketNumberSpace(
             transmission_info->encryption_level) == space) {
       QUICHE_DCHECK(transmission_info->in_flight);
@@ -1197,7 +1197,7 @@ QuicSentPacketManager::OnConnectionMigration(bool reset_send_algorithm) {
       unacked_packets_.RemoveFromInFlight(packet_number);
       // Retransmitting these packets with PATH_CHANGE_RETRANSMISSION will mark
       // them as useless, thus not contributing to RTT stats.
-      if (unacked_packets_.HasRetransmittableFrames(packet_number)) {
+      if (unacked_packets_.HasRetransmissibleFrames(packet_number)) {
         MarkForRetransmission(packet_number, PATH_RETRANSMISSION);
         QUICHE_DCHECK_EQ(it->state, NOT_CONTRIBUTING_RTT);
       }

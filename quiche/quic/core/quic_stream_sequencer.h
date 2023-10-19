@@ -24,7 +24,7 @@ class QuicStreamSequencerPeer;
 // up to the next layer.
 class QUICHE_EXPORT QuicStreamSequencer final {
  public:
-  // Interface that thie Sequencer uses to communicate with the Stream.
+  // Interface that this Sequencer uses to communicate with the Stream.
   class QUICHE_EXPORT StreamInterface {
    public:
     virtual ~StreamInterface() = default;
@@ -105,7 +105,7 @@ class QUICHE_EXPORT QuicStreamSequencer final {
   // data as consumed.
   void Read(std::string* buffer);
 
-  // Returns true if the sequncer has bytes available for reading.
+  // Returns true if the sequencer has bytes available for reading.
   bool HasBytesToRead() const;
 
   // Number of bytes available to read.

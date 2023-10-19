@@ -240,7 +240,7 @@ bool QuicUtils::IsAckable(SentPacketState state) {
 }
 
 // static
-bool QuicUtils::IsRetransmittableFrame(QuicFrameType type) {
+bool QuicUtils::IsRetransmissibleFrame(QuicFrameType type) {
   switch (type) {
     case ACK_FRAME:
     case PADDING_FRAME:

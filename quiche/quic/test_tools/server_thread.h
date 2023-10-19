@@ -77,7 +77,7 @@ class ServerThread : public QuicThread {
   QuicNotification
       confirmed_;            // Notified when the first handshake is confirmed.
   QuicNotification pause_;   // Notified when the server should pause.
-  QuicNotification paused_;  // Notitied when the server has paused
+  QuicNotification paused_;  // Notified when the server has paused
   QuicNotification resume_;  // Notified when the server should resume.
   QuicNotification quit_;    // Notified when the server should quit.
 

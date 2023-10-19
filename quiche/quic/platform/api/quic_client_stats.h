@@ -71,7 +71,7 @@ namespace quic {
 
 // Sample usage:
 //   UMA_CLIENT_HISTOGRAM_CUSTOM_COUNTS("My.Histogram", 1, 100000000, 100,
-//      "Counters of hitting certian code.");
+//      "Counters of hitting certain code.");
 
 #define QUIC_CLIENT_HISTOGRAM_COUNTS(name, sample, min, max, bucket_count, \
                                      docstring)                            \

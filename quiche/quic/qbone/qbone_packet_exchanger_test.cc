@@ -158,7 +158,7 @@ TEST(QbonePacketExchangerTest,
   // Nothing should have been written because of blockage.
   ASSERT_TRUE(exchanger.packets_written().empty());
 
-  // Remove blockage and start proccessing queued packets.
+  // Remove blockage and start processing queued packets.
   exchanger.ForceWriteFailure(false, "");
   exchanger.SetWritable();
 

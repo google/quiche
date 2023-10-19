@@ -41,7 +41,7 @@ class GeneralLossAlgorithmTest : public QuicTest {
     SerializedPacket packet(QuicPacketNumber(packet_number),
                             PACKET_1BYTE_PACKET_NUMBER, nullptr,
                             encrypted_length, false, false);
-    packet.retransmittable_frames.push_back(QuicFrame(frame));
+    packet.retransmissible_frames.push_back(QuicFrame(frame));
     unacked_packets_.AddSentPacket(&packet, NOT_RETRANSMISSION, clock_.Now(),
                                    true, true, ECN_NOT_ECT);
   }
@@ -232,7 +232,7 @@ TEST_F(GeneralLossAlgorithmTest, DontEarlyRetransmitNeuteredPacket) {
   }
   AckedPacketVector packets_acked;
   // Neuter packet 1.
-  unacked_packets_.RemoveRetransmittability(QuicPacketNumber(1));
+  unacked_packets_.RemoveRetransmissibility(QuicPacketNumber(1));
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt());
 
   // Early retransmit when the final packet gets acked and the first is nacked.

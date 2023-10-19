@@ -18,7 +18,7 @@ namespace quiche {
 // Produces concrete URLs in |target| from templated ones in |uri_template|.
 // Parameters are URL-encoded. Collects the names of any expanded variables in
 // |vars_found|. Supports level 1 templates as specified in RFC 6570. Returns
-// true if the template was parseable, false if it was malformed.
+// true if the template was parsable, false if it was malformed.
 QUICHE_EXPORT bool ExpandURITemplateImpl(
     const std::string& uri_template,
     const absl::flat_hash_map<std::string, std::string>& parameters,

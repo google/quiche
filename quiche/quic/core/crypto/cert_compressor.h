@@ -15,7 +15,7 @@
 namespace quic {
 
 // CertCompressor provides functions for compressing and decompressing
-// certificate chains using two techniquies:
+// certificate chains using two techniques:
 //   1) The peer may provide a list of a 64-bit, FNV-1a hashes of certificates
 //      that they already have. In the event that one of them is to be
 //      compressed, it can be replaced with just the hash.

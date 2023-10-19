@@ -150,7 +150,7 @@ bool BbrSender::InSlowStart() const { return mode_ == STARTUP; }
 void BbrSender::OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                              QuicPacketNumber packet_number,
                              QuicByteCount bytes,
-                             HasRetransmittableData is_retransmittable) {
+                             HasRetransmissibleData is_retransmissible) {
   if (stats_ && InSlowStart()) {
     ++stats_->slowstart_packets_sent;
     stats_->slowstart_bytes_sent += bytes;
@@ -163,7 +163,7 @@ void BbrSender::OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
   }
 
   sampler_.OnPacketSent(sent_time, packet_number, bytes, bytes_in_flight,
-                        is_retransmittable);
+                        is_retransmissible);
 }
 
 void BbrSender::OnPacketNeutered(QuicPacketNumber packet_number) {

@@ -68,7 +68,7 @@ class QuicIntervalDequePeer;
 //     QuicInterval<size_t> interval();
 //   };
 //   typedef IntervalVal IV;
-//   QuicIntervialDeque<IntervalValue> deque;
+//   QuicIntervalDeque<IntervalValue> deque;
 //
 //   // State:
 //   //   cached_index -> None

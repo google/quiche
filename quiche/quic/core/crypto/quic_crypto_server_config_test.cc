@@ -30,7 +30,7 @@ namespace quic {
 namespace test {
 using ::testing::Not;
 
-// NOTE: This matcher depends on the wire format of serialzied protocol buffers,
+// NOTE: This matcher depends on the wire format of serialized protocol buffers,
 // which may change in the future.
 // Switch to ::testing::EqualsProto once it is available in Chromium.
 MATCHER_P(SerializedProtoEquals, message, "") {

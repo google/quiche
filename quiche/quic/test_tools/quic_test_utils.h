@@ -208,7 +208,7 @@ QuicAckFrame InitAckFrame(QuicPacketNumber largest_acked);
 QuicAckFrame MakeAckFrameWithAckBlocks(size_t num_ack_blocks,
                                        uint64_t least_unacked);
 
-// Testing convenice method to construct a QuicAckFrame with |largest_acked|,
+// Testing convenience method to construct a QuicAckFrame with |largest_acked|,
 // ack blocks of width 1 packet and |gap_size|.
 QuicAckFrame MakeAckFrameWithGaps(uint64_t gap_size, size_t max_num_gaps,
                                   uint64_t largest_acked);
@@ -472,7 +472,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
                const QuicSocketAddress& peer_address,
                bool is_connectivity_probe),
               (override));
-  MOCK_METHOD(void, OnAckNeedsRetransmittableFrame, (), (override));
+  MOCK_METHOD(void, OnAckNeedsRetransmissibleFrame, (), (override));
   MOCK_METHOD(void, SendAckFrequency, (const QuicAckFrequencyFrame& frame),
               (override));
   MOCK_METHOD(void, SendNewConnectionId,
@@ -1212,7 +1212,7 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
               (override));
   MOCK_METHOD(void, OnPacketSent,
               (QuicTime, QuicByteCount, QuicPacketNumber, QuicByteCount,
-               HasRetransmittableData),
+               HasRetransmissibleData),
               (override));
   MOCK_METHOD(void, OnPacketNeutered, (QuicPacketNumber), (override));
   MOCK_METHOD(void, OnRetransmissionTimeout, (bool), (override));
@@ -1403,7 +1403,7 @@ class MockPacketCreatorDelegate : public QuicPacketCreator::DelegateInterface {
   MOCK_METHOD(void, OnUnrecoverableError, (QuicErrorCode, const std::string&),
               (override));
   MOCK_METHOD(bool, ShouldGeneratePacket,
-              (HasRetransmittableData retransmittable, IsHandshake handshake),
+              (HasRetransmissibleData retransmissible, IsHandshake handshake),
               (override));
   MOCK_METHOD(const QuicFrames, MaybeBundleOpportunistically, (), (override));
   MOCK_METHOD(SerializedPacketFate, GetSerializedPacketFate,
@@ -1514,7 +1514,7 @@ class QuicCryptoClientStreamPeer {
 // server_id: The server id associated with this stream.
 // connection_start_time: The time to set for the connection clock.
 //   Needed for strike-register nonce verification.  The client
-//   connection_start_time should be synchronized witht the server
+//   connection_start_time should be synchronized with the server
 //   start time, otherwise nonce verification will fail.
 // supported_versions: Set of QUIC versions this client supports.
 // helper: Pointer to the MockQuicConnectionHelper to use for the session.
@@ -1537,7 +1537,7 @@ void CreateClientSessionForTest(
 // server_id: The server id associated with this stream.
 // connection_start_time: The time to set for the connection clock.
 //   Needed for strike-register nonce verification.  The server
-//   connection_start_time should be synchronized witht the client
+//   connection_start_time should be synchronized with the client
 //   start time, otherwise nonce verification will fail.
 // supported_versions: Set of QUIC versions this server supports.
 // helper: Pointer to the MockQuicConnectionHelper to use for the session.
@@ -2038,7 +2038,7 @@ class TestPacketWriter : public QuicPacketWriter {
       packet_buffer_pool_index_;
   // Indices in packet_buffer_pool_ that are not allocated.
   std::list<PacketBuffer*> packet_buffer_free_list_;
-  // The soruce/peer address passed into WritePacket().
+  // The source/peer address passed into WritePacket().
   QuicIpAddress last_write_source_address_;
   QuicSocketAddress last_write_peer_address_;
   int write_error_code_{0};
@@ -2052,7 +2052,7 @@ class TestPacketWriter : public QuicPacketWriter {
 // which must point to at least |*destination_connection_id_length_out| bytes in
 // memory. |*destination_connection_id_length_out| will contain the length of
 // the received destination connection ID, which on success will match the
-// contents of the destination connection ID passed in to
+// contents of the destination connection ID passed into
 // WriteClientVersionNegotiationProbePacket.
 bool ParseClientVersionNegotiationProbePacket(
     const char* packet_bytes, size_t packet_length,

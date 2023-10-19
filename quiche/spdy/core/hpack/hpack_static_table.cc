@@ -31,7 +31,7 @@ void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
     static_entries_.push_back(HpackEntry(std::move(name), std::move(value)));
   }
 
-  // |static_entries_| will not be mutated any more.  Therefore its entries will
+  // |static_entries_| will not be mutated anymore.  Therefore its entries will
   // remain stable even if the container does not have iterator stability.
   int insertion_count = 0;
   for (const auto& entry : static_entries_) {

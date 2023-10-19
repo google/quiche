@@ -98,7 +98,7 @@ const ItemTestCase sh09_item_test_cases[] = {
     {"basic binary", "*aGVsbG8=*", Item("hello", Item::kByteSequenceType),
      nullptr},
     {"empty binary", "**", Item("", Item::kByteSequenceType), nullptr},
-    {"bad paddding", "*aGVsbG8*", Item("hello", Item::kByteSequenceType),
+    {"bad padding", "*aGVsbG8*", Item("hello", Item::kByteSequenceType),
      "*aGVsbG8=*"},
     {"bad end delimiter", "*aGVsbG8=", absl::nullopt, nullptr},
     {"extra whitespace", "*aGVsb G8=*", absl::nullopt, nullptr},
@@ -581,8 +581,8 @@ TEST(StructuredHeaderTest, UnserializableDecimals) {
 
 // These values cannot be directly parsed from headers, but are valid doubles
 // which can be serialized as sh-floats (though rounding is expected.)
-TEST(StructuredHeaderTest, SerializeUnparseableDecimals) {
-  struct UnparseableDecimal {
+TEST(StructuredHeaderTest, SerializeUnparsableDecimals) {
+  struct UnparsableDecimal {
     const char* name;
     double value;
     const char* canonical;

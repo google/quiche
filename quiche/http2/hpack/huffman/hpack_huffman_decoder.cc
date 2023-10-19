@@ -460,7 +460,7 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
         bit_buffer_.ConsumeBits(prefix_info.code_length);
         continue;
       }
-      // Encoder is not supposed to explicity encode the EOS symbol.
+      // Encoder is not supposed to explicitly encode the EOS symbol.
       QUICHE_DLOG(ERROR) << "EOS explicitly encoded!\n " << bit_buffer_ << "\n "
                          << prefix_info;
       return false;

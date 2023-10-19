@@ -247,7 +247,7 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   // Should be 3, but this method only works for server adapters.
   EXPECT_EQ(0, adapter->GetHighestReceivedStreamId());
 
-  // Even though the client recieved a GOAWAY, streams 1 and 5 are still active.
+  // Even though the client received a GOAWAY, streams 1 and 5 are still active.
   EXPECT_TRUE(adapter->want_read());
 
   EXPECT_CALL(visitor, OnFrameHeader(1, 0, DATA, 1));

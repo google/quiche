@@ -42,7 +42,7 @@ struct QuicConnectionStats;
 
 // Class which tracks the set of packets sent on a QUIC connection and contains
 // a send algorithm to decide when to send new packets.  It keeps track of any
-// retransmittable data associated with each packet. If a packet is
+// retransmissible data associated with each packet. If a packet is
 // retransmitted, it will keep track of each version of a packet so that if a
 // previous transmission is acked, the data will not be retransmitted.
 class QUICHE_EXPORT QuicSentPacketManager {
@@ -197,7 +197,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // Retransmits the oldest pending packet.
   bool MaybeRetransmitOldestPacket(TransmissionType type);
 
-  // Removes the retransmittable frames from all unencrypted packets to ensure
+  // Removes the retransmissible frames from all unencrypted packets to ensure
   // they don't get retransmitted.
   void NeuterUnencryptedPackets();
 
@@ -223,7 +223,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // retransmission timer.
   bool OnPacketSent(SerializedPacket* mutable_packet, QuicTime sent_time,
                     TransmissionType transmission_type,
-                    HasRetransmittableData has_retransmittable_data,
+                    HasRetransmissibleData has_retransmissible_data,
                     bool measure_rtt, QuicEcnCodepoint ecn_codepoint);
 
   bool CanSendAckFrequency() const;
@@ -243,7 +243,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
 
   // Returns the current delay for the retransmission timer, which may send
   // either a tail loss probe or do a full RTO.  Returns QuicTime::Zero() if
-  // there are no retransmittable packets.
+  // there are no retransmissible packets.
   const QuicTime GetRetransmissionTime() const;
 
   // Returns the current delay for the path degrading timer, which is used to
@@ -254,7 +254,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
   const QuicTime::Delta GetNetworkBlackholeDelay(
       int8_t num_rtos_for_blackhole_detection) const;
 
-  // Returns the delay before reducing max packet size. This delay is guranteed
+  // Returns the delay before reducing max packet size. This delay is guaranteed
   // to be smaller than the network blackhole delay.
   QuicTime::Delta GetMtuReductionDelay(
       int8_t num_rtos_for_blackhole_detection) const;
@@ -304,7 +304,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
     return send_algorithm_->PacingRate(GetBytesInFlight());
   }
 
-  // Returns the size of the slow start congestion window in nume of 1460 byte
+  // Returns the size of the slow start congestion window in number of 1460 byte
   // TCP segments, aka ssthresh.  Some send algorithms do not define a slow
   // start threshold and will return 0.
   QuicPacketCount GetSlowStartThresholdInTcpMss() const {
@@ -526,7 +526,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
                                   absl::optional<QuicEcnCounts> ecn_counts,
                                   const QuicEcnCounts& previous_counts);
 
-  // Removes the retransmittability and in flight properties from the packet at
+  // Removes the retransmissibility and in flight properties from the packet at
   // |info| due to receipt by the peer.
   void MarkPacketHandled(QuicPacketNumber packet_number,
                          QuicTransmissionInfo* info, QuicTime ack_receive_time,
@@ -554,7 +554,7 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // this function.
   void RecordOneSpuriousRetransmission(const QuicTransmissionInfo& info);
 
-  // Called when handshake is confirmed to remove the retransmittable frames
+  // Called when handshake is confirmed to remove the retransmissible frames
   // from all packets of HANDSHAKE_DATA packet number space to ensure they don't
   // get retransmitted and will eventually be removed from unacked packets map.
   void NeuterHandshakePackets();
@@ -595,13 +595,13 @@ class QUICHE_EXPORT QuicSentPacketManager {
   void RecordEcnMarkingSent(QuicEcnCodepoint ecn_codepoint,
                             EncryptionLevel level);
 
-  // Newly serialized retransmittable packets are added to this map, which
+  // Newly serialized retransmissible packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is
   // retransmitted, this map will contain entries for both the old and the new
-  // packet. The old packet's retransmittable frames entry will be nullptr,
+  // packet. The old packet's retransmissible frames entry will be nullptr,
   // while the new packet's entry will contain the frames to retransmit.
   // If the old packet is acked before the new packet, then the old entry will
-  // be removed from the map and the new entry's retransmittable frames will be
+  // be removed from the map and the new entry's retransmissible frames will be
   // set to nullptr.
   QuicUnackedPacketMap unacked_packets_;
 

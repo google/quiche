@@ -43,7 +43,7 @@ enum class Feature {
   kHandshake,
   // Stream data is being exchanged and ACK'ed.
   kStreamData,
-  // The connection close procedcure completes with a zero error code.
+  // The connection close procedure completes with a zero error code.
   kConnectionClose,
   // The connection was established using TLS resumption.
   kResumption,
@@ -64,7 +64,7 @@ enum class Feature {
   // Third row of features (H3 tests)
   // An H3 transaction succeeded.
   kHttp3,
-  // One or both endpoints insert entries into dynamic table and subsequenly
+  // One or both endpoints insert entries into dynamic table and subsequently
   // reference them from header blocks.
   kDynamicEntryReferenced,
 };

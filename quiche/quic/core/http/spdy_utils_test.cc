@@ -60,7 +60,7 @@ TEST_F(CopyAndValidateHeaders, NormalUsage) {
                            {"empty-joined", ""},
                            {"empty-joined", ""},
 
-                           // Non-continguous cookie crumb.
+                           // Non-contiguous cookie crumb.
                            {"cookie", " fin!"}});
 
   int64_t content_length = -1;
@@ -304,7 +304,7 @@ TEST_F(CopyAndValidateTrailers, PseudoHeaderInTrailers) {
 
 TEST_F(CopyAndValidateTrailers, DuplicateTrailers) {
   // Duplicate trailers are allowed, and their values are concatenated into a
-  // single string delimted with '\0'. Some of the duplicate headers
+  // single string delimited with '\0'. Some of the duplicate headers
   // deliberately have an empty value.
   auto trailers = FromList({{"key", "value0"},
                             {"key", "value1"},
@@ -331,7 +331,7 @@ TEST_F(CopyAndValidateTrailers, DuplicateTrailers) {
 
 TEST_F(CopyAndValidateTrailers, DuplicateCookies) {
   // Duplicate cookie headers in trailers should be concatenated into a single
-  //  "; " delimted string.
+  //  "; " delimited string.
   auto headers = FromList({{"cookie", " part 1"},
                            {"cookie", "part 2 "},
                            {"cookie", "part3"},

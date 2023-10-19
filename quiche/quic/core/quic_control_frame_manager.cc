@@ -300,7 +300,7 @@ bool QuicControlFrameManager::RetransmitControlFrame(const QuicFrame& frame,
     // This frame has already been acked.
     return true;
   }
-  QuicFrame copy = CopyRetransmittableControlFrame(frame);
+  QuicFrame copy = CopyRetransmissibleControlFrame(frame);
   QUIC_DVLOG(1) << "control frame manager is forced to retransmit frame: "
                 << frame;
   if (delegate_->WriteControlFrame(copy, type)) {
@@ -314,7 +314,7 @@ void QuicControlFrameManager::WriteBufferedFrames() {
   while (HasBufferedFrames()) {
     QuicFrame frame_to_send =
         control_frames_.at(least_unsent_ - least_unacked_);
-    QuicFrame copy = CopyRetransmittableControlFrame(frame_to_send);
+    QuicFrame copy = CopyRetransmissibleControlFrame(frame_to_send);
     if (!delegate_->WriteControlFrame(copy, NOT_RETRANSMISSION)) {
       // Connection is write blocked.
       DeleteFrame(&copy);
@@ -327,7 +327,7 @@ void QuicControlFrameManager::WriteBufferedFrames() {
 void QuicControlFrameManager::WritePendingRetransmission() {
   while (HasPendingRetransmission()) {
     QuicFrame pending = NextPendingRetransmission();
-    QuicFrame copy = CopyRetransmittableControlFrame(pending);
+    QuicFrame copy = CopyRetransmissibleControlFrame(pending);
     if (!delegate_->WriteControlFrame(copy, LOSS_RETRANSMISSION)) {
       // Connection is write blocked.
       DeleteFrame(&copy);

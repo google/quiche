@@ -98,7 +98,7 @@ static_assert(kQuicFrameTypeSpecialMask ==
 //    D is the data length bit (0 or 2 bytes).
 //    OO/OOO are the size of the offset.
 //    SS is the size of the stream ID.
-// Note that the stream encoding can not be determined by inspection. It can
+// Note that the stream encoding cannot be determined by inspection. It can
 // be determined only by knowing the QUIC Version.
 // Stream frame relative shifts and masks for interpreting the stream flags.
 // StreamID may be 1, 2, 3, or 4 bytes.
@@ -637,7 +637,7 @@ size_t QuicFramer::GetPathResponseFrameSize(
 }
 
 // static
-size_t QuicFramer::GetRetransmittableControlFrameSize(
+size_t QuicFramer::GetRetransmissibleControlFrameSize(
     QuicTransportVersion version, const QuicFrame& frame) {
   switch (frame.type) {
     case PING_FRAME:
@@ -1333,7 +1333,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
     wire_versions = {QuicVersionReservedForNegotiation(),
                      QuicVersionReservedForNegotiation()};
   } else {
-    // This is not uniformely distributed but is acceptable since no security
+    // This is not uniformly distributed but is acceptable since no security
     // depends on this randomness.
     size_t version_index = 0;
     const bool disable_randomness =
@@ -2032,7 +2032,7 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
       QUICHE_DCHECK_NE(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0,
                        header.retry_token_length_length)
           << ENDPOINT << ParsedQuicVersionToString(version_)
-          << " bad retry token length length in header: " << header;
+          << " bad retry token length in header: " << header;
       // Write retry token length.
       if (!writer->WriteVarInt62WithForcedLength(
               header.retry_token.length(), header.retry_token_length_length)) {
@@ -3650,7 +3650,7 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     // there must be space for at least 1 packet to be acked. For
     // example, if block_low is 10 and gap_block_value is 9, it means
     // the gap block is 10 packets long, leaving no room for a packet
-    // to be acked. Thus, gap_block_value+2 can not be larger than
+    // to be acked. Thus, gap_block_value+2 cannot be larger than
     // block_low.
     // The test is written this way to detect wrap-arounds.
     if ((gap_block_value + 2) > block_low) {
@@ -4602,7 +4602,7 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
     if (alternative_decrypter_level_ == ENCRYPTION_ZERO_RTT) {
       if (perspective_ == Perspective::IS_CLIENT) {
         if (header.nonce == nullptr) {
-          // Can not use INITIAL decryption without a diversification nonce.
+          // Cannot use INITIAL decryption without a diversification nonce.
           try_alternative_decryption = false;
         }
       } else {
@@ -4775,7 +4775,7 @@ size_t QuicFramer::ComputeFrameLength(
       QUICHE_DCHECK(false);
       return 0;
     default:
-      return GetRetransmittableControlFrameSize(version_.transport_version,
+      return GetRetransmissibleControlFrameSize(version_.transport_version,
                                                 frame);
   }
 }
@@ -5278,7 +5278,7 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
   if (num_ack_blocks > 0) {
     size_t num_ack_blocks_written = 0;
     // Append, in descending order from the largest ACKed packet, a series of
-    // ACK blocks that represents the successfully acknoweldged packets. Each
+    // ACK blocks that represents the successfully acknowledged packets. Each
     // appended gap/block length represents a descending delta from the previous
     // block. i.e.:
     // |--- length ---|--- gap ---|--- length ---|--- gap ---|--- largest ---|
@@ -5848,7 +5848,7 @@ bool QuicFramer::AppendIetfConnectionCloseFrame(
   }
 
   if (!writer->WriteVarInt62(frame.wire_error_code)) {
-    set_detailed_error("Can not write connection close frame error code");
+    set_detailed_error("Cannot write connection close frame error code");
     return false;
   }
 
@@ -5868,7 +5868,7 @@ bool QuicFramer::AppendIetfConnectionCloseFrame(
       GenerateErrorString(frame.error_details, frame.quic_error_code);
   if (!writer->WriteStringPieceVarInt62(
           TruncateErrorString(final_error_string))) {
-    set_detailed_error("Can not write connection close phrase");
+    set_detailed_error("Cannot write connection close phrase");
     return false;
   }
   return true;
@@ -5921,7 +5921,7 @@ bool QuicFramer::ProcessPathChallengeFrame(QuicDataReader* reader,
                                            QuicPathChallengeFrame* frame) {
   if (!reader->ReadBytes(frame->data_buffer.data(),
                          frame->data_buffer.size())) {
-    set_detailed_error("Can not read path challenge data.");
+    set_detailed_error("Cannot read path challenge data.");
     return false;
   }
   return true;
@@ -5931,7 +5931,7 @@ bool QuicFramer::ProcessPathResponseFrame(QuicDataReader* reader,
                                           QuicPathResponseFrame* frame) {
   if (!reader->ReadBytes(frame->data_buffer.data(),
                          frame->data_buffer.size())) {
-    set_detailed_error("Can not read path response data.");
+    set_detailed_error("Cannot read path response data.");
     return false;
   }
   return true;
@@ -6021,12 +6021,12 @@ bool QuicFramer::ProcessStopSendingFrame(
 bool QuicFramer::AppendStopSendingFrame(
     const QuicStopSendingFrame& stop_sending_frame, QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(stop_sending_frame.stream_id)) {
-    set_detailed_error("Can not write stop sending stream id");
+    set_detailed_error("Cannot write stop sending stream id");
     return false;
   }
   if (!writer->WriteVarInt62(
           static_cast<uint64_t>(stop_sending_frame.ietf_error_code))) {
-    set_detailed_error("Can not write application error code");
+    set_detailed_error("Cannot write application error code");
     return false;
   }
   return true;
@@ -6036,7 +6036,7 @@ bool QuicFramer::AppendStopSendingFrame(
 bool QuicFramer::AppendMaxDataFrame(const QuicWindowUpdateFrame& frame,
                                     QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(frame.max_data)) {
-    set_detailed_error("Can not write MAX_DATA byte-offset");
+    set_detailed_error("Cannot write MAX_DATA byte-offset");
     return false;
   }
   return true;
@@ -6046,7 +6046,7 @@ bool QuicFramer::ProcessMaxDataFrame(QuicDataReader* reader,
                                      QuicWindowUpdateFrame* frame) {
   frame->stream_id = QuicUtils::GetInvalidStreamId(transport_version());
   if (!reader->ReadVarInt62(&frame->max_data)) {
-    set_detailed_error("Can not read MAX_DATA byte-offset");
+    set_detailed_error("Cannot read MAX_DATA byte-offset");
     return false;
   }
   return true;
@@ -6056,11 +6056,11 @@ bool QuicFramer::ProcessMaxDataFrame(QuicDataReader* reader,
 bool QuicFramer::AppendMaxStreamDataFrame(const QuicWindowUpdateFrame& frame,
                                           QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(frame.stream_id)) {
-    set_detailed_error("Can not write MAX_STREAM_DATA stream id");
+    set_detailed_error("Cannot write MAX_STREAM_DATA stream id");
     return false;
   }
   if (!writer->WriteVarInt62(frame.max_data)) {
-    set_detailed_error("Can not write MAX_STREAM_DATA byte-offset");
+    set_detailed_error("Cannot write MAX_STREAM_DATA byte-offset");
     return false;
   }
   return true;
@@ -6073,7 +6073,7 @@ bool QuicFramer::ProcessMaxStreamDataFrame(QuicDataReader* reader,
     return false;
   }
   if (!reader->ReadVarInt62(&frame->max_data)) {
-    set_detailed_error("Can not read MAX_STREAM_DATA byte-count");
+    set_detailed_error("Cannot read MAX_STREAM_DATA byte-count");
     return false;
   }
   return true;
@@ -6082,7 +6082,7 @@ bool QuicFramer::ProcessMaxStreamDataFrame(QuicDataReader* reader,
 bool QuicFramer::AppendMaxStreamsFrame(const QuicMaxStreamsFrame& frame,
                                        QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(frame.stream_count)) {
-    set_detailed_error("Can not write MAX_STREAMS stream count");
+    set_detailed_error("Cannot write MAX_STREAMS stream count");
     return false;
   }
   return true;
@@ -6103,7 +6103,7 @@ bool QuicFramer::ProcessMaxStreamsFrame(QuicDataReader* reader,
 bool QuicFramer::AppendDataBlockedFrame(const QuicBlockedFrame& frame,
                                         QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(frame.offset)) {
-    set_detailed_error("Can not write blocked offset.");
+    set_detailed_error("Cannot write blocked offset.");
     return false;
   }
   return true;
@@ -6114,7 +6114,7 @@ bool QuicFramer::ProcessDataBlockedFrame(QuicDataReader* reader,
   // Indicates that it is a BLOCKED frame (as opposed to STREAM_BLOCKED).
   frame->stream_id = QuicUtils::GetInvalidStreamId(transport_version());
   if (!reader->ReadVarInt62(&frame->offset)) {
-    set_detailed_error("Can not read blocked offset.");
+    set_detailed_error("Cannot read blocked offset.");
     return false;
   }
   return true;
@@ -6123,11 +6123,11 @@ bool QuicFramer::ProcessDataBlockedFrame(QuicDataReader* reader,
 bool QuicFramer::AppendStreamDataBlockedFrame(const QuicBlockedFrame& frame,
                                               QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(frame.stream_id)) {
-    set_detailed_error("Can not write stream blocked stream id.");
+    set_detailed_error("Cannot write stream blocked stream id.");
     return false;
   }
   if (!writer->WriteVarInt62(frame.offset)) {
-    set_detailed_error("Can not write stream blocked offset.");
+    set_detailed_error("Cannot write stream blocked offset.");
     return false;
   }
   return true;
@@ -6140,7 +6140,7 @@ bool QuicFramer::ProcessStreamDataBlockedFrame(QuicDataReader* reader,
     return false;
   }
   if (!reader->ReadVarInt62(&frame->offset)) {
-    set_detailed_error("Can not read stream blocked offset.");
+    set_detailed_error("Cannot read stream blocked offset.");
     return false;
   }
   return true;
@@ -6149,7 +6149,7 @@ bool QuicFramer::ProcessStreamDataBlockedFrame(QuicDataReader* reader,
 bool QuicFramer::AppendStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame,
                                            QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(frame.stream_count)) {
-    set_detailed_error("Can not write STREAMS_BLOCKED stream count");
+    set_detailed_error("Cannot write STREAMS_BLOCKED stream count");
     return false;
   }
   return true;
@@ -6177,22 +6177,22 @@ bool QuicFramer::ProcessStreamsBlockedFrame(QuicDataReader* reader,
 bool QuicFramer::AppendNewConnectionIdFrame(
     const QuicNewConnectionIdFrame& frame, QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(frame.sequence_number)) {
-    set_detailed_error("Can not write New Connection ID sequence number");
+    set_detailed_error("Cannot write New Connection ID sequence number");
     return false;
   }
   if (!writer->WriteVarInt62(frame.retire_prior_to)) {
-    set_detailed_error("Can not write New Connection ID retire_prior_to");
+    set_detailed_error("Cannot write New Connection ID retire_prior_to");
     return false;
   }
   if (!writer->WriteLengthPrefixedConnectionId(frame.connection_id)) {
-    set_detailed_error("Can not write New Connection ID frame connection ID");
+    set_detailed_error("Cannot write New Connection ID frame connection ID");
     return false;
   }
 
   if (!writer->WriteBytes(
           static_cast<const void*>(&frame.stateless_reset_token),
           sizeof(frame.stateless_reset_token))) {
-    set_detailed_error("Can not write New Connection ID Reset Token");
+    set_detailed_error("Cannot write New Connection ID Reset Token");
     return false;
   }
   return true;
@@ -6229,7 +6229,7 @@ bool QuicFramer::ProcessNewConnectionIdFrame(QuicDataReader* reader,
 
   if (!reader->ReadBytes(&frame->stateless_reset_token,
                          sizeof(frame->stateless_reset_token))) {
-    set_detailed_error("Can not read new connection ID frame reset token.");
+    set_detailed_error("Cannot read new connection ID frame reset token.");
     return false;
   }
   return true;
@@ -6238,7 +6238,7 @@ bool QuicFramer::ProcessNewConnectionIdFrame(QuicDataReader* reader,
 bool QuicFramer::AppendRetireConnectionIdFrame(
     const QuicRetireConnectionIdFrame& frame, QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(frame.sequence_number)) {
-    set_detailed_error("Can not write Retire Connection ID sequence number");
+    set_detailed_error("Cannot write Retire Connection ID sequence number");
     return false;
   }
   return true;

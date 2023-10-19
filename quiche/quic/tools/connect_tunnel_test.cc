@@ -343,7 +343,7 @@ TEST_F(ConnectTunnelTest, DestinationTcpConnectionError) {
 
   tunnel_.OpenTunnel(request_headers);
 
-  // Simulate receving error.
+  // Simulate receiving error.
   tunnel_.ReceiveComplete(absl::UnknownError("error"));
 
   tunnel_.OnClientStreamClose();

@@ -112,7 +112,7 @@ class QUICHE_EXPORT HpackHuffmanDecoder {
   bool Decode(absl::string_view input, std::string* output);
 
   // Is what remains in the bit_buffer_ valid at the end of an encoded string?
-  // Call after passing the the final portion of a Huffman string to Decode,
+  // Call after passing the final portion of a Huffman string to Decode,
   // and getting true as the result.
   bool InputProperlyTerminated() const {
     return bit_buffer_.InputProperlyTerminated();

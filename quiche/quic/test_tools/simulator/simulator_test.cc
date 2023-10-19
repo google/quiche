@@ -196,7 +196,7 @@ TEST_F(SimulatorTest, DirectLinkSaturation) {
     if (saturator_a.counter()->packets() > 1000 ||
         saturator_b.counter()->packets() > 100) {
       ADD_FAILURE() << "The simulation did not arrive at the expected "
-                       "termination contidition. Saturator A counter: "
+                       "termination condition. Saturator A counter: "
                     << saturator_a.counter()->packets()
                     << ", saturator B counter: "
                     << saturator_b.counter()->packets();

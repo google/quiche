@@ -811,7 +811,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
   // Transport parameter identifiers are 62 bits long so we need to
   // ensure that the output of the computation below fits in 62 bits.
   uint64_t grease_id64 = random->RandUint64() % ((1ULL << 62) - 31);
-  // Make sure grease_id % 31 == 27. Note that this is not uniformely
+  // Make sure grease_id % 31 == 27. Note that this is not uniformly
   // distributed but is acceptable since no security depends on this
   // randomness.
   grease_id64 = (grease_id64 / 31) * 31 + 27;

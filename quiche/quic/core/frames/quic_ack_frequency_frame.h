@@ -29,7 +29,7 @@ struct QUICHE_EXPORT QuicAckFrequencyFrame {
   // received, and non-zero when sent.
   QuicControlFrameId control_frame_id = kInvalidControlFrameId;
 
-  // If true, do not ack immediately upon observeation of packet reordering.
+  // If true, do not ack immediately upon observation of packet reordering.
   bool ignore_order = false;
 
   // Sequence number assigned to the ACK_FREQUENCY frame by the sender to allow
@@ -37,7 +37,7 @@ struct QUICHE_EXPORT QuicAckFrequencyFrame {
   uint64_t sequence_number = 0;
 
   // The maximum number of ack-eliciting packets after which the receiver sends
-  // an acknowledgement. Invald if == 0.
+  // an acknowledgement. Invalid if == 0.
   uint64_t packet_tolerance = 2;
 
   // The maximum time that ack packets can be delayed.

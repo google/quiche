@@ -242,12 +242,12 @@ TEST_P(PendingStreamTest, PendingStreamTooMuchDataInRstStream) {
               CloseConnection(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA, _, _));
   pending1.OnRstStreamFrame(frame1);
 
-  QuicStreamId bidirection_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+  QuicStreamId bidirectional_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       session_->transport_version(), Perspective::IS_CLIENT);
-  PendingStream pending2(bidirection_stream_id, session_.get());
+  PendingStream pending2(bidirectional_stream_id, session_.get());
   // Receive a rst stream frame that violates flow control: the byte offset is
   // higher than the receive window offset.
-  QuicRstStreamFrame frame2(kInvalidControlFrameId, bidirection_stream_id,
+  QuicRstStreamFrame frame2(kInvalidControlFrameId, bidirectional_stream_id,
                             QUIC_STREAM_CANCELLED,
                             kInitialSessionFlowControlWindowForTest + 1);
   // Bidirectional Pending stream should not accept the frame, and the
@@ -273,10 +273,10 @@ TEST_P(PendingStreamTest, PendingStreamRstStream) {
 TEST_P(PendingStreamTest, PendingStreamWindowUpdate) {
   Initialize();
 
-  QuicStreamId bidirection_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+  QuicStreamId bidirectional_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       session_->transport_version(), Perspective::IS_CLIENT);
-  PendingStream pending(bidirection_stream_id, session_.get());
-  QuicWindowUpdateFrame frame(kInvalidControlFrameId, bidirection_stream_id,
+  PendingStream pending(bidirectional_stream_id, session_.get());
+  QuicWindowUpdateFrame frame(kInvalidControlFrameId, bidirectional_stream_id,
                               kDefaultFlowControlSendWindow * 2);
   pending.OnWindowUpdateFrame(frame);
   TestStream stream(&pending, session_.get(), false);
@@ -288,9 +288,9 @@ TEST_P(PendingStreamTest, PendingStreamWindowUpdate) {
 TEST_P(PendingStreamTest, PendingStreamStopSending) {
   Initialize();
 
-  QuicStreamId bidirection_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+  QuicStreamId bidirectional_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       session_->transport_version(), Perspective::IS_CLIENT);
-  PendingStream pending(bidirection_stream_id, session_.get());
+  PendingStream pending(bidirectional_stream_id, session_.get());
   QuicResetStreamError error =
       QuicResetStreamError::FromInternal(QUIC_STREAM_INTERNAL_ERROR);
   pending.OnStopSending(error);

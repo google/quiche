@@ -81,7 +81,7 @@ class QUICHE_NO_EXPORT PayloadDecoderBaseTest : public RandomDecoderTest {
   DecodeStatus ResumeDecoding(DecodeBuffer* db) final;
 
   // Given the specified payload (without the common frame header), decode
-  // it with several partitionings of the payload.
+  // it with several partitions of the payload.
   ::testing::AssertionResult DecodePayloadAndValidateSeveralWays(
       absl::string_view payload, Validator validator);
 
@@ -165,7 +165,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
 
   // Returns random flags, but only those valid for the frame type, yet not
   // those that the DecoderPeer says will affect the decoding of the payload
-  // (e.g. the PRIORTY flag on a HEADERS frame or PADDED on DATA frames).
+  // (e.g. the PRIORITY flag on a HEADERS frame or PADDED on DATA frames).
   uint8_t RandFlags() {
     return Random().Rand8() &
            KnownFlagsMaskForFrameType(DecoderPeer::FrameType()) &
@@ -188,7 +188,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
 
   // Decode one frame's payload and confirm that the listener recorded the
   // expected FrameParts instance, and only FrameParts instance. The payload
-  // will be decoded several times with different partitionings of the payload,
+  // will be decoded several times with different partitions of the payload,
   // and after each the validator will be called.
   AssertionResult DecodePayloadAndValidateSeveralWays(
       absl::string_view payload, const FrameParts& expected) {
@@ -204,7 +204,7 @@ class QUICHE_NO_EXPORT AbstractPayloadDecoderTest
   // Decode one frame's payload, expecting that the final status will be
   // kDecodeError, and that OnFrameSizeError will have been called on the
   // listener. The payload will be decoded several times with different
-  // partitionings of the payload. The type WrappedValidator is either
+  // partitions of the payload. The type WrappedValidator is either
   // RandomDecoderTest::Validator, RandomDecoderTest::NoArgValidator or
   // std::nullptr_t (not extra validation).
   template <typename WrappedValidator>
@@ -413,7 +413,7 @@ class QUICHE_NO_EXPORT AbstractPaddablePayloadDecoderTest
       fb.AppendUInt8(pad_length());
       fb.AppendZeroes(pad_length());
       QUICHE_VLOG(1) << "fb.size=" << fb.size();
-      // Pick a random length for the payload that is shorter than neccesary.
+      // Pick a random length for the payload that is shorter than necessary.
       payload_length = Random().Uniform(fb.size());
     }
 

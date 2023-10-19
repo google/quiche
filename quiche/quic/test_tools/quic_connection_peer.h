@@ -113,12 +113,12 @@ class QuicConnectionPeer {
       QuicPacketNumber next_probe_at);
   static void SetAckDecimationDelay(QuicConnection* connection,
                                     float ack_decimation_delay);
-  static bool HasRetransmittableFrames(QuicConnection* connection,
+  static bool HasRetransmissibleFrames(QuicConnection* connection,
                                        uint64_t packet_number);
   static void SetMaxTrackedPackets(QuicConnection* connection,
                                    QuicPacketCount max_tracked_packets);
   static void SetNegotiatedVersion(QuicConnection* connection);
-  static void SetMaxConsecutiveNumPacketsWithNoRetransmittableFrames(
+  static void SetMaxConsecutiveNumPacketsWithNoRetransmissibleFrames(
       QuicConnection* connection, size_t new_value);
   static bool SupportsReleaseTime(QuicConnection* connection);
   static QuicConnection::PacketContent GetCurrentPacketContent(

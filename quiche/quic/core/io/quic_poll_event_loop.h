@@ -131,7 +131,7 @@ class QuicPollEventLoop : public QuicEventLoop {
   // Calls all of the alarm callbacks that are scheduled before or at |time|.
   void ProcessAlarmsUpTo(QuicTime time);
 
-  // Adds the I/O callbacks for |fd| to the |ready_lits| as appopriate.
+  // Adds the I/O callbacks for |fd| to the |ready_lits| as appropriate.
   void DispatchIoEvent(std::vector<ReadyListEntry>& ready_list, SocketFd fd,
                        short mask);  // NOLINT(runtime/int)
   // Runs all of the callbacks on the ready list.

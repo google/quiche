@@ -104,7 +104,7 @@ void MoqtParser::ProcessData(absl::string_view data, bool end_of_stream) {
         break;
       }
       // Non-OBJECT or OBJECT with the complete specified length, but the data
-      // was not parseable.
+      // was not parsable.
       ParseError("Not able to parse message given specified length");
       return;
     }

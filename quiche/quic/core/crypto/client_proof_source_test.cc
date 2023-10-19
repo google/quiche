@@ -196,7 +196,7 @@ TEST(DefaultClientProofSource, BadCerts) {
   bool ok;
   EXPECT_QUIC_BUG(
       ok = proof_source.AddCertAndKey({"*"}, BadCertChain(), TestPrivateKey()),
-      "Unabled to parse leaf certificate");
+      "Unable to parse leaf certificate");
   ASSERT_FALSE(ok);
   EXPECT_EQ(proof_source.GetCertAndKey("*"), nullptr);
 }

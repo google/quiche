@@ -225,7 +225,7 @@ class LocalAddressParser : public NetlinkParserInterface {
     }
 
     // Keep track of addresses with both 'nodad' and 'dadfailed', this really
-    // should't be possible and is likely a kernel bug.
+    // shouldn't be possible and is likely a kernel bug.
     if (num_ipv6_nodad_dadfailed_addresses_ != nullptr &&
         (interface_address->ifa_flags & IFA_F_NODAD) &&
         (interface_address->ifa_flags & IFA_F_DADFAILED)) {

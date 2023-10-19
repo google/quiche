@@ -195,7 +195,7 @@ WebTransportStream* WebTransportHttp3::AcceptIncomingBidirectionalStream() {
     QuicSpdyStream* stream = session_->GetOrCreateSpdyDataStream(id);
     if (stream == nullptr) {
       // Skip the streams that were reset in between the time they were
-      // receieved and the time the client has polled for them.
+      // received and the time the client has polled for them.
       continue;
     }
     return stream->web_transport_stream();
@@ -210,7 +210,7 @@ WebTransportStream* WebTransportHttp3::AcceptIncomingUnidirectionalStream() {
     QuicStream* stream = session_->GetOrCreateStream(id);
     if (stream == nullptr) {
       // Skip the streams that were reset in between the time they were
-      // receieved and the time the client has polled for them.
+      // received and the time the client has polled for them.
       continue;
     }
     return static_cast<WebTransportHttp3UnidirectionalStream*>(stream)

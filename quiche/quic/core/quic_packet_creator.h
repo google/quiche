@@ -58,7 +58,7 @@ class QUICHE_EXPORT QuicPacketCreator {
                                       const std::string& error_details) = 0;
 
     // Consults delegate whether a packet should be generated.
-    virtual bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
+    virtual bool ShouldGeneratePacket(HasRetransmissibleData retransmissible,
                                       IsHandshake handshake) = 0;
     // Called when there is data to be sent. Gives delegate a chance to bundle
     // anything with to-be-sent data.
@@ -191,8 +191,8 @@ class QUICHE_EXPORT QuicPacketCreator {
   // Returns the information of pending frames as a string.
   std::string GetPendingFramesInfo() const;
 
-  // Returns true if there are retransmittable frames pending to be serialized.
-  bool HasPendingRetransmittableFrames() const;
+  // Returns true if there are retransmissible frames pending to be serialized.
+  bool HasPendingRetransmissibleFrames() const;
 
   // Returns true if there are stream frames for |id| pending to be serialized.
   bool HasPendingStreamFramesOfStream(QuicStreamId id) const;
@@ -256,7 +256,7 @@ class QUICHE_EXPORT QuicPacketCreator {
   bool AddPathResponseFrame(const QuicPathFrameBuffer& data_buffer);
 
   // Add PATH_CHALLENGE to current packet, flush before or afterwards if needed.
-  // This is a best effort adding. It may fail becasue of delegate state, but
+  // This is a best effort adding. It may fail because of delegate state, but
   // it's okay because of path validation retry mechanism.
   void AddPathChallengeFrame(const QuicPathFrameBuffer& payload);
 
@@ -336,9 +336,9 @@ class QUICHE_EXPORT QuicPacketCreator {
   // Sets the retry token to be sent over the wire in IETF Initial packets.
   void SetRetryToken(absl::string_view retry_token);
 
-  // Consumes retransmittable control |frame|. Returns true if the frame is
+  // Consumes retransmissible control |frame|. Returns true if the frame is
   // successfully consumed. Returns false otherwise.
-  bool ConsumeRetransmittableControlFrame(const QuicFrame& frame);
+  bool ConsumeRetransmissibleControlFrame(const QuicFrame& frame);
 
   // Given some data, may consume part or all of it and pass it to the
   // packet creator to be serialized into packets. If not in batch
@@ -447,7 +447,7 @@ class QUICHE_EXPORT QuicPacketCreator {
 
   // Serialize a probing response packet that uses IETF QUIC's PATH RESPONSE
   // frame. Also fills the packet with padding if |is_padded| is
-  // true. |payloads| is always emptied, even if the packet can not be
+  // true. |payloads| is always emptied, even if the packet cannot be
   // successfully built.
   size_t BuildPathResponsePacket(
       const QuicPacketHeader& header, char* buffer, size_t packet_length,
@@ -518,7 +518,7 @@ class QUICHE_EXPORT QuicPacketCreator {
   void MaybeAddPadding();
 
   // Serializes all frames which have been added and adds any which should be
-  // retransmitted to packet_.retransmittable_frames. All frames must fit into
+  // retransmitted to packet_.retransmissible_frames. All frames must fit into
   // a single packet. Returns true on success, otherwise, returns false.
   // Fails if |encrypted_buffer| is not large enough for the encrypted packet.
   //
@@ -528,14 +528,14 @@ class QUICHE_EXPORT QuicPacketCreator {
       QuicOwnedPacketBuffer encrypted_buffer, size_t encrypted_buffer_len,
       bool allow_padding);
 
-  // Called after a new SerialiedPacket is created to call the delegate's
+  // Called after a new SerializedPacket is created to call the delegate's
   // OnSerializedPacket and reset state.
   void OnSerializedPacket();
 
   // Clears all fields of packet_ that should be cleared between serializations.
   void ClearPacket();
 
-  // Re-serialzes frames of ENCRYPTION_INITIAL packet in coalesced packet with
+  // Reserializes frames of ENCRYPTION_INITIAL packet in coalesced packet with
   // the original packet's packet number and packet number length.
   // |padding_size| indicates the size of necessary padding. Returns 0 if
   // serialization fails.

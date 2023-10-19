@@ -1744,7 +1744,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersAfterFIN) {
                   "Trailers cannot be sent after a FIN");
 }
 
-TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
+TEST_P(QuicSpdyStreamTest, HeaderStreamNotifierCorrespondingSpdyStream) {
   // There is no headers stream if QPACK is used.
   if (UsesHttp3()) {
     return;
@@ -2929,7 +2929,7 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
       .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
 
   // Receive more data.
-  std::string data2 = DataFrame("This payload should not be proccessed.");
+  std::string data2 = DataFrame("This payload should not be processed.");
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, offset, data2));
 }
 

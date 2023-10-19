@@ -434,7 +434,7 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
   // (or at least server public key).
   std::map<QuicServerId, QuicServerId> canonical_server_map_;
 
-  // Contains list of suffixes (for exmaple ".c.youtube.com",
+  // Contains list of suffixes (for example ".c.youtube.com",
   // ".googlevideo.com") of canonical hostnames.
   std::vector<std::string> canonical_suffixes_;
 

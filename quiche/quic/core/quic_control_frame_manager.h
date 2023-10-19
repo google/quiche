@@ -26,7 +26,7 @@ class QuicControlFrameManagerPeer;
 
 // Control frame manager contains a list of sent control frames with valid
 // control frame IDs. Control frames without valid control frame IDs include:
-// (1) non-retransmittable frames (e.g., ACK_FRAME, PADDING_FRAME,
+// (1) non-retransmissible frames (e.g., ACK_FRAME, PADDING_FRAME,
 // STOP_WAITING_FRAME, etc.), (2) CONNECTION_CLOSE and IETF Quic
 // APPLICATION_CLOSE frames.
 // New control frames are added to the tail of the list when they are added to
@@ -80,11 +80,11 @@ class QUICHE_EXPORT QuicControlFrameManager {
   void WriteOrBufferMaxStreams(QuicStreamCount count, bool unidirectional);
 
   // Tries to send an IETF-QUIC STOP_SENDING frame. The frame is buffered if it
-  // can not be sent immediately.
+  // cannot be sent immediately.
   void WriteOrBufferStopSending(QuicResetStreamError error,
                                 QuicStreamId stream_id);
 
-  // Tries to send an HANDSHAKE_DONE frame. The frame is buffered if it can not
+  // Tries to send an HANDSHAKE_DONE frame. The frame is buffered if it cannot
   // be sent immediately.
   void WriteOrBufferHandshakeDone();
 
@@ -100,7 +100,7 @@ class QUICHE_EXPORT QuicControlFrameManager {
       uint64_t retire_prior_to,
       const StatelessResetToken& stateless_reset_token);
 
-  // Tries to send a RETIRE_CONNNECTION_ID frame. The frame is buffered if it
+  // Tries to send a RETIRE_CONNECTION_ID frame. The frame is buffered if it
   // cannot be sent immediately.
   void WriteOrBufferRetireConnectionId(uint64_t sequence_number);
 

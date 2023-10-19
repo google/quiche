@@ -69,7 +69,7 @@ class QUICHE_EXPORT ProofSourceX509 : public ProofSource {
     CertificatePrivateKey key;
   };
 
-  // Looks up certficiate for hostname, returns the default if no certificate is
+  // Looks up certificate for hostname, returns the default if no certificate is
   // found.
   Certificate* GetCertificate(const std::string& hostname,
                               bool* cert_matched_sni) const;

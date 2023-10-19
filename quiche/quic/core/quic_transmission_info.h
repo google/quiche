@@ -32,7 +32,7 @@ struct QUICHE_EXPORT QuicTransmissionInfo {
 
   std::string DebugString() const;
 
-  QuicFrames retransmittable_frames;
+  QuicFrames retransmissible_frames;
   QuicTime sent_time;
   QuicPacketLength bytes_sent;
   EncryptionLevel encryption_level;

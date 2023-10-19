@@ -69,7 +69,7 @@ uint64_t ToSpdyPingId(const Http2PingFields& ping) {
 
 // Overwrites the fields of the header with invalid values, for the purpose
 // of identifying reading of unset fields. Only takes effect for debug builds.
-// In Address Sanatizer builds, it also marks the fields as un-readable.
+// In Address Sanitizer builds, it also marks the fields as un-readable.
 #ifndef NDEBUG
 void CorruptFrameHeader(Http2FrameHeader* header) {
   // Beyond a valid payload length, which is 2^24 - 1.

@@ -171,7 +171,7 @@ TEST_F(CubicBytesTest, DISABLED_AboveOrigin) {
     current_cwnd = cubic_.CongestionWindowAfterAck(
         kDefaultTCPMSS, current_cwnd, rtt_min, clock_.ApproximateNow());
     // When we fix convex mode and the uint64 arithmetic, we
-    // increase the expected_cwnd only after after the first 100ms,
+    // increase the expected_cwnd only after the first 100ms,
     // rather than after the initial 1ms.
     expected_cwnd += kDefaultTCPMSS;
     ASSERT_NEAR(expected_cwnd, current_cwnd, kDefaultTCPMSS);
@@ -245,7 +245,7 @@ TEST_F(CubicBytesTest, AboveOriginFineGrainedCubing) {
 }
 
 // Constructs an artificial scenario to show what happens when we
-// allow per-ack updates, rather than limititing update freqency.  In
+// allow per-ack updates, rather than limiting update frequency.  In
 // this scenario, the first two acks of the epoch produce the same
 // cwnd.  When we limit per-ack updates, this would cause the
 // cessation of cubic updates for 30ms.  When we allow per-ack
@@ -287,7 +287,7 @@ TEST_F(CubicBytesTest, PerAckUpdates) {
     const QuicByteCount next_cwnd = cubic_.CongestionWindowAfterAck(
         kDefaultTCPMSS, current_cwnd, rtt_min, clock_.ApproximateNow());
     reno_cwnd = RenoCwndInBytes(reno_cwnd);
-    // The window shoud increase on every ack.
+    // The window should increase on every ack.
     ASSERT_LT(current_cwnd, next_cwnd);
     ASSERT_EQ(reno_cwnd, next_cwnd);
     current_cwnd = next_cwnd;

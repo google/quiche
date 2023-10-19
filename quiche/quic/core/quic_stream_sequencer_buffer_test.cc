@@ -328,7 +328,7 @@ TEST_F(QuicStreamSequencerBufferTest, Readv100Bytes) {
 
 TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossBlocks) {
   std::string source(kBlockSizeBytes + 50, 'a');
-  // Write 1st block to full and extand 50 bytes to next block.
+  // Write 1st block to full and extend 50 bytes to next block.
   buffer_->OnStreamData(0, source, &written_, &error_details_);
   EXPECT_EQ(source.size(), helper_->ReadableBytes());
   // Iteratively read 512 bytes from buffer_-> Overwrite dest[] each time.
@@ -342,7 +342,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossBlocks) {
   }
   // The last read only reads the rest 50 bytes in 2nd block.
   EXPECT_EQ(std::string(50, 'a'), std::string(dest, 50));
-  EXPECT_EQ(0, dest[50]) << "Dest[50] shouln't be filled.";
+  EXPECT_EQ(0, dest[50]) << "Dest[50] shouldn't be filled.";
   EXPECT_EQ(source.size(), buffer_->BytesConsumed());
   EXPECT_TRUE(buffer_->Empty());
   EXPECT_TRUE(helper_->CheckBufferInvariants());
@@ -728,7 +728,7 @@ TEST_F(QuicStreamSequencerBufferTest, PeekAfterConsumed) {
   EXPECT_FALSE(buffer_->PeekRegion(1500, &iov));
 }
 
-TEST_F(QuicStreamSequencerBufferTest, PeekContinously) {
+TEST_F(QuicStreamSequencerBufferTest, PeekContinuously) {
   std::string source1(kBlockSizeBytes, 'a');
   buffer_->OnStreamData(0, source1, &written_, &error_details_);
 
@@ -1074,7 +1074,7 @@ TEST_F(QuicStreamSequencerBufferRandomIOTest, RandomWriteAndConsumeInPlace) {
                       << num_read << " readable regions, actually get "
                       << actually_num_read
                       << " from offset: " << total_bytes_read_
-                      << "\nprocesse bytes: " << bytes_processed;
+                      << "\nprocessed bytes: " << bytes_processed;
         total_bytes_read_ += bytes_processed;
         ASSERT_EQ(total_bytes_read_, buffer_->BytesConsumed());
         ASSERT_TRUE(helper_->CheckBufferInvariants());

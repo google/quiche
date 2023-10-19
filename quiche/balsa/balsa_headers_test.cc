@@ -2450,7 +2450,7 @@ TEST(BalsaHeaders,
   SCOPED_TRACE(
       "This test tests the codepath where the new firstline is"
       " too large to fit within the space used by the original"
-      " firstline, but large enuogh to space in the free space"
+      " firstline, but large enough to space in the free space"
       " available in both firstline plus the space made available"
       " with deleted header lines (specifically, the first one");
   BalsaHeaders headers = CreateHTTPHeaders(
@@ -2523,7 +2523,7 @@ TEST(BalsaHeaders, TestSettingMissingFirstlineElementsAfterBalsaHeadersParsed) {
   }
 }
 
-// Here we exersize the codepaths involved in setting a new firstine when the
+// Here we exercise the codepaths involved in setting a new firstline when the
 // previously set firstline is stored in the 'additional_data_stream_'
 // variable, and the new firstline is larger than the previously set firstline.
 TEST(BalsaHeaders,
@@ -2549,7 +2549,7 @@ TEST(BalsaHeaders,
               StrEq("HTTP/1.10 2000 REALLY don't need a reason"));
 }
 
-// Here we exersize the codepaths involved in setting a new firstine when the
+// Here we exercise the codepaths involved in setting a new firstline when the
 // previously set firstline is stored in the 'additional_data_stream_'
 // variable, and the new firstline is smaller than the previously set firstline.
 TEST(BalsaHeaders,
@@ -3041,7 +3041,7 @@ TEST(BalsaHeaders, TestAppendToHeaderWithCommaAndSpace) {
 }
 
 TEST(BalsaHeaders, TestInitialAppendWithCommaAndSpace) {
-  // Test that AppendToHeadeWithCommaAndSpace works properly when the
+  // Test that AppendToHeaderWithCommaAndSpace works properly when the
   // header did not already exist.
   BalsaHeaders headers;
   headers.AppendToHeaderWithCommaAndSpace("foo", "foo_value");
@@ -3051,7 +3051,7 @@ TEST(BalsaHeaders, TestInitialAppendWithCommaAndSpace) {
 }
 
 TEST(BalsaHeaders, TestAppendWithCommaAndSpaceAndRemove) {
-  // Test that AppendToHeadeWithCommaAndSpace works properly with removing.
+  // Test that AppendToHeaderWithCommaAndSpace works properly with removing.
   BalsaHeaders headers;
   headers.AppendToHeaderWithCommaAndSpace("foo", "foo_value");
   EXPECT_THAT(headers.GetHeader("foo"), StrEq("foo_value"));

@@ -116,7 +116,7 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
                          QuicPacketCount num_ce) override;
   void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                     QuicPacketNumber packet_number, QuicByteCount bytes,
-                    HasRetransmittableData is_retransmittable) override;
+                    HasRetransmissibleData is_retransmissible) override;
   void OnPacketNeutered(QuicPacketNumber packet_number) override;
   void OnRetransmissionTimeout(bool /*packets_retransmitted*/) override {}
   void OnConnectionMigration() override {}
@@ -218,7 +218,7 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
 
   // Updates the ack aggregation max filter in bytes.
   // Returns the most recent addition to the filter, or |newly_acked_bytes| if
-  // nothing was fed in to the filter.
+  // nothing was fed into the filter.
   QuicByteCount UpdateAckAggregationBytes(QuicTime ack_time,
                                           QuicByteCount newly_acked_bytes);
 

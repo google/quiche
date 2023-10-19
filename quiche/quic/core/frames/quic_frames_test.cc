@@ -111,7 +111,7 @@ TEST_F(QuicFramesTest, NewConnectionIdFrameToString) {
   QuicNewConnectionIdFrame new_connection_id_frame;
   QuicFrame frame(&new_connection_id_frame);
   SetControlFrameId(1, &frame);
-  QuicFrame frame_copy = CopyRetransmittableControlFrame(frame);
+  QuicFrame frame_copy = CopyRetransmissibleControlFrame(frame);
   EXPECT_EQ(1u, GetControlFrameId(frame_copy));
   new_connection_id_frame.connection_id = TestConnectionId(2);
   new_connection_id_frame.sequence_number = 2u;
@@ -132,7 +132,7 @@ TEST_F(QuicFramesTest, RetireConnectionIdFrameToString) {
   QuicRetireConnectionIdFrame retire_connection_id_frame;
   QuicFrame frame(&retire_connection_id_frame);
   SetControlFrameId(1, &frame);
-  QuicFrame frame_copy = CopyRetransmittableControlFrame(frame);
+  QuicFrame frame_copy = CopyRetransmissibleControlFrame(frame);
   EXPECT_EQ(1u, GetControlFrameId(frame_copy));
   retire_connection_id_frame.sequence_number = 1u;
   std::ostringstream stream;
@@ -281,7 +281,7 @@ TEST_F(QuicFramesTest, HandshakeDoneFrameToString) {
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 
-TEST_F(QuicFramesTest, QuicAckFreuqncyFrameToString) {
+TEST_F(QuicFramesTest, QuicAckFrequencyFrameToString) {
   QuicAckFrequencyFrame ack_frequency_frame;
   ack_frequency_frame.sequence_number = 1;
   ack_frequency_frame.packet_tolerance = 2;

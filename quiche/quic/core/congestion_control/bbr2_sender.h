@@ -61,7 +61,7 @@ class QUICHE_EXPORT Bbr2Sender final : public SendAlgorithmInterface {
 
   void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                     QuicPacketNumber packet_number, QuicByteCount bytes,
-                    HasRetransmittableData is_retransmittable) override;
+                    HasRetransmissibleData is_retransmissible) override;
 
   void OnPacketNeutered(QuicPacketNumber packet_number) override;
 

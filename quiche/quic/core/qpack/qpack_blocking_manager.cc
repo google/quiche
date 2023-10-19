@@ -112,7 +112,7 @@ bool QpackBlockingManager::blocking_allowed_on_stream(
   // If there are no blocked streams, then
   // |blocked_stream_count + 1 <= maximum_blocked_streams| because
   // |maximum_blocked_streams| is larger than zero.
-  // If there are are blocked streams, then
+  // If there are blocked streams, then
   // |blocked_stream_count + 1 <= maximum_blocked_streams| otherwise the method
   // would have returned false when |blocked_stream_count| was incremented.
   // Therefore blocking on |stream_id| is allowed.

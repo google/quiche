@@ -72,7 +72,7 @@ class QuicDefaultClientTest : public QuicTest {
       : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())) {
     // Creates and destroys a single client first which may open persistent
     // sockets when initializing platform dependencies like certificate
-    // verifier. Future creation of addtional clients will deterministically
+    // verifier. Future creation of additional clients will deterministically
     // open one socket per client.
     CreateAndInitializeQuicClient();
   }

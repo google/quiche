@@ -35,7 +35,7 @@ using QuicMessageId = uint32_t;
 // 62-bit numbers. However, we have decided to only support up to 2^32-1 streams
 // in order to reduce the size of data structures such as QuicStreamFrame
 // and QuicTransmissionInfo, as that allows them to fit in cache lines and has
-// visible perfomance impact.
+// visible performance impact.
 using QuicStreamId = uint32_t;
 
 // Count of stream IDs. Used in MAX_STREAMS and STREAMS_BLOCKED frames.
@@ -206,9 +206,9 @@ QUICHE_EXPORT std::string TransmissionTypeToString(
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                        TransmissionType transmission_type);
 
-enum HasRetransmittableData : uint8_t {
-  NO_RETRANSMITTABLE_DATA,
-  HAS_RETRANSMITTABLE_DATA,
+enum HasRetransmissibleData : uint8_t {
+  NO_RETRANSMISSIBLE_DATA,
+  HAS_RETRANSMISSIBLE_DATA,
 };
 
 enum IsHandshake : uint8_t { NOT_HANDSHAKE, IS_HANDSHAKE };
@@ -287,7 +287,7 @@ QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
 // Ietf frame types. These are defined in the IETF QUIC Specification.
 // Explicit values are given in the enum so that we can be sure that
 // the symbol will map to the correct stream type.
-// All types are defined here, even if we have not yet implmented the
+// All types are defined here, even if we have not yet implemented the
 // quic/core/stream/.... stuff needed.
 // Note: The protocol specifies that frame types are varint-62 encoded,
 // further stating that the shortest encoding must be used.  The current set of
@@ -794,7 +794,7 @@ struct QUICHE_EXPORT QuicOwnedPacketBuffer : public QuicPacketBuffer {
 
   QuicOwnedPacketBuffer(QuicOwnedPacketBuffer&& owned_buffer)
       : QuicPacketBuffer(std::move(owned_buffer)) {
-    // |owned_buffer| does not own a buffer any more.
+    // |owned_buffer| does not own a buffer anymore.
     owned_buffer.buffer = nullptr;
   }
 

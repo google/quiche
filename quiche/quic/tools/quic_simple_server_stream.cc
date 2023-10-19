@@ -301,7 +301,7 @@ void QuicSimpleServerStream::Respond(const QuicBackendResponse* response) {
     return;
   }
 
-  // Examing response status, if it was not pure integer as typical h2
+  // Examine response status, if it was not pure integer as typical h2
   // response status, send error response. Notice that
   // QuicHttpResponseCache push urls are strictly authority + path only,
   // scheme is not included (see |QuicHttpResponseCache::GetKey()|).

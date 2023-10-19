@@ -32,7 +32,7 @@ class QUICHE_EXPORT ClientProofSource {
 
   // Get the client certificate to be sent to the server with |server_hostname|
   // and its corresponding private key. It returns nullptr if the cert and key
-  // can not be found.
+  // cannot be found.
   //
   // |server_hostname| is typically a full domain name(www.foo.com), but it
   // could also be a wildcard domain(*.foo.com), or a "*" which will return the

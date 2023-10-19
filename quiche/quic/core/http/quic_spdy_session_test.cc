@@ -730,7 +730,7 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
     QuicStreamId stream_id = StreamCountToId(
         QuicSessionPeer::ietf_streamid_manager(&session_)
             ->max_incoming_bidirectional_streams(),
-        Perspective::IS_CLIENT,  // Client initates stream, allocs stream id.
+        Perspective::IS_CLIENT,  // Client initiates stream, allocs stream id.
         /*bidirectional=*/true);
     EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
     stream_id =
@@ -832,7 +832,7 @@ TEST_P(QuicSpdySessionTestServer, TooLargeStreamBlocked) {
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_.set_debug_visitor(&debug_visitor);
 
-  // Simualte the situation where the incoming stream count is at its limit and
+  // Simulate the situation where the incoming stream count is at its limit and
   // the peer is blocked.
   QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
       static_cast<QuicSession*>(&session_), QuicUtils::GetMaxStreamCount());
@@ -1180,7 +1180,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAndNoMoreMaxStreams) {
   for (QuicStreamCount i = 0; i < max_streams; ++i) {
     QuicStreamId stream_id = StreamCountToId(
         i + 1,
-        Perspective::IS_CLIENT,  // Client initates stream, allocs stream id.
+        Perspective::IS_CLIENT,  // Client initiates stream, allocs stream id.
         /*bidirectional=*/true);
     EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
 
@@ -1274,7 +1274,7 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
 
 // Test that server session will send a connectivity probe in response to a
 // connectivity probe on the same path.
-TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
+TEST_P(QuicSpdySessionTestServer, ServerReplyToConnectivityProbe) {
   if (VersionHasIetfQuicFrames(transport_version()) ||
       GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
     return;
@@ -1631,7 +1631,7 @@ TEST_P(QuicSpdySessionTestServer, WindowUpdateUnblocksHeadersStream) {
     return;
   }
 
-  // Test that a flow control blocked headers stream gets unblocked on recipt of
+  // Test that a flow control blocked headers stream gets unblocked on receipt of
   // a WINDOW_UPDATE frame.
 
   // Set the headers stream to be flow control blocked.
@@ -2559,10 +2559,10 @@ TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
   // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream->headers_decompressed());
 
-  // |session_| gets destoyed.  That destroys QpackDecoder, a member of
+  // |session_| gets destroyed.  That destroys QpackDecoder, a member of
   // QuicSpdySession (derived class), which destroys QpackDecoderHeaderTable.
   // Then |*stream|, owned by QuicSession (base class) get destroyed, which
-  // destroys QpackProgessiveDecoder, a registered Observer of
+  // destroys QpackProgressiveDecoder, a registered Observer of
   // QpackDecoderHeaderTable.  This must not cause a crash.
 }
 

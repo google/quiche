@@ -98,14 +98,14 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
   void SetupProofSourceHandle(
       FakeProofSourceHandle::Action select_cert_action,
       FakeProofSourceHandle::Action compute_signature_action,
-      QuicDelayedSSLConfig dealyed_ssl_config = QuicDelayedSSLConfig()) {
+      QuicDelayedSSLConfig delayed_ssl_config = QuicDelayedSSLConfig()) {
     EXPECT_CALL(*this, MaybeCreateProofSourceHandle())
         .WillOnce(
             testing::Invoke([this, select_cert_action, compute_signature_action,
-                             dealyed_ssl_config]() {
+                             delayed_ssl_config]() {
               auto handle = std::make_unique<FakeProofSourceHandle>(
                   proof_source_, this, select_cert_action,
-                  compute_signature_action, dealyed_ssl_config);
+                  compute_signature_action, delayed_ssl_config);
               fake_proof_source_handle_ = handle.get();
               return handle;
             }));
@@ -449,7 +449,7 @@ INSTANTIATE_TEST_SUITE_P(TlsServerHandshakerTests, TlsServerHandshakerTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
-TEST_P(TlsServerHandshakerTest, NotInitiallyConected) {
+TEST_P(TlsServerHandshakerTest, NotInitiallyConnected) {
   EXPECT_FALSE(server_stream()->encryption_established());
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
 }

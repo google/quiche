@@ -32,7 +32,7 @@ class QUICHE_EXPORT AsynchronousKeyExchange {
     // Invoked upon completion of CalculateSharedKeysAsync.
     //
     // |ok| indicates whether the operation completed successfully.  If false,
-    // then the value pointed to by |shared_key| passed in to
+    // then the value pointed to by |shared_key| passed into
     // CalculateSharedKeyAsync is undefined.
     virtual void Run(bool ok) = 0;
 
@@ -61,7 +61,7 @@ class QUICHE_EXPORT SynchronousKeyExchange : public AsynchronousKeyExchange {
  public:
   virtual ~SynchronousKeyExchange() = default;
 
-  // AyncKeyExchange API.  Note that this method is marked 'final.'  Subclasses
+  // AsyncKeyExchange API.  Note that this method is marked 'final.'  Subclasses
   // should implement CalculateSharedKeySync only.
   void CalculateSharedKeyAsync(absl::string_view peer_public_value,
                                std::string* shared_key,

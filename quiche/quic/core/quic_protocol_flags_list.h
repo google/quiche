@@ -165,15 +165,15 @@ QUIC_PROTOCOL_FLAG(
     "The maximum amount of CRYPTO frame data that can be buffered.")
 
 QUIC_PROTOCOL_FLAG(
-    int32_t, quic_max_aggressive_retransmittable_on_wire_ping_count, 5,
+    int32_t, quic_max_aggressive_retransmissible_on_wire_ping_count, 5,
     "Maximum number of consecutive pings that can be sent with the "
-    "aggressive initial retransmittable on the wire timeout if there is "
+    "aggressive initial retransmissible on the wire timeout if there is "
     "no new stream data received. After this limit, the timeout will be "
     "doubled each ping until it exceeds the default ping timeout.")
 
 QUIC_PROTOCOL_FLAG(
-    int32_t, quic_max_retransmittable_on_wire_ping_count, 1000,
-    "Maximum number of pings that can be sent with the retransmittable "
+    int32_t, quic_max_retransmissible_on_wire_ping_count, 1000,
+    "Maximum number of pings that can be sent with the retransmissible "
     "on the wire timeout, over the lifetime of a connection. After this "
     "limit, the timeout will be the default ping timeout.")
 

@@ -31,7 +31,7 @@ namespace simulator {
 //   PacketFilter filter(&simulator, "A-to-B packet filter", endpoint_a);
 //   SymmetricLink a_b_link(&filter, &endpoint_b, ...);
 //
-// Note that the filter drops the packet instanteneously, without it ever
+// Note that the filter drops the packet instantaneously, without it ever
 // reaching the output wire.  This means that in a direct endpoint-to-endpoint
 // scenario, whenever the packet is dropped, the link would become immediately
 // available for the next packet.

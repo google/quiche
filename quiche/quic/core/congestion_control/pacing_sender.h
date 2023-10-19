@@ -58,7 +58,7 @@ class QUICHE_EXPORT PacingSender {
 
   void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                     QuicPacketNumber packet_number, QuicByteCount bytes,
-                    HasRetransmittableData has_retransmittable_data);
+                    HasRetransmissibleData has_retransmissible_data);
 
   // Called when application throttles the sending, so that pacing sender stops
   // making up for lost time.
@@ -87,7 +87,7 @@ class QUICHE_EXPORT PacingSender {
 
   // Underlying sender. Not owned.
   SendAlgorithmInterface* sender_;
-  // If not QuicBandidth::Zero, the maximum rate the PacingSender will use.
+  // If not QuicBandwidth::Zero, the maximum rate the PacingSender will use.
   QuicBandwidth max_pacing_rate_;
 
   // Number of unpaced packets to be sent before packets are delayed.

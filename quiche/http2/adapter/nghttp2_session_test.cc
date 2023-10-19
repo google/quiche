@@ -180,7 +180,7 @@ TEST_F(NgHttp2SessionTest, ClientHandlesFrames) {
   const int64_t stream_result = session.ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), stream_result);
 
-  // Even though the client recieved a GOAWAY, streams 1 and 5 are still active.
+  // Even though the client received a GOAWAY, streams 1 and 5 are still active.
   EXPECT_TRUE(session.want_read());
 
   EXPECT_CALL(visitor_, OnFrameHeader(1, 0, DATA, 1));

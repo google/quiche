@@ -62,7 +62,7 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
 
 void LogCoalesceStreamFrameStatus(bool success) {
   QUIC_HISTOGRAM_BOOL("QuicSession.CoalesceStreamFrameStatus", success,
-                      "Success rate of coalesing stream frames attempt.");
+                      "Success rate of coalescing stream frames attempt.");
 }
 
 // ScopedPacketContextSwitcher saves |packet|'s states and change states
@@ -140,7 +140,7 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
 }
 
 QuicPacketCreator::~QuicPacketCreator() {
-  DeleteFrames(&packet_.retransmittable_frames);
+  DeleteFrames(&packet_.retransmissible_frames);
 }
 
 void QuicPacketCreator::SetEncrypter(EncryptionLevel level,
@@ -489,8 +489,8 @@ void QuicPacketCreator::ClearPacket() {
   QUIC_BUG_IF(quic_bug_12398_6, packet_.release_encrypted_buffer != nullptr)
       << ENDPOINT << "packet_.release_encrypted_buffer should be empty";
   packet_.release_encrypted_buffer = nullptr;
-  QUICHE_DCHECK(packet_.retransmittable_frames.empty()) << ENDPOINT;
-  QUICHE_DCHECK(packet_.nonretransmittable_frames.empty()) << ENDPOINT;
+  QUICHE_DCHECK(packet_.retransmissible_frames.empty()) << ENDPOINT;
+  QUICHE_DCHECK(packet_.nonretransmissible_frames.empty()) << ENDPOINT;
   packet_.largest_acked.Clear();
   needs_full_padding_ = false;
   packet_.bytes_not_retransmitted.reset();
@@ -501,8 +501,8 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
     const SerializedPacket& packet, size_t padding_size, char* buffer,
     size_t buffer_len) {
   QUIC_BUG_IF(quic_bug_12398_7, packet.encryption_level != ENCRYPTION_INITIAL);
-  QUIC_BUG_IF(quic_bug_12398_8, packet.nonretransmittable_frames.empty() &&
-                                    packet.retransmittable_frames.empty())
+  QUIC_BUG_IF(quic_bug_12398_8, packet.nonretransmissible_frames.empty() &&
+                                    packet.retransmissible_frames.empty())
       << ENDPOINT
       << "Attempt to serialize empty ENCRYPTION_INITIAL packet in coalesced "
          "packet";
@@ -517,14 +517,14 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
       packet.packet_number -
           1,  // -1 because serialize packet increase packet number.
       packet.packet_number_length, packet.encryption_level, &packet_);
-  for (const QuicFrame& frame : packet.nonretransmittable_frames) {
+  for (const QuicFrame& frame : packet.nonretransmissible_frames) {
     if (!AddFrame(frame, packet.transmission_type)) {
       QUIC_BUG(quic_bug_10752_6)
           << ENDPOINT << "Failed to serialize frame: " << frame;
       return 0;
     }
   }
-  for (const QuicFrame& frame : packet.retransmittable_frames) {
+  for (const QuicFrame& frame : packet.retransmissible_frames) {
     if (!AddFrame(frame, packet.transmission_type)) {
       QUIC_BUG(quic_bug_10752_7)
           << ENDPOINT << "Failed to serialize frame: " << frame;
@@ -560,8 +560,8 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
   const size_t encrypted_length = packet_.encrypted_length;
   // Clear frames in packet_. No need to DeleteFrames since frames are owned by
   // initial_packet.
-  packet_.retransmittable_frames.clear();
-  packet_.nonretransmittable_frames.clear();
+  packet_.retransmissible_frames.clear();
+  packet_.nonretransmissible_frames.clear();
   ClearPacket();
   return encrypted_length;
 }
@@ -672,7 +672,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
         << header.packet_number;
     return;
   }
-  // TODO(ianswett): Optimize the storage so RetransmitableFrames can be
+  // TODO(ianswett): Optimize the storage so RetransmissibleFrames can be
   // unioned with a QuicStreamFrame and a UniqueStreamBuffer.
   *num_bytes_consumed = bytes_consumed;
   packet_size_ = 0;
@@ -682,7 +682,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   packet_buffer.buffer = nullptr;
   packet_.release_encrypted_buffer = std::move(packet_buffer).release_buffer;
 
-  packet_.retransmittable_frames.push_back(QuicFrame(frame));
+  packet_.retransmissible_frames.push_back(QuicFrame(frame));
   OnSerializedPacket();
 }
 
@@ -694,12 +694,12 @@ std::string QuicPacketCreator::GetPendingFramesInfo() const {
   return QuicFramesToString(queued_frames_);
 }
 
-bool QuicPacketCreator::HasPendingRetransmittableFrames() const {
-  return !packet_.retransmittable_frames.empty();
+bool QuicPacketCreator::HasPendingRetransmissibleFrames() const {
+  return !packet_.retransmissible_frames.empty();
 }
 
 bool QuicPacketCreator::HasPendingStreamFramesOfStream(QuicStreamId id) const {
-  for (const auto& frame : packet_.retransmittable_frames) {
+  for (const auto& frame : packet_.retransmissible_frames) {
     if (frame.type == STREAM_FRAME && frame.stream_frame.stream_id == id) {
       return true;
     }
@@ -1116,7 +1116,7 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
     padding_size = coalesced.max_packet_length() - coalesced.length();
     if (framer_->perspective() == Perspective::IS_SERVER &&
         QuicUtils::ContainsFrameType(
-            coalesced.initial_packet()->retransmittable_frames,
+            coalesced.initial_packet()->retransmissible_frames,
             CONNECTION_CLOSE_FRAME)) {
       // Do not pad server initial connection close packet.
       padding_size = 0;
@@ -1140,12 +1140,12 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
         << ", coalesced.length: " << coalesced.length()
         << ", padding_size: " << padding_size
         << ", serialized_length: " << initial_length
-        << ", retransmittable frames: "
+        << ", retransmissible frames: "
         << QuicFramesToString(
-               coalesced.initial_packet()->retransmittable_frames)
-        << ", nonretransmittable frames: "
+               coalesced.initial_packet()->retransmissible_frames)
+        << ", nonretransmissible frames: "
         << QuicFramesToString(
-               coalesced.initial_packet()->nonretransmittable_frames);
+               coalesced.initial_packet()->nonretransmissible_frames);
     buffer += initial_length;
     buffer_len -= initial_length;
     packet_length += initial_length;
@@ -1273,14 +1273,14 @@ void QuicPacketCreator::SetRetryToken(absl::string_view retry_token) {
   retry_token_ = std::string(retry_token);
 }
 
-bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
+bool QuicPacketCreator::ConsumeRetransmissibleControlFrame(
     const QuicFrame& frame) {
   QUIC_BUG_IF(quic_bug_12398_16, IsControlFrame(frame.type) &&
                                      !GetControlFrameId(frame) &&
                                      frame.type != PING_FRAME)
       << ENDPOINT
       << "Adding a control frame with no control frame id: " << frame;
-  QUICHE_DCHECK(QuicUtils::IsRetransmittableFrame(frame.type))
+  QUICHE_DCHECK(QuicUtils::IsRetransmissibleFrame(frame.type))
       << ENDPOINT << frame;
   MaybeBundleOpportunistically();
   if (HasPendingFrames()) {
@@ -1291,7 +1291,7 @@ bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
   }
   QUICHE_DCHECK(!HasPendingFrames()) << ENDPOINT;
   if (frame.type != PING_FRAME && frame.type != CONNECTION_CLOSE_FRAME &&
-      !delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA,
+      !delegate_->ShouldGeneratePacket(HAS_RETRANSMISSIBLE_DATA,
                                        NOT_HANDSHAKE)) {
     // Do not check congestion window for ping or connection close frames.
     return false;
@@ -1317,8 +1317,8 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
   QUIC_BUG_IF(quic_bug_12398_17, has_handshake && fin)
       << ENDPOINT << "Handshake packets should never send a fin";
   // To make reasoning about crypto frames easier, we don't combine them with
-  // other retransmittable frames in a single packet.
-  if (has_handshake && HasPendingRetransmittableFrames()) {
+  // other retransmissible frames in a single packet.
+  if (has_handshake && HasPendingRetransmissibleFrames()) {
     FlushCurrentPacket();
   }
 
@@ -1343,7 +1343,7 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
 
   while (!run_fast_path &&
          (has_handshake || delegate_->ShouldGeneratePacket(
-                               HAS_RETRANSMITTABLE_DATA, NOT_HANDSHAKE))) {
+                               HAS_RETRANSMISSIBLE_DATA, NOT_HANDSHAKE))) {
     QuicFrame frame;
     bool needs_full_padding =
         has_handshake && fully_pad_crypto_handshake_packets_;
@@ -1389,7 +1389,7 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
                                total_bytes_consumed);
   }
 
-  // Don't allow the handshake to be bundled with other retransmittable frames.
+  // Don't allow the handshake to be bundled with other retransmissible frames.
   if (has_handshake) {
     FlushCurrentPacket();
   }
@@ -1408,7 +1408,7 @@ QuicConsumedData QuicPacketCreator::ConsumeDataFastPath(
   }
 
   while (total_bytes_consumed < write_length &&
-         delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA,
+         delegate_->ShouldGeneratePacket(HAS_RETRANSMISSIBLE_DATA,
                                          NOT_HANDSHAKE)) {
     // Serialize and encrypt the packet.
     size_t bytes_consumed = 0;
@@ -1441,11 +1441,11 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
          "generator tries to write crypto data.";
   MaybeBundleOpportunistically();
   // To make reasoning about crypto frames easier, we don't combine them with
-  // other retransmittable frames in a single packet.
+  // other retransmissible frames in a single packet.
   // TODO(nharper): Once we have separate packet number spaces, everything
   // should be driven by encryption level, and we should stop flushing in this
   // spot.
-  if (HasPendingRetransmittableFrames()) {
+  if (HasPendingRetransmissibleFrames()) {
     FlushCurrentPacket();
   }
 
@@ -1453,13 +1453,13 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
 
   while (
       total_bytes_consumed < write_length &&
-      delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA, IS_HANDSHAKE)) {
+      delegate_->ShouldGeneratePacket(HAS_RETRANSMISSIBLE_DATA, IS_HANDSHAKE)) {
     QuicFrame frame;
     if (!ConsumeCryptoDataToFillCurrentPacket(
             level, write_length - total_bytes_consumed,
             offset + total_bytes_consumed, fully_pad_crypto_handshake_packets_,
             next_transmission_type_, &frame)) {
-      // The only pending data in the packet is non-retransmittable frames.
+      // The only pending data in the packet is non-retransmissible frames.
       // I'm assuming here that they won't occupy so much of the packet that a
       // CRYPTO frame won't fit.
       QUIC_BUG_IF(quic_bug_10752_26, !HasSoftMaxPacketLength()) << absl::StrCat(
@@ -1475,7 +1475,7 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
     FlushCurrentPacket();
   }
 
-  // Don't allow the handshake to be bundled with other retransmittable frames.
+  // Don't allow the handshake to be bundled with other retransmissible frames.
   FlushCurrentPacket();
 
   return total_bytes_consumed;
@@ -1521,7 +1521,7 @@ void QuicPacketCreator::MaybeBundleOpportunistically() {
     // Ack already queued, nothing to do.
     return;
   }
-  if (!delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
+  if (!delegate_->ShouldGeneratePacket(NO_RETRANSMISSIBLE_DATA,
                                        NOT_HANDSHAKE)) {
     return;
   }
@@ -1553,7 +1553,7 @@ bool QuicPacketCreator::FlushAckFrame(const QuicFrames& frames) {
     QUICHE_DCHECK(!HasPendingFrames()) << ENDPOINT;
     // There is no pending frames, consult the delegate whether a packet can be
     // generated.
-    if (!delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
+    if (!delegate_->ShouldGeneratePacket(NO_RETRANSMISSIBLE_DATA,
                                          NOT_HANDSHAKE)) {
       return false;
     }
@@ -1596,7 +1596,7 @@ void QuicPacketCreator::Flush() {
 void QuicPacketCreator::SendRemainingPendingPadding() {
   while (
       pending_padding_bytes() > 0 && !HasPendingFrames() &&
-      delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA, NOT_HANDSHAKE)) {
+      delegate_->ShouldGeneratePacket(NO_RETRANSMISSIBLE_DATA, NOT_HANDSHAKE)) {
     FlushCurrentPacket();
   }
 }
@@ -1780,8 +1780,8 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
 
   packet_size_ += ExpansionOnNewFrame() + frame_len;
 
-  if (QuicUtils::IsRetransmittableFrame(frame.type)) {
-    packet_.retransmittable_frames.push_back(frame);
+  if (QuicUtils::IsRetransmissibleFrame(frame.type)) {
+    packet_.retransmissible_frames.push_back(frame);
     queued_frames_.push_back(frame);
     if (QuicUtils::IsHandshakeFrame(frame, framer_->transport_version())) {
       packet_.has_crypto_handshake = IS_HANDSHAKE;
@@ -1791,10 +1791,10 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
         frame.padding_frame.num_padding_bytes == -1) {
       // Populate the actual length of full padding frame, such that one can
       // know how much padding is actually added.
-      packet_.nonretransmittable_frames.push_back(
+      packet_.nonretransmissible_frames.push_back(
           QuicFrame(QuicPaddingFrame(frame_len)));
     } else {
-      packet_.nonretransmittable_frames.push_back(frame);
+      packet_.nonretransmissible_frames.push_back(frame);
     }
     queued_frames_.push_back(frame);
   }
@@ -1819,9 +1819,9 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   if (transmission_type == NOT_RETRANSMISSION) {
     packet_.bytes_not_retransmitted.emplace(
         packet_.bytes_not_retransmitted.value_or(0) + frame_len);
-  } else if (QuicUtils::IsRetransmittableFrame(frame.type)) {
-    // Packet transmission type is determined by the last added retransmittable
-    // frame of a retransmission type. If a packet has no retransmittable
+  } else if (QuicUtils::IsRetransmissibleFrame(frame.type)) {
+    // Packet transmission type is determined by the last added retransmissible
+    // frame of a retransmission type. If a packet has no retransmissible
     // retransmission frames, it has type NOT_RETRANSMISSION.
     packet_.transmission_type = transmission_type;
   }
@@ -1858,18 +1858,18 @@ bool QuicPacketCreator::MaybeCoalesceStreamFrame(const QuicStreamFrame& frame) {
   candidate->data_length += frame.data_length;
   candidate->fin = frame.fin;
 
-  // The back of retransmittable frames must be the same as the original
+  // The back of retransmissible frames must be the same as the original
   // queued frames' back.
-  QUICHE_DCHECK_EQ(packet_.retransmittable_frames.back().type, STREAM_FRAME)
+  QUICHE_DCHECK_EQ(packet_.retransmissible_frames.back().type, STREAM_FRAME)
       << ENDPOINT;
-  QuicStreamFrame* retransmittable =
-      &packet_.retransmittable_frames.back().stream_frame;
-  QUICHE_DCHECK_EQ(retransmittable->stream_id, frame.stream_id) << ENDPOINT;
-  QUICHE_DCHECK_EQ(retransmittable->offset + retransmittable->data_length,
+  QuicStreamFrame* retransmissible =
+      &packet_.retransmissible_frames.back().stream_frame;
+  QUICHE_DCHECK_EQ(retransmissible->stream_id, frame.stream_id) << ENDPOINT;
+  QUICHE_DCHECK_EQ(retransmissible->offset + retransmissible->data_length,
                    frame.offset)
       << ENDPOINT;
-  retransmittable->data_length = candidate->data_length;
-  retransmittable->fin = candidate->fin;
+  retransmissible->data_length = candidate->data_length;
+  retransmissible->fin = candidate->fin;
   packet_size_ += frame.data_length;
   if (debug_delegate_ != nullptr) {
     debug_delegate_->OnStreamFrameCoalesced(*candidate);
@@ -1938,7 +1938,7 @@ void QuicPacketCreator::MaybeAddPadding() {
     QuicFrame frame{QuicPaddingFrame(padding_bytes)};
     queued_frames_.insert(queued_frames_.begin(), frame);
     packet_size_ += padding_bytes;
-    packet_.nonretransmittable_frames.push_back(frame);
+    packet_.nonretransmissible_frames.push_back(frame);
     if (packet_.transmission_type == NOT_RETRANSMISSION) {
       packet_.bytes_not_retransmitted.emplace(
           packet_.bytes_not_retransmitted.value_or(0) + padding_bytes);
@@ -2247,7 +2247,7 @@ bool QuicPacketCreator::AddPaddedFrameWithRetry(const QuicFrame& frame) {
   }
   // Frame was not queued but queued frames were flushed.
   QUICHE_DCHECK(!HasPendingFrames()) << ENDPOINT;
-  if (!delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
+  if (!delegate_->ShouldGeneratePacket(NO_RETRANSMISSIBLE_DATA,
                                        NOT_HANDSHAKE)) {
     return false;
   }

@@ -113,7 +113,7 @@ void LegacyQuicStreamIdManager::OnStreamClosed(bool is_incoming) {
 
 bool LegacyQuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {
   if (!IsIncomingStream(id)) {
-    // Stream IDs under next_ougoing_stream_id_ are either open or previously
+    // Stream IDs under next_outgoing_stream_id_ are either open or previously
     // open but now closed.
     return id >= next_outgoing_stream_id_;
   }

@@ -68,7 +68,7 @@ TEST(QuicSocketAddress, FromSockaddrIPv6) {
   EXPECT_EQ("[::1]:443", QuicSocketAddress(address.storage).ToString());
 }
 
-TEST(QuicSocketAddres, ToSockaddrIPv4) {
+TEST(QuicSocketAddress, ToSockaddrIPv4) {
   union {
     sockaddr_storage storage;
     sockaddr_in v4;

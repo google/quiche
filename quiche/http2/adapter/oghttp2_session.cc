@@ -36,7 +36,7 @@ const int kSendError = -902;
 
 constexpr absl::string_view kHeadValue = "HEAD";
 
-// TODO(birenroy): Consider incorporating spdy::FlagsSerializionVisitor here.
+// TODO(birenroy): Consider incorporating spdy::FlagsSerializationVisitor here.
 class FrameAttributeCollector : public spdy::SpdyFrameVisitor {
  public:
   FrameAttributeCollector() = default;
@@ -1158,7 +1158,7 @@ void OgHttp2Session::OnStreamPadLength(spdy::SpdyStreamId stream_id,
 void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId /*stream_id*/, size_t
                                      /*len*/) {
   // Flow control was accounted for in OnStreamPadLength().
-  // TODO(181586191): Pass padding to the visitor?
+  // TODO(b/181586191): Pass padding to the visitor?
 }
 
 spdy::SpdyHeadersHandlerInterface* OgHttp2Session::OnHeaderFrameStart(
@@ -1473,7 +1473,7 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
         LatchErrorAndNotify(Http2ErrorCode::PROTOCOL_ERROR,
                             ConnectionError::kWrongFrameSequence);
       }
-      // Do not inform the visitor of a WINDOW_UPDATE for a non-existent stream.
+      // Do not inform the visitor of a WINDOW_UPDATE for a nonexistent stream.
       return;
     } else {
       if (streams_reset_.contains(stream_id)) {

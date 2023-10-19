@@ -332,7 +332,7 @@ QuicErrorCode QuicSelfIssuedConnectionIdManager::OnRetireConnectionIdFrame(
     std::string* error_detail) {
   QUICHE_DCHECK(!active_connection_ids_.empty());
   if (frame.sequence_number >= next_connection_id_sequence_number_) {
-    *error_detail = "To be retired connecton ID is never issued.";
+    *error_detail = "To be retired connection ID is never issued.";
     return IETF_QUIC_PROTOCOL_VIOLATION;
   }
 
@@ -347,8 +347,8 @@ QuicErrorCode QuicSelfIssuedConnectionIdManager::OnRetireConnectionIdFrame(
   }
 
   if (to_be_retired_connection_ids_.size() + active_connection_ids_.size() >=
-      kMaxNumConnectonIdsInUse) {
-    // Close connection if the number of connection IDs in use will exeed the
+      kMaxNumConnectionIdsInUse) {
+    // Close connection if the number of connection IDs in use will exceed the
     // limit, i.e., peer retires connection ID too fast.
     *error_detail = "There are too many connection IDs in use.";
     return QUIC_TOO_MANY_CONNECTION_ID_WAITING_TO_RETIRE;

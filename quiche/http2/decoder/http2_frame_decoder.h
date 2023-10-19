@@ -8,7 +8,7 @@
 // Http2FrameDecoder decodes the available input until it reaches the end of
 // the input or it reaches the end of the first frame in the input.
 // Note that Http2FrameDecoder does only minimal validation; for example,
-// stream ids are not checked, nor is the sequence of frames such as
+// stream ids are not checked, neither is the sequence of frames such as
 // CONTINUATION frame placement.
 //
 // Http2FrameDecoder enters state kError once it has called the listener's

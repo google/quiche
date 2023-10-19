@@ -81,7 +81,7 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
         client_session.GetMutableCryptoStream(),
         AlpnForVersion(client_connection->version()));
 
-    // For some reason, the test client can not receive the server settings and
+    // For some reason, the test client cannot receive the server settings and
     // the SSL_SESSION will not be inserted to client's session_cache. We create
     // a dummy settings and call SetServerApplicationStateForResumption manually
     // to ensure the SSL_SESSION is cached.

@@ -69,12 +69,12 @@ class PacingSenderTest : public QuicTest {
                                         lost_packets, 0, 0);
     } else if (burst_size != kInitialBurstPackets) {
       QUIC_LOG(FATAL) << "Unsupported burst_size " << burst_size
-                      << " specificied, only 0 and " << kInitialBurstPackets
+                      << " specified, only 0 and " << kInitialBurstPackets
                       << " are supported.";
     }
   }
 
-  void CheckPacketIsSentImmediately(HasRetransmittableData retransmittable_data,
+  void CheckPacketIsSentImmediately(HasRetransmissibleData retransmissible_data,
                                     QuicByteCount prior_in_flight,
                                     bool in_recovery, QuicPacketCount cwnd) {
     // In order for the packet to be sendable, the underlying sender must
@@ -95,7 +95,7 @@ class PacingSenderTest : public QuicTest {
     }
     EXPECT_CALL(*mock_sender_,
                 OnPacketSent(clock_.Now(), prior_in_flight, packet_number_,
-                             kMaxOutgoingPacketSize, retransmittable_data));
+                             kMaxOutgoingPacketSize, retransmissible_data));
     EXPECT_CALL(*mock_sender_, GetCongestionWindow())
         .WillRepeatedly(Return(cwnd * kDefaultTCPMSS));
     EXPECT_CALL(*mock_sender_,
@@ -105,11 +105,11 @@ class PacingSenderTest : public QuicTest {
                                (cwnd * kDefaultTCPMSS)));
     pacing_sender_->OnPacketSent(clock_.Now(), prior_in_flight,
                                  packet_number_++, kMaxOutgoingPacketSize,
-                                 retransmittable_data);
+                                 retransmissible_data);
   }
 
   void CheckPacketIsSentImmediately() {
-    CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA, kBytesInFlight,
+    CheckPacketIsSentImmediately(HAS_RETRANSMISSIBLE_DATA, kBytesInFlight,
                                  false, 10);
   }
 
@@ -251,7 +251,7 @@ TEST_F(PacingSenderTest, InitialBurst) {
   CheckPacketIsSentImmediately();
   // Next time TimeUntilSend is called with no bytes in flight, pacing should
   // allow a packet to be sent, and when it's sent, the tokens are refilled.
-  CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA, 0, false, 10);
+  CheckPacketIsSentImmediately(HAS_RETRANSMISSIBLE_DATA, 0, false, 10);
   for (int i = 0; i < kInitialBurstPackets - 1; ++i) {
     CheckPacketIsSentImmediately();
   }
@@ -295,7 +295,7 @@ TEST_F(PacingSenderTest, InitialBurstNoRttMeasurement) {
 
   // Next time TimeUntilSend is called with no bytes in flight, the tokens
   // should be refilled and there should be no delay.
-  CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA, 0, false, 10);
+  CheckPacketIsSentImmediately(HAS_RETRANSMISSIBLE_DATA, 0, false, 10);
   // Send 10 packets, and verify that they are not paced.
   for (int i = 0; i < kInitialBurstPackets - 1; ++i) {
     CheckPacketIsSentImmediately();
@@ -343,7 +343,7 @@ TEST_F(PacingSenderTest, FastSending) {
 
   // Next time TimeUntilSend is called with no bytes in flight, the tokens
   // should be refilled and there should be no delay.
-  CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA, 0, false, 10);
+  CheckPacketIsSentImmediately(HAS_RETRANSMISSIBLE_DATA, 0, false, 10);
   for (int i = 0; i < kInitialBurstPackets - 1; ++i) {
     CheckPacketIsSentImmediately();
   }
@@ -395,7 +395,7 @@ TEST_F(PacingSenderTest, NoBurstInRecovery) {
   UpdateRtt();
 
   // Ensure only one packet is sent immediately and the rest are paced.
-  CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA, 0, true, 10);
+  CheckPacketIsSentImmediately(HAS_RETRANSMISSIBLE_DATA, 0, true, 10);
   CheckPacketIsSentImmediately();
   CheckPacketIsDelayed(QuicTime::Delta::FromMilliseconds(2));
 }
@@ -419,7 +419,7 @@ TEST_F(PacingSenderTest, CwndLimited) {
   // This test is slightly odd because bytes_in_flight is calculated using
   // kMaxOutgoingPacketSize and CWND is calculated using kDefaultTCPMSS,
   // which is 8 bytes larger, so 3 packets can be sent for a CWND of 2.
-  CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA,
+  CheckPacketIsSentImmediately(HAS_RETRANSMISSIBLE_DATA,
                                2 * kMaxOutgoingPacketSize, false, 2);
 
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(100));
@@ -475,12 +475,12 @@ TEST_F(PacingSenderTest, LumpyPacingWithInitialBurstToken) {
   // This test is slightly odd because bytes_in_flight is calculated using
   // kMaxOutgoingPacketSize and CWND is calculated using kDefaultTCPMSS,
   // which is 8 bytes larger, so 21 packets can be sent for a CWND of 20.
-  CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA,
+  CheckPacketIsSentImmediately(HAS_RETRANSMISSIBLE_DATA,
                                20 * kMaxOutgoingPacketSize, false, 20);
 
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(100));
   // Suppose cwnd size is 5, so that lumpy size becomes 2.
-  CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA, kBytesInFlight, false,
+  CheckPacketIsSentImmediately(HAS_RETRANSMISSIBLE_DATA, kBytesInFlight, false,
                                5);
   CheckPacketIsSentImmediately();
   // Packet 24 will be delayed 2ms.
@@ -528,13 +528,13 @@ TEST_F(PacingSenderTest, NoBurstsForLumpyPacingWithAckAggregation) {
     CheckPacketIsSentImmediately();
   }
   // The last packet of the burst causes the sender to be CWND limited.
-  CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA,
+  CheckPacketIsSentImmediately(HAS_RETRANSMISSIBLE_DATA,
                                10 * kMaxOutgoingPacketSize, false, 10);
 
   // The last sent packet made the connection CWND limited, so no lumpy tokens
   // should be available.
   EXPECT_EQ(0u, pacing_sender_->lumpy_tokens());
-  CheckPacketIsSentImmediately(HAS_RETRANSMITTABLE_DATA,
+  CheckPacketIsSentImmediately(HAS_RETRANSMISSIBLE_DATA,
                                10 * kMaxOutgoingPacketSize, false, 10);
   EXPECT_EQ(0u, pacing_sender_->lumpy_tokens());
   CheckPacketIsDelayed(2 * inter_packet_delay);

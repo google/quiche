@@ -85,9 +85,9 @@ class QUICHE_EXPORT QuicUtils {
   // once, or if it's a crypto packet we never expect to receive an ack for.
   static bool IsAckable(SentPacketState state);
 
-  // Returns true if frame with |type| is retransmittable. A retransmittable
+  // Returns true if frame with |type| is retransmissible. A retransmissible
   // frame should be retransmitted if it is detected as lost.
-  static bool IsRetransmittableFrame(QuicFrameType type);
+  static bool IsRetransmissibleFrame(QuicFrameType type);
 
   // Returns true if |frame| is a handshake frame in version |version|.
   static bool IsHandshakeFrame(const QuicFrame& frame,
@@ -215,7 +215,7 @@ class QUICHE_EXPORT QuicUtils {
   static bool AreStatelessResetTokensEqual(const StatelessResetToken& token1,
                                            const StatelessResetToken& token2);
 
-  // Return ture if this frame is an ack-eliciting frame.
+  // Return true if this frame is an ack-eliciting frame.
   static bool IsAckElicitingFrame(QuicFrameType type);
 };
 

@@ -42,7 +42,7 @@ class QUICHE_EXPORT ProofVerifierCallback {
   virtual ~ProofVerifierCallback() {}
 
   // Run is called on the original thread to mark the completion of an
-  // asynchonous verification. If |ok| is true then the certificate is valid
+  // asynchronous verification. If |ok| is true then the certificate is valid
   // and |error_details| is unused. Otherwise, |error_details| contains a
   // description of the error. |details| contains implementation-specific
   // details of the verification. |Run| may take ownership of |details| by

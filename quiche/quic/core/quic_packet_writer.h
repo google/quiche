@@ -81,7 +81,7 @@ class QUICHE_EXPORT QuicPacketWriter {
   // If the writer is blocked, return WRITE_STATUS_BLOCKED immediately.
   // If the packet can be batched with other buffered packets, save the packet
   // to the internal buffer.
-  // If the packet can not be batched, or the internal buffer is near full after
+  // If the packet cannot be batched, or the internal buffer is near full after
   // it is buffered, the internal buffer is flushed to free up space.
   // Return WriteResult(WRITE_STATUS_OK, <bytes_flushed>) on success. When
   // <bytes_flushed> is zero, it means the packet is buffered and not flushed.
@@ -170,8 +170,8 @@ class QUICHE_EXPORT QuicPacketWriter {
   // - Return WRITE_STATUS_BLOCKED if the underlying socket is blocked while
   //   sending. Some packets may have been sent, packets not sent will stay in
   //   the internal buffer.
-  // - Return a status >= WRITE_STATUS_ERROR if an error was encuontered while
-  //   sending. As this is not a re-tryable error, any batched packets which
+  // - Return a status >= WRITE_STATUS_ERROR if an error was encountered while
+  //   sending. As this is not a retryable error, any batched packets which
   //   were on memory acquired via GetNextWriteLocation() should be released and
   //   the batch should be dropped.
   virtual WriteResult Flush() = 0;

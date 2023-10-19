@@ -13,7 +13,7 @@
 namespace quic {
 
 // QuicInlinedFrame is the base class of all frame types that is inlined in the
-// QuicFrame class. It gurantees all inlined frame types contain a 'type' field
+// QuicFrame class. It guarantees all inlined frame types contain a 'type' field
 // at offset 0, such that QuicFrame.type can get the correct frame type for both
 // inline and out-of-line frame types.
 template <typename DerivedT>

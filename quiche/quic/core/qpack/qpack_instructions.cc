@@ -16,7 +16,7 @@ namespace {
 // Validate that
 //  * in each instruction, the bits of |value| that are zero in |mask| are zero;
 //  * every byte matches exactly one opcode.
-void ValidateLangague(const QpackLanguage* language) {
+void ValidateLanguage(const QpackLanguage* language) {
 #ifndef NDEBUG
   for (const auto* instruction : *language) {
     QUICHE_DCHECK_EQ(0, instruction->opcode.value & ~instruction->opcode.mask);
@@ -85,7 +85,7 @@ const QpackLanguage* QpackEncoderStreamLanguage() {
       InsertWithNameReferenceInstruction(),
       InsertWithoutNameReferenceInstruction(), DuplicateInstruction(),
       SetDynamicTableCapacityInstruction()};
-  ValidateLangague(language);
+  ValidateLanguage(language);
   return language;
 }
 
@@ -117,7 +117,7 @@ const QpackLanguage* QpackDecoderStreamLanguage() {
   static const QpackLanguage* const language = new QpackLanguage{
       InsertCountIncrementInstruction(), HeaderAcknowledgementInstruction(),
       StreamCancellationInstruction()};
-  ValidateLangague(language);
+  ValidateLanguage(language);
   return language;
 }
 
@@ -136,7 +136,7 @@ const QpackInstruction* QpackPrefixInstruction() {
 const QpackLanguage* QpackPrefixLanguage() {
   static const QpackLanguage* const language =
       new QpackLanguage{QpackPrefixInstruction()};
-  ValidateLangague(language);
+  ValidateLanguage(language);
   return language;
 }
 
@@ -196,7 +196,7 @@ const QpackLanguage* QpackRequestStreamLanguage() {
                         QpackLiteralHeaderFieldNameReferenceInstruction(),
                         QpackLiteralHeaderFieldPostBaseInstruction(),
                         QpackLiteralHeaderFieldInstruction()};
-  ValidateLangague(language);
+  ValidateLanguage(language);
   return language;
 }
 

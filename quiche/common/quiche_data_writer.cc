@@ -214,7 +214,7 @@ bool QuicheDataWriter::WriteVarInt62(uint64_t value) {
     }
     return false;
   }
-  // Can not encode, high 2 bits not 0
+  // Cannot encode, high 2 bits not 0
   return false;
 }
 

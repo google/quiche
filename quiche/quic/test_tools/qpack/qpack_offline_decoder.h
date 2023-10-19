@@ -39,7 +39,7 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
 
  private:
   // Data structure to hold TestHeadersHandler and QpackProgressiveDecoder until
-  // decoding of a header header block (and all preceding header blocks) is
+  // decoding of a header block (and all preceding header blocks) is
   // complete.
   struct Decoder {
     std::unique_ptr<test::TestHeadersHandler> headers_handler;

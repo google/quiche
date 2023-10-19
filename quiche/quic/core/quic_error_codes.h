@@ -24,7 +24,7 @@ enum QuicRstStreamErrorCode : uint32_t {
   QUIC_ERROR_PROCESSING_STREAM = 1,
   // We got two fin or reset offsets which did not match.
   QUIC_MULTIPLE_TERMINATION_OFFSETS = 2,
-  // We got bad payload and can not respond to it at the protocol level.
+  // We got bad payload and cannot respond to it at the protocol level.
   QUIC_BAD_APPLICATION_PAYLOAD = 3,
   // Stream closed due to connection error. No reset frame is sent when this
   // happens.
@@ -274,7 +274,7 @@ enum QuicErrorCode : uint32_t {
   // A crypto message was received that contained a parameter with too few
   // values.
   QUIC_CRYPTO_MESSAGE_INDEX_NOT_FOUND = 37,
-  // A demand for an unsupport proof type was received.
+  // A demand for an unsupported proof type was received.
   QUIC_UNSUPPORTED_PROOF_DEMAND = 94,
   // An internal error occurred in crypto processing.
   QUIC_CRYPTO_INTERNAL_ERROR = 38,
@@ -456,7 +456,7 @@ enum QuicErrorCode : uint32_t {
   // Insert Count Increment instruction causes uint64_t overflow.
   QUIC_QPACK_DECODER_STREAM_INCREMENT_OVERFLOW = 188,
   // Insert Count Increment instruction increases Known Received Count beyond
-  // inserted entry cound.
+  // inserted entry count.
   QUIC_QPACK_DECODER_STREAM_IMPOSSIBLE_INSERT_COUNT = 189,
   // Header Acknowledgement received for stream that has no outstanding header
   // blocks.
@@ -560,11 +560,11 @@ enum QuicErrorCode : uint32_t {
   QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT = 150,
 
   // Stream/flow control limit from 1-RTT handshake is too low to retransmit
-  // 0-RTT data. This is our implentation error. We could in theory keep the
+  // 0-RTT data. This is our implementation error. We could in theory keep the
   // connection alive but chose not to for simplicity.
-  QUIC_ZERO_RTT_UNRETRANSMITTABLE = 161,
+  QUIC_ZERO_RTT_UNRETRANSMISSIBLE = 161,
   // Stream/flow control limit from 0-RTT rejection reduces cached limit.
-  // This is our implentation error. We could in theory keep the connection
+  // This is our implementation error. We could in theory keep the connection
   // alive but chose not to for simplicity.
   QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED = 162,
   // Stream/flow control limit from 0-RTT resumption reduces cached limit.

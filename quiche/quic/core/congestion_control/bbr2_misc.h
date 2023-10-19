@@ -342,7 +342,7 @@ class QUICHE_EXPORT Bbr2NetworkModel {
 
   void OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                     QuicPacketNumber packet_number, QuicByteCount bytes,
-                    HasRetransmittableData is_retransmittable);
+                    HasRetransmissibleData is_retransmissible);
 
   void OnCongestionEventStart(QuicTime event_time,
                               const AckedPacketVector& acked_packets,
@@ -381,7 +381,7 @@ class QUICHE_EXPORT Bbr2NetworkModel {
 
   QuicTime MinRttTimestamp() const { return min_rtt_filter_.GetTimestamp(); }
 
-  // TODO(wub): If we do this too frequently, we can potentailly postpone
+  // TODO(wub): If we do this too frequently, we can potentially postpone
   // PROBE_RTT indefinitely. Observe how it works in production and improve it.
   void PostponeMinRttTimestamp(QuicTime::Delta duration) {
     min_rtt_filter_.ForceUpdate(MinRtt(), MinRttTimestamp() + duration);

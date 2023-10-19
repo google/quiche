@@ -40,7 +40,7 @@ TEST(NoopHeaderValidatorTest, ExceedsMaxSize) {
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK, status);
   status = v.ValidateSingleHeader(
       "name2",
-      "Antidisestablishmentariansism is supercalifragilisticexpialodocious.");
+      "Antidisestablishmentariansism is supercalifragilisticexpealidocious.");
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK, status);
 }
 
@@ -227,7 +227,7 @@ TEST(NoopHeaderValidatorTest, WebsocketPseudoHeaders) {
   }
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":protocol", "websocket"));
-  // After allowing the method, `:protocol` is acepted for CONNECT requests.
+  // After allowing the method, `:protocol` is accepted for CONNECT requests.
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 }
 

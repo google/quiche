@@ -890,7 +890,7 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
 
   absl::string_view response_code() const override {
     // Note: There is no difference between request_uri() and response_code().
-    // They both could be called GetSecondtTokenFromFirstline(), but, as noted
+    // They both could be called GetSecondTokenFromFirstline(), but, as noted
     // in an earlier comment, that wouldn't be as descriptive.
     return request_uri();
   }

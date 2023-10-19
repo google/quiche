@@ -477,7 +477,7 @@ class QUICHE_EXPORT SpdyFramerVisitorInterface {
   // |len| The length of the header data buffer. A length of zero indicates
   //       that the header data block has been completely sent.
   // When this function returns true the visitor indicates that it accepted
-  // all of the data. Returning false indicates that that an error has
+  // all of the data. Returning false indicates that an error has
   // occurred while processing the data. Default implementation returns true.
   virtual bool OnGoAwayFrameData(const char* goaway_data, size_t len);
 

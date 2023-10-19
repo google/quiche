@@ -93,7 +93,7 @@ QuicGenericSessionBase::~QuicGenericSessionBase() {
 }
 
 QuicStream* QuicGenericSessionBase::CreateIncomingStream(QuicStreamId id) {
-  QUIC_DVLOG(1) << "Creating incoming QuicGenricStream " << id;
+  QUIC_DVLOG(1) << "Creating incoming QuicGenericStream " << id;
   QuicGenericStream* stream = CreateStream(id);
   if (stream->type() == BIDIRECTIONAL) {
     incoming_bidirectional_streams_.push_back(id);

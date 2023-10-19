@@ -47,7 +47,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
 
   ~QuicSimpleServerSession() override;
 
-  // Override base class to detact client sending data on server push stream.
+  // Override base class to detect client sending data on server push stream.
   void OnStreamFrame(const QuicStreamFrame& frame) override;
 
  protected:

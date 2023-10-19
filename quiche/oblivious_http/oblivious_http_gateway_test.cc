@@ -116,14 +116,14 @@ TEST(ObliviousHttpGateway, TestObliviousResponseHandling) {
   auto instance =
       ObliviousHttpGateway::Create(GetHpkePrivateKey(), ohttp_key_config);
   ASSERT_TRUE(instance.ok());
-  auto encapsualte_request_on_client =
+  auto encapsulate_request_on_client =
       ObliviousHttpRequest::CreateClientObliviousRequest(
           "test", GetHpkePublicKey(), ohttp_key_config);
-  ASSERT_TRUE(encapsualte_request_on_client.ok());
+  ASSERT_TRUE(encapsulate_request_on_client.ok());
   // Setup Recipient to allow setting up the HPKE context, and subsequently use
   // it to encrypt the response.
   auto decapsulated_req_on_server = instance->DecryptObliviousHttpRequest(
-      encapsualte_request_on_client->EncapsulateAndSerialize());
+      encapsulate_request_on_client->EncapsulateAndSerialize());
   ASSERT_TRUE(decapsulated_req_on_server.ok());
   auto server_request_context =
       std::move(decapsulated_req_on_server.value()).ReleaseContext();

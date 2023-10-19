@@ -122,12 +122,12 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
                 IsQuicNoError());
 
     // Start to use CID #1 for alternative path.
-    const QuicConnectionIdData* aternative_connection_id_data =
+    const QuicConnectionIdData* alternative_connection_id_data =
         peer_issued_cid_manager_.ConsumeOneUnusedConnectionId();
-    ASSERT_THAT(aternative_connection_id_data, testing::NotNull());
-    EXPECT_EQ(aternative_connection_id_data->connection_id,
+    ASSERT_THAT(alternative_connection_id_data, testing::NotNull());
+    EXPECT_EQ(alternative_connection_id_data->connection_id,
               TestConnectionId(1));
-    EXPECT_EQ(aternative_connection_id_data->stateless_reset_token,
+    EXPECT_EQ(alternative_connection_id_data->stateless_reset_token,
               frame.stateless_reset_token);
 
     // Connection migration succeed. Prepares to retire CID #0.
@@ -1008,7 +1008,7 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
 }
 
 TEST_F(QuicSelfIssuedConnectionIdManagerTest,
-       DoNotIssueConnectionIdVoluntarilyIfOneHasIssuedForPerferredAddress) {
+       DoNotIssueConnectionIdVoluntarilyIfOneHasIssuedForPreferredAddress) {
   QuicConnectionId cid0 = initial_connection_id_;
   QuicConnectionId cid1 = CheckGenerate(cid0);
   EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid1))
@@ -1039,7 +1039,7 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
   QuicRetireConnectionIdFrame retire_cid_frame(/*control_frame_id=*/0,
                                                /*sequence_number=*/1);
   QuicConnectionId cid2 = CheckGenerate(cid1);
-  // This happens when cid2 is aleady present in the dispatcher map.
+  // This happens when cid2 is already present in the dispatcher map.
   EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid2))
       .WillOnce(Return(false));
   std::string error_details;

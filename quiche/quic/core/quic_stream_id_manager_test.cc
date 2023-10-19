@@ -249,7 +249,7 @@ TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrame) {
 
   // The STREAMS_BLOCKED frame contains the previous advertised count,
   // not the one that the peer would have received as a result of the
-  // MAX_STREAMS sent earler.
+  // MAX_STREAMS sent earlier.
   frame.stream_count = advertised_stream_count;
 
   EXPECT_CALL(delegate_, CanSendMaxStreams()).WillOnce(testing::Return(true));
@@ -292,11 +292,11 @@ TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrameCantSend) {
 
   // The STREAMS_BLOCKED frame contains the previous advertised count,
   // not the one that the peer would have received as a result of the
-  // MAX_STREAMS sent earler.
+  // MAX_STREAMS sent earlier.
   frame.stream_count = advertised_stream_count;
 
   // Since the delegate returns false, no MAX_STREAMS frame should be sent,
-  // and the advertised limit should not increse.
+  // and the advertised limit should not increase.
   EXPECT_CALL(delegate_, CanSendMaxStreams()).WillOnce(testing::Return(false));
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
 

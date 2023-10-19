@@ -81,7 +81,7 @@ class MockableQuicClient : public QuicDefaultClient {
   QuicConnectionId override_client_connection_id_;
   bool client_connection_id_overridden_;
   int override_client_connection_id_length_ = -1;
-  CachedNetworkParameters cached_network_paramaters_;
+  CachedNetworkParameters cached_network_parameters_;
 };
 
 // A toy QUIC client used for testing.

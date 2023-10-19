@@ -2679,7 +2679,7 @@ TEST_P(QuicFramerTest, AckFrameOneAckBlock) {
        {kVarInt62OneByte + 0x00}},
        // first ack block length - 1.
        // IETF Quic defines the ack block's value as the "number of
-       // packets that preceed the largest packet number in the block"
+       // packets that precede the largest packet number in the block"
        // which for the 1st ack block is the largest acked field,
        // above. This means that if we are acking just packet 0x1234
        // then the 1st ack block will be 0.
@@ -3065,8 +3065,8 @@ TEST_P(QuicFramerTest, AckBlockAcksEverything) {
 TEST_P(QuicFramerTest, AckFrameFirstAckBlockLengthZero) {
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     // Not applicable to version 99 -- first ack block contains the
-    // number of packets that preceed the largest_acked packet.
-    // A value of 0 means no packets preceed --- that the block's
+    // number of packets that precede the largest_acked packet.
+    // A value of 0 means no packets precede --- that the block's
     // length is 1. Therefore the condition that this test checks can
     // not arise.
     return;
@@ -3320,7 +3320,7 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
          { kVarInt62TwoBytes + 0x0e, 0xae }},   // 3759
 
        // pre-version-99 test includes an ack block of 0 length. this
-       // can not happen in version 99. ergo the second block is not
+       // cannot happen in version 99. ergo the second block is not
        // present in the v99 test and the gap length of the next block
        // is the sum of the two gaps in the pre-version-99 tests.
        // Additional ACK Block #2
@@ -4526,7 +4526,7 @@ TEST_P(QuicFramerTest, MaxDataFrame) {
       {"",
        {0x10}},
       // byte offset
-      {"Can not read MAX_DATA byte-offset",
+      {"Cannot read MAX_DATA byte-offset",
        {kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
         0x32, 0x10, 0x76, 0x54}},
   };
@@ -4573,7 +4573,7 @@ TEST_P(QuicFramerTest, MaxStreamDataFrame) {
       {"Unable to read IETF_MAX_STREAM_DATA frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       // byte offset
-      {"Can not read MAX_STREAM_DATA byte-count",
+      {"Cannot read MAX_STREAM_DATA byte-count",
        {kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
         0x32, 0x10, 0x76, 0x54}},
   };
@@ -4633,7 +4633,7 @@ TEST_P(QuicFramerTest, BlockedFrame) {
       {"Unable to read IETF_STREAM_DATA_BLOCKED frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       // Offset
-      {"Can not read stream blocked offset.",
+      {"Cannot read stream blocked offset.",
        {kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54}},
   };
   // clang-format on
@@ -8076,7 +8076,7 @@ TEST_P(QuicFramerTest, BuildAckFrequencyPacket) {
     0x05,
     // max_ack_delay_us
     0x7f, 0xff,
-    // ignore_oder
+    // ignore_order
     0x00
   };
   // clang-format on
@@ -8990,7 +8990,7 @@ TEST_P(QuicFramerTest, IetfBlockedFrame) {
       {"",
        {0x14}},
       // blocked offset
-      {"Can not read blocked offset.",
+      {"Cannot read blocked offset.",
        {kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54}},
   };
   // clang-format on
@@ -9075,7 +9075,7 @@ TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
       // blocked offset
       {"Unable to read IETF_STREAM_DATA_BLOCKED frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
-      {"Can not read stream blocked offset.",
+      {"Cannot read stream blocked offset.",
        {kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54}},
   };
   // clang-format on
@@ -9950,7 +9950,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
        {0x08}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11}},
-      {"Can not read new connection ID frame reset token.",
+      {"Cannot read new connection ID frame reset token.",
        {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
         0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f}}
   };
@@ -10009,7 +10009,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
        {0x09}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42}},
-      {"Can not read new connection ID frame reset token.",
+      {"Cannot read new connection ID frame reset token.",
        {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
         0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f}}
   };
@@ -10077,7 +10077,7 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
         0xF0, 0xD2, 0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E,
         0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
         0xF0, 0xD2, 0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E}},
-      {"Can not read new connection ID frame reset token.",
+      {"Cannot read new connection ID frame reset token.",
        {0xb5, 0x69, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
   };
@@ -10122,7 +10122,7 @@ TEST_P(QuicFramerTest, InvalidRetirePriorToNewConnectionIdFrame) {
        {0x08}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11}},
-      {"Can not read new connection ID frame reset token.",
+      {"Cannot read new connection ID frame reset token.",
        {0xb5, 0x69, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
   };
@@ -10400,7 +10400,7 @@ TEST_P(QuicFramerTest, IetfPathChallengeFrame) {
       {"",
        {0x1a}},
       // data
-      {"Can not read path challenge data.",
+      {"Cannot read path challenge data.",
        {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}},
   };
   // clang-format on
@@ -10483,7 +10483,7 @@ TEST_P(QuicFramerTest, IetfPathResponseFrame) {
       {"",
        {0x1b}},
       // data
-      {"Can not read path response data.",
+      {"Cannot read path response data.",
        {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}},
   };
   // clang-format on
@@ -10544,11 +10544,11 @@ TEST_P(QuicFramerTest, BuildIetfPathResponsePacket) {
       ABSL_ARRAYSIZE(packet_ietf));
 }
 
-TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
+TEST_P(QuicFramerTest, GetRetransmissibleControlFrameSize) {
   QuicRstStreamFrame rst_stream(1, 3, QUIC_STREAM_CANCELLED, 1024);
   EXPECT_EQ(QuicFramer::GetRstStreamFrameSize(framer_.transport_version(),
                                               rst_stream),
-            QuicFramer::GetRetransmittableControlFrameSize(
+            QuicFramer::GetRetransmissibleControlFrameSize(
                 framer_.transport_version(), QuicFrame(&rst_stream)));
 
   std::string error_detail(2048, 'e');
@@ -10559,24 +10559,24 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
 
   EXPECT_EQ(QuicFramer::GetConnectionCloseFrameSize(framer_.transport_version(),
                                                     connection_close),
-            QuicFramer::GetRetransmittableControlFrameSize(
+            QuicFramer::GetRetransmissibleControlFrameSize(
                 framer_.transport_version(), QuicFrame(&connection_close)));
 
   QuicGoAwayFrame goaway(2, QUIC_PEER_GOING_AWAY, 3, error_detail);
   EXPECT_EQ(QuicFramer::GetMinGoAwayFrameSize() + 256,
-            QuicFramer::GetRetransmittableControlFrameSize(
+            QuicFramer::GetRetransmissibleControlFrameSize(
                 framer_.transport_version(), QuicFrame(&goaway)));
 
   QuicWindowUpdateFrame window_update(3, 3, 1024);
   EXPECT_EQ(QuicFramer::GetWindowUpdateFrameSize(framer_.transport_version(),
                                                  window_update),
-            QuicFramer::GetRetransmittableControlFrameSize(
+            QuicFramer::GetRetransmissibleControlFrameSize(
                 framer_.transport_version(), QuicFrame(window_update)));
 
   QuicBlockedFrame blocked(4, 3, 1024);
   EXPECT_EQ(
       QuicFramer::GetBlockedFrameSize(framer_.transport_version(), blocked),
-      QuicFramer::GetRetransmittableControlFrameSize(
+      QuicFramer::GetRetransmissibleControlFrameSize(
           framer_.transport_version(), QuicFrame(blocked)));
 
   // Following frames are IETF QUIC frames only.
@@ -10587,36 +10587,36 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
   QuicNewConnectionIdFrame new_connection_id(5, TestConnectionId(), 1,
                                              kTestStatelessResetToken, 1);
   EXPECT_EQ(QuicFramer::GetNewConnectionIdFrameSize(new_connection_id),
-            QuicFramer::GetRetransmittableControlFrameSize(
+            QuicFramer::GetRetransmissibleControlFrameSize(
                 framer_.transport_version(), QuicFrame(&new_connection_id)));
 
   QuicMaxStreamsFrame max_streams(6, 3, /*unidirectional=*/false);
   EXPECT_EQ(QuicFramer::GetMaxStreamsFrameSize(framer_.transport_version(),
                                                max_streams),
-            QuicFramer::GetRetransmittableControlFrameSize(
+            QuicFramer::GetRetransmissibleControlFrameSize(
                 framer_.transport_version(), QuicFrame(max_streams)));
 
   QuicStreamsBlockedFrame streams_blocked(7, 3, /*unidirectional=*/false);
   EXPECT_EQ(QuicFramer::GetStreamsBlockedFrameSize(framer_.transport_version(),
                                                    streams_blocked),
-            QuicFramer::GetRetransmittableControlFrameSize(
+            QuicFramer::GetRetransmissibleControlFrameSize(
                 framer_.transport_version(), QuicFrame(streams_blocked)));
 
   QuicPathFrameBuffer buffer = {
       {0x80, 0x91, 0xa2, 0xb3, 0xc4, 0xd5, 0xe5, 0xf7}};
   QuicPathResponseFrame path_response_frame(8, buffer);
   EXPECT_EQ(QuicFramer::GetPathResponseFrameSize(path_response_frame),
-            QuicFramer::GetRetransmittableControlFrameSize(
+            QuicFramer::GetRetransmissibleControlFrameSize(
                 framer_.transport_version(), QuicFrame(path_response_frame)));
 
   QuicPathChallengeFrame path_challenge_frame(9, buffer);
   EXPECT_EQ(QuicFramer::GetPathChallengeFrameSize(path_challenge_frame),
-            QuicFramer::GetRetransmittableControlFrameSize(
+            QuicFramer::GetRetransmissibleControlFrameSize(
                 framer_.transport_version(), QuicFrame(path_challenge_frame)));
 
   QuicStopSendingFrame stop_sending_frame(10, 3, QUIC_STREAM_CANCELLED);
   EXPECT_EQ(QuicFramer::GetStopSendingFrameSize(stop_sending_frame),
-            QuicFramer::GetRetransmittableControlFrameSize(
+            QuicFramer::GetRetransmissibleControlFrameSize(
                 framer_.transport_version(), QuicFrame(stop_sending_frame)));
 }
 

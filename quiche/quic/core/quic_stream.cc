@@ -217,7 +217,7 @@ void PendingStream::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
   QUICHE_DCHECK_EQ(frame.stream_id, id_);
 
   if (frame.byte_offset > kMaxStreamLength) {
-    // Peer are not suppose to write bytes more than maxium allowed.
+    // Peer are not suppose to write bytes more than maximum allowed.
     OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
                          "Reset frame stream offset overflow.");
     return;
@@ -515,7 +515,7 @@ int QuicStream::num_duplicate_frames_received() const {
 void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   rst_received_ = true;
   if (frame.byte_offset > kMaxStreamLength) {
-    // Peer are not suppose to write bytes more than maxium allowed.
+    // Peer are not suppose to write bytes more than maximum allowed.
     OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
                          "Reset frame stream offset overflow.");
     return;
@@ -1032,7 +1032,7 @@ bool QuicStream::MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
       QUIC_BUG_IF(quic_bug_12570_8, perspective_ == Perspective::IS_SERVER)
           << "Server streams' flow control should never be configured twice.";
       OnUnrecoverableError(
-          QUIC_ZERO_RTT_UNRETRANSMITTABLE,
+          QUIC_ZERO_RTT_UNRETRANSMISSIBLE,
           absl::StrCat(
               "Server rejected 0-RTT, aborting because new stream max data ",
               new_offset, " for stream ", id_, " is less than currently used: ",
@@ -1114,7 +1114,7 @@ void QuicStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,
 
 void QuicStream::OnStreamFrameLost(QuicStreamOffset offset,
                                    QuicByteCount data_length, bool fin_lost) {
-  QUIC_DVLOG(1) << ENDPOINT << "stream " << id_ << " Losting "
+  QUIC_DVLOG(1) << ENDPOINT << "stream " << id_ << " Lost "
                 << "[" << offset << ", " << offset + data_length << "]"
                 << " fin = " << fin_lost;
   if (data_length > 0) {
@@ -1390,7 +1390,7 @@ void QuicStream::OnDeadlinePassed() { Reset(QUIC_STREAM_TTL_EXPIRED); }
 bool QuicStream::IsFlowControlBlocked() const {
   if (!flow_controller_.has_value()) {
     QUIC_BUG(quic_bug_10586_15)
-        << "Trying to access non-existent flow controller.";
+        << "Trying to access nonexistent flow controller.";
     return false;
   }
   return flow_controller_->IsBlocked();
@@ -1399,7 +1399,7 @@ bool QuicStream::IsFlowControlBlocked() const {
 QuicStreamOffset QuicStream::highest_received_byte_offset() const {
   if (!flow_controller_.has_value()) {
     QUIC_BUG(quic_bug_10586_16)
-        << "Trying to access non-existent flow controller.";
+        << "Trying to access nonexistent flow controller.";
     return 0;
   }
   return flow_controller_->highest_received_byte_offset();
@@ -1408,7 +1408,7 @@ QuicStreamOffset QuicStream::highest_received_byte_offset() const {
 void QuicStream::UpdateReceiveWindowSize(QuicStreamOffset size) {
   if (!flow_controller_.has_value()) {
     QUIC_BUG(quic_bug_10586_17)
-        << "Trying to access non-existent flow controller.";
+        << "Trying to access nonexistent flow controller.";
     return;
   }
   flow_controller_->UpdateReceiveWindowSize(size);

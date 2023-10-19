@@ -40,7 +40,7 @@ QuicIpAddress TruncateToLength(const QuicIpAddress& input,
     // raw_address[0] holds higher 8 bytes in big endian and raw_address[1]
     // holds lower 8 bytes. Converting each to little endian for us to mask bits
     // out.
-    // The endianess between raw_address[0] and raw_address[1] is handled
+    // The endianness between raw_address[0] and raw_address[1] is handled
     // explicitly by handling lower and higher bytes separately.
     raw_address[0] = quiche::QuicheEndian::NetToHost64(raw_address[0]);
     raw_address[1] = quiche::QuicheEndian::NetToHost64(raw_address[1]);

@@ -583,7 +583,7 @@ void PacketSavingConnection::SendOrQueuePacket(SerializedPacket packet) {
   OnPacketSent(packet.encryption_level, packet.transmission_type);
   QuicConnectionPeer::GetSentPacketManager(this)->OnPacketSent(
       &packet, clock.ApproximateNow(), NOT_RETRANSMISSION,
-      HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+      HAS_RETRANSMISSIBLE_DATA, true, ECN_NOT_ECT);
 }
 
 std::vector<const QuicEncryptedPacket*> PacketSavingConnection::GetPackets()

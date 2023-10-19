@@ -128,7 +128,7 @@ static_assert(offsetof(QuicStreamFrame, type) == offsetof(QuicFrame, type),
               "Offset of |type| must match in QuicFrame and QuicStreamFrame");
 
 // A inline size of 1 is chosen to optimize the typical use case of
-// 1-stream-frame in QuicTransmissionInfo.retransmittable_frames.
+// 1-stream-frame in QuicTransmissionInfo.retransmissible_frames.
 using QuicFrames = absl::InlinedVector<QuicFrame, 1>;
 
 // Deletes all the sub-frames contained in |frames|.
@@ -141,7 +141,7 @@ QUICHE_EXPORT void DeleteFrame(QuicFrame* frame);
 QUICHE_EXPORT void RemoveFramesForStream(QuicFrames* frames,
                                          QuicStreamId stream_id);
 
-// Returns true if |type| is a retransmittable control frame.
+// Returns true if |type| is a retransmissible control frame.
 QUICHE_EXPORT bool IsControlFrame(QuicFrameType type);
 
 // Returns control_frame_id of |frame|. Returns kInvalidControlFrameId if
@@ -153,7 +153,7 @@ QUICHE_EXPORT void SetControlFrameId(QuicControlFrameId control_frame_id,
                                      QuicFrame* frame);
 
 // Returns a copy of |frame|.
-QUICHE_EXPORT QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame);
+QUICHE_EXPORT QuicFrame CopyRetransmissibleControlFrame(const QuicFrame& frame);
 
 // Returns a copy of |frame|.
 QUICHE_EXPORT QuicFrame CopyQuicFrame(quiche::QuicheBufferAllocator* allocator,

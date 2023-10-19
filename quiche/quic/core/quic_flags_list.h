@@ -33,7 +33,7 @@ QUIC_FLAG(quic_restart_flag_quic_testonly_default_true, true)
 QUIC_FLAG(quic_restart_flag_spdy_testonly_default_true, false)
 // If enabled and a BSUS connection is received, blocks server connections until SETTINGS frame is received.
 QUIC_FLAG(quic_reloadable_flag_quic_block_until_settings_received_copt, true)
-// If trrue, early return before write control frame in OnCanWrite() if the connection is already closed.
+// If true, early return before write control frame in OnCanWrite() if the connection is already closed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close, true)
 // If true and defer_send_in_response_to_packets is enabled, QuicConnection will schedule send alarms at the end of packet processing only if it\'s necessary.
 QUIC_FLAG(quic_reloadable_flag_quic_no_send_alarm_unless_necessary, true)
@@ -55,7 +55,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
 QUIC_FLAG(quic_restart_flag_quic_opport_bundle_qpack_decoder_data, false)
 // If true, an endpoint does not detect path degrading or blackholing until handshake gets confirmed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed, true)
-// If true, default-enable 5RTO blachole detection.
+// If true, default-enable 5RTO blackhole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, disable QUIC version Q046.
 QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q046, true)
@@ -75,7 +75,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, tru
 QUIC_FLAG(quic_reloadable_flag_quic_new_error_code_when_packets_buffered_too_long, true)
 // If true, do not send MAX_STREAM frames if there are already 2 outstanding.
 QUIC_FLAG(quic_reloadable_flag_quic_limit_sending_max_streams, false)
-// If true, enable server retransmittable on wire PING.
+// If true, enable server retransmissible on wire PING.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, flush ACK frame in QuicConnection::MaybeBundleOpportunistically.
 QUIC_FLAG(quic_reloadable_flag_quic_flush_ack_in_maybe_bundle, true)

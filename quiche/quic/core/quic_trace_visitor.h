@@ -22,8 +22,8 @@ class QUICHE_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
                     QuicPacketLength packet_length, bool has_crypto_handshake,
                     TransmissionType transmission_type,
                     EncryptionLevel encryption_level,
-                    const QuicFrames& retransmittable_frames,
-                    const QuicFrames& nonretransmittable_frames,
+                    const QuicFrames& retransmissible_frames,
+                    const QuicFrames& nonretransmissible_frames,
                     QuicTime sent_time, uint32_t batch_id) override;
 
   void OnIncomingAck(QuicPacketNumber ack_packet_number,

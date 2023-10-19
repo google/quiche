@@ -42,7 +42,7 @@ class QUICHE_EXPORT CryptoUtils {
 
       PENDING,  // Key diversification will happen when a nonce is later
                 // received. This should only be used by clients initial
-                // decrypters which are waiting on the divesification nonce
+                // decrypters which are waiting on the diversification nonce
                 // from the server.
 
       NOW,  // Key diversification will happen immediate based on the nonce.
@@ -145,11 +145,11 @@ class QUICHE_EXPORT CryptoUtils {
   // If |pre_shared_key| is non-empty, it is incorporated into the key
   // derivation parameters.  If it is empty, the key derivation is unaltered.
   //
-  // If the mode of |diversification| is NEVER, the the crypters will be
+  // If the mode of |diversification| is NEVER, the crypters will be
   // configured to never perform key diversification. If the mode is
   // NOW (which is only for servers, then the encrypter will be keyed via a
   // two-step process that uses the nonce from |diversification|.
-  // If the mode is PENDING (which is only for servres), then the
+  // If the mode is PENDING (which is only for servers), then the
   // decrypter will only be keyed to a preliminary state: a call to
   // |SetDiversificationNonce| with a diversification nonce will be needed to
   // complete keying.
@@ -190,7 +190,7 @@ class QUICHE_EXPORT CryptoUtils {
 
   // Validates that |client_hello| is actually a CHLO and that this is not part
   // of a downgrade attack.
-  // This includes verifiying versions and detecting downgrade attacks.
+  // This includes verifying versions and detecting downgrade attacks.
   //
   // Returns QUIC_NO_ERROR if this is the case or returns the appropriate error
   // code and sets |error_details|.

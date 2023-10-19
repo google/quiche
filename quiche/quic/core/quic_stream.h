@@ -139,7 +139,7 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
  public:
   // Creates a new stream with stream_id |id| associated with |session|. If
   // |is_static| is true, then the stream will be given precedence
-  // over other streams when determing what streams should write next.
+  // over other streams when determining what streams should write next.
   // |type| indicates whether the stream is bidirectional, read unidirectional
   // or write unidirectional.
   // TODO(fayang): Remove |type| when IETF stream ID numbering fully kicks in.

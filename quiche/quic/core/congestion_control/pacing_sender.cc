@@ -54,14 +54,14 @@ void PacingSender::OnCongestionEvent(bool rtt_updated,
 void PacingSender::OnPacketSent(
     QuicTime sent_time, QuicByteCount bytes_in_flight,
     QuicPacketNumber packet_number, QuicByteCount bytes,
-    HasRetransmittableData has_retransmittable_data) {
+    HasRetransmissibleData has_retransmissible_data) {
   QUICHE_DCHECK(sender_ != nullptr);
   QUIC_DVLOG(3) << "Packet " << packet_number << " with " << bytes
                 << " bytes sent at " << sent_time
                 << ". bytes_in_flight: " << bytes_in_flight;
   sender_->OnPacketSent(sent_time, bytes_in_flight, packet_number, bytes,
-                        has_retransmittable_data);
-  if (has_retransmittable_data != HAS_RETRANSMITTABLE_DATA) {
+                        has_retransmissible_data);
+  if (has_retransmissible_data != HAS_RETRANSMISSIBLE_DATA) {
     return;
   }
 

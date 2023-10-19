@@ -150,7 +150,7 @@ class QUICHE_EXPORT SpdyIntrusiveList {
   // It makes is_linked() return true when it should return false.
   // If such node is removed from the list (e.g. from its destructor), or is
   // added to another list - a memory corruption will occur.
-  // Admitedly the destructor does not unlink the nodes either, but move-assign
+  // Admittedly the destructor does not unlink the nodes either, but move-assign
   // will likely make the problem more prominent.
 #ifndef SWIG
   SpdyIntrusiveList(SpdyIntrusiveList&& src) noexcept {

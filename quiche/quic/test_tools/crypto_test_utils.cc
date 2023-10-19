@@ -121,7 +121,7 @@ void MovePackets(const QuicConnection& source_conn,
     // In order to properly test the code we need to perform encryption and
     // decryption so that the crypters latch when expected. The crypters are in
     // |dest_conn|, but we don't want to try and use them there. Instead we swap
-    // them into |framer|, perform the decryption with them, and then swap ther
+    // them into |framer|, perform the decryption with them, and then swap them
     // back.
     QuicConnectionPeer::SwapCrypters(&dest_conn, framer.framer());
     QuicConnectionPeer::AddBytesReceived(&dest_conn, packet->length());
@@ -543,7 +543,7 @@ bool CommunicateHandshakeMessagesUntil(
   }
   bool result = client_condition() && server_condition();
   if (!result) {
-    QUIC_LOG(INFO) << "CommunicateHandshakeMessagesUnti failed with state: "
+    QUIC_LOG(INFO) << "CommunicateHandshakeMessagesUntil failed with state: "
                       "client connected? "
                    << client_conn.connected() << " server connected? "
                    << server_conn.connected() << " client condition met? "

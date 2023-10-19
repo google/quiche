@@ -161,7 +161,7 @@ class QuicCryptoStreamTest : public QuicTest {
   std::unique_ptr<QuicData> message_data_;
 };
 
-TEST_F(QuicCryptoStreamTest, NotInitiallyConected) {
+TEST_F(QuicCryptoStreamTest, NotInitiallyConnected) {
   EXPECT_FALSE(stream_->encryption_established());
   EXPECT_FALSE(stream_->one_rtt_keys_available());
 }
@@ -288,7 +288,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoDataInCryptoFrames) {
   stream_->WriteCryptoData(ENCRYPTION_ZERO_RTT, data);
 
   // Before encryption moves to ENCRYPTION_FORWARD_SECURE, ZERO RTT data are
-  // retranmitted at ENCRYPTION_ZERO_RTT.
+  // retransmitted at ENCRYPTION_ZERO_RTT.
   QuicCryptoFrame lost_frame = QuicCryptoFrame(ENCRYPTION_ZERO_RTT, 0, 650);
   stream_->OnCryptoFrameLost(&lost_frame);
 

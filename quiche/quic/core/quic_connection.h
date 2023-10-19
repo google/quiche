@@ -161,10 +161,10 @@ class QUICHE_EXPORT QuicConnectionVisitorInterface {
   virtual void OnForwardProgressMadeAfterPathDegrading() = 0;
 
   // Called when the connection sends ack after
-  // max_consecutive_num_packets_with_no_retransmittable_frames_ consecutive not
-  // retransmittable packets sent. To instigate an ack from peer, a
-  // retransmittable frame needs to be added.
-  virtual void OnAckNeedsRetransmittableFrame() = 0;
+  // max_consecutive_num_packets_with_no_retransmissible_frames_ consecutive not
+  // retransmissible packets sent. To instigate an ack from peer, a
+  // retransmissible frame needs to be added.
+  virtual void OnAckNeedsRetransmissibleFrame() = 0;
 
   // Called when an AckFrequency frame need to be sent.
   virtual void SendAckFrequency(const QuicAckFrequencyFrame& frame) = 0;
@@ -279,8 +279,8 @@ class QUICHE_EXPORT QuicConnectionDebugVisitor
                             bool /*has_crypto_handshake*/,
                             TransmissionType /*transmission_type*/,
                             EncryptionLevel /*encryption_level*/,
-                            const QuicFrames& /*retransmittable_frames*/,
-                            const QuicFrames& /*nonretransmittable_frames*/,
+                            const QuicFrames& /*retransmissible_frames*/,
+                            const QuicFrames& /*nonretransmissible_frames*/,
                             QuicTime /*sent_time*/, uint32_t /*batch_id*/) {}
 
   // Called when a coalesced packet is successfully serialized.
@@ -316,7 +316,7 @@ class QUICHE_EXPORT QuicConnectionDebugVisitor
   // Called when a duplicate packet has been received.
   virtual void OnDuplicatePacket(QuicPacketNumber /*packet_number*/) {}
 
-  // Called when the protocol version on the received packet doensn't match
+  // Called when the protocol version on the received packet doesn't match
   // current protocol version of the connection.
   virtual void OnProtocolVersionMismatch(ParsedQuicVersion /*version*/) {}
 
@@ -725,7 +725,7 @@ class QUICHE_EXPORT QuicConnection
   // creator.
   bool IsMissingDestinationConnectionID() const;
   // QuicPacketCreator::DelegateInterface
-  bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
+  bool ShouldGeneratePacket(HasRetransmissibleData retransmissible,
                             IsHandshake handshake) override;
   const QuicFrames MaybeBundleOpportunistically() override;
   QuicPacketBuffer GetPacketBuffer() override;
@@ -752,7 +752,7 @@ class QUICHE_EXPORT QuicConnection
 
   // QuicPingManager::Delegate
   void OnKeepAliveTimeout() override;
-  void OnRetransmittableOnWireTimeout() override;
+  void OnRetransmissibleOnWireTimeout() override;
 
   // QuicConnectionIdManagerVisitorInterface
   void OnPeerIssuedConnectionIdRetired() override;
@@ -798,10 +798,10 @@ class QUICHE_EXPORT QuicConnection
   // Used in Chromium, but not internally.
   // Must only be called before ping_alarm_ is set.
   void set_keep_alive_ping_timeout(QuicTime::Delta keep_alive_ping_timeout);
-  // Sets an initial timeout for the ping alarm when there is no retransmittable
+  // Sets an initial timeout for the ping alarm when there is no retransmissible
   // data in flight, allowing for a more aggressive ping alarm in that case.
-  void set_initial_retransmittable_on_wire_timeout(
-      QuicTime::Delta retransmittable_on_wire_timeout);
+  void set_initial_retransmissible_on_wire_timeout(
+      QuicTime::Delta retransmissible_on_wire_timeout);
   // Used in Chromium, but not internally.
   void set_creator_debug_delegate(QuicPacketCreator::DebugDelegate* visitor) {
     packet_creator_.set_debug_delegate(visitor);
@@ -952,7 +952,7 @@ class QUICHE_EXPORT QuicConnection
     return uber_received_packet_manager_;
   }
 
-  bool CanWrite(HasRetransmittableData retransmittable);
+  bool CanWrite(HasRetransmissibleData retransmissible);
 
   // When the flusher is out of scope, only the outermost flusher will cause a
   // flush of the connection and set the retransmission alarm if there is one
@@ -1212,7 +1212,7 @@ class QUICHE_EXPORT QuicConnection
   QuicTime GetRetryTimeout(const QuicSocketAddress& peer_address_to_use,
                            QuicPacketWriter* writer_to_use) const override;
 
-  // Start vaildating the path defined by |context| asynchronously and call the
+  // Start validating the path defined by |context| asynchronously and call the
   // |result_delegate| after validation finishes. If the connection is
   // validating another path, cancel and fail that validation before starting
   // this one.
@@ -1433,7 +1433,7 @@ class QUICHE_EXPORT QuicConnection
  private:
   friend class test::QuicConnectionPeer;
 
-  enum RetransmittableOnWireBehavior {
+  enum RetransmissibleOnWireBehavior {
     DEFAULT,                           // Send packet containing a PING frame.
     SEND_FIRST_FORWARD_SECURE_PACKET,  // Send 1st 1-RTT packet.
     SEND_RANDOM_BYTES  // Send random bytes which is an unprocessable packet.
@@ -1564,7 +1564,7 @@ class QUICHE_EXPORT QuicConnection
   QUICHE_EXPORT friend std::ostream& operator<<(
       std::ostream& os, const QuicConnection::ReceivedPacketInfo& info);
 
-  // UndecrytablePacket comprises a undecryptable packet and related
+  // UndecryptablePacket comprises a undecryptable packet and related
   // information.
   struct QUICHE_EXPORT UndecryptablePacket {
     UndecryptablePacket(const QuicEncryptedPacket& packet,
@@ -1710,12 +1710,12 @@ class QUICHE_EXPORT QuicConnection
   // encryption_level. Returns true on successful write, and false if the writer
   // was blocked and the write needs to be tried again. Notifies the
   // SentPacketManager when the write is successful and sets
-  // retransmittable frames to nullptr.
+  // retransmissible frames to nullptr.
   // Saves the connection close packet for later transmission, even if the
   // writer is write blocked.
   bool WritePacket(SerializedPacket* packet);
 
-  // Enforce AEAD Confidentiality limits by iniating key update or closing
+  // Enforce AEAD Confidentiality limits by initiating key update or closing
   // connection if too many packets have been encrypted with the current key.
   // Returns true if the connection was closed. Should not be called for
   // termination packets.
@@ -1761,7 +1761,7 @@ class QUICHE_EXPORT QuicConnection
   // |sent_packet_number| is the recently sent packet number.
   void MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number);
 
-  HasRetransmittableData IsRetransmittable(const SerializedPacket& packet);
+  HasRetransmissibleData IsRetransmissible(const SerializedPacket& packet);
   bool IsTerminationPacket(const SerializedPacket& packet,
                            QuicErrorCode* error_code);
 
@@ -1773,7 +1773,7 @@ class QUICHE_EXPORT QuicConnection
   QuicByteCount GetLimitedMaxPacketSize(
       QuicByteCount suggested_max_packet_size);
 
-  // Do any work which logically would be done in OnPacket but can not be
+  // Do any work which logically would be done in OnPacket but cannot be
   // safely done until the packet is validated. Returns true if packet can be
   // handled, false otherwise.
   bool ProcessValidatedPacket(const QuicPacketHeader& header);
@@ -1810,17 +1810,17 @@ class QUICHE_EXPORT QuicConnection
 
   // Called when an ACK is about to send. Resets ACK related internal states,
   // e.g., cancels ack_alarm_, resets
-  // num_retransmittable_packets_received_since_last_ack_sent_ etc.
+  // num_retransmissible_packets_received_since_last_ack_sent_ etc.
   void ResetAckStates();
 
   // Returns true if the ACK frame should be bundled with ACK-eliciting frame.
-  bool ShouldBundleRetransmittableFrameWithAck() const;
+  bool ShouldBundleRetransmissibleFrameWithAck() const;
 
   // Enables multiple packet number spaces support based on handshake protocol
   // and flags.
   void MaybeEnableMultiplePacketNumberSpacesSupport();
 
-  // Called to update ACK timeout when an retransmittable frame has been parsed.
+  // Called to update ACK timeout when an retransmissible frame has been parsed.
   void MaybeUpdateAckTimeout();
 
   // Tries to fill coalesced packet with data of higher packet space.
@@ -1974,7 +1974,7 @@ class QUICHE_EXPORT QuicConnection
   // QUIC.
   std::unique_ptr<SendAlgorithmInterface> OnPeerIpAddressChanged();
 
-  // Process NewConnectionIdFrame either sent from peer or synsthesized from
+  // Process NewConnectionIdFrame either sent from peer or synthesized from
   // preferred_address transport parameter.
   NewConnectionIdResult OnNewConnectionIdFrameInner(
       const QuicNewConnectionIdFrame& frame);
@@ -2138,7 +2138,7 @@ class QUICHE_EXPORT QuicConnection
   QuicArenaScopedPtr<QuicAlarm> send_alarm_;
   // An alarm that fires when an MTU probe should be sent.
   QuicArenaScopedPtr<QuicAlarm> mtu_discovery_alarm_;
-  // An alarm that fires to process undecryptable packets when new decyrption
+  // An alarm that fires to process undecryptable packets when new decryption
   // keys are available.
   QuicArenaScopedPtr<QuicAlarm> process_undecryptable_packets_alarm_;
   // An alarm that fires to discard keys for the previous key phase some time
@@ -2212,17 +2212,17 @@ class QUICHE_EXPORT QuicConnection
   // avoid infinite write errors.
   bool write_error_occurred_;
 
-  // Consecutive number of sent packets which have no retransmittable frames.
-  size_t consecutive_num_packets_with_no_retransmittable_frames_;
+  // Consecutive number of sent packets which have no retransmissible frames.
+  size_t consecutive_num_packets_with_no_retransmissible_frames_;
 
-  // After this many packets sent without retransmittable frames, an artificial
-  // retransmittable frame(a WINDOW_UPDATE) will be created to solicit an ack
-  // from the peer. Default to kMaxConsecutiveNonRetransmittablePackets.
-  size_t max_consecutive_num_packets_with_no_retransmittable_frames_;
+  // After this many packets sent without retransmissible frames, an artificial
+  // retransmissible frame(a WINDOW_UPDATE) will be created to solicit an ack
+  // from the peer. Default to kMaxConsecutiveNonRetransmissiblePackets.
+  size_t max_consecutive_num_packets_with_no_retransmissible_frames_;
 
   // If true, bundle an ack-eliciting frame with an ACK if the PTO alarm have
   // previously fired.
-  bool bundle_retransmittable_with_pto_ack_;
+  bool bundle_retransmissible_with_pto_ack_;
 
   // Id of latest sent control frame. 0 if no control frame has been sent.
   QuicControlFrameId last_control_frame_id_;
@@ -2370,7 +2370,7 @@ class QUICHE_EXPORT QuicConnection
   const bool ignore_duplicate_new_cid_frame_ =
       GetQuicReloadableFlag(quic_ignore_duplicate_new_cid_frame);
 
-  RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
+  RetransmissibleOnWireBehavior retransmissible_on_wire_behavior_ = DEFAULT;
 
   // Server addresses that are known to the client.
   std::vector<QuicSocketAddress> known_server_addresses_;

@@ -684,7 +684,7 @@ TEST_F(QuicStreamSequencerTest, OnDataAvailableWhenReadableBytesIncrease) {
 
   // Without consuming the buffer bytes, continue receiving [12, 13).
   QuicStreamFrame frame3(id, false, 5, "a");
-  // OnDataAvailable shouldn't be called becasue there are still only 11 bytes
+  // OnDataAvailable shouldn't be called because there are still only 11 bytes
   // available.
   EXPECT_CALL(stream_, OnDataAvailable()).Times(0);
   sequencer_->OnStreamFrame(frame3);

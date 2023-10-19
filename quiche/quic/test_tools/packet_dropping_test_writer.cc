@@ -9,7 +9,7 @@
 namespace quic {
 namespace test {
 
-// Every dropped packet must be followed by this number of succesfully written
+// Every dropped packet must be followed by this number of successfully written
 // packets. This is to avoid flaky test failures and timeouts, for example, in
 // case both the client and the server drop every other packet (which is
 // statistically possible even if drop percentage is less than 50%).

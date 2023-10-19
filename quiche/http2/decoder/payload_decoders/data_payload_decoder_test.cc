@@ -32,7 +32,7 @@ class DataPayloadDecoderPeer {
   static constexpr Http2FrameType FrameType() { return Http2FrameType::DATA; }
 
   // Returns the mask of flags that affect the decoding of the payload (i.e.
-  // flags that that indicate the presence of certain fields or padding).
+  // flags that indicate the presence of certain fields or padding).
   static constexpr uint8_t FlagsAffectingPayloadDecoding() {
     return Http2FrameFlag::PADDED;
   }

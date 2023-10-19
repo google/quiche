@@ -265,7 +265,7 @@ void SetControlFrameId(QuicControlFrameId control_frame_id, QuicFrame* frame) {
   }
 }
 
-QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
+QuicFrame CopyRetransmissibleControlFrame(const QuicFrame& frame) {
   QuicFrame copy;
   switch (frame.type) {
     case RST_STREAM_FRAME:
@@ -312,7 +312,7 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
       break;
     default:
       QUIC_BUG(quic_bug_10533_1)
-          << "Try to copy a non-retransmittable control frame: " << frame;
+          << "Try to copy a non-retransmissible control frame: " << frame;
       copy = QuicFrame(QuicPingFrame(kInvalidControlFrameId));
       break;
   }

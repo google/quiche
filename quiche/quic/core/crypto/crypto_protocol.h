@@ -162,14 +162,14 @@ const QuicTag kBSAO = TAG('B', 'S', 'A', 'O');   // Avoid Overestimation in
                                                  // Bandwidth Sampler with ack
                                                  // aggregation
 const QuicTag kB2DL = TAG('B', '2', 'D', 'L');   // Increase inflight_hi based
-                                                 // on delievered, not inflight.
+                                                 // on delivered, not inflight.
 const QuicTag kB201 = TAG('B', '2', '0', '1');   // DEPRECATED
 const QuicTag kB202 = TAG('B', '2', '0', '2');   // Do not exit PROBE_UP if
                                                  // inflight dips below 1.25*BW.
 const QuicTag kB203 = TAG('B', '2', '0', '3');   // Ignore inflight_hi until
                                                  // PROBE_UP is exited.
 const QuicTag kB204 = TAG('B', '2', '0', '4');   // Reduce extra acked when
-                                                 // MaxBW incrases.
+                                                 // MaxBW increases.
 const QuicTag kB205 = TAG('B', '2', '0', '5');   // Add extra acked to CWND in
                                                  // STARTUP.
 const QuicTag kB206 = TAG('B', '2', '0', '6');   // Exit STARTUP after 2 losses.
@@ -412,7 +412,7 @@ const QuicTag kIGNP = TAG('I', 'G', 'N', 'P');   // Do not use PING only packet
                                                  // for RTT measure or
                                                  // congestion control.
 
-const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmittable on
+const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmissible on
                                                  // wire PING (ROWP) on the
                                                  // server side.
 const QuicTag kROWF = TAG('R', 'O', 'W', 'F');   // Send first 1-RTT packet on

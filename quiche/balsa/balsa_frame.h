@@ -226,7 +226,7 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   }
 
   // If enabled, parse the available portion of headers even on a
-  // HEADERS_TOO_LONG error, so that that portion of headers is available to the
+  // HEADERS_TOO_LONG error, so that portion of headers is available to the
   // error handler. Generally results in the last header being truncated.
   void set_parse_truncated_headers_even_when_headers_too_long(bool set) {
     parse_truncated_headers_even_when_headers_too_long_ = set;

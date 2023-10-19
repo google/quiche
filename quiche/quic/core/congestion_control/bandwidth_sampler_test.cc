@@ -75,17 +75,17 @@ class BandwidthSamplerTest : public QuicTestWithParam<TestParameters> {
   }
 
   void SendPacketInner(uint64_t packet_number, QuicByteCount bytes,
-                       HasRetransmittableData has_retransmittable_data) {
+                       HasRetransmissibleData has_retransmissible_data) {
     sampler_.OnPacketSent(clock_.Now(), QuicPacketNumber(packet_number), bytes,
-                          bytes_in_flight_, has_retransmittable_data);
-    if (has_retransmittable_data == HAS_RETRANSMITTABLE_DATA) {
+                          bytes_in_flight_, has_retransmissible_data);
+    if (has_retransmissible_data == HAS_RETRANSMISSIBLE_DATA) {
       bytes_in_flight_ += bytes;
     }
   }
 
   void SendPacket(uint64_t packet_number) {
     SendPacketInner(packet_number, kRegularPacketSize,
-                    HAS_RETRANSMITTABLE_DATA);
+                    HAS_RETRANSMISSIBLE_DATA);
   }
 
   BandwidthSample AckPacketInner(uint64_t packet_number) {
@@ -345,7 +345,7 @@ TEST_P(BandwidthSamplerTest, SendWithLosses) {
 }
 
 // Test the sampler in a scenario where the 50% of packets are not
-// congestion controlled (specifically, non-retransmittable data is not
+// congestion controlled (specifically, non-retransmissible data is not
 // congestion controlled).  Should be functionally consistent in behavior with
 // the SendWithLosses test.
 TEST_P(BandwidthSamplerTest, NotCongestionControlled) {
@@ -359,7 +359,7 @@ TEST_P(BandwidthSamplerTest, NotCongestionControlled) {
   for (int i = 1; i <= 20; i++) {
     SendPacketInner(
         i, kRegularPacketSize,
-        i % 2 == 0 ? HAS_RETRANSMITTABLE_DATA : NO_RETRANSMITTABLE_DATA);
+        i % 2 == 0 ? HAS_RETRANSMISSIBLE_DATA : NO_RETRANSMISSIBLE_DATA);
     clock_.AdvanceTime(time_between_packets);
   }
 
@@ -374,7 +374,7 @@ TEST_P(BandwidthSamplerTest, NotCongestionControlled) {
     }
     SendPacketInner(
         i + 20, kRegularPacketSize,
-        i % 2 == 0 ? HAS_RETRANSMITTABLE_DATA : NO_RETRANSMITTABLE_DATA);
+        i % 2 == 0 ? HAS_RETRANSMISSIBLE_DATA : NO_RETRANSMISSIBLE_DATA);
     clock_.AdvanceTime(time_between_packets);
   }
 

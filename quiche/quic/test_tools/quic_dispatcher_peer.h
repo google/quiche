@@ -69,7 +69,7 @@ class QuicDispatcherPeer {
   // empty.
   static QuicSession* GetFirstSessionIfAny(QuicDispatcher* dispatcher);
 
-  // Find the corresponding session if exsits.
+  // Find the corresponding session if exists.
   static const QuicSession* FindSession(const QuicDispatcher* dispatcher,
                                         QuicConnectionId id);
 

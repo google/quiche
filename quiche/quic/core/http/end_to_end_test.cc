@@ -1653,14 +1653,14 @@ TEST_P(EndToEndTest, LargePostWithPacketLossAndAlwaysBundleWindowUpdates) {
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
-  // Normally server only bundles a retransmittable frame once every other
-  // kMaxConsecutiveNonRetransmittablePackets ack-only packets. Setting the max
+  // Normally server only bundles a retransmissible frame once every other
+  // kMaxConsecutiveNonRetransmissiblePackets ack-only packets. Setting the max
   // to 0 to reliably reproduce b/80090281.
   server_thread_->Schedule([this]() {
     QuicConnection* server_connection = GetServerConnection();
     if (server_connection != nullptr) {
       QuicConnectionPeer::
-          SetMaxConsecutiveNumPacketsWithNoRetransmittableFrames(
+          SetMaxConsecutiveNumPacketsWithNoRetransmissibleFrames(
               server_connection, 0);
     } else {
       ADD_FAILURE() << "Missing server connection";
@@ -2431,7 +2431,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(MultipleTermination)) {
   client_->SendData("bar", true);
   client_->WaitForWriteToFlush();
 
-  // By default the stream protects itself from writes after terminte is set.
+  // By default the stream protects itself from writes after terminate is set.
   // Override this to test the server handling buggy clients.
   QuicStreamPeer::SetWriteSideClosed(false, client_->GetOrCreateStream());
 

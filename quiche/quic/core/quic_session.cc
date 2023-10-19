@@ -206,7 +206,7 @@ void QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
   }
   // At this point, none of the bytes has been successfully consumed by the
   // application layer. We should close the pending stream even if it is
-  // bidirectionl as no application will be able to write in a bidirectional
+  // bidirectional as no application will be able to write in a bidirectional
   // stream with zero byte as input.
   if (pending->sequencer()->IsClosed()) {
     ClosePendingStream(stream_id);
@@ -355,7 +355,7 @@ void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
 
   pending->OnRstStreamFrame(frame);
   // At this point, none of the bytes has been consumed by the application
-  // layer. It is safe to close the pending stream even if it is bidirectionl as
+  // layer. It is safe to close the pending stream even if it is bidirectional as
   // no application will be able to write in a bidirectional stream with zero
   // byte as input.
   ClosePendingStream(stream_id);
@@ -1167,7 +1167,7 @@ void QuicSession::OnConfigNegotiated() {
         max_streams <
             ietf_streamid_manager_.outgoing_bidirectional_stream_count()) {
       connection_->CloseConnection(
-          QUIC_ZERO_RTT_UNRETRANSMITTABLE,
+          QUIC_ZERO_RTT_UNRETRANSMISSIBLE,
           absl::StrCat(
               "Server rejected 0-RTT, aborting because new bidirectional "
               "initial stream limit ",
@@ -1209,7 +1209,7 @@ void QuicSession::OnConfigNegotiated() {
         max_streams <
             ietf_streamid_manager_.outgoing_unidirectional_stream_count()) {
       connection_->CloseConnection(
-          QUIC_ZERO_RTT_UNRETRANSMITTABLE,
+          QUIC_ZERO_RTT_UNRETRANSMISSIBLE,
           absl::StrCat(
               "Server rejected 0-RTT, aborting because new unidirectional "
               "initial stream limit ",
@@ -1578,7 +1578,7 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
         ", which is below currently used: ", flow_controller_.bytes_sent());
     QUIC_LOG(ERROR) << error_details;
     connection_->CloseConnection(
-        QUIC_ZERO_RTT_UNRETRANSMITTABLE, error_details,
+        QUIC_ZERO_RTT_UNRETRANSMISSIBLE, error_details,
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
@@ -2161,7 +2161,7 @@ bool QuicSession::HasDataToWrite() const {
          control_frame_manager_.WillingToWrite();
 }
 
-void QuicSession::OnAckNeedsRetransmittableFrame() {
+void QuicSession::OnAckNeedsRetransmissibleFrame() {
   flow_controller_.SendWindowUpdate();
 }
 
@@ -2214,14 +2214,14 @@ bool QuicSession::IsStreamFlowControlBlocked() {
 
 size_t QuicSession::MaxAvailableBidirectionalStreams() const {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    return ietf_streamid_manager_.GetMaxAllowdIncomingBidirectionalStreams();
+    return ietf_streamid_manager_.GetMaxAllowedIncomingBidirectionalStreams();
   }
   return stream_id_manager_.MaxAvailableStreams();
 }
 
 size_t QuicSession::MaxAvailableUnidirectionalStreams() const {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    return ietf_streamid_manager_.GetMaxAllowdIncomingUnidirectionalStreams();
+    return ietf_streamid_manager_.GetMaxAllowedIncomingUnidirectionalStreams();
   }
   return stream_id_manager_.MaxAvailableStreams();
 }
@@ -2288,7 +2288,7 @@ bool QuicSession::OnFrameAcked(const QuicFrame& frame,
         frame.type == MAX_STREAMS_FRAME) {
       // Since there is a 2 frame limit on the number of outstanding max_streams
       // frames, when an outstanding max_streams frame is ack'd that frees up
-      // room to potntially send another.
+      // room to potentially send another.
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams, 2, 2);
       ietf_streamid_manager_.MaybeSendMaxStreamsFrame();
     }
@@ -2462,7 +2462,7 @@ bool QuicSession::CanWriteStreamData() const {
   if (HasPendingHandshake()) {
     return true;
   }
-  return connection_->CanWrite(HAS_RETRANSMITTABLE_DATA);
+  return connection_->CanWrite(HAS_RETRANSMISSIBLE_DATA);
 }
 
 bool QuicSession::RetransmitLostData() {
@@ -2628,14 +2628,14 @@ bool QuicSession::OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) {
 
 size_t QuicSession::max_open_incoming_bidirectional_streams() const {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    return ietf_streamid_manager_.GetMaxAllowdIncomingBidirectionalStreams();
+    return ietf_streamid_manager_.GetMaxAllowedIncomingBidirectionalStreams();
   }
   return stream_id_manager_.max_open_incoming_streams();
 }
 
 size_t QuicSession::max_open_incoming_unidirectional_streams() const {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    return ietf_streamid_manager_.GetMaxAllowdIncomingUnidirectionalStreams();
+    return ietf_streamid_manager_.GetMaxAllowedIncomingUnidirectionalStreams();
   }
   return stream_id_manager_.max_open_incoming_streams();
 }

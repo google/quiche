@@ -34,7 +34,7 @@ struct QUICHE_EXPORT QuicConnectionCloseFrame {
   friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const QuicConnectionCloseFrame& c);
 
-  // Indicates whether the the frame is a Google QUIC CONNECTION_CLOSE frame,
+  // Indicates whether the frame is a Google QUIC CONNECTION_CLOSE frame,
   // an IETF QUIC CONNECTION_CLOSE frame with transport error code,
   // or an IETF QUIC CONNECTION_CLOSE frame with application error code.
   QuicConnectionCloseType close_type = GOOGLE_QUIC_CONNECTION_CLOSE;

@@ -86,24 +86,24 @@ TEST_F(QuicPacketsTest, CopySerializedPacket) {
   SerializedPacket packet(QuicPacketNumber(1), PACKET_1BYTE_PACKET_NUMBER,
                           buffer.data(), buffer.length(), /*has_ack=*/false,
                           /*has_stop_waiting=*/false);
-  packet.retransmittable_frames.push_back(QuicFrame(QuicWindowUpdateFrame()));
-  packet.retransmittable_frames.push_back(QuicFrame(QuicStreamFrame()));
+  packet.retransmissible_frames.push_back(QuicFrame(QuicWindowUpdateFrame()));
+  packet.retransmissible_frames.push_back(QuicFrame(QuicStreamFrame()));
 
   QuicAckFrame ack_frame(InitAckFrame(1));
-  packet.nonretransmittable_frames.push_back(QuicFrame(&ack_frame));
-  packet.nonretransmittable_frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  packet.nonretransmissible_frames.push_back(QuicFrame(&ack_frame));
+  packet.nonretransmissible_frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
 
   std::unique_ptr<SerializedPacket> copy = absl::WrapUnique<SerializedPacket>(
       CopySerializedPacket(packet, &allocator, /*copy_buffer=*/true));
   EXPECT_EQ(quic::QuicPacketNumber(1), copy->packet_number);
   EXPECT_EQ(PACKET_1BYTE_PACKET_NUMBER, copy->packet_number_length);
-  ASSERT_EQ(2u, copy->retransmittable_frames.size());
-  EXPECT_EQ(WINDOW_UPDATE_FRAME, copy->retransmittable_frames[0].type);
-  EXPECT_EQ(STREAM_FRAME, copy->retransmittable_frames[1].type);
+  ASSERT_EQ(2u, copy->retransmissible_frames.size());
+  EXPECT_EQ(WINDOW_UPDATE_FRAME, copy->retransmissible_frames[0].type);
+  EXPECT_EQ(STREAM_FRAME, copy->retransmissible_frames[1].type);
 
-  ASSERT_EQ(2u, copy->nonretransmittable_frames.size());
-  EXPECT_EQ(ACK_FRAME, copy->nonretransmittable_frames[0].type);
-  EXPECT_EQ(PADDING_FRAME, copy->nonretransmittable_frames[1].type);
+  ASSERT_EQ(2u, copy->nonretransmissible_frames.size());
+  EXPECT_EQ(ACK_FRAME, copy->nonretransmissible_frames[0].type);
+  EXPECT_EQ(PADDING_FRAME, copy->nonretransmissible_frames[1].type);
   EXPECT_EQ(1000u, copy->encrypted_length);
   quiche::test::CompareCharArraysWithHexError(
       "encrypted_buffer", copy->encrypted_buffer, copy->encrypted_length,

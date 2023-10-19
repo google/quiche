@@ -2088,14 +2088,14 @@ TEST_P(QuicDispatcherWriteBlockedListTest, OnCanWriteOrder) {
 }
 
 TEST_P(QuicDispatcherWriteBlockedListTest, OnCanWriteRemove) {
-  // Add and remove one connction.
+  // Add and remove one connection.
   SetBlocked();
   dispatcher_->OnWriteBlocked(connection1());
   blocked_list_->erase(connection1());
   EXPECT_CALL(*connection1(), OnCanWrite()).Times(0);
   dispatcher_->OnCanWrite();
 
-  // Add and remove one connction and make sure it doesn't affect others.
+  // Add and remove one connection and make sure it doesn't affect others.
   SetBlocked();
   dispatcher_->OnWriteBlocked(connection1());
   dispatcher_->OnWriteBlocked(connection2());
@@ -2469,7 +2469,7 @@ TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
 }
 
 TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
-       TimeWaitListPoplulateCorrectly) {
+       TimeWaitListPopulateCorrectly) {
   QuicTimeWaitListManager* time_wait_list_manager =
       QuicDispatcherPeer::GetTimeWaitListManager(dispatcher_.get());
   AddConnection1();

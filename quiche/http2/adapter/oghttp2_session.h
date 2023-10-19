@@ -353,7 +353,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   };
   using ProcessBytesResult = absl::variant<int64_t, ProcessBytesError>;
 
-  // Attempts to process `bytes` and returns the number of bytes proccessed on
+  // Attempts to process `bytes` and returns the number of bytes processed on
   // success or the processing error on failure.
   ProcessBytesResult ProcessBytesImpl(absl::string_view bytes);
 

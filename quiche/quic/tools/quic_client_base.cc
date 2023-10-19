@@ -174,7 +174,7 @@ void QuicClientBase::StartConnect() {
   const bool can_reconnect_with_different_version =
       CanReconnectWithDifferentVersion(&mutual_version);
   if (connected_or_attempting_connect()) {
-    // Clear queued up data if client can not try to connect with a different
+    // Clear queued up data if client cannot try to connect with a different
     // version.
     if (!can_reconnect_with_different_version) {
       ClearDataToResend();

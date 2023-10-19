@@ -98,7 +98,7 @@ class QuicCryptoClientStreamTest : public QuicTest {
   std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;
 };
 
-TEST_F(QuicCryptoClientStreamTest, NotInitiallyConected) {
+TEST_F(QuicCryptoClientStreamTest, NotInitiallyConnected) {
   EXPECT_FALSE(stream()->encryption_established());
   EXPECT_FALSE(stream()->one_rtt_keys_available());
 }

@@ -149,7 +149,7 @@ class QUICHE_EXPORT QuicSession
   void OnCongestionWindowChange(QuicTime /*now*/) override {}
   void OnConnectionMigration(AddressChangeType /*type*/) override {}
   // Adds a connection level WINDOW_UPDATE frame.
-  void OnAckNeedsRetransmittableFrame() override;
+  void OnAckNeedsRetransmissibleFrame() override;
   void SendAckFrequency(const QuicAckFrequencyFrame& frame) override;
   void SendNewConnectionId(const QuicNewConnectionIdFrame& frame) override;
   void SendRetireConnectionId(uint64_t sequence_number) override;
@@ -691,7 +691,7 @@ class QUICHE_EXPORT QuicSession
 
   // Creates a new stream to handle a peer-initiated stream.
   // Caller does not own the returned stream.
-  // Returns nullptr and does error handling if the stream can not be created.
+  // Returns nullptr and does error handling if the stream cannot be created.
   virtual QuicStream* CreateIncomingStream(QuicStreamId id) = 0;
   virtual QuicStream* CreateIncomingStream(PendingStream* pending) = 0;
 
@@ -729,7 +729,7 @@ class QUICHE_EXPORT QuicSession
   virtual void OnFinalByteOffsetReceived(QuicStreamId id,
                                          QuicStreamOffset final_byte_offset);
 
-  // Returns true if a frame with the given type and id can be prcoessed by a
+  // Returns true if a frame with the given type and id can be processed by a
   // PendingStream. However, the frame will always be processed by a QuicStream
   // if one exists with the given stream_id.
   virtual bool UsesPendingStreamForFrame(QuicFrameType /*type*/,
@@ -826,7 +826,7 @@ class QUICHE_EXPORT QuicSession
   // indicated by |unidirectional|.
   QuicStreamId GetLargestPeerCreatedStreamId(bool unidirectional) const;
 
-  // Deletes the connection and sets it to nullptr, so calling it mulitiple
+  // Deletes the connection and sets it to nullptr, so calling it multiple
   // times is safe.
   void DeleteConnection();
 
@@ -922,7 +922,7 @@ class QUICHE_EXPORT QuicSession
   // pending stream. Can return NULL, e.g., if the stream ID is invalid.
   PendingStream* PendingStreamOnStreamFrame(const QuicStreamFrame& frame);
 
-  // Creates or gets pending strea, feed it with |frame|, and closes the pending
+  // Creates or gets pending stream, feed it with |frame|, and closes the pending
   // stream.
   void PendingStreamOnRstStream(const QuicRstStreamFrame& frame);
 
@@ -954,7 +954,7 @@ class QUICHE_EXPORT QuicSession
   Visitor* visitor_;
 
   // A list of streams which need to write more data.  Stream register
-  // themselves in their constructor, and unregisterm themselves in their
+  // themselves in their constructor, and unregister themselves in their
   // destructors, so the write blocked list must outlive all streams.
   std::unique_ptr<QuicWriteBlockedList> write_blocked_streams_;
 

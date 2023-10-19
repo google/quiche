@@ -38,7 +38,7 @@ http_archive(
 		LastUpdated: "2022-05-18",
 	}
 	if !reflect.DeepEqual(*deps, expected) {
-		t.Errorf("Parsing returned incorret result, expected:\n  %v\n, got:\n  %v", expected, *deps)
+		t.Errorf("Parsing returned incorrect result, expected:\n  %v\n, got:\n  %v", expected, *deps)
 	}
 }
 

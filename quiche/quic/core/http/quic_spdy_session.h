@@ -53,7 +53,7 @@ class QUICHE_EXPORT Http3DebugVisitor {
 
   virtual ~Http3DebugVisitor();
 
-  // TODO(https://crbug.com/1062700): Remove default implementation of all
+  // TODO(crbug.com/1062700): Remove default implementation of all
   // methods after Chrome's QuicHttp3Logger has overrides.  This is to make sure
   // QUICHE merge is not blocked on having to add those overrides, they can
   // happen asynchronously.
@@ -239,7 +239,7 @@ class QUICHE_EXPORT QuicSpdySession
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
 
   // Write GOAWAY frame with maximum stream ID on the control stream.  Called to
-  // initite graceful connection shutdown.  Do not use smaller stream ID, in
+  // initiate graceful connection shutdown.  Do not use smaller stream ID, in
   // case client does not implement retry on GOAWAY.  Do not send GOAWAY if one
   // has already been sent. Send connection close with |error_code| and |reason|
   // before encryption gets established.
@@ -321,7 +321,7 @@ class QUICHE_EXPORT QuicSpdySession
   // Called when the complete list of headers is available.
   void OnHeaderList(const QuicHeaderList& header_list);
 
-  // Initialze HTTP/3 unidirectional streams if |unidirectional| is true and
+  // Initialize HTTP/3 unidirectional streams if |unidirectional| is true and
   // those streams are not initialized yet.
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
 
@@ -348,7 +348,7 @@ class QUICHE_EXPORT QuicSpdySession
   // |is_sent| is true for sent headers, false for received ones.
   // Ratio is recorded as percentage.  Smaller value means more efficient
   // compression.  Compressed size might be larger than uncompressed size, but
-  // recorded ratio is trunckated at 200%.
+  // recorded ratio is truncated at 200%.
   // Uncompressed size can be zero for an empty header list, and compressed size
   // can be zero for an empty header list when using HPACK.  (QPACK always emits
   // a header block prefix of at least two bytes.)  This method records nothing
@@ -529,7 +529,7 @@ class QUICHE_EXPORT QuicSpdySession
 
   const SettingsFrame& settings() const { return settings_; }
 
-  // Initializes HTTP/3 unidirectional streams if not yet initialzed.
+  // Initializes HTTP/3 unidirectional streams if not yet initialized.
   virtual void MaybeInitializeHttp3UnidirectionalStreams();
 
   // QuicConnectionVisitorInterface methods.
@@ -689,7 +689,7 @@ class QUICHE_EXPORT QuicSpdySession
 
   // WebTransport streams that do not have a session associated with them.
   // Limited to kMaxUnassociatedWebTransportStreams; when the list is full,
-  // oldest streams are evicated first.
+  // oldest streams are evicted first.
   std::list<BufferedWebTransportStream> buffered_streams_;
 
   // On the server side, if true, advertise and accept extended CONNECT method.

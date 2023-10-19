@@ -40,8 +40,8 @@ TEST(HpackEntryCollectorTest, Clear) {
   QUICHE_VLOG(1) << collector;
 }
 
-// EXPECT_FATAL_FAILURE can not access variables in the scope of a test body,
-// including the this variable so can not access non-static members. So, we
+// EXPECT_FATAL_FAILURE cannot access variables in the scope of a test body,
+// including the this variable so cannot access non-static members. So, we
 // define this test outside of the test body.
 void IndexedHeaderErrorTest() {
   HpackEntryCollector collector;

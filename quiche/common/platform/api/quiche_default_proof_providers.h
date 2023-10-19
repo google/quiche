@@ -23,7 +23,7 @@ inline std::unique_ptr<quic::ProofVerifier> CreateDefaultProofVerifier(
 }
 
 // Provides a default proof source for CLI-based tools.  The actual certificates
-// used in the proof source should be confifgurable via command-line flags.
+// used in the proof source should be configurable via command-line flags.
 inline std::unique_ptr<quic::ProofSource> CreateDefaultProofSource() {
   return CreateDefaultProofSourceImpl();
 }

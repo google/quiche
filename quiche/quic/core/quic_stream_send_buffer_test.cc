@@ -90,7 +90,7 @@ TEST_F(QuicStreamSendBufferTest, CopyDataToBuffer) {
   ASSERT_TRUE(send_buffer_.WriteStreamData(3072, 768, &writer));
   EXPECT_EQ(copy4, absl::string_view(buf + 3072, 768));
 
-  // Test data piece across boundries.
+  // Test data piece across boundaries.
   QuicDataWriter writer2(4000, buf, quiche::HOST_BYTE_ORDER);
   std::string copy5 =
       std::string(536, 'a') + std::string(256, 'b') + std::string(232, 'c');
@@ -162,7 +162,7 @@ TEST_F(QuicStreamSendBufferTest, RemoveStreamFrame) {
   EXPECT_EQ(0u, send_buffer_.size());
 }
 
-TEST_F(QuicStreamSendBufferTest, RemoveStreamFrameAcrossBoundries) {
+TEST_F(QuicStreamSendBufferTest, RemoveStreamFrameAcrossBoundaries) {
   WriteAllData();
 
   QuicByteCount newly_acked_length;

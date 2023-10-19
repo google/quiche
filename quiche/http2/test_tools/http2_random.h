@@ -38,9 +38,9 @@ class QUICHE_NO_EXPORT Http2Random {
   // Returns a random 64-bit value.
   uint64_t Rand64();
 
-  // Return a uniformly distrubted random number in [0, n).
+  // Return a uniformly distributed random number in [0, n).
   uint32_t Uniform(uint32_t n) { return Rand64() % n; }
-  // Return a uniformly distrubted random number in [lo, hi).
+  // Return a uniformly distributed random number in [lo, hi).
   uint64_t UniformInRange(uint64_t lo, uint64_t hi) {
     return lo + Rand64() % (hi - lo);
   }

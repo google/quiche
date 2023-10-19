@@ -39,7 +39,7 @@ TEST(HeaderValidatorTest, ExceedsMaxSize) {
   EXPECT_EQ(HeaderValidator::HEADER_OK, status);
   status = v.ValidateSingleHeader(
       "name2",
-      "Antidisestablishmentariansism is supercalifragilisticexpialodocious.");
+      "Antidisestablishmentariansism is supercalifragilisticexpealidocious.");
   EXPECT_EQ(HeaderValidator::HEADER_FIELD_TOO_LONG, status);
 }
 
@@ -432,7 +432,7 @@ TEST(HeaderValidatorTest, WebsocketPseudoHeaders) {
   }
   EXPECT_EQ(HeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":protocol", "websocket"));
-  // After allowing the method, `:protocol` is acepted for CONNECT requests.
+  // After allowing the method, `:protocol` is accepted for CONNECT requests.
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 }
 

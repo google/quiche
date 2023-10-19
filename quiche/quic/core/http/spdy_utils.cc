@@ -40,7 +40,7 @@ bool SpdyUtils::ExtractContentLengthFromHeaders(int64_t* content_length,
       if (!absl::SimpleAtoi(value, &new_value) ||
           !quiche::QuicheTextUtils::IsAllDigits(value)) {
         QUIC_DLOG(ERROR)
-            << "Content length was either unparseable or negative.";
+            << "Content length was either unparsable or negative.";
         return false;
       }
       if (*content_length < 0) {

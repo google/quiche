@@ -196,7 +196,7 @@ void BalsaHeaders::ParseTokenList(absl::string_view header_value,
     // found. marked.
     const char* nws = start;
 
-    // search for next whitspace or separator char.
+    // search for next whitespace or separator char.
     while (*start != ',' && static_cast<unsigned char>(*start) > ' ') {
       ++start;
       if (start == end) {
@@ -625,7 +625,7 @@ void BalsaHeaders::RemoveAllOfHeaderInList(const HeaderTokenList& keys) {
   // This extra copy sacrifices some performance to prevent the possible
   // mistakes that the caller does not lower case the headers in keys.
   // Better performance can be achieved by asking caller to lower case
-  // the keys and RemoveAllOfheaderInlist just does lookup.
+  // the keys and RemoveAllOfheaderInList just does lookup.
   absl::flat_hash_set<std::string> lowercase_keys;
   for (const auto& key : keys) {
     MaybeClearSpecialHeaderValues(key);
@@ -1102,7 +1102,7 @@ void BalsaHeaders::RemoveLastTokenFromHeaderValue(absl::string_view key) {
       GetHeaderLinesIterator(key, header_lines_.begin());
   if (it == header_lines_.end()) {
     QUICHE_DLOG(WARNING)
-        << "Attempting to remove last token from a non-existent "
+        << "Attempting to remove last token from a nonexistent "
         << "header \"" << key << "\"";
     return;
   }

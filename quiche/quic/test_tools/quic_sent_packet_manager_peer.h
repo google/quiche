@@ -45,7 +45,7 @@ class QuicSentPacketManagerPeer {
                                     uint64_t packet_number,
                                     TransmissionType transmission_type);
 
-  static size_t GetNumRetransmittablePackets(
+  static size_t GetNumRetransmissiblePackets(
       const QuicSentPacketManager* sent_packet_manager);
 
   static void SetConsecutivePtoCount(QuicSentPacketManager* sent_packet_manager,
@@ -62,7 +62,7 @@ class QuicSentPacketManagerPeer {
   static PacingSender* GetPacingSender(
       QuicSentPacketManager* sent_packet_manager);
 
-  static bool HasRetransmittableFrames(
+  static bool HasRetransmissibleFrames(
       QuicSentPacketManager* sent_packet_manager, uint64_t packet_number);
 
   static QuicUnackedPacketMap* GetUnackedPacketMap(

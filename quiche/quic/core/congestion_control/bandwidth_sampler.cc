@@ -190,10 +190,10 @@ BandwidthSampler::~BandwidthSampler() {}
 void BandwidthSampler::OnPacketSent(
     QuicTime sent_time, QuicPacketNumber packet_number, QuicByteCount bytes,
     QuicByteCount bytes_in_flight,
-    HasRetransmittableData has_retransmittable_data) {
+    HasRetransmissibleData has_retransmissible_data) {
   last_sent_packet_ = packet_number;
 
-  if (has_retransmittable_data != HAS_RETRANSMITTABLE_DATA) {
+  if (has_retransmissible_data != HAS_RETRANSMISSIBLE_DATA) {
     return;
   }
 
@@ -495,7 +495,7 @@ bool BandwidthSampler::ChooseA0Point(QuicByteCount total_bytes_acked,
                                      AckPoint* a0) {
   if (a0_candidates_.empty()) {
     QUIC_BUG(quic_bug_10437_5)
-        << "No A0 point candicates. total_bytes_acked:" << total_bytes_acked;
+        << "No A0 point candidates. total_bytes_acked:" << total_bytes_acked;
     return false;
   }
 

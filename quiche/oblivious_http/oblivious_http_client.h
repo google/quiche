@@ -13,7 +13,7 @@
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
-// 1. Facilitates client side to intiate OHttp request flow by initializing the
+// 1. Facilitates client side to initiate OHttp request flow by initializing the
 // HPKE public key obtained from server, and subsequently uses it to encrypt the
 // Binary HTTP request payload.
 // 2. After initializing this class with server's HPKE public key, users can
@@ -58,7 +58,7 @@ class QUICHE_EXPORT ObliviousHttpClient {
 
   // After `CreateObliviousHttpRequest` operation, callers on client-side will
   // extract `oblivious_http_request_context` from the returned object
-  // `ObliviousHttpRequest` and pass in to this method in order to decrypt the
+  // `ObliviousHttpRequest` and pass into this method in order to decrypt the
   // response that's received from Gateway for the given request at hand.
   absl::StatusOr<ObliviousHttpResponse> DecryptObliviousHttpResponse(
       std::string encrypted_data,

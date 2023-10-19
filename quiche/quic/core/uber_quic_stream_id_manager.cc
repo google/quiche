@@ -109,12 +109,12 @@ void UberQuicStreamIdManager::MaybeSendMaxStreamsFrame() {
 }
 
 QuicStreamCount
-UberQuicStreamIdManager::GetMaxAllowdIncomingBidirectionalStreams() const {
+UberQuicStreamIdManager::GetMaxAllowedIncomingBidirectionalStreams() const {
   return bidirectional_stream_id_manager_.incoming_initial_max_open_streams();
 }
 
 QuicStreamCount
-UberQuicStreamIdManager::GetMaxAllowdIncomingUnidirectionalStreams() const {
+UberQuicStreamIdManager::GetMaxAllowedIncomingUnidirectionalStreams() const {
   return unidirectional_stream_id_manager_.incoming_initial_max_open_streams();
 }
 

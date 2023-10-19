@@ -449,7 +449,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
 }
 
 // Regression test for b/186438140.
-TEST_P(TlsClientHandshakerTest, ZeroRttResumptionWithAyncProofVerifier) {
+TEST_P(TlsClientHandshakerTest, ZeroRttResumptionWithAsyncProofVerifier) {
   // Finish establishing the first connection, so the second connection can
   // resume.
   CompleteCryptoHandshake();

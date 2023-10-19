@@ -76,7 +76,7 @@ QUICHE_EXPORT const std::vector<HpackHuffmanSymbol>& HpackHuffmanCodeVector();
 QUICHE_EXPORT const std::vector<HpackStaticEntry>& HpackStaticTableVector();
 
 // Returns a HpackStaticTable instance initialized with |kHpackStaticTable|.
-// The instance is read-only, has static lifetime, and is safe to share amoung
+// The instance is read-only, has static lifetime, and is safe to share among
 // threads. This function is thread-safe.
 QUICHE_EXPORT const HpackStaticTable& ObtainHpackStaticTable();
 

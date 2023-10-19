@@ -439,7 +439,7 @@ QuicByteCount Bbr2Sender::GetTargetCongestionWindow(float gain) const {
 void Bbr2Sender::OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
                               QuicPacketNumber packet_number,
                               QuicByteCount bytes,
-                              HasRetransmittableData is_retransmittable) {
+                              HasRetransmissibleData is_retransmissible) {
   QUIC_DVLOG(3) << this << " OnPacketSent: pkn:" << packet_number
                 << ", bytes:" << bytes << ", cwnd:" << cwnd_
                 << ", inflight:" << bytes_in_flight + bytes
@@ -455,7 +455,7 @@ void Bbr2Sender::OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
     OnExitQuiescence(sent_time);
   }
   model_.OnPacketSent(sent_time, bytes_in_flight, packet_number, bytes,
-                      is_retransmittable);
+                      is_retransmissible);
 }
 
 void Bbr2Sender::OnPacketNeutered(QuicPacketNumber packet_number) {

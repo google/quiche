@@ -900,7 +900,7 @@ void QuicConfig::SetPreferredAddressConnectionIdAndTokenToSend(
        !alternate_server_address_ipv6_.HasSendValue()) ||
       preferred_address_connection_id_and_token_.has_value()) {
     QUIC_BUG(quic_bug_10575_17)
-        << "Can not send connection ID and token for preferred address";
+        << "Cannot send connection ID and token for preferred address";
     return;
   }
   preferred_address_connection_id_and_token_ =
@@ -1019,7 +1019,7 @@ void QuicConfig::SetDefaults() {
 void QuicConfig::ToHandshakeMessage(
     CryptoHandshakeMessage* out, QuicTransportVersion transport_version) const {
   // Idle timeout has custom rules that are different from other values.
-  // We configure ourselves with the minumum value between the one sent and
+  // We configure ourselves with the minimum value between the one sent and
   // the one received. Additionally, when QUIC_CRYPTO is used, the server
   // MUST send an idle timeout no greater than the idle timeout it received
   // from the client. We therefore send the received value if it is lower.
@@ -1070,7 +1070,7 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
   QuicErrorCode error = QUIC_NO_ERROR;
   if (error == QUIC_NO_ERROR) {
     // Idle timeout has custom rules that are different from other values.
-    // We configure ourselves with the minumum value between the one sent and
+    // We configure ourselves with the minimum value between the one sent and
     // the one received. Additionally, when QUIC_CRYPTO is used, the server
     // MUST send an idle timeout no greater than the idle timeout it received
     // from the client.
