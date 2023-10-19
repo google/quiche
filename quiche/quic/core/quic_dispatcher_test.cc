@@ -2846,9 +2846,6 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
 
 TEST_P(BufferedPacketStoreTest,
        ProcessCHLOsUptoLimitAndBufferWithDifferentConnectionIdGenerator) {
-  if (!GetQuicRestartFlag(quic_request_unroutable_cid)) {
-    return;
-  }
   // Process (|kMaxNumSessionsToCreate| + 1) CHLOs,
   // the first |kMaxNumSessionsToCreate| should create connections immediately,
   // the last should be buffered.
