@@ -177,12 +177,10 @@ TEST_F(HpackBlockDecoderTest, SpecExample_C_3_1) {
   expected.ExpectIndexedHeader(4);
   expected.ExpectNameIndexAndLiteralValue(HpackEntryType::kIndexedLiteralHeader,
                                           1, false, "www.example.com");
-  NoArgValidator do_check = [expected, this]() {
-    return collector_.VerifyEq(expected);
-  };
   EXPECT_TRUE(DecodeHpackExampleAndValidateSeveralWays(
-      example, ValidateDoneAndEmpty(do_check)));
-  EXPECT_TRUE(do_check());
+      example,
+      ValidateDoneAndEmpty([&] { return collector_.VerifyEq(expected); })));
+  EXPECT_TRUE(collector_.VerifyEq(expected));
 }
 
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.5.1
@@ -227,12 +225,10 @@ TEST_F(HpackBlockDecoderTest, SpecExample_C_5_1) {
                                           "Mon, 21 Oct 2013 20:13:21 GMT");
   expected.ExpectNameIndexAndLiteralValue(HpackEntryType::kIndexedLiteralHeader,
                                           46, false, "https://www.example.com");
-  NoArgValidator do_check = [expected, this]() {
-    return collector_.VerifyEq(expected);
-  };
   EXPECT_TRUE(DecodeHpackExampleAndValidateSeveralWays(
-      example, ValidateDoneAndEmpty(do_check)));
-  EXPECT_TRUE(do_check());
+      example,
+      ValidateDoneAndEmpty([&] { return collector_.VerifyEq(expected); })));
+  EXPECT_TRUE(collector_.VerifyEq(expected));
 }
 
 // Generate a bunch of HPACK block entries to expect, use those expectations
@@ -277,12 +273,10 @@ TEST_F(HpackBlockDecoderTest, Computed) {
   HpackBlockBuilder hbb;
   expected.AppendToHpackBlockBuilder(&hbb);
 
-  NoArgValidator do_check = [expected, this]() {
-    return collector_.VerifyEq(expected);
-  };
-  EXPECT_TRUE(
-      DecodeAndValidateSeveralWays(hbb, ValidateDoneAndEmpty(do_check)));
-  EXPECT_TRUE(do_check());
+  EXPECT_TRUE(DecodeAndValidateSeveralWays(
+      hbb,
+      ValidateDoneAndEmpty([&] { return collector_.VerifyEq(expected); })));
+  EXPECT_TRUE(collector_.VerifyEq(expected));
 }
 
 }  // namespace

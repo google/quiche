@@ -13,9 +13,8 @@
 #include <stddef.h>
 
 #include <cstdint>
-#include <functional>
-#include <memory>
 #include <type_traits>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/decoder/decode_buffer.h"
@@ -23,8 +22,8 @@
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace http2 {
 namespace test {
@@ -61,16 +60,15 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public quiche::test::QuicheTest {
   // decoder. Note that RandomDecoderTest allows that size to be zero, though
   // some decoders can't deal with that on the first byte, hence the |first|
   // parameter.
-  typedef std::function<size_t(bool first, size_t offset, size_t remaining)>
-      SelectSize;
+  using SelectSize = quiche::MultiUseCallback<size_t(bool first, size_t offset,
+                                                     size_t remaining)>;
 
   // Validator returns an AssertionResult so test can do:
   // EXPECT_THAT(DecodeAndValidate(..., validator));
-  typedef ::testing::AssertionResult AssertionResult;
-  typedef std::function<AssertionResult(const DecodeBuffer& input,
-                                        DecodeStatus status)>
-      Validator;
-  typedef std::function<AssertionResult()> NoArgValidator;
+  using AssertionResult = ::testing::AssertionResult;
+  using Validator = quiche::MultiUseCallback<AssertionResult(
+      const DecodeBuffer& input, DecodeStatus status)>;
+  using NoArgValidator = quiche::MultiUseCallback<AssertionResult()>;
 
   RandomDecoderTest();
 
@@ -149,18 +147,19 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public quiche::test::QuicheTest {
     };
   }
 
-  static Validator ToValidator(const Validator& validator) {
+  static Validator ToValidator(Validator validator) {
     if (validator == nullptr) {
       return ToValidator(nullptr);
     }
     return validator;
   }
 
-  static Validator ToValidator(const NoArgValidator& validator) {
+  static Validator ToValidator(NoArgValidator validator) {
     if (validator == nullptr) {
       return ToValidator(nullptr);
     }
-    return [validator](const DecodeBuffer& /*input*/, DecodeStatus /*status*/) {
+    return [validator = std::move(validator)](const DecodeBuffer& /*input*/,
+                                              DecodeStatus /*status*/) {
       return validator();
     };
   }
@@ -171,9 +170,10 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public quiche::test::QuicheTest {
   // TODO(jamessynge): Replace this overload with the next, as using this method
   // usually means that the wrapped function doesn't need to be passed the
   // DecodeBuffer nor the DecodeStatus.
-  static Validator ValidateDoneAndEmpty(const Validator& wrapped) {
-    return [wrapped](const DecodeBuffer& input,
-                     DecodeStatus status) -> AssertionResult {
+  static Validator ValidateDoneAndEmpty(Validator wrapped) {
+    return [wrapped = std::move(wrapped)](
+               const DecodeBuffer& input,
+               DecodeStatus status) -> AssertionResult {
       HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeDone);
       HTTP2_VERIFY_EQ(0u, input.Remaining()) << "\nOffset=" << input.Offset();
       if (wrapped) {
@@ -183,8 +183,9 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public quiche::test::QuicheTest {
     };
   }
   static Validator ValidateDoneAndEmpty(NoArgValidator wrapped) {
-    return [wrapped](const DecodeBuffer& input,
-                     DecodeStatus status) -> AssertionResult {
+    return [wrapped = std::move(wrapped)](
+               const DecodeBuffer& input,
+               DecodeStatus status) -> AssertionResult {
       HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeDone);
       HTTP2_VERIFY_EQ(0u, input.Remaining()) << "\nOffset=" << input.Offset();
       if (wrapped) {
@@ -194,8 +195,7 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public quiche::test::QuicheTest {
     };
   }
   static Validator ValidateDoneAndEmpty() {
-    NoArgValidator validator;
-    return ValidateDoneAndEmpty(validator);
+    return ValidateDoneAndEmpty(NoArgValidator());
   }
 
   // Wraps a validator with another validator
@@ -204,10 +204,10 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public quiche::test::QuicheTest {
   // TODO(jamessynge): Replace this overload with the next, as using this method
   // usually means that the wrapped function doesn't need to be passed the
   // DecodeBuffer nor the DecodeStatus.
-  static Validator ValidateDoneAndOffset(uint32_t offset,
-                                         const Validator& wrapped) {
-    return [wrapped, offset](const DecodeBuffer& input,
-                             DecodeStatus status) -> AssertionResult {
+  static Validator ValidateDoneAndOffset(uint32_t offset, Validator wrapped) {
+    return [wrapped = std::move(wrapped), offset](
+               const DecodeBuffer& input,
+               DecodeStatus status) -> AssertionResult {
       HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeDone);
       HTTP2_VERIFY_EQ(offset, input.Offset())
           << "\nRemaining=" << input.Remaining();
@@ -219,8 +219,9 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public quiche::test::QuicheTest {
   }
   static Validator ValidateDoneAndOffset(uint32_t offset,
                                          NoArgValidator wrapped) {
-    return [wrapped, offset](const DecodeBuffer& input,
-                             DecodeStatus status) -> AssertionResult {
+    return [wrapped = std::move(wrapped), offset](
+               const DecodeBuffer& input,
+               DecodeStatus status) -> AssertionResult {
       HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeDone);
       HTTP2_VERIFY_EQ(offset, input.Offset())
           << "\nRemaining=" << input.Remaining();
@@ -231,8 +232,7 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public quiche::test::QuicheTest {
     };
   }
   static Validator ValidateDoneAndOffset(uint32_t offset) {
-    NoArgValidator validator;
-    return ValidateDoneAndOffset(offset, validator);
+    return ValidateDoneAndOffset(offset, NoArgValidator());
   }
 
   // Expose |random_| as Http2Random so callers don't have to care about which

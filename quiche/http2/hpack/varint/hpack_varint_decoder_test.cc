@@ -8,6 +8,8 @@
 
 #include <stddef.h>
 
+#include <utility>
+
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
@@ -44,9 +46,10 @@ class HpackVarintDecoderTest
 
     // First validate that decoding is done and that we've advanced the cursor
     // the expected amount.
-    validator = ValidateDoneAndOffset(/* offset = */ data.size(), validator);
+    validator =
+        ValidateDoneAndOffset(/* offset = */ data.size(), std::move(validator));
 
-    EXPECT_TRUE(Decode(data, prefix_length, validator));
+    EXPECT_TRUE(Decode(data, prefix_length, std::move(validator)));
 
     EXPECT_EQ(expected_value, decoder_.value());
   }
@@ -58,7 +61,7 @@ class HpackVarintDecoderTest
       return AssertionSuccess();
     };
 
-    EXPECT_TRUE(Decode(data, prefix_length, validator));
+    EXPECT_TRUE(Decode(data, prefix_length, std::move(validator)));
   }
 
  private:

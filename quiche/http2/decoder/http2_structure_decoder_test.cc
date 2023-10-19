@@ -22,6 +22,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/decoder/decode_buffer.h"
@@ -109,7 +110,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
 
     // Before that, validate that decoding is done and that we've advanced
     // the cursor the expected amount.
-    validator = ValidateDoneAndOffset(S::EncodedSize(), validator);
+    validator = ValidateDoneAndOffset(S::EncodedSize(), std::move(validator));
 
     // Decode several times, with several segmentations of the input buffer.
     fast_decode_count_ = 0;
