@@ -74,12 +74,6 @@ bool AllCharsInMap(absl::string_view str, const CharMap& map) {
   return true;
 }
 
-bool IsValidHeaderName(absl::string_view name) {
-  static const CharMap valid_chars =
-      BuildValidCharMap(kHttp2HeaderNameAllowedChars);
-  return AllCharsInMap(name, valid_chars);
-}
-
 bool IsValidStatus(absl::string_view status) {
   static const CharMap valid_chars =
       BuildValidCharMap(kHttp2StatusValueAllowedChars);
@@ -238,6 +232,12 @@ bool HeaderValidator::FinishHeaderBlock(HeaderType type) {
       return ValidateResponseTrailers(pseudo_headers_);
   }
   return false;
+}
+
+bool HeaderValidator::IsValidHeaderName(absl::string_view name) {
+  static const CharMap valid_chars =
+      BuildValidCharMap(kHttp2HeaderNameAllowedChars);
+  return AllCharsInMap(name, valid_chars);
 }
 
 bool HeaderValidator::IsValidHeaderValue(absl::string_view value,

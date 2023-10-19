@@ -26,8 +26,13 @@ class QUICHE_EXPORT HeaderValidator : public HeaderValidatorBase {
   // present for the given header type.
   bool FinishHeaderBlock(HeaderType type) override;
 
-  // Returns whether `value` is valid according to RFC 9110 Section 5.5 and RFC
-  // 9112 Section 8.2.1.
+  // Returns whether `name` is valid according to RFC 9110 Section 5.1.
+  // ':' is an invalid character, therefore HTTP/2 pseudo-headers must be
+  // validated with the leading colon removed.
+  static bool IsValidHeaderName(absl::string_view name);
+
+  // Returns whether `value` is valid according to RFC 9110 Section 5.5 and
+  // RFC 9113 Section 8.2.1.
   static bool IsValidHeaderValue(absl::string_view value,
                                  ObsTextOption ops_text_option);
 
