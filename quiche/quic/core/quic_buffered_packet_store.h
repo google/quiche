@@ -5,14 +5,22 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_BUFFERED_PACKET_STORE_H_
 #define QUICHE_QUIC_CORE_QUIC_BUFFERED_PACKET_STORE_H_
 
+#include <cstdint>
 #include <list>
+#include <memory>
 #include <string>
+#include <vector>
 
+#include "absl/types/optional.h"
+#include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/core/tls_chlo_extractor.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -75,6 +83,11 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
     // Otherwise, it is the version of the first packet in |buffered_packets|.
     ParsedQuicVersion version;
     TlsChloExtractor tls_chlo_extractor;
+    // Only one reference to the generator is stored per connection, and this is
+    // stored when the CHLO is buffered. The connection needs a stable,
+    // consistent way to generate IDs. Fixing it on the CHLO is a
+    // straightforward way to enforce that.
+    ConnectionIdGeneratorInterface* connection_id_generator = nullptr;
   };
 
   using BufferedPacketMap =
@@ -101,12 +114,15 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
 
   // Adds a copy of packet into the packet queue for given connection. If the
   // packet is the last one of the CHLO, |parsed_chlo| will contain a parsed
-  // version of the CHLO.
+  // version of the CHLO. |connection_id_generator| is the Connection ID
+  // Generator to use with the connection. It is ignored if |parsed_chlo| is
+  // absent.
   EnqueuePacketResult EnqueuePacket(
       QuicConnectionId connection_id, bool ietf_quic,
       const QuicReceivedPacket& packet, QuicSocketAddress self_address,
       QuicSocketAddress peer_address, const ParsedQuicVersion& version,
-      absl::optional<ParsedClientHello> parsed_chlo);
+      absl::optional<ParsedClientHello> parsed_chlo,
+      ConnectionIdGeneratorInterface* connection_id_generator);
 
   // Returns true if there are any packets buffered for |connection_id|.
   bool HasBufferedPackets(QuicConnectionId connection_id) const;

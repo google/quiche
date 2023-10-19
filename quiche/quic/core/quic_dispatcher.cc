@@ -1153,9 +1153,10 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
           << server_connection_id;
       continue;
     }
-    auto session_ptr = QuicDispatcher::CreateSessionFromChlo(
+    auto session_ptr = CreateSessionFromChlo(
         server_connection_id, *packet_list.parsed_chlo, packet_list.version,
-        packets.front().self_address, packets.front().peer_address);
+        packets.front().self_address, packets.front().peer_address,
+        packet_list.connection_id_generator);
     if (session_ptr != nullptr) {
       DeliverPacketsToSession(packets, session_ptr.get());
     }
@@ -1183,11 +1184,13 @@ QuicTimeWaitListManager* QuicDispatcher::CreateQuicTimeWaitListManager() {
 }
 
 void QuicDispatcher::BufferEarlyPacket(const ReceivedPacketInfo& packet_info) {
+  // The connection ID generator will only be set for CHLOs, not for early
+  // packets.
   EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
       packet_info.destination_connection_id,
       packet_info.form != GOOGLE_QUIC_PACKET, packet_info.packet,
       packet_info.self_address, packet_info.peer_address, packet_info.version,
-      /*parsed_chlo=*/absl::nullopt);
+      /*parsed_chlo=*/absl::nullopt, /*connection_id_generator=*/nullptr);
   if (rs != EnqueuePacketResult::SUCCESS) {
     OnBufferPacketFailure(rs, packet_info.destination_connection_id);
   }
@@ -1204,16 +1207,17 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
         packet_info->destination_connection_id,
         packet_info->form != GOOGLE_QUIC_PACKET, packet_info->packet,
         packet_info->self_address, packet_info->peer_address,
-        packet_info->version, std::move(parsed_chlo));
+        packet_info->version, std::move(parsed_chlo), &ConnectionIdGenerator());
     if (rs != EnqueuePacketResult::SUCCESS) {
       OnBufferPacketFailure(rs, packet_info->destination_connection_id);
     }
     return;
   }
 
-  auto session_ptr = QuicDispatcher::CreateSessionFromChlo(
+  auto session_ptr = CreateSessionFromChlo(
       packet_info->destination_connection_id, parsed_chlo, packet_info->version,
-      packet_info->self_address, packet_info->peer_address);
+      packet_info->self_address, packet_info->peer_address,
+      &ConnectionIdGenerator());
   if (session_ptr == nullptr) {
     return;
   }
@@ -1285,10 +1289,13 @@ bool QuicDispatcher::IsServerConnectionIdTooShort(
 std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
     const QuicConnectionId original_connection_id,
     const ParsedClientHello& parsed_chlo, const ParsedQuicVersion version,
-    const QuicSocketAddress self_address,
-    const QuicSocketAddress peer_address) {
+    const QuicSocketAddress self_address, const QuicSocketAddress peer_address,
+    ConnectionIdGeneratorInterface* connection_id_generator) {
+  if (connection_id_generator == nullptr) {
+    connection_id_generator = &ConnectionIdGenerator();
+  }
   absl::optional<QuicConnectionId> server_connection_id =
-      connection_id_generator_.MaybeReplaceConnectionId(original_connection_id,
+      connection_id_generator->MaybeReplaceConnectionId(original_connection_id,
                                                         version);
   const bool replaced_connection_id = server_connection_id.has_value();
   if (!replaced_connection_id) {
@@ -1314,7 +1321,7 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
   std::string alpn = SelectAlpn(parsed_chlo.alpns);
   std::unique_ptr<QuicSession> session =
       CreateQuicSession(*server_connection_id, self_address, peer_address, alpn,
-                        version, parsed_chlo, ConnectionIdGenerator());
+                        version, parsed_chlo, *connection_id_generator);
   if (ABSL_PREDICT_FALSE(session == nullptr)) {
     QUIC_BUG(quic_bug_10287_8)
         << "CreateQuicSession returned nullptr for " << *server_connection_id

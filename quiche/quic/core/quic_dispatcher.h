@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quiche/quic/core/connection_id_generator.h"
@@ -406,7 +407,8 @@ class QUICHE_EXPORT QuicDispatcher
   std::shared_ptr<QuicSession> CreateSessionFromChlo(
       QuicConnectionId original_connection_id,
       const ParsedClientHello& parsed_chlo, ParsedQuicVersion version,
-      QuicSocketAddress self_address, QuicSocketAddress peer_address);
+      QuicSocketAddress self_address, QuicSocketAddress peer_address,
+      ConnectionIdGeneratorInterface* connection_id_generator);
 
   const QuicConfig* config_;
 

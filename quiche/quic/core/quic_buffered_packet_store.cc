@@ -4,14 +4,30 @@
 
 #include "quiche/quic/core/quic_buffered_packet_store.h"
 
+#include <cstddef>
+#include <list>
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
+#include "quiche/quic/core/connection_id_generator.h"
+#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_framer.h"
+#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -89,7 +105,8 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     QuicConnectionId connection_id, bool ietf_quic,
     const QuicReceivedPacket& packet, QuicSocketAddress self_address,
     QuicSocketAddress peer_address, const ParsedQuicVersion& version,
-    absl::optional<ParsedClientHello> parsed_chlo) {
+    absl::optional<ParsedClientHello> parsed_chlo,
+    ConnectionIdGeneratorInterface* connection_id_generator) {
   const bool is_chlo = parsed_chlo.has_value();
   QUIC_BUG_IF(quic_bug_12410_1, !GetQuicFlag(quic_allow_chlo_buffering))
       << "Shouldn't buffer packets if disabled via flag.";
@@ -144,6 +161,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     connections_with_chlo_[connection_id] = false;  // Dummy value.
     // Set the version of buffered packets of this connection on CHLO.
     queue.version = version;
+    queue.connection_id_generator = connection_id_generator;
   } else {
     // Buffer non-CHLO packets in arrival order.
     queue.buffered_packets.push_back(std::move(new_entry));
