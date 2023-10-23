@@ -60,6 +60,12 @@ class QUICHE_EXPORT HeaderValidatorBase {
   void SetAllowDifferentHostAndAuthority() {
     allow_different_host_and_authority_ = true;
   }
+  // If set, allow uppercase characters in header names (except for
+  // pseudo-headers), in violation with RFC 9113 and RFC 9114.
+  // Default behavior is to enforce that header names are lowercase.
+  void SetAllowUppercaseInHeaderNames() {
+    allow_uppercase_in_header_names_ = true;
+  }
 
  protected:
   std::string status_;
@@ -70,6 +76,7 @@ class QUICHE_EXPORT HeaderValidatorBase {
   bool validate_path_ = false;
   bool allow_fragment_in_path_ = false;
   bool allow_different_host_and_authority_ = false;
+  bool allow_uppercase_in_header_names_ = false;
 };
 
 }  // namespace adapter

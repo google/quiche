@@ -3,6 +3,7 @@
 #include <array>
 #include <bitset>
 
+#include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
@@ -174,6 +175,14 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       return HEADER_FIELD_INVALID;
     }
   } else {
+    std::string lowercase_key;
+    if (allow_uppercase_in_header_names_) {
+      // Convert header name to lowercase for validation and also for comparison
+      // to lowercase string literals below.
+      lowercase_key = absl::AsciiStrToLower(key);
+      key = lowercase_key;
+    }
+
     if (!IsValidHeaderName(key)) {
       QUICHE_VLOG(2) << "invalid chars in header name: [" << absl::CEscape(key)
                      << "]";

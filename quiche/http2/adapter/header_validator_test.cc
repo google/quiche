@@ -783,6 +783,44 @@ TEST(HeaderValidatorTest, ConnectionSpecificHeaders) {
   }
 }
 
+TEST(HeaderValidatorTest, MixedCaseHeaderName) {
+  HeaderValidator v;
+  v.SetAllowUppercaseInHeaderNames();
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("MixedCaseName", "value"));
+}
+
+// SetAllowUppercaseInHeaderNames() only applies to non-pseudo-headers.
+TEST(HeaderValidatorTest, MixedCasePseudoHeader) {
+  HeaderValidator v;
+  v.SetAllowUppercaseInHeaderNames();
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+            v.ValidateSingleHeader(":PATH", "/"));
+}
+
+// Matching `host` is case-insensitive.
+TEST(HeaderValidatorTest, MixedCaseHost) {
+  HeaderValidator v;
+  v.SetAllowUppercaseInHeaderNames();
+  for (Header to_add : kSampleRequestPseudoheaders) {
+    EXPECT_EQ(HeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader(to_add.first, to_add.second));
+  }
+  // Validation fails, because "host" and ":authority" have different values.
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+            v.ValidateSingleHeader("Host", "www.bar.com"));
+}
+
+// Matching `content-length` is case-insensitive.
+TEST(HeaderValidatorTest, MixedCaseContentLength) {
+  HeaderValidator v;
+  v.SetAllowUppercaseInHeaderNames();
+  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("Content-Length", "42"));
+  EXPECT_THAT(v.content_length(), Optional(42));
+}
+
 }  // namespace test
 }  // namespace adapter
 }  // namespace http2
