@@ -114,8 +114,9 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
     return HEADER_FIELD_TOO_LONG;
   }
   if (key[0] == ':') {
-    const absl::string_view validated_key = key.substr(1);
-    if (validated_key == "status") {
+    // Remove leading ':'.
+    key.remove_prefix(1);
+    if (key == "status") {
       if (value.size() != 3 || !IsValidStatus(value)) {
         QUICHE_VLOG(2) << "malformed status value: [" << absl::CEscape(value)
                        << "]";
@@ -127,7 +128,7 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       }
       status_ = std::string(value);
       RecordPseudoHeader(TAG_STATUS);
-    } else if (validated_key == "method") {
+    } else if (key == "method") {
       if (value == "OPTIONS") {
         pseudo_header_state_[STATE_METHOD_IS_OPTIONS] = true;
       } else if (value == "CONNECT") {
@@ -136,12 +137,12 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
         return HEADER_FIELD_INVALID;
       }
       RecordPseudoHeader(TAG_METHOD);
-    } else if (validated_key == "authority") {
+    } else if (key == "authority") {
       if (!ValidateAndSetAuthority(value)) {
         return HEADER_FIELD_INVALID;
       }
       RecordPseudoHeader(TAG_AUTHORITY);
-    } else if (validated_key == "path") {
+    } else if (key == "path") {
       if (value == "*") {
         pseudo_header_state_[STATE_PATH_IS_STAR] = true;
       } else if (value.empty()) {
@@ -155,15 +156,15 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
         pseudo_header_state_[STATE_PATH_INITIAL_SLASH] = true;
       }
       RecordPseudoHeader(TAG_PATH);
-    } else if (validated_key == "protocol") {
+    } else if (key == "protocol") {
       RecordPseudoHeader(TAG_PROTOCOL);
-    } else if (validated_key == "scheme") {
+    } else if (key == "scheme") {
       RecordPseudoHeader(TAG_SCHEME);
     } else {
       pseudo_headers_[TAG_UNKNOWN_EXTRA] = true;
-      if (!IsValidHeaderName(validated_key)) {
+      if (!IsValidHeaderName(key)) {
         QUICHE_VLOG(2) << "invalid chars in header name: ["
-                       << absl::CEscape(validated_key) << "]";
+                       << absl::CEscape(key) << "]";
         return HEADER_FIELD_INVALID;
       }
     }
@@ -173,10 +174,9 @@ HeaderValidator::HeaderStatus HeaderValidator::ValidateSingleHeader(
       return HEADER_FIELD_INVALID;
     }
   } else {
-    const absl::string_view validated_key = key;
-    if (!IsValidHeaderName(validated_key)) {
-      QUICHE_VLOG(2) << "invalid chars in header name: ["
-                     << absl::CEscape(validated_key) << "]";
+    if (!IsValidHeaderName(key)) {
+      QUICHE_VLOG(2) << "invalid chars in header name: [" << absl::CEscape(key)
+                     << "]";
       return HEADER_FIELD_INVALID;
     }
     if (!IsValidHeaderValue(value, obs_text_option_)) {
