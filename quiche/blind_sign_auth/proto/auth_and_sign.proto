@@ -18,10 +18,11 @@ package privacy.ppn;
 
 import "quiche/blind_sign_auth/proto/attestation.proto";
 import "quiche/blind_sign_auth/proto/key_services.proto";
+import "quiche/blind_sign_auth/proto/proxy_layer.proto";
 import "quiche/blind_sign_auth/proto/public_metadata.proto";
 
 // Client is requesting to auth using the provided auth token.
-// Next ID: 16
+// Next ID: 17
 message AuthAndSignRequest {
   reserved 3, 13;
 
@@ -64,6 +65,9 @@ message AuthAndSignRequest {
   // RSA modulus and the public metadata. If this value is set to true, only
   // the RSA modulus and the public metadata will be used.
   bool do_not_use_rsa_public_exponent = 15;
+
+  // Only set for some service types where multi layer proxies are supported.
+  ProxyLayer proxy_layer = 16;
 }
 
 message AuthAndSignResponse {

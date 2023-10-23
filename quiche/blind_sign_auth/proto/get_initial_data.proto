@@ -17,6 +17,7 @@ syntax = "proto3";
 package privacy.ppn;
 
 import "quiche/blind_sign_auth/proto/attestation.proto";
+import "quiche/blind_sign_auth/proto/proxy_layer.proto";
 import "quiche/blind_sign_auth/proto/public_metadata.proto";
 import "anonymous_tokens/proto/anonymous_tokens.proto";
 
@@ -42,6 +43,9 @@ message GetInitialDataRequest {
 
   // Indicates what validation rules the client uses for public metadata.
   int64 validation_version = 4;
+
+  // Only set for some service types where multi layer proxies are supported.
+  ProxyLayer proxy_layer = 5;
 }
 
 // Contains data needed to perform blind signing and prepare for calling
