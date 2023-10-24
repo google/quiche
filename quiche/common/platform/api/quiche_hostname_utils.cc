@@ -7,8 +7,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "url/url_canon.h"
-#include "url/url_canon_stdstring.h"
+#include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quiche {

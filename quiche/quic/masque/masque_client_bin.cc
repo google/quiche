@@ -12,7 +12,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "url/third_party/mozilla/url_parse.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_clock.h"
@@ -26,6 +25,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
+#include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_system_event_loop.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(

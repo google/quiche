@@ -8,8 +8,8 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "url/gurl.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/common/platform/api/quiche_googleurl.h"
 
 namespace quic {
 

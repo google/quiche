@@ -12,7 +12,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "url/third_party/mozilla/url_parse.h"
+#include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {

@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "url/gurl.h"
+#include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 

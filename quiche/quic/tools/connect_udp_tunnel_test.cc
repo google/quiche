@@ -11,8 +11,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "url/url_canon_stdstring.h"
-#include "url/url_util.h"
 #include "quiche/quic/core/connecting_client_socket.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -24,6 +22,7 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/common/masque/connect_udp_datagram_payload.h"
+#include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
