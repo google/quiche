@@ -35,6 +35,7 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_testvalue.h"
 #include "quiche/common/capsule.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_mem_slice_storage.h"
 #include "quiche/common/quiche_text_utils.h"
@@ -1640,11 +1641,12 @@ void QuicSpdyStream::HandleBodyAvailable() {
 }
 
 namespace {
+
 // Return true if |c| is not allowed in an HTTP/3 wire-encoded header and
 // pseudo-header names according to
 // https://datatracker.ietf.org/doc/html/draft-ietf-quic-http#section-4.1.1 and
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-semantics-19#section-5.6.2
-constexpr bool isInvalidHeaderNameCharacter(unsigned char c) {
+constexpr bool IsInvalidHeaderNameCharacter(unsigned char c) {
   if (c == '!' || c == '|' || c == '~' || c == '*' || c == '+' || c == '-' ||
       c == '.' ||
       // #, $, %, &, '
@@ -1657,6 +1659,37 @@ constexpr bool isInvalidHeaderNameCharacter(unsigned char c) {
   }
   return true;
 }
+
+// Return true if `name` is invalid because it contains a disallowed character.
+bool HeaderNameHasInvalidCharacter(absl::string_view name) {
+  const bool colon_invalid =
+      GetQuicReloadableFlag(quic_colon_invalid_in_header_name);
+  if (colon_invalid) {
+    QUICHE_RELOADABLE_FLAG_COUNT(quic_colon_invalid_in_header_name);
+  }
+
+  if (name.empty()) {
+    return false;
+  }
+
+  // Remove leading colon of pseudo-headers.
+  // This is the only position where colon is allowed.
+  if (name[0] == ':') {
+    name.remove_prefix(1);
+  }
+
+  if (std::find(name.begin(), name.end(), ':') != name.end()) {
+    // Header name contains colon (other than optional leading colon of
+    // pseudo-headers), which is invalid.
+    QUICHE_CODE_COUNT(quic_colon_in_header_name);
+    if (colon_invalid) {
+      return true;
+    }
+  }
+
+  return std::any_of(name.begin(), name.end(), IsInvalidHeaderNameCharacter);
+}
+
 }  // namespace
 
 bool QuicSpdyStream::ValidateReceivedHeaders(
@@ -1673,8 +1706,9 @@ bool QuicSpdyStream::ValidateReceivedHeaders(
   bool is_response = false;
   for (const std::pair<std::string, std::string>& pair : header_list) {
     const std::string& name = pair.first;
-    if (std::any_of(name.begin(), name.end(), isInvalidHeaderNameCharacter)) {
-      invalid_request_details_ = absl::StrCat("Invalid request header ", name);
+    if (HeaderNameHasInvalidCharacter(name)) {
+      invalid_request_details_ =
+          absl::StrCat("Invalid character in header name ", name);
       QUIC_DLOG(ERROR) << invalid_request_details_;
       return false;
     }
