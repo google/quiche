@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_packets.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "absl/strings/escaping.h"
@@ -311,7 +312,7 @@ QuicEncryptedPacket::QuicEncryptedPacket(absl::string_view data)
 
 std::unique_ptr<QuicEncryptedPacket> QuicEncryptedPacket::Clone() const {
   char* buffer = new char[this->length()];
-  memcpy(buffer, this->data(), this->length());
+  std::copy(this->data(), this->data() + this->length(), buffer);
   return std::make_unique<QuicEncryptedPacket>(buffer, this->length(), true);
 }
 
