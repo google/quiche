@@ -523,8 +523,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   std::string ExpectedAlpn() { return ExpectedAlpnForVersion(version_); }
 
   auto MatchParsedClientHello() {
-    if (version_.UsesQuicCrypto() ||
-        !GetQuicReloadableFlag(quic_extract_supported_groups_early)) {
+    if (version_.UsesQuicCrypto()) {
       return AllOf(
           Field(&ParsedClientHello::alpns, ElementsAreArray({ExpectedAlpn()})),
           Field(&ParsedClientHello::sni, Eq(TestHostname())),

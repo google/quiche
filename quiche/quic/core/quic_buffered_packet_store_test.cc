@@ -576,11 +576,7 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
       &sni, &resumption_attempted, &early_data_attempted, &tls_alert));
 
   EXPECT_THAT(alpns, ElementsAre(AlpnForVersion(valid_version_)));
-  if (GetQuicReloadableFlag(quic_extract_supported_groups_early)) {
-    EXPECT_FALSE(supported_groups.empty());
-  } else {
-    EXPECT_TRUE(supported_groups.empty());
-  }
+  EXPECT_FALSE(supported_groups.empty());
   EXPECT_EQ(sni, TestHostname());
 
   EXPECT_FALSE(resumption_attempted);

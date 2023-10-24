@@ -362,10 +362,7 @@ void TlsChloExtractor::HandleParsedChlo(const SSL_CLIENT_HELLO* client_hello) {
     }
   }
 
-  if (GetQuicReloadableFlag(quic_extract_supported_groups_early)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_extract_supported_groups_early, 1, 3);
-    supported_groups_ = GetSupportedGroups(client_hello);
-  }
+  supported_groups_ = GetSupportedGroups(client_hello);
 
   // Update our state now that we've parsed a full CHLO.
   if (state_ == State::kInitial) {

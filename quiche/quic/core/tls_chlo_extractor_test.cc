@@ -226,11 +226,7 @@ TEST_P(TlsChloExtractorTest, TlsExtensionInfo_SupportedGroups) {
     Initialize(std::move(crypto_client_config));
     IngestPackets();
     ValidateChloDetails();
-    if (GetQuicReloadableFlag(quic_extract_supported_groups_early)) {
-      EXPECT_EQ(tls_chlo_extractor_->supported_groups(), preferred_groups);
-    } else {
-      EXPECT_TRUE(tls_chlo_extractor_->supported_groups().empty());
-    }
+    EXPECT_EQ(tls_chlo_extractor_->supported_groups(), preferred_groups);
   }
 }
 
