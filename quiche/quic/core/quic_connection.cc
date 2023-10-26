@@ -394,9 +394,6 @@ QuicConnection::QuicConnection(
     AddKnownServerAddress(initial_peer_address);
   }
   packet_creator_.SetDefaultPeerAddress(initial_peer_address);
-  if (ignore_duplicate_new_cid_frame_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_ignore_duplicate_new_cid_frame);
-  }
 }
 
 void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
@@ -1941,7 +1938,7 @@ NewConnectionIdResult QuicConnection::OnNewConnectionIdFrameInner(
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return NewConnectionIdResult::kProtocolViolation;
   }
-  if (duplicate_new_connection_id && ignore_duplicate_new_cid_frame_) {
+  if (duplicate_new_connection_id) {
     return NewConnectionIdResult::kDuplicateFrame;
   }
   if (perspective_ == Perspective::IS_SERVER) {

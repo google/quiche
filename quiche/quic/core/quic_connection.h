@@ -2367,9 +2367,6 @@ class QUICHE_EXPORT QuicConnection
   const bool ignore_gquic_probing_ =
       GetQuicReloadableFlag(quic_ignore_gquic_probing);
 
-  const bool ignore_duplicate_new_cid_frame_ =
-      GetQuicReloadableFlag(quic_ignore_duplicate_new_cid_frame);
-
   RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
 
   // Server addresses that are known to the client.

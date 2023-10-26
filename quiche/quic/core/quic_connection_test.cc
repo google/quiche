@@ -13136,10 +13136,8 @@ TEST_P(QuicConnectionTest, MultiPortConnection) {
             stats->rtt_stats_when_default_path_degrading.latest_rtt());
 
   // Receiving the retransmitted NEW_CID frame now should still have no effect.
-  if (GetQuicReloadableFlag(quic_ignore_duplicate_new_cid_frame)) {
-    EXPECT_CALL(visitor_, CreateContextForMultiPortPath).Times(0);
-    connection_.OnNewConnectionIdFrame(frame);
-  }
+  EXPECT_CALL(visitor_, CreateContextForMultiPortPath).Times(0);
+  connection_.OnNewConnectionIdFrame(frame);
 
   // When there's no active request, the probing shouldn't happen. But the
   // probing context should be saved.
