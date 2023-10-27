@@ -2411,7 +2411,8 @@ void QuicConnection::MaybeSendInResponseToPacket() {
       QUIC_BUG(quic_send_alarm_postponed)
           << "previous deadline:" << max_deadline
           << ", deadline from CanWrite:" << send_alarm_->deadline()
-          << ", last_can_write_reason:" << last_can_write_reason_
+          << ", last_can_write_reason:"
+          << static_cast<int>(last_can_write_reason_)
           << ", packets_sent_on_last_successful_can_write:"
           << packets_sent_on_last_successful_can_write_;
       QUIC_DVLOG(1) << "Send alarm restored after processing packet.";
