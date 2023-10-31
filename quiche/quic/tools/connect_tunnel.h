@@ -73,7 +73,7 @@ class ConnectTunnel : public ConnectingClientSocket::AsyncVisitor {
           QuicResetStreamError::FromIetf(QuicHttp3ErrorCode::CONNECT_ERROR));
 
   const absl::flat_hash_set<QuicServerId> acceptable_destinations_;
-  SocketFactory* const socket_factory_;
+  SocketFactory* const socket_factory_ = nullptr;
 
   // Null when client stream closed.
   QuicSimpleServerBackend::RequestHandler* client_stream_request_handler_;

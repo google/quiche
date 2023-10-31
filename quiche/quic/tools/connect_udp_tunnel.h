@@ -81,7 +81,7 @@ class ConnectUdpTunnel : public ConnectingClientSocket::AsyncVisitor,
                              QuicResetStreamError error_code);
 
   const absl::flat_hash_set<QuicServerId> acceptable_targets_;
-  SocketFactory* const socket_factory_;
+  SocketFactory* const socket_factory_ = nullptr;
   const std::string server_label_;
 
   // Null when client stream closed.
