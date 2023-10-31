@@ -727,7 +727,7 @@ class QUICHE_EXPORT QuicConnection
   // QuicPacketCreator::DelegateInterface
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
-  const QuicFrames MaybeBundleOpportunistically() override;
+  void MaybeBundleOpportunistically() override;
   QuicPacketBuffer GetPacketBuffer() override;
   void OnSerializedPacket(SerializedPacket packet) override;
   void OnUnrecoverableError(QuicErrorCode error,

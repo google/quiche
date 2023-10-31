@@ -1282,7 +1282,7 @@ bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
       << "Adding a control frame with no control frame id: " << frame;
   QUICHE_DCHECK(QuicUtils::IsRetransmittableFrame(frame.type))
       << ENDPOINT << frame;
-  MaybeBundleOpportunistically();
+  delegate_->MaybeBundleOpportunistically();
   if (HasPendingFrames()) {
     if (AddFrame(frame, next_transmission_type_)) {
       // There is pending frames and current frame fits.
@@ -1312,7 +1312,7 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
       << "Packet flusher is not attached when "
          "generator tries to write stream data.";
   bool has_handshake = QuicUtils::IsCryptoStreamId(transport_version(), id);
-  MaybeBundleOpportunistically();
+  delegate_->MaybeBundleOpportunistically();
   bool fin = state != NO_FIN;
   QUIC_BUG_IF(quic_bug_12398_17, has_handshake && fin)
       << ENDPOINT << "Handshake packets should never send a fin";
@@ -1439,7 +1439,7 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
       << ENDPOINT
       << "Packet flusher is not attached when "
          "generator tries to write crypto data.";
-  MaybeBundleOpportunistically();
+  delegate_->MaybeBundleOpportunistically();
   // To make reasoning about crypto frames easier, we don't combine them with
   // other retransmittable frames in a single packet.
   // TODO(nharper): Once we have separate packet number spaces, everything
@@ -1511,32 +1511,12 @@ void QuicPacketCreator::GenerateMtuDiscoveryPacket(QuicByteCount target_mtu) {
   SetMaxPacketLength(current_mtu);
 }
 
-void QuicPacketCreator::MaybeBundleOpportunistically() {
-  if (flush_ack_in_maybe_bundle_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_flush_ack_in_maybe_bundle, 1, 3);
-    delegate_->MaybeBundleOpportunistically();
-    return;
-  }
-  if (has_ack()) {
-    // Ack already queued, nothing to do.
-    return;
-  }
-  if (!delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
-                                       NOT_HANDSHAKE)) {
-    return;
-  }
-  const bool flushed = FlushAckFrame(delegate_->MaybeBundleOpportunistically());
-  QUIC_BUG_IF(quic_bug_10752_29, !flushed)
-      << ENDPOINT << "Failed to flush ACK frame. encryption_level:"
-      << packet_.encryption_level;
-}
-
 bool QuicPacketCreator::FlushAckFrame(const QuicFrames& frames) {
   QUIC_BUG_IF(quic_bug_10752_30, !flusher_attached_)
       << ENDPOINT
       << "Packet flusher is not attached when "
          "generator tries to send ACK frame.";
-  // MaybeBundleOpportunistically could be called nestedly when
+  // delegate_->MaybeBundleOpportunistically could be called nestedly when
   // sending a control frame causing another control frame to be sent.
   QUIC_BUG_IF(quic_bug_12398_18, !frames.empty() && has_ack())
       << ENDPOINT << "Trying to flush " << quiche::PrintElements(frames)
@@ -1619,7 +1599,7 @@ MessageStatus QuicPacketCreator::AddMessageFrame(
       << ENDPOINT
       << "Packet flusher is not attached when "
          "generator tries to add message frame.";
-  MaybeBundleOpportunistically();
+  delegate_->MaybeBundleOpportunistically();
   const QuicByteCount message_length = MemSliceSpanTotalSize(message);
   if (message_length > GetCurrentLargestMessagePayload()) {
     return MESSAGE_STATUS_TOO_LARGE;

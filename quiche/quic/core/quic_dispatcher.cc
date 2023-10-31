@@ -141,10 +141,7 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
     return true;
   }
 
-  const QuicFrames MaybeBundleOpportunistically() override {
-    QUICHE_DCHECK(false);
-    return {};
-  }
+  void MaybeBundleOpportunistically() override { QUICHE_DCHECK(false); }
 
   SerializedPacketFate GetSerializedPacketFate(
       bool /*is_mtu_discovery*/,

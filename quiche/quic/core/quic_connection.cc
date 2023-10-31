@@ -3176,7 +3176,7 @@ bool QuicConnection::ShouldGeneratePacket(
   return connected_ && !HandleWriteBlocked();
 }
 
-const QuicFrames QuicConnection::MaybeBundleOpportunistically() {
+void QuicConnection::MaybeBundleOpportunistically() {
   if (!ack_frequency_sent_ && sent_packet_manager_.CanSendAckFrequency()) {
     if (packet_creator_.NextSendingPacketNumber() >=
         FirstSendingPacketNumber() + kMinReceivedBeforeAckDecimation) {
@@ -3192,10 +3192,8 @@ const QuicFrames QuicConnection::MaybeBundleOpportunistically() {
     visitor_->MaybeBundleOpportunistically();
   }
 
-  if (packet_creator_.flush_ack_in_maybe_bundle() &&
-      (packet_creator_.has_ack() || !CanWrite(NO_RETRANSMITTABLE_DATA))) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_flush_ack_in_maybe_bundle, 2, 3);
-    return {};
+  if (packet_creator_.has_ack() || !CanWrite(NO_RETRANSMITTABLE_DATA)) {
+    return;
   }
 
   QuicFrames frames;
@@ -3205,7 +3203,7 @@ const QuicFrames QuicConnection::MaybeBundleOpportunistically() {
           .IsInitialized();
   if (!has_pending_ack) {
     // No need to send an ACK.
-    return frames;
+    return;
   }
   ResetAckStates();
 
@@ -3216,16 +3214,10 @@ const QuicFrames QuicConnection::MaybeBundleOpportunistically() {
       << encryption_level_ << " ACK, " << (has_pending_ack ? "" : "!")
       << "has_pending_ack";
   frames.push_back(updated_ack_frame);
-  if (packet_creator_.flush_ack_in_maybe_bundle()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_flush_ack_in_maybe_bundle, 3, 3);
-    const bool flushed = packet_creator_.FlushAckFrame(frames);
-    QUIC_BUG_IF(failed_to_flush_ack, !flushed)
-        << ENDPOINT << "Failed to flush ACK frame";
-    return {};
-  }
-  // TODO(wub): remove return value when deprecating
-  // quic_flush_ack_in_maybe_bundle.
-  return frames;
+
+  const bool flushed = packet_creator_.FlushAckFrame(frames);
+  QUIC_BUG_IF(failed_to_flush_ack, !flushed)
+      << ENDPOINT << "Failed to flush ACK frame";
 }
 
 void QuicConnection::RecordLastCanWriteReason(LastCanWriteReason reason) {

@@ -62,7 +62,7 @@ class QUICHE_EXPORT QuicPacketCreator {
                                       IsHandshake handshake) = 0;
     // Called when there is data to be sent. Gives delegate a chance to bundle
     // anything with to-be-sent data.
-    virtual const QuicFrames MaybeBundleOpportunistically() = 0;
+    virtual void MaybeBundleOpportunistically() = 0;
 
     // Returns the packet fate for serialized packets which will be handed over
     // to delegate via OnSerializedPacket(). Called when a packet is about to be
@@ -369,10 +369,6 @@ class QUICHE_EXPORT QuicPacketCreator {
   // Generates an MTU discovery packet of specified size.
   void GenerateMtuDiscoveryPacket(QuicByteCount target_mtu);
 
-  // Called when there is data to be sent. Gives delegate a chance to bundle any
-  // data (including ACK).
-  void MaybeBundleOpportunistically();
-
   // Called to flush ACK and STOP_WAITING frames, returns false if the flush
   // fails.
   bool FlushAckFrame(const QuicFrames& frames);
@@ -476,8 +472,6 @@ class QUICHE_EXPORT QuicPacketCreator {
   bool HasRetryToken() const;
 
   const QuicSocketAddress& peer_address() const { return packet_.peer_address; }
-
-  bool flush_ack_in_maybe_bundle() const { return flush_ack_in_maybe_bundle_; }
 
  private:
   friend class test::QuicPacketCreatorPeer;
@@ -675,9 +669,6 @@ class QUICHE_EXPORT QuicPacketCreator {
   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
-
-  const bool flush_ack_in_maybe_bundle_ =
-      GetQuicReloadableFlag(quic_flush_ack_in_maybe_bundle);
 };
 
 }  // namespace quic

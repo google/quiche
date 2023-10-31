@@ -75,8 +75,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_new_error_code_when_packets_buffered_too_lon
 QUIC_FLAG(quic_reloadable_flag_quic_limit_sending_max_streams2, false)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
-// If true, flush ACK frame in QuicConnection::MaybeBundleOpportunistically.
-QUIC_FLAG(quic_reloadable_flag_quic_flush_ack_in_maybe_bundle, true)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, reject or send error response code upon receiving invalid request or response headers.
