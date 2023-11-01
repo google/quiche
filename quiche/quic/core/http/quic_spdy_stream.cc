@@ -13,6 +13,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_decoder.h"
@@ -255,7 +256,9 @@ size_t QuicSpdyStream::WriteHeaders(
   MaybeProcessSentWebTransportHeaders(header_block);
 
   if (web_transport_ != nullptr &&
-      spdy_session_->perspective() == Perspective::IS_SERVER) {
+      spdy_session_->perspective() == Perspective::IS_SERVER &&
+      spdy_session_->SupportedWebTransportVersion() ==
+          WebTransportHttp3Version::kDraft02) {
     header_block["sec-webtransport-http3-draft"] = "draft02";
   }
 
@@ -1304,7 +1307,10 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
     return;
   }
 
-  headers["sec-webtransport-http3-draft02"] = "1";
+  if (spdy_session_->SupportedWebTransportVersion() ==
+      WebTransportHttp3Version::kDraft02) {
+    headers["sec-webtransport-http3-draft02"] = "1";
+  }
 
   web_transport_ =
       std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
