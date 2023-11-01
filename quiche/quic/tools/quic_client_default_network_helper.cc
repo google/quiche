@@ -16,6 +16,15 @@
 
 namespace quic {
 
+std::unique_ptr<QuicPacketWriter> CreateDefaultWriterForEventLoop(
+    SocketFd fd, QuicEventLoop* event_loop) {
+  if (event_loop->SupportsEdgeTriggered()) {
+    return std::make_unique<QuicDefaultPacketWriter>(fd);
+  } else {
+    return std::make_unique<QuicLevelTriggeredPacketWriter>(fd, event_loop);
+  }
+}
+
 QuicClientDefaultNetworkHelper::QuicClientDefaultNetworkHelper(
     QuicEventLoop* event_loop, QuicClientBase* client)
     : event_loop_(event_loop),
@@ -156,11 +165,7 @@ void QuicClientDefaultNetworkHelper::OnSocketEvent(
 }
 
 QuicPacketWriter* QuicClientDefaultNetworkHelper::CreateQuicPacketWriter() {
-  if (event_loop_->SupportsEdgeTriggered()) {
-    return new QuicDefaultPacketWriter(GetLatestFD());
-  } else {
-    return new QuicLevelTriggeredPacketWriter(GetLatestFD(), event_loop_);
-  }
+  return CreateDefaultWriterForEventLoop(GetLatestFD(), event_loop_).release();
 }
 
 void QuicClientDefaultNetworkHelper::SetClientPort(int port) {

@@ -11,6 +11,7 @@
 
 #include "absl/types/optional.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_default_packet_writer.h"
 #include "quiche/quic/core/quic_packet_reader.h"
 #include "quiche/quic/core/quic_udp_socket.h"
@@ -50,6 +51,9 @@ class QuicLevelTriggeredPacketWriter : public QuicDefaultPacketWriter {
  private:
   QuicEventLoop* event_loop_;
 };
+
+std::unique_ptr<QuicPacketWriter> CreateDefaultWriterForEventLoop(
+    SocketFd fd, QuicEventLoop* event_loop);
 
 // An implementation of the QuicClientBase::NetworkHelper interface that is
 // based on the QuicEventLoop API.
