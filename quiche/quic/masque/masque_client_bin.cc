@@ -214,7 +214,10 @@ class MasqueTapSession
 };
 
 int RunMasqueClient(int argc, char* argv[]) {
-  const char* usage = "Usage: masque_client [options] <url>";
+  const char* usage =
+      "Usage: masque_client [options] <proxy-url> <urls>..\n"
+      "  <proxy-url> is the URI template of the MASQUE server,\n"
+      "  or host:port to use the default template";
 
   // The first non-flag argument is the URI template of the MASQUE server.
   // All subsequent ones are interpreted as URLs to fetch via the MASQUE server.
