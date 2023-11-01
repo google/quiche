@@ -62,7 +62,7 @@ bool ConnectServerBackend::InitializeBackend(const std::string&) {
 bool ConnectServerBackend::IsBackendInitialized() const { return true; }
 
 void ConnectServerBackend::SetSocketFactory(SocketFactory* socket_factory) {
-  QUICHE_DCHECK_NE(socket_factory_, socket_factory);
+  QUICHE_DCHECK(socket_factory);
   QUICHE_DCHECK(connect_tunnels_.empty());
   QUICHE_DCHECK(connect_udp_tunnels_.empty());
   socket_factory_ = socket_factory;
