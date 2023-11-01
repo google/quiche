@@ -6299,7 +6299,7 @@ void QuicConnection::OnHandshakeTimeout() {
       ". Timeout:",
       idle_network_detector_.handshake_timeout().ToDebuggingValue());
   if (perspective() == Perspective::IS_CLIENT && version().UsesTls()) {
-    absl::StrAppend(&error_details, UndecryptablePacketsInfo());
+    absl::StrAppend(&error_details, " ", UndecryptablePacketsInfo());
   }
   QUIC_DVLOG(1) << ENDPOINT << error_details;
   CloseConnection(QUIC_HANDSHAKE_TIMEOUT, error_details,
@@ -6316,7 +6316,7 @@ void QuicConnection::OnIdleNetworkDetected() {
       idle_network_detector_.idle_network_timeout().ToDebuggingValue());
   if (perspective() == Perspective::IS_CLIENT && version().UsesTls() &&
       !IsHandshakeComplete()) {
-    absl::StrAppend(&error_details, UndecryptablePacketsInfo());
+    absl::StrAppend(&error_details, " ", UndecryptablePacketsInfo());
   }
   QUIC_DVLOG(1) << ENDPOINT << error_details;
   const bool has_consecutive_pto =
