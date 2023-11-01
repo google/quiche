@@ -93,7 +93,8 @@ void ConnectServerBackend::HandleConnectHeaders(
   if (!request_headers.contains(":protocol")) {
     // normal CONNECT
     auto [tunnel_it, inserted] = connect_tunnels_.emplace(
-        request_handler->stream_id(),
+        std::make_pair(request_handler->connection_id(),
+                       request_handler->stream_id()),
         std::make_unique<ConnectTunnel>(request_handler, socket_factory_,
                                         acceptable_connect_destinations_));
     QUICHE_DCHECK(inserted);
@@ -102,7 +103,8 @@ void ConnectServerBackend::HandleConnectHeaders(
   } else if (request_headers.find(":protocol")->second == "connect-udp") {
     // CONNECT-UDP
     auto [tunnel_it, inserted] = connect_udp_tunnels_.emplace(
-        request_handler->stream_id(),
+        std::make_pair(request_handler->connection_id(),
+                       request_handler->stream_id()),
         std::make_unique<ConnectUdpTunnel>(request_handler, socket_factory_,
                                            server_label_,
                                            acceptable_connect_udp_targets_));
@@ -122,9 +124,11 @@ void ConnectServerBackend::HandleConnectData(absl::string_view data,
   // Expect ConnectUdpTunnels to register a datagram visitor, causing the
   // stream to process data as capsules.  HandleConnectData() should therefore
   // never be called for streams with a ConnectUdpTunnel.
-  QUICHE_DCHECK(!connect_udp_tunnels_.contains(request_handler->stream_id()));
+  QUICHE_DCHECK(!connect_udp_tunnels_.contains(std::make_pair(
+      request_handler->connection_id(), request_handler->stream_id())));
 
-  auto tunnel_it = connect_tunnels_.find(request_handler->stream_id());
+  auto tunnel_it = connect_tunnels_.find(std::make_pair(
+      request_handler->connection_id(), request_handler->stream_id()));
   if (tunnel_it == connect_tunnels_.end()) {
     // If tunnel not found, perhaps it's something being handled for
     // non-CONNECT. Possible because this method could be called for anything
@@ -146,13 +150,15 @@ void ConnectServerBackend::HandleConnectData(absl::string_view data,
 
 void ConnectServerBackend::CloseBackendResponseStream(
     QuicSimpleServerBackend::RequestHandler* request_handler) {
-  auto tunnel_it = connect_tunnels_.find(request_handler->stream_id());
+  auto tunnel_it = connect_tunnels_.find(std::make_pair(
+      request_handler->connection_id(), request_handler->stream_id()));
   if (tunnel_it != connect_tunnels_.end()) {
     tunnel_it->second->OnClientStreamClose();
     connect_tunnels_.erase(tunnel_it);
   }
 
-  auto udp_tunnel_it = connect_udp_tunnels_.find(request_handler->stream_id());
+  auto udp_tunnel_it = connect_udp_tunnels_.find(std::pair(
+      request_handler->connection_id(), request_handler->stream_id()));
   if (udp_tunnel_it != connect_udp_tunnels_.end()) {
     udp_tunnel_it->second->OnClientStreamClose();
     connect_udp_tunnels_.erase(udp_tunnel_it);

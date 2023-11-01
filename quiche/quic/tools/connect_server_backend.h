@@ -59,9 +59,11 @@ class ConnectServerBackend : public QuicSimpleServerBackend {
   const std::string server_label_;
 
   SocketFactory* socket_factory_ = nullptr;  // unowned
-  absl::flat_hash_map<QuicStreamId, std::unique_ptr<ConnectTunnel>>
+  absl::flat_hash_map<std::pair<QuicConnectionId, QuicStreamId>,
+                      std::unique_ptr<ConnectTunnel>>
       connect_tunnels_;
-  absl::flat_hash_map<QuicStreamId, std::unique_ptr<ConnectUdpTunnel>>
+  absl::flat_hash_map<std::pair<QuicConnectionId, QuicStreamId>,
+                      std::unique_ptr<ConnectUdpTunnel>>
       connect_udp_tunnels_;
 };
 

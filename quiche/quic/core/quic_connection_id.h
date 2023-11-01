@@ -81,6 +81,12 @@ class QUICHE_EXPORT QuicConnectionId {
   // a hash over the network.
   size_t Hash() const;
 
+  // Allow absl::Hash to hash std::pair<QuicConnectionId, H>.
+  template <typename H>
+  friend H AbslHashValue(H h, const QuicConnectionId& c) {
+    return H::combine(std::move(h), c.Hash());
+  }
+
   // Generates an ASCII string that represents
   // the contents of the connection ID, or "0" if it is empty.
   std::string ToString() const;
