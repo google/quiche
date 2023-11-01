@@ -4,10 +4,10 @@
 
 #include "quiche/quic/moqt/moqt_parser.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <string>
 
 #include "absl/cleanup/cleanup.h"
@@ -16,672 +16,519 @@
 #include "absl/types/optional.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/quiche_endian.h"
 
 namespace moqt {
 
-namespace {
-
-// Minus the type, length, and payload, an OBJECT consists of 4 Varints.
-constexpr size_t kMaxObjectHeaderSize = 32;
-
-}  // namespace
-
 // The buffering philosophy is complicated, to minimize copying. Here is an
 // overview:
-// If the message type is present, this is stored in message_type_. If part of
-// the message type varint is partially present, that is buffered (requiring a
-// copy).
-// Same for message length.
 // If the entire message body is present (except for OBJECT payload), it is
 // parsed and delivered. If not, the partial body is buffered. (requiring a
 // copy).
 // Any OBJECT payload is always delivered to the application without copying.
 // If something has been buffered, when more data arrives copy just enough of it
 // to finish parsing that thing, then resume normal processing.
-void MoqtParser::ProcessData(absl::string_view data, bool end_of_stream) {
+void MoqtParser::ProcessData(absl::string_view data, bool fin) {
   if (no_more_data_) {
-    if (!data.empty() || !end_of_stream) {
-      ParseError("Data after end of stream");
-    }
-    return;
+    ParseError("Data after end of stream");
   }
   if (processing_) {
     return;
   }
   processing_ = true;
   auto on_return = absl::MakeCleanup([&] { processing_ = false; });
-  no_more_data_ = end_of_stream;
-  quic::QuicDataReader reader(data);
-  if (!MaybeMergeDataWithBuffer(reader, end_of_stream)) {
-    return;
-  }
-  if (end_of_stream && reader.IsDoneReading() && object_metadata_.has_value()) {
-    // A FIN arrives while delivering OBJECT payload.
-    visitor_.OnObjectMessage(object_metadata_.value(), data, true);
-    EndOfMessage();
-  }
-  while (!reader.IsDoneReading()) {
-    absl::optional<size_t> processed;
-    if (!GetMessageTypeAndLength(reader)) {
-      absl::StrAppend(&buffered_message_, reader.PeekRemainingPayload());
-      break;
-    }
-    // Cursor is at start of the message.
-    if (end_of_stream && NoMessageLength()) {
-      *message_length_ = reader.BytesRemaining();
-    }
-    if (*message_type_ != MoqtMessageType::kObject &&
-        *message_type_ != MoqtMessageType::kGoAway) {
-      // Parse OBJECT in case the message is very large. GOAWAY is length zero,
-      // so always process.
-      if (NoMessageLength()) {
-        // Can't parse it yet.
-        absl::StrAppend(&buffered_message_, reader.PeekRemainingPayload());
-        break;
-      }
-      if (*message_length_ > kMaxMessageHeaderSize) {
-        ParseError("Message too long");
-        return;
-      }
-      if (*message_length_ > reader.BytesRemaining()) {
-        // There definitely isn't enough to process the message.
-        absl::StrAppend(&buffered_message_, reader.PeekRemainingPayload());
-        break;
-      }
-    }
-    processed = ProcessMessage(FetchMessage(reader));
-    if (!processed.has_value()) {
-      if (*message_type_ == MoqtMessageType::kObject &&
-          (NoMessageLength() || reader.BytesRemaining() < *message_length_)) {
-        // The parser can attempt to process OBJECT before receiving the whole
-        // message length. If it doesn't parse the varints, it will buffer the
-        // message.
-        absl::StrAppend(&buffered_message_, reader.PeekRemainingPayload());
-        break;
-      }
-      // Non-OBJECT or OBJECT with the complete specified length, but the data
-      // was not parseable.
-      ParseError("Not able to parse message given specified length");
+  // Check for early fin
+  if (fin) {
+    no_more_data_ = true;
+    if (object_metadata_.has_value() &&
+        object_metadata_->payload_length.has_value() &&
+        *object_metadata_->payload_length > data.length()) {
+      ParseError("End of stream before complete OBJECT PAYLOAD");
       return;
     }
-    if (*processed == *message_length_) {
-      EndOfMessage();
-    } else {
-      if (*message_type_ != MoqtMessageType::kObject) {
-        // Partial processing of non-OBJECT is not allowed.
-        ParseError("Specified message length too long");
+    if (!buffered_message_.empty() && data.empty()) {
+      ParseError("End of stream before complete message");
+      return;
+    }
+  }
+  absl::optional<quic::QuicDataReader> reader = absl::nullopt;
+  size_t original_buffer_size = buffered_message_.size();
+  // There are three cases: the parser has already delivered an OBJECT header
+  // and is now delivering payload; part of a message is in the buffer; or
+  // no message is in progress.
+  if (object_metadata_.has_value()) {
+    // This is additional payload for an OBJECT.
+    QUICHE_DCHECK(buffered_message_.empty());
+    if (!object_metadata_->payload_length.has_value()) {
+      // Deliver the data and exit.
+      visitor_.OnObjectMessage(object_metadata_.value(), data, fin);
+      if (fin) {
+        object_metadata_.reset();
+      }
+      return;
+    }
+    if (data.length() < payload_length_remaining_) {
+      // Does not finish the payload; deliver and exit.
+      visitor_.OnObjectMessage(object_metadata_.value(), data, false);
+      payload_length_remaining_ -= data.length();
+      return;
+    }
+    // Finishes the payload. Deliver and continue.
+    reader.emplace(data);
+    visitor_.OnObjectMessage(object_metadata_.value(),
+                             data.substr(0, payload_length_remaining_), true);
+    reader->Seek(payload_length_remaining_);
+    object_metadata_.reset();
+  } else if (!buffered_message_.empty()) {
+    absl::StrAppend(&buffered_message_, data);
+    reader.emplace(buffered_message_);
+  } else {
+    // No message in progress.
+    reader.emplace(data);
+  }
+  size_t total_processed = 0;
+  while (!reader->IsDoneReading()) {
+    size_t message_len = ProcessMessage(reader->PeekRemainingPayload(), fin);
+    if (message_len == 0) {
+      if (reader->BytesRemaining() > kMaxMessageHeaderSize) {
+        ParseError("Cannot parse non-OBJECT messages > 2KB");
         return;
       }
-      // This is a partially processed OBJECT payload.
-      if (!NoMessageLength()) {
-        *message_length_ -= *processed;
+      if (fin) {
+        ParseError("FIN after incomplete message");
+        return;
       }
-    }
-    if (!reader.Seek(*processed)) {
-      QUICHE_DCHECK(false);
-      ParseError("Internal Error");
-    }
-  }
-  if (end_of_stream &&
-      (!buffered_message_.empty() || object_metadata_.has_value() ||
-       message_type_.has_value() || message_length_.has_value())) {
-    // If the stream is ending, there should be no message in progress.
-    ParseError("Incomplete message at end of stream");
-  }
-}
-
-bool MoqtParser::MaybeMergeDataWithBuffer(quic::QuicDataReader& reader,
-                                          bool end_of_stream) {
-  // Copy as much information as necessary from |data| to complete the
-  // message or OBJECT header. Minimize unnecessary copying!
-  if (buffered_message_.empty()) {
-    return true;
-  }
-  quic::QuicDataReader buffer(buffered_message_);
-  if (!message_length_.has_value()) {
-    // The buffer contains part of the message type or length.
-    if (buffer.BytesRemaining() > buffer.PeekVarInt62Length()) {
-      ParseError("Internal Error");
-      QUICHE_DCHECK(false);
-      return false;
-    }
-    size_t bytes_needed = buffer.PeekVarInt62Length() - buffer.BytesRemaining();
-    if (bytes_needed > reader.BytesRemaining()) {
-      // Not enough to complete!
-      absl::StrAppend(&buffered_message_, reader.PeekRemainingPayload());
-      return false;
-    }
-    absl::StrAppend(&buffered_message_,
-                    reader.PeekRemainingPayload().substr(0, bytes_needed));
-    if (!reader.Seek(bytes_needed)) {
-      QUICHE_DCHECK(false);
-      ParseError("Internal Error");
-      return false;
-    }
-    quic::QuicDataReader new_buffer(buffered_message_);
-    uint64_t value;
-    if (!new_buffer.ReadVarInt62(&value)) {
-      QUICHE_DCHECK(false);
-      ParseError("Internal Error");
-      return false;
-    }
-    if (message_type_.has_value()) {
-      message_length_ = value;
-    } else {
-      message_type_ = static_cast<MoqtMessageType>(value);
-    }
-    // GOAWAY is special. Report the message as soon as the type and length
-    // are complete.
-    if (message_type_.has_value() && message_length_.has_value() &&
-        *message_type_ == MoqtMessageType::kGoAway) {
-      ProcessGoAway(new_buffer.PeekRemainingPayload());
-      EndOfMessage();
-      return false;
-    }
-    // Proceed to normal parsing.
-    buffered_message_.clear();
-    return true;
-  }
-  // It's a partially buffered message
-  if (NoMessageLength()) {
-    if (end_of_stream) {
-      message_length_ = buffer.BytesRemaining() + reader.BytesRemaining();
-    } else if (*message_type_ != MoqtMessageType::kObject) {
-      absl::StrAppend(&buffered_message_, reader.PeekRemainingPayload());
-      return false;
-    }
-  }
-  if (*message_type_ == MoqtMessageType::kObject) {
-    // OBJECT is a special case. Append up to KMaxObjectHeaderSize bytes to the
-    // buffer and see if that allows parsing.
-    QUICHE_DCHECK(!object_metadata_.has_value());
-    size_t original_buffer_size = buffer.BytesRemaining();
-    size_t bytes_to_pull = reader.BytesRemaining();
-    // No check for *message_length_ == 0 below! Mutants will complain if there
-    // is a check. If message_length_ < original_buffer_size, the second
-    // argument will be a very large unsigned integer, which will be irrelevant
-    // due to std::min.
-    bytes_to_pull = std::min(reader.BytesRemaining(),
-                             *message_length_ - original_buffer_size);
-    // Mutants complains that the line below doesn't fail any tests. This is a
-    // performance optimization to avoid copying large amounts of object payload
-    // into the buffer when only the OBJECT header will be processed. There is
-    // no observable behavior change if this line is removed.
-    bytes_to_pull = std::min(bytes_to_pull, kMaxObjectHeaderSize);
-    absl::StrAppend(&buffered_message_,
-                    reader.PeekRemainingPayload().substr(0, bytes_to_pull));
-    absl::optional<size_t> processed =
-        ProcessObjectVarints(absl::string_view(buffered_message_));
-    if (!processed.has_value()) {
-      if ((!NoMessageLength() &&
-           buffered_message_.length() == *message_length_) ||
-          buffered_message_.length() > kMaxObjectHeaderSize) {
-        ParseError("Not able to parse buffered message given specified length");
+      if (buffered_message_.empty()) {
+        // If the buffer is not empty, |data| has already been copied there.
+        absl::StrAppend(&buffered_message_, reader->PeekRemainingPayload());
       }
-      return false;
+      break;
     }
-    if (*processed > 0 && !reader.Seek(*processed - original_buffer_size)) {
-      ParseError("Internal Error");
-      return false;
-    }
-    if (*processed == *message_length_) {
-      // This covers an edge case where the peer has sent an OBJECT message with
-      // no content.
-      visitor_.OnObjectMessage(object_metadata_.value(), absl::string_view(),
-                               true);
-      EndOfMessage();
-      return true;
-    }
-    if (!NoMessageLength()) {
-      *message_length_ -= *processed;
-    }
-    // Object payload is never processed in the buffer.
-    buffered_message_.clear();
-    return true;
+    // A message was successfully processed.
+    total_processed += message_len;
+    reader->Seek(message_len);
   }
-  size_t bytes_to_pull =
-      (buffer.BytesRemaining() + reader.BytesRemaining() < *message_length_)
-          ? reader.BytesRemaining()
-          : *message_length_ - buffer.BytesRemaining();
-  absl::StrAppend(&buffered_message_,
-                  reader.PeekRemainingPayload().substr(0, bytes_to_pull));
-  if (!reader.Seek(bytes_to_pull)) {
-    QUICHE_DCHECK(false);
-    ParseError("Internal Error");
-    return false;
+  if (original_buffer_size > 0) {
+    buffered_message_.erase(0, total_processed);
   }
-  if (buffered_message_.length() < *message_length_) {
-    // Not enough bytes present.
-    return false;
-  }
-  absl::optional<size_t> processed =
-      ProcessMessage(absl::string_view(buffered_message_));
-  if (!processed.has_value()) {
-    ParseError("Not able to parse buffered message given specified length");
-    return false;
-  }
-  if (*processed != *message_length_) {
-    ParseError("Buffered message length too long for message contents");
-    return false;
-  }
-  EndOfMessage();
-  return true;
-}
-
-absl::optional<size_t> MoqtParser::ProcessMessage(absl::string_view data) {
-  switch (*message_type_) {
-    case MoqtMessageType::kObject:
-      return ProcessObject(data);
-    case MoqtMessageType::kSetup:
-      return ProcessSetup(data);
-    case MoqtMessageType::kSubscribeRequest:
-      return ProcessSubscribeRequest(data);
-    case MoqtMessageType::kSubscribeOk:
-      return ProcessSubscribeOk(data);
-    case MoqtMessageType::kSubscribeError:
-      return ProcessSubscribeError(data);
-    case MoqtMessageType::kUnsubscribe:
-      return ProcessUnsubscribe(data);
-    case MoqtMessageType::kAnnounce:
-      return ProcessAnnounce(data);
-    case MoqtMessageType::kAnnounceOk:
-      return ProcessAnnounceOk(data);
-    case MoqtMessageType::kAnnounceError:
-      return ProcessAnnounceError(data);
-    case MoqtMessageType::kUnannounce:
-      return ProcessUnannounce(data);
-    case MoqtMessageType::kGoAway:
-      return ProcessGoAway(data);
-    default:
-      ParseError("Unknown message type");
-      return absl::nullopt;
+  if (fin && object_metadata_.has_value()) {
+    ParseError("Received FIN mid-payload");
   }
 }
 
-absl::optional<size_t> MoqtParser::ProcessObjectVarints(
-    absl::string_view data) {
-  if (object_metadata_.has_value()) {
+size_t MoqtParser::ProcessMessage(absl::string_view data, bool fin) {
+  uint64_t value;
+  quic::QuicDataReader reader(data);
+  if (!reader.ReadVarInt62(&value)) {
     return 0;
   }
+  auto type = static_cast<MoqtMessageType>(value);
+  switch (type) {
+    case MoqtMessageType::kObjectWithPayloadLength:
+      return ProcessObject(reader, true, fin);
+    case MoqtMessageType::kObjectWithoutPayloadLength:
+      return ProcessObject(reader, false, fin);
+    case MoqtMessageType::kClientSetup:
+      return ProcessClientSetup(reader);
+    case MoqtMessageType::kServerSetup:
+      return ProcessServerSetup(reader);
+    case MoqtMessageType::kSubscribeRequest:
+      return ProcessSubscribeRequest(reader);
+    case MoqtMessageType::kSubscribeOk:
+      return ProcessSubscribeOk(reader);
+    case MoqtMessageType::kSubscribeError:
+      return ProcessSubscribeError(reader);
+    case MoqtMessageType::kUnsubscribe:
+      return ProcessUnsubscribe(reader);
+    case MoqtMessageType::kSubscribeFin:
+      return ProcessSubscribeFin(reader);
+    case MoqtMessageType::kSubscribeRst:
+      return ProcessSubscribeRst(reader);
+    case MoqtMessageType::kAnnounce:
+      return ProcessAnnounce(reader);
+    case MoqtMessageType::kAnnounceOk:
+      return ProcessAnnounceOk(reader);
+    case MoqtMessageType::kAnnounceError:
+      return ProcessAnnounceError(reader);
+    case MoqtMessageType::kUnannounce:
+      return ProcessUnannounce(reader);
+    case MoqtMessageType::kGoAway:
+      return ProcessGoAway(reader);
+    default:
+      ParseError("Unknown message type");
+      return 0;
+  }
+}
+
+size_t MoqtParser::ProcessObject(quic::QuicDataReader& reader, bool has_length,
+                                 bool fin) {
+  QUICHE_DCHECK(!object_metadata_.has_value());
   object_metadata_ = MoqtObject();
-  quic::QuicDataReader reader(data);
-  if (reader.ReadVarInt62(&object_metadata_->track_id) &&
-      reader.ReadVarInt62(&object_metadata_->group_sequence) &&
-      reader.ReadVarInt62(&object_metadata_->object_sequence) &&
-      reader.ReadVarInt62(&object_metadata_->object_send_order)) {
-    return reader.PreviouslyReadPayload().length();
+  uint64_t length;
+  if (!reader.ReadVarInt62(&object_metadata_->track_id) ||
+      !reader.ReadVarInt62(&object_metadata_->group_sequence) ||
+      !reader.ReadVarInt62(&object_metadata_->object_sequence) ||
+      !reader.ReadVarInt62(&object_metadata_->object_send_order) ||
+      (has_length && !reader.ReadVarInt62(&length))) {
+    object_metadata_.reset();
+    return 0;
   }
-  object_metadata_ = absl::nullopt;
-  QUICHE_DCHECK(reader.PreviouslyReadPayload().length() < kMaxObjectHeaderSize);
-  return absl::nullopt;
-}
-
-absl::optional<size_t> MoqtParser::ProcessObject(absl::string_view data) {
-  quic::QuicDataReader reader(data);
-  size_t payload_length = *message_length_;
-  absl::optional<size_t> processed = ProcessObjectVarints(data);
-  if (!processed.has_value() && !object_metadata_.has_value()) {
-    // Could not obtain the whole object header.
-    return absl::nullopt;
+  if (has_length) {
+    object_metadata_->payload_length = length;
   }
-  if (!reader.Seek(*processed)) {
-    ParseError("Internal Error");
-    return absl::nullopt;
-  }
-  if (payload_length != 0) {
-    payload_length -= *processed;
-  }
-  QUICHE_DCHECK(NoMessageLength() || reader.BytesRemaining() <= payload_length);
+  bool received_complete_message =
+      (fin && !has_length) ||
+      (has_length &&
+       *object_metadata_->payload_length <= reader.BytesRemaining());
+  size_t payload_to_draw = (!has_length || *object_metadata_->payload_length >=
+                                               reader.BytesRemaining())
+                               ? reader.BytesRemaining()
+                               : *object_metadata_->payload_length;
   visitor_.OnObjectMessage(
-      object_metadata_.value(), reader.PeekRemainingPayload(),
-      reader.BytesRemaining() == payload_length && !NoMessageLength());
-  return data.length();
+      object_metadata_.value(),
+      reader.PeekRemainingPayload().substr(0, payload_to_draw),
+      received_complete_message);
+  if (received_complete_message) {
+    object_metadata_.reset();
+  }
+  reader.Seek(payload_to_draw);
+  payload_length_remaining_ = length - payload_to_draw;
+  return reader.PreviouslyReadPayload().length();
 }
 
-absl::optional<size_t> MoqtParser::ProcessSetup(absl::string_view data) {
-  MoqtSetup setup;
-  quic::QuicDataReader reader(data);
+size_t MoqtParser::ProcessClientSetup(quic::QuicDataReader& reader) {
+  MoqtClientSetup setup;
   uint64_t number_of_supported_versions;
-  if (perspective_ == quic::Perspective::IS_SERVER) {
-    if (!reader.ReadVarInt62(&number_of_supported_versions)) {
-      return absl::nullopt;
-    }
-  } else {
-    number_of_supported_versions = 1;
+  if (!reader.ReadVarInt62(&number_of_supported_versions)) {
+    return 0;
   }
-  uint64_t value;
+  uint64_t version;
   for (uint64_t i = 0; i < number_of_supported_versions; ++i) {
-    if (!reader.ReadVarInt62(&value)) {
-      return absl::nullopt;
+    if (!reader.ReadVarInt62(&version)) {
+      return 0;
     }
-    setup.supported_versions.push_back(static_cast<MoqtVersion>(value));
+    setup.supported_versions.push_back(static_cast<MoqtVersion>(version));
+  }
+  uint64_t num_params;
+  if (!reader.ReadVarInt62(&num_params)) {
+    return 0;
   }
   // Parse parameters
-  while (!reader.IsDoneReading()) {
-    if (!reader.ReadVarInt62(&value)) {
-      return absl::nullopt;
+  for (uint64_t i = 0; i < num_params; ++i) {
+    uint64_t type;
+    absl::string_view value;
+    if (!ReadParameter(reader, type, value)) {
+      return 0;
     }
-    auto parameter_key = static_cast<MoqtSetupParameter>(value);
-    absl::string_view field;
-    switch (parameter_key) {
+    auto key = static_cast<MoqtSetupParameter>(type);
+    switch (key) {
       case MoqtSetupParameter::kRole:
         if (setup.role.has_value()) {
           ParseError("ROLE parameter appears twice in SETUP");
-          return absl::nullopt;
+          return 0;
         }
-        if (!ReadIntegerPieceVarInt62(reader, value)) {
-          return absl::nullopt;
-        }
-        setup.role = static_cast<MoqtRole>(value);
+        uint64_t index;
+        StringViewToVarInt(value, index);
+        setup.role = static_cast<MoqtRole>(index);
         break;
       case MoqtSetupParameter::kPath:
         if (uses_web_transport_) {
           ParseError(
               "WebTransport connection is using PATH parameter in SETUP");
-          return absl::nullopt;
-        }
-        if (perspective_ == quic::Perspective::IS_CLIENT) {
-          ParseError("PATH parameter sent by server in SETUP");
-          return absl::nullopt;
+          return 0;
         }
         if (setup.path.has_value()) {
-          ParseError("PATH parameter appears twice in SETUP");
-          return absl::nullopt;
+          ParseError("PATH parameter appears twice in CLIENT_SETUP");
+          return 0;
         }
-        if (!reader.ReadStringPieceVarInt62(&field)) {
-          return absl::nullopt;
-        }
-        setup.path = field;
+        setup.path = value;
         break;
       default:
         // Skip over the parameter.
-        if (!reader.ReadStringPieceVarInt62(&field)) {
-          return absl::nullopt;
-        }
         break;
     }
   }
-  if (perspective_ == quic::Perspective::IS_SERVER) {
-    if (!setup.role.has_value()) {
-      ParseError("ROLE SETUP parameter missing from Client message");
-      return absl::nullopt;
-    }
-    if (!uses_web_transport_ && !setup.path.has_value()) {
-      ParseError("PATH SETUP parameter missing from Client message over QUIC");
-      return absl::nullopt;
-    }
+  if (!setup.role.has_value()) {
+    ParseError("ROLE parameter missing from CLIENT_SETUP message");
+    return 0;
   }
-  visitor_.OnSetupMessage(setup);
+  if (!uses_web_transport_ && !setup.path.has_value()) {
+    ParseError("PATH SETUP parameter missing from Client message over QUIC");
+    return 0;
+  }
+  visitor_.OnClientSetupMessage(setup);
   return reader.PreviouslyReadPayload().length();
 }
 
-absl::optional<size_t> MoqtParser::ProcessSubscribeRequest(
-    absl::string_view data) {
-  MoqtSubscribeRequest subscribe_request;
-  quic::QuicDataReader reader(data);
-  absl::string_view field;
-  if (!reader.ReadStringPieceVarInt62(&subscribe_request.full_track_name)) {
-    return absl::nullopt;
+size_t MoqtParser::ProcessServerSetup(quic::QuicDataReader& reader) {
+  MoqtServerSetup setup;
+  uint64_t version;
+  if (!reader.ReadVarInt62(&version)) {
+    return 0;
   }
-  uint64_t value;
-  while (!reader.IsDoneReading()) {
-    if (!reader.ReadVarInt62(&value)) {
-      return absl::nullopt;
+  setup.selected_version = static_cast<MoqtVersion>(version);
+  uint64_t num_params;
+  if (!reader.ReadVarInt62(&num_params)) {
+    return 0;
+  }
+  // Parse parameters
+  for (uint64_t i = 0; i < num_params; ++i) {
+    uint64_t type;
+    absl::string_view value;
+    if (!ReadParameter(reader, type, value)) {
+      return 0;
     }
-    auto parameter_key = static_cast<MoqtTrackRequestParameter>(value);
-    switch (parameter_key) {
-      case MoqtTrackRequestParameter::kGroupSequence:
-        if (subscribe_request.group_sequence.has_value()) {
-          ParseError(
-              "GROUP_SEQUENCE parameter appears twice in SUBSCRIBE_REQUEST");
-          return absl::nullopt;
+    auto key = static_cast<MoqtSetupParameter>(type);
+    switch (key) {
+      case MoqtSetupParameter::kRole:
+        if (setup.role.has_value()) {
+          ParseError("ROLE parameter appears twice in SETUP");
+          return 0;
         }
-        if (!ReadIntegerPieceVarInt62(reader, value)) {
-          return absl::nullopt;
-        }
-        subscribe_request.group_sequence = value;
+        uint64_t index;
+        StringViewToVarInt(value, index);
+        setup.role = static_cast<MoqtRole>(index);
         break;
-      case MoqtTrackRequestParameter::kObjectSequence:
-        if (subscribe_request.object_sequence.has_value()) {
-          ParseError(
-              "OBJECT_SEQUENCE parameter appears twice in SUBSCRIBE_REQUEST");
-          return absl::nullopt;
-        }
-        if (!ReadIntegerPieceVarInt62(reader, value)) {
-          return absl::nullopt;
-        }
-        subscribe_request.object_sequence = value;
+      case MoqtSetupParameter::kPath:
+        ParseError("PATH parameter in SERVER_SETUP");
+        return 0;
+      default:
+        // Skip over the parameter.
         break;
+    }
+  }
+  visitor_.OnServerSetupMessage(setup);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtParser::ProcessSubscribeRequest(quic::QuicDataReader& reader) {
+  MoqtSubscribeRequest subscribe_request;
+  if (!reader.ReadStringPieceVarInt62(&subscribe_request.full_track_name)) {
+    return 0;
+  }
+  if (!ReadLocation(reader, subscribe_request.start_group)) {
+    return 0;
+  }
+  if (!subscribe_request.start_group.has_value()) {
+    ParseError("START_GROUP must not be None in SUBSCRIBE_REQUEST");
+    return 0;
+  }
+  if (!ReadLocation(reader, subscribe_request.start_object)) {
+    return 0;
+  }
+  if (!subscribe_request.start_object.has_value()) {
+    ParseError("START_OBJECT must not be None in SUBSCRIBE_REQUEST");
+    return 0;
+  }
+  if (!ReadLocation(reader, subscribe_request.end_group)) {
+    return 0;
+  }
+  if (!ReadLocation(reader, subscribe_request.end_object)) {
+    return 0;
+  }
+  if (subscribe_request.end_group.has_value() !=
+      subscribe_request.end_object.has_value()) {
+    ParseError(
+        "SUBSCRIBE_REQUEST end_group and end_object must be both None "
+        "or both non_None");
+    return 0;
+  }
+  uint64_t num_params;
+  if (!reader.ReadVarInt62(&num_params)) {
+    return 0;
+  }
+  for (uint64_t i = 0; i < num_params; ++i) {
+    uint64_t type;
+    absl::string_view value;
+    if (!ReadParameter(reader, type, value)) {
+      return 0;
+    }
+    auto key = static_cast<MoqtTrackRequestParameter>(type);
+    switch (key) {
       case MoqtTrackRequestParameter::kAuthorizationInfo:
         if (subscribe_request.authorization_info.has_value()) {
           ParseError(
               "AUTHORIZATION_INFO parameter appears twice in "
               "SUBSCRIBE_REQUEST");
-          return absl::nullopt;
+          return 0;
         }
-        if (!reader.ReadStringPieceVarInt62(&field)) {
-          return absl::nullopt;
-        }
-        subscribe_request.authorization_info = field;
+        subscribe_request.authorization_info = value;
         break;
       default:
         // Skip over the parameter.
-        if (!reader.ReadStringPieceVarInt62(&field)) {
-          return absl::nullopt;
-        }
         break;
     }
   }
-  if (reader.IsDoneReading()) {
-    visitor_.OnSubscribeRequestMessage(subscribe_request);
-  }
+  visitor_.OnSubscribeRequestMessage(subscribe_request);
   return reader.PreviouslyReadPayload().length();
 }
 
-absl::optional<size_t> MoqtParser::ProcessSubscribeOk(absl::string_view data) {
+size_t MoqtParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   MoqtSubscribeOk subscribe_ok;
-  quic::QuicDataReader reader(data);
-  if (!reader.ReadStringPieceVarInt62(&subscribe_ok.full_track_name)) {
-    return absl::nullopt;
+  if (!reader.ReadStringPieceVarInt62(&subscribe_ok.track_namespace)) {
+    return 0;
+  }
+  if (!reader.ReadStringPieceVarInt62(&subscribe_ok.track_name)) {
+    return 0;
   }
   if (!reader.ReadVarInt62(&subscribe_ok.track_id)) {
-    return absl::nullopt;
+    return 0;
   }
   uint64_t milliseconds;
   if (!reader.ReadVarInt62(&milliseconds)) {
-    return absl::nullopt;
+    return 0;
   }
   subscribe_ok.expires = quic::QuicTimeDelta::FromMilliseconds(milliseconds);
-  if (reader.IsDoneReading()) {
-    visitor_.OnSubscribeOkMessage(subscribe_ok);
-  }
+  visitor_.OnSubscribeOkMessage(subscribe_ok);
   return reader.PreviouslyReadPayload().length();
 }
 
-absl::optional<size_t> MoqtParser::ProcessSubscribeError(
-    absl::string_view data) {
+size_t MoqtParser::ProcessSubscribeError(quic::QuicDataReader& reader) {
   MoqtSubscribeError subscribe_error;
-  quic::QuicDataReader reader(data);
-  if (!reader.ReadStringPieceVarInt62(&subscribe_error.full_track_name)) {
-    return absl::nullopt;
+  if (!reader.ReadStringPieceVarInt62(&subscribe_error.track_namespace)) {
+    return 0;
+  }
+  if (!reader.ReadStringPieceVarInt62(&subscribe_error.track_name)) {
+    return 0;
   }
   if (!reader.ReadVarInt62(&subscribe_error.error_code)) {
-    return absl::nullopt;
+    return 0;
   }
   if (!reader.ReadStringPieceVarInt62(&subscribe_error.reason_phrase)) {
-    return absl::nullopt;
+    return 0;
   }
-  if (reader.IsDoneReading()) {
-    visitor_.OnSubscribeErrorMessage(subscribe_error);
-  }
+  visitor_.OnSubscribeErrorMessage(subscribe_error);
   return reader.PreviouslyReadPayload().length();
 }
 
-absl::optional<size_t> MoqtParser::ProcessUnsubscribe(absl::string_view data) {
+size_t MoqtParser::ProcessUnsubscribe(quic::QuicDataReader& reader) {
   MoqtUnsubscribe unsubscribe;
-  quic::QuicDataReader reader(data);
-  if (!reader.ReadStringPieceVarInt62(&unsubscribe.full_track_name)) {
-    return absl::nullopt;
+  if (!reader.ReadStringPieceVarInt62(&unsubscribe.track_namespace)) {
+    return 0;
   }
-  if (reader.IsDoneReading()) {
-    visitor_.OnUnsubscribeMessage(unsubscribe);
+  if (!reader.ReadStringPieceVarInt62(&unsubscribe.track_name)) {
+    return 0;
   }
+  visitor_.OnUnsubscribeMessage(unsubscribe);
   return reader.PreviouslyReadPayload().length();
 }
 
-absl::optional<size_t> MoqtParser::ProcessAnnounce(absl::string_view data) {
-  MoqtAnnounce announce;
-  quic::QuicDataReader reader(data);
-  absl::string_view field;
-  if (!reader.ReadStringPieceVarInt62(&field)) {
-    return absl::nullopt;
+size_t MoqtParser::ProcessSubscribeFin(quic::QuicDataReader& reader) {
+  MoqtSubscribeFin subscribe_fin;
+  if (!reader.ReadStringPieceVarInt62(&subscribe_fin.track_namespace)) {
+    return 0;
   }
-  announce.track_namespace = field;
-  bool saw_group_sequence = false, saw_object_sequence = false;
-  while (!reader.IsDoneReading()) {
-    uint64_t value;
-    if (!reader.ReadVarInt62(&value)) {
-      return absl::nullopt;
+  if (!reader.ReadStringPieceVarInt62(&subscribe_fin.track_name)) {
+    return 0;
+  }
+  if (!reader.ReadVarInt62(&subscribe_fin.final_group)) {
+    return 0;
+  }
+  if (!reader.ReadVarInt62(&subscribe_fin.final_object)) {
+    return 0;
+  }
+  visitor_.OnSubscribeFinMessage(subscribe_fin);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtParser::ProcessSubscribeRst(quic::QuicDataReader& reader) {
+  MoqtSubscribeRst subscribe_rst;
+  if (!reader.ReadStringPieceVarInt62(&subscribe_rst.track_namespace)) {
+    return 0;
+  }
+  if (!reader.ReadStringPieceVarInt62(&subscribe_rst.track_name)) {
+    return 0;
+  }
+  if (!reader.ReadVarInt62(&subscribe_rst.error_code)) {
+    return 0;
+  }
+  if (!reader.ReadStringPieceVarInt62(&subscribe_rst.reason_phrase)) {
+    return 0;
+  }
+  if (!reader.ReadVarInt62(&subscribe_rst.final_group)) {
+    return 0;
+  }
+  if (!reader.ReadVarInt62(&subscribe_rst.final_object)) {
+    return 0;
+  }
+  visitor_.OnSubscribeRstMessage(subscribe_rst);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtParser::ProcessAnnounce(quic::QuicDataReader& reader) {
+  MoqtAnnounce announce;
+  if (!reader.ReadStringPieceVarInt62(&announce.track_namespace)) {
+    return 0;
+  }
+  uint64_t num_params;
+  if (!reader.ReadVarInt62(&num_params)) {
+    return 0;
+  }
+  for (uint64_t i = 0; i < num_params; ++i) {
+    uint64_t type;
+    absl::string_view value;
+    if (!ReadParameter(reader, type, value)) {
+      return 0;
     }
-    auto parameter_key = static_cast<MoqtTrackRequestParameter>(value);
-    switch (parameter_key) {
-      case MoqtTrackRequestParameter::kGroupSequence:
-        // Not used, but check for duplicates.
-        if (saw_group_sequence) {
-          ParseError("GROUP_SEQUENCE parameter appears twice in ANNOUNCE");
-          return absl::nullopt;
-        }
-        if (!reader.ReadStringPieceVarInt62(&field)) {
-          return absl::nullopt;
-        }
-        saw_group_sequence = true;
-        break;
-      case MoqtTrackRequestParameter::kObjectSequence:
-        // Not used, but check for duplicates.
-        if (saw_object_sequence) {
-          ParseError("OBJECT_SEQUENCE parameter appears twice in ANNOUNCE");
-          return absl::nullopt;
-        }
-        if (!reader.ReadStringPieceVarInt62(&field)) {
-          return absl::nullopt;
-        }
-        saw_object_sequence = true;
-        break;
+    auto key = static_cast<MoqtTrackRequestParameter>(type);
+    switch (key) {
       case MoqtTrackRequestParameter::kAuthorizationInfo:
         if (announce.authorization_info.has_value()) {
           ParseError("AUTHORIZATION_INFO parameter appears twice in ANNOUNCE");
-          return absl::nullopt;
+          return 0;
         }
-        if (!reader.ReadStringPieceVarInt62(&field)) {
-          return absl::nullopt;
-        }
-        announce.authorization_info = field;
+        announce.authorization_info = value;
         break;
       default:
         // Skip over the parameter.
-        if (!reader.ReadStringPieceVarInt62(&field)) {
-          return absl::nullopt;
-        }
         break;
     }
   }
-  if (reader.IsDoneReading()) {
-    visitor_.OnAnnounceMessage(announce);
-  }
+  visitor_.OnAnnounceMessage(announce);
   return reader.PreviouslyReadPayload().length();
 }
 
-absl::optional<size_t> MoqtParser::ProcessAnnounceOk(absl::string_view data) {
+size_t MoqtParser::ProcessAnnounceOk(quic::QuicDataReader& reader) {
   MoqtAnnounceOk announce_ok;
-  quic::QuicDataReader reader(data);
   if (!reader.ReadStringPieceVarInt62(&announce_ok.track_namespace)) {
-    return absl::nullopt;
+    return 0;
   }
-  if (reader.IsDoneReading()) {
-    visitor_.OnAnnounceOkMessage(announce_ok);
-  }
+  visitor_.OnAnnounceOkMessage(announce_ok);
   return reader.PreviouslyReadPayload().length();
 }
 
-absl::optional<size_t> MoqtParser::ProcessAnnounceError(
-    absl::string_view data) {
+size_t MoqtParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
   MoqtAnnounceError announce_error;
-  quic::QuicDataReader reader(data);
   if (!reader.ReadStringPieceVarInt62(&announce_error.track_namespace)) {
-    return absl::nullopt;
+    return 0;
   }
   if (!reader.ReadVarInt62(&announce_error.error_code)) {
-    return absl::nullopt;
+    return 0;
   }
   if (!reader.ReadStringPieceVarInt62(&announce_error.reason_phrase)) {
-    return absl::nullopt;
+    return 0;
   }
-  if (reader.IsDoneReading()) {
-    visitor_.OnAnnounceErrorMessage(announce_error);
-  }
+  visitor_.OnAnnounceErrorMessage(announce_error);
   return reader.PreviouslyReadPayload().length();
 }
 
-absl::optional<size_t> MoqtParser::ProcessUnannounce(absl::string_view data) {
+size_t MoqtParser::ProcessUnannounce(quic::QuicDataReader& reader) {
   MoqtUnannounce unannounce;
-  quic::QuicDataReader reader(data);
   if (!reader.ReadStringPieceVarInt62(&unannounce.track_namespace)) {
-    return absl::nullopt;
+    return 0;
   }
-  if (reader.IsDoneReading()) {
-    visitor_.OnUnannounceMessage(unannounce);
-  }
+  visitor_.OnUnannounceMessage(unannounce);
   return reader.PreviouslyReadPayload().length();
 }
 
-absl::optional<size_t> MoqtParser::ProcessGoAway(absl::string_view data) {
-  if (!data.empty()) {
-    // GOAWAY can only be followed by end_of_stream. Anything else is an error.
-    ParseError("GOAWAY has data following");
-    return absl::nullopt;
+size_t MoqtParser::ProcessGoAway(quic::QuicDataReader& reader) {
+  MoqtGoAway goaway;
+  if (!reader.ReadStringPieceVarInt62(&goaway.new_session_uri)) {
+    return 0;
   }
-  visitor_.OnGoAwayMessage();
-  return 0;
-}
-
-bool MoqtParser::GetMessageTypeAndLength(quic::QuicDataReader& reader) {
-  if (!message_type_.has_value()) {
-    uint64_t value;
-    if (!reader.ReadVarInt62(&value)) {
-      return false;
-    }
-    message_type_ = static_cast<MoqtMessageType>(value);
-  }
-  if (!message_length_.has_value()) {
-    uint64_t value;
-    if (!reader.ReadVarInt62(&value)) {
-      return false;
-    }
-    message_length_ = value;
-  }
-  return true;
-}
-
-void MoqtParser::EndOfMessage() {
-  buffered_message_.clear();
-  message_type_ = absl::nullopt;
-  message_length_ = absl::nullopt;
-  object_metadata_ = absl::nullopt;
-}
-
-absl::string_view MoqtParser::FetchMessage(quic::QuicDataReader& reader) {
-  if (message_length_ == 0) {
-    return reader.PeekRemainingPayload();
-  }
-  if (message_length_ > reader.BytesRemaining()) {
-    QUICHE_DCHECK(message_type_ == MoqtMessageType::kObject);
-    return reader.PeekRemainingPayload();
-  }
-  return reader.PeekRemainingPayload().substr(0, *message_length_);
+  visitor_.OnGoAwayMessage(goaway);
+  return reader.PreviouslyReadPayload().length();
 }
 
 void MoqtParser::ParseError(absl::string_view reason) {
@@ -693,20 +540,69 @@ void MoqtParser::ParseError(absl::string_view reason) {
   visitor_.OnParsingError(reason);
 }
 
-bool MoqtParser::ReadIntegerPieceVarInt62(quic::QuicDataReader& reader,
-                                          uint64_t& result) {
-  absl::string_view field;
-  if (!reader.ReadStringPieceVarInt62(&field)) {
+bool MoqtParser::ReadVarIntPieceVarInt62(quic::QuicDataReader& reader,
+                                         uint64_t& result) {
+  uint64_t length;
+  if (!reader.ReadVarInt62(&length)) {
     return false;
   }
-  if (field.size() > sizeof(uint64_t)) {
-    ParseError("Cannot parse explicit length integers longer than 8 bytes");
+  uint64_t actual_length = static_cast<uint64_t>(reader.PeekVarInt62Length());
+  if (length != actual_length) {
+    ParseError("Parameter VarInt has length field mismatch");
     return false;
   }
-  result = 0;
-  memcpy((uint8_t*)&result + sizeof(result) - field.size(), field.data(),
-         field.size());
-  result = quiche::QuicheEndian::NetToHost64(result);
+  if (!reader.ReadVarInt62(&result)) {
+    return false;
+  }
+  return true;
+}
+
+bool MoqtParser::ReadLocation(quic::QuicDataReader& reader,
+                              absl::optional<MoqtSubscribeLocation>& loc) {
+  uint64_t ui64;
+  if (!reader.ReadVarInt62(&ui64)) {
+    return false;
+  }
+  auto mode = static_cast<MoqtSubscribeLocationMode>(ui64);
+  if (mode == MoqtSubscribeLocationMode::kNone) {
+    loc = absl::nullopt;
+    return true;
+  }
+  if (!reader.ReadVarInt62(&ui64)) {
+    return false;
+  }
+  switch (mode) {
+    case MoqtSubscribeLocationMode::kAbsolute:
+      loc = MoqtSubscribeLocation(true, ui64);
+      break;
+    case MoqtSubscribeLocationMode::kRelativePrevious:
+      loc = MoqtSubscribeLocation(false, -1 * static_cast<int64_t>(ui64));
+      break;
+    case MoqtSubscribeLocationMode::kRelativeNext:
+      loc = MoqtSubscribeLocation(false, static_cast<int64_t>(ui64));
+      break;
+    default:
+      ParseError("Unknown location mode");
+      return false;
+  }
+  return true;
+}
+
+bool MoqtParser::ReadParameter(quic::QuicDataReader& reader, uint64_t& type,
+                               absl::string_view& value) {
+  if (!reader.ReadVarInt62(&type)) {
+    return false;
+  }
+  return reader.ReadStringPieceVarInt62(&value);
+}
+
+bool MoqtParser::StringViewToVarInt(absl::string_view& sv, uint64_t& vi) {
+  quic::QuicDataReader reader(sv);
+  if (static_cast<size_t>(reader.PeekVarInt62Length()) != sv.length()) {
+    ParseError("Parameter length does not match varint encoding");
+    return false;
+  }
+  reader.ReadVarInt62(&vi);
   return true;
 }
 

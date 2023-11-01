@@ -8,6 +8,7 @@
 #include <cstddef>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -25,40 +26,39 @@ namespace moqt {
 // different streams.
 class QUICHE_EXPORT MoqtFramer {
  public:
-  MoqtFramer(quiche::QuicheBufferAllocator* allocator,
-             quic::Perspective perspective, bool using_webtrans)
-      : allocator_(allocator),
-        perspective_(perspective),
-        using_webtrans_(using_webtrans) {}
+  MoqtFramer(quiche::QuicheBufferAllocator* allocator, bool using_webtrans)
+      : allocator_(allocator), using_webtrans_(using_webtrans) {}
 
   // Serialize functions. Takes structured data and serializes it into a
   // QuicheBuffer for delivery to the stream.
 
-  // SerializeObject also takes a payload. |known_payload_size| is used in
-  // encoding the message length. If zero, the message length as also encoded as
-  // zero to indicate the message ends with the stream. If nonzero, and too
-  // small to fit the varints and the provided payload, returns an empty buffer.
+  // SerializeObject also takes a payload. |payload_size| might simply be the
+  // size of |payload|, or it could be larger if there is more data coming, or
+  // it could be nullopt if the final length is unknown. If |payload_size| is
+  // smaller than |payload|, returns an empty buffer.
   quiche::QuicheBuffer SerializeObject(const MoqtObject& message,
-                                       absl::string_view payload,
-                                       size_t known_payload_size);
+                                       absl::string_view payload);
   // Build a buffer for additional payload data.
   quiche::QuicheBuffer SerializeObjectPayload(absl::string_view payload);
-  quiche::QuicheBuffer SerializeSetup(const MoqtSetup& message);
+  quiche::QuicheBuffer SerializeClientSetup(const MoqtClientSetup& message);
+  quiche::QuicheBuffer SerializeServerSetup(const MoqtServerSetup& message);
+  // Returns an empty buffer if there is an illegal combination of locations.
   quiche::QuicheBuffer SerializeSubscribeRequest(
       const MoqtSubscribeRequest& message);
   quiche::QuicheBuffer SerializeSubscribeOk(const MoqtSubscribeOk& message);
   quiche::QuicheBuffer SerializeSubscribeError(
       const MoqtSubscribeError& message);
   quiche::QuicheBuffer SerializeUnsubscribe(const MoqtUnsubscribe& message);
+  quiche::QuicheBuffer SerializeSubscribeFin(const MoqtSubscribeFin& message);
+  quiche::QuicheBuffer SerializeSubscribeRst(const MoqtSubscribeRst& message);
   quiche::QuicheBuffer SerializeAnnounce(const MoqtAnnounce& message);
   quiche::QuicheBuffer SerializeAnnounceOk(const MoqtAnnounceOk& message);
   quiche::QuicheBuffer SerializeAnnounceError(const MoqtAnnounceError& message);
   quiche::QuicheBuffer SerializeUnannounce(const MoqtUnannounce& message);
-  quiche::QuicheBuffer SerializeGoAway();
+  quiche::QuicheBuffer SerializeGoAway(const MoqtGoAway& message);
 
  private:
   quiche::QuicheBufferAllocator* allocator_;
-  quic::Perspective perspective_;
   bool using_webtrans_;
 };
 

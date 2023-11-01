@@ -34,7 +34,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
         parameters_(parameters),
         session_established_callback_(std::move(session_established_callback)),
         session_terminated_callback_(std::move(session_terminated_callback)),
-        framer_(quiche::SimpleBufferAllocator::Get(), parameters.perspective,
+        framer_(quiche::SimpleBufferAllocator::Get(),
                 parameters.using_webtrans) {}
 
   // webtransport::SessionVisitor implementation.
@@ -58,14 +58,12 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     Stream(MoqtSession* session, webtransport::Stream* stream)
         : session_(session),
           stream_(stream),
-          parser_(session->parameters_.perspective,
-                  session->parameters_.using_webtrans, *this) {}
+          parser_(session->parameters_.using_webtrans, *this) {}
     Stream(MoqtSession* session, webtransport::Stream* stream,
            bool is_control_stream)
         : session_(session),
           stream_(stream),
-          parser_(session->parameters_.perspective,
-                  session->parameters_.using_webtrans, *this),
+          parser_(session->parameters_.using_webtrans, *this),
           is_control_stream_(is_control_stream) {}
 
     // webtransport::StreamVisitor implementation.
@@ -78,17 +76,20 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // MoqtParserVisitor implementation.
     void OnObjectMessage(const MoqtObject& message, absl::string_view payload,
                          bool end_of_message) override {}
-    void OnSetupMessage(const MoqtSetup& message) override;
+    void OnClientSetupMessage(const MoqtClientSetup& message) override;
+    void OnServerSetupMessage(const MoqtServerSetup& message) override;
     void OnSubscribeRequestMessage(
         const MoqtSubscribeRequest& message) override {}
     void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override {}
     void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override {}
     void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override {}
+    void OnSubscribeFinMessage(const MoqtSubscribeFin& message) override {}
+    void OnSubscribeRstMessage(const MoqtSubscribeRst& message) override {}
     void OnAnnounceMessage(const MoqtAnnounce& message) override {}
     void OnAnnounceOkMessage(const MoqtAnnounceOk& message) override {}
     void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override {}
     void OnUnannounceMessage(const MoqtUnannounce& message) override {}
-    void OnGoAwayMessage() override {}
+    void OnGoAwayMessage(const MoqtGoAway& message) override {}
     void OnParsingError(absl::string_view reason) override;
 
     quic::Perspective perspective() const {

@@ -10,10 +10,14 @@ namespace moqt {
 
 std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
   switch (message_type) {
-    case MoqtMessageType::kObject:
-      return "OBJECT";
-    case MoqtMessageType::kSetup:
-      return "SETUP";
+    case MoqtMessageType::kObjectWithPayloadLength:
+      return "OBJECT_WITH_LENGTH";
+    case MoqtMessageType::kObjectWithoutPayloadLength:
+      return "OBJECT_WITHOUT_LENGTH";
+    case MoqtMessageType::kClientSetup:
+      return "CLIENT_SETUP";
+    case MoqtMessageType::kServerSetup:
+      return "SERVER_SETUP";
     case MoqtMessageType::kSubscribeRequest:
       return "SUBSCRIBE_REQUEST";
     case MoqtMessageType::kSubscribeOk:
@@ -22,6 +26,10 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "SUBSCRIBE_ERROR";
     case MoqtMessageType::kUnsubscribe:
       return "UNSUBSCRIBE";
+    case MoqtMessageType::kSubscribeFin:
+      return "SUBSCRIBE_FIN";
+    case MoqtMessageType::kSubscribeRst:
+      return "SUBSCRIBE_RST";
     case MoqtMessageType::kAnnounce:
       return "ANNOUNCE";
     case MoqtMessageType::kAnnounceOk:

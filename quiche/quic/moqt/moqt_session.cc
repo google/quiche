@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_types.h"
@@ -40,13 +41,14 @@ void MoqtSession::OnSessionReady() {
   control_stream->SetVisitor(std::make_unique<Stream>(
       this, control_stream, /*is_control_stream=*/true));
   control_stream_ = control_stream->GetStreamId();
-  MoqtSetup setup = MoqtSetup{
+  MoqtClientSetup setup = MoqtClientSetup{
       .supported_versions = std::vector<MoqtVersion>{parameters_.version},
-      .role = MoqtRole::kBoth};
+      .role = MoqtRole::kBoth,
+  };
   if (!parameters_.using_webtrans) {
     setup.path = parameters_.path;
   }
-  quiche::QuicheBuffer serialized_setup = framer_.SerializeSetup(setup);
+  quiche::QuicheBuffer serialized_setup = framer_.SerializeClientSetup(setup);
   bool success = control_stream->Write(serialized_setup.AsStringView());
   if (!success) {
     Error("Failed to write client SETUP message");
@@ -120,7 +122,7 @@ void MoqtSession::Stream::OnStopSendingReceived(
   }
 }
 
-void MoqtSession::Stream::OnSetupMessage(const MoqtSetup& message) {
+void MoqtSession::Stream::OnClientSetupMessage(const MoqtClientSetup& message) {
   if (is_control_stream_.has_value()) {
     if (!*is_control_stream_) {
       session_->Error("Received SETUP on non-control stream");
@@ -128,6 +130,10 @@ void MoqtSession::Stream::OnSetupMessage(const MoqtSetup& message) {
     }
   } else {
     is_control_stream_ = true;
+  }
+  if (perspective() == Perspective::IS_CLIENT) {
+    session_->Error("Received CLIENT_SETUP from server");
+    return;
   }
   if (absl::c_find(message.supported_versions, session_->parameters_.version) ==
       message.supported_versions.end()) {
@@ -137,18 +143,40 @@ void MoqtSession::Stream::OnSetupMessage(const MoqtSetup& message) {
   }
   QUICHE_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   if (session_->parameters_.perspective == Perspective::IS_SERVER) {
-    MoqtSetup response =
-        MoqtSetup{.supported_versions =
-                      std::vector<MoqtVersion>{session_->parameters_.version},
-                  .role = MoqtRole::kBoth};
+    MoqtServerSetup response;
+    response.selected_version = session_->parameters_.version;
+    response.role = MoqtRole::kBoth;
     bool success = stream_->Write(
-        session_->framer_.SerializeSetup(response).AsStringView());
+        session_->framer_.SerializeServerSetup(response).AsStringView());
     if (!success) {
       session_->Error("Failed to write server SETUP message");
       return;
     }
     QUICHE_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
+  // TODO: handle role and path.
+  std::move(session_->session_established_callback_)();
+}
+
+void MoqtSession::Stream::OnServerSetupMessage(const MoqtServerSetup& message) {
+  if (is_control_stream_.has_value()) {
+    if (!*is_control_stream_) {
+      session_->Error("Received SETUP on non-control stream");
+      return;
+    }
+  } else {
+    is_control_stream_ = true;
+  }
+  if (perspective() == Perspective::IS_SERVER) {
+    session_->Error("Received SERVER_SETUP from client");
+    return;
+  }
+  if (message.selected_version != session_->parameters_.version) {
+    session_->Error(absl::StrCat("Version mismatch: expected 0x",
+                                 absl::Hex(session_->parameters_.version)));
+    return;
+  }
+  QUICHE_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle role and path.
   std::move(session_->session_established_callback_)();
 }
