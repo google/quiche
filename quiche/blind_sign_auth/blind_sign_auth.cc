@@ -4,7 +4,6 @@
 
 #include "quiche/blind_sign_auth/blind_sign_auth.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -19,6 +18,7 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/time/clock.h"
 #include "absl/types/span.h"
 #include "anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.h"
 #include "anonymous_tokens/cpp/crypto/crypto_utils.h"
@@ -144,6 +144,17 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
     QUICHE_LOG(WARNING) << "Failed to decode extensions: "
                         << extensions.status();
     std::move(callback)(extensions.status());
+    return;
+  }
+  std::vector<uint16_t> kExpectedExtensionTypes = {
+      /*ExpirationTimestamp=*/0x0001, /*GeoHint=*/0x0002,
+      /*ServiceType=*/0xF001, /*DebugMode=*/0xF002};
+  absl::Status result =
+      anonymous_tokens::ValidateExtensionsOrderAndValues(
+          *extensions, absl::MakeSpan(kExpectedExtensionTypes), absl::Now());
+  if (!result.ok()) {
+    QUICHE_LOG(WARNING) << "Failed to validate extensions: " << result;
+    std::move(callback)(result);
     return;
   }
 

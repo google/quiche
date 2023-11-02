@@ -124,7 +124,7 @@ class BlindSignAuthTest : public QuicheTest {
     extensions_.extensions.push_back(*expiration_extension);
 
     anonymous_tokens::GeoHint geo_hint;
-    geo_hint.country_code = "US";
+    geo_hint.geo_hint = "US,US-AL,ALABASTER";
     absl::StatusOr<anonymous_tokens::Extension>
         geo_hint_extension = geo_hint.AsExtension();
     QUICHE_EXPECT_OK(geo_hint_extension);
@@ -137,6 +137,13 @@ class BlindSignAuthTest : public QuicheTest {
         service_type_extension = service_type.AsExtension();
     QUICHE_EXPECT_OK(service_type_extension);
     extensions_.extensions.push_back(*service_type_extension);
+
+    anonymous_tokens::DebugMode debug_mode;
+    debug_mode.mode = anonymous_tokens::DebugMode::kDebug;
+    absl::StatusOr<anonymous_tokens::Extension>
+        debug_mode_extension = debug_mode.AsExtension();
+    QUICHE_EXPECT_OK(debug_mode_extension);
+    extensions_.extensions.push_back(*debug_mode_extension);
 
     absl::StatusOr<std::string> serialized_extensions =
         anonymous_tokens::EncodeExtensions(extensions_);
