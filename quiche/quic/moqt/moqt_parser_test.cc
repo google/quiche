@@ -114,11 +114,13 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     end_of_message_ = true;
     messages_received_++;
     MoqtSubscribeRequest subscribe_request = message;
-    string0_ = std::string(subscribe_request.full_track_name);
-    subscribe_request.full_track_name = absl::string_view(string0_);
+    string0_ = std::string(subscribe_request.track_namespace);
+    subscribe_request.track_namespace = absl::string_view(string0_);
+    string1_ = std::string(subscribe_request.track_name);
+    subscribe_request.track_name = absl::string_view(string1_);
     if (subscribe_request.authorization_info.has_value()) {
-      string1_ = std::string(subscribe_request.authorization_info.value());
-      subscribe_request.authorization_info = absl::string_view(string1_);
+      string2_ = std::string(subscribe_request.authorization_info.value());
+      subscribe_request.authorization_info = absl::string_view(string2_);
     }
     last_message_ = TestMessageBase::MessageStructuredData(subscribe_request);
   }
@@ -593,7 +595,8 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
 TEST_F(MoqtMessageSpecificTest, SubscribeRequestAuthorizationInfoTwice) {
   MoqtParser parser(kWebTrans, visitor_);
   char subscribe_request[] = {
-      0x03, 0x03, 0x66, 0x6f, 0x6f,  // full_track_name = "foo"
+      0x03, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x02, 0x04,                    // start_group = 4 (relative previous)
       0x01, 0x01,                    // start_object = 1 (absolute)
       0x00,                          // end_group = none
@@ -690,6 +693,7 @@ TEST_F(MoqtMessageSpecificTest, StartGroupIsNone) {
   MoqtParser parser(kRawQuic, visitor_);
   char subscribe_request[] = {
       0x03, 0x03, 0x66, 0x6f, 0x6f,  // track_name = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x00,                          // start_group = none
       0x01, 0x01,                    // start_object = 1 (absolute)
       0x00,                          // end_group = none
@@ -709,6 +713,7 @@ TEST_F(MoqtMessageSpecificTest, StartObjectIsNone) {
   MoqtParser parser(kRawQuic, visitor_);
   char subscribe_request[] = {
       0x03, 0x03, 0x66, 0x6f, 0x6f,  // track_name = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x02, 0x04,                    // start_group = 4 (relative previous)
       0x00,                          // start_object = none
       0x00,                          // end_group = none
@@ -728,6 +733,7 @@ TEST_F(MoqtMessageSpecificTest, EndGroupIsNoneEndObjectIsNoNone) {
   MoqtParser parser(kRawQuic, visitor_);
   char subscribe_request[] = {
       0x03, 0x03, 0x66, 0x6f, 0x6f,  // track_name = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x02, 0x04,                    // start_group = 4 (relative previous)
       0x01, 0x01,                    // start_object = 1 (absolute)
       0x00,                          // end_group = none

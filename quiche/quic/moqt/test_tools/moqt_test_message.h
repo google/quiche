@@ -334,8 +334,12 @@ class QUICHE_NO_EXPORT SubscribeRequestMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribeRequest>(values);
-    if (cast.full_track_name != subscribe_request_.full_track_name) {
-      QUIC_LOG(INFO) << "SUBSCRIBE REQUEST full track name mismatch";
+    if (cast.track_namespace != subscribe_request_.track_namespace) {
+      QUIC_LOG(INFO) << "SUBSCRIBE REQUEST track namespace mismatch";
+      return false;
+    }
+    if (cast.track_name != subscribe_request_.track_name) {
+      QUIC_LOG(INFO) << "SUBSCRIBE REQUEST track name mismatch";
       return false;
     }
     if (cast.start_group != subscribe_request_.start_group) {
@@ -361,15 +365,16 @@ class QUICHE_NO_EXPORT SubscribeRequestMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vv---vvvvvvvvv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vv---v----vvvvvvvvv---"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_request_);
   }
 
  private:
-  uint8_t raw_packet_[17] = {
-      0x03, 0x03, 0x66, 0x6f, 0x6f,  // track_name = "foo"
+  uint8_t raw_packet_[22] = {
+      0x03, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x02, 0x04,                    // start_group = 4 (relative previous)
       0x01, 0x01,                    // start_object = 1 (absolute)
       0x00,                          // end_group = none
@@ -379,7 +384,8 @@ class QUICHE_NO_EXPORT SubscribeRequestMessage : public TestMessageBase {
   };
 
   MoqtSubscribeRequest subscribe_request_ = {
-      /*full_track_name=*/"foo",
+      /*track_namespace=*/"foo",
+      /*track_name=*/"abcd",
       /*start_group=*/MoqtSubscribeLocation(false, (int64_t)(-4)),
       /*start_object=*/MoqtSubscribeLocation(true, (uint64_t)1),
       /*end_group=*/absl::nullopt,

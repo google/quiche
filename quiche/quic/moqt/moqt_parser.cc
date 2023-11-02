@@ -304,7 +304,10 @@ size_t MoqtParser::ProcessServerSetup(quic::QuicDataReader& reader) {
 
 size_t MoqtParser::ProcessSubscribeRequest(quic::QuicDataReader& reader) {
   MoqtSubscribeRequest subscribe_request;
-  if (!reader.ReadStringPieceVarInt62(&subscribe_request.full_track_name)) {
+  if (!reader.ReadStringPieceVarInt62(&subscribe_request.track_namespace)) {
+    return 0;
+  }
+  if (!reader.ReadStringPieceVarInt62(&subscribe_request.track_name)) {
     return 0;
   }
   if (!ReadLocation(reader, subscribe_request.start_group)) {

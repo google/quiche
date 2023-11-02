@@ -123,7 +123,8 @@ struct QUICHE_EXPORT MoqtSubscribeLocation {
 };
 
 struct QUICHE_EXPORT MoqtSubscribeRequest {
-  absl::string_view full_track_name;
+  absl::string_view track_namespace;
+  absl::string_view track_name;
   // If the mode is kNone, the these are absl::nullopt.
   absl::optional<MoqtSubscribeLocation> start_group;
   absl::optional<MoqtSubscribeLocation> start_object;
