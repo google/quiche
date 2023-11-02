@@ -7,9 +7,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/tools/quic_url.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace quic {
 
@@ -17,20 +15,6 @@ namespace quic {
 // fetched by the QuicSimpleServerBackend
 class QuicBackendResponse {
  public:
-  // A ServerPushInfo contains path of the push request and everything needed in
-  // comprising a response for the push request.
-  // TODO(b/171463363): Remove.
-  struct ServerPushInfo {
-    ServerPushInfo(QuicUrl request_url, spdy::Http2HeaderBlock headers,
-                   spdy::SpdyPriority priority, std::string body);
-    ServerPushInfo(const ServerPushInfo& other);
-
-    QuicUrl request_url;
-    spdy::Http2HeaderBlock headers;
-    spdy::SpdyPriority priority;
-    std::string body;
-  };
-
   enum SpecialResponseType {
     REGULAR_RESPONSE,      // Send the headers and body like a server should.
     CLOSE_CONNECTION,      // Close the connection (sending the close packet).

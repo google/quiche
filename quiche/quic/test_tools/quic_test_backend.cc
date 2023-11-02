@@ -13,6 +13,7 @@
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/test_tools/web_transport_resets_backend.h"
 #include "quiche/quic/tools/web_transport_test_visitors.h"
+#include "quiche/common/platform/api/quiche_googleurl.h"
 
 namespace quic {
 namespace test {

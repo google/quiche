@@ -18,7 +18,6 @@ namespace test {
 
 namespace {
 using Response = QuicBackendResponse;
-using ServerPushInfo = QuicBackendResponse::ServerPushInfo;
 }  // namespace
 
 class QuicMemoryCacheBackendTest : public QuicTest {
@@ -181,83 +180,6 @@ TEST_F(QuicMemoryCacheBackendTest, DefaultResponse) {
   ASSERT_TRUE(response);
   ASSERT_TRUE(response->headers().contains(":status"));
   EXPECT_EQ("200", response->headers().find(":status")->second);
-}
-
-TEST_F(QuicMemoryCacheBackendTest, AddSimpleResponseWithServerPushResources) {
-  std::string request_host = "www.foo.com";
-  std::string response_body("hello response");
-  const size_t kNumResources = 5;
-  int NumResources = 5;
-  std::list<ServerPushInfo> push_resources;
-  std::string scheme = "http";
-  for (int i = 0; i < NumResources; ++i) {
-    std::string path = absl::StrCat("/server_push_src", i);
-    std::string url = scheme + "://" + request_host + path;
-    QuicUrl resource_url(url);
-    std::string body =
-        absl::StrCat("This is server push response body for ", path);
-    spdy::Http2HeaderBlock response_headers;
-    response_headers[":status"] = "200";
-    response_headers["content-length"] = absl::StrCat(body.size());
-    push_resources.push_back(
-        ServerPushInfo(resource_url, response_headers.Clone(), i, body));
-  }
-
-  cache_.AddSimpleResponseWithServerPushResources(
-      request_host, "/", 200, response_body, push_resources);
-
-  std::string request_url = request_host + "/";
-  std::list<ServerPushInfo> resources =
-      cache_.GetServerPushResources(request_url);
-  ASSERT_EQ(kNumResources, resources.size());
-  for (const auto& push_resource : push_resources) {
-    ServerPushInfo resource = resources.front();
-    EXPECT_EQ(resource.request_url.ToString(),
-              push_resource.request_url.ToString());
-    EXPECT_EQ(resource.priority, push_resource.priority);
-    resources.pop_front();
-  }
-}
-
-TEST_F(QuicMemoryCacheBackendTest, GetServerPushResourcesAndPushResponses) {
-  std::string request_host = "www.foo.com";
-  std::string response_body("hello response");
-  const size_t kNumResources = 4;
-  int NumResources = 4;
-  std::string scheme = "http";
-  std::string push_response_status[kNumResources] = {"200", "200", "301",
-                                                     "404"};
-  std::list<ServerPushInfo> push_resources;
-  for (int i = 0; i < NumResources; ++i) {
-    std::string path = absl::StrCat("/server_push_src", i);
-    std::string url = scheme + "://" + request_host + path;
-    QuicUrl resource_url(url);
-    std::string body = "This is server push response body for " + path;
-    spdy::Http2HeaderBlock response_headers;
-    response_headers[":status"] = push_response_status[i];
-    response_headers["content-length"] = absl::StrCat(body.size());
-    push_resources.push_back(
-        ServerPushInfo(resource_url, response_headers.Clone(), i, body));
-  }
-  cache_.AddSimpleResponseWithServerPushResources(
-      request_host, "/", 200, response_body, push_resources);
-  std::string request_url = request_host + "/";
-  std::list<ServerPushInfo> resources =
-      cache_.GetServerPushResources(request_url);
-  ASSERT_EQ(kNumResources, resources.size());
-  int i = 0;
-  for (const auto& push_resource : push_resources) {
-    QuicUrl url = resources.front().request_url;
-    std::string host = url.host();
-    std::string path = url.path();
-    const Response* response = cache_.GetResponse(host, path);
-    ASSERT_TRUE(response);
-    ASSERT_TRUE(response->headers().contains(":status"));
-    EXPECT_EQ(push_response_status[i++],
-              response->headers().find(":status")->second);
-    EXPECT_EQ(push_resource.body, response->body());
-    resources.pop_front();
-  }
 }
 
 }  // namespace test

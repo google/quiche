@@ -170,7 +170,6 @@ const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
   return it->second.get();
 }
 
-using ServerPushInfo = QuicBackendResponse::ServerPushInfo;
 using SpecialResponseType = QuicBackendResponse::SpecialResponseType;
 
 void QuicMemoryCacheBackend::AddSimpleResponse(absl::string_view host,
@@ -181,13 +180,6 @@ void QuicMemoryCacheBackend::AddSimpleResponse(absl::string_view host,
   response_headers[":status"] = absl::StrCat(response_code);
   response_headers["content-length"] = absl::StrCat(body.length());
   AddResponse(host, path, std::move(response_headers), body);
-}
-
-void QuicMemoryCacheBackend::AddSimpleResponseWithServerPushResources(
-    absl::string_view host, absl::string_view path, int response_code,
-    absl::string_view body, std::list<ServerPushInfo> push_resources) {
-  AddSimpleResponse(host, path, response_code, body);
-  MaybeAddServerPushResources(host, path, push_resources);
 }
 
 void QuicMemoryCacheBackend::AddDefaultResponse(QuicBackendResponse* response) {
@@ -268,7 +260,6 @@ bool QuicMemoryCacheBackend::InitializeBackend(
         << "Can't read QuicMemoryCacheBackend directory: " << cache_directory;
     return false;
   }
-  std::list<std::unique_ptr<ResourceFile>> resource_files;
   for (const auto& filename : files) {
     std::unique_ptr<ResourceFile> resource_file(new ResourceFile(filename));
 
@@ -290,26 +281,6 @@ bool QuicMemoryCacheBackend::InitializeBackend(
 
     AddResponse(resource_file->host(), resource_file->path(),
                 resource_file->spdy_headers().Clone(), resource_file->body());
-
-    resource_files.push_back(std::move(resource_file));
-  }
-
-  for (const auto& resource_file : resource_files) {
-    std::list<ServerPushInfo> push_resources;
-    for (const auto& push_url : resource_file->push_urls()) {
-      QuicUrl url(push_url);
-      const QuicBackendResponse* response = GetResponse(url.host(), url.path());
-      if (!response) {
-        QUIC_BUG(quic_bug_10932_2)
-            << "Push URL '" << push_url << "' not found.";
-        return false;
-      }
-      push_resources.push_back(ServerPushInfo(url, response->headers().Clone(),
-                                              kV3LowestPriority,
-                                              (std::string(response->body()))));
-    }
-    MaybeAddServerPushResources(resource_file->host(), resource_file->path(),
-                                push_resources);
   }
 
   cache_initialized_ = true;
@@ -363,20 +334,6 @@ void QuicMemoryCacheBackend::FetchResponseFromBackend(
 // The memory cache does not have a per-stream handler
 void QuicMemoryCacheBackend::CloseBackendResponseStream(
     QuicSimpleServerBackend::RequestHandler* /*quic_stream*/) {}
-
-std::list<ServerPushInfo> QuicMemoryCacheBackend::GetServerPushResources(
-    std::string request_url) {
-  QuicWriterMutexLock lock(&response_mutex_);
-
-  std::list<ServerPushInfo> resources;
-  auto resource_range = server_push_resources_.equal_range(request_url);
-  for (auto it = resource_range.first; it != resource_range.second; ++it) {
-    resources.push_back(it->second);
-  }
-  QUIC_DVLOG(1) << "Found " << resources.size() << " push resources for "
-                << request_url;
-  return resources;
-}
 
 QuicMemoryCacheBackend::WebTransportResponse
 QuicMemoryCacheBackend::ProcessWebTransportRequest(
@@ -448,60 +405,6 @@ std::string QuicMemoryCacheBackend::GetKey(absl::string_view host,
   if (port != std::string::npos)
     host_string = std::string(host_string.c_str(), port);
   return host_string + std::string(path);
-}
-
-void QuicMemoryCacheBackend::MaybeAddServerPushResources(
-    absl::string_view request_host, absl::string_view request_path,
-    std::list<ServerPushInfo> push_resources) {
-  std::string request_url = GetKey(request_host, request_path);
-
-  for (const auto& push_resource : push_resources) {
-    if (PushResourceExistsInCache(request_url, push_resource)) {
-      continue;
-    }
-
-    QUIC_DVLOG(1) << "Add request-resource association: request url "
-                  << request_url << " push url "
-                  << push_resource.request_url.ToString()
-                  << " response headers "
-                  << push_resource.headers.DebugString();
-    {
-      QuicWriterMutexLock lock(&response_mutex_);
-      server_push_resources_.insert(std::make_pair(request_url, push_resource));
-    }
-    std::string host = push_resource.request_url.host();
-    if (host.empty()) {
-      host = std::string(request_host);
-    }
-    std::string path = push_resource.request_url.path();
-    bool found_existing_response = false;
-    {
-      QuicWriterMutexLock lock(&response_mutex_);
-      found_existing_response = responses_.contains(GetKey(host, path));
-    }
-    if (!found_existing_response) {
-      // Add a server push response to responses map, if it is not in the map.
-      absl::string_view body = push_resource.body;
-      QUIC_DVLOG(1) << "Add response for push resource: host " << host
-                    << " path " << path;
-      AddResponse(host, path, push_resource.headers.Clone(), body);
-    }
-  }
-}
-
-bool QuicMemoryCacheBackend::PushResourceExistsInCache(
-    std::string original_request_url, ServerPushInfo resource) {
-  QuicWriterMutexLock lock(&response_mutex_);
-  auto resource_range =
-      server_push_resources_.equal_range(original_request_url);
-  for (auto it = resource_range.first; it != resource_range.second; ++it) {
-    ServerPushInfo push_resource = it->second;
-    if (push_resource.request_url.ToString() ==
-        resource.request_url.ToString()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 }  // namespace quic
