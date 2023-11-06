@@ -2357,19 +2357,6 @@ void QuicConnection::MaybeSendInResponseToPacket() {
     return;
   }
 
-  if (!GetQuicReloadableFlag(quic_no_send_alarm_unless_necessary)) {
-    // Now that we have received an ack, we might be able to send packets which
-    // are queued locally, or drain streams which are blocked.
-    if (defer_send_in_response_to_packets_) {
-      send_alarm_->Update(clock_->ApproximateNow() +
-                              sent_packet_manager_.GetDeferredSendAlarmDelay(),
-                          QuicTime::Delta::Zero());
-    } else {
-      WriteIfNotBlocked();
-    }
-    return;
-  }
-
   if (!defer_send_in_response_to_packets_) {
     WriteIfNotBlocked();
     return;
@@ -2378,7 +2365,6 @@ void QuicConnection::MaybeSendInResponseToPacket() {
   if (!visitor_->WillingAndAbleToWrite()) {
     QUIC_DVLOG(1)
         << "No send alarm after processing packet. !WillingAndAbleToWrite.";
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_send_alarm_unless_necessary, 1, 7);
     return;
   }
 
@@ -2388,7 +2374,6 @@ void QuicConnection::MaybeSendInResponseToPacket() {
   QuicTime max_deadline = QuicTime::Infinite();
   if (send_alarm_->IsSet()) {
     QUIC_DVLOG(1) << "Send alarm already set to " << send_alarm_->deadline();
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_send_alarm_unless_necessary, 2, 7);
     max_deadline = send_alarm_->deadline();
     send_alarm_->Cancel();
   }
@@ -2398,7 +2383,6 @@ void QuicConnection::MaybeSendInResponseToPacket() {
     // so we'll keep writing after other connections.
     QUIC_BUG_IF(quic_send_alarm_set_with_data_to_send, send_alarm_->IsSet());
     QUIC_DVLOG(1) << "Immediate send alarm scheduled after processing packet.";
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_send_alarm_unless_necessary, 3, 7);
     send_alarm_->Set(clock_->ApproximateNow() +
                      sent_packet_manager_.GetDeferredSendAlarmDelay());
     return;
@@ -2416,26 +2400,22 @@ void QuicConnection::MaybeSendInResponseToPacket() {
           << ", packets_sent_on_last_successful_can_write:"
           << packets_sent_on_last_successful_can_write_;
       QUIC_DVLOG(1) << "Send alarm restored after processing packet.";
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_send_alarm_unless_necessary, 4, 7);
       // Restore to the previous, earlier deadline.
       send_alarm_->Update(max_deadline, QuicTime::Delta::Zero());
     } else {
       QUIC_DVLOG(1) << "Future send alarm scheduled after processing packet.";
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_send_alarm_unless_necessary, 5, 7);
     }
     return;
   }
 
   if (max_deadline != QuicTime::Infinite()) {
     QUIC_DVLOG(1) << "Send alarm restored after processing packet.";
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_send_alarm_unless_necessary, 6, 7);
     send_alarm_->Set(max_deadline);
     return;
   }
   // Can not send data due to other reasons: congestion blocked, anti
   // amplification throttled, etc.
   QUIC_DVLOG(1) << "No send alarm after processing packet. Other reasons.";
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_send_alarm_unless_necessary, 7, 7);
 }
 
 size_t QuicConnection::SendCryptoData(EncryptionLevel level,
