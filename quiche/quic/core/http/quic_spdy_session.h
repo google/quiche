@@ -709,10 +709,6 @@ class QUICHE_EXPORT QuicSpdySession
 
   // Latched value of quic_enable_h3_datagrams reloadable flag.
   bool quic_enable_h3_datagrams_flag_;
-
-  // Latched value of quic_do_not_increase_max_streams_after_h3_goaway
-  // reloadable flag.
-  bool do_not_increase_max_streams_after_h3_goaway_flag_;
 };
 
 }  // namespace quic

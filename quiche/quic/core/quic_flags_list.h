@@ -87,8 +87,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_priority_respect_incremental, false)
 QUIC_FLAG(quic_reloadable_flag_quic_disable_batch_write, false)
 // If true, set burst token to 2 in cwnd bootstrapping experiment.
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_bursts, false)
-// If true, then the HTTP/3 max streams limit will not be increased after sending a GOAWAY
-QUIC_FLAG(quic_reloadable_flag_quic_do_not_increase_max_streams_after_h3_goaway, true)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr_v2, false)
 // If true, use a LRU cache to record client addresses of packets received on server\'s original address.

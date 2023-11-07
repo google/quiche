@@ -1153,9 +1153,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
 }
 
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAndNoMoreMaxStreams) {
-  if (!VersionUsesHttp3(transport_version()) ||
-      !GetQuicReloadableFlag(
-          quic_do_not_increase_max_streams_after_h3_goaway)) {
+  if (!VersionUsesHttp3(transport_version())) {
     return;
   }
 
