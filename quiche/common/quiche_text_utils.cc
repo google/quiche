@@ -29,11 +29,11 @@ void QuicheTextUtils::Base64Encode(const uint8_t* data, size_t data_len,
 }
 
 // static
-absl::optional<std::string> QuicheTextUtils::Base64Decode(
+std::optional<std::string> QuicheTextUtils::Base64Decode(
     absl::string_view input) {
   std::string output;
   if (!absl::Base64Unescape(input, &output)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return output;
 }

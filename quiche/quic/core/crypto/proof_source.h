@@ -320,9 +320,9 @@ class QUICHE_EXPORT ProofSourceHandle {
       const QuicConnectionId& original_connection_id,
       absl::string_view ssl_capabilities, const std::string& hostname,
       absl::string_view client_hello, const std::string& alpn,
-      absl::optional<std::string> alps,
+      std::optional<std::string> alps,
       const std::vector<uint8_t>& quic_transport_params,
-      const absl::optional<std::vector<uint8_t>>& early_data_context,
+      const std::optional<std::vector<uint8_t>>& early_data_context,
       const QuicSSLConfig& ssl_config) = 0;
 
   // Starts a compute signature operation. If the operation is not cancelled

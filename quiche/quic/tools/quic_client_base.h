@@ -452,7 +452,7 @@ class QuicClientBase : public QuicSession::Visitor {
   // If set,
   // - GetNextConnectionId will use this as the next server connection id.
   // - GenerateNewConnectionId will not be called.
-  absl::optional<QuicConnectionId> server_connection_id_override_;
+  std::optional<QuicConnectionId> server_connection_id_override_;
 
   // GenerateNewConnectionId creates a random connection ID of this length.
   // Defaults to 8.

@@ -7,9 +7,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/quic_packets.h"

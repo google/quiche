@@ -7,9 +7,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -250,7 +250,7 @@ class QUICHE_EXPORT QuicConfig {
 
   void SetGoogleHandshakeMessageToSend(std::string message);
 
-  const absl::optional<std::string>& GetReceivedGoogleHandshakeMessage() const;
+  const std::optional<std::string>& GetReceivedGoogleHandshakeMessage() const;
 
   // Sets initial received connection options.  All received connection options
   // will be initialized with these fields. Initial received options may only be
@@ -413,7 +413,7 @@ class QUICHE_EXPORT QuicConfig {
   bool HasReceivedPreferredAddressConnectionIdAndToken() const;
   const std::pair<QuicConnectionId, StatelessResetToken>&
   ReceivedPreferredAddressConnectionIdAndToken() const;
-  absl::optional<QuicSocketAddress> GetPreferredAddressToSend(
+  std::optional<QuicSocketAddress> GetPreferredAddressToSend(
       quiche::IpAddressFamily address_family) const;
   void ClearAlternateServerAddressToSend(
       quiche::IpAddressFamily address_family);
@@ -552,7 +552,7 @@ class QUICHE_EXPORT QuicConfig {
   // Note that received_max_idle_timeout_ is only populated if we receive the
   // peer's value, which isn't guaranteed in IETF QUIC as sending is optional.
   QuicTime::Delta max_idle_timeout_to_send_;
-  absl::optional<QuicTime::Delta> received_max_idle_timeout_;
+  std::optional<QuicTime::Delta> received_max_idle_timeout_;
   // Maximum number of dynamic streams that a Google QUIC connection
   // can support or the maximum number of bidirectional streams that
   // an IETF QUIC connection can support.
@@ -607,7 +607,7 @@ class QUICHE_EXPORT QuicConfig {
   QuicFixedSocketAddress alternate_server_address_ipv4_;
   // Connection Id data to send from the server or receive at the client as part
   // of the preferred address transport parameter.
-  absl::optional<std::pair<QuicConnectionId, StatelessResetToken>>
+  std::optional<std::pair<QuicConnectionId, StatelessResetToken>>
       preferred_address_connection_id_and_token_;
 
   // Stateless reset token used in IETF public reset packet.
@@ -652,20 +652,20 @@ class QUICHE_EXPORT QuicConfig {
   // Initial packet sent by the client.
   // Uses the original_destination_connection_id transport parameter in
   // IETF QUIC.
-  absl::optional<QuicConnectionId> original_destination_connection_id_to_send_;
-  absl::optional<QuicConnectionId> received_original_destination_connection_id_;
+  std::optional<QuicConnectionId> original_destination_connection_id_to_send_;
+  std::optional<QuicConnectionId> received_original_destination_connection_id_;
 
   // The value that the endpoint included in the Source Connection ID field of
   // the first Initial packet it sent.
   // Uses the initial_source_connection_id transport parameter in IETF QUIC.
-  absl::optional<QuicConnectionId> initial_source_connection_id_to_send_;
-  absl::optional<QuicConnectionId> received_initial_source_connection_id_;
+  std::optional<QuicConnectionId> initial_source_connection_id_to_send_;
+  std::optional<QuicConnectionId> received_initial_source_connection_id_;
 
   // The value that the server included in the Source Connection ID field of a
   // Retry packet it sent.
   // Uses the retry_source_connection_id transport parameter in IETF QUIC.
-  absl::optional<QuicConnectionId> retry_source_connection_id_to_send_;
-  absl::optional<QuicConnectionId> received_retry_source_connection_id_;
+  std::optional<QuicConnectionId> retry_source_connection_id_to_send_;
+  std::optional<QuicConnectionId> received_retry_source_connection_id_;
 
   // Custom transport parameters that can be sent and received in the TLS
   // handshake.
@@ -673,8 +673,8 @@ class QUICHE_EXPORT QuicConfig {
   TransportParameters::ParameterMap received_custom_transport_parameters_;
 
   // Google internal handshake message.
-  absl::optional<std::string> google_handshake_message_to_send_;
-  absl::optional<std::string> received_google_handshake_message_;
+  std::optional<std::string> google_handshake_message_to_send_;
+  std::optional<std::string> received_google_handshake_message_;
 };
 
 }  // namespace quic

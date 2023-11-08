@@ -6,12 +6,12 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "absl/base/macros.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/http/http_encoder.h"
 #include "quiche/quic/core/http/spdy_utils.h"
@@ -189,7 +189,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                                QuicStreamOffset offset,
                                StreamSendingState state,
                                TransmissionType /*type*/,
-                               absl::optional<EncryptionLevel> /*level*/) {
+                               std::optional<EncryptionLevel> /*level*/) {
     if (write_length > 0) {
       auto buf = std::make_unique<char[]>(write_length);
       QuicStream* stream = GetOrCreateStream(id);

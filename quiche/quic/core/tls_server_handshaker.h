@@ -163,7 +163,7 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   TlsConnection::Delegate* ConnectionDelegate() override { return this; }
 
   // The status of cert selection. nullopt means it hasn't started.
-  const absl::optional<QuicAsyncStatus>& select_cert_status() const {
+  const std::optional<QuicAsyncStatus>& select_cert_status() const {
     return select_cert_status_;
   }
   // Whether |cert_verify_sig_| contains a valid signature.
@@ -230,9 +230,9 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
         const QuicConnectionId& original_connection_id,
         absl::string_view ssl_capabilities, const std::string& hostname,
         absl::string_view client_hello, const std::string& alpn,
-        absl::optional<std::string> alps,
+        std::optional<std::string> alps,
         const std::vector<uint8_t>& quic_transport_params,
-        const absl::optional<std::vector<uint8_t>>& early_data_context,
+        const std::optional<std::vector<uint8_t>>& early_data_context,
         const QuicSSLConfig& ssl_config) override;
 
     // Delegates to proof_source_->ComputeTlsSignature.
@@ -292,9 +292,9 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
     bool success = false;
     // Empty vector if QUIC transport params are not set successfully.
     std::vector<uint8_t> quic_transport_params;
-    // absl::nullopt if there is no application state to begin with.
+    // std::nullopt if there is no application state to begin with.
     // Empty vector if application state is not set successfully.
-    absl::optional<std::vector<uint8_t>> early_data_context;
+    std::optional<std::vector<uint8_t>> early_data_context;
   };
 
   SetTransportParametersResult SetTransportParameters();
@@ -307,7 +307,7 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
 
   struct QUICHE_EXPORT SetApplicationSettingsResult {
     bool success = false;
-    // TODO(b/239676439): Change type to absl::optional<std::string> and make
+    // TODO(b/239676439): Change type to std::optional<std::string> and make
     // sure SetApplicationSettings() returns nullopt if no ALPS data.
     std::string alps_buffer;
   };
@@ -346,13 +346,13 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   bool ignore_ticket_open_ = false;
 
   // nullopt means select cert hasn't started.
-  absl::optional<QuicAsyncStatus> select_cert_status_;
+  std::optional<QuicAsyncStatus> select_cert_status_;
 
   std::string cert_verify_sig_;
   std::unique_ptr<ProofSource::Details> proof_source_details_;
 
   // Count the duration of the current async operation, if any.
-  absl::optional<QuicTimeAccumulator> async_op_timer_;
+  std::optional<QuicTimeAccumulator> async_op_timer_;
 
   std::unique_ptr<ApplicationState> application_state_;
 

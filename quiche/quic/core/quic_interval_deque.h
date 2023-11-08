@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_CORE_QUIC_INTERVAL_DEQUE_H_
 
 #include <algorithm>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
@@ -259,7 +259,7 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
   friend class test::QuicIntervalDequePeer;
 
   C container_;
-  absl::optional<std::size_t> cached_index_;
+  std::optional<std::size_t> cached_index_;
 };
 
 template <class T, class C>

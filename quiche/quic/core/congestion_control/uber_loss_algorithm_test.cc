@@ -5,9 +5,9 @@
 #include "quiche/quic/core/congestion_control/uber_loss_algorithm.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_types.h"
@@ -69,13 +69,13 @@ class UberLossAlgorithmTest : public QuicTest {
                     const AckedPacketVector& packets_acked,
                     const std::vector<uint64_t>& losses_expected) {
     return VerifyLosses(largest_newly_acked, packets_acked, losses_expected,
-                        absl::nullopt);
+                        std::nullopt);
   }
 
   void VerifyLosses(
       uint64_t largest_newly_acked, const AckedPacketVector& packets_acked,
       const std::vector<uint64_t>& losses_expected,
-      absl::optional<QuicPacketCount> max_sequence_reordering_expected) {
+      std::optional<QuicPacketCount> max_sequence_reordering_expected) {
     LostPacketVector lost_packets;
     LossDetectionInterface::DetectionStats stats = loss_algorithm_.DetectLosses(
         *unacked_packets_, clock_.Now(), rtt_stats_,

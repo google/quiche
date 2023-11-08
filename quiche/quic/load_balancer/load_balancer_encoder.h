@@ -7,9 +7,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 
 #include "absl/numeric/int128.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -89,7 +89,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   // random. |unroutable_connection_id_length| specifies the length of
   // connection IDs to be generated when there is no active config. It must not
   // be 0 and must not be larger than the RFC9000 maximum of 20.
-  static absl::optional<LoadBalancerEncoder> Create(
+  static std::optional<LoadBalancerEncoder> Create(
       QuicRandom& random, LoadBalancerEncoderVisitorInterface* visitor,
       bool len_self_encoded,
       uint8_t unroutable_connection_id_len = kLoadBalancerUnroutableLen);
@@ -126,9 +126,9 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   QuicConnectionId GenerateConnectionId();
 
   // Functions from ConnectionIdGeneratorInterface
-  absl::optional<QuicConnectionId> GenerateNextConnectionId(
+  std::optional<QuicConnectionId> GenerateNextConnectionId(
       const QuicConnectionId& original) override;
-  absl::optional<QuicConnectionId> MaybeReplaceConnectionId(
+  std::optional<QuicConnectionId> MaybeReplaceConnectionId(
       const QuicConnectionId& original,
       const ParsedQuicVersion& version) override;
   uint8_t ConnectionIdLength(uint8_t first_byte) const override;
@@ -154,9 +154,9 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   const bool len_self_encoded_;
   LoadBalancerEncoderVisitorInterface* const visitor_;
 
-  absl::optional<LoadBalancerConfig> config_;
+  std::optional<LoadBalancerConfig> config_;
   absl::uint128 seed_, num_nonces_left_ = 0;
-  absl::optional<LoadBalancerServerId> server_id_;
+  std::optional<LoadBalancerServerId> server_id_;
   uint8_t connection_id_lengths_[kNumLoadBalancerConfigs + 1];
 };
 

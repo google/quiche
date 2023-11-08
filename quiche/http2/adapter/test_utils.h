@@ -125,7 +125,7 @@ class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
 
 // Requires that frames match both types and lengths.
 testing::Matcher<absl::string_view> EqualsFrames(
-    std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
+    std::vector<std::pair<spdy::SpdyFrameType, std::optional<size_t>>>
         types_and_lengths);
 
 // Requires that frames match the specified types.

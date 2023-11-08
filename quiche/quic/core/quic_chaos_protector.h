@@ -7,8 +7,8 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
@@ -41,9 +41,9 @@ class QUICHE_EXPORT QuicChaosProtector : public QuicStreamFrameDataProducer {
   QuicChaosProtector& operator=(QuicChaosProtector&&) = delete;
 
   // Attempts to build a data packet with chaos protection. If an error occurs,
-  // then absl::nullopt is returned. Otherwise returns the serialized length.
-  absl::optional<size_t> BuildDataPacket(const QuicPacketHeader& header,
-                                         char* buffer);
+  // then std::nullopt is returned. Otherwise returns the serialized length.
+  std::optional<size_t> BuildDataPacket(const QuicPacketHeader& header,
+                                        char* buffer);
 
   // From QuicStreamFrameDataProducer.
   WriteStreamDataResult WriteStreamData(QuicStreamId id,
@@ -75,8 +75,8 @@ class QUICHE_EXPORT QuicChaosProtector : public QuicStreamFrameDataProducer {
   void SpreadPadding();
 
   // Serialize |frames_| using |framer_|.
-  absl::optional<size_t> BuildPacket(const QuicPacketHeader& header,
-                                     char* buffer);
+  std::optional<size_t> BuildPacket(const QuicPacketHeader& header,
+                                    char* buffer);
 
   size_t packet_size_;
   std::unique_ptr<char[]> crypto_frame_buffer_;

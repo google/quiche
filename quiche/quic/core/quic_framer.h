@@ -165,7 +165,7 @@ class QUICHE_EXPORT QuicFramerVisitorInterface {
   // the reported ECN counts in the ack frame, if present.
   virtual bool OnAckFrameEnd(
       QuicPacketNumber start,
-      const absl::optional<QuicEcnCounts>& ecn_counts) = 0;
+      const std::optional<QuicEcnCounts>& ecn_counts) = 0;
 
   // Called when a StopWaitingFrame has been parsed.
   virtual bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) = 0;
@@ -457,7 +457,7 @@ class QUICHE_EXPORT QuicFramer {
       QuicVersionLabel* version_label, ParsedQuicVersion* parsed_version,
       QuicConnectionId* destination_connection_id,
       QuicConnectionId* source_connection_id,
-      absl::optional<absl::string_view>* retry_token,
+      std::optional<absl::string_view>* retry_token,
       std::string* detailed_error);
 
   // Parses the unencrypted fields in |packet| and stores them in the other
@@ -475,7 +475,7 @@ class QUICHE_EXPORT QuicFramer {
       ParsedQuicVersion* parsed_version,
       QuicConnectionId* destination_connection_id,
       QuicConnectionId* source_connection_id,
-      absl::optional<absl::string_view>* retry_token,
+      std::optional<absl::string_view>* retry_token,
       std::string* detailed_error, ConnectionIdGeneratorInterface& generator);
 
   // Serializes a packet containing |frames| into |buffer|.

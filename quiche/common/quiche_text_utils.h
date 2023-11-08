@@ -5,6 +5,7 @@
 #ifndef QUICHE_COMMON_QUICHE_TEXT_UTILS_H_
 #define QUICHE_COMMON_QUICHE_TEXT_UTILS_H_
 
+#include <optional>
 #include <string>
 
 #include "absl/hash/hash.h"
@@ -12,7 +13,6 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
@@ -50,7 +50,7 @@ class QUICHE_EXPORT QuicheTextUtils {
 
   // Decodes a base64-encoded |input|.  Returns nullopt when the input is
   // invalid.
-  static absl::optional<std::string> Base64Decode(absl::string_view input);
+  static std::optional<std::string> Base64Decode(absl::string_view input);
 
   // Returns a string containing hex and ASCII representations of |binary|,
   // side-by-side in the style of hexdump. Non-printable characters will be

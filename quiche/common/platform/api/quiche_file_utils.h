@@ -9,11 +9,11 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_FILE_UTILS_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_FILE_UTILS_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 
 namespace quiche {
 
@@ -22,7 +22,7 @@ namespace quiche {
 std::string JoinPath(absl::string_view a, absl::string_view b);
 
 // Reads the entire file into the memory.
-absl::optional<std::string> ReadFileContents(absl::string_view file);
+std::optional<std::string> ReadFileContents(absl::string_view file);
 
 // Lists all files and directories in the directory specified by |path|. Returns
 // true on success, false on failure.

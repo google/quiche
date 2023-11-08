@@ -7,13 +7,13 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -276,13 +276,12 @@ using List = std::vector<ParameterizedMember>;
 // Returns the result of parsing the header value as an Item, if it can be
 // parsed as one, or nullopt if it cannot. Note that this uses the Draft 15
 // parsing rules, and so applies tighter range limits to integers.
-QUICHE_EXPORT absl::optional<ParameterizedItem> ParseItem(
-    absl::string_view str);
+QUICHE_EXPORT std::optional<ParameterizedItem> ParseItem(absl::string_view str);
 
 // Returns the result of parsing the header value as an Item with no parameters,
 // or nullopt if it cannot. Note that this uses the Draft 15 parsing rules, and
 // so applies tighter range limits to integers.
-QUICHE_EXPORT absl::optional<Item> ParseBareItem(absl::string_view str);
+QUICHE_EXPORT std::optional<Item> ParseBareItem(absl::string_view str);
 
 // Returns the result of parsing the header value as a Parameterised List, if it
 // can be parsed as one, or nullopt if it cannot. Note that parameter keys will
@@ -290,7 +289,7 @@ QUICHE_EXPORT absl::optional<Item> ParseBareItem(absl::string_view str);
 // as well as parameter values, will be returned as Items. This method uses the
 // Draft 09 parsing rules for Items, so integers have the 64-bit int range.
 // Structured-Headers Draft 09 only.
-QUICHE_EXPORT absl::optional<ParameterisedList> ParseParameterisedList(
+QUICHE_EXPORT std::optional<ParameterisedList> ParseParameterisedList(
     absl::string_view str);
 
 // Returns the result of parsing the header value as a List of Lists, if it can
@@ -298,25 +297,25 @@ QUICHE_EXPORT absl::optional<ParameterisedList> ParseParameterisedList(
 // as Items. This method uses the Draft 09 parsing rules for Items, so integers
 // have the 64-bit int range.
 // Structured-Headers Draft 09 only.
-QUICHE_EXPORT absl::optional<ListOfLists> ParseListOfLists(
+QUICHE_EXPORT std::optional<ListOfLists> ParseListOfLists(
     absl::string_view str);
 
 // Returns the result of parsing the header value as a general List, if it can
 // be parsed as one, or nullopt if it cannot.
 // Structured-Headers Draft 15 only.
-QUICHE_EXPORT absl::optional<List> ParseList(absl::string_view str);
+QUICHE_EXPORT std::optional<List> ParseList(absl::string_view str);
 
 // Returns the result of parsing the header value as a general Dictionary, if it
 // can be parsed as one, or nullopt if it cannot. Structured-Headers Draft 15
 // only.
-QUICHE_EXPORT absl::optional<Dictionary> ParseDictionary(absl::string_view str);
+QUICHE_EXPORT std::optional<Dictionary> ParseDictionary(absl::string_view str);
 
 // Serialization is implemented for Structured-Headers Draft 15 only.
-QUICHE_EXPORT absl::optional<std::string> SerializeItem(const Item& value);
-QUICHE_EXPORT absl::optional<std::string> SerializeItem(
+QUICHE_EXPORT std::optional<std::string> SerializeItem(const Item& value);
+QUICHE_EXPORT std::optional<std::string> SerializeItem(
     const ParameterizedItem& value);
-QUICHE_EXPORT absl::optional<std::string> SerializeList(const List& value);
-QUICHE_EXPORT absl::optional<std::string> SerializeDictionary(
+QUICHE_EXPORT std::optional<std::string> SerializeList(const List& value);
+QUICHE_EXPORT std::optional<std::string> SerializeDictionary(
     const Dictionary& value);
 
 }  // namespace structured_headers

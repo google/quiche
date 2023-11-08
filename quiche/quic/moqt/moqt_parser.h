@@ -9,10 +9,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -97,7 +97,7 @@ class QUICHE_EXPORT MoqtParser {
   bool ReadVarIntPieceVarInt62(quic::QuicDataReader& reader, uint64_t& result);
   // Read a Location field from SUBSCRIBE REQUEST
   bool ReadLocation(quic::QuicDataReader& reader,
-                    absl::optional<MoqtSubscribeLocation>& loc);
+                    std::optional<MoqtSubscribeLocation>& loc);
   // Read a parameter and return the value as a string_view. Returns false if
   // |reader| does not have enough data.
   bool ReadParameter(quic::QuicDataReader& reader, uint64_t& type,
@@ -114,7 +114,7 @@ class QUICHE_EXPORT MoqtParser {
   std::string buffered_message_;
 
   // Metadata for an object which is delivered in parts.
-  absl::optional<MoqtObject> object_metadata_ = absl::nullopt;
+  std::optional<MoqtObject> object_metadata_ = std::nullopt;
   size_t payload_length_remaining_;
 
   bool processing_ = false;  // True if currently in ProcessData(), to prevent

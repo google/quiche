@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_DECODER_H_
 
 #include <cstdint>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/load_balancer/load_balancer_config.h"
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
@@ -40,22 +40,22 @@ class QUIC_EXPORT_PRIVATE LoadBalancerDecoder {
   // codepoint, |connection_id| is too short, or there's a decrypt error,
   // returns empty. Will accept |connection_id| that is longer than necessary
   // without error.
-  absl::optional<LoadBalancerServerId> GetServerId(
+  std::optional<LoadBalancerServerId> GetServerId(
       const QuicConnectionId& connection_id) const;
 
   // Returns the config ID stored in the first two bits of |connection_id|, or
   // empty if |connection_id| is empty, or the first two bits of the first byte
   // of |connection_id| are 0b11.
-  static absl::optional<uint8_t> GetConfigId(
+  static std::optional<uint8_t> GetConfigId(
       const QuicConnectionId& connection_id);
 
   // Returns the config ID stored in the first two bits of
   // |connection_id_first_byte|, or empty if the first two bits are 0b11.
-  static absl::optional<uint8_t> GetConfigId(uint8_t connection_id_first_byte);
+  static std::optional<uint8_t> GetConfigId(uint8_t connection_id_first_byte);
 
  private:
   // Decoders can support up to 3 configs at once.
-  absl::optional<LoadBalancerConfig> config_[kNumLoadBalancerConfigs];
+  std::optional<LoadBalancerConfig> config_[kNumLoadBalancerConfigs];
 };
 
 }  // namespace quic

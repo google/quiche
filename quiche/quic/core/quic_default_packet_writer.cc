@@ -34,7 +34,7 @@ bool QuicDefaultPacketWriter::IsWriteBlocked() const { return write_blocked_; }
 
 void QuicDefaultPacketWriter::SetWritable() { write_blocked_ = false; }
 
-absl::optional<int> QuicDefaultPacketWriter::MessageTooBigErrorCode() const {
+std::optional<int> QuicDefaultPacketWriter::MessageTooBigErrorCode() const {
   return kSocketErrorMsgSize;
 }
 

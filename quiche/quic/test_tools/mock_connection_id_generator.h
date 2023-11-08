@@ -13,10 +13,10 @@ namespace test {
 
 class MockConnectionIdGenerator : public quic::ConnectionIdGeneratorInterface {
  public:
-  MOCK_METHOD(absl::optional<quic::QuicConnectionId>, GenerateNextConnectionId,
+  MOCK_METHOD(std::optional<quic::QuicConnectionId>, GenerateNextConnectionId,
               (const quic::QuicConnectionId& original), (override));
 
-  MOCK_METHOD(absl::optional<quic::QuicConnectionId>, MaybeReplaceConnectionId,
+  MOCK_METHOD(std::optional<quic::QuicConnectionId>, MaybeReplaceConnectionId,
               (const quic::QuicConnectionId& original,
                const quic::ParsedQuicVersion& version),
               (override));

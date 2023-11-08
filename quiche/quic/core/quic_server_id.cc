@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_server_id.h"
 
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -11,14 +12,13 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
 // static
-absl::optional<QuicServerId> QuicServerId::ParseFromHostPortString(
+std::optional<QuicServerId> QuicServerId::ParseFromHostPortString(
     absl::string_view host_port_string) {
   url::Component username_component;
   url::Component password_component;
@@ -34,7 +34,7 @@ absl::optional<QuicServerId> QuicServerId::ParseFromHostPortString(
   if (username_component.is_valid() || password_component.is_valid() ||
       !host_component.is_nonempty() || !port_component.is_nonempty()) {
     QUICHE_DVLOG(1) << "QuicServerId could not be parsed: " << host_port_string;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::string hostname(host_port_string.data() + host_component.begin,
@@ -49,7 +49,7 @@ absl::optional<QuicServerId> QuicServerId::ParseFromHostPortString(
     QUICHE_DVLOG(1)
         << "Port could not be parsed while parsing QuicServerId from: "
         << host_port_string;
-    return absl::nullopt;
+    return std::nullopt;
   }
   QUICHE_DCHECK_LE(parsed_port_number, std::numeric_limits<uint16_t>::max());
 

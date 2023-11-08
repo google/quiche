@@ -389,10 +389,10 @@ struct QUICHE_EXPORT SerializedPacket {
   // Sum of bytes from frames that are not retransmissions. This field is only
   // populated for packets with "mixed frames": at least one frame of a
   // retransmission type and at least one frame of NOT_RETRANSMISSION type.
-  absl::optional<QuicByteCount> bytes_not_retransmitted;
+  std::optional<QuicByteCount> bytes_not_retransmitted;
   // Only populated if encryption_level is ENCRYPTION_INITIAL.
   // TODO(b/265777524): remove this.
-  absl::optional<QuicPacketHeader> initial_header;
+  std::optional<QuicPacketHeader> initial_header;
 };
 
 // Make a copy of |serialized| (including the underlying frames). |copy_buffer|
@@ -442,7 +442,7 @@ struct QUICHE_EXPORT ReceivedPacketInfo {
   ParsedQuicVersion version;
   QuicConnectionId destination_connection_id;
   QuicConnectionId source_connection_id;
-  absl::optional<absl::string_view> retry_token;
+  std::optional<absl::string_view> retry_token;
 };
 
 }  // namespace quic

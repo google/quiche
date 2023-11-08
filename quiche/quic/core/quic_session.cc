@@ -187,7 +187,7 @@ PendingStream* QuicSession::PendingStreamOnStreamFrame(
 void QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
   QUICHE_DCHECK(pending != nullptr);
   QuicStreamId stream_id = pending->id();
-  absl::optional<QuicResetStreamError> stop_sending_error_code =
+  std::optional<QuicResetStreamError> stop_sending_error_code =
       pending->GetStopSendingErrorCode();
   QuicStream* stream = ProcessPendingStream(pending);
   if (stream != nullptr) {
@@ -1349,12 +1349,12 @@ void QuicSession::OnConfigNegotiated() {
               .Normalized()
               .host()
               .address_family();
-      absl::optional<QuicSocketAddress> preferred_address =
+      std::optional<QuicSocketAddress> preferred_address =
           config_.GetPreferredAddressToSend(address_family);
       if (preferred_address.has_value()) {
         // Set connection ID and token if SPAD has received and a preferred
         // address of the same address family is configured.
-        absl::optional<QuicNewConnectionIdFrame> frame =
+        std::optional<QuicNewConnectionIdFrame> frame =
             connection_->MaybeIssueNewConnectionIdForPreferredAddress();
         if (frame.has_value()) {
           config_.SetPreferredAddressConnectionIdAndTokenToSend(
@@ -1391,9 +1391,9 @@ void QuicSession::OnConfigNegotiated() {
   }
 }
 
-absl::optional<std::string> QuicSession::OnAlpsData(
-    const uint8_t* /*alps_data*/, size_t /*alps_length*/) {
-  return absl::nullopt;
+std::optional<std::string> QuicSession::OnAlpsData(const uint8_t* /*alps_data*/,
+                                                   size_t /*alps_length*/) {
+  return std::nullopt;
 }
 
 void QuicSession::AdjustInitialFlowControlWindows(size_t stream_window) {
@@ -1731,7 +1731,7 @@ void QuicSession::OnTlsHandshakeComplete() {
 bool QuicSession::MaybeSendAddressToken() {
   QUICHE_DCHECK(perspective_ == Perspective::IS_SERVER &&
                 connection()->version().HasIetfQuicFrames());
-  absl::optional<CachedNetworkParameters> cached_network_params =
+  std::optional<CachedNetworkParameters> cached_network_params =
       GenerateCachedNetworkParameters();
 
   std::string address_token = GetCryptoStream()->GetAddressToken(

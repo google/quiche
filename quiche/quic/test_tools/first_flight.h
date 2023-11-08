@@ -44,8 +44,8 @@ class QUIC_NO_EXPORT DelegatedPacketWriter : public QuicPacketWriter {
   // Overrides for QuicPacketWriter.
   bool IsWriteBlocked() const override { return false; }
   void SetWritable() override {}
-  absl::optional<int> MessageTooBigErrorCode() const override {
-    return absl::nullopt;
+  std::optional<int> MessageTooBigErrorCode() const override {
+    return std::nullopt;
   }
   QuicByteCount GetMaxPacketSize(
       const QuicSocketAddress& /*peer_address*/) const override {

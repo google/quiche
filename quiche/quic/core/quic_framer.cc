@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -23,7 +24,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
@@ -3481,7 +3481,7 @@ bool QuicFramer::ProcessAckFrame(QuicDataReader* reader, uint8_t frame_type) {
   }
 
   // Done processing the ACK frame.
-  absl::optional<QuicEcnCounts> ecn_counts = absl::nullopt;
+  std::optional<QuicEcnCounts> ecn_counts = std::nullopt;
   if (!visitor_->OnAckFrameEnd(QuicPacketNumber(first_received), ecn_counts)) {
     set_detailed_error(
         "Error occurs when visitor finishes processing the ACK frame.");
@@ -5499,7 +5499,7 @@ int64_t QuicFramer::FrameAckTimestampRanges(
 
   // |effective_prev_time| is the exponent-encoded timestamp of the previous
   // packet.
-  absl::optional<QuicTime> effective_prev_time;
+  std::optional<QuicTime> effective_prev_time;
   for (const AckTimestampRange& range : timestamp_ranges) {
     QUIC_DVLOG(3) << "Range: gap:" << range.gap << ", beg:" << range.range_begin
                   << ", end:" << range.range_end;
@@ -6341,7 +6341,7 @@ QuicErrorCode QuicFramer::ParsePublicHeaderDispatcher(
     QuicVersionLabel* version_label, ParsedQuicVersion* parsed_version,
     QuicConnectionId* destination_connection_id,
     QuicConnectionId* source_connection_id,
-    absl::optional<absl::string_view>* retry_token,
+    std::optional<absl::string_view>* retry_token,
     std::string* detailed_error) {
   QuicDataReader reader(packet.data(), packet.length());
   if (reader.IsDoneReading()) {
@@ -6393,7 +6393,7 @@ QuicErrorCode QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
     ParsedQuicVersion* parsed_version,
     QuicConnectionId* destination_connection_id,
     QuicConnectionId* source_connection_id,
-    absl::optional<absl::string_view>* retry_token, std::string* detailed_error,
+    std::optional<absl::string_view>* retry_token, std::string* detailed_error,
     ConnectionIdGeneratorInterface& generator) {
   QuicDataReader reader(packet.data(), packet.length());
   // Get the first two bytes.

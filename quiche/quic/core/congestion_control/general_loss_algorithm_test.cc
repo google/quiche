@@ -62,15 +62,14 @@ class GeneralLossAlgorithmTest : public QuicTest {
                     const AckedPacketVector& packets_acked,
                     const std::vector<uint64_t>& losses_expected) {
     return VerifyLosses(largest_newly_acked, packets_acked, losses_expected,
-                        absl::nullopt, absl::nullopt);
+                        std::nullopt, std::nullopt);
   }
 
   void VerifyLosses(
       uint64_t largest_newly_acked, const AckedPacketVector& packets_acked,
       const std::vector<uint64_t>& losses_expected,
-      absl::optional<QuicPacketCount> max_sequence_reordering_expected,
-      absl::optional<QuicPacketCount>
-          num_borderline_time_reorderings_expected) {
+      std::optional<QuicPacketCount> max_sequence_reordering_expected,
+      std::optional<QuicPacketCount> num_borderline_time_reorderings_expected) {
     unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
         APPLICATION_DATA, QuicPacketNumber(largest_newly_acked));
     LostPacketVector lost_packets;

@@ -4,9 +4,9 @@
 
 #include "quiche/quic/core/quic_server_id.h"
 
+#include <optional>
 #include <string>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
 namespace quic::test {
@@ -124,7 +124,7 @@ TEST_F(QuicServerIdTest, Equals) {
 }
 
 TEST_F(QuicServerIdTest, Parse) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("host.test:500");
 
   EXPECT_THAT(server_id, Optional(Property(&QuicServerId::host, "host.test")));
@@ -134,35 +134,35 @@ TEST_F(QuicServerIdTest, Parse) {
 }
 
 TEST_F(QuicServerIdTest, CannotParseMissingPort) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("host.test");
 
-  EXPECT_EQ(server_id, absl::nullopt);
+  EXPECT_EQ(server_id, std::nullopt);
 }
 
 TEST_F(QuicServerIdTest, CannotParseEmptyPort) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("host.test:");
 
-  EXPECT_EQ(server_id, absl::nullopt);
+  EXPECT_EQ(server_id, std::nullopt);
 }
 
 TEST_F(QuicServerIdTest, CannotParseEmptyHost) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString(":500");
 
-  EXPECT_EQ(server_id, absl::nullopt);
+  EXPECT_EQ(server_id, std::nullopt);
 }
 
 TEST_F(QuicServerIdTest, CannotParseUserInfo) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("userinfo@host.test:500");
 
-  EXPECT_EQ(server_id, absl::nullopt);
+  EXPECT_EQ(server_id, std::nullopt);
 }
 
 TEST_F(QuicServerIdTest, ParseIpv6Literal) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("[::1]:400");
 
   EXPECT_THAT(server_id, Optional(Property(&QuicServerId::host, "[::1]")));
@@ -172,7 +172,7 @@ TEST_F(QuicServerIdTest, ParseIpv6Literal) {
 }
 
 TEST_F(QuicServerIdTest, ParseUnbracketedIpv6Literal) {
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString("::1:400");
 
   EXPECT_THAT(server_id, Optional(Property(&QuicServerId::host, "::1")));

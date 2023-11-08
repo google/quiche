@@ -13,11 +13,11 @@
 #include <stddef.h>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
@@ -118,74 +118,74 @@ class QUICHE_NO_EXPORT FrameParts : public Http2FrameDecoderListener {
 
   const Http2FrameHeader& GetFrameHeader() const { return frame_header_; }
 
-  absl::optional<Http2PriorityFields> GetOptPriority() const {
+  std::optional<Http2PriorityFields> GetOptPriority() const {
     return opt_priority_;
   }
-  absl::optional<Http2ErrorCode> GetOptRstStreamErrorCode() const {
+  std::optional<Http2ErrorCode> GetOptRstStreamErrorCode() const {
     return opt_rst_stream_error_code_;
   }
-  absl::optional<Http2PushPromiseFields> GetOptPushPromise() const {
+  std::optional<Http2PushPromiseFields> GetOptPushPromise() const {
     return opt_push_promise_;
   }
-  absl::optional<Http2PingFields> GetOptPing() const { return opt_ping_; }
-  absl::optional<Http2GoAwayFields> GetOptGoaway() const { return opt_goaway_; }
-  absl::optional<size_t> GetOptPadLength() const { return opt_pad_length_; }
-  absl::optional<size_t> GetOptPayloadLength() const {
+  std::optional<Http2PingFields> GetOptPing() const { return opt_ping_; }
+  std::optional<Http2GoAwayFields> GetOptGoaway() const { return opt_goaway_; }
+  std::optional<size_t> GetOptPadLength() const { return opt_pad_length_; }
+  std::optional<size_t> GetOptPayloadLength() const {
     return opt_payload_length_;
   }
-  absl::optional<size_t> GetOptMissingLength() const {
+  std::optional<size_t> GetOptMissingLength() const {
     return opt_missing_length_;
   }
-  absl::optional<size_t> GetOptAltsvcOriginLength() const {
+  std::optional<size_t> GetOptAltsvcOriginLength() const {
     return opt_altsvc_origin_length_;
   }
-  absl::optional<size_t> GetOptAltsvcValueLength() const {
+  std::optional<size_t> GetOptAltsvcValueLength() const {
     return opt_altsvc_value_length_;
   }
-  absl::optional<size_t> GetOptWindowUpdateIncrement() const {
+  std::optional<size_t> GetOptWindowUpdateIncrement() const {
     return opt_window_update_increment_;
   }
   bool GetHasFrameSizeError() const { return has_frame_size_error_; }
 
-  void SetOptPriority(absl::optional<Http2PriorityFields> opt_priority) {
+  void SetOptPriority(std::optional<Http2PriorityFields> opt_priority) {
     opt_priority_ = opt_priority;
   }
   void SetOptRstStreamErrorCode(
-      absl::optional<Http2ErrorCode> opt_rst_stream_error_code) {
+      std::optional<Http2ErrorCode> opt_rst_stream_error_code) {
     opt_rst_stream_error_code_ = opt_rst_stream_error_code;
   }
   void SetOptPushPromise(
-      absl::optional<Http2PushPromiseFields> opt_push_promise) {
+      std::optional<Http2PushPromiseFields> opt_push_promise) {
     opt_push_promise_ = opt_push_promise;
   }
-  void SetOptPing(absl::optional<Http2PingFields> opt_ping) {
+  void SetOptPing(std::optional<Http2PingFields> opt_ping) {
     opt_ping_ = opt_ping;
   }
-  void SetOptGoaway(absl::optional<Http2GoAwayFields> opt_goaway) {
+  void SetOptGoaway(std::optional<Http2GoAwayFields> opt_goaway) {
     opt_goaway_ = opt_goaway;
   }
-  void SetOptPadLength(absl::optional<size_t> opt_pad_length) {
+  void SetOptPadLength(std::optional<size_t> opt_pad_length) {
     opt_pad_length_ = opt_pad_length;
   }
-  void SetOptPayloadLength(absl::optional<size_t> opt_payload_length) {
+  void SetOptPayloadLength(std::optional<size_t> opt_payload_length) {
     opt_payload_length_ = opt_payload_length;
   }
-  void SetOptMissingLength(absl::optional<size_t> opt_missing_length) {
+  void SetOptMissingLength(std::optional<size_t> opt_missing_length) {
     opt_missing_length_ = opt_missing_length;
   }
   void SetOptAltsvcOriginLength(
-      absl::optional<size_t> opt_altsvc_origin_length) {
+      std::optional<size_t> opt_altsvc_origin_length) {
     opt_altsvc_origin_length_ = opt_altsvc_origin_length;
   }
-  void SetOptAltsvcValueLength(absl::optional<size_t> opt_altsvc_value_length) {
+  void SetOptAltsvcValueLength(std::optional<size_t> opt_altsvc_value_length) {
     opt_altsvc_value_length_ = opt_altsvc_value_length;
   }
   void SetOptWindowUpdateIncrement(
-      absl::optional<size_t> opt_window_update_increment) {
+      std::optional<size_t> opt_window_update_increment) {
     opt_window_update_increment_ = opt_window_update_increment;
   }
   void SetOptPriorityUpdate(
-      absl::optional<Http2PriorityUpdateFields> priority_update) {
+      std::optional<Http2PriorityUpdateFields> priority_update) {
     opt_priority_update_ = priority_update;
   }
 
@@ -216,7 +216,7 @@ class QUICHE_NO_EXPORT FrameParts : public Http2FrameDecoderListener {
   // called), and that target is not longer than opt_length->value().
   ::testing::AssertionResult AppendString(absl::string_view source,
                                           std::string* target,
-                                          absl::optional<size_t>* opt_length);
+                                          std::optional<size_t>* opt_length);
 
   const Http2FrameHeader frame_header_;
 
@@ -225,20 +225,20 @@ class QUICHE_NO_EXPORT FrameParts : public Http2FrameDecoderListener {
   std::string altsvc_origin_;
   std::string altsvc_value_;
 
-  absl::optional<Http2PriorityFields> opt_priority_;
-  absl::optional<Http2ErrorCode> opt_rst_stream_error_code_;
-  absl::optional<Http2PushPromiseFields> opt_push_promise_;
-  absl::optional<Http2PingFields> opt_ping_;
-  absl::optional<Http2GoAwayFields> opt_goaway_;
-  absl::optional<Http2PriorityUpdateFields> opt_priority_update_;
+  std::optional<Http2PriorityFields> opt_priority_;
+  std::optional<Http2ErrorCode> opt_rst_stream_error_code_;
+  std::optional<Http2PushPromiseFields> opt_push_promise_;
+  std::optional<Http2PingFields> opt_ping_;
+  std::optional<Http2GoAwayFields> opt_goaway_;
+  std::optional<Http2PriorityUpdateFields> opt_priority_update_;
 
-  absl::optional<size_t> opt_pad_length_;
-  absl::optional<size_t> opt_payload_length_;
-  absl::optional<size_t> opt_missing_length_;
-  absl::optional<size_t> opt_altsvc_origin_length_;
-  absl::optional<size_t> opt_altsvc_value_length_;
+  std::optional<size_t> opt_pad_length_;
+  std::optional<size_t> opt_payload_length_;
+  std::optional<size_t> opt_missing_length_;
+  std::optional<size_t> opt_altsvc_origin_length_;
+  std::optional<size_t> opt_altsvc_value_length_;
 
-  absl::optional<size_t> opt_window_update_increment_;
+  std::optional<size_t> opt_window_update_increment_;
 
   bool has_frame_size_error_ = false;
 

@@ -7,8 +7,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
@@ -34,7 +34,7 @@ class QUICHE_EXPORT QuicDatagramQueue {
     // This function is called synchronously in `QuicDatagramQueue` methods.
     // `status` is nullopt when the datagram is dropped due to being in the
     // queue for too long.
-    virtual void OnDatagramProcessed(absl::optional<MessageStatus> status) = 0;
+    virtual void OnDatagramProcessed(std::optional<MessageStatus> status) = 0;
   };
 
   // |session| is not owned and must outlive this object.
@@ -49,7 +49,7 @@ class QUICHE_EXPORT QuicDatagramQueue {
 
   // Attempts to send a single datagram from the queue.  Returns the result of
   // SendMessage(), or nullopt if there were no unexpired datagrams to send.
-  absl::optional<MessageStatus> TrySendingNextDatagram();
+  std::optional<MessageStatus> TrySendingNextDatagram();
 
   // Sends all of the unexpired datagrams until either the connection becomes
   // write-blocked or the queue is empty.  Returns the number of datagrams sent.

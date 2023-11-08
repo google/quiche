@@ -5,6 +5,7 @@
 #include "quiche/quic/tools/connect_udp_tunnel.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,7 +17,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_server_id.h"
@@ -44,7 +44,7 @@ constexpr size_t kReadSize = 4 * 1024;
 
 // Only support the default path
 // ("/.well-known/masque/udp/{target_host}/{target_port}/")
-absl::optional<QuicServerId> ValidateAndParseTargetFromPath(
+std::optional<QuicServerId> ValidateAndParseTargetFromPath(
     absl::string_view path) {
   std::string canonicalized_path_str;
   url::StdStringCanonOutput canon_output(&canonicalized_path_str);
@@ -54,7 +54,7 @@ absl::optional<QuicServerId> ValidateAndParseTargetFromPath(
   if (!path_component.is_nonempty()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request with non-canonicalizable path: "
                     << path;
-    return absl::nullopt;
+    return std::nullopt;
   }
   canon_output.Complete();
   absl::string_view canonicalized_path =
@@ -69,26 +69,26 @@ absl::optional<QuicServerId> ValidateAndParseTargetFromPath(
       path_split[5].empty() || !path_split[6].empty()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request with bad path: "
                     << canonicalized_path;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  absl::optional<std::string> decoded_host =
+  std::optional<std::string> decoded_host =
       quiche::AsciiUrlDecode(path_split[4]);
   if (!decoded_host.has_value()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request with undecodable host: "
                     << path_split[4];
-    return absl::nullopt;
+    return std::nullopt;
   }
   // Empty host checked above after path split. Expect decoding to never result
   // in an empty decoded host from non-empty encoded host.
   QUICHE_DCHECK(!decoded_host.value().empty());
 
-  absl::optional<std::string> decoded_port =
+  std::optional<std::string> decoded_port =
       quiche::AsciiUrlDecode(path_split[5]);
   if (!decoded_port.has_value()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request with undecodable port: "
                     << path_split[5];
-    return absl::nullopt;
+    return std::nullopt;
   }
   // Empty port checked above after path split. Expect decoding to never result
   // in an empty decoded port from non-empty encoded port.
@@ -103,7 +103,7 @@ absl::optional<QuicServerId> ValidateAndParseTargetFromPath(
   if (parsed_port_number <= 0) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request with bad port: "
                     << decoded_port.value();
-    return absl::nullopt;
+    return std::nullopt;
   }
   // Expect url::ParsePort() to validate port is uint16_t and otherwise return
   // negative number checked for above.
@@ -114,7 +114,7 @@ absl::optional<QuicServerId> ValidateAndParseTargetFromPath(
 }
 
 // Validate header expectations from RFC 9298, section 3.4.
-absl::optional<QuicServerId> ValidateHeadersAndGetTarget(
+std::optional<QuicServerId> ValidateHeadersAndGetTarget(
     const spdy::Http2HeaderBlock& request_headers) {
   QUICHE_DCHECK(request_headers.contains(":method"));
   QUICHE_DCHECK(request_headers.find(":method")->second == "CONNECT");
@@ -124,7 +124,7 @@ absl::optional<QuicServerId> ValidateHeadersAndGetTarget(
   auto authority_it = request_headers.find(":authority");
   if (authority_it == request_headers.end() || authority_it->second.empty()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request missing authority";
-    return absl::nullopt;
+    return std::nullopt;
   }
   // For toy server simplicity, skip validating that the authority matches the
   // current server.
@@ -132,19 +132,19 @@ absl::optional<QuicServerId> ValidateHeadersAndGetTarget(
   auto scheme_it = request_headers.find(":scheme");
   if (scheme_it == request_headers.end() || scheme_it->second.empty()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request missing scheme";
-    return absl::nullopt;
+    return std::nullopt;
   } else if (scheme_it->second != "https") {
     QUICHE_DVLOG(1) << "CONNECT-UDP request contains unexpected scheme: "
                     << scheme_it->second;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto path_it = request_headers.find(":path");
   if (path_it == request_headers.end() || path_it->second.empty()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request missing path";
-    return absl::nullopt;
+    return std::nullopt;
   }
-  absl::optional<QuicServerId> target_server_id =
+  std::optional<QuicServerId> target_server_id =
       ValidateAndParseTargetFromPath(path_it->second);
 
   return target_server_id;
@@ -190,7 +190,7 @@ void ConnectUdpTunnel::OpenTunnel(
     const spdy::Http2HeaderBlock& request_headers) {
   QUICHE_DCHECK(!IsTunnelOpenToTarget());
 
-  absl::optional<QuicServerId> target =
+  std::optional<QuicServerId> target =
       ValidateHeadersAndGetTarget(request_headers);
   if (!target.has_value()) {
     // Malformed request.
@@ -351,7 +351,7 @@ void ConnectUdpTunnel::SendConnectResponse() {
   spdy::Http2HeaderBlock response_headers;
   response_headers[":status"] = "200";
 
-  absl::optional<std::string> capsule_protocol_value =
+  std::optional<std::string> capsule_protocol_value =
       structured_headers::SerializeItem(structured_headers::Item(true));
   QUICHE_CHECK(capsule_protocol_value.has_value());
   response_headers["Capsule-Protocol"] = capsule_protocol_value.value();
@@ -395,7 +395,7 @@ void ConnectUdpTunnel::SendErrorResponse(absl::string_view status,
       std::move(proxy_status_item),
       {{"error", std::move(proxy_status_error_item)},
        {"details", std::move(proxy_status_details_item)}});
-  absl::optional<std::string> proxy_status_value =
+  std::optional<std::string> proxy_status_value =
       structured_headers::SerializeList({proxy_status_member});
   QUICHE_CHECK(proxy_status_value.has_value());
   headers["Proxy-Status"] = proxy_status_value.value();

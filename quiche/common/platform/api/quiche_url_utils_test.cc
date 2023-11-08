@@ -4,12 +4,12 @@
 
 #include "quiche/common/platform/api/quiche_url_utils.h"
 
+#include <optional>
 #include <set>
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace quiche {
@@ -54,8 +54,8 @@ TEST(QuicheUrlUtilsTest, URLEncoding) {
 }
 
 void ValidateUrlDecode(const std::string& input,
-                       const absl::optional<std::string>& expected_output) {
-  absl::optional<std::string> decode_result = AsciiUrlDecode(input);
+                       const std::optional<std::string>& expected_output) {
+  std::optional<std::string> decode_result = AsciiUrlDecode(input);
   if (!expected_output.has_value()) {
     EXPECT_FALSE(decode_result.has_value());
     return;
@@ -72,9 +72,7 @@ TEST(QuicheUrlUtilsTest, DecodeReplace) {
   ValidateUrlDecode("%7Bfoobar%7D", "{foobar}");
 }
 
-TEST(QuicheUrlUtilsTest, DecodeFail) {
-  ValidateUrlDecode("%FF", absl::nullopt);
-}
+TEST(QuicheUrlUtilsTest, DecodeFail) { ValidateUrlDecode("%FF", std::nullopt); }
 
 }  // namespace
 }  // namespace quiche

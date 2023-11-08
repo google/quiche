@@ -78,7 +78,7 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
 
   const QuicCryptoServerStreamBase* GetCryptoStream() const override;
 
-  absl::optional<CachedNetworkParameters> GenerateCachedNetworkParameters()
+  std::optional<CachedNetworkParameters> GenerateCachedNetworkParameters()
       const override;
 
   // If an outgoing stream can be created, return true.

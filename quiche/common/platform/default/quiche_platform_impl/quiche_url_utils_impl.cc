@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 
 #include "quiche_platform_impl/quiche_googleurl_impl.h"
@@ -15,7 +16,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 
 namespace quiche {
 
@@ -57,7 +57,7 @@ bool ExpandURITemplateImpl(
   return true;
 }
 
-absl::optional<std::string> AsciiUrlDecodeImpl(absl::string_view input) {
+std::optional<std::string> AsciiUrlDecodeImpl(absl::string_view input) {
   std::string input_encoded = std::string(input);
   url::RawCanonOutputW<1024> canon_output;
   url::DecodeURLEscapeSequences(input_encoded.c_str(), input_encoded.length(),
@@ -68,7 +68,7 @@ absl::optional<std::string> AsciiUrlDecodeImpl(absl::string_view input) {
   for (int i = 0; i < canon_output.length(); i++) {
     const uint16_t c = reinterpret_cast<uint16_t*>(canon_output.data())[i];
     if (c > std::numeric_limits<signed char>::max()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     output += static_cast<char>(c);
   }

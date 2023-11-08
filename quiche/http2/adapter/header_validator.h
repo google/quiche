@@ -2,11 +2,11 @@
 #define QUICHE_HTTP2_ADAPTER_HEADER_VALIDATOR_H_
 
 #include <bitset>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/http2/adapter/header_validator_base.h"
 #include "quiche/common/platform/api/quiche_export.h"
 

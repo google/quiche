@@ -114,7 +114,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   bool EarlyDataAccepted() override;
   bool ReceivedInchoateReject() override;
 
-  absl::optional<uint64_t> last_received_http3_goaway_id();
+  std::optional<uint64_t> last_received_http3_goaway_id();
 
   void set_max_inbound_header_list_size(size_t size) {
     max_inbound_header_list_size_ = size;

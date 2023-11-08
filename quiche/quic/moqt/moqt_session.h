@@ -5,11 +5,11 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_SESSION_H_
 #define QUICHE_QUIC_MOQT_MOQT_SESSION_H_
 
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -102,7 +102,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     MoqtParser parser_;
     // nullopt means "incoming stream, and we don't know if it's the control
     // stream or a data stream yet".
-    absl::optional<bool> is_control_stream_;
+    std::optional<bool> is_control_stream_;
   };
 
   webtransport::Session* session_;
@@ -111,7 +111,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   MoqtSessionTerminatedCallback session_terminated_callback_;
   MoqtFramer framer_;
 
-  absl::optional<webtransport::StreamId> control_stream_;
+  std::optional<webtransport::StreamId> control_stream_;
   std::string error_;
 };
 

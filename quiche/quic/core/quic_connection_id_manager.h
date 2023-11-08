@@ -12,8 +12,8 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
@@ -133,7 +133,7 @@ class QUICHE_EXPORT QuicSelfIssuedConnectionIdManager {
 
   virtual ~QuicSelfIssuedConnectionIdManager();
 
-  absl::optional<QuicNewConnectionIdFrame>
+  std::optional<QuicNewConnectionIdFrame>
   MaybeIssueNewConnectionIdForPreferredAddress();
 
   QuicErrorCode OnRetireConnectionIdFrame(
@@ -155,7 +155,7 @@ class QUICHE_EXPORT QuicSelfIssuedConnectionIdManager {
   // connection ID with a new probing/migration path when client uses
   // non-empty connection ID.
   bool HasConnectionIdToConsume() const;
-  absl::optional<QuicConnectionId> ConsumeOneConnectionId();
+  std::optional<QuicConnectionId> ConsumeOneConnectionId();
 
   // Returns true if the given connection ID is issued by the
   // QuicSelfIssuedConnectionIdManager and not retired locally yet. Called to
@@ -166,7 +166,7 @@ class QUICHE_EXPORT QuicSelfIssuedConnectionIdManager {
   friend class test::QuicConnectionIdManagerPeer;
 
   // Issue a new connection ID. Can return nullopt.
-  absl::optional<QuicNewConnectionIdFrame> MaybeIssueNewConnectionId();
+  std::optional<QuicNewConnectionIdFrame> MaybeIssueNewConnectionId();
 
   // This should be set to the min of:
   // (1) # of active connection IDs that peer can maintain.

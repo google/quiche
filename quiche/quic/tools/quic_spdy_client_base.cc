@@ -163,9 +163,9 @@ bool QuicSpdyClientBase::goaway_received() const {
   return client_session() && client_session()->goaway_received();
 }
 
-absl::optional<uint64_t> QuicSpdyClientBase::last_received_http3_goaway_id() {
+std::optional<uint64_t> QuicSpdyClientBase::last_received_http3_goaway_id() {
   return client_session() ? client_session()->last_received_http3_goaway_id()
-                          : absl::nullopt;
+                          : std::nullopt;
 }
 
 bool QuicSpdyClientBase::EarlyDataAccepted() {

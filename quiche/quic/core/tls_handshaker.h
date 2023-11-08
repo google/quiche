@@ -225,7 +225,7 @@ class QUICHE_EXPORT TlsHandshaker : public TlsConnection::Delegate,
     // https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-6
     uint8_t desc;
   };
-  absl::optional<TlsAlert> last_tls_alert_;
+  std::optional<TlsAlert> last_tls_alert_;
 };
 
 }  // namespace quic

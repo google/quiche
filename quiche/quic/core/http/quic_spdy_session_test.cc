@@ -3603,7 +3603,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSettingVersionMismatch) {
   ReceiveWebTransportSettings(
       WebTransportHttp3VersionSet({WebTransportHttp3Version::kDraft02}));
   EXPECT_FALSE(session_.SupportsWebTransport());
-  EXPECT_EQ(session_.SupportedWebTransportVersion(), absl::nullopt);
+  EXPECT_EQ(session_.SupportedWebTransportVersion(), std::nullopt);
 }
 
 TEST_P(QuicSpdySessionTestClient, WebTransportSettingSetToZero) {

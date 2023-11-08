@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -16,7 +17,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_padding_frame.h"
@@ -756,7 +756,7 @@ bool QuicPacketCreator::AddPaddedSavedFrame(
   return false;
 }
 
-absl::optional<size_t>
+std::optional<size_t>
 QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
     const QuicPacketHeader& header, char* buffer) {
   if (!GetQuicFlag(quic_enable_chaos_protection) ||
@@ -771,13 +771,13 @@ QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
       // Chaos protection relies on the framer using a crypto data producer,
       // which is always the case in practice.
       framer_->data_producer() == nullptr) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   const QuicCryptoFrame& crypto_frame = *queued_frames_[0].crypto_frame;
   if (packet_.encryption_level != crypto_frame.level) {
     QUIC_BUG(chaos frame level)
         << ENDPOINT << packet_.encryption_level << " != " << crypto_frame.level;
-    return absl::nullopt;
+    return std::nullopt;
   }
   QuicChaosProtector chaos_protector(
       crypto_frame, queued_frames_[1].padding_frame.num_padding_bytes,
@@ -843,7 +843,7 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
   // packet sizes are properly used.
 
   size_t length;
-  absl::optional<size_t> length_with_chaos_protection =
+  std::optional<size_t> length_with_chaos_protection =
       MaybeBuildDataPacketWithChaosProtection(header, encrypted_buffer.buffer);
   if (length_with_chaos_protection.has_value()) {
     length = *length_with_chaos_protection;

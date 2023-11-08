@@ -161,7 +161,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
   QuicSocketAddress local_address() const;
   void ClearPerRequestState();
   bool WaitUntil(int timeout_ms,
-                 absl::optional<quiche::UnretainedCallback<bool()>> trigger);
+                 std::optional<quiche::UnretainedCallback<bool()>> trigger);
   int64_t Send(absl::string_view data);
   bool connected() const;
   bool buffer_body() const;

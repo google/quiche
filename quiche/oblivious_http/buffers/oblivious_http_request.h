@@ -2,11 +2,11 @@
 #define QUICHE_OBLIVIOUS_HTTP_BUFFERS_OBLIVIOUS_HTTP_REQUEST_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "openssl/hpke.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
@@ -115,7 +115,7 @@ class QUICHE_EXPORT ObliviousHttpRequest {
       absl::string_view seed, absl::string_view request_label);
 
   // This field will be empty after calling `ReleaseContext()`.
-  absl::optional<Context> oblivious_http_request_context_;
+  std::optional<Context> oblivious_http_request_context_;
   ObliviousHttpHeaderKeyConfig key_config_;
   std::string request_ciphertext_;
   std::string request_plaintext_;

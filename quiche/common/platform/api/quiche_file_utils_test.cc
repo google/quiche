@@ -1,11 +1,11 @@
 #include "quiche/common/platform/api/quiche_file_utils.h"
 
+#include <optional>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/strip.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace quiche {
@@ -18,7 +18,7 @@ using testing::UnorderedElementsAreArray;
 TEST(QuicheFileUtilsTest, ReadFileContents) {
   std::string path = absl::StrCat(QuicheGetCommonSourcePath(),
                                   "/platform/api/testdir/testfile");
-  absl::optional<std::string> contents = ReadFileContents(path);
+  std::optional<std::string> contents = ReadFileContents(path);
   ASSERT_TRUE(contents.has_value());
   EXPECT_EQ(*contents, "This is a test file.");
 }
@@ -27,7 +27,7 @@ TEST(QuicheFileUtilsTest, ReadFileContentsFileNotFound) {
   std::string path =
       absl::StrCat(QuicheGetCommonSourcePath(),
                    "/platform/api/testdir/file-that-does-not-exist");
-  absl::optional<std::string> contents = ReadFileContents(path);
+  std::optional<std::string> contents = ReadFileContents(path);
   EXPECT_FALSE(contents.has_value());
 }
 

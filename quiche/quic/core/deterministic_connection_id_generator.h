@@ -20,11 +20,11 @@ class QUICHE_EXPORT DeterministicConnectionIdGenerator
   DeterministicConnectionIdGenerator(uint8_t expected_connection_id_length);
 
   // Hashes |original| to create a new connection ID.
-  absl::optional<QuicConnectionId> GenerateNextConnectionId(
+  std::optional<QuicConnectionId> GenerateNextConnectionId(
       const QuicConnectionId& original) override;
   // Replace the connection ID if and only if |original| is not of the expected
   // length.
-  absl::optional<QuicConnectionId> MaybeReplaceConnectionId(
+  std::optional<QuicConnectionId> MaybeReplaceConnectionId(
       const QuicConnectionId& original,
       const ParsedQuicVersion& version) override;
   uint8_t ConnectionIdLength(uint8_t /*first_byte*/) const override {

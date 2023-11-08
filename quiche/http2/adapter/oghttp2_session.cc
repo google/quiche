@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -739,7 +740,7 @@ bool OgHttp2Session::AfterFrameSent(uint8_t frame_type_int, uint32_t stream_id,
       if (is_settings_ack && encoder_header_table_capacity_when_acking_) {
         framer_.UpdateHeaderEncoderTableSize(
             *encoder_header_table_capacity_when_acking_);
-        encoder_header_table_capacity_when_acking_ = absl::nullopt;
+        encoder_header_table_capacity_when_acking_ = std::nullopt;
       } else if (!is_settings_ack) {
         sent_non_ack_settings_ = true;
       }
@@ -1855,7 +1856,7 @@ bool OgHttp2Session::CanCreateStream() const {
 }
 
 HeaderType OgHttp2Session::NextHeaderType(
-    absl::optional<HeaderType> current_type) {
+    std::optional<HeaderType> current_type) {
   if (IsServerSession()) {
     if (!current_type) {
       return HeaderType::REQUEST;

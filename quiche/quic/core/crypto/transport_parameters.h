@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_CORE_CRYPTO_TRANSPORT_PARAMETERS_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -176,15 +176,15 @@ struct QUICHE_EXPORT TransportParameters {
   Perspective perspective;
 
   // Google QUIC downgrade prevention mechanism sent over QUIC+TLS.
-  absl::optional<LegacyVersionInformation> legacy_version_information;
+  std::optional<LegacyVersionInformation> legacy_version_information;
 
   // IETF downgrade prevention and compatible version negotiation, see
   // draft-ietf-quic-version-negotiation.
-  absl::optional<VersionInformation> version_information;
+  std::optional<VersionInformation> version_information;
 
   // The value of the Destination Connection ID field from the first
   // Initial packet sent by the client.
-  absl::optional<QuicConnectionId> original_destination_connection_id;
+  std::optional<QuicConnectionId> original_destination_connection_id;
 
   // Maximum idle timeout expressed in milliseconds.
   IntegerParameter max_idle_timeout_ms;
@@ -238,11 +238,11 @@ struct QUICHE_EXPORT TransportParameters {
 
   // The value that the endpoint included in the Source Connection ID field of
   // the first Initial packet it sent.
-  absl::optional<QuicConnectionId> initial_source_connection_id;
+  std::optional<QuicConnectionId> initial_source_connection_id;
 
   // The value that the server included in the Source Connection ID field of a
   // Retry packet it sent.
-  absl::optional<QuicConnectionId> retry_source_connection_id;
+  std::optional<QuicConnectionId> retry_source_connection_id;
 
   // Indicates support for the DATAGRAM frame and the maximum frame size that
   // the sender accepts. See draft-ietf-quic-datagram.
@@ -253,10 +253,10 @@ struct QUICHE_EXPORT TransportParameters {
   IntegerParameter initial_round_trip_time_us;
 
   // Google internal handshake message.
-  absl::optional<std::string> google_handshake_message;
+  std::optional<std::string> google_handshake_message;
 
   // Google-specific connection options.
-  absl::optional<QuicTagVector> google_connection_options;
+  std::optional<QuicTagVector> google_connection_options;
 
   // Validates whether transport parameters are valid according to
   // the specification. If the transport parameters are not valid, this method

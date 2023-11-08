@@ -4,12 +4,12 @@
 
 #include "quiche/quic/core/http/quic_receive_control_stream.h"
 
+#include <optional>
 #include <utility>
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
@@ -137,7 +137,7 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     spdy_session()->debug_visitor()->OnPriorityUpdateFrameReceived(frame);
   }
 
-  absl::optional<HttpStreamPriority> priority =
+  std::optional<HttpStreamPriority> priority =
       ParsePriorityFieldValue(frame.priority_field_value);
 
   if (!priority.has_value()) {

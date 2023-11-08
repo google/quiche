@@ -35,7 +35,7 @@ TEST(CertificateUtilTest, CreateSelfSignedCertificate) {
   ASSERT_NE(cert_view, nullptr);
   EXPECT_EQ(cert_view->public_key_type(), PublicKeyType::kP256);
 
-  absl::optional<std::string> subject = cert_view->GetHumanReadableSubject();
+  std::optional<std::string> subject = cert_view->GetHumanReadableSubject();
   ASSERT_TRUE(subject.has_value());
   EXPECT_EQ(*subject, options.subject);
 

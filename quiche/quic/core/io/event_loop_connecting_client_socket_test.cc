@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,7 +15,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/connecting_client_socket.h"
 #include "quiche/quic/core/io/event_loop_socket_factory.h"
@@ -292,9 +292,9 @@ class EventLoopConnectingClientSocketTest
   std::unique_ptr<QuicEventLoop> event_loop_;
   std::unique_ptr<EventLoopSocketFactory> socket_factory_;
 
-  absl::optional<absl::Status> connect_result_;
-  absl::optional<absl::StatusOr<quiche::QuicheMemSlice>> receive_result_;
-  absl::optional<absl::Status> send_result_;
+  std::optional<absl::Status> connect_result_;
+  std::optional<absl::StatusOr<quiche::QuicheMemSlice>> receive_result_;
+  std::optional<absl::Status> send_result_;
 };
 
 std::string GetTestParamName(

@@ -5,10 +5,10 @@
 #include <limits>
 #include <list>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/variant.h"
 #include "quiche/http2/adapter/data_source.h"
 #include "quiche/http2/adapter/event_forwarder.h"
@@ -47,14 +47,14 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     // The perspective of this session.
     Perspective perspective = Perspective::kClient;
     // The maximum HPACK table size to use.
-    absl::optional<size_t> max_hpack_encoding_table_capacity = absl::nullopt;
+    std::optional<size_t> max_hpack_encoding_table_capacity;
     // The maximum number of decoded header bytes that a stream can receive.
-    absl::optional<uint32_t> max_header_list_bytes = absl::nullopt;
+    std::optional<uint32_t> max_header_list_bytes = std::nullopt;
     // The maximum size of an individual header field, including name and value.
-    absl::optional<uint32_t> max_header_field_size = absl::nullopt;
+    std::optional<uint32_t> max_header_field_size = std::nullopt;
     // The assumed initial value of the remote endpoint's max concurrent streams
     // setting.
-    absl::optional<uint32_t> remote_max_concurrent_streams = absl::nullopt;
+    std::optional<uint32_t> remote_max_concurrent_streams = std::nullopt;
     // Whether to automatically send PING acks when receiving a PING.
     bool auto_ping_ack = true;
     // Whether (as server) to send a RST_STREAM NO_ERROR when sending a fin on
@@ -245,8 +245,8 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     std::unique_ptr<spdy::Http2HeaderBlock> trailers;
     void* user_data = nullptr;
     int32_t send_window;
-    absl::optional<HeaderType> received_header_type;
-    absl::optional<size_t> remaining_content_length;
+    std::optional<HeaderType> received_header_type;
+    std::optional<size_t> remaining_content_length;
     bool half_closed_local = false;
     bool half_closed_remote = false;
     // Indicates that `outbound_body` temporarily cannot produce data.
@@ -286,7 +286,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
                     type_ == HeaderType::RESPONSE_100);
       return validator_->status_header();
     }
-    absl::optional<size_t> content_length() const {
+    std::optional<size_t> content_length() const {
       return validator_->content_length();
     }
     void SetAllowExtendedConnect() { validator_->SetAllowExtendedConnect(); }
@@ -410,7 +410,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   void CloseStream(Http2StreamId stream_id, Http2ErrorCode error_code);
 
   // Calculates the next expected header type for a stream in a given state.
-  HeaderType NextHeaderType(absl::optional<HeaderType> current_type);
+  HeaderType NextHeaderType(std::optional<HeaderType> current_type);
 
   // Returns true if the session can create a new stream.
   bool CanCreateStream() const;
@@ -542,7 +542,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   // acking SETTINGS from the peer. Only contains a value if the peer advertises
   // a larger table capacity than currently used; a smaller value can safely be
   // applied immediately upon receipt.
-  absl::optional<uint32_t> encoder_header_table_capacity_when_acking_;
+  std::optional<uint32_t> encoder_header_table_capacity_when_acking_;
 
   uint8_t current_frame_type_ = 0;
 

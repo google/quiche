@@ -7,9 +7,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "absl/container/flat_hash_map.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
@@ -28,7 +28,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerServerIdMap {
 
   // Returns the entry associated with |server_id|, if present. For small |T|,
   // use Lookup. For large |T|, use LookupNoCopy.
-  absl::optional<const T> Lookup(LoadBalancerServerId server_id) const;
+  std::optional<const T> Lookup(LoadBalancerServerId server_id) const;
   const T* LookupNoCopy(LoadBalancerServerId server_id) const;
 
   // Updates the table so that |value| is associated with |server_id|. Sets
@@ -64,17 +64,16 @@ std::shared_ptr<LoadBalancerServerIdMap<T>> LoadBalancerServerIdMap<T>::Create(
 }
 
 template <typename T>
-absl::optional<const T> LoadBalancerServerIdMap<T>::Lookup(
+std::optional<const T> LoadBalancerServerIdMap<T>::Lookup(
     const LoadBalancerServerId server_id) const {
   if (server_id.length() != server_id_len_) {
     QUIC_BUG(quic_bug_434893339_02)
         << "Lookup with a " << static_cast<int>(server_id.length())
         << " byte server ID, map requires " << static_cast<int>(server_id_len_);
-    return absl::optional<T>();
+    return std::optional<T>();
   }
   auto it = server_id_table_.find(server_id);
-  return (it != server_id_table_.end()) ? it->second
-                                        : absl::optional<const T>();
+  return (it != server_id_table_.end()) ? it->second : std::optional<const T>();
 }
 
 template <typename T>

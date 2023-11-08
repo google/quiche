@@ -8,11 +8,11 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -40,8 +40,8 @@ static const size_t kMaxConnectionsWithoutCHLO =
 namespace test {
 namespace {
 
-const absl::optional<ParsedClientHello> kNoParsedChlo;
-const absl::optional<ParsedClientHello> kDefaultParsedChlo =
+const std::optional<ParsedClientHello> kNoParsedChlo;
+const std::optional<ParsedClientHello> kDefaultParsedChlo =
     absl::make_optional<ParsedClientHello>();
 
 using BufferedPacket = QuicBufferedPacketStore::BufferedPacket;
@@ -539,7 +539,7 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
   bool resumption_attempted = false;
   bool early_data_attempted = false;
   QuicConfig config;
-  absl::optional<uint8_t> tls_alert;
+  std::optional<uint8_t> tls_alert;
 
   EXPECT_FALSE(store_.HasBufferedPackets(connection_id));
   store_.EnqueuePacket(connection_id, false, packet_, self_address_,
@@ -608,7 +608,7 @@ TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {
         ParsedQuicVersion unused_parsed_version = UnsupportedQuicVersion();
         QuicConnectionId unused_destination_connection_id;
         QuicConnectionId unused_source_connection_id;
-        absl::optional<absl::string_view> unused_retry_token;
+        std::optional<absl::string_view> unused_retry_token;
         std::string unused_detailed_error;
         QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
             *packet, kQuicDefaultConnectionIdLength, &unused_format,
@@ -627,7 +627,7 @@ TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {
   ParsedQuicVersion unused_parsed_version = UnsupportedQuicVersion();
   QuicConnectionId unused_destination_connection_id;
   QuicConnectionId unused_source_connection_id;
-  absl::optional<absl::string_view> unused_retry_token;
+  std::optional<absl::string_view> unused_retry_token;
   std::string unused_detailed_error;
   QuicErrorCode error_code = QUIC_NO_ERROR;
 

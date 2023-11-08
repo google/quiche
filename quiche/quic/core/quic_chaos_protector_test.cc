@@ -100,7 +100,7 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
   }
 
   void BuildEncryptAndParse() {
-    absl::optional<size_t> length =
+    std::optional<size_t> length =
         chaos_protector_->BuildDataPacket(header_, packet_buffer_.get());
     ASSERT_TRUE(length.has_value());
     ASSERT_GT(length.value(), 0u);

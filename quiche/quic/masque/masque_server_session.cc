@@ -13,13 +13,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_data_reader.h"
@@ -282,12 +282,12 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     QUIC_DLOG(ERROR) << "MASQUE request with bad path \"" << path << "\"";
     return CreateBackendErrorResponse("400", "Bad path");
   }
-  absl::optional<std::string> host = quiche::AsciiUrlDecode(path_split[4]);
+  std::optional<std::string> host = quiche::AsciiUrlDecode(path_split[4]);
   if (!host.has_value()) {
     QUIC_DLOG(ERROR) << "Failed to decode host \"" << path_split[4] << "\"";
     return CreateBackendErrorResponse("500", "Failed to decode host");
   }
-  absl::optional<std::string> port = quiche::AsciiUrlDecode(path_split[5]);
+  std::optional<std::string> port = quiche::AsciiUrlDecode(path_split[5]);
   if (!port.has_value()) {
     QUIC_DLOG(ERROR) << "Failed to decode port \"" << path_split[5] << "\"";
     return CreateBackendErrorResponse("500", "Failed to decode port");

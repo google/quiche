@@ -47,9 +47,9 @@ class FakeProofSourceHandle : public ProofSourceHandle {
       const QuicConnectionId& original_connection_id,
       absl::string_view ssl_capabilities, const std::string& hostname,
       absl::string_view client_hello, const std::string& alpn,
-      absl::optional<std::string> alps,
+      std::optional<std::string> alps,
       const std::vector<uint8_t>& quic_transport_params,
-      const absl::optional<std::vector<uint8_t>>& early_data_context,
+      const std::optional<std::vector<uint8_t>>& early_data_context,
       const QuicSSLConfig& ssl_config) override;
 
   QuicAsyncStatus ComputeSignature(const QuicSocketAddress& server_address,
@@ -71,9 +71,9 @@ class FakeProofSourceHandle : public ProofSourceHandle {
                    QuicConnectionId original_connection_id,
                    absl::string_view ssl_capabilities, std::string hostname,
                    absl::string_view client_hello, std::string alpn,
-                   absl::optional<std::string> alps,
+                   std::optional<std::string> alps,
                    std::vector<uint8_t> quic_transport_params,
-                   absl::optional<std::vector<uint8_t>> early_data_context,
+                   std::optional<std::vector<uint8_t>> early_data_context,
                    QuicSSLConfig ssl_config)
         : server_address(server_address),
           client_address(client_address),
@@ -94,9 +94,9 @@ class FakeProofSourceHandle : public ProofSourceHandle {
     std::string hostname;
     std::string client_hello;
     std::string alpn;
-    absl::optional<std::string> alps;
+    std::optional<std::string> alps;
     std::vector<uint8_t> quic_transport_params;
-    absl::optional<std::vector<uint8_t>> early_data_context;
+    std::optional<std::vector<uint8_t>> early_data_context;
     QuicSSLConfig ssl_config;
   };
 
@@ -184,8 +184,8 @@ class FakeProofSourceHandle : public ProofSourceHandle {
   // Action for the next compute signature operation.
   Action compute_signature_action_ = Action::DELEGATE_SYNC;
   const QuicDelayedSSLConfig dealyed_ssl_config_;
-  absl::optional<SelectCertOperation> select_cert_op_;
-  absl::optional<ComputeSignatureOperation> compute_signature_op_;
+  std::optional<SelectCertOperation> select_cert_op_;
+  std::optional<ComputeSignatureOperation> compute_signature_op_;
 
   // Save all the select cert and compute signature args for tests to inspect.
   std::vector<SelectCertArgs> all_select_cert_args_;

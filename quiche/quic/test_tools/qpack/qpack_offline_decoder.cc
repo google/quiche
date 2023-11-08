@@ -130,7 +130,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
     absl::string_view input_filename) {
   // Store data in |input_data_storage|; use a absl::string_view to
   // efficiently keep track of remaining portion yet to be decoded.
-  absl::optional<std::string> input_data_storage =
+  std::optional<std::string> input_data_storage =
       quiche::ReadFileContents(input_filename);
   QUICHE_DCHECK(input_data_storage.has_value());
   absl::string_view input_data(*input_data_storage);
@@ -228,7 +228,7 @@ bool QpackOfflineDecoder::VerifyDecodedHeaderLists(
   // Store data in |expected_headers_data_storage|; use a
   // absl::string_view to efficiently keep track of remaining portion
   // yet to be decoded.
-  absl::optional<std::string> expected_headers_data_storage =
+  std::optional<std::string> expected_headers_data_storage =
       quiche::ReadFileContents(expected_headers_filename);
   QUICHE_DCHECK(expected_headers_data_storage.has_value());
   absl::string_view expected_headers_data(*expected_headers_data_storage);

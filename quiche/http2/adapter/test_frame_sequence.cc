@@ -1,6 +1,7 @@
 #include "quiche/http2/adapter/test_frame_sequence.h"
 
 #include <memory>
+#include <optional>
 
 #include "quiche/http2/adapter/http2_util.h"
 #include "quiche/http2/adapter/oghttp2_util.h"
@@ -33,7 +34,7 @@ TestFrameSequence& TestFrameSequence::ServerPreface(
 
 TestFrameSequence& TestFrameSequence::Data(Http2StreamId stream_id,
                                            absl::string_view payload, bool fin,
-                                           absl::optional<int> padding_length) {
+                                           std::optional<int> padding_length) {
   auto data = std::make_unique<spdy::SpdyDataIR>(stream_id, payload);
   data->set_fin(fin);
   if (padding_length) {

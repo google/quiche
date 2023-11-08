@@ -6,15 +6,14 @@
 #define QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_TIME_UTILS_IMPL_H_
 
 #include <cstdint>
-
-#include "absl/types/optional.h"
+#include <optional>
 
 namespace quiche {
 
-absl::optional<int64_t> QuicheUtcDateTimeToUnixSecondsImpl(int year, int month,
-                                                           int day, int hour,
-                                                           int minute,
-                                                           int second);
+std::optional<int64_t> QuicheUtcDateTimeToUnixSecondsImpl(int year, int month,
+                                                          int day, int hour,
+                                                          int minute,
+                                                          int second);
 
 }  // namespace quiche
 

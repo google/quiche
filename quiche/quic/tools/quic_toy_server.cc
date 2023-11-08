@@ -87,7 +87,7 @@ QuicToyServer::MemoryCacheBackendFactory::CreateBackend() {
     for (absl::string_view destination : absl::StrSplit(
              quiche::GetQuicheCommandLineFlag(FLAGS_connect_proxy_destinations),
              ',', absl::SkipEmpty())) {
-      absl::optional<QuicServerId> destination_server_id =
+      std::optional<QuicServerId> destination_server_id =
           QuicServerId::ParseFromHostPortString(destination);
       QUICHE_CHECK(destination_server_id.has_value());
       connect_proxy_destinations.insert(
@@ -98,7 +98,7 @@ QuicToyServer::MemoryCacheBackendFactory::CreateBackend() {
     for (absl::string_view target : absl::StrSplit(
              quiche::GetQuicheCommandLineFlag(FLAGS_connect_udp_proxy_targets),
              ',', absl::SkipEmpty())) {
-      absl::optional<QuicServerId> target_server_id =
+      std::optional<QuicServerId> target_server_id =
           QuicServerId::ParseFromHostPortString(target);
       QUICHE_CHECK(target_server_id.has_value());
       connect_udp_proxy_targets.insert(std::move(target_server_id).value());

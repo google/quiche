@@ -45,10 +45,10 @@ MessageStatus QuicDatagramQueue::SendOrQueueDatagram(
   return MESSAGE_STATUS_BLOCKED;
 }
 
-absl::optional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
+std::optional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
   RemoveExpiredDatagrams();
   if (queue_.empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   MessageResult result =
@@ -65,7 +65,7 @@ absl::optional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
 size_t QuicDatagramQueue::SendDatagrams() {
   size_t num_datagrams = 0;
   for (;;) {
-    absl::optional<MessageStatus> status = TrySendingNextDatagram();
+    std::optional<MessageStatus> status = TrySendingNextDatagram();
     if (!status.has_value()) {
       break;
     }
@@ -94,7 +94,7 @@ void QuicDatagramQueue::RemoveExpiredDatagrams() {
     ++expired_datagram_count_;
     queue_.pop_front();
     if (observer_) {
-      observer_->OnDatagramProcessed(absl::nullopt);
+      observer_->OnDatagramProcessed(std::nullopt);
     }
   }
 }

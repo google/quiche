@@ -921,7 +921,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   // Default is true.
   bool connect_to_server_on_initialize_;
   QuicSocketAddress server_address_;
-  absl::optional<QuicSocketAddress> server_listening_address_;
+  std::optional<QuicSocketAddress> server_listening_address_;
   std::string server_hostname_;
   QuicTestBackend memory_cache_backend_;
   std::unique_ptr<ServerThread> server_thread_;
@@ -4172,7 +4172,7 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
     QuicVersionLabel version_label;
     ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
     QuicConnectionId destination_connection_id, source_connection_id;
-    absl::optional<absl::string_view> retry_token;
+    std::optional<absl::string_view> retry_token;
     std::string detailed_error;
     if (QuicFramer::ParsePublicHeaderDispatcher(
             QuicEncryptedPacket(buffer, buf_len),

@@ -153,8 +153,8 @@ bool QuicEndpointBase::Writer::IsWriteBlocked() const { return is_blocked_; }
 
 void QuicEndpointBase::Writer::SetWritable() { is_blocked_ = false; }
 
-absl::optional<int> QuicEndpointBase::Writer::MessageTooBigErrorCode() const {
-  return absl::nullopt;
+std::optional<int> QuicEndpointBase::Writer::MessageTooBigErrorCode() const {
+  return std::nullopt;
 }
 
 QuicByteCount QuicEndpointBase::Writer::GetMaxPacketSize(

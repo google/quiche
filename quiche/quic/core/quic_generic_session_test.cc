@@ -10,11 +10,11 @@
 #include <cstddef>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
@@ -51,7 +51,7 @@ using testing::Eq;
 class CountingDatagramObserver : public QuicDatagramQueue::Observer {
  public:
   CountingDatagramObserver(int& total) : total_(total) {}
-  void OnDatagramProcessed(absl::optional<MessageStatus>) { ++total_; }
+  void OnDatagramProcessed(std::optional<MessageStatus>) { ++total_; }
 
  private:
   int& total_;

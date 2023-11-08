@@ -17,12 +17,12 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/quic_coalesced_packet.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -488,9 +488,9 @@ class QUICHE_EXPORT QuicPacketCreator {
   };
 
   // Attempts to build a data packet with chaos protection. If this packet isn't
-  // supposed to be protected or if serialization fails then absl::nullopt is
+  // supposed to be protected or if serialization fails then std::nullopt is
   // returned. Otherwise returns the serialized length.
-  absl::optional<size_t> MaybeBuildDataPacketWithChaosProtection(
+  std::optional<size_t> MaybeBuildDataPacketWithChaosProtection(
       const QuicPacketHeader& header, char* buffer);
 
   // Creates a stream frame which fits into the current open packet. If

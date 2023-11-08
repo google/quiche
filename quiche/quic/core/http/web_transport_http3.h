@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_CORE_HTTP_WEB_TRANSPORT_HTTP3_H_
 
 #include <memory>
+#include <optional>
 
 #include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/time/time.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -174,7 +174,7 @@ class QUICHE_EXPORT WebTransportHttp3UnidirectionalStream : public QuicStream {
  private:
   QuicSpdySession* session_;
   WebTransportStreamAdapter adapter_;
-  absl::optional<WebTransportSessionId> session_id_;
+  std::optional<WebTransportSessionId> session_id_;
   bool needs_to_send_preamble_;
 
   bool ReadSessionId();
@@ -184,7 +184,7 @@ class QUICHE_EXPORT WebTransportHttp3UnidirectionalStream : public QuicStream {
 
 // Remaps HTTP/3 error code into a WebTransport error code.  Returns nullopt if
 // the provided code is outside of valid range.
-QUICHE_EXPORT absl::optional<WebTransportStreamError> Http3ErrorToWebTransport(
+QUICHE_EXPORT std::optional<WebTransportStreamError> Http3ErrorToWebTransport(
     uint64_t http3_error_code);
 
 // Same as above, but returns default error value (zero) when none could be

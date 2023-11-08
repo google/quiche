@@ -12,13 +12,13 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
@@ -371,10 +371,10 @@ class QUICHE_EXPORT QuicDispatcher
 
   struct ExtractChloResult {
     // If set, a full client hello has been successfully parsed.
-    absl::optional<ParsedClientHello> parsed_chlo;
+    std::optional<ParsedClientHello> parsed_chlo;
     // If set, the TLS alert that will cause a connection close.
     // Always empty for Google QUIC.
-    absl::optional<uint8_t> tls_alert;
+    std::optional<uint8_t> tls_alert;
   };
 
   // Try to extract information(sni, alpns, ...) if the full Client Hello has

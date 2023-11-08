@@ -614,8 +614,7 @@ void QuicTestClient::ClearPerRequestState() {
 bool QuicTestClient::HaveActiveStream() { return !open_streams_.empty(); }
 
 bool QuicTestClient::WaitUntil(
-    int timeout_ms,
-    absl::optional<quiche::UnretainedCallback<bool()>> trigger) {
+    int timeout_ms, std::optional<quiche::UnretainedCallback<bool()>> trigger) {
   QuicTime::Delta timeout = QuicTime::Delta::FromMilliseconds(timeout_ms);
   const QuicClock* clock = client()->session()->connection()->clock();
   QuicTime end_waiting_time = clock->Now() + timeout;

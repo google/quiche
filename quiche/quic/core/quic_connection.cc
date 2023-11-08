@@ -281,7 +281,7 @@ QuicConnection::QuicConnection(
       default_path_(initial_self_address, QuicSocketAddress(),
                     /*client_connection_id=*/EmptyQuicConnectionId(),
                     server_connection_id,
-                    /*stateless_reset_token=*/absl::nullopt),
+                    /*stateless_reset_token=*/std::nullopt),
       active_effective_peer_migration_type_(NO_CHANGE),
       support_key_update_for_connection_(false),
       current_packet_data_(nullptr),
@@ -1497,7 +1497,7 @@ bool QuicConnection::OnAckTimestamp(QuicPacketNumber packet_number,
 }
 
 bool QuicConnection::OnAckFrameEnd(
-    QuicPacketNumber start, const absl::optional<QuicEcnCounts>& ecn_counts) {
+    QuicPacketNumber start, const std::optional<QuicEcnCounts>& ecn_counts) {
   QUIC_BUG_IF(quic_bug_12714_7, !connected_)
       << "Processing ACK frame end when connection is closed. Received packet "
          "info: "
@@ -2869,7 +2869,7 @@ void QuicConnection::FindMatchingOrNewClientConnectionIdOrToken(
     const PathState& default_path, const PathState& alternative_path,
     const QuicConnectionId& server_connection_id,
     QuicConnectionId* client_connection_id,
-    absl::optional<StatelessResetToken>* stateless_reset_token) {
+    std::optional<StatelessResetToken>* stateless_reset_token) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_SERVER &&
                 version().HasIetfQuicFrames());
   if (peer_issued_cid_manager_ == nullptr ||
@@ -3814,7 +3814,7 @@ void QuicConnection::FlushPackets() {
 
 bool QuicConnection::IsMsgTooBig(const QuicPacketWriter* writer,
                                  const WriteResult& result) {
-  absl::optional<int> writer_error_code = writer->MessageTooBigErrorCode();
+  std::optional<int> writer_error_code = writer->MessageTooBigErrorCode();
   return (result.status == WRITE_STATUS_MSG_TOO_BIG) ||
          (writer_error_code.has_value() && IsWriteError(result.status) &&
           result.error_code == *writer_error_code);
@@ -3874,7 +3874,7 @@ void QuicConnection::OnWriteError(int error_code) {
   const std::string error_details = absl::StrCat(
       "Write failed with error: ", error_code, " (", strerror(error_code), ")");
   QUIC_LOG_FIRST_N(ERROR, 2) << ENDPOINT << error_details;
-  absl::optional<int> writer_error_code = writer_->MessageTooBigErrorCode();
+  std::optional<int> writer_error_code = writer_->MessageTooBigErrorCode();
   if (writer_error_code.has_value() && error_code == *writer_error_code) {
     CloseConnection(QUIC_PACKET_WRITE_ERROR, error_details,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -5291,7 +5291,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
       sent_packet_manager_.SetRttStats(*alternative_path_.rtt_stats);
 
       // Explicitly clear alternative_path_.rtt_stats
-      alternative_path_.rtt_stats = absl::nullopt;
+      alternative_path_.rtt_stats = std::nullopt;
     }
   }
   // Update to the new peer address.
@@ -5302,7 +5302,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
     SetDefaultPathState(std::move(alternative_path_));
   } else {
     QuicConnectionId client_connection_id;
-    absl::optional<StatelessResetToken> stateless_reset_token;
+    std::optional<StatelessResetToken> stateless_reset_token;
     FindMatchingOrNewClientConnectionIdOrToken(
         previous_default_path, alternative_path_,
         last_received_packet_info_.destination_connection_id,
@@ -5509,7 +5509,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
             << "No validated peer address to send after handshake comfirmed.";
       } else if (!IsReceivedPeerAddressValidated()) {
         QuicConnectionId client_connection_id;
-        absl::optional<StatelessResetToken> stateless_reset_token;
+        std::optional<StatelessResetToken> stateless_reset_token;
         FindMatchingOrNewClientConnectionIdOrToken(
             default_path_, alternative_path_,
             last_received_packet_info_.destination_connection_id,
@@ -6537,10 +6537,10 @@ void QuicConnection::AddKnownServerAddress(const QuicSocketAddress& address) {
   known_server_addresses_.push_back(address);
 }
 
-absl::optional<QuicNewConnectionIdFrame>
+std::optional<QuicNewConnectionIdFrame>
 QuicConnection::MaybeIssueNewConnectionIdForPreferredAddress() {
   if (self_issued_cid_manager_ == nullptr) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return self_issued_cid_manager_
       ->MaybeIssueNewConnectionIdForPreferredAddress();
@@ -6673,7 +6673,7 @@ void QuicConnection::ValidatePath(
       return;
     }
     QuicConnectionId client_connection_id, server_connection_id;
-    absl::optional<StatelessResetToken> stateless_reset_token;
+    std::optional<StatelessResetToken> stateless_reset_token;
     if (self_issued_cid_manager_ != nullptr) {
       client_connection_id =
           *self_issued_cid_manager_->ConsumeOneConnectionId();
@@ -7061,7 +7061,7 @@ void QuicConnection::PathState::Clear() {
   bytes_received_before_address_validation = 0;
   bytes_sent_before_address_validation = 0;
   send_algorithm = nullptr;
-  rtt_stats = absl::nullopt;
+  rtt_stats = std::nullopt;
   stateless_reset_token.reset();
   ecn_marked_packet_acked = false;
   ecn_pto_count = 0;

@@ -16,11 +16,11 @@
 #include <fstream>
 #include <ios>
 #include <iostream>
+#include <optional>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
-#include "absl/types/optional.h"
 
 namespace quiche {
 
@@ -51,16 +51,16 @@ std::string JoinPathImpl(absl::string_view a, absl::string_view b) {
 }
 #endif  // defined(_WIN32)
 
-absl::optional<std::string> ReadFileContentsImpl(absl::string_view file) {
+std::optional<std::string> ReadFileContentsImpl(absl::string_view file) {
   std::ifstream input_file(std::string{file}, std::ios::binary);
   if (!input_file || !input_file.is_open()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   input_file.seekg(0, std::ios_base::end);
   auto file_size = input_file.tellg();
   if (!input_file) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   input_file.seekg(0, std::ios_base::beg);
 
@@ -68,7 +68,7 @@ absl::optional<std::string> ReadFileContentsImpl(absl::string_view file) {
   output.resize(file_size);
   input_file.read(&output[0], file_size);
   if (!input_file) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return output;

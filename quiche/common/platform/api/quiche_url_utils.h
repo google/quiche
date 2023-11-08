@@ -5,12 +5,12 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_URL_UTILS_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_URL_UTILS_H_
 
+#include <optional>
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 
 #include "quiche_platform_impl/quiche_url_utils_impl.h"
 
@@ -29,8 +29,8 @@ inline bool ExpandURITemplate(
 }
 
 // Decodes a URL-encoded string and converts it to ASCII. If the decoded input
-// contains non-ASCII characters, decoding fails and absl::nullopt is returned.
-inline absl::optional<std::string> AsciiUrlDecode(absl::string_view input) {
+// contains non-ASCII characters, decoding fails and std::nullopt is returned.
+inline std::optional<std::string> AsciiUrlDecode(absl::string_view input) {
   return AsciiUrlDecodeImpl(input);
 }
 

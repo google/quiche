@@ -7,11 +7,11 @@
 #include <cstddef>
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
@@ -105,7 +105,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     QuicConnectionId connection_id, bool ietf_quic,
     const QuicReceivedPacket& packet, QuicSocketAddress self_address,
     QuicSocketAddress peer_address, const ParsedQuicVersion& version,
-    absl::optional<ParsedClientHello> parsed_chlo,
+    std::optional<ParsedClientHello> parsed_chlo,
     ConnectionIdGeneratorInterface* connection_id_generator) {
   const bool is_chlo = parsed_chlo.has_value();
   QUIC_BUG_IF(quic_bug_12410_1, !GetQuicFlag(quic_allow_chlo_buffering))
@@ -209,7 +209,7 @@ BufferedPacketList QuicBufferedPacketStore::DeliverPackets(
       ParsedQuicVersion unused_parsed_version = UnsupportedQuicVersion();
       QuicConnectionId unused_destination_connection_id;
       QuicConnectionId unused_source_connection_id;
-      absl::optional<absl::string_view> unused_retry_token;
+      std::optional<absl::string_view> unused_retry_token;
       std::string unused_detailed_error;
 
       // We don't need to pass |generator| because we already got the correct
@@ -314,7 +314,7 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
     std::vector<uint16_t>* out_supported_groups,
     std::vector<std::string>* out_alpns, std::string* out_sni,
     bool* out_resumption_attempted, bool* out_early_data_attempted,
-    absl::optional<uint8_t>* tls_alert) {
+    std::optional<uint8_t>* tls_alert) {
   QUICHE_DCHECK_NE(out_alpns, nullptr);
   QUICHE_DCHECK_NE(out_sni, nullptr);
   QUICHE_DCHECK_NE(tls_alert, nullptr);

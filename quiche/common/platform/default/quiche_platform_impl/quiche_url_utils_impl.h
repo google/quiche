@@ -5,12 +5,12 @@
 #ifndef QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_URL_UTILS_IMPL_H_
 #define QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_URL_UTILS_IMPL_H_
 
+#include <optional>
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
@@ -26,8 +26,8 @@ QUICHE_EXPORT bool ExpandURITemplateImpl(
     absl::flat_hash_set<std::string>* vars_found = nullptr);
 
 // Decodes a URL-encoded string and converts it to ASCII. If the decoded input
-// contains non-ASCII characters, decoding fails and absl::nullopt is returned.
-QUICHE_EXPORT absl::optional<std::string> AsciiUrlDecodeImpl(
+// contains non-ASCII characters, decoding fails and std::nullopt is returned.
+QUICHE_EXPORT std::optional<std::string> AsciiUrlDecodeImpl(
     absl::string_view input);
 
 }  // namespace quiche

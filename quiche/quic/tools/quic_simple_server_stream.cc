@@ -6,12 +6,12 @@
 
 #include <cstdint>
 #include <list>
+#include <optional>
 #include <utility>
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
@@ -363,10 +363,10 @@ void QuicSimpleServerStream::SendStreamData(absl::string_view data,
 
   if (close_stream) {
     SendHeadersAndBodyAndTrailers(
-        /*response_headers=*/absl::nullopt, data,
+        /*response_headers=*/std::nullopt, data,
         /*response_trailers=*/spdy::Http2HeaderBlock());
   } else {
-    SendIncompleteResponse(/*response_headers=*/absl::nullopt, data);
+    SendIncompleteResponse(/*response_headers=*/std::nullopt, data);
   }
 }
 
@@ -419,7 +419,7 @@ void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
 }
 
 void QuicSimpleServerStream::SendIncompleteResponse(
-    absl::optional<Http2HeaderBlock> response_headers, absl::string_view body) {
+    std::optional<Http2HeaderBlock> response_headers, absl::string_view body) {
   // Headers should be sent iff not sent in a previous response.
   QUICHE_DCHECK_NE(response_headers.has_value(), response_sent_);
 
@@ -449,7 +449,7 @@ void QuicSimpleServerStream::SendHeadersAndBody(
 }
 
 void QuicSimpleServerStream::SendHeadersAndBodyAndTrailers(
-    absl::optional<Http2HeaderBlock> response_headers, absl::string_view body,
+    std::optional<Http2HeaderBlock> response_headers, absl::string_view body,
     Http2HeaderBlock response_trailers) {
   // Headers should be sent iff not sent in a previous response.
   QUICHE_DCHECK_NE(response_headers.has_value(), response_sent_);

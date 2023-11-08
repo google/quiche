@@ -6,9 +6,9 @@
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_STREAM_H_
 
 #include <cstdint>
+#include <optional>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/http/quic_spdy_server_stream_base.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -76,16 +76,16 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   // for the body.
   void SendNotFoundResponse();
 
-  // Sends the response header (if not `absl::nullopt`) and body, but not the
+  // Sends the response header (if not `std::nullopt`) and body, but not the
   // fin.
   void SendIncompleteResponse(
-      absl::optional<spdy::Http2HeaderBlock> response_headers,
+      std::optional<spdy::Http2HeaderBlock> response_headers,
       absl::string_view body);
 
   void SendHeadersAndBody(spdy::Http2HeaderBlock response_headers,
                           absl::string_view body);
   void SendHeadersAndBodyAndTrailers(
-      absl::optional<spdy::Http2HeaderBlock> response_headers,
+      std::optional<spdy::Http2HeaderBlock> response_headers,
       absl::string_view body, spdy::Http2HeaderBlock response_trailers);
 
   spdy::Http2HeaderBlock* request_headers() { return &request_headers_; }

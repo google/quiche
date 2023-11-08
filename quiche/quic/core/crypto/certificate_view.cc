@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/strings/escaping.h"
@@ -14,7 +15,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "openssl/base.h"
 #include "openssl/bytestring.h"
 #include "openssl/digest.h"
@@ -137,12 +137,12 @@ std::string AttributeNameToString(const CBS& oid_cbs) {
 
 }  // namespace
 
-absl::optional<std::string> X509NameAttributeToString(CBS input) {
+std::optional<std::string> X509NameAttributeToString(CBS input) {
   CBS name, value;
   unsigned value_tag;
   if (!CBS_get_asn1(&input, &name, CBS_ASN1_OBJECT) ||
       !CBS_get_any_asn1(&input, &value, &value_tag) || CBS_len(&input) != 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   // Note that this does not process encoding of |input| in any way.  This works
   // fine for the most cases.
@@ -153,17 +153,17 @@ absl::optional<std::string> X509NameAttributeToString(CBS input) {
 namespace {
 
 template <unsigned inner_tag, char separator,
-          absl::optional<std::string> (*parser)(CBS)>
-absl::optional<std::string> ParseAndJoin(CBS input) {
+          std::optional<std::string> (*parser)(CBS)>
+std::optional<std::string> ParseAndJoin(CBS input) {
   std::vector<std::string> pieces;
   while (CBS_len(&input) != 0) {
     CBS attribute;
     if (!CBS_get_asn1(&input, &attribute, inner_tag)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
-    absl::optional<std::string> formatted = parser(attribute);
+    std::optional<std::string> formatted = parser(attribute);
     if (!formatted.has_value()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     pieces.push_back(*formatted);
   }
@@ -171,11 +171,11 @@ absl::optional<std::string> ParseAndJoin(CBS input) {
   return absl::StrJoin(pieces, std::string({separator}));
 }
 
-absl::optional<std::string> RelativeDistinguishedNameToString(CBS input) {
+std::optional<std::string> RelativeDistinguishedNameToString(CBS input) {
   return ParseAndJoin<CBS_ASN1_SEQUENCE, '+', X509NameAttributeToString>(input);
 }
 
-absl::optional<std::string> DistinguishedNameToString(CBS input) {
+std::optional<std::string> DistinguishedNameToString(CBS input) {
   return ParseAndJoin<CBS_ASN1_SET, ',', RelativeDistinguishedNameToString>(
       input);
 }
@@ -198,11 +198,11 @@ std::string PublicKeyTypeToString(PublicKeyType type) {
   return "";
 }
 
-absl::optional<quic::QuicWallTime> ParseDerTime(unsigned tag,
-                                                absl::string_view payload) {
+std::optional<quic::QuicWallTime> ParseDerTime(unsigned tag,
+                                               absl::string_view payload) {
   if (tag != CBS_ASN1_GENERALIZEDTIME && tag != CBS_ASN1_UTCTIME) {
     QUIC_DLOG(WARNING) << "Invalid tag supplied for a DER timestamp";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const size_t year_length = tag == CBS_ASN1_GENERALIZEDTIME ? 4 : 2;
@@ -214,7 +214,7 @@ absl::optional<quic::QuicWallTime> ParseDerTime(unsigned tag,
       !reader.ReadDecimal64(2, &second) ||
       reader.ReadRemainingPayload() != "Z") {
     QUIC_DLOG(WARNING) << "Failed to parse the DER timestamp";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (tag == CBS_ASN1_UTCTIME) {
@@ -222,11 +222,11 @@ absl::optional<quic::QuicWallTime> ParseDerTime(unsigned tag,
     year += (year >= 50) ? 1900 : 2000;
   }
 
-  const absl::optional<int64_t> unix_time =
+  const std::optional<int64_t> unix_time =
       quiche::QuicheUtcDateTimeToUnixSeconds(year, month, day, hour, minute,
                                              second);
   if (!unix_time.has_value() || *unix_time < 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return QuicWallTime::FromUNIXSeconds(*unix_time);
 }
@@ -256,7 +256,7 @@ PemReadResult ReadNextPemMessage(std::istream* input) {
 
     // Handle END lines.
     if (pending_message && line == expected_end) {
-      absl::optional<std::string> data =
+      std::optional<std::string> data =
           QuicheTextUtils::Base64Decode(encoded_message_contents);
       if (data.has_value()) {
         result.status = PemReadResult::kOk;
@@ -361,9 +361,9 @@ std::unique_ptr<CertificateView> CertificateView::ParseSingleCertificate(
     QUIC_DLOG(WARNING) << "Failed to extract the validity dates";
     return nullptr;
   }
-  absl::optional<QuicWallTime> not_before_parsed =
+  std::optional<QuicWallTime> not_before_parsed =
       ParseDerTime(not_before_tag, CbsToStringPiece(not_before));
-  absl::optional<QuicWallTime> not_after_parsed =
+  std::optional<QuicWallTime> not_after_parsed =
       ParseDerTime(not_after_tag, CbsToStringPiece(not_after));
   if (!not_before_parsed.has_value() || !not_after_parsed.has_value()) {
     QUIC_DLOG(WARNING) << "Failed to parse validity dates";
@@ -545,7 +545,7 @@ bool CertificateView::VerifySignature(absl::string_view data,
       data.size());
 }
 
-absl::optional<std::string> CertificateView::GetHumanReadableSubject() const {
+std::optional<std::string> CertificateView::GetHumanReadableSubject() const {
   CBS input = StringPieceToCbs(subject_der_);
   return DistinguishedNameToString(input);
 }

@@ -5,6 +5,7 @@
 #include "quiche/common/structured_headers.h"
 
 #include <cmath>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -96,14 +97,14 @@ class StructuredHeaderParser {
   }
 
   // Parses a List of Lists ([SH09] 4.2.4).
-  absl::optional<ListOfLists> ReadListOfLists() {
+  std::optional<ListOfLists> ReadListOfLists() {
     QUICHE_CHECK_EQ(version_, kDraft09);
     ListOfLists result;
     while (true) {
       std::vector<Item> inner_list;
       while (true) {
-        absl::optional<Item> item(ReadBareItem());
-        if (!item) return absl::nullopt;
+        std::optional<Item> item(ReadBareItem());
+        if (!item) return std::nullopt;
         inner_list.push_back(std::move(*item));
         SkipWhitespaces();
         if (!ConsumeChar(';')) break;
@@ -118,37 +119,37 @@ class StructuredHeaderParser {
   }
 
   // Parses a List ([RFC8941] 4.2.1).
-  absl::optional<List> ReadList() {
+  std::optional<List> ReadList() {
     QUICHE_CHECK_EQ(version_, kFinal);
     List members;
     while (!input_.empty()) {
-      absl::optional<ParameterizedMember> member(ReadItemOrInnerList());
-      if (!member) return absl::nullopt;
+      std::optional<ParameterizedMember> member(ReadItemOrInnerList());
+      if (!member) return std::nullopt;
       members.push_back(std::move(*member));
       SkipOWS();
       if (input_.empty()) break;
-      if (!ConsumeChar(',')) return absl::nullopt;
+      if (!ConsumeChar(',')) return std::nullopt;
       SkipOWS();
-      if (input_.empty()) return absl::nullopt;
+      if (input_.empty()) return std::nullopt;
     }
     return members;
   }
 
   // Parses an Item ([RFC8941] 4.2.3).
-  absl::optional<ParameterizedItem> ReadItem() {
-    absl::optional<Item> item = ReadBareItem();
-    if (!item) return absl::nullopt;
-    absl::optional<Parameters> parameters = ReadParameters();
-    if (!parameters) return absl::nullopt;
+  std::optional<ParameterizedItem> ReadItem() {
+    std::optional<Item> item = ReadBareItem();
+    if (!item) return std::nullopt;
+    std::optional<Parameters> parameters = ReadParameters();
+    if (!parameters) return std::nullopt;
     return ParameterizedItem(std::move(*item), std::move(*parameters));
   }
 
   // Parses a bare Item ([RFC8941] 4.2.3.1, though this is also the algorithm
   // for parsing an Item from [SH09] 4.2.7).
-  absl::optional<Item> ReadBareItem() {
+  std::optional<Item> ReadBareItem() {
     if (input_.empty()) {
       QUICHE_DVLOG(1) << "ReadBareItem: unexpected EOF";
-      return absl::nullopt;
+      return std::nullopt;
     }
     switch (input_.front()) {
       case '"':
@@ -158,52 +159,52 @@ class StructuredHeaderParser {
         return ReadToken();
       case ':':
         if (version_ == kFinal) return ReadByteSequence();
-        return absl::nullopt;
+        return std::nullopt;
       case '?':
         return ReadBoolean();
       default:
         if (input_.front() == '-' || absl::ascii_isdigit(input_.front()))
           return ReadNumber();
         if (absl::ascii_isalpha(input_.front())) return ReadToken();
-        return absl::nullopt;
+        return std::nullopt;
     }
   }
 
   // Parses a Dictionary ([RFC8941] 4.2.2).
-  absl::optional<Dictionary> ReadDictionary() {
+  std::optional<Dictionary> ReadDictionary() {
     QUICHE_CHECK_EQ(version_, kFinal);
     Dictionary members;
     while (!input_.empty()) {
-      absl::optional<std::string> key(ReadKey());
-      if (!key) return absl::nullopt;
-      absl::optional<ParameterizedMember> member;
+      std::optional<std::string> key(ReadKey());
+      if (!key) return std::nullopt;
+      std::optional<ParameterizedMember> member;
       if (ConsumeChar('=')) {
         member = ReadItemOrInnerList();
-        if (!member) return absl::nullopt;
+        if (!member) return std::nullopt;
       } else {
-        absl::optional<Parameters> parameters;
+        std::optional<Parameters> parameters;
         parameters = ReadParameters();
-        if (!parameters) return absl::nullopt;
+        if (!parameters) return std::nullopt;
         member = ParameterizedMember{Item(true), std::move(*parameters)};
       }
       members[*key] = std::move(*member);
       SkipOWS();
       if (input_.empty()) break;
-      if (!ConsumeChar(',')) return absl::nullopt;
+      if (!ConsumeChar(',')) return std::nullopt;
       SkipOWS();
-      if (input_.empty()) return absl::nullopt;
+      if (input_.empty()) return std::nullopt;
     }
     return members;
   }
 
   // Parses a Parameterised List ([SH09] 4.2.5).
-  absl::optional<ParameterisedList> ReadParameterisedList() {
+  std::optional<ParameterisedList> ReadParameterisedList() {
     QUICHE_CHECK_EQ(version_, kDraft09);
     ParameterisedList items;
     while (true) {
-      absl::optional<ParameterisedIdentifier> item =
+      std::optional<ParameterisedIdentifier> item =
           ReadParameterisedIdentifier();
-      if (!item) return absl::nullopt;
+      if (!item) return std::nullopt;
       items.push_back(std::move(*item));
       SkipWhitespaces();
       if (!ConsumeChar(',')) return items;
@@ -213,10 +214,10 @@ class StructuredHeaderParser {
 
  private:
   // Parses a Parameterised Identifier ([SH09] 4.2.6).
-  absl::optional<ParameterisedIdentifier> ReadParameterisedIdentifier() {
+  std::optional<ParameterisedIdentifier> ReadParameterisedIdentifier() {
     QUICHE_CHECK_EQ(version_, kDraft09);
-    absl::optional<Item> primary_identifier = ReadToken();
-    if (!primary_identifier) return absl::nullopt;
+    std::optional<Item> primary_identifier = ReadToken();
+    if (!primary_identifier) return std::nullopt;
 
     ParameterisedIdentifier::Parameters parameters;
 
@@ -224,19 +225,19 @@ class StructuredHeaderParser {
     while (ConsumeChar(';')) {
       SkipWhitespaces();
 
-      absl::optional<std::string> name = ReadKey();
-      if (!name) return absl::nullopt;
+      std::optional<std::string> name = ReadKey();
+      if (!name) return std::nullopt;
 
       Item value;
       if (ConsumeChar('=')) {
         auto item = ReadBareItem();
-        if (!item) return absl::nullopt;
+        if (!item) return std::nullopt;
         value = std::move(*item);
       }
       if (!parameters.emplace(*name, value).second) {
         QUICHE_DVLOG(1) << "ReadParameterisedIdentifier: duplicated parameter: "
                         << *name;
-        return absl::nullopt;
+        return std::nullopt;
       }
       SkipWhitespaces();
     }
@@ -245,7 +246,7 @@ class StructuredHeaderParser {
   }
 
   // Parses an Item or Inner List ([RFC8941] 4.2.1.1).
-  absl::optional<ParameterizedMember> ReadItemOrInnerList() {
+  std::optional<ParameterizedMember> ReadItemOrInnerList() {
     QUICHE_CHECK_EQ(version_, kFinal);
     std::vector<Item> member;
     bool member_is_inner_list = (!input_.empty() && input_.front() == '(');
@@ -253,28 +254,28 @@ class StructuredHeaderParser {
       return ReadInnerList();
     } else {
       auto item = ReadItem();
-      if (!item) return absl::nullopt;
+      if (!item) return std::nullopt;
       return ParameterizedMember(std::move(item->item),
                                  std::move(item->params));
     }
   }
 
   // Parses Parameters ([RFC8941] 4.2.3.2)
-  absl::optional<Parameters> ReadParameters() {
+  std::optional<Parameters> ReadParameters() {
     Parameters parameters;
     absl::flat_hash_set<std::string> keys;
 
     while (ConsumeChar(';')) {
       SkipWhitespaces();
 
-      absl::optional<std::string> name = ReadKey();
-      if (!name) return absl::nullopt;
+      std::optional<std::string> name = ReadKey();
+      if (!name) return std::nullopt;
       bool is_duplicate_key = !keys.insert(*name).second;
 
       Item value{true};
       if (ConsumeChar('=')) {
         auto item = ReadBareItem();
-        if (!item) return absl::nullopt;
+        if (!item) return std::nullopt;
         value = std::move(*item);
       }
       if (is_duplicate_key) {
@@ -292,41 +293,41 @@ class StructuredHeaderParser {
   }
 
   // Parses an Inner List ([RFC8941] 4.2.1.2).
-  absl::optional<ParameterizedMember> ReadInnerList() {
+  std::optional<ParameterizedMember> ReadInnerList() {
     QUICHE_CHECK_EQ(version_, kFinal);
-    if (!ConsumeChar('(')) return absl::nullopt;
+    if (!ConsumeChar('(')) return std::nullopt;
     std::vector<ParameterizedItem> inner_list;
     while (true) {
       SkipWhitespaces();
       if (ConsumeChar(')')) {
-        absl::optional<Parameters> parameters;
+        std::optional<Parameters> parameters;
         parameters = ReadParameters();
-        if (!parameters) return absl::nullopt;
+        if (!parameters) return std::nullopt;
         return ParameterizedMember(std::move(inner_list), true,
                                    std::move(*parameters));
       }
       auto item = ReadItem();
-      if (!item) return absl::nullopt;
+      if (!item) return std::nullopt;
       inner_list.push_back(std::move(*item));
       if (input_.empty() || (input_.front() != ' ' && input_.front() != ')'))
-        return absl::nullopt;
+        return std::nullopt;
     }
     QUICHE_NOTREACHED();
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Parses a Key ([SH09] 4.2.2, [RFC8941] 4.2.3.3).
-  absl::optional<std::string> ReadKey() {
+  std::optional<std::string> ReadKey() {
     if (version_ == kDraft09) {
       if (input_.empty() || !absl::ascii_islower(input_.front())) {
         LogParseError("ReadKey", "lcalpha");
-        return absl::nullopt;
+        return std::nullopt;
       }
     } else {
       if (input_.empty() ||
           (!absl::ascii_islower(input_.front()) && input_.front() != '*')) {
         LogParseError("ReadKey", "lcalpha | *");
-        return absl::nullopt;
+        return std::nullopt;
       }
     }
     const char* allowed_chars =
@@ -339,11 +340,11 @@ class StructuredHeaderParser {
   }
 
   // Parses a Token ([SH09] 4.2.10, [RFC8941] 4.2.6).
-  absl::optional<Item> ReadToken() {
+  std::optional<Item> ReadToken() {
     if (input_.empty() ||
         !(absl::ascii_isalpha(input_.front()) || input_.front() == '*')) {
       LogParseError("ReadToken", "ALPHA");
-      return absl::nullopt;
+      return std::nullopt;
     }
     size_t len = input_.find_first_not_of(version_ == kDraft09 ? kTokenChars09
                                                                : kTokenChars);
@@ -354,7 +355,7 @@ class StructuredHeaderParser {
   }
 
   // Parses a Number ([SH09] 4.2.8, [RFC8941] 4.2.4).
-  absl::optional<Item> ReadNumber() {
+  std::optional<Item> ReadNumber() {
     bool is_negative = ConsumeChar('-');
     bool is_decimal = false;
     size_t decimal_position = 0;
@@ -369,30 +370,30 @@ class StructuredHeaderParser {
     }
     if (i == 0) {
       LogParseError("ReadNumber", "DIGIT");
-      return absl::nullopt;
+      return std::nullopt;
     }
     if (!is_decimal) {
       // [RFC8941] restricts the range of integers further.
       if (version_ == kFinal && i > 15) {
         LogParseError("ReadNumber", "integer too long");
-        return absl::nullopt;
+        return std::nullopt;
       }
     } else {
       if (version_ != kFinal && i > 16) {
         LogParseError("ReadNumber", "float too long");
-        return absl::nullopt;
+        return std::nullopt;
       }
       if (version_ == kFinal && decimal_position > 12) {
         LogParseError("ReadNumber", "decimal too long");
-        return absl::nullopt;
+        return std::nullopt;
       }
       if (i - decimal_position > (version_ == kFinal ? 4 : 7)) {
         LogParseError("ReadNumber", "too many digits after decimal");
-        return absl::nullopt;
+        return std::nullopt;
       }
       if (i == decimal_position) {
         LogParseError("ReadNumber", "no digits after decimal");
-        return absl::nullopt;
+        return std::nullopt;
       }
     }
     std::string output_number_string(input_.substr(0, i));
@@ -402,13 +403,13 @@ class StructuredHeaderParser {
       // Convert to a 64-bit double, and return if the conversion is
       // successful.
       double f;
-      if (!absl::SimpleAtod(output_number_string, &f)) return absl::nullopt;
+      if (!absl::SimpleAtod(output_number_string, &f)) return std::nullopt;
       return Item(is_negative ? -f : f);
     } else {
       // Convert to a 64-bit signed integer, and return if the conversion is
       // successful.
       int64_t n;
-      if (!absl::SimpleAtoi(output_number_string, &n)) return absl::nullopt;
+      if (!absl::SimpleAtoi(output_number_string, &n)) return std::nullopt;
       QUICHE_CHECK(version_ != kFinal ||
                    (n <= kMaxInteger && n >= kMinInteger));
       return Item(is_negative ? -n : n);
@@ -416,35 +417,35 @@ class StructuredHeaderParser {
   }
 
   // Parses a String ([SH09] 4.2.9, [RFC8941] 4.2.5).
-  absl::optional<Item> ReadString() {
+  std::optional<Item> ReadString() {
     std::string s;
     if (!ConsumeChar('"')) {
       LogParseError("ReadString", "'\"'");
-      return absl::nullopt;
+      return std::nullopt;
     }
     while (!ConsumeChar('"')) {
       size_t i = 0;
       for (; i < input_.size(); ++i) {
         if (!absl::ascii_isprint(input_[i])) {
           QUICHE_DVLOG(1) << "ReadString: non printable-ASCII character";
-          return absl::nullopt;
+          return std::nullopt;
         }
         if (input_[i] == '"' || input_[i] == '\\') break;
       }
       if (i == input_.size()) {
         QUICHE_DVLOG(1) << "ReadString: missing closing '\"'";
-        return absl::nullopt;
+        return std::nullopt;
       }
       s.append(std::string(input_.substr(0, i)));
       input_.remove_prefix(i);
       if (ConsumeChar('\\')) {
         if (input_.empty()) {
           QUICHE_DVLOG(1) << "ReadString: backslash at string end";
-          return absl::nullopt;
+          return std::nullopt;
         }
         if (input_[0] != '"' && input_[0] != '\\') {
           QUICHE_DVLOG(1) << "ReadString: invalid escape";
-          return absl::nullopt;
+          return std::nullopt;
         }
         s.push_back(input_.front());
         input_.remove_prefix(1);
@@ -454,16 +455,16 @@ class StructuredHeaderParser {
   }
 
   // Parses a Byte Sequence ([SH09] 4.2.11, [RFC8941] 4.2.7).
-  absl::optional<Item> ReadByteSequence() {
+  std::optional<Item> ReadByteSequence() {
     char delimiter = (version_ == kDraft09 ? '*' : ':');
     if (!ConsumeChar(delimiter)) {
       LogParseError("ReadByteSequence", "delimiter");
-      return absl::nullopt;
+      return std::nullopt;
     }
     size_t len = input_.find(delimiter);
     if (len == absl::string_view::npos) {
       QUICHE_DVLOG(1) << "ReadByteSequence: missing closing delimiter";
-      return absl::nullopt;
+      return std::nullopt;
     }
     std::string base64(input_.substr(0, len));
     // Append the necessary padding characters.
@@ -473,7 +474,7 @@ class StructuredHeaderParser {
     if (!absl::Base64Unescape(base64, &binary)) {
       QUICHE_DVLOG(1) << "ReadByteSequence: failed to decode base64: "
                       << base64;
-      return absl::nullopt;
+      return std::nullopt;
     }
     input_.remove_prefix(len);
     ConsumeChar(delimiter);
@@ -483,10 +484,10 @@ class StructuredHeaderParser {
   // Parses a Boolean ([RFC8941] 4.2.8).
   // Note that this only parses ?0 and ?1 forms from SH version 10+, not the
   // previous ?F and ?T, which were not needed by any consumers of SH version 9.
-  absl::optional<Item> ReadBoolean() {
+  std::optional<Item> ReadBoolean() {
     if (!ConsumeChar('?')) {
       LogParseError("ReadBoolean", "'?'");
-      return absl::nullopt;
+      return std::nullopt;
     }
     if (ConsumeChar('1')) {
       return Item(true);
@@ -494,7 +495,7 @@ class StructuredHeaderParser {
     if (ConsumeChar('0')) {
       return Item(false);
     }
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // There are several points in the specs where the handling of whitespace
@@ -839,71 +840,70 @@ bool Dictionary::contains(absl::string_view key) const {
   return false;
 }
 
-absl::optional<ParameterizedItem> ParseItem(absl::string_view str) {
+std::optional<ParameterizedItem> ParseItem(absl::string_view str) {
   StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal);
-  absl::optional<ParameterizedItem> item = parser.ReadItem();
+  std::optional<ParameterizedItem> item = parser.ReadItem();
   if (item && parser.FinishParsing()) return item;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<Item> ParseBareItem(absl::string_view str) {
+std::optional<Item> ParseBareItem(absl::string_view str) {
   StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal);
-  absl::optional<Item> item = parser.ReadBareItem();
+  std::optional<Item> item = parser.ReadBareItem();
   if (item && parser.FinishParsing()) return item;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<ParameterisedList> ParseParameterisedList(
-    absl::string_view str) {
+std::optional<ParameterisedList> ParseParameterisedList(absl::string_view str) {
   StructuredHeaderParser parser(str, StructuredHeaderParser::kDraft09);
-  absl::optional<ParameterisedList> param_list = parser.ReadParameterisedList();
+  std::optional<ParameterisedList> param_list = parser.ReadParameterisedList();
   if (param_list && parser.FinishParsing()) return param_list;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<ListOfLists> ParseListOfLists(absl::string_view str) {
+std::optional<ListOfLists> ParseListOfLists(absl::string_view str) {
   StructuredHeaderParser parser(str, StructuredHeaderParser::kDraft09);
-  absl::optional<ListOfLists> list_of_lists = parser.ReadListOfLists();
+  std::optional<ListOfLists> list_of_lists = parser.ReadListOfLists();
   if (list_of_lists && parser.FinishParsing()) return list_of_lists;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<List> ParseList(absl::string_view str) {
+std::optional<List> ParseList(absl::string_view str) {
   StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal);
-  absl::optional<List> list = parser.ReadList();
+  std::optional<List> list = parser.ReadList();
   if (list && parser.FinishParsing()) return list;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<Dictionary> ParseDictionary(absl::string_view str) {
+std::optional<Dictionary> ParseDictionary(absl::string_view str) {
   StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal);
-  absl::optional<Dictionary> dictionary = parser.ReadDictionary();
+  std::optional<Dictionary> dictionary = parser.ReadDictionary();
   if (dictionary && parser.FinishParsing()) return dictionary;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<std::string> SerializeItem(const Item& value) {
+std::optional<std::string> SerializeItem(const Item& value) {
   StructuredHeaderSerializer s;
   if (s.WriteItem(ParameterizedItem(value, {}))) return s.Output();
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<std::string> SerializeItem(const ParameterizedItem& value) {
+std::optional<std::string> SerializeItem(const ParameterizedItem& value) {
   StructuredHeaderSerializer s;
   if (s.WriteItem(value)) return s.Output();
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<std::string> SerializeList(const List& value) {
+std::optional<std::string> SerializeList(const List& value) {
   StructuredHeaderSerializer s;
   if (s.WriteList(value)) return s.Output();
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<std::string> SerializeDictionary(const Dictionary& value) {
+std::optional<std::string> SerializeDictionary(const Dictionary& value) {
   StructuredHeaderSerializer s;
   if (s.WriteDictionary(value)) return s.Output();
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace structured_headers

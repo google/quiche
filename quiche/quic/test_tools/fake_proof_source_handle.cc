@@ -21,7 +21,7 @@ struct ComputeSignatureResult {
 class ResultSavingSignatureCallback : public ProofSource::SignatureCallback {
  public:
   explicit ResultSavingSignatureCallback(
-      absl::optional<ComputeSignatureResult>* result)
+      std::optional<ComputeSignatureResult>* result)
       : result_(result) {
     QUICHE_DCHECK(!result_->has_value());
   }
@@ -32,14 +32,14 @@ class ResultSavingSignatureCallback : public ProofSource::SignatureCallback {
   }
 
  private:
-  absl::optional<ComputeSignatureResult>* result_;
+  std::optional<ComputeSignatureResult>* result_;
 };
 
 ComputeSignatureResult ComputeSignatureNow(
     ProofSource* delegate, const QuicSocketAddress& server_address,
     const QuicSocketAddress& client_address, const std::string& hostname,
     uint16_t signature_algorithm, absl::string_view in) {
-  absl::optional<ComputeSignatureResult> result;
+  std::optional<ComputeSignatureResult> result;
   delegate->ComputeTlsSignature(
       server_address, client_address, hostname, signature_algorithm, in,
       std::make_unique<ResultSavingSignatureCallback>(&result));
@@ -72,9 +72,9 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
     const QuicConnectionId& original_connection_id,
     absl::string_view ssl_capabilities, const std::string& hostname,
     absl::string_view client_hello, const std::string& alpn,
-    absl::optional<std::string> alps,
+    std::optional<std::string> alps,
     const std::vector<uint8_t>& quic_transport_params,
-    const absl::optional<std::vector<uint8_t>>& early_data_context,
+    const std::optional<std::vector<uint8_t>>& early_data_context,
     const QuicSSLConfig& ssl_config) {
   if (select_cert_action_ != Action::FAIL_SYNC_DO_NOT_CHECK_CLOSED) {
     QUICHE_CHECK(!closed_);

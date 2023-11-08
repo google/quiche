@@ -6,10 +6,10 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/quic_data_reader.h"
@@ -436,16 +436,16 @@ constexpr uint64_t kWebTransportMappedErrorCodeLast = 0x52e5ac983162;
 constexpr WebTransportStreamError kDefaultWebTransportError = 0;
 }  // namespace
 
-absl::optional<WebTransportStreamError> Http3ErrorToWebTransport(
+std::optional<WebTransportStreamError> Http3ErrorToWebTransport(
     uint64_t http3_error_code) {
   // Ensure the code is within the valid range.
   if (http3_error_code < kWebTransportMappedErrorCodeFirst ||
       http3_error_code > kWebTransportMappedErrorCodeLast) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   // Exclude GREASE codepoints.
   if ((http3_error_code - 0x21) % 0x1f == 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   uint64_t shifted = http3_error_code - kWebTransportMappedErrorCodeFirst;
@@ -457,7 +457,7 @@ absl::optional<WebTransportStreamError> Http3ErrorToWebTransport(
 
 WebTransportStreamError Http3ErrorToWebTransportOrDefault(
     uint64_t http3_error_code) {
-  absl::optional<WebTransportStreamError> result =
+  std::optional<WebTransportStreamError> result =
       Http3ErrorToWebTransport(http3_error_code);
   return result.has_value() ? *result : kDefaultWebTransportError;
 }

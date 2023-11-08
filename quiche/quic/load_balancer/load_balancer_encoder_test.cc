@@ -7,11 +7,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <queue>
 
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -65,7 +65,7 @@ class TestLoadBalancerEncoderVisitor
 
  private:
   uint32_t num_adds_ = 0, num_deletes_ = 0;
-  absl::optional<uint8_t> current_config_id_ = absl::optional<uint8_t>();
+  std::optional<uint8_t> current_config_id_ = std::optional<uint8_t>();
 };
 
 // Allows the caller to specify the exact results in 64-bit chunks.
@@ -374,7 +374,7 @@ TEST_F(LoadBalancerEncoderTest, MaybeReplaceConnectionIdReturnsNoChange) {
   ASSERT_TRUE(encoder.has_value());
   EXPECT_EQ(encoder->MaybeReplaceConnectionId(TestConnectionId(1),
                                               ParsedQuicVersion::Q050()),
-            absl::nullopt);
+            std::nullopt);
 }
 
 TEST_F(LoadBalancerEncoderTest, MaybeReplaceConnectionIdReturnsChange) {
@@ -395,7 +395,7 @@ TEST_F(LoadBalancerEncoderTest, GenerateNextConnectionIdReturnsNoChange) {
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, true);
   EXPECT_TRUE(encoder->UpdateConfig(*config, MakeServerId(kServerId, 3)));
   EXPECT_EQ(encoder->GenerateNextConnectionId(TestConnectionId(1)),
-            absl::nullopt);
+            std::nullopt);
 }
 
 TEST_F(LoadBalancerEncoderTest, GenerateNextConnectionIdReturnsChange) {

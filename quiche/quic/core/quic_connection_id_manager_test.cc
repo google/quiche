@@ -1013,7 +1013,7 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
   QuicConnectionId cid1 = CheckGenerate(cid0);
   EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid1))
       .WillOnce(Return(true));
-  absl::optional<QuicNewConnectionIdFrame> new_cid_frame =
+  std::optional<QuicNewConnectionIdFrame> new_cid_frame =
       cid_manager_.MaybeIssueNewConnectionIdForPreferredAddress();
   ASSERT_TRUE(new_cid_frame.has_value());
   ASSERT_THAT(*new_cid_frame, ExpectedNewConnectionIdFrame(cid1, 1u, 0u));

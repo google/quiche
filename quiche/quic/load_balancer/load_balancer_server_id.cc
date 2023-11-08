@@ -7,11 +7,11 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <string>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
@@ -29,13 +29,13 @@ std::array<uint8_t, kLoadBalancerMaxServerIdLen> MakeArray(
 
 }  // namespace
 
-absl::optional<LoadBalancerServerId> LoadBalancerServerId::Create(
+std::optional<LoadBalancerServerId> LoadBalancerServerId::Create(
     const absl::Span<const uint8_t> data) {
   if (data.length() == 0 || data.length() > kLoadBalancerMaxServerIdLen) {
     QUIC_BUG(quic_bug_433312504_01)
         << "Attempted to create LoadBalancerServerId with length "
         << data.length();
-    return absl::optional<LoadBalancerServerId>();
+    return std::optional<LoadBalancerServerId>();
   }
   return LoadBalancerServerId(data);
 }

@@ -19,9 +19,9 @@ class MockLoadBalancerEncoder : public LoadBalancerEncoder {
   MOCK_METHOD(bool, IsEncoding, (), (const, override));
   MOCK_METHOD(bool, IsEncrypted, (), (const, override));
   MOCK_METHOD(bool, len_self_encoded, (), (const, override));
-  MOCK_METHOD(absl::optional<QuicConnectionId>, GenerateNextConnectionId,
+  MOCK_METHOD(std::optional<QuicConnectionId>, GenerateNextConnectionId,
               (const QuicConnectionId& original), (override));
-  MOCK_METHOD(absl::optional<QuicConnectionId>, MaybeReplaceConnectionId,
+  MOCK_METHOD(std::optional<QuicConnectionId>, MaybeReplaceConnectionId,
               (const QuicConnectionId& original,
                const ParsedQuicVersion& version),
               (override));

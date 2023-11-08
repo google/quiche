@@ -71,7 +71,7 @@ class QUICHE_EXPORT TlsChloExtractor
   }
 
   // Returns the TLS alert that caused the unrecoverable error, if any.
-  absl::optional<uint8_t> tls_alert() const {
+  std::optional<uint8_t> tls_alert() const {
     QUICHE_DCHECK(!tls_alert_.has_value() ||
                   state_ == State::kUnrecoverableFailure);
     return tls_alert_;
@@ -117,7 +117,7 @@ class QUICHE_EXPORT TlsChloExtractor
   }
   bool OnAckFrameEnd(
       QuicPacketNumber /*start*/,
-      const absl::optional<QuicEcnCounts>& /*ecn_counts*/) override {
+      const std::optional<QuicEcnCounts>& /*ecn_counts*/) override {
     return true;
   }
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& /*frame*/) override {
@@ -271,7 +271,7 @@ class QUICHE_EXPORT TlsChloExtractor
   bool early_data_attempted_ = false;
   // If set, contains the TLS alert that caused an unrecoverable error, which is
   // an AlertDescription value defined in go/rfc/8446#appendix-B.2.
-  absl::optional<uint8_t> tls_alert_;
+  std::optional<uint8_t> tls_alert_;
   // Exact TLS message bytes.
   std::vector<uint8_t> client_hello_bytes_;
 };

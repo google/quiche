@@ -6,9 +6,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -37,7 +37,7 @@ inline size_t NeededVarIntLen(const MoqtSubscribeLocationMode value) {
 inline size_t ParameterLen(const uint64_t type, const uint64_t value_len) {
   return NeededVarIntLen(type) + NeededVarIntLen(value_len) + value_len;
 }
-inline size_t LocationLength(const absl::optional<MoqtSubscribeLocation> loc) {
+inline size_t LocationLength(const std::optional<MoqtSubscribeLocation> loc) {
   if (!loc.has_value()) {
     return NeededVarIntLen(MoqtSubscribeLocationMode::kNone);
   }
@@ -79,7 +79,7 @@ inline bool WriteStringParameter(quic::QuicDataWriter& writer, uint64_t type,
 }
 
 inline bool WriteLocation(quic::QuicDataWriter& writer,
-                          absl::optional<MoqtSubscribeLocation> loc) {
+                          std::optional<MoqtSubscribeLocation> loc) {
   if (!loc.has_value()) {
     return writer.WriteVarInt62(
         static_cast<uint64_t>(MoqtSubscribeLocationMode::kNone));

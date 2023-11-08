@@ -9,12 +9,12 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/http/quic_headers_stream.h"
@@ -259,8 +259,7 @@ class QUICHE_EXPORT QuicSpdySession
   // Called when an HTTP/3 SETTINGS frame is received via ALPS.
   // Returns an error message if an error has occurred, or nullopt otherwise.
   // May or may not close the connection on error.
-  absl::optional<std::string> OnSettingsFrameViaAlps(
-      const SettingsFrame& frame);
+  std::optional<std::string> OnSettingsFrameViaAlps(const SettingsFrame& frame);
 
   // Called when a setting is parsed from a SETTINGS frame received on the
   // control stream or from cached application state.
@@ -339,7 +338,7 @@ class QUICHE_EXPORT QuicSpdySession
   // received or sent.
   bool goaway_received() const;
   bool goaway_sent() const;
-  absl::optional<uint64_t> last_received_http3_goaway_id() {
+  std::optional<uint64_t> last_received_http3_goaway_id() {
     return last_received_http3_goaway_id_;
   }
 
@@ -373,8 +372,8 @@ class QUICHE_EXPORT QuicSpdySession
   // Decode SETTINGS from |cached_state| and apply it to the session.
   bool ResumeApplicationState(ApplicationState* cached_state) override;
 
-  absl::optional<std::string> OnAlpsData(const uint8_t* alps_data,
-                                         size_t alps_length) override;
+  std::optional<std::string> OnAlpsData(const uint8_t* alps_data,
+                                        size_t alps_length) override;
 
   // Called when ACCEPT_CH frame is parsed out of data received in TLS ALPS
   // extension.
@@ -401,7 +400,7 @@ class QUICHE_EXPORT QuicSpdySession
 
   // If SupportsWebTransport() is true, returns the version of WebTransport
   // currently in use (which is the highest version supported by both peers).
-  absl::optional<WebTransportHttp3Version> SupportedWebTransportVersion();
+  std::optional<WebTransportHttp3Version> SupportedWebTransportVersion();
 
   // Indicates whether both the peer and us support HTTP/3 Datagrams.
   bool SupportsH3Datagram() const;
@@ -537,7 +536,7 @@ class QUICHE_EXPORT QuicSpdySession
   void MaybeBundleOpportunistically() override;
 
   // Called whenever a datagram is dequeued or dropped from datagram_queue().
-  virtual void OnDatagramProcessed(absl::optional<MessageStatus> status);
+  virtual void OnDatagramProcessed(std::optional<MessageStatus> status);
 
   // Returns which version of the HTTP/3 datagram extension we should advertise
   // in settings and accept remote settings for.
@@ -562,7 +561,7 @@ class QUICHE_EXPORT QuicSpdySession
   class QUICHE_EXPORT DatagramObserver : public QuicDatagramQueue::Observer {
    public:
     explicit DatagramObserver(QuicSpdySession* session) : session_(session) {}
-    void OnDatagramProcessed(absl::optional<MessageStatus> status) override;
+    void OnDatagramProcessed(std::optional<MessageStatus> status) override;
 
    private:
     QuicSpdySession* session_;  // not owned
@@ -591,7 +590,7 @@ class QUICHE_EXPORT QuicSpdySession
   bool VerifySettingIsZeroOrOne(uint64_t id, uint64_t value);
 
   // Computes the highest WebTransport version supported by both peers.
-  absl::optional<WebTransportHttp3Version> NegotiatedWebTransportVersion()
+  std::optional<WebTransportHttp3Version> NegotiatedWebTransportVersion()
       const {
     return (LocallySupportedWebTransportVersions() &
             peer_web_transport_versions_)
@@ -668,10 +667,10 @@ class QUICHE_EXPORT QuicSpdySession
 
   // The identifier in the most recently received GOAWAY frame.  Unset if no
   // GOAWAY frame has been received yet.
-  absl::optional<uint64_t> last_received_http3_goaway_id_;
+  std::optional<uint64_t> last_received_http3_goaway_id_;
   // The identifier in the most recently sent GOAWAY frame.  Unset if no GOAWAY
   // frame has been sent yet.
-  absl::optional<uint64_t> last_sent_http3_goaway_id_;
+  std::optional<uint64_t> last_sent_http3_goaway_id_;
 
   // Whether both this endpoint and our peer support HTTP datagrams and which
   // draft is in use for this session.

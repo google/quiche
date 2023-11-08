@@ -91,7 +91,7 @@ TEST(SerializePriorityFieldValueTest, SerializePriorityFieldValue) {
 
 TEST(ParsePriorityFieldValueTest, ParsePriorityFieldValue) {
   // Default values
-  absl::optional<HttpStreamPriority> result = ParsePriorityFieldValue("");
+  std::optional<HttpStreamPriority> result = ParsePriorityFieldValue("");
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(3, result->urgency);
   EXPECT_FALSE(result->incremental);

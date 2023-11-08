@@ -9,11 +9,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -76,13 +76,13 @@ enum class QUICHE_EXPORT MoqtTrackRequestParameter : uint64_t {
 
 struct QUICHE_EXPORT MoqtClientSetup {
   std::vector<MoqtVersion> supported_versions;
-  absl::optional<MoqtRole> role;
-  absl::optional<absl::string_view> path;
+  std::optional<MoqtRole> role;
+  std::optional<absl::string_view> path;
 };
 
 struct QUICHE_EXPORT MoqtServerSetup {
   MoqtVersion selected_version;
-  absl::optional<MoqtRole> role;
+  std::optional<MoqtRole> role;
 };
 
 struct QUICHE_EXPORT MoqtObject {
@@ -90,7 +90,7 @@ struct QUICHE_EXPORT MoqtObject {
   uint64_t group_sequence;
   uint64_t object_sequence;
   uint64_t object_send_order;
-  absl::optional<uint64_t> payload_length;
+  std::optional<uint64_t> payload_length;
   // Message also includes the object payload.
 };
 
@@ -101,7 +101,7 @@ enum class QUICHE_EXPORT MoqtSubscribeLocationMode : uint64_t {
   kRelativeNext = 0x3,
 };
 
-// kNone: absl::optional<MoqtSubscribeLocation> is nullopt.
+// kNone: std::optional<MoqtSubscribeLocation> is nullopt.
 // kAbsolute: absolute = true
 // kRelativePrevious: absolute is false; relative_value is negative
 // kRelativeNext: absolute is true; relative_value is positive
@@ -125,12 +125,12 @@ struct QUICHE_EXPORT MoqtSubscribeLocation {
 struct QUICHE_EXPORT MoqtSubscribeRequest {
   absl::string_view track_namespace;
   absl::string_view track_name;
-  // If the mode is kNone, the these are absl::nullopt.
-  absl::optional<MoqtSubscribeLocation> start_group;
-  absl::optional<MoqtSubscribeLocation> start_object;
-  absl::optional<MoqtSubscribeLocation> end_group;
-  absl::optional<MoqtSubscribeLocation> end_object;
-  absl::optional<absl::string_view> authorization_info;
+  // If the mode is kNone, the these are std::nullopt.
+  std::optional<MoqtSubscribeLocation> start_group;
+  std::optional<MoqtSubscribeLocation> start_object;
+  std::optional<MoqtSubscribeLocation> end_group;
+  std::optional<MoqtSubscribeLocation> end_object;
+  std::optional<absl::string_view> authorization_info;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeOk {
@@ -171,7 +171,7 @@ struct QUICHE_EXPORT MoqtSubscribeRst {
 
 struct QUICHE_EXPORT MoqtAnnounce {
   absl::string_view track_namespace;
-  absl::optional<absl::string_view> authorization_info;
+  std::optional<absl::string_view> authorization_info;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceOk {

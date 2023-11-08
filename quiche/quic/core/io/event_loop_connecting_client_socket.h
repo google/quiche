@@ -5,11 +5,11 @@
 #ifndef QUICHE_QUIC_CORE_IO_EVENT_LOOP_CONNECTING_CLIENT_SOCKET_H_
 #define QUICHE_QUIC_CORE_IO_EVENT_LOOP_CONNECTING_CLIENT_SOCKET_H_
 
+#include <optional>
 #include <string>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/variant.h"
 #include "quiche/quic/core/connecting_client_socket.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
@@ -90,7 +90,7 @@ class EventLoopConnectingClientSocket : public ConnectingClientSocket,
   ConnectStatus connect_status_ = ConnectStatus::kNotConnected;
 
   // Only set while receive in progress or pending, otherwise nullopt.
-  absl::optional<QuicByteCount> receive_max_size_;
+  std::optional<QuicByteCount> receive_max_size_;
 
   // Only contains data while send in progress or pending, otherwise monostate.
   absl::variant<absl::monostate, std::string, quiche::QuicheMemSlice>

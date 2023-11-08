@@ -6,8 +6,8 @@
 
 #include <cstdint>
 #include <limits>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
 namespace quic {
@@ -33,25 +33,25 @@ TEST(WebTransportHttp3Test, ErrorCodesToWebTransport) {
 
   EXPECT_THAT(Http3ErrorToWebTransport(0x52e4a40fa8f7), Optional(0x1cu));
   EXPECT_THAT(Http3ErrorToWebTransport(0x52e4a40fa8f8), Optional(0x1du));
-  EXPECT_THAT(Http3ErrorToWebTransport(0x52e4a40fa8f9), absl::nullopt);
+  EXPECT_THAT(Http3ErrorToWebTransport(0x52e4a40fa8f9), std::nullopt);
   EXPECT_THAT(Http3ErrorToWebTransport(0x52e4a40fa8fa), Optional(0x1eu));
 
-  EXPECT_EQ(Http3ErrorToWebTransport(0), absl::nullopt);
+  EXPECT_EQ(Http3ErrorToWebTransport(0), std::nullopt);
   EXPECT_EQ(Http3ErrorToWebTransport(std::numeric_limits<uint64_t>::max()),
-            absl::nullopt);
+            std::nullopt);
 }
 
 TEST(WebTransportHttp3Test, ErrorCodeRoundTrip) {
   for (int error = 0; error <= 65536; error++) {
     uint64_t http_error = WebTransportErrorToHttp3(error);
-    absl::optional<WebTransportStreamError> mapped_back =
+    std::optional<WebTransportStreamError> mapped_back =
         quic::Http3ErrorToWebTransport(http_error);
     ASSERT_THAT(mapped_back, Optional(error));
   }
   for (int64_t error = 0; error < std::numeric_limits<uint32_t>::max();
        error += 65537) {
     uint64_t http_error = WebTransportErrorToHttp3(error);
-    absl::optional<WebTransportStreamError> mapped_back =
+    std::optional<WebTransportStreamError> mapped_back =
         quic::Http3ErrorToWebTransport(http_error);
     ASSERT_THAT(mapped_back, Optional(error));
   }

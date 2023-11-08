@@ -7,10 +7,10 @@
 
 #include <istream>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "openssl/base.h"
 #include "openssl/bytestring.h"
 #include "openssl/evp.h"
@@ -79,7 +79,7 @@ class QUICHE_EXPORT CertificateView {
 
   // Returns a human-readable representation of the Subject field.  The format
   // is similar to RFC 2253, but does not match it exactly.
-  absl::optional<std::string> GetHumanReadableSubject() const;
+  std::optional<std::string> GetHumanReadableSubject() const;
 
   // |signature_algorithm| is a TLS signature algorithm ID.
   bool VerifySignature(absl::string_view data, absl::string_view signature,
@@ -143,11 +143,11 @@ class QUICHE_EXPORT CertificatePrivateKey {
 };
 
 // Parses a DER-encoded X.509 NameAttribute.  Exposed primarily for testing.
-QUICHE_EXPORT absl::optional<std::string> X509NameAttributeToString(CBS input);
+QUICHE_EXPORT std::optional<std::string> X509NameAttributeToString(CBS input);
 
 // Parses a DER time based on the specified ASN.1 tag.  Exposed primarily for
 // testing.
-QUICHE_EXPORT absl::optional<quic::QuicWallTime> ParseDerTime(
+QUICHE_EXPORT std::optional<quic::QuicWallTime> ParseDerTime(
     unsigned tag, absl::string_view payload);
 
 }  // namespace quic

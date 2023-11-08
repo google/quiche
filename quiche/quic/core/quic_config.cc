@@ -476,7 +476,7 @@ void QuicConfig::SetGoogleHandshakeMessageToSend(std::string message) {
   google_handshake_message_to_send_ = std::move(message);
 }
 
-const absl::optional<std::string>&
+const std::optional<std::string>&
 QuicConfig::GetReceivedGoogleHandshakeMessage() const {
   return received_google_handshake_message_;
 }
@@ -1405,7 +1405,7 @@ void QuicConfig::ClearGoogleHandshakeMessage() {
   received_google_handshake_message_.reset();
 }
 
-absl::optional<QuicSocketAddress> QuicConfig::GetPreferredAddressToSend(
+std::optional<QuicSocketAddress> QuicConfig::GetPreferredAddressToSend(
     quiche::IpAddressFamily address_family) const {
   if (alternate_server_address_ipv6_.HasSendValue() &&
       address_family == quiche::IpAddressFamily::IP_V6) {
@@ -1416,7 +1416,7 @@ absl::optional<QuicSocketAddress> QuicConfig::GetPreferredAddressToSend(
       address_family == quiche::IpAddressFamily::IP_V4) {
     return alternate_server_address_ipv4_.GetSendValue();
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void QuicConfig::ClearAlternateServerAddressToSend(

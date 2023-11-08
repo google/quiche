@@ -5,12 +5,12 @@
 #include "quiche/common/wire_serialization.h"
 
 #include <limits>
+#include <optional>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -101,16 +101,16 @@ TEST(SerializationTest, SerializeStringWithVarInt62Length) {
 }
 
 TEST(SerializationTest, SerializeOptionalValues) {
-  absl::optional<uint8_t> has_no_value;
-  absl::optional<uint8_t> has_value = 0x42;
+  std::optional<uint8_t> has_no_value;
+  std::optional<uint8_t> has_value = 0x42;
   ExpectEncodingHex("optional without value", "00", WireUint8(0),
                     WireOptional<WireUint8>(has_no_value));
   ExpectEncodingHex("optional with value", "0142", WireUint8(1),
                     WireOptional<WireUint8>(has_value));
   ExpectEncodingHex("empty data", "", WireOptional<WireUint8>(has_no_value));
 
-  absl::optional<std::string> has_no_string;
-  absl::optional<std::string> has_string = "\x42";
+  std::optional<std::string> has_no_string;
+  std::optional<std::string> has_string = "\x42";
   ExpectEncodingHex("optional no string", "",
                     WireOptional<WireStringWithVarInt62Length>(has_no_string));
   ExpectEncodingHex("optional string", "0142",

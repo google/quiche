@@ -6,9 +6,9 @@
 #define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_CONFIG_H_
 
 #include <cstdint>
+#include <optional>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "openssl/aes.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -38,7 +38,7 @@ inline constexpr uint8_t kNumLoadBalancerCryptoPasses = 4;
 class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
  public:
   // This factory function initializes an encrypted LoadBalancerConfig and
-  // returns it in absl::optional, which is empty if the config is invalid.
+  // returns it in std::optional, which is empty if the config is invalid.
   // config_id: The first two bits of the Connection Id. Must be no larger than
   // 2.
   // server_id_len: Expected length of the server ids associated with this
@@ -46,13 +46,13 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
   // nonce_len: Length of the nonce. Must be at least 4 and no larger than 16.
   // Further the server_id_len + nonce_len must be no larger than 19.
   // key: The encryption key must be 16B long.
-  static absl::optional<LoadBalancerConfig> Create(uint8_t config_id,
-                                                   uint8_t server_id_len,
-                                                   uint8_t nonce_len,
-                                                   absl::string_view key);
+  static std::optional<LoadBalancerConfig> Create(uint8_t config_id,
+                                                  uint8_t server_id_len,
+                                                  uint8_t nonce_len,
+                                                  absl::string_view key);
 
   // Creates an unencrypted config.
-  static absl::optional<LoadBalancerConfig> CreateUnencrypted(
+  static std::optional<LoadBalancerConfig> CreateUnencrypted(
       uint8_t config_id, uint8_t server_id_len, uint8_t nonce_len);
 
   // Handles one pass of 4-pass encryption. Encoder and decoder use of this
@@ -91,12 +91,12 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
   // All Connection ID encryption and decryption uses the AES_encrypt function
   // at root, so there is a single key for all of it. This is empty if the
   // config is not encrypted.
-  absl::optional<AES_KEY> key_;
+  std::optional<AES_KEY> key_;
   // The one exception is that when total_len == 16, connection ID decryption
   // uses AES_decrypt. The bytes that comprise the key are the same, but
   // AES_decrypt requires an AES_KEY that is initialized differently. In all
   // other cases, block_decrypt_key_ is empty.
-  absl::optional<AES_KEY> block_decrypt_key_;
+  std::optional<AES_KEY> block_decrypt_key_;
 };
 
 }  // namespace quic

@@ -4,9 +4,10 @@
 
 #include "quiche/common/btree_scheduler.h"
 
+#include <optional>
+
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
@@ -49,7 +50,7 @@ TEST(BTreeSchedulerTest, SimplePop) {
 
   EXPECT_THAT(scheduler.GetPriorityFor(1), Optional(100));
   EXPECT_THAT(scheduler.GetPriorityFor(3), Optional(102));
-  EXPECT_EQ(scheduler.GetPriorityFor(5), absl::nullopt);
+  EXPECT_EQ(scheduler.GetPriorityFor(5), std::nullopt);
 
   EXPECT_EQ(scheduler.NumScheduled(), 0u);
   EXPECT_FALSE(scheduler.HasScheduled());
@@ -113,7 +114,7 @@ TEST(BTreeSchedulerTest, NumEntriesInRange) {
   QUICHE_EXPECT_OK(scheduler.Register(9, 64));
 
   EXPECT_EQ(scheduler.NumScheduled(), 0u);
-  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(absl::nullopt, absl::nullopt),
+  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(std::nullopt, std::nullopt),
             0u);
   EXPECT_EQ(scheduler.NumScheduledInPriorityRange(-1, 1), 0u);
 
@@ -122,11 +123,11 @@ TEST(BTreeSchedulerTest, NumEntriesInRange) {
   }
 
   EXPECT_EQ(scheduler.NumScheduled(), 9u);
-  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(absl::nullopt, absl::nullopt),
+  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(std::nullopt, std::nullopt),
             9u);
   EXPECT_EQ(scheduler.NumScheduledInPriorityRange(0, 0), 3u);
-  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(absl::nullopt, -1), 2u);
-  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(1, absl::nullopt), 4u);
+  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(std::nullopt, -1), 2u);
+  EXPECT_EQ(scheduler.NumScheduledInPriorityRange(1, std::nullopt), 4u);
 }
 
 TEST(BTreeSchedulerTest, Registration) {

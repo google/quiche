@@ -8,11 +8,11 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
@@ -230,12 +230,12 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     parsing_error_ = reason;
   }
 
-  absl::optional<absl::string_view> object_payload_;
+  std::optional<absl::string_view> object_payload_;
   bool end_of_message_ = false;
   bool got_goaway_ = false;
-  absl::optional<absl::string_view> parsing_error_;
+  std::optional<absl::string_view> parsing_error_;
   uint64_t messages_received_ = 0;
-  absl::optional<TestMessageBase::MessageStructuredData> last_message_;
+  std::optional<TestMessageBase::MessageStructuredData> last_message_;
   // Stored strings for last_message_. The visitor API does not promise the
   // memory pointed to by string_views is persistent.
   std::string string0_, string1_, string2_;

@@ -28,7 +28,7 @@ class QUICHE_NO_EXPORT TestFrameSequence {
       absl::Span<const Http2Setting> settings = {});
   TestFrameSequence& Data(Http2StreamId stream_id, absl::string_view payload,
                           bool fin = false,
-                          absl::optional<int> padding_length = absl::nullopt);
+                          std::optional<int> padding_length = std::nullopt);
   TestFrameSequence& RstStream(Http2StreamId stream_id, Http2ErrorCode error);
   TestFrameSequence& Settings(absl::Span<const Http2Setting> settings);
   TestFrameSequence& SettingsAck();

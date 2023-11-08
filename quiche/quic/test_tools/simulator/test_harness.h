@@ -6,9 +6,9 @@
 #define QUICHE_QUIC_TEST_TOOLS_SIMULATOR_TEST_HARNESS_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_time.h"
@@ -79,8 +79,8 @@ class TestHarness {
  private:
   Simulator simulator_;
   Switch switch_;
-  absl::optional<SymmetricLink> client_link_;
-  absl::optional<SymmetricLink> server_link_;
+  std::optional<SymmetricLink> client_link_;
+  std::optional<SymmetricLink> server_link_;
   std::unique_ptr<PacketFilter> client_filter_;
   std::unique_ptr<PacketFilter> server_filter_;
 

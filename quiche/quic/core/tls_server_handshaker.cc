@@ -65,9 +65,9 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
     const QuicConnectionId& /*original_connection_id*/,
     absl::string_view /*ssl_capabilities*/, const std::string& hostname,
     absl::string_view /*client_hello*/, const std::string& /*alpn*/,
-    absl::optional<std::string> /*alps*/,
+    std::optional<std::string> /*alps*/,
     const std::vector<uint8_t>& /*quic_transport_params*/,
-    const absl::optional<std::vector<uint8_t>>& /*early_data_context*/,
+    const std::optional<std::vector<uint8_t>>& /*early_data_context*/,
     const QuicSSLConfig& /*ssl_config*/) {
   if (!handshaker_ || !proof_source_) {
     QUIC_BUG(quic_bug_10341_1)
@@ -145,7 +145,7 @@ void TlsServerHandshaker::DecryptCallback::Run(std::vector<uint8_t> plaintext) {
   const bool is_async =
       (handshaker->expected_ssl_error() == SSL_ERROR_PENDING_TICKET);
 
-  absl::optional<QuicConnectionContextSwitcher> context_switcher;
+  std::optional<QuicConnectionContextSwitcher> context_switcher;
 
   if (is_async) {
     context_switcher.emplace(handshaker->connection_context());
@@ -704,7 +704,7 @@ void TlsServerHandshaker::OnComputeSignatureDone(
   QUIC_DVLOG(1) << "OnComputeSignatureDone. ok:" << ok
                 << ", is_sync:" << is_sync
                 << ", len(signature):" << signature.size();
-  absl::optional<QuicConnectionContextSwitcher> context_switcher;
+  std::optional<QuicConnectionContextSwitcher> context_switcher;
 
   if (!is_sync) {
     context_switcher.emplace(connection_context());
@@ -986,7 +986,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
                 << ", len(handshake_hints):" << handshake_hints.size()
                 << ", len(ticket_encryption_key):"
                 << ticket_encryption_key.size();
-  absl::optional<QuicConnectionContextSwitcher> context_switcher;
+  std::optional<QuicConnectionContextSwitcher> context_switcher;
   if (!is_sync) {
     context_switcher.emplace(connection_context());
   }

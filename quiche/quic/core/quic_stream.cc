@@ -5,11 +5,11 @@
 #include "quiche/quic/core/quic_stream.h"
 
 #include <limits>
+#include <optional>
 #include <string>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_flow_controller.h"
 #include "quiche/quic/core/quic_session.h"
@@ -298,15 +298,15 @@ QuicStream::QuicStream(PendingStream* pending, QuicSession* session,
 
 namespace {
 
-absl::optional<QuicFlowController> FlowController(QuicStreamId id,
-                                                  QuicSession* session,
-                                                  StreamType type) {
+std::optional<QuicFlowController> FlowController(QuicStreamId id,
+                                                 QuicSession* session,
+                                                 StreamType type) {
   if (type == CRYPTO) {
     // The only QuicStream with a StreamType of CRYPTO is QuicCryptoStream, when
     // it is using crypto frames instead of stream frames. The QuicCryptoStream
     // doesn't have any flow control in that case, so we don't create a
     // QuicFlowController for it.
-    return absl::nullopt;
+    return std::nullopt;
   }
   return QuicFlowController(
       session, id,
@@ -330,7 +330,7 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
                        QuicStreamSequencer sequencer, bool is_static,
                        StreamType type, uint64_t stream_bytes_read,
                        bool fin_received,
-                       absl::optional<QuicFlowController> flow_controller,
+                       std::optional<QuicFlowController> flow_controller,
                        QuicFlowController* connection_flow_controller)
     : sequencer_(std::move(sequencer)),
       id_(id),
@@ -1414,17 +1414,17 @@ void QuicStream::UpdateReceiveWindowSize(QuicStreamOffset size) {
   flow_controller_->UpdateReceiveWindowSize(size);
 }
 
-absl::optional<QuicByteCount> QuicStream::GetSendWindow() const {
+std::optional<QuicByteCount> QuicStream::GetSendWindow() const {
   return flow_controller_.has_value()
-             ? absl::optional<QuicByteCount>(flow_controller_->SendWindowSize())
-             : absl::nullopt;
+             ? std::optional<QuicByteCount>(flow_controller_->SendWindowSize())
+             : std::nullopt;
 }
 
-absl::optional<QuicByteCount> QuicStream::GetReceiveWindow() const {
+std::optional<QuicByteCount> QuicStream::GetReceiveWindow() const {
   return flow_controller_.has_value()
-             ? absl::optional<QuicByteCount>(
+             ? std::optional<QuicByteCount>(
                    flow_controller_->receive_window_size())
-             : absl::nullopt;
+             : std::nullopt;
 }
 
 void QuicStream::OnStreamCreatedFromPendingStream() {

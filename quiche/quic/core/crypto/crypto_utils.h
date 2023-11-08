@@ -250,7 +250,7 @@ class QUICHE_EXPORT CryptoUtils {
 
   // Computes the contents of a binary message that is signed inside QUIC Crypto
   // protocol using the certificate key.
-  static absl::optional<std::string> GenerateProofPayloadToBeSigned(
+  static std::optional<std::string> GenerateProofPayloadToBeSigned(
       absl::string_view chlo_hash, absl::string_view server_config);
 };
 

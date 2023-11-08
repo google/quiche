@@ -6,9 +6,9 @@
 #define QUICHE_QUIC_MOQT_MOQT_FRAMER_H_
 
 #include <cstddef>
+#include <optional>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_export.h"

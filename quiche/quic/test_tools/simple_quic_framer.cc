@@ -111,7 +111,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   bool OnAckFrameEnd(
       QuicPacketNumber /*start*/,
-      const absl::optional<QuicEcnCounts>& /*ecn_counts*/) override {
+      const std::optional<QuicEcnCounts>& /*ecn_counts*/) override {
     return true;
   }
 

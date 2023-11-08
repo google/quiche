@@ -17126,7 +17126,7 @@ TEST_P(QuicConnectionTest, DetectMigrationToPreferredAddress) {
               GenerateNextConnectionId(connection_id_))
       .WillOnce(Return(server_issued_cid_for_preferred_address));
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(Return(true));
-  absl::optional<QuicNewConnectionIdFrame> frame =
+  std::optional<QuicNewConnectionIdFrame> frame =
       connection_.MaybeIssueNewConnectionIdForPreferredAddress();
   ASSERT_TRUE(frame.has_value());
 
@@ -17179,7 +17179,7 @@ TEST_P(QuicConnectionTest,
               GenerateNextConnectionId(connection_id_))
       .WillOnce(Return(server_issued_cid_for_preferred_address));
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(Return(true));
-  absl::optional<QuicNewConnectionIdFrame> frame =
+  std::optional<QuicNewConnectionIdFrame> frame =
       connection_.MaybeIssueNewConnectionIdForPreferredAddress();
   ASSERT_TRUE(frame.has_value());
 

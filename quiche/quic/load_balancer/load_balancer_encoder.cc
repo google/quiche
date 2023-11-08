@@ -5,9 +5,9 @@
 #include "quiche/quic/load_balancer/load_balancer_encoder.h"
 
 #include <cstdint>
+#include <optional>
 
 #include "absl/numeric/int128.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -49,7 +49,7 @@ bool WriteUint128(const absl::uint128 in, uint8_t size, QuicDataWriter &out) {
 
 }  // namespace
 
-absl::optional<LoadBalancerEncoder> LoadBalancerEncoder::Create(
+std::optional<LoadBalancerEncoder> LoadBalancerEncoder::Create(
     QuicRandom &random, LoadBalancerEncoderVisitorInterface *const visitor,
     const bool len_self_encoded, const uint8_t unroutable_connection_id_len) {
   if (unroutable_connection_id_len == 0 ||
@@ -58,7 +58,7 @@ absl::optional<LoadBalancerEncoder> LoadBalancerEncoder::Create(
     QUIC_BUG(quic_bug_435375038_01)
         << "Invalid unroutable_connection_id_len = "
         << static_cast<int>(unroutable_connection_id_len);
-    return absl::optional<LoadBalancerEncoder>();
+    return std::optional<LoadBalancerEncoder>();
   }
   return LoadBalancerEncoder(random, visitor, len_self_encoded,
                              unroutable_connection_id_len);
@@ -170,14 +170,14 @@ QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
   return id;
 }
 
-absl::optional<QuicConnectionId> LoadBalancerEncoder::GenerateNextConnectionId(
+std::optional<QuicConnectionId> LoadBalancerEncoder::GenerateNextConnectionId(
     [[maybe_unused]] const QuicConnectionId &original) {
   // Do not allow new connection IDs if linkable.
-  return (IsEncoding() && !IsEncrypted()) ? absl::optional<QuicConnectionId>()
+  return (IsEncoding() && !IsEncrypted()) ? std::optional<QuicConnectionId>()
                                           : GenerateConnectionId();
 }
 
-absl::optional<QuicConnectionId> LoadBalancerEncoder::MaybeReplaceConnectionId(
+std::optional<QuicConnectionId> LoadBalancerEncoder::MaybeReplaceConnectionId(
     const QuicConnectionId &original, const ParsedQuicVersion &version) {
   // Pre-IETF versions of QUIC can respond poorly to new connection IDs issued
   // during the handshake.
@@ -185,7 +185,7 @@ absl::optional<QuicConnectionId> LoadBalancerEncoder::MaybeReplaceConnectionId(
                               ? config_->total_len()
                               : connection_id_lengths_[kNumLoadBalancerConfigs];
   return (!version.HasIetfQuicFrames() && original.length() == needed_length)
-             ? absl::optional<QuicConnectionId>()
+             ? std::optional<QuicConnectionId>()
              : GenerateConnectionId();
 }
 

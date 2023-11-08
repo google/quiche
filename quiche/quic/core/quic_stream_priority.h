@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_CORE_QUIC_STREAM_PRIORITY_H_
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <tuple>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/variant.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -134,7 +134,7 @@ QUICHE_EXPORT std::string SerializePriorityFieldValue(
 
 // Parses the Priority Field Value field of a PRIORITY_UPDATE frame.
 // Returns nullopt on failure.
-QUICHE_EXPORT absl::optional<HttpStreamPriority> ParsePriorityFieldValue(
+QUICHE_EXPORT std::optional<HttpStreamPriority> ParsePriorityFieldValue(
     absl::string_view priority_field_value);
 
 }  // namespace quic

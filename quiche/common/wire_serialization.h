@@ -64,7 +64,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_data_writer.h"
@@ -232,17 +231,17 @@ class QUICHE_EXPORT WireStringWithLengthPrefix {
 // Represents varint62-prefixed strings.
 using WireStringWithVarInt62Length = WireStringWithLengthPrefix<WireVarInt62>;
 
-// Allows absl::optional to be used with this API. For instance, if the spec
+// Allows std::optional to be used with this API. For instance, if the spec
 // defines
 //   [Context ID (i)]
-// and the value is stored as absl::optional<uint64> context_id, this can be
+// and the value is stored as std::optional<uint64> context_id, this can be
 // recorded as
 //   WireOptional<WireVarInt62>(context_id)
 // When optional is absent, nothing is written onto the wire.
 template <typename WireType, typename InnerType = typename WireType::DataType>
 class QUICHE_EXPORT WireOptional {
  public:
-  using DataType = absl::optional<InnerType>;
+  using DataType = std::optional<InnerType>;
   using Status = SerializeIntoWriterStatus<WireType>;
 
   explicit WireOptional(DataType value) { value_ = value; }

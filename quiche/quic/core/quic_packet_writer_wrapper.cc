@@ -26,7 +26,7 @@ bool QuicPacketWriterWrapper::IsWriteBlocked() const {
 
 void QuicPacketWriterWrapper::SetWritable() { writer_->SetWritable(); }
 
-absl::optional<int> QuicPacketWriterWrapper::MessageTooBigErrorCode() const {
+std::optional<int> QuicPacketWriterWrapper::MessageTooBigErrorCode() const {
   return writer_->MessageTooBigErrorCode();
 }
 

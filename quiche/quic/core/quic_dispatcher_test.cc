@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,7 +17,6 @@
 #include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/chlo_extractor.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
@@ -487,7 +487,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       } else {
         EXPECT_CALL(connection_id_generator_,
                     MaybeReplaceConnectionId(server_connection_id, version))
-            .WillOnce(Return(absl::nullopt));
+            .WillOnce(Return(std::nullopt));
       }
     }
     std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
@@ -590,7 +590,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   bool expect_generator_is_called_ = true;
   // Set in conditions where the generator should return a different connection
   // ID.
-  absl::optional<QuicConnectionId> generated_connection_id_;
+  std::optional<QuicConnectionId> generated_connection_id_;
   MockConnectionIdGenerator connection_id_generator_;
   std::unique_ptr<NiceMock<TestDispatcher>> dispatcher_;
   MockTimeWaitListManager* time_wait_list_manager_;
@@ -599,7 +599,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   std::map<QuicConnectionId, std::list<std::string>> data_connection_map_;
   QuicBufferedPacketStore* store_;
   uint64_t connection_id_;
-  absl::optional<std::string> address_token_;
+  std::optional<std::string> address_token_;
 };
 
 class QuicDispatcherTestAllVersions : public QuicDispatcherTestBase {};
@@ -655,7 +655,7 @@ TEST_P(QuicDispatcherTestAllVersions,
       mock_connection_id_generator;
   EXPECT_CALL(mock_connection_id_generator,
               MaybeReplaceConnectionId(TestConnectionId(1), version_))
-      .WillOnce(Return(absl::nullopt));
+      .WillOnce(Return(std::nullopt));
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(TestConnectionId(1), _, client_address,
                                 Eq(ExpectedAlpn()), _, MatchParsedClientHello(),
@@ -721,7 +721,7 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
     new_connection_id = original_connection_id;
     EXPECT_CALL(connection_id_generator_,
                 MaybeReplaceConnectionId(original_connection_id, version_))
-        .WillOnce(Return(absl::nullopt));
+        .WillOnce(Return(std::nullopt));
   }
   QuicConfig client_config = DefaultQuicConfig();
   // Add a 2000-byte custom parameter to increase the length of the CHLO.
@@ -2565,7 +2565,7 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketBeforeChlo) {
   // buffered should be delivered to the session.
   EXPECT_CALL(connection_id_generator_,
               MaybeReplaceConnectionId(conn_id, version_))
-      .WillOnce(Return(absl::nullopt));
+      .WillOnce(Return(std::nullopt));
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(conn_id, _, client_addr_, Eq(ExpectedAlpn()), _,
                                 MatchParsedClientHello(), _))
@@ -2601,7 +2601,7 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketsUptoLimitAndProcessChlo) {
   // buffered should be delivered to the session.
   EXPECT_CALL(connection_id_generator_,
               MaybeReplaceConnectionId(conn_id, version_))
-      .WillOnce(Return(absl::nullopt));
+      .WillOnce(Return(std::nullopt));
   EXPECT_CALL(*dispatcher_, CreateQuicSession(conn_id, _, client_addr_,
                                               Eq(ExpectedAlpn()), _, _, _))
       .WillOnce(Return(ByMove(CreateSession(
@@ -2652,7 +2652,7 @@ TEST_P(BufferedPacketStoreTest,
     QuicConnectionId conn_id = TestConnectionId(i);
     EXPECT_CALL(connection_id_generator_,
                 MaybeReplaceConnectionId(conn_id, version_))
-        .WillOnce(Return(absl::nullopt));
+        .WillOnce(Return(std::nullopt));
     EXPECT_CALL(*dispatcher_, CreateQuicSession(conn_id, _, client_address,
                                                 Eq(ExpectedAlpn()), _, _, _))
         .WillOnce(Return(ByMove(CreateSession(
@@ -2700,7 +2700,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveRetransmittedCHLO) {
   // buffered should be delivered to the session.
   EXPECT_CALL(connection_id_generator_,
               MaybeReplaceConnectionId(conn_id, version_))
-      .WillOnce(Return(absl::nullopt));
+      .WillOnce(Return(std::nullopt));
   EXPECT_CALL(*dispatcher_, CreateQuicSession(conn_id, _, client_addr_,
                                               Eq(ExpectedAlpn()), _, _, _))
       .Times(1)  // Only triggered by 1st CHLO.
@@ -2768,7 +2768,7 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
     if (conn_id <= kMaxNumSessionsToCreate) {
       EXPECT_CALL(connection_id_generator_,
                   MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
-          .WillOnce(Return(absl::nullopt));
+          .WillOnce(Return(std::nullopt));
       EXPECT_CALL(
           *dispatcher_,
           CreateQuicSession(TestConnectionId(conn_id), _, client_addr_,
@@ -2808,7 +2808,7 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
        ++conn_id) {
     EXPECT_CALL(connection_id_generator_,
                 MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
-        .WillOnce(Return(absl::nullopt));
+        .WillOnce(Return(std::nullopt));
     EXPECT_CALL(
         *dispatcher_,
         CreateQuicSession(TestConnectionId(conn_id), _, client_addr_,
@@ -2886,7 +2886,7 @@ TEST_P(BufferedPacketStoreTest,
   // created using generator2.
   EXPECT_CALL(generator2,
               MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
-      .WillOnce(Return(absl::nullopt));
+      .WillOnce(Return(std::nullopt));
   EXPECT_CALL(*dispatcher_, CreateQuicSession(TestConnectionId(conn_id), _,
                                               client_addr_, Eq(ExpectedAlpn()),
                                               _, MatchParsedClientHello(), _))

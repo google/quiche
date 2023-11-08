@@ -1,11 +1,13 @@
 #include "quiche/http2/adapter/test_utils.h"
 
+#include <optional>
 #include <ostream>
 
 #include "absl/strings/str_format.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/spdy/core/hpack/hpack_encoder.h"
+#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {
@@ -104,7 +106,7 @@ std::pair<int64_t, bool> TestMetadataSource::Pack(uint8_t* dest,
 namespace {
 
 using TypeAndOptionalLength =
-    std::pair<spdy::SpdyFrameType, absl::optional<size_t>>;
+    std::pair<spdy::SpdyFrameType, std::optional<size_t>>;
 
 std::ostream& operator<<(
     std::ostream& os,
@@ -152,7 +154,7 @@ class SpdyControlFrameMatcher
   }
 
   bool MatchAndExplainOneFrame(spdy::SpdyFrameType expected_type,
-                               absl::optional<size_t> expected_length,
+                               std::optional<size_t> expected_length,
                                quiche::QuicheDataReader* reader,
                                testing::MatchResultListener* listener) const {
     uint32_t payload_length;
@@ -203,18 +205,18 @@ class SpdyControlFrameMatcher
 }  // namespace
 
 testing::Matcher<absl::string_view> EqualsFrames(
-    std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
+    std::vector<std::pair<spdy::SpdyFrameType, std::optional<size_t>>>
         types_and_lengths) {
   return MakeMatcher(new SpdyControlFrameMatcher(std::move(types_and_lengths)));
 }
 
 testing::Matcher<absl::string_view> EqualsFrames(
     std::vector<spdy::SpdyFrameType> types) {
-  std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
+  std::vector<std::pair<spdy::SpdyFrameType, std::optional<size_t>>>
       types_and_lengths;
   types_and_lengths.reserve(types.size());
   for (spdy::SpdyFrameType type : types) {
-    types_and_lengths.push_back({type, absl::nullopt});
+    types_and_lengths.push_back({type, std::nullopt});
   }
   return MakeMatcher(new SpdyControlFrameMatcher(std::move(types_and_lengths)));
 }

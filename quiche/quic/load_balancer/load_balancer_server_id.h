@@ -7,10 +7,10 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
@@ -29,11 +29,11 @@ inline constexpr uint8_t kLoadBalancerMaxServerIdLen = 15;
 class QUIC_EXPORT_PRIVATE LoadBalancerServerId {
  public:
   // Copies all the bytes from |data| into a new LoadBalancerServerId.
-  static absl::optional<LoadBalancerServerId> Create(
+  static std::optional<LoadBalancerServerId> Create(
       absl::Span<const uint8_t> data);
 
   // For callers with a string_view at hand.
-  static absl::optional<LoadBalancerServerId> Create(absl::string_view data) {
+  static std::optional<LoadBalancerServerId> Create(absl::string_view data) {
     return Create(absl::MakeSpan(reinterpret_cast<const uint8_t*>(data.data()),
                                  data.length()));
   }

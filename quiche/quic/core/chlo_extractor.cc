@@ -57,7 +57,7 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
   bool OnAckTimestamp(QuicPacketNumber packet_number,
                       QuicTime timestamp) override;
   bool OnAckFrameEnd(QuicPacketNumber start,
-                     const absl::optional<QuicEcnCounts>& ecn_counts) override;
+                     const std::optional<QuicEcnCounts>& ecn_counts) override;
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override;
   bool OnPingFrame(const QuicPingFrame& frame) override;
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override;
@@ -219,7 +219,7 @@ bool ChloFramerVisitor::OnAckTimestamp(QuicPacketNumber /*packet_number*/,
 
 bool ChloFramerVisitor::OnAckFrameEnd(
     QuicPacketNumber /*start*/,
-    const absl::optional<QuicEcnCounts>& /*ecn_counts*/) {
+    const std::optional<QuicEcnCounts>& /*ecn_counts*/) {
   return true;
 }
 

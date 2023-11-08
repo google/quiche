@@ -8,10 +8,10 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
@@ -76,7 +76,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
     std::list<BufferedPacket> buffered_packets;
     QuicTime creation_time;
     // |parsed_chlo| is set iff the entire CHLO has been received.
-    absl::optional<ParsedClientHello> parsed_chlo;
+    std::optional<ParsedClientHello> parsed_chlo;
     // Indicating whether this is an IETF QUIC connection.
     bool ietf_quic;
     // If buffered_packets contains the CHLO, it is the version of the CHLO.
@@ -121,7 +121,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
       QuicConnectionId connection_id, bool ietf_quic,
       const QuicReceivedPacket& packet, QuicSocketAddress self_address,
       QuicSocketAddress peer_address, const ParsedQuicVersion& version,
-      absl::optional<ParsedClientHello> parsed_chlo,
+      std::optional<ParsedClientHello> parsed_chlo,
       ConnectionIdGeneratorInterface* connection_id_generator);
 
   // Returns true if there are any packets buffered for |connection_id|.
@@ -144,7 +144,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
       std::vector<uint16_t>* out_supported_groups,
       std::vector<std::string>* out_alpns, std::string* out_sni,
       bool* out_resumption_attempted, bool* out_early_data_attempted,
-      absl::optional<uint8_t>* tls_alert);
+      std::optional<uint8_t>* tls_alert);
 
   // Returns the list of buffered packets for |connection_id| and removes them
   // from the store. Returns an empty list if no early arrived packets for this

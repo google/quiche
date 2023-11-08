@@ -20,10 +20,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <list>
+#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -86,7 +86,7 @@ class QUICHE_EXPORT PendingStream
   void OnStopSending(QuicResetStreamError stop_sending_error_code);
 
   // The error code received from QuicStopSendingFrame (if any).
-  const absl::optional<QuicResetStreamError>& GetStopSendingErrorCode() const {
+  const std::optional<QuicResetStreamError>& GetStopSendingErrorCode() const {
     return stop_sending_error_code_;
   }
 
@@ -132,7 +132,7 @@ class QUICHE_EXPORT PendingStream
   // Stores the buffered frames.
   QuicStreamSequencer sequencer_;
   // The error code received from QuicStopSendingFrame (if any).
-  absl::optional<QuicResetStreamError> stop_sending_error_code_;
+  std::optional<QuicResetStreamError> stop_sending_error_code_;
 };
 
 class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
@@ -475,8 +475,8 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   virtual void OnWriteSideInDataRecvdState() {}
 
   // Return the current flow control send window in bytes.
-  absl::optional<QuicByteCount> GetSendWindow() const;
-  absl::optional<QuicByteCount> GetReceiveWindow() const;
+  std::optional<QuicByteCount> GetSendWindow() const;
+  std::optional<QuicByteCount> GetReceiveWindow() const;
 
  private:
   friend class test::QuicStreamPeer;
@@ -485,7 +485,7 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   QuicStream(QuicStreamId id, QuicSession* session,
              QuicStreamSequencer sequencer, bool is_static, StreamType type,
              uint64_t stream_bytes_read, bool fin_received,
-             absl::optional<QuicFlowController> flow_controller,
+             std::optional<QuicFlowController> flow_controller,
              QuicFlowController* connection_flow_controller);
 
   // Calls MaybeSendBlocked on the stream's flow controller and the connection
@@ -556,7 +556,7 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // True if the stream has sent STOP_SENDING to the session.
   bool stop_sending_sent_;
 
-  absl::optional<QuicFlowController> flow_controller_;
+  std::optional<QuicFlowController> flow_controller_;
 
   // The connection level flow controller. Not owned.
   QuicFlowController* connection_flow_controller_;

@@ -110,8 +110,8 @@ class DummyPacketWriter : public QuicPacketWriter {
 
   void SetWritable() override {}
 
-  absl::optional<int> MessageTooBigErrorCode() const override {
-    return absl::nullopt;
+  std::optional<int> MessageTooBigErrorCode() const override {
+    return std::nullopt;
   }
 
   QuicByteCount GetMaxPacketSize(

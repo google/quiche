@@ -28,7 +28,7 @@ QuicMemoryCacheBackend::ResourceFile::ResourceFile(const std::string& file_name)
 QuicMemoryCacheBackend::ResourceFile::~ResourceFile() = default;
 
 void QuicMemoryCacheBackend::ResourceFile::Read() {
-  absl::optional<std::string> maybe_file_contents =
+  std::optional<std::string> maybe_file_contents =
       quiche::ReadFileContents(file_name_);
   if (!maybe_file_contents) {
     QUIC_LOG(DFATAL) << "Failed to read file for the memory cache backend: "

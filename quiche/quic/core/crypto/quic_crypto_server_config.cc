@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -14,7 +15,6 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "openssl/sha.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/aes_128_gcm_12_decrypter.h"
@@ -1536,7 +1536,7 @@ void QuicCryptoServerConfig::BuildRejection(
           std::unique_ptr<CertificateView> view =
               CertificateView::ParseSingleCertificate(certs[0]);
           if (view != nullptr) {
-            absl::optional<std::string> maybe_ca_subject =
+            std::optional<std::string> maybe_ca_subject =
                 view->GetHumanReadableSubject();
             if (maybe_ca_subject.has_value()) {
               ca_subject = *maybe_ca_subject;

@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <utility>
 
 #include "absl/strings/str_cat.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/congestion_control/bbr2_misc.h"
 #include "quiche/quic/core/congestion_control/bbr2_sender.h"
 #include "quiche/quic/core/congestion_control/bbr_sender.h"
@@ -90,7 +90,7 @@ class DefaultTopologyParams {
   // Network switch queue capacity, in number of BDPs.
   float switch_queue_capacity_in_bdp = 2;
 
-  absl::optional<TrafficPolicerParams> sender_policer_params;
+  std::optional<TrafficPolicerParams> sender_policer_params;
 
   QuicBandwidth BottleneckBandwidth() const {
     return std::min(local_link.bandwidth, test_link.bandwidth);

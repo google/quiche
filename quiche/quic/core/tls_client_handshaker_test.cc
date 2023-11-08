@@ -275,7 +275,7 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicServerId server_id_;
   CryptoHandshakeMessage message_;
   std::unique_ptr<QuicCryptoClientConfig> crypto_config_;
-  absl::optional<QuicSSLConfig> ssl_config_;
+  std::optional<QuicSSLConfig> ssl_config_;
 
   // Server state.
   std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;

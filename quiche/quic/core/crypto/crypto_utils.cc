@@ -790,7 +790,7 @@ bool CryptoUtils::GetSSLCapabilities(const SSL* ssl,
 }
 
 // static
-absl::optional<std::string> CryptoUtils::GenerateProofPayloadToBeSigned(
+std::optional<std::string> CryptoUtils::GenerateProofPayloadToBeSigned(
     absl::string_view chlo_hash, absl::string_view server_config) {
   size_t payload_size = sizeof(kProofSignatureLabel) + sizeof(uint32_t) +
                         chlo_hash.size() + server_config.size();
@@ -804,7 +804,7 @@ absl::optional<std::string> CryptoUtils::GenerateProofPayloadToBeSigned(
                  payload_writer.WriteStringPiece(chlo_hash) &&
                  payload_writer.WriteStringPiece(server_config);
   if (!success) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return payload;
 }

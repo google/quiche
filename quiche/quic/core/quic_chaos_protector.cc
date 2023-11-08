@@ -9,9 +9,9 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
@@ -45,10 +45,10 @@ QuicChaosProtector::QuicChaosProtector(const QuicCryptoFrame& crypto_frame,
 
 QuicChaosProtector::~QuicChaosProtector() { DeleteFrames(&frames_); }
 
-absl::optional<size_t> QuicChaosProtector::BuildDataPacket(
+std::optional<size_t> QuicChaosProtector::BuildDataPacket(
     const QuicPacketHeader& header, char* buffer) {
   if (!CopyCryptoDataToLocalBuffer()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   SplitCryptoFrame();
   AddPingFrames();
@@ -206,7 +206,7 @@ void QuicChaosProtector::SpreadPadding() {
   }
 }
 
-absl::optional<size_t> QuicChaosProtector::BuildPacket(
+std::optional<size_t> QuicChaosProtector::BuildPacket(
     const QuicPacketHeader& header, char* buffer) {
   QuicStreamFrameDataProducer* original_data_producer =
       framer_->data_producer();
@@ -217,7 +217,7 @@ absl::optional<size_t> QuicChaosProtector::BuildPacket(
 
   framer_->set_data_producer(original_data_producer);
   if (length == 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return length;
 }

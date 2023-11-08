@@ -5,10 +5,10 @@
 #include "quiche/quic/core/crypto/proof_source_x509.h"
 
 #include <memory>
+#include <optional>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
@@ -54,7 +54,7 @@ void ProofSourceX509::GetProof(
     return;
   }
 
-  absl::optional<std::string> payload =
+  std::optional<std::string> payload =
       CryptoUtils::GenerateProofPayloadToBeSigned(chlo_hash, server_config);
   if (!payload.has_value()) {
     callback->Run(/*ok=*/false, nullptr, proof, nullptr);

@@ -9,13 +9,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <ostream>
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packet_number.h"
@@ -830,13 +830,13 @@ using QuicSignatureAlgorithmVector = absl::InlinedVector<uint16_t, 8>;
 // overrides the configurations in SSL_CTX.
 struct QUICHE_EXPORT QuicSSLConfig {
   // Whether TLS early data should be enabled. If not set, default to enabled.
-  absl::optional<bool> early_data_enabled;
+  std::optional<bool> early_data_enabled;
   // Whether TLS session tickets are supported. If not set, default to
   // supported.
-  absl::optional<bool> disable_ticket_support;
+  std::optional<bool> disable_ticket_support;
   // If set, used to configure the SSL object with
   // SSL_set_signing_algorithm_prefs.
-  absl::optional<QuicSignatureAlgorithmVector> signing_algorithm_prefs;
+  std::optional<QuicSignatureAlgorithmVector> signing_algorithm_prefs;
   // Client certificate mode for mTLS support. Only used at server side.
   ClientCertMode client_cert_mode = ClientCertMode::kNone;
   // As a client, the ECHConfigList to use with ECH. If empty, ECH is not
@@ -852,10 +852,10 @@ struct QUICHE_EXPORT QuicSSLConfig {
 // configs applied before cert selection.
 struct QUICHE_EXPORT QuicDelayedSSLConfig {
   // Client certificate mode for mTLS support. Only used at server side.
-  // absl::nullopt means do not change client certificate mode.
-  absl::optional<ClientCertMode> client_cert_mode;
+  // std::nullopt means do not change client certificate mode.
+  std::optional<ClientCertMode> client_cert_mode;
   // QUIC transport parameters as serialized by ProofSourceHandle.
-  absl::optional<std::vector<uint8_t>> quic_transport_parameters;
+  std::optional<std::vector<uint8_t>> quic_transport_parameters;
 };
 
 // ParsedClientHello contains client hello information extracted from a fully

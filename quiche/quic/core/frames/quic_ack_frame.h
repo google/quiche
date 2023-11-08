@@ -116,7 +116,7 @@ struct QUICHE_EXPORT QuicAckFrame {
   PacketNumberQueue packets;
 
   // ECN counters.
-  absl::optional<QuicEcnCounts> ecn_counters;
+  std::optional<QuicEcnCounts> ecn_counters;
 };
 
 // The highest acked packet number we've observed from the peer. If no packets

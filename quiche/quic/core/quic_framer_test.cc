@@ -394,7 +394,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnAckFrameEnd(
       QuicPacketNumber /*start*/,
-      const absl::optional<QuicEcnCounts>& /*ecn_counts*/) override {
+      const std::optional<QuicEcnCounts>& /*ecn_counts*/) override {
     return true;
   }
 
@@ -1132,7 +1132,7 @@ TEST_P(QuicFramerTest, LongPacketHeader) {
   QuicVersionLabel version_label;
   std::string detailed_error;
   bool use_length_prefix;
-  absl::optional<absl::string_view> retry_token;
+  std::optional<absl::string_view> retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
       *encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
@@ -1209,7 +1209,7 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
   QuicVersionLabel version_label = 0;
   std::string detailed_error = "";
   bool use_length_prefix;
-  absl::optional<absl::string_view> retry_token;
+  std::optional<absl::string_view> retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
@@ -1237,7 +1237,7 @@ TEST_P(QuicFramerTest, AllZeroPacketParsingFails) {
   QuicVersionLabel version_label = 0;
   std::string detailed_error = "";
   bool use_length_prefix;
-  absl::optional<absl::string_view> retry_token;
+  std::optional<absl::string_view> retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
@@ -13043,7 +13043,7 @@ TEST_P(QuicFramerTest, DispatcherParseOldClientVersionNegotiationProbePacket) {
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   QuicConnectionId destination_connection_id = TestConnectionId(1);
   QuicConnectionId source_connection_id = TestConnectionId(2);
-  absl::optional<absl::string_view> retry_token;
+  std::optional<absl::string_view> retry_token;
   std::string detailed_error = "foobar";
   QuicErrorCode header_parse_result = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
@@ -13121,7 +13121,7 @@ TEST_P(QuicFramerTest, DispatcherParseClientVersionNegotiationProbePacket) {
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   QuicConnectionId destination_connection_id = TestConnectionId(1);
   QuicConnectionId source_connection_id = TestConnectionId(2);
-  absl::optional<absl::string_view> retry_token;
+  std::optional<absl::string_view> retry_token;
   std::string detailed_error = "foobar";
   QuicErrorCode header_parse_result = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
@@ -14206,7 +14206,7 @@ TEST_P(QuicFramerTest, ShortHeaderWithNonDefaultConnectionIdLength) {
   QuicVersionLabel version_label;
   std::string detailed_error;
   bool use_length_prefix;
-  absl::optional<absl::string_view> retry_token;
+  std::optional<absl::string_view> retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   EXPECT_EQ(QUIC_NO_ERROR,
       QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
@@ -14248,7 +14248,7 @@ TEST_P(QuicFramerTest, ReportEcnCountsIfPresent) {
     if (ecn_marks) {
       ack_frame.ecn_counters = QuicEcnCounts(100, 10000, 1000000);
     } else {
-      ack_frame.ecn_counters = absl::nullopt;
+      ack_frame.ecn_counters = std::nullopt;
     }
     QuicFrames frames = {QuicFrame(padding_frame), QuicFrame(&ack_frame)};
     // Build an ACK packet.

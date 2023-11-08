@@ -4,10 +4,10 @@
 
 #include "quiche/quic/core/quic_datagram_queue.h"
 
+#include <optional>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -36,7 +36,7 @@ class QuicDatagramQueueObserver final : public QuicDatagramQueue::Observer {
  public:
   class Context : public quiche::QuicheReferenceCounted {
    public:
-    std::vector<absl::optional<MessageStatus>> statuses;
+    std::vector<std::optional<MessageStatus>> statuses;
   };
 
   QuicDatagramQueueObserver() : context_(new Context()) {}
@@ -44,7 +44,7 @@ class QuicDatagramQueueObserver final : public QuicDatagramQueue::Observer {
   QuicDatagramQueueObserver& operator=(const QuicDatagramQueueObserver&) =
       delete;
 
-  void OnDatagramProcessed(absl::optional<MessageStatus> status) override {
+  void OnDatagramProcessed(std::optional<MessageStatus> status) override {
     context_->statuses.push_back(std::move(status));
   }
 
@@ -108,7 +108,7 @@ TEST_F(QuicDatagramQueueTest, SendDatagramAfterBuffering) {
   // Verify getting write blocked does not remove the datagram from the queue.
   EXPECT_CALL(*connection_, SendMessage(_, _, _))
       .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
-  absl::optional<MessageStatus> status = queue_.TrySendingNextDatagram();
+  std::optional<MessageStatus> status = queue_.TrySendingNextDatagram();
   ASSERT_TRUE(status.has_value());
   EXPECT_EQ(MESSAGE_STATUS_BLOCKED, *status);
   EXPECT_EQ(1u, queue_.queue_size());
@@ -122,7 +122,7 @@ TEST_F(QuicDatagramQueueTest, SendDatagramAfterBuffering) {
 }
 
 TEST_F(QuicDatagramQueueTest, EmptyBuffer) {
-  absl::optional<MessageStatus> status = queue_.TrySendingNextDatagram();
+  std::optional<MessageStatus> status = queue_.TrySendingNextDatagram();
   EXPECT_FALSE(status.has_value());
 
   size_t num_messages = queue_.SendDatagrams();
@@ -289,7 +289,7 @@ TEST_F(QuicDatagramQueueWithObserverTest, ObserveExpiry) {
   EXPECT_TRUE(context_->statuses.empty());
 
   EXPECT_EQ(0u, queue_.SendDatagrams());
-  EXPECT_THAT(context_->statuses, ElementsAre(absl::nullopt));
+  EXPECT_THAT(context_->statuses, ElementsAre(std::nullopt));
 }
 
 }  // namespace

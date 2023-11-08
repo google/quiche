@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -17,7 +18,6 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -171,14 +171,14 @@ class QUICHE_EXPORT PriorityWriteScheduler {
   // event.
   //
   // Preconditions: `stream_id` should be registered.
-  absl::optional<absl::Time> GetLatestEventWithPriority(
+  std::optional<absl::Time> GetLatestEventWithPriority(
       StreamIdType stream_id) const {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       QUICHE_BUG(spdy_bug_19_5) << "Stream " << stream_id << " not registered";
-      return absl::nullopt;
+      return std::nullopt;
     }
-    absl::optional<absl::Time> last_event_time;
+    std::optional<absl::Time> last_event_time;
     const StreamInfo* const stream_info = it->second.get();
     for (int p = kHighestPriority;
          p < PriorityTypeToInt()(stream_info->priority); ++p) {
@@ -347,7 +347,7 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     // IDs of streams that are ready to write.
     ReadyList ready_list;
     // Time of latest write event for stream of this priority.
-    absl::optional<absl::Time> last_event_time;
+    std::optional<absl::Time> last_event_time;
   };
 
   // Use std::unique_ptr, because absl::flat_hash_map does not have pointer
