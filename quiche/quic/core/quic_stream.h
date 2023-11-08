@@ -497,6 +497,10 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // Write buffered data (in send buffer) at |level|.
   void WriteBufferedData(EncryptionLevel level);
 
+  // Returns the min of stream level flow control window size and connection
+  // level flow control window size.
+  QuicByteCount CalculateSendWindowSize() const;
+
   // Called when bytes are sent to the peer.
   void AddBytesSent(QuicByteCount bytes);
 

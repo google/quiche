@@ -1211,20 +1211,11 @@ void QuicStream::WriteBufferedData(EncryptionLevel level) {
 
   bool fin = fin_buffered_;
 
+  QUIC_BUG_IF(quic_bug_10586_13, !flow_controller_.has_value())
+      << ENDPOINT << "WriteBufferedData called on stream without flow control";
+
   // How much data flow control permits to be written.
-  QuicByteCount send_window;
-  if (flow_controller_.has_value()) {
-    send_window = flow_controller_->SendWindowSize();
-  } else {
-    send_window = std::numeric_limits<QuicByteCount>::max();
-    QUIC_BUG(quic_bug_10586_13)
-        << ENDPOINT
-        << "WriteBufferedData called on stream without flow control";
-  }
-  if (stream_contributes_to_connection_flow_control_) {
-    send_window =
-        std::min(send_window, connection_flow_controller_->SendWindowSize());
-  }
+  QuicByteCount send_window = CalculateSendWindowSize();
 
   if (send_window == 0 && !fin_with_zero_data) {
     // Quick return if nothing can be sent.
@@ -1429,6 +1420,20 @@ std::optional<QuicByteCount> QuicStream::GetReceiveWindow() const {
 
 void QuicStream::OnStreamCreatedFromPendingStream() {
   sequencer()->SetUnblocked();
+}
+
+QuicByteCount QuicStream::CalculateSendWindowSize() const {
+  QuicByteCount send_window;
+  if (flow_controller_.has_value()) {
+    send_window = flow_controller_->SendWindowSize();
+  } else {
+    send_window = std::numeric_limits<QuicByteCount>::max();
+  }
+  if (stream_contributes_to_connection_flow_control_) {
+    send_window =
+        std::min(send_window, connection_flow_controller_->SendWindowSize());
+  }
+  return send_window;
 }
 
 }  // namespace quic
