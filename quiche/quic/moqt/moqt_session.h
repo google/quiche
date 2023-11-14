@@ -24,18 +24,31 @@ namespace moqt {
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
 using MoqtSessionTerminatedCallback =
     quiche::SingleUseCallback<void(absl::string_view error_message)>;
+using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
+
+// Callbacks for session-level events.
+struct MoqtSessionCallbacks {
+  MoqtSessionEstablishedCallback session_established_callback = +[] {};
+  MoqtSessionTerminatedCallback session_terminated_callback =
+      +[](absl::string_view) {};
+  MoqtSessionDeletedCallback session_deleted_callback = +[] {};
+};
 
 class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
  public:
   MoqtSession(webtransport::Session* session, MoqtSessionParameters parameters,
-              MoqtSessionEstablishedCallback session_established_callback,
-              MoqtSessionTerminatedCallback session_terminated_callback)
+              MoqtSessionCallbacks callbacks)
       : session_(session),
         parameters_(parameters),
-        session_established_callback_(std::move(session_established_callback)),
-        session_terminated_callback_(std::move(session_terminated_callback)),
+        session_established_callback_(
+            std::move(callbacks.session_established_callback)),
+        session_terminated_callback_(
+            std::move(callbacks.session_terminated_callback)),
+        session_deleted_callback_(
+            std::move(callbacks.session_deleted_callback)),
         framer_(quiche::SimpleBufferAllocator::Get(),
                 parameters.using_webtrans) {}
+  ~MoqtSession() { std::move(session_deleted_callback_)(); }
 
   // webtransport::SessionVisitor implementation.
   void OnSessionReady() override;
@@ -109,6 +122,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   MoqtSessionParameters parameters_;
   MoqtSessionEstablishedCallback session_established_callback_;
   MoqtSessionTerminatedCallback session_terminated_callback_;
+  MoqtSessionDeletedCallback session_deleted_callback_;
   MoqtFramer framer_;
 
   std::optional<webtransport::StreamId> control_stream_;

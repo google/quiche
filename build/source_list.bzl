@@ -696,6 +696,7 @@ quiche_tool_support_hdrs = [
     "quic/tools/quic_backend_response.h",
     "quic/tools/quic_client_base.h",
     "quic/tools/quic_client_factory.h",
+    "quic/tools/quic_event_loop_tools.h",
     "quic/tools/quic_memory_cache_backend.h",
     "quic/tools/quic_name_lookup.h",
     "quic/tools/quic_simple_client_session.h",
@@ -710,6 +711,7 @@ quiche_tool_support_hdrs = [
     "quic/tools/quic_tcp_like_trace_converter.h",
     "quic/tools/quic_url.h",
     "quic/tools/simple_ticket_crypter.h",
+    "quic/tools/web_transport_only_backend.h",
     "quic/tools/web_transport_test_visitors.h",
 ]
 quiche_tool_support_srcs = [
@@ -733,6 +735,7 @@ quiche_tool_support_srcs = [
     "quic/tools/quic_tcp_like_trace_converter.cc",
     "quic/tools/quic_url.cc",
     "quic/tools/simple_ticket_crypter.cc",
+    "quic/tools/web_transport_only_backend.cc",
 ]
 quiche_test_support_hdrs = [
     "common/platform/api/quiche_expect_bug.h",
@@ -1470,6 +1473,8 @@ moqt_hdrs = [
     "quic/moqt/moqt_parser.h",
     "quic/moqt/moqt_session.h",
     "quic/moqt/test_tools/moqt_test_message.h",
+    "quic/moqt/tools/moqt_client.h",
+    "quic/moqt/tools/moqt_server.h",
 ]
 moqt_srcs = [
     "quic/moqt/moqt_framer.cc",
@@ -1479,6 +1484,9 @@ moqt_srcs = [
     "quic/moqt/moqt_parser.cc",
     "quic/moqt/moqt_parser_test.cc",
     "quic/moqt/moqt_session.cc",
+    "quic/moqt/tools/moqt_client.cc",
+    "quic/moqt/tools/moqt_end_to_end_test.cc",
+    "quic/moqt/tools/moqt_server.cc",
 ]
 binary_http_hdrs = [
     "binary_http/binary_http_message.h",

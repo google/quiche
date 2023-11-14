@@ -469,6 +469,9 @@ class QUICHE_EXPORT QuicSpdySession
 
   void OnConfigNegotiated() override;
 
+  // Returns true if the SETTINGS frame has been received from the peer.
+  bool settings_received() const { return settings_received_; }
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to

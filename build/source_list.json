@@ -695,6 +695,7 @@
     "quiche/quic/tools/quic_backend_response.h",
     "quiche/quic/tools/quic_client_base.h",
     "quiche/quic/tools/quic_client_factory.h",
+    "quiche/quic/tools/quic_event_loop_tools.h",
     "quiche/quic/tools/quic_memory_cache_backend.h",
     "quiche/quic/tools/quic_name_lookup.h",
     "quiche/quic/tools/quic_simple_client_session.h",
@@ -709,6 +710,7 @@
     "quiche/quic/tools/quic_tcp_like_trace_converter.h",
     "quiche/quic/tools/quic_url.h",
     "quiche/quic/tools/simple_ticket_crypter.h",
+    "quiche/quic/tools/web_transport_only_backend.h",
     "quiche/quic/tools/web_transport_test_visitors.h"
   ],
   "quiche_tool_support_srcs": [
@@ -731,7 +733,8 @@
     "quiche/quic/tools/quic_spdy_client_base.cc",
     "quiche/quic/tools/quic_tcp_like_trace_converter.cc",
     "quiche/quic/tools/quic_url.cc",
-    "quiche/quic/tools/simple_ticket_crypter.cc"
+    "quiche/quic/tools/simple_ticket_crypter.cc",
+    "quiche/quic/tools/web_transport_only_backend.cc"
   ],
   "quiche_test_support_hdrs": [
     "quiche/common/platform/api/quiche_expect_bug.h",
@@ -1472,7 +1475,9 @@
     "quiche/quic/moqt/moqt_messages.h",
     "quiche/quic/moqt/moqt_parser.h",
     "quiche/quic/moqt/moqt_session.h",
-    "quiche/quic/moqt/test_tools/moqt_test_message.h"
+    "quiche/quic/moqt/test_tools/moqt_test_message.h",
+    "quiche/quic/moqt/tools/moqt_client.h",
+    "quiche/quic/moqt/tools/moqt_server.h"
   ],
   "moqt_srcs": [
     "quiche/quic/moqt/moqt_framer.cc",
@@ -1481,7 +1486,10 @@
     "quiche/quic/moqt/moqt_messages.cc",
     "quiche/quic/moqt/moqt_parser.cc",
     "quiche/quic/moqt/moqt_parser_test.cc",
-    "quiche/quic/moqt/moqt_session.cc"
+    "quiche/quic/moqt/moqt_session.cc",
+    "quiche/quic/moqt/tools/moqt_client.cc",
+    "quiche/quic/moqt/tools/moqt_end_to_end_test.cc",
+    "quiche/quic/moqt/tools/moqt_server.cc"
   ],
   "binary_http_hdrs": [
     "quiche/binary_http/binary_http_message.h"

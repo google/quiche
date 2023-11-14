@@ -16,9 +16,14 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace moqt {
+
+inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
+  return quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::RFCv1()};
+}
 
 enum class MoqtVersion : uint64_t {
   kDraft01 = 0xff000001,

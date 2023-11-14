@@ -27,6 +27,18 @@ using ::quic::simulator::Simulator;
 using ::testing::_;
 using ::testing::Assign;
 
+struct MockSessionCallbacks {
+  testing::MockFunction<void()> session_established_callback;
+  testing::MockFunction<void(absl::string_view)> session_terminated_callback;
+  testing::MockFunction<void()> session_deleted_callback;
+
+  MoqtSessionCallbacks AsSessionCallbacks() {
+    return MoqtSessionCallbacks{session_established_callback.AsStdFunction(),
+                                session_terminated_callback.AsStdFunction(),
+                                session_deleted_callback.AsStdFunction()};
+  }
+};
+
 class ClientEndpoint : public quic::simulator::QuicEndpointWithConnection {
  public:
   ClientEndpoint(Simulator* simulator, const std::string& name,
@@ -44,23 +56,21 @@ class ClientEndpoint : public quic::simulator::QuicEndpointWithConnection {
             MoqtSessionParameters{.version = version,
                                   .perspective = quic::Perspective::IS_CLIENT,
                                   .using_webtrans = false},
-            established_callback_.AsStdFunction(),
-            terminated_callback_.AsStdFunction()) {
+            callbacks_.AsSessionCallbacks()) {
     quic_session_.Initialize();
   }
 
   MoqtSession* session() { return &session_; }
   quic::QuicGenericClientSession* quic_session() { return &quic_session_; }
   testing::MockFunction<void()>& established_callback() {
-    return established_callback_;
+    return callbacks_.session_established_callback;
   }
   testing::MockFunction<void(absl::string_view)>& terminated_callback() {
-    return terminated_callback_;
+    return callbacks_.session_terminated_callback;
   }
 
  private:
-  testing::MockFunction<void()> established_callback_;
-  testing::MockFunction<void(absl::string_view)> terminated_callback_;
+  MockSessionCallbacks callbacks_;
   quic::QuicCryptoClientConfig crypto_config_;
   quic::QuicGenericClientSession quic_session_;
   MoqtSession session_;
@@ -88,22 +98,20 @@ class ServerEndpoint : public quic::simulator::QuicEndpointWithConnection {
             MoqtSessionParameters{.version = version,
                                   .perspective = quic::Perspective::IS_SERVER,
                                   .using_webtrans = false},
-            established_callback_.AsStdFunction(),
-            terminated_callback_.AsStdFunction()) {
+            callbacks_.AsSessionCallbacks()) {
     quic_session_.Initialize();
   }
 
   MoqtSession* session() { return &session_; }
   testing::MockFunction<void()>& established_callback() {
-    return established_callback_;
+    return callbacks_.session_established_callback;
   }
   testing::MockFunction<void(absl::string_view)>& terminated_callback() {
-    return terminated_callback_;
+    return callbacks_.session_terminated_callback;
   }
 
  private:
-  testing::MockFunction<void()> established_callback_;
-  testing::MockFunction<void(absl::string_view)> terminated_callback_;
+  MockSessionCallbacks callbacks_;
   quic::QuicCompressedCertsCache compressed_certs_cache_;
   quic::QuicCryptoServerConfig crypto_config_;
   quic::QuicGenericServerSession quic_session_;
