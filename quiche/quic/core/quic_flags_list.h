@@ -69,6 +69,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_colon_invalid_in_header_name, true)
 QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
 // If true, dispatcher sends error code QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG when handshake fails due to packets buffered for too long.
 QUIC_FLAG(quic_reloadable_flag_quic_new_error_code_when_packets_buffered_too_long, true)
+// If true, do not return from QuicSpdyClientStream::OnBodyAvailable() if visitor is nullptr.
+QUIC_FLAG(quic_reloadable_flag_quic_skip_return_on_null_visitor, true)
 // If true, do not send MAX_STREAM frames if there are already 2 outstanding.
 QUIC_FLAG(quic_reloadable_flag_quic_limit_sending_max_streams2, false)
 // If true, enable server retransmittable on wire PING.
