@@ -263,6 +263,9 @@ class QUICHE_EXPORT QuicConnectionVisitorInterface {
 
   // Asks session to bundle data opportunistically with outgoing data.
   virtual void MaybeBundleOpportunistically() = 0;
+
+  // Get from session the flow control send window for stream |id|.
+  virtual QuicByteCount GetFlowControlSendWindowSize(QuicStreamId id) = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting
@@ -728,6 +731,9 @@ class QUICHE_EXPORT QuicConnection
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
   void MaybeBundleOpportunistically() override;
+  QuicByteCount GetFlowControlSendWindowSize(QuicStreamId id) override {
+    return visitor_->GetFlowControlSendWindowSize(id);
+  }
   QuicPacketBuffer GetPacketBuffer() override;
   void OnSerializedPacket(SerializedPacket packet) override;
   void OnUnrecoverableError(QuicErrorCode error,

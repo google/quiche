@@ -2428,6 +2428,16 @@ HandshakeState QuicSession::GetHandshakeState() const {
   return GetCryptoStream()->GetHandshakeState();
 }
 
+QuicByteCount QuicSession::GetFlowControlSendWindowSize(QuicStreamId id) {
+  QuicStream* stream = GetActiveStream(id);
+  if (stream == nullptr) {
+    // No flow control for invalid or inactive stream ids. Returning uint64max
+    // allows QuicPacketCreator to write as much data as possible.
+    return std::numeric_limits<QuicByteCount>::max();
+  }
+  return stream->CalculateSendWindowSize();
+}
+
 WriteStreamDataResult QuicSession::WriteStreamData(QuicStreamId id,
                                                    QuicStreamOffset offset,
                                                    QuicByteCount data_length,

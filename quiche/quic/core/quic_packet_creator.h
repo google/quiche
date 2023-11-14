@@ -64,6 +64,14 @@ class QUICHE_EXPORT QuicPacketCreator {
     // anything with to-be-sent data.
     virtual void MaybeBundleOpportunistically() = 0;
 
+    // When sending flow controlled data, this will be called after
+    // MaybeBundleOpportunistically(). If the returned flow control send window
+    // is smaller than data's write_length, write_length will be adjusted
+    // acccordingly.
+    // If the delegate has no notion of flow control, it should return
+    // std::numeric_limit<QuicByteCount>::max().
+    virtual QuicByteCount GetFlowControlSendWindowSize(QuicStreamId id) = 0;
+
     // Returns the packet fate for serialized packets which will be handed over
     // to delegate via OnSerializedPacket(). Called when a packet is about to be
     // serialized.

@@ -509,6 +509,8 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, OnServerPreferredAddressAvailable,
               (const QuicSocketAddress&), (override));
   MOCK_METHOD(void, MaybeBundleOpportunistically, (), (override));
+  MOCK_METHOD(QuicByteCount, GetFlowControlSendWindowSize, (QuicStreamId),
+              (override));
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {
@@ -1406,6 +1408,8 @@ class MockPacketCreatorDelegate : public QuicPacketCreator::DelegateInterface {
               (HasRetransmittableData retransmittable, IsHandshake handshake),
               (override));
   MOCK_METHOD(void, MaybeBundleOpportunistically, (), (override));
+  MOCK_METHOD(QuicByteCount, GetFlowControlSendWindowSize, (QuicStreamId),
+              (override));
   MOCK_METHOD(SerializedPacketFate, GetSerializedPacketFate,
               (bool, EncryptionLevel), (override));
 };

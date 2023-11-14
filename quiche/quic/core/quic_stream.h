@@ -390,6 +390,10 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
     stream_contributes_to_connection_flow_control_ = false;
   }
 
+  // Returns the min of stream level flow control window size and connection
+  // level flow control window size.
+  QuicByteCount CalculateSendWindowSize() const;
+
  protected:
   // Called when data of [offset, offset + data_length] is buffered in send
   // buffer.
@@ -474,7 +478,7 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // RFC 9000.
   virtual void OnWriteSideInDataRecvdState() {}
 
-  // Return the current flow control send window in bytes.
+  // Return the current stream-level flow control send window in bytes.
   std::optional<QuicByteCount> GetSendWindow() const;
   std::optional<QuicByteCount> GetReceiveWindow() const;
 
@@ -496,10 +500,6 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
 
   // Write buffered data (in send buffer) at |level|.
   void WriteBufferedData(EncryptionLevel level);
-
-  // Returns the min of stream level flow control window size and connection
-  // level flow control window size.
-  QuicByteCount CalculateSendWindowSize() const;
 
   // Called when bytes are sent to the peer.
   void AddBytesSent(QuicByteCount bytes);

@@ -143,6 +143,11 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
 
   void MaybeBundleOpportunistically() override { QUICHE_DCHECK(false); }
 
+  QuicByteCount GetFlowControlSendWindowSize(QuicStreamId /*id*/) override {
+    QUICHE_DCHECK(false);
+    return std::numeric_limits<QuicByteCount>::max();
+  }
+
   SerializedPacketFate GetSerializedPacketFate(
       bool /*is_mtu_discovery*/,
       EncryptionLevel /*encryption_level*/) override {

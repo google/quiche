@@ -1313,6 +1313,26 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
          "generator tries to write stream data.";
   bool has_handshake = QuicUtils::IsCryptoStreamId(transport_version(), id);
   delegate_->MaybeBundleOpportunistically();
+  // If the data being consumed is subject to flow control, check the flow
+  // control send window to see if |write_length| exceeds the send window after
+  // bundling opportunistic data, if so, reduce |write_length| to the send
+  // window size.
+  // The data being consumed is subject to flow control iff
+  // - It is not a retransmission. We check next_transmission_type_ for that.
+  // - And it's not handshake data. This is always true for ConsumeData because
+  //   the function is not called for handshake data.
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data2) &&
+      next_transmission_type_ == NOT_RETRANSMISSION) {
+    if (QuicByteCount send_window = delegate_->GetFlowControlSendWindowSize(id);
+        write_length > send_window) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data2, 4, 4);
+      QUIC_DLOG(INFO) << ENDPOINT
+                      << "After bundled data, reducing (old) write_length:"
+                      << write_length << "to (new) send_window:" << send_window;
+      write_length = send_window;
+      state = NO_FIN;
+    }
+  }
   bool fin = state != NO_FIN;
   QUIC_BUG_IF(quic_bug_12398_17, has_handshake && fin)
       << ENDPOINT << "Handshake packets should never send a fin";

@@ -42,6 +42,7 @@
 
 using testing::_;
 using testing::Invoke;
+using testing::Return;
 
 namespace quic {
 namespace test {
@@ -449,7 +450,10 @@ bool NoOpFramerVisitor::IsValidStatelessResetToken(
   return false;
 }
 
-MockQuicConnectionVisitor::MockQuicConnectionVisitor() {}
+MockQuicConnectionVisitor::MockQuicConnectionVisitor() {
+  ON_CALL(*this, GetFlowControlSendWindowSize(_))
+      .WillByDefault(Return(std::numeric_limits<QuicByteCount>::max()));
+}
 
 MockQuicConnectionVisitor::~MockQuicConnectionVisitor() {}
 

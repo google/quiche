@@ -2477,6 +2477,8 @@ class MockDelegate : public QuicPacketCreator::DelegateInterface {
               (HasRetransmittableData retransmittable, IsHandshake handshake),
               (override));
   MOCK_METHOD(void, MaybeBundleOpportunistically, (), (override));
+  MOCK_METHOD(QuicByteCount, GetFlowControlSendWindowSize, (QuicStreamId),
+              (override));
   MOCK_METHOD(QuicPacketBuffer, GetPacketBuffer, (), (override));
   MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket), (override));
   MOCK_METHOD(void, OnUnrecoverableError, (QuicErrorCode, const std::string&),
@@ -2616,6 +2618,8 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
         .WillRepeatedly(Return(QuicPacketBuffer()));
     EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
         .WillRepeatedly(Return(SEND_TO_WRITER));
+    EXPECT_CALL(delegate_, GetFlowControlSendWindowSize(_))
+        .WillRepeatedly(Return(std::numeric_limits<QuicByteCount>::max()));
     creator_.SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
@@ -2848,6 +2852,61 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   EXPECT_EQ(0u, consumed_bytes);
   EXPECT_FALSE(creator_.HasPendingFrames());
   EXPECT_FALSE(creator_.HasPendingRetransmittableFrames());
+}
+
+// Tests the case that after bundling data, send window reduced to be shorter
+// than data.
+TEST_F(QuicPacketCreatorMultiplePacketsTest,
+       ConsumeDataAdjustWriteLengthAfterBundledData) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  creator_.SetTransmissionType(NOT_RETRANSMISSION);
+  delegate_.SetCanWriteAnything();
+
+  const std::string data(1000, 'D');
+  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      framer_.transport_version(), Perspective::IS_CLIENT);
+
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data2)) {
+    EXPECT_CALL(delegate_, GetFlowControlSendWindowSize(stream_id))
+        .WillOnce(Return(data.length() - 1));
+  } else {
+    EXPECT_CALL(delegate_, GetFlowControlSendWindowSize(_)).Times(0);
+  }
+
+  QuicConsumedData consumed = creator_.ConsumeData(stream_id, data, 0u, FIN);
+
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data2)) {
+    EXPECT_EQ(consumed.bytes_consumed, data.length() - 1);
+    EXPECT_FALSE(consumed.fin_consumed);
+  } else {
+    EXPECT_EQ(consumed.bytes_consumed, data.length());
+    EXPECT_TRUE(consumed.fin_consumed);
+  }
+}
+
+// Tests the case that after bundling data, send window is exactly as big as
+// data length.
+TEST_F(QuicPacketCreatorMultiplePacketsTest,
+       ConsumeDataDoesNotAdjustWriteLengthAfterBundledData) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  creator_.SetTransmissionType(NOT_RETRANSMISSION);
+  delegate_.SetCanWriteAnything();
+
+  const std::string data(1000, 'D');
+  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      framer_.transport_version(), Perspective::IS_CLIENT);
+
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data2)) {
+    EXPECT_CALL(delegate_, GetFlowControlSendWindowSize(stream_id))
+        .WillOnce(Return(data.length()));
+  } else {
+    EXPECT_CALL(delegate_, GetFlowControlSendWindowSize(_)).Times(0);
+  }
+
+  QuicConsumedData consumed = creator_.ConsumeData(stream_id, data, 0u, FIN);
+
+  EXPECT_EQ(consumed.bytes_consumed, data.length());
+  EXPECT_TRUE(consumed.fin_consumed);
 }
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_NotWritable) {
