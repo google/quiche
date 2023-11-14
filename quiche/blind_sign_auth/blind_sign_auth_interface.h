@@ -15,6 +15,12 @@
 
 namespace quiche {
 
+// ProxyLayer indicates which proxy layer that tokens will be used with.
+enum class ProxyLayer : int {
+  kProxyA,
+  kProxyB,
+};
+
 // A BlindSignToken is used to authenticate a request to a privacy proxy.
 // The token string contains a serialized SpendTokenData proto.
 // The token cannot be successfully redeemed after the expiration time.
@@ -33,6 +39,7 @@ class QUICHE_EXPORT BlindSignAuthInterface {
 
   // Returns signed unblinded tokens in a callback. Tokens are single-use.
   virtual void GetTokens(std::string oauth_token, int num_tokens,
+                         ProxyLayer proxy_layer,
                          SignedTokenCallback callback) = 0;
 };
 

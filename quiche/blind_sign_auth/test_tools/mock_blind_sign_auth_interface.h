@@ -17,7 +17,7 @@ class QUICHE_NO_EXPORT MockBlindSignAuthInterface
     : public BlindSignAuthInterface {
  public:
   MOCK_METHOD(void, GetTokens,
-              (std::string oauth_token, int num_tokens,
+              (std::string oauth_token, int num_tokens, ProxyLayer proxy_layer,
                SignedTokenCallback callback),
               (override));
 };

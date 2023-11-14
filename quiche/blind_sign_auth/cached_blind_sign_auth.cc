@@ -23,6 +23,7 @@ namespace quiche {
 constexpr absl::Duration kFreshnessConstant = absl::Minutes(5);
 
 void CachedBlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
+                                    ProxyLayer proxy_layer,
                                     SignedTokenCallback callback) {
   if (num_tokens > max_tokens_per_request_) {
     std::move(callback)(absl::InvalidArgumentError(
@@ -57,7 +58,7 @@ void CachedBlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
       absl::bind_front(&CachedBlindSignAuth::HandleGetTokensResponse, this,
                        std::move(callback), num_tokens);
   blind_sign_auth_->GetTokens(oauth_token, kBlindSignAuthRequestMaxTokens,
-                              std::move(caching_callback));
+                              proxy_layer, std::move(caching_callback));
 }
 
 void CachedBlindSignAuth::HandleGetTokensResponse(

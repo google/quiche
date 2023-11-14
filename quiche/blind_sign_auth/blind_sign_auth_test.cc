@@ -16,10 +16,10 @@
 #include "absl/time/time.h"
 #include "anonymous_tokens/cpp/crypto/crypto_utils.h"
 #include "anonymous_tokens/cpp/privacy_pass/token_encodings.h"
-#include "anonymous_tokens/cpp/testing/proto_utils.h"
 #include "anonymous_tokens/cpp/testing/utils.h"
 #include "openssl/base.h"
 #include "openssl/digest.h"
+#include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
 #include "quiche/blind_sign_auth/blind_sign_http_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
@@ -79,6 +79,8 @@ class BlindSignAuthTest : public QuicheTest {
     expected_get_initial_data_request_.set_service_type("chromeipblinding");
     expected_get_initial_data_request_.set_location_granularity(
         privacy::ppn::GetInitialDataRequest_LocationGranularity_CITY_GEOS);
+    expected_get_initial_data_request_.set_validation_version(2);
+    expected_get_initial_data_request_.set_proxy_layer(privacy::ppn::PROXY_A);
 
     // Create fake GetInitialDataResponse.
     privacy::ppn::GetInitialDataResponse fake_get_initial_data_response;
@@ -144,6 +146,14 @@ class BlindSignAuthTest : public QuicheTest {
         debug_mode_extension = debug_mode.AsExtension();
     QUICHE_EXPECT_OK(debug_mode_extension);
     extensions_.extensions.push_back(*debug_mode_extension);
+
+    anonymous_tokens::ProxyLayer proxy_layer;
+    proxy_layer.layer =
+        anonymous_tokens::ProxyLayer::kProxyA;
+    absl::StatusOr<anonymous_tokens::Extension>
+        proxy_layer_extension = proxy_layer.AsExtension();
+    QUICHE_EXPECT_OK(proxy_layer_extension);
+    extensions_.extensions.push_back(*proxy_layer_extension);
 
     absl::StatusOr<std::string> serialized_extensions =
         anonymous_tokens::EncodeExtensions(extensions_);
@@ -308,7 +318,8 @@ TEST_F(BlindSignAuthTest, TestGetTokensSuccessful) {
         ValidateGetTokensOutput(*tokens);
         done.Notify();
       };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              std::move(callback));
   done.WaitForNotification();
 }
 
@@ -333,7 +344,8 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
         done.Notify();
       };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              std::move(callback));
   done.WaitForNotification();
 }
 
@@ -364,7 +376,8 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadGetInitialDataResponse) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);
         done.Notify();
       };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              std::move(callback));
   done.WaitForNotification();
 }
 
@@ -406,7 +419,8 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
         done.Notify();
       };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              std::move(callback));
   done.WaitForNotification();
 }
 
@@ -457,7 +471,8 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
         ValidatePrivacyPassTokensOutput(*tokens);
         done.Notify();
       };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              std::move(callback));
   done.WaitForNotification();
 }
 
@@ -493,7 +508,8 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensFailsWithBadExtensions) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);
         done.Notify();
       };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, std::move(callback));
+  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              std::move(callback));
   done.WaitForNotification();
 }
 

@@ -36,20 +36,26 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   // BlindSignHttpInterface callbacks.
   // Callers can make multiple concurrent requests to GetTokens.
   void GetTokens(std::string oauth_token, int num_tokens,
-                 SignedTokenCallback callback) override;
+                 ProxyLayer proxy_layer, SignedTokenCallback callback) override;
+
+  // Returns signed unblinded tokens and their expiration time in a callback.
+  // This function sends ProxyLayer::kProxyA by default for compatibility.
+  void GetTokens(std::string oauth_token, int num_tokens,
+                 SignedTokenCallback callback);
 
  private:
   void GetInitialDataCallback(std::string oauth_token, int num_tokens,
+                              ProxyLayer proxy_layer,
                               SignedTokenCallback callback,
                               absl::StatusOr<BlindSignHttpResponse> response);
   void GeneratePrivacyPassTokens(
       privacy::ppn::GetInitialDataResponse initial_data_response,
       absl::Time public_metadata_expiry_time, std::string oauth_token,
-      int num_tokens, SignedTokenCallback callback);
+      int num_tokens, ProxyLayer proxy_layer, SignedTokenCallback callback);
   void GenerateRsaBssaTokens(
       privacy::ppn::GetInitialDataResponse initial_data_response,
       absl::Time public_metadata_expiry_time, std::string oauth_token,
-      int num_tokens, SignedTokenCallback callback);
+      int num_tokens, ProxyLayer proxy_layer, SignedTokenCallback callback);
   void AuthAndSignCallback(
       privacy::ppn::PublicMetadataInfo public_metadata_info,
       absl::Time public_key_expiry_time,
@@ -71,6 +77,8 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   absl::Status FingerprintPublicMetadata(
       const privacy::ppn::PublicMetadata& metadata, uint64_t* fingerprint);
   absl::StatusCode HttpCodeToStatusCode(int http_code);
+  privacy::ppn::ProxyLayer QuicheProxyLayerToPpnProxyLayer(
+      quiche::ProxyLayer proxy_layer);
 
   BlindSignHttpInterface* http_fetcher_ = nullptr;
   privacy::ppn::BlindSignAuthOptions auth_options_;

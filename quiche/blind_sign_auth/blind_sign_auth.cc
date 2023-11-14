@@ -25,7 +25,9 @@
 #include "anonymous_tokens/cpp/privacy_pass/rsa_bssa_public_metadata_client.h"
 #include "anonymous_tokens/cpp/privacy_pass/token_encodings.h"
 #include "anonymous_tokens/cpp/shared/proto_utils.h"
+#include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
+#include "quiche/blind_sign_auth/blind_sign_http_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
@@ -46,24 +48,34 @@ constexpr absl::string_view kIssuerHostname =
 
 void BlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
                               SignedTokenCallback callback) {
+  GetTokens(oauth_token, num_tokens, ProxyLayer::kProxyA, std::move(callback));
+}
+
+void BlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
+                              ProxyLayer proxy_layer,
+                              SignedTokenCallback callback) {
   // Create GetInitialData RPC.
   privacy::ppn::GetInitialDataRequest request;
   request.set_use_attestation(false);
   request.set_service_type("chromeipblinding");
   request.set_location_granularity(
       privacy::ppn::GetInitialDataRequest_LocationGranularity_CITY_GEOS);
+  // Validation version must be 2 to use ProxyLayer.
+  request.set_validation_version(2);
+  request.set_proxy_layer(QuicheProxyLayerToPpnProxyLayer(proxy_layer));
 
   // Call GetInitialData on the HttpFetcher.
   std::string body = request.SerializeAsString();
-  BlindSignHttpCallback initial_data_callback =
-      absl::bind_front(&BlindSignAuth::GetInitialDataCallback, this,
-                       oauth_token, num_tokens, std::move(callback));
+  BlindSignHttpCallback initial_data_callback = absl::bind_front(
+      &BlindSignAuth::GetInitialDataCallback, this, oauth_token, num_tokens,
+      proxy_layer, std::move(callback));
   http_fetcher_->DoRequest(BlindSignHttpRequestType::kGetInitialData,
                            oauth_token, body, std::move(initial_data_callback));
 }
 
 void BlindSignAuth::GetInitialDataCallback(
-    std::string oauth_token, int num_tokens, SignedTokenCallback callback,
+    std::string oauth_token, int num_tokens, ProxyLayer proxy_layer,
+    SignedTokenCallback callback,
     absl::StatusOr<BlindSignHttpResponse> response) {
   if (!response.ok()) {
     QUICHE_LOG(WARNING) << "GetInitialDataRequest failed: "
@@ -107,11 +119,11 @@ void BlindSignAuth::GetInitialDataCallback(
     QUICHE_DVLOG(1) << "Using Privacy Pass client";
     GeneratePrivacyPassTokens(
         initial_data_response, *public_metadata_expiry_time,
-        std::move(oauth_token), num_tokens, std::move(callback));
+        std::move(oauth_token), num_tokens, proxy_layer, std::move(callback));
   } else {
     QUICHE_DVLOG(1) << "Using public metadata client";
     GenerateRsaBssaTokens(initial_data_response, *public_metadata_expiry_time,
-                          std::move(oauth_token), num_tokens,
+                          std::move(oauth_token), num_tokens, proxy_layer,
                           std::move(callback));
   }
 }
@@ -119,7 +131,7 @@ void BlindSignAuth::GetInitialDataCallback(
 void BlindSignAuth::GeneratePrivacyPassTokens(
     privacy::ppn::GetInitialDataResponse initial_data_response,
     absl::Time public_metadata_expiry_time, std::string oauth_token,
-    int num_tokens, SignedTokenCallback callback) {
+    int num_tokens, ProxyLayer proxy_layer, SignedTokenCallback callback) {
   // Set up values used in the token generation loop.
   anonymous_tokens::RSAPublicKey public_key_proto;
   if (!public_key_proto.ParseFromString(
@@ -148,7 +160,7 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
   }
   std::vector<uint16_t> kExpectedExtensionTypes = {
       /*ExpirationTimestamp=*/0x0001, /*GeoHint=*/0x0002,
-      /*ServiceType=*/0xF001, /*DebugMode=*/0xF002};
+      /*ServiceType=*/0xF001, /*DebugMode=*/0xF002, /*ProxyLayer=*/0xF003};
   absl::Status result =
       anonymous_tokens::ValidateExtensionsOrderAndValues(
           *extensions, absl::MakeSpan(kExpectedExtensionTypes), absl::Now());
@@ -224,6 +236,7 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
       initial_data_response.privacy_pass_data().public_metadata_extensions());
   // TODO(b/295924807): deprecate this option after AT server defaults to it
   sign_request.set_do_not_use_rsa_public_exponent(true);
+  sign_request.set_proxy_layer(QuicheProxyLayerToPpnProxyLayer(proxy_layer));
 
   absl::StatusOr<anonymous_tokens::AnonymousTokensUseCase>
       use_case = anonymous_tokens::ParseUseCase(
@@ -249,7 +262,7 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
 void BlindSignAuth::GenerateRsaBssaTokens(
     privacy::ppn::GetInitialDataResponse initial_data_response,
     absl::Time public_metadata_expiry_time, std::string oauth_token,
-    int num_tokens, SignedTokenCallback callback) {
+    int num_tokens, ProxyLayer proxy_layer, SignedTokenCallback callback) {
   // Create public metadata client.
   auto bssa_client =
       anonymous_tokens::AnonymousTokensRsaBssaClient::
@@ -316,6 +329,7 @@ void BlindSignAuth::GenerateRsaBssaTokens(
   }
   // TODO(b/295924807): deprecate this option after AT server defaults to it
   sign_request.set_do_not_use_rsa_public_exponent(true);
+  sign_request.set_proxy_layer(QuicheProxyLayerToPpnProxyLayer(proxy_layer));
 
   privacy::ppn::PublicMetadataInfo public_metadata_info =
       initial_data_response.public_metadata_info();
@@ -590,6 +604,18 @@ absl::StatusCode BlindSignAuth::HttpCodeToStatusCode(int http_code) {
     return absl::StatusCode::kInternal;
   }
   return absl::StatusCode::kUnknown;
+}
+
+privacy::ppn::ProxyLayer BlindSignAuth::QuicheProxyLayerToPpnProxyLayer(
+    quiche::ProxyLayer proxy_layer) {
+  switch (proxy_layer) {
+    case ProxyLayer::kProxyA: {
+      return privacy::ppn::ProxyLayer::PROXY_A;
+    }
+    case ProxyLayer::kProxyB: {
+      return privacy::ppn::ProxyLayer::PROXY_B;
+    }
+  }
 }
 
 }  // namespace quiche
