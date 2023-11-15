@@ -391,6 +391,10 @@ class QUICHE_EXPORT CapsuleParser {
 QUICHE_EXPORT quiche::QuicheBuffer SerializeCapsule(
     const Capsule& capsule, quiche::QuicheBufferAllocator* allocator);
 
+// Serializes the header for a datagram of size |datagram_size|.
+QUICHE_EXPORT QuicheBuffer SerializeDatagramCapsuleHeader(
+    uint64_t datagram_size, QuicheBufferAllocator* allocator);
+
 }  // namespace quiche
 
 #endif  // QUICHE_COMMON_CAPSULE_H_

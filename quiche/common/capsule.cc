@@ -4,8 +4,13 @@
 
 #include "quiche/common/capsule.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <ostream>
+#include <string>
 #include <type_traits>
+#include <utility>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -348,6 +353,17 @@ absl::StatusOr<quiche::QuicheBuffer> SerializeCapsuleWithStatus(
           capsule.capsule_type(), allocator,
           WireBytes(capsule.unknown_capsule().payload));
   }
+}
+
+QuicheBuffer SerializeDatagramCapsuleHeader(uint64_t datagram_size,
+                                            QuicheBufferAllocator* allocator) {
+  absl::StatusOr<QuicheBuffer> buffer =
+      SerializeIntoBuffer(allocator, WireVarInt62(CapsuleType::DATAGRAM),
+                          WireVarInt62(datagram_size));
+  if (!buffer.ok()) {
+    return QuicheBuffer();
+  }
+  return *std::move(buffer);
 }
 
 QuicheBuffer SerializeCapsule(const Capsule& capsule,

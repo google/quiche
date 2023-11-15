@@ -24,6 +24,8 @@
 
 namespace webtransport {
 
+enum class Perspective { kClient, kServer };
+
 // A numeric ID uniquely identifying a WebTransport stream. Note that by design,
 // those IDs are not available in the Web API, and the IDs do not necessarily
 // match between client and server perspective, since there may be a proxy
