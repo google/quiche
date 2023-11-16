@@ -478,6 +478,7 @@ void TlsClientHandshaker::OnHandshakeConfirmed() {
     return;
   }
   state_ = HANDSHAKE_CONFIRMED;
+  handshaker_delegate()->OnTlsHandshakeConfirmed();
   handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
   handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
 }

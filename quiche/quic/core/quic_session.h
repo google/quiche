@@ -317,6 +317,7 @@ class QUICHE_EXPORT QuicSession
       EncryptionLevel level, std::unique_ptr<QuicEncrypter> encrypter) override;
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
   void OnTlsHandshakeComplete() override;
+  void OnTlsHandshakeConfirmed() override {}
   void DiscardOldDecryptionKey(EncryptionLevel level) override;
   void DiscardOldEncryptionKey(EncryptionLevel level) override;
   void NeuterUnencryptedData() override;

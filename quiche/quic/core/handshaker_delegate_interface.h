@@ -37,6 +37,10 @@ class QUICHE_EXPORT HandshakerDelegateInterface {
   // handshake.
   virtual void OnTlsHandshakeComplete() = 0;
 
+  // Called on the client side when handshake state change to
+  // HANDSHAKE_CONFIRMED. Only used in TLS handshake.
+  virtual void OnTlsHandshakeConfirmed() = 0;
+
   // Called to discard old decryption keys to stop processing packets of
   // encryption |level|.
   virtual void DiscardOldDecryptionKey(EncryptionLevel level) = 0;
