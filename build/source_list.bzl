@@ -698,7 +698,6 @@ quiche_tool_support_hdrs = [
     "quic/tools/quic_backend_response.h",
     "quic/tools/quic_client_base.h",
     "quic/tools/quic_client_factory.h",
-    "quic/tools/quic_event_loop_tools.h",
     "quic/tools/quic_memory_cache_backend.h",
     "quic/tools/quic_name_lookup.h",
     "quic/tools/quic_simple_client_session.h",
@@ -992,6 +991,7 @@ io_tool_support_hdrs = [
     "quic/tools/quic_client_default_network_helper.h",
     "quic/tools/quic_default_client.h",
     "quic/tools/quic_epoll_client_factory.h",
+    "quic/tools/quic_event_loop_tools.h",
     "quic/tools/quic_server.h",
 ]
 io_tool_support_srcs = [
