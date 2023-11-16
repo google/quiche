@@ -5,9 +5,13 @@
 #include "quiche/common/structured_headers.h"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_set.h"
@@ -574,12 +578,9 @@ class StructuredHeaderSerializer {
     }
     if (value.is_token()) {
       // Serializes a Token ([RFC8941] 4.1.7).
-      if (value.GetString().empty() ||
-          !(absl::ascii_isalpha(value.GetString().front()) ||
-            value.GetString().front() == '*'))
+      if (!IsValidToken(value.GetString())) {
         return false;
-      if (value.GetString().find_first_not_of(kTokenChars) != std::string::npos)
-        return false;
+      }
       output_ << value.GetString();
       return true;
     }
@@ -719,6 +720,38 @@ class StructuredHeaderSerializer {
 };
 
 }  // namespace
+
+absl::string_view ItemTypeToString(Item::ItemType type) {
+  switch (type) {
+    case Item::kNullType:
+      return "null";
+    case Item::kIntegerType:
+      return "integer";
+    case Item::kDecimalType:
+      return "decimal";
+    case Item::kStringType:
+      return "string";
+    case Item::kTokenType:
+      return "token";
+    case Item::kByteSequenceType:
+      return "byte sequence";
+    case Item::kBooleanType:
+      return "boolean";
+  }
+  return "[invalid type]";
+}
+
+bool IsValidToken(absl::string_view str) {
+  // Validate Token value per [RFC8941] 4.1.7.
+  if (str.empty() ||
+      !(absl::ascii_isalpha(str.front()) || str.front() == '*')) {
+    return false;
+  }
+  if (str.find_first_not_of(kTokenChars) != std::string::npos) {
+    return false;
+  }
+  return true;
+}
 
 Item::Item() {}
 Item::Item(std::string value, Item::ItemType type) {

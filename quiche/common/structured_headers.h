@@ -5,7 +5,8 @@
 #ifndef QUICHE_COMMON_STRUCTURED_HEADERS_H_
 #define QUICHE_COMMON_STRUCTURED_HEADERS_H_
 
-#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
@@ -140,6 +141,12 @@ class QUICHE_EXPORT Item {
                 std::string, bool>
       value_;
 };
+
+// Returns a human-readable representation of an ItemType.
+QUICHE_EXPORT absl::string_view ItemTypeToString(Item::ItemType type);
+
+// Returns `true` if the string is a valid Token value.
+QUICHE_EXPORT bool IsValidToken(absl::string_view str);
 
 // Holds a ParameterizedIdentifier (draft 9 only). The contained Item must be a
 // Token, and there may be any number of parameters. Parameter ordering is not

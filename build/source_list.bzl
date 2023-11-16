@@ -394,6 +394,7 @@ quiche_core_hdrs = [
     "web_transport/complete_buffer_visitor.h",
     "web_transport/encapsulated/encapsulated_web_transport.h",
     "web_transport/web_transport.h",
+    "web_transport/web_transport_headers.h",
 ]
 quiche_core_srcs = [
     "common/capsule.cc",
@@ -682,6 +683,7 @@ quiche_core_srcs = [
     "spdy/core/spdy_protocol.cc",
     "web_transport/complete_buffer_visitor.cc",
     "web_transport/encapsulated/encapsulated_web_transport.cc",
+    "web_transport/web_transport_headers.cc",
 ]
 quiche_tool_support_hdrs = [
     "common/platform/api/quiche_command_line_flags.h",
@@ -1307,6 +1309,7 @@ quiche_tests_srcs = [
     "spdy/core/spdy_prefixed_buffer_reader_test.cc",
     "spdy/core/spdy_protocol_test.cc",
     "web_transport/encapsulated/encapsulated_web_transport_test.cc",
+    "web_transport/web_transport_headers_test.cc",
 ]
 io_tests_hdrs = [
 ]
