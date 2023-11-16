@@ -57,5 +57,48 @@ TEST(WebTransportHeaders, SerializeSubprotocolRequestHeader) {
       StatusIs(absl::StatusCode::kInvalidArgument, "Invalid token: 0123"));
 }
 
+TEST(WebTransportHeader, ParseInitHeader) {
+  WebTransportInitHeader expected_header;
+  expected_header.initial_unidi_limit = 100;
+  expected_header.initial_incoming_bidi_limit = 200;
+  expected_header.initial_outgoing_bidi_limit = 400;
+  EXPECT_THAT(ParseInitHeader("br=400, bl=200, u=100"),
+              IsOkAndHolds(expected_header));
+  EXPECT_THAT(ParseInitHeader("br=300, bl=200, u=100, br=400"),
+              IsOkAndHolds(expected_header));
+  EXPECT_THAT(ParseInitHeader("br=400, bl=200; foo=bar, u=100"),
+              IsOkAndHolds(expected_header));
+  EXPECT_THAT(ParseInitHeader("br=400, bl=200, u=100.0"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("found decimal instead")));
+  EXPECT_THAT(ParseInitHeader("br=400, bl=200, u=?1"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("found boolean instead")));
+  EXPECT_THAT(ParseInitHeader("br=400, bl=200, u=(a b)"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("found a nested list instead")));
+  EXPECT_THAT(ParseInitHeader("br=400, bl=200, u=:abcd:"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("found byte sequence instead")));
+  EXPECT_THAT(ParseInitHeader("br=400, bl=200, u=-1"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("negative value")));
+  EXPECT_THAT(ParseInitHeader("br=400, bl=200, u=18446744073709551615"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Failed to parse")));
+}
+
+TEST(WebTransportHeaders, SerializeInitHeader) {
+  EXPECT_THAT(SerializeInitHeader(WebTransportInitHeader{}),
+              IsOkAndHolds("u=0, bl=0, br=0"));
+
+  WebTransportInitHeader test_header;
+  test_header.initial_unidi_limit = 100;
+  test_header.initial_incoming_bidi_limit = 200;
+  test_header.initial_outgoing_bidi_limit = 400;
+  EXPECT_THAT(SerializeInitHeader(test_header),
+              IsOkAndHolds("u=100, bl=200, br=400"));
+}
+
 }  // namespace
 }  // namespace webtransport
