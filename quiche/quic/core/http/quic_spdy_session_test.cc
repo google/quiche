@@ -405,6 +405,7 @@ class TestSession : public QuicSpdySession {
   using QuicSession::closed_streams;
   using QuicSession::pending_streams_size;
   using QuicSession::ShouldKeepConnectionAlive;
+  using QuicSpdySession::settings;
   using QuicSpdySession::UsesPendingStreamForFrame;
 
  private:
@@ -2032,6 +2033,45 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
   session_->OnStreamFrame(data1);
 }
 
+TEST_P(QuicSpdySessionTestClient, ServerDisableQpackDynamicTable) {
+  SetQuicFlag(quic_server_disable_qpack_dynamic_table, true);
+  Initialize();
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  CompleteHandshake();
+
+  // Use an arbitrary stream id for creating the receive control stream.
+  QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+  QuicStreamFrame data1(stream_id, false, 0, absl::string_view(type, 1));
+  session_->OnStreamFrame(data1);
+  EXPECT_EQ(stream_id,
+            QuicSpdySessionPeer::GetReceiveControlStream(&*session_)->id());
+  // Receive the QPACK dynamic table capacity from the peer.
+  const uint64_t capacity = 512;
+  SettingsFrame settings;
+  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = capacity;
+  std::string data = HttpEncoder::SerializeSettingsFrame(settings);
+  QuicStreamFrame frame(stream_id, false, 1, data);
+  session_->OnStreamFrame(frame);
+
+  // Verify that the encoder's dynamic table capacity is limited to the
+  // peer's value.
+  QpackEncoder* qpack_encoder = session_->qpack_encoder();
+  EXPECT_EQ(capacity, qpack_encoder->MaximumDynamicTableCapacity());
+  QpackEncoderHeaderTable* encoder_header_table =
+      QpackEncoderPeer::header_table(qpack_encoder);
+  EXPECT_EQ(capacity, encoder_header_table->dynamic_table_capacity());
+  EXPECT_EQ(capacity, encoder_header_table->maximum_dynamic_table_capacity());
+
+  // Verify that the advertised capacity is the default.
+  SettingsFrame outgoing_settings = session_->settings();
+  EXPECT_EQ(kDefaultQpackMaxDynamicTableCapacity,
+            outgoing_settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY]);
+}
+
 TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
   Initialize();
   CompleteHandshake();
@@ -2549,6 +2589,43 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   EXPECT_EQ(512u, header_table->maximum_dynamic_table_capacity());
   EXPECT_EQ(5u, session_->max_outbound_header_list_size());
   EXPECT_EQ(42u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
+}
+
+TEST_P(QuicSpdySessionTestServer, ServerDisableQpackDynamicTable) {
+  SetQuicFlag(quic_server_disable_qpack_dynamic_table, true);
+  Initialize();
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  CompleteHandshake();
+
+  // Use an arbitrary stream id for creating the receive control stream.
+  QuicStreamId stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+  QuicStreamFrame data1(stream_id, false, 0, absl::string_view(type, 1));
+  session_->OnStreamFrame(data1);
+  EXPECT_EQ(stream_id,
+            QuicSpdySessionPeer::GetReceiveControlStream(&*session_)->id());
+  // Receive the QPACK dynamic table capacity from the peer.
+  const uint64_t capacity = 512;
+  SettingsFrame settings;
+  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = capacity;
+  std::string data = HttpEncoder::SerializeSettingsFrame(settings);
+  QuicStreamFrame frame(stream_id, false, 1, data);
+  session_->OnStreamFrame(frame);
+
+  // Verify that the encoder's dynamic table capacity is 0.
+  QpackEncoder* qpack_encoder = session_->qpack_encoder();
+  EXPECT_EQ(capacity, qpack_encoder->MaximumDynamicTableCapacity());
+  QpackEncoderHeaderTable* encoder_header_table =
+      QpackEncoderPeer::header_table(qpack_encoder);
+  EXPECT_EQ(capacity, encoder_header_table->maximum_dynamic_table_capacity());
+  EXPECT_EQ(0, encoder_header_table->dynamic_table_capacity());
+
+  // Verify that the advertised capacity is 0.
+  SettingsFrame outgoing_settings = session_->settings();
+  EXPECT_EQ(0, outgoing_settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY]);
 }
 
 TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {

@@ -170,6 +170,15 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
   bool settings_frame_received_via_alps_ = false;
 };
 
+uint64_t GetDefaultQpackMaximumDynamicTableCapacity(Perspective perspective) {
+  if (perspective == Perspective::IS_SERVER &&
+      GetQuicFlag(quic_server_disable_qpack_dynamic_table)) {
+    return 0;
+  }
+
+  return kDefaultQpackMaxDynamicTableCapacity;
+}
+
 }  // namespace
 
 // A SpdyFramerVisitor that passes HEADERS frames to the QuicSpdyStream, and
@@ -466,7 +475,7 @@ QuicSpdySession::QuicSpdySession(
       qpack_encoder_send_stream_(nullptr),
       qpack_decoder_send_stream_(nullptr),
       qpack_maximum_dynamic_table_capacity_(
-          kDefaultQpackMaxDynamicTableCapacity),
+          GetDefaultQpackMaximumDynamicTableCapacity(perspective())),
       qpack_maximum_blocked_streams_(kDefaultMaximumBlockedStreams),
       max_inbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
       max_outbound_header_list_size_(std::numeric_limits<size_t>::max()),
