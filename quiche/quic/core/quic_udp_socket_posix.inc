@@ -132,8 +132,13 @@ void PopulatePacketInfoFromControlMessage(
     return;
   }
 
+#if defined(__APPLE__)
+  if ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_RECVTOS) ||
+      (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_TCLASS)) {
+#else
   if ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TOS) ||
       (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_TCLASS)) {
+#endif
     if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::ECN)) {
       packet_info->SetEcnCodepoint(QuicEcnCodepoint(
           *(reinterpret_cast<uint8_t*>(CMSG_DATA(cmsg))) & kEcnMask));
