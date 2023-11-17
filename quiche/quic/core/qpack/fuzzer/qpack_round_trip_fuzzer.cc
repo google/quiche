@@ -313,9 +313,11 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
                          public VerifyingDecoder::Visitor {
  public:
   DecodingEndpoint(uint64_t maximum_dynamic_table_capacity,
-                   uint64_t maximum_blocked_streams)
+                   uint64_t maximum_blocked_streams,
+                   FuzzedDataProvider* provider)
       : decoder_(maximum_dynamic_table_capacity, maximum_blocked_streams,
-                 &encoder_stream_error_delegate_) {}
+                 &encoder_stream_error_delegate_),
+        provider_(provider) {}
 
   ~DecodingEndpoint() override {
     // All decoding must have been completed.
@@ -385,6 +387,14 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
     it->second->EndHeaderBlock();
   }
 
+  // Flush decoder stream data buffered within the decoder.
+  void FlushDecoderStream() { decoder_.FlushDecoderStream(); }
+  void MaybeFlushDecoderStream() {
+    if (provider_->ConsumeBool()) {
+      FlushDecoderStream();
+    }
+  }
+
  private:
   // EncoderStreamErrorDelegate implementation that crashes on error.
   class CrashingEncoderStreamErrorDelegate
@@ -401,6 +411,7 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
 
   CrashingEncoderStreamErrorDelegate encoder_stream_error_delegate_;
   QpackDecoder decoder_;
+  FuzzedDataProvider* const provider_;
 
   // Expected header lists in order for each stream.
   std::map<QuicStreamId, std::queue<QuicHeaderList>> expected_header_lists_;
@@ -593,7 +604,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Set up decoder.
   DecodingEndpoint decoder(maximum_dynamic_table_capacity,
-                           maximum_blocked_streams);
+                           maximum_blocked_streams, &provider);
 
   // Transmit encoder stream data from encoder to decoder.
   DelayedStreamDataTransmitter encoder_stream_transmitter(
@@ -639,6 +650,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     for (auto transmit_data_count = provider.ConsumeIntegralInRange(1, 5);
          transmit_data_count > 0; --transmit_data_count) {
       encoder_stream_transmitter.MaybeTransmitSomeData();
+      decoder.MaybeFlushDecoderStream();
       decoder_stream_transmitter.MaybeTransmitSomeData();
       header_block_transmitter.MaybeTransmitSomeData();
     }
@@ -651,6 +663,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   encoder_stream_transmitter.Flush();
   // Release all delayed header blocks.
   header_block_transmitter.Flush();
+  // Flush decoder stream data buffered within the decoder. This will then be
+  // buffered in and delayed by `decoder_stream_transmitter`.
+  decoder.FlushDecoderStream();
   // Release all delayed decoder stream data.
   decoder_stream_transmitter.Flush();
 
