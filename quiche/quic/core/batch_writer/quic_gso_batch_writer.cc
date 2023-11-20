@@ -32,9 +32,6 @@ QuicGsoBatchWriter::QuicGsoBatchWriter(int fd,
                                                   clockid_for_release_time)) {
   if (supports_release_time_) {
     QUIC_RESTART_FLAG_COUNT(quic_support_release_time_for_gso);
-    QUIC_LOG_FIRST_N(INFO, 5) << "Release time is enabled.";
-  } else {
-    QUIC_LOG_FIRST_N(INFO, 5) << "Release time is not enabled.";
   }
 }
 
