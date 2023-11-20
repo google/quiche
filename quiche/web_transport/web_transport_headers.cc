@@ -32,20 +32,23 @@ using ::quiche::structured_headers::List;
 using ::quiche::structured_headers::ParameterizedItem;
 using ::quiche::structured_headers::ParameterizedMember;
 
-absl::Status CheckItemType(const ParameterizedMember& member,
+absl::Status CheckItemType(const ParameterizedItem& item,
                            Item::ItemType expected_type) {
+  if (item.item.Type() != expected_type) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Expected all members to be of type ", ItemTypeToString(expected_type),
+        ", found ", ItemTypeToString(item.item.Type()), " instead"));
+  }
+  return absl::OkStatus();
+}
+absl::Status CheckMemberType(const ParameterizedMember& member,
+                             Item::ItemType expected_type) {
   if (member.member_is_inner_list || member.member.size() != 1) {
     return absl::InvalidArgumentError(absl::StrCat(
         "Expected all members to be of type", ItemTypeToString(expected_type),
         ", found a nested list instead"));
   }
-  if (member.member[0].item.Type() != expected_type) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "Expected all members to be of type ", ItemTypeToString(expected_type),
-        ", found ", ItemTypeToString(member.member[0].item.Type()),
-        " instead"));
-  }
-  return absl::OkStatus();
+  return CheckItemType(member.member[0], expected_type);
 }
 
 ABSL_CONST_INIT std::array kInitHeaderFields{
@@ -66,7 +69,7 @@ absl::StatusOr<std::vector<std::string>> ParseSubprotocolRequestHeader(
   std::vector<std::string> result;
   result.reserve(parsed->size());
   for (ParameterizedMember& member : *parsed) {
-    QUICHE_RETURN_IF_ERROR(CheckItemType(member, Item::kTokenType));
+    QUICHE_RETURN_IF_ERROR(CheckMemberType(member, Item::kTokenType));
     result.push_back(std::move(member.member[0].item).TakeString());
   }
   return result;
@@ -84,6 +87,25 @@ absl::StatusOr<std::string> SerializeSubprotocolRequestHeader(
   return absl::StrJoin(subprotocols, ", ");
 }
 
+absl::StatusOr<std::string> ParseSubprotocolResponseHeader(
+    absl::string_view value) {
+  std::optional<ParameterizedItem> parsed =
+      quiche::structured_headers::ParseItem(value);
+  if (!parsed.has_value()) {
+    return absl::InvalidArgumentError("Failed to parse sf-item");
+  }
+  QUICHE_RETURN_IF_ERROR(CheckItemType(*parsed, Item::kTokenType));
+  return std::move(parsed->item).TakeString();
+}
+
+absl::StatusOr<std::string> SerializeSubprotocolResponseHeader(
+    absl::string_view subprotocol) {
+  if (!quiche::structured_headers::IsValidToken(subprotocol)) {
+    return absl::InvalidArgumentError("Invalid token value supplied");
+  }
+  return std::string(subprotocol);
+}
+
 absl::StatusOr<WebTransportInitHeader> ParseInitHeader(
     absl::string_view header) {
   std::optional<Dictionary> parsed =
@@ -98,7 +120,7 @@ absl::StatusOr<WebTransportInitHeader> ParseInitHeader(
       if (field_name_a != field_name_b) {
         continue;
       }
-      QUICHE_RETURN_IF_ERROR(CheckItemType(field_value, Item::kIntegerType));
+      QUICHE_RETURN_IF_ERROR(CheckMemberType(field_value, Item::kIntegerType));
       int64_t value = field_value.member[0].item.GetInteger();
       if (value < 0) {
         return absl::InvalidArgumentError(

@@ -57,6 +57,25 @@ TEST(WebTransportHeaders, SerializeSubprotocolRequestHeader) {
       StatusIs(absl::StatusCode::kInvalidArgument, "Invalid token: 0123"));
 }
 
+TEST(WebTransportHeader, ParseSubprotocolResponseHeader) {
+  EXPECT_THAT(ParseSubprotocolResponseHeader("foo"), IsOkAndHolds("foo"));
+  EXPECT_THAT(ParseSubprotocolResponseHeader("foo; a=b"), IsOkAndHolds("foo"));
+  EXPECT_THAT(
+      ParseSubprotocolResponseHeader("1234"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("found integer")));
+  EXPECT_THAT(
+      ParseSubprotocolResponseHeader("(a"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("parse sf-item")));
+}
+
+TEST(WebTransportHeader, SerializeSubprotocolResponseHeader) {
+  EXPECT_THAT(SerializeSubprotocolResponseHeader("foo"), IsOkAndHolds("foo"));
+  EXPECT_THAT(SerializeSubprotocolResponseHeader("moqt-draft01"),
+              IsOkAndHolds("moqt-draft01"));
+  EXPECT_THAT(SerializeSubprotocolResponseHeader("123abc"),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST(WebTransportHeader, ParseInitHeader) {
   WebTransportInitHeader expected_header;
   expected_header.initial_unidi_limit = 100;

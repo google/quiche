@@ -25,6 +25,10 @@ QUICHE_EXPORT absl::StatusOr<std::vector<std::string>>
 ParseSubprotocolRequestHeader(absl::string_view value);
 QUICHE_EXPORT absl::StatusOr<std::string> SerializeSubprotocolRequestHeader(
     absl::Span<const std::string> subprotocols);
+QUICHE_EXPORT absl::StatusOr<std::string> ParseSubprotocolResponseHeader(
+    absl::string_view value);
+QUICHE_EXPORT absl::StatusOr<std::string> SerializeSubprotocolResponseHeader(
+    absl::string_view subprotocol);
 
 inline constexpr absl::string_view kInitHeader = "WebTransport-Init";
 
