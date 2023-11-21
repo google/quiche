@@ -851,7 +851,7 @@ class MockQuicCryptoStream : public QuicCryptoStream {
 
   ~MockQuicCryptoStream() override;
 
-  MOCK_METHOD(bool, encryption_established, (), (const));
+  MOCK_METHOD(bool, encryption_established, (), (const, override));
 
   ssl_early_data_reason_t EarlyDataReason() const override;
   bool one_rtt_keys_available() const override;
