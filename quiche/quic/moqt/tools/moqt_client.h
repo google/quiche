@@ -20,7 +20,7 @@
 namespace moqt {
 
 // A synchronous MoQT client based on QuicDefaultClient.
-class MoqtClient {
+class QUICHE_EXPORT MoqtClient {
  public:
   MoqtClient(quic::QuicSocketAddress peer_address,
              const quic::QuicServerId& server_id,

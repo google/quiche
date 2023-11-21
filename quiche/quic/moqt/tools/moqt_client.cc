@@ -103,8 +103,10 @@ absl::Status MoqtClient::ConnectInner(std::string path,
         std::move(old)();
       };
 
-  web_transport->SetVisitor(std::make_unique<MoqtSession>(
-      web_transport, parameters, std::move(callbacks)));
+  auto session = std::make_unique<MoqtSession>(web_transport, parameters,
+                                               std::move(callbacks));
+  session_ = session.get();
+  web_transport->SetVisitor(std::move(session));
   return absl::OkStatus();
 }
 

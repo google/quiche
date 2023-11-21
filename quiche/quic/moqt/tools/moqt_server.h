@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #ifndef QUICHE_QUIC_MOQT_TOOLS_MOQT_SERVER_H_
+
 #define QUICHE_QUIC_MOQT_TOOLS_MOQT_SERVER_H_
 
 #include <memory>
@@ -10,7 +11,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_source.h"
-#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/tools/quic_server.h"
 #include "quiche/quic/tools/web_transport_only_backend.h"
@@ -25,7 +25,7 @@ using MoqtIncomingSessionCallback =
         absl::string_view path)>;
 
 // A simple MoQT server.
-class MoqtServer {
+class QUICHE_EXPORT MoqtServer {
  public:
   explicit MoqtServer(std::unique_ptr<quic::ProofSource> proof_source,
                       MoqtIncomingSessionCallback callback);
