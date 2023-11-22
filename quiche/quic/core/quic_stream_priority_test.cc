@@ -79,9 +79,8 @@ TEST(SerializePriorityFieldValueTest, SerializePriorityFieldValue) {
                     {/* urgency = */ 3, /* incremental = */ false}));
   EXPECT_EQ("u=5", SerializePriorityFieldValue(
                        {/* urgency = */ 5, /* incremental = */ false}));
-  // TODO(b/266722347): Never send `urgency` if value equals default value.
-  EXPECT_EQ("u=3, i", SerializePriorityFieldValue(
-                          {/* urgency = */ 3, /* incremental = */ true}));
+  EXPECT_EQ("i", SerializePriorityFieldValue(
+                     {/* urgency = */ 3, /* incremental = */ true}));
   EXPECT_EQ("u=0, i", SerializePriorityFieldValue(
                           {/* urgency = */ 0, /* incremental = */ true}));
   // Out-of-bound value is ignored.
