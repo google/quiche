@@ -12,6 +12,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quiche {
 
@@ -31,6 +32,10 @@ class QUICHE_EXPORT QuicheMemSlice {
   // heap.  |length| must not be zero.
   QuicheMemSlice(std::unique_ptr<char[]> buffer, size_t length)
       : impl_(std::move(buffer), length) {}
+
+  QuicheMemSlice(char buffer[], size_t length,
+                 quiche::SingleUseCallback<void(const char*)> done_callback)
+      : impl_(buffer, length, std::move(done_callback)) {}
 
   // Ensures the use of the in-place constructor (below) is intentional.
   struct InPlace {};

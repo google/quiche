@@ -10,6 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 namespace quiche {
@@ -64,6 +65,23 @@ TEST_F(QuicheMemSliceTest, MoveAssignNonEmpty) {
   EXPECT_EQ(nullptr, slice_.data());
   EXPECT_EQ(0u, slice_.length());
   EXPECT_TRUE(slice_.empty());
+}
+
+TEST_F(QuicheMemSliceTest, SliceCustomDoneCallback) {
+  const absl::string_view data("foo");
+  bool deleted = false;
+
+  char* buffer = new char[data.length()];
+  std::memcpy(buffer, data.data(), data.length());
+
+  {
+    QuicheMemSlice slice(buffer, data.length(), [&deleted](const char* data) {
+      deleted = true;
+      delete[] data;
+    });
+    EXPECT_EQ(data, slice.AsStringView());
+  }
+  EXPECT_TRUE(deleted);
 }
 
 TEST_F(QuicheMemSliceTest, Reset) {
