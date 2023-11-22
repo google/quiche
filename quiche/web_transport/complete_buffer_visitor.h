@@ -6,8 +6,8 @@
 #define QUICHE_WEB_TRANSPORT_COMPLETE_BUFFER_VISITOR_H_
 
 #include <optional>
+#include <utility>
 
-#include "absl/utility/utility.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -21,17 +21,17 @@ class QUICHE_EXPORT CompleteBufferVisitor : public StreamVisitor {
 
   CompleteBufferVisitor(webtransport::Stream* stream, std::string outgoing_data)
       : stream_(stream),
-        outgoing_data_(absl::in_place, std::move(outgoing_data)) {}
+        outgoing_data_(std::in_place, std::move(outgoing_data)) {}
   CompleteBufferVisitor(webtransport::Stream* stream,
                         AllDataReadCallback incoming_data_callback)
       : stream_(stream),
-        incoming_data_callback_(absl::in_place,
+        incoming_data_callback_(std::in_place,
                                 std::move(incoming_data_callback)) {}
   CompleteBufferVisitor(webtransport::Stream* stream, std::string outgoing_data,
                         AllDataReadCallback incoming_data_callback)
       : stream_(stream),
-        outgoing_data_(absl::in_place, std::move(outgoing_data)),
-        incoming_data_callback_(absl::in_place,
+        outgoing_data_(std::in_place, std::move(outgoing_data)),
+        incoming_data_callback_(std::in_place,
                                 std::move(incoming_data_callback)) {}
 
   void OnCanRead() override;
