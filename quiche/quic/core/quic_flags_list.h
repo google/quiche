@@ -102,7 +102,7 @@ QUIC_FLAG(quic_restart_flag_quic_platform_tos_sockopt, false)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, report received ECN markings to the peer. Replaces quic_receive_ecn2 to use correct codepoints.
-QUIC_FLAG(quic_restart_flag_quic_receive_ecn3, false)
+QUIC_FLAG(quic_restart_flag_quic_receive_ecn3, true)
 // When true, sends QUIC packets marked ECT(1).
 QUIC_FLAG(quic_reloadable_flag_quic_send_ect1, false)
 // When true, support RFC9369.
