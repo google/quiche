@@ -2705,7 +2705,7 @@ EncryptionLevel QuicSession::GetEncryptionLevelToSendApplicationData() const {
 void QuicSession::ProcessAllPendingStreams() {
   std::vector<PendingStream*> pending_streams;
   pending_streams.reserve(pending_stream_map_.size());
-  for (auto it = pending_stream_map_.cbegin(); it != pending_stream_map_.cend();
+  for (auto it = pending_stream_map_.begin(); it != pending_stream_map_.end();
        ++it) {
     pending_streams.push_back(it->second.get());
   }

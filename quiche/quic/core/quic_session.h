@@ -682,7 +682,7 @@ class QUICHE_EXPORT QuicSession
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
 
   using PendingStreamMap =
-      absl::flat_hash_map<QuicStreamId, std::unique_ptr<PendingStream>>;
+      quiche::QuicheLinkedHashMap<QuicStreamId, std::unique_ptr<PendingStream>>;
 
   using ClosedStreams = std::vector<std::unique_ptr<QuicStream>>;
 
