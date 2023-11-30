@@ -4467,6 +4467,39 @@ TEST_F(HTTPBalsaFrameTest, Http09) {
             balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, ContinuationAllowed) {
+  const std::string message =
+      "GET / HTTP/1.1\r\n"
+      "key: value\n includes continuation\r\n"
+      "\r\n";
+
+  // TODO(b/314138604): RFC9110 Section 5.5 requires received CR, LF and NUL
+  // characters to be replaced with SP, see
+  // https://www.rfc-editor.org/rfc/rfc9110.html#name-field-values.
+  FakeHeaders fake_headers;
+  fake_headers.AddKeyValue("key", "value\n includes continuation");
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_FALSE(balsa_frame_.Error());
+}
+
+TEST_F(HTTPBalsaFrameTest, ContinuationDisallowed) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_header_continuation_lines = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  const std::string message =
+      "GET / HTTP/1.1\r\n"
+      "key: value\n includes continuation\r\n"
+      "\r\n";
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::INVALID_HEADER_FORMAT, balsa_frame_.ErrorCode());
+}
+
 }  // namespace
 
 }  // namespace test
