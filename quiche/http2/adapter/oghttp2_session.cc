@@ -13,7 +13,7 @@
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_util.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
-#include "quiche/http2/adapter/noop_header_validator.h"
+#include "quiche/http2/adapter/minimal_header_validator.h"
 #include "quiche/http2/adapter/oghttp2_util.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/spdy/core/spdy_protocol.h"
@@ -210,8 +210,8 @@ OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
       validator_->SetAllowDifferentHostAndAuthority();
     }
   } else {
-    QUICHE_VLOG(2) << "instantiating noop header validator";
-    validator_ = std::make_unique<NoopHeaderValidator>();
+    QUICHE_VLOG(2) << "instantiating minimal header validator";
+    validator_ = std::make_unique<MinimalHeaderValidator>();
   }
 }
 

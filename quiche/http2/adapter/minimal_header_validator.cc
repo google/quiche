@@ -1,4 +1,4 @@
-#include "quiche/http2/adapter/noop_header_validator.h"
+#include "quiche/http2/adapter/minimal_header_validator.h"
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
@@ -14,14 +14,14 @@ constexpr absl::string_view kInvalidChars("\0\r\n", 3);
 
 }  // namespace
 
-void NoopHeaderValidator::StartHeaderBlock() {
+void MinimalHeaderValidator::StartHeaderBlock() {
   HeaderValidatorBase::StartHeaderBlock();
   has_method_ = false;
   has_scheme_ = false;
   has_path_ = false;
 }
 
-HeaderValidatorBase::HeaderStatus NoopHeaderValidator::ValidateSingleHeader(
+HeaderValidatorBase::HeaderStatus MinimalHeaderValidator::ValidateSingleHeader(
     absl::string_view key, absl::string_view value) {
   if (key.empty()) {
     return HEADER_FIELD_INVALID;
@@ -45,7 +45,7 @@ HeaderValidatorBase::HeaderStatus NoopHeaderValidator::ValidateSingleHeader(
   return HEADER_OK;
 }
 
-bool NoopHeaderValidator::FinishHeaderBlock(HeaderType type) {
+bool MinimalHeaderValidator::FinishHeaderBlock(HeaderType type) {
   if (type == HeaderType::REQUEST) {
     return has_method_ && has_scheme_ && has_path_;
   } else if (type == HeaderType::RESPONSE || type == HeaderType::RESPONSE_100) {

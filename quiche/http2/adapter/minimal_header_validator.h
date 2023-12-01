@@ -1,5 +1,5 @@
-#ifndef QUICHE_HTTP2_ADAPTER_NOOP_HEADER_VALIDATOR_H_
-#define QUICHE_HTTP2_ADAPTER_NOOP_HEADER_VALIDATOR_H_
+#ifndef QUICHE_HTTP2_ADAPTER_MINIMAL_HEADER_VALIDATOR_H_
+#define QUICHE_HTTP2_ADAPTER_MINIMAL_HEADER_VALIDATOR_H_
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/adapter/header_validator_base.h"
@@ -8,10 +8,10 @@
 namespace http2 {
 namespace adapter {
 
-// A validator that does not actually perform any validation.
-class QUICHE_EXPORT NoopHeaderValidator : public HeaderValidatorBase {
+// A validator that performs the minimum validation necessary.
+class QUICHE_EXPORT MinimalHeaderValidator : public HeaderValidatorBase {
  public:
-  NoopHeaderValidator() = default;
+  MinimalHeaderValidator() = default;
 
   void StartHeaderBlock() override;
   HeaderStatus ValidateSingleHeader(absl::string_view key,
@@ -28,4 +28,4 @@ class QUICHE_EXPORT NoopHeaderValidator : public HeaderValidatorBase {
 }  // namespace adapter
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_ADAPTER_NOOP_HEADER_VALIDATOR_H_
+#endif  // QUICHE_HTTP2_ADAPTER_MINIMAL_HEADER_VALIDATOR_H_

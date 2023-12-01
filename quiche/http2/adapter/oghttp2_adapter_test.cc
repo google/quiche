@@ -7962,9 +7962,9 @@ TEST(OgHttp2AdapterTest, ServerUsesCustomWindowUpdateStrategy) {
                             SpdyFrameType::WINDOW_UPDATE}));
 }
 
-// Verifies that NoopHeaderValidator allows several header combinations that
+// Verifies that MinimalHeaderValidator allows several header combinations that
 // would otherwise be invalid.
-TEST(OgHttp2AdapterTest, NoopHeaderValidatorTest) {
+TEST(OgHttp2AdapterTest, MinimalHeaderValidatorTest) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
