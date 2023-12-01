@@ -13,10 +13,16 @@ class QUICHE_EXPORT NoopHeaderValidator : public HeaderValidatorBase {
  public:
   NoopHeaderValidator() = default;
 
+  void StartHeaderBlock() override;
   HeaderStatus ValidateSingleHeader(absl::string_view key,
                                     absl::string_view value) override;
 
   bool FinishHeaderBlock(HeaderType type) override;
+
+ private:
+  bool has_method_ = false;
+  bool has_scheme_ = false;
+  bool has_path_ = false;
 };
 
 }  // namespace adapter
