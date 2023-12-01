@@ -132,8 +132,8 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
   std::string GetDebugState() const override;
   void OnApplicationLimited(QuicByteCount bytes_in_flight) override;
   void PopulateConnectionStats(QuicConnectionStats* stats) const override;
-  bool SupportsECT0() const override { return false; }
-  bool SupportsECT1() const override { return false; }
+  bool EnableECT0() override { return false; }
+  bool EnableECT1() override { return false; }
   // End implementation of SendAlgorithmInterface.
 
   // Gets the number of RTTs BBR remains in STARTUP phase.

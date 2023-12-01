@@ -7378,12 +7378,12 @@ bool QuicConnection::set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint) {
       QUICHE_DCHECK(false);
       break;
     case ECN_ECT0:
-      if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT0()) {
+      if (!sent_packet_manager_.EnableECT0()) {
         return false;
       }
       break;
     case ECN_ECT1:
-      if (!sent_packet_manager_.GetSendAlgorithm()->SupportsECT1()) {
+      if (!sent_packet_manager_.EnableECT1()) {
         return false;
       }
       break;

@@ -1236,8 +1236,8 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
   MOCK_METHOD(void, OnApplicationLimited, (QuicByteCount), (override));
   MOCK_METHOD(void, PopulateConnectionStats, (QuicConnectionStats*),
               (const, override));
-  MOCK_METHOD(bool, SupportsECT0, (), (const, override));
-  MOCK_METHOD(bool, SupportsECT1, (), (const, override));
+  MOCK_METHOD(bool, EnableECT0, (), (override));
+  MOCK_METHOD(bool, EnableECT1, (), (override));
 };
 
 class MockLossAlgorithm : public LossDetectionInterface {

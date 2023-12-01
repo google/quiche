@@ -398,6 +398,11 @@ class QUICHE_EXPORT QuicSentPacketManager {
     return send_algorithm_.get();
   }
 
+  // Wrapper for SendAlgorithmInterface functions, since these functions are
+  // not const.
+  bool EnableECT0() { return send_algorithm_->EnableECT0(); }
+  bool EnableECT1() { return send_algorithm_->EnableECT1(); }
+
   void SetSessionNotifier(SessionNotifierInterface* session_notifier) {
     unacked_packets_.SetSessionNotifier(session_notifier);
   }
