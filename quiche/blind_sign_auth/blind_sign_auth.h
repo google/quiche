@@ -38,11 +38,6 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   void GetTokens(std::string oauth_token, int num_tokens,
                  ProxyLayer proxy_layer, SignedTokenCallback callback) override;
 
-  // Returns signed unblinded tokens and their expiration time in a callback.
-  // This function sends ProxyLayer::kProxyA by default for compatibility.
-  void GetTokens(std::string oauth_token, int num_tokens,
-                 SignedTokenCallback callback);
-
  private:
   void GetInitialDataCallback(std::string oauth_token, int num_tokens,
                               ProxyLayer proxy_layer,

@@ -47,11 +47,6 @@ constexpr absl::string_view kIssuerHostname =
 }  // namespace
 
 void BlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
-                              SignedTokenCallback callback) {
-  GetTokens(oauth_token, num_tokens, ProxyLayer::kProxyA, std::move(callback));
-}
-
-void BlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
                               ProxyLayer proxy_layer,
                               SignedTokenCallback callback) {
   // Create GetInitialData RPC.
