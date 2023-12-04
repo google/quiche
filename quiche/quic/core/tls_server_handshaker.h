@@ -98,6 +98,10 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   virtual std::string GetAcceptChValueForHostname(
       const std::string& hostname) const;
 
+  // Returns whether server uses new ALPS codepoint to negotiate application
+  // settings. If client sends new ALPS codepoint in ClientHello, return true.
+  bool UseAlpsNewCodepoint() const;
+
   // Get the ClientCertMode that is currently in effect on this handshaker.
   ClientCertMode client_cert_mode() const {
     return tls_connection_.ssl_config().client_cert_mode;
@@ -344,6 +348,9 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
 
   // Force SessionTicketOpen to return ssl_ticket_aead_ignore_ticket if called.
   bool ignore_ticket_open_ = false;
+
+  // True if new ALPS codepoint in the ClientHello.
+  bool alps_new_codepoint_received_ = false;
 
   // nullopt means select cert hasn't started.
   std::optional<QuicAsyncStatus> select_cert_status_;

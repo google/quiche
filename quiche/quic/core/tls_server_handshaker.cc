@@ -603,6 +603,17 @@ std::string TlsServerHandshaker::GetAcceptChValueForHostname(
   return {};
 }
 
+bool TlsServerHandshaker::UseAlpsNewCodepoint() const {
+  if (!select_cert_status_.has_value()) {
+    QUIC_BUG(quic_tls_check_alps_new_codepoint_too_early)
+        << "UseAlpsNewCodepoint must be called after "
+           "EarlySelectCertCallback is started";
+    return false;
+  }
+
+  return alps_new_codepoint_received_;
+}
+
 void TlsServerHandshaker::FinishHandshake() {
   QUICHE_DCHECK(!SSL_in_early_data(ssl()));
 
@@ -883,6 +894,24 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     early_data_attempted_ = SSL_early_callback_ctx_extension_get(
         client_hello, TLSEXT_TYPE_early_data, &unused_extension_bytes,
         &unused_extension_len);
+
+#if BORINGSSL_API_VERSION >= 27
+    if (GetQuicReloadableFlag(quic_gfe_allow_alps_new_codepoint)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_gfe_allow_alps_new_codepoint);
+
+      alps_new_codepoint_received_ = SSL_early_callback_ctx_extension_get(
+          client_hello, TLSEXT_TYPE_application_settings,
+          &unused_extension_bytes, &unused_extension_len);
+      // Make sure we use the right ALPS codepoint.
+      int use_alps_new_codepoint = 0;
+      if (alps_new_codepoint_received_) {
+        QUIC_CODE_COUNT(quic_gfe_alps_use_new_codepoint);
+        use_alps_new_codepoint = 1;
+      }
+      QUIC_DLOG(INFO) << "ALPS use new codepoint: " << use_alps_new_codepoint;
+      SSL_set_alps_use_new_codepoint(ssl(), use_alps_new_codepoint);
+    }
+#endif  // BORINGSSL_API_VERSION
   }
 
   // This callback is called very early by Boring SSL, most of the SSL_get_foo

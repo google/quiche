@@ -1181,6 +1181,48 @@ TEST_P(TlsServerHandshakerTest, EnableKyber) {
 }
 #endif  // BORINGSSL_API_VERSION
 
+#if BORINGSSL_API_VERSION >= 27
+TEST_P(TlsServerHandshakerTest, AlpsUseNewCodepoint) {
+  const struct {
+    bool client_use_alps_new_codepoint;
+    bool server_allow_alps_new_codepoint;
+  } tests[] = {
+      // The intent of this test is to demonstrate different combinations of
+      // ALPS codepoint settings works well for both client and server.
+      {true, true},
+      {false, true},
+      {false, false},
+      {true, true},
+  };
+  for (size_t i = 0; i < arraysize(tests); i++) {
+    SCOPED_TRACE(absl::StrCat("Test #", i));
+    const auto& test = tests[i];
+    client_crypto_config_->set_alps_use_new_codepoint(
+        test.client_use_alps_new_codepoint);
+    absl::SetFlag(&FLAGS_gfe2_reloadable_flag_quic_gfe_allow_alps_new_codepoint,
+                  test.server_allow_alps_new_codepoint);
+
+    ASSERT_TRUE(SetupClientCert());
+    InitializeFakeClient();
+
+    InitializeServerWithFakeProofSourceHandle();
+    server_handshaker_->SetupProofSourceHandle(
+        /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+        /*compute_signature_action=*/FakeProofSourceHandle::Action::
+            DELEGATE_SYNC);
+
+    // Start handshake.
+    AdvanceHandshakeWithFakeClient();
+    EXPECT_EQ(test.client_use_alps_new_codepoint,
+              server_handshaker_->UseAlpsNewCodepoint());
+
+    CompleteCryptoHandshake();
+    ExpectHandshakeSuccessful();
+    EXPECT_EQ(PROTOCOL_TLS1_3, server_stream()->handshake_protocol());
+  }
+}
+#endif  // BORINGSSL_API_VERSION
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

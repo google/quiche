@@ -58,6 +58,12 @@ TlsClientHandshaker::TlsClientHandshaker(
                        crypto_config->preferred_groups().size());
   }
 #endif  // BORINGSSL_API_VERSION
+
+#if BORINGSSL_API_VERSION >= 27
+  // Make sure we use the right ALPS codepoint.
+  SSL_set_alps_use_new_codepoint(ssl(),
+                                 crypto_config->alps_use_new_codepoint());
+#endif  // BORINGSSL_API_VERSION
 }
 
 TlsClientHandshaker::~TlsClientHandshaker() {}

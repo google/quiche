@@ -878,6 +878,41 @@ TEST_P(TlsClientHandshakerTest, EnableKyber) {
 }
 #endif  // BORINGSSL_API_VERSION
 
+#if BORINGSSL_API_VERSION >= 27
+TEST_P(TlsClientHandshakerTest, EnableClientAlpsUseNewCodepoint) {
+  // The intent of this test is to demonstrate no matter whether server
+  // allows the new ALPS codepoint or not, the handshake should complete
+  // successfully.
+  for (bool server_allow_alps_new_codepoint : {true, false}) {
+    SCOPED_TRACE(absl::StrCat("Test allows alps new codepoint:",
+                              server_allow_alps_new_codepoint));
+    crypto_config_->set_alps_use_new_codepoint(true);
+    absl::SetFlag(&FLAGS_gfe2_reloadable_flag_quic_gfe_allow_alps_new_codepoint,
+                  server_allow_alps_new_codepoint);
+    CreateConnection();
+
+    // Add a DoS callback on the server, to test that the client sent the new
+    // ALPS codepoint.
+    static bool callback_ran;
+    callback_ran = false;
+    SSL_CTX_set_dos_protection_cb(
+        server_crypto_config_->ssl_ctx(),
+        [](const SSL_CLIENT_HELLO* client_hello) -> int {
+          const uint8_t* data;
+          size_t len;
+          EXPECT_TRUE(SSL_early_callback_ctx_extension_get(
+              client_hello, TLSEXT_TYPE_application_settings, &data, &len));
+          callback_ran = true;
+          return 1;
+        });
+
+    CompleteCryptoHandshake();
+    EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+    EXPECT_TRUE(callback_ran);
+  }
+}
+#endif  // BORINGSSL_API_VERSION
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
