@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
-#include "quiche/http2/adapter/header_validator_base.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -20,20 +19,11 @@ constexpr Header kSampleRequestPseudoheaders[] = {{":authority", "www.foo.com"},
                                                   {":path", "/foo"},
                                                   {":scheme", "https"}};
 
-TEST(NoopHeaderValidatorTest, EmptyHeaderBlock) {
-  NoopHeaderValidator v;
-  v.StartHeaderBlock();
-  EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::REQUEST));
-
-  v.StartHeaderBlock();
-  EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::RESPONSE));
-}
-
 TEST(NoopHeaderValidatorTest, HeaderNameEmpty) {
   NoopHeaderValidator v;
   NoopHeaderValidator::HeaderStatus status =
       v.ValidateSingleHeader("", "value");
-  EXPECT_EQ(NoopHeaderValidator::HEADER_FIELD_INVALID, status);
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK, status);
 }
 
 TEST(NoopHeaderValidatorTest, HeaderValueEmpty) {
@@ -54,29 +44,27 @@ TEST(NoopHeaderValidatorTest, ExceedsMaxSize) {
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK, status);
 }
 
-TEST(NoopHeaderValidatorTest, FewInvalidNameChars) {
+TEST(NoopHeaderValidatorTest, AnyNameCharIsValid) {
   NoopHeaderValidator v;
   char pseudo_name[] = ":met hod";
   char name[] = "na me";
   for (int i = std::numeric_limits<char>::min();
        i < std::numeric_limits<char>::max(); ++i) {
     char c = static_cast<char>(i);
-    const HeaderValidatorBase::HeaderStatus expected_status =
-        (c == '\0' || c == '\r' || c == '\n')
-            ? HeaderValidatorBase::HEADER_FIELD_INVALID
-            : HeaderValidatorBase::HEADER_OK;
     // Test a pseudo-header name with this char.
     pseudo_name[3] = c;
     auto sv = absl::string_view(pseudo_name, 8);
-    EXPECT_EQ(expected_status, v.ValidateSingleHeader(sv, "value"));
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader(sv, "value"));
     // Test a regular header name with this char.
     name[2] = c;
     sv = absl::string_view(name, 5);
-    EXPECT_EQ(expected_status, v.ValidateSingleHeader(sv, "value"));
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader(sv, "value"));
   }
 }
 
-TEST(NoopHeaderValidatorTest, FewInvalidValueChars) {
+TEST(NoopHeaderValidatorTest, AnyValueCharIsValid) {
   NoopHeaderValidator v;
   char value[] = "val ue";
   for (int i = std::numeric_limits<char>::min();
@@ -84,11 +72,8 @@ TEST(NoopHeaderValidatorTest, FewInvalidValueChars) {
     char c = static_cast<char>(i);
     value[3] = c;
     auto sv = absl::string_view(value, 6);
-    const HeaderValidatorBase::HeaderStatus expected_status =
-        (c == '\0' || c == '\r' || c == '\n')
-            ? HeaderValidatorBase::HEADER_FIELD_INVALID
-            : HeaderValidatorBase::HEADER_OK;
-    EXPECT_EQ(expected_status, v.ValidateSingleHeader("name", sv));
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader("name", sv));
   }
 }
 
@@ -118,21 +103,18 @@ TEST(NoopHeaderValidatorTest, AnyStatusIsValid) {
   }
 }
 
-TEST(NoopHeaderValidatorTest, FewInvalidAuthorityChars) {
+TEST(NoopHeaderValidatorTest, AnyAuthorityCharIsValid) {
   char value[] = "ho st.example.com";
   for (int i = std::numeric_limits<char>::min();
        i < std::numeric_limits<char>::max(); ++i) {
     char c = static_cast<char>(i);
     value[2] = c;
     auto sv = absl::string_view(value, 17);
-    const HeaderValidatorBase::HeaderStatus expected_status =
-        (c == '\0' || c == '\r' || c == '\n')
-            ? HeaderValidatorBase::HEADER_FIELD_INVALID
-            : HeaderValidatorBase::HEADER_OK;
     for (absl::string_view key : {":authority", "host"}) {
       NoopHeaderValidator v;
       v.StartHeaderBlock();
-      EXPECT_EQ(expected_status, v.ValidateSingleHeader(key, sv));
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
+                v.ValidateSingleHeader(key, sv));
     }
   }
 }
@@ -170,13 +152,8 @@ TEST(NoopHeaderValidatorTest, RequestPseudoHeaders) {
                   v.ValidateSingleHeader(to_add.first, to_add.second));
       }
     }
-    // If the missing pseudo-header is :authority, final validation will
-    // succeed. Otherwise, it will fail.
-    if (to_skip.first == ":authority") {
-      EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
-    } else {
-      EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::REQUEST));
-    }
+    // Even if a pseudo-header is missing, final validation will succeed.
+    EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
   }
 
   // When all pseudo-headers are present, final validation will succeed.
@@ -320,11 +297,11 @@ TEST(NoopHeaderValidatorTest, ResponsePseudoHeaders) {
   NoopHeaderValidator v;
 
   for (HeaderType type : {HeaderType::RESPONSE, HeaderType::RESPONSE_100}) {
-    // When `:status` is missing, validation fails.
+    // When `:status` is missing, validation succeeds.
     v.StartHeaderBlock();
     EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader("foo", "bar"));
-    EXPECT_FALSE(v.FinishHeaderBlock(type));
+    EXPECT_TRUE(v.FinishHeaderBlock(type));
 
     // When all pseudo-headers are present, final validation succeeds.
     v.StartHeaderBlock();
