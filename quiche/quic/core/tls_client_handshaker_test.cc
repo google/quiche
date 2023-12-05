@@ -887,8 +887,8 @@ TEST_P(TlsClientHandshakerTest, EnableClientAlpsUseNewCodepoint) {
     SCOPED_TRACE(absl::StrCat("Test allows alps new codepoint:",
                               server_allow_alps_new_codepoint));
     crypto_config_->set_alps_use_new_codepoint(true);
-    absl::SetFlag(&FLAGS_gfe2_reloadable_flag_quic_gfe_allow_alps_new_codepoint,
-                  server_allow_alps_new_codepoint);
+    SetQuicReloadableFlag(quic_gfe_allow_alps_new_codepoint,
+                          server_allow_alps_new_codepoint);
     CreateConnection();
 
     // Add a DoS callback on the server, to test that the client sent the new
