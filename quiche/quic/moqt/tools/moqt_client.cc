@@ -93,6 +93,7 @@ absl::Status MoqtClient::ConnectInner(std::string path,
   parameters.perspective = quic::Perspective::IS_CLIENT,
   parameters.using_webtrans = true;
   parameters.path = "";
+  parameters.deliver_partial_objects = false;
 
   // Ensure that we never have a dangling pointer to the session.
   MoqtSessionDeletedCallback deleted_callback =

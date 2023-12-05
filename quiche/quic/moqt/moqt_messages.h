@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -36,6 +37,7 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   quic::Perspective perspective;
   bool using_webtrans;
   std::string path;
+  bool deliver_partial_objects;
 };
 
 // The maximum length of a message, excluding any OBJECT payload. This prevents
@@ -78,6 +80,47 @@ enum class QUICHE_EXPORT MoqtTrackRequestParameter : uint64_t {
   // kObjectSequence = 0x1,
   kAuthorizationInfo = 0x2,
 };
+
+struct FullTrackName {
+  std::string track_namespace;
+  std::string track_name;
+  FullTrackName(std::string ns, std::string name)
+      : track_namespace(std::move(ns)), track_name(std::move(name)) {}
+  bool operator==(const FullTrackName& other) const {
+    return track_namespace == other.track_namespace &&
+           track_name == other.track_name;
+  }
+  bool operator<(const FullTrackName& other) const {
+    return track_namespace < other.track_namespace ||
+           (track_namespace == other.track_namespace &&
+            track_name < other.track_name);
+  }
+  FullTrackName& operator=(FullTrackName other) {
+    track_namespace = other.track_namespace;
+    track_name = other.track_name;
+    return *this;
+  }
+  template <typename H>
+  friend H AbslHashValue(H h, const FullTrackName& m);
+};
+
+// These are absolute sequence numbers.
+struct FullSequence {
+  uint64_t group = 0;
+  uint64_t object = 0;
+  bool operator==(const FullSequence& other) const {
+    return group == other.group && object == other.object;
+  }
+  bool operator<(const FullSequence& other) const {
+    return group < other.group ||
+           (group == other.group && object < other.object);
+  }
+};
+
+template <typename H>
+H AbslHashValue(H h, const FullTrackName& m) {
+  return H::combine(std::move(h), m.track_namespace, m.track_name);
+}
 
 struct QUICHE_EXPORT MoqtClientSetup {
   std::vector<MoqtVersion> supported_versions;

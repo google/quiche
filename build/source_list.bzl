@@ -1483,8 +1483,11 @@ moqt_hdrs = [
     "quic/moqt/moqt_messages.h",
     "quic/moqt/moqt_parser.h",
     "quic/moqt/moqt_session.h",
+    "quic/moqt/moqt_subscribe_windows.h",
+    "quic/moqt/moqt_track.h",
     "quic/moqt/test_tools/moqt_test_message.h",
     "quic/moqt/tools/moqt_client.h",
+    "quic/moqt/tools/moqt_mock_visitor.h",
     "quic/moqt/tools/moqt_server.h",
 ]
 moqt_srcs = [
@@ -1495,6 +1498,10 @@ moqt_srcs = [
     "quic/moqt/moqt_parser.cc",
     "quic/moqt/moqt_parser_test.cc",
     "quic/moqt/moqt_session.cc",
+    "quic/moqt/moqt_session_test.cc",
+    "quic/moqt/moqt_subscribe_windows_test.cc",
+    "quic/moqt/moqt_track_test.cc",
+    "quic/moqt/tools/chat_client_bin.cc",
     "quic/moqt/tools/moqt_client.cc",
     "quic/moqt/tools/moqt_end_to_end_test.cc",
     "quic/moqt/tools/moqt_server.cc",
