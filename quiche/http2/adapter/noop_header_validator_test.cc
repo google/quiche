@@ -1,4 +1,4 @@
-#include "quiche/http2/adapter/minimal_header_validator.h"
+#include "quiche/http2/adapter/noop_header_validator.h"
 
 #include <optional>
 #include <utility>
@@ -20,8 +20,8 @@ constexpr Header kSampleRequestPseudoheaders[] = {{":authority", "www.foo.com"},
                                                   {":path", "/foo"},
                                                   {":scheme", "https"}};
 
-TEST(MinimalHeaderValidatorTest, EmptyHeaderBlock) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, EmptyHeaderBlock) {
+  NoopHeaderValidator v;
   v.StartHeaderBlock();
   EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::REQUEST));
 
@@ -29,34 +29,33 @@ TEST(MinimalHeaderValidatorTest, EmptyHeaderBlock) {
   EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::RESPONSE));
 }
 
-TEST(MinimalHeaderValidatorTest, HeaderNameEmpty) {
-  MinimalHeaderValidator v;
-  MinimalHeaderValidator::HeaderStatus status =
+TEST(NoopHeaderValidatorTest, HeaderNameEmpty) {
+  NoopHeaderValidator v;
+  NoopHeaderValidator::HeaderStatus status =
       v.ValidateSingleHeader("", "value");
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_FIELD_INVALID, status);
+  EXPECT_EQ(NoopHeaderValidator::HEADER_FIELD_INVALID, status);
 }
 
-TEST(MinimalHeaderValidatorTest, HeaderValueEmpty) {
-  MinimalHeaderValidator v;
-  MinimalHeaderValidator::HeaderStatus status =
-      v.ValidateSingleHeader("name", "");
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK, status);
+TEST(NoopHeaderValidatorTest, HeaderValueEmpty) {
+  NoopHeaderValidator v;
+  NoopHeaderValidator::HeaderStatus status = v.ValidateSingleHeader("name", "");
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK, status);
 }
 
-TEST(MinimalHeaderValidatorTest, ExceedsMaxSize) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, ExceedsMaxSize) {
+  NoopHeaderValidator v;
   v.SetMaxFieldSize(64u);
-  MinimalHeaderValidator::HeaderStatus status =
+  NoopHeaderValidator::HeaderStatus status =
       v.ValidateSingleHeader("name", "value");
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK, status);
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK, status);
   status = v.ValidateSingleHeader(
       "name2",
       "Antidisestablishmentariansism is supercalifragilisticexpialodocious.");
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK, status);
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK, status);
 }
 
-TEST(MinimalHeaderValidatorTest, FewInvalidNameChars) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, FewInvalidNameChars) {
+  NoopHeaderValidator v;
   char pseudo_name[] = ":met hod";
   char name[] = "na me";
   for (int i = std::numeric_limits<char>::min();
@@ -77,8 +76,8 @@ TEST(MinimalHeaderValidatorTest, FewInvalidNameChars) {
   }
 }
 
-TEST(MinimalHeaderValidatorTest, FewInvalidValueChars) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, FewInvalidValueChars) {
+  NoopHeaderValidator v;
   char value[] = "val ue";
   for (int i = std::numeric_limits<char>::min();
        i < std::numeric_limits<char>::max(); ++i) {
@@ -93,33 +92,33 @@ TEST(MinimalHeaderValidatorTest, FewInvalidValueChars) {
   }
 }
 
-TEST(MinimalHeaderValidatorTest, AnyStatusIsValid) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, AnyStatusIsValid) {
+  NoopHeaderValidator v;
 
   for (HeaderType type : {HeaderType::RESPONSE, HeaderType::RESPONSE_100}) {
     v.StartHeaderBlock();
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(":status", "bar"));
     EXPECT_TRUE(v.FinishHeaderBlock(type));
 
     v.StartHeaderBlock();
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(":status", "10"));
     EXPECT_TRUE(v.FinishHeaderBlock(type));
 
     v.StartHeaderBlock();
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(":status", "9000"));
     EXPECT_TRUE(v.FinishHeaderBlock(type));
 
     v.StartHeaderBlock();
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(":status", "400"));
     EXPECT_TRUE(v.FinishHeaderBlock(type));
   }
 }
 
-TEST(MinimalHeaderValidatorTest, FewInvalidAuthorityChars) {
+TEST(NoopHeaderValidatorTest, FewInvalidAuthorityChars) {
   char value[] = "ho st.example.com";
   for (int i = std::numeric_limits<char>::min();
        i < std::numeric_limits<char>::max(); ++i) {
@@ -131,43 +130,43 @@ TEST(MinimalHeaderValidatorTest, FewInvalidAuthorityChars) {
             ? HeaderValidatorBase::HEADER_FIELD_INVALID
             : HeaderValidatorBase::HEADER_OK;
     for (absl::string_view key : {":authority", "host"}) {
-      MinimalHeaderValidator v;
+      NoopHeaderValidator v;
       v.StartHeaderBlock();
       EXPECT_EQ(expected_status, v.ValidateSingleHeader(key, sv));
     }
   }
 }
 
-TEST(MinimalHeaderValidatorTest, RequestHostAndAuthority) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, RequestHostAndAuthority) {
+  NoopHeaderValidator v;
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(to_add.first, to_add.second));
   }
   // If both "host" and ":authority" have the same value, validation succeeds.
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("host", "www.foo.com"));
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(to_add.first, to_add.second));
   }
   // If "host" and ":authority" have different values, validation still
   // succeeds.
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("host", "www.bar.com"));
 }
 
-TEST(MinimalHeaderValidatorTest, RequestPseudoHeaders) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, RequestPseudoHeaders) {
+  NoopHeaderValidator v;
   for (Header to_skip : kSampleRequestPseudoheaders) {
     v.StartHeaderBlock();
     for (Header to_add : kSampleRequestPseudoheaders) {
       if (to_add != to_skip) {
-        EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+        EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                   v.ValidateSingleHeader(to_add.first, to_add.second));
       }
     }
@@ -183,7 +182,7 @@ TEST(MinimalHeaderValidatorTest, RequestPseudoHeaders) {
   // When all pseudo-headers are present, final validation will succeed.
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(to_add.first, to_add.second));
   }
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
@@ -192,10 +191,10 @@ TEST(MinimalHeaderValidatorTest, RequestPseudoHeaders) {
   // succeed.
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(to_add.first, to_add.second));
   }
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":extra", "blah"));
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 
@@ -203,10 +202,10 @@ TEST(MinimalHeaderValidatorTest, RequestPseudoHeaders) {
   for (Header to_repeat : kSampleRequestPseudoheaders) {
     v.StartHeaderBlock();
     for (Header to_add : kSampleRequestPseudoheaders) {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, to_add.second));
       if (to_add == to_repeat) {
-        EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+        EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                   v.ValidateSingleHeader(to_add.first, to_add.second));
       }
     }
@@ -214,27 +213,27 @@ TEST(MinimalHeaderValidatorTest, RequestPseudoHeaders) {
   }
 }
 
-TEST(MinimalHeaderValidatorTest, WebsocketPseudoHeaders) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, WebsocketPseudoHeaders) {
+  NoopHeaderValidator v;
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(to_add.first, to_add.second));
   }
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":protocol", "websocket"));
   // Validation always succeeds.
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 
-  // This is a no-op for MinimalHeaderValidator.
+  // This is a no-op for NoopHeaderValidator.
   v.SetAllowExtendedConnect();
 
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(to_add.first, to_add.second));
   }
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":protocol", "websocket"));
   // The validator does not check for a CONNECT request.
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
@@ -242,30 +241,30 @@ TEST(MinimalHeaderValidatorTest, WebsocketPseudoHeaders) {
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
     if (to_add.first == ":method") {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, "CONNECT"));
     } else {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, to_add.second));
     }
   }
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":protocol", "websocket"));
   // After allowing the method, `:protocol` is acepted for CONNECT requests.
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 }
 
-TEST(MinimalHeaderValidatorTest, AsteriskPathPseudoHeader) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, AsteriskPathPseudoHeader) {
+  NoopHeaderValidator v;
 
   // The validator does not perform any path validation.
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
     if (to_add.first == ":path") {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, "*"));
     } else {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, to_add.second));
     }
   }
@@ -274,30 +273,30 @@ TEST(MinimalHeaderValidatorTest, AsteriskPathPseudoHeader) {
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
     if (to_add.first == ":path") {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, "*"));
     } else if (to_add.first == ":method") {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, "OPTIONS"));
     } else {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, to_add.second));
     }
   }
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 }
 
-TEST(MinimalHeaderValidatorTest, InvalidPathPseudoHeader) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, InvalidPathPseudoHeader) {
+  NoopHeaderValidator v;
 
   // An empty path is allowed.
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
     if (to_add.first == ":path") {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, ""));
     } else {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, to_add.second));
     }
   }
@@ -307,237 +306,237 @@ TEST(MinimalHeaderValidatorTest, InvalidPathPseudoHeader) {
   v.StartHeaderBlock();
   for (Header to_add : kSampleRequestPseudoheaders) {
     if (to_add.first == ":path") {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, "shawarma"));
     } else {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(to_add.first, to_add.second));
     }
   }
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
 }
 
-TEST(MinimalHeaderValidatorTest, ResponsePseudoHeaders) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, ResponsePseudoHeaders) {
+  NoopHeaderValidator v;
 
   for (HeaderType type : {HeaderType::RESPONSE, HeaderType::RESPONSE_100}) {
     // When `:status` is missing, validation fails.
     v.StartHeaderBlock();
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader("foo", "bar"));
     EXPECT_FALSE(v.FinishHeaderBlock(type));
 
     // When all pseudo-headers are present, final validation succeeds.
     v.StartHeaderBlock();
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(":status", "199"));
     EXPECT_TRUE(v.FinishHeaderBlock(type));
     EXPECT_EQ("199", v.status_header());
 
     // When `:status` is repeated, validation succeeds.
     v.StartHeaderBlock();
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(":status", "199"));
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(":status", "299"));
     EXPECT_TRUE(v.FinishHeaderBlock(type));
 
     // When an extra pseudo-header is present, final validation succeeds.
     v.StartHeaderBlock();
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(":status", "199"));
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(":extra", "blorp"));
     EXPECT_TRUE(v.FinishHeaderBlock(type));
   }
 }
 
-TEST(MinimalHeaderValidatorTest, ResponseWithHost) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, ResponseWithHost) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":status", "200"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("host", "myserver.com"));
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::RESPONSE));
 }
 
-TEST(MinimalHeaderValidatorTest, Response204) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, Response204) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":status", "204"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("x-content", "is not present"));
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::RESPONSE));
 }
 
-TEST(MinimalHeaderValidatorTest, ResponseWithMultipleIdenticalContentLength) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, ResponseWithMultipleIdenticalContentLength) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":status", "200"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "13"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "13"));
 }
 
-TEST(MinimalHeaderValidatorTest, ResponseWithMultipleDifferingContentLength) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, ResponseWithMultipleDifferingContentLength) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":status", "200"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "13"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "17"));
 }
 
-TEST(MinimalHeaderValidatorTest, Response204WithContentLengthZero) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, Response204WithContentLengthZero) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":status", "204"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("x-content", "is not present"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "0"));
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::RESPONSE));
 }
 
-TEST(MinimalHeaderValidatorTest, Response204WithContentLength) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, Response204WithContentLength) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":status", "204"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("x-content", "is not present"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "1"));
 }
 
-TEST(MinimalHeaderValidatorTest, Response100) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, Response100) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":status", "100"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("x-content", "is not present"));
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::RESPONSE));
 }
 
-TEST(MinimalHeaderValidatorTest, Response100WithContentLengthZero) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, Response100WithContentLengthZero) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":status", "100"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("x-content", "is not present"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "0"));
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::RESPONSE));
 }
 
-TEST(MinimalHeaderValidatorTest, Response100WithContentLength) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, Response100WithContentLength) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":status", "100"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("x-content", "is not present"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "1"));
 }
 
-TEST(MinimalHeaderValidatorTest, ResponseTrailerPseudoHeaders) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, ResponseTrailerPseudoHeaders) {
+  NoopHeaderValidator v;
 
   // When no pseudo-headers are present, validation will succeed.
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("foo", "bar"));
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::RESPONSE_TRAILER));
 
   // When a pseudo-header is present, validation will succeed.
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader(":status", "200"));
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("foo", "bar"));
   EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::RESPONSE_TRAILER));
 }
 
-TEST(MinimalHeaderValidatorTest, ValidContentLength) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, ValidContentLength) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
   EXPECT_EQ(v.content_length(), std::nullopt);
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "41"));
   EXPECT_EQ(v.content_length(), std::nullopt);
 
   v.StartHeaderBlock();
   EXPECT_EQ(v.content_length(), std::nullopt);
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "42"));
   EXPECT_EQ(v.content_length(), std::nullopt);
 }
 
-TEST(MinimalHeaderValidatorTest, InvalidContentLength) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, InvalidContentLength) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
   EXPECT_EQ(v.content_length(), std::nullopt);
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", ""));
   EXPECT_EQ(v.content_length(), std::nullopt);
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "nan"));
   EXPECT_EQ(v.content_length(), std::nullopt);
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "-42"));
   EXPECT_EQ(v.content_length(), std::nullopt);
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "42"));
   EXPECT_EQ(v.content_length(), std::nullopt);
 }
 
-TEST(MinimalHeaderValidatorTest, TeHeader) {
-  MinimalHeaderValidator v;
+TEST(NoopHeaderValidatorTest, TeHeader) {
+  NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("te", "trailers"));
 
   v.StartHeaderBlock();
-  EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+  EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("te", "trailers, deflate"));
 }
 
-TEST(MinimalHeaderValidatorTest, ConnectionSpecificHeaders) {
+TEST(NoopHeaderValidatorTest, ConnectionSpecificHeaders) {
   const std::vector<Header> connection_headers = {
       {"connection", "keep-alive"}, {"proxy-connection", "keep-alive"},
       {"keep-alive", "timeout=42"}, {"transfer-encoding", "chunked"},
       {"upgrade", "h2c"},
   };
   for (const auto& [connection_key, connection_value] : connection_headers) {
-    MinimalHeaderValidator v;
+    NoopHeaderValidator v;
     v.StartHeaderBlock();
     for (const auto& [sample_key, sample_value] : kSampleRequestPseudoheaders) {
-      EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+      EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
                 v.ValidateSingleHeader(sample_key, sample_value));
     }
-    EXPECT_EQ(MinimalHeaderValidator::HEADER_OK,
+    EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
               v.ValidateSingleHeader(connection_key, connection_value));
   }
 }
