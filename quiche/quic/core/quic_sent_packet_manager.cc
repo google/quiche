@@ -369,7 +369,7 @@ void QuicSentPacketManager::MaybeInvokeCongestionEvent(
   // is necessary.
   QuicPacketCount newly_acked_ect = 0, newly_acked_ce = 0;
   if (ecn_counts.has_value()) {
-    QUICHE_DCHECK(GetQuicReloadableFlag(quic_send_ect1));
+    QUICHE_DCHECK(GetQuicRestartFlag(quic_support_ect1));
     newly_acked_ect = ecn_counts->ect1 - previous_counts.ect1;
     if (newly_acked_ect == 0) {
       newly_acked_ect = ecn_counts->ect0 - previous_counts.ect0;
@@ -1424,8 +1424,8 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
   }
   // Validate ECN feedback.
   std::optional<QuicEcnCounts> valid_ecn_counts;
-  if (GetQuicReloadableFlag(quic_send_ect1)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 1, 8);
+  if (GetQuicRestartFlag(quic_support_ect1)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_support_ect1, 1, 9);
     if (IsEcnFeedbackValid(acked_packet_number_space, ecn_counts,
                            newly_acked_ect0, newly_acked_ect1)) {
       valid_ecn_counts = ecn_counts;

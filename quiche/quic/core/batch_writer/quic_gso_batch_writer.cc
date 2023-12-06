@@ -146,8 +146,8 @@ void QuicGsoBatchWriter::BuildCmsg(QuicMsgHdr* hdr,
   if (release_time != 0) {
     *hdr->GetNextCmsgData<uint64_t>(SOL_SOCKET, SO_TXTIME) = release_time;
   }
-  if (ecn_codepoint != ECN_NOT_ECT && GetQuicReloadableFlag(quic_send_ect1)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 8, 8);
+  if (ecn_codepoint != ECN_NOT_ECT && GetQuicRestartFlag(quic_support_ect1)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_support_ect1, 8, 9);
     if (self_address.IsIPv4()) {
       *hdr->GetNextCmsgData<int>(IPPROTO_IP, IP_TOS) =
           static_cast<int>(ecn_codepoint);

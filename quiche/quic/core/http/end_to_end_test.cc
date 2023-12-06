@@ -7210,7 +7210,7 @@ TEST_P(EndToEndTest, OriginalConnectionIdClearedFromMap) {
 
 TEST_P(EndToEndTest, ServerReportsNotEct) {
   // Client connects using not-ECT.
-  SetQuicReloadableFlag(quic_send_ect1, true);
+  SetQuicRestartFlag(quic_support_ect1, true);
   ASSERT_TRUE(Initialize());
   QuicConnection* client_connection = GetClientConnection();
   QuicConnectionPeer::DisableEcnCodepointValidation(client_connection);
@@ -7230,7 +7230,7 @@ TEST_P(EndToEndTest, ServerReportsNotEct) {
 
 TEST_P(EndToEndTest, ServerReportsEct0) {
   // Client connects using not-ECT.
-  SetQuicReloadableFlag(quic_send_ect1, true);
+  SetQuicRestartFlag(quic_support_ect1, true);
   ASSERT_TRUE(Initialize());
   QuicConnection* client_connection = GetClientConnection();
   QuicConnectionPeer::DisableEcnCodepointValidation(client_connection);
@@ -7255,7 +7255,7 @@ TEST_P(EndToEndTest, ServerReportsEct0) {
 
 TEST_P(EndToEndTest, ServerReportsEct1) {
   // Client connects using not-ECT.
-  SetQuicReloadableFlag(quic_send_ect1, true);
+  SetQuicRestartFlag(quic_support_ect1, true);
   ASSERT_TRUE(Initialize());
   QuicConnection* client_connection = GetClientConnection();
   QuicConnectionPeer::DisableEcnCodepointValidation(client_connection);
@@ -7280,7 +7280,7 @@ TEST_P(EndToEndTest, ServerReportsEct1) {
 
 TEST_P(EndToEndTest, ServerReportsCe) {
   // Client connects using not-ECT.
-  SetQuicReloadableFlag(quic_send_ect1, true);
+  SetQuicRestartFlag(quic_support_ect1, true);
   ASSERT_TRUE(Initialize());
   QuicConnection* client_connection = GetClientConnection();
   QuicConnectionPeer::DisableEcnCodepointValidation(client_connection);
@@ -7304,7 +7304,7 @@ TEST_P(EndToEndTest, ServerReportsCe) {
 }
 
 TEST_P(EndToEndTest, ClientReportsEct1) {
-  SetQuicReloadableFlag(quic_send_ect1, true);
+  SetQuicRestartFlag(quic_support_ect1, true);
   ASSERT_TRUE(Initialize());
   // Wait for handshake to complete, so that we can manipulate the server
   // connection without race conditions.

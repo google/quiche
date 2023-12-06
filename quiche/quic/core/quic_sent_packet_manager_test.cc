@@ -3195,7 +3195,7 @@ TEST_F(QuicSentPacketManagerTest, GetAvailableCongestionWindow) {
 }
 
 TEST_F(QuicSentPacketManagerTest, EcnCountsAreStored) {
-  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+  if (!GetQuicRestartFlag(quic_support_ect1)) {
     return;
   }
   std::optional<QuicEcnCounts> ecn_counts1, ecn_counts2, ecn_counts3;
@@ -3231,7 +3231,7 @@ TEST_F(QuicSentPacketManagerTest, EcnCountsAreStored) {
 }
 
 TEST_F(QuicSentPacketManagerTest, EcnCountsReceived) {
-  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+  if (!GetQuicRestartFlag(quic_support_ect1)) {
     return;
   }
   // Basic ECN reporting test. The reported counts are equal to the total sent,
@@ -3258,7 +3258,7 @@ TEST_F(QuicSentPacketManagerTest, EcnCountsReceived) {
 }
 
 TEST_F(QuicSentPacketManagerTest, PeerDecrementsEcnCounts) {
-  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+  if (!GetQuicRestartFlag(quic_support_ect1)) {
     return;
   }
   for (uint64_t i = 1; i <= 5; ++i) {
@@ -3300,7 +3300,7 @@ TEST_F(QuicSentPacketManagerTest, PeerDecrementsEcnCounts) {
 }
 
 TEST_F(QuicSentPacketManagerTest, TooManyEcnCountsReported) {
-  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+  if (!GetQuicRestartFlag(quic_support_ect1)) {
     return;
   }
   for (uint64_t i = 1; i <= 3; ++i) {
@@ -3328,7 +3328,7 @@ TEST_F(QuicSentPacketManagerTest, TooManyEcnCountsReported) {
 }
 
 TEST_F(QuicSentPacketManagerTest, PeerReportsWrongCodepoint) {
-  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+  if (!GetQuicRestartFlag(quic_support_ect1)) {
     return;
   }
   for (uint64_t i = 1; i <= 3; ++i) {
@@ -3356,7 +3356,7 @@ TEST_F(QuicSentPacketManagerTest, PeerReportsWrongCodepoint) {
 }
 
 TEST_F(QuicSentPacketManagerTest, TooFewEcnCountsReported) {
-  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+  if (!GetQuicRestartFlag(quic_support_ect1)) {
     return;
   }
   for (uint64_t i = 1; i <= 3; ++i) {
@@ -3384,7 +3384,7 @@ TEST_F(QuicSentPacketManagerTest, TooFewEcnCountsReported) {
 
 TEST_F(QuicSentPacketManagerTest,
        EcnCountsNotValidatedIfLargestAckedUnchanged) {
-  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+  if (!GetQuicRestartFlag(quic_support_ect1)) {
     return;
   }
   for (uint64_t i = 1; i <= 3; ++i) {
@@ -3427,7 +3427,7 @@ TEST_F(QuicSentPacketManagerTest,
 }
 
 TEST_F(QuicSentPacketManagerTest, EcnAckedButNoMarksReported) {
-  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+  if (!GetQuicRestartFlag(quic_support_ect1)) {
     return;
   }
   for (uint64_t i = 1; i <= 3; ++i) {

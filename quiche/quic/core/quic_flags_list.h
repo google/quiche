@@ -101,14 +101,12 @@ QUIC_FLAG(quic_reloadable_flag_quic_use_received_client_addresses_cache, true)
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, when TicketCrypter fails to encrypt a session ticket, quic::TlsServerHandshaker will send a placeholder ticket, instead of an empty one, to the client.
 QUIC_FLAG(quic_reloadable_flag_quic_send_placeholder_ticket_when_encrypt_ticket_fails, true)
-// When true, check what sockopt is used to set the IP TOS byte on the platform.
-QUIC_FLAG(quic_restart_flag_quic_platform_tos_sockopt, false)
+// When true, allows sending of QUIC packets marked ECT(1). A different flag (TBD) will actually utilize this capability to send ECT(1).
+QUIC_FLAG(quic_restart_flag_quic_support_ect1, false)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, report received ECN markings to the peer. Replaces quic_receive_ecn2 to use correct codepoints.
 QUIC_FLAG(quic_restart_flag_quic_receive_ecn3, true)
-// When true, sends QUIC packets marked ECT(1).
-QUIC_FLAG(quic_reloadable_flag_quic_send_ect1, false)
 // When true, support RFC9369.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_version_rfcv2, false)
 // When true, the BB2U copt causes BBR2 to wait two rounds with out draining the queue before exiting PROBE_UP and BB2S has the same effect in STARTUP.

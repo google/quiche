@@ -3958,18 +3958,18 @@ void QuicConnection::OnPathMtuIncreased(QuicPacketLength packet_size) {
 }
 
 void QuicConnection::OnInFlightEcnPacketAcked() {
-  QUIC_BUG_IF(quic_bug_518619343_01, !GetQuicReloadableFlag(quic_send_ect1))
+  QUIC_BUG_IF(quic_bug_518619343_01, !GetQuicRestartFlag(quic_support_ect1))
       << "Unexpected call to OnInFlightEcnPacketAcked()";
   // Only packets on the default path are in-flight.
   if (!default_path_.ecn_marked_packet_acked) {
     QUIC_DVLOG(1) << ENDPOINT << "First ECT packet acked on active path.";
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 2, 8);
+    QUIC_RESTART_FLAG_COUNT_N(quic_support_ect1, 2, 9);
     default_path_.ecn_marked_packet_acked = true;
   }
 }
 
 void QuicConnection::OnInvalidEcnFeedback() {
-  QUIC_BUG_IF(quic_bug_518619343_02, !GetQuicReloadableFlag(quic_send_ect1))
+  QUIC_BUG_IF(quic_bug_518619343_02, !GetQuicRestartFlag(quic_support_ect1))
       << "Unexpected call to OnInvalidEcnFeedback().";
   if (disable_ecn_codepoint_validation_) {
     // In some tests, senders may send ECN marks in patterns that are not
@@ -7362,10 +7362,10 @@ void QuicConnection::OnServerPreferredAddressValidated(
 }
 
 bool QuicConnection::set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint) {
-  if (!GetQuicReloadableFlag(quic_send_ect1)) {
+  if (!GetQuicRestartFlag(quic_support_ect1)) {
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_ect1, 3, 8);
+  QUIC_RESTART_FLAG_COUNT_N(quic_support_ect1, 3, 9);
   if (disable_ecn_codepoint_validation_ || ecn_codepoint == ECN_NOT_ECT) {
     packet_writer_params_.ecn_codepoint = ecn_codepoint;
     return true;
