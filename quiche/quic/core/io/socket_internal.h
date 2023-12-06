@@ -21,6 +21,8 @@ inline int ToPlatformSocketType(SocketProtocol protocol) {
       return SOCK_DGRAM;
     case SocketProtocol::kTcp:
       return SOCK_STREAM;
+    case SocketProtocol::kRawIp:
+      return SOCK_RAW;
   }
 
   QUICHE_NOTREACHED();
@@ -33,6 +35,8 @@ inline int ToPlatformProtocol(SocketProtocol protocol) {
       return IPPROTO_UDP;
     case SocketProtocol::kTcp:
       return IPPROTO_TCP;
+    case SocketProtocol::kRawIp:
+      return IPPROTO_RAW;
   }
 
   QUICHE_NOTREACHED();
