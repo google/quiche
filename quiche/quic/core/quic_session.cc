@@ -880,11 +880,15 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
     // Suppress the write before encryption gets established.
     return false;
   }
-  if (limit_sending_max_streams_ &&
-      connection_->framer().is_processing_packet()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams2, 3, 3);
-    // The frame will be sent when OnCanWrite() is called.
-    return false;
+  if (GetQuicRestartFlag(quic_allow_control_frames_while_procesing)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_allow_control_frames_while_procesing, 1, 3);
+  } else {
+    if (limit_sending_max_streams_ &&
+        connection_->framer().is_processing_packet()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_sending_max_streams2, 3, 3);
+      // The frame will be sent when OnCanWrite() is called.
+      return false;
+    }
   }
   SetTransmissionType(type);
   QuicConnection::ScopedEncryptionLevelContext context(

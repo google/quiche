@@ -356,6 +356,76 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
   ProcessPacket(serialized);
 }
 
+TEST_P(QuicPacketCreatorTest, SerializePacketWithPadding) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+
+  creator_.AddFrame(QuicFrame(QuicWindowUpdateFrame()), NOT_RETRANSMISSION);
+  creator_.AddFrame(QuicFrame(QuicPaddingFrame()), NOT_RETRANSMISSION);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.FlushCurrentPacket();
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+
+  EXPECT_EQ(kDefaultMaxPacketSize, serialized_packet_->encrypted_length);
+
+  DeleteSerializedPacket();
+}
+
+TEST_P(QuicPacketCreatorTest, SerializeLargerPacketWithPadding) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  const QuicByteCount packet_size = 100 + kDefaultMaxPacketSize;
+  creator_.SetMaxPacketLength(packet_size);
+
+  creator_.AddFrame(QuicFrame(QuicWindowUpdateFrame()), NOT_RETRANSMISSION);
+  creator_.AddFrame(QuicFrame(QuicPaddingFrame()), NOT_RETRANSMISSION);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.FlushCurrentPacket();
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+
+  EXPECT_EQ(packet_size, serialized_packet_->encrypted_length);
+
+  DeleteSerializedPacket();
+}
+
+TEST_P(QuicPacketCreatorTest, IncreaseMaxPacketLengthWithFramesPending) {
+  if (!GetQuicRestartFlag(quic_allow_control_frames_while_procesing)) {
+    // When this flag is not set, the call to SetMaxPacketLength()
+    // is an error which triggers a QUICHE_DCHECK.
+    return;
+  }
+
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  const QuicByteCount packet_size = 100 + kDefaultMaxPacketSize;
+
+  // Since the creator has a frame queued, the packet size will not change.
+  creator_.AddFrame(QuicFrame(QuicWindowUpdateFrame()), NOT_RETRANSMISSION);
+  creator_.SetMaxPacketLength(packet_size);
+  creator_.AddFrame(QuicFrame(QuicPaddingFrame()), NOT_RETRANSMISSION);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.FlushCurrentPacket();
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+
+  EXPECT_EQ(kDefaultMaxPacketSize, serialized_packet_->encrypted_length);
+
+  DeleteSerializedPacket();
+
+  // Now that the previous packet was generated, the next on will use
+  // the new larger size.
+  creator_.AddFrame(QuicFrame(QuicWindowUpdateFrame()), NOT_RETRANSMISSION);
+  creator_.AddFrame(QuicFrame(QuicPaddingFrame()), NOT_RETRANSMISSION);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.FlushCurrentPacket();
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  EXPECT_EQ(packet_size, serialized_packet_->encrypted_length);
+
+  EXPECT_EQ(packet_size, serialized_packet_->encrypted_length);
+
+  DeleteSerializedPacket();
+}
+
 TEST_P(QuicPacketCreatorTest, ConsumeCryptoDataToFillCurrentPacket) {
   std::string data = "crypto data";
   QuicFrame frame;

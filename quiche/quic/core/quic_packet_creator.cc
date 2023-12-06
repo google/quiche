@@ -117,6 +117,7 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       random_(random),
       have_diversification_nonce_(false),
       max_packet_length_(0),
+      next_max_packet_length_(0),
       server_connection_id_included_(CONNECTION_ID_PRESENT),
       packet_size_(0),
       server_connection_id_(server_connection_id),
@@ -155,8 +156,18 @@ bool QuicPacketCreator::CanSetMaxPacketLength() const {
 }
 
 void QuicPacketCreator::SetMaxPacketLength(QuicByteCount length) {
-  QUICHE_DCHECK(CanSetMaxPacketLength()) << ENDPOINT;
-
+  if (!GetQuicRestartFlag(quic_allow_control_frames_while_procesing)) {
+    QUICHE_DCHECK(CanSetMaxPacketLength()) << ENDPOINT;
+  } else {
+    QUIC_RESTART_FLAG_COUNT_N(quic_allow_control_frames_while_procesing, 2, 3);
+    if (!CanSetMaxPacketLength()) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_allow_control_frames_while_procesing, 3,
+                                3);
+      // The new max packet length will be applied to the next packet.
+      next_max_packet_length_ = length;
+      return;
+    }
+  }
   // Avoid recomputing |max_plaintext_size_| if the length does not actually
   // change.
   if (length == max_packet_length_) {
@@ -473,6 +484,11 @@ void QuicPacketCreator::OnSerializedPacket() {
   ClearPacket();
   RemoveSoftMaxPacketLength();
   delegate_->OnSerializedPacket(std::move(packet));
+  if (next_max_packet_length_ != 0) {
+    QUICHE_DCHECK(CanSetMaxPacketLength()) << ENDPOINT;
+    SetMaxPacketLength(next_max_packet_length_);
+    next_max_packet_length_ = 0;
+  }
 }
 
 void QuicPacketCreator::ClearPacket() {

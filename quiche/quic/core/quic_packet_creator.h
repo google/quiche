@@ -623,6 +623,9 @@ class QUICHE_EXPORT QuicPacketCreator {
   DiversificationNonce diversification_nonce_;
   // Maximum length including headers and encryption (UDP payload length.)
   QuicByteCount max_packet_length_;
+  // Value of max_packet_length_ to be applied for the next packet, if not 0.
+  QuicByteCount next_max_packet_length_;
+
   size_t max_plaintext_size_;
   // Whether the server_connection_id is sent over the wire.
   QuicConnectionIdIncluded server_connection_id_included_;
