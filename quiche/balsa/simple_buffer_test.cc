@@ -375,8 +375,8 @@ TEST_F(SimpleBufferTest, ReleaseAsSlice) {
   SimpleBuffer buffer;
 
   buffer.WriteString("abc");
-  QuicheMemSlice slice = buffer.ReleaseAsSlice();
-  EXPECT_EQ("abc", slice.AsStringView());
+  SimpleBuffer::ReleasedBuffer released = buffer.Release();
+  EXPECT_EQ("abc", absl::string_view(released.buffer.get(), released.size));
 
   char* readable_ptr = nullptr;
   int readable_size = 0;
@@ -385,11 +385,11 @@ TEST_F(SimpleBufferTest, ReleaseAsSlice) {
   EXPECT_EQ(0, readable_size);
 
   buffer.WriteString("def");
-  slice = buffer.ReleaseAsSlice();
+  released = buffer.Release();
   buffer.GetReadablePtr(&readable_ptr, &readable_size);
   EXPECT_EQ(nullptr, readable_ptr);
   EXPECT_EQ(0, readable_size);
-  EXPECT_EQ("def", slice.AsStringView());
+  EXPECT_EQ("def", absl::string_view(released.buffer.get(), released.size));
 }
 
 TEST_F(SimpleBufferTest, EmptyBufferReleaseAsSlice) {
@@ -397,11 +397,12 @@ TEST_F(SimpleBufferTest, EmptyBufferReleaseAsSlice) {
   char* readable_ptr = nullptr;
   int readable_size = 0;
 
-  QuicheMemSlice slice = buffer.ReleaseAsSlice();
+  SimpleBuffer::ReleasedBuffer released = buffer.Release();
   buffer.GetReadablePtr(&readable_ptr, &readable_size);
   EXPECT_EQ(nullptr, readable_ptr);
   EXPECT_EQ(0, readable_size);
-  EXPECT_TRUE(slice.empty());
+  EXPECT_TRUE(released.buffer == nullptr);
+  EXPECT_EQ(released.size, 0u);
 }
 
 }  // namespace

@@ -139,14 +139,15 @@ void SimpleBuffer::AdvanceWritablePtr(int amount_to_advance) {
   }
 }
 
-QuicheMemSlice SimpleBuffer::ReleaseAsSlice() {
+SimpleBuffer::ReleasedBuffer SimpleBuffer::Release() {
   if (write_idx_ == 0) {
-    return QuicheMemSlice();
+    return ReleasedBuffer{nullptr, 0};
   }
-  QuicheMemSlice slice(std::unique_ptr<char[]>(storage_), write_idx_);
+  ReleasedBuffer buffer{std::unique_ptr<char[]>(storage_),
+                        static_cast<size_t>(write_idx_)};
   Clear();
   storage_ = nullptr;
   storage_size_ = 0;
-  return slice;
+  return buffer;
 }
 }  // namespace quiche

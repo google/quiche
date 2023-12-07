@@ -70,8 +70,6 @@ class QUICHE_EXPORT QuicheMemSlice {
 
   bool empty() const { return impl_.empty(); }
 
-  QuicheMemSliceImpl* impl() { return &impl_; }
-
  private:
   QuicheMemSliceImpl impl_;
 };
