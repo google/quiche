@@ -4,16 +4,16 @@
 
 #include "quiche/quic/core/io/event_loop_connecting_client_socket.h"
 
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
-#include <vector>
 
 #include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/connecting_client_socket.h"
@@ -22,7 +22,7 @@
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/platform/api/quic_ip_address_family.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -200,6 +200,10 @@ class EventLoopConnectingClientSocketTest
         return socket_factory_->CreateTcpClientSocket(
             peer_address, /*receive_buffer_size=*/0, /*send_buffer_size=*/0,
             async_visitor);
+      default:
+        // Unexpected protocol.
+        QUICHE_NOTREACHED();
+        return nullptr;
     }
   }
 
@@ -219,6 +223,10 @@ class EventLoopConnectingClientSocketTest
         return socket_factory_->CreateTcpClientSocket(
             peer_address, /*receive_buffer_size=*/0, /*send_buffer_size=*/4,
             async_visitor);
+      default:
+        // Unexpected protocol.
+        QUICHE_NOTREACHED();
+        return nullptr;
     }
   }
 
@@ -275,6 +283,9 @@ class EventLoopConnectingClientSocketTest
         runner = std::make_unique<TestTcpServerSocketRunner>(
             server_socket_descriptor_, std::move(behavior));
         break;
+      default:
+        // Unexpected protocol.
+        QUICHE_NOTREACHED();
     }
 
     // Runner takes responsibility for closing server socket.
@@ -375,6 +386,9 @@ TEST_P(EventLoopConnectingClientSocketTest, ErrorBeforeConnectAsync) {
       EXPECT_TRUE(connect_result_.value().ok());
       socket->Disconnect();
       break;
+    default:
+      // Unexpected protocol.
+      FAIL();
   }
 }
 
@@ -411,6 +425,9 @@ TEST_P(EventLoopConnectingClientSocketTest, ErrorDuringConnectAsync) {
       // server.
       EXPECT_TRUE(connect_result_.value().ok());
       break;
+    default:
+      // Unexpected protocol.
+      FAIL();
   }
 }
 
@@ -659,6 +676,9 @@ TEST_P(EventLoopConnectingClientSocketTest, SendAsync) {
       socket->SendAsync(data);
       expected = data;
       break;
+    default:
+      // Unexpected protocol.
+      FAIL();
   }
   ASSERT_TRUE(send_result_.has_value());
   EXPECT_TRUE(send_result_.value().ok());

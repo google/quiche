@@ -5,9 +5,6 @@
 #ifndef QUICHE_QUIC_CORE_IO_SOCKET_H_
 #define QUICHE_QUIC_CORE_IO_SOCKET_H_
 
-#include <functional>
-#include <string>
-
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -15,7 +12,6 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_ip_address_family.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/common/platform/api/quiche_export.h"
 
 #if defined(_WIN32)
 #include <winsock2.h>
@@ -42,6 +38,7 @@ namespace socket_api {
 enum class SocketProtocol {
   kUdp,
   kTcp,
+  kRawIp,
 };
 
 inline absl::string_view GetProtocolName(SocketProtocol protocol) {
@@ -50,6 +47,8 @@ inline absl::string_view GetProtocolName(SocketProtocol protocol) {
       return "UDP";
     case SocketProtocol::kTcp:
       return "TCP";
+    case SocketProtocol::kRawIp:
+      return "RAW_IP";
   }
 
   return "unknown";
@@ -75,6 +74,11 @@ absl::Status SetSocketBlocking(SocketFd fd, bool blocking);
 // Sets buffer sizes for socket `fd` to `size` bytes.
 absl::Status SetReceiveBufferSize(SocketFd fd, QuicByteCount size);
 absl::Status SetSendBufferSize(SocketFd fd, QuicByteCount size);
+
+// Only allowed for raw IP sockets. If set, sent data buffers include the IP
+// header. If not set, sent data buffers only contain the IP packet payload, and
+// the header will be generated.
+absl::Status SetIpHeaderIncluded(SocketFd fd, bool ip_header_included);
 
 // Connects socket `fd` to `peer_address`.  Returns a status with
 // `absl::StatusCode::kUnavailable` iff the socket is non-blocking and the

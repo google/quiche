@@ -5,13 +5,12 @@
 #include "quiche/quic/core/io/socket.h"
 
 #include <string>
-#include <utility>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/quic/platform/api/quic_ip_address_family.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -39,12 +38,42 @@ SocketFd CreateTestSocket(socket_api::SocketProtocol protocol,
   }
 }
 
+SocketFd CreateTestRawSocket(bool blocking = true) {
+  absl::StatusOr<SocketFd> socket =
+      socket_api::CreateSocket(quiche::TestLoopback().address_family(),
+                               socket_api::SocketProtocol::kRawIp, blocking);
+
+  if (socket.ok()) {
+    return socket.value();
+  } else {
+    // This is expected if test not run with relevant admin privileges.
+    QUICHE_CHECK(absl::IsPermissionDenied(socket.status()));
+    return kInvalidSocketFd;
+  }
+}
+
 TEST(SocketTest, CreateAndCloseSocket) {
   QuicIpAddress localhost_address = quiche::TestLoopback();
   absl::StatusOr<SocketFd> created_socket = socket_api::CreateSocket(
       localhost_address.address_family(), socket_api::SocketProtocol::kUdp);
 
   QUICHE_EXPECT_OK(created_socket.status());
+
+  QUICHE_EXPECT_OK(socket_api::Close(created_socket.value()));
+}
+
+TEST(SocketTest, CreateAndCloseRawSocket) {
+  QuicIpAddress localhost_address = quiche::TestLoopback();
+  absl::StatusOr<SocketFd> created_socket = socket_api::CreateSocket(
+      localhost_address.address_family(), socket_api::SocketProtocol::kRawIp);
+
+  // Raw IP socket creation will typically fail if not run with relevant admin
+  // privileges.
+  if (!created_socket.ok()) {
+    EXPECT_THAT(created_socket.status(),
+                StatusIs(absl::StatusCode::kPermissionDenied));
+    return;
+  }
 
   QUICHE_EXPECT_OK(socket_api::Close(created_socket.value()));
 }
@@ -72,6 +101,30 @@ TEST(SocketTest, SetSendBufferSize) {
                                      /*blocking=*/true);
 
   QUICHE_EXPECT_OK(socket_api::SetSendBufferSize(socket, /*size=*/100));
+
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
+}
+
+TEST(SocketTest, SetIpHeaderIncludedForRaw) {
+  SocketFd socket = CreateTestRawSocket(/*blocking=*/true);
+  if (socket == kInvalidSocketFd) {
+    return;
+  }
+
+  QUICHE_EXPECT_OK(
+      socket_api::SetIpHeaderIncluded(socket, /*ip_header_included=*/true));
+
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
+}
+
+TEST(SocketTest, SetIpHeaderIncludedForUdp) {
+  SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp,
+                                     /*blocking=*/true);
+
+  // Expect option only allowed for raw IP sockets.
+  EXPECT_THAT(
+      socket_api::SetIpHeaderIncluded(socket, /*ip_header_included=*/true),
+      StatusIs(absl::StatusCode::kInvalidArgument));
 
   QUICHE_EXPECT_OK(socket_api::Close(socket));
 }

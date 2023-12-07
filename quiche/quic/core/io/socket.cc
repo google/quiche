@@ -50,10 +50,10 @@ absl::StatusOr<AcceptResult> AcceptInternal(SocketFd fd) {
   }
 }
 
-absl::Status SetSockOptInt(SocketFd fd, int option, int value) {
+absl::Status SetSockOptInt(SocketFd fd, int level, int option, int value) {
   QUICHE_DCHECK_NE(fd, kInvalidSocketFd);
 
-  int result = SyscallSetsockopt(fd, SOL_SOCKET, option, &value, sizeof(value));
+  int result = SyscallSetsockopt(fd, level, option, &value, sizeof(value));
 
   if (result >= 0) {
     return absl::OkStatus();
@@ -71,14 +71,21 @@ absl::Status SetReceiveBufferSize(SocketFd fd, QuicByteCount size) {
   QUICHE_DCHECK_NE(fd, kInvalidSocketFd);
   QUICHE_DCHECK_LE(size, QuicByteCount{INT_MAX});
 
-  return SetSockOptInt(fd, SO_RCVBUF, static_cast<int>(size));
+  return SetSockOptInt(fd, SOL_SOCKET, SO_RCVBUF, static_cast<int>(size));
 }
 
 absl::Status SetSendBufferSize(SocketFd fd, QuicByteCount size) {
   QUICHE_DCHECK_NE(fd, kInvalidSocketFd);
   QUICHE_DCHECK_LE(size, QuicByteCount{INT_MAX});
 
-  return SetSockOptInt(fd, SO_SNDBUF, static_cast<int>(size));
+  return SetSockOptInt(fd, SOL_SOCKET, SO_SNDBUF, static_cast<int>(size));
+}
+
+absl::Status SetIpHeaderIncluded(SocketFd fd, bool ip_header_included) {
+  QUICHE_DCHECK_NE(fd, kInvalidSocketFd);
+
+  return SetSockOptInt(fd, IPPROTO_IP, IP_HDRINCL,
+                       static_cast<int>(ip_header_included));
 }
 
 absl::Status Connect(SocketFd fd, const QuicSocketAddress& peer_address) {
