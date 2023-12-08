@@ -184,7 +184,7 @@ PendingStream* QuicSession::PendingStreamOnStreamFrame(
   return pending;
 }
 
-void QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
+bool QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
   QUICHE_DCHECK(pending != nullptr);
   QuicStreamId stream_id = pending->id();
   std::optional<QuicResetStreamError> stop_sending_error_code =
@@ -198,11 +198,11 @@ void QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
     if (stop_sending_error_code) {
       stream->OnStopSending(*stop_sending_error_code);
       if (!connection()->connected()) {
-        return;
+        return false;
       }
     }
     stream->OnStreamCreatedFromPendingStream();
-    return;
+    return connection()->connected();
   }
   // At this point, none of the bytes has been successfully consumed by the
   // application layer. We should close the pending stream even if it is
@@ -211,6 +211,7 @@ void QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
   if (pending->sequencer()->IsClosed()) {
     ClosePendingStream(stream_id);
   }
+  return connection()->connected();
 }
 
 void QuicSession::PendingStreamOnWindowUpdateFrame(
@@ -2714,8 +2715,7 @@ void QuicSession::ProcessAllPendingStreams() {
     pending_streams.push_back(it->second.get());
   }
   for (auto* pending_stream : pending_streams) {
-    MaybeProcessPendingStream(pending_stream);
-    if (!connection()->connected()) {
+    if (!MaybeProcessPendingStream(pending_stream)) {
       return;
     }
   }

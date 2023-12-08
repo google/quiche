@@ -918,7 +918,9 @@ class QUICHE_EXPORT QuicSession
                                          QuicStreamId id) const;
 
   // Process the pending stream if possible.
-  void MaybeProcessPendingStream(PendingStream* pending);
+  // Returns true if more pending streams should be processed afterwards while
+  // iterating through all pending streams.
+  bool MaybeProcessPendingStream(PendingStream* pending);
 
   // Creates or gets pending stream, feeds it with |frame|, and returns the
   // pending stream. Can return NULL, e.g., if the stream ID is invalid.
