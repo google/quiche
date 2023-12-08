@@ -1940,12 +1940,20 @@ TEST_P(QuicSessionTestServer, BufferAllIncomingStreams) {
       QuicSessionPeer::GetPendingStream(&session_, bidirectional_stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
 
+  connection_->AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
   session_.ProcessAllPendingStreams();
   // Both bidirectional and read-unidirectional streams are unbuffered.
   EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_FALSE(
       QuicSessionPeer::GetPendingStream(&session_, bidirectional_stream_id));
   EXPECT_EQ(2, session_.num_incoming_streams_created());
+  EXPECT_EQ(1, QuicSessionPeer::GetStream(&session_, stream_id)
+                   ->pending_duration()
+                   .ToMilliseconds());
+  EXPECT_EQ(1, QuicSessionPeer::GetStream(&session_, bidirectional_stream_id)
+                   ->pending_duration()
+                   .ToMilliseconds());
+  EXPECT_EQ(2, session_.connection()->GetStats().num_total_pending_streams);
 }
 
 TEST_P(QuicSessionTestServer, RstPendingStreams) {

@@ -250,6 +250,9 @@ struct QUICHE_EXPORT QuicConnectionStats {
   std::optional<TlsServerOperationStats> tls_server_select_cert_stats;
   std::optional<TlsServerOperationStats> tls_server_compute_signature_stats;
   std::optional<TlsServerOperationStats> tls_server_decrypt_ticket_stats;
+
+  // The total number of streams which were pending from some time.
+  size_t num_total_pending_streams = 0;
 };
 
 }  // namespace quic

@@ -194,6 +194,13 @@ bool QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
     // The pending stream should now be in the scope of normal streams.
     QUICHE_DCHECK(IsClosedStream(stream_id) || IsOpenStream(stream_id))
         << "Stream " << stream_id << " not created";
+    if (!stream->pending_duration().IsZero()) {
+      QUIC_SERVER_HISTOGRAM_TIMES("QuicStream.PendingDurationUs",
+                                  stream->pending_duration().ToMicroseconds(),
+                                  0, 1000 * 100, 20,
+                                  "Time a stream has been pending at server.");
+      ++connection()->mutable_stats().num_total_pending_streams;
+    }
     pending_stream_map_.erase(stream_id);
     if (stop_sending_error_code) {
       stream->OnStopSending(*stop_sending_error_code);

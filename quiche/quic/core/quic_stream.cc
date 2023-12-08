@@ -126,7 +126,8 @@ PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
                        kStreamReceiveWindowLimit,
                        session->flow_controller()->auto_tune_receive_window(),
                        session->flow_controller()),
-      sequencer_(this) {}
+      sequencer_(this),
+      creation_time_(session->GetClock()->ApproximateNow()) {}
 
 void PendingStream::OnDataAvailable() {
   // Data should be kept in the sequencer so that
@@ -284,14 +285,15 @@ void PendingStream::StopReading() {
 
 QuicStream::QuicStream(PendingStream* pending, QuicSession* session,
                        bool is_static)
-    : QuicStream(pending->id_, session, std::move(pending->sequencer_),
-                 is_static,
-                 QuicUtils::GetStreamType(pending->id_, session->perspective(),
-                                          /*peer_initiated = */ true,
-                                          session->version()),
-                 pending->stream_bytes_read_, pending->fin_received_,
-                 std::move(pending->flow_controller_),
-                 pending->connection_flow_controller_) {
+    : QuicStream(
+          pending->id_, session, std::move(pending->sequencer_), is_static,
+          QuicUtils::GetStreamType(pending->id_, session->perspective(),
+                                   /*peer_initiated = */ true,
+                                   session->version()),
+          pending->stream_bytes_read_, pending->fin_received_,
+          std::move(pending->flow_controller_),
+          pending->connection_flow_controller_,
+          (session->GetClock()->ApproximateNow() - pending->creation_time())) {
   QUICHE_DCHECK(session->version().HasIetfQuicFrames());
   sequencer_.set_stream(this);
 }
@@ -324,14 +326,15 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session, bool is_static,
                        StreamType type)
     : QuicStream(id, session, QuicStreamSequencer(this), is_static, type, 0,
                  false, FlowController(id, session, type),
-                 session->flow_controller()) {}
+                 session->flow_controller(), QuicTime::Delta::Zero()) {}
 
 QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
                        QuicStreamSequencer sequencer, bool is_static,
                        StreamType type, uint64_t stream_bytes_read,
                        bool fin_received,
                        std::optional<QuicFlowController> flow_controller,
-                       QuicFlowController* connection_flow_controller)
+                       QuicFlowController* connection_flow_controller,
+                       QuicTime::Delta pending_duration)
     : sequencer_(std::move(sequencer)),
       id_(id),
       session_(session),
@@ -369,6 +372,7 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
                                            session->version())
                 : type),
       creation_time_(session->connection()->clock()->ApproximateNow()),
+      pending_duration_(pending_duration),
       perspective_(session->perspective()) {
   if (type_ == WRITE_UNIDIRECTIONAL) {
     fin_received_ = true;
