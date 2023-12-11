@@ -255,10 +255,10 @@ class BlindSignAuthTest : public QuicheTest {
       ASSERT_TRUE(privacy_pass_token_data.ParseFromString(token.token));
       // Validate token structure.
       std::string decoded_token;
-      ASSERT_TRUE(absl::Base64Unescape(privacy_pass_token_data.token(),
-                                       &decoded_token));
+      ASSERT_TRUE(absl::WebSafeBase64Unescape(privacy_pass_token_data.token(),
+                                              &decoded_token));
       std::string decoded_extensions;
-      ASSERT_TRUE(absl::Base64Unescape(
+      ASSERT_TRUE(absl::WebSafeBase64Unescape(
           privacy_pass_token_data.encoded_extensions(), &decoded_extensions));
     }
   }

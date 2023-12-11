@@ -522,9 +522,9 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
 
     privacy::ppn::PrivacyPassTokenData privacy_pass_token_data;
     privacy_pass_token_data.mutable_token()->assign(
-        absl::Base64Escape(*marshaled_token));
+        absl::WebSafeBase64Escape(*marshaled_token));
     privacy_pass_token_data.mutable_encoded_extensions()->assign(
-        absl::Base64Escape(encoded_extensions));
+        absl::WebSafeBase64Escape(encoded_extensions));
     privacy_pass_token_data.set_use_case_override(use_case);
     tokens_vec.push_back(BlindSignToken{
         privacy_pass_token_data.SerializeAsString(), public_key_expiry_time});
