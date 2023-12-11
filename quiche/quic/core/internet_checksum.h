@@ -2,16 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_QBONE_PLATFORM_INTERNET_CHECKSUM_H_
-#define QUICHE_QUIC_QBONE_PLATFORM_INTERNET_CHECKSUM_H_
+#ifndef QUICHE_QUIC_CORE_INTERNET_CHECKSUM_H_
+#define QUICHE_QUIC_CORE_INTERNET_CHECKSUM_H_
 
 #include <cstddef>
 #include <cstdint>
 
+#include "quiche/common/platform/api/quiche_export.h"
+
 namespace quic {
 
 // Incrementally compute an Internet header checksum as described in RFC 1071.
-class InternetChecksum {
+class QUICHE_EXPORT InternetChecksum {
  public:
   // Update the checksum with the specified data.  Note that while the checksum
   // is commutative, the data has to be supplied in the units of two-byte words.
@@ -29,4 +31,4 @@ class InternetChecksum {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_QBONE_PLATFORM_INTERNET_CHECKSUM_H_
+#endif  // QUICHE_QUIC_CORE_INTERNET_CHECKSUM_H_

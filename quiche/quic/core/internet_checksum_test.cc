@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/qbone/platform/internet_checksum.h"
+#include "quiche/quic/core/internet_checksum.h"
 
 #include "quiche/quic/platform/api/quic_test.h"
 

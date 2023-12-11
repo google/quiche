@@ -7,7 +7,7 @@
 #include <netinet/ip6.h>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/qbone/platform/internet_checksum.h"
+#include "quiche/quic/core/internet_checksum.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_endian.h"
 
