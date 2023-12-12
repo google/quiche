@@ -299,8 +299,9 @@ const QuicTag kNCMR = TAG('N', 'C', 'M', 'R');   // Do not attempt connection
 // Allows disabling defer_send_in_response_to_packets in QuicConnection.
 const QuicTag kDFER = TAG('D', 'F', 'E', 'R');   // Do not defer sending.
 
-// Disable Pacing offload option.
-const QuicTag kNPCO = TAG('N', 'P', 'C', 'O');    // No pacing offload.
+// Pacing options.
+const QuicTag kNPCO = TAG('N', 'P', 'C', 'O');  // No pacing offload.
+const QuicTag kRNIB = TAG('R', 'N', 'I', 'B');  // Remove non-initial burst.
 
 // Enable bandwidth resumption experiment.
 const QuicTag kBWRE = TAG('B', 'W', 'R', 'E');  // Bandwidth resumption.

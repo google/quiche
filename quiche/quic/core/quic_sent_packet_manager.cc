@@ -204,6 +204,9 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kCONH, perspective)) {
     conservative_handshake_retransmits_ = true;
   }
+  if (config.HasClientSentConnectionOption(kRNIB, perspective)) {
+    pacing_sender_.set_remove_non_initial_burst();
+  }
   send_algorithm_->SetFromConfig(config, perspective);
   loss_algorithm_->SetFromConfig(config, perspective);
 
