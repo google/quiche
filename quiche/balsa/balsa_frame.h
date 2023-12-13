@@ -63,7 +63,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
         headers_(nullptr),
         start_of_trailer_line_(0),
         trailer_length_(0),
-        trailer_(nullptr),
         invalid_chars_level_(InvalidCharsLevel::kOff),
         use_interim_headers_callback_(false) {}
 
@@ -102,39 +101,11 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
     }
   }
 
-  // The method set_balsa_trailer() clears `trailer` and attaches it to the
-  // framer.  This is a required step before the framer will process any input
-  // message data.  To detach the trailer object from the framer, use
-  // set_balsa_trailer(nullptr).
-  // TODO(b/134507471): Remove this method in favor of `EnableTrailers()`.
-  void set_balsa_trailer(BalsaHeaders* trailer) {
-    if (trailers_ != nullptr) {
-      QUICHE_LOG(DFATAL) << "set_balsa_trailer() called with trailers_!";
-      return;
-    }
-    if (trailer != nullptr && is_request()) {
-      QUICHE_CODE_COUNT(balsa_trailer_in_request);
-    }
-
-    if (trailer_ != trailer) {
-      trailer_ = trailer;
-    }
-    if (trailer_ != nullptr) {
-      // Clear the trailer if it is non-null, even if the new trailer is
-      // the same as the old.
-      trailer_->Clear();
-    }
-  }
-
   // Enables the framer to process trailers and deliver them in
-  // `BalsaVisitorInterface::OnTrailers()`. Mutually exclusive with
-  // `set_balsa_trailer()`. If neither method is called, minimal
-  // trailers parsing will be performed (just enough to advance past trailers).
-  // TODO(b/134507471): Update comment with removal of `set_balsa_trailer()`.
+  // `BalsaVisitorInterface::OnTrailers()`. If this method is not called and
+  // trailers are received, only minimal trailers parsing will be performed
+  // (just enough to advance past trailers).
   void EnableTrailers() {
-    if (trailer_ != nullptr) {
-      QUICHE_LOG(DFATAL) << "EnableTrailers() called with trailer_!";
-    }
     if (is_request()) {
       QUICHE_CODE_COUNT(balsa_trailer_in_request);
     }
@@ -199,9 +170,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   const BalsaHeaders* headers() const { return headers_; }
   BalsaHeaders* mutable_headers() { return headers_; }
-
-  const BalsaHeaders* trailer() const { return trailer_; }
-  BalsaHeaders* mutable_trailer() { return trailer_; }
 
   size_t BytesSafeToSplice() const;
   void BytesSpliced(size_t bytes_spliced);
@@ -304,9 +272,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   void HandleHeadersTooLongError();
 
-  // TODO(b/134507471): Remove.
-  BalsaHeaders* GetTrailers() const;
-
   bool last_char_was_slash_r_;
   bool saw_non_newline_char_;
   bool start_was_space_;
@@ -337,11 +302,8 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   size_t start_of_trailer_line_;
   size_t trailer_length_;
 
-  // At most one of these members is populated. Neither is reset to nullptr in
-  // Reset().
-  // TODO(b/134507471): Remove `trailer_` and update comment.
+  // Cleared but not reset to nullptr in Reset().
   std::unique_ptr<BalsaHeaders> trailers_;
-  BalsaHeaders* trailer_;
 
   InvalidCharsLevel invalid_chars_level_;  // This is not reset in Reset().
 
