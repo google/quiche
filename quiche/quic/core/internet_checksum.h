@@ -8,6 +8,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
@@ -20,8 +22,9 @@ class QUICHE_EXPORT InternetChecksum {
   // If there is an extra byte at the end, the function has to be called on it
   // last.
   void Update(const char* data, size_t size);
-
   void Update(const uint8_t* data, size_t size);
+  void Update(absl::string_view data);
+  void Update(absl::Span<const uint8_t> data);
 
   uint16_t Value() const;
 

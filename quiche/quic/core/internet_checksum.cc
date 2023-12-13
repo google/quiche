@@ -7,6 +7,9 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
+
 namespace quic {
 
 void InternetChecksum::Update(const char* data, size_t size) {
@@ -23,6 +26,14 @@ void InternetChecksum::Update(const char* data, size_t size) {
 
 void InternetChecksum::Update(const uint8_t* data, size_t size) {
   Update(reinterpret_cast<const char*>(data), size);
+}
+
+void InternetChecksum::Update(absl::string_view data) {
+  Update(data.data(), data.size());
+}
+
+void InternetChecksum::Update(absl::Span<const uint8_t> data) {
+  Update(reinterpret_cast<const char*>(data.data()), data.size());
 }
 
 uint16_t InternetChecksum::Value() const {
