@@ -31,7 +31,7 @@ struct SubscribeWindow {
     if (seq < start) {
       return false;
     }
-    if (!end.has_value() || seq < end.value()) {
+    if (!end.has_value() || seq < *end) {
       return true;
     }
     return false;

@@ -101,7 +101,7 @@ class ChatClient {
                   << " ";
       }
       if (reason_phrase.has_value()) {
-        std::cout << "REJECTED, reason = " << reason_phrase.value() << "\n";
+        std::cout << "REJECTED, reason = " << *reason_phrase << "\n";
       } else {
         std::cout << "ACCEPTED\n";
       }
@@ -146,7 +146,7 @@ class ChatClient {
         [&](absl::string_view track_namespace,
             std::optional<absl::string_view> message) {
           if (message.has_value()) {
-            std::cout << "ANNOUNCE rejected, " << message.value() << "\n";
+            std::cout << "ANNOUNCE rejected, " << *message << "\n";
             session_->Error("Local ANNOUNCE rejected");
             return;
           }

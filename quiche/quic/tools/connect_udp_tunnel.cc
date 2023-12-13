@@ -81,7 +81,7 @@ std::optional<QuicServerId> ValidateAndParseTargetFromPath(
   }
   // Empty host checked above after path split. Expect decoding to never result
   // in an empty decoded host from non-empty encoded host.
-  QUICHE_DCHECK(!decoded_host.value().empty());
+  QUICHE_DCHECK(!decoded_host->empty());
 
   std::optional<std::string> decoded_port =
       quiche::AsciiUrlDecode(path_split[5]);
@@ -92,25 +92,22 @@ std::optional<QuicServerId> ValidateAndParseTargetFromPath(
   }
   // Empty port checked above after path split. Expect decoding to never result
   // in an empty decoded port from non-empty encoded port.
-  QUICHE_DCHECK(!decoded_port.value().empty());
+  QUICHE_DCHECK(!decoded_port->empty());
 
-  int parsed_port_number =
-      url::ParsePort(decoded_port.value().data(),
-                     url::Component(0, decoded_port.value().size()));
+  int parsed_port_number = url::ParsePort(
+      decoded_port->data(), url::Component(0, decoded_port->size()));
   // Negative result is either invalid or unspecified, either of which is
   // disallowed for this parse. Port 0 is technically valid but reserved and not
   // really usable in practice, so easiest to just disallow it here.
   if (parsed_port_number <= 0) {
-    QUICHE_DVLOG(1) << "CONNECT-UDP request with bad port: "
-                    << decoded_port.value();
+    QUICHE_DVLOG(1) << "CONNECT-UDP request with bad port: " << *decoded_port;
     return std::nullopt;
   }
   // Expect url::ParsePort() to validate port is uint16_t and otherwise return
   // negative number checked for above.
   QUICHE_DCHECK_LE(parsed_port_number, std::numeric_limits<uint16_t>::max());
 
-  return QuicServerId(decoded_host.value(),
-                      static_cast<uint16_t>(parsed_port_number));
+  return QuicServerId(*decoded_host, static_cast<uint16_t>(parsed_port_number));
 }
 
 // Validate header expectations from RFC 9298, section 3.4.
@@ -200,7 +197,7 @@ void ConnectUdpTunnel::OpenTunnel(
     return;
   }
 
-  if (!ValidateTarget(target.value(), acceptable_targets_)) {
+  if (!ValidateTarget(*target, acceptable_targets_)) {
     SendErrorResponse("403", "destination_ip_prohibited",
                       "disallowed proxy target");
     return;
@@ -208,7 +205,7 @@ void ConnectUdpTunnel::OpenTunnel(
 
   // TODO(ericorth): Validate that the IP address doesn't fall into diallowed
   // ranges per RFC 9298, Section 7.
-  QuicSocketAddress address = tools::LookupAddress(AF_UNSPEC, target.value());
+  QuicSocketAddress address = tools::LookupAddress(AF_UNSPEC, *target);
   if (!address.IsInitialized()) {
     SendErrorResponse("500", "dns_error", "host resolution error");
     return;
@@ -231,7 +228,7 @@ void ConnectUdpTunnel::OpenTunnel(
 
   QUICHE_DVLOG(1) << "CONNECT-UDP tunnel opened from stream "
                   << client_stream_request_handler_->stream_id() << " to "
-                  << target.value().ToHostPortString();
+                  << target->ToHostPortString();
 
   client_stream_request_handler_->GetStream()->RegisterHttp3DatagramVisitor(
       this);
@@ -290,8 +287,7 @@ void ConnectUdpTunnel::ReceiveComplete(
   }
 
   QUICHE_DCHECK(client_stream_request_handler_);
-  quiche::ConnectUdpDatagramUdpPacketPayload payload(
-      data.value().AsStringView());
+  quiche::ConnectUdpDatagramUdpPacketPayload payload(data->AsStringView());
   client_stream_request_handler_->GetStream()->SendHttp3Datagram(
       payload.Serialize());
 
@@ -354,7 +350,7 @@ void ConnectUdpTunnel::SendConnectResponse() {
   std::optional<std::string> capsule_protocol_value =
       structured_headers::SerializeItem(structured_headers::Item(true));
   QUICHE_CHECK(capsule_protocol_value.has_value());
-  response_headers["Capsule-Protocol"] = capsule_protocol_value.value();
+  response_headers["Capsule-Protocol"] = *capsule_protocol_value;
 
   QuicBackendResponse response;
   response.set_headers(std::move(response_headers));
@@ -398,7 +394,7 @@ void ConnectUdpTunnel::SendErrorResponse(absl::string_view status,
   std::optional<std::string> proxy_status_value =
       structured_headers::SerializeList({proxy_status_member});
   QUICHE_CHECK(proxy_status_value.has_value());
-  headers["Proxy-Status"] = proxy_status_value.value();
+  headers["Proxy-Status"] = *proxy_status_value;
 
   QuicBackendResponse response;
   response.set_headers(std::move(headers));

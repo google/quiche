@@ -6051,10 +6051,9 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
   EXPECT_CALL(visitor, OnTransportParametersSent(_))
       .WillOnce(Invoke([kCustomParameter](
                            const TransportParameters& transport_parameters) {
-        ASSERT_NE(transport_parameters.custom_parameters.find(kCustomParameter),
-                  transport_parameters.custom_parameters.end());
-        EXPECT_EQ(transport_parameters.custom_parameters.at(kCustomParameter),
-                  "test");
+        auto it = transport_parameters.custom_parameters.find(kCustomParameter);
+        ASSERT_NE(it, transport_parameters.custom_parameters.end());
+        EXPECT_EQ(it->second, "test");
       }));
   EXPECT_CALL(visitor, OnTransportParametersReceived(_)).Times(1);
   ASSERT_TRUE(Initialize());
@@ -6070,12 +6069,10 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
     ADD_FAILURE() << "Missing server session";
   }
   if (server_config != nullptr) {
-    if (server_config->received_custom_transport_parameters().find(
-            kCustomParameter) !=
-        server_config->received_custom_transport_parameters().end()) {
-      EXPECT_EQ(server_config->received_custom_transport_parameters().at(
-                    kCustomParameter),
-                "test");
+    if (auto it = server_config->received_custom_transport_parameters().find(
+            kCustomParameter);
+        it != server_config->received_custom_transport_parameters().end()) {
+      EXPECT_EQ(it->second, "test");
     } else {
       ADD_FAILURE() << "Did not find custom parameter";
     }

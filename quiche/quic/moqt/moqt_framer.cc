@@ -180,12 +180,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
   if (message.role.has_value()) {
     WriteVarIntParameter(writer,
                          static_cast<uint64_t>(MoqtSetupParameter::kRole),
-                         static_cast<uint64_t>(message.role.value()));
+                         static_cast<uint64_t>(*message.role));
   }
   if (!using_webtrans_ && message.path.has_value()) {
     WriteStringParameter(writer,
                          static_cast<uint64_t>(MoqtSetupParameter::kPath),
-                         message.path.value());
+                         *message.path);
   }
   QUICHE_DCHECK(writer.remaining() == 0);
   return buffer;
@@ -210,7 +210,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
   if (message.role.has_value()) {
     WriteVarIntParameter(writer,
                          static_cast<uint64_t>(MoqtSetupParameter::kRole),
-                         static_cast<uint64_t>(message.role.value()));
+                         static_cast<uint64_t>(*message.role));
   }
   QUICHE_DCHECK(writer.remaining() == 0);
   return buffer;
@@ -257,7 +257,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeRequest(
     WriteStringParameter(
         writer,
         static_cast<uint64_t>(MoqtTrackRequestParameter::kAuthorizationInfo),
-        message.authorization_info.value());
+        *message.authorization_info);
   }
   QUICHE_DCHECK(writer.remaining() == 0);
   return buffer;
@@ -380,7 +380,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeAnnounce(
     WriteStringParameter(
         writer,
         static_cast<uint64_t>(MoqtTrackRequestParameter::kAuthorizationInfo),
-        message.authorization_info.value());
+        *message.authorization_info);
   }
   QUICHE_DCHECK(writer.remaining() == 0);
   return buffer;

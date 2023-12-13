@@ -62,7 +62,7 @@ void MoqtParser::ProcessData(absl::string_view data, bool fin) {
     QUICHE_DCHECK(buffered_message_.empty());
     if (!object_metadata_->payload_length.has_value()) {
       // Deliver the data and exit.
-      visitor_.OnObjectMessage(object_metadata_.value(), data, fin);
+      visitor_.OnObjectMessage(*object_metadata_, data, fin);
       if (fin) {
         object_metadata_.reset();
       }
@@ -70,13 +70,13 @@ void MoqtParser::ProcessData(absl::string_view data, bool fin) {
     }
     if (data.length() < payload_length_remaining_) {
       // Does not finish the payload; deliver and exit.
-      visitor_.OnObjectMessage(object_metadata_.value(), data, false);
+      visitor_.OnObjectMessage(*object_metadata_, data, false);
       payload_length_remaining_ -= data.length();
       return;
     }
     // Finishes the payload. Deliver and continue.
     reader.emplace(data);
-    visitor_.OnObjectMessage(object_metadata_.value(),
+    visitor_.OnObjectMessage(*object_metadata_,
                              data.substr(0, payload_length_remaining_), true);
     reader->Seek(payload_length_remaining_);
     object_metadata_.reset();
@@ -186,7 +186,7 @@ size_t MoqtParser::ProcessObject(quic::QuicDataReader& reader, bool has_length,
                                ? reader.BytesRemaining()
                                : *object_metadata_->payload_length;
   visitor_.OnObjectMessage(
-      object_metadata_.value(),
+      *object_metadata_,
       reader.PeekRemainingPayload().substr(0, payload_to_draw),
       received_complete_message);
   if (received_complete_message) {

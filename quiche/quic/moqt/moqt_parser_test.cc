@@ -99,7 +99,7 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     messages_received_++;
     MoqtClientSetup client_setup = message;
     if (client_setup.path.has_value()) {
-      string0_ = std::string(client_setup.path.value());
+      string0_ = std::string(*client_setup.path);
       client_setup.path = absl::string_view(string0_);
     }
     last_message_ = TestMessageBase::MessageStructuredData(client_setup);
@@ -119,7 +119,7 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     string1_ = std::string(subscribe_request.track_name);
     subscribe_request.track_name = absl::string_view(string1_);
     if (subscribe_request.authorization_info.has_value()) {
-      string2_ = std::string(subscribe_request.authorization_info.value());
+      string2_ = std::string(*subscribe_request.authorization_info);
       subscribe_request.authorization_info = absl::string_view(string2_);
     }
     last_message_ = TestMessageBase::MessageStructuredData(subscribe_request);
@@ -185,7 +185,7 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     string0_ = std::string(announce.track_namespace);
     announce.track_namespace = absl::string_view(string0_);
     if (announce.authorization_info.has_value()) {
-      string1_ = std::string(announce.authorization_info.value());
+      string1_ = std::string(*announce.authorization_info);
       announce.authorization_info = absl::string_view(string1_);
     }
     last_message_ = TestMessageBase::MessageStructuredData(announce);
@@ -300,7 +300,7 @@ TEST_P(MoqtParserTest, OneMessage) {
   std::unique_ptr<TestMessageBase> message = MakeMessage(message_type_);
   parser_.ProcessData(message->PacketSample(), true);
   EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_TRUE(visitor_.end_of_message_);
   if (IsObjectMessage(message_type_)) {
     // Check payload message.
@@ -314,7 +314,7 @@ TEST_P(MoqtParserTest, OneMessageWithLongVarints) {
   message->ExpandVarints();
   parser_.ProcessData(message->PacketSample(), true);
   EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_TRUE(visitor_.end_of_message_);
   if (IsObjectMessage(message_type_)) {
     // Check payload message.
@@ -337,7 +337,7 @@ TEST_P(MoqtParserTest, TwoPartMessage) {
           first_data_size, message->total_message_size() - first_data_size),
       true);
   EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   if (IsObjectMessage(message_type_)) {
     EXPECT_EQ(visitor_.object_payload_, "foo");
   }
@@ -362,7 +362,7 @@ TEST_P(MoqtParserTest, OneByteAtATime) {
     parser_.ProcessData(absl::string_view(), true);  // Needs the FIN
     EXPECT_EQ(visitor_.messages_received_, kObjectPayloadSize + 2);
   }
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_TRUE(visitor_.end_of_message_);
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
 }
@@ -385,7 +385,7 @@ TEST_P(MoqtParserTest, OneByteAtATimeLongerVarints) {
     parser_.ProcessData(absl::string_view(), true);  // Needs the FIN
     EXPECT_EQ(visitor_.messages_received_, kObjectPayloadSize + 2);
   }
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_TRUE(visitor_.end_of_message_);
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
 }
@@ -430,14 +430,14 @@ TEST_F(MoqtMessageSpecificTest, ObjectNoLengthSeparateFin) {
   auto message = std::make_unique<ObjectMessageWithoutLength>();
   parser.ProcessData(message->PacketSample(), false);
   EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_TRUE(visitor_.object_payload_.has_value());
   EXPECT_EQ(*(visitor_.object_payload_), "foo");
   EXPECT_FALSE(visitor_.end_of_message_);
 
   parser.ProcessData(absl::string_view(), true);  // send the FIN
   EXPECT_EQ(visitor_.messages_received_, 2);
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_TRUE(visitor_.object_payload_.has_value());
   EXPECT_EQ(*(visitor_.object_payload_), "");
   EXPECT_TRUE(visitor_.end_of_message_);
@@ -451,7 +451,7 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObject) {
   auto message = std::make_unique<ObjectMessageWithoutLength>();
   parser.ProcessData(message->PacketSample(), false);
   EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_FALSE(visitor_.end_of_message_);
   EXPECT_TRUE(visitor_.object_payload_.has_value());
   EXPECT_EQ(*(visitor_.object_payload_), "foo");
@@ -459,7 +459,7 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObject) {
   // second part
   parser.ProcessData("bar", false);
   EXPECT_EQ(visitor_.messages_received_, 2);
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_FALSE(visitor_.end_of_message_);
   EXPECT_TRUE(visitor_.object_payload_.has_value());
   EXPECT_EQ(*(visitor_.object_payload_), "bar");
@@ -467,7 +467,7 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObject) {
   // third part includes FIN
   parser.ProcessData("deadbeef", true);
   EXPECT_EQ(visitor_.messages_received_, 3);
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_TRUE(visitor_.end_of_message_);
   EXPECT_TRUE(visitor_.object_payload_.has_value());
   EXPECT_EQ(*(visitor_.object_payload_), "deadbeef");
@@ -489,7 +489,7 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObjectFirstIncomplete) {
       message->PacketSample().substr(4, message->total_message_size() - 4),
       false);
   EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_FALSE(visitor_.end_of_message_);
   EXPECT_TRUE(visitor_.object_payload_.has_value());
   EXPECT_EQ(visitor_.object_payload_->length(), 95);
@@ -497,7 +497,7 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObjectFirstIncomplete) {
   // third part includes FIN
   parser.ProcessData("bar", true);
   EXPECT_EQ(visitor_.messages_received_, 2);
-  EXPECT_TRUE(message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_TRUE(visitor_.end_of_message_);
   EXPECT_TRUE(visitor_.object_payload_.has_value());
   EXPECT_EQ(*(visitor_.object_payload_), "bar");
@@ -820,8 +820,7 @@ TEST_F(MoqtMessageSpecificTest, AllMessagesTogether) {
                        false);
     EXPECT_EQ(visitor_.messages_received_, fully_received);
     if (prev_message != nullptr) {
-      EXPECT_TRUE(
-          prev_message->EqualFieldValues(visitor_.last_message_.value()));
+      EXPECT_TRUE(prev_message->EqualFieldValues(*visitor_.last_message_));
     }
     fully_received++;
     read = new_read;
@@ -831,7 +830,7 @@ TEST_F(MoqtMessageSpecificTest, AllMessagesTogether) {
   // Deliver the rest
   parser.ProcessData(absl::string_view(buffer + read, write - read), true);
   EXPECT_EQ(visitor_.messages_received_, fully_received);
-  EXPECT_TRUE(prev_message->EqualFieldValues(visitor_.last_message_.value()));
+  EXPECT_TRUE(prev_message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
 }
 

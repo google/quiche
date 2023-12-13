@@ -644,7 +644,7 @@ uint64_t LeafCertHashForTesting() {
     return 0;
   }
 
-  return QuicUtils::FNV1a_64_Hash(chain->certs.at(0));
+  return QuicUtils::FNV1a_64_Hash(chain->certs[0]);
 }
 
 void FillInDummyReject(CryptoHandshakeMessage* rej) {
