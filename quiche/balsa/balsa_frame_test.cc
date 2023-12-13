@@ -533,15 +533,10 @@ class BalsaVisitorMock : public BalsaVisitorInterface {
     GenerateFakeHeaders(headers, &fake_headers);
     ProcessHeaders(fake_headers);
   }
-  void ProcessTrailers(const BalsaHeaders& trailer) override {
-    FakeHeaders fake_headers;
-    GenerateFakeHeaders(trailer, &fake_headers);
-    ProcessTrailers(fake_headers);
-  }
   void OnTrailers(std::unique_ptr<BalsaHeaders> trailers) override {
     FakeHeaders fake_trailers;
     GenerateFakeHeaders(*trailers, &fake_trailers);
-    ProcessTrailers(fake_trailers);
+    OnTrailers(fake_trailers);
   }
 
   MOCK_METHOD(void, OnRawBodyInput, (absl::string_view input), (override));
@@ -549,8 +544,7 @@ class BalsaVisitorMock : public BalsaVisitorInterface {
   MOCK_METHOD(void, OnHeaderInput, (absl::string_view input), (override));
   MOCK_METHOD(void, OnTrailerInput, (absl::string_view input), (override));
   MOCK_METHOD(void, ProcessHeaders, (const FakeHeaders& headers));
-  // TODO(b/134507471): Rename to OnTrailers().
-  MOCK_METHOD(void, ProcessTrailers, (const FakeHeaders& headers));
+  MOCK_METHOD(void, OnTrailers, (const FakeHeaders& trailers));
   MOCK_METHOD(void, OnRequestFirstLineInput,
               (absl::string_view line_input, absl::string_view method_input,
                absl::string_view request_uri, absl::string_view version_input),
@@ -1278,7 +1272,7 @@ TEST_F(HTTPBalsaFrameTest, RequestWithTrailers) {
   FakeHeaders fake_trailers;
   fake_trailers.AddKeyValue("crass", "monkeys");
   fake_trailers.AddKeyValue("funky", "monkeys");
-  EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_trailers));
+  EXPECT_CALL(visitor_mock_, OnTrailers(fake_trailers));
 
   EXPECT_CALL(visitor_mock_, OnTrailerInput(_)).Times(AtLeast(1));
 
@@ -1749,7 +1743,7 @@ TEST_F(HTTPBalsaFrameTest,
     EXPECT_CALL(visitor_mock_, OnChunkLength(63));
     EXPECT_CALL(visitor_mock_, OnChunkLength(1));
     EXPECT_CALL(visitor_mock_, OnChunkLength(0));
-    EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_trailers));
+    EXPECT_CALL(visitor_mock_, OnTrailers(fake_trailers));
     EXPECT_CALL(visitor_mock_, MessageDone());
   }
   EXPECT_CALL(visitor_mock_, OnHeaderInput(message_headers));
@@ -2223,7 +2217,7 @@ TEST_F(HTTPBalsaFrameTest,
     EXPECT_CALL(visitor_mock_, OnChunkLength(10));
     EXPECT_CALL(visitor_mock_, OnChunkLength(63));
     EXPECT_CALL(visitor_mock_, OnChunkLength(0));
-    EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_headers_in_trailer));
+    EXPECT_CALL(visitor_mock_, OnTrailers(fake_headers_in_trailer));
     EXPECT_CALL(visitor_mock_, MessageDone());
   }
   EXPECT_CALL(visitor_mock_, OnHeaderInput(message_headers));
@@ -2292,7 +2286,7 @@ TEST_F(
     EXPECT_CALL(visitor_mock_, OnChunkLength(10));
     EXPECT_CALL(visitor_mock_, OnChunkLength(63));
     EXPECT_CALL(visitor_mock_, OnChunkLength(0));
-    EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_headers_in_trailer));
+    EXPECT_CALL(visitor_mock_, OnTrailers(fake_headers_in_trailer));
     EXPECT_CALL(visitor_mock_, MessageDone());
   }
   EXPECT_CALL(visitor_mock_, OnHeaderInput(message_headers));
@@ -2373,7 +2367,7 @@ TEST(HTTPBalsaFrame,
                                     "HTTP/1.1", "200", "Ok all is well"));
       EXPECT_CALL(visitor_mock, ProcessHeaders(fake_headers));
       EXPECT_CALL(visitor_mock, HeaderDone());
-      EXPECT_CALL(visitor_mock, ProcessTrailers(fake_headers_in_trailer));
+      EXPECT_CALL(visitor_mock, OnTrailers(fake_headers_in_trailer));
       EXPECT_CALL(visitor_mock, MessageDone());
     }
     EXPECT_CALL(visitor_mock, OnHeaderInput(message_headers));
@@ -2532,7 +2526,7 @@ class BalsaFrameParsingTest : public QuicheTest {
                           : BalsaFrameEnums::INVALID_TRAILER_FORMAT;
     EXPECT_CALL(visitor_mock_, HandleError(expected_error)).Times(1);
 
-    EXPECT_CALL(visitor_mock_, ProcessTrailers(_)).Times(0);
+    EXPECT_CALL(visitor_mock_, OnTrailers(_)).Times(0);
     EXPECT_CALL(visitor_mock_, MessageDone()).Times(0);
 
     ASSERT_EQ(headers.size(),
@@ -3325,7 +3319,7 @@ TEST_F(HTTPBalsaFrameTest, TrailerMissingColon) {
 
   FakeHeaders fake_trailers;
   fake_trailers.AddKeyValue("crass_monkeys", "");
-  EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_trailers));
+  EXPECT_CALL(visitor_mock_, OnTrailers(fake_trailers));
   EXPECT_EQ(trailer.size(),
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
 
@@ -3395,7 +3389,7 @@ TEST_F(HTTPBalsaFrameTest, MultipleHeadersInTrailer) {
     EXPECT_CALL(visitor_mock_, HeaderDone());
     EXPECT_CALL(visitor_mock_, OnChunkLength(3));
     EXPECT_CALL(visitor_mock_, OnChunkLength(0));
-    EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_headers_in_trailer));
+    EXPECT_CALL(visitor_mock_, OnTrailers(fake_headers_in_trailer));
     EXPECT_CALL(visitor_mock_, OnTrailerInput(trailer_data));
     EXPECT_CALL(visitor_mock_, MessageDone());
   }
@@ -3479,7 +3473,7 @@ TEST_F(HTTPBalsaFrameTest, FrameAndResetAndFrameAgain) {
   {
     FakeHeaders fake_trailers;
     fake_trailers.AddKeyValue("k", "v");
-    EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_trailers));
+    EXPECT_CALL(visitor_mock_, OnTrailers(fake_trailers));
   }
   ASSERT_EQ(trailer.size(),
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
@@ -3509,7 +3503,7 @@ TEST_F(HTTPBalsaFrameTest, FrameAndResetAndFrameAgain) {
   {
     FakeHeaders fake_trailers;
     fake_trailers.AddKeyValue("nk", "nv");
-    EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_trailers));
+    EXPECT_CALL(visitor_mock_, OnTrailers(fake_trailers));
   }
   ASSERT_EQ(trailer.size(),
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
@@ -3749,7 +3743,7 @@ TEST_F(HTTPBalsaFrameTest, GibberishInHeadersAndTrailer) {
   fake_trailers.AddKeyValue("k", "v");
   fake_trailers.AddKeyValue(kGibberish1, kGibberish2);
   fake_trailers.AddKeyValue("foo", "bar : eeep : baz");
-  EXPECT_CALL(visitor_mock_, ProcessTrailers(fake_trailers));
+  EXPECT_CALL(visitor_mock_, OnTrailers(fake_trailers));
   ASSERT_EQ(trailer.size(),
             balsa_frame_.ProcessInput(trailer.data(), trailer.size()));
 
@@ -3788,7 +3782,7 @@ TEST_F(HTTPBalsaFrameTest, TrailerTooLong) {
   balsa_frame_.set_max_header_length(headers.size());
 
   EXPECT_CALL(visitor_mock_, HandleError(BalsaFrameEnums::TRAILER_TOO_LONG));
-  EXPECT_CALL(visitor_mock_, ProcessTrailers(_)).Times(0);
+  EXPECT_CALL(visitor_mock_, OnTrailers(_)).Times(0);
   EXPECT_CALL(visitor_mock_, MessageDone()).Times(0);
   ASSERT_EQ(headers.size(),
             balsa_frame_.ProcessInput(headers.data(), headers.size()));

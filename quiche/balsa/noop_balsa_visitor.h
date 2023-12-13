@@ -33,7 +33,6 @@ class QUICHE_EXPORT NoOpBalsaVisitor : public BalsaVisitorInterface {
   void OnHeaderInput(absl::string_view /*input*/) override {}
   void OnTrailerInput(absl::string_view /*input*/) override {}
   void ProcessHeaders(const BalsaHeaders& /*headers*/) override {}
-  void ProcessTrailers(const BalsaHeaders& /*trailer*/) override {}
   void OnTrailers(std::unique_ptr<BalsaHeaders> /*trailers*/) override {}
 
   void OnRequestFirstLineInput(absl::string_view /*line_input*/,
