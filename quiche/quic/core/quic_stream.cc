@@ -127,7 +127,11 @@ PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
                        session->flow_controller()->auto_tune_receive_window(),
                        session->flow_controller()),
       sequencer_(this),
-      creation_time_(session->GetClock()->ApproximateNow()) {}
+      creation_time_(session->GetClock()->ApproximateNow()) {
+  if (is_bidirectional_) {
+    QUIC_CODE_COUNT_N(quic_pending_stream, 3, 3);
+  }
+}
 
 void PendingStream::OnDataAvailable() {
   // Data should be kept in the sequencer so that

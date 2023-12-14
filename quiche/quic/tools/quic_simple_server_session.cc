@@ -30,6 +30,7 @@ QuicSimpleServerSession::QuicSimpleServerSession(
                             helper, crypto_config, compressed_certs_cache),
       quic_simple_server_backend_(quic_simple_server_backend) {
   QUICHE_DCHECK(quic_simple_server_backend_);
+  set_max_streams_accepted_per_loop(5u);
 }
 
 QuicSimpleServerSession::~QuicSimpleServerSession() { DeleteConnection(); }
@@ -101,6 +102,12 @@ QuicSimpleServerSession::CreateOutgoingUnidirectionalStream() {
       quic_simple_server_backend_);
   ActivateStream(absl::WrapUnique(stream));
   return stream;
+}
+
+QuicStream* QuicSimpleServerSession::ProcessBidirectionalPendingStream(
+    PendingStream* pending) {
+  QUICHE_DCHECK(IsEncryptionEstablished());
+  return CreateIncomingStream(pending);
 }
 
 }  // namespace quic

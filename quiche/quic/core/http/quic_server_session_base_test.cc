@@ -67,12 +67,18 @@ class TestServerSession : public QuicServerSessionBase {
       : QuicServerSessionBase(config, CurrentSupportedVersions(), connection,
                               visitor, helper, crypto_config,
                               compressed_certs_cache),
-        quic_simple_server_backend_(quic_simple_server_backend) {}
+        quic_simple_server_backend_(quic_simple_server_backend) {
+    // Change the limit to be smaller than kMaxStreamsForTest to test pending
+    // streams handling across multiple loops.
+    set_max_streams_accepted_per_loop(4u);
+  }
 
   ~TestServerSession() override { DeleteConnection(); }
 
   MOCK_METHOD(bool, WriteControlFrame,
               (const QuicFrame& frame, TransmissionType type), (override));
+
+  using QuicServerSessionBase::pending_streams_size;
 
  protected:
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override {
@@ -114,6 +120,11 @@ class TestServerSession : public QuicServerSessionBase {
       QuicCompressedCertsCache* compressed_certs_cache) override {
     return CreateCryptoServerStream(crypto_config, compressed_certs_cache, this,
                                     stream_helper());
+  }
+
+  QuicStream* ProcessBidirectionalPendingStream(
+      PendingStream* pending) override {
+    return CreateIncomingStream(pending);
   }
 
  private:
@@ -370,6 +381,12 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
     EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateStream(session_.get(),
                                                              stream_id));
     stream_id += QuicUtils::StreamIdDelta(transport_version());
+    // Reset the stream count to make it not a bottleneck.
+    QuicAlarm* alarm =
+        QuicSessionPeer::GetStreamCountResetAlarm(session_.get());
+    if (alarm->IsSet()) {
+      alarm_factory_.FireAlarm(alarm);
+    }
   }
 
   if (!VersionHasIetfQuicFrames(transport_version())) {
@@ -494,6 +511,8 @@ class MockTlsServerHandshaker : public TlsServerHandshaker {
 
   MOCK_METHOD(std::string, GetAddressToken, (const CachedNetworkParameters*),
               (const, override));
+
+  MOCK_METHOD(bool, encryption_established, (), (const, override));
 };
 
 TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
@@ -718,6 +737,69 @@ TEST_P(QuicServerSessionBaseTest, NoBandwidthResumptionByDefault) {
   session_->OnConfigNegotiated();
   EXPECT_FALSE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
+}
+
+TEST_P(QuicServerSessionBaseTest, OpenStreamLimitPerEventLoop) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    // Only needed for version 99/IETF QUIC. Noop otherwise.
+    return;
+  }
+  MockTlsServerHandshaker* crypto_stream =
+      new MockTlsServerHandshaker(session_.get(), &crypto_config_);
+  QuicServerSessionBasePeer::SetCryptoStream(session_.get(), crypto_stream);
+  EXPECT_CALL(*crypto_stream, encryption_established())
+      .WillRepeatedly(testing::Return(true));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  session_->OnConfigNegotiated();
+
+  size_t i = 0u;
+  QuicStreamFrame data(GetNthClientInitiatedBidirectionalId(i), false, 0,
+                       kStreamData);
+  session_->OnStreamFrame(data);
+  EXPECT_EQ(1u, session_->GetNumActiveStreams());
+  ++i;
+
+  // Start another loop.
+  QuicAlarm* alarm = QuicSessionPeer::GetStreamCountResetAlarm(session_.get());
+  EXPECT_TRUE(alarm->IsSet());
+  alarm_factory_.FireAlarm(alarm);
+  // Receive data on a read uni stream with incomplete type and the stream
+  // should become pending.
+  QuicStreamId control_stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  QuicStreamFrame data1(control_stream_id, false, 1, "aaaa");
+  session_->OnStreamFrame(data1);
+  EXPECT_EQ(1u, session_->pending_streams_size());
+  // Receive data on 9 more bidi streams. Only the first 4 should open new
+  // streams.
+  for (; i < 10u; ++i) {
+    QuicStreamFrame more_data(GetNthClientInitiatedBidirectionalId(i), false, 0,
+                              kStreamData);
+    session_->OnStreamFrame(more_data);
+  }
+  EXPECT_EQ(5u, session_->GetNumActiveStreams());
+  EXPECT_EQ(6u, session_->pending_streams_size());
+  EXPECT_EQ(
+      GetNthClientInitiatedBidirectionalId(i - 1),
+      QuicSessionPeer::GetLargestPeerCreatedStreamId(session_.get(), false));
+
+  // Start another loop should cause 4 more pending bidi streams to open.
+  helper_.GetClock()->AdvanceTime(QuicTime::Delta::FromMicroseconds(100));
+  EXPECT_TRUE(alarm->IsSet());
+  alarm_factory_.FireAlarm(alarm);
+  EXPECT_EQ(9u, session_->GetNumActiveStreams());
+  // The control stream and the 10th bidi stream should remain pending.
+  EXPECT_EQ(2u, session_->pending_streams_size());
+  EXPECT_EQ(nullptr, session_->GetActiveStream(control_stream_id));
+  EXPECT_EQ(nullptr, session_->GetActiveStream(
+                         GetNthClientInitiatedBidirectionalId(i - 1)));
+
+  // Receiving 1 more new stream should violate max stream limit even though the
+  // stream would have become pending.
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _));
+  QuicStreamFrame bad_stream(GetNthClientInitiatedBidirectionalId(i), false, 0,
+                             kStreamData);
+  session_->OnStreamFrame(bad_stream);
 }
 
 // Tests which check the lifetime management of data members of

@@ -246,6 +246,7 @@ class TestSession : public QuicSession {
         writev_consumes_all_data_(false),
         uses_pending_streams_(false),
         num_incoming_streams_created_(0) {
+    set_max_streams_accepted_per_loop(5);
     Initialize();
     this->connection()->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
@@ -1318,6 +1319,10 @@ TEST_P(QuicSessionTestServer, LimitMaxStreams) {
 
   // Opening and closing the next max streams window should NOT result
   // in any MAX_STREAMS frames being sent.
+  QuicAlarm* alarm = QuicSessionPeer::GetStreamCountResetAlarm(&session_);
+  if (alarm->IsSet()) {
+    alarm_factory_.FireAlarm(alarm);
+  }
   for (size_t i = 0; i < kMaxStreams; ++i) {
     QuicStreamId stream_id =
         GetNthClientInitiatedBidirectionalId(i + kMaxStreams);
@@ -1337,6 +1342,9 @@ TEST_P(QuicSessionTestServer, LimitMaxStreams) {
                 ->advertised_max_incoming_bidirectional_streams());
 
   // Open (but do not close) all available streams to consume the full window.
+  if (alarm->IsSet()) {
+    alarm_factory_.FireAlarm(alarm);
+  }
   for (size_t i = 0; i < kMaxStreams; ++i) {
     QuicStreamId stream_id =
         GetNthClientInitiatedBidirectionalId(i + 2 * kMaxStreams);
@@ -2178,6 +2186,10 @@ TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpened) {
     EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
     session_.StreamDraining(i, /*unidirectional=*/false);
     EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
+    QuicAlarm* alarm = QuicSessionPeer::GetStreamCountResetAlarm(&session_);
+    if (alarm->IsSet()) {
+      alarm_factory_.FireAlarm(alarm);
+    }
   }
 }
 
@@ -3348,6 +3360,71 @@ TEST_P(QuicSessionTestServer, NoServerPreferredAddressIfAddressFamilyMismatch) {
                    .has_value());
   EXPECT_FALSE(QuicConnectionPeer::GetSentServerPreferredAddress(connection_)
                    .IsInitialized());
+}
+
+TEST_P(QuicSessionTestServer, OpenStreamLimitPerEventLoop) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    // Only needed for version 99/IETF QUIC. Noop otherwise.
+    return;
+  }
+  session_.set_uses_pending_streams(true);
+  CompleteHandshake();
+
+  // Receive data on a read uni stream without 1st byte and the stream
+  // should become pending.
+  QuicStreamId unidirectional_stream_id =
+      QuicUtils::GetFirstUnidirectionalStreamId(transport_version(),
+                                                Perspective::IS_CLIENT);
+  QuicStreamFrame data1(unidirectional_stream_id, false, 10,
+                        absl::string_view("HT"));
+  session_.OnStreamFrame(data1);
+  EXPECT_TRUE(
+      QuicSessionPeer::GetPendingStream(&session_, unidirectional_stream_id));
+  EXPECT_EQ(0, session_.num_incoming_streams_created());
+  // Receive data on 10 more bidi streams. Only the first 5 should open new
+  // streams.
+  size_t i = 0u;
+  for (; i < 10u; ++i) {
+    QuicStreamId bidi_stream_id = GetNthClientInitiatedBidirectionalId(i);
+    QuicStreamFrame data(bidi_stream_id, false, 0, "aaaa");
+    session_.OnStreamFrame(data);
+    if (i > 4u) {
+      EXPECT_TRUE(QuicSessionPeer::GetPendingStream(&session_, bidi_stream_id));
+    }
+  }
+  EXPECT_EQ(5u, session_.num_incoming_streams_created());
+  EXPECT_EQ(GetNthClientInitiatedBidirectionalId(i - 1),
+            QuicSessionPeer::GetLargestPeerCreatedStreamId(&session_, false));
+  EXPECT_TRUE(session_.GetActiveStream(GetNthClientInitiatedBidirectionalId(4))
+                  ->pending_duration()
+                  .IsZero());
+  // Receive 1st byte on the read uni stream. The stream should still be pending
+  // due to the stream limit.
+  QuicStreamFrame data2(unidirectional_stream_id, false, 0,
+                        absl::string_view("HT"));
+  session_.OnStreamFrame(data2);
+  EXPECT_TRUE(
+      QuicSessionPeer::GetPendingStream(&session_, unidirectional_stream_id));
+
+  // Start another loop should cause 5 more pending streams to open, including
+  // the unidirectional stream.
+  helper_.GetClock()->AdvanceTime(QuicTime::Delta::FromMicroseconds(100));
+  QuicAlarm* alarm = QuicSessionPeer::GetStreamCountResetAlarm(&session_);
+  EXPECT_TRUE(alarm->IsSet());
+  alarm_factory_.FireAlarm(alarm);
+  EXPECT_EQ(10u, session_.num_incoming_streams_created());
+  EXPECT_NE(nullptr, session_.GetActiveStream(unidirectional_stream_id));
+  EXPECT_EQ(100, session_.GetActiveStream(unidirectional_stream_id)
+                     ->pending_duration()
+                     .ToMicroseconds());
+  EXPECT_EQ(
+      100,
+      session_.GetActiveStream(GetNthClientInitiatedBidirectionalId(i - 2))
+          ->pending_duration()
+          .ToMicroseconds());
+  // The 10th bidi stream should remain pending.
+  EXPECT_EQ(nullptr, session_.GetActiveStream(
+                         GetNthClientInitiatedBidirectionalId(i - 1)));
 }
 
 // A client test class that can be used when the automatic configuration is not

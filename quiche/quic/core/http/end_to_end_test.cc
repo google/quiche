@@ -7493,6 +7493,37 @@ TEST_P(EndToEndTest, MaxPacingRate) {
   EXPECT_LE(duration, QuicTime::Delta::FromSeconds(25));
 }
 
+TEST_P(EndToEndTest, RequestsBurstMitigation) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+
+  // Send 50 requests simutanuously and wait for their responses. Hopefully at
+  // least more than 5 of these requests will arrive at the server in the same
+  // event loop and cause some of them to be pending till the next loop.
+  for (int i = 0; i < 50; ++i) {
+    EXPECT_LT(0, client_->SendRequest("/foo"));
+  }
+
+  while (50 > client_->num_responses()) {
+    client_->ClearPerRequestState();
+    client_->WaitForResponse();
+    CheckResponseHeaders(client_.get());
+  }
+  EXPECT_TRUE(client_->connected());
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    const QuicConnectionStats& server_stats = server_connection->GetStats();
+    EXPECT_LT(0u, server_stats.num_total_pending_streams);
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

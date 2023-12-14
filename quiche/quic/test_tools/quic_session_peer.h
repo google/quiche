@@ -87,6 +87,7 @@ class QuicSessionPeer {
                                                     bool unidirectional) {
     return session->GetLargestPeerCreatedStreamId(unidirectional);
   }
+  static QuicAlarm* GetStreamCountResetAlarm(QuicSession* session);
 };
 
 }  // namespace test
