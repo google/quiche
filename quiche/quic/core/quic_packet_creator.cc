@@ -1298,7 +1298,7 @@ bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
       << "Adding a control frame with no control frame id: " << frame;
   QUICHE_DCHECK(QuicUtils::IsRetransmittableFrame(frame.type))
       << ENDPOINT << frame;
-  delegate_->MaybeBundleOpportunistically();
+  MaybeBundleOpportunistically();
   if (HasPendingFrames()) {
     if (AddFrame(frame, next_transmission_type_)) {
       // There is pending frames and current frame fits.
@@ -1319,6 +1319,19 @@ bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
   return success;
 }
 
+void QuicPacketCreator::MaybeBundleOpportunistically() {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+    delegate_->MaybeBundleOpportunistically();
+    return;
+  }
+
+  // delegate_->MaybeBundleOpportunistically() may change
+  // next_transmission_type_ for the bundled data.
+  const TransmissionType next_transmission_type = next_transmission_type_;
+  delegate_->MaybeBundleOpportunistically();
+  next_transmission_type_ = next_transmission_type;
+}
+
 QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
                                                 size_t write_length,
                                                 QuicStreamOffset offset,
@@ -1328,7 +1341,16 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
       << "Packet flusher is not attached when "
          "generator tries to write stream data.";
   bool has_handshake = QuicUtils::IsCryptoStreamId(transport_version(), id);
-  delegate_->MaybeBundleOpportunistically();
+  const TransmissionType next_transmission_type = next_transmission_type_;
+  MaybeBundleOpportunistically();
+  // TODO(wub): Remove this QUIC_BUG when deprecating
+  // quic_opport_bundle_qpack_decoder_data3.
+  QUIC_BUG_IF(quic_packet_creator_change_transmission_type,
+              next_transmission_type != next_transmission_type_)
+      << ENDPOINT
+      << "Transmission type changed by bundled data. old transmission type:"
+      << next_transmission_type
+      << ", new transmission type:" << next_transmission_type_;
   // If the data being consumed is subject to flow control, check the flow
   // control send window to see if |write_length| exceeds the send window after
   // bundling opportunistic data, if so, reduce |write_length| to the send
@@ -1337,11 +1359,11 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
   // - It is not a retransmission. We check next_transmission_type_ for that.
   // - And it's not handshake data. This is always true for ConsumeData because
   //   the function is not called for handshake data.
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data2) &&
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3) &&
       next_transmission_type_ == NOT_RETRANSMISSION) {
     if (QuicByteCount send_window = delegate_->GetFlowControlSendWindowSize(id);
         write_length > send_window) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data2, 4, 4);
+      QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data3, 4, 4);
       QUIC_DLOG(INFO) << ENDPOINT
                       << "After bundled data, reducing (old) write_length:"
                       << write_length << "to (new) send_window:" << send_window;
@@ -1367,7 +1389,10 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
 
   if (!fin && (write_length == 0)) {
     QUIC_BUG(quic_bug_10752_22)
-        << ENDPOINT << "Attempt to consume empty data without FIN.";
+        << ENDPOINT
+        << "Attempt to consume empty data without FIN. old transmission type:"
+        << next_transmission_type
+        << ", new transmission type:" << next_transmission_type_;
     return QuicConsumedData(0, false);
   }
   // We determine if we can enter the fast path before executing
@@ -1475,7 +1500,7 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
       << ENDPOINT
       << "Packet flusher is not attached when "
          "generator tries to write crypto data.";
-  delegate_->MaybeBundleOpportunistically();
+  MaybeBundleOpportunistically();
   // To make reasoning about crypto frames easier, we don't combine them with
   // other retransmittable frames in a single packet.
   // TODO(nharper): Once we have separate packet number spaces, everything
@@ -1635,7 +1660,7 @@ MessageStatus QuicPacketCreator::AddMessageFrame(
       << ENDPOINT
       << "Packet flusher is not attached when "
          "generator tries to add message frame.";
-  delegate_->MaybeBundleOpportunistically();
+  MaybeBundleOpportunistically();
   const QuicByteCount message_length = MemSliceSpanTotalSize(message);
   if (message_length > GetCurrentLargestMessagePayload()) {
     return MESSAGE_STATUS_TOO_LARGE;

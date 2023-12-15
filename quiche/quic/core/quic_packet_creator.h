@@ -611,6 +611,10 @@ class QUICHE_EXPORT QuicPacketCreator {
   // fail to add.
   bool AddPaddedFrameWithRetry(const QuicFrame& frame);
 
+  // Saves next_transmission_type_ before calling the delegate and restore it
+  // after.
+  void MaybeBundleOpportunistically();
+
   // Does not own these delegates or the framer.
   DelegateInterface* delegate_;
   DebugDelegate* debug_delegate_;

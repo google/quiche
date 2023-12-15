@@ -3167,8 +3167,8 @@ void QuicConnection::MaybeBundleOpportunistically() {
     }
   }
 
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data2)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data2, 1, 4);
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data3, 1, 4);
     visitor_->MaybeBundleOpportunistically();
   }
 
@@ -5795,8 +5795,8 @@ void QuicConnection::SendAllPendingAcks() {
       uber_received_packet_manager_.GetEarliestAckTimeout();
   QUIC_BUG_IF(quic_bug_12714_32, !earliest_ack_timeout.IsInitialized());
   MaybeBundleCryptoDataWithAcks();
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data2)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data2, 2, 4);
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data3, 2, 4);
     visitor_->MaybeBundleOpportunistically();
   }
   earliest_ack_timeout = uber_received_packet_manager_.GetEarliestAckTimeout();

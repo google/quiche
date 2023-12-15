@@ -50,7 +50,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_gfe_allow_alps_new_codepoint, false)
 // If true, allows QUIC control frames to be written while a packet is being processed.
 QUIC_FLAG(quic_restart_flag_quic_allow_control_frames_while_procesing, false)
 // If true, always bundle qpack decoder data with other frames opportunistically.
-QUIC_FLAG(quic_restart_flag_quic_opport_bundle_qpack_decoder_data2, false)
+QUIC_FLAG(quic_restart_flag_quic_opport_bundle_qpack_decoder_data3, false)
 // If true, an endpoint does not detect path degrading or blackholing until handshake gets confirmed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed, true)
 // If true, default-enable 5RTO blachole detection.
