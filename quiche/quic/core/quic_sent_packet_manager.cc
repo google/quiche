@@ -1394,6 +1394,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
     if (info->in_flight) {
       acked_packet.bytes_acked = info->bytes_sent;
     } else {
+      acked_packet.spurious_loss = (info->state == LOST);
       // Unackable packets are skipped earlier.
       largest_newly_acked_ = acked_packet.packet_number;
     }

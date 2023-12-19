@@ -15,6 +15,7 @@
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -1799,7 +1800,7 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
   }
   now = now + params.RTT();
   sender_->OnCongestionEvent(
-      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      /*rtt_updated=*/true, 2 * kDefaultMaxPacketSize, now,
       {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize, now)},
       {LostPacket(next_packet_number - 2, kDefaultMaxPacketSize)}, 0, 0);
 
@@ -1843,6 +1844,60 @@ TEST_F(Bbr2DefaultTopologyTest, LossOnlyCongestionEvent) {
 
   // Bandwidth estimate should not change for the loss only event.
   EXPECT_EQ(prior_bandwidth_estimate, sender_->BandwidthEstimate());
+}
+
+// Simulate the case where a packet is considered lost but then acked.
+TEST_F(Bbr2DefaultTopologyTest, SpuriousLossEvent) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  DriveOutOfStartup(params);
+
+  // Make sure we have something in flight.
+  if (sender_unacked_map()->bytes_in_flight() == 0) {
+    sender_endpoint_.AddBytesToTransfer(50 * 1024 * 1024);
+    bool simulator_result = simulator_.RunUntilOrTimeout(
+        [&]() { return sender_unacked_map()->bytes_in_flight() > 0; },
+        QuicTime::Delta::FromSeconds(5));
+    ASSERT_TRUE(simulator_result);
+  }
+
+  // Lose all in flight packets.
+  QuicTime now = simulator_.GetClock()->Now() + params.RTT() * 0.25;
+  const QuicByteCount prior_inflight = sender_unacked_map()->bytes_in_flight();
+  LostPacketVector lost_packets;
+  for (QuicPacketNumber packet_number = sender_unacked_map()->GetLeastUnacked();
+       sender_unacked_map()->HasInFlightPackets(); packet_number++) {
+    const auto& info = sender_unacked_map()->GetTransmissionInfo(packet_number);
+    if (!info.in_flight) {
+      continue;
+    }
+    lost_packets.emplace_back(packet_number, info.bytes_sent);
+    sender_unacked_map()->RemoveFromInFlight(packet_number);
+  }
+  ASSERT_FALSE(lost_packets.empty());
+  sender_->OnCongestionEvent(false, prior_inflight, now, {}, lost_packets, 0,
+                             0);
+
+  // Pretend the first lost packet number is acked.
+  now = now + params.RTT() * 0.5;
+  AckedPacketVector acked_packets;
+  acked_packets.emplace_back(lost_packets[0].packet_number, 0, now);
+  acked_packets.back().spurious_loss = true;
+  EXPECT_EQ(sender_unacked_map()->bytes_in_flight(), 0);
+  sender_->OnCongestionEvent(false, sender_unacked_map()->bytes_in_flight(),
+                             now, acked_packets, {}, 0, 0);
+
+  if (GetQuicReloadableFlag(quic_bbr2_fix_spurious_loss_bytes_counting)) {
+    EXPECT_EQ(sender_->GetNetworkModel().total_bytes_sent(),
+              sender_->GetNetworkModel().total_bytes_acked() +
+                  sender_->GetNetworkModel().total_bytes_lost());
+  } else {
+    // This is the bug fixed by the flag.
+    EXPECT_LT(sender_->GetNetworkModel().total_bytes_sent(),
+              sender_->GetNetworkModel().total_bytes_acked() +
+                  sender_->GetNetworkModel().total_bytes_lost());
+  }
 }
 
 // After quiescence, if the sender is in PROBE_RTT, it should transition to

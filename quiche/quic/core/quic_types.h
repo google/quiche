@@ -571,6 +571,9 @@ struct QUICHE_EXPORT AckedPacket {
   QuicPacketNumber packet_number;
   // Number of bytes sent in the packet that was acknowledged.
   QuicPacketLength bytes_acked;
+  // Whether the packet has been marked as lost before the ack. |bytes_acked|
+  // should be 0 if this is true.
+  bool spurious_loss = false;
   // The time |packet_number| was received by the peer, according to the
   // optional timestamp the peer included in the ACK frame which acknowledged
   // |packet_number|. Zero if no timestamp was available for this packet.
