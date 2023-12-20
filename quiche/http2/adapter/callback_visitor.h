@@ -107,6 +107,8 @@ class QUICHE_EXPORT CallbackVisitor : public Http2VisitorInterface {
   nghttp2_frame current_frame_;
   std::vector<nghttp2_settings_entry> settings_;
   size_t remaining_data_ = 0;
+  // Any new stream must have an ID greater than the watermark.
+  Http2StreamId stream_id_watermark_ = 0;
 };
 
 }  // namespace adapter

@@ -2,6 +2,7 @@
 
 #include "absl/strings/escaping.h"
 #include "quiche/http2/adapter/http2_util.h"
+#include "quiche/http2/adapter/nghttp2.h"
 #include "quiche/http2/adapter/nghttp2_util.h"
 #include "quiche/common/quiche_endian.h"
 
@@ -151,27 +152,31 @@ void CallbackVisitor::OnSettingsAck() {
 
 bool CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   auto it = GetStreamInfo(stream_id);
-  if (it->second.received_headers) {
-    // At least one headers frame has already been received.
-    QUICHE_VLOG(1)
-        << "Headers already received for stream " << stream_id
-        << ", these are trailers or headers following a 100 response";
+  if (it == stream_map_.end()) {
     current_frame_.headers.cat = NGHTTP2_HCAT_HEADERS;
   } else {
-    switch (perspective_) {
-      case Perspective::kClient:
-        QUICHE_VLOG(1) << "First headers at the client for stream " << stream_id
-                       << "; these are response headers";
-        current_frame_.headers.cat = NGHTTP2_HCAT_RESPONSE;
-        break;
-      case Perspective::kServer:
-        QUICHE_VLOG(1) << "First headers at the server for stream " << stream_id
-                       << "; these are request headers";
-        current_frame_.headers.cat = NGHTTP2_HCAT_REQUEST;
-        break;
+    if (it->second.received_headers) {
+      // At least one headers frame has already been received.
+      QUICHE_VLOG(1)
+          << "Headers already received for stream " << stream_id
+          << ", these are trailers or headers following a 100 response";
+      current_frame_.headers.cat = NGHTTP2_HCAT_HEADERS;
+    } else {
+      switch (perspective_) {
+        case Perspective::kClient:
+          QUICHE_VLOG(1) << "First headers at the client for stream "
+                         << stream_id << "; these are response headers";
+          current_frame_.headers.cat = NGHTTP2_HCAT_RESPONSE;
+          break;
+        case Perspective::kServer:
+          QUICHE_VLOG(1) << "First headers at the server for stream "
+                         << stream_id << "; these are request headers";
+          current_frame_.headers.cat = NGHTTP2_HCAT_REQUEST;
+          break;
+      }
     }
+    it->second.received_headers = true;
   }
-  it->second.received_headers = true;
   if (callbacks_->on_begin_headers_callback) {
     const int result = callbacks_->on_begin_headers_callback(
         nullptr, &current_frame_, user_data_);
@@ -408,12 +413,16 @@ int CallbackVisitor::OnBeforeFrameSent(uint8_t frame_type,
                  << ", flags=" << int(flags) << ")";
   if (callbacks_->before_frame_send_callback) {
     nghttp2_frame frame;
+    bool before_sent_headers = true;
     auto it = GetStreamInfo(stream_id);
+    if (it != stream_map_.end()) {
+      before_sent_headers = it->second.before_sent_headers;
+      it->second.before_sent_headers = true;
+    }
     // The implementation of the before_frame_send_callback doesn't look at the
     // error code, so for now it's populated with 0.
     PopulateFrame(frame, frame_type, stream_id, length, flags, /*error_code=*/0,
-                  it->second.before_sent_headers);
-    it->second.before_sent_headers = true;
+                  before_sent_headers);
     return callbacks_->before_frame_send_callback(nullptr, &frame, user_data_);
   }
   return 0;
@@ -428,10 +437,14 @@ int CallbackVisitor::OnFrameSent(uint8_t frame_type, Http2StreamId stream_id,
                  << ")";
   if (callbacks_->on_frame_send_callback) {
     nghttp2_frame frame;
+    bool sent_headers = true;
     auto it = GetStreamInfo(stream_id);
+    if (it != stream_map_.end()) {
+      sent_headers = it->second.sent_headers;
+      it->second.sent_headers = true;
+    }
     PopulateFrame(frame, frame_type, stream_id, length, flags, error_code,
-                  it->second.sent_headers);
-    it->second.sent_headers = true;
+                  sent_headers);
     return callbacks_->on_frame_send_callback(nullptr, &frame, user_data_);
   }
   return 0;
@@ -501,9 +514,10 @@ void CallbackVisitor::OnErrorDebug(absl::string_view message) {
 CallbackVisitor::StreamInfoMap::iterator CallbackVisitor::GetStreamInfo(
     Http2StreamId stream_id) {
   auto it = stream_map_.find(stream_id);
-  if (it == stream_map_.end()) {
+  if (it == stream_map_.end() && stream_id > stream_id_watermark_) {
     auto p = stream_map_.insert({stream_id, {}});
     it = p.first;
+    stream_id_watermark_ = stream_id;
   }
   return it;
 }

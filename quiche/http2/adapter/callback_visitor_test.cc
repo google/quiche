@@ -548,7 +548,7 @@ TEST(ServerCallbackVisitorUnitTest, HeadersAfterFin) {
               OnBeginHeaders(IsHeaders(
                   1, NGHTTP2_FLAG_END_HEADERS | NGHTTP2_FLAG_END_STREAM,
                   NGHTTP2_HCAT_REQUEST)));
-  visitor.OnBeginHeadersForStream(1);
+  EXPECT_TRUE(visitor.OnBeginHeadersForStream(1));
 
   EXPECT_EQ(visitor.stream_map_size(), 1);
 
@@ -578,11 +578,11 @@ TEST(ServerCallbackVisitorUnitTest, HeadersAfterFin) {
   visitor.OnFrameHeader(1, 23, HEADERS, 4);
 
   EXPECT_CALL(callbacks, OnBeginHeaders(IsHeaders(1, NGHTTP2_FLAG_END_HEADERS,
-                                                  NGHTTP2_HCAT_REQUEST)));
-  visitor.OnBeginHeadersForStream(1);
+                                                  NGHTTP2_HCAT_HEADERS)));
+  EXPECT_TRUE(visitor.OnBeginHeadersForStream(1));
 
-  // Bug: the visitor should not revive streams that have already been closed.
-  EXPECT_EQ(visitor.stream_map_size(), 1);
+  // The visitor should not revive streams that have already been closed.
+  EXPECT_EQ(visitor.stream_map_size(), 0);
 }
 
 }  // namespace
