@@ -470,6 +470,13 @@ const QuicTag kMCS3 = TAG('M', 'C', 'S', '3');
 const QuicTag kMCS4 = TAG('M', 'C', 'S', '4');
 const QuicTag kMCS5 = TAG('M', 'C', 'S', '5');
 
+// Per-loop stream limit experiments
+const QuicTag kSLP1 = TAG('S', 'L', 'P', '1');  // 1 new request per event loop
+const QuicTag kSLP2 = TAG('S', 'L', 'P', '2');  // 2 new requests per event loop
+const QuicTag kSLPF = TAG('S', 'L', 'P', 'F');  // number of new requests per
+                                                // event loop according to
+                                                // internal flag.
+
 constexpr QuicTag kBSUS = TAG('B', 'S', 'U', 'S');  // Blocks server connection
                                                     // until the SETTINGS frame
                                                     // is received.
