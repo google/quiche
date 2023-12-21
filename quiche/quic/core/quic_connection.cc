@@ -2392,14 +2392,10 @@ void QuicConnection::MaybeSendInResponseToPacket() {
     // Pacing limited: CanWrite returned false, and it has scheduled a send
     // alarm before it returns.
     if (send_alarm_->deadline() > max_deadline) {
-      QUIC_BUG(quic_send_alarm_postponed)
-          << "previous deadline:" << max_deadline
-          << ", deadline from CanWrite:" << send_alarm_->deadline()
-          << ", last_can_write_reason:"
-          << static_cast<int>(last_can_write_reason_)
-          << ", packets_sent_on_last_successful_can_write:"
-          << packets_sent_on_last_successful_can_write_;
-      QUIC_DVLOG(1) << "Send alarm restored after processing packet.";
+      QUIC_DVLOG(1)
+          << "Send alarm restored after processing packet. previous deadline:"
+          << max_deadline
+          << ", deadline from CanWrite:" << send_alarm_->deadline();
       // Restore to the previous, earlier deadline.
       send_alarm_->Update(max_deadline, QuicTime::Delta::Zero());
     } else {
@@ -3200,11 +3196,6 @@ void QuicConnection::MaybeBundleOpportunistically() {
       << ENDPOINT << "Failed to flush ACK frame";
 }
 
-void QuicConnection::RecordLastCanWriteReason(LastCanWriteReason reason) {
-  last_can_write_reason_ = reason;
-  packets_sent_on_last_successful_can_write_ = stats_.packets_sent;
-}
-
 bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
   if (!connected_) {
     return false;
@@ -3230,9 +3221,6 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     // Try to coalesce packet, only allow to write when creator is on soft max
     // packet length. Given the next created packet is going to fill current
     // coalesced packet, do not check amplification factor.
-    if (packet_creator_.HasSoftMaxPacketLength()) {
-      RecordLastCanWriteReason(LAST_CAN_WRITE_REASON_COALESCE_PACKET);
-    }
     return packet_creator_.HasSoftMaxPacketLength();
   }
 
@@ -3241,7 +3229,6 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     // 1) firing PTO,
     // 2) bundling CRYPTO data with ACKs,
     // 3) coalescing CRYPTO data of higher space.
-    RecordLastCanWriteReason(LAST_CAN_WRITE_REASON_PENDING_TIMER);
     return true;
   }
 
@@ -3264,7 +3251,6 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
 
   // Allow acks and probing frames to be sent immediately.
   if (retransmittable == NO_RETRANSMITTABLE_DATA) {
-    RecordLastCanWriteReason(LAST_CAN_WRITE_REASON_NO_RETRANSMITTABLE_DATA);
     return true;
   }
   // If the send alarm is set, wait for it to fire.
@@ -3283,7 +3269,6 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
   if (!delay.IsZero()) {
     if (delay <= release_time_into_future_) {
       // Required delay is within pace time into future, send now.
-      RecordLastCanWriteReason(LAST_CAN_WRITE_REASON_DELAY_WITHIN_RELEASE_TIME);
       return true;
     }
     // Cannot send packet now because delay is too far in the future.
@@ -3293,7 +3278,6 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return false;
   }
 
-  RecordLastCanWriteReason(LAST_CAN_WRITE_REASON_NO_DELAY);
   return true;
 }
 
