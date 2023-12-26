@@ -93,8 +93,7 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
                       const QuicConfig& config,
                       const ParsedQuicVersionVector& supported_versions,
                       QuicConnection* connection, const QuicServerId& server_id,
-                      QuicCryptoClientConfig* crypto_config,
-                      Owner* owner);
+                      QuicCryptoClientConfig* crypto_config, Owner* owner);
 
   // Disallow copy and assign.
   MasqueClientSession(const MasqueClientSession&) = delete;
@@ -144,6 +143,13 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
 
   // Removes a fake address that was previously created by GetFakeAddress().
   void RemoveFakeAddress(const quiche::QuicheIpAddress& fake_address);
+
+  // Set additional HTTP headers that will be sent on all requests to the MASQUE
+  // proxy. Separated with colons and semicolons.
+  // For example: "name1:value1;name2:value2".
+  void set_additional_headers(absl::string_view additional_headers) {
+    additional_headers_ = additional_headers;
+  }
 
  private:
   // State that the MasqueClientSession keeps for each CONNECT-UDP request.
@@ -284,8 +290,11 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   const ConnectEthernetClientState* GetOrCreateConnectEthernetClientState(
       EncapsulatedEthernetSession* encapsulated_ethernet_session);
 
+  void AddAdditionalHeaders(spdy::Http2HeaderBlock& headers) const;
+
   MasqueMode masque_mode_;
   std::string uri_template_;
+  std::string additional_headers_;
   std::list<ConnectUdpClientState> connect_udp_client_states_;
   std::list<ConnectIpClientState> connect_ip_client_states_;
   std::list<ConnectEthernetClientState> connect_ethernet_client_states_;

@@ -6,11 +6,13 @@
 
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/quic_data_reader.h"
@@ -21,6 +23,7 @@
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_url_utils.h"
+#include "quiche/common/quiche_text_utils.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
@@ -146,6 +149,7 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   headers[":authority"] = authority;
   headers[":path"] = canonicalized_path;
   headers["connect-udp-version"] = "12";
+  AddAdditionalHeaders(headers);
   size_t bytes_sent =
       stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
   if (bytes_sent == 0) {
@@ -192,6 +196,7 @@ MasqueClientSession::GetOrCreateConnectIpClientState(
   headers[":authority"] = authority;
   headers[":path"] = path;
   headers["connect-ip-version"] = "3";
+  AddAdditionalHeaders(headers);
   size_t bytes_sent =
       stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
   if (bytes_sent == 0) {
@@ -240,6 +245,7 @@ MasqueClientSession::GetOrCreateConnectEthernetClientState(
   headers[":scheme"] = scheme;
   headers[":authority"] = authority;
   headers[":path"] = path;
+  AddAdditionalHeaders(headers);
   size_t bytes_sent =
       stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
   if (bytes_sent == 0) {
@@ -677,6 +683,24 @@ quiche::QuicheIpAddress MasqueClientSession::GetFakeAddress(
 void MasqueClientSession::RemoveFakeAddress(
     const quiche::QuicheIpAddress& fake_address) {
   fake_addresses_.erase(fake_address.ToPackedString());
+}
+
+void MasqueClientSession::AddAdditionalHeaders(
+    spdy::Http2HeaderBlock& headers) const {
+  if (additional_headers_.empty()) {
+    return;
+  }
+  for (absl::string_view sp : absl::StrSplit(additional_headers_, ';')) {
+    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&sp);
+    if (sp.empty()) {
+      continue;
+    }
+    std::vector<absl::string_view> kv =
+        absl::StrSplit(sp, absl::MaxSplits(':', 1));
+    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[0]);
+    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[1]);
+    headers[kv[0]] = kv[1];
+  }
 }
 
 }  // namespace quic

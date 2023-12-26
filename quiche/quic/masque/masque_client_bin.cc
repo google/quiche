@@ -41,6 +41,12 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "Allows setting MASQUE mode, currently only valid value is \"open\".");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, proxy_headers, "",
+    "A list of HTTP headers to add to request to the MASQUE proxy. "
+    "Separated with colons and semicolons. "
+    "For example: \"name1:value1;name2:value2\".");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, bring_up_tun, false,
     "If set to true, no URLs need to be specified and instead a TUN device "
     "is brought up with the assigned IP from the MASQUE CONNECT-IP server.");
@@ -305,6 +311,9 @@ int RunMasqueClient(int argc, char* argv[]) {
 
   QUIC_LOG(INFO) << "MASQUE is connected " << masque_client->connection_id()
                  << " in " << masque_mode << " mode";
+
+  masque_client->masque_client_session()->set_additional_headers(
+      quiche::GetQuicheCommandLineFlag(FLAGS_proxy_headers));
 
   if (bring_up_tun) {
     QUIC_LOG(INFO) << "Bringing up tun";
