@@ -18,6 +18,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -37,6 +38,7 @@ using ::testing::StrictMock;
 
 constexpr webtransport::StreamId kControlStreamId = 4;
 constexpr webtransport::StreamId kIncomingUniStreamId = 15;
+constexpr webtransport::StreamId kOutgoingUniStreamId = 14;
 
 constexpr MoqtSessionParameters default_parameters = {
     /*version=*/MoqtVersion::kDraft01,
@@ -101,6 +103,12 @@ class MoqtSessionPeer {
     RemoteTrack& track = it.first->second;
     track.set_track_alias(track_alias);
     session->tracks_by_alias_.emplace(std::make_pair(track_alias, &track));
+  }
+
+  static LocalTrack& GetLocalTrack(MoqtSession* session, FullTrackName& name) {
+    auto it = session->local_tracks_.find(name);
+    EXPECT_NE(it, session->local_tracks_.end());
+    return it->second;
   }
 };
 
@@ -581,7 +589,91 @@ TEST_F(MoqtSessionTest, IncomingObjectUnknownTrackId) {
   control_stream->OnSubscribeOkMessage(ok);
 }
 
-// TODO: Cover the error cases in the above
+TEST_F(MoqtSessionTest, CreateUniStreamAndSend) {
+  StrictMock<webtransport::test::MockStream> mock_stream;
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(&mock_stream));
+  EXPECT_CALL(mock_stream, SetVisitor(_)).Times(1);
+  EXPECT_CALL(mock_stream, GetStreamId())
+      .WillRepeatedly(Return(kOutgoingUniStreamId));
+  std::optional<webtransport::StreamId> stream =
+      session_.OpenUnidirectionalStream();
+  EXPECT_TRUE(stream.has_value());
+  EXPECT_EQ(stream.value(), kOutgoingUniStreamId);
+
+  // Send on the stream
+  EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
+      .WillOnce(Return(&mock_stream));
+  FullTrackName ftn("foo", "bar");
+  MockLocalTrackVisitor track_visitor;
+  session_.AddLocalTrack(ftn, &track_visitor);
+  LocalTrack& track = MoqtSessionPeer::GetLocalTrack(&session_, ftn);
+  FullSequence& next_seq = track.next_sequence_mutable();
+  next_seq.group = 4;
+  next_seq.object = 1;
+  track.AddWindow(SubscribeWindow(5, 0));
+  // No subscription; this is a no-op except for incrementing the sequence
+  // number.
+  EXPECT_CALL(mock_stream, Writev(_, _)).Times(0);
+  session_.PublishObjectToStream(kOutgoingUniStreamId,
+                                 FullTrackName("foo", "bar"),
+                                 /*start_new_group=*/false, "deadbeef");
+  EXPECT_EQ(next_seq, FullSequence(4, 2));
+  bool correct_message = false;
+  EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
+      .WillOnce(Return(&mock_stream));
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]),
+                  MoqtMessageType::kObjectWithPayloadLength);
+        return absl::OkStatus();
+      });
+  session_.PublishObjectToStream(kOutgoingUniStreamId,
+                                 FullTrackName("foo", "bar"),
+                                 /*start_new_group=*/true, "deadbeef");
+  EXPECT_TRUE(correct_message);
+  EXPECT_EQ(next_seq, FullSequence(5, 1));
+}
+
+// Error cases
+
+TEST_F(MoqtSessionTest, CannotOpenUniStream) {
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(false));
+  std::optional<webtransport::StreamId> stream =
+      session_.OpenUnidirectionalStream();
+  EXPECT_FALSE(stream.has_value());
+
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(nullptr));
+  stream = session_.OpenUnidirectionalStream();
+  EXPECT_FALSE(stream.has_value());
+}
+
+TEST_F(MoqtSessionTest, CannotPublishToStream) {
+  EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
+      .WillOnce(Return(nullptr));
+  FullTrackName ftn("foo", "bar");
+  MockLocalTrackVisitor track_visitor;
+  session_.AddLocalTrack(ftn, &track_visitor);
+  LocalTrack& track = MoqtSessionPeer::GetLocalTrack(&session_, ftn);
+  FullSequence& next_seq = track.next_sequence_mutable();
+  next_seq.group = 4;
+  next_seq.object = 1;
+  session_.PublishObjectToStream(kOutgoingUniStreamId, ftn,
+                                 /*start_new_group=*/false, "deadbeef");
+  // Object not sent; no change in sequence number.
+  EXPECT_EQ(next_seq.group, 4);
+  EXPECT_EQ(next_seq.object, 1);
+}
+
+// TODO: Cover more error cases in the above
 
 }  // namespace test
 

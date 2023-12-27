@@ -61,6 +61,8 @@ class LocalTrack {
   // by one.
   const FullSequence& next_sequence() const { return next_sequence_; }
 
+  FullSequence& next_sequence_mutable() { return next_sequence_; }
+
   bool HasSubscriber() const { return !windows_.IsEmpty(); }
 
  private:

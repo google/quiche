@@ -18,7 +18,6 @@
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
-#include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -112,6 +111,16 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                              RemoteTrack::Visitor* visitor,
                              absl::string_view auth_info = "");
 
+  // Returns the stream ID if successful, nullopt if not.
+  // TODO: Add a callback if stream creation is delayed.
+  std::optional<webtransport::StreamId> OpenUnidirectionalStream();
+  // Will automatically assign a new sequence number. If |start_new_group|,
+  // increment group_sequence and set object_sequence to 0. Otherwise,
+  // increment object_sequence.
+  void PublishObjectToStream(webtransport::StreamId stream_id,
+                             FullTrackName full_track_name,
+                             bool start_new_group, absl::string_view payload);
+
  private:
   friend class test::MoqtSessionPeer;
   class QUICHE_EXPORT Stream : public webtransport::StreamVisitor,
@@ -157,6 +166,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     quic::Perspective perspective() const {
       return session_->parameters_.perspective;
     }
+
+    webtransport::Stream* stream() const { return stream_; }
 
    private:
     friend class test::MoqtSessionPeer;

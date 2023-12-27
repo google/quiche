@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <queue>
 #include <string>
 #include <utility>
 #include <vector>
@@ -237,6 +236,70 @@ bool MoqtSession::Subscribe(const MoqtSubscribeRequest& message,
                     std::string(message.track_name));
   remote_tracks_.try_emplace(ftn, ftn, visitor);
   return true;
+}
+
+std::optional<webtransport::StreamId> MoqtSession::OpenUnidirectionalStream() {
+  if (!session_->CanOpenNextOutgoingUnidirectionalStream()) {
+    return std::nullopt;
+  }
+  webtransport::Stream* new_stream =
+      session_->OpenOutgoingUnidirectionalStream();
+  if (new_stream == nullptr) {
+    return std::nullopt;
+  }
+  new_stream->SetVisitor(std::make_unique<Stream>(this, new_stream, false));
+  return new_stream->GetStreamId();
+}
+
+// increment object_sequence or group_sequence depending on |start_new_group|
+void MoqtSession::PublishObjectToStream(webtransport::StreamId stream_id,
+                                        FullTrackName full_track_name,
+                                        bool start_new_group,
+                                        absl::string_view payload) {
+  // TODO: check that the peer is subscribed to the next sequence.
+  webtransport::Stream* stream = session_->GetStreamById(stream_id);
+  if (stream == nullptr) {
+    QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT to nonexistent stream";
+    return;
+  }
+  auto track_it = local_tracks_.find(full_track_name);
+  if (track_it == local_tracks_.end()) {
+    QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT for nonexistent track";
+    return;
+  }
+  MoqtObject object;
+  LocalTrack& track = track_it->second;
+  object.track_id = track.track_alias();
+  FullSequence& next_sequence = track.next_sequence_mutable();
+  object.group_sequence = next_sequence.group;
+  if (start_new_group) {
+    ++object.group_sequence;
+    object.object_sequence = 0;
+  } else {
+    object.object_sequence = next_sequence.object;
+  }
+  next_sequence.group = object.group_sequence;
+  next_sequence.object = object.object_sequence + 1;
+  if (!track.ShouldSend(object.group_sequence, object.object_sequence)) {
+    QUICHE_LOG(INFO) << ENDPOINT << "Not sending object "
+                     << full_track_name.track_namespace << ":"
+                     << full_track_name.track_name << " with sequence "
+                     << object.group_sequence << ":" << object.object_sequence
+                     << " because peer is not subscribed";
+    return;
+  }
+  object.object_send_order = 0;
+  object.payload_length = payload.size();
+  bool success =
+      stream->Write(framer_.SerializeObject(object, payload).AsStringView());
+  if (!success) {
+    QUICHE_DLOG(ERROR) << ENDPOINT << "Failed to write OBJECT message";
+    return;
+  }
+  QUICHE_LOG(INFO) << ENDPOINT << "Sending object "
+                   << full_track_name.track_namespace << ":"
+                   << full_track_name.track_name << " with sequence "
+                   << object.group_sequence << ":" << object.object_sequence;
 }
 
 void MoqtSession::Stream::OnCanRead() {

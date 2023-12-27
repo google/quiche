@@ -31,6 +31,9 @@ TEST_F(LocalTrackTest, Queries) {
   EXPECT_EQ(track_.track_alias(), 5);
   EXPECT_EQ(track_.visitor(), &visitor_);
   EXPECT_EQ(track_.next_sequence(), FullSequence(4, 1));
+  FullSequence& mutable_next = track_.next_sequence_mutable();
+  mutable_next.object++;
+  EXPECT_EQ(track_.next_sequence(), FullSequence(4, 2));
   EXPECT_FALSE(track_.HasSubscriber());
 }
 
