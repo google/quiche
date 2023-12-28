@@ -1303,17 +1303,25 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
   if (!replaced_connection_id) {
     server_connection_id = original_connection_id;
   }
+  QUIC_CODE_COUNT(quic_connection_id_chosen);
   if (reference_counted_session_map_.count(*server_connection_id) > 0) {
     // The new connection ID is owned by another session. Avoid creating one
     // altogether, as this connection attempt cannot possibly succeed.
-    if (replaced_connection_id) {
+    QUIC_CODE_COUNT(quic_connection_id_collision);
+    QuicConnection* other_connection =
+        reference_counted_session_map_[*server_connection_id]->connection();
+    if (other_connection != nullptr) {  // Just make sure there is no crash.
       QUIC_LOG_EVERY_N_SEC(ERROR, 10)
           << "QUIC Connection ID collision. original_connection_id:"
           << original_connection_id.ToString()
           << " server_connection_id:" << server_connection_id->ToString()
           << ", version:" << version << ", self_address:" << self_address
           << ", peer_address:" << peer_address
-          << ", parsed_chlo:" << parsed_chlo;
+          << ", parsed_chlo:" << parsed_chlo
+          << ", other peer address: " << other_connection->peer_address();
+    }
+    if (replaced_connection_id) {
+      QUIC_CODE_COUNT(quic_replaced_connection_id_collision);
       // The original connection ID does not correspond to an existing
       // session. It is safe to send CONNECTION_CLOSE and add to TIME_WAIT.
       StatelesslyTerminateConnection(
