@@ -1078,10 +1078,6 @@ class QUICHE_EXPORT QuicSession
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
 
-  // If true, then do not send MAX_STREAM frames if there are already two
-  // outstanding. Latched value of flag quic_limit_sending_max_streams.
-  bool limit_sending_max_streams_;
-
   // The counter for newly created non-static incoming streams in the current
   // event loop and gets reset for each event loop.
   QuicStreamCount new_incoming_streams_in_current_loop_ = 0u;

@@ -75,8 +75,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, tru
 QUIC_FLAG(quic_reloadable_flag_quic_new_error_code_when_packets_buffered_too_long, true)
 // If true, do not return from QuicSpdyClientStream::OnBodyAvailable() if visitor is nullptr.
 QUIC_FLAG(quic_reloadable_flag_quic_skip_return_on_null_visitor, true)
-// If true, do not send MAX_STREAM frames if there are already 2 outstanding.
-QUIC_FLAG(quic_reloadable_flag_quic_limit_sending_max_streams2, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, fix a QUIC BBR2 bytes counting issue caused by spurious losses.

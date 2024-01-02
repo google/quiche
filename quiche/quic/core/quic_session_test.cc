@@ -1284,8 +1284,7 @@ TEST_P(QuicSessionTestServer, SendStreamsBlocked) {
 }
 
 TEST_P(QuicSessionTestServer, LimitMaxStreams) {
-  if (!VersionHasIetfQuicFrames(transport_version()) ||
-      !GetQuicReloadableFlag(quic_limit_sending_max_streams2)) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     return;
   }
   CompleteHandshake();
