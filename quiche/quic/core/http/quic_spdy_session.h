@@ -708,9 +708,6 @@ class QUICHE_EXPORT QuicSpdySession
   // Allows forcing ShouldBufferRequestsUntilSettings() to true via
   // a connection option.
   bool force_buffer_requests_until_settings_;
-
-  // Latched value of quic_enable_h3_datagrams reloadable flag.
-  bool quic_enable_h3_datagrams_flag_;
 };
 
 }  // namespace quic
