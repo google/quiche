@@ -5006,10 +5006,8 @@ TEST_P(EndToEndTest, PreSharedKey) {
 
   if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
-    bool ok = true;
-    EXPECT_QUIC_BUG(ok = Initialize(),
+    EXPECT_QUIC_BUG(EXPECT_FALSE(Initialize()),
                     "QUIC client pre-shared keys not yet supported with TLS");
-    EXPECT_FALSE(ok);
     return;
   }
 
@@ -5029,10 +5027,8 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
 
   if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
-    bool ok = true;
-    EXPECT_QUIC_BUG(ok = Initialize(),
+    EXPECT_QUIC_BUG(EXPECT_FALSE(Initialize()),
                     "QUIC client pre-shared keys not yet supported with TLS");
-    EXPECT_FALSE(ok);
     return;
   }
 
@@ -5056,10 +5052,8 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
 
   if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
-    bool ok = true;
-    EXPECT_QUIC_BUG(ok = Initialize(),
+    EXPECT_QUIC_BUG(EXPECT_FALSE(Initialize()),
                     "QUIC server pre-shared keys not yet supported with TLS");
-    EXPECT_FALSE(ok);
     return;
   }
 
@@ -5077,10 +5071,8 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
 
   if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
-    bool ok = true;
-    EXPECT_QUIC_BUG(ok = Initialize(),
+    EXPECT_QUIC_BUG(EXPECT_FALSE(Initialize()),
                     "QUIC client pre-shared keys not yet supported with TLS");
-    EXPECT_FALSE(ok);
     return;
   }
 
