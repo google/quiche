@@ -112,30 +112,15 @@ namespace {
 const bool kNoCheckDecodedSize = false;
 const char* kCookieKey = "cookie";
 
-// Is HandleControlFrameHeadersStart to be called, and with what value?
-enum StartChoice { START_WITH_HANDLER, START_WITHOUT_HANDLER, NO_START };
-
-class HpackDecoderAdapterTest
-    : public quiche::test::QuicheTestWithParam<std::tuple<StartChoice, bool>> {
+class HpackDecoderAdapterTest : public quiche::test::QuicheTestWithParam<bool> {
  protected:
   HpackDecoderAdapterTest() : decoder_(), decoder_peer_(&decoder_) {}
 
-  void SetUp() override {
-    std::tie(start_choice_, randomly_split_input_buffer_) = GetParam();
-  }
+  void SetUp() override { randomly_split_input_buffer_ = GetParam(); }
 
   void HandleControlFrameHeadersStart() {
     bytes_passed_in_ = 0;
-    switch (start_choice_) {
-      case START_WITH_HANDLER:
-        decoder_.HandleControlFrameHeadersStart(&handler_);
-        break;
-      case START_WITHOUT_HANDLER:
-        decoder_.HandleControlFrameHeadersStart(nullptr);
-        break;
-      case NO_START:
-        break;
-    }
+    decoder_.HandleControlFrameHeadersStart(&handler_);
   }
 
   bool HandleControlFrameHeadersData(absl::string_view str) {
@@ -173,19 +158,12 @@ class HpackDecoderAdapterTest
       decode_has_failed_ = true;
       return false;
     }
-    if (start_choice_ == START_WITH_HANDLER) {
-      if (!HandleControlFrameHeadersComplete()) {
-        decode_has_failed_ = true;
-        return false;
-      }
-      EXPECT_EQ(handler_.compressed_header_bytes(), bytes_passed_in_);
-    } else {
-      if (!HandleControlFrameHeadersComplete()) {
-        decode_has_failed_ = true;
-        return false;
-      }
+    if (!HandleControlFrameHeadersComplete()) {
+      decode_has_failed_ = true;
+      return false;
     }
-    if (check_decoded_size && start_choice_ == START_WITH_HANDLER) {
+    EXPECT_EQ(handler_.compressed_header_bytes(), bytes_passed_in_);
+    if (check_decoded_size) {
       EXPECT_EQ(handler_.uncompressed_header_bytes(),
                 SizeOfHeaders(decoded_block()));
     }
@@ -202,11 +180,7 @@ class HpackDecoderAdapterTest
   }
 
   const Http2HeaderBlock& decoded_block() const {
-    if (start_choice_ == START_WITH_HANDLER) {
-      return handler_.decoded_block();
-    } else {
-      return decoder_.decoded_block();
-    }
+    return handler_.decoded_block();
   }
 
   static size_t SizeOfHeaders(const Http2HeaderBlock& headers) {
@@ -251,21 +225,16 @@ class HpackDecoderAdapterTest
   HpackDecoderAdapter decoder_;
   test::HpackDecoderAdapterPeer decoder_peer_;
   RecordingHeadersHandler handler_;
-  StartChoice start_choice_;
+  const Http2HeaderBlock dummy_block_;
   bool randomly_split_input_buffer_;
   bool decode_has_failed_ = false;
   size_t bytes_passed_in_;
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    NoHandler, HpackDecoderAdapterTest,
-    ::testing::Combine(::testing::Values(START_WITHOUT_HANDLER, NO_START),
-                       ::testing::Bool()));
+INSTANTIATE_TEST_SUITE_P(NoHandler, HpackDecoderAdapterTest, ::testing::Bool());
 
-INSTANTIATE_TEST_SUITE_P(
-    WithHandler, HpackDecoderAdapterTest,
-    ::testing::Combine(::testing::Values(START_WITH_HANDLER),
-                       ::testing::Bool()));
+INSTANTIATE_TEST_SUITE_P(WithHandler, HpackDecoderAdapterTest,
+                         ::testing::Bool());
 
 TEST_P(HpackDecoderAdapterTest, ApplyHeaderTableSizeSetting) {
   EXPECT_EQ(4096u, decoder_.GetCurrentHeaderTableSizeSetting());
@@ -1102,11 +1071,9 @@ TEST_P(HpackDecoderAdapterTest, ReuseNameOfEvictedEntry) {
 
   EXPECT_EQ(expected_header_set, decoded_block());
 
-  if (start_choice_ == START_WITH_HANDLER) {
-    EXPECT_EQ(handler_.uncompressed_header_bytes(),
-              6 * name.size() + 2 * value1.size() + 2 * value2.size() +
-                  2 * value3.size());
-  }
+  EXPECT_EQ(handler_.uncompressed_header_bytes(),
+            6 * name.size() + 2 * value1.size() + 2 * value2.size() +
+                2 * value3.size());
 }
 
 // Regression test for https://crbug.com/747395.
