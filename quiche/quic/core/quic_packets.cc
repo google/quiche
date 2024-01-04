@@ -383,9 +383,6 @@ std::unique_ptr<QuicReceivedPacket> QuicReceivedPacket::Clone() const {
           buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0,
           headers_buffer, this->headers_length(), true);
     }
-    return std::make_unique<QuicReceivedPacket>(
-        buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0,
-        headers_buffer, this->headers_length(), true, this->ecn_codepoint());
   }
 
   if (GetQuicReloadableFlag(quic_clone_ecn)) {
