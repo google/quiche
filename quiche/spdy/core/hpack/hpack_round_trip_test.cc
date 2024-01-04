@@ -13,6 +13,7 @@
 #include "quiche/spdy/core/hpack/hpack_decoder_adapter.h"
 #include "quiche/spdy/core/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/spdy/core/recording_headers_handler.h"
 
 namespace spdy {
 namespace test {
@@ -35,6 +36,7 @@ class HpackRoundTripTest
     std::string encoded = encoder_.EncodeHeaderBlock(header_set);
 
     bool success = true;
+    decoder_.HandleControlFrameHeadersStart(&handler_);
     if (GetParam() == ALL_INPUT) {
       // Pass all the input to the decoder at once.
       success = decoder_.HandleControlFrameHeadersData(encoded.data(),
@@ -61,7 +63,7 @@ class HpackRoundTripTest
       success = decoder_.HandleControlFrameHeadersComplete();
     }
 
-    EXPECT_EQ(header_set, decoder_.decoded_block());
+    EXPECT_EQ(header_set, handler_.decoded_block());
     return success;
   }
 
@@ -73,6 +75,7 @@ class HpackRoundTripTest
   http2::test::Http2Random random_;
   HpackEncoder encoder_;
   HpackDecoderAdapter decoder_;
+  RecordingHeadersHandler handler_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests, HpackRoundTripTest,
