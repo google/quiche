@@ -53,7 +53,7 @@ class QUIC_NO_EXPORT DelegatedPacketWriter : public QuicPacketWriter {
   }
   bool SupportsReleaseTime() const override { return false; }
   bool IsBatchMode() const override { return false; }
-  bool SupportsEcn() const override { return false; }
+  bool SupportsEcn() const override { return true; }
   QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& /*self_address*/,
       const QuicSocketAddress& /*peer_address*/) override {
@@ -82,7 +82,8 @@ std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const ParsedQuicVersion& version, const QuicConfig& config,
     const QuicConnectionId& server_connection_id,
     const QuicConnectionId& client_connection_id,
-    std::unique_ptr<QuicCryptoClientConfig> crypto_config);
+    std::unique_ptr<QuicCryptoClientConfig> crypto_config,
+    QuicEcnCodepoint ecn);
 
 // Below are various convenience overloads that use default values for the
 // omitted parameters:
@@ -91,6 +92,12 @@ std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
 // |client_connection_id| = EmptyQuicConnectionId().
 // |crypto_config| =
 //     QuicCryptoClientConfig(crypto_test_utils::ProofVerifierForTesting())
+// |ecn| = ECN_NOT_ECT
+std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
+    const ParsedQuicVersion& version, const QuicConfig& config,
+    const QuicConnectionId& server_connection_id,
+    const QuicConnectionId& client_connection_id,
+    std::unique_ptr<QuicCryptoClientConfig> crypto_config);
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const ParsedQuicVersion& version, const QuicConfig& config,
     const QuicConnectionId& server_connection_id,

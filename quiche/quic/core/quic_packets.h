@@ -280,6 +280,10 @@ class QUICHE_EXPORT QuicEncryptedPacket : public QuicData {
                                                 const QuicEncryptedPacket& s);
 };
 
+namespace test {
+class QuicReceivedPacketPeer;
+}  // namespace test
+
 // A received encrypted QUIC packet, with a recorded time of receipt.
 class QUICHE_EXPORT QuicReceivedPacket : public QuicEncryptedPacket {
  public:
@@ -325,6 +329,8 @@ class QUICHE_EXPORT QuicReceivedPacket : public QuicEncryptedPacket {
   QuicEcnCodepoint ecn_codepoint() const { return ecn_codepoint_; }
 
  private:
+  friend class test::QuicReceivedPacketPeer;
+
   const QuicTime receipt_time_;
   int ttl_;
   // Points to the start of packet headers.

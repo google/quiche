@@ -3122,6 +3122,66 @@ TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
   dispatcher_->ProcessBufferedChlos(kMaxNumSessionsToCreate);
 }
 
+TEST_P(BufferedPacketStoreTest, BufferedChloWithEcn) {
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_clone_ecn, true);
+  SetQuicRestartFlag(quic_support_ect1, true);
+  InSequence s;
+  QuicConnectionId conn_id = TestConnectionId(1);
+  // Process non-CHLO packet. This ProcessUndecryptableEarlyPacket() but with
+  // an injected step to set the ECN bits.
+  std::unique_ptr<QuicEncryptedPacket> encrypted_packet =
+      GetUndecryptableEarlyPacket(version_, conn_id);
+  std::unique_ptr<QuicReceivedPacket> received_packet(ConstructReceivedPacket(
+      *encrypted_packet, mock_helper_.GetClock()->Now(), ECN_ECT1));
+  ProcessReceivedPacket(std::move(received_packet), client_addr_, version_,
+                        conn_id);
+  EXPECT_EQ(0u, dispatcher_->NumSessions())
+      << "No session should be created before CHLO arrives.";
+
+  // When CHLO arrives, a new session should be created, and all packets
+  // buffered should be delivered to the session.
+  EXPECT_CALL(connection_id_generator_,
+              MaybeReplaceConnectionId(conn_id, version_))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(conn_id, _, client_addr_, Eq(ExpectedAlpn()), _,
+                                MatchParsedClientHello(), _))
+      .WillOnce(Return(ByMove(CreateSession(
+          dispatcher_.get(), config_, conn_id, client_addr_, &mock_helper_,
+          &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
+  bool got_ect1 = false;
+  bool got_ce = false;
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .Times(2)  // non-CHLO + CHLO.
+      .WillRepeatedly(WithArg<2>(Invoke([&](const QuicReceivedPacket& packet) {
+        switch (packet.ecn_codepoint()) {
+          case ECN_ECT1:
+            got_ect1 = true;
+            break;
+          case ECN_CE:
+            got_ce = true;
+            break;
+          default:
+            break;
+        }
+      })));
+  QuicConnectionId client_connection_id = TestConnectionId(2);
+  std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
+      GetFirstFlightOfPackets(version_, DefaultQuicConfig(), conn_id,
+                              client_connection_id, TestClientCryptoConfig(),
+                              ECN_CE);
+  for (auto&& packet : packets) {
+    ProcessReceivedPacket(std::move(packet), client_addr_, version_, conn_id);
+  }
+  EXPECT_TRUE(got_ect1);
+  EXPECT_TRUE(got_ce);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

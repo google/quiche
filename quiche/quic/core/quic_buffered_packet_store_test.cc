@@ -668,6 +668,23 @@ TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {
     previous_packet_type = long_packet_type;
   }
 }
+
+// Test for b/316633326.
+TEST_F(QuicBufferedPacketStoreTest, BufferedPacketRetainsEcn) {
+  SetQuicReloadableFlag(quic_clone_ecn, true);
+  QuicConnectionId connection_id = TestConnectionId(1);
+  QuicReceivedPacket ect1_packet(packet_content_.data(), packet_content_.size(),
+                                 packet_time_, false, 0, true, nullptr, 0,
+                                 false, ECN_ECT1);
+  store_.EnqueuePacket(connection_id, false, ect1_packet, self_address_,
+                       peer_address_, valid_version_, kNoParsedChlo, nullptr);
+  BufferedPacketList delivered_packets = store_.DeliverPackets(connection_id);
+  EXPECT_THAT(delivered_packets.buffered_packets, SizeIs(1));
+  for (const auto& packet : delivered_packets.buffered_packets) {
+    EXPECT_EQ(packet.packet->ecn_codepoint(), ECN_ECT1);
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

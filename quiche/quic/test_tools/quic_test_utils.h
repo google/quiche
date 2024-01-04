@@ -33,6 +33,7 @@
 #include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_sent_packet_manager.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -163,6 +164,9 @@ std::unique_ptr<QuicEncryptedPacket> GetUndecryptableEarlyPacket(
 // of the returned pointer.
 QuicReceivedPacket* ConstructReceivedPacket(
     const QuicEncryptedPacket& encrypted_packet, QuicTime receipt_time);
+QuicReceivedPacket* ConstructReceivedPacket(
+    const QuicEncryptedPacket& encrypted_packet, QuicTime receipt_time,
+    QuicEcnCodepoint ecn);
 
 // Create an encrypted packet for testing whose data portion erroneous.
 // The specific way the data portion is erroneous is not specified, but

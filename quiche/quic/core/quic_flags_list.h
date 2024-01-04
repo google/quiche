@@ -103,6 +103,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 QUIC_FLAG(quic_reloadable_flag_quic_send_placeholder_ticket_when_encrypt_ticket_fails, true)
 // When true, allows sending of QUIC packets marked ECT(1). A different flag (TBD) will actually utilize this capability to send ECT(1).
 QUIC_FLAG(quic_restart_flag_quic_support_ect1, false)
+// When true, correctly stores the ECN mark on incoming packets when buffered while waiting for a crypto context.
+QUIC_FLAG(quic_reloadable_flag_quic_clone_ecn, false)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
 // When true, report received ECN markings to the peer. Replaces quic_receive_ecn2 to use correct codepoints.

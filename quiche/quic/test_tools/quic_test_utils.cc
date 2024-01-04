@@ -27,6 +27,8 @@
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packet_creator.h"
+#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -1009,10 +1011,16 @@ std::unique_ptr<QuicEncryptedPacket> GetUndecryptableEarlyPacket(
 
 QuicReceivedPacket* ConstructReceivedPacket(
     const QuicEncryptedPacket& encrypted_packet, QuicTime receipt_time) {
+  return ConstructReceivedPacket(encrypted_packet, receipt_time, ECN_NOT_ECT);
+}
+
+QuicReceivedPacket* ConstructReceivedPacket(
+    const QuicEncryptedPacket& encrypted_packet, QuicTime receipt_time,
+    QuicEcnCodepoint ecn) {
   char* buffer = new char[encrypted_packet.length()];
   memcpy(buffer, encrypted_packet.data(), encrypted_packet.length());
   return new QuicReceivedPacket(buffer, encrypted_packet.length(), receipt_time,
-                                true);
+                                true, 0, true, nullptr, 0, false, ecn);
 }
 
 QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
