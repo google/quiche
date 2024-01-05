@@ -50,6 +50,110 @@ static const char kReferenceClientPacketData[] = {
     0x00, 0x00,
 };
 
+static const char kReferenceClientPacketDataAF4[] = {
+    // IPv6 with 0x80 TOS and zero flow label.
+    0x68, 0x00, 0x00, 0x00,
+    // Payload size is 8 bytes.
+    0x00, 0x08,
+    // Next header is UDP
+    17,
+    // TTL is 50.
+    50,
+    // IP address of the sender is fd00:0:0:1::1
+    0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    // IP address of the receiver is fd00:0:0:5::1
+    0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    // Source port 12345
+    0x30, 0x39,
+    // Destination port 443
+    0x01, 0xbb,
+    // UDP content length is zero
+    0x00, 0x00,
+    // Checksum is not actually checked in any of the tests, so we leave it as
+    // zero
+    0x00, 0x00,
+};
+
+static const char kReferenceClientPacketDataAF3[] = {
+    // IPv6 with 0x60 TOS and zero flow label.
+    0x66, 0x00, 0x00, 0x00,
+    // Payload size is 8 bytes.
+    0x00, 0x08,
+    // Next header is UDP
+    17,
+    // TTL is 50.
+    50,
+    // IP address of the sender is fd00:0:0:1::1
+    0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    // IP address of the receiver is fd00:0:0:5::1
+    0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    // Source port 12345
+    0x30, 0x39,
+    // Destination port 443
+    0x01, 0xbb,
+    // UDP content length is zero
+    0x00, 0x00,
+    // Checksum is not actually checked in any of the tests, so we leave it as
+    // zero
+    0x00, 0x00,
+};
+
+static const char kReferenceClientPacketDataAF2[] = {
+    // IPv6 with 0x40 TOS and zero flow label.
+    0x64, 0x00, 0x00, 0x00,
+    // Payload size is 8 bytes.
+    0x00, 0x08,
+    // Next header is UDP
+    17,
+    // TTL is 50.
+    50,
+    // IP address of the sender is fd00:0:0:1::1
+    0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    // IP address of the receiver is fd00:0:0:5::1
+    0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    // Source port 12345
+    0x30, 0x39,
+    // Destination port 443
+    0x01, 0xbb,
+    // UDP content length is zero
+    0x00, 0x00,
+    // Checksum is not actually checked in any of the tests, so we leave it as
+    // zero
+    0x00, 0x00,
+};
+
+static const char kReferenceClientPacketDataAF1[] = {
+    // IPv6 with 0x20 TOS and zero flow label.
+    0x62, 0x00, 0x00, 0x00,
+    // Payload size is 8 bytes.
+    0x00, 0x08,
+    // Next header is UDP
+    17,
+    // TTL is 50.
+    50,
+    // IP address of the sender is fd00:0:0:1::1
+    0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    // IP address of the receiver is fd00:0:0:5::1
+    0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    // Source port 12345
+    0x30, 0x39,
+    // Destination port 443
+    0x01, 0xbb,
+    // UDP content length is zero
+    0x00, 0x00,
+    // Checksum is not actually checked in any of the tests, so we leave it as
+    // zero
+    0x00, 0x00,
+};
+
 static const char kReferenceNetworkPacketData[] = {
     // IPv6 with zero TOS and flow label.
     0x60, 0x00, 0x00, 0x00,
@@ -178,6 +282,19 @@ static const char kReferenceEchoReplyData[] = {
 
 static const absl::string_view kReferenceClientPacket(
     kReferenceClientPacketData, ABSL_ARRAYSIZE(kReferenceClientPacketData));
+
+static const absl::string_view kReferenceClientPacketAF4(
+    kReferenceClientPacketDataAF4,
+    ABSL_ARRAYSIZE(kReferenceClientPacketDataAF4));
+static const absl::string_view kReferenceClientPacketAF3(
+    kReferenceClientPacketDataAF3,
+    ABSL_ARRAYSIZE(kReferenceClientPacketDataAF3));
+static const absl::string_view kReferenceClientPacketAF2(
+    kReferenceClientPacketDataAF2,
+    ABSL_ARRAYSIZE(kReferenceClientPacketDataAF2));
+static const absl::string_view kReferenceClientPacketAF1(
+    kReferenceClientPacketDataAF1,
+    ABSL_ARRAYSIZE(kReferenceClientPacketDataAF1));
 
 static const absl::string_view kReferenceNetworkPacket(
     kReferenceNetworkPacketData, ABSL_ARRAYSIZE(kReferenceNetworkPacketData));
@@ -329,14 +446,17 @@ class TestFilter : public QbonePacketProcessor::Filter {
     EXPECT_EQ(client_ip_, SourceIpFromHeader(full_packet));
     EXPECT_EQ(network_ip_, DestinationIpFromHeader(full_packet));
 
+    last_tos_ = TrafficClassFromHeader(full_packet);
     called_++;
     return ProcessingResult::SILENT_DROP;
   }
 
   int called() const { return called_; }
+  uint8_t last_tos() const { return last_tos_; }
 
  private:
   int called_ = 0;
+  uint8_t last_tos_ = 0;
 
   QuicIpAddress client_ip_;
   QuicIpAddress network_ip_;
@@ -352,6 +472,25 @@ TEST_F(QbonePacketProcessorTest, FilterHelperFunctions) {
   EXPECT_CALL(stats_, OnPacketDroppedSilently(Direction::FROM_OFF_NETWORK));
   SendPacketFromClient(kReferenceClientPacket);
   ASSERT_EQ(1, filter->called());
+}
+
+TEST_F(QbonePacketProcessorTest, FilterHelperFunctionsTOS) {
+  auto filter_owned = std::make_unique<TestFilter>(client_ip_, network_ip_);
+  TestFilter* filter = filter_owned.get();
+  processor_->set_filter(std::move(filter_owned));
+
+  EXPECT_CALL(stats_, OnPacketDroppedSilently(Direction::FROM_OFF_NETWORK))
+      .Times(testing::AnyNumber());
+  SendPacketFromClient(kReferenceClientPacket);
+  ASSERT_EQ(0, filter->last_tos());
+  SendPacketFromClient(kReferenceClientPacketAF4);
+  ASSERT_EQ(0x80, filter->last_tos());
+  SendPacketFromClient(kReferenceClientPacketAF3);
+  ASSERT_EQ(0x60, filter->last_tos());
+  SendPacketFromClient(kReferenceClientPacketAF2);
+  ASSERT_EQ(0x40, filter->last_tos());
+  SendPacketFromClient(kReferenceClientPacketAF1);
+  ASSERT_EQ(0x20, filter->last_tos());
 }
 
 TEST_F(QbonePacketProcessorTest, Icmp6EchoResponseHasRightPayload) {

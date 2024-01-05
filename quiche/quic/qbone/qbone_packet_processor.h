@@ -110,6 +110,10 @@ class QbonePacketProcessor {
     uint8_t TransportProtocolFromHeader(absl::string_view ipv6_header) {
       return ipv6_header[6];
     }
+    uint8_t TrafficClassFromHeader(absl::string_view ipv6_header) {
+      return ipv6_header[0] << 4 | ipv6_header[1] >> 4;
+    }
+
     QuicIpAddress SourceIpFromHeader(absl::string_view ipv6_header) {
       QuicIpAddress address;
       address.FromPackedString(&ipv6_header[8],
