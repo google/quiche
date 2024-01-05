@@ -80,6 +80,10 @@ ssize_t SyscallRecv(int sockfd, void* buf, size_t len, int flags) {
 ssize_t SyscallSend(int sockfd, const void* buf, size_t len, int flags) {
   return SyscallWrapper(&::send, sockfd, buf, len, flags);
 }
+ssize_t SyscallSendTo(int sockfd, const void* buf, size_t len, int flags,
+                      const sockaddr* addr, socklen_t addrlen) {
+  return SyscallWrapper(&::sendto, sockfd, buf, len, flags, addr, addrlen);
+}
 
 // Wrapper of absl::ErrnoToStatus that ensures the `unavailable_error_numbers`
 // and only those numbers result in `absl::StatusCode::kUnavailable`, converting

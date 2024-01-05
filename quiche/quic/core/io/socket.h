@@ -130,6 +130,12 @@ absl::StatusOr<absl::Span<char>> Receive(SocketFd fd, absl::Span<char> buffer,
 // send operation could not be immediately completed.
 absl::StatusOr<absl::string_view> Send(SocketFd fd, absl::string_view buffer);
 
+// Same as Send() except a specific address (`peer_address`) is specified for
+// where to send the data to. Typically used for non-connected sockets.
+absl::StatusOr<absl::string_view> SendTo(SocketFd fd,
+                                         const QuicSocketAddress& peer_address,
+                                         absl::string_view buffer);
+
 // Closes socket `fd`.
 absl::Status Close(SocketFd fd);
 }  // namespace socket_api

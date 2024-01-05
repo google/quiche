@@ -4,6 +4,8 @@
 
 #include <winsock2.h>
 
+#include <cstddef>
+
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/socket.h"
@@ -45,6 +47,11 @@ int SyscallRecv(int sockfd, void* buf, size_t len, int flags) {
 }
 int SyscallSend(int sockfd, const void* buf, size_t len, int flags) {
   return ::send(sockfd, reinterpret_cast<const char*>(buf), len, flags);
+}
+int SyscallSendTo(int sockfd, const void* buf, size_t len, int flags,
+                  const sockaddr* addr, socklen_t addrlen) {
+  return ::sendto(sockfd, reinterpret_cast<const char*>(buf), len, flags, addr,
+                  addrlen);
 }
 
 absl::StatusCode RemapErrorCode(int code) {

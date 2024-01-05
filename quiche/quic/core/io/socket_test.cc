@@ -12,12 +12,13 @@
 #include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/quic/test_tools/test_ip_packets.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_loopback.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
-namespace quic {
+namespace quic::test {
 namespace {
 
 using quiche::test::QuicheTest;
@@ -108,7 +109,7 @@ TEST(SocketTest, SetSendBufferSize) {
 TEST(SocketTest, SetIpHeaderIncludedForRaw) {
   SocketFd socket = CreateTestRawSocket(/*blocking=*/true);
   if (socket == kInvalidSocketFd) {
-    return;
+    GTEST_SKIP();
   }
 
   QUICHE_EXPECT_OK(
@@ -247,5 +248,89 @@ TEST(SocketTest, Send) {
   QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
+TEST(SocketTest, SendTo) {
+  SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp);
+
+  // Send data to an arbitrarily-chosen ephemeral port.
+  char buffer[] = {12, 34, 56, 78};
+  absl::StatusOr<absl::string_view> result = socket_api::SendTo(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/57290),
+      absl::string_view(buffer, sizeof(buffer)));
+
+  // Expect at least some data to be sent successfully.
+  QUICHE_ASSERT_OK(result.status());
+  EXPECT_THAT(result.value(), SizeIs(Lt(4)));
+
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
+}
+
+TEST(SocketTest, SendToWithConnection) {
+  SocketFd socket = CreateTestSocket(socket_api::SocketProtocol::kUdp);
+  // UDP, so "connecting" should succeed without any listening sockets.
+  QUICHE_ASSERT_OK(socket_api::Connect(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/0)));
+
+  // Send data to an arbitrarily-chosen ephemeral port.
+  char buffer[] = {12, 34, 56, 78};
+  absl::StatusOr<absl::string_view> result = socket_api::SendTo(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/50495),
+      absl::string_view(buffer, sizeof(buffer)));
+  // Expect at least some data to be sent successfully.
+  QUICHE_ASSERT_OK(result.status());
+  EXPECT_THAT(result.value(), SizeIs(Lt(4)));
+
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
+}
+
+TEST(SocketTest, SendToForRaw) {
+  SocketFd socket = CreateTestRawSocket(/*blocking=*/true);
+  if (socket == kInvalidSocketFd) {
+    GTEST_SKIP();
+  }
+
+  QUICHE_EXPECT_OK(
+      socket_api::SetIpHeaderIncluded(socket, /*ip_header_included=*/false));
+
+  // Arbitrarily-chosen ephemeral ports.
+  QuicSocketAddress client_address(quiche::TestLoopback(), /*port=*/53368);
+  QuicSocketAddress server_address(quiche::TestLoopback(), /*port=*/56362);
+  std::string packet = CreateUdpPacket(client_address, server_address, "foo");
+  absl::StatusOr<absl::string_view> result = socket_api::SendTo(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/56362),
+      packet);
+
+  // Expect at least some data to be sent successfully.
+  QUICHE_ASSERT_OK(result.status());
+  EXPECT_THAT(result.value(), SizeIs(Lt(packet.size())));
+
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
+}
+
+TEST(SocketTest, SendToForRawWithIpHeader) {
+  SocketFd socket = CreateTestRawSocket(/*blocking=*/true);
+  if (socket == kInvalidSocketFd) {
+    GTEST_SKIP();
+  }
+
+  QUICHE_EXPECT_OK(
+      socket_api::SetIpHeaderIncluded(socket, /*ip_header_included=*/true));
+
+  // Arbitrarily-chosen ephemeral ports.
+  QuicSocketAddress client_address(quiche::TestLoopback(), /*port=*/53368);
+  QuicSocketAddress server_address(quiche::TestLoopback(), /*port=*/56362);
+  std::string packet =
+      CreateIpPacket(client_address.host(), server_address.host(),
+                     CreateUdpPacket(client_address, server_address, "foo"));
+  absl::StatusOr<absl::string_view> result = socket_api::SendTo(
+      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/56362),
+      packet);
+
+  // Expect at least some data to be sent successfully.
+  QUICHE_ASSERT_OK(result.status());
+  EXPECT_THAT(result.value(), SizeIs(Lt(packet.size())));
+
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
+}
+
 }  // namespace
-}  // namespace quic
+}  // namespace quic::test
