@@ -104,10 +104,6 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersComplete() {
   return true;
 }
 
-const Http2HeaderBlock& HpackDecoderAdapter::decoded_block() const {
-  return listener_adapter_.decoded_block();
-}
-
 void HpackDecoderAdapter::set_max_decode_buffer_size_bytes(
     size_t max_decode_buffer_size_bytes) {
   QUICHE_DVLOG(2) << "HpackDecoderAdapter::set_max_decode_buffer_size_bytes";
@@ -120,11 +116,13 @@ void HpackDecoderAdapter::set_max_header_block_bytes(
   max_header_block_bytes_ = max_header_block_bytes;
 }
 
-HpackDecoderAdapter::ListenerAdapter::ListenerAdapter() : handler_(nullptr) {}
+HpackDecoderAdapter::ListenerAdapter::ListenerAdapter()
+    : no_op_handler_(nullptr), handler_(&no_op_handler_) {}
 HpackDecoderAdapter::ListenerAdapter::~ListenerAdapter() = default;
 
 void HpackDecoderAdapter::ListenerAdapter::set_handler(
     SpdyHeadersHandlerInterface* handler) {
+  QUICHE_CHECK_NE(handler, nullptr);
   handler_ = handler;
 }
 
@@ -132,10 +130,7 @@ void HpackDecoderAdapter::ListenerAdapter::OnHeaderListStart() {
   QUICHE_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeaderListStart";
   total_hpack_bytes_ = 0;
   total_uncompressed_bytes_ = 0;
-  decoded_block_.clear();
-  if (handler_ != nullptr) {
-    handler_->OnHeaderBlockStart();
-  }
+  handler_->OnHeaderBlockStart();
 }
 
 void HpackDecoderAdapter::ListenerAdapter::OnHeader(const std::string& name,
@@ -143,23 +138,13 @@ void HpackDecoderAdapter::ListenerAdapter::OnHeader(const std::string& name,
   QUICHE_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeader:\n name: "
                   << name << "\n value: " << value;
   total_uncompressed_bytes_ += name.size() + value.size();
-  if (handler_ == nullptr) {
-    QUICHE_DVLOG(3) << "Adding to decoded_block";
-    decoded_block_.AppendValueOrAddHeader(name, value);
-  } else {
-    QUICHE_DVLOG(3) << "Passing to handler";
-    handler_->OnHeader(name, value);
-  }
+  handler_->OnHeader(name, value);
 }
 
 void HpackDecoderAdapter::ListenerAdapter::OnHeaderListEnd() {
   QUICHE_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeaderListEnd";
-  // We don't clear the Http2HeaderBlock here to allow access to it until the
-  // next HPACK block is decoded.
-  if (handler_ != nullptr) {
-    handler_->OnHeaderBlockEnd(total_uncompressed_bytes_, total_hpack_bytes_);
-    handler_ = nullptr;
-  }
+  handler_->OnHeaderBlockEnd(total_uncompressed_bytes_, total_hpack_bytes_);
+  handler_ = &no_op_handler_;
 }
 
 void HpackDecoderAdapter::ListenerAdapter::OnHeaderErrorDetected(
