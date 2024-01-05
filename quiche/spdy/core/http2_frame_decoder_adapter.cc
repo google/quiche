@@ -472,10 +472,10 @@ void Http2DecoderAdapter::OnHeadersPriority(
 void Http2DecoderAdapter::OnHpackFragment(const char* data, size_t len) {
   QUICHE_DVLOG(1) << "OnHpackFragment: len=" << len;
   on_hpack_fragment_called_ = true;
-  auto* decoder = GetHpackDecoder();
-  if (!decoder->HandleControlFrameHeadersData(data, len)) {
-    SetSpdyErrorAndNotify(HpackDecodingErrorToSpdyFramerError(decoder->error()),
-                          decoder->detailed_error());
+  auto& decoder = GetHpackDecoder();
+  if (!decoder.HandleControlFrameHeadersData(data, len)) {
+    SetSpdyErrorAndNotify(HpackDecodingErrorToSpdyFramerError(decoder.error()),
+                          decoder.detailed_error());
     return;
   }
 }
@@ -1029,13 +1029,6 @@ void Http2DecoderAdapter::ReportReceiveCompressedFrame(
   }
 }
 
-HpackDecoderAdapter* Http2DecoderAdapter::GetHpackDecoder() {
-  if (hpack_decoder_ == nullptr) {
-    hpack_decoder_ = std::make_unique<HpackDecoderAdapter>();
-  }
-  return hpack_decoder_.get();
-}
-
 void Http2DecoderAdapter::CommonStartHpackBlock() {
   QUICHE_DVLOG(1) << "CommonStartHpackBlock";
   QUICHE_DCHECK(!has_hpack_first_frame_header_);
@@ -1053,7 +1046,7 @@ void Http2DecoderAdapter::CommonStartHpackBlock() {
     SetSpdyErrorAndNotify(SpdyFramerError::SPDY_INTERNAL_FRAMER_ERROR, "");
     return;
   }
-  GetHpackDecoder()->HandleControlFrameHeadersStart(handler);
+  GetHpackDecoder().HandleControlFrameHeadersStart(handler);
 }
 
 // SpdyFramer calls HandleControlFrameHeadersData even if there are zero
@@ -1078,12 +1071,12 @@ void Http2DecoderAdapter::CommonHpackFragmentEnd() {
                      frame_type() == Http2FrameType::CONTINUATION)
         << frame_header();
     has_expected_frame_type_ = false;
-    auto* decoder = GetHpackDecoder();
-    if (decoder->HandleControlFrameHeadersComplete()) {
+    auto& decoder = GetHpackDecoder();
+    if (decoder.HandleControlFrameHeadersComplete()) {
       visitor()->OnHeaderFrameEnd(stream_id());
     } else {
       SetSpdyErrorAndNotify(
-          HpackDecodingErrorToSpdyFramerError(decoder->error()), "");
+          HpackDecodingErrorToSpdyFramerError(decoder.error()), "");
       return;
     }
     const Http2FrameHeader& first = frame_type() == Http2FrameType::CONTINUATION

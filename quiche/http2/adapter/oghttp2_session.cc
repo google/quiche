@@ -353,10 +353,10 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
   decoder_.set_visitor(&receive_logger_);
   if (options_.max_header_list_bytes) {
     // Limit buffering of encoded HPACK data to 2x the decoded limit.
-    decoder_.GetHpackDecoder()->set_max_decode_buffer_size_bytes(
+    decoder_.GetHpackDecoder().set_max_decode_buffer_size_bytes(
         2 * *options_.max_header_list_bytes);
     // Limit the total bytes accepted for HPACK decoding to 4x the limit.
-    decoder_.GetHpackDecoder()->set_max_header_block_bytes(
+    decoder_.GetHpackDecoder().set_max_header_block_bytes(
         4 * *options_.max_header_list_bytes);
   }
   if (IsServerSession()) {
@@ -442,13 +442,11 @@ int OgHttp2Session::GetHpackEncoderDynamicTableCapacity() const {
 }
 
 int OgHttp2Session::GetHpackDecoderDynamicTableSize() const {
-  const spdy::HpackDecoderAdapter* decoder = decoder_.GetHpackDecoder();
-  return decoder == nullptr ? 0 : decoder->GetDynamicTableSize();
+  return decoder_.GetHpackDecoder().GetDynamicTableSize();
 }
 
 int OgHttp2Session::GetHpackDecoderSizeLimit() const {
-  const spdy::HpackDecoderAdapter* decoder = decoder_.GetHpackDecoder();
-  return decoder == nullptr ? 0 : decoder->GetCurrentHeaderTableSizeSetting();
+  return decoder_.GetHpackDecoder().GetCurrentHeaderTableSizeSetting();
 }
 
 int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
@@ -1698,7 +1696,7 @@ void OgHttp2Session::HandleOutboundSettings(
               max_inbound_concurrent_streams_ = value;
               break;
             case HEADER_TABLE_SIZE:
-              decoder_.GetHpackDecoder()->ApplyHeaderTableSizeSetting(value);
+              decoder_.GetHpackDecoder().ApplyHeaderTableSizeSetting(value);
               break;
             case INITIAL_WINDOW_SIZE:
               UpdateStreamReceiveWindowSizes(value);

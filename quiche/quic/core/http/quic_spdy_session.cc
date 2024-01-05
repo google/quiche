@@ -532,7 +532,7 @@ void QuicSpdySession::Initialize() {
   spdy_framer_visitor_->set_max_header_list_size(max_inbound_header_list_size_);
 
   // Limit HPACK buffering to 2x header list size limit.
-  h2_deframer_.GetHpackDecoder()->set_max_decode_buffer_size_bytes(
+  h2_deframer_.GetHpackDecoder().set_max_decode_buffer_size_bytes(
       2 * max_inbound_header_list_size_);
 }
 

@@ -154,9 +154,9 @@ class QUICHE_EXPORT Http2DecoderAdapter
   // has responded with an HTTP/1.1 (or earlier) response.
   bool probable_http_response() const;
 
-  spdy::HpackDecoderAdapter* GetHpackDecoder();
-  const spdy::HpackDecoderAdapter* GetHpackDecoder() const {
-    return hpack_decoder_.get();
+  spdy::HpackDecoderAdapter& GetHpackDecoder() { return hpack_decoder_; }
+  const spdy::HpackDecoderAdapter& GetHpackDecoder() const {
+    return hpack_decoder_;
   }
 
   bool HasError() const;
@@ -290,9 +290,8 @@ class QUICHE_EXPORT Http2DecoderAdapter
   // If non-null, unknown frames and settings are passed to the extension.
   spdy::ExtensionVisitorInterface* extension_ = nullptr;
 
-  // The HPACK decoder to be used for this adapter. User is responsible for
-  // clearing if the adapter is to be used for another connection.
-  std::unique_ptr<spdy::HpackDecoderAdapter> hpack_decoder_;
+  // The HPACK decoder to be used for this adapter.
+  spdy::HpackDecoderAdapter hpack_decoder_;
 
   // The HTTP/2 frame decoder.
   Http2FrameDecoder frame_decoder_;
