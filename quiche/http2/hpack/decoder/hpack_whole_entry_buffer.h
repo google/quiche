@@ -76,7 +76,7 @@ class QUICHE_EXPORT HpackWholeEntryBuffer : public HpackEntryDecoderListener {
   void OnDynamicTableSizeUpdate(size_t size) override;
 
  private:
-  void ReportError(HpackDecodingError error, std::string detailed_error);
+  void ReportError(HpackDecodingError error);
 
   HpackWholeEntryListener* listener_;
   HpackDecoderStringBuffer name_, value_;

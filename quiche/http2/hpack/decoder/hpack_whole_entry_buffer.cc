@@ -55,7 +55,7 @@ void HpackWholeEntryBuffer::OnNameStart(bool huffman_encoded, size_t len) {
       QUICHE_DVLOG(1) << "Name length (" << len
                       << ") is longer than permitted ("
                       << max_string_size_bytes_ << ")";
-      ReportError(HpackDecodingError::kNameTooLong, "");
+      ReportError(HpackDecodingError::kNameTooLong);
       QUICHE_CODE_COUNT_N(decompress_failure_3, 18, 23);
       return;
     }
@@ -70,7 +70,7 @@ void HpackWholeEntryBuffer::OnNameData(const char* data, size_t len) {
                          absl::string_view(data, len));
   QUICHE_DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnData(data, len)) {
-    ReportError(HpackDecodingError::kNameHuffmanError, "");
+    ReportError(HpackDecodingError::kNameHuffmanError);
     QUICHE_CODE_COUNT_N(decompress_failure_3, 19, 23);
   }
 }
@@ -79,7 +79,7 @@ void HpackWholeEntryBuffer::OnNameEnd() {
   QUICHE_DVLOG(2) << "HpackWholeEntryBuffer::OnNameEnd";
   QUICHE_DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnEnd()) {
-    ReportError(HpackDecodingError::kNameHuffmanError, "");
+    ReportError(HpackDecodingError::kNameHuffmanError);
     QUICHE_CODE_COUNT_N(decompress_failure_3, 20, 23);
   }
 }
@@ -89,11 +89,12 @@ void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
                   << (huffman_encoded ? "true" : "false") << ",  len=" << len;
   if (!error_detected_) {
     if (len > max_string_size_bytes_) {
-      std::string detailed_error = absl::StrCat(
-          "Value length (", len, ") of [", name_.GetStringIfComplete(),
-          "] is longer than permitted (", max_string_size_bytes_, ")");
-      QUICHE_DVLOG(1) << detailed_error;
-      ReportError(HpackDecodingError::kValueTooLong, detailed_error);
+      QUICHE_DVLOG(1) << "Value length (" << len << ") of ["
+                      << name_.GetStringIfComplete()
+                      << "] is longer than permitted ("
+                      << max_string_size_bytes_ << ")";
+
+      ReportError(HpackDecodingError::kValueTooLong);
       QUICHE_CODE_COUNT_N(decompress_failure_3, 21, 23);
       return;
     }
@@ -107,7 +108,7 @@ void HpackWholeEntryBuffer::OnValueData(const char* data, size_t len) {
                   << quiche::QuicheTextUtils::HexDump(
                          absl::string_view(data, len));
   if (!error_detected_ && !value_.OnData(data, len)) {
-    ReportError(HpackDecodingError::kValueHuffmanError, "");
+    ReportError(HpackDecodingError::kValueHuffmanError);
     QUICHE_CODE_COUNT_N(decompress_failure_3, 22, 23);
   }
 }
@@ -118,7 +119,7 @@ void HpackWholeEntryBuffer::OnValueEnd() {
     return;
   }
   if (!value_.OnEnd()) {
-    ReportError(HpackDecodingError::kValueHuffmanError, "");
+    ReportError(HpackDecodingError::kValueHuffmanError);
     QUICHE_CODE_COUNT_N(decompress_failure_3, 23, 23);
     return;
   }
@@ -138,13 +139,12 @@ void HpackWholeEntryBuffer::OnDynamicTableSizeUpdate(size_t size) {
   listener_->OnDynamicTableSizeUpdate(size);
 }
 
-void HpackWholeEntryBuffer::ReportError(HpackDecodingError error,
-                                        std::string detailed_error) {
+void HpackWholeEntryBuffer::ReportError(HpackDecodingError error) {
   if (!error_detected_) {
     QUICHE_DVLOG(1) << "HpackWholeEntryBuffer::ReportError: "
                     << HpackDecodingErrorToString(error);
     error_detected_ = true;
-    listener_->OnHpackDecodeError(error, detailed_error);
+    listener_->OnHpackDecodeError(error, "");
     listener_ = HpackWholeEntryNoOpListener::NoOpListener();
   }
 }

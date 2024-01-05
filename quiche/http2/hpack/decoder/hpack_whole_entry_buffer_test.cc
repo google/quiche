@@ -164,9 +164,7 @@ TEST_F(HpackWholeEntryBufferTest, NameTooLong) {
 TEST_F(HpackWholeEntryBufferTest, ValueTooLong) {
   entry_buffer_.OnStartLiteralHeader(HpackEntryType::kIndexedLiteralHeader, 0);
   EXPECT_CALL(listener_,
-              OnHpackDecodeError(
-                  HpackDecodingError::kValueTooLong,
-                  "Value length (21) of [path] is longer than permitted (20)"));
+              OnHpackDecodeError(HpackDecodingError::kValueTooLong, ""));
   entry_buffer_.OnNameStart(false, 4);
   entry_buffer_.OnNameData("path", 4);
   entry_buffer_.OnNameEnd();
@@ -177,9 +175,7 @@ TEST_F(HpackWholeEntryBufferTest, ValueTooLong) {
 TEST_F(HpackWholeEntryBufferTest, ValueTooLongWithoutName) {
   entry_buffer_.OnStartLiteralHeader(HpackEntryType::kIndexedLiteralHeader, 1);
   EXPECT_CALL(listener_,
-              OnHpackDecodeError(
-                  HpackDecodingError::kValueTooLong,
-                  "Value length (21) of [] is longer than permitted (20)"));
+              OnHpackDecodeError(HpackDecodingError::kValueTooLong, ""));
   entry_buffer_.OnValueStart(false, kMaxStringSize + 1);
 }
 
