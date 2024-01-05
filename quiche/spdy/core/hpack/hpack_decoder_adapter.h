@@ -96,7 +96,7 @@ class QUICHE_EXPORT HpackDecoderAdapter {
 
     // From HpackDecoderListener
     void OnHeaderListStart() override;
-    void OnHeader(const std::string& name, const std::string& value) override;
+    void OnHeader(absl::string_view name, absl::string_view value) override;
     void OnHeaderListEnd() override;
     void OnHeaderErrorDetected(absl::string_view error_message) override;
 

@@ -24,7 +24,7 @@ class QUICHE_EXPORT Http2HeaderBlockHpackListener
     hpack_error_ = false;
   }
 
-  void OnHeader(const std::string& name, const std::string& value) override {
+  void OnHeader(absl::string_view name, absl::string_view value) override {
     header_block_.AppendValueOrAddHeader(name, value);
   }
 

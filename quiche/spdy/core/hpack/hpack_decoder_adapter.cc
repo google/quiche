@@ -133,8 +133,8 @@ void HpackDecoderAdapter::ListenerAdapter::OnHeaderListStart() {
   handler_->OnHeaderBlockStart();
 }
 
-void HpackDecoderAdapter::ListenerAdapter::OnHeader(const std::string& name,
-                                                    const std::string& value) {
+void HpackDecoderAdapter::ListenerAdapter::OnHeader(absl::string_view name,
+                                                    absl::string_view value) {
   QUICHE_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeader:\n name: "
                   << name << "\n value: " << value;
   total_uncompressed_bytes_ += name.size() + value.size();

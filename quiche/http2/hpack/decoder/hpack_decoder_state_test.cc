@@ -36,8 +36,8 @@ namespace {
 class MockHpackDecoderListener : public HpackDecoderListener {
  public:
   MOCK_METHOD(void, OnHeaderListStart, (), (override));
-  MOCK_METHOD(void, OnHeader,
-              (const std::string& name, const std::string& value), (override));
+  MOCK_METHOD(void, OnHeader, (absl::string_view name, absl::string_view value),
+              (override));
   MOCK_METHOD(void, OnHeaderListEnd, (), (override));
   MOCK_METHOD(void, OnHeaderErrorDetected, (absl::string_view error_message),
               (override));
