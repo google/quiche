@@ -38,8 +38,6 @@ std::ostream& operator<<(std::ostream& out,
       return out << "UNBUFFERED";
     case HpackDecoderStringBuffer::Backing::BUFFERED:
       return out << "BUFFERED";
-    case HpackDecoderStringBuffer::Backing::STATIC:
-      return out << "STATIC";
   }
   // Since the value doesn't come over the wire, only a programming bug should
   // result in reaching this point.
@@ -59,17 +57,6 @@ HpackDecoderStringBuffer::~HpackDecoderStringBuffer() = default;
 void HpackDecoderStringBuffer::Reset() {
   QUICHE_DVLOG(3) << "HpackDecoderStringBuffer::Reset";
   state_ = State::RESET;
-}
-
-void HpackDecoderStringBuffer::Set(absl::string_view value, bool is_static) {
-  QUICHE_DVLOG(2) << "HpackDecoderStringBuffer::Set";
-  QUICHE_DCHECK_EQ(state_, State::RESET);
-  value_ = value;
-  state_ = State::COMPLETE;
-  backing_ = is_static ? Backing::STATIC : Backing::UNBUFFERED;
-  // TODO(jamessynge): Determine which of these two fields must be set.
-  remaining_len_ = 0;
-  is_huffman_encoded_ = false;
 }
 
 void HpackDecoderStringBuffer::OnStart(bool huffman_encoded, size_t len) {

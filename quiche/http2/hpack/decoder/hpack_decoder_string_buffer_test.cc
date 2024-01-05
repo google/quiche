@@ -46,31 +46,6 @@ class HpackDecoderStringBufferTest : public quiche::test::QuicheTest {
   HpackDecoderStringBuffer buf_;
 };
 
-TEST_F(HpackDecoderStringBufferTest, SetStatic) {
-  absl::string_view data("static string");
-
-  EXPECT_EQ(state(), State::RESET);
-  EXPECT_TRUE(VerifyLogHasSubstrs({"state=RESET"}));
-
-  buf_.Set(data, /*is_static*/ true);
-  QUICHE_LOG(INFO) << buf_;
-  EXPECT_EQ(state(), State::COMPLETE);
-  EXPECT_EQ(backing(), Backing::STATIC);
-  EXPECT_EQ(data, buf_.str());
-  EXPECT_EQ(data.data(), buf_.str().data());
-  EXPECT_TRUE(VerifyLogHasSubstrs(
-      {"state=COMPLETE", "backing=STATIC", "value: static string"}));
-
-  // The string is static, so BufferStringIfUnbuffered won't change anything.
-  buf_.BufferStringIfUnbuffered();
-  EXPECT_EQ(state(), State::COMPLETE);
-  EXPECT_EQ(backing(), Backing::STATIC);
-  EXPECT_EQ(data, buf_.str());
-  EXPECT_EQ(data.data(), buf_.str().data());
-  EXPECT_TRUE(VerifyLogHasSubstrs(
-      {"state=COMPLETE", "backing=STATIC", "value: static string"}));
-}
-
 TEST_F(HpackDecoderStringBufferTest, PlainWhole) {
   absl::string_view data("some text.");
 

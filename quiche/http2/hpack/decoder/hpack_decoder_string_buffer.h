@@ -23,7 +23,7 @@ namespace http2 {
 class QUICHE_EXPORT HpackDecoderStringBuffer {
  public:
   enum class State : uint8_t { RESET, COLLECTING, COMPLETE };
-  enum class Backing : uint8_t { RESET, UNBUFFERED, BUFFERED, STATIC };
+  enum class Backing : uint8_t { RESET, UNBUFFERED, BUFFERED };
 
   HpackDecoderStringBuffer();
   ~HpackDecoderStringBuffer();
@@ -32,7 +32,6 @@ class QUICHE_EXPORT HpackDecoderStringBuffer {
   HpackDecoderStringBuffer& operator=(const HpackDecoderStringBuffer&) = delete;
 
   void Reset();
-  void Set(absl::string_view value, bool is_static);
 
   // Note that for Huffman encoded strings the length of the string after
   // decoding may be larger (expected), the same or even smaller; the latter

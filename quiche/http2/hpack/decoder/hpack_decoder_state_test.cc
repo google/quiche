@@ -43,7 +43,7 @@ class MockHpackDecoderListener : public HpackDecoderListener {
               (override));
 };
 
-enum StringBacking { STATIC, UNBUFFERED, BUFFERED };
+enum StringBacking { UNBUFFERED, BUFFERED };
 
 class HpackDecoderStateTest : public quiche::test::QuicheTest {
  protected:
@@ -69,27 +69,21 @@ class HpackDecoderStateTest : public quiche::test::QuicheTest {
     GetDecoderTables()->DynamicTableSizeUpdate(size);
   }
 
-  void SetStringBuffer(const char* s, StringBacking backing,
+  void SetStringBuffer(absl::string_view s, StringBacking backing,
                        HpackDecoderStringBuffer* string_buffer) {
-    switch (backing) {
-      case STATIC:
-        string_buffer->Set(s, true);
-        break;
-      case UNBUFFERED:
-        string_buffer->Set(s, false);
-        break;
-      case BUFFERED:
-        string_buffer->Set(s, false);
-        string_buffer->BufferStringIfUnbuffered();
-        break;
+    string_buffer->OnStart(false, s.size());
+    EXPECT_TRUE(string_buffer->OnData(s.data(), s.size()));
+    EXPECT_TRUE(string_buffer->OnEnd());
+    if (backing == BUFFERED) {
+      string_buffer->BufferStringIfUnbuffered();
     }
   }
 
-  void SetName(const char* s, StringBacking backing) {
+  void SetName(absl::string_view s, StringBacking backing) {
     SetStringBuffer(s, backing, &name_buffer_);
   }
 
-  void SetValue(const char* s, StringBacking backing) {
+  void SetValue(absl::string_view s, StringBacking backing) {
     SetStringBuffer(s, backing, &value_buffer_);
   }
 
@@ -106,15 +100,16 @@ class HpackDecoderStateTest : public quiche::test::QuicheTest {
 
   void SendIndexAndVerifyCallback(size_t index,
                                   HpackEntryType /*expected_type*/,
-                                  const char* expected_name,
-                                  const char* expected_value) {
+                                  absl::string_view expected_name,
+                                  absl::string_view expected_value) {
     EXPECT_CALL(listener_, OnHeader(Eq(expected_name), Eq(expected_value)));
     decoder_state_.OnIndexedHeader(index);
     Mock::VerifyAndClearExpectations(&listener_);
   }
 
   void SendValueAndVerifyCallback(size_t name_index, HpackEntryType entry_type,
-                                  const char* name, const char* value,
+                                  absl::string_view name,
+                                  absl::string_view value,
                                   StringBacking value_backing) {
     SetValue(value, value_backing);
     EXPECT_CALL(listener_, OnHeader(Eq(name), Eq(value)));
@@ -124,9 +119,9 @@ class HpackDecoderStateTest : public quiche::test::QuicheTest {
   }
 
   void SendNameAndValueAndVerifyCallback(HpackEntryType entry_type,
-                                         const char* name,
+                                         absl::string_view name,
                                          StringBacking name_backing,
-                                         const char* value,
+                                         absl::string_view value,
                                          StringBacking value_backing) {
     SetName(name, name_backing);
     SetValue(value, value_backing);
@@ -143,8 +138,8 @@ class HpackDecoderStateTest : public quiche::test::QuicheTest {
   }
 
   // dynamic_index is one-based, because that is the way RFC 7541 shows it.
-  AssertionResult VerifyEntry(size_t dynamic_index, const char* name,
-                              const char* value) {
+  AssertionResult VerifyEntry(size_t dynamic_index, absl::string_view name,
+                              absl::string_view value) {
     const HpackStringPair* entry =
         Lookup(dynamic_index + kFirstDynamicTableIndex - 1);
     HTTP2_VERIFY_NE(entry, nullptr);
@@ -159,7 +154,8 @@ class HpackDecoderStateTest : public quiche::test::QuicheTest {
     return AssertionSuccess();
   }
   AssertionResult VerifyDynamicTableContents(
-      const std::vector<std::pair<const char*, const char*>>& entries) {
+      const std::vector<std::pair<absl::string_view, absl::string_view>>&
+          entries) {
     size_t index = 1;
     for (const auto& entry : entries) {
       HTTP2_VERIFY_SUCCESS(VerifyEntry(index, entry.first, entry.second));
