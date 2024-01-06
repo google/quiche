@@ -448,7 +448,7 @@ TEST_F(HpackDecoderStateTest, RequiredTableSizeChangeBeforeHeader) {
   decoder_state_.OnLiteralNameAndValue(HpackEntryType::kIndexedLiteralHeader,
                                        &name_buffer_, &value_buffer_);
   decoder_state_.OnHeaderBlockEnd();
-  decoder_state_.OnHpackDecodeError(HpackDecodingError::kIndexVarintError, "");
+  decoder_state_.OnHpackDecodeError(HpackDecodingError::kIndexVarintError);
 }
 
 // Confirm that required size updates are validated.
@@ -517,7 +517,7 @@ TEST_F(HpackDecoderStateTest, ErrorsSuppressCallbacks) {
   SendStartAndVerifyCallback();
   EXPECT_CALL(listener_,
               OnHeaderErrorDetected(Eq("Name Huffman encoding error")));
-  decoder_state_.OnHpackDecodeError(HpackDecodingError::kNameHuffmanError, "");
+  decoder_state_.OnHpackDecodeError(HpackDecodingError::kNameHuffmanError);
 
   // Further decoded entries are ignored.
   decoder_state_.OnIndexedHeader(1);
@@ -529,7 +529,7 @@ TEST_F(HpackDecoderStateTest, ErrorsSuppressCallbacks) {
   decoder_state_.OnLiteralNameAndValue(HpackEntryType::kIndexedLiteralHeader,
                                        &name_buffer_, &value_buffer_);
   decoder_state_.OnHeaderBlockEnd();
-  decoder_state_.OnHpackDecodeError(HpackDecodingError::kIndexVarintError, "");
+  decoder_state_.OnHpackDecodeError(HpackDecodingError::kIndexVarintError);
 }
 
 }  // namespace

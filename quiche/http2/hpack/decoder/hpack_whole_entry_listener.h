@@ -49,8 +49,7 @@ class QUICHE_EXPORT HpackWholeEntryListener {
   virtual void OnDynamicTableSizeUpdate(size_t size) = 0;
 
   // OnHpackDecodeError is called if an error is detected while decoding.
-  virtual void OnHpackDecodeError(HpackDecodingError error,
-                                  std::string detailed_error) = 0;
+  virtual void OnHpackDecodeError(HpackDecodingError error) = 0;
 };
 
 // A no-op implementation of HpackWholeEntryDecoderListener, useful for ignoring
@@ -68,8 +67,7 @@ class QUICHE_EXPORT HpackWholeEntryNoOpListener
                              HpackDecoderStringBuffer* name_buffer,
                              HpackDecoderStringBuffer* value_buffer) override;
   void OnDynamicTableSizeUpdate(size_t size) override;
-  void OnHpackDecodeError(HpackDecodingError error,
-                          std::string detailed_error) override;
+  void OnHpackDecodeError(HpackDecodingError error) override;
 
   // Returns a listener that ignores all the calls.
   static HpackWholeEntryNoOpListener* NoOpListener();

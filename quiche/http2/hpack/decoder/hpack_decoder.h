@@ -104,13 +104,11 @@ class QUICHE_EXPORT HpackDecoder {
   // Error code if an error has occurred, HpackDecodingError::kOk otherwise.
   HpackDecodingError error() const { return error_; }
 
-  std::string detailed_error() const { return detailed_error_; }
-
  private:
   friend class test::HpackDecoderPeer;
 
   // Reports an error to the listener IF this is the first error detected.
-  void ReportError(HpackDecodingError error, std::string detailed_error);
+  void ReportError(HpackDecodingError error);
 
   // The decompressor state, as defined by HPACK (i.e. the static and dynamic
   // tables).
@@ -124,7 +122,6 @@ class QUICHE_EXPORT HpackDecoder {
 
   // Error code if an error has occurred, HpackDecodingError::kOk otherwise.
   HpackDecodingError error_;
-  std::string detailed_error_;
 };
 
 }  // namespace http2

@@ -144,7 +144,7 @@ void HpackWholeEntryBuffer::ReportError(HpackDecodingError error) {
     QUICHE_DVLOG(1) << "HpackWholeEntryBuffer::ReportError: "
                     << HpackDecodingErrorToString(error);
     error_detected_ = true;
-    listener_->OnHpackDecodeError(error, "");
+    listener_->OnHpackDecodeError(error);
     listener_ = HpackWholeEntryNoOpListener::NoOpListener();
   }
 }

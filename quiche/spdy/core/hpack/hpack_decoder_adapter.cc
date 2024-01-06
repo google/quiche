@@ -55,7 +55,6 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersData(
     if (!hpack_decoder_.StartDecodingBlock()) {
       header_block_started_ = false;
       error_ = hpack_decoder_.error();
-      detailed_error_ = hpack_decoder_.detailed_error();
       return false;
     }
   }
@@ -70,14 +69,12 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersData(
                       << max_decode_buffer_size_bytes_ << " < "
                       << headers_data_length;
       error_ = http2::HpackDecodingError::kFragmentTooLong;
-      detailed_error_ = "";
       return false;
     }
     listener_adapter_.AddToTotalHpackBytes(headers_data_length);
     if (max_header_block_bytes_ != 0 &&
         listener_adapter_.total_hpack_bytes() > max_header_block_bytes_) {
       error_ = http2::HpackDecodingError::kCompressedHeaderSizeExceedsLimit;
-      detailed_error_ = "";
       return false;
     }
     http2::DecodeBuffer db(headers_data, headers_data_length);
@@ -85,7 +82,6 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersData(
     QUICHE_DCHECK(!ok || db.Empty()) << "Remaining=" << db.Remaining();
     if (!ok) {
       error_ = hpack_decoder_.error();
-      detailed_error_ = hpack_decoder_.detailed_error();
     }
     return ok;
   }
@@ -97,7 +93,6 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersComplete() {
   if (!hpack_decoder_.EndDecodingBlock()) {
     QUICHE_DVLOG(3) << "EndDecodingBlock returned false";
     error_ = hpack_decoder_.error();
-    detailed_error_ = hpack_decoder_.detailed_error();
     return false;
   }
   header_block_started_ = false;

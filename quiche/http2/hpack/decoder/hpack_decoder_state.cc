@@ -83,7 +83,7 @@ void HpackDecoderState::OnIndexedHeader(size_t index) {
     return;
   }
   if (require_dynamic_table_size_update_) {
-    ReportError(HpackDecodingError::kMissingDynamicTableSizeUpdate, "");
+    ReportError(HpackDecodingError::kMissingDynamicTableSizeUpdate);
     return;
   }
   allow_dynamic_table_size_update_ = false;
@@ -91,7 +91,7 @@ void HpackDecoderState::OnIndexedHeader(size_t index) {
   if (entry != nullptr) {
     listener_->OnHeader(entry->name, entry->value);
   } else {
-    ReportError(HpackDecodingError::kInvalidIndex, "");
+    ReportError(HpackDecodingError::kInvalidIndex);
   }
 }
 
@@ -105,7 +105,7 @@ void HpackDecoderState::OnNameIndexAndLiteralValue(
     return;
   }
   if (require_dynamic_table_size_update_) {
-    ReportError(HpackDecodingError::kMissingDynamicTableSizeUpdate, "");
+    ReportError(HpackDecodingError::kMissingDynamicTableSizeUpdate);
     return;
   }
   allow_dynamic_table_size_update_ = false;
@@ -117,7 +117,7 @@ void HpackDecoderState::OnNameIndexAndLiteralValue(
       decoder_tables_.Insert(entry->name, std::move(value));
     }
   } else {
-    ReportError(HpackDecodingError::kInvalidNameIndex, "");
+    ReportError(HpackDecodingError::kInvalidNameIndex);
   }
 }
 
@@ -130,7 +130,7 @@ void HpackDecoderState::OnLiteralNameAndValue(
     return;
   }
   if (require_dynamic_table_size_update_) {
-    ReportError(HpackDecodingError::kMissingDynamicTableSizeUpdate, "");
+    ReportError(HpackDecodingError::kMissingDynamicTableSizeUpdate);
     return;
   }
   allow_dynamic_table_size_update_ = false;
@@ -155,15 +155,14 @@ void HpackDecoderState::OnDynamicTableSizeUpdate(size_t size_limit) {
   if (!allow_dynamic_table_size_update_) {
     // At most two dynamic table size updates allowed at the start, and not
     // after a header.
-    ReportError(HpackDecodingError::kDynamicTableSizeUpdateNotAllowed, "");
+    ReportError(HpackDecodingError::kDynamicTableSizeUpdateNotAllowed);
     return;
   }
   if (require_dynamic_table_size_update_) {
     // The new size must not be greater than the low water mark.
     if (size_limit > lowest_header_table_size_) {
-      ReportError(
-          HpackDecodingError::kInitialDynamicTableSizeUpdateIsAboveLowWaterMark,
-          "");
+      ReportError(HpackDecodingError::
+                      kInitialDynamicTableSizeUpdateIsAboveLowWaterMark);
       return;
     }
     require_dynamic_table_size_update_ = false;
@@ -171,8 +170,7 @@ void HpackDecoderState::OnDynamicTableSizeUpdate(size_t size_limit) {
     // The new size must not be greater than the final max header table size
     // that the peer acknowledged.
     ReportError(
-        HpackDecodingError::kDynamicTableSizeUpdateIsAboveAcknowledgedSetting,
-        "");
+        HpackDecodingError::kDynamicTableSizeUpdateIsAboveAcknowledgedSetting);
     return;
   }
   decoder_tables_.DynamicTableSizeUpdate(size_limit);
@@ -185,12 +183,11 @@ void HpackDecoderState::OnDynamicTableSizeUpdate(size_t size_limit) {
   lowest_header_table_size_ = final_header_table_size_;
 }
 
-void HpackDecoderState::OnHpackDecodeError(HpackDecodingError error,
-                                           std::string detailed_error) {
+void HpackDecoderState::OnHpackDecodeError(HpackDecodingError error) {
   QUICHE_DVLOG(2) << "HpackDecoderState::OnHpackDecodeError "
                   << HpackDecodingErrorToString(error);
   if (error_ == HpackDecodingError::kOk) {
-    ReportError(error, detailed_error);
+    ReportError(error);
   }
 }
 
@@ -202,21 +199,19 @@ void HpackDecoderState::OnHeaderBlockEnd() {
   if (require_dynamic_table_size_update_) {
     // Apparently the HPACK block was empty, but we needed it to contain at
     // least 1 dynamic table size update.
-    ReportError(HpackDecodingError::kMissingDynamicTableSizeUpdate, "");
+    ReportError(HpackDecodingError::kMissingDynamicTableSizeUpdate);
   } else {
     listener_->OnHeaderListEnd();
   }
 }
 
-void HpackDecoderState::ReportError(HpackDecodingError error,
-                                    std::string detailed_error) {
+void HpackDecoderState::ReportError(HpackDecodingError error) {
   QUICHE_DVLOG(2) << "HpackDecoderState::ReportError is new="
                   << (error_ == HpackDecodingError::kOk ? "true" : "false")
                   << ", error: " << HpackDecodingErrorToString(error);
   if (error_ == HpackDecodingError::kOk) {
     listener_->OnHeaderErrorDetected(HpackDecodingErrorToString(error));
     error_ = error;
-    detailed_error_ = detailed_error;
   }
 }
 

@@ -475,7 +475,7 @@ void Http2DecoderAdapter::OnHpackFragment(const char* data, size_t len) {
   auto& decoder = GetHpackDecoder();
   if (!decoder.HandleControlFrameHeadersData(data, len)) {
     SetSpdyErrorAndNotify(HpackDecodingErrorToSpdyFramerError(decoder.error()),
-                          decoder.detailed_error());
+                          "");
     return;
   }
 }

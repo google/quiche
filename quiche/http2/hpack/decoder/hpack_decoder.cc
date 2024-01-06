@@ -54,7 +54,7 @@ bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
   // which finally forwards them to the HpackDecoderListener.
   DecodeStatus status = block_decoder_.Decode(db);
   if (status == DecodeStatus::kDecodeError) {
-    ReportError(block_decoder_.error(), "");
+    ReportError(block_decoder_.error());
     QUICHE_CODE_COUNT_N(decompress_failure_3, 4, 23);
     return false;
   } else if (DetectError()) {
@@ -80,7 +80,7 @@ bool HpackDecoder::EndDecodingBlock() {
   }
   if (!block_decoder_.before_entry()) {
     // The HPACK block ended in the middle of an entry.
-    ReportError(HpackDecodingError::kTruncatedBlock, "");
+    ReportError(HpackDecodingError::kTruncatedBlock);
     QUICHE_CODE_COUNT_N(decompress_failure_3, 7, 23);
     return false;
   }
@@ -102,20 +102,17 @@ bool HpackDecoder::DetectError() {
     QUICHE_DVLOG(2) << "Error detected in decoder_state_";
     QUICHE_CODE_COUNT_N(decompress_failure_3, 10, 23);
     error_ = decoder_state_.error();
-    detailed_error_ = decoder_state_.detailed_error();
   }
 
   return error_ != HpackDecodingError::kOk;
 }
 
-void HpackDecoder::ReportError(HpackDecodingError error,
-                               std::string detailed_error) {
+void HpackDecoder::ReportError(HpackDecodingError error) {
   QUICHE_DVLOG(3) << "HpackDecoder::ReportError is new="
                   << (error_ == HpackDecodingError::kOk ? "true" : "false")
                   << ", error: " << HpackDecodingErrorToString(error);
   if (error_ == HpackDecodingError::kOk) {
     error_ = error;
-    detailed_error_ = detailed_error;
     decoder_state_.listener()->OnHeaderErrorDetected(
         HpackDecodingErrorToString(error));
   }
