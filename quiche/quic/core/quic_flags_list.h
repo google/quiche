@@ -48,7 +48,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
 // If true, allow quic to use new ALPS codepoint to negotiate during handshake for H3 if client sends new ALPS codepoint.
 QUIC_FLAG(quic_reloadable_flag_quic_gfe_allow_alps_new_codepoint, false)
 // If true, allows QUIC control frames to be written while a packet is being processed.
-QUIC_FLAG(quic_restart_flag_quic_allow_control_frames_while_procesing, false)
+QUIC_FLAG(quic_restart_flag_quic_allow_control_frames_while_procesing, true)
 // If true, always bundle qpack decoder data with other frames opportunistically.
 QUIC_FLAG(quic_restart_flag_quic_opport_bundle_qpack_decoder_data3, false)
 // If true, an endpoint does not detect path degrading or blackholing until handshake gets confirmed.
