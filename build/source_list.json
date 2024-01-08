@@ -392,7 +392,8 @@
     "quiche/web_transport/complete_buffer_visitor.h",
     "quiche/web_transport/encapsulated/encapsulated_web_transport.h",
     "quiche/web_transport/web_transport.h",
-    "quiche/web_transport/web_transport_headers.h"
+    "quiche/web_transport/web_transport_headers.h",
+    "quiche/web_transport/web_transport_priority_scheduler.h"
   ],
   "quiche_core_srcs": [
     "quiche/common/capsule.cc",
@@ -681,7 +682,8 @@
     "quiche/spdy/core/spdy_protocol.cc",
     "quiche/web_transport/complete_buffer_visitor.cc",
     "quiche/web_transport/encapsulated/encapsulated_web_transport.cc",
-    "quiche/web_transport/web_transport_headers.cc"
+    "quiche/web_transport/web_transport_headers.cc",
+    "quiche/web_transport/web_transport_priority_scheduler.cc"
   ],
   "quiche_tool_support_hdrs": [
     "quiche/common/platform/api/quiche_command_line_flags.h",
@@ -1310,7 +1312,8 @@
     "quiche/spdy/core/spdy_framer_test.cc",
     "quiche/spdy/core/spdy_protocol_test.cc",
     "quiche/web_transport/encapsulated/encapsulated_web_transport_test.cc",
-    "quiche/web_transport/web_transport_headers_test.cc"
+    "quiche/web_transport/web_transport_headers_test.cc",
+    "quiche/web_transport/web_transport_priority_scheduler_test.cc"
   ],
   "io_tests_hdrs": [
 

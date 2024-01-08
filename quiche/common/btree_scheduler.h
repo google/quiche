@@ -5,15 +5,19 @@
 #ifndef QUICHE_COMMON_BTREE_SCHEDULER_H_
 #define QUICHE_COMMON_BTREE_SCHEDULER_H_
 
+#include <cstddef>
 #include <limits>
 #include <optional>
+#include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quiche {
 
@@ -39,6 +43,8 @@ namespace quiche {
 template <typename Id, typename Priority>
 class QUICHE_EXPORT BTreeScheduler {
  public:
+  // Returns true if there are any streams registered.
+  bool HasRegistered() const { return !streams_.empty(); }
   // Returns true if there are any streams scheduled.
   bool HasScheduled() const { return !schedule_.empty(); }
   // Returns the number of currently scheduled streams.
@@ -82,7 +88,7 @@ class QUICHE_EXPORT BTreeScheduler {
   // A record for a registered stream.
   struct StreamEntry {
     // The current priority of the stream.
-    Priority priority;
+    ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS Priority priority;
     // If present, the sequence number with which the stream is currently
     // scheduled.  If absent, indicates that the stream is not scheduled.
     std::optional<int> current_sequence_number;
@@ -96,7 +102,7 @@ class QUICHE_EXPORT BTreeScheduler {
   // A key that is used to order entities within the schedule.
   struct ScheduleKey {
     // The main order key: the priority of the stream.
-    Priority priority;
+    ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS Priority priority;
     // The secondary order key: the sequence number.
     int sequence_number;
 
