@@ -301,7 +301,7 @@ void BlindSignAuth::GenerateRsaBssaTokens(
   }
   absl::StatusOr<
       anonymous_tokens::AnonymousTokensSignRequest>
-      at_sign_request = *bssa_client.value()->CreateRequest(plaintext_tokens);
+      at_sign_request = bssa_client.value()->CreateRequest(plaintext_tokens);
   if (!at_sign_request.ok()) {
     QUICHE_LOG(WARNING) << "Failed to create AT Sign Request: "
                         << at_sign_request.status();
