@@ -116,8 +116,7 @@ class LoadBalancerEncoderTest : public QuicTest {
 // Convenience function to shorten the code. Does not check if |array| is long
 // enough or |length| is valid for a server ID.
 LoadBalancerServerId MakeServerId(const uint8_t array[], const uint8_t length) {
-  return *LoadBalancerServerId::Create(
-      absl::Span<const uint8_t>(array, length));
+  return LoadBalancerServerId(absl::Span<const uint8_t>(array, length));
 }
 
 constexpr char kRawKey[] = {0x8f, 0x95, 0xf0, 0x92, 0x45, 0x76, 0x5f, 0x80,
@@ -213,8 +212,8 @@ TEST_F(LoadBalancerEncoderTest, FollowSpecExample) {
   auto config = LoadBalancerConfig::Create(config_id, server_id_len, nonce_len,
                                            absl::string_view(raw_key));
   ASSERT_TRUE(config.has_value());
-  EXPECT_TRUE(encoder->UpdateConfig(
-      *config, *LoadBalancerServerId::Create(raw_server_id)));
+  EXPECT_TRUE(
+      encoder->UpdateConfig(*config, LoadBalancerServerId(raw_server_id)));
   EXPECT_TRUE(encoder->IsEncoding());
   const char raw_connection_id[] = {0x07, 0x8e, 0x9a, 0x91,
                                     0xf4, 0x94, 0x97, 0x62};

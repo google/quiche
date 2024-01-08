@@ -26,25 +26,23 @@ constexpr uint8_t kRawServerId[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
                                     0x0c, 0x0d, 0x0e, 0x0f};
 
 TEST_F(LoadBalancerServerIdTest, CreateReturnsNullIfTooLong) {
-  EXPECT_QUIC_BUG(EXPECT_FALSE(LoadBalancerServerId::Create(
+  EXPECT_QUIC_BUG(EXPECT_FALSE(LoadBalancerServerId(
                                    absl::Span<const uint8_t>(kRawServerId, 16))
-                                   .has_value()),
+                                   .IsValid()),
                   "Attempted to create LoadBalancerServerId with length 16");
   EXPECT_QUIC_BUG(
-      EXPECT_FALSE(LoadBalancerServerId::Create(absl::Span<const uint8_t>())
-                       .has_value()),
+      EXPECT_FALSE(LoadBalancerServerId(absl::Span<const uint8_t>()).IsValid()),
       "Attempted to create LoadBalancerServerId with length 0");
 }
 
 TEST_F(LoadBalancerServerIdTest, CompareIdenticalExceptLength) {
-  auto server_id =
-      LoadBalancerServerId::Create(absl::Span<const uint8_t>(kRawServerId, 15));
-  ASSERT_TRUE(server_id.has_value());
-  EXPECT_EQ(server_id->length(), 15);
-  auto shorter_server_id =
-      LoadBalancerServerId::Create(absl::Span<const uint8_t>(kRawServerId, 5));
-  ASSERT_TRUE(shorter_server_id.has_value());
-  EXPECT_EQ(shorter_server_id->length(), 5);
+  LoadBalancerServerId server_id(absl::Span<const uint8_t>(kRawServerId, 15));
+  ASSERT_TRUE(server_id.IsValid());
+  EXPECT_EQ(server_id.length(), 15);
+  LoadBalancerServerId shorter_server_id(
+      absl::Span<const uint8_t>(kRawServerId, 5));
+  ASSERT_TRUE(shorter_server_id.IsValid());
+  EXPECT_EQ(shorter_server_id.length(), 5);
   // Shorter comes before longer if all bits match
   EXPECT_TRUE(shorter_server_id < server_id);
   EXPECT_FALSE(server_id < shorter_server_id);
@@ -53,52 +51,47 @@ TEST_F(LoadBalancerServerIdTest, CompareIdenticalExceptLength) {
 }
 
 TEST_F(LoadBalancerServerIdTest, AccessorFunctions) {
-  auto server_id =
-      LoadBalancerServerId::Create(absl::Span<const uint8_t>(kRawServerId, 5));
-  EXPECT_TRUE(server_id.has_value());
-  EXPECT_EQ(server_id->length(), 5);
-  EXPECT_EQ(memcmp(server_id->data().data(), kRawServerId, 5), 0);
-  EXPECT_EQ(server_id->ToString(), "0001020304");
+  LoadBalancerServerId server_id(absl::Span<const uint8_t>(kRawServerId, 5));
+  EXPECT_TRUE(server_id.IsValid());
+  EXPECT_EQ(server_id.length(), 5);
+  EXPECT_EQ(memcmp(server_id.data().data(), kRawServerId, 5), 0);
+  EXPECT_EQ(server_id.ToString(), "0001020304");
 }
 
 TEST_F(LoadBalancerServerIdTest, CompareDifferentServerIds) {
-  auto server_id =
-      LoadBalancerServerId::Create(absl::Span<const uint8_t>(kRawServerId, 5));
-  ASSERT_TRUE(server_id.has_value());
-  auto reverse = LoadBalancerServerId::Create({0x0f, 0x0e, 0x0d, 0x0c, 0x0b});
-  ASSERT_TRUE(reverse.has_value());
+  LoadBalancerServerId server_id(absl::Span<const uint8_t>(kRawServerId, 5));
+  ASSERT_TRUE(server_id.IsValid());
+  LoadBalancerServerId reverse({0x0f, 0x0e, 0x0d, 0x0c, 0x0b});
+  ASSERT_TRUE(reverse.IsValid());
   EXPECT_TRUE(server_id < reverse);
-  auto long_server_id =
-      LoadBalancerServerId::Create(absl::Span<const uint8_t>(kRawServerId, 15));
+  LoadBalancerServerId long_server_id(
+      absl::Span<const uint8_t>(kRawServerId, 15));
   EXPECT_TRUE(long_server_id < reverse);
 }
 
 TEST_F(LoadBalancerServerIdTest, EqualityOperators) {
-  auto server_id =
-      LoadBalancerServerId::Create(absl::Span<const uint8_t>(kRawServerId, 15));
-  ASSERT_TRUE(server_id.has_value());
-  auto shorter_server_id =
-      LoadBalancerServerId::Create(absl::Span<const uint8_t>(kRawServerId, 5));
-  ASSERT_TRUE(shorter_server_id.has_value());
+  LoadBalancerServerId server_id(absl::Span<const uint8_t>(kRawServerId, 15));
+  ASSERT_TRUE(server_id.IsValid());
+  LoadBalancerServerId shorter_server_id(
+      absl::Span<const uint8_t>(kRawServerId, 5));
+  ASSERT_TRUE(shorter_server_id.IsValid());
   EXPECT_FALSE(server_id == shorter_server_id);
-  auto server_id2 = server_id;
+  LoadBalancerServerId server_id2 = server_id;
   EXPECT_TRUE(server_id == server_id2);
 }
 
 TEST_F(LoadBalancerServerIdTest, SupportsHash) {
-  auto server_id =
-      LoadBalancerServerId::Create(absl::Span<const uint8_t>(kRawServerId, 15));
-  ASSERT_TRUE(server_id.has_value());
-  auto shorter_server_id =
-      LoadBalancerServerId::Create(absl::Span<const uint8_t>(kRawServerId, 5));
-  ASSERT_TRUE(shorter_server_id.has_value());
-  auto different_server_id =
-      LoadBalancerServerId::Create({0x0f, 0x0e, 0x0d, 0x0c, 0x0b});
-  ASSERT_TRUE(different_server_id.has_value());
+  LoadBalancerServerId server_id(absl::Span<const uint8_t>(kRawServerId, 15));
+  ASSERT_TRUE(server_id.IsValid());
+  LoadBalancerServerId shorter_server_id(
+      absl::Span<const uint8_t>(kRawServerId, 5));
+  ASSERT_TRUE(shorter_server_id.IsValid());
+  LoadBalancerServerId different_server_id({0x0f, 0x0e, 0x0d, 0x0c, 0x0b});
+  ASSERT_TRUE(different_server_id.IsValid());
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
-      *server_id,
-      *shorter_server_id,
-      *different_server_id,
+      server_id,
+      shorter_server_id,
+      different_server_id,
   }));
 }
 

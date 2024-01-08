@@ -17,25 +17,25 @@
 
 namespace quic {
 
-std::optional<LoadBalancerServerId> LoadBalancerServerId::Create(
-    const absl::Span<const uint8_t> data) {
+LoadBalancerServerId::LoadBalancerServerId(absl::string_view data)
+    : LoadBalancerServerId(absl::MakeSpan(
+          reinterpret_cast<const uint8_t*>(data.data()), data.length())) {}
+
+LoadBalancerServerId::LoadBalancerServerId(absl::Span<const uint8_t> data) {
   if (data.length() == 0 || data.length() > kLoadBalancerMaxServerIdLen) {
     QUIC_BUG(quic_bug_433312504_01)
         << "Attempted to create LoadBalancerServerId with length "
         << data.length();
-    return std::optional<LoadBalancerServerId>();
+    length_ = 0;
+    return;
   }
-  return LoadBalancerServerId(data);
+  length_ = data.length();
+  memcpy(data_.data(), data.data(), data.length());
 }
 
 std::string LoadBalancerServerId::ToString() const {
   return absl::BytesToHexString(
       absl::string_view(reinterpret_cast<const char*>(data_.data()), length_));
-}
-
-LoadBalancerServerId::LoadBalancerServerId(const absl::Span<const uint8_t> data)
-    : length_(data.length()) {
-  memcpy(data_.data(), data.data(), data.length());
 }
 
 }  // namespace quic

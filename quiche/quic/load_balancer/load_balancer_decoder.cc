@@ -36,31 +36,31 @@ void LoadBalancerDecoder::DeleteConfig(uint8_t config_id) {
 
 // This is the core logic to extract a server ID given a valid config and
 // connection ID of sufficient length.
-std::optional<LoadBalancerServerId> LoadBalancerDecoder::GetServerId(
+LoadBalancerServerId LoadBalancerDecoder::GetServerId(
     const QuicConnectionId& connection_id) const {
   std::optional<uint8_t> config_id = GetConfigId(connection_id);
   if (!config_id.has_value()) {
-    return std::optional<LoadBalancerServerId>();
+    return LoadBalancerServerId();
   }
   std::optional<LoadBalancerConfig> config = config_[*config_id];
   if (!config.has_value()) {
-    return std::optional<LoadBalancerServerId>();
+    return LoadBalancerServerId();
   }
   if (connection_id.length() < config->total_len()) {
     // Connection ID wasn't long enough
-    return std::optional<LoadBalancerServerId>();
+    return LoadBalancerServerId();
   }
   // The first byte is complete. Finish the rest.
   const uint8_t* data =
       reinterpret_cast<const uint8_t*>(connection_id.data()) + 1;
   if (!config->IsEncrypted()) {  // It's a Plaintext CID.
-    return LoadBalancerServerId::Create(
+    return LoadBalancerServerId(
         absl::Span<const uint8_t>(data, config->server_id_len()));
   }
   uint8_t result[kQuicMaxConnectionIdWithLengthPrefixLength];
   if (config->plaintext_len() == kLoadBalancerKeyLen) {  // single pass
     if (!config->BlockDecrypt(data, result)) {
-      return std::optional<LoadBalancerServerId>();
+      return LoadBalancerServerId();
     }
   } else {
     // Do 3 or 4 passes. Only 3 are necessary if the server_id is short enough
@@ -70,11 +70,11 @@ std::optional<LoadBalancerServerId> LoadBalancerDecoder::GetServerId(
     uint8_t end = (config->server_id_len() > config->nonce_len()) ? 1 : 2;
     for (uint8_t i = kNumLoadBalancerCryptoPasses; i >= end; i--) {
       if (!config->EncryptionPass(absl::Span<uint8_t>(result), i)) {
-        return std::optional<LoadBalancerServerId>();
+        return LoadBalancerServerId();
       }
     }
   }
-  return LoadBalancerServerId::Create(
+  return LoadBalancerServerId(
       absl::Span<const uint8_t>(result, config->server_id_len()));
 }
 

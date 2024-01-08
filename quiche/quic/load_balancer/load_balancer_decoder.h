@@ -40,8 +40,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerDecoder {
   // codepoint, |connection_id| is too short, or there's a decrypt error,
   // returns empty. Will accept |connection_id| that is longer than necessary
   // without error.
-  std::optional<LoadBalancerServerId> GetServerId(
-      const QuicConnectionId& connection_id) const;
+  LoadBalancerServerId GetServerId(const QuicConnectionId& connection_id) const;
 
   // Returns the config ID stored in the first two bits of |connection_id|, or
   // empty if |connection_id| is empty, or the first two bits of the first byte
