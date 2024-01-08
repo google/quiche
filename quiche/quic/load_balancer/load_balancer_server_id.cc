@@ -17,18 +17,6 @@
 
 namespace quic {
 
-namespace {
-
-// Helper to allow setting the const array during initialization.
-std::array<uint8_t, kLoadBalancerMaxServerIdLen> MakeArray(
-    const absl::Span<const uint8_t> data, const uint8_t length) {
-  std::array<uint8_t, kLoadBalancerMaxServerIdLen> array;
-  memcpy(array.data(), data.data(), length);
-  return array;
-}
-
-}  // namespace
-
 std::optional<LoadBalancerServerId> LoadBalancerServerId::Create(
     const absl::Span<const uint8_t> data) {
   if (data.length() == 0 || data.length() > kLoadBalancerMaxServerIdLen) {
@@ -46,6 +34,8 @@ std::string LoadBalancerServerId::ToString() const {
 }
 
 LoadBalancerServerId::LoadBalancerServerId(const absl::Span<const uint8_t> data)
-    : data_(MakeArray(data, data.length())), length_(data.length()) {}
+    : length_(data.length()) {
+  memcpy(data_.data(), data.data(), data.length());
+}
 
 }  // namespace quic
