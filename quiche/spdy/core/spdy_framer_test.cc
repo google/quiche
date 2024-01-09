@@ -5010,17 +5010,17 @@ TEST_P(SpdyFramerTest, ProcessAllInput) {
 
 namespace {
 void CheckFrameAndIRSize(SpdyFrameIR* ir, SpdyFramer* framer,
-                         ArrayOutputBuffer* output_buffer) {
-  output_buffer->Reset();
+                         ArrayOutputBuffer* array_output_buffer) {
+  array_output_buffer->Reset();
   SpdyFrameType type = ir->frame_type();
   size_t ir_size = ir->size();
-  framer->SerializeFrame(*ir, output_buffer);
+  framer->SerializeFrame(*ir, array_output_buffer);
   if (type == SpdyFrameType::HEADERS || type == SpdyFrameType::PUSH_PROMISE) {
     // For HEADERS and PUSH_PROMISE, the size is an estimate.
-    EXPECT_GE(ir_size, output_buffer->Size() * 9 / 10);
-    EXPECT_LT(ir_size, output_buffer->Size() * 11 / 10);
+    EXPECT_GE(ir_size, array_output_buffer->Size() * 9 / 10);
+    EXPECT_LT(ir_size, array_output_buffer->Size() * 11 / 10);
   } else {
-    EXPECT_EQ(ir_size, output_buffer->Size());
+    EXPECT_EQ(ir_size, array_output_buffer->Size());
   }
 }
 }  // namespace

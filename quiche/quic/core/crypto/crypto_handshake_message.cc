@@ -119,9 +119,7 @@ QuicErrorCode CryptoHandshakeMessage::GetTaglist(
   size_t num_tags = it->second.size() / sizeof(QuicTag);
   out_tags->resize(num_tags);
   for (size_t i = 0; i < num_tags; ++i) {
-    QuicTag tag;
-    memcpy(&tag, it->second.data() + i * sizeof(tag), sizeof(tag));
-    (*out_tags)[i] = tag;
+    memcpy(&(*out_tags)[i], it->second.data() + i * sizeof(tag), sizeof(tag));
   }
   return ret;
 }

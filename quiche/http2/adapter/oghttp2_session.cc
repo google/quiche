@@ -656,8 +656,8 @@ OgHttp2Session::SendResult OgHttp2Session::MaybeSendBufferedData() {
 
 OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
   // Flush any serialized prefix.
-  const SendResult result = MaybeSendBufferedData();
-  if (result != SendResult::SEND_OK) {
+  if (const SendResult result = MaybeSendBufferedData();
+      result != SendResult::SEND_OK) {
     return result;
   }
   // Serialize and send frames in the queue.

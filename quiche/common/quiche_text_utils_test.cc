@@ -21,10 +21,8 @@ TEST(QuicheTextUtilsTest, ToLower) {
 }
 
 TEST(QuicheTextUtilsTest, RemoveLeadingAndTrailingWhitespace) {
-  std::string input;
-
-  for (auto* input : {"text", " text", "  text", "text ", "text  ", " text ",
-                      "  text  ", "\r\n\ttext", "text\n\r\t"}) {
+  for (auto* const input : {"text", " text", "  text", "text ", "text  ",
+                            " text ", "  text  ", "\r\n\ttext", "text\n\r\t"}) {
     absl::string_view piece(input);
     quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&piece);
     EXPECT_EQ("text", piece);

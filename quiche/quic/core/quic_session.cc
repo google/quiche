@@ -2533,8 +2533,8 @@ bool QuicSession::RetransmitLostData() {
   QuicConnection::ScopedPacketFlusher retransmission_flusher(connection_);
   // Retransmit crypto data first.
   bool uses_crypto_frames = QuicVersionUsesCryptoFrames(transport_version());
-  QuicCryptoStream* crypto_stream = GetMutableCryptoStream();
-  if (uses_crypto_frames && crypto_stream->HasPendingCryptoRetransmission()) {
+  if (QuicCryptoStream* const crypto_stream = GetMutableCryptoStream();
+      uses_crypto_frames && crypto_stream->HasPendingCryptoRetransmission()) {
     crypto_stream->WritePendingCryptoRetransmission();
   }
   // Retransmit crypto data in stream 1 frames (version < 47).
@@ -2542,7 +2542,7 @@ bool QuicSession::RetransmitLostData() {
       streams_with_pending_retransmission_.contains(
           QuicUtils::GetCryptoStreamId(transport_version()))) {
     // Retransmit crypto data first.
-    QuicStream* crypto_stream =
+    QuicStream* const crypto_stream =
         GetStream(QuicUtils::GetCryptoStreamId(transport_version()));
     crypto_stream->OnCanWrite();
     QUICHE_DCHECK(CheckStreamWriteBlocked(crypto_stream));

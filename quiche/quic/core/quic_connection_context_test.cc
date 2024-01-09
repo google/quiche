@@ -72,7 +72,7 @@ void NestedSwitch() {
     QUIC_TRACEPRINTF("%s %s %d", "outer", "printf", 0);
 
     {
-      QuicConnectionContextSwitcher switcher(&inner.context);
+      QuicConnectionContextSwitcher nested_switcher(&inner.context);
       QUIC_TRACELITERAL("inner literal");
       QUIC_TRACESTRING(std::string("inner string"));
       QUIC_TRACEPRINTF("%s %s", "inner", "printf");

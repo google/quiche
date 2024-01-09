@@ -138,12 +138,12 @@ bool QuicServer::CreateUDPSocketAndListen(const QuicSocketAddress& address) {
   QUIC_LOG(INFO) << "Listening on " << address.ToString();
   port_ = address.port();
   if (port_ == 0) {
-    QuicSocketAddress address;
-    if (address.FromSocket(fd_) != 0) {
+    QuicSocketAddress self_address;
+    if (self_address.FromSocket(fd_) != 0) {
       QUIC_LOG(ERROR) << "Unable to get self address.  Error: "
                       << strerror(errno);
     }
-    port_ = address.port();
+    port_ = self_address.port();
   }
 
   bool register_result = event_loop_->RegisterSocket(

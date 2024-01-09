@@ -38,8 +38,7 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
   file_contents_ = *maybe_file_contents;
 
   // First read the headers.
-  size_t start = 0;
-  while (start < file_contents_.length()) {
+  for (size_t start = 0; start < file_contents_.length();) {
     size_t pos = file_contents_.find('\n', start);
     if (pos == std::string::npos) {
       QUIC_LOG(DFATAL) << "Headers invalid or empty, ignoring: " << file_name_;
@@ -54,6 +53,8 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
     start = pos + 1;
     // Headers end with an empty line.
     if (line.empty()) {
+      body_ = absl::string_view(file_contents_.data() + start,
+                                file_contents_.size() - start);
       break;
     }
     // Extract the status from the HTTP first line.
@@ -82,8 +83,8 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
   spdy_headers_.erase("connection");
 
   // Override the URL with the X-Original-Url header, if present.
-  auto it = spdy_headers_.find("x-original-url");
-  if (it != spdy_headers_.end()) {
+  if (auto it = spdy_headers_.find("x-original-url");
+      it != spdy_headers_.end()) {
     x_original_url_ = it->second;
     HandleXOriginalUrl();
   }
@@ -91,11 +92,9 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
   // X-Push-URL header is a relatively quick way to support sever push
   // in the toy server.  A production server should use link=preload
   // stuff as described in https://w3c.github.io/preload/.
-  it = spdy_headers_.find("x-push-url");
-  if (it != spdy_headers_.end()) {
+  if (auto it = spdy_headers_.find("x-push-url"); it != spdy_headers_.end()) {
     absl::string_view push_urls = it->second;
-    size_t start = 0;
-    while (start < push_urls.length()) {
+    for (size_t start = 0; start < push_urls.length();) {
       size_t pos = push_urls.find('\0', start);
       if (pos == std::string::npos) {
         push_urls_.push_back(absl::string_view(push_urls.data() + start,
@@ -106,9 +105,6 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
       start += pos + 1;
     }
   }
-
-  body_ = absl::string_view(file_contents_.data() + start,
-                            file_contents_.size() - start);
 }
 
 void QuicMemoryCacheBackend::ResourceFile::SetHostPathFromBase(

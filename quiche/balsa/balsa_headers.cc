@@ -1117,9 +1117,8 @@ void BalsaHeaders::RemoveLastTokenFromHeaderValue(absl::string_view key) {
   // Tokenize just that line.
   BalsaHeaders::HeaderTokenList tokens;
   // Find where this line is stored.
-  const char* stream_begin = GetPtr(header_line->buffer_base_idx);
   absl::string_view value(
-      stream_begin + header_line->value_begin_idx,
+      GetPtr(header_line->buffer_base_idx) + header_line->value_begin_idx,
       header_line->last_char_idx - header_line->value_begin_idx);
   // Tokenize.
   ParseTokenList(value, &tokens);
@@ -1136,7 +1135,7 @@ void BalsaHeaders::RemoveLastTokenFromHeaderValue(absl::string_view key) {
     absl::string_view new_last_token = tokens[tokens.size() - 2];
     const char* last_char_address =
         new_last_token.data() + new_last_token.size() - 1;
-    const char* stream_begin = GetPtr(header_line->buffer_base_idx);
+    const char* const stream_begin = GetPtr(header_line->buffer_base_idx);
 
     header_line->last_char_idx = last_char_address - stream_begin + 1;
   }

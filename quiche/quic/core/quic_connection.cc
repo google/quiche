@@ -4534,13 +4534,13 @@ void QuicConnection::SendConnectionClosePacket(
     QuicErrorCode error, QuicIetfTransportErrorCodes ietf_error,
     const std::string& details) {
   // Always use the current path to send CONNECTION_CLOSE.
-  QuicPacketCreator::ScopedPeerAddressContext context(
+  QuicPacketCreator::ScopedPeerAddressContext peer_address_context(
       &packet_creator_, peer_address(), default_path_.client_connection_id,
       default_path_.server_connection_id);
   if (!SupportsMultiplePacketNumberSpaces()) {
     QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
-    ScopedEncryptionLevelContext context(this,
-                                         GetConnectionCloseEncryptionLevel());
+    ScopedEncryptionLevelContext encryption_level_context(
+        this, GetConnectionCloseEncryptionLevel());
     if (version().CanSendCoalescedPackets()) {
       coalesced_packet_.Clear();
     }
@@ -4554,11 +4554,9 @@ void QuicConnection::SendConnectionClosePacket(
         !packet_creator_.has_ack()) {
       SendAck();
     }
-    QuicConnectionCloseFrame* frame;
-
-    frame = new QuicConnectionCloseFrame(transport_version(), error, ietf_error,
-                                         details,
-                                         framer_.current_received_frame_type());
+    QuicConnectionCloseFrame* const frame = new QuicConnectionCloseFrame(
+        transport_version(), error, ietf_error, details,
+        framer_.current_received_frame_type());
     packet_creator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
     packet_creator_.FlushCurrentPacket();
     if (version().CanSendCoalescedPackets()) {

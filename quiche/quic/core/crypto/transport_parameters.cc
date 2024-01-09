@@ -1467,13 +1467,13 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           }
           const uint8_t num_versions = versions_length / sizeof(uint32_t);
           for (uint8_t i = 0; i < num_versions; ++i) {
-            QuicVersionLabel version;
-            if (!value_reader.ReadUInt32(&version)) {
+            QuicVersionLabel parsed_version;
+            if (!value_reader.ReadUInt32(&parsed_version)) {
               *error_details = "Failed to parse Google supported version";
               return false;
             }
             out->legacy_version_information->supported_versions.push_back(
-                version);
+                parsed_version);
           }
         }
       } break;

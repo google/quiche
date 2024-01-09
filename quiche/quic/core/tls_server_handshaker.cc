@@ -587,10 +587,10 @@ void TlsServerHandshaker::SetWriteSecret(
   if (level == ENCRYPTION_FORWARD_SECURE) {
     encryption_established_ = true;
     // Fill crypto_negotiated_params_:
-    const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
-    if (cipher) {
+    const SSL_CIPHER* ssl_cipher = SSL_get_current_cipher(ssl());
+    if (ssl_cipher) {
       crypto_negotiated_params_->cipher_suite =
-          SSL_CIPHER_get_protocol_id(cipher);
+          SSL_CIPHER_get_protocol_id(ssl_cipher);
     }
     crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
     crypto_negotiated_params_->encrypted_client_hello = SSL_ech_accepted(ssl());
