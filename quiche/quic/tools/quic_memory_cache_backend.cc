@@ -88,23 +88,6 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
     x_original_url_ = it->second;
     HandleXOriginalUrl();
   }
-
-  // X-Push-URL header is a relatively quick way to support sever push
-  // in the toy server.  A production server should use link=preload
-  // stuff as described in https://w3c.github.io/preload/.
-  if (auto it = spdy_headers_.find("x-push-url"); it != spdy_headers_.end()) {
-    absl::string_view push_urls = it->second;
-    for (size_t start = 0; start < push_urls.length();) {
-      size_t pos = push_urls.find('\0', start);
-      if (pos == std::string::npos) {
-        push_urls_.push_back(absl::string_view(push_urls.data() + start,
-                                               push_urls.length() - start));
-        break;
-      }
-      push_urls_.push_back(absl::string_view(push_urls.data() + start, pos));
-      start += pos + 1;
-    }
-  }
 }
 
 void QuicMemoryCacheBackend::ResourceFile::SetHostPathFromBase(
