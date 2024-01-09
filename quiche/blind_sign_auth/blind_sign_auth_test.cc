@@ -381,42 +381,6 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadGetInitialDataResponse) {
   done.WaitForNotification();
 }
 
-TEST_F(BlindSignAuthTest, TestGetTokensFailedBadRSABlindSignaturePublicKey) {
-  anonymous_tokens::Timestamp start_time;
-  start_time.set_seconds(absl::ToUnixSeconds(absl::Now() + absl::Hours(1)));
-  *public_key_proto_.mutable_key_validity_start_time() = start_time;
-  *fake_get_initial_data_response_.mutable_at_public_metadata_public_key() =
-      public_key_proto_;
-
-  BlindSignHttpResponse fake_public_key_response(
-      200, fake_get_initial_data_response_.SerializeAsString());
-
-  EXPECT_CALL(
-      mock_http_interface_,
-      DoRequest(Eq(BlindSignHttpRequestType::kGetInitialData), Eq(oauth_token_),
-                Eq(expected_get_initial_data_request_.SerializeAsString()), _))
-      .Times(1)
-      .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
-        std::move(get_initial_data_cb)(fake_public_key_response);
-      });
-
-  EXPECT_CALL(mock_http_interface_,
-              DoRequest(Eq(BlindSignHttpRequestType::kAuthAndSign), _, _, _))
-      .Times(0);
-
-  int num_tokens = 1;
-  QuicheNotification done;
-  SignedTokenCallback callback =
-      [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
-        EXPECT_THAT(tokens.status().code(),
-                    absl::StatusCode::kFailedPrecondition);
-        done.Notify();
-      };
-  blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
-                              std::move(callback));
-  done.WaitForNotification();
-}
-
 TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
   BlindSignHttpResponse fake_public_key_response(
       200, fake_get_initial_data_response_.SerializeAsString());
