@@ -5,7 +5,9 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_MEM_SLICE_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_MEM_SLICE_H_
 
+#include <cstddef>
 #include <memory>
+#include <utility>
 
 #include "quiche_platform_impl/quiche_mem_slice_impl.h"
 
@@ -33,7 +35,7 @@ class QUICHE_EXPORT QuicheMemSlice {
   QuicheMemSlice(std::unique_ptr<char[]> buffer, size_t length)
       : impl_(std::move(buffer), length) {}
 
-  QuicheMemSlice(char buffer[], size_t length,
+  QuicheMemSlice(const char* buffer, size_t length,
                  quiche::SingleUseCallback<void(const char*)> done_callback)
       : impl_(buffer, length, std::move(done_callback)) {}
 

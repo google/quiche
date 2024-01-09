@@ -1,14 +1,14 @@
 #ifndef QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_MEM_SLICE_IMPL_H_
 #define QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_MEM_SLICE_IMPL_H_
 
+#include <cstddef>
 #include <cstdlib>
-#include <optional>
+#include <memory>
 #include <utility>
 
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/common/simple_buffer_allocator.h"
 
 namespace quiche {
 
@@ -17,66 +17,69 @@ class QUICHE_EXPORT QuicheMemSliceImpl {
   QuicheMemSliceImpl() = default;
 
   explicit QuicheMemSliceImpl(QuicheBuffer buffer)
-      : buffer_(std::move(buffer)) {}
+      : data_(buffer.data()), size_(buffer.size()) {
+    QuicheUniqueBufferPtr owned = buffer.Release();
+    QuicheBufferAllocator* allocator = owned.get_deleter().allocator();
+    owned.release();
+    done_callback_ = [allocator](const char* ptr) {
+      allocator->Delete(const_cast<char*>(ptr));
+    };
+  }
 
   QuicheMemSliceImpl(std::unique_ptr<char[]> buffer, size_t length)
-      : buffer_(
-            QuicheBuffer(QuicheUniqueBufferPtr(
-                             buffer.release(),
-                             QuicheBufferDeleter(SimpleBufferAllocator::Get())),
-                         length)) {}
+      : data_(buffer.release()),
+        size_(length),
+        done_callback_(+[](const char* ptr) { delete[] ptr; }) {}
 
-  QuicheMemSliceImpl(char buffer[], size_t length,
-                     quiche::SingleUseCallback<void(const char*)> done_callback)
-      : allocator_(std::in_place, std::move(done_callback)),
-        buffer_(QuicheBuffer(
-            QuicheUniqueBufferPtr(buffer, QuicheBufferDeleter(&*allocator_)),
-            length)) {}
+  QuicheMemSliceImpl(const char* buffer, size_t length,
+                     SingleUseCallback<void(const char*)> done_callback)
+      : data_(buffer),
+        size_(length),
+        done_callback_(std::move(done_callback)) {}
 
   QuicheMemSliceImpl(const QuicheMemSliceImpl& other) = delete;
   QuicheMemSliceImpl& operator=(const QuicheMemSliceImpl& other) = delete;
 
   // Move constructors. |other| will not hold a reference to the data buffer
   // after this call completes.
-  QuicheMemSliceImpl(QuicheMemSliceImpl&& other) = default;
-  QuicheMemSliceImpl& operator=(QuicheMemSliceImpl&& other) = default;
+  QuicheMemSliceImpl(QuicheMemSliceImpl&& other) {
+    data_ = other.data_;
+    size_ = other.size_;
+    done_callback_ = std::move(other.done_callback_);
+    other.data_ = nullptr;
+    other.size_ = 0;
+    other.done_callback_ = nullptr;
+  }
+  QuicheMemSliceImpl& operator=(QuicheMemSliceImpl&& other) {
+    Reset();
+    data_ = other.data_;
+    size_ = other.size_;
+    done_callback_ = std::move(other.done_callback_);
+    other.data_ = nullptr;
+    other.size_ = 0;
+    other.done_callback_ = nullptr;
+    return *this;
+  }
 
-  ~QuicheMemSliceImpl() = default;
+  ~QuicheMemSliceImpl() { Reset(); }
 
-  void Reset() { buffer_ = QuicheBuffer(); }
+  void Reset() {
+    if (done_callback_ && data_ != nullptr) {
+      std::move(done_callback_)(data_);
+    }
+    data_ = nullptr;
+    size_ = 0;
+    done_callback_ = nullptr;
+  }
 
-  const char* data() const { return buffer_.data(); }
-  size_t length() const { return buffer_.size(); }
-  bool empty() const { return buffer_.empty(); }
+  const char* data() const { return data_; }
+  size_t length() const { return size_; }
+  bool empty() const { return size_ == 0; }
 
  private:
-  // Allocator that is only used for a special `done` callback.
-  class LambdaAllocator : public QuicheBufferAllocator {
-   public:
-    LambdaAllocator(quiche::SingleUseCallback<void(const char*)> done_callback)
-        : done_callback_(std::move(done_callback)) {}
-
-    // Noncompliant. Will cause program termination.
-    char* New(size_t) override {
-      std::exit(-1);
-      return nullptr;
-    }
-    char* New(size_t, bool) override {
-      std::exit(-1);
-      return nullptr;
-    }
-
-    void Delete(char* buffer) override {
-      if (done_callback_ != nullptr) {
-        std::move(done_callback_)(buffer);
-      }
-    }
-
-   private:
-    quiche::SingleUseCallback<void(const char*)> done_callback_;
-  };
-  std::optional<LambdaAllocator> allocator_;
-  QuicheBuffer buffer_;
+  const char* data_;
+  size_t size_;
+  SingleUseCallback<void(const char*)> done_callback_;
 };
 
 }  // namespace quiche
