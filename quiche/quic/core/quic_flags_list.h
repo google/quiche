@@ -67,8 +67,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_disable_version_draft_29, false)
 QUIC_FLAG(quic_reloadable_flag_quic_disable_server_blackhole_detection, false)
 // If true, disable resumption when receiving NRES connection option.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_disable_resumption, true)
-// If true, disallow colon in received header names (other than leading colon of pseudo-headers).
-QUIC_FLAG(quic_reloadable_flag_quic_colon_invalid_in_header_name, true)
 // If true, discard INITIAL packet if the key has been dropped.
 QUIC_FLAG(quic_reloadable_flag_quic_discard_initial_packet_with_key_dropped, true)
 // If true, dispatcher sends error code QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG when handshake fails due to packets buffered for too long.

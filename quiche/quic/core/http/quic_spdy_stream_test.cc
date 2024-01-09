@@ -3421,24 +3421,11 @@ TEST_P(QuicSpdyStreamTest, ReadAfterReset) {
   EXPECT_EQ(0u, bytes_read);
 }
 
-TEST_P(QuicSpdyStreamTest, ColonAllowedInHeaderName) {
-  if (!UsesHttp3()) {
-    return;
-  }
-
-  SetQuicReloadableFlag(quic_colon_invalid_in_header_name, false);
-  Initialize(kShouldProcessData);
-
-  headers_["foo:bar"] = "invalid";
-  EXPECT_TRUE(stream_->ValidateReceivedHeaders(AsHeaderList(headers_)));
-}
-
 TEST_P(QuicSpdyStreamTest, ColonDisallowedInHeaderName) {
   if (!UsesHttp3()) {
     return;
   }
 
-  SetQuicReloadableFlag(quic_colon_invalid_in_header_name, true);
   Initialize(kShouldProcessData);
 
   headers_["foo:bar"] = "invalid";
