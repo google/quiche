@@ -7,11 +7,16 @@
 // HTTP/3 requests to web servers tunnelled over that MASQUE connection.
 // e.g.: masque_client $PROXY_HOST:$PROXY_PORT $URL1 $URL2
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "openssl/curve25519.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_clock.h"
@@ -45,6 +50,12 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "A list of HTTP headers to add to request to the MASQUE proxy. "
     "Separated with colons and semicolons. "
     "For example: \"name1:value1;name2:value2\".");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, signature_auth, "",
+    "Enables HTTP Signature Authentication. Pass in the string \"new\" to "
+    "generate new keys. Otherwise, pass in the key ID in ASCII followed by a "
+    "colon and the 32-byte private key as hex. For example: \"kid:0123...f\".");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, bring_up_tun, false,
@@ -232,6 +243,76 @@ int RunMasqueClient(int argc, char* argv[]) {
   // {?target_host,target_port}.
   std::vector<std::string> urls =
       quiche::QuicheParseCommandLineFlags(usage, argc, argv);
+
+  std::string signature_auth_param =
+      quiche::GetQuicheCommandLineFlag(FLAGS_signature_auth);
+  std::string signature_auth_key_id;
+  std::string signature_auth_private_key;
+  std::string signature_auth_public_key;
+  if (!signature_auth_param.empty()) {
+    static constexpr size_t kEd25519Rfc8032PrivateKeySize = 32;
+    uint8_t public_key[ED25519_PUBLIC_KEY_LEN];
+    uint8_t private_key[ED25519_PRIVATE_KEY_LEN];
+    const bool is_new_key_pair = signature_auth_param == "new";
+    if (is_new_key_pair) {
+      ED25519_keypair(public_key, private_key);
+      QUIC_LOG(INFO) << "Generated new Signature Authentication key pair";
+    } else {
+      std::vector<absl::string_view> signature_auth_param_split =
+          absl::StrSplit(signature_auth_param, absl::MaxSplits(':', 1));
+      std::string private_key_seed;
+      if (signature_auth_param_split.size() != 2) {
+        QUIC_LOG(ERROR)
+            << "Signature authentication parameter is missing a colon";
+        return 1;
+      }
+      signature_auth_key_id = signature_auth_param_split[0];
+      if (signature_auth_key_id.empty()) {
+        QUIC_LOG(ERROR) << "Signature authentication key ID cannot be empty";
+        return 1;
+      }
+      private_key_seed = absl::HexStringToBytes(signature_auth_param_split[1]);
+      if (private_key_seed.size() != kEd25519Rfc8032PrivateKeySize) {
+        QUIC_LOG(ERROR)
+            << "Invalid signature authentication private key length "
+            << private_key_seed.size();
+        return 1;
+      }
+      ED25519_keypair_from_seed(
+          public_key, private_key,
+          reinterpret_cast<uint8_t*>(private_key_seed.data()));
+      QUIC_LOG(INFO) << "Loaded Signature Authentication key pair";
+    }
+    // Note that Ed25519 private keys are 32 bytes long per RFC 8032. However,
+    // to reduce CPU costs, BoringSSL represents private keys in memory as the
+    // concatenation of the 32-byte private key and the corresponding 32-byte
+    // public key - which makes for a total of 64 bytes. The private key log
+    // below relies on this BoringSSL implementation detail to extract the
+    // RFC 8032 private key because BoringSSL does not provide a supported way
+    // to access it. This is required to allow us to print the private key in a
+    // format that can be passed back in to BoringSSL from the command-line. See
+    // curve25519.h for details. The rest of our signature authentication code
+    // uses the BoringSSL representation without relying on this implementation
+    // detail.
+    static_assert(kEd25519Rfc8032PrivateKeySize <=
+                  static_cast<size_t>(ED25519_PRIVATE_KEY_LEN));
+    QUIC_LOG(INFO) << "Private key: "
+                   << absl::BytesToHexString(absl::string_view(
+                          reinterpret_cast<char*>(private_key),
+                          kEd25519Rfc8032PrivateKeySize));
+    QUIC_LOG(INFO) << "Public key: "
+                   << absl::BytesToHexString(
+                          absl::string_view(reinterpret_cast<char*>(public_key),
+                                            ED25519_PUBLIC_KEY_LEN));
+    if (is_new_key_pair) {
+      return 0;
+    }
+    signature_auth_private_key = std::string(
+        reinterpret_cast<char*>(private_key), ED25519_PRIVATE_KEY_LEN);
+    signature_auth_public_key = std::string(reinterpret_cast<char*>(public_key),
+                                            ED25519_PUBLIC_KEY_LEN);
+  }
+
   bool bring_up_tun = quiche::GetQuicheCommandLineFlag(FLAGS_bring_up_tun);
   bool bring_up_tap = quiche::GetQuicheCommandLineFlag(FLAGS_bring_up_tap);
   if (urls.empty() && !bring_up_tun && !bring_up_tap) {
@@ -314,6 +395,11 @@ int RunMasqueClient(int argc, char* argv[]) {
 
   masque_client->masque_client_session()->set_additional_headers(
       quiche::GetQuicheCommandLineFlag(FLAGS_proxy_headers));
+  if (!signature_auth_param.empty()) {
+    masque_client->masque_client_session()->EnableSignatureAuth(
+        signature_auth_key_id, signature_auth_private_key,
+        signature_auth_public_key);
+  }
 
   if (bring_up_tun) {
     QUIC_LOG(INFO) << "Bringing up tun";

@@ -35,6 +35,13 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, masque_mode, "",
     "Allows setting MASQUE mode, currently only valid value is \"open\".");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, signature_auth, "",
+    "Require HTTP Signature Authentication. Pass in a list of key identifiers "
+    "and hex-encoded public keys. "
+    "Separated with colons and semicolons. "
+    "For example: \"kid1:0123...f;kid2:0123...f\".");
+
 int main(int argc, char* argv[]) {
   const char* usage = "Usage: masque_server [options]";
   std::vector<std::string> non_option_args =
@@ -55,6 +62,9 @@ int main(int argc, char* argv[]) {
   auto backend = std::make_unique<quic::MasqueServerBackend>(
       masque_mode, quiche::GetQuicheCommandLineFlag(FLAGS_server_authority),
       quiche::GetQuicheCommandLineFlag(FLAGS_cache_dir));
+
+  backend->SetSignatureAuth(
+      quiche::GetQuicheCommandLineFlag(FLAGS_signature_auth));
 
   auto server =
       std::make_unique<quic::MasqueServer>(masque_mode, backend.get());

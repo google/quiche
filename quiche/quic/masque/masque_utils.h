@@ -5,9 +5,18 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_UTILS_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_UTILS_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <ostream>
+#include <string>
+
+#include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 
 namespace quic {
 
@@ -52,6 +61,25 @@ int CreateTunInterface(const QuicIpAddress& client_address, bool server = true);
 
 // Create a TAP interface. Requires root.
 int CreateTapInterface();
+
+inline constexpr size_t kSignatureAuthSignatureInputSize = 32;
+inline constexpr size_t kSignatureAuthVerificationSize = 16;
+inline constexpr size_t kSignatureAuthExporterSize =
+    kSignatureAuthSignatureInputSize + kSignatureAuthVerificationSize;
+inline constexpr uint16_t kEd25519SignatureScheme = 0x0807;
+inline constexpr absl::string_view kSignatureAuthLabel =
+    "EXPORTER-HTTP-Signature-Authentication";
+
+// Returns the signature auth TLS key exporter context.
+QUIC_NO_EXPORT std::string ComputeSignatureAuthContext(
+    uint16_t signature_scheme, absl::string_view key_id,
+    absl::string_view public_key, absl::string_view scheme,
+    absl::string_view host, uint16_t port, absl::string_view realm);
+
+// Returns the data covered by signature auth signatures, computed by
+// concatenating a fixed prefix from the specification and the signature input.
+QUIC_NO_EXPORT std::string SignatureAuthDataCoveredBySignature(
+    absl::string_view signature_input);
 
 }  // namespace quic
 

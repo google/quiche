@@ -4,6 +4,11 @@
 
 #include "quiche/quic/masque/masque_utils.h"
 
+#include <string>
+
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+
 #if defined(__linux__)
 #include <fcntl.h>
 #include <linux/if.h>
@@ -203,5 +208,39 @@ int CreateTapInterface() {
   return -1;
 }
 #endif  // defined(__linux__)
+
+std::string ComputeSignatureAuthContext(uint16_t signature_scheme,
+                                        absl::string_view key_id,
+                                        absl::string_view public_key,
+                                        absl::string_view scheme,
+                                        absl::string_view host, uint16_t port,
+                                        absl::string_view realm) {
+  std::string key_exporter_output;
+  std::string key_exporter_context;
+  key_exporter_context.resize(
+      sizeof(signature_scheme) + QuicDataWriter::GetVarInt62Len(key_id.size()) +
+      key_id.size() + QuicDataWriter::GetVarInt62Len(public_key.size()) +
+      public_key.size() + QuicDataWriter::GetVarInt62Len(scheme.size()) +
+      scheme.size() + QuicDataWriter::GetVarInt62Len(host.size()) +
+      host.size() + sizeof(port) +
+      QuicDataWriter::GetVarInt62Len(realm.size()) + realm.size());
+  QuicDataWriter writer(key_exporter_context.size(),
+                        key_exporter_context.data());
+  if (!writer.WriteUInt16(signature_scheme) ||
+      !writer.WriteStringPieceVarInt62(key_id) ||
+      !writer.WriteStringPieceVarInt62(public_key) ||
+      !writer.WriteStringPieceVarInt62(scheme) ||
+      !writer.WriteStringPieceVarInt62(host) || !writer.WriteUInt16(port) ||
+      !writer.WriteStringPieceVarInt62(realm) || writer.remaining() != 0) {
+    QUIC_LOG(FATAL) << "ComputeSignatureAuthContext failed";
+  }
+  return key_exporter_output;
+}
+
+std::string SignatureAuthDataCoveredBySignature(
+    absl::string_view signature_input) {
+  return absl::StrCat(std::string(64, 0x20), "HTTP Signature Authentication",
+                      "\0", signature_input);
+}
 
 }  // namespace quic
