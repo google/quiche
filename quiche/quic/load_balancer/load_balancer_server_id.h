@@ -7,7 +7,6 @@
 
 #include <array>
 #include <cstdint>
-#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -34,6 +33,10 @@ class QUIC_EXPORT_PRIVATE LoadBalancerServerId {
   // Copies all the bytes from |data| into a new LoadBalancerServerId.
   explicit LoadBalancerServerId(absl::Span<const uint8_t> data);
   explicit LoadBalancerServerId(absl::string_view data);
+  // Concatenates |data1| and |data2| into a single LoadBalancerServerId. This
+  // is useful to reduce copying for certain decoder configurations.
+  explicit LoadBalancerServerId(absl::Span<const uint8_t> data1,
+                                absl::Span<const uint8_t> data2);
 
   // Server IDs are opaque bytes, but defining these operators allows us to sort
   // them into a tree and define ranges.

@@ -5,7 +5,6 @@
 #include "quiche/quic/load_balancer/load_balancer_decoder.h"
 
 #include <cstdint>
-#include <cstring>
 #include <optional>
 
 #include "absl/types/span.h"
@@ -46,36 +45,9 @@ LoadBalancerServerId LoadBalancerDecoder::GetServerId(
   if (!config.has_value()) {
     return LoadBalancerServerId();
   }
-  if (connection_id.length() < config->total_len()) {
-    // Connection ID wasn't long enough
-    return LoadBalancerServerId();
-  }
-  // The first byte is complete. Finish the rest.
-  const uint8_t* data =
-      reinterpret_cast<const uint8_t*>(connection_id.data()) + 1;
-  if (!config->IsEncrypted()) {  // It's a Plaintext CID.
-    return LoadBalancerServerId(
-        absl::Span<const uint8_t>(data, config->server_id_len()));
-  }
-  uint8_t result[kQuicMaxConnectionIdWithLengthPrefixLength];
-  if (config->plaintext_len() == kLoadBalancerKeyLen) {  // single pass
-    if (!config->BlockDecrypt(data, result)) {
-      return LoadBalancerServerId();
-    }
-  } else {
-    // Do 3 or 4 passes. Only 3 are necessary if the server_id is short enough
-    // to fit in the first half of the connection ID (the decoder doesn't need
-    // to extract the nonce).
-    memcpy(result, data, config->plaintext_len());
-    uint8_t end = (config->server_id_len() > config->nonce_len()) ? 1 : 2;
-    for (uint8_t i = kNumLoadBalancerCryptoPasses; i >= end; i--) {
-      if (!config->EncryptionPass(absl::Span<uint8_t>(result), i)) {
-        return LoadBalancerServerId();
-      }
-    }
-  }
-  return LoadBalancerServerId(
-      absl::Span<const uint8_t>(result, config->server_id_len()));
+  return config->Decrypt(absl::MakeConstSpan(
+      reinterpret_cast<const uint8_t*>(connection_id.data()),
+      connection_id.length()));
 }
 
 std::optional<uint8_t> LoadBalancerDecoder::GetConfigId(

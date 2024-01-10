@@ -8,10 +8,13 @@
 #include <cstring>
 #include <optional>
 
+#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "openssl/aes.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
@@ -54,66 +57,6 @@ std::optional<AES_KEY> BuildKey(absl::string_view key, bool encrypt) {
   return raw_key;
 }
 
-// Functions to handle 4-pass encryption/decryption.
-// TakePlaintextFrom{Left,Right}() reads the left or right half of 'from' and
-// expands it into a full encryption block ('to') in accordance with the
-// internet-draft.
-void TakePlaintextFromLeft(const uint8_t *from, const uint8_t plaintext_len,
-                           const uint8_t index, uint8_t *to) {
-  uint8_t half = plaintext_len / 2;
-
-  to[0] = plaintext_len;
-  to[1] = index;
-  memcpy(to + 2, from, half);
-  if (plaintext_len % 2) {
-    to[2 + half] = from[half] & 0xf0;
-    half++;
-  }
-  memset(to + 2 + half, 0, kLoadBalancerBlockSize - 2 - half);
-}
-
-void TakePlaintextFromRight(const uint8_t *from, const uint8_t plaintext_len,
-                            const uint8_t index, uint8_t *to) {
-  uint8_t half = plaintext_len / 2;
-
-  to[0] = plaintext_len;
-  to[1] = index;
-  memcpy(to + 2, from + half, half + (plaintext_len % 2));
-  if (plaintext_len % 2) {
-    to[2] &= 0x0f;
-    half++;
-  }
-  memset(to + 2 + half, 0, kLoadBalancerBlockSize - 2 - half);
-}
-
-// CiphertextXorWith{Left,Right}() takes the relevant end of the ciphertext in
-// 'from' and XORs it with half of the ConnectionId stored at 'to', in
-// accordance with the internet-draft.
-void CiphertextXorWithLeft(const uint8_t *from, const uint8_t plaintext_len,
-                           uint8_t *to) {
-  uint8_t half = plaintext_len / 2;
-  for (int i = 0; i < half; i++) {
-    to[i] ^= from[i];
-  }
-  if (plaintext_len % 2) {
-    to[half] ^= (from[half] & 0xf0);
-  }
-}
-
-void CiphertextXorWithRight(const uint8_t *from, const uint8_t plaintext_len,
-                            uint8_t *to) {
-  uint8_t half = plaintext_len / 2;
-  int i = 0;
-  if (plaintext_len % 2) {
-    to[half] ^= (from[0] & 0x0f);
-    i++;
-  }
-  while ((half + i) < plaintext_len) {
-    to[half + i] ^= from[i];
-    i++;
-  }
-}
-
 }  // namespace
 
 std::optional<LoadBalancerConfig> LoadBalancerConfig::Create(
@@ -148,47 +91,103 @@ std::optional<LoadBalancerConfig> LoadBalancerConfig::CreateUnencrypted(
              : std::optional<LoadBalancerConfig>();
 }
 
-bool LoadBalancerConfig::EncryptionPass(absl::Span<uint8_t> target,
-                                        const uint8_t index) const {
-  uint8_t buf[kLoadBalancerBlockSize];
-  if (!key_.has_value() || target.size() < plaintext_len()) {
-    return false;
+LoadBalancerServerId LoadBalancerConfig::Decrypt(
+    absl::Span<const uint8_t> ciphertext) const {
+  if (ciphertext.length() < total_len()) {
+    return LoadBalancerServerId();
   }
-  if (index % 2) {  // Odd indices go from left to right
-    TakePlaintextFromLeft(target.data(), plaintext_len(), index, buf);
-  } else {
-    TakePlaintextFromRight(target.data(), plaintext_len(), index, buf);
-  }
-  if (!BlockEncrypt(buf, buf)) {
-    return false;
-  }
-  // XOR bits over the correct half.
-  if (index % 2) {
-    CiphertextXorWithRight(buf, plaintext_len(), target.data());
-  } else {
-    CiphertextXorWithLeft(buf, plaintext_len(), target.data());
-  }
-  return true;
-}
-
-bool LoadBalancerConfig::BlockEncrypt(
-    const uint8_t plaintext[kLoadBalancerBlockSize],
-    uint8_t ciphertext[kLoadBalancerBlockSize]) const {
   if (!key_.has_value()) {
-    return false;
+    return LoadBalancerServerId(
+        absl::Span<const uint8_t>(ciphertext.data() + 1, server_id_len_));
   }
-  AES_encrypt(plaintext, ciphertext, &*key_);
-  return true;
+  if (plaintext_len() == kLoadBalancerBlockSize) {
+    if (!block_decrypt_key_.has_value()) {
+      QUIC_BUG(quic_bug_596735037_01) << "Block decrypt key is not set.";
+      return LoadBalancerServerId();
+    }
+    uint8_t plaintext[kLoadBalancerBlockSize];
+    AES_decrypt(ciphertext.subspan(1, kLoadBalancerBlockSize).data(), plaintext,
+                &*block_decrypt_key_);
+    return LoadBalancerServerId(
+        absl::Span<const uint8_t>(plaintext, server_id_len_));
+  }
+  // Do 3 or 4 passes. Only 3 are necessary if the server_id is short enough
+  // to fit in the first half of the connection ID (the decoder doesn't need
+  // to extract the nonce).
+  uint8_t left[kLoadBalancerBlockSize];
+  uint8_t right[kLoadBalancerBlockSize];
+  uint8_t half_len;  // half the length of the plaintext, rounded up
+  bool is_length_odd =
+      InitializeFourPass(ciphertext.data(), left, right, &half_len);
+  uint8_t end_index = (server_id_len_ > nonce_len_) ? 1 : 2;
+  for (uint8_t index = kNumLoadBalancerCryptoPasses; index >= end_index;
+       --index) {
+    // Encrypt left/right and xor the result with right/left, respectively.
+    EncryptionPass(index, half_len, is_length_odd, left, right);
+  }
+  // Consolidate left and right into a server ID with minimum copying.
+  if (server_id_len_ < half_len ||
+      (server_id_len_ == half_len && !is_length_odd)) {
+    // There is no half-byte to handle
+    return LoadBalancerServerId(absl::Span<uint8_t>(&left[2], server_id_len_));
+  }
+  if (is_length_odd) {
+    right[2] |= left[half_len-- + 1];  // Combine the halves of the odd byte.
+  }
+  return LoadBalancerServerId(
+      absl::Span<uint8_t>(&left[2], half_len),
+      absl::Span<uint8_t>(&right[2], server_id_len_ - half_len));
 }
 
-bool LoadBalancerConfig::BlockDecrypt(
-    const uint8_t ciphertext[kLoadBalancerBlockSize],
-    uint8_t plaintext[kLoadBalancerBlockSize]) const {
-  if (!block_decrypt_key_.has_value()) {
-    return false;
+QuicConnectionId LoadBalancerConfig::Encrypt(
+    absl::Span<uint8_t> connection_id) const {
+  if (connection_id.length() < total_len()) {
+    return QuicConnectionId();
   }
-  AES_decrypt(ciphertext, plaintext, &*block_decrypt_key_);
-  return true;
+  if (!key_.has_value()) {  // Plaintext connection ID
+    // Fill the nonce field with a hash of the Connection ID to avoid the nonce
+    // visibly increasing by one. This would allow observers to correlate
+    // connection IDs as being sequential and likely from the same connection,
+    // not just the same server.
+    absl::uint128 nonce_hash = QuicUtils::FNV1a_128_Hash(absl::string_view(
+        reinterpret_cast<char*>(connection_id.data()), connection_id.length()));
+    const uint64_t lo = absl::Uint128Low64(nonce_hash);
+    if (nonce_len_ <= sizeof(uint64_t)) {
+      memcpy(connection_id.data() + 1 + server_id_len_, &lo, nonce_len_);
+      return QuicConnectionId(connection_id);
+    }
+    memcpy(connection_id.data() + 1 + server_id_len_, &lo, sizeof(uint64_t));
+    const uint64_t hi = absl::Uint128High64(nonce_hash);
+    memcpy(connection_id.data() + 1 + server_id_len_ + sizeof(uint64_t), &hi,
+           nonce_len_ - sizeof(uint64_t));
+    return QuicConnectionId(connection_id);
+  }
+  if (plaintext_len() == kLoadBalancerBlockSize) {
+    AES_encrypt(connection_id.subspan(1, plaintext_len()).data(),
+                connection_id.data() + 1, &*key_);
+    return QuicConnectionId(connection_id);
+  }
+  // 4 Pass Encryption
+  uint8_t left[kLoadBalancerBlockSize];
+  uint8_t right[kLoadBalancerBlockSize];
+  uint8_t half_len;  // half the length of the plaintext, rounded up
+  bool is_length_odd =
+      InitializeFourPass(connection_id.data(), left, right, &half_len);
+  for (uint8_t index = 1; index <= kNumLoadBalancerCryptoPasses; ++index) {
+    EncryptionPass(index, half_len, is_length_odd, left, right);
+  }
+  // Consolidate left and right into a server ID with minimum copying.
+  if (is_length_odd) {
+    // Combine the halves of the odd byte.
+    left[half_len + 1] |= right[2];
+  }
+  memcpy(connection_id.data() + 1, &left[2], half_len);
+  if (is_length_odd) {
+    memcpy(connection_id.data() + 1 + half_len, &right[3], half_len - 1);
+  } else {
+    memcpy(connection_id.data() + 1 + half_len, &right[2], half_len);
+  }
+  return QuicConnectionId(connection_id);
 }
 
 LoadBalancerConfig::LoadBalancerConfig(const uint8_t config_id,
@@ -202,5 +201,63 @@ LoadBalancerConfig::LoadBalancerConfig(const uint8_t config_id,
       block_decrypt_key_((server_id_len + nonce_len == kLoadBalancerBlockSize)
                              ? BuildKey(key, /* encrypt = */ false)
                              : std::optional<AES_KEY>()) {}
+
+bool LoadBalancerConfig::InitializeFourPass(const uint8_t* input, uint8_t* left,
+                                            uint8_t* right,
+                                            uint8_t* half_len) const {
+  *half_len = plaintext_len() / 2;
+  bool is_length_odd;
+  if (plaintext_len() % 2 == 1) {
+    ++(*half_len);
+    is_length_odd = true;
+  } else {
+    is_length_odd = false;
+  }
+  bzero(left, kLoadBalancerBlockSize);
+  bzero(right, kLoadBalancerBlockSize);
+  // The first byte is the plaintext/ciphertext length, the second byte will be
+  // the index of the pass. Half the plaintext or ciphertext follows.
+  left[0] = plaintext_len();
+  right[0] = plaintext_len();
+  // Leave left_[1], right_[1] as zero. It will be set for each pass.
+  memcpy(&left[2], input + 1, *half_len);
+  // If is_length_odd, then both left and right will have part of the middle
+  // byte. Then that middle byte will be split in half via the bitmask in the
+  // next step.
+  memcpy(&right[2], input + (plaintext_len() / 2) + 1, *half_len);
+  if (is_length_odd) {
+    left[*half_len + 1] &= 0xf0;
+    right[2] &= 0x0f;
+  }
+  return is_length_odd;
+}
+
+void LoadBalancerConfig::EncryptionPass(uint8_t index, uint8_t half_len,
+                                        bool is_length_odd, uint8_t* left,
+                                        uint8_t* right) const {
+  uint8_t ciphertext[kLoadBalancerBlockSize];
+  if (index % 2 == 0) {  // Go right to left.
+    right[1] = index;
+    AES_encrypt(right, ciphertext, &*key_);
+    for (int i = 0; i < half_len; ++i) {
+      // Skip over the first two bytes, which have the plaintext_len and the
+      // index. The CID bits are in [2, half_len - 1].
+      left[2 + i] ^= ciphertext[i];
+    }
+    if (is_length_odd) {
+      left[half_len + 1] &= 0xf0;
+    }
+    return;
+  }
+  // Go left to right.
+  left[1] = index;
+  AES_encrypt(left, ciphertext, &*key_);
+  for (int i = 0; i < half_len; ++i) {
+    right[2 + i] ^= ciphertext[i];
+  }
+  if (is_length_odd) {
+    right[2] &= 0x0f;
+  }
+}
 
 }  // namespace quic

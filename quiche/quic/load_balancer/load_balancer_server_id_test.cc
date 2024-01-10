@@ -30,9 +30,25 @@ TEST_F(LoadBalancerServerIdTest, CreateReturnsNullIfTooLong) {
                                    absl::Span<const uint8_t>(kRawServerId, 16))
                                    .IsValid()),
                   "Attempted to create LoadBalancerServerId with length 16");
+  EXPECT_QUIC_BUG(EXPECT_FALSE(LoadBalancerServerId(
+                                   absl::Span<const uint8_t>(kRawServerId, 9),
+                                   absl::Span<const uint8_t>(kRawServerId, 7))
+                                   .IsValid()),
+                  "Attempted to create LoadBalancerServerId with length 16");
   EXPECT_QUIC_BUG(
       EXPECT_FALSE(LoadBalancerServerId(absl::Span<const uint8_t>()).IsValid()),
       "Attempted to create LoadBalancerServerId with length 0");
+}
+
+TEST_F(LoadBalancerServerIdTest, TwoPartConstructor) {
+  LoadBalancerServerId server_id1(absl::Span<const uint8_t>(kRawServerId, 15));
+  ASSERT_TRUE(server_id1.IsValid());
+  LoadBalancerServerId server_id2(
+      absl::Span<const uint8_t>(kRawServerId, 8),
+      absl::Span<const uint8_t>(&kRawServerId[8], 7));
+  ASSERT_TRUE(server_id2.IsValid());
+  EXPECT_TRUE(server_id1 == server_id2);
+  ;
 }
 
 TEST_F(LoadBalancerServerIdTest, CompareIdenticalExceptLength) {

@@ -11,6 +11,8 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "openssl/aes.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -55,21 +57,13 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
   static std::optional<LoadBalancerConfig> CreateUnencrypted(
       uint8_t config_id, uint8_t server_id_len, uint8_t nonce_len);
 
-  // Handles one pass of 4-pass encryption. Encoder and decoder use of this
-  // function varies substantially, so they are not implemented here.
-  // Returns false if the config is not encrypted, or if |target| isn't long
-  // enough.
-  ABSL_MUST_USE_RESULT bool EncryptionPass(absl::Span<uint8_t> target,
-                                           uint8_t index) const;
-  // Use the key to do a block encryption, which is used both in all cases of
-  // encrypted configs. Returns false if there's no key.
-  ABSL_MUST_USE_RESULT bool BlockEncrypt(
-      const uint8_t plaintext[kLoadBalancerBlockSize],
-      uint8_t ciphertext[kLoadBalancerBlockSize]) const;
-  // Returns false if the config does not require block decryption.
-  ABSL_MUST_USE_RESULT bool BlockDecrypt(
-      const uint8_t ciphertext[kLoadBalancerBlockSize],
-      uint8_t plaintext[kLoadBalancerBlockSize]) const;
+  // Returns an invalid Server ID if ciphertext is too small, or needed keys are
+  // missing. |ciphertext| contains the full connection ID.
+  LoadBalancerServerId Decrypt(absl::Span<const uint8_t> ciphertext) const;
+  // Encrypts |connection_id|, which must be of the form first byte,
+  // server ID, nonce. Returns empty if plaintext is not long enough. The
+  // argument is NOT const, and will be overwritten.
+  QuicConnectionId Encrypt(absl::Span<uint8_t> connection_id) const;
 
   uint8_t config_id() const { return config_id_; }
   uint8_t server_id_len() const { return server_id_len_; }
@@ -84,6 +78,15 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
   // Constructor is private because it doesn't validate input.
   LoadBalancerConfig(uint8_t config_id, uint8_t server_id_len,
                      uint8_t nonce_len, absl::string_view key);
+
+  // Initialize state for 4-pass encryption passes, using the connection ID
+  // provided in |input|. Returns true if the plaintext is an odd number of
+  // bytes. |half_len| is half the length of the plaintext, rounded up.
+  bool InitializeFourPass(const uint8_t* input, uint8_t* left, uint8_t* right,
+                          uint8_t* half_len) const;
+  // Handles one pass of 4-pass encryption for both encrypt and decrypt.
+  void EncryptionPass(uint8_t index, uint8_t half_len, bool is_length_odd,
+                      uint8_t* left, uint8_t* right) const;
 
   uint8_t config_id_;
   uint8_t server_id_len_;

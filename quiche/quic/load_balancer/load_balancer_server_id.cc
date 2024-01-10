@@ -7,7 +7,6 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
-#include <optional>
 #include <string>
 
 #include "absl/strings/escaping.h"
@@ -18,19 +17,29 @@
 namespace quic {
 
 LoadBalancerServerId::LoadBalancerServerId(absl::string_view data)
-    : LoadBalancerServerId(absl::MakeSpan(
-          reinterpret_cast<const uint8_t*>(data.data()), data.length())) {}
+    : LoadBalancerServerId(
+          absl::MakeSpan(reinterpret_cast<const uint8_t*>(data.data()),
+                         data.length()),
+          absl::Span<const uint8_t>()) {}
 
-LoadBalancerServerId::LoadBalancerServerId(absl::Span<const uint8_t> data) {
-  if (data.length() == 0 || data.length() > kLoadBalancerMaxServerIdLen) {
-    QUIC_BUG(quic_bug_433312504_01)
+LoadBalancerServerId::LoadBalancerServerId(absl::Span<const uint8_t> data)
+    : LoadBalancerServerId(data, absl::Span<const uint8_t>()) {}
+
+LoadBalancerServerId::LoadBalancerServerId(absl::Span<const uint8_t> data1,
+                                           absl::Span<const uint8_t> data2)
+    : length_(data1.length() + data2.length()) {
+  if (length_ == 0 || length_ > kLoadBalancerMaxServerIdLen) {
+    QUIC_BUG(quic_bug_433312504_02)
         << "Attempted to create LoadBalancerServerId with length "
-        << data.length();
+        << static_cast<int>(length_);
     length_ = 0;
     return;
   }
-  length_ = data.length();
-  memcpy(data_.data(), data.data(), data.length());
+  memcpy(data_.data(), data1.data(), data1.length());
+  if (data2.empty()) {
+    return;
+  }
+  memcpy(data_.data() + data1.length(), data2.data(), data2.length());
 }
 
 std::string LoadBalancerServerId::ToString() const {
