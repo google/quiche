@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file is reponsible for the masque_server binary. It allows testing
+// This file is responsible for the masque_server binary. It allows testing
 // our MASQUE server code by creating a MASQUE proxy that relays HTTP/3
 // requests to web servers tunnelled over MASQUE connections.
 // e.g.: masque_server
