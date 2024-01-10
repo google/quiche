@@ -8,6 +8,7 @@
 // e.g.: masque_client $PROXY_HOST:$PROXY_PORT $URL1 $URL2
 
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -296,17 +297,20 @@ int RunMasqueClient(int argc, char* argv[]) {
     // detail.
     static_assert(kEd25519Rfc8032PrivateKeySize <=
                   static_cast<size_t>(ED25519_PRIVATE_KEY_LEN));
-    QUIC_LOG(INFO) << "Private key: "
-                   << absl::BytesToHexString(absl::string_view(
-                          reinterpret_cast<char*>(private_key),
-                          kEd25519Rfc8032PrivateKeySize));
-    QUIC_LOG(INFO) << "Public key: "
-                   << absl::BytesToHexString(
-                          absl::string_view(reinterpret_cast<char*>(public_key),
-                                            ED25519_PUBLIC_KEY_LEN));
+
+    std::string private_key_hexstr = absl::BytesToHexString(absl::string_view(
+        reinterpret_cast<char*>(private_key), kEd25519Rfc8032PrivateKeySize));
+    std::string public_key_hexstr = absl::BytesToHexString(absl::string_view(
+        reinterpret_cast<char*>(public_key), ED25519_PUBLIC_KEY_LEN));
     if (is_new_key_pair) {
+      std::cout << "Generated new Signature Authentication key pair."
+                << std::endl;
+      std::cout << "Private key: " << private_key_hexstr << std::endl;
+      std::cout << "Public key: " << public_key_hexstr << std::endl;
       return 0;
     }
+    QUIC_LOG(INFO) << "Private key: " << private_key_hexstr;
+    QUIC_LOG(INFO) << "Public key: " << public_key_hexstr;
     signature_auth_private_key = std::string(
         reinterpret_cast<char*>(private_key), ED25519_PRIVATE_KEY_LEN);
     signature_auth_public_key = std::string(reinterpret_cast<char*>(public_key),
