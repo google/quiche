@@ -7,11 +7,15 @@
 // requests to web servers tunnelled over MASQUE connections.
 // e.g.: masque_server
 
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "quiche/quic/masque/masque_server.h"
 #include "quiche/quic/masque/masque_server_backend.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/masque/masque_utils.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"

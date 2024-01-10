@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "quiche_platform_impl/quiche_command_line_flags_impl.h"
+#include "quiche_platform_impl/quiche_command_line_flags_impl.h"  // IWYU pragma: export
 
 // Define a command-line flag that can be automatically set via
 // QuicheParseCommandLineFlags().  The macro has to be called in the .cc file of

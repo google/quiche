@@ -4,10 +4,20 @@
 
 #include "quiche/quic/masque/masque_utils.h"
 
+#include <cstdint>
+#include <cstring>
+#include <ostream>
 #include <string>
+#include <utility>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_data_writer.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 #if defined(__linux__)
 #include <fcntl.h>

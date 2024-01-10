@@ -5,6 +5,9 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_CLIENT_TOOLS_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_CLIENT_TOOLS_H_
 
+#include <string>
+
+#include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/masque/masque_client.h"
 
 namespace quic {

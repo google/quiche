@@ -4,14 +4,28 @@
 
 #include "quiche/quic/masque/masque_client_tools.h"
 
+#include <memory>
 #include <optional>
+#include <ostream>
+#include <string>
+#include <utility>
 
+#include "absl/strings/str_cat.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/masque/masque_client.h"
+#include "quiche/quic/masque/masque_client_session.h"
 #include "quiche/quic/masque/masque_encapsulated_client.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
+#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_url.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_ip_address.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {

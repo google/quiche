@@ -5,12 +5,19 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_CLIENT_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_CLIENT_H_
 
+#include <memory>
 #include <string>
 
+#include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/masque/masque_client_session.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_default_client.h"
 
 namespace quic {

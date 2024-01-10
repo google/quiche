@@ -7,31 +7,39 @@
 // HTTP/3 requests to web servers tunnelled over that MASQUE connection.
 // e.g.: masque_client $PROXY_HOST:$PROXY_PORT $URL1 $URL2
 
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "openssl/curve25519.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_clock.h"
-#include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/masque/masque_client.h"
+#include "quiche/quic/masque/masque_client_session.h"
 #include "quiche/quic/masque/masque_client_tools.h"
-#include "quiche/quic/masque/masque_encapsulated_client.h"
 #include "quiche/quic/masque/masque_utils.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
-#include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
+#include "quiche/common/capsule.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_googleurl.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_system_event_loop.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(

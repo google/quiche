@@ -4,10 +4,27 @@
 
 #include "quiche/quic/masque/masque_server_backend.h"
 
-#include "absl/strings/str_cat.h"
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "openssl/curve25519.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/masque/masque_utils.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/tools/quic_backend_response.h"
+#include "quiche/quic/tools/quic_memory_cache_backend.h"
+#include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/quiche_text_utils.h"
+#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
