@@ -538,6 +538,7 @@ cc_binary(
         ":io_tool_support",
         ":quiche_core",
         ":quiche_tool_support",
+        "@boringssl//:crypto",
         "@com_google_absl//absl/strings",
     ],
 )
