@@ -172,7 +172,7 @@ bool QuicUdpSocketApi::EnableReceiveSelfIpAddressForV6(QuicUdpSocketFd fd) {
 }
 
 bool QuicUdpSocketApi::EnableReceiveTimestamp(QuicUdpSocketFd fd) {
-#if defined(__linux__) && (!defined(__ANDROID_API__) || __ANDROID_API__ >= 21)
+#if defined(QUIC_UDP_SOCKET_SUPPORT_LINUX_TIMESTAMPING)
   int timestamping = SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE;
   return 0 == setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &timestamping,
                          sizeof(timestamping));
