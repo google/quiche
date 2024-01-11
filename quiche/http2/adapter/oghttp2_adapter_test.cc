@@ -5157,6 +5157,7 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
 
       send_result = adapter->Send();
       EXPECT_EQ(0, send_result);
+      EXPECT_FALSE(adapter->want_write());
     } else {
       // Even though the data source has not finished sending data, the library
       // will write the trailers anyway.
@@ -5171,8 +5172,129 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
       send_result = adapter->Send();
       EXPECT_EQ(0, send_result);
       EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
+      EXPECT_FALSE(adapter->want_write());
     }
   }
+}
+
+// Tests the case where the response body and trailers become blocked by flow
+// control while the stream is writing. Regression test for
+// https://github.com/envoyproxy/envoy/issues/31710
+TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithFlowControlBlockage) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kServer;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/this/is/request/one"}},
+                                          /*fin=*/false)
+                                 .WindowUpdate(0, 2000)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnWindowUpdate(0, 2000));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
+
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, ACK_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, ACK_FLAG, 0));
+
+  int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  visitor.Clear();
+
+  EXPECT_EQ(kInitialFlowControlWindowSize, adapter->GetStreamSendWindowSize(1));
+
+  const std::string kBody(60000, 'a');
+
+  // The body source must indicate that the end of the body is not the end of
+  // the stream.
+  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
+  body1->AppendPayload(kBody);
+  auto* body1_ptr = body1.get();
+  int submit_result = adapter->SubmitResponse(
+      1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
+      std::move(body1));
+  EXPECT_EQ(submit_result, 0);
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0)).Times(4);
+
+  send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA,
+                            SpdyFrameType::DATA, SpdyFrameType::DATA,
+                            SpdyFrameType::DATA}));
+  visitor.Clear();
+  EXPECT_FALSE(adapter->want_write());
+
+  body1_ptr->AppendPayload(std::string(6000, 'b'));
+  // The next response body data payload is larger than the available stream
+  // flow control window.
+  EXPECT_LT(adapter->GetStreamSendWindowSize(1), 6000);
+  // There is more than enough connection flow control window.
+  EXPECT_GT(adapter->GetSendWindowSize(), 6000);
+
+  adapter->ResumeStream(1);
+  int trailer_result =
+      adapter->SubmitTrailer(1, ToHeaders({{"final-status", "a-ok"}}));
+  ASSERT_EQ(trailer_result, 0);
+
+  EXPECT_TRUE(adapter->want_write());
+  // This will send data but not trailers, because the data source hasn't
+  // finished sending.
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+  send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::DATA}));
+  visitor.Clear();
+
+  // Stream flow control window is exhausted.
+  EXPECT_EQ(adapter->GetStreamSendWindowSize(1), 0);
+  // Connection flow control window is available.
+  EXPECT_GT(adapter->GetSendWindowSize(), 0);
+
+  // After a window update, the adapter will send the last data, followed by
+  // trailers.
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
+  EXPECT_CALL(visitor, OnWindowUpdate(1, 2000));
+  adapter->ProcessBytes(TestFrameSequence().WindowUpdate(1, 2000).Serialize());
+
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _,
+                                         END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _,
+                                   END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+
+  send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::DATA, SpdyFrameType::HEADERS}));
+  EXPECT_FALSE(adapter->want_write());
 }
 
 TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStream) {

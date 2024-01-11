@@ -632,6 +632,7 @@ Http2StreamId OgHttp2Session::GetNextReadyStream() {
     const Http2StreamId stream_id = *trailers_ready_.begin();
     // WriteForStream() will re-mark the stream as ready, if necessary.
     write_scheduler_.MarkStreamNotReady(stream_id);
+    trailers_ready_.erase(trailers_ready_.begin());
     return stream_id;
   }
   return write_scheduler_.PopNextReadyStream();
