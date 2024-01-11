@@ -84,13 +84,6 @@ absl::Status SetSendBufferSize(SocketFd fd, QuicByteCount size) {
   return SetSockOptInt(fd, SOL_SOCKET, SO_SNDBUF, static_cast<int>(size));
 }
 
-absl::Status SetIpHeaderIncluded(SocketFd fd, bool ip_header_included) {
-  QUICHE_DCHECK_NE(fd, kInvalidSocketFd);
-
-  return SetSockOptInt(fd, IPPROTO_IP, IP_HDRINCL,
-                       static_cast<int>(ip_header_included));
-}
-
 absl::Status Connect(SocketFd fd, const QuicSocketAddress& peer_address) {
   QUICHE_DCHECK_NE(fd, kInvalidSocketFd);
   QUICHE_DCHECK(peer_address.IsInitialized());

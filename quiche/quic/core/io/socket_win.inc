@@ -10,6 +10,9 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/io/socket_internal.h"
+#include "quiche/quic/platform/api/quic_ip_address_family.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_status_utils.h"
 
 namespace quic::socket_api {
@@ -161,6 +164,41 @@ absl::Status SetSocketBlocking(SocketFd fd, bool blocking) {
   u_long mode = !blocking;
   int result = ::ioctlsocket(fd, FIONBIO, &mode);
   return StatusForLastCall(result, "SetSocketBlocking()");
+}
+
+absl::Status SetIpHeaderIncluded(SocketFd fd, IpAddressFamily address_family,
+                                 bool ip_header_included) {
+  QUICHE_DCHECK_NE(fd, kInvalidSocketFd);
+
+  int level;
+  int option;
+  switch (address_family) {
+    case IpAddressFamily::IP_V4:
+      level = IPPROTO_IP;
+      option = IP_HDRINCL;
+      break;
+    case IpAddressFamily::IP_V6:
+      level = IPPROTO_IPV6;
+      option = IPV6_HDRINCL;
+      break;
+    default:
+      QUICHE_BUG(set_ip_header_included_invalid_family)
+          << "Invalid address family: " << static_cast<int>(address_family);
+      return absl::InvalidArgumentError("Invalid address family.");
+  }
+
+  int value = static_cast<int>(ip_header_included);
+  int result = ::setsockopt(
+      fd, level, option, reinterpret_cast<const char*>(&value), sizeof(value));
+
+  if (result >= 0) {
+    return absl::OkStatus();
+  } else {
+    absl::Status status = StatusForLastCall(result, "::setsockopt()");
+    QUICHE_DVLOG(1) << "Failed to set socket " << fd << " option " << option
+                    << " to " << value << " with error: " << status;
+    return status;
+  }
 }
 
 absl::Status Close(SocketFd fd) {

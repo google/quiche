@@ -78,7 +78,8 @@ absl::Status SetSendBufferSize(SocketFd fd, QuicByteCount size);
 // Only allowed for raw IP sockets. If set, sent data buffers include the IP
 // header. If not set, sent data buffers only contain the IP packet payload, and
 // the header will be generated.
-absl::Status SetIpHeaderIncluded(SocketFd fd, bool ip_header_included);
+absl::Status SetIpHeaderIncluded(SocketFd fd, IpAddressFamily address_family,
+                                 bool ip_header_included);
 
 // Connects socket `fd` to `peer_address`.  Returns a status with
 // `absl::StatusCode::kUnavailable` iff the socket is non-blocking and the

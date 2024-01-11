@@ -11,6 +11,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/quic/platform/api/quic_ip_address_family.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/test_tools/test_ip_packets.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -39,16 +40,35 @@ SocketFd CreateTestSocket(socket_api::SocketProtocol protocol,
   }
 }
 
-SocketFd CreateTestRawSocket(bool blocking = true) {
-  absl::StatusOr<SocketFd> socket =
-      socket_api::CreateSocket(quiche::TestLoopback().address_family(),
-                               socket_api::SocketProtocol::kRawIp, blocking);
+SocketFd CreateTestRawSocket(
+    bool blocking = true,
+    IpAddressFamily address_family = IpAddressFamily::IP_UNSPEC) {
+  absl::StatusOr<SocketFd> socket;
+  switch (address_family) {
+    case IpAddressFamily::IP_V4:
+      socket = socket_api::CreateSocket(
+          quiche::TestLoopback4().address_family(),
+          socket_api::SocketProtocol::kRawIp, blocking);
+      break;
+    case IpAddressFamily::IP_V6:
+      socket = socket_api::CreateSocket(
+          quiche::TestLoopback6().address_family(),
+          socket_api::SocketProtocol::kRawIp, blocking);
+      break;
+    case IpAddressFamily::IP_UNSPEC:
+      socket = socket_api::CreateSocket(quiche::TestLoopback().address_family(),
+                                        socket_api::SocketProtocol::kRawIp,
+                                        blocking);
+      break;
+  }
 
   if (socket.ok()) {
     return socket.value();
   } else {
-    // This is expected if test not run with relevant admin privileges.
-    QUICHE_CHECK(absl::IsPermissionDenied(socket.status()));
+    // This is expected if test not run with relevant admin privileges or if
+    // address family is unsupported.
+    QUICHE_CHECK(absl::IsPermissionDenied(socket.status()) ||
+                 absl::IsNotFound(socket.status()));
     return kInvalidSocketFd;
   }
 }
@@ -107,13 +127,27 @@ TEST(SocketTest, SetSendBufferSize) {
 }
 
 TEST(SocketTest, SetIpHeaderIncludedForRaw) {
-  SocketFd socket = CreateTestRawSocket(/*blocking=*/true);
+  SocketFd socket =
+      CreateTestRawSocket(/*blocking=*/true, IpAddressFamily::IP_V4);
   if (socket == kInvalidSocketFd) {
     GTEST_SKIP();
   }
 
-  QUICHE_EXPECT_OK(
-      socket_api::SetIpHeaderIncluded(socket, /*ip_header_included=*/true));
+  QUICHE_EXPECT_OK(socket_api::SetIpHeaderIncluded(
+      socket, IpAddressFamily::IP_V4, /*ip_header_included=*/true));
+
+  QUICHE_EXPECT_OK(socket_api::Close(socket));
+}
+
+TEST(SocketTest, SetIpHeaderIncludedForRawV6) {
+  SocketFd socket =
+      CreateTestRawSocket(/*blocking=*/true, IpAddressFamily::IP_V6);
+  if (socket == kInvalidSocketFd) {
+    GTEST_SKIP();
+  }
+
+  QUICHE_EXPECT_OK(socket_api::SetIpHeaderIncluded(
+      socket, IpAddressFamily::IP_V6, /*ip_header_included=*/true));
 
   QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
@@ -123,9 +157,12 @@ TEST(SocketTest, SetIpHeaderIncludedForUdp) {
                                      /*blocking=*/true);
 
   // Expect option only allowed for raw IP sockets.
-  EXPECT_THAT(
-      socket_api::SetIpHeaderIncluded(socket, /*ip_header_included=*/true),
-      StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(socket_api::SetIpHeaderIncluded(socket, IpAddressFamily::IP_V4,
+                                              /*ip_header_included=*/true),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(socket_api::SetIpHeaderIncluded(socket, IpAddressFamily::IP_V6,
+                                              /*ip_header_included=*/true),
+              StatusIs(absl::StatusCode::kInvalidArgument));
 
   QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
@@ -288,16 +325,17 @@ TEST(SocketTest, SendToForRaw) {
     GTEST_SKIP();
   }
 
-  QUICHE_EXPECT_OK(
-      socket_api::SetIpHeaderIncluded(socket, /*ip_header_included=*/false));
+  QuicIpAddress localhost_address = quiche::TestLoopback();
+  QUICHE_EXPECT_OK(socket_api::SetIpHeaderIncluded(
+      socket, localhost_address.address_family(),
+      /*ip_header_included=*/false));
 
   // Arbitrarily-chosen ephemeral ports.
-  QuicSocketAddress client_address(quiche::TestLoopback(), /*port=*/53368);
-  QuicSocketAddress server_address(quiche::TestLoopback(), /*port=*/56362);
+  QuicSocketAddress client_address(localhost_address, /*port=*/53368);
+  QuicSocketAddress server_address(localhost_address, /*port=*/56362);
   std::string packet = CreateUdpPacket(client_address, server_address, "foo");
   absl::StatusOr<absl::string_view> result = socket_api::SendTo(
-      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/56362),
-      packet);
+      socket, QuicSocketAddress(localhost_address, /*port=*/56362), packet);
 
   // Expect at least some data to be sent successfully.
   QUICHE_ASSERT_OK(result.status());
@@ -312,18 +350,18 @@ TEST(SocketTest, SendToForRawWithIpHeader) {
     GTEST_SKIP();
   }
 
-  QUICHE_EXPECT_OK(
-      socket_api::SetIpHeaderIncluded(socket, /*ip_header_included=*/true));
+  QuicIpAddress localhost_address = quiche::TestLoopback();
+  QUICHE_EXPECT_OK(socket_api::SetIpHeaderIncluded(
+      socket, localhost_address.address_family(), /*ip_header_included=*/true));
 
   // Arbitrarily-chosen ephemeral ports.
-  QuicSocketAddress client_address(quiche::TestLoopback(), /*port=*/53368);
-  QuicSocketAddress server_address(quiche::TestLoopback(), /*port=*/56362);
+  QuicSocketAddress client_address(localhost_address, /*port=*/53368);
+  QuicSocketAddress server_address(localhost_address, /*port=*/56362);
   std::string packet =
       CreateIpPacket(client_address.host(), server_address.host(),
                      CreateUdpPacket(client_address, server_address, "foo"));
   absl::StatusOr<absl::string_view> result = socket_api::SendTo(
-      socket, QuicSocketAddress(quiche::TestLoopback(), /*port=*/56362),
-      packet);
+      socket, QuicSocketAddress(localhost_address, /*port=*/56362), packet);
 
   // Expect at least some data to be sent successfully.
   QUICHE_ASSERT_OK(result.status());
