@@ -2669,6 +2669,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
       case IETF_EXTENSION_MESSAGE_NO_LENGTH:
         ABSL_FALLTHROUGH_INTENDED;
       case IETF_EXTENSION_MESSAGE: {
+        QUIC_CODE_COUNT(quic_legacy_message_frame_codepoint_read);
         QuicMessageFrame message_frame;
         if (!ProcessMessageFrame(reader,
                                  frame_type == IETF_EXTENSION_MESSAGE_NO_LENGTH,
@@ -5805,6 +5806,7 @@ bool QuicFramer::AppendMessageFrameAndTypeByte(const QuicMessageFrame& frame,
     type_byte = last_frame_in_packet ? IETF_EXTENSION_MESSAGE_NO_LENGTH_V99
                                      : IETF_EXTENSION_MESSAGE_V99;
   } else {
+    QUIC_CODE_COUNT(quic_legacy_message_frame_codepoint_write);
     type_byte = last_frame_in_packet ? IETF_EXTENSION_MESSAGE_NO_LENGTH
                                      : IETF_EXTENSION_MESSAGE;
   }
