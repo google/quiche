@@ -213,8 +213,8 @@ bool LoadBalancerConfig::InitializeFourPass(const uint8_t* input, uint8_t* left,
   } else {
     is_length_odd = false;
   }
-  bzero(left, kLoadBalancerBlockSize);
-  bzero(right, kLoadBalancerBlockSize);
+  memset(left, 0, kLoadBalancerBlockSize);
+  memset(right, 0, kLoadBalancerBlockSize);
   // The first byte is the plaintext/ciphertext length, the second byte will be
   // the index of the pass. Half the plaintext or ciphertext follows.
   left[0] = plaintext_len();
