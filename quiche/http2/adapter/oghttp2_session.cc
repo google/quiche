@@ -815,51 +815,50 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
                 static_cast<int32_t>(max_frame_payload_)});
   while (connection_can_write == SendResult::SEND_OK && available_window > 0 &&
          state.outbound_body != nullptr && !state.data_deferred) {
-    auto [length, end_data] =
-        state.outbound_body->SelectPayloadLength(available_window);
-    QUICHE_VLOG(2) << "WriteForStream | length: " << length
-                   << " end_data: " << end_data
+    DataFrameInfo info = GetDataFrameInfo(stream_id, available_window, state);
+    QUICHE_VLOG(2) << "WriteForStream | length: " << info.payload_length
+                   << " end_data: " << info.end_data
                    << " trailers: " << state.trailers.get();
-    if (length == 0 && !end_data &&
+    if (info.payload_length == 0 && !info.end_data &&
         (options_.trailers_require_end_data || state.trailers == nullptr)) {
       // An unproductive call to SelectPayloadLength() results in this stream
       // entering the "deferred" state only if either no trailers are available
       // to send, or trailers require an explicit end_data before being sent.
       state.data_deferred = true;
       break;
-    } else if (length == DataFrameSource::kError) {
+    } else if (info.payload_length == DataFrameSource::kError) {
       // TODO(birenroy,diannahu): Consider queuing a RST_STREAM INTERNAL_ERROR
       // instead.
       CloseStream(stream_id, Http2ErrorCode::INTERNAL_ERROR);
       // No more work on the stream; it has been closed.
       break;
     }
-    const bool fin = end_data ? state.outbound_body->send_fin() : false;
-    if (length > 0 || fin) {
+    if (info.payload_length > 0 || info.send_fin) {
       spdy::SpdyDataIR data(stream_id);
-      data.set_fin(fin);
-      data.SetDataShallow(length);
+      data.set_fin(info.send_fin);
+      data.SetDataShallow(info.payload_length);
       spdy::SpdySerializedFrame header =
           spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(
               data);
       QUICHE_DCHECK(buffered_data_.empty() && frames_.empty());
       data.Visit(&send_logger_);
-      const bool success =
-          state.outbound_body->Send(absl::string_view(header), length);
+      const bool success = SendDataFrame(stream_id, absl::string_view(header),
+                                         info.payload_length, state);
       if (!success) {
         connection_can_write = SendResult::SEND_BLOCKED;
         break;
       }
-      connection_send_window_ -= length;
-      state.send_window -= length;
+      connection_send_window_ -= info.payload_length;
+      state.send_window -= info.payload_length;
       available_window = std::min({connection_send_window_, state.send_window,
                                    static_cast<int32_t>(max_frame_payload_)});
-      if (fin) {
+      if (info.send_fin) {
         state.half_closed_local = true;
         MaybeFinWithRstStream(it);
       }
-      const bool ok = AfterFrameSent(/* DATA */ 0, stream_id, length,
-                                     fin ? END_STREAM_FLAG : 0x0, 0);
+      const bool ok =
+          AfterFrameSent(/* DATA */ 0, stream_id, info.payload_length,
+                         info.send_fin ? END_STREAM_FLAG : 0x0, 0);
       if (!ok) {
         LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
                             ConnectionError::kSendError);
@@ -870,14 +869,15 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
         break;
       }
     }
-    if (end_data || (length == 0 && state.trailers != nullptr &&
-                     !options_.trailers_require_end_data)) {
+    if (info.end_data ||
+        (info.payload_length == 0 && state.trailers != nullptr &&
+         !options_.trailers_require_end_data)) {
       // If SelectPayloadLength() returned {0, false}, and there are trailers to
       // send, and the safety feature is disabled, it's okay to send the
       // trailers.
       if (state.trailers != nullptr) {
         auto block_ptr = std::move(state.trailers);
-        if (fin) {
+        if (info.send_fin) {
           QUICHE_LOG(ERROR) << "Sent fin; can't send trailers.";
 
           // TODO(birenroy,diannahu): Consider queuing a RST_STREAM
@@ -2026,6 +2026,24 @@ void OgHttp2Session::UpdateStreamReceiveWindowSizes(uint32_t new_value) {
   for (auto& [stream_id, stream_state] : stream_map_) {
     stream_state.window_manager.OnWindowSizeLimitChange(new_value);
   }
+}
+
+OgHttp2Session::DataFrameInfo OgHttp2Session::GetDataFrameInfo(
+    Http2StreamId /*stream_id*/, size_t flow_control_available,
+    StreamState& stream_state) {
+  DataFrameInfo info;
+  std::tie(info.payload_length, info.end_data) =
+      stream_state.outbound_body->SelectPayloadLength(flow_control_available);
+  info.send_fin =
+      info.end_data ? stream_state.outbound_body->send_fin() : false;
+  return info;
+}
+
+bool OgHttp2Session::SendDataFrame(Http2StreamId /*stream_id*/,
+                                   absl::string_view frame_header,
+                                   size_t payload_length,
+                                   StreamState& stream_state) {
+  return stream_state.outbound_body->Send(frame_header, payload_length);
 }
 
 }  // namespace adapter

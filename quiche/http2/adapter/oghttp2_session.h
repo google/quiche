@@ -446,6 +446,20 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   // initial window.
   void UpdateStreamReceiveWindowSizes(uint32_t new_value);
 
+  // Gathers information required to construct a DATA frame header.
+  struct DataFrameInfo {
+    int64_t payload_length;
+    bool end_data;
+    bool send_fin;
+  };
+  DataFrameInfo GetDataFrameInfo(Http2StreamId stream_id,
+                                 size_t flow_control_available,
+                                 StreamState& stream_state);
+
+  // Invokes the appropriate API to send a DATA frame header and payload.
+  bool SendDataFrame(Http2StreamId stream_id, absl::string_view frame_header,
+                     size_t payload_length, StreamState& stream_state);
+
   // Receives events when inbound frames are parsed.
   Http2VisitorInterface& visitor_;
 
