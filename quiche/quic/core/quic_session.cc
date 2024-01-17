@@ -2232,6 +2232,14 @@ void QuicSession::SendNewConnectionId(const QuicNewConnectionIdFrame& frame) {
 }
 
 void QuicSession::SendRetireConnectionId(uint64_t sequence_number) {
+  if (GetQuicReloadableFlag(
+          quic_no_write_control_frame_upon_connection_close2)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_no_write_control_frame_upon_connection_close2);
+    if (!connection_->connected()) {
+      return;
+    }
+  }
   control_frame_manager_.WriteOrBufferRetireConnectionId(sequence_number);
 }
 

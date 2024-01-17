@@ -2220,6 +2220,24 @@ TEST_P(QuicSessionTestClient, AvailableBidirectionalStreamsClient) {
       &session_, GetNthClientInitiatedBidirectionalId(1)));
 }
 
+// Regression test for
+// https://bugs.chromium.org/p/chromium/issues/detail?id=1514016
+TEST_P(QuicSessionTestClient, DonotSendRetireCIDFrameWhenConnectionClosed) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  connection_->ReallyCloseConnection(QUIC_NO_ERROR, "closing",
+                                     ConnectionCloseBehavior::SILENT_CLOSE);
+  EXPECT_FALSE(connection_->connected());
+  if (!GetQuicReloadableFlag(
+          quic_no_write_control_frame_upon_connection_close2)) {
+    EXPECT_QUIC_BUG(session_.SendRetireConnectionId(20),
+                    "Try to write control frame");
+  } else {
+    session_.SendRetireConnectionId(20);
+  }
+}
+
 TEST_P(QuicSessionTestClient, NewStreamCreationResumesMultiPortProbing) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
     return;
