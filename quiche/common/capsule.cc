@@ -20,6 +20,7 @@
 #include "absl/types/span.h"
 #include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_data_reader.h"
@@ -360,6 +361,21 @@ QuicheBuffer SerializeDatagramCapsuleHeader(uint64_t datagram_size,
   absl::StatusOr<QuicheBuffer> buffer =
       SerializeIntoBuffer(allocator, WireVarInt62(CapsuleType::DATAGRAM),
                           WireVarInt62(datagram_size));
+  if (!buffer.ok()) {
+    return QuicheBuffer();
+  }
+  return *std::move(buffer);
+}
+
+QUICHE_EXPORT QuicheBuffer SerializeWebTransportStreamCapsuleHeader(
+    webtransport::StreamId stream_id, bool fin, uint64_t write_size,
+    QuicheBufferAllocator* allocator) {
+  absl::StatusOr<QuicheBuffer> buffer = SerializeIntoBuffer(
+      allocator,
+      WireVarInt62(fin ? CapsuleType::WT_STREAM_WITH_FIN
+                       : CapsuleType::WT_STREAM),
+      WireVarInt62(write_size + QuicheDataWriter::GetVarInt62Len(stream_id)),
+      WireVarInt62(stream_id));
   if (!buffer.ok()) {
     return QuicheBuffer();
   }

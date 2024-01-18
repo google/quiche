@@ -297,6 +297,19 @@ TEST_F(CapsuleTest, WebTransportStreamData) {
   ValidateParserIsEmpty();
   TestSerialization(expected_capsule, capsule_fragment);
 }
+TEST_F(CapsuleTest, WebTransportStreamDataHeader) {
+  std::string capsule_fragment = absl::HexStringToBytes(
+      "990b4d3b"  // WT_STREAM without FIN
+      "04"        // capsule length
+      "17"        // stream ID
+                  // three bytes of stream payload implied below
+  );
+  QuicheBufferAllocator* allocator = SimpleBufferAllocator::Get();
+  QuicheBuffer capsule_header =
+      quiche::SerializeWebTransportStreamCapsuleHeader(0x17, /*fin=*/false, 3,
+                                                       allocator);
+  EXPECT_EQ(capsule_header.AsStringView(), capsule_fragment);
+}
 TEST_F(CapsuleTest, WebTransportStreamDataWithFin) {
   std::string capsule_fragment = absl::HexStringToBytes(
       "990b4d3c"  // data with FIN

@@ -395,6 +395,11 @@ QUICHE_EXPORT quiche::QuicheBuffer SerializeCapsule(
 QUICHE_EXPORT QuicheBuffer SerializeDatagramCapsuleHeader(
     uint64_t datagram_size, QuicheBufferAllocator* allocator);
 
+// Serializes the header for a WT_STREAM or a WT_STREAM_WITH_FIN capsule.
+QUICHE_EXPORT QuicheBuffer SerializeWebTransportStreamCapsuleHeader(
+    webtransport::StreamId stream_id, bool fin, uint64_t write_size,
+    QuicheBufferAllocator* allocator);
+
 }  // namespace quiche
 
 #endif  // QUICHE_COMMON_CAPSULE_H_
