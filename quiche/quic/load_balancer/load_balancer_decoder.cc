@@ -5,6 +5,7 @@
 #include "quiche/quic/load_balancer/load_balancer_decoder.h"
 
 #include <cstdint>
+#include <cstring>
 #include <optional>
 
 #include "absl/types/span.h"
@@ -45,9 +46,26 @@ LoadBalancerServerId LoadBalancerDecoder::GetServerId(
   if (!config.has_value()) {
     return LoadBalancerServerId();
   }
-  return config->Decrypt(absl::MakeConstSpan(
-      reinterpret_cast<const uint8_t*>(connection_id.data()),
-      connection_id.length()));
+  // Benchmark tests show that minimizing the computation inside
+  // LoadBalancerConfig saves CPU cycles.
+  if (connection_id.length() < config->total_len()) {
+    return LoadBalancerServerId();
+  }
+  const uint8_t* data =
+      reinterpret_cast<const uint8_t*>(connection_id.data()) + 1;
+  uint8_t server_id_len = config->server_id_len();
+  if (!config->IsEncrypted()) {
+    return LoadBalancerServerId(absl::Span<const uint8_t>(data, server_id_len));
+  }
+  if (config->plaintext_len() == kLoadBalancerBlockSize) {
+    uint8_t scratch[kLoadBalancerBlockSize];
+    if (!config->BlockDecrypt(data, scratch)) {
+      return LoadBalancerServerId();
+    }
+    return LoadBalancerServerId(absl::Span<uint8_t>(scratch, server_id_len));
+  }
+  return config->FourPassDecrypt(
+      absl::MakeConstSpan(data, connection_id.length() - 1));
 }
 
 std::optional<uint8_t> LoadBalancerDecoder::GetConfigId(

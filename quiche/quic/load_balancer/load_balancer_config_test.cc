@@ -4,6 +4,7 @@
 
 #include "quiche/quic/load_balancer/load_balancer_config.h"
 
+#include <array>
 #include <cstdint>
 #include <cstring>
 
@@ -17,6 +18,21 @@
 namespace quic {
 
 namespace test {
+
+class LoadBalancerConfigPeer {
+ public:
+  static bool InitializeFourPass(LoadBalancerConfig& config,
+                                 const uint8_t* input, uint8_t* left,
+                                 uint8_t* right, uint8_t* half_len) {
+    return config.InitializeFourPass(input, left, right, half_len);
+  }
+
+  static void EncryptionPass(LoadBalancerConfig& config, uint8_t index,
+                             uint8_t half_len, bool is_length_odd,
+                             uint8_t* left, uint8_t* right) {
+    config.EncryptionPass(index, half_len, is_length_odd, left, right);
+  }
+};
 
 namespace {
 
@@ -87,69 +103,148 @@ TEST_F(LoadBalancerConfigTest, ValidParams) {
   EXPECT_TRUE(config2->IsEncrypted());
 }
 
+// Compare EncryptionPass() results to the example in
+// draft-ietf-quic-load-balancers-15, Section 4.3.2.
+TEST_F(LoadBalancerConfigTest, TestEncryptionPassExample) {
+  auto config =
+      LoadBalancerConfig::Create(0, 3, 4, absl::string_view(raw_key, 16));
+  EXPECT_TRUE(config.has_value());
+  EXPECT_TRUE(config->IsEncrypted());
+  uint8_t input[] = {0x07, 0x31, 0x44, 0x1a, 0x9c, 0x69, 0xc2, 0x75};
+  std::array<uint8_t, kLoadBalancerBlockSize> left, right;
+  uint8_t half_len;
+
+  bool is_length_odd = LoadBalancerConfigPeer::InitializeFourPass(
+      *config, input + 1, left.data(), right.data(), &half_len);
+  EXPECT_TRUE(is_length_odd);
+  std::array<std::array<uint8_t, kLoadBalancerBlockSize>,
+             kNumLoadBalancerCryptoPasses + 1>
+      expected_left = {{
+          {0x07, 0x00, 0x31, 0x44, 0x1a, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00},
+          {0x07, 0x01, 0x31, 0x44, 0x1a, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00},
+          {0x07, 0x01, 0x02, 0x8e, 0x1b, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00},
+          {0x07, 0x03, 0x02, 0x8e, 0x1b, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00},
+          {0x07, 0x03, 0x8e, 0x9a, 0x91, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00},
+      }};
+  std::array<std::array<uint8_t, kLoadBalancerBlockSize>,
+             kNumLoadBalancerCryptoPasses + 1>
+      expected_right = {{
+          {0x07, 0x00, 0x0c, 0x69, 0xc2, 0x75, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00},
+          {0x07, 0x00, 0x0f, 0x1a, 0x5b, 0x6b, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00},
+          {0x07, 0x02, 0x0f, 0x1a, 0x5b, 0x6b, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00},
+          {0x07, 0x02, 0x04, 0x94, 0x97, 0x62, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00},
+          {0x07, 0x04, 0x04, 0x94, 0x97, 0x62, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00},
+      }};
+
+  EXPECT_EQ(left, expected_left[0]);
+  EXPECT_EQ(right, expected_right[0]);
+  for (int i = 1; i <= kNumLoadBalancerCryptoPasses; ++i) {
+    LoadBalancerConfigPeer::EncryptionPass(*config, i, half_len, is_length_odd,
+                                           left.data(), right.data());
+    EXPECT_EQ(left, expected_left[i]);
+    EXPECT_EQ(right, expected_right[i]);
+  }
+}
+
+// Check that the encryption pass code can decode its own ciphertext. Various
+// pointer errors could cause the code to overwrite bits that contain
+// important information.
+TEST_F(LoadBalancerConfigTest, EncryptionPassesAreReversible) {
+  auto config =
+      LoadBalancerConfig::Create(0, 3, 4, absl::string_view(raw_key, 16));
+  std::array<uint8_t, kLoadBalancerBlockSize> start_left = {
+      0x07, 0x00, 0x31, 0x44, 0x1a, 0x90, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+  std::array<uint8_t, kLoadBalancerBlockSize> start_right = {
+      0x07, 0x00, 0x0c, 0x69, 0xc2, 0x75, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+  std::array<uint8_t, kLoadBalancerBlockSize> left = start_left,
+                                              right = start_right;
+  // Work left->right and right->left passes.
+  LoadBalancerConfigPeer::EncryptionPass(*config, 1, 4, true, left.data(),
+                                         right.data());
+  LoadBalancerConfigPeer::EncryptionPass(*config, 2, 4, true, left.data(),
+                                         right.data());
+  LoadBalancerConfigPeer::EncryptionPass(*config, 2, 4, true, left.data(),
+                                         right.data());
+  LoadBalancerConfigPeer::EncryptionPass(*config, 1, 4, true, left.data(),
+                                         right.data());
+  // Since index is manually written into the second byte only on input, it is
+  // not reversible.
+  left[1] = 0;
+  right[1] = 0;
+  EXPECT_EQ(left, start_left);
+  EXPECT_EQ(right, start_right);
+}
+
 // Tests for Encrypt() and Decrypt() are in LoadBalancerEncoderTest and
 // LoadBalancerDecoderTest, respectively.
 
-TEST_F(LoadBalancerConfigTest, ConfigIsCopyable) {
-  const uint8_t ptext[] = {0x00, 0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f, 0x5f,
+TEST_F(LoadBalancerConfigTest, InvalidBlockEncryption) {
+  uint8_t pt[kLoadBalancerBlockSize], ct[kLoadBalancerBlockSize];
+  auto pt_config = LoadBalancerConfig::CreateUnencrypted(0, 8, 8);
+  ASSERT_TRUE(pt_config.has_value());
+  EXPECT_FALSE(pt_config->BlockEncrypt(pt, ct));
+  EXPECT_FALSE(pt_config->BlockDecrypt(ct, pt));
+  EXPECT_TRUE(pt_config->FourPassEncrypt(absl::Span<uint8_t>(pt, sizeof(pt)))
+                  .IsEmpty());
+  EXPECT_FALSE(pt_config->FourPassDecrypt(absl::Span<uint8_t>(pt, sizeof(pt)))
+                   .IsValid());
+  auto small_cid_config =
+      LoadBalancerConfig::Create(0, 3, 4, absl::string_view(raw_key, 16));
+  ASSERT_TRUE(small_cid_config.has_value());
+  EXPECT_TRUE(small_cid_config->BlockEncrypt(pt, ct));
+  EXPECT_FALSE(small_cid_config->BlockDecrypt(ct, pt));
+  auto block_config =
+      LoadBalancerConfig::Create(0, 8, 8, absl::string_view(raw_key, 16));
+  ASSERT_TRUE(block_config.has_value());
+  EXPECT_TRUE(block_config->BlockEncrypt(pt, ct));
+  EXPECT_TRUE(block_config->BlockDecrypt(ct, pt));
+}
+
+// Block decrypt test from the Test Vector in
+// draft-ietf-quic-load-balancers-15, Appendix B.
+TEST_F(LoadBalancerConfigTest, BlockEncryptionExample) {
+  const uint8_t ptext[] = {0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f, 0x5f,
                            0xee, 0x08, 0x0d, 0xbf, 0x48, 0xc0, 0xd1, 0xe5};
-  uint8_t ctext[] = {0x00, 0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9, 0xb2,
-                     0xb9, 0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c, 0xc3};
+  const uint8_t ctext[] = {0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9, 0xb2,
+                           0xb9, 0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c, 0xc3};
   const char key[] = {0x8f, 0x95, 0xf0, 0x92, 0x45, 0x76, 0x5f, 0x80,
                       0x25, 0x69, 0x34, 0xe5, 0x0c, 0x66, 0x20, 0x7f};
+  uint8_t result[sizeof(ptext)];
   auto config = LoadBalancerConfig::Create(0, 8, 8, absl::string_view(key, 16));
-  ASSERT_TRUE(config.has_value());
+  EXPECT_TRUE(config->BlockEncrypt(ptext, result));
+  EXPECT_EQ(memcmp(result, ctext, sizeof(ctext)), 0);
+  EXPECT_TRUE(config->BlockDecrypt(ctext, result));
+  EXPECT_EQ(memcmp(result, ptext, sizeof(ptext)), 0);
+}
+
+TEST_F(LoadBalancerConfigTest, ConfigIsCopyable) {
+  const uint8_t ptext[] = {0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f, 0x5f,
+                           0xee, 0x08, 0x0d, 0xbf, 0x48, 0xc0, 0xd1, 0xe5};
+  const uint8_t ctext[] = {0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9, 0xb2,
+                           0xb9, 0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c, 0xc3};
+  const char key[] = {0x8f, 0x95, 0xf0, 0x92, 0x45, 0x76, 0x5f, 0x80,
+                      0x25, 0x69, 0x34, 0xe5, 0x0c, 0x66, 0x20, 0x7f};
+  uint8_t result[sizeof(ptext)];
+  auto config = LoadBalancerConfig::Create(0, 8, 8, absl::string_view(key, 16));
   auto config2 = config;
-  ASSERT_TRUE(config2.has_value());
-  uint8_t temp_ptext[sizeof(ptext)];  // the input will be overwritten, so copy
-  memcpy(temp_ptext, ptext, sizeof(ptext));
-  QuicConnectionId cid1 =
-      config->Encrypt(absl::Span<uint8_t>(temp_ptext, sizeof(ptext)));
-  EXPECT_EQ(cid1.length(), sizeof(ctext));
-  EXPECT_EQ(memcmp(cid1.data(), ctext, sizeof(ctext)), 0);
-  memcpy(temp_ptext, ptext, sizeof(ptext));
-  QuicConnectionId cid2 =
-      config2->Encrypt(absl::Span<uint8_t>(temp_ptext, sizeof(ptext)));
-  EXPECT_EQ(cid2.length(), sizeof(ctext));
-  EXPECT_EQ(memcmp(cid2.data(), ctext, sizeof(ctext)), 0);
-}
-
-TEST_F(LoadBalancerConfigTest, OnePassEncryptAndDecryptIgnoreAdditionalBytes) {
-  uint8_t ptext[] = {0x00, 0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f, 0x5f, 0xee,
-                     0x08, 0x0d, 0xbf, 0x48, 0xc0, 0xd1, 0xe5, 0xda, 0x41};
-  uint8_t ctext[] = {0x00, 0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9, 0xb2, 0xb9,
-                     0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c, 0xc3, 0xda, 0x41};
-  const char key[] = {0x8f, 0x95, 0xf0, 0x92, 0x45, 0x76, 0x5f, 0x80,
-                      0x25, 0x69, 0x34, 0xe5, 0x0c, 0x66, 0x20, 0x7f};
-  auto config = LoadBalancerConfig::Create(0, 8, 8, absl::string_view(key, 16));
-  ASSERT_TRUE(config.has_value());
-  LoadBalancerServerId original_server_id(absl::Span<uint8_t>(&ptext[1], 8));
-  QuicConnectionId cid =
-      config->Encrypt(absl::Span<uint8_t>(ptext, sizeof(ptext)));
-  EXPECT_EQ(cid.length(), sizeof(ctext));
-  EXPECT_EQ(memcmp(cid.data(), ctext, sizeof(ctext)), 0);
-  LoadBalancerServerId server_id = config->Decrypt(absl::Span<const uint8_t>(
-      reinterpret_cast<const uint8_t *>(cid.data()), cid.length()));
-  EXPECT_EQ(server_id, original_server_id);
-}
-
-TEST_F(LoadBalancerConfigTest, FourPassEncryptAndDecryptIgnoreAdditionalBytes) {
-  uint8_t ptext[] = {0x00, 0xed, 0x79, 0x3a, 0xee,
-                     0x08, 0x0d, 0xbf, 0xda, 0x41};
-  uint8_t ctext[] = {0x00, 0x41, 0x26, 0xee, 0x38,
-                     0xbf, 0x54, 0x54, 0xda, 0x41};
-  const char key[] = {0x8f, 0x95, 0xf0, 0x92, 0x45, 0x76, 0x5f, 0x80,
-                      0x25, 0x69, 0x34, 0xe5, 0x0c, 0x66, 0x20, 0x7f};
-  auto config = LoadBalancerConfig::Create(0, 3, 4, absl::string_view(key, 16));
-  ASSERT_TRUE(config.has_value());
-  LoadBalancerServerId original_server_id(absl::Span<uint8_t>(&ptext[1], 3));
-  QuicConnectionId cid =
-      config->Encrypt(absl::Span<uint8_t>(ptext, sizeof(ptext)));
-  EXPECT_EQ(cid.length(), sizeof(ctext));
-  EXPECT_EQ(memcmp(cid.data(), ctext, sizeof(ctext)), 0);
-  LoadBalancerServerId server_id = config->Decrypt(absl::Span<const uint8_t>(
-      reinterpret_cast<const uint8_t *>(cid.data()), cid.length()));
-  EXPECT_EQ(server_id, original_server_id);
+  EXPECT_TRUE(config->BlockEncrypt(ptext, result));
+  EXPECT_EQ(memcmp(result, ctext, sizeof(ctext)), 0);
+  EXPECT_TRUE(config2->BlockEncrypt(ptext, result));
+  EXPECT_EQ(memcmp(result, ctext, sizeof(ctext)), 0);
 }
 
 }  // namespace

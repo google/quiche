@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "openssl/aes.h"
@@ -16,6 +17,10 @@
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
+
+namespace test {
+class LoadBalancerConfigPeer;
+}  // namespace test
 
 // The number of bits in the first byte used for the config ID
 inline constexpr uint8_t kConfigIdBits = 3;
@@ -58,12 +63,24 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
       uint8_t config_id, uint8_t server_id_len, uint8_t nonce_len);
 
   // Returns an invalid Server ID if ciphertext is too small, or needed keys are
-  // missing. |ciphertext| contains the full connection ID.
-  LoadBalancerServerId Decrypt(absl::Span<const uint8_t> ciphertext) const;
-  // Encrypts |connection_id|, which must be of the form first byte,
-  // server ID, nonce. Returns empty if plaintext is not long enough. The
-  // argument is NOT const, and will be overwritten.
-  QuicConnectionId Encrypt(absl::Span<uint8_t> connection_id) const;
+  // missing. |ciphertext| contains the full connection ID minus the first byte.
+  LoadBalancerServerId FourPassDecrypt(
+      absl::Span<const uint8_t> ciphertext) const;
+  // Returns an empty connection ID if the plaintext is too small, or needed
+  // keys are missing. |plaintext| contains the full unencrypted connection ID,
+  // including the first byte.
+  QuicConnectionId FourPassEncrypt(absl::Span<uint8_t> plaintext) const;
+
+  // Use the key to do a block encryption, which is used both in all cases of
+  // encrypted configs. Returns false if there's no key. Type char is
+  // convenient because that's what QuicConnectionId uses.
+  ABSL_MUST_USE_RESULT bool BlockEncrypt(
+      const uint8_t plaintext[kLoadBalancerBlockSize],
+      uint8_t ciphertext[kLoadBalancerBlockSize]) const;
+  // Returns false if the config does not require block decryption.
+  ABSL_MUST_USE_RESULT bool BlockDecrypt(
+      const uint8_t ciphertext[kLoadBalancerBlockSize],
+      uint8_t plaintext[kLoadBalancerBlockSize]) const;
 
   uint8_t config_id() const { return config_id_; }
   uint8_t server_id_len() const { return server_id_len_; }
@@ -75,6 +92,8 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
   bool IsEncrypted() const { return key_.has_value(); }
 
  private:
+  friend class test::LoadBalancerConfigPeer;
+
   // Constructor is private because it doesn't validate input.
   LoadBalancerConfig(uint8_t config_id, uint8_t server_id_len,
                      uint8_t nonce_len, absl::string_view key);

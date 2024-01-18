@@ -5,14 +5,17 @@
 #include "quiche/quic/load_balancer/load_balancer_encoder.h"
 
 #include <cstdint>
+#include <cstring>
 #include <optional>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/numeric/int128.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_data_writer.h"
+#include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/load_balancer/load_balancer_config.h"
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
@@ -140,7 +143,35 @@ QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
   if (!WriteUint128(next_nonce, config_->nonce_len(), writer)) {
     return QuicConnectionId();
   }
-  return config_->Encrypt(absl::Span<uint8_t>(result, config_->total_len()));
+  if (!config_->IsEncrypted()) {
+    // Fill the nonce field with a hash of the Connection ID to avoid the nonce
+    // visibly increasing by one. This would allow observers to correlate
+    // connection IDs as being sequential and likely from the same connection,
+    // not just the same server.
+    absl::uint128 nonce_hash = QuicUtils::FNV1a_128_Hash(absl::string_view(
+        reinterpret_cast<char *>(result), config_->total_len()));
+    const uint64_t lo = absl::Uint128Low64(nonce_hash);
+    if (config_->nonce_len() <= sizeof(uint64_t)) {
+      memcpy(&result[1 + config_->server_id_len()], &lo, config_->nonce_len());
+      return QuicConnectionId(reinterpret_cast<char *>(result),
+                              config_->total_len());
+    }
+    memcpy(&result[1 + config_->server_id_len()], &lo, sizeof(uint64_t));
+    const uint64_t hi = absl::Uint128High64(nonce_hash);
+    memcpy(&result[1 + config_->server_id_len() + sizeof(uint64_t)], &hi,
+           config_->nonce_len() - sizeof(uint64_t));
+    return QuicConnectionId(reinterpret_cast<char *>(result),
+                            config_->total_len());
+  }
+  if (config_->plaintext_len() == kLoadBalancerBlockSize) {
+    if (!config_->BlockEncrypt(&result[1], &result[1])) {
+      return QuicConnectionId();
+    }
+    return (QuicConnectionId(reinterpret_cast<char *>(result),
+                             config_->total_len()));
+  }
+  return config_->FourPassEncrypt(
+      absl::Span<uint8_t>(result, config_->total_len()));
 }
 
 std::optional<QuicConnectionId> LoadBalancerEncoder::GenerateNextConnectionId(

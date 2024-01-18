@@ -240,6 +240,20 @@ TEST_F(LoadBalancerDecoderTest, GetConfig) {
   EXPECT_FALSE(config->IsEncrypted());
 }
 
+TEST_F(LoadBalancerDecoderTest, OnePassIgnoreAdditionalBytes) {
+  uint8_t ptext[] = {0x00, 0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f, 0x5f, 0xee,
+                     0x08, 0x0d, 0xbf, 0x48, 0xc0, 0xd1, 0xe5, 0xda, 0x41};
+  uint8_t ctext[] = {0x00, 0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9, 0xb2, 0xb9,
+                     0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c, 0xc3, 0xda, 0x41};
+  LoadBalancerDecoder decoder;
+  decoder.AddConfig(
+      *LoadBalancerConfig::Create(0, 8, 8, absl::string_view(kRawKey, 16)));
+  LoadBalancerServerId original_server_id(absl::Span<uint8_t>(&ptext[1], 8));
+  QuicConnectionId cid(absl::Span<uint8_t>(ctext, sizeof(ctext)));
+  LoadBalancerServerId server_id = decoder.GetServerId(cid);
+  EXPECT_EQ(server_id, original_server_id);
+}
+
 }  // namespace
 
 }  // namespace test

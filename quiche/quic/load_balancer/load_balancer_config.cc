@@ -8,12 +8,10 @@
 #include <cstring>
 #include <optional>
 
-#include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "openssl/aes.h"
 #include "quiche/quic/core/quic_connection_id.h"
-#include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
@@ -91,25 +89,10 @@ std::optional<LoadBalancerConfig> LoadBalancerConfig::CreateUnencrypted(
              : std::optional<LoadBalancerConfig>();
 }
 
-LoadBalancerServerId LoadBalancerConfig::Decrypt(
+LoadBalancerServerId LoadBalancerConfig::FourPassDecrypt(
     absl::Span<const uint8_t> ciphertext) const {
-  if (ciphertext.length() < total_len()) {
-    return LoadBalancerServerId();
-  }
   if (!key_.has_value()) {
-    return LoadBalancerServerId(
-        absl::Span<const uint8_t>(ciphertext.data() + 1, server_id_len_));
-  }
-  if (plaintext_len() == kLoadBalancerBlockSize) {
-    if (!block_decrypt_key_.has_value()) {
-      QUIC_BUG(quic_bug_596735037_01) << "Block decrypt key is not set.";
-      return LoadBalancerServerId();
-    }
-    uint8_t plaintext[kLoadBalancerBlockSize];
-    AES_decrypt(ciphertext.subspan(1, kLoadBalancerBlockSize).data(), plaintext,
-                &*block_decrypt_key_);
-    return LoadBalancerServerId(
-        absl::Span<const uint8_t>(plaintext, server_id_len_));
+    return LoadBalancerServerId();
   }
   // Do 3 or 4 passes. Only 3 are necessary if the server_id is short enough
   // to fit in the first half of the connection ID (the decoder doesn't need
@@ -139,40 +122,16 @@ LoadBalancerServerId LoadBalancerConfig::Decrypt(
       absl::Span<uint8_t>(&right[2], server_id_len_ - half_len));
 }
 
-QuicConnectionId LoadBalancerConfig::Encrypt(
-    absl::Span<uint8_t> connection_id) const {
-  if (connection_id.length() < total_len()) {
+QuicConnectionId LoadBalancerConfig::FourPassEncrypt(
+    absl::Span<uint8_t> plaintext) const {
+  if (!key_.has_value()) {
     return QuicConnectionId();
   }
-  if (!key_.has_value()) {  // Plaintext connection ID
-    // Fill the nonce field with a hash of the Connection ID to avoid the nonce
-    // visibly increasing by one. This would allow observers to correlate
-    // connection IDs as being sequential and likely from the same connection,
-    // not just the same server.
-    absl::uint128 nonce_hash = QuicUtils::FNV1a_128_Hash(absl::string_view(
-        reinterpret_cast<char*>(connection_id.data()), connection_id.length()));
-    const uint64_t lo = absl::Uint128Low64(nonce_hash);
-    if (nonce_len_ <= sizeof(uint64_t)) {
-      memcpy(connection_id.data() + 1 + server_id_len_, &lo, nonce_len_);
-      return QuicConnectionId(connection_id);
-    }
-    memcpy(connection_id.data() + 1 + server_id_len_, &lo, sizeof(uint64_t));
-    const uint64_t hi = absl::Uint128High64(nonce_hash);
-    memcpy(connection_id.data() + 1 + server_id_len_ + sizeof(uint64_t), &hi,
-           nonce_len_ - sizeof(uint64_t));
-    return QuicConnectionId(connection_id);
-  }
-  if (plaintext_len() == kLoadBalancerBlockSize) {
-    AES_encrypt(connection_id.subspan(1, plaintext_len()).data(),
-                connection_id.data() + 1, &*key_);
-    return QuicConnectionId(connection_id);
-  }
-  // 4 Pass Encryption
   uint8_t left[kLoadBalancerBlockSize];
   uint8_t right[kLoadBalancerBlockSize];
   uint8_t half_len;  // half the length of the plaintext, rounded up
   bool is_length_odd =
-      InitializeFourPass(connection_id.data(), left, right, &half_len);
+      InitializeFourPass(plaintext.data() + 1, left, right, &half_len);
   for (uint8_t index = 1; index <= kNumLoadBalancerCryptoPasses; ++index) {
     EncryptionPass(index, half_len, is_length_odd, left, right);
   }
@@ -181,13 +140,34 @@ QuicConnectionId LoadBalancerConfig::Encrypt(
     // Combine the halves of the odd byte.
     left[half_len + 1] |= right[2];
   }
-  memcpy(connection_id.data() + 1, &left[2], half_len);
+  memcpy(plaintext.data() + 1, &left[2], half_len);
   if (is_length_odd) {
-    memcpy(connection_id.data() + 1 + half_len, &right[3], half_len - 1);
+    memcpy(plaintext.data() + 1 + half_len, &right[3], half_len - 1);
   } else {
-    memcpy(connection_id.data() + 1 + half_len, &right[2], half_len);
+    memcpy(plaintext.data() + 1 + half_len, &right[2], half_len);
   }
-  return QuicConnectionId(connection_id);
+  return QuicConnectionId(reinterpret_cast<char*>(plaintext.data()),
+                          total_len());
+}
+
+bool LoadBalancerConfig::BlockEncrypt(
+    const uint8_t plaintext[kLoadBalancerBlockSize],
+    uint8_t ciphertext[kLoadBalancerBlockSize]) const {
+  if (!key_.has_value()) {
+    return false;
+  }
+  AES_encrypt(plaintext, ciphertext, &*key_);
+  return true;
+}
+
+bool LoadBalancerConfig::BlockDecrypt(
+    const uint8_t ciphertext[kLoadBalancerBlockSize],
+    uint8_t plaintext[kLoadBalancerBlockSize]) const {
+  if (!block_decrypt_key_.has_value()) {
+    return false;
+  }
+  AES_decrypt(ciphertext, plaintext, &*block_decrypt_key_);
+  return true;
 }
 
 LoadBalancerConfig::LoadBalancerConfig(const uint8_t config_id,
@@ -220,11 +200,11 @@ bool LoadBalancerConfig::InitializeFourPass(const uint8_t* input, uint8_t* left,
   left[0] = plaintext_len();
   right[0] = plaintext_len();
   // Leave left_[1], right_[1] as zero. It will be set for each pass.
-  memcpy(&left[2], input + 1, *half_len);
+  memcpy(&left[2], input, *half_len);
   // If is_length_odd, then both left and right will have part of the middle
   // byte. Then that middle byte will be split in half via the bitmask in the
   // next step.
-  memcpy(&right[2], input + (plaintext_len() / 2) + 1, *half_len);
+  memcpy(&right[2], input + (plaintext_len() / 2), *half_len);
   if (is_length_odd) {
     left[*half_len + 1] &= 0xf0;
     right[2] &= 0x0f;
