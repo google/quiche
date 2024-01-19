@@ -16,6 +16,8 @@ using QuicheTestWithParam = QuicheTestWithParamImpl<T>;
 
 using QuicheFlagSaver = QuicheFlagSaverImpl;
 
+using QuicheScopedDisableExitOnDFatal = QuicheScopedDisableExitOnDFatalImpl;
+
 // Class which needs to be instantiated in tests which use threads.
 using ScopedEnvironmentForThreads = ScopedEnvironmentForThreadsImpl;
 
