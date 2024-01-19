@@ -17,17 +17,11 @@
 namespace quic {
 
 LoadBalancerServerId::LoadBalancerServerId(absl::string_view data)
-    : LoadBalancerServerId(
-          absl::MakeSpan(reinterpret_cast<const uint8_t*>(data.data()),
-                         data.length()),
-          absl::Span<const uint8_t>()) {}
+    : LoadBalancerServerId(absl::MakeSpan(
+          reinterpret_cast<const uint8_t*>(data.data()), data.length())) {}
 
 LoadBalancerServerId::LoadBalancerServerId(absl::Span<const uint8_t> data)
-    : LoadBalancerServerId(data, absl::Span<const uint8_t>()) {}
-
-LoadBalancerServerId::LoadBalancerServerId(absl::Span<const uint8_t> data1,
-                                           absl::Span<const uint8_t> data2)
-    : length_(data1.length() + data2.length()) {
+    : length_(data.length()) {
   if (length_ == 0 || length_ > kLoadBalancerMaxServerIdLen) {
     QUIC_BUG(quic_bug_433312504_02)
         << "Attempted to create LoadBalancerServerId with length "
@@ -35,11 +29,15 @@ LoadBalancerServerId::LoadBalancerServerId(absl::Span<const uint8_t> data1,
     length_ = 0;
     return;
   }
-  memcpy(data_.data(), data1.data(), data1.length());
-  if (data2.empty()) {
-    return;
-  }
-  memcpy(data_.data() + data1.length(), data2.data(), data2.length());
+  memcpy(data_.data(), data.data(), data.length());
+}
+
+void LoadBalancerServerId::set_length(uint8_t length) {
+  QUIC_BUG_IF(quic_bug_599862571_01,
+              length == 0 || length > kLoadBalancerMaxServerIdLen)
+      << "Attempted to set LoadBalancerServerId length to "
+      << static_cast<int>(length);
+  length_ = length;
 }
 
 std::string LoadBalancerServerId::ToString() const {

@@ -8,14 +8,21 @@
 #include <cstdint>
 #include <optional>
 
+#include "absl/base/attributes.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/load_balancer/load_balancer_config.h"
 #include "quiche/quic/load_balancer/load_balancer_server_id.h"
+#include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
 
 // Manages QUIC-LB configurations to extract a server ID from a properly
 // encoded connection ID, usually on behalf of a load balancer.
+//
+// IMPORTANT: The decoder data path is likely the most performance-sensitive
+// part of the load balancer design, and this code has been carefully
+// optimized for performance. Please do not make changes without running the
+// benchmark tests to ensure there is no regression.
 class QUIC_EXPORT_PRIVATE LoadBalancerDecoder {
  public:
   // Returns false if the config_id codepoint is already occupied.
@@ -36,11 +43,13 @@ class QUIC_EXPORT_PRIVATE LoadBalancerDecoder {
     return &*config_[config_id];
   }
 
-  // Extract a server ID from |connection_id|. If there is no config for the
-  // codepoint, |connection_id| is too short, or there's a decrypt error,
-  // returns empty. Will accept |connection_id| that is longer than necessary
-  // without error.
-  LoadBalancerServerId GetServerId(const QuicConnectionId& connection_id) const;
+  // Extract a server ID from |connection_id| and write it into |server_id|. If
+  // there is no config for the codepoint, |connection_id| is too short, or
+  // there's a decrypt error, returns false. Will accept |connection_id| that is
+  // longer than necessary without error. If GetServerId() returns false, there
+  // are no guarantees about the properties of |server_id|.
+  ABSL_MUST_USE_RESULT bool GetServerId(const QuicConnectionId& connection_id,
+                                        LoadBalancerServerId& server_id) const;
 
   // Returns the config ID stored in the first two bits of |connection_id|, or
   // empty if |connection_id| is empty, or the first two bits of the first byte

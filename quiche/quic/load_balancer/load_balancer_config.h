@@ -31,8 +31,6 @@ inline constexpr uint8_t kConnectionIdLengthBits = 8 - kConfigIdBits;
 // find the maximum number of configs.
 inline constexpr uint8_t kNumLoadBalancerConfigs = (1 << kConfigIdBits) - 1;
 inline constexpr uint8_t kLoadBalancerKeyLen = 16;
-// Regardless of key length, the AES block size is always 16 Bytes.
-inline constexpr uint8_t kLoadBalancerBlockSize = 16;
 // The spec says nonces can be 18 bytes, but 16 lets it be a uint128.
 inline constexpr uint8_t kLoadBalancerMaxNonceLen = 16;
 inline constexpr uint8_t kLoadBalancerMinNonceLen = 4;
@@ -64,8 +62,13 @@ class QUIC_EXPORT_PRIVATE LoadBalancerConfig {
 
   // Returns an invalid Server ID if ciphertext is too small, or needed keys are
   // missing. |ciphertext| contains the full connection ID minus the first byte.
-  LoadBalancerServerId FourPassDecrypt(
-      absl::Span<const uint8_t> ciphertext) const;
+  //
+  // IMPORTANT: The decoder data path is likely the most performance-sensitive
+  // part of the load balancer design, and this code has been carefully
+  // optimized for performance. Please do not make changes without running the
+  // benchmark tests to ensure there is no regression.
+  bool FourPassDecrypt(absl::Span<const uint8_t> ciphertext,
+                       LoadBalancerServerId& server_id) const;
   // Returns an empty connection ID if the plaintext is too small, or needed
   // keys are missing. |plaintext| contains the full unencrypted connection ID,
   // including the first byte.

@@ -193,15 +193,16 @@ TEST_F(LoadBalancerConfigTest, EncryptionPassesAreReversible) {
 // LoadBalancerDecoderTest, respectively.
 
 TEST_F(LoadBalancerConfigTest, InvalidBlockEncryption) {
-  uint8_t pt[kLoadBalancerBlockSize], ct[kLoadBalancerBlockSize];
+  uint8_t pt[kLoadBalancerBlockSize + 1], ct[kLoadBalancerBlockSize];
   auto pt_config = LoadBalancerConfig::CreateUnencrypted(0, 8, 8);
   ASSERT_TRUE(pt_config.has_value());
   EXPECT_FALSE(pt_config->BlockEncrypt(pt, ct));
   EXPECT_FALSE(pt_config->BlockDecrypt(ct, pt));
   EXPECT_TRUE(pt_config->FourPassEncrypt(absl::Span<uint8_t>(pt, sizeof(pt)))
                   .IsEmpty());
-  EXPECT_FALSE(pt_config->FourPassDecrypt(absl::Span<uint8_t>(pt, sizeof(pt)))
-                   .IsValid());
+  LoadBalancerServerId answer;
+  EXPECT_FALSE(pt_config->FourPassDecrypt(
+      absl::Span<uint8_t>(pt, sizeof(pt) - 1), answer));
   auto small_cid_config =
       LoadBalancerConfig::Create(0, 3, 4, absl::string_view(raw_key, 16));
   ASSERT_TRUE(small_cid_config.has_value());
@@ -245,6 +246,20 @@ TEST_F(LoadBalancerConfigTest, ConfigIsCopyable) {
   EXPECT_EQ(memcmp(result, ctext, sizeof(ctext)), 0);
   EXPECT_TRUE(config2->BlockEncrypt(ptext, result));
   EXPECT_EQ(memcmp(result, ctext, sizeof(ctext)), 0);
+}
+
+TEST_F(LoadBalancerConfigTest, FourPassInputTooShort) {
+  auto config =
+      LoadBalancerConfig::Create(0, 3, 4, absl::string_view(raw_key, 16));
+  uint8_t input[] = {0x0d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9};
+  LoadBalancerServerId answer;
+  EXPECT_QUIC_BUG(
+      config->FourPassDecrypt(
+          absl::Span<const uint8_t>(input, sizeof(input) - 1), answer),
+      "Called FourPassDecrypt with a short Connection ID");
+  EXPECT_QUIC_BUG(
+      config->FourPassEncrypt(absl::Span<uint8_t>(input, sizeof(input))),
+      "Called FourPassEncrypt with a short Connection ID");
 }
 
 }  // namespace

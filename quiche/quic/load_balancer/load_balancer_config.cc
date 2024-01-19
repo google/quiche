@@ -89,10 +89,13 @@ std::optional<LoadBalancerConfig> LoadBalancerConfig::CreateUnencrypted(
              : std::optional<LoadBalancerConfig>();
 }
 
-LoadBalancerServerId LoadBalancerConfig::FourPassDecrypt(
-    absl::Span<const uint8_t> ciphertext) const {
+bool LoadBalancerConfig::FourPassDecrypt(
+    absl::Span<const uint8_t> ciphertext,
+    LoadBalancerServerId& server_id) const {
+  QUIC_BUG_IF(quic_bug_599862571_02, ciphertext.size() < plaintext_len())
+      << "Called FourPassDecrypt with a short Connection ID";
   if (!key_.has_value()) {
-    return LoadBalancerServerId();
+    return false;
   }
   // Do 3 or 4 passes. Only 3 are necessary if the server_id is short enough
   // to fit in the first half of the connection ID (the decoder doesn't need
@@ -112,18 +115,22 @@ LoadBalancerServerId LoadBalancerConfig::FourPassDecrypt(
   if (server_id_len_ < half_len ||
       (server_id_len_ == half_len && !is_length_odd)) {
     // There is no half-byte to handle
-    return LoadBalancerServerId(absl::Span<uint8_t>(&left[2], server_id_len_));
+    memcpy(server_id.mutable_data(), &left[2], server_id_len_);
+    return true;
   }
   if (is_length_odd) {
     right[2] |= left[half_len-- + 1];  // Combine the halves of the odd byte.
   }
-  return LoadBalancerServerId(
-      absl::Span<uint8_t>(&left[2], half_len),
-      absl::Span<uint8_t>(&right[2], server_id_len_ - half_len));
+  memcpy(server_id.mutable_data(), &left[2], half_len);
+  memcpy(server_id.mutable_data() + half_len, &right[2],
+         server_id_len_ - half_len);
+  return true;
 }
 
 QuicConnectionId LoadBalancerConfig::FourPassEncrypt(
     absl::Span<uint8_t> plaintext) const {
+  QUIC_BUG_IF(quic_bug_599862571_03, plaintext.size() < total_len())
+      << "Called FourPassEncrypt with a short Connection ID";
   if (!key_.has_value()) {
     return QuicConnectionId();
   }

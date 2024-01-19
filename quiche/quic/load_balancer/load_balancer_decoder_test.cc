@@ -56,8 +56,10 @@ TEST_F(LoadBalancerDecoderTest, UnencryptedConnectionIdTestVectors) {
       }};
   for (const auto& test : test_vectors) {
     LoadBalancerDecoder decoder;
+    LoadBalancerServerId answer;
     EXPECT_TRUE(decoder.AddConfig(test.config));
-    EXPECT_EQ(decoder.GetServerId(test.connection_id), test.server_id);
+    EXPECT_TRUE(decoder.GetServerId(test.connection_id, answer));
+    EXPECT_EQ(answer, test.server_id);
   }
 }
 
@@ -97,19 +99,10 @@ TEST_F(LoadBalancerDecoderTest, DecoderTestVectors) {
   for (const auto& test : test_vectors) {
     LoadBalancerDecoder decoder;
     EXPECT_TRUE(decoder.AddConfig(test.config));
-    EXPECT_EQ(decoder.GetServerId(test.connection_id), test.server_id);
+    LoadBalancerServerId answer;
+    EXPECT_TRUE(decoder.GetServerId(test.connection_id, answer));
+    EXPECT_EQ(answer, test.server_id);
   }
-}
-
-TEST_F(LoadBalancerDecoderTest, NoServerIdEntry) {
-  LoadBalancerServerId server_id({0x01, 0x02, 0x03});
-  EXPECT_TRUE(server_id.IsValid());
-  LoadBalancerDecoder decoder;
-  EXPECT_TRUE(
-      decoder.AddConfig(*LoadBalancerConfig::CreateUnencrypted(0, 3, 4)));
-  QuicConnectionId no_server_id_entry(
-      {0x00, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08});
-  EXPECT_TRUE(decoder.GetServerId(no_server_id_entry).IsValid());
 }
 
 TEST_F(LoadBalancerDecoderTest, InvalidConfigId) {
@@ -120,10 +113,10 @@ TEST_F(LoadBalancerDecoderTest, InvalidConfigId) {
       decoder.AddConfig(*LoadBalancerConfig::CreateUnencrypted(1, 3, 4)));
   QuicConnectionId wrong_config_id(
       {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07});
-  EXPECT_FALSE(decoder
-                   .GetServerId(QuicConnectionId(
-                       {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}))
-                   .IsValid());
+  LoadBalancerServerId answer;
+  EXPECT_FALSE(decoder.GetServerId(
+      QuicConnectionId({0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}),
+      answer));
 }
 
 TEST_F(LoadBalancerDecoderTest, UnroutableCodepoint) {
@@ -132,10 +125,10 @@ TEST_F(LoadBalancerDecoderTest, UnroutableCodepoint) {
   LoadBalancerDecoder decoder;
   EXPECT_TRUE(
       decoder.AddConfig(*LoadBalancerConfig::CreateUnencrypted(1, 3, 4)));
-  EXPECT_FALSE(decoder
-                   .GetServerId(QuicConnectionId(
-                       {0xe0, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}))
-                   .IsValid());
+  LoadBalancerServerId answer;
+  EXPECT_FALSE(decoder.GetServerId(
+      QuicConnectionId({0xe0, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}),
+      answer));
 }
 
 TEST_F(LoadBalancerDecoderTest, UnroutableCodepointAnyLength) {
@@ -144,7 +137,8 @@ TEST_F(LoadBalancerDecoderTest, UnroutableCodepointAnyLength) {
   LoadBalancerDecoder decoder;
   EXPECT_TRUE(
       decoder.AddConfig(*LoadBalancerConfig::CreateUnencrypted(1, 3, 4)));
-  EXPECT_FALSE(decoder.GetServerId(QuicConnectionId({0xff})).IsValid());
+  LoadBalancerServerId answer;
+  EXPECT_FALSE(decoder.GetServerId(QuicConnectionId({0xff}), answer));
 }
 
 TEST_F(LoadBalancerDecoderTest, ConnectionIdTooShort) {
@@ -153,10 +147,9 @@ TEST_F(LoadBalancerDecoderTest, ConnectionIdTooShort) {
   LoadBalancerDecoder decoder;
   EXPECT_TRUE(
       decoder.AddConfig(*LoadBalancerConfig::CreateUnencrypted(0, 3, 4)));
-  EXPECT_FALSE(decoder
-                   .GetServerId(QuicConnectionId(
-                       {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}))
-                   .IsValid());
+  LoadBalancerServerId answer;
+  EXPECT_FALSE(decoder.GetServerId(
+      QuicConnectionId({0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}), answer));
 }
 
 TEST_F(LoadBalancerDecoderTest, ConnectionIdTooLongIsOK) {
@@ -164,10 +157,11 @@ TEST_F(LoadBalancerDecoderTest, ConnectionIdTooLongIsOK) {
   LoadBalancerDecoder decoder;
   EXPECT_TRUE(
       decoder.AddConfig(*LoadBalancerConfig::CreateUnencrypted(0, 3, 4)));
-  auto server_id_result = decoder.GetServerId(
-      QuicConnectionId({0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}));
-  EXPECT_TRUE(server_id_result.IsValid());
-  EXPECT_EQ(server_id_result, server_id);
+  LoadBalancerServerId answer;
+  EXPECT_TRUE(decoder.GetServerId(
+      QuicConnectionId({0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}),
+      answer));
+  EXPECT_EQ(answer, server_id);
 }
 
 TEST_F(LoadBalancerDecoderTest, DeleteConfigBadId) {
@@ -176,20 +170,20 @@ TEST_F(LoadBalancerDecoderTest, DeleteConfigBadId) {
   decoder.DeleteConfig(0);
   EXPECT_QUIC_BUG(decoder.DeleteConfig(7),
                   "Decoder deleting config with invalid config_id 7");
-  EXPECT_TRUE(decoder
-                  .GetServerId(QuicConnectionId(
-                      {0x40, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}))
-                  .IsValid());
+  LoadBalancerServerId answer;
+  EXPECT_TRUE(decoder.GetServerId(
+      QuicConnectionId({0x40, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}),
+      answer));
 }
 
 TEST_F(LoadBalancerDecoderTest, DeleteConfigGoodId) {
   LoadBalancerDecoder decoder;
   decoder.AddConfig(*LoadBalancerConfig::CreateUnencrypted(2, 3, 4));
   decoder.DeleteConfig(2);
-  EXPECT_FALSE(decoder
-                   .GetServerId(QuicConnectionId(
-                       {0x40, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}))
-                   .IsValid());
+  LoadBalancerServerId answer;
+  EXPECT_FALSE(decoder.GetServerId(
+      QuicConnectionId({0x40, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}),
+      answer));
 }
 
 // Create two server IDs and make sure the decoder decodes the correct one.
@@ -200,12 +194,15 @@ TEST_F(LoadBalancerDecoderTest, TwoServerIds) {
   LoadBalancerDecoder decoder;
   EXPECT_TRUE(
       decoder.AddConfig(*LoadBalancerConfig::CreateUnencrypted(0, 3, 4)));
-  EXPECT_EQ(decoder.GetServerId(QuicConnectionId(
-                {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07})),
-            server_id1);
-  EXPECT_EQ(decoder.GetServerId(QuicConnectionId(
-                {0x00, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a})),
-            server_id2);
+  LoadBalancerServerId answer;
+  EXPECT_TRUE(decoder.GetServerId(
+      QuicConnectionId({0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}),
+      answer));
+  EXPECT_EQ(answer, server_id1);
+  EXPECT_TRUE(decoder.GetServerId(
+      QuicConnectionId({0x00, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a}),
+      answer));
+  EXPECT_EQ(answer, server_id2);
 }
 
 TEST_F(LoadBalancerDecoderTest, GetConfigId) {
@@ -250,8 +247,9 @@ TEST_F(LoadBalancerDecoderTest, OnePassIgnoreAdditionalBytes) {
       *LoadBalancerConfig::Create(0, 8, 8, absl::string_view(kRawKey, 16)));
   LoadBalancerServerId original_server_id(absl::Span<uint8_t>(&ptext[1], 8));
   QuicConnectionId cid(absl::Span<uint8_t>(ctext, sizeof(ctext)));
-  LoadBalancerServerId server_id = decoder.GetServerId(cid);
-  EXPECT_EQ(server_id, original_server_id);
+  LoadBalancerServerId answer;
+  EXPECT_TRUE(decoder.GetServerId(cid, answer));
+  EXPECT_EQ(answer, original_server_id);
 }
 
 }  // namespace

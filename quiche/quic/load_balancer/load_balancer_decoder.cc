@@ -36,36 +36,34 @@ void LoadBalancerDecoder::DeleteConfig(uint8_t config_id) {
 
 // This is the core logic to extract a server ID given a valid config and
 // connection ID of sufficient length.
-LoadBalancerServerId LoadBalancerDecoder::GetServerId(
-    const QuicConnectionId& connection_id) const {
+bool LoadBalancerDecoder::GetServerId(const QuicConnectionId& connection_id,
+                                      LoadBalancerServerId& server_id) const {
   std::optional<uint8_t> config_id = GetConfigId(connection_id);
   if (!config_id.has_value()) {
-    return LoadBalancerServerId();
+    return false;
   }
   std::optional<LoadBalancerConfig> config = config_[*config_id];
   if (!config.has_value()) {
-    return LoadBalancerServerId();
+    return false;
   }
   // Benchmark tests show that minimizing the computation inside
   // LoadBalancerConfig saves CPU cycles.
   if (connection_id.length() < config->total_len()) {
-    return LoadBalancerServerId();
+    return false;
   }
   const uint8_t* data =
       reinterpret_cast<const uint8_t*>(connection_id.data()) + 1;
   uint8_t server_id_len = config->server_id_len();
+  server_id.set_length(server_id_len);
   if (!config->IsEncrypted()) {
-    return LoadBalancerServerId(absl::Span<const uint8_t>(data, server_id_len));
+    memcpy(server_id.mutable_data(), connection_id.data() + 1, server_id_len);
+    return true;
   }
   if (config->plaintext_len() == kLoadBalancerBlockSize) {
-    uint8_t scratch[kLoadBalancerBlockSize];
-    if (!config->BlockDecrypt(data, scratch)) {
-      return LoadBalancerServerId();
-    }
-    return LoadBalancerServerId(absl::Span<uint8_t>(scratch, server_id_len));
+    return config->BlockDecrypt(data, server_id.mutable_data());
   }
   return config->FourPassDecrypt(
-      absl::MakeConstSpan(data, connection_id.length() - 1));
+      absl::MakeConstSpan(data, connection_id.length() - 1), server_id);
 }
 
 std::optional<uint8_t> LoadBalancerDecoder::GetConfigId(
