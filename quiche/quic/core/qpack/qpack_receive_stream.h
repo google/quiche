@@ -32,6 +32,11 @@ class QUICHE_EXPORT QpackReceiveStream : public QuicStream {
   // Implementation of QuicStream.
   void OnDataAvailable() override;
 
+  // Number of incoming bytes that have been consumed on this stream.
+  QuicStreamOffset NumBytesConsumed() const {
+    return sequencer()->NumBytesConsumed();
+  }
+
  private:
   QpackStreamReceiver* receiver_;
 };
