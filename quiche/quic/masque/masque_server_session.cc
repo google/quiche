@@ -389,58 +389,75 @@ MasqueServerSession::MaybeCheckSignatureAuth(
 std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     const spdy::Http2HeaderBlock& request_headers,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
-  auto path_pair = request_headers.find(":path");
-  auto scheme_pair = request_headers.find(":scheme");
-  auto method_pair = request_headers.find(":method");
-  auto protocol_pair = request_headers.find(":protocol");
+  // Authority.
   auto authority_pair = request_headers.find(":authority");
-  if (path_pair == request_headers.end()) {
-    QUIC_DLOG(ERROR) << "MASQUE request is missing :path";
-    return CreateBackendErrorResponse("400", "Missing :path");
-  }
-  if (scheme_pair == request_headers.end()) {
-    QUIC_DLOG(ERROR) << "MASQUE request is missing :scheme";
-    return CreateBackendErrorResponse("400", "Missing :scheme");
-  }
-  if (method_pair == request_headers.end()) {
-    QUIC_DLOG(ERROR) << "MASQUE request is missing :method";
-    return CreateBackendErrorResponse("400", "Missing :method");
-  }
-  if (protocol_pair == request_headers.end()) {
-    QUIC_DLOG(ERROR) << "MASQUE request is missing :protocol";
-    return CreateBackendErrorResponse("400", "Missing :protocol");
-  }
   if (authority_pair == request_headers.end()) {
     QUIC_DLOG(ERROR) << "MASQUE request is missing :authority";
     return CreateBackendErrorResponse("400", "Missing :authority");
   }
-  absl::string_view path = path_pair->second;
-  absl::string_view scheme = scheme_pair->second;
-  absl::string_view method = method_pair->second;
-  absl::string_view protocol = protocol_pair->second;
   absl::string_view authority = authority_pair->second;
-  if (path.empty()) {
-    QUIC_DLOG(ERROR) << "MASQUE request with empty path";
-    return CreateBackendErrorResponse("400", "Empty path");
+  // Scheme.
+  auto scheme_pair = request_headers.find(":scheme");
+  if (scheme_pair == request_headers.end()) {
+    QUIC_DLOG(ERROR) << "MASQUE request is missing :scheme";
+    return CreateBackendErrorResponse("400", "Missing :scheme");
   }
+  absl::string_view scheme = scheme_pair->second;
   if (scheme.empty()) {
     return CreateBackendErrorResponse("400", "Empty scheme");
   }
-  if (method != "CONNECT") {
-    QUIC_DLOG(ERROR) << "MASQUE request with bad method \"" << method << "\"";
-    return CreateBackendErrorResponse("400", "Bad method");
-  }
-  if (protocol != "connect-udp" && protocol != "connect-ip" &&
-      protocol != "connect-ethernet") {
-    QUIC_DLOG(ERROR) << "MASQUE request with bad protocol \"" << protocol
-                     << "\"";
-    return CreateBackendErrorResponse("400", "Bad protocol");
-  }
-
+  // Signature authentication.
   auto signature_auth_reply = MaybeCheckSignatureAuth(
       request_headers, authority, scheme, request_handler);
   if (signature_auth_reply) {
     return signature_auth_reply;
+  }
+  // Path.
+  auto path_pair = request_headers.find(":path");
+  if (path_pair == request_headers.end()) {
+    QUIC_DLOG(ERROR) << "MASQUE request is missing :path";
+    return CreateBackendErrorResponse("400", "Missing :path");
+  }
+  absl::string_view path = path_pair->second;
+  if (path.empty()) {
+    QUIC_DLOG(ERROR) << "MASQUE request with empty path";
+    return CreateBackendErrorResponse("400", "Empty path");
+  }
+  // Method.
+  auto method_pair = request_headers.find(":method");
+  if (method_pair == request_headers.end()) {
+    QUIC_DLOG(ERROR) << "MASQUE request is missing :method";
+    return CreateBackendErrorResponse("400", "Missing :method");
+  }
+  absl::string_view method = method_pair->second;
+  if (method != "CONNECT") {
+    QUIC_DLOG(ERROR) << "MASQUE request with bad method \"" << method << "\"";
+    if (masque_server_backend_->IsSignatureAuthOnAllRequests()) {
+      return nullptr;
+    } else {
+      return CreateBackendErrorResponse("400", "Bad method");
+    }
+  }
+  // Protocol.
+  auto protocol_pair = request_headers.find(":protocol");
+  if (protocol_pair == request_headers.end()) {
+    QUIC_DLOG(ERROR) << "MASQUE request is missing :protocol";
+    if (masque_server_backend_->IsSignatureAuthOnAllRequests()) {
+      return nullptr;
+    } else {
+      return CreateBackendErrorResponse("400", "Missing :protocol");
+    }
+  }
+  absl::string_view protocol = protocol_pair->second;
+  if (protocol != "connect-udp" && protocol != "connect-ip" &&
+      protocol != "connect-ethernet") {
+    QUIC_DLOG(ERROR) << "MASQUE request with bad protocol \"" << protocol
+                     << "\"";
+    if (masque_server_backend_->IsSignatureAuthOnAllRequests()) {
+      return nullptr;
+    } else {
+      return CreateBackendErrorResponse("400", "Bad protocol");
+    }
   }
 
   if (protocol == "connect-ip") {

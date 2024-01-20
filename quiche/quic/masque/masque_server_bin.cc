@@ -46,6 +46,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "Separated with colons and semicolons. "
     "For example: \"kid1:0123...f;kid2:0123...f\".");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, signature_auth_on_all_requests, false,
+    "If set to true, enable signature auth on all requests (such as GET) "
+    "instead of just MASQUE.");
+
 int main(int argc, char* argv[]) {
   const char* usage = "Usage: masque_server [options]";
   std::vector<std::string> non_option_args =
@@ -69,6 +74,8 @@ int main(int argc, char* argv[]) {
 
   backend->SetSignatureAuth(
       quiche::GetQuicheCommandLineFlag(FLAGS_signature_auth));
+  backend->SetSignatureAuthOnAllRequests(
+      quiche::GetQuicheCommandLineFlag(FLAGS_signature_auth_on_all_requests));
 
   auto server =
       std::make_unique<quic::MasqueServer>(masque_mode, backend.get());

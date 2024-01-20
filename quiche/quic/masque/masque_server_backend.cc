@@ -59,7 +59,9 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
        protocol_pair->second != "connect-ip" &&
        protocol_pair->second != "connect-ethernet")) {
     // This is not a MASQUE request.
-    return false;
+    if (!signature_auth_on_all_requests_) {
+      return false;
+    }
   }
 
   if (!server_authority_.empty()) {

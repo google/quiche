@@ -254,7 +254,7 @@ std::string ComputeSignatureAuthContext(uint16_t signature_scheme,
 std::string SignatureAuthDataCoveredBySignature(
     absl::string_view signature_input) {
   return absl::StrCat(std::string(64, 0x20), "HTTP Signature Authentication",
-                      "\0", signature_input);
+                      std::string(1, 0x00), signature_input);
 }
 
 }  // namespace quic

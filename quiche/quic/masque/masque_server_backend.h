@@ -83,6 +83,16 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
       absl::string_view key_id,
       uint8_t out_public_key[ED25519_PUBLIC_KEY_LEN]) const;
 
+  // Enable signature auth on all requests (e.g., GET) instead of just MASQUE.
+  void SetSignatureAuthOnAllRequests(bool signature_auth_on_all_requests) {
+    signature_auth_on_all_requests_ = signature_auth_on_all_requests;
+  }
+
+  // Whether signature auth is enabled on all requests (e.g., GET).
+  bool IsSignatureAuthOnAllRequests() const {
+    return signature_auth_on_all_requests_;
+  }
+
  private:
   // Handle MASQUE request.
   bool MaybeHandleMasqueRequest(
@@ -105,6 +115,7 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
     uint8_t public_key[ED25519_PUBLIC_KEY_LEN];
   };
   std::list<SignatureAuthCredential> signature_auth_credentials_;
+  bool signature_auth_on_all_requests_ = false;
 };
 
 }  // namespace quic
