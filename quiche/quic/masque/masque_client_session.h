@@ -38,7 +38,8 @@ namespace quic {
 // frames for operation of the MASQUE protocol. Multiple end-to-end encapsulated
 // sessions can then coexist inside this session. Once these are created, they
 // need to be registered with this session.
-class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
+class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
+                                           public QuicSpdyStream::Visitor {
  public:
   // Interface meant to be implemented by the owner of the
   // MasqueClientSession instance.
@@ -167,6 +168,12 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   void set_additional_headers(absl::string_view additional_headers) {
     additional_headers_ = additional_headers;
   }
+
+  // Send a GET request to the MASQUE proxy itself.
+  QuicSpdyClientStream* SendGetRequest(absl::string_view path);
+
+  // QuicSpdyStream::Visitor
+  void OnClose(QuicSpdyStream* stream) override;
 
   // Set the signature auth key ID and private key. key_id MUST be non-empty,
   // private_key MUST be ED25519_PRIVATE_KEY_LEN bytes long and public_key MUST

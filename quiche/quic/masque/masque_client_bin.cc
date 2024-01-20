@@ -22,6 +22,7 @@
 #include "absl/strings/string_view.h"
 #include "openssl/curve25519.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
+#include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_clock.h"
@@ -438,10 +439,18 @@ int RunMasqueClient(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_dns_on_client);
 
   for (size_t i = 1; i < urls.size(); ++i) {
-    if (!tools::SendEncapsulatedMasqueRequest(
-            masque_client.get(), event_loop.get(), urls[i],
-            disable_certificate_verification, address_family_for_lookup,
-            dns_on_client)) {
+    if (urls[i].starts_with("/")) {
+      QuicSpdyClientStream* stream =
+          masque_client->masque_client_session()->SendGetRequest(urls[i]);
+      while (stream->time_to_response_complete().IsInfinite()) {
+        event_loop->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(50));
+      }
+      // Print the response body to stdout.
+      std::cout << std::endl << stream->data() << std::endl;
+    } else if (!tools::SendEncapsulatedMasqueRequest(
+                   masque_client.get(), event_loop.get(), urls[i],
+                   disable_certificate_verification, address_family_for_lookup,
+                   dns_on_client)) {
       return 1;
     }
   }

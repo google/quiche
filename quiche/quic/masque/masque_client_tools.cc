@@ -64,6 +64,10 @@ bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
                                    bool disable_certificate_verification,
                                    int address_family_for_lookup,
                                    bool dns_on_client) {
+  if (!masque_client->masque_client_session()->SupportsH3Datagram()) {
+    QUIC_LOG(ERROR) << "Refusing to use MASQUE without datagram support";
+    return false;
+  }
   const QuicUrl url(url_string, "https");
   std::unique_ptr<ProofVerifier> proof_verifier;
   if (disable_certificate_verification) {

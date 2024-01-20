@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_config.h"
@@ -225,7 +226,10 @@ std::string ComputeSignatureAuthContext(uint16_t signature_scheme,
                                         absl::string_view scheme,
                                         absl::string_view host, uint16_t port,
                                         absl::string_view realm) {
-  std::string key_exporter_output;
+  QUIC_DVLOG(2) << "ComputeSignatureAuthContext: key_id=\"" << key_id
+                << "\" public_key=" << absl::WebSafeBase64Escape(public_key)
+                << " scheme=\"" << scheme << "\" host=\"" << host
+                << "\" port=" << port << " realm=\"" << realm << "\"";
   std::string key_exporter_context;
   key_exporter_context.resize(
       sizeof(signature_scheme) + QuicDataWriter::GetVarInt62Len(key_id.size()) +
@@ -244,7 +248,7 @@ std::string ComputeSignatureAuthContext(uint16_t signature_scheme,
       !writer.WriteStringPieceVarInt62(realm) || writer.remaining() != 0) {
     QUIC_LOG(FATAL) << "ComputeSignatureAuthContext failed";
   }
-  return key_exporter_output;
+  return key_exporter_context;
 }
 
 std::string SignatureAuthDataCoveredBySignature(

@@ -171,6 +171,7 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   headers[":path"] = canonicalized_path;
   headers["connect-udp-version"] = "12";
   AddAdditionalHeaders(headers, url);
+  QUIC_DVLOG(1) << "Sending request headers: " << headers.DebugString();
   size_t bytes_sent =
       stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
   if (bytes_sent == 0) {
@@ -218,6 +219,7 @@ MasqueClientSession::GetOrCreateConnectIpClientState(
   headers[":path"] = path;
   headers["connect-ip-version"] = "3";
   AddAdditionalHeaders(headers, url);
+  QUIC_DVLOG(1) << "Sending request headers: " << headers.DebugString();
   size_t bytes_sent =
       stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
   if (bytes_sent == 0) {
@@ -267,6 +269,7 @@ MasqueClientSession::GetOrCreateConnectEthernetClientState(
   headers[":authority"] = authority;
   headers[":path"] = path;
   AddAdditionalHeaders(headers, url);
+  QUIC_DVLOG(1) << "Sending request headers: " << headers.DebugString();
   size_t bytes_sent =
       stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/false);
   if (bytes_sent == 0) {
@@ -486,8 +489,7 @@ bool MasqueClientSession::OnSettingsFrame(const SettingsFrame& frame) {
     return false;
   }
   if (!SupportsH3Datagram()) {
-    QUIC_DLOG(ERROR) << "Refusing to use MASQUE without HTTP/3 Datagrams";
-    return false;
+    QUIC_DLOG(ERROR) << "Warning: MasqueClientSession without HTTP/3 Datagrams";
   }
   QUIC_DLOG(INFO) << "Using HTTP Datagram: " << http_datagram_support();
   owner_->OnSettingsReceived();
@@ -719,6 +721,47 @@ void MasqueClientSession::EnableSignatureAuth(absl::string_view key_id,
   signature_auth_public_key_ = public_key;
 }
 
+QuicSpdyClientStream* MasqueClientSession::SendGetRequest(
+    absl::string_view path) {
+  QuicSpdyClientStream* stream = CreateOutgoingBidirectionalStream();
+  if (stream == nullptr) {
+    // Stream flow control limits prevented us from opening a new stream.
+    QUIC_DLOG(ERROR) << "Failed to open GET stream";
+    return nullptr;
+  }
+
+  QuicUrl url(uri_template_);
+  std::string scheme = url.scheme();
+  std::string authority = url.HostPort();
+
+  QUIC_DLOG(INFO) << "Sending GET request on stream " << stream->id()
+                  << " scheme=\"" << scheme << "\" authority=\"" << authority
+                  << "\" path=\"" << path << "\"";
+
+  // Send the request.
+  spdy::Http2HeaderBlock headers;
+  headers[":method"] = "GET";
+  headers[":scheme"] = scheme;
+  headers[":authority"] = authority;
+  headers[":path"] = path;
+  AddAdditionalHeaders(headers, url);
+  QUIC_DVLOG(1) << "Sending request headers: " << headers.DebugString();
+  // Setting the stream visitor is required to enable reading of the response
+  // body from the stream.
+  stream->set_visitor(this);
+  size_t bytes_sent =
+      stream->SendRequest(std::move(headers), /*body=*/"", /*fin=*/true);
+  if (bytes_sent == 0) {
+    QUIC_DLOG(ERROR) << "Failed to send GET request";
+    return nullptr;
+  }
+  return stream;
+}
+
+void MasqueClientSession::OnClose(QuicSpdyStream* stream) {
+  QUIC_DVLOG(1) << "Closing stream " << stream->id();
+}
+
 std::optional<std::string> MasqueClientSession::ComputeSignatureAuthHeader(
     const QuicUrl& url) {
   if (signature_auth_private_key_.empty()) {
@@ -732,6 +775,9 @@ std::optional<std::string> MasqueClientSession::ComputeSignatureAuthHeader(
   std::string key_exporter_context = ComputeSignatureAuthContext(
       kEd25519SignatureScheme, signature_auth_key_id_,
       signature_auth_public_key_, scheme, host, port, realm);
+  QUIC_DVLOG(1) << "key_exporter_context: "
+                << absl::WebSafeBase64Escape(key_exporter_context);
+  QUICHE_DCHECK(!key_exporter_context.empty());
   if (!GetMutableCryptoStream()->ExportKeyingMaterial(
           kSignatureAuthLabel, key_exporter_context, kSignatureAuthExporterSize,
           &key_exporter_output)) {
@@ -741,10 +787,14 @@ std::optional<std::string> MasqueClientSession::ComputeSignatureAuthHeader(
   QUICHE_CHECK_EQ(key_exporter_output.size(), kSignatureAuthExporterSize);
   std::string signature_input =
       key_exporter_output.substr(0, kSignatureAuthSignatureInputSize);
+  QUIC_DVLOG(1) << "signature_input: "
+                << absl::WebSafeBase64Escape(signature_input);
   std::string verification = key_exporter_output.substr(
       kSignatureAuthSignatureInputSize, kSignatureAuthVerificationSize);
   std::string data_covered_by_signature =
       SignatureAuthDataCoveredBySignature(signature_input);
+  QUIC_DVLOG(1) << "data_covered_by_signature: "
+                << absl::WebSafeBase64Escape(data_covered_by_signature);
   uint8_t signature[ED25519_SIGNATURE_LEN];
   if (ED25519_sign(
           signature,

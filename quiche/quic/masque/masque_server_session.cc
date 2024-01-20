@@ -23,6 +23,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "openssl/curve25519.h"
@@ -327,7 +328,7 @@ MasqueServerSession::MaybeCheckSignatureAuth(
                                       "Unexpected public key in header");
   }
   std::string realm = "";
-  QuicUrl url(authority, scheme);
+  QuicUrl url(absl::StrCat(scheme, "://", authority, "/"));
   std::optional<std::string> key_exporter_context = ComputeSignatureAuthContext(
       kEd25519SignatureScheme, *key_id, *header_public_key, scheme, url.host(),
       url.port(), realm);
@@ -335,6 +336,9 @@ MasqueServerSession::MaybeCheckSignatureAuth(
     return CreateBackendErrorResponse(
         "500", "Failed to generate key exporter context");
   }
+  QUIC_DVLOG(1) << "key_exporter_context: "
+                << absl::WebSafeBase64Escape(*key_exporter_context);
+  QUICHE_DCHECK(!key_exporter_context->empty());
   std::string key_exporter_output;
   if (!GetMutableCryptoStream()->ExportKeyingMaterial(
           kSignatureAuthLabel, *key_exporter_context,
@@ -344,14 +348,23 @@ MasqueServerSession::MaybeCheckSignatureAuth(
   QUICHE_CHECK_EQ(key_exporter_output.size(), kSignatureAuthExporterSize);
   std::string signature_input =
       key_exporter_output.substr(0, kSignatureAuthSignatureInputSize);
+  QUIC_DVLOG(1) << "signature_input: "
+                << absl::WebSafeBase64Escape(signature_input);
   std::string expected_verification = key_exporter_output.substr(
       kSignatureAuthSignatureInputSize, kSignatureAuthVerificationSize);
   if (verification != expected_verification) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
-                                      "Unexpected verification");
+    return CreateBackendErrorResponse(
+        kSignatureAuthStatus,
+        absl::StrCat("Unexpected verification, expected ",
+                     absl::WebSafeBase64Escape(expected_verification),
+                     " but got ", absl::WebSafeBase64Escape(*verification),
+                     " - key exporter context was ",
+                     absl::WebSafeBase64Escape(*key_exporter_context)));
   }
   std::string data_covered_by_signature =
       SignatureAuthDataCoveredBySignature(signature_input);
+  QUIC_DVLOG(1) << "data_covered_by_signature: "
+                << absl::WebSafeBase64Escape(data_covered_by_signature);
   if (*signature_scheme != kEd25519SignatureScheme) {
     return CreateBackendErrorResponse(kSignatureAuthStatus,
                                       "Unexpected signature scheme");
