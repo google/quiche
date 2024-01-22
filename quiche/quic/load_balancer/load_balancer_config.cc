@@ -92,8 +92,11 @@ std::optional<LoadBalancerConfig> LoadBalancerConfig::CreateUnencrypted(
 bool LoadBalancerConfig::FourPassDecrypt(
     absl::Span<const uint8_t> ciphertext,
     LoadBalancerServerId& server_id) const {
-  QUIC_BUG_IF(quic_bug_599862571_02, ciphertext.size() < plaintext_len())
-      << "Called FourPassDecrypt with a short Connection ID";
+  if (ciphertext.size() < plaintext_len()) {
+    QUIC_BUG(quic_bug_599862571_02)
+        << "Called FourPassDecrypt with a short Connection ID";
+    return false;
+  }
   if (!key_.has_value()) {
     return false;
   }
@@ -129,8 +132,11 @@ bool LoadBalancerConfig::FourPassDecrypt(
 
 QuicConnectionId LoadBalancerConfig::FourPassEncrypt(
     absl::Span<uint8_t> plaintext) const {
-  QUIC_BUG_IF(quic_bug_599862571_03, plaintext.size() < total_len())
-      << "Called FourPassEncrypt with a short Connection ID";
+  if (plaintext.size() < total_len()) {
+    QUIC_BUG(quic_bug_599862571_03)
+        << "Called FourPassEncrypt with a short Connection ID";
+    return QuicConnectionId();
+  }
   if (!key_.has_value()) {
     return QuicConnectionId();
   }

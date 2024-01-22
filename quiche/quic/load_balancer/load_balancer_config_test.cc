@@ -253,13 +253,17 @@ TEST_F(LoadBalancerConfigTest, FourPassInputTooShort) {
       LoadBalancerConfig::Create(0, 3, 4, absl::string_view(raw_key, 16));
   uint8_t input[] = {0x0d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9};
   LoadBalancerServerId answer;
+  bool decrypt_result;
   EXPECT_QUIC_BUG(
-      config->FourPassDecrypt(
+      decrypt_result = config->FourPassDecrypt(
           absl::Span<const uint8_t>(input, sizeof(input) - 1), answer),
       "Called FourPassDecrypt with a short Connection ID");
-  EXPECT_QUIC_BUG(
-      config->FourPassEncrypt(absl::Span<uint8_t>(input, sizeof(input))),
-      "Called FourPassEncrypt with a short Connection ID");
+  EXPECT_FALSE(decrypt_result);
+  QuicConnectionId encrypt_result;
+  EXPECT_QUIC_BUG(encrypt_result = config->FourPassEncrypt(
+                      absl::Span<uint8_t>(input, sizeof(input))),
+                  "Called FourPassEncrypt with a short Connection ID");
+  EXPECT_TRUE(encrypt_result.IsEmpty());
 }
 
 }  // namespace
