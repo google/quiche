@@ -53,4 +53,6 @@ inline std::string QuicheGetTestMemoryCachePathImpl() {
   return "quiche/quic/test_tools/quic_http_response_cache_data";
 }
 
+class QuicheScopedDisableExitOnDFatalImpl {};
+
 #endif  // QUICHE_COMMON_PLATFORM_DEFAULT_QUICHE_PLATFORM_IMPL_QUICHE_TEST_IMPL_H_

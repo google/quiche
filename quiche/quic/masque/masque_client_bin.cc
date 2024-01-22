@@ -439,7 +439,7 @@ int RunMasqueClient(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_dns_on_client);
 
   for (size_t i = 1; i < urls.size(); ++i) {
-    if (urls[i].starts_with("/")) {
+    if (absl::StartsWith(urls[i], "/")) {
       QuicSpdyClientStream* stream =
           masque_client->masque_client_session()->SendGetRequest(urls[i]);
       while (stream->time_to_response_complete().IsInfinite()) {
