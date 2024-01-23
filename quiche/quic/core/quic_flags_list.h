@@ -78,7 +78,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_skip_return_on_null_visitor, true)
 // If true, enable server retransmittable on wire PING.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_server_on_wire_ping, true)
 // If true, fix a QUIC BBR2 bytes counting issue caused by spurious losses.
-QUIC_FLAG(quic_reloadable_flag_quic_bbr2_fix_spurious_loss_bytes_counting, false)
+QUIC_FLAG(quic_reloadable_flag_quic_bbr2_fix_spurious_loss_bytes_counting, true)
 // If true, include stream information in idle timeout connection close detail.
 QUIC_FLAG(quic_reloadable_flag_quic_add_stream_info_to_idle_close_detail, true)
 // If true, reject or send error response code upon receiving invalid request or response headers.
