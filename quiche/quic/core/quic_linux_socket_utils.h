@@ -44,20 +44,20 @@
 
 namespace quic {
 
-const int kCmsgSpaceForIpv4 = CMSG_SPACE(sizeof(in_pktinfo));
-const int kCmsgSpaceForIpv6 = CMSG_SPACE(sizeof(in6_pktinfo));
+inline constexpr int kCmsgSpaceForIpv4 = CMSG_SPACE(sizeof(in_pktinfo));
+inline constexpr int kCmsgSpaceForIpv6 = CMSG_SPACE(sizeof(in6_pktinfo));
 // kCmsgSpaceForIp should be big enough to hold both IPv4 and IPv6 packet info.
-const int kCmsgSpaceForIp = (kCmsgSpaceForIpv4 < kCmsgSpaceForIpv6)
-                                ? kCmsgSpaceForIpv6
-                                : kCmsgSpaceForIpv4;
+inline constexpr int kCmsgSpaceForIp = (kCmsgSpaceForIpv4 < kCmsgSpaceForIpv6)
+                                           ? kCmsgSpaceForIpv6
+                                           : kCmsgSpaceForIpv4;
 
-const int kCmsgSpaceForSegmentSize = CMSG_SPACE(sizeof(uint16_t));
+inline constexpr int kCmsgSpaceForSegmentSize = CMSG_SPACE(sizeof(uint16_t));
 
-const int kCmsgSpaceForTxTime = CMSG_SPACE(sizeof(uint64_t));
+inline constexpr int kCmsgSpaceForTxTime = CMSG_SPACE(sizeof(uint64_t));
 
-const int kCmsgSpaceForTTL = CMSG_SPACE(sizeof(int));
+inline constexpr int kCmsgSpaceForTTL = CMSG_SPACE(sizeof(int));
 
-const int kCmsgSpaceForTOS = CMSG_SPACE(sizeof(int));
+inline constexpr int kCmsgSpaceForTOS = CMSG_SPACE(sizeof(int));
 
 // QuicMsgHdr is used to build msghdr objects that can be used send packets via
 // ::sendmsg.

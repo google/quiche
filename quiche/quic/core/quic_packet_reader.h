@@ -18,7 +18,7 @@
 namespace quic {
 
 // Read in larger batches to minimize recvmmsg overhead.
-const int kNumPacketsPerReadMmsgCall = 16;
+inline constexpr int kNumPacketsPerReadMmsgCall = 16;
 
 class QUICHE_EXPORT QuicPacketReader {
  public:

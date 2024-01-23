@@ -19,7 +19,7 @@ class QuicSession;
 
 // How much larger the session flow control window needs to be relative to any
 // stream's flow control window.
-const float kSessionFlowControlMultiplier = 1.5;
+inline constexpr float kSessionFlowControlMultiplier = 1.5;
 
 class QUICHE_EXPORT QuicFlowControllerInterface {
  public:

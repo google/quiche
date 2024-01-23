@@ -32,37 +32,38 @@ class QuicFramer;
 class QuicStreamFrameDataProducer;
 
 // Number of bytes reserved for the frame type preceding each frame.
-const size_t kQuicFrameTypeSize = 1;
+inline constexpr size_t kQuicFrameTypeSize = 1;
 // Number of bytes reserved for error code.
-const size_t kQuicErrorCodeSize = 4;
+inline constexpr size_t kQuicErrorCodeSize = 4;
 // Number of bytes reserved to denote the length of error details field.
-const size_t kQuicErrorDetailsLengthSize = 2;
+inline constexpr size_t kQuicErrorDetailsLengthSize = 2;
 
 // Maximum number of bytes reserved for stream id.
-const size_t kQuicMaxStreamIdSize = 4;
+inline constexpr size_t kQuicMaxStreamIdSize = 4;
 // Maximum number of bytes reserved for byte offset in stream frame.
-const size_t kQuicMaxStreamOffsetSize = 8;
+inline constexpr size_t kQuicMaxStreamOffsetSize = 8;
 // Number of bytes reserved to store payload length in stream frame.
-const size_t kQuicStreamPayloadLengthSize = 2;
+inline constexpr size_t kQuicStreamPayloadLengthSize = 2;
 // Number of bytes to reserve for IQ Error codes (for the Connection Close,
 // Application Close, and Reset Stream frames).
-const size_t kQuicIetfQuicErrorCodeSize = 2;
+inline constexpr size_t kQuicIetfQuicErrorCodeSize = 2;
 // Minimum size of the IETF QUIC Error Phrase's length field
-const size_t kIetfQuicMinErrorPhraseLengthSize = 1;
+inline constexpr size_t kIetfQuicMinErrorPhraseLengthSize = 1;
 
 // Size in bytes reserved for the delta time of the largest observed
 // packet number in ack frames.
-const size_t kQuicDeltaTimeLargestObservedSize = 2;
+inline constexpr size_t kQuicDeltaTimeLargestObservedSize = 2;
 // Size in bytes reserved for the number of received packets with timestamps.
-const size_t kQuicNumTimestampsSize = 1;
+inline constexpr size_t kQuicNumTimestampsSize = 1;
 // Size in bytes reserved for the number of missing packets in ack frames.
-const size_t kNumberOfNackRangesSize = 1;
+inline constexpr size_t kNumberOfNackRangesSize = 1;
 // Size in bytes reserved for the number of ack blocks in ack frames.
-const size_t kNumberOfAckBlocksSize = 1;
+inline constexpr size_t kNumberOfAckBlocksSize = 1;
 // Maximum number of missing packet ranges that can fit within an ack frame.
-const size_t kMaxNackRanges = (1 << (kNumberOfNackRangesSize * 8)) - 1;
+inline constexpr size_t kMaxNackRanges =
+    (1 << (kNumberOfNackRangesSize * 8)) - 1;
 // Maximum number of ack blocks that can fit within an ack frame.
-const size_t kMaxAckBlocks = (1 << (kNumberOfAckBlocksSize * 8)) - 1;
+inline constexpr size_t kMaxAckBlocks = (1 << (kNumberOfAckBlocksSize * 8)) - 1;
 
 // This class receives callbacks from the framer when packets
 // are processed.

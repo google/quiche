@@ -25,7 +25,7 @@ namespace quic {
 class RttStats;
 
 // Maximum window to allow when doing bandwidth resumption.
-const QuicPacketCount kMaxResumptionCongestionWindow = 200;
+inline constexpr QuicPacketCount kMaxResumptionCongestionWindow = 200;
 
 namespace test {
 class TcpCubicSenderBytesPeer;

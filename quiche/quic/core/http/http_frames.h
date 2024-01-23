@@ -108,7 +108,7 @@ struct QUICHE_EXPORT GoAwayFrame {
 // incoming 0xf0701 frames are treated as frames of unknown type.
 
 // Length of a priority frame's first byte.
-const QuicByteCount kPriorityFirstByteLength = 1;
+inline constexpr QuicByteCount kPriorityFirstByteLength = 1;
 
 struct QUICHE_EXPORT PriorityUpdateFrame {
   uint64_t prioritized_element_id = 0;
