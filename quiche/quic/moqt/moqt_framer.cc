@@ -288,14 +288,14 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeError(
       NeededVarIntLen(static_cast<uint64_t>(MoqtMessageType::kSubscribeError)) +
       LengthPrefixedStringLength(message.track_namespace) +
       LengthPrefixedStringLength(message.track_name) +
-      NeededVarIntLen(message.error_code) +
+      NeededVarIntLen(static_cast<uint64_t>(message.error_code)) +
       LengthPrefixedStringLength(message.reason_phrase);
   quiche::QuicheBuffer buffer(allocator_, buffer_size);
   quic::QuicDataWriter writer(buffer.size(), buffer.data());
   writer.WriteVarInt62(static_cast<uint64_t>(MoqtMessageType::kSubscribeError));
   writer.WriteStringPieceVarInt62(message.track_namespace);
   writer.WriteStringPieceVarInt62(message.track_name);
-  writer.WriteVarInt62(message.error_code);
+  writer.WriteVarInt62(static_cast<uint64_t>(message.error_code));
   writer.WriteStringPieceVarInt62(message.reason_phrase);
   QUICHE_DCHECK(writer.remaining() == 0);
   return buffer;

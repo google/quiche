@@ -235,13 +235,16 @@ TEST_F(MoqtSessionTest, OnIncomingUnidirectionalStream) {
 
 TEST_F(MoqtSessionTest, Error) {
   bool reported_error = false;
-  EXPECT_CALL(mock_session_, CloseSession(kParameterLengthMismatch, "foo"))
+  EXPECT_CALL(
+      mock_session_,
+      CloseSession(static_cast<uint64_t>(MoqtError::kParameterLengthMismatch),
+                   "foo"))
       .Times(1);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
       .WillOnce([&](absl::string_view error_message) {
         reported_error = (error_message == "foo");
       });
-  session_.Error(kParameterLengthMismatch, "foo");
+  session_.Error(MoqtError::kParameterLengthMismatch, "foo");
   EXPECT_TRUE(reported_error);
 }
 
@@ -442,7 +445,7 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
   MoqtSubscribeError error = {
       /*track_namespace=*/"foo",
       /*track_name=*/"bar",
-      /*error_code=*/1,
+      /*error_code=*/SubscribeErrorCode::kInvalidRange,
       /*reason_phrase=*/"deadbeef",
   };
   correct_message = false;
@@ -701,8 +704,9 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamClient) {
   bool reported_error = false;
   EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
       .WillOnce(Return(&mock_stream));
-  EXPECT_CALL(mock_session_, CloseSession(kProtocolViolation,
-                                          "Bidirectional stream already open"))
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Bidirectional stream already open"))
       .Times(1);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
       .WillOnce([&](absl::string_view error_message) {
@@ -745,8 +749,9 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
   bool reported_error = false;
   EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
       .WillOnce(Return(&mock_stream));
-  EXPECT_CALL(mock_session_, CloseSession(kProtocolViolation,
-                                          "Bidirectional stream already open"))
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Bidirectional stream already open"))
       .Times(1);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
       .WillOnce([&](absl::string_view error_message) {

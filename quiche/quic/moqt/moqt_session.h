@@ -47,16 +47,6 @@ struct MoqtSessionCallbacks {
   MoqtSessionDeletedCallback session_deleted_callback = +[] {};
 };
 
-enum MoqtError : uint64_t {
-  kNoError = 0x0,
-  kGenericError = 0x1,
-  kUnauthorized = 0x2,
-  kProtocolViolation = 0x3,
-  kDuplicateTrackAlias = 0x4,
-  kParameterLengthMismatch = 0x5,
-  kGoawayTimeout = 0x10,
-};
-
 class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
  public:
   MoqtSession(webtransport::Session* session, MoqtSessionParameters parameters,
@@ -182,7 +172,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
    private:
     friend class test::MoqtSessionPeer;
     void SendSubscribeError(const MoqtSubscribeRequest& message,
-                            uint64_t error_code,
+                            SubscribeErrorCode error_code,
                             absl::string_view reason_phrase);
     bool CheckIfIsControlStream();
 

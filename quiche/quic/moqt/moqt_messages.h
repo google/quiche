@@ -63,6 +63,16 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kServerSetup = 0x41,
 };
 
+enum class QUICHE_EXPORT MoqtError : uint64_t {
+  kNoError = 0x0,
+  kGenericError = 0x1,
+  kUnauthorized = 0x2,
+  kProtocolViolation = 0x3,
+  kDuplicateTrackAlias = 0x4,
+  kParameterLengthMismatch = 0x5,
+  kGoawayTimeout = 0x10,
+};
+
 enum class QUICHE_EXPORT MoqtRole : uint64_t {
   kIngestion = 0x1,
   kDelivery = 0x2,
@@ -189,10 +199,16 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
   quic::QuicTimeDelta expires = quic::QuicTimeDelta::FromMilliseconds(0);
 };
 
+enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
+  kGenericError = 0x0,
+  kInvalidRange = 0x1,
+  kRetryTrackAlias = 0x2,
+};
+
 struct QUICHE_EXPORT MoqtSubscribeError {
   absl::string_view track_namespace;
   absl::string_view track_name;
-  uint64_t error_code;
+  SubscribeErrorCode error_code;
   absl::string_view reason_phrase;
 };
 

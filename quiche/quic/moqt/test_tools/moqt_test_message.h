@@ -487,7 +487,7 @@ class QUICHE_NO_EXPORT SubscribeErrorMessage : public TestMessageBase {
   MoqtSubscribeError subscribe_error_ = {
       /*track_namespace=*/"foo",
       /*track_name=*/"bar",
-      /*subscribe=*/1,
+      /*subscribe=*/SubscribeErrorCode::kInvalidRange,
       /*reason_phrase=*/"bar",
   };
 };

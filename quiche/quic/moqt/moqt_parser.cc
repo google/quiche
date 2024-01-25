@@ -395,9 +395,11 @@ size_t MoqtParser::ProcessSubscribeError(quic::QuicDataReader& reader) {
   if (!reader.ReadStringPieceVarInt62(&subscribe_error.track_name)) {
     return 0;
   }
-  if (!reader.ReadVarInt62(&subscribe_error.error_code)) {
+  uint64_t error_code;
+  if (!reader.ReadVarInt62(&error_code)) {
     return 0;
   }
+  subscribe_error.error_code = static_cast<SubscribeErrorCode>(error_code);
   if (!reader.ReadStringPieceVarInt62(&subscribe_error.reason_phrase)) {
     return 0;
   }
