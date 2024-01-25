@@ -47,7 +47,7 @@ class QUICHE_EXPORT MoqtParserVisitor {
   virtual void OnUnannounceMessage(const MoqtUnannounce& message) = 0;
   virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
 
-  virtual void OnParsingError(absl::string_view reason) = 0;
+  virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
 };
 
 class QUICHE_EXPORT MoqtParser {
@@ -90,7 +90,9 @@ class QUICHE_EXPORT MoqtParser {
   size_t ProcessUnannounce(quic::QuicDataReader& reader);
   size_t ProcessGoAway(quic::QuicDataReader& reader);
 
+  // If |error| is not provided, assumes kProtocolViolation.
   void ParseError(absl::string_view reason);
+  void ParseError(MoqtError error, absl::string_view reason);
 
   // Reads an integer whose length is specified by a preceding VarInt62 and
   // returns it in |result|. Returns false if parsing fails.

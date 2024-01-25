@@ -648,9 +648,9 @@ void MoqtSession::Stream::OnAnnounceErrorMessage(
   session_->pending_outgoing_announces_.erase(it);
 }
 
-void MoqtSession::Stream::OnParsingError(absl::string_view reason) {
-  session_->Error(MoqtError::kProtocolViolation,
-                  absl::StrCat("Parse error: ", reason));
+void MoqtSession::Stream::OnParsingError(MoqtError error_code,
+                                         absl::string_view reason) {
+  session_->Error(error_code, absl::StrCat("Parse error: ", reason));
 }
 
 bool MoqtSession::Stream::CheckIfIsControlStream() {

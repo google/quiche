@@ -92,7 +92,8 @@ void MoqtParser::ProcessData(absl::string_view data, bool fin) {
     size_t message_len = ProcessMessage(reader->PeekRemainingPayload(), fin);
     if (message_len == 0) {
       if (reader->BytesRemaining() > kMaxMessageHeaderSize) {
-        ParseError("Cannot parse non-OBJECT messages > 2KB");
+        ParseError(MoqtError::kGenericError,
+                   "Cannot parse non-OBJECT messages > 2KB");
         return;
       }
       if (fin) {
@@ -537,12 +538,16 @@ size_t MoqtParser::ProcessGoAway(quic::QuicDataReader& reader) {
 }
 
 void MoqtParser::ParseError(absl::string_view reason) {
+  ParseError(MoqtError::kProtocolViolation, reason);
+}
+
+void MoqtParser::ParseError(MoqtError error_code, absl::string_view reason) {
   if (parsing_error_) {
     return;  // Don't send multiple parse errors.
   }
   no_more_data_ = true;
   parsing_error_ = true;
-  visitor_.OnParsingError(reason);
+  visitor_.OnParsingError(error_code, reason);
 }
 
 bool MoqtParser::ReadVarIntPieceVarInt62(quic::QuicDataReader& reader,
@@ -604,7 +609,8 @@ bool MoqtParser::ReadParameter(quic::QuicDataReader& reader, uint64_t& type,
 bool MoqtParser::StringViewToVarInt(absl::string_view& sv, uint64_t& vi) {
   quic::QuicDataReader reader(sv);
   if (static_cast<size_t>(reader.PeekVarInt62Length()) != sv.length()) {
-    ParseError("Parameter length does not match varint encoding");
+    ParseError(MoqtError::kParameterLengthMismatch,
+               "Parameter length does not match varint encoding");
     return false;
   }
   reader.ReadVarInt62(&vi);

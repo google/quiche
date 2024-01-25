@@ -161,7 +161,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override;
     void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override {}
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override {}
-    void OnParsingError(absl::string_view reason) override;
+    void OnParsingError(MoqtError error_code,
+                        absl::string_view reason) override;
 
     quic::Perspective perspective() const {
       return session_->parameters_.perspective;

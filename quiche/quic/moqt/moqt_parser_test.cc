@@ -225,15 +225,17 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     goaway.new_session_uri = absl::string_view(string0_);
     last_message_ = TestMessageBase::MessageStructuredData(goaway);
   }
-  void OnParsingError(absl::string_view reason) override {
+  void OnParsingError(MoqtError code, absl::string_view reason) override {
     QUIC_LOG(INFO) << "Parsing error: " << reason;
     parsing_error_ = reason;
+    parsing_error_code_ = code;
   }
 
   std::optional<absl::string_view> object_payload_;
   bool end_of_message_ = false;
   bool got_goaway_ = false;
   std::optional<absl::string_view> parsing_error_;
+  MoqtError parsing_error_code_;
   uint64_t messages_received_ = 0;
   std::optional<TestMessageBase::MessageStructuredData> last_message_;
   // Stored strings for last_message_. The visitor API does not promise the
@@ -409,6 +411,7 @@ TEST_P(MoqtParserTest, SeparateEarlyFin) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_, "End of stream before complete message");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 // Tests for message-specific error cases, and behaviors for a single message
@@ -517,6 +520,7 @@ TEST_F(MoqtMessageSpecificTest, SetupRoleAppearsTwice) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_, "ROLE parameter appears twice in SETUP");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupRoleIsMissing) {
@@ -531,6 +535,25 @@ TEST_F(MoqtMessageSpecificTest, SetupRoleIsMissing) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "ROLE parameter missing from CLIENT_SETUP message");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtMessageSpecificTest, SetupRoleVarintLengthIsWrong) {
+  MoqtParser parser(kRawQuic, visitor_);
+  char setup[] = {
+      0x40, 0x40,                   // type
+      0x02, 0x01, 0x02,             // versions
+      0x02,                         // 2 parameters
+      0x00, 0x02, 0x03,             // role = both, but length is 2
+      0x01, 0x03, 0x66, 0x6f, 0x6f  // path = "foo"
+  };
+  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_,
+            "Parameter length does not match varint encoding");
+
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kParameterLengthMismatch);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
@@ -545,6 +568,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_, "PATH parameter in SERVER_SETUP");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
@@ -561,6 +585,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "PATH parameter appears twice in CLIENT_SETUP");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
@@ -576,6 +601,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "WebTransport connection is using PATH parameter in SETUP");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
@@ -590,6 +616,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "PATH SETUP parameter missing from Client message over QUIC");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, SubscribeRequestAuthorizationInfoTwice) {
@@ -611,6 +638,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeRequestAuthorizationInfoTwice) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "AUTHORIZATION_INFO parameter appears twice in SUBSCRIBE_REQUEST");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationInfoTwice) {
@@ -626,6 +654,7 @@ TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationInfoTwice) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "AUTHORIZATION_INFO parameter appears twice in ANNOUNCE");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, FinMidPayload) {
@@ -637,6 +666,7 @@ TEST_F(MoqtMessageSpecificTest, FinMidPayload) {
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_, "Received FIN mid-payload");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, PartialPayloadThenFin) {
@@ -650,6 +680,7 @@ TEST_F(MoqtMessageSpecificTest, PartialPayloadThenFin) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "End of stream before complete OBJECT PAYLOAD");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, DataAfterFin) {
@@ -658,6 +689,7 @@ TEST_F(MoqtMessageSpecificTest, DataAfterFin) {
   parser.ProcessData("foo", false);
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_, "Data after end of stream");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, Setup2KB) {
@@ -676,6 +708,7 @@ TEST_F(MoqtMessageSpecificTest, Setup2KB) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_, "Cannot parse non-OBJECT messages > 2KB");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kGenericError);
 }
 
 TEST_F(MoqtMessageSpecificTest, UnknownMessageType) {
