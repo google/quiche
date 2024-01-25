@@ -44,7 +44,7 @@ void MoqtSession::OnSessionReady() {
   webtransport::Stream* control_stream =
       session_->OpenOutgoingBidirectionalStream();
   if (control_stream == nullptr) {
-    Error("Unable to open a control stream");
+    Error(kGenericError, "Unable to open a control stream");
     return;
   }
   control_stream->SetVisitor(std::make_unique<Stream>(
@@ -60,7 +60,7 @@ void MoqtSession::OnSessionReady() {
   quiche::QuicheBuffer serialized_setup = framer_.SerializeClientSetup(setup);
   bool success = control_stream->Write(serialized_setup.AsStringView());
   if (!success) {
-    Error("Failed to write client SETUP message");
+    Error(kGenericError, "Failed to write client SETUP message");
     return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Send the SETUP message";
@@ -81,6 +81,10 @@ void MoqtSession::OnSessionClosed(webtransport::SessionErrorCode,
 void MoqtSession::OnIncomingBidirectionalStreamAvailable() {
   while (webtransport::Stream* stream =
              session_->AcceptIncomingBidirectionalStream()) {
+    if (control_stream_.has_value()) {
+      Error(kProtocolViolation, "Bidirectional stream already open");
+      return;
+    }
     stream->SetVisitor(std::make_unique<Stream>(this, stream));
     stream->visitor()->OnCanRead();
   }
@@ -93,16 +97,15 @@ void MoqtSession::OnIncomingUnidirectionalStreamAvailable() {
   }
 }
 
-void MoqtSession::Error(absl::string_view error) {
+void MoqtSession::Error(MoqtError code, absl::string_view error) {
   if (!error_.empty()) {
     // Avoid erroring out twice.
     return;
   }
-  QUICHE_DLOG(INFO) << ENDPOINT
-                    << "MOQT session closed with message: " << error;
+  QUICHE_DLOG(INFO) << ENDPOINT << "MOQT session closed with code: "
+                    << static_cast<int>(code) << " and message: " << error;
   error_ = std::string(error);
-  // TODO(vasilvv): figure out the error code.
-  session_->CloseSession(1, error);
+  session_->CloseSession(code, error);
   std::move(session_terminated_callback_)(error);
 }
 
@@ -126,7 +129,7 @@ void MoqtSession::Announce(absl::string_view track_namespace,
   bool success = session_->GetStreamById(*control_stream_)
                      ->Write(framer_.SerializeAnnounce(message).AsStringView());
   if (!success) {
-    Error("Failed to write ANNOUNCE message");
+    Error(kGenericError, "Failed to write ANNOUNCE message");
     return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE message for "
@@ -227,7 +230,7 @@ bool MoqtSession::Subscribe(const MoqtSubscribeRequest& message,
       session_->GetStreamById(*control_stream_)
           ->Write(framer_.SerializeSubscribeRequest(message).AsStringView());
   if (!success) {
-    Error("Failed to write SUBSCRIBE_REQUEST message");
+    Error(kGenericError, "Failed to write SUBSCRIBE_REQUEST message");
     return false;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_REQUEST message for "
@@ -316,6 +319,7 @@ void MoqtSession::Stream::OnResetStreamReceived(
     webtransport::StreamErrorCode error) {
   if (is_control_stream_.has_value() && *is_control_stream_) {
     session_->Error(
+        kProtocolViolation,
         absl::StrCat("Control stream reset with error code ", error));
   }
 }
@@ -323,6 +327,7 @@ void MoqtSession::Stream::OnStopSendingReceived(
     webtransport::StreamErrorCode error) {
   if (is_control_stream_.has_value() && *is_control_stream_) {
     session_->Error(
+        kProtocolViolation,
         absl::StrCat("Control stream reset with error code ", error));
   }
 }
@@ -331,7 +336,8 @@ void MoqtSession::Stream::OnObjectMessage(const MoqtObject& message,
                                           absl::string_view payload,
                                           bool end_of_message) {
   if (is_control_stream_ == true) {
-    session_->Error("Received OBJECT message on control stream");
+    session_->Error(kProtocolViolation,
+                    "Received OBJECT message on control stream");
     return;
   }
   QUICHE_DLOG(INFO) << ENDPOINT << "Received OBJECT message on stream "
@@ -365,7 +371,7 @@ void MoqtSession::Stream::OnObjectMessage(const MoqtObject& message,
     }
     if (session_->num_buffered_objects_ >= kMaxBufferedObjects) {
       session_->num_buffered_objects_++;
-      session_->Error("Too many buffered objects");
+      session_->Error(kGenericError, "Too many buffered objects");
       return;
     }
     queue->push_back(BufferedObject(stream_->GetStreamId(), message, payload,
@@ -387,19 +393,22 @@ void MoqtSession::Stream::OnObjectMessage(const MoqtObject& message,
 void MoqtSession::Stream::OnClientSetupMessage(const MoqtClientSetup& message) {
   if (is_control_stream_.has_value()) {
     if (!*is_control_stream_) {
-      session_->Error("Received SETUP on non-control stream");
+      session_->Error(kProtocolViolation,
+                      "Received SETUP on non-control stream");
       return;
     }
   } else {
     is_control_stream_ = true;
   }
   if (perspective() == Perspective::IS_CLIENT) {
-    session_->Error("Received CLIENT_SETUP from server");
+    session_->Error(kProtocolViolation, "Received CLIENT_SETUP from server");
     return;
   }
   if (absl::c_find(message.supported_versions, session_->parameters_.version) ==
       message.supported_versions.end()) {
-    session_->Error(absl::StrCat("Version mismatch: expected 0x",
+    // TODO(martinduke): Is this the right error code? See issue #346.
+    session_->Error(kProtocolViolation,
+                    absl::StrCat("Version mismatch: expected 0x",
                                  absl::Hex(session_->parameters_.version)));
     return;
   }
@@ -411,7 +420,7 @@ void MoqtSession::Stream::OnClientSetupMessage(const MoqtClientSetup& message) {
     bool success = stream_->Write(
         session_->framer_.SerializeServerSetup(response).AsStringView());
     if (!success) {
-      session_->Error("Failed to write server SETUP message");
+      session_->Error(kGenericError, "Failed to write server SETUP message");
       return;
     }
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
@@ -423,18 +432,21 @@ void MoqtSession::Stream::OnClientSetupMessage(const MoqtClientSetup& message) {
 void MoqtSession::Stream::OnServerSetupMessage(const MoqtServerSetup& message) {
   if (is_control_stream_.has_value()) {
     if (!*is_control_stream_) {
-      session_->Error("Received SETUP on non-control stream");
+      session_->Error(kProtocolViolation,
+                      "Received SETUP on non-control stream");
       return;
     }
   } else {
     is_control_stream_ = true;
   }
   if (perspective() == Perspective::IS_SERVER) {
-    session_->Error("Received SERVER_SETUP from client");
+    session_->Error(kProtocolViolation, "Received SERVER_SETUP from client");
     return;
   }
   if (message.selected_version != session_->parameters_.version) {
-    session_->Error(absl::StrCat("Version mismatch: expected 0x",
+    // TODO(martinduke): Is this the right error code? See issue #346.
+    session_->Error(kProtocolViolation,
+                    absl::StrCat("Version mismatch: expected 0x",
                                  absl::Hex(session_->parameters_.version)));
     return;
   }
@@ -455,7 +467,7 @@ void MoqtSession::Stream::SendSubscribeError(
       stream_->Write(session_->framer_.SerializeSubscribeError(subscribe_error)
                          .AsStringView());
   if (!success) {
-    session_->Error("Failed to write SUBSCRIBE_ERROR message");
+    session_->Error(kGenericError, "Failed to write SUBSCRIBE_ERROR message");
   }
 }
 
@@ -503,7 +515,7 @@ void MoqtSession::Stream::OnSubscribeRequestMessage(
   bool success = stream_->Write(
       session_->framer_.SerializeSubscribeOk(subscribe_ok).AsStringView());
   if (!success) {
-    session_->Error("Failed to write SUBSCRIBE_OK message");
+    session_->Error(kGenericError, "Failed to write SUBSCRIBE_OK message");
     return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
@@ -521,13 +533,14 @@ void MoqtSession::Stream::OnSubscribeOkMessage(const MoqtSubscribeOk& message) {
     return;
   }
   if (session_->tracks_by_alias_.contains(message.track_id)) {
-    session_->Error("Received duplicate track_alias");
+    session_->Error(kDuplicateTrackAlias, "Received duplicate track_alias");
     return;
   }
   auto it = session_->remote_tracks_.find(FullTrackName(
       std::string(message.track_namespace), std::string(message.track_name)));
   if (it == session_->remote_tracks_.end()) {
-    session_->Error("Received SUBSCRIBE_OK for nonexistent subscribe");
+    session_->Error(kProtocolViolation,
+                    "Received SUBSCRIBE_OK for nonexistent subscribe");
     return;
   }
   // Note that if there are multiple SUBSCRIBE_OK for the same track,
@@ -573,7 +586,8 @@ void MoqtSession::Stream::OnSubscribeErrorMessage(
   auto it = session_->remote_tracks_.find(FullTrackName(
       std::string(message.track_namespace), std::string(message.track_name)));
   if (it == session_->remote_tracks_.end()) {
-    session_->Error("Received SUBSCRIBE_ERROR for nonexistent subscribe");
+    session_->Error(kProtocolViolation,
+                    "Received SUBSCRIBE_ERROR for nonexistent subscribe");
     return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_ERROR for "
@@ -594,7 +608,7 @@ void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {
   bool success =
       stream_->Write(session_->framer_.SerializeAnnounceOk(ok).AsStringView());
   if (!success) {
-    session_->Error("Failed to write ANNOUNCE_OK message");
+    session_->Error(kGenericError, "Failed to write ANNOUNCE_OK message");
     return;
   }
 }
@@ -605,7 +619,8 @@ void MoqtSession::Stream::OnAnnounceOkMessage(const MoqtAnnounceOk& message) {
   }
   auto it = session_->pending_outgoing_announces_.find(message.track_namespace);
   if (it == session_->pending_outgoing_announces_.end()) {
-    session_->Error("Received ANNOUNCE_OK for nonexistent announce");
+    session_->Error(kProtocolViolation,
+                    "Received ANNOUNCE_OK for nonexistent announce");
     return;
   }
   std::move(it->second)(message.track_namespace, std::nullopt);
@@ -619,7 +634,8 @@ void MoqtSession::Stream::OnAnnounceErrorMessage(
   }
   auto it = session_->pending_outgoing_announces_.find(message.track_namespace);
   if (it == session_->pending_outgoing_announces_.end()) {
-    session_->Error("Received ANNOUNCE_ERROR for nonexistent announce");
+    session_->Error(kProtocolViolation,
+                    "Received ANNOUNCE_ERROR for nonexistent announce");
     return;
   }
   std::move(it->second)(message.track_namespace, message.reason_phrase);
@@ -627,16 +643,18 @@ void MoqtSession::Stream::OnAnnounceErrorMessage(
 }
 
 void MoqtSession::Stream::OnParsingError(absl::string_view reason) {
-  session_->Error(absl::StrCat("Parse error: ", reason));
+  session_->Error(kProtocolViolation, absl::StrCat("Parse error: ", reason));
 }
 
 bool MoqtSession::Stream::CheckIfIsControlStream() {
   if (!is_control_stream_.has_value()) {
-    session_->Error("Received SUBSCRIBE_REQUEST as first message");
+    session_->Error(kProtocolViolation,
+                    "Received SUBSCRIBE_REQUEST as first message");
     return false;
   }
   if (!*is_control_stream_) {
-    session_->Error("Received SUBSCRIBE_REQUEST on non-control stream");
+    session_->Error(kProtocolViolation,
+                    "Received SUBSCRIBE_REQUEST on non-control stream");
     return false;
   }
   return true;

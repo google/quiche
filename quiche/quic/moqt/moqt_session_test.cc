@@ -235,12 +235,13 @@ TEST_F(MoqtSessionTest, OnIncomingUnidirectionalStream) {
 
 TEST_F(MoqtSessionTest, Error) {
   bool reported_error = false;
-  EXPECT_CALL(mock_session_, CloseSession(1, "foo")).Times(1);
+  EXPECT_CALL(mock_session_, CloseSession(kParameterLengthMismatch, "foo"))
+      .Times(1);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
       .WillOnce([&](absl::string_view error_message) {
         reported_error = (error_message == "foo");
       });
-  session_.Error("foo");
+  session_.Error(kParameterLengthMismatch, "foo");
   EXPECT_TRUE(reported_error);
 }
 
@@ -671,6 +672,88 @@ TEST_F(MoqtSessionTest, CannotPublishToStream) {
   // Object not sent; no change in sequence number.
   EXPECT_EQ(next_seq.group, 4);
   EXPECT_EQ(next_seq.object, 1);
+}
+
+TEST_F(MoqtSessionTest, OneBidirectionalStreamClient) {
+  StrictMock<webtransport::test::MockStream> mock_stream;
+  EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream())
+      .WillOnce(Return(&mock_stream));
+  std::unique_ptr<webtransport::StreamVisitor> visitor;
+  // Save a reference to MoqtSession::Stream
+  EXPECT_CALL(mock_stream, SetVisitor(_))
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> new_visitor) {
+        visitor = std::move(new_visitor);
+      });
+  EXPECT_CALL(mock_stream, GetStreamId())
+      .WillOnce(Return(webtransport::StreamId(4)));
+  bool correct_message = false;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kClientSetup);
+        return absl::OkStatus();
+      });
+  session_.OnSessionReady();
+  EXPECT_TRUE(correct_message);
+
+  // Peer tries to open a bidi stream.
+  bool reported_error = false;
+  EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
+      .WillOnce(Return(&mock_stream));
+  EXPECT_CALL(mock_session_, CloseSession(kProtocolViolation,
+                                          "Bidirectional stream already open"))
+      .Times(1);
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
+      .WillOnce([&](absl::string_view error_message) {
+        reported_error = (error_message == "Bidirectional stream already open");
+      });
+  session_.OnIncomingBidirectionalStreamAvailable();
+  EXPECT_TRUE(reported_error);
+}
+
+TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
+  MoqtSessionParameters server_parameters = {
+      /*version=*/MoqtVersion::kDraft01,
+      /*perspective=*/quic::Perspective::IS_SERVER,
+      /*using_webtrans=*/true,
+      /*path=*/"",
+      /*deliver_partial_objects=*/false,
+  };
+  MoqtSession server_session(&mock_session_, server_parameters,
+                             session_callbacks_.AsSessionCallbacks());
+  StrictMock<webtransport::test::MockStream> mock_stream;
+  std::unique_ptr<MoqtParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);
+  MoqtClientSetup setup = {
+      /*supported_versions*/ {MoqtVersion::kDraft01},
+      /*role=*/MoqtRole::kBoth,
+      /*path=*/std::nullopt,
+  };
+  bool correct_message = false;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kServerSetup);
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
+  stream_input->OnClientSetupMessage(setup);
+
+  // Peer tries to open a bidi stream.
+  bool reported_error = false;
+  EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
+      .WillOnce(Return(&mock_stream));
+  EXPECT_CALL(mock_session_, CloseSession(kProtocolViolation,
+                                          "Bidirectional stream already open"))
+      .Times(1);
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
+      .WillOnce([&](absl::string_view error_message) {
+        reported_error = (error_message == "Bidirectional stream already open");
+      });
+  server_session.OnIncomingBidirectionalStreamAvailable();
+  EXPECT_TRUE(reported_error);
 }
 
 // TODO: Cover more error cases in the above
