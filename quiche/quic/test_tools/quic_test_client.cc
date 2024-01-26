@@ -137,57 +137,64 @@ class RecordingProofVerifier : public ProofVerifier {
 };
 }  // namespace
 
-class MockableQuicClientDefaultNetworkHelper
-    : public QuicClientDefaultNetworkHelper {
- public:
-  using QuicClientDefaultNetworkHelper::QuicClientDefaultNetworkHelper;
-  ~MockableQuicClientDefaultNetworkHelper() override = default;
-
-  void ProcessPacket(const QuicSocketAddress& self_address,
-                     const QuicSocketAddress& peer_address,
-                     const QuicReceivedPacket& packet) override {
-    QuicClientDefaultNetworkHelper::ProcessPacket(self_address, peer_address,
-                                                  packet);
-    if (track_last_incoming_packet_) {
-      last_incoming_packet_ = packet.Clone();
-    }
+void MockableQuicClientDefaultNetworkHelper::ProcessPacket(
+    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address, const QuicReceivedPacket& packet) {
+  QuicClientDefaultNetworkHelper::ProcessPacket(self_address, peer_address,
+                                                packet);
+  if (track_last_incoming_packet_) {
+    last_incoming_packet_ = packet.Clone();
   }
+}
 
-  QuicPacketWriter* CreateQuicPacketWriter() override {
-    QuicPacketWriter* writer =
-        QuicClientDefaultNetworkHelper::CreateQuicPacketWriter();
-    if (!test_writer_) {
-      return writer;
-    }
-    test_writer_->set_writer(writer);
-    return test_writer_;
+bool MockableQuicClientDefaultNetworkHelper::CreateUDPSocketAndBind(
+    QuicSocketAddress server_address, QuicIpAddress bind_to_address,
+    int bind_to_port) {
+  bool result = QuicClientDefaultNetworkHelper::CreateUDPSocketAndBind(
+      server_address, bind_to_address, bind_to_port);
+  if (result && socket_fd_configurator_ != nullptr) {
+    socket_fd_configurator_(GetLatestFD());
   }
+  return result;
+}
 
-  const QuicReceivedPacket* last_incoming_packet() {
-    return last_incoming_packet_.get();
+QuicPacketWriter*
+MockableQuicClientDefaultNetworkHelper::CreateQuicPacketWriter() {
+  QuicPacketWriter* writer =
+      QuicClientDefaultNetworkHelper::CreateQuicPacketWriter();
+  if (!test_writer_) {
+    return writer;
   }
+  test_writer_->set_writer(writer);
+  return test_writer_;
+}
 
-  void set_track_last_incoming_packet(bool track) {
-    track_last_incoming_packet_ = track;
-  }
+void MockableQuicClientDefaultNetworkHelper::set_socket_fd_configurator(
+    quiche::MultiUseCallback<void(SocketFd)> socket_fd_configurator) {
+  socket_fd_configurator_ = std::move(socket_fd_configurator);
+}
 
-  void UseWriter(QuicPacketWriterWrapper* writer) {
-    QUICHE_CHECK(test_writer_ == nullptr);
-    test_writer_ = writer;
-  }
+const QuicReceivedPacket*
+MockableQuicClientDefaultNetworkHelper::last_incoming_packet() {
+  return last_incoming_packet_.get();
+}
 
-  void set_peer_address(const QuicSocketAddress& address) {
-    QUICHE_CHECK(test_writer_ != nullptr);
-    test_writer_->set_peer_address(address);
-  }
+void MockableQuicClientDefaultNetworkHelper::set_track_last_incoming_packet(
+    bool track) {
+  track_last_incoming_packet_ = track;
+}
 
- private:
-  QuicPacketWriterWrapper* test_writer_ = nullptr;
-  // The last incoming packet, iff |track_last_incoming_packet_| is true.
-  std::unique_ptr<QuicReceivedPacket> last_incoming_packet_;
-  // If true, copy each packet from ProcessPacket into |last_incoming_packet_|
-  bool track_last_incoming_packet_ = false;
-};
+void MockableQuicClientDefaultNetworkHelper::UseWriter(
+    QuicPacketWriterWrapper* writer) {
+  QUICHE_CHECK(test_writer_ == nullptr);
+  test_writer_ = writer;
+}
+
+void MockableQuicClientDefaultNetworkHelper::set_peer_address(
+    const QuicSocketAddress& address) {
+  QUICHE_CHECK(test_writer_ != nullptr);
+  test_writer_->set_peer_address(address);
+}
 
 MockableQuicClient::MockableQuicClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,

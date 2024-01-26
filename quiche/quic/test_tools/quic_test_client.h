@@ -28,7 +28,43 @@ class QuicPacketWriterWrapper;
 
 namespace test {
 
-class MockableQuicClientDefaultNetworkHelper;
+class MockableQuicClientDefaultNetworkHelper
+    : public QuicClientDefaultNetworkHelper {
+ public:
+  using QuicClientDefaultNetworkHelper::QuicClientDefaultNetworkHelper;
+  ~MockableQuicClientDefaultNetworkHelper() override = default;
+
+  void ProcessPacket(const QuicSocketAddress& self_address,
+                     const QuicSocketAddress& peer_address,
+                     const QuicReceivedPacket& packet) override;
+
+  bool CreateUDPSocketAndBind(QuicSocketAddress server_address,
+                              QuicIpAddress bind_to_address,
+                              int bind_to_port) override;
+
+  QuicPacketWriter* CreateQuicPacketWriter() override;
+
+  void set_socket_fd_configurator(
+      quiche::MultiUseCallback<void(SocketFd)> socket_fd_configurator);
+
+  const QuicReceivedPacket* last_incoming_packet();
+
+  void set_track_last_incoming_packet(bool track);
+
+  void UseWriter(QuicPacketWriterWrapper* writer);
+
+  void set_peer_address(const QuicSocketAddress& address);
+
+ private:
+  QuicPacketWriterWrapper* test_writer_ = nullptr;
+  // The last incoming packet, iff |track_last_incoming_packet_| is true.
+  std::unique_ptr<QuicReceivedPacket> last_incoming_packet_;
+  // If true, copy each packet from ProcessPacket into |last_incoming_packet_|
+  bool track_last_incoming_packet_ = false;
+  // If set, |socket_fd_configurator_| will be called after a socket fd is
+  // created.
+  quiche::MultiUseCallback<void(SocketFd)> socket_fd_configurator_;
+};
 
 // A quic client which allows mocking out reads and writes.
 class MockableQuicClient : public QuicDefaultClient {
