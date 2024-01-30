@@ -131,13 +131,21 @@ class QUICHE_EXPORT StreamWriteOptions {
  public:
   StreamWriteOptions() = default;
 
-  // If send_fin() is sent to true, the write operation also sends a FIN on the
+  // If send_fin() is set to true, the write operation also sends a FIN on the
   // stream.
   bool send_fin() const { return send_fin_; }
   void set_send_fin(bool send_fin) { send_fin_ = send_fin; }
 
+  // If buffer_unconditionally() is set to true, the write operation will buffer
+  // data even if the internal buffer limit is exceeded.
+  bool buffer_unconditionally() const { return buffer_unconditionally_; }
+  void set_buffer_unconditionally(bool value) {
+    buffer_unconditionally_ = value;
+  }
+
  private:
   bool send_fin_ = false;
+  bool buffer_unconditionally_ = false;
 };
 
 inline constexpr StreamWriteOptions kDefaultStreamWriteOptions =

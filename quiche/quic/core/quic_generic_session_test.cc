@@ -23,6 +23,7 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_datagram_queue.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -42,6 +43,7 @@ namespace {
 
 enum ServerType { kDiscardServer, kEchoServer };
 
+using quiche::test::StatusIs;
 using simulator::Simulator;
 using testing::_;
 using testing::Assign;
@@ -465,6 +467,45 @@ TEST_F(QuicGenericSessionTest, LoseDatagrams) {
   EXPECT_GT(client_lost, 100u);
   EXPECT_GT(server_lost, 100u);
   EXPECT_EQ(received + client_lost + server_lost, 1000u);
+}
+
+TEST_F(QuicGenericSessionTest, WriteWhenBufferFull) {
+  CreateDefaultEndpoints(kEchoServer);
+  WireUpEndpoints();
+  RunHandshake();
+
+  const std::string buffer(64 * 1024 + 1, 'q');
+  webtransport::Stream* stream =
+      client_->session()->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+
+  ASSERT_TRUE(stream->CanWrite());
+  absl::Status status = quiche::WriteIntoStream(*stream, buffer);
+  QUICHE_EXPECT_OK(status);
+  EXPECT_FALSE(stream->CanWrite());
+
+  status = quiche::WriteIntoStream(*stream, buffer);
+  EXPECT_THAT(status, StatusIs(absl::StatusCode::kUnavailable));
+
+  quiche::StreamWriteOptions options;
+  options.set_buffer_unconditionally(true);
+  options.set_send_fin(true);
+  status = quiche::WriteIntoStream(*stream, buffer, options);
+  QUICHE_EXPECT_OK(status);
+  EXPECT_FALSE(stream->CanWrite());
+
+  QuicByteCount total_received = 0;
+  for (;;) {
+    test_harness_.RunUntilWithDefaultTimeout(
+        [&] { return stream->PeekNextReadableRegion().has_data(); });
+    quiche::ReadStream::PeekResult result = stream->PeekNextReadableRegion();
+    total_received += result.peeked_data.size();
+    bool fin_consumed = stream->SkipBytes(result.peeked_data.size());
+    if (fin_consumed) {
+      break;
+    }
+  }
+  EXPECT_EQ(total_received, 128u * 1024u + 2);
 }
 
 }  // namespace

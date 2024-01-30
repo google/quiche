@@ -65,7 +65,9 @@ absl::Status WebTransportStreamAdapter::Writev(
         "Writev() called without any data or a FIN");
   }
   const absl::Status initial_check_status = CheckBeforeStreamWrite();
-  if (!initial_check_status.ok()) {
+  if (!initial_check_status.ok() &&
+      !(initial_check_status.code() == absl::StatusCode::kUnavailable &&
+        options.buffer_unconditionally())) {
     return initial_check_status;
   }
 
@@ -82,8 +84,9 @@ absl::Status WebTransportStreamAdapter::Writev(
       iovecs.data(), iovecs.size(),
       session_->connection()->helper()->GetStreamSendBufferAllocator(),
       GetQuicFlag(quic_send_buffer_max_data_slice_size));
-  QuicConsumedData consumed =
-      stream_->WriteMemSlices(storage.ToSpan(), /*fin=*/options.send_fin());
+  QuicConsumedData consumed = stream_->WriteMemSlices(
+      storage.ToSpan(), /*fin=*/options.send_fin(),
+      /*buffer_uncondtionally=*/options.buffer_unconditionally());
 
   if (consumed.bytes_consumed == total_size) {
     return absl::OkStatus();
