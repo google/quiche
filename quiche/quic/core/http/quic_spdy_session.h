@@ -555,6 +555,11 @@ class QUICHE_EXPORT QuicSpdySession
   // is always bundled opportunistically.
   bool CheckStreamWriteBlocked(QuicStream* stream) const override;
 
+  // Disables the use of Huffman encoding for QPACK headers.
+  void DisableHuffmanEncoding() {
+    huffman_encoding_ = HuffmanEncoding::kDisabled;
+  }
+
  private:
   friend class test::QuicSpdySessionPeer;
 
@@ -602,6 +607,7 @@ class QUICHE_EXPORT QuicSpdySession
 
   bool ValidateWebTransportSettingsConsistency();
 
+  HuffmanEncoding huffman_encoding_ = HuffmanEncoding::kEnabled;
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
 

@@ -391,7 +391,8 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   // Return QPACK-encoded header block without using the dynamic table.
   std::string EncodeQpackHeaders(const Http2HeaderBlock& header) {
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
-    auto qpack_encoder = std::make_unique<QpackEncoder>(session_.get());
+    auto qpack_encoder = std::make_unique<QpackEncoder>(
+        session_.get(), HuffmanEncoding::kEnabled);
     qpack_encoder->set_qpack_stream_sender_delegate(
         &encoder_stream_sender_delegate);
     // QpackEncoder does not use the dynamic table by default,

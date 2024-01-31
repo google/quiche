@@ -17,11 +17,14 @@ namespace test {
 
 // This fuzzer exercises QpackEncoderStreamSender.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  FuzzedDataProvider provider(data, size);
+
   NoopQpackStreamSenderDelegate delegate;
-  QpackEncoderStreamSender sender;
+  QpackEncoderStreamSender sender(provider.ConsumeBool()
+                                      ? HuffmanEncoding::kEnabled
+                                      : HuffmanEncoding::kDisabled);
   sender.set_qpack_stream_sender_delegate(&delegate);
 
-  FuzzedDataProvider provider(data, size);
   // Limit string literal length to 2 kB for efficiency.
   const uint16_t kMaxStringLength = 2048;
 

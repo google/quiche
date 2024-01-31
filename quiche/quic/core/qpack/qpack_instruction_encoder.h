@@ -14,12 +14,19 @@
 
 namespace quic {
 
+// Enum which specifies if Huffman encoding should be used when sending
+// QPACK headers.
+enum class HuffmanEncoding {
+  kEnabled,
+  kDisabled,
+};
+
 // Generic instruction encoder class.  Takes a QpackLanguage that describes a
 // language, that is, a set of instruction opcodes together with a list of
 // fields that follow each instruction.
 class QUICHE_EXPORT QpackInstructionEncoder {
  public:
-  QpackInstructionEncoder();
+  explicit QpackInstructionEncoder(HuffmanEncoding huffman_encoding);
   QpackInstructionEncoder(const QpackInstructionEncoder&) = delete;
   QpackInstructionEncoder& operator=(const QpackInstructionEncoder&) = delete;
 
@@ -56,6 +63,10 @@ class QUICHE_EXPORT QpackInstructionEncoder {
   void DoStartString(absl::string_view name, absl::string_view value);
   void DoWriteString(absl::string_view name, absl::string_view value,
                      std::string* output);
+
+  // If true then Huffman encoding will not be used, regardless of the
+  // string size.
+  const HuffmanEncoding huffman_encoding_;
 
   // True if name or value should be Huffman encoded.
   bool use_huffman_;

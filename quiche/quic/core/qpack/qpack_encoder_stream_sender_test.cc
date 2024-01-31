@@ -15,18 +15,27 @@ namespace quic {
 namespace test {
 namespace {
 
-class QpackEncoderStreamSenderTest : public QuicTest {
+class QpackEncoderStreamSenderTest : public QuicTestWithParam<bool> {
  protected:
-  QpackEncoderStreamSenderTest() {
+  QpackEncoderStreamSenderTest() : stream_(HuffmanEncoding()) {
     stream_.set_qpack_stream_sender_delegate(&delegate_);
   }
   ~QpackEncoderStreamSenderTest() override = default;
+
+  bool DisableHuffmanEncoding() { return GetParam(); }
+  HuffmanEncoding HuffmanEncoding() {
+    return DisableHuffmanEncoding() ? HuffmanEncoding::kDisabled
+                                    : HuffmanEncoding::kEnabled;
+  }
 
   StrictMock<MockQpackStreamSenderDelegate> delegate_;
   QpackEncoderStreamSender stream_;
 };
 
-TEST_F(QpackEncoderStreamSenderTest, InsertWithNameReference) {
+INSTANTIATE_TEST_SUITE_P(DisableHuffmanEncoding, QpackEncoderStreamSenderTest,
+                         testing::Values(false, true));
+
+TEST_P(QpackEncoderStreamSenderTest, InsertWithNameReference) {
   EXPECT_EQ(0u, stream_.BufferedByteCount());
 
   // Static, index fits in prefix, empty value.
@@ -36,8 +45,13 @@ TEST_F(QpackEncoderStreamSenderTest, InsertWithNameReference) {
   EXPECT_EQ(expected_encoded_data.size(), stream_.BufferedByteCount());
   stream_.Flush();
 
-  // Static, index fits in prefix, Huffman encoded value.
-  expected_encoded_data = absl::HexStringToBytes("c28294e7");
+  if (DisableHuffmanEncoding()) {
+    // Static, index fits in prefix, not Huffman encoded value.
+    expected_encoded_data = absl::HexStringToBytes("c203666f6f");
+  } else {
+    // Static, index fits in prefix, Huffman encoded value.
+    expected_encoded_data = absl::HexStringToBytes("c28294e7");
+  }
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
   stream_.SendInsertWithNameReference(true, 2, "foo");
   EXPECT_EQ(expected_encoded_data.size(), stream_.BufferedByteCount());
@@ -63,7 +77,7 @@ TEST_F(QpackEncoderStreamSenderTest, InsertWithNameReference) {
   stream_.Flush();
 }
 
-TEST_F(QpackEncoderStreamSenderTest, InsertWithoutNameReference) {
+TEST_P(QpackEncoderStreamSenderTest, InsertWithoutNameReference) {
   EXPECT_EQ(0u, stream_.BufferedByteCount());
 
   // Empty name and value.
@@ -73,8 +87,14 @@ TEST_F(QpackEncoderStreamSenderTest, InsertWithoutNameReference) {
   EXPECT_EQ(expected_encoded_data.size(), stream_.BufferedByteCount());
   stream_.Flush();
 
-  // Huffman encoded short strings.
-  expected_encoded_data = absl::HexStringToBytes("6294e78294e7");
+  if (DisableHuffmanEncoding()) {
+    // Not Huffman encoded short strings.
+    expected_encoded_data = absl::HexStringToBytes("43666f6f03666f6f");
+  } else {
+    // Huffman encoded short strings.
+    expected_encoded_data = absl::HexStringToBytes("6294e78294e7");
+  }
+
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
   stream_.SendInsertWithoutNameReference("foo", "foo");
   EXPECT_EQ(expected_encoded_data.size(), stream_.BufferedByteCount());
@@ -102,7 +122,7 @@ TEST_F(QpackEncoderStreamSenderTest, InsertWithoutNameReference) {
   stream_.Flush();
 }
 
-TEST_F(QpackEncoderStreamSenderTest, Duplicate) {
+TEST_P(QpackEncoderStreamSenderTest, Duplicate) {
   EXPECT_EQ(0u, stream_.BufferedByteCount());
 
   // Small index fits in prefix.
@@ -120,7 +140,7 @@ TEST_F(QpackEncoderStreamSenderTest, Duplicate) {
   stream_.Flush();
 }
 
-TEST_F(QpackEncoderStreamSenderTest, SetDynamicTableCapacity) {
+TEST_P(QpackEncoderStreamSenderTest, SetDynamicTableCapacity) {
   EXPECT_EQ(0u, stream_.BufferedByteCount());
 
   // Small capacity fits in prefix.
@@ -141,7 +161,7 @@ TEST_F(QpackEncoderStreamSenderTest, SetDynamicTableCapacity) {
 }
 
 // No writes should happen until Flush is called.
-TEST_F(QpackEncoderStreamSenderTest, Coalesce) {
+TEST_P(QpackEncoderStreamSenderTest, Coalesce) {
   // Insert entry with static name reference, empty value.
   stream_.SendInsertWithNameReference(true, 5, "");
 
@@ -154,12 +174,20 @@ TEST_F(QpackEncoderStreamSenderTest, Coalesce) {
   // Duplicate entry.
   stream_.SendDuplicate(17);
 
-  std::string expected_encoded_data = absl::HexStringToBytes(
-      "c500"          // Insert entry with static name reference.
-      "c28294e7"      // Insert entry with static name reference.
-      "6294e78294e7"  // Insert literal entry.
-      "11");          // Duplicate entry.
-
+  std::string expected_encoded_data;
+  if (DisableHuffmanEncoding()) {
+    expected_encoded_data = absl::HexStringToBytes(
+        "c500"              // Insert entry with static name reference.
+        "c203666f6f"        // Insert entry with static name reference.
+        "43666f6f03666f6f"  // Insert literal entry.
+        "11");              // Duplicate entry.
+  } else {
+    expected_encoded_data = absl::HexStringToBytes(
+        "c500"          // Insert entry with static name reference.
+        "c28294e7"      // Insert entry with static name reference.
+        "6294e78294e7"  // Insert literal entry.
+        "11");          // Duplicate entry.
+  }
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
   EXPECT_EQ(expected_encoded_data.size(), stream_.BufferedByteCount());
   stream_.Flush();
@@ -168,7 +196,7 @@ TEST_F(QpackEncoderStreamSenderTest, Coalesce) {
 
 // No writes should happen if QpackEncoderStreamSender::Flush() is called
 // when the buffer is empty.
-TEST_F(QpackEncoderStreamSenderTest, FlushEmpty) {
+TEST_P(QpackEncoderStreamSenderTest, FlushEmpty) {
   EXPECT_EQ(0u, stream_.BufferedByteCount());
   stream_.Flush();
   EXPECT_EQ(0u, stream_.BufferedByteCount());

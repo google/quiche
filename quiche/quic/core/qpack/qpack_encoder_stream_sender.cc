@@ -22,7 +22,9 @@ constexpr uint64_t kMaxBytesBufferedByStream = 64 * 1024;
 
 }  // anonymous namespace
 
-QpackEncoderStreamSender::QpackEncoderStreamSender() : delegate_(nullptr) {}
+QpackEncoderStreamSender::QpackEncoderStreamSender(
+    HuffmanEncoding huffman_encoding)
+    : delegate_(nullptr), instruction_encoder_(huffman_encoding) {}
 
 void QpackEncoderStreamSender::SendInsertWithNameReference(
     bool is_static, uint64_t name_index, absl::string_view value) {

@@ -44,8 +44,9 @@ void TruncateValueOnInvalidChars(std::string* value) {
 class EncodingEndpoint {
  public:
   EncodingEndpoint(uint64_t maximum_dynamic_table_capacity,
-                   uint64_t maximum_blocked_streams)
-      : encoder_(&decoder_stream_error_delegate) {
+                   uint64_t maximum_blocked_streams,
+                   HuffmanEncoding huffman_encoding)
+      : encoder_(&decoder_stream_error_delegate, huffman_encoding) {
     encoder_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
     encoder_.SetMaximumBlockedStreams(maximum_blocked_streams);
   }
@@ -600,7 +601,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Set up encoder.
   EncodingEndpoint encoder(maximum_dynamic_table_capacity,
-                           maximum_blocked_streams);
+                           maximum_blocked_streams,
+                           provider.ConsumeBool() ? HuffmanEncoding::kEnabled
+                                                  : HuffmanEncoding::kDisabled);
 
   // Set up decoder.
   DecodingEndpoint decoder(maximum_dynamic_table_capacity,

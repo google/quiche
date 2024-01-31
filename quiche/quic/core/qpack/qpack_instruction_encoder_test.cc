@@ -49,10 +49,17 @@ class QpackInstructionWithValuesPeer {
 
 namespace {
 
-class QpackInstructionEncoderTest : public QuicTest {
+class QpackInstructionEncoderTest : public QuicTestWithParam<bool> {
  protected:
-  QpackInstructionEncoderTest() : verified_position_(0) {}
+  QpackInstructionEncoderTest()
+      : encoder_(HuffmanEncoding()), verified_position_(0) {}
   ~QpackInstructionEncoderTest() override = default;
+
+  bool DisableHuffmanEncoding() { return GetParam(); }
+  HuffmanEncoding HuffmanEncoding() {
+    return DisableHuffmanEncoding() ? HuffmanEncoding::kDisabled
+                                    : HuffmanEncoding::kEnabled;
+  }
 
   // Append encoded |instruction| to |output_|.
   void EncodeInstruction(
@@ -76,7 +83,10 @@ class QpackInstructionEncoderTest : public QuicTest {
   std::string::size_type verified_position_;
 };
 
-TEST_F(QpackInstructionEncoderTest, Varint) {
+INSTANTIATE_TEST_SUITE_P(DisableHuffmanEncoding, QpackInstructionEncoderTest,
+                         testing::Values(false, true));
+
+TEST_P(QpackInstructionEncoderTest, Varint) {
   const QpackInstruction instruction{QpackInstructionOpcode{0x00, 0x80},
                                      {{QpackInstructionFieldType::kVarint, 7}}};
 
@@ -92,7 +102,7 @@ TEST_F(QpackInstructionEncoderTest, Varint) {
   EXPECT_TRUE(EncodedSegmentMatches("7f00"));
 }
 
-TEST_F(QpackInstructionEncoderTest, SBitAndTwoVarint2) {
+TEST_P(QpackInstructionEncoderTest, SBitAndTwoVarint2) {
   const QpackInstruction instruction{
       QpackInstructionOpcode{0x80, 0xc0},
       {{QpackInstructionFieldType::kSbit, 0x20},
@@ -115,7 +125,7 @@ TEST_F(QpackInstructionEncoderTest, SBitAndTwoVarint2) {
   EXPECT_TRUE(EncodedSegmentMatches("9f00ff65"));
 }
 
-TEST_F(QpackInstructionEncoderTest, SBitAndVarintAndValue) {
+TEST_P(QpackInstructionEncoderTest, SBitAndVarintAndValue) {
   const QpackInstruction instruction{QpackInstructionOpcode{0xc0, 0xc0},
                                      {{QpackInstructionFieldType::kSbit, 0x20},
                                       {QpackInstructionFieldType::kVarint, 5},
@@ -128,7 +138,11 @@ TEST_F(QpackInstructionEncoderTest, SBitAndVarintAndValue) {
   QpackInstructionWithValuesPeer::set_varint(&instruction_with_values, 100);
   QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "foo");
   EncodeInstruction(instruction_with_values);
-  EXPECT_TRUE(EncodedSegmentMatches("ff458294e7"));
+  if (DisableHuffmanEncoding()) {
+    EXPECT_TRUE(EncodedSegmentMatches("ff4503666f6f"));
+  } else {
+    EXPECT_TRUE(EncodedSegmentMatches("ff458294e7"));
+  }
 
   QpackInstructionWithValuesPeer::set_s_bit(&instruction_with_values, false);
   QpackInstructionWithValuesPeer::set_varint(&instruction_with_values, 3);
@@ -137,7 +151,7 @@ TEST_F(QpackInstructionEncoderTest, SBitAndVarintAndValue) {
   EXPECT_TRUE(EncodedSegmentMatches("c303626172"));
 }
 
-TEST_F(QpackInstructionEncoderTest, Name) {
+TEST_P(QpackInstructionEncoderTest, Name) {
   const QpackInstruction instruction{QpackInstructionOpcode{0xe0, 0xe0},
                                      {{QpackInstructionFieldType::kName, 4}}};
 
@@ -150,14 +164,18 @@ TEST_F(QpackInstructionEncoderTest, Name) {
 
   QpackInstructionWithValuesPeer::set_name(&instruction_with_values, "foo");
   EncodeInstruction(instruction_with_values);
-  EXPECT_TRUE(EncodedSegmentMatches("f294e7"));
+  if (DisableHuffmanEncoding()) {
+    EXPECT_TRUE(EncodedSegmentMatches("e3666f6f"));
+  } else {
+    EXPECT_TRUE(EncodedSegmentMatches("f294e7"));
+  }
 
   QpackInstructionWithValuesPeer::set_name(&instruction_with_values, "bar");
   EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("e3626172"));
 }
 
-TEST_F(QpackInstructionEncoderTest, Value) {
+TEST_P(QpackInstructionEncoderTest, Value) {
   const QpackInstruction instruction{QpackInstructionOpcode{0xf0, 0xf0},
                                      {{QpackInstructionFieldType::kValue, 3}}};
 
@@ -167,17 +185,20 @@ TEST_F(QpackInstructionEncoderTest, Value) {
   QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "");
   EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("f0"));
-
   QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "foo");
   EncodeInstruction(instruction_with_values);
-  EXPECT_TRUE(EncodedSegmentMatches("fa94e7"));
+  if (DisableHuffmanEncoding()) {
+    EXPECT_TRUE(EncodedSegmentMatches("f3666f6f"));
+  } else {
+    EXPECT_TRUE(EncodedSegmentMatches("fa94e7"));
+  }
 
   QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "bar");
   EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("f3626172"));
 }
 
-TEST_F(QpackInstructionEncoderTest, SBitAndNameAndValue) {
+TEST_P(QpackInstructionEncoderTest, SBitAndNameAndValue) {
   const QpackInstruction instruction{QpackInstructionOpcode{0xf0, 0xf0},
                                      {{QpackInstructionFieldType::kSbit, 0x08},
                                       {QpackInstructionFieldType::kName, 2},
@@ -196,7 +217,11 @@ TEST_F(QpackInstructionEncoderTest, SBitAndNameAndValue) {
   QpackInstructionWithValuesPeer::set_name(&instruction_with_values, "foo");
   QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "bar");
   EncodeInstruction(instruction_with_values);
-  EXPECT_TRUE(EncodedSegmentMatches("fe94e703626172"));
+  if (DisableHuffmanEncoding()) {
+    EXPECT_TRUE(EncodedSegmentMatches("fb00666f6f03626172"));
+  } else {
+    EXPECT_TRUE(EncodedSegmentMatches("fe94e703626172"));
+  }
 }
 
 }  // namespace

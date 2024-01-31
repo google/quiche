@@ -19,7 +19,7 @@ namespace quic {
 // Serialized instructions are buffered until Flush() is called.
 class QUICHE_EXPORT QpackEncoderStreamSender {
  public:
-  QpackEncoderStreamSender();
+  QpackEncoderStreamSender(HuffmanEncoding huffman_encoding);
   QpackEncoderStreamSender(const QpackEncoderStreamSender&) = delete;
   QpackEncoderStreamSender& operator=(const QpackEncoderStreamSender&) = delete;
 

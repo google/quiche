@@ -522,7 +522,7 @@ void QuicSpdySession::Initialize() {
     headers_stream_ = headers_stream.get();
     ActivateStream(std::move(headers_stream));
   } else {
-    qpack_encoder_ = std::make_unique<QpackEncoder>(this);
+    qpack_encoder_ = std::make_unique<QpackEncoder>(this, huffman_encoding_);
     qpack_decoder_ =
         std::make_unique<QpackDecoder>(qpack_maximum_dynamic_table_capacity_,
                                        qpack_maximum_blocked_streams_, this);

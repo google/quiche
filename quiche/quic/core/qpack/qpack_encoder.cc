@@ -33,9 +33,12 @@ const float kDrainingFraction = 0.25;
 }  // anonymous namespace
 
 QpackEncoder::QpackEncoder(
-    DecoderStreamErrorDelegate* decoder_stream_error_delegate)
-    : decoder_stream_error_delegate_(decoder_stream_error_delegate),
+    DecoderStreamErrorDelegate* decoder_stream_error_delegate,
+    HuffmanEncoding huffman_encoding)
+    : huffman_encoding_(huffman_encoding),
+      decoder_stream_error_delegate_(decoder_stream_error_delegate),
       decoder_stream_receiver_(this),
+      encoder_stream_sender_(huffman_encoding),
       maximum_blocked_streams_(0),
       header_list_count_(0) {
   QUICHE_DCHECK(decoder_stream_error_delegate_);
@@ -346,7 +349,7 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
 std::string QpackEncoder::SecondPassEncode(
     QpackEncoder::Representations representations,
     uint64_t required_insert_count) const {
-  QpackInstructionEncoder instruction_encoder;
+  QpackInstructionEncoder instruction_encoder(huffman_encoding_);
   std::string encoded_headers;
 
   // Header block prefix.

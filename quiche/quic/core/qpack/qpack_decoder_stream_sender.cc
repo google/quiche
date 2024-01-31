@@ -16,7 +16,11 @@
 
 namespace quic {
 
-QpackDecoderStreamSender::QpackDecoderStreamSender() : delegate_(nullptr) {}
+QpackDecoderStreamSender::QpackDecoderStreamSender()
+    : delegate_(nullptr),
+      // None of the instructions sent by the QpackDecoderStreamSender
+      // are strings, so huffman encoding is not relevant.
+      instruction_encoder_(HuffmanEncoding::kEnabled) {}
 
 void QpackDecoderStreamSender::SendInsertCountIncrement(uint64_t increment) {
   instruction_encoder_.Encode(
