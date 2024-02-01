@@ -1428,4 +1428,9 @@ void QuicConfig::ClearAlternateServerAddressToSend(
   }
 }
 
+bool QuicConfig::SupportsServerPreferredAddress(Perspective perspective) const {
+  return HasClientSentConnectionOption(kSPAD, perspective) ||
+         GetQuicFlag(quic_always_support_server_preferred_address);
+}
+
 }  // namespace quic

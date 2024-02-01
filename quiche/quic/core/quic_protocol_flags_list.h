@@ -231,4 +231,8 @@ QUIC_PROTOCOL_FLAG(
     bool, quic_enable_chaos_protection, true,
     "If true, use chaos protection to randomize client initials.")
 
+QUIC_PROTOCOL_FLAG(bool, quic_always_support_server_preferred_address, false,
+                   "If false, the kSPAD connection option is required to use "
+                   "QUIC server preferred address support.")
+
 #endif

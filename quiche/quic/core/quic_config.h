@@ -418,6 +418,11 @@ class QUICHE_EXPORT QuicConfig {
   void ClearAlternateServerAddressToSend(
       quiche::IpAddressFamily address_family);
 
+  // Returns true if this config supports server preferred address,
+  // either via the kSPAD connection option or the QUIC protocol flag
+  // quic_always_support_server_preferred_address.
+  bool SupportsServerPreferredAddress(Perspective perspective) const;
+
   // Original destination connection ID.
   void SetOriginalConnectionIdToSend(
       const QuicConnectionId& original_destination_connection_id);
