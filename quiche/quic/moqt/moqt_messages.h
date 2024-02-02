@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Structured data for message types in draft-ietf-moq-transport-01.
+// Structured data for message types in draft-ietf-moq-transport-02.
 
 #ifndef QUICHE_QUIC_MOQT_MOQT_MESSAGES_H_
 #define QUICHE_QUIC_MOQT_MOQT_MESSAGES_H_
@@ -20,6 +20,12 @@
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
+// the draft-02 spec makes AUTH_INFO unparseable in SUBSCRIBE messages. This
+// flag assumes that the num_parameters field exists so that it is parseable.
+// If false, there is no num_parameters field and there must not be an
+// AUTH_INFO field.
+#define MOQT_AUTH_INFO
+
 namespace moqt {
 
 inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
@@ -27,7 +33,7 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft01 = 0xff000001,
+  kDraft02 = 0xff000002,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
@@ -46,9 +52,9 @@ struct QUICHE_EXPORT MoqtSessionParameters {
 inline constexpr size_t kMaxMessageHeaderSize = 2048;
 
 enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
-  kObjectWithPayloadLength = 0x00,
-  kObjectWithoutPayloadLength = 0x02,
-  kSubscribeRequest = 0x03,
+  kObjectStream = 0x00,
+  kObjectPreferDatagram = 0x01,
+  kSubscribe = 0x03,
   kSubscribeOk = 0x04,
   kSubscribeError = 0x05,
   kAnnounce = 0x06,
@@ -61,6 +67,8 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kGoAway = 0x10,
   kClientSetup = 0x40,
   kServerSetup = 0x41,
+  kStreamHeaderTrack = 0x50,
+  kStreamHeaderGroup = 0x51,
 };
 
 enum class QUICHE_EXPORT MoqtError : uint64_t {
@@ -85,17 +93,14 @@ enum class QUICHE_EXPORT MoqtSetupParameter : uint64_t {
 };
 
 enum class QUICHE_EXPORT MoqtTrackRequestParameter : uint64_t {
-  // These two should have been deleted in draft-01.
-  // kGroupSequence = 0x0,
-  // kObjectSequence = 0x1,
   kAuthorizationInfo = 0x2,
 };
 
 struct FullTrackName {
   std::string track_namespace;
   std::string track_name;
-  FullTrackName(std::string ns, std::string name)
-      : track_namespace(std::move(ns)), track_name(std::move(name)) {}
+  FullTrackName(absl::string_view ns, absl::string_view name)
+      : track_namespace(ns), track_name(name) {}
   bool operator==(const FullTrackName& other) const {
     return track_namespace == other.track_namespace &&
            track_name == other.track_name;
@@ -125,6 +130,17 @@ struct FullSequence {
     return group < other.group ||
            (group == other.group && object < other.object);
   }
+  bool operator<=(const FullSequence& other) const {
+    return (group < other.group ||
+            (group == other.group && object <= other.object));
+  }
+  FullSequence& operator=(FullSequence other) {
+    group = other.group;
+    object = other.object;
+    return *this;
+  }
+  template <typename H>
+  friend H AbslHashValue(H h, const FullSequence& m);
 };
 
 template <typename H>
@@ -143,13 +159,25 @@ struct QUICHE_EXPORT MoqtServerSetup {
   std::optional<MoqtRole> role;
 };
 
+// These codes do not appear on the wire.
+enum class QUICHE_EXPORT MoqtForwardingPreference : uint8_t {
+  kTrack = 0x0,
+  kGroup = 0x1,
+  kObject = 0x2,
+  kDatagram = 0x3,
+};
+
+// The data contained in every Object message, although the message type
+// implies some of the values. |payload_length| has no value if the length
+// is unknown (because it runs to the end of the stream.)
 struct QUICHE_EXPORT MoqtObject {
-  uint64_t track_id;
-  uint64_t group_sequence;
-  uint64_t object_sequence;
+  uint64_t subscribe_id;
+  uint64_t track_alias;
+  uint64_t group_id;
+  uint64_t object_id;
   uint64_t object_send_order;
+  MoqtForwardingPreference forwarding_preference;
   std::optional<uint64_t> payload_length;
-  // Message also includes the object payload.
 };
 
 enum class QUICHE_EXPORT MoqtSubscribeLocationMode : uint64_t {
@@ -180,7 +208,9 @@ struct QUICHE_EXPORT MoqtSubscribeLocation {
   }
 };
 
-struct QUICHE_EXPORT MoqtSubscribeRequest {
+struct QUICHE_EXPORT MoqtSubscribe {
+  uint64_t subscribe_id;
+  uint64_t track_alias;
   absl::string_view track_namespace;
   absl::string_view track_name;
   // If the mode is kNone, the these are std::nullopt.
@@ -188,13 +218,13 @@ struct QUICHE_EXPORT MoqtSubscribeRequest {
   std::optional<MoqtSubscribeLocation> start_object;
   std::optional<MoqtSubscribeLocation> end_group;
   std::optional<MoqtSubscribeLocation> end_object;
+#ifdef MOQT_AUTH_INFO
   std::optional<absl::string_view> authorization_info;
+#endif
 };
 
 struct QUICHE_EXPORT MoqtSubscribeOk {
-  absl::string_view track_namespace;
-  absl::string_view track_name;
-  uint64_t track_id;
+  uint64_t subscribe_id;
   // The message uses ms, but expires is in us.
   quic::QuicTimeDelta expires = quic::QuicTimeDelta::FromMilliseconds(0);
 };
@@ -206,27 +236,24 @@ enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
 };
 
 struct QUICHE_EXPORT MoqtSubscribeError {
-  absl::string_view track_namespace;
-  absl::string_view track_name;
+  uint64_t subscribe_id;
   SubscribeErrorCode error_code;
   absl::string_view reason_phrase;
+  uint64_t track_alias;
 };
 
 struct QUICHE_EXPORT MoqtUnsubscribe {
-  absl::string_view track_namespace;
-  absl::string_view track_name;
+  uint64_t subscribe_id;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeFin {
-  absl::string_view track_namespace;
-  absl::string_view track_name;
+  uint64_t subscribe_id;
   uint64_t final_group;
   uint64_t final_object;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeRst {
-  absl::string_view track_namespace;
-  absl::string_view track_name;
+  uint64_t subscribe_id;
   uint64_t error_code;
   absl::string_view reason_phrase;
   uint64_t final_group;
@@ -257,6 +284,14 @@ struct QUICHE_EXPORT MoqtGoAway {
 };
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);
+
+std::string MoqtForwardingPreferenceToString(
+    MoqtForwardingPreference preference);
+
+MoqtForwardingPreference GetForwardingPreference(MoqtMessageType type);
+
+MoqtMessageType GetMessageTypeForForwardingPreference(
+    MoqtForwardingPreference preference);
 
 }  // namespace moqt
 

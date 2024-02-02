@@ -34,8 +34,7 @@ class QUICHE_EXPORT MoqtParserVisitor {
   // parser retains ownership of the memory.
   virtual void OnClientSetupMessage(const MoqtClientSetup& message) = 0;
   virtual void OnServerSetupMessage(const MoqtServerSetup& message) = 0;
-  virtual void OnSubscribeRequestMessage(
-      const MoqtSubscribeRequest& message) = 0;
+  virtual void OnSubscribeMessage(const MoqtSubscribe& message) = 0;
   virtual void OnSubscribeOkMessage(const MoqtSubscribeOk& message) = 0;
   virtual void OnSubscribeErrorMessage(const MoqtSubscribeError& message) = 0;
   virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) = 0;
@@ -63,6 +62,8 @@ class QUICHE_EXPORT MoqtParser {
   // All bytes can be freed. Calls OnParsingError() when there is a parsing
   // error.
   // Any calls after sending |fin| = true will be ignored.
+  // TODO(martinduke): Figure out what has to happen if the message arrives via
+  // datagram rather than a stream.
   void ProcessData(absl::string_view data, bool fin);
 
  private:
@@ -75,10 +76,11 @@ class QUICHE_EXPORT MoqtParser {
   // structs, and call the relevant visitor function for further action. Returns
   // the number of bytes consumed if the message is complete; returns 0
   // otherwise.
-  size_t ProcessObject(quic::QuicDataReader& reader, bool has_length, bool fin);
+  size_t ProcessObject(quic::QuicDataReader& reader, MoqtMessageType type,
+                       bool fin);
   size_t ProcessClientSetup(quic::QuicDataReader& reader);
   size_t ProcessServerSetup(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeRequest(quic::QuicDataReader& reader);
+  size_t ProcessSubscribe(quic::QuicDataReader& reader);
   size_t ProcessSubscribeOk(quic::QuicDataReader& reader);
   size_t ProcessSubscribeError(quic::QuicDataReader& reader);
   size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
@@ -108,6 +110,21 @@ class QUICHE_EXPORT MoqtParser {
   // string_view is not exactly the right length.
   bool StringViewToVarInt(absl::string_view& sv, uint64_t& vi);
 
+  // Simplify understanding of state.
+  // Returns true if the stream has delivered all object metadata common to all
+  // objects on that stream.
+  bool ObjectStreamInitialized() const { return object_metadata_.has_value(); }
+  // Returns true if the stream has delivered all metadata but not all payload
+  // for the most recent object.
+  bool ObjectPayloadInProgress() const {
+    return (object_metadata_.has_value() &&
+            (object_metadata_->forwarding_preference ==
+                 MoqtForwardingPreference::kObject ||
+             object_metadata_->forwarding_preference ==
+                 MoqtForwardingPreference::kDatagram ||
+             payload_length_remaining_ > 0));
+  }
+
   MoqtParserVisitor& visitor_;
   bool uses_web_transport_;
   bool no_more_data_ = false;  // Fatal error or fin. No more parsing.
@@ -116,8 +133,17 @@ class QUICHE_EXPORT MoqtParser {
   std::string buffered_message_;
 
   // Metadata for an object which is delivered in parts.
+  // If object_metadata_ is nullopt, nothing has been processed on the stream.
+  // If object_metadata_ exists but payload_length is nullopt or
+  // payload_length_remaining_ is nonzero, the object payload is in mid-
+  // delivery.
+  // If object_metadata_ exists and payload_length_remaining_ is zero, an object
+  // has been completely delivered and the next object header on the stream has
+  // not been delivered.
+  // Use ObjectStreamInitialized() and ObjectPayloadInProgress() to keep the
+  // state straight.
   std::optional<MoqtObject> object_metadata_ = std::nullopt;
-  size_t payload_length_remaining_;
+  size_t payload_length_remaining_ = 0;
 
   bool processing_ = false;  // True if currently in ProcessData(), to prevent
                              // re-entrancy.

@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <memory>
 #include <optional>
 #include <string>
 
@@ -41,9 +40,8 @@ void MoqtParser::ProcessData(absl::string_view data, bool fin) {
   // Check for early fin
   if (fin) {
     no_more_data_ = true;
-    if (object_metadata_.has_value() &&
-        object_metadata_->payload_length.has_value() &&
-        *object_metadata_->payload_length > data.length()) {
+    if (ObjectPayloadInProgress() &&
+        payload_length_remaining_ > data.length()) {
       ParseError("End of stream before complete OBJECT PAYLOAD");
       return;
     }
@@ -57,7 +55,7 @@ void MoqtParser::ProcessData(absl::string_view data, bool fin) {
   // There are three cases: the parser has already delivered an OBJECT header
   // and is now delivering payload; part of a message is in the buffer; or
   // no message is in progress.
-  if (object_metadata_.has_value()) {
+  if (ObjectPayloadInProgress()) {
     // This is additional payload for an OBJECT.
     QUICHE_DCHECK(buffered_message_.empty());
     if (!object_metadata_->payload_length.has_value()) {
@@ -79,7 +77,7 @@ void MoqtParser::ProcessData(absl::string_view data, bool fin) {
     visitor_.OnObjectMessage(*object_metadata_,
                              data.substr(0, payload_length_remaining_), true);
     reader->Seek(payload_length_remaining_);
-    object_metadata_.reset();
+    payload_length_remaining_ = 0;  // Expect a new object.
   } else if (!buffered_message_.empty()) {
     absl::StrAppend(&buffered_message_, data);
     reader.emplace(buffered_message_);
@@ -113,29 +111,34 @@ void MoqtParser::ProcessData(absl::string_view data, bool fin) {
   if (original_buffer_size > 0) {
     buffered_message_.erase(0, total_processed);
   }
-  if (fin && object_metadata_.has_value()) {
-    ParseError("Received FIN mid-payload");
-  }
 }
 
 size_t MoqtParser::ProcessMessage(absl::string_view data, bool fin) {
   uint64_t value;
   quic::QuicDataReader reader(data);
+  if (ObjectStreamInitialized() && !ObjectPayloadInProgress()) {
+    // This is a follow-on object in a stream.
+    return ProcessObject(reader,
+                         GetMessageTypeForForwardingPreference(
+                             object_metadata_->forwarding_preference),
+                         fin);
+  }
   if (!reader.ReadVarInt62(&value)) {
     return 0;
   }
   auto type = static_cast<MoqtMessageType>(value);
   switch (type) {
-    case MoqtMessageType::kObjectWithPayloadLength:
-      return ProcessObject(reader, true, fin);
-    case MoqtMessageType::kObjectWithoutPayloadLength:
-      return ProcessObject(reader, false, fin);
+    case MoqtMessageType::kObjectStream:
+    case MoqtMessageType::kObjectPreferDatagram:
+    case MoqtMessageType::kStreamHeaderTrack:
+    case MoqtMessageType::kStreamHeaderGroup:
+      return ProcessObject(reader, type, fin);
     case MoqtMessageType::kClientSetup:
       return ProcessClientSetup(reader);
     case MoqtMessageType::kServerSetup:
       return ProcessServerSetup(reader);
-    case MoqtMessageType::kSubscribeRequest:
-      return ProcessSubscribeRequest(reader);
+    case MoqtMessageType::kSubscribe:
+      return ProcessSubscribe(reader);
     case MoqtMessageType::kSubscribeOk:
       return ProcessSubscribeOk(reader);
     case MoqtMessageType::kSubscribeError:
@@ -162,39 +165,84 @@ size_t MoqtParser::ProcessMessage(absl::string_view data, bool fin) {
   }
 }
 
-size_t MoqtParser::ProcessObject(quic::QuicDataReader& reader, bool has_length,
-                                 bool fin) {
-  QUICHE_DCHECK(!object_metadata_.has_value());
-  object_metadata_ = MoqtObject();
-  uint64_t length;
-  if (!reader.ReadVarInt62(&object_metadata_->track_id) ||
-      !reader.ReadVarInt62(&object_metadata_->group_sequence) ||
-      !reader.ReadVarInt62(&object_metadata_->object_sequence) ||
-      !reader.ReadVarInt62(&object_metadata_->object_send_order) ||
-      (has_length && !reader.ReadVarInt62(&length))) {
-    object_metadata_.reset();
-    return 0;
+size_t MoqtParser::ProcessObject(quic::QuicDataReader& reader,
+                                 MoqtMessageType type, bool fin) {
+  size_t processed_data;
+  QUICHE_DCHECK(!ObjectPayloadInProgress());
+  if (!ObjectStreamInitialized()) {
+    // nothing has been processed on the stream.
+    object_metadata_ = MoqtObject();
+    if (!reader.ReadVarInt62(&object_metadata_->subscribe_id) ||
+        !reader.ReadVarInt62(&object_metadata_->track_alias)) {
+      object_metadata_.reset();
+      return 0;
+    }
+    if (type != MoqtMessageType::kStreamHeaderTrack &&
+        !reader.ReadVarInt62(&object_metadata_->group_id)) {
+      object_metadata_.reset();
+      return 0;
+    }
+    if (type != MoqtMessageType::kStreamHeaderTrack &&
+        type != MoqtMessageType::kStreamHeaderGroup &&
+        !reader.ReadVarInt62(&object_metadata_->object_id)) {
+      object_metadata_.reset();
+      return 0;
+    }
+    if (!reader.ReadVarInt62(&object_metadata_->object_send_order)) {
+      object_metadata_.reset();
+      return 0;
+    }
+    object_metadata_->forwarding_preference = GetForwardingPreference(type);
   }
-  if (has_length) {
-    object_metadata_->payload_length = length;
+  // At this point, enough data has been processed to store in object_metadata_,
+  // even if there's nothing else in the buffer.
+  processed_data = reader.PreviouslyReadPayload().length();
+  QUICHE_DCHECK(payload_length_remaining_ == 0);
+  switch (type) {
+    case MoqtMessageType::kStreamHeaderTrack:
+      if (!reader.ReadVarInt62(&object_metadata_->group_id)) {
+        return processed_data;
+      }
+      [[fallthrough]];
+    case MoqtMessageType::kStreamHeaderGroup: {
+      uint64_t length;
+      if (!reader.ReadVarInt62(&object_metadata_->object_id) ||
+          !reader.ReadVarInt62(&length)) {
+        return processed_data;
+      }
+      object_metadata_->payload_length = length;
+      break;
+    }
+    default:
+      break;
   }
-  bool received_complete_message =
-      (fin && !has_length) ||
-      (has_length &&
-       *object_metadata_->payload_length <= reader.BytesRemaining());
-  size_t payload_to_draw = (!has_length || *object_metadata_->payload_length >=
-                                               reader.BytesRemaining())
-                               ? reader.BytesRemaining()
-                               : *object_metadata_->payload_length;
+  bool has_length = object_metadata_->payload_length.has_value();
+  bool received_complete_message = false;
+  size_t payload_to_draw = reader.BytesRemaining();
+  if (fin && has_length &&
+      *object_metadata_->payload_length > reader.BytesRemaining()) {
+    ParseError("Received FIN mid-payload");
+    return processed_data;
+  }
+  received_complete_message =
+      fin || (has_length &&
+              *object_metadata_->payload_length <= reader.BytesRemaining());
+  if (received_complete_message && has_length &&
+      *object_metadata_->payload_length < reader.BytesRemaining()) {
+    payload_to_draw = *object_metadata_->payload_length;
+  }
+  // The error case where there's a fin before the explicit length is complete
+  // is handled in ProcessData() in two separate places. Even though the
+  // message is "done" if fin regardless of has_length, it's bad to report to
+  // the application that the object is done if it hasn't reached the promised
+  // length.
   visitor_.OnObjectMessage(
       *object_metadata_,
       reader.PeekRemainingPayload().substr(0, payload_to_draw),
       received_complete_message);
-  if (received_complete_message) {
-    object_metadata_.reset();
-  }
   reader.Seek(payload_to_draw);
-  payload_length_remaining_ = length - payload_to_draw;
+  payload_length_remaining_ =
+      has_length ? *object_metadata_->payload_length - payload_to_draw : 0;
   return reader.PreviouslyReadPayload().length();
 }
 
@@ -303,41 +351,38 @@ size_t MoqtParser::ProcessServerSetup(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtParser::ProcessSubscribeRequest(quic::QuicDataReader& reader) {
-  MoqtSubscribeRequest subscribe_request;
-  if (!reader.ReadStringPieceVarInt62(&subscribe_request.track_namespace)) {
-    return 0;
-  }
-  if (!reader.ReadStringPieceVarInt62(&subscribe_request.track_name)) {
-    return 0;
-  }
-  if (!ReadLocation(reader, subscribe_request.start_group)) {
+size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
+  MoqtSubscribe subscribe_request;
+  if (!reader.ReadVarInt62(&subscribe_request.subscribe_id) ||
+      !reader.ReadVarInt62(&subscribe_request.track_alias) ||
+      !reader.ReadStringPieceVarInt62(&subscribe_request.track_namespace) ||
+      !reader.ReadStringPieceVarInt62(&subscribe_request.track_name) ||
+      !ReadLocation(reader, subscribe_request.start_group)) {
     return 0;
   }
   if (!subscribe_request.start_group.has_value()) {
-    ParseError("START_GROUP must not be None in SUBSCRIBE_REQUEST");
+    ParseError("START_GROUP must not be None in SUBSCRIBE");
     return 0;
   }
   if (!ReadLocation(reader, subscribe_request.start_object)) {
     return 0;
   }
   if (!subscribe_request.start_object.has_value()) {
-    ParseError("START_OBJECT must not be None in SUBSCRIBE_REQUEST");
+    ParseError("START_OBJECT must not be None in SUBSCRIBE");
     return 0;
   }
-  if (!ReadLocation(reader, subscribe_request.end_group)) {
-    return 0;
-  }
-  if (!ReadLocation(reader, subscribe_request.end_object)) {
+  if (!ReadLocation(reader, subscribe_request.end_group) ||
+      !ReadLocation(reader, subscribe_request.end_object)) {
     return 0;
   }
   if (subscribe_request.end_group.has_value() !=
       subscribe_request.end_object.has_value()) {
     ParseError(
-        "SUBSCRIBE_REQUEST end_group and end_object must be both None "
+        "SUBSCRIBE end_group and end_object must be both None "
         "or both non_None");
     return 0;
   }
+#ifdef MOQT_AUTH_INFO
   uint64_t num_params;
   if (!reader.ReadVarInt62(&num_params)) {
     return 0;
@@ -364,23 +409,16 @@ size_t MoqtParser::ProcessSubscribeRequest(quic::QuicDataReader& reader) {
         break;
     }
   }
-  visitor_.OnSubscribeRequestMessage(subscribe_request);
+#endif
+  visitor_.OnSubscribeMessage(subscribe_request);
   return reader.PreviouslyReadPayload().length();
 }
 
 size_t MoqtParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   MoqtSubscribeOk subscribe_ok;
-  if (!reader.ReadStringPieceVarInt62(&subscribe_ok.track_namespace)) {
-    return 0;
-  }
-  if (!reader.ReadStringPieceVarInt62(&subscribe_ok.track_name)) {
-    return 0;
-  }
-  if (!reader.ReadVarInt62(&subscribe_ok.track_id)) {
-    return 0;
-  }
   uint64_t milliseconds;
-  if (!reader.ReadVarInt62(&milliseconds)) {
+  if (!reader.ReadVarInt62(&subscribe_ok.subscribe_id) ||
+      !reader.ReadVarInt62(&milliseconds)) {
     return 0;
   }
   subscribe_ok.expires = quic::QuicTimeDelta::FromMilliseconds(milliseconds);
@@ -390,30 +428,21 @@ size_t MoqtParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
 
 size_t MoqtParser::ProcessSubscribeError(quic::QuicDataReader& reader) {
   MoqtSubscribeError subscribe_error;
-  if (!reader.ReadStringPieceVarInt62(&subscribe_error.track_namespace)) {
-    return 0;
-  }
-  if (!reader.ReadStringPieceVarInt62(&subscribe_error.track_name)) {
-    return 0;
-  }
   uint64_t error_code;
-  if (!reader.ReadVarInt62(&error_code)) {
+  if (!reader.ReadVarInt62(&subscribe_error.subscribe_id) ||
+      !reader.ReadVarInt62(&error_code) ||
+      !reader.ReadStringPieceVarInt62(&subscribe_error.reason_phrase) ||
+      !reader.ReadVarInt62(&subscribe_error.track_alias)) {
     return 0;
   }
   subscribe_error.error_code = static_cast<SubscribeErrorCode>(error_code);
-  if (!reader.ReadStringPieceVarInt62(&subscribe_error.reason_phrase)) {
-    return 0;
-  }
   visitor_.OnSubscribeErrorMessage(subscribe_error);
   return reader.PreviouslyReadPayload().length();
 }
 
 size_t MoqtParser::ProcessUnsubscribe(quic::QuicDataReader& reader) {
   MoqtUnsubscribe unsubscribe;
-  if (!reader.ReadStringPieceVarInt62(&unsubscribe.track_namespace)) {
-    return 0;
-  }
-  if (!reader.ReadStringPieceVarInt62(&unsubscribe.track_name)) {
+  if (!reader.ReadVarInt62(&unsubscribe.subscribe_id)) {
     return 0;
   }
   visitor_.OnUnsubscribeMessage(unsubscribe);
@@ -422,16 +451,9 @@ size_t MoqtParser::ProcessUnsubscribe(quic::QuicDataReader& reader) {
 
 size_t MoqtParser::ProcessSubscribeFin(quic::QuicDataReader& reader) {
   MoqtSubscribeFin subscribe_fin;
-  if (!reader.ReadStringPieceVarInt62(&subscribe_fin.track_namespace)) {
-    return 0;
-  }
-  if (!reader.ReadStringPieceVarInt62(&subscribe_fin.track_name)) {
-    return 0;
-  }
-  if (!reader.ReadVarInt62(&subscribe_fin.final_group)) {
-    return 0;
-  }
-  if (!reader.ReadVarInt62(&subscribe_fin.final_object)) {
+  if (!reader.ReadVarInt62(&subscribe_fin.subscribe_id) ||
+      !reader.ReadVarInt62(&subscribe_fin.final_group) ||
+      !reader.ReadVarInt62(&subscribe_fin.final_object)) {
     return 0;
   }
   visitor_.OnSubscribeFinMessage(subscribe_fin);
@@ -440,22 +462,11 @@ size_t MoqtParser::ProcessSubscribeFin(quic::QuicDataReader& reader) {
 
 size_t MoqtParser::ProcessSubscribeRst(quic::QuicDataReader& reader) {
   MoqtSubscribeRst subscribe_rst;
-  if (!reader.ReadStringPieceVarInt62(&subscribe_rst.track_namespace)) {
-    return 0;
-  }
-  if (!reader.ReadStringPieceVarInt62(&subscribe_rst.track_name)) {
-    return 0;
-  }
-  if (!reader.ReadVarInt62(&subscribe_rst.error_code)) {
-    return 0;
-  }
-  if (!reader.ReadStringPieceVarInt62(&subscribe_rst.reason_phrase)) {
-    return 0;
-  }
-  if (!reader.ReadVarInt62(&subscribe_rst.final_group)) {
-    return 0;
-  }
-  if (!reader.ReadVarInt62(&subscribe_rst.final_object)) {
+  if (!reader.ReadVarInt62(&subscribe_rst.subscribe_id) ||
+      !reader.ReadVarInt62(&subscribe_rst.error_code) ||
+      !reader.ReadStringPieceVarInt62(&subscribe_rst.reason_phrase) ||
+      !reader.ReadVarInt62(&subscribe_rst.final_group) ||
+      !reader.ReadVarInt62(&subscribe_rst.final_object)) {
     return 0;
   }
   visitor_.OnSubscribeRstMessage(subscribe_rst);

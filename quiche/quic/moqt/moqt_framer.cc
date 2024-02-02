@@ -11,8 +11,8 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 
 namespace moqt {
@@ -109,33 +109,67 @@ inline bool WriteLocation(quic::QuicDataWriter& writer,
 }  // namespace
 
 quiche::QuicheBuffer MoqtFramer::SerializeObject(
-    const MoqtObject& message, const absl::string_view payload) {
+    const MoqtObject& message, const absl::string_view payload,
+    bool is_first_in_stream) {
   if (message.payload_length.has_value() &&
       *message.payload_length < payload.length()) {
-    QUICHE_DLOG(INFO) << "payload_size is too small for payload";
+    QUIC_BUG(quic_bug_serialize_object_input_01)
+        << "payload_size is too small for payload";
     return quiche::QuicheBuffer();
   }
-  uint64_t message_type =
-      static_cast<uint64_t>(message.payload_length.has_value()
-                                ? MoqtMessageType::kObjectWithPayloadLength
-                                : MoqtMessageType::kObjectWithoutPayloadLength);
-  size_t buffer_size =
-      NeededVarIntLen(message_type) + NeededVarIntLen(message.track_id) +
-      NeededVarIntLen(message.group_sequence) +
-      NeededVarIntLen(message.object_sequence) +
-      NeededVarIntLen(message.object_send_order) + payload.length();
-  if (message.payload_length.has_value()) {
-    buffer_size += NeededVarIntLen(*message.payload_length);
+  if (!is_first_in_stream &&
+      (message.forwarding_preference == MoqtForwardingPreference::kObject ||
+       message.forwarding_preference == MoqtForwardingPreference::kDatagram)) {
+    QUIC_BUG(quic_bug_serialize_object_input_02)
+        << "Object or Datagram forwarding_preference must be first in stream";
+    return quiche::QuicheBuffer();
   }
+  // Figure out the total message size based on message type and payload.
+  size_t buffer_size = NeededVarIntLen(message.object_id) + payload.length();
+  uint64_t message_type = static_cast<uint64_t>(
+      GetMessageTypeForForwardingPreference(message.forwarding_preference));
+  if (is_first_in_stream) {
+    buffer_size += NeededVarIntLen(message_type) +
+                   NeededVarIntLen(message.subscribe_id) +
+                   NeededVarIntLen(message.track_alias) +
+                   NeededVarIntLen(message.group_id) +
+                   NeededVarIntLen(message.object_send_order);
+  } else if (message.forwarding_preference ==
+             MoqtForwardingPreference::kTrack) {
+    buffer_size += NeededVarIntLen(message.group_id);
+  }
+  uint64_t reported_payload_length = message.payload_length.has_value()
+                                         ? message.payload_length.value()
+                                         : payload.length();
+  if (message.forwarding_preference == MoqtForwardingPreference::kTrack ||
+      message.forwarding_preference == MoqtForwardingPreference::kGroup) {
+    buffer_size += NeededVarIntLen(reported_payload_length);
+  }
+  // Write to buffer.
   quiche::QuicheBuffer buffer(allocator_, buffer_size);
   quic::QuicDataWriter writer(buffer.size(), buffer.data());
-  writer.WriteVarInt62(message_type);
-  writer.WriteVarInt62(message.track_id);
-  writer.WriteVarInt62(message.group_sequence);
-  writer.WriteVarInt62(message.object_sequence);
-  writer.WriteVarInt62(message.object_send_order);
-  if (message.payload_length.has_value()) {
-    writer.WriteVarInt62(*message.payload_length);
+  if (is_first_in_stream) {
+    writer.WriteVarInt62(message_type);
+    writer.WriteVarInt62(message.subscribe_id);
+    writer.WriteVarInt62(message.track_alias);
+    if (message.forwarding_preference != MoqtForwardingPreference::kTrack) {
+      writer.WriteVarInt62(message.group_id);
+      if (message.forwarding_preference != MoqtForwardingPreference::kGroup) {
+        writer.WriteVarInt62(message.object_id);
+      }
+    }
+    writer.WriteVarInt62(message.object_send_order);
+  }
+  switch (message.forwarding_preference) {
+    case MoqtForwardingPreference::kTrack:
+      writer.WriteVarInt62(message.group_id);
+      [[fallthrough]];
+    case MoqtForwardingPreference::kGroup:
+      writer.WriteVarInt62(message.object_id);
+      writer.WriteVarInt62(reported_payload_length);
+      break;
+    default:
+      break;
   }
   writer.WriteStringPiece(payload);
   return buffer;
@@ -216,8 +250,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
   return buffer;
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeSubscribeRequest(
-    const MoqtSubscribeRequest& message) {
+quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
+    const MoqtSubscribe& message) {
   if (!message.start_group.has_value() || !message.start_object.has_value()) {
     QUIC_LOG(INFO) << "start_group or start_object is missing";
     return quiche::QuicheBuffer();
@@ -227,7 +261,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeRequest(
                    << "non-None";
     return quiche::QuicheBuffer();
   }
-  size_t buffer_size = NeededVarIntLen(MoqtMessageType::kSubscribeRequest) +
+  size_t buffer_size = NeededVarIntLen(MoqtMessageType::kSubscribe) +
+                       NeededVarIntLen(message.subscribe_id) +
+                       NeededVarIntLen(message.track_alias) +
                        LengthPrefixedStringLength(message.track_namespace) +
                        LengthPrefixedStringLength(message.track_name) +
                        LocationLength(message.start_group) +
@@ -244,8 +280,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeRequest(
   buffer_size += NeededVarIntLen(num_params);
   quiche::QuicheBuffer buffer(allocator_, buffer_size);
   quic::QuicDataWriter writer(buffer.size(), buffer.data());
-  writer.WriteVarInt62(
-      static_cast<uint64_t>(MoqtMessageType::kSubscribeRequest));
+  writer.WriteVarInt62(static_cast<uint64_t>(MoqtMessageType::kSubscribe));
+  writer.WriteVarInt62(static_cast<uint64_t>(message.subscribe_id));
+  writer.WriteVarInt62(static_cast<uint64_t>(message.track_alias));
   writer.WriteStringPieceVarInt62(message.track_namespace);
   writer.WriteStringPieceVarInt62(message.track_name);
   WriteLocation(writer, message.start_group);
@@ -267,16 +304,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
     const MoqtSubscribeOk& message) {
   size_t buffer_size =
       NeededVarIntLen(static_cast<uint64_t>(MoqtMessageType::kSubscribeOk)) +
-      LengthPrefixedStringLength(message.track_namespace) +
-      LengthPrefixedStringLength(message.track_name) +
-      NeededVarIntLen(message.track_id) +
+      NeededVarIntLen(message.subscribe_id) +
       NeededVarIntLen(message.expires.ToMilliseconds());
   quiche::QuicheBuffer buffer(allocator_, buffer_size);
   quic::QuicDataWriter writer(buffer.size(), buffer.data());
   writer.WriteVarInt62(static_cast<uint64_t>(MoqtMessageType::kSubscribeOk));
-  writer.WriteStringPieceVarInt62(message.track_namespace);
-  writer.WriteStringPieceVarInt62(message.track_name);
-  writer.WriteVarInt62(message.track_id);
+  writer.WriteVarInt62(message.subscribe_id);
   writer.WriteVarInt62(message.expires.ToMilliseconds());
   QUICHE_DCHECK(writer.remaining() == 0);
   return buffer;
@@ -286,17 +319,17 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeError(
     const MoqtSubscribeError& message) {
   size_t buffer_size =
       NeededVarIntLen(static_cast<uint64_t>(MoqtMessageType::kSubscribeError)) +
-      LengthPrefixedStringLength(message.track_namespace) +
-      LengthPrefixedStringLength(message.track_name) +
+      NeededVarIntLen(message.subscribe_id) +
       NeededVarIntLen(static_cast<uint64_t>(message.error_code)) +
-      LengthPrefixedStringLength(message.reason_phrase);
+      LengthPrefixedStringLength(message.reason_phrase) +
+      NeededVarIntLen(message.track_alias);
   quiche::QuicheBuffer buffer(allocator_, buffer_size);
   quic::QuicDataWriter writer(buffer.size(), buffer.data());
   writer.WriteVarInt62(static_cast<uint64_t>(MoqtMessageType::kSubscribeError));
-  writer.WriteStringPieceVarInt62(message.track_namespace);
-  writer.WriteStringPieceVarInt62(message.track_name);
+  writer.WriteVarInt62(message.subscribe_id);
   writer.WriteVarInt62(static_cast<uint64_t>(message.error_code));
   writer.WriteStringPieceVarInt62(message.reason_phrase);
+  writer.WriteVarInt62(message.track_alias);
   QUICHE_DCHECK(writer.remaining() == 0);
   return buffer;
 }
@@ -305,13 +338,11 @@ quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribe(
     const MoqtUnsubscribe& message) {
   size_t buffer_size =
       NeededVarIntLen(static_cast<uint64_t>(MoqtMessageType::kUnsubscribe)) +
-      LengthPrefixedStringLength(message.track_namespace) +
-      LengthPrefixedStringLength(message.track_name);
+      NeededVarIntLen(message.subscribe_id);
   quiche::QuicheBuffer buffer(allocator_, buffer_size);
   quic::QuicDataWriter writer(buffer.size(), buffer.data());
   writer.WriteVarInt62(static_cast<uint64_t>(MoqtMessageType::kUnsubscribe));
-  writer.WriteStringPieceVarInt62(message.track_namespace);
-  writer.WriteStringPieceVarInt62(message.track_name);
+  writer.WriteVarInt62(message.subscribe_id);
   QUICHE_DCHECK(writer.remaining() == 0);
   return buffer;
 }
@@ -320,15 +351,13 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeFin(
     const MoqtSubscribeFin& message) {
   size_t buffer_size =
       NeededVarIntLen(static_cast<uint64_t>(MoqtMessageType::kSubscribeFin)) +
-      LengthPrefixedStringLength(message.track_namespace) +
-      LengthPrefixedStringLength(message.track_name) +
+      NeededVarIntLen(message.subscribe_id) +
       NeededVarIntLen(message.final_group) +
       NeededVarIntLen(message.final_object);
   quiche::QuicheBuffer buffer(allocator_, buffer_size);
   quic::QuicDataWriter writer(buffer.size(), buffer.data());
   writer.WriteVarInt62(static_cast<uint64_t>(MoqtMessageType::kSubscribeFin));
-  writer.WriteStringPieceVarInt62(message.track_namespace);
-  writer.WriteStringPieceVarInt62(message.track_name);
+  writer.WriteVarInt62(message.subscribe_id);
   writer.WriteVarInt62(message.final_group);
   writer.WriteVarInt62(message.final_object);
   QUICHE_DCHECK(writer.remaining() == 0);
@@ -339,8 +368,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeRst(
     const MoqtSubscribeRst& message) {
   size_t buffer_size =
       NeededVarIntLen(static_cast<uint64_t>(MoqtMessageType::kSubscribeRst)) +
-      LengthPrefixedStringLength(message.track_namespace) +
-      LengthPrefixedStringLength(message.track_name) +
+      NeededVarIntLen(message.subscribe_id) +
       NeededVarIntLen(message.error_code) +
       LengthPrefixedStringLength(message.reason_phrase) +
       NeededVarIntLen(message.final_group) +
@@ -348,8 +376,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeRst(
   quiche::QuicheBuffer buffer(allocator_, buffer_size);
   quic::QuicDataWriter writer(buffer.size(), buffer.data());
   writer.WriteVarInt62(static_cast<uint64_t>(MoqtMessageType::kSubscribeRst));
-  writer.WriteStringPieceVarInt62(message.track_namespace);
-  writer.WriteStringPieceVarInt62(message.track_name);
+  writer.WriteVarInt62(message.subscribe_id);
   writer.WriteVarInt62(message.error_code);
   writer.WriteStringPieceVarInt62(message.reason_phrase);
   writer.WriteVarInt62(message.final_group);

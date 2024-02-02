@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_types.h"
@@ -29,8 +30,6 @@
 namespace moqt {
 
 using ::quic::Perspective;
-
-constexpr int kMaxBufferedObjects = 1000;
 
 void MoqtSession::OnSessionReady() {
   QUICHE_DLOG(INFO) << ENDPOINT << "Underlying session ready";
@@ -108,8 +107,7 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
 
 void MoqtSession::AddLocalTrack(const FullTrackName& full_track_name,
                                 LocalTrack::Visitor* visitor) {
-  local_tracks_.try_emplace(full_track_name, full_track_name,
-                            next_track_alias_++, visitor);
+  local_tracks_.try_emplace(full_track_name, full_track_name, visitor);
 }
 
 // TODO: Create state that allows ANNOUNCE_OK/ERROR on spurious namespaces to
@@ -144,7 +142,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
                                     uint64_t start_group, uint64_t start_object,
                                     RemoteTrack::Visitor* visitor,
                                     absl::string_view auth_info) {
-  MoqtSubscribeRequest message;
+  MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
   message.start_group = MoqtSubscribeLocation(true, start_group);
@@ -171,7 +169,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
     QUIC_DLOG(ERROR) << "Subscription end is before beginning";
     return false;
   }
-  MoqtSubscribeRequest message;
+  MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
   message.start_group = MoqtSubscribeLocation(true, start_group);
@@ -189,7 +187,7 @@ bool MoqtSession::SubscribeRelative(absl::string_view track_namespace,
                                     int64_t start_object,
                                     RemoteTrack::Visitor* visitor,
                                     absl::string_view auth_info) {
-  MoqtSubscribeRequest message;
+  MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
   message.start_group = MoqtSubscribeLocation(false, start_group);
@@ -206,7 +204,7 @@ bool MoqtSession::SubscribeCurrentGroup(absl::string_view track_namespace,
                                         absl::string_view name,
                                         RemoteTrack::Visitor* visitor,
                                         absl::string_view auth_info) {
-  MoqtSubscribeRequest message;
+  MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
   // First object of current group.
@@ -220,22 +218,31 @@ bool MoqtSession::SubscribeCurrentGroup(absl::string_view track_namespace,
   return Subscribe(message, visitor);
 }
 
-bool MoqtSession::Subscribe(const MoqtSubscribeRequest& message,
+bool MoqtSession::Subscribe(MoqtSubscribe& message,
                             RemoteTrack::Visitor* visitor) {
   // TODO(martinduke): support authorization info
-  bool success =
-      session_->GetStreamById(*control_stream_)
-          ->Write(framer_.SerializeSubscribeRequest(message).AsStringView());
-  if (!success) {
-    Error(MoqtError::kGenericError,
-          "Failed to write SUBSCRIBE_REQUEST message");
-    return false;
-  }
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_REQUEST message for "
-                  << message.track_namespace << ":" << message.track_name;
+  message.subscribe_id = next_subscribe_id_++;
   FullTrackName ftn(std::string(message.track_namespace),
                     std::string(message.track_name));
-  remote_tracks_.try_emplace(ftn, ftn, visitor);
+  auto it = remote_track_aliases_.find(ftn);
+  if (it != remote_track_aliases_.end()) {
+    message.track_alias = it->second;
+    if (message.track_alias >= next_remote_track_alias_) {
+      next_remote_track_alias_ = message.track_alias + 1;
+    }
+  } else {
+    message.track_alias = next_remote_track_alias_++;
+  }
+  bool success =
+      session_->GetStreamById(*control_stream_)
+          ->Write(framer_.SerializeSubscribe(message).AsStringView());
+  if (!success) {
+    Error(MoqtError::kGenericError, "Failed to write SUBSCRIBE message");
+    return false;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE message for "
+                  << message.track_namespace << ":" << message.track_name;
+  active_subscribes_.try_emplace(message.subscribe_id, message, visitor);
   return true;
 }
 
@@ -252,55 +259,87 @@ std::optional<webtransport::StreamId> MoqtSession::OpenUnidirectionalStream() {
   return new_stream->GetStreamId();
 }
 
-// increment object_sequence or group_sequence depending on |start_new_group|
-void MoqtSession::PublishObjectToStream(webtransport::StreamId stream_id,
-                                        FullTrackName full_track_name,
-                                        bool start_new_group,
-                                        absl::string_view payload) {
-  // TODO: check that the peer is subscribed to the next sequence.
-  webtransport::Stream* stream = session_->GetStreamById(stream_id);
-  if (stream == nullptr) {
-    QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT to nonexistent stream";
-    return;
+bool MoqtSession::PublishObject(FullTrackName& full_track_name,
+                                uint64_t group_id, uint64_t object_id,
+                                uint64_t object_send_order,
+                                MoqtForwardingPreference forwarding_preference,
+                                absl::string_view payload,
+                                std::optional<uint64_t> payload_length,
+                                bool end_of_stream) {
+  if (payload_length.has_value() && *payload_length < payload.length()) {
+    QUICHE_DLOG(ERROR) << ENDPOINT << "Payload too short";
+    return false;
   }
   auto track_it = local_tracks_.find(full_track_name);
   if (track_it == local_tracks_.end()) {
     QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT for nonexistent track";
-    return;
+    return false;
+  }
+  LocalTrack& track = track_it->second;
+  track.SentSequence(FullSequence(group_id, object_id));
+  std::vector<SubscribeWindow*> subscriptions =
+      track.ShouldSend({group_id, object_id});
+  if (subscriptions.empty()) {
+    return true;
   }
   MoqtObject object;
-  LocalTrack& track = track_it->second;
-  object.track_id = track.track_alias();
-  FullSequence& next_sequence = track.next_sequence_mutable();
-  object.group_sequence = next_sequence.group;
-  if (start_new_group) {
-    ++object.group_sequence;
-    object.object_sequence = 0;
-  } else {
-    object.object_sequence = next_sequence.object;
-  }
-  next_sequence.group = object.group_sequence;
-  next_sequence.object = object.object_sequence + 1;
-  if (!track.ShouldSend(object.group_sequence, object.object_sequence)) {
-    QUICHE_LOG(INFO) << ENDPOINT << "Not sending object "
+  QUICHE_DCHECK(track.track_alias().has_value());
+  object.track_alias = *track.track_alias();
+  object.group_id = group_id;
+  object.object_id = object_id;
+  object.object_send_order = object_send_order;
+  object.forwarding_preference = forwarding_preference;
+  object.payload_length = payload_length;
+  int failures = 0;
+  quiche::StreamWriteOptions write_options;
+  write_options.set_send_fin(end_of_stream);
+  for (auto subscription : subscriptions) {
+    // TODO: kPreferDatagram should bypass stream stuff. For now, send it on the
+    // stream.
+    bool new_stream = false;
+    std::optional<webtransport::StreamId> stream_id =
+        subscription->GetStreamForSequence({group_id, object_id},
+                                           forwarding_preference);
+    if (!stream_id.has_value()) {
+      new_stream = true;
+      stream_id = OpenUnidirectionalStream();
+      if (!stream_id.has_value()) {
+        QUICHE_DLOG(ERROR) << ENDPOINT
+                           << "Sending OBJECT to nonexistent stream";
+        ++failures;
+        continue;
+      }
+      if (!end_of_stream) {
+        subscription->AddStream(forwarding_preference, *stream_id, group_id,
+                                object_id);
+      }
+    }
+    webtransport::Stream* stream = session_->GetStreamById(*stream_id);
+    if (stream == nullptr) {
+      QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT to nonexistent stream "
+                         << *stream_id;
+      ++failures;
+      continue;
+    }
+    object.subscribe_id = subscription->subscribe_id();
+    if (quiche::WriteIntoStream(
+            *stream,
+            framer_.SerializeObject(object, payload, new_stream).AsStringView(),
+            write_options) != absl::OkStatus()) {
+      QUICHE_DLOG(ERROR) << ENDPOINT << "Failed to write OBJECT message";
+      ++failures;
+      continue;
+    }
+    QUICHE_LOG(INFO) << ENDPOINT << "Sending object "
                      << full_track_name.track_namespace << ":"
                      << full_track_name.track_name << " with sequence "
-                     << object.group_sequence << ":" << object.object_sequence
-                     << " because peer is not subscribed";
-    return;
+                     << object.group_id << ":" << object.object_id
+                     << " on stream " << *stream_id;
+    if (end_of_stream && !new_stream) {
+      subscription->RemoveStream(forwarding_preference, group_id, object_id);
+    }
   }
-  object.object_send_order = 0;
-  object.payload_length = payload.size();
-  bool success =
-      stream->Write(framer_.SerializeObject(object, payload).AsStringView());
-  if (!success) {
-    QUICHE_DLOG(ERROR) << ENDPOINT << "Failed to write OBJECT message";
-    return;
-  }
-  QUICHE_LOG(INFO) << ENDPOINT << "Sending object "
-                   << full_track_name.track_namespace << ":"
-                   << full_track_name.track_name << " with sequence "
-                   << object.group_sequence << ":" << object.object_sequence;
+  return (failures == 0);
 }
 
 void MoqtSession::Stream::OnCanRead() {
@@ -338,15 +377,17 @@ void MoqtSession::Stream::OnObjectMessage(const MoqtObject& message,
                     "Received OBJECT message on control stream");
     return;
   }
-  QUICHE_DLOG(INFO) << ENDPOINT << "Received OBJECT message on stream "
-                    << stream_->GetStreamId() << " for track alias "
-                    << message.track_id << " with sequence "
-                    << message.group_sequence << ":" << message.object_sequence
-                    << " length " << payload.size() << " explicit length "
-                    << (message.payload_length.has_value()
-                            ? (int)*message.payload_length
-                            : -1)
-                    << (end_of_message ? "F" : "");
+  QUICHE_DLOG(INFO)
+      << ENDPOINT << "Received OBJECT message on stream "
+      << stream_->GetStreamId() << " for subscribe_id " << message.subscribe_id
+      << " for track alias " << message.track_alias << " with sequence "
+      << message.group_id << ":" << message.object_id << " send_order "
+      << message.object_send_order << " forwarding_preference "
+      << MoqtForwardingPreferenceToString(message.forwarding_preference)
+      << " length " << payload.size() << " explicit length "
+      << (message.payload_length.has_value() ? (int)*message.payload_length
+                                             : -1)
+      << (end_of_message ? "F" : "");
   if (!session_->parameters_.deliver_partial_objects) {
     if (!end_of_message) {  // Buffer partial object.
       absl::StrAppend(&partial_object_, payload);
@@ -357,33 +398,17 @@ void MoqtSession::Stream::OnObjectMessage(const MoqtObject& message,
       payload = absl::string_view(partial_object_);
     }
   }
-  auto it = session_->tracks_by_alias_.find(message.track_id);
-  if (it == session_->tracks_by_alias_.end()) {
-    // No SUBSCRIBE_OK received with this alias, buffer it.
-    auto it2 = session_->object_queue_.find(message.track_id);
-    std::vector<BufferedObject>* queue;
-    if (it2 == session_->object_queue_.end()) {
-      queue = &session_->object_queue_[message.track_id];
-    } else {
-      queue = &it2->second;
-    }
-    if (session_->num_buffered_objects_ >= kMaxBufferedObjects) {
-      session_->num_buffered_objects_++;
-      session_->Error(MoqtError::kGenericError, "Too many buffered objects");
-      return;
-    }
-    queue->push_back(BufferedObject(stream_->GetStreamId(), message, payload,
-                                    end_of_message));
-    QUIC_DLOG(INFO) << ENDPOINT << "Buffering OBJECT for track alias "
-                    << message.track_id;
+  auto it = session_->remote_tracks_.find(message.track_alias);
+  if (it == session_->remote_tracks_.end()) {
+    // No SUBSCRIBE_OK received with this alias, return.
     return;
   }
-  RemoteTrack* subscription = it->second;
-  if (subscription->visitor() != nullptr) {
-    subscription->visitor()->OnObjectFragment(
-        subscription->full_track_name(), stream_->GetStreamId(),
-        message.group_sequence, message.object_sequence,
-        message.object_send_order, payload, end_of_message);
+  RemoteTrack& subscription = it->second;
+  if (subscription.visitor() != nullptr) {
+    subscription.visitor()->OnObjectFragment(
+        subscription.full_track_name(), message.group_id, message.object_id,
+        message.object_send_order, message.forwarding_preference, payload,
+        end_of_message);
   }
   partial_object_.clear();
 }
@@ -456,14 +481,15 @@ void MoqtSession::Stream::OnServerSetupMessage(const MoqtServerSetup& message) {
   std::move(session_->session_established_callback_)();
 }
 
-void MoqtSession::Stream::SendSubscribeError(
-    const MoqtSubscribeRequest& message, SubscribeErrorCode error_code,
-    absl::string_view reason_phrase) {
+void MoqtSession::Stream::SendSubscribeError(const MoqtSubscribe& message,
+                                             SubscribeErrorCode error_code,
+                                             absl::string_view reason_phrase,
+                                             uint64_t track_alias) {
   MoqtSubscribeError subscribe_error;
-  subscribe_error.track_namespace = message.track_namespace;
-  subscribe_error.track_name = message.track_name;
+  subscribe_error.subscribe_id = message.subscribe_id;
   subscribe_error.error_code = error_code;
   subscribe_error.reason_phrase = reason_phrase;
+  subscribe_error.track_alias = track_alias;
   bool success =
       stream_->Write(session_->framer_.SerializeSubscribeError(subscribe_error)
                          .AsStringView());
@@ -473,13 +499,12 @@ void MoqtSession::Stream::SendSubscribeError(
   }
 }
 
-void MoqtSession::Stream::OnSubscribeRequestMessage(
-    const MoqtSubscribeRequest& message) {
+void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
   std::string reason_phrase = "";
   if (!CheckIfIsControlStream()) {
     return;
   }
-  QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE_REQUEST for "
+  QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE for "
                   << message.track_namespace << ":" << message.track_name;
   auto it = session_->local_tracks_.find(FullTrackName(
       std::string(message.track_namespace), std::string(message.track_name)));
@@ -488,32 +513,50 @@ void MoqtSession::Stream::OnSubscribeRequestMessage(
                     << message.track_namespace << ":" << message.track_name
                     << " does not exist";
     SendSubscribeError(message, SubscribeErrorCode::kGenericError,
-                       "Track does not exist");
+                       "Track does not exist", message.track_alias);
     return;
   }
   LocalTrack& track = it->second;
+  if ((track.track_alias().has_value() &&
+       message.track_alias != *track.track_alias()) ||
+      session_->used_track_aliases_.contains(message.track_alias)) {
+    // Propose a different track_alias.
+    SendSubscribeError(message, SubscribeErrorCode::kRetryTrackAlias,
+                       "Track alias already exists",
+                       session_->next_local_track_alias_++);
+    return;
+  } else {  // Use client-provided alias.
+    track.set_track_alias(message.track_alias);
+    if (message.track_alias >= session_->next_local_track_alias_) {
+      session_->next_local_track_alias_ = message.track_alias + 1;
+    }
+    session_->used_track_aliases_.insert(message.track_alias);
+  }
   std::optional<FullSequence> start = session_->LocationToAbsoluteNumber(
       track, message.start_group, message.start_object);
   QUICHE_DCHECK(start.has_value());  // Parser enforces this.
   std::optional<FullSequence> end = session_->LocationToAbsoluteNumber(
       track, message.end_group, message.end_object);
   if (start < track.next_sequence() && track.visitor() != nullptr) {
-    SubscribeWindow window = end.has_value()
-                                 ? SubscribeWindow(start->group, start->object,
-                                                   end->group, end->object)
-                                 : SubscribeWindow(start->group, start->object);
+    // TODO: Rework this. It's not good that the session notifies the
+    // application -- presumably triggering the send of a bunch of objects --
+    // and only then sends the Subscribe OK.
+    SubscribeWindow window =
+        end.has_value()
+            ? SubscribeWindow(message.subscribe_id, start->group, start->object,
+                              end->group, end->object)
+            : SubscribeWindow(message.subscribe_id, start->group,
+                              start->object);
     std::optional<absl::string_view> past_objects_available =
-        track.visitor()->OnSubscribeRequestForPast(window);
-    if (!past_objects_available.has_value()) {
+        track.visitor()->OnSubscribeForPast(window);
+    if (past_objects_available.has_value()) {
       SendSubscribeError(message, SubscribeErrorCode::kGenericError,
-                         "Object does not exist");
+                         "Object does not exist", message.track_alias);
       return;
     }
   }
   MoqtSubscribeOk subscribe_ok;
-  subscribe_ok.track_namespace = message.track_namespace;
-  subscribe_ok.track_name = message.track_name;
-  subscribe_ok.track_id = track.track_alias();
+  subscribe_ok.subscribe_id = message.subscribe_id;
   bool success = stream_->Write(
       session_->framer_.SerializeSubscribeOk(subscribe_ok).AsStringView());
   if (!success) {
@@ -524,62 +567,39 @@ void MoqtSession::Stream::OnSubscribeRequestMessage(
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << message.track_namespace << ":" << message.track_name;
   if (!end.has_value()) {
-    track.AddWindow(SubscribeWindow(start->group, start->object));
+    track.AddWindow(
+        SubscribeWindow(message.subscribe_id, start->group, start->object));
     return;
   }
-  track.AddWindow(
-      SubscribeWindow(start->group, start->object, end->group, end->object));
+  track.AddWindow(SubscribeWindow(message.subscribe_id, start->group,
+                                  start->object, end->group, end->object));
 }
 
 void MoqtSession::Stream::OnSubscribeOkMessage(const MoqtSubscribeOk& message) {
   if (!CheckIfIsControlStream()) {
     return;
   }
-  if (session_->tracks_by_alias_.contains(message.track_id)) {
-    session_->Error(MoqtError::kDuplicateTrackAlias,
-                    "Received duplicate track_alias");
-    return;
-  }
-  auto it = session_->remote_tracks_.find(FullTrackName(
-      std::string(message.track_namespace), std::string(message.track_name)));
-  if (it == session_->remote_tracks_.end()) {
+  auto it = session_->active_subscribes_.find(message.subscribe_id);
+  if (it == session_->active_subscribes_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
                     "Received SUBSCRIBE_OK for nonexistent subscribe");
     return;
   }
-  // Note that if there are multiple SUBSCRIBE_OK for the same track,
-  // RemoteTrack.track_alias() will be the last alias received, but
-  // tracks_by_alias_ will have an entry for every track_alias received.
-  // TODO: revise this data structure to make it easier to clean up
-  // RemoteTracks, unless draft changes make it irrelevant.
+  MoqtSubscribe& subscribe = it->second.message;
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
-                  << message.track_namespace << ":" << message.track_name
-                  << ", track_alias = " << message.track_id;
-  RemoteTrack& track = it->second;
-  track.set_track_alias(message.track_id);
-  session_->tracks_by_alias_[message.track_id] = &track;
+                  << "subscribe_id = " << message.subscribe_id
+                  << subscribe.track_namespace << ":" << subscribe.track_name;
+  // Copy the Remote Track from session_->active_subscribes_ to
+  // session_->remote_tracks_.
+  FullTrackName ftn(subscribe.track_namespace, subscribe.track_name);
+  RemoteTrack::Visitor* visitor = it->second.visitor;
+  session_->remote_tracks_.try_emplace(subscribe.track_alias, ftn,
+                                       subscribe.track_alias, visitor);
   // TODO: handle expires.
-  if (track.visitor() != nullptr) {
-    track.visitor()->OnReply(track.full_track_name(), std::nullopt);
+  if (visitor != nullptr) {
+    visitor->OnReply(ftn, std::nullopt);
   }
-  // Clear the buffer for this track alias.
-  auto it2 = session_->object_queue_.find(message.track_id);
-  if (it2 == session_->object_queue_.end() || track.visitor() == nullptr) {
-    // Nothing is buffered, or the app hasn't registered a visitor anyway.
-    return;
-  }
-  QUIC_DLOG(INFO) << ENDPOINT << "Processing buffered OBJECTs for track_alias "
-                  << message.track_id;
-  std::vector<BufferedObject>& queue = it2->second;
-  for (BufferedObject& to_deliver : queue) {
-    track.visitor()->OnObjectFragment(
-        track.full_track_name(), to_deliver.stream_id,
-        to_deliver.message.group_sequence, to_deliver.message.object_sequence,
-        to_deliver.message.object_send_order, to_deliver.payload,
-        to_deliver.eom);
-    session_->num_buffered_objects_--;
-  }
-  session_->object_queue_.erase(it2);
+  session_->active_subscribes_.erase(it);
 }
 
 void MoqtSession::Stream::OnSubscribeErrorMessage(
@@ -587,21 +607,28 @@ void MoqtSession::Stream::OnSubscribeErrorMessage(
   if (!CheckIfIsControlStream()) {
     return;
   }
-  auto it = session_->remote_tracks_.find(FullTrackName(
-      std::string(message.track_namespace), std::string(message.track_name)));
-  if (it == session_->remote_tracks_.end()) {
+  auto it = session_->active_subscribes_.find(message.subscribe_id);
+  if (it == session_->active_subscribes_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
                     "Received SUBSCRIBE_ERROR for nonexistent subscribe");
     return;
   }
+  MoqtSubscribe& subscribe = it->second.message;
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_ERROR for "
-                  << message.track_namespace << ":" << message.track_name
-                  << ", error = " << static_cast<int>(message.error_code)
+                  << "subscribe_id = " << message.subscribe_id << " ("
+                  << subscribe.track_namespace << ":" << subscribe.track_name
+                  << ")" << ", error = " << static_cast<int>(message.error_code)
                   << " (" << message.reason_phrase << ")";
-  if (it->second.visitor() != nullptr) {
-    it->second.visitor()->OnReply(it->second.full_track_name(),
-                                  message.reason_phrase);
+  RemoteTrack::Visitor* visitor = it->second.visitor;
+  FullTrackName ftn(subscribe.track_namespace, subscribe.track_name);
+  if (message.error_code == SubscribeErrorCode::kRetryTrackAlias) {
+    // Automatically resubscribe with new alias.
+    session_->remote_track_aliases_[ftn] = message.track_alias;
+    session_->Subscribe(subscribe, visitor);
+  } else if (visitor != nullptr) {
+    visitor->OnReply(ftn, message.reason_phrase);
   }
+  session_->active_subscribes_.erase(it);
 }
 
 void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {

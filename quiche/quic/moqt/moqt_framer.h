@@ -34,17 +34,21 @@ class QUICHE_EXPORT MoqtFramer {
 
   // SerializeObject also takes a payload. |payload_size| might simply be the
   // size of |payload|, or it could be larger if there is more data coming, or
-  // it could be nullopt if the final length is unknown. If |payload_size| is
-  // smaller than |payload|, returns an empty buffer.
+  // it could be nullopt if the final length is unknown.
+  // If |message.payload_size| is nullopt but the forwarding preference requires
+  // a payload length, will assume that payload.length() is the correct value.
+  // If |message.payload_size| is smaller than |payload|, or
+  // |message.forwarding preference| is not consistent with
+  // |is_first_in_stream|, returns an empty buffer and triggers QUIC_BUG.
   quiche::QuicheBuffer SerializeObject(const MoqtObject& message,
-                                       absl::string_view payload);
+                                       absl::string_view payload,
+                                       bool is_first_in_stream);
   // Build a buffer for additional payload data.
   quiche::QuicheBuffer SerializeObjectPayload(absl::string_view payload);
   quiche::QuicheBuffer SerializeClientSetup(const MoqtClientSetup& message);
   quiche::QuicheBuffer SerializeServerSetup(const MoqtServerSetup& message);
   // Returns an empty buffer if there is an illegal combination of locations.
-  quiche::QuicheBuffer SerializeSubscribeRequest(
-      const MoqtSubscribeRequest& message);
+  quiche::QuicheBuffer SerializeSubscribe(const MoqtSubscribe& message);
   quiche::QuicheBuffer SerializeSubscribeOk(const MoqtSubscribeOk& message);
   quiche::QuicheBuffer SerializeSubscribeError(
       const MoqtSubscribeError& message);

@@ -9,10 +9,9 @@
 #include <optional>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "absl/container/flat_hash_map.h"
-#include "absl/container/node_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_framer.h"
@@ -79,8 +78,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
   // Add to the list of tracks that can be subscribed to. Call this before
   // Announce() so that subscriptions can be processed correctly. If |visitor|
-  // is nullptr, then incoming SUBSCRIBE_REQUEST for objects in the path will
-  // receive SUBSCRIBE_OK, but never actually get the objects.
+  // is nullptr, then incoming SUBSCRIBE for objects in the path will receive
+  // SUBSCRIBE_OK, but never actually get the objects.
   void AddLocalTrack(const FullTrackName& full_track_name,
                      LocalTrack::Visitor* visitor);
   // Send an ANNOUNCE message for |track_namespace|, and call
@@ -90,9 +89,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                 MoqtAnnounceCallback announce_callback);
   bool HasSubscribers(const FullTrackName& full_track_name) const;
 
-  // Returns true if SUBSCRIBE_REQUEST was sent. If there is already a
-  // subscription to the track, the message will still be sent. However, the
-  // visitor will be ignored.
+  // Returns true if SUBSCRIBE was sent. If there is already a subscription to
+  // the track, the message will still be sent. However, the visitor will be
+  // ignored.
   bool SubscribeAbsolute(absl::string_view track_namespace,
                          absl::string_view name, uint64_t start_group,
                          uint64_t start_object, RemoteTrack::Visitor* visitor,
@@ -111,15 +110,20 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                              RemoteTrack::Visitor* visitor,
                              absl::string_view auth_info = "");
 
-  // Returns the stream ID if successful, nullopt if not.
-  // TODO: Add a callback if stream creation is delayed.
-  std::optional<webtransport::StreamId> OpenUnidirectionalStream();
-  // Will automatically assign a new sequence number. If |start_new_group|,
-  // increment group_sequence and set object_sequence to 0. Otherwise,
-  // increment object_sequence.
-  void PublishObjectToStream(webtransport::StreamId stream_id,
-                             FullTrackName full_track_name,
-                             bool start_new_group, absl::string_view payload);
+  // Returns false if it could not open a stream when necessary, or if the
+  // track does not exist (there was no call to AddLocalTrack). Will still
+  // return false is some streams succeed.
+  // Also returns false if |payload_length| exists but is shorter than
+  // |payload|.
+  // |payload.length() >= |payload_length|, because the application can deliver
+  // partial objects.
+  bool PublishObject(FullTrackName& full_track_name, uint64_t group_id,
+                     uint64_t object_id, uint64_t object_send_order,
+                     MoqtForwardingPreference forwarding_preference,
+                     absl::string_view payload,
+                     std::optional<uint64_t> payload_length,
+                     bool end_of_stream);
+  // TODO: Add an API to FIN the stream for a particular track/group/object.
 
  private:
   friend class test::MoqtSessionPeer;
@@ -145,12 +149,12 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnWriteSideInDataRecvdState() override {}
 
     // MoqtParserVisitor implementation.
+    // TODO: Handle a stream FIN.
     void OnObjectMessage(const MoqtObject& message, absl::string_view payload,
                          bool end_of_message) override;
     void OnClientSetupMessage(const MoqtClientSetup& message) override;
     void OnServerSetupMessage(const MoqtServerSetup& message) override;
-    void OnSubscribeRequestMessage(
-        const MoqtSubscribeRequest& message) override;
+    void OnSubscribeMessage(const MoqtSubscribe& message) override;
     void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override;
     void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override;
     void OnUnsubscribeMessage(const MoqtUnsubscribe& /*message*/) override {}
@@ -172,9 +176,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
    private:
     friend class test::MoqtSessionPeer;
-    void SendSubscribeError(const MoqtSubscribeRequest& message,
+    void SendSubscribeError(const MoqtSubscribe& message,
                             SubscribeErrorCode error_code,
-                            absl::string_view reason_phrase);
+                            absl::string_view reason_phrase,
+                            uint64_t track_alias);
     bool CheckIfIsControlStream();
 
     MoqtSession* session_;
@@ -186,30 +191,16 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     std::string partial_object_;
   };
 
-  // If parameters_.deliver_partial_objects is false, then the session buffers
-  // these objects until they arrive in their entirety. This stores the
-  // relevant information to later deliver this object via OnObject().
-  struct BufferedObject {
-    uint32_t stream_id;
-    MoqtObject message;
-    std::string payload;
-    bool eom;
-    BufferedObject(uint32_t id, const MoqtObject& header,
-                   absl::string_view body, bool end_of_message)
-        : stream_id(id),
-          message(header),
-          payload(std::string(body)),
-          eom(end_of_message) {}
-  };
-
-  // Returns false if the SUBSCRIBE_REQUEST isn't sent.
-  bool Subscribe(const MoqtSubscribeRequest& message,
-                 RemoteTrack::Visitor* visitor);
+  // Returns false if the SUBSCRIBE isn't sent.
+  bool Subscribe(MoqtSubscribe& message, RemoteTrack::Visitor* visitor);
   // converts two MoqtLocations into absolute sequences.
   std::optional<FullSequence> LocationToAbsoluteNumber(
       const LocalTrack& track,
       const std::optional<MoqtSubscribeLocation>& group,
       const std::optional<MoqtSubscribeLocation>& object);
+  // Returns the stream ID if successful, nullopt if not.
+  // TODO: Add a callback if stream creation is delayed.
+  std::optional<webtransport::StreamId> OpenUnidirectionalStream();
 
   webtransport::Session* session_;
   MoqtSessionParameters parameters_;
@@ -221,18 +212,27 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   std::optional<webtransport::StreamId> control_stream_;
   std::string error_;
 
-  // All the tracks the session is subscribed to. Multiple subscribes to the
-  // same track are recorded in a single subscription.
-  absl::node_hash_map<FullTrackName, RemoteTrack> remote_tracks_;
+  // All the tracks the session is subscribed to, indexed by track_alias.
+  // Multiple subscribes to the same track are recorded in a single
+  // subscription.
+  absl::flat_hash_map<uint64_t, RemoteTrack> remote_tracks_;
+  // Look up aliases for remote tracks by name
+  absl::flat_hash_map<FullTrackName, uint64_t> remote_track_aliases_;
+  uint64_t next_remote_track_alias_ = 0;
+
   // All the tracks the peer can subscribe to.
   absl::flat_hash_map<FullTrackName, LocalTrack> local_tracks_;
+  // This is only used to check for track_alias collisions.
+  absl::flat_hash_set<uint64_t> used_track_aliases_;
+  uint64_t next_local_track_alias_ = 0;
 
-  // Remote tracks indexed by TrackId. Must be active.
-  absl::flat_hash_map<uint64_t, RemoteTrack*> tracks_by_alias_;
-  uint64_t next_track_alias_ = 0;
-  // Buffer for OBJECTs that arrive with an unknown track alias.
-  absl::flat_hash_map<uint64_t, std::vector<BufferedObject>> object_queue_;
-  int num_buffered_objects_ = 0;
+  // Indexed by subscribe_id.
+  struct ActiveSubscribe {
+    MoqtSubscribe message;
+    RemoteTrack::Visitor* visitor;
+  };
+  absl::flat_hash_map<uint64_t, ActiveSubscribe> active_subscribes_;
+  uint64_t next_subscribe_id_ = 0;
 
   // Indexed by track namespace.
   absl::flat_hash_map<std::string, MoqtAnnounceCallback>

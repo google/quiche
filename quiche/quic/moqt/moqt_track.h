@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -27,32 +28,31 @@ class LocalTrack {
     // the session will send SUBSCRIBE_OK. If the return has a value, the value
     // is the error message (the session will send SUBSCRIBE_ERROR). Via this
     // API, the application decides if a partially fulfillable
-    // SUBSCRIBE_REQUEST results in an error or not.
-    virtual std::optional<absl::string_view> OnSubscribeRequestForPast(
+    // SUBSCRIBE results in an error or not.
+    virtual std::optional<absl::string_view> OnSubscribeForPast(
         const SubscribeWindow& window) = 0;
   };
   // |visitor| must not be nullptr.
-  LocalTrack(const FullTrackName& full_track_name, uint64_t track_alias,
-             Visitor* visitor)
-      : full_track_name_(full_track_name),
-        track_alias_(track_alias),
-        visitor_(visitor) {}
+  LocalTrack(const FullTrackName& full_track_name, Visitor* visitor)
+      : full_track_name_(full_track_name), visitor_(visitor) {}
   // Creates a LocalTrack that does not start at sequence (0,0)
-  LocalTrack(const FullTrackName& full_track_name, uint64_t track_alias,
-             Visitor* visitor, FullSequence next_sequence)
+  LocalTrack(const FullTrackName& full_track_name, Visitor* visitor,
+             FullSequence next_sequence)
       : full_track_name_(full_track_name),
-        track_alias_(track_alias),
         next_sequence_(next_sequence),
         visitor_(visitor) {}
 
   const FullTrackName& full_track_name() const { return full_track_name_; }
 
-  uint64_t track_alias() const { return track_alias_; }
+  std::optional<uint64_t> track_alias() const { return track_alias_; }
+  void set_track_alias(uint64_t track_alias) { track_alias_ = track_alias; }
 
   Visitor* visitor() { return visitor_; }
 
-  bool ShouldSend(uint64_t group, uint64_t object) const {
-    return windows_.SequenceIsSubscribed(group, object);
+  // Returns the subscribe windows that want the object defined by (|group|,
+  // |object|).
+  std::vector<SubscribeWindow*> ShouldSend(FullSequence sequence) {
+    return windows_.SequenceIsSubscribed(sequence);
   }
 
   void AddWindow(SubscribeWindow window) { windows_.AddWindow(window); }
@@ -61,7 +61,12 @@ class LocalTrack {
   // by one.
   const FullSequence& next_sequence() const { return next_sequence_; }
 
-  FullSequence& next_sequence_mutable() { return next_sequence_; }
+  // Updates next_sequence_ if |sequence| is larger.
+  void SentSequence(FullSequence sequence) {
+    if (next_sequence_ <= sequence) {
+      next_sequence_ = {sequence.group, sequence.object + 1};
+    }
+  }
 
   bool HasSubscriber() const { return !windows_.IsEmpty(); }
 
@@ -69,9 +74,12 @@ class LocalTrack {
   // This only needs to track subscriptions to current and future objects;
   // requests for objects in the past are forwarded to the application.
   const FullTrackName full_track_name_;
-  const uint64_t track_alias_;
+  // Let the first SUBSCRIBE determine the track alias.
+  std::optional<uint64_t> track_alias_;
   // The sequence numbers from this track to which the peer is subscribed.
   MoqtSubscribeWindows windows_;
+  // By recording the highest observed sequence number, MoQT can interpret
+  // relative sequence numbers in SUBSCRIBEs.
   FullSequence next_sequence_ = {0, 0};
   Visitor* visitor_;
 };
@@ -82,34 +90,36 @@ class RemoteTrack {
   class Visitor {
    public:
     virtual ~Visitor() = default;
-    // Called when the session receives a response to the SUBSCRIBE_REQUEST.
+    // Called when the session receives a response to the SUBSCRIBE, unless it's
+    // a SUBSCRIBE_ERROR with a new track_alias. In that case, the session will
+    // automatically retry.
     virtual void OnReply(
         const FullTrackName& full_track_name,
         std::optional<absl::string_view> error_reason_phrase) = 0;
-    virtual void OnObjectFragment(const FullTrackName& full_track_name,
-                                  uint32_t stream_id, uint64_t group_sequence,
-                                  uint64_t object_sequence,
-                                  uint64_t object_send_order,
-                                  absl::string_view object,
-                                  bool end_of_message) = 0;
+    virtual void OnObjectFragment(
+        const FullTrackName& full_track_name, uint64_t group_sequence,
+        uint64_t object_sequence, uint64_t object_send_order,
+        MoqtForwardingPreference forwarding_preference,
+        absl::string_view object, bool end_of_message) = 0;
     // TODO(martinduke): Add final sequence numbers
   };
-  RemoteTrack(const FullTrackName& full_track_name, Visitor* visitor)
-      : full_track_name_(full_track_name), visitor_(visitor) {}
+  RemoteTrack(const FullTrackName& full_track_name, uint64_t track_alias,
+              Visitor* visitor)
+      : full_track_name_(full_track_name),
+        track_alias_(track_alias),
+        visitor_(visitor) {}
 
   const FullTrackName& full_track_name() { return full_track_name_; }
 
-  std::optional<uint64_t> track_alias() const { return track_alias_; }
+  uint64_t track_alias() const { return track_alias_; }
 
   Visitor* visitor() { return visitor_; }
-
-  void set_track_alias(uint64_t track_alias) { track_alias_ = track_alias; }
 
  private:
   // TODO: There is no accounting for the number of outstanding subscribes,
   // because we can't match track names to individual subscribes.
-  FullTrackName full_track_name_;
-  std::optional<uint64_t> track_alias_;
+  const FullTrackName full_track_name_;
+  const uint64_t track_alias_;
   Visitor* visitor_;
 };
 

@@ -117,9 +117,9 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
  public:
   void CreateDefaultEndpoints() {
     client_ = std::make_unique<ClientEndpoint>(
-        &test_harness_.simulator(), "Client", "Server", MoqtVersion::kDraft01);
+        &test_harness_.simulator(), "Client", "Server", MoqtVersion::kDraft02);
     server_ = std::make_unique<ServerEndpoint>(
-        &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft01);
+        &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft02);
     test_harness_.set_client(client_.get());
     test_harness_.set_server(server_.get());
   }
@@ -170,7 +170,7 @@ TEST_F(MoqtIntegrationTest, VersionMismatch) {
       &test_harness_.simulator(), "Client", "Server",
       MoqtVersion::kUnrecognizedVersionForTests);
   server_ = std::make_unique<ServerEndpoint>(
-      &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft01);
+      &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft02);
   test_harness_.set_client(client_.get());
   test_harness_.set_server(server_.get());
   WireUpEndpoints();

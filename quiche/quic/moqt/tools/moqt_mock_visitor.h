@@ -31,7 +31,7 @@ struct MockSessionCallbacks {
 
 class MockLocalTrackVisitor : public LocalTrack::Visitor {
  public:
-  MOCK_METHOD(std::optional<absl::string_view>, OnSubscribeRequestForPast,
+  MOCK_METHOD(std::optional<absl::string_view>, OnSubscribeForPast,
               (const SubscribeWindow& window), (override));
 };
 
@@ -42,10 +42,10 @@ class MockRemoteTrackVisitor : public RemoteTrack::Visitor {
                std::optional<absl::string_view> error_reason_phrase),
               (override));
   MOCK_METHOD(void, OnObjectFragment,
-              (const FullTrackName& full_track_name, uint32_t stream_id,
-               uint64_t group_sequence, uint64_t object_sequence,
-               uint64_t object_send_order, absl::string_view object,
-               bool end_of_message),
+              (const FullTrackName& full_track_name, uint64_t group_sequence,
+               uint64_t object_sequence, uint64_t object_send_order,
+               MoqtForwardingPreference forwarding_preference,
+               absl::string_view object, bool end_of_message),
               (override));
 };
 
