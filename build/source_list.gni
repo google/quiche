@@ -315,7 +315,6 @@ quiche_core_hdrs = [
     "src/quiche/quic/core/quic_path_validator.h",
     "src/quiche/quic/core/quic_ping_manager.h",
     "src/quiche/quic/core/quic_process_packet_interface.h",
-    "src/quiche/quic/core/quic_protocol_flags_list.h",
     "src/quiche/quic/core/quic_received_packet_manager.h",
     "src/quiche/quic/core/quic_sent_packet_manager.h",
     "src/quiche/quic/core/quic_server_id.h",

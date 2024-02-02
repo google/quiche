@@ -50,10 +50,7 @@ cc_library(
 
 cc_library(
     name = "quic_flags_list",
-    textual_hdrs = [
-        "quic/core/quic_flags_list.h",
-        "quic/core/quic_protocol_flags_list.h",
-    ],
+    textual_hdrs = ["quic/core/quic_flags_list.h"],
 )
 
 cc_library(

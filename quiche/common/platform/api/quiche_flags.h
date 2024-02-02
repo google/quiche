@@ -21,7 +21,7 @@
 
 // Flags accessed via GetQuicheFlag are permanent flags used to control QUICHE
 // library behavior.  The current list is available in the
-// quiche/quic/core/quic_protocol_flags_list.h file.
+// quiche/common/quiche_protocol_flags_list.h file.
 #define GetQuicheFlag(flag) GetQuicheFlagImpl(flag)
 #define SetQuicheFlag(flag, value) SetQuicheFlagImpl(flag, value)
 

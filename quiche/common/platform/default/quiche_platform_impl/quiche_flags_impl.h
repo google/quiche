@@ -17,12 +17,6 @@
 #include "quiche/quic/core/quic_flags_list.h"
 #undef QUIC_FLAG
 
-// Protocol flags.  TODO(bnc): Move to quiche_protocol_flags_list.h.
-#define QUIC_PROTOCOL_FLAG(type, flag, ...) \
-  QUICHE_EXPORT extern type FLAGS_##flag;
-#include "quiche/quic/core/quic_protocol_flags_list.h"
-#undef QUIC_PROTOCOL_FLAG
-
 // Protocol flags.
 #define QUICHE_PROTOCOL_FLAG(type, flag, ...) \
   QUICHE_EXPORT extern type FLAGS_##flag;

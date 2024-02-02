@@ -314,7 +314,6 @@
     "quiche/quic/core/quic_path_validator.h",
     "quiche/quic/core/quic_ping_manager.h",
     "quiche/quic/core/quic_process_packet_interface.h",
-    "quiche/quic/core/quic_protocol_flags_list.h",
     "quiche/quic/core/quic_received_packet_manager.h",
     "quiche/quic/core/quic_sent_packet_manager.h",
     "quiche/quic/core/quic_server_id.h",
