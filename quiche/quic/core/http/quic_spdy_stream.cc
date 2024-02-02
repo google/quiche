@@ -315,9 +315,9 @@ void QuicSpdyStream::WriteOrBufferBody(absl::string_view data, bool fin) {
   QUICHE_DCHECK(success);
 
   // Write body.
-  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                  << " is writing DATA frame payload of length "
-                  << data.length() << " with fin " << fin;
+  QUIC_DVLOG(1) << ENDPOINT << "Stream " << id()
+                << " is writing DATA frame payload of length " << data.length()
+                << " with fin " << fin;
   WriteOrBufferData(data, fin, nullptr);
 }
 
@@ -336,8 +336,8 @@ size_t QuicSpdyStream::WriteTrailers(
     // trailers may be processed out of order at the peer.
     const QuicStreamOffset final_offset =
         stream_bytes_written() + BufferedDataBytes();
-    QUIC_DLOG(INFO) << ENDPOINT << "Inserting trailer: ("
-                    << kFinalOffsetHeaderKey << ", " << final_offset << ")";
+    QUIC_DVLOG(1) << ENDPOINT << "Inserting trailer: (" << kFinalOffsetHeaderKey
+                  << ", " << final_offset << ")";
     trailer_block.insert(
         std::make_pair(kFinalOffsetHeaderKey, absl::StrCat(final_offset)));
   }
@@ -391,9 +391,8 @@ bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length,
   unacked_frame_headers_offsets_.Add(
       send_buffer().stream_offset(),
       send_buffer().stream_offset() + header.size());
-  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                  << " is writing DATA frame header of length "
-                  << header.size();
+  QUIC_DVLOG(1) << ENDPOINT << "Stream " << id()
+                << " is writing DATA frame header of length " << header.size();
   if (can_write) {
     // Save one copy and allocation if send buffer can accomodate the header.
     quiche::QuicheMemSlice header_slice(std::move(header));
@@ -417,8 +416,8 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(
     return {0, false};
   }
 
-  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                  << " is writing DATA frame payload of length " << data_size;
+  QUIC_DVLOG(1) << ENDPOINT << "Stream " << id()
+                << " is writing DATA frame payload of length " << data_size;
   return WriteMemSlices(slices, fin);
 }
 
@@ -1223,10 +1222,10 @@ size_t QuicSpdyStream::WriteHeadersImpl(
       send_buffer().stream_offset(),
       send_buffer().stream_offset() + headers_frame_header.length());
 
-  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
-                  << " is writing HEADERS frame header of length "
-                  << headers_frame_header.length() << ", and payload of length "
-                  << encoded_headers.length() << " with fin " << fin;
+  QUIC_DVLOG(1) << ENDPOINT << "Stream " << id()
+                << " is writing HEADERS frame header of length "
+                << headers_frame_header.length() << ", and payload of length "
+                << encoded_headers.length() << " with fin " << fin;
   WriteOrBufferData(absl::StrCat(headers_frame_header, encoded_headers), fin,
                     /*ack_listener=*/nullptr);
 
