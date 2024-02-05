@@ -15376,10 +15376,14 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   QuicMessageFrame message_frame;
   QuicNewTokenFrame new_token_frame;
   QuicAckFrequencyFrame ack_frequency_frame;
+  QuicResetStreamAtFrame reset_stream_at_frame;
   QuicBlockedFrame blocked_frame;
   size_t packet_number = 1;
 
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  QuicFramer* framer = const_cast<QuicFramer*>(&connection_.framer());
+  framer->set_process_reset_stream_at(true);
+  peer_framer_.set_process_reset_stream_at(true);
 
   for (uint8_t i = 0; i < NUM_FRAME_TYPES; ++i) {
     QuicFrameType frame_type = static_cast<QuicFrameType>(i);
@@ -15462,6 +15466,9 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
         break;
       case ACK_FREQUENCY_FRAME:
         frame = QuicFrame(&ack_frequency_frame);
+        break;
+      case RESET_STREAM_AT_FRAME:
+        frame = QuicFrame(&reset_stream_at_frame);
         break;
       case NUM_FRAME_TYPES:
         skipped = true;

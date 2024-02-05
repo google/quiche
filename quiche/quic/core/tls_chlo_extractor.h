@@ -13,6 +13,7 @@
 #include "absl/types/span.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
@@ -175,6 +176,9 @@ class QUICHE_EXPORT TlsChloExtractor
     return true;
   }
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& /*frame*/) override {
+    return true;
+  }
+  bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& /*frame*/) override {
     return true;
   }
   void OnPacketComplete() override {}

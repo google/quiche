@@ -5,9 +5,10 @@
 #ifndef QUICHE_QUIC_CORE_FRAMES_QUIC_FRAME_H_
 #define QUICHE_QUIC_CORE_FRAMES_QUIC_FRAME_H_
 
+#include <cstddef>
 #include <ostream>
+#include <string>
 #include <type_traits>
-#include <vector>
 
 #include "absl/container/inlined_vector.h"
 #include "quiche/quic/core/frames/quic_ack_frame.h"
@@ -26,6 +27,7 @@
 #include "quiche/quic/core/frames/quic_path_challenge_frame.h"
 #include "quiche/quic/core/frames/quic_path_response_frame.h"
 #include "quiche/quic/core/frames/quic_ping_frame.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
 #include "quiche/quic/core/frames/quic_stop_sending_frame.h"
@@ -34,7 +36,8 @@
 #include "quiche/quic/core/frames/quic_streams_blocked_frame.h"
 #include "quiche/quic/core/frames/quic_window_update_frame.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 
 #ifndef QUIC_FRAME_DEBUG
 #if !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
@@ -73,6 +76,7 @@ struct QUICHE_EXPORT QuicFrame {
   explicit QuicFrame(QuicMessageFrame* message_frame);
   explicit QuicFrame(QuicCryptoFrame* crypto_frame);
   explicit QuicFrame(QuicAckFrequencyFrame* ack_frequency_frame);
+  explicit QuicFrame(QuicResetStreamAtFrame* reset_stream_at_frame);
 
   QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
                                                 const QuicFrame& frame);
@@ -115,6 +119,7 @@ struct QUICHE_EXPORT QuicFrame {
         QuicCryptoFrame* crypto_frame;
         QuicAckFrequencyFrame* ack_frequency_frame;
         QuicNewTokenFrame* new_token_frame;
+        QuicResetStreamAtFrame* reset_stream_at_frame;
       };
     };
   };

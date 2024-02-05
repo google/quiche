@@ -616,6 +616,9 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
       case ACK_FREQUENCY_FRAME:
         frames.push_back(QuicFrame(new QuicAckFrequencyFrame()));
         break;
+      case RESET_STREAM_AT_FRAME:
+        frames.push_back(QuicFrame(new QuicResetStreamAtFrame()));
+        break;
       default:
         ASSERT_TRUE(false)
             << "Please fix CopyQuicFrames if a new frame type is added.";

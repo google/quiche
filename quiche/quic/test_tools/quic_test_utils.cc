@@ -447,6 +447,11 @@ bool NoOpFramerVisitor::OnAckFrequencyFrame(
   return true;
 }
 
+bool NoOpFramerVisitor::OnResetStreamAtFrame(
+    const QuicResetStreamAtFrame& /*frame*/) {
+  return true;
+}
+
 bool NoOpFramerVisitor::IsValidStatelessResetToken(
     const StatelessResetToken& /*token*/) const {
   return false;

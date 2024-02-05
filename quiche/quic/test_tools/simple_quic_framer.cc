@@ -11,6 +11,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_types.h"
 
 namespace quic {
@@ -210,6 +211,11 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
+  bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override {
+    reset_stream_at_frames_.push_back(frame);
+    return true;
+  }
+
   void OnPacketComplete() override {}
 
   bool IsValidStatelessResetToken(
@@ -312,6 +318,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<QuicMessageFrame> message_frames_;
   std::vector<QuicHandshakeDoneFrame> handshake_done_frames_;
   std::vector<QuicAckFrequencyFrame> ack_frequency_frames_;
+  std::vector<QuicResetStreamAtFrame> reset_stream_at_frames_;
   std::vector<std::unique_ptr<std::string>> stream_data_;
   std::vector<std::unique_ptr<std::string>> crypto_data_;
   EncryptionLevel last_decrypted_level_;

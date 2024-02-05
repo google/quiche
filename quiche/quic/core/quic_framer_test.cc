@@ -22,6 +22,7 @@
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -460,6 +461,15 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
+  bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override {
+    ++frame_count_;
+    reset_stream_at_frames_.push_back(
+        std::make_unique<QuicResetStreamAtFrame>(frame));
+    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_EQ(IETF_RESET_STREAM_AT, framer_->current_received_frame_type());
+    return true;
+  }
+
   void OnPacketComplete() override { ++complete_packets_; }
 
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override {
@@ -651,6 +661,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::vector<std::unique_ptr<QuicMessageFrame>> message_frames_;
   std::vector<std::unique_ptr<QuicHandshakeDoneFrame>> handshake_done_frames_;
   std::vector<std::unique_ptr<QuicAckFrequencyFrame>> ack_frequency_frames_;
+  std::vector<std::unique_ptr<QuicResetStreamAtFrame>> reset_stream_at_frames_;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> coalesced_packets_;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> undecryptable_packets_;
   std::vector<EncryptionLevel> undecryptable_decryption_levels_;
@@ -4791,6 +4802,87 @@ TEST_P(QuicFramerTest, ParseAckFrequencyFrame) {
   EXPECT_EQ(true, frame->ignore_order);
 }
 
+TEST_P(QuicFramerTest, ParseResetStreamAtFrame) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+      // type (short header, 4 byte packet number)
+      0x43,
+      // connection_id
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+
+      // type = RESET_STREAM_AT
+      0x24,
+      // stream ID
+      0x00,
+      // application error code
+      0x1e,
+      // final size
+      0x20,
+      // reliable size
+      0x10,
+  };
+  // clang-format on
+
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+  framer_.set_process_reset_stream_at(true);
+
+  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_TRUE(CheckDecryption(
+      encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
+
+  ASSERT_EQ(visitor_.reset_stream_at_frames_.size(), 1);
+  const QuicResetStreamAtFrame& frame = *visitor_.reset_stream_at_frames_[0];
+  EXPECT_EQ(frame.stream_id, 0x00);
+  EXPECT_EQ(frame.error, 0x1e);
+  EXPECT_EQ(frame.final_offset, 0x20);
+  EXPECT_EQ(frame.reliable_offset, 0x10);
+}
+
+TEST_P(QuicFramerTest, ParseInvalidResetStreamAtFrame) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+      // type (short header, 4 byte packet number)
+      0x43,
+      // connection_id
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+
+      // type = RESET_STREAM_AT
+      0x24,
+      // stream ID
+      0x00,
+      // application error code
+      0x1e,
+      // final size
+      0x20,
+      // reliable size
+      0x30,
+  };
+  // clang-format on
+
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+  framer_.set_process_reset_stream_at(true);
+
+  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+  EXPECT_EQ(framer_.error(), QUIC_INVALID_FRAME_DATA);
+  EXPECT_EQ(visitor_.reset_stream_at_frames_.size(), 0);
+}
+
 TEST_P(QuicFramerTest, MessageFrame) {
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
@@ -8086,6 +8178,55 @@ TEST_P(QuicFramerTest, BuildAckFrequencyPacket) {
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
+
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      ABSL_ARRAYSIZE(packet));
+}
+
+TEST_P(QuicFramerTest, BuildResetStreamAtPacket) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicResetStreamAtFrame frame;
+  frame.stream_id = 0x00;
+  frame.error = 0x1e;
+  frame.final_offset = 0x20;
+  frame.reliable_offset = 0x10;
+  QuicFrames frames = {QuicFrame(&frame)};
+
+  framer_.set_process_reset_stream_at(true);
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+
+  // clang-format off
+  unsigned char packet[] = {
+      // type (short header, 4 byte packet number)
+      0x43,
+      // connection_id
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+
+      // type = RESET_STREAM_AT
+      0x24,
+      // stream ID
+      0x00,
+      // application error code
+      0x1e,
+      // final size
+      0x20,
+      // reliable size
+      0x10,
+  };
+  // clang-format on
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),

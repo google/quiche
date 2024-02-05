@@ -213,6 +213,10 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     std::cerr << "OnAckFrequencyFrame: " << frame;
     return true;
   }
+  bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override {
+    std::cerr << "OnResetStreamAtFrame: " << frame;
+    return true;
+  }
   void OnPacketComplete() override { std::cerr << "OnPacketComplete\n"; }
   bool IsValidStatelessResetToken(
       const StatelessResetToken& /*token*/) const override {

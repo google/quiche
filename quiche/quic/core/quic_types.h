@@ -275,6 +275,7 @@ enum QuicFrameType : uint8_t {
   NEW_TOKEN_FRAME,
   RETIRE_CONNECTION_ID_FRAME,
   ACK_FREQUENCY_FRAME,
+  RESET_STREAM_AT_FRAME,
 
   NUM_FRAME_TYPES
 };
@@ -347,6 +348,9 @@ enum QuicIetfFrameType : uint64_t {
   // packet receive timestamps.
   // TODO(ianswett): Determine a proper value to replace this temporary value.
   IETF_ACK_RECEIVE_TIMESTAMPS = 0x22,
+
+  // https://datatracker.ietf.org/doc/html/draft-ietf-quic-reliable-stream-reset
+  IETF_RESET_STREAM_AT = 0x24,
 };
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                        const QuicIetfFrameType& c);
@@ -357,7 +361,7 @@ QUICHE_EXPORT std::string QuicIetfFrameTypeString(QuicIetfFrameType t);
 #define IETF_STREAM_FRAME_TYPE_MASK 0xfffffffffffffff8
 #define IETF_STREAM_FRAME_FLAG_MASK 0x07
 #define IS_IETF_STREAM_FRAME(_stype_) \
-  (((_stype_)&IETF_STREAM_FRAME_TYPE_MASK) == IETF_STREAM)
+  (((_stype_) & IETF_STREAM_FRAME_TYPE_MASK) == IETF_STREAM)
 
 // These are the values encoded in the low-order 3 bits of the
 // IETF_STREAMx frame type.

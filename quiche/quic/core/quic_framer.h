@@ -15,6 +15,7 @@
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_types.h"
@@ -222,6 +223,9 @@ class QUICHE_EXPORT QuicFramerVisitorInterface {
   // Called when an AckFrequencyFrame has been parsed.
   virtual bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) = 0;
 
+  // Called when an ResetStreamAtFrame has been parsed.
+  virtual bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) = 0;
+
   // Called when a packet has been completely processed.
   virtual void OnPacketComplete() = 0;
 
@@ -324,6 +328,11 @@ class QUICHE_EXPORT QuicFramer {
     receive_timestamps_exponent_ = exponent;
   }
 
+  // Allows enabling RESET_STREAM_AT frame processing.
+  void set_process_reset_stream_at(bool process_reset_stream_at) {
+    process_reset_stream_at_ = process_reset_stream_at;
+  }
+
   // Pass a UDP packet into the framer for parsing.
   // Return true if the packet was processed successfully. |packet| must be a
   // single, complete UDP packet (not a frame of a packet).  This packet
@@ -360,6 +369,8 @@ class QUICHE_EXPORT QuicFramer {
                                       const QuicRstStreamFrame& frame);
   // Size in bytes of all ack frenquency frame fields.
   static size_t GetAckFrequencyFrameSize(const QuicAckFrequencyFrame& frame);
+  // Size in bytes of all RESET_STREAM_AT frame fields.
+  static size_t GetResetStreamAtFrameSize(const QuicResetStreamAtFrame& frame);
   // Size in bytes of all connection close frame fields, including the error
   // details.
   static size_t GetConnectionCloseFrameSize(
@@ -539,6 +550,8 @@ class QUICHE_EXPORT QuicFramer {
   bool AppendCryptoFrame(const QuicCryptoFrame& frame, QuicDataWriter* writer);
   bool AppendAckFrequencyFrame(const QuicAckFrequencyFrame& frame,
                                QuicDataWriter* writer);
+  bool AppendResetFrameAtFrame(const QuicResetStreamAtFrame& frame,
+                               QuicDataWriter& writer);
 
   // SetDecrypter sets the primary decrypter, replacing any that already exists.
   // If an alternative decrypter is in place then the function QUICHE_DCHECKs.
@@ -978,6 +991,8 @@ class QUICHE_EXPORT QuicFramer {
                           QuicCryptoFrame* frame);
   bool ProcessAckFrequencyFrame(QuicDataReader* reader,
                                 QuicAckFrequencyFrame* frame);
+  bool ProcessResetStreamAtFrame(QuicDataReader& reader,
+                                 QuicResetStreamAtFrame& frame);
   // IETF frame appending methods.  All methods append the type byte as well.
   bool AppendIetfStreamFrame(const QuicStreamFrame& frame,
                              bool last_frame_in_packet, QuicDataWriter* writer);
@@ -1112,6 +1127,8 @@ class QUICHE_EXPORT QuicFramer {
   mutable uint32_t max_receive_timestamps_per_ack_;
   // The exponent to use when writing/reading ACK receive timestamps.
   mutable uint32_t receive_timestamps_exponent_;
+  // If true, process RESET_STREAM_AT frames.
+  bool process_reset_stream_at_;
   // The creation time of the connection, used to calculate timestamps.
   QuicTime creation_time_;
   // The last timestamp received if process_timestamps_ is true.
