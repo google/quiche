@@ -7263,8 +7263,7 @@ TEST_P(EndToEndTest, ServerReportsEct0) {
   EXPECT_EQ(ecn->ce, 0);
   EXPECT_TRUE(client_connection->set_ecn_codepoint(ECN_ECT0));
   client_->SendSynchronousRequest("/foo");
-  if (!GetQuicRestartFlag(quic_receive_ecn3) ||
-      !VersionHasIetfQuicFrames(version_.transport_version)) {
+  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
     EXPECT_EQ(ecn->ect0, 0);
   } else {
     EXPECT_GT(ecn->ect0, 0);
@@ -7288,8 +7287,7 @@ TEST_P(EndToEndTest, ServerReportsEct1) {
   EXPECT_EQ(ecn->ce, 0);
   EXPECT_TRUE(client_connection->set_ecn_codepoint(ECN_ECT1));
   client_->SendSynchronousRequest("/foo");
-  if (!GetQuicRestartFlag(quic_receive_ecn3) ||
-      !VersionHasIetfQuicFrames(version_.transport_version)) {
+  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
     EXPECT_EQ(ecn->ect1, 0);
   } else {
     EXPECT_GT(ecn->ect1, 0);
@@ -7313,8 +7311,7 @@ TEST_P(EndToEndTest, ServerReportsCe) {
   EXPECT_EQ(ecn->ce, 0);
   EXPECT_TRUE(client_connection->set_ecn_codepoint(ECN_CE));
   client_->SendSynchronousRequest("/foo");
-  if (!GetQuicRestartFlag(quic_receive_ecn3) ||
-      !VersionHasIetfQuicFrames(version_.transport_version)) {
+  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
     EXPECT_EQ(ecn->ce, 0);
   } else {
     EXPECT_GT(ecn->ce, 0);
@@ -7342,8 +7339,7 @@ TEST_P(EndToEndTest, ClientReportsEct1) {
   server_thread_->Pause();
   EXPECT_EQ(ecn->ect0, 0);
   EXPECT_EQ(ecn->ce, 0);
-  if (!GetQuicRestartFlag(quic_receive_ecn3) ||
-      !VersionHasIetfQuicFrames(version_.transport_version)) {
+  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
     EXPECT_EQ(ecn->ect1, 0);
   } else {
     EXPECT_GT(ecn->ect1, 0);

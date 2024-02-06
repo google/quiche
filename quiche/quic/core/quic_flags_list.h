@@ -107,8 +107,6 @@ QUIC_FLAG(quic_restart_flag_quic_support_ect1, false)
 QUIC_FLAG(quic_reloadable_flag_quic_clone_ecn, true)
 // When true, defaults to BBR congestion control instead of Cubic.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr, false)
-// When true, report received ECN markings to the peer. Replaces quic_receive_ecn2 to use correct codepoints.
-QUIC_FLAG(quic_restart_flag_quic_receive_ecn3, true)
 // When true, support RFC9369.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_version_rfcv2, false)
 // When true, the BB2U copt causes BBR2 to wait two rounds with out draining the queue before exiting PROBE_UP and BB2S has the same effect in STARTUP.

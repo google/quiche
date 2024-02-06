@@ -124,8 +124,7 @@ void QuicReceivedPacketManager::RecordPacketReceived(
     }
   }
 
-  if (GetQuicRestartFlag(quic_receive_ecn3) && ecn != ECN_NOT_ECT) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_receive_ecn3, 1, 2);
+  if (ecn != ECN_NOT_ECT) {
     if (!ack_frame_.ecn_counters.has_value()) {
       ack_frame_.ecn_counters = QuicEcnCounts();
     }

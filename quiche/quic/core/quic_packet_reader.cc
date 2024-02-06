@@ -53,11 +53,8 @@ bool QuicPacketReader::ReadAndDispatchPackets(
       {QuicUdpPacketInfoBit::DROPPED_PACKETS,
        QuicUdpPacketInfoBit::PEER_ADDRESS, QuicUdpPacketInfoBit::V4_SELF_IP,
        QuicUdpPacketInfoBit::V6_SELF_IP, QuicUdpPacketInfoBit::RECV_TIMESTAMP,
-       QuicUdpPacketInfoBit::TTL, QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER});
-  if (GetQuicRestartFlag(quic_receive_ecn3)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_receive_ecn3, 2, 2);
-    info_bits.Set(QuicUdpPacketInfoBit::ECN);
-  }
+       QuicUdpPacketInfoBit::TTL, QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER,
+       QuicUdpPacketInfoBit::ECN});
   size_t packets_read =
       socket_api_.ReadMultiplePackets(fd, info_bits, &read_results_);
   for (size_t i = 0; i < packets_read; ++i) {
