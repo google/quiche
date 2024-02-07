@@ -130,18 +130,6 @@ void QuicSpdyClientStream::OnTrailingHeadersComplete(
 }
 
 void QuicSpdyClientStream::OnBodyAvailable() {
-  const bool skip_return_on_null_visitor =
-      GetQuicReloadableFlag(quic_skip_return_on_null_visitor);
-  if (skip_return_on_null_visitor) {
-    QUICHE_RELOADABLE_FLAG_COUNT(quic_skip_return_on_null_visitor);
-  }
-  if (visitor() == nullptr) {
-    QUICHE_CODE_COUNT(quic_spdy_client_stream_visitor_null_on_body_available);
-    if (!skip_return_on_null_visitor) {
-      return;
-    }
-  }
-
   while (HasBytesToRead()) {
     struct iovec iov;
     if (GetReadableRegions(&iov, 1) == 0) {
