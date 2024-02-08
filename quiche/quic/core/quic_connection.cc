@@ -5724,8 +5724,23 @@ QuicPacketLength QuicConnection::GetGuaranteedLargestMessagePayload() const {
 
 uint32_t QuicConnection::cipher_id() const {
   if (version().KnowsWhichDecrypterToUse()) {
-    return framer_.GetDecrypter(last_received_packet_info_.decrypted_level)
-        ->cipher_id();
+    if (quic_limit_new_streams_per_loop_2_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_new_streams_per_loop_2, 4, 4);
+      for (auto decryption_level :
+           {ENCRYPTION_FORWARD_SECURE, ENCRYPTION_HANDSHAKE,
+            ENCRYPTION_ZERO_RTT, ENCRYPTION_INITIAL}) {
+        const QuicDecrypter* decrypter = framer_.GetDecrypter(decryption_level);
+        if (decrypter != nullptr) {
+          return decrypter->cipher_id();
+        }
+      }
+      QUICHE_BUG(no_decrypter_found)
+          << ENDPOINT << "No decrypter found at all encryption levels";
+      return 0;
+    } else {
+      return framer_.GetDecrypter(last_received_packet_info_.decrypted_level)
+          ->cipher_id();
+    }
   }
   return framer_.decrypter()->cipher_id();
 }

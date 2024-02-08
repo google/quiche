@@ -1348,6 +1348,10 @@ class QUICHE_EXPORT QuicConnection
     return packet_writer_params_.ecn_codepoint;
   }
 
+  bool quic_limit_new_streams_per_loop_2() const {
+    return quic_limit_new_streams_per_loop_2_;
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -2418,6 +2422,9 @@ class QUICHE_EXPORT QuicConnection
   // The ECN codepoint of the last packet to be sent to the writer, which
   // might be different from the next codepoint in per_packet_options_.
   QuicEcnCodepoint last_ecn_codepoint_sent_ = ECN_NOT_ECT;
+
+  const bool quic_limit_new_streams_per_loop_2_ =
+      GetQuicReloadableFlag(quic_limit_new_streams_per_loop_2);
 };
 
 }  // namespace quic
