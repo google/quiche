@@ -284,6 +284,10 @@ class QUICHE_EXPORT QuicSpdySession
         qpack_maximum_dynamic_table_capacity;
   }
 
+  uint64_t qpack_maximum_dynamic_table_capacity() const {
+    return qpack_maximum_dynamic_table_capacity_;
+  }
+
   // Must not be called after Initialize().
   // TODO(bnc): Move to constructor argument.
   void set_qpack_maximum_blocked_streams(
