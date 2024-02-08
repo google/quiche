@@ -399,16 +399,28 @@ void MoqtSession::Stream::OnObjectMessage(const MoqtObject& message,
     }
   }
   auto it = session_->remote_tracks_.find(message.track_alias);
+  RemoteTrack::Visitor* visitor = nullptr;
+  absl::string_view track_namespace;
+  absl::string_view track_name;
   if (it == session_->remote_tracks_.end()) {
-    // No SUBSCRIBE_OK received with this alias, return.
-    return;
+    // SUBSCRIBE_OK has not arrived yet, but deliver it.
+    auto subscribe_it = session_->active_subscribes_.find(message.subscribe_id);
+    if (subscribe_it == session_->active_subscribes_.end()) {
+      return;
+    }
+    visitor = subscribe_it->second.visitor;
+    track_namespace = subscribe_it->second.message.track_namespace;
+    track_name = subscribe_it->second.message.track_name;
+  } else {
+    visitor = it->second.visitor();
+    track_namespace = it->second.full_track_name().track_namespace;
+    track_name = it->second.full_track_name().track_name;
   }
-  RemoteTrack& subscription = it->second;
-  if (subscription.visitor() != nullptr) {
-    subscription.visitor()->OnObjectFragment(
-        subscription.full_track_name(), message.group_id, message.object_id,
-        message.object_send_order, message.forwarding_preference, payload,
-        end_of_message);
+  if (visitor != nullptr) {
+    visitor->OnObjectFragment(
+        FullTrackName(track_namespace, track_name), message.group_id,
+        message.object_id, message.object_send_order,
+        message.forwarding_preference, payload, end_of_message);
   }
   partial_object_.clear();
 }
