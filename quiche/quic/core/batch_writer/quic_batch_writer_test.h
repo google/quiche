@@ -231,6 +231,8 @@ class QUICHE_EXPORT QuicUdpBatchWriterIOTest
       QuicUdpSocketApi::ReadPacketResult result;
       result.packet_buffer = {&packet_buffer_[0], sizeof(packet_buffer_)};
       result.control_buffer = {&control_buffer_[0], sizeof(control_buffer_)};
+      ASSERT_TRUE(QuicUdpSocketApi().WaitUntilReadable(
+          peer_socket_, QuicTime::Delta::FromSeconds(1)));
       QuicUdpSocketApi().ReadPacket(
           peer_socket_,
           quic::QuicUdpPacketInfoBitMask({QuicUdpPacketInfoBit::V4_SELF_IP,
