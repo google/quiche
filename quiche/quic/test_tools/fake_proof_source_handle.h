@@ -31,11 +31,11 @@ class FakeProofSourceHandle : public ProofSourceHandle {
   };
 
   // |delegate| must do cert selection and signature synchronously.
-  // |dealyed_ssl_config| is the config passed to OnSelectCertificateDone.
+  // |delayed_ssl_config| is the config passed to OnSelectCertificateDone.
   FakeProofSourceHandle(
       ProofSource* delegate, ProofSourceHandleCallback* callback,
       Action select_cert_action, Action compute_signature_action,
-      QuicDelayedSSLConfig dealyed_ssl_config = QuicDelayedSSLConfig());
+      QuicDelayedSSLConfig delayed_ssl_config = QuicDelayedSSLConfig());
 
   ~FakeProofSourceHandle() override = default;
 
@@ -148,7 +148,7 @@ class FakeProofSourceHandle : public ProofSourceHandle {
     SelectCertOperation(ProofSource* delegate,
                         ProofSourceHandleCallback* callback, Action action,
                         SelectCertArgs args,
-                        QuicDelayedSSLConfig dealyed_ssl_config);
+                        QuicDelayedSSLConfig delayed_ssl_config);
 
     ~SelectCertOperation() override = default;
 
@@ -156,7 +156,7 @@ class FakeProofSourceHandle : public ProofSourceHandle {
 
    private:
     const SelectCertArgs args_;
-    const QuicDelayedSSLConfig dealyed_ssl_config_;
+    const QuicDelayedSSLConfig delayed_ssl_config_;
   };
 
   class ComputeSignatureOperation : public PendingOperation {
@@ -183,7 +183,7 @@ class FakeProofSourceHandle : public ProofSourceHandle {
   Action select_cert_action_ = Action::DELEGATE_SYNC;
   // Action for the next compute signature operation.
   Action compute_signature_action_ = Action::DELEGATE_SYNC;
-  const QuicDelayedSSLConfig dealyed_ssl_config_;
+  const QuicDelayedSSLConfig delayed_ssl_config_;
   std::optional<SelectCertOperation> select_cert_op_;
   std::optional<ComputeSignatureOperation> compute_signature_op_;
 
