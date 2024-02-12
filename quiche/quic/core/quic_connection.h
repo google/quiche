@@ -521,6 +521,10 @@ class QUICHE_EXPORT QuicConnection
     size_t num_multi_port_probe_failures_when_path_degrading = 0;
     // number of total multi-port path creations in a connection
     size_t num_multi_port_paths_created = 0;
+    // number of client probing attempts.
+    size_t num_client_probing_attempts = 0;
+    // number of successful probes.
+    size_t num_successful_probes = 0;
   };
 
   // Sets connection parameters from the supplied |config|.

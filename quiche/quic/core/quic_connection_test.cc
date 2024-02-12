@@ -13145,6 +13145,8 @@ TEST_P(QuicConnectionTest, MultiPortConnection) {
   EXPECT_TRUE(alt_path->validated);
   auto stats = connection_.multi_port_stats();
   EXPECT_EQ(1, connection_.GetStats().num_path_degrading);
+  EXPECT_EQ(1, stats->num_successful_probes);
+  EXPECT_EQ(1, stats->num_client_probing_attempts);
   EXPECT_EQ(0, stats->num_multi_port_probe_failures_when_path_degrading);
   EXPECT_EQ(kTestRTT, stats->rtt_stats.latest_rtt());
   EXPECT_EQ(kTestRTT,

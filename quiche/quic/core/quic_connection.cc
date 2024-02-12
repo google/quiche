@@ -6704,6 +6704,10 @@ void QuicConnection::ValidatePath(
                                   context->peer_address(), client_connection_id,
                                   server_connection_id, stateless_reset_token);
   }
+  if (multi_port_stats_ != nullptr &&
+      reason == PathValidationReason::kMultiPort) {
+    multi_port_stats_->num_client_probing_attempts++;
+  }
   path_validator_.StartPathValidation(std::move(context),
                                       std::move(result_delegate), reason);
   if (perspective_ == Perspective::IS_CLIENT &&
@@ -7131,6 +7135,7 @@ void QuicConnection::OnMultiPortPathProbingSuccess(
   multi_port_probing_alarm_->Set(clock_->ApproximateNow() +
                                  multi_port_probing_interval_);
   if (multi_port_stats_ != nullptr) {
+    multi_port_stats_->num_successful_probes++;
     auto now = clock_->Now();
     auto time_delta = now - start_time;
     multi_port_stats_->rtt_stats.UpdateRtt(time_delta, QuicTime::Delta::Zero(),
@@ -7152,6 +7157,9 @@ void QuicConnection::MaybeProbeMultiPortPath() {
       !visitor_->ShouldKeepConnectionAlive() ||
       multi_port_probing_alarm_->IsSet()) {
     return;
+  }
+  if (multi_port_stats_ != nullptr) {
+    multi_port_stats_->num_client_probing_attempts++;
   }
   auto multi_port_validation_result_delegate =
       std::make_unique<MultiPortPathValidationResultDelegate>(this);
