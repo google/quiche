@@ -643,6 +643,13 @@ void MoqtSession::Stream::OnSubscribeErrorMessage(
   session_->active_subscribes_.erase(it);
 }
 
+void MoqtSession::Stream::OnUnsubscribeMessage(const MoqtUnsubscribe& message) {
+  // Search all the tracks to find the subscribe ID.
+  for (auto& [name, track] : session_->local_tracks_) {
+    track.DeleteWindow(message.subscribe_id);
+  }
+}
+
 void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {
   if (!CheckIfIsControlStream()) {
     return;

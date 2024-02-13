@@ -157,7 +157,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnSubscribeMessage(const MoqtSubscribe& message) override;
     void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override;
     void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override;
-    void OnUnsubscribeMessage(const MoqtUnsubscribe& /*message*/) override {}
+    void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
     void OnSubscribeFinMessage(const MoqtSubscribeFin& /*message*/) override {}
     void OnSubscribeRstMessage(const MoqtSubscribeRst& /*message*/) override {}
     void OnAnnounceMessage(const MoqtAnnounce& message) override;
@@ -231,6 +231,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     MoqtSubscribe message;
     RemoteTrack::Visitor* visitor;
   };
+  // Outgoing SUBSCRIBEs that have not received SUBSCRIBE_OK or SUBSCRIBE_ERROR.
   absl::flat_hash_map<uint64_t, ActiveSubscribe> active_subscribes_;
   uint64_t next_subscribe_id_ = 0;
 

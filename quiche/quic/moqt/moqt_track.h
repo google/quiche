@@ -56,6 +56,9 @@ class LocalTrack {
   }
 
   void AddWindow(SubscribeWindow window) { windows_.AddWindow(window); }
+  void DeleteWindow(uint64_t subscribe_id) {
+    windows_.RemoveWindow(subscribe_id);
+  }
 
   // Returns the largest observed sequence, but increments the object sequence
   // by one.
@@ -69,6 +72,10 @@ class LocalTrack {
   }
 
   bool HasSubscriber() const { return !windows_.IsEmpty(); }
+
+  SubscribeWindow* GetWindow(uint64_t subscribe_id) {
+    return windows_.GetWindow(subscribe_id);
+  }
 
  private:
   // This only needs to track subscriptions to current and future objects;

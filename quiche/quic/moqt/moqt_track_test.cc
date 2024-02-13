@@ -42,6 +42,14 @@ TEST_F(LocalTrackTest, SetTrackAlias) {
   EXPECT_EQ(track_.track_alias(), 6);
 }
 
+TEST_F(LocalTrackTest, AddGetDeleteWindow) {
+  track_.AddWindow(SubscribeWindow(0, 4, 1));
+  EXPECT_EQ(track_.GetWindow(0)->subscribe_id(), 0);
+  EXPECT_EQ(track_.GetWindow(1), nullptr);
+  track_.DeleteWindow(0);
+  EXPECT_EQ(track_.GetWindow(0), nullptr);
+}
+
 TEST_F(LocalTrackTest, ShouldSend) {
   track_.AddWindow(SubscribeWindow(0, 4, 1));
   EXPECT_TRUE(track_.HasSubscriber());

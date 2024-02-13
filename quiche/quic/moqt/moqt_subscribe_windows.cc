@@ -96,9 +96,9 @@ void SubscribeWindow::RemoveStream(
 std::vector<SubscribeWindow*> MoqtSubscribeWindows::SequenceIsSubscribed(
     FullSequence sequence) {
   std::vector<SubscribeWindow*> retval;
-  for (auto it = windows.begin(); it != windows.end(); it++) {
-    if (it->InWindow(sequence)) {
-      retval.push_back(&(*it));
+  for (auto& [subscribe_id, window] : windows_) {
+    if (window.InWindow(sequence)) {
+      retval.push_back(&(window));
     }
   }
   return retval;

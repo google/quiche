@@ -166,6 +166,15 @@ TEST_F(MoqtSubscribeWindowsTest, IsSubscribed) {
   EXPECT_EQ(hits[1]->subscribe_id(), 0);
 }
 
+TEST_F(MoqtSubscribeWindowsTest, AddGetRemoveWindow) {
+  windows_.AddWindow(SubscribeWindow(0, 1, 0, 3, 9));
+  SubscribeWindow* window = windows_.GetWindow(0);
+  EXPECT_EQ(window->subscribe_id(), 0);
+  EXPECT_EQ(windows_.GetWindow(1), nullptr);
+  windows_.RemoveWindow(0);
+  EXPECT_EQ(windows_.GetWindow(0), nullptr);
+}
+
 }  // namespace test
 
 }  // namespace moqt

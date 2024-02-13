@@ -871,6 +871,22 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
   EXPECT_TRUE(reported_error);
 }
 
+TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
+  FullTrackName ftn("foo", "bar");
+  MockLocalTrackVisitor visitor;
+  session_.AddLocalTrack(ftn, &visitor);
+  MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 1, 3, 4);
+  EXPECT_TRUE(session_.HasSubscribers(ftn));
+  StrictMock<webtransport::test::MockStream> mock_stream;
+  std::unique_ptr<MoqtParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  MoqtUnsubscribe unsubscribe = {
+      /*subscribe_id=*/0,
+  };
+  stream_input->OnUnsubscribeMessage(unsubscribe);
+  EXPECT_FALSE(session_.HasSubscribers(ftn));
+}
+
 // TODO: Cover more error cases in the above
 
 }  // namespace test

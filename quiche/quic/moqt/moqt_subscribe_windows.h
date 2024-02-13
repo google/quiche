@@ -6,11 +6,10 @@
 #define QUICHE_QUIC_MOQT_SUBSCRIBE_WINDOWS_H
 
 #include <cstdint>
-#include <list>
 #include <optional>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
+#include "absl/container/node_hash_map.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/web_transport/web_transport.h"
@@ -77,12 +76,24 @@ class QUICHE_EXPORT MoqtSubscribeWindows {
 
   // |window| has already been converted into absolute sequence numbers. An
   // optimization could consolidate overlapping subscribe windows.
-  void AddWindow(SubscribeWindow window) { windows.push_front(window); }
+  void AddWindow(SubscribeWindow window) {
+    windows_.emplace(window.subscribe_id(), window);
+  }
+  void RemoveWindow(uint64_t subscribe_id) { windows_.erase(subscribe_id); }
 
-  bool IsEmpty() const { return windows.empty(); }
+  bool IsEmpty() const { return windows_.empty(); }
+
+  SubscribeWindow* GetWindow(uint64_t subscribe_id) {
+    auto it = windows_.find(subscribe_id);
+    if (it == windows_.end()) {
+      return nullptr;
+    }
+    return &it->second;
+  }
 
  private:
-  std::list<SubscribeWindow> windows;
+  // Indexed by Subscribe ID.
+  absl::node_hash_map<uint64_t, SubscribeWindow> windows_;
 };
 
 }  // namespace moqt
