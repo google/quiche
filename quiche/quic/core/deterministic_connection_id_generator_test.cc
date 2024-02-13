@@ -11,6 +11,7 @@
 
 namespace quic {
 namespace test {
+namespace {
 
 struct TestParams {
   TestParams(int connection_id_length)
@@ -122,5 +123,6 @@ TEST_P(DeterministicConnectionIdGeneratorTest, ReturnLength) {
   EXPECT_EQ(generator_.ConnectionIdLength(0x01), connection_id_length_);
 }
 
+}  // namespace
 }  // namespace test
 }  // namespace quic

@@ -1194,13 +1194,13 @@ TEST_P(TlsServerHandshakerTest, AlpsUseNewCodepoint) {
       {false, false},
       {true, true},
   };
-  for (size_t i = 0; i < arraysize(tests); i++) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(tests); i++) {
     SCOPED_TRACE(absl::StrCat("Test #", i));
     const auto& test = tests[i];
     client_crypto_config_->set_alps_use_new_codepoint(
         test.client_use_alps_new_codepoint);
-    absl::SetFlag(&FLAGS_gfe2_reloadable_flag_quic_gfe_allow_alps_new_codepoint,
-                  test.server_allow_alps_new_codepoint);
+    SetQuicReloadableFlag(quic_gfe_allow_alps_new_codepoint,
+                          test.server_allow_alps_new_codepoint);
 
     ASSERT_TRUE(SetupClientCert());
     InitializeFakeClient();

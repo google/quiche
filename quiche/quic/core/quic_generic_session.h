@@ -33,7 +33,7 @@ namespace quic {
 class QuicGenericStream;
 
 // Returns QUIC versions to be used with QuicGenericSessionBase.
-ParsedQuicVersionVector GetQuicVersionsForGenericSession();
+QUICHE_EXPORT ParsedQuicVersionVector GetQuicVersionsForGenericSession();
 
 using CreateWebTransportSessionVisitorCallback =
     quiche::UnretainedCallback<std::unique_ptr<webtransport::SessionVisitor>(

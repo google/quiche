@@ -25,6 +25,7 @@
 #include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/platform/api/quiche_url_utils.h"
 
 namespace quic::test {
 namespace {
@@ -213,14 +214,6 @@ TEST_F(ConnectUdpTunnelTest, OpenTunnelToIpv4LiteralTarget) {
   EXPECT_FALSE(tunnel_.IsTunnelOpenToTarget());
 }
 
-std::string PercentEncode(absl::string_view input) {
-  std::string encoded;
-  url::StdStringCanonOutput canon_output(&encoded);
-  url::EncodeURIComponent(input.data(), input.size(), &canon_output);
-  canon_output.Complete();
-  return encoded;
-}
-
 TEST_F(ConnectUdpTunnelTest, OpenTunnelToIpv6LiteralTarget) {
   EXPECT_CALL(*socket_, ConnectBlocking()).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(*socket_, ReceiveAsync(Gt(0)));
@@ -239,15 +232,19 @@ TEST_F(ConnectUdpTunnelTest, OpenTunnelToIpv6LiteralTarget) {
                 Property(&QuicBackendResponse::trailers, IsEmpty()),
                 Property(&QuicBackendResponse::body, IsEmpty()))));
 
+  std::string path;
+  ASSERT_TRUE(quiche::ExpandURITemplate(
+      "/.well-known/masque/udp/{target_host}/{target_port}/",
+      {{"target_host", absl::StrCat("[", TestLoopback6().ToString(), "]")},
+       {"target_port", absl::StrCat(kAcceptablePort)}},
+      &path));
+
   spdy::Http2HeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":protocol"] = "connect-udp";
   request_headers[":authority"] = "proxy.test";
   request_headers[":scheme"] = "https";
-  request_headers[":path"] = absl::StrCat(
-      "/.well-known/masque/udp/",
-      PercentEncode(absl::StrCat("[", TestLoopback6().ToString(), "]")), "/",
-      kAcceptablePort, "/");
+  request_headers[":path"] = path;
 
   tunnel_.OpenTunnel(request_headers);
   EXPECT_TRUE(tunnel_.IsTunnelOpenToTarget());
