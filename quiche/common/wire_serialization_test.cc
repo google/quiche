@@ -237,14 +237,15 @@ class WireFormatterThatWritesTooLittle {
 };
 
 TEST(SerializationTest, CustomStructWritesTooLittle) {
-  constexpr absl::string_view kStr = "\xaa\xbb\xcc\xdd";
   absl::Status status;
 #if defined(NDEBUG)
+  constexpr absl::string_view kStr = "\xaa\xbb\xcc\xdd";
   status = SerializeIntoSimpleBuffer(WireFormatterThatWritesTooLittle(kStr))
                .status();
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kInternal,
                                ::testing::HasSubstr("Excess 1 bytes")));
-#else
+#elif GTEST_HAS_DEATH_TEST
+  constexpr absl::string_view kStr = "\xaa\xbb\xcc\xdd";
   EXPECT_QUICHE_DEBUG_DEATH(
       status = SerializeIntoSimpleBuffer(WireFormatterThatWritesTooLittle(kStr))
                    .status(),

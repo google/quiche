@@ -16,7 +16,7 @@ namespace quiche {
 // Print elements of any iterable container that has cbegin() and cend() methods
 // and the elements have operator<<(ostream) override.
 template <typename T>
-QUICHE_EXPORT inline std::string PrintElements(const T& container) {
+QUICHE_NO_EXPORT inline std::string PrintElements(const T& container) {
   std::stringstream debug_string;
   debug_string << "{";
   auto it = container.cbegin();
