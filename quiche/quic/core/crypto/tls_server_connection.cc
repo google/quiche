@@ -4,12 +4,20 @@
 
 #include "quiche/quic/core/crypto/tls_server_connection.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+#include <vector>
+
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "openssl/base.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/crypto/tls_connection.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -57,6 +65,12 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
   proof_source->OnNewSslCtx(ssl_ctx.get());
 
   return ssl_ctx;
+}
+
+absl::Status TlsServerConnection::ConfigureSSL(
+    ProofSourceHandleCallback::ConfigureSSLFunc configure_ssl) {
+  return std::move(configure_ssl)(*ssl(),  // never nullptr
+                                  TlsServerConnection::kPrivateKeyMethod);
 }
 
 void TlsServerConnection::SetCertChain(

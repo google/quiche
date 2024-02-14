@@ -5,17 +5,26 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_PROOF_SOURCE_H_
 #define QUICHE_QUIC_CORE_CRYPTO_PROOF_SOURCE_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/variant.h"
+#include "openssl/base.h"
+#include "openssl/pool.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/crypto/quic_crypto_proof.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
@@ -245,27 +254,44 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
  public:
   virtual ~ProofSourceHandleCallback() = default;
 
+  // Configuration to use for configuring the SSL object when handshaking
+  // locally.
+  struct LocalSSLConfig {
+    const ProofSource::Chain* chain;
+    QuicDelayedSSLConfig delayed_ssl_config;
+  };
+
+  // Functor to call to configure the SSL object.  This functor must not be
+  // called more than once.
+  using ConfigureSSLFunc =
+      std::function<absl::Status(SSL& ssl, const SSL_PRIVATE_KEY_METHOD& key)>;
+
+  // Configuration to use for configuring the SSL object when using a
+  // handshake-hints server.
+  struct HintsSSLConfig {
+    ConfigureSSLFunc configure_ssl;
+    QuicDelayedSSLConfig delayed_ssl_config;
+  };
+
+  using SSLConfig = absl::variant<LocalSSLConfig, HintsSSLConfig>;
+
   // Called when a ProofSourceHandle::SelectCertificate operation completes.
   // |ok| indicates whether the operation was successful.
   // |is_sync| indicates whether the operation completed synchronously, i.e.
   //      whether it is completed before ProofSourceHandle::SelectCertificate
   //      returned.
-  // |chain| the certificate chain in leaf-first order.
-  // |handshake_hints| (optional) handshake hints that can be used by
-  //      SSL_set_handshake_hints.
+  // |ssl_config| configuration used to configure the SSL object.
   // |ticket_encryption_key| (optional) encryption key to be used for minting
   //      TLS resumption tickets.
   // |cert_matched_sni| is true if the certificate matched the SNI hostname,
   //      false if a non-matching default cert was used.
-  // |delayed_ssl_config| contains SSL configs to be applied on the SSL object.
   //
   // When called asynchronously(is_sync=false), this method will be responsible
   // to continue the handshake from where it left off.
-  virtual void OnSelectCertificateDone(
-      bool ok, bool is_sync, const ProofSource::Chain* chain,
-      absl::string_view handshake_hints,
-      absl::string_view ticket_encryption_key, bool cert_matched_sni,
-      QuicDelayedSSLConfig delayed_ssl_config) = 0;
+  virtual void OnSelectCertificateDone(bool ok, bool is_sync,
+                                       SSLConfig ssl_config,
+                                       absl::string_view ticket_encryption_key,
+                                       bool cert_matched_sni) = 0;
 
   // Called when a ProofSourceHandle::ComputeSignature operation completes.
   virtual void OnComputeSignatureDone(

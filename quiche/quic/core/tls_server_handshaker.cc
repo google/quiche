@@ -4,25 +4,56 @@
 
 #include "quiche/quic/core/tls_server_handshaker.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
+#include <variant>
+#include <vector>
 
-#include "absl/base/macros.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "openssl/pool.h"
+#include "absl/types/span.h"
+#include "absl/types/variant.h"
+#include "openssl/base.h"
+#include "openssl/bytestring.h"
 #include "openssl/ssl.h"
+#include "openssl/tls1.h"
+#include "quiche/quic/core/crypto/crypto_handshake.h"
+#include "quiche/quic/core/crypto/crypto_message_parser.h"
+#include "quiche/quic/core/crypto/crypto_utils.h"
+#include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
+#include "quiche/quic/core/crypto/quic_decrypter.h"
+#include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/http/http_encoder.h"
 #include "quiche/quic/core/http/http_frames.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_connection_context.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_connection_stats.h"
+#include "quiche/quic/core/quic_crypto_server_stream_base.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_time_accumulator.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/tls_handshaker.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_hostname_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_server_stats.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 
 #define RECORD_LATENCY_IN_US(stat_name, latency, comment)                   \
   do {                                                                      \
@@ -81,10 +112,10 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
                                   &cert_matched_sni);
 
   handshaker_->OnSelectCertificateDone(
-      /*ok=*/true, /*is_sync=*/true, chain.get(),
-      /*handshake_hints=*/absl::string_view(),
-      /*ticket_encryption_key=*/absl::string_view(), cert_matched_sni,
-      QuicDelayedSSLConfig());
+      /*ok=*/true, /*is_sync=*/true,
+      ProofSourceHandleCallback::LocalSSLConfig{chain.get(),
+                                                QuicDelayedSSLConfig()},
+      /*ticket_encryption_key=*/absl::string_view(), cert_matched_sni);
   if (!handshaker_->select_cert_status().has_value()) {
     QUIC_BUG(quic_bug_12423_1)
         << "select_cert_status() has no value after a synchronous select cert";
@@ -1007,13 +1038,10 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 }
 
 void TlsServerHandshaker::OnSelectCertificateDone(
-    bool ok, bool is_sync, const ProofSource::Chain* chain,
-    absl::string_view handshake_hints, absl::string_view ticket_encryption_key,
-    bool cert_matched_sni, QuicDelayedSSLConfig delayed_ssl_config) {
+    bool ok, bool is_sync, SSLConfig ssl_config,
+    absl::string_view ticket_encryption_key, bool cert_matched_sni) {
   QUIC_DVLOG(1) << "OnSelectCertificateDone. ok:" << ok
-                << ", is_sync:" << is_sync
-                << ", len(handshake_hints):" << handshake_hints.size()
-                << ", len(ticket_encryption_key):"
+                << ", is_sync:" << is_sync << ", len(ticket_encryption_key):"
                 << ticket_encryption_key.size();
   std::optional<QuicConnectionContextSwitcher> context_switcher;
   if (!is_sync) {
@@ -1022,13 +1050,16 @@ void TlsServerHandshaker::OnSelectCertificateDone(
 
   QUIC_TRACESTRING(absl::StrCat(
       "TLS select certificate done: ok:", ok,
-      ", certs_found:", (chain != nullptr && !chain->certs.empty()),
-      ", len(handshake_hints):", handshake_hints.size(),
       ", len(ticket_encryption_key):", ticket_encryption_key.size()));
 
   ticket_encryption_key_ = std::string(ticket_encryption_key);
   select_cert_status_ = QUIC_FAILURE;
   cert_matched_sni_ = cert_matched_sni;
+
+  // Extract the delayed SSL config from either LocalSSLConfig or
+  // HintsSSLConfig.
+  const QuicDelayedSSLConfig& delayed_ssl_config = absl::visit(
+      [](const auto& config) { return config.delayed_ssl_config; }, ssl_config);
 
   if (delayed_ssl_config.quic_transport_parameters.has_value()) {
     // In case of any error the SSL object is still valid. Handshaker may need
@@ -1053,25 +1084,33 @@ void TlsServerHandshaker::OnSelectCertificateDone(
   }
 
   if (ok) {
-    if (chain && !chain->certs.empty()) {
-      tls_connection_.SetCertChain(chain->ToCryptoBuffers().value);
-      if (!handshake_hints.empty() &&
-          !SSL_set_handshake_hints(
-              ssl(), reinterpret_cast<const uint8_t*>(handshake_hints.data()),
-              handshake_hints.size())) {
-        // If |SSL_set_handshake_hints| fails, the ssl() object will remain
-        // intact, it is as if we didn't call it. The handshaker will
-        // continue to compute signature/decrypt ticket as normal.
-        QUIC_CODE_COUNT(quic_tls_server_set_handshake_hints_failed);
-        QUIC_DVLOG(1) << "SSL_set_handshake_hints failed";
+    if (auto* local_config = std::get_if<LocalSSLConfig>(&ssl_config);
+        local_config != nullptr) {
+      if (local_config->chain && !local_config->chain->certs.empty()) {
+        tls_connection_.SetCertChain(
+            local_config->chain->ToCryptoBuffers().value);
+        select_cert_status_ = QUIC_SUCCESS;
+      } else {
+        QUIC_DLOG(ERROR) << "No certs provided for host '"
+                         << crypto_negotiated_params_->sni
+                         << "', server_address:"
+                         << session()->connection()->self_address()
+                         << ", client_address:"
+                         << session()->connection()->peer_address();
       }
-      select_cert_status_ = QUIC_SUCCESS;
+    } else if (auto* hints_config = std::get_if<HintsSSLConfig>(&ssl_config);
+               hints_config != nullptr) {
+      if (hints_config->configure_ssl) {
+        if (const absl::Status status = tls_connection_.ConfigureSSL(
+                std::move(hints_config->configure_ssl));
+            !status.ok()) {
+          QUIC_CODE_COUNT(quic_tls_server_set_handshake_hints_failed);
+          QUIC_DVLOG(1) << "SSL_set_handshake_hints failed: " << status;
+        }
+        select_cert_status_ = QUIC_SUCCESS;
+      }
     } else {
-      QUIC_DLOG(ERROR) << "No certs provided for host '"
-                       << crypto_negotiated_params_->sni << "', server_address:"
-                       << session()->connection()->self_address()
-                       << ", client_address:"
-                       << session()->connection()->peer_address();
+      QUIC_DLOG(FATAL) << "Neither branch hit";
     }
   }
 

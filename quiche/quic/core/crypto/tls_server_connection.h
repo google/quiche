@@ -5,9 +5,18 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_TLS_SERVER_CONNECTION_H_
 #define QUICHE_QUIC_CORE_CRYPTO_TLS_SERVER_CONNECTION_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "openssl/base.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/crypto/tls_connection.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
@@ -119,6 +128,10 @@ class QUICHE_EXPORT TlsServerConnection : public TlsConnection {
 
   // Creates and configures an SSL_CTX that is appropriate for servers to use.
   static bssl::UniquePtr<SSL_CTX> CreateSslCtx(ProofSource* proof_source);
+
+  // Invoke |configure_ssl| to configure the SSL object.
+  absl::Status ConfigureSSL(
+      ProofSourceHandleCallback::ConfigureSSLFunc configure_ssl);
 
   void SetCertChain(const std::vector<CRYPTO_BUFFER*>& cert_chain);
 

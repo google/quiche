@@ -4,9 +4,22 @@
 
 #include "quiche/quic/test_tools/fake_proof_source_handle.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "absl/strings/string_view.h"
+#include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 namespace test {
@@ -93,9 +106,10 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
              select_cert_action_ == Action::FAIL_SYNC_DO_NOT_CHECK_CLOSED) {
     callback()->OnSelectCertificateDone(
         /*ok=*/false,
-        /*is_sync=*/true, nullptr, /*handshake_hints=*/absl::string_view(),
+        /*is_sync=*/true,
+        ProofSourceHandleCallback::LocalSSLConfig{nullptr, delayed_ssl_config_},
         /*ticket_encryption_key=*/absl::string_view(),
-        /*cert_matched_sni=*/false, delayed_ssl_config_);
+        /*cert_matched_sni=*/false);
     return QUIC_FAILURE;
   }
 
@@ -107,10 +121,11 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
 
   bool ok = chain && !chain->certs.empty();
   callback_->OnSelectCertificateDone(
-      ok, /*is_sync=*/true, chain.get(),
-      /*handshake_hints=*/absl::string_view(),
+      ok, /*is_sync=*/true,
+      ProofSourceHandleCallback::LocalSSLConfig{chain.get(),
+                                                delayed_ssl_config_},
       /*ticket_encryption_key=*/absl::string_view(),
-      /*cert_matched_sni=*/cert_matched_sni, delayed_ssl_config_);
+      /*cert_matched_sni=*/cert_matched_sni);
   return ok ? QUIC_SUCCESS : QUIC_FAILURE;
 }
 
@@ -186,10 +201,10 @@ void FakeProofSourceHandle::SelectCertOperation::Run() {
   if (action_ == Action::FAIL_ASYNC) {
     callback_->OnSelectCertificateDone(
         /*ok=*/false,
-        /*is_sync=*/false, nullptr,
-        /*handshake_hints=*/absl::string_view(),
+        /*is_sync=*/false,
+        ProofSourceHandleCallback::LocalSSLConfig{nullptr, delayed_ssl_config_},
         /*ticket_encryption_key=*/absl::string_view(),
-        /*cert_matched_sni=*/false, delayed_ssl_config_);
+        /*cert_matched_sni=*/false);
   } else if (action_ == Action::DELEGATE_ASYNC) {
     bool cert_matched_sni;
     quiche::QuicheReferenceCountedPointer<ProofSource::Chain> chain =
@@ -197,10 +212,11 @@ void FakeProofSourceHandle::SelectCertOperation::Run() {
                                 args_.hostname, &cert_matched_sni);
     bool ok = chain && !chain->certs.empty();
     callback_->OnSelectCertificateDone(
-        ok, /*is_sync=*/false, chain.get(),
-        /*handshake_hints=*/absl::string_view(),
+        ok, /*is_sync=*/false,
+        ProofSourceHandleCallback::LocalSSLConfig{chain.get(),
+                                                  delayed_ssl_config_},
         /*ticket_encryption_key=*/absl::string_view(),
-        /*cert_matched_sni=*/cert_matched_sni, delayed_ssl_config_);
+        /*cert_matched_sni=*/cert_matched_sni);
   } else {
     QUIC_BUG(quic_bug_10139_1)
         << "Unexpected action: " << static_cast<int>(action_);

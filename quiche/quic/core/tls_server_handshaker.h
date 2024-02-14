@@ -5,23 +5,40 @@
 #ifndef QUICHE_QUIC_CORE_TLS_SERVER_HANDSHAKER_H_
 #define QUICHE_QUIC_CORE_TLS_SERVER_HANDSHAKER_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
-#include "openssl/pool.h"
+#include "absl/types/span.h"
+#include "openssl/base.h"
 #include "openssl/ssl.h"
+#include "quiche/quic/core/crypto/crypto_handshake.h"
+#include "quiche/quic/core/crypto/crypto_message_parser.h"
+#include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
+#include "quiche/quic/core/crypto/quic_decrypter.h"
+#include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/crypto/tls_connection.h"
 #include "quiche/quic/core/crypto/tls_server_connection.h"
-#include "quiche/quic/core/proto/cached_network_parameters_proto.h"
+#include "quiche/quic/core/crypto/transport_parameters.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection_context.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_time_accumulator.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/tls_handshaker.h"
-#include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/quic/platform/api/quic_flag_utils.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 
 namespace quic {
 
@@ -178,11 +195,9 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   bool HasValidSignature(size_t max_signature_size) const;
 
   // ProofSourceHandleCallback implementation:
-  void OnSelectCertificateDone(
-      bool ok, bool is_sync, const ProofSource::Chain* chain,
-      absl::string_view handshake_hints,
-      absl::string_view ticket_encryption_key, bool cert_matched_sni,
-      QuicDelayedSSLConfig delayed_ssl_config) override;
+  void OnSelectCertificateDone(bool ok, bool is_sync, SSLConfig ssl_config,
+                               absl::string_view ticket_encryption_key,
+                               bool cert_matched_sni) override;
 
   void OnComputeSignatureDone(
       bool ok, bool is_sync, std::string signature,
