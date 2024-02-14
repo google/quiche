@@ -91,7 +91,7 @@ inline bool WriteLocation(quic::QuicDataWriter& writer,
     }
     return writer.WriteVarInt62(loc->absolute_value);
   }
-  if (loc->relative_value < 0) {
+  if (loc->relative_value <= 0) {
     if (!writer.WriteVarInt62(static_cast<uint64_t>(
             MoqtSubscribeLocationMode::kRelativePrevious))) {
       return false;
@@ -103,7 +103,7 @@ inline bool WriteLocation(quic::QuicDataWriter& writer,
           static_cast<uint64_t>(MoqtSubscribeLocationMode::kRelativeNext))) {
     return false;
   }
-  return writer.WriteVarInt62(static_cast<uint64_t>(loc->relative_value));
+  return writer.WriteVarInt62(static_cast<uint64_t>(loc->relative_value - 1));
 }
 
 }  // namespace

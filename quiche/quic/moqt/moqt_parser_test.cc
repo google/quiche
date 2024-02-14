@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -858,6 +859,33 @@ TEST_F(MoqtMessageSpecificTest, AllMessagesTogether) {
   EXPECT_EQ(visitor_.messages_received_, fully_received);
   EXPECT_TRUE(prev_message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
+}
+
+TEST_F(MoqtMessageSpecificTest, RelativeLocation) {
+  MoqtParser parser(kRawQuic, visitor_);
+  char subscribe[] = {
+      0x03, 0x01, 0x02,              // id and alias
+      0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x02, 0x00,                    // start_group = 0 (relative previous)
+      0x03, 0x00,                    // start_object = 1 (relative next)
+      0x00,                          // end_group = none
+      0x00,                          // end_object = none
+#ifdef MOQT_AUTH_INFO
+      0x01,                          // 1 parameter
+      0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
+#endif
+  };
+  parser.ProcessData(absl::string_view(subscribe, sizeof(subscribe)), false);
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  MoqtSubscribe message = std::get<MoqtSubscribe>(*visitor_.last_message_);
+  EXPECT_FALSE(visitor_.parsing_error_.has_value());
+  ASSERT_TRUE(message.start_group.has_value());
+  ASSERT_FALSE(message.start_group->absolute);
+  EXPECT_EQ(message.start_group->relative_value, 0);
+  ASSERT_TRUE(message.start_object.has_value());
+  ASSERT_FALSE(message.start_object->absolute);
+  EXPECT_EQ(message.start_object->relative_value, 1);
 }
 
 }  // namespace moqt::test

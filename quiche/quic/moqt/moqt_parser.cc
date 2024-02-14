@@ -600,7 +600,7 @@ bool MoqtParser::ReadLocation(quic::QuicDataReader& reader,
       loc = MoqtSubscribeLocation(false, -1 * static_cast<int64_t>(ui64));
       break;
     case MoqtSubscribeLocationMode::kRelativeNext:
-      loc = MoqtSubscribeLocation(false, static_cast<int64_t>(ui64));
+      loc = MoqtSubscribeLocation(false, static_cast<int64_t>(ui64) + 1);
       break;
     default:
       ParseError("Unknown location mode");
