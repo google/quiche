@@ -382,7 +382,6 @@ size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
         "or both non_None");
     return 0;
   }
-#ifdef MOQT_AUTH_INFO
   uint64_t num_params;
   if (!reader.ReadVarInt62(&num_params)) {
     return 0;
@@ -409,7 +408,6 @@ size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
         break;
     }
   }
-#endif
   visitor_.OnSubscribeMessage(subscribe_request);
   return reader.PreviouslyReadPayload().length();
 }

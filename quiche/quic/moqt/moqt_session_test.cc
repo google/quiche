@@ -273,9 +273,7 @@ TEST_F(MoqtSessionTest, AddLocalTrack) {
       /*start_object=*/MoqtSubscribeLocation(true, static_cast<uint64_t>(0)),
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-#ifdef MOQT_AUTH_INFO
       /*authorization_info=*/std::nullopt,
-#endif
   };
   StrictMock<webtransport::test::MockStream> mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =
@@ -393,9 +391,7 @@ TEST_F(MoqtSessionTest, HasSubscribers) {
       /*start_object=*/MoqtSubscribeLocation(true, static_cast<uint64_t>(0)),
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-#ifdef MOQT_AUTH_INFO
       /*authorization_info=*/std::nullopt,
-#endif
   };
   StrictMock<webtransport::test::MockStream> mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =
@@ -431,9 +427,7 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
       /*start_object=*/MoqtSubscribeLocation(true, static_cast<uint64_t>(0)),
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-#ifdef MOQT_AUTH_INFO
       /*authorization_info=*/std::nullopt,
-#endif
   };
   StrictMock<webtransport::test::MockStream> mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =
@@ -767,9 +761,7 @@ TEST_F(MoqtSessionTest, SubscribeProposesBadTrackAlias) {
       /*start_object=*/MoqtSubscribeLocation(true, static_cast<uint64_t>(0)),
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-#ifdef MOQT_AUTH_INFO
       /*authorization_info=*/std::nullopt,
-#endif
   };
   StrictMock<webtransport::test::MockStream> mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =

@@ -128,12 +128,10 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     subscribe_request.track_namespace = absl::string_view(string0_);
     string1_ = std::string(subscribe_request.track_name);
     subscribe_request.track_name = absl::string_view(string1_);
-#ifdef MOQT_AUTH_INFO
     if (subscribe_request.authorization_info.has_value()) {
       string2_ = std::string(*subscribe_request.authorization_info);
       subscribe_request.authorization_info = absl::string_view(string2_);
     }
-#endif
     last_message_ = TestMessageBase::MessageStructuredData(subscribe_request);
   }
   void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override {
@@ -654,7 +652,6 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
-#ifdef MOQT_AUTH_INFO
 TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationInfoTwice) {
   MoqtParser parser(kWebTrans, visitor_);
   char subscribe[] = {
@@ -675,7 +672,6 @@ TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationInfoTwice) {
             "AUTHORIZATION_INFO parameter appears twice in SUBSCRIBE_REQUEST");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
-#endif
 
 TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationInfoTwice) {
   MoqtParser parser(kWebTrans, visitor_);
@@ -768,10 +764,8 @@ TEST_F(MoqtMessageSpecificTest, StartGroupIsNone) {
       0x01, 0x01,                    // start_object = 1 (absolute)
       0x00,                          // end_group = none
       0x00,                          // end_object = none
-#ifdef MOQT_AUTH_INFO
       0x01,                          // 1 parameter
       0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
-#endif
   };
   parser.ProcessData(absl::string_view(subscribe, sizeof(subscribe)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -790,10 +784,8 @@ TEST_F(MoqtMessageSpecificTest, StartObjectIsNone) {
       0x00,                          // start_object = none
       0x00,                          // end_group = none
       0x00,                          // end_object = none
-#ifdef MOQT_AUTH_INFO
       0x01,                          // 1 parameter
       0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
-#endif
   };
   parser.ProcessData(absl::string_view(subscribe, sizeof(subscribe)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -812,10 +804,8 @@ TEST_F(MoqtMessageSpecificTest, EndGroupIsNoneEndObjectIsNoNone) {
       0x01, 0x01,                    // start_object = 1 (absolute)
       0x00,                          // end_group = none
       0x01, 0x01,                    // end_object = 1 (absolute)
-#ifdef MOQT_AUTH_INFO
       0x01,                          // 1 parameter
       0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
-#endif
   };
   parser.ProcessData(absl::string_view(subscribe, sizeof(subscribe)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -871,10 +861,8 @@ TEST_F(MoqtMessageSpecificTest, RelativeLocation) {
       0x03, 0x00,                    // start_object = 1 (relative next)
       0x00,                          // end_group = none
       0x00,                          // end_object = none
-#ifdef MOQT_AUTH_INFO
       0x01,                          // 1 parameter
       0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
-#endif
   };
   parser.ProcessData(absl::string_view(subscribe, sizeof(subscribe)), false);
   EXPECT_EQ(visitor_.messages_received_, 1);

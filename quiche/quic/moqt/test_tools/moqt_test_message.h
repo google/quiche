@@ -407,65 +407,55 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribe>(values);
-    if (cast.subscribe_id != subscribe_request_.subscribe_id) {
+    if (cast.subscribe_id != subscribe_.subscribe_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE subscribe ID mismatch";
       return false;
     }
-    if (cast.track_alias != subscribe_request_.track_alias) {
+    if (cast.track_alias != subscribe_.track_alias) {
       QUIC_LOG(INFO) << "SUBSCRIBE track alias mismatch";
       return false;
     }
-    if (cast.track_namespace != subscribe_request_.track_namespace) {
+    if (cast.track_namespace != subscribe_.track_namespace) {
       QUIC_LOG(INFO) << "SUBSCRIBE track namespace mismatch";
       return false;
     }
-    if (cast.track_name != subscribe_request_.track_name) {
+    if (cast.track_name != subscribe_.track_name) {
       QUIC_LOG(INFO) << "SUBSCRIBE track name mismatch";
       return false;
     }
-    if (cast.start_group != subscribe_request_.start_group) {
+    if (cast.start_group != subscribe_.start_group) {
       QUIC_LOG(INFO) << "SUBSCRIBE start group mismatch";
       return false;
     }
-    if (cast.start_object != subscribe_request_.start_object) {
+    if (cast.start_object != subscribe_.start_object) {
       QUIC_LOG(INFO) << "SUBSCRIBE start object mismatch";
       return false;
     }
-    if (cast.end_group != subscribe_request_.end_group) {
+    if (cast.end_group != subscribe_.end_group) {
       QUIC_LOG(INFO) << "SUBSCRIBE end group mismatch";
       return false;
     }
-    if (cast.end_object != subscribe_request_.end_object) {
+    if (cast.end_object != subscribe_.end_object) {
       QUIC_LOG(INFO) << "SUBSCRIBE end object mismatch";
       return false;
     }
-#ifdef MOQT_AUTH_INFO
-    if (cast.authorization_info != subscribe_request_.authorization_info) {
+    if (cast.authorization_info != subscribe_.authorization_info) {
       QUIC_LOG(INFO) << "SUBSCRIBE authorization info mismatch";
       return false;
     }
-#endif
     return true;
   }
 
   void ExpandVarints() override {
-#ifdef MOQT_AUTH_INFO
     ExpandVarintsImpl("vvvv---v----vvvvvvvvv");
-#else
-    ExpandVarintsImpl("vvvv---v----vvvvvv");
-#endif
   }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(subscribe_request_);
+    return TestMessageBase::MessageStructuredData(subscribe_);
   }
 
  private:
-#ifdef MOQT_AUTH_INFO
   uint8_t raw_packet_[24] = {
-#else
-  uint8_t raw_packet_[18] = {
-#endif
     0x03,
     0x01,
     0x02,  // id and alias
@@ -486,17 +476,15 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
     0x00,  // end_object = none
            // TODO(martinduke): figure out what to do about the missing num
            // parameters field.
-#ifdef MOQT_AUTH_INFO
     0x01,  // 1 parameter
     0x02,
     0x03,
     0x62,
     0x61,
     0x72,  // authorization_info = "bar"
-#endif
   };
 
-  MoqtSubscribe subscribe_request_ = {
+  MoqtSubscribe subscribe_ = {
       /*subscribe_id=*/1,
       /*track_alias=*/2,
       /*track_namespace=*/"foo",
@@ -505,9 +493,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       /*start_object=*/MoqtSubscribeLocation(true, (uint64_t)1),
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-#ifdef MOQT_AUTH_INFO
       /*authorization_info=*/"bar",
-#endif
   };
 };
 

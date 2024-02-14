@@ -20,12 +20,6 @@
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
-// the draft-02 spec makes AUTH_INFO unparseable in SUBSCRIBE messages. This
-// flag assumes that the num_parameters field exists so that it is parseable.
-// If false, there is no num_parameters field and there must not be an
-// AUTH_INFO field.
-#define MOQT_AUTH_INFO
-
 namespace moqt {
 
 inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
@@ -218,9 +212,7 @@ struct QUICHE_EXPORT MoqtSubscribe {
   std::optional<MoqtSubscribeLocation> start_object;
   std::optional<MoqtSubscribeLocation> end_group;
   std::optional<MoqtSubscribeLocation> end_object;
-#ifdef MOQT_AUTH_INFO
   std::optional<absl::string_view> authorization_info;
-#endif
 };
 
 struct QUICHE_EXPORT MoqtSubscribeOk {
