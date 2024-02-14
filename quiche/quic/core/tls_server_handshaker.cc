@@ -11,7 +11,6 @@
 #include <optional>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -1084,7 +1083,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
   }
 
   if (ok) {
-    if (auto* local_config = std::get_if<LocalSSLConfig>(&ssl_config);
+    if (auto* local_config = absl::get_if<LocalSSLConfig>(&ssl_config);
         local_config != nullptr) {
       if (local_config->chain && !local_config->chain->certs.empty()) {
         tls_connection_.SetCertChain(
@@ -1098,7 +1097,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
                          << ", client_address:"
                          << session()->connection()->peer_address();
       }
-    } else if (auto* hints_config = std::get_if<HintsSSLConfig>(&ssl_config);
+    } else if (auto* hints_config = absl::get_if<HintsSSLConfig>(&ssl_config);
                hints_config != nullptr) {
       if (hints_config->configure_ssl) {
         if (const absl::Status status = tls_connection_.ConfigureSSL(
