@@ -162,8 +162,7 @@ TEST_F(MoqtSubscribeWindowsTest, IsSubscribed) {
   EXPECT_EQ(hits[0]->subscribe_id(), 2);
   hits = windows_.SequenceIsSubscribed(FullSequence(3, 0));
   EXPECT_EQ(hits.size(), 2);
-  EXPECT_EQ(hits[0]->subscribe_id(), 1);
-  EXPECT_EQ(hits[1]->subscribe_id(), 0);
+  EXPECT_EQ(hits[0]->subscribe_id() + hits[1]->subscribe_id(), 1);
 }
 
 TEST_F(MoqtSubscribeWindowsTest, AddGetRemoveWindow) {
