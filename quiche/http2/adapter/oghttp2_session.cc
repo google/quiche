@@ -1147,12 +1147,16 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
 
 void OgHttp2Session::OnStreamPadLength(spdy::SpdyStreamId stream_id,
                                        size_t value) {
-  bool result = visitor_.OnDataPaddingLength(stream_id, 1 + value);
+  const size_t padding_length = 1 + value;
+  const bool result = visitor_.OnDataPaddingLength(stream_id, padding_length);
   if (!result) {
     fatal_visitor_callback_failure_ = true;
     decoder_.StopProcessing();
   }
-  MarkDataBuffered(stream_id, 1 + value);
+  connection_window_manager_.MarkWindowConsumed(padding_length);
+  if (auto it = stream_map_.find(stream_id); it != stream_map_.end()) {
+    it->second.window_manager.MarkWindowConsumed(padding_length);
+  }
 }
 
 void OgHttp2Session::OnStreamPadding(spdy::SpdyStreamId /*stream_id*/, size_t

@@ -8123,7 +8123,6 @@ TEST(OgHttp2AdapterTest, ServerConsumesDataWithPadding) {
 
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(result, frames.size());
-  EXPECT_LT(adapter->GetReceiveWindowSize(), 2048);
 
   EXPECT_TRUE(adapter->want_write());
 
@@ -8131,17 +8130,19 @@ TEST(OgHttp2AdapterTest, ServerConsumesDataWithPadding) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, ACK_FLAG));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, ACK_FLAG, 0));
-  // BUG: Most of the flow control window consumed is padding, so the adapter
-  // should have generated window updates.
-  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 1, _, 0x0)).Times(0);
-  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 1, _, 0x0, 0)).Times(0);
-  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 0, _, 0x0)).Times(0);
-  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, _, 0x0, 0)).Times(0);
+  // Since most of the flow control window consumed is padding, the adapter
+  // generates window updates.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 1, _, 0x0)).Times(1);
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 1, _, 0x0, 0)).Times(1);
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 0, _, 0x0)).Times(1);
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, _, 0x0, 0)).Times(1);
 
   const int send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(),
-              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::WINDOW_UPDATE,
+                            SpdyFrameType::WINDOW_UPDATE}));
 }
 
 // Verifies that NoopHeaderValidator allows several header combinations that
