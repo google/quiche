@@ -8084,6 +8084,66 @@ TEST(OgHttp2AdapterTest, ServerUsesCustomWindowUpdateStrategy) {
                             SpdyFrameType::WINDOW_UPDATE}));
 }
 
+TEST(OgHttp2AdapterTest, ServerConsumesDataWithPadding) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kServer;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  TestFrameSequence seq = std::move(TestFrameSequence().ClientPreface().Headers(
+      1,
+      {{":method", "POST"},
+       {":scheme", "https"},
+       {":authority", "example.com"},
+       {":path", "/this/is/request/one"}},
+      /*fin=*/false));
+  // Generates a bunch of DATA frames, with the bulk of the payloads consisting
+  // of padding.
+  size_t total_size = 0;
+  while (total_size < 62 * 1024) {
+    seq.Data(1, "a", /*fin=*/false, /*padding=*/254);
+    total_size += 255;
+  }
+  const std::string frames = seq.Serialize();
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0x8))
+      .Times(testing::AtLeast(1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, _)).Times(testing::AtLeast(1));
+  EXPECT_CALL(visitor, OnDataForStream(1, "a")).Times(testing::AtLeast(1));
+  EXPECT_CALL(visitor, OnDataPaddingLength(1, _)).Times(testing::AtLeast(1));
+
+  const int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(result, frames.size());
+  EXPECT_LT(adapter->GetReceiveWindowSize(), 2048);
+
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, ACK_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, ACK_FLAG, 0));
+  // BUG: Most of the flow control window consumed is padding, so the adapter
+  // should have generated window updates.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 1, _, 0x0)).Times(0);
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 1, _, 0x0, 0)).Times(0);
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 0, _, 0x0)).Times(0);
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, _, 0x0, 0)).Times(0);
+
+  const int send_result = adapter->Send();
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
+}
+
 // Verifies that NoopHeaderValidator allows several header combinations that
 // would otherwise be invalid.
 TEST(OgHttp2AdapterTest, NoopHeaderValidatorTest) {

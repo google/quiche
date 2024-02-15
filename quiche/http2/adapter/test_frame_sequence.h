@@ -22,6 +22,9 @@ class QUICHE_NO_EXPORT TestFrameSequence {
  public:
   TestFrameSequence() = default;
 
+  TestFrameSequence(TestFrameSequence&& other) = default;
+  TestFrameSequence& operator=(TestFrameSequence&& other) = default;
+
   TestFrameSequence& ClientPreface(
       absl::Span<const Http2Setting> settings = {});
   TestFrameSequence& ServerPreface(
