@@ -99,6 +99,11 @@ class MockSocket : public ConnectingClientSocket {
 class ConnectTunnelTest : public quiche::test::QuicheTest {
  public:
   void SetUp() override {
+#if defined(_WIN32)
+    WSADATA wsa_data;
+    const WORD version_required = MAKEWORD(2, 2);
+    ASSERT_EQ(WSAStartup(version_required, &wsa_data), 0);
+#endif
     auto socket = std::make_unique<StrictMock<MockSocket>>();
     socket_ = socket.get();
     ON_CALL(socket_factory_,

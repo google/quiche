@@ -34,11 +34,13 @@ TEST(HpackExampleToStringOrDie, GoodInput) {
   EXPECT_EQ(absl::string_view(kExpected, sizeof kExpected), bytes);
 }
 
+#ifdef GTEST_HAS_DEATH_TEST
 TEST(HpackExampleToStringOrDie, InvalidInput) {
   EXPECT_DEATH(HpackExampleToStringOrDie("4"), "Truncated");
   EXPECT_DEATH(HpackExampleToStringOrDie("4x"), "half");
   EXPECT_DEATH(HpackExampleToStringOrDie(""), "empty");
 }
+#endif
 
 }  // namespace
 }  // namespace test

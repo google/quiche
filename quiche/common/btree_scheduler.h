@@ -41,7 +41,7 @@ namespace quiche {
 // The Id type has to define operator==, be hashable via absl::Hash, and
 // printable via operator<<; the Priority type has to define operator<.
 template <typename Id, typename Priority>
-class QUICHE_EXPORT BTreeScheduler {
+class QUICHE_NO_EXPORT BTreeScheduler {
  public:
   // Returns true if there are any streams registered.
   bool HasRegistered() const { return !streams_.empty(); }
