@@ -696,6 +696,21 @@ TEST(StructuredHeaderTest, DictionaryConstructors) {
   EXPECT_EQ(member1, dict_init.at(key1));
 }
 
+TEST(StructuredHeaderTest, DictionaryClear) {
+  const std::string key0 = "key0";
+  const ParameterizedMember member0{Item("Applepie"), {}};
+
+  Dictionary dict({{key0, member0}});
+  EXPECT_EQ(1U, dict.size());
+  EXPECT_FALSE(dict.empty());
+  EXPECT_TRUE(dict.contains(key0));
+
+  dict.clear();
+  EXPECT_EQ(0U, dict.size());
+  EXPECT_TRUE(dict.empty());
+  EXPECT_FALSE(dict.contains(key0));
+}
+
 TEST(StructuredHeaderTest, DictionaryAccessors) {
   const std::string key0 = "key0";
   const std::string key1 = "key1";
@@ -712,9 +727,17 @@ TEST(StructuredHeaderTest, DictionaryAccessors) {
   EXPECT_EQ(&dict[key0], &dict[0]);
   EXPECT_EQ(&dict[key0], &dict.at(0));
 
+  {
+    auto it = dict.find(key0);
+    ASSERT_TRUE(it != dict.end());
+    EXPECT_EQ(it->first, key0);
+    EXPECT_EQ(it->second, nonempty_member0);
+  }
+
   // Even if the key does not yet exist in |dict|, operator[]() should
   // automatically create an empty entry.
   ASSERT_FALSE(dict.contains(key1));
+  EXPECT_TRUE(dict.find(key1) == dict.end());
   ParameterizedMember& member1 = dict[key1];
   EXPECT_TRUE(dict.contains(key1));
   EXPECT_EQ(empty_member, member1);

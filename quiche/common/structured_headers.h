@@ -231,9 +231,11 @@ class QUICHE_EXPORT Dictionary {
 
   Dictionary();
   Dictionary(const Dictionary&);
+  Dictionary(Dictionary&&);
   explicit Dictionary(std::vector<DictionaryMember> members);
   ~Dictionary();
   Dictionary& operator=(const Dictionary&) = default;
+  Dictionary& operator=(Dictionary&&) = default;
   iterator begin();
   const_iterator begin() const;
   iterator end();
@@ -252,6 +254,11 @@ class QUICHE_EXPORT Dictionary {
   ParameterizedMember& operator[](absl::string_view key);
   ParameterizedMember& at(absl::string_view key);
   const ParameterizedMember& at(absl::string_view key) const;
+
+  const_iterator find(absl::string_view key) const;
+  iterator find(absl::string_view key);
+
+  void clear();
 
   bool empty() const;
   std::size_t size() const;

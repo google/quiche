@@ -820,21 +820,16 @@ ParameterisedIdentifier::~ParameterisedIdentifier() = default;
 
 Dictionary::Dictionary() = default;
 Dictionary::Dictionary(const Dictionary&) = default;
+Dictionary::Dictionary(Dictionary&&) = default;
 Dictionary::Dictionary(std::vector<DictionaryMember> members)
     : members_(std::move(members)) {}
 Dictionary::~Dictionary() = default;
-std::vector<DictionaryMember>::iterator Dictionary::begin() {
+Dictionary::iterator Dictionary::begin() { return members_.begin(); }
+Dictionary::const_iterator Dictionary::begin() const {
   return members_.begin();
 }
-std::vector<DictionaryMember>::const_iterator Dictionary::begin() const {
-  return members_.begin();
-}
-std::vector<DictionaryMember>::iterator Dictionary::end() {
-  return members_.end();
-}
-std::vector<DictionaryMember>::const_iterator Dictionary::end() const {
-  return members_.end();
-}
+Dictionary::iterator Dictionary::end() { return members_.end(); }
+Dictionary::const_iterator Dictionary::end() const { return members_.end(); }
 ParameterizedMember& Dictionary::operator[](std::size_t idx) {
   return members_[idx].second;
 }
@@ -846,32 +841,34 @@ const ParameterizedMember& Dictionary::at(std::size_t idx) const {
   return (*this)[idx];
 }
 ParameterizedMember& Dictionary::operator[](absl::string_view key) {
-  auto it = absl::c_find_if(
-      members_, [key](const auto& member) { return member.first == key; });
-  if (it != members_.end()) return it->second;
-  members_.push_back({std::string(key), ParameterizedMember()});
-  return members_.back().second;
+  auto it = find(key);
+  if (it != end()) return it->second;
+  return members_.emplace_back(key, ParameterizedMember()).second;
 }
 ParameterizedMember& Dictionary::at(absl::string_view key) {
-  auto it = absl::c_find_if(
-      members_, [key](const auto& member) { return member.first == key; });
-  QUICHE_CHECK(it != members_.end()) << "Provided key not found in dictionary";
+  auto it = find(key);
+  QUICHE_CHECK(it != end()) << "Provided key not found in dictionary";
   return it->second;
 }
 const ParameterizedMember& Dictionary::at(absl::string_view key) const {
-  auto it = absl::c_find_if(
-      members_, [key](const auto& member) { return member.first == key; });
-  QUICHE_CHECK(it != members_.end()) << "Provided key not found in dictionary";
+  auto it = find(key);
+  QUICHE_CHECK(it != end()) << "Provided key not found in dictionary";
   return it->second;
+}
+Dictionary::const_iterator Dictionary::find(absl::string_view key) const {
+  return absl::c_find_if(
+      members_, [key](const auto& member) { return member.first == key; });
+}
+Dictionary::iterator Dictionary::find(absl::string_view key) {
+  return absl::c_find_if(
+      members_, [key](const auto& member) { return member.first == key; });
 }
 bool Dictionary::empty() const { return members_.empty(); }
 std::size_t Dictionary::size() const { return members_.size(); }
 bool Dictionary::contains(absl::string_view key) const {
-  for (auto& member : members_) {
-    if (member.first == key) return true;
-  }
-  return false;
+  return find(key) != end();
 }
+void Dictionary::clear() { members_.clear(); }
 
 std::optional<ParameterizedItem> ParseItem(absl::string_view str) {
   StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal);
