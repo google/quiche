@@ -5064,10 +5064,9 @@ TEST(OgHttp2AdapterTest, ServerHandlesHostHeaderWithLaxValidation) {
 // trailers are queued.
 TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
   DataSavingVisitor visitor;
-  for (const bool queue_trailers : {true, false}) {
-    OgHttp2Adapter::Options options;
-    options.perspective = Perspective::kServer;
-    options.trailers_require_end_data = queue_trailers;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kServer;
+  for (const bool add_more_body_data : {true, false}) {
     auto adapter = OgHttp2Adapter::Create(visitor, options);
 
     const std::string frames = TestFrameSequence()
@@ -5137,43 +5136,25 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
     visitor.Clear();
     EXPECT_FALSE(adapter->want_write());
 
+    if (add_more_body_data) {
+      body1_ptr->AppendPayload(" More body! This is ignored.");
+    }
     int trailer_result =
         adapter->SubmitTrailer(1, ToHeaders({{"final-status", "a-ok"}}));
     ASSERT_EQ(trailer_result, 0);
-    if (queue_trailers) {
-      // Even though there are new trailers to write, the data source has not
-      // finished writing data and is blocked.
-      EXPECT_FALSE(adapter->want_write());
+    // Even though the data source has not finished sending data, the library
+    // will write the trailers anyway.
+    EXPECT_TRUE(adapter->want_write());
 
-      body1_ptr->EndData();
-      adapter->ResumeStream(1);
-      EXPECT_TRUE(adapter->want_write());
+    EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _,
+                                           END_STREAM_FLAG | END_HEADERS_FLAG));
+    EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _,
+                                     END_STREAM_FLAG | END_HEADERS_FLAG, 0));
 
-      EXPECT_CALL(
-          visitor,
-          OnBeforeFrameSent(HEADERS, 1, _, END_STREAM_FLAG | END_HEADERS_FLAG));
-      EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _,
-                                       END_STREAM_FLAG | END_HEADERS_FLAG, 0));
-
-      send_result = adapter->Send();
-      EXPECT_EQ(0, send_result);
-      EXPECT_FALSE(adapter->want_write());
-    } else {
-      // Even though the data source has not finished sending data, the library
-      // will write the trailers anyway.
-      EXPECT_TRUE(adapter->want_write());
-
-      EXPECT_CALL(
-          visitor,
-          OnBeforeFrameSent(HEADERS, 1, _, END_STREAM_FLAG | END_HEADERS_FLAG));
-      EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _,
-                                       END_STREAM_FLAG | END_HEADERS_FLAG, 0));
-
-      send_result = adapter->Send();
-      EXPECT_EQ(0, send_result);
-      EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
-      EXPECT_FALSE(adapter->want_write());
-    }
+    send_result = adapter->Send();
+    EXPECT_EQ(0, send_result);
+    EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
+    EXPECT_FALSE(adapter->want_write());
   }
 }
 
