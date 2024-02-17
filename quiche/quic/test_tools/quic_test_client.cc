@@ -147,15 +147,18 @@ void MockableQuicClientDefaultNetworkHelper::ProcessPacket(
   }
 }
 
-bool MockableQuicClientDefaultNetworkHelper::CreateUDPSocketAndBind(
-    QuicSocketAddress server_address, QuicIpAddress bind_to_address,
-    int bind_to_port) {
-  bool result = QuicClientDefaultNetworkHelper::CreateUDPSocketAndBind(
-      server_address, bind_to_address, bind_to_port);
-  if (result && socket_fd_configurator_ != nullptr) {
-    socket_fd_configurator_(GetLatestFD());
+SocketFd MockableQuicClientDefaultNetworkHelper::CreateUDPSocket(
+    QuicSocketAddress server_address, bool* overflow_supported) {
+  SocketFd fd = QuicClientDefaultNetworkHelper::CreateUDPSocket(
+      server_address, overflow_supported);
+  if (fd < 0) {
+    return fd;
   }
-  return result;
+
+  if (socket_fd_configurator_ != nullptr) {
+    socket_fd_configurator_(fd);
+  }
+  return fd;
 }
 
 QuicPacketWriter*

@@ -38,9 +38,8 @@ class MockableQuicClientDefaultNetworkHelper
                      const QuicSocketAddress& peer_address,
                      const QuicReceivedPacket& packet) override;
 
-  bool CreateUDPSocketAndBind(QuicSocketAddress server_address,
-                              QuicIpAddress bind_to_address,
-                              int bind_to_port) override;
+  SocketFd CreateUDPSocket(QuicSocketAddress server_address,
+                           bool* overflow_supported) override;
 
   QuicPacketWriter* CreateQuicPacketWriter() override;
 
