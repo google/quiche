@@ -259,7 +259,7 @@ std::optional<webtransport::StreamId> MoqtSession::OpenUnidirectionalStream() {
   return new_stream->GetStreamId();
 }
 
-bool MoqtSession::PublishObject(FullTrackName& full_track_name,
+bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
                                 uint64_t group_id, uint64_t object_id,
                                 uint64_t object_send_order,
                                 MoqtForwardingPreference forwarding_preference,
@@ -330,8 +330,8 @@ bool MoqtSession::PublishObject(FullTrackName& full_track_name,
       ++failures;
       continue;
     }
-    QUICHE_LOG(INFO) << ENDPOINT << "Sending object "
-                     << full_track_name.track_namespace << ":"
+    QUICHE_LOG(INFO) << ENDPOINT << "Sending object length " << payload.length()
+                     << " for " << full_track_name.track_namespace << ":"
                      << full_track_name.track_name << " with sequence "
                      << object.group_id << ":" << object.object_id
                      << " on stream " << *stream_id;
@@ -599,7 +599,7 @@ void MoqtSession::Stream::OnSubscribeOkMessage(const MoqtSubscribeOk& message) {
   }
   MoqtSubscribe& subscribe = it->second.message;
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
-                  << "subscribe_id = " << message.subscribe_id
+                  << "subscribe_id = " << message.subscribe_id << " "
                   << subscribe.track_namespace << ":" << subscribe.track_name;
   // Copy the Remote Track from session_->active_subscribes_ to
   // session_->remote_tracks_.

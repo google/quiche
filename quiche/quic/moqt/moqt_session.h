@@ -117,7 +117,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // |payload|.
   // |payload.length() >= |payload_length|, because the application can deliver
   // partial objects.
-  bool PublishObject(FullTrackName& full_track_name, uint64_t group_id,
+  bool PublishObject(const FullTrackName& full_track_name, uint64_t group_id,
                      uint64_t object_id, uint64_t object_send_order,
                      MoqtForwardingPreference forwarding_preference,
                      absl::string_view payload,

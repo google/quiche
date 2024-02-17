@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <poll.h>
+#include <unistd.h>
+
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -26,13 +29,11 @@
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/quic/platform/api/quic_thread.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/common/quiche_circular_deque.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
@@ -79,13 +80,19 @@ class ChatClient {
 
   bool session_is_open() const { return session_is_open_; }
   bool is_syncing() const {
-    return catalog_group_.has_value() || subscribes_to_make_ > 0 ||
+    return !catalog_group_.has_value() || subscribes_to_make_ > 0 ||
            !session_->HasSubscribers(my_track_name_);
   }
 
   void RunEventLoop() {
-    event_loop_->RunEventLoopOnce(quic::QuicTime::Delta::FromSeconds(5));
+    event_loop_->RunEventLoopOnce(quic::QuicTime::Delta::FromMilliseconds(500));
   }
+
+  const moqt::FullTrackName& my_track_name() { return my_track_name_; }
+
+  moqt::MoqtSession* session() { return session_; }
+
+  moqt::FullSequence& next_sequence() { return next_sequence_; }
 
   class QUICHE_EXPORT RemoteTrackVisitor : public moqt::RemoteTrack::Visitor {
    public:
@@ -125,6 +132,13 @@ class ChatClient {
         return;
       }
       // TODO: Message is from another chat participant
+      std::string username = full_track_name.track_namespace;
+      username = username.substr(username.find_last_of('/') + 1);
+      if (!client_->other_users_.contains(username)) {
+        std::cout << "Username " << username << "doesn't exist\n";
+        return;
+      }
+      std::cout << username << ": " << object << "\n";
     }
 
    private:
@@ -165,41 +179,6 @@ class ChatClient {
     }
     return true;
   }
-
-  class InputHandler : quic::QuicThread {
-   public:
-    explicit InputHandler(ChatClient* client)
-        : quic::QuicThread("InputThread"), client_(client) {}
-
-    void Run() final {
-      while (client_->session_is_open_) {
-        std::string message_to_send;
-        std::cin >> message_to_send;  // Waiting to start input
-        client_->entering_data_ = true;
-        std::cout << "> ";
-        std::cin >> message_to_send;
-        client_->entering_data_ = false;
-        while (!client_->incoming_messages_.empty()) {
-          std::cout << client_->incoming_messages_.front() << "\n";
-          client_->incoming_messages_.pop_front();
-        }
-        if (message_to_send.empty()) {
-          continue;
-        }
-        if (message_to_send == ":exit") {
-          std::cout << "Exiting the app.\n";
-          // TODO: Close the session.
-          client_->session_is_open_ = false;
-          break;
-        }
-        // TODO: Send the message
-        std::cout << client_->username_ << ": " << message_to_send << "\n";
-      }
-    }
-
-   private:
-    ChatClient* client_;
-  };
 
  private:
   moqt::FullTrackName UsernameToTrackName(absl::string_view username) {
@@ -303,9 +282,9 @@ class ChatClient {
   };
 
   // Basic session information
-  std::string chat_id_;
-  std::string username_;
-  moqt::FullTrackName my_track_name_;
+  const std::string chat_id_;
+  const std::string username_;
+  const moqt::FullTrackName my_track_name_;
 
   // General state variables
   std::unique_ptr<quic::QuicEventLoop> event_loop_;
@@ -325,8 +304,7 @@ class ChatClient {
   std::unique_ptr<RemoteTrackVisitor> remote_track_visitor_;
 
   // Handling incoming and outgoing messages
-  quiche::QuicheCircularDeque<std::string> incoming_messages_;
-  bool entering_data_ = false;
+  moqt::FullSequence next_sequence_ = {0, 0};
 };
 
 // A client for MoQT over chat, used for interop testing. See
@@ -358,11 +336,36 @@ int main(int argc, char* argv[]) {
   }
   if (client.session_is_open()) {
     std::cout << "Fully connected. Press ENTER to begin input of message, "
-              << "ENTER when done.\n";
+              << "ENTER when done. Exit session if the message is ':exit'\n";
   }
-  ChatClient::InputHandler input_thread(&client);
-  while (client.session_is_open()) {
-    client.RunEventLoop();
+  bool session_is_open = client.session_is_open();
+  struct pollfd poll_settings = {
+      0,
+      POLLIN,
+      POLLIN,
+  };
+  while (session_is_open) {
+    std::string message_to_send;
+    while (poll(&poll_settings, 1, 0) <= 0) {
+      client.RunEventLoop();
+    }
+    std::cin.ignore(10, '\n');
+    std::cout << username << ": ";
+    std::getline(std::cin, message_to_send);
+    if (message_to_send.empty()) {
+      continue;
+    }
+    if (message_to_send == ":exit") {
+      std::cout << "Exiting the app.\n";
+      // TODO: Close the session.
+      session_is_open = false;
+      break;
+    }
+    client.session()->PublishObject(
+        client.my_track_name(), client.next_sequence().group++,
+        client.next_sequence().object, /*object_send_order=*/0,
+        moqt::MoqtForwardingPreference::kObject, message_to_send,
+        /*payload_length=*/std::nullopt, true);
   }
   return 0;
 }
