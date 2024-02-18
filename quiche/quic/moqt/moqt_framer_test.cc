@@ -5,9 +5,12 @@
 #include "quiche/quic/moqt/moqt_framer.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
@@ -70,6 +73,22 @@ std::string ParamNameFormatter(
          (info.param.uses_web_transport ? "WebTransport" : "QUIC");
 }
 
+quiche::QuicheBuffer SerializeObject(MoqtFramer& framer,
+                                     const MoqtObject& message,
+                                     absl::string_view payload,
+                                     bool is_first_in_stream) {
+  MoqtObject adjusted_message = message;
+  adjusted_message.payload_length = payload.size();
+  quiche::QuicheBuffer header =
+      framer.SerializeObjectHeader(adjusted_message, is_first_in_stream);
+  if (header.empty()) {
+    return quiche::QuicheBuffer();
+  }
+  return quiche::QuicheBuffer::Copy(
+      quiche::SimpleBufferAllocator::Get(),
+      absl::StrCat(header.AsStringView(), payload));
+}
+
 class MoqtFramerTest
     : public quic::test::QuicTestWithParam<MoqtFramerTestParams> {
  public:
@@ -90,8 +109,8 @@ class MoqtFramerTest
       case MoqtMessageType::kObjectPreferDatagram:
       case MoqtMessageType::kStreamHeaderTrack:
       case MoqtMessageType::kStreamHeaderGroup: {
-        auto data = std::get<MoqtObject>(structured_data);
-        return framer_.SerializeObject(data, "foo", true);
+        MoqtObject data = std::get<MoqtObject>(structured_data);
+        return SerializeObject(framer_, data, "foo", true);
       }
       case MoqtMessageType::kSubscribe: {
         auto data = std::get<MoqtSubscribe>(structured_data);
@@ -178,28 +197,28 @@ class MoqtFramerSimpleTest : public quic::test::QuicTest {
 
 TEST_F(MoqtFramerSimpleTest, GroupMiddler) {
   auto header = std::make_unique<StreamHeaderGroupMessage>();
-  auto buffer1 = framer_.SerializeObject(
-      std::get<MoqtObject>(header->structured_data()), "foo", true);
+  auto buffer1 = SerializeObject(
+      framer_, std::get<MoqtObject>(header->structured_data()), "foo", true);
   EXPECT_EQ(buffer1.size(), header->total_message_size());
   EXPECT_EQ(buffer1.AsStringView(), header->PacketSample());
 
   auto middler = std::make_unique<StreamMiddlerGroupMessage>();
-  auto buffer2 = framer_.SerializeObject(
-      std::get<MoqtObject>(middler->structured_data()), "bar", false);
+  auto buffer2 = SerializeObject(
+      framer_, std::get<MoqtObject>(middler->structured_data()), "bar", false);
   EXPECT_EQ(buffer2.size(), middler->total_message_size());
   EXPECT_EQ(buffer2.AsStringView(), middler->PacketSample());
 }
 
 TEST_F(MoqtFramerSimpleTest, TrackMiddler) {
   auto header = std::make_unique<StreamHeaderTrackMessage>();
-  auto buffer1 = framer_.SerializeObject(
-      std::get<MoqtObject>(header->structured_data()), "foo", true);
+  auto buffer1 = SerializeObject(
+      framer_, std::get<MoqtObject>(header->structured_data()), "foo", true);
   EXPECT_EQ(buffer1.size(), header->total_message_size());
   EXPECT_EQ(buffer1.AsStringView(), header->PacketSample());
 
   auto middler = std::make_unique<StreamMiddlerTrackMessage>();
-  auto buffer2 = framer_.SerializeObject(
-      std::get<MoqtObject>(middler->structured_data()), "bar", false);
+  auto buffer2 = SerializeObject(
+      framer_, std::get<MoqtObject>(middler->structured_data()), "bar", false);
   EXPECT_EQ(buffer2.size(), middler->total_message_size());
   EXPECT_EQ(buffer2.AsStringView(), middler->PacketSample());
 }
@@ -212,21 +231,16 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
       /*object_id=*/6,
       /*object_send_order=*/7,
       /*forwarding_preference=*/MoqtForwardingPreference::kObject,
-      /*payload_length=*/1,
+      /*payload_length=*/std::nullopt,
   };
   quiche::QuicheBuffer buffer;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObject(object, "foo", true),
-                  "payload_size is too small for payload");
-  EXPECT_TRUE(buffer.empty());
-  object.payload_length = 3;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObject(object, "foo", false),
-                  "Object or Datagram forwarding_preference must be first "
-                  "in stream");
-  EXPECT_TRUE(buffer.empty());
   object.forwarding_preference = MoqtForwardingPreference::kDatagram;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObject(object, "foo", false),
-                  "Object or Datagram forwarding_preference must be first "
-                  "in stream");
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(object, false),
+                  "must be first");
+  EXPECT_TRUE(buffer.empty());
+  object.forwarding_preference = MoqtForwardingPreference::kGroup;
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(object, false),
+                  "requires knowing the object length");
   EXPECT_TRUE(buffer.empty());
 }
 

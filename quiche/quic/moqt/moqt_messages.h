@@ -202,6 +202,19 @@ struct QUICHE_EXPORT MoqtSubscribeLocation {
   }
 };
 
+inline MoqtSubscribeLocationMode GetModeForSubscribeLocation(
+    const std::optional<MoqtSubscribeLocation>& location) {
+  if (!location.has_value()) {
+    return MoqtSubscribeLocationMode::kNone;
+  }
+  if (location->absolute) {
+    return MoqtSubscribeLocationMode::kAbsolute;
+  }
+  return location->relative_value >= 0
+             ? MoqtSubscribeLocationMode::kRelativeNext
+             : MoqtSubscribeLocationMode::kRelativePrevious;
+}
+
 struct QUICHE_EXPORT MoqtSubscribe {
   uint64_t subscribe_id;
   uint64_t track_alias;

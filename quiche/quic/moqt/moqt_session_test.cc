@@ -416,7 +416,7 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
 
   // Send Sequence (2, 0) so that next_sequence is set correctly.
   session_.PublishObject(ftn, 2, 0, 0, MoqtForwardingPreference::kObject, "foo",
-                         std::nullopt, true);
+                         true);
   // Peer subscribes to (0, 0)
   MoqtSubscribe request = {
       /*subscribe_id=*/1,
@@ -678,7 +678,7 @@ TEST_F(MoqtSessionTest, CreateUniStreamAndSend) {
   // No subscription; this is a no-op except to update next_sequence.
   EXPECT_CALL(mock_stream, Writev(_, _)).Times(0);
   session_.PublishObject(ftn, 4, 1, 0, MoqtForwardingPreference::kObject,
-                         "deadbeef", std::nullopt, true);
+                         "deadbeef", true);
   EXPECT_EQ(MoqtSessionPeer::next_sequence(&session_, ftn), FullSequence(4, 2));
 
   // Publish in window.
@@ -703,7 +703,7 @@ TEST_F(MoqtSessionTest, CreateUniStreamAndSend) {
         return absl::OkStatus();
       });
   session_.PublishObject(ftn, 5, 0, 0, MoqtForwardingPreference::kObject,
-                         "deadbeef", std::nullopt, true);
+                         "deadbeef", true);
   EXPECT_TRUE(correct_message);
 }
 
@@ -720,9 +720,8 @@ TEST_F(MoqtSessionTest, CannotOpenUniStream) {
   ;
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .WillOnce(Return(false));
-  EXPECT_FALSE(session_.PublishObject(ftn, 5, 0, 0,
-                                      MoqtForwardingPreference::kObject,
-                                      "deadbeef", std::nullopt, true));
+  EXPECT_FALSE(session_.PublishObject(
+      ftn, 5, 0, 0, MoqtForwardingPreference::kObject, "deadbeef", true));
 }
 
 TEST_F(MoqtSessionTest, GetStreamByIdFails) {
@@ -740,9 +739,8 @@ TEST_F(MoqtSessionTest, GetStreamByIdFails) {
       .WillRepeatedly(Return(kOutgoingUniStreamId));
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
       .WillOnce(Return(nullptr));
-  EXPECT_FALSE(session_.PublishObject(ftn, 5, 0, 0,
-                                      MoqtForwardingPreference::kObject,
-                                      "deadbeef", std::nullopt, true));
+  EXPECT_FALSE(session_.PublishObject(
+      ftn, 5, 0, 0, MoqtForwardingPreference::kObject, "deadbeef", true));
 }
 
 TEST_F(MoqtSessionTest, SubscribeProposesBadTrackAlias) {

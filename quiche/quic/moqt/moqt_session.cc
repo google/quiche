@@ -4,6 +4,7 @@
 
 #include "quiche/quic/moqt/moqt_session.h"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -19,6 +20,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_stream.h"
@@ -263,11 +265,13 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
                                 uint64_t group_id, uint64_t object_id,
                                 uint64_t object_send_order,
                                 MoqtForwardingPreference forwarding_preference,
-                                absl::string_view payload,
-                                std::optional<uint64_t> payload_length,
-                                bool end_of_stream) {
-  if (payload_length.has_value() && *payload_length < payload.length()) {
-    QUICHE_DLOG(ERROR) << ENDPOINT << "Payload too short";
+                                absl::string_view payload, bool end_of_stream) {
+  if ((forwarding_preference == MoqtForwardingPreference::kObject ||
+       forwarding_preference == MoqtForwardingPreference::kDatagram) &&
+      !end_of_stream) {
+    QUIC_BUG(MoqtSession_PublishObject_end_of_stream_required)
+        << "Forwarding preferences of Object or Datagram require stream to be "
+           "immediately closed";
     return false;
   }
   auto track_it = local_tracks_.find(full_track_name);
@@ -289,7 +293,7 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
   object.object_id = object_id;
   object.object_send_order = object_send_order;
   object.forwarding_preference = forwarding_preference;
-  object.payload_length = payload_length;
+  object.payload_length = payload.size();
   int failures = 0;
   quiche::StreamWriteOptions write_options;
   write_options.set_send_fin(end_of_stream);
@@ -322,10 +326,10 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
       continue;
     }
     object.subscribe_id = subscription->subscribe_id();
-    if (quiche::WriteIntoStream(
-            *stream,
-            framer_.SerializeObject(object, payload, new_stream).AsStringView(),
-            write_options) != absl::OkStatus()) {
+    quiche::QuicheBuffer header =
+        framer_.SerializeObjectHeader(object, new_stream);
+    std::array<absl::string_view, 2> views = {header.AsStringView(), payload};
+    if (!stream->Writev(views, write_options).ok()) {
       QUICHE_DLOG(ERROR) << ENDPOINT << "Failed to write OBJECT message";
       ++failures;
       continue;

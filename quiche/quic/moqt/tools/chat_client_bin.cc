@@ -364,8 +364,7 @@ int main(int argc, char* argv[]) {
     client.session()->PublishObject(
         client.my_track_name(), client.next_sequence().group++,
         client.next_sequence().object, /*object_send_order=*/0,
-        moqt::MoqtForwardingPreference::kObject, message_to_send,
-        /*payload_length=*/std::nullopt, true);
+        moqt::MoqtForwardingPreference::kObject, message_to_send, true);
   }
   return 0;
 }

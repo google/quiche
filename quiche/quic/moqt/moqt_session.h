@@ -121,9 +121,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                      uint64_t object_id, uint64_t object_send_order,
                      MoqtForwardingPreference forwarding_preference,
                      absl::string_view payload,
-                     std::optional<uint64_t> payload_length,
                      bool end_of_stream);
   // TODO: Add an API to FIN the stream for a particular track/group/object.
+  // TODO: Add an API to send partial objects.
 
  private:
   friend class test::MoqtSessionPeer;
