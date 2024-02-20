@@ -12,10 +12,12 @@
 #include <utility>
 #include <vector>
 
+
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
@@ -32,6 +34,27 @@
 namespace moqt {
 
 using ::quic::Perspective;
+
+MoqtSession::Stream* MoqtSession::GetControlStream() {
+  if (!control_stream_.has_value()) {
+    return nullptr;
+  }
+  webtransport::Stream* raw_stream = session_->GetStreamById(*control_stream_);
+  if (raw_stream == nullptr) {
+    return nullptr;
+  }
+  return static_cast<Stream*>(raw_stream->visitor());
+}
+
+void MoqtSession::SendControlMessage(quiche::QuicheBuffer message) {
+  Stream* control_stream = GetControlStream();
+  if (control_stream == nullptr) {
+    QUICHE_LOG(DFATAL) << "Trying to send a message on the control stream "
+                          "while it does not exist";
+    return;
+  }
+  control_stream->SendOrBufferMessage(std::move(message));
+}
 
 void MoqtSession::OnSessionReady() {
   QUICHE_DLOG(INFO) << ENDPOINT << "Underlying session ready";
@@ -55,12 +78,7 @@ void MoqtSession::OnSessionReady() {
   if (!parameters_.using_webtrans) {
     setup.path = parameters_.path;
   }
-  quiche::QuicheBuffer serialized_setup = framer_.SerializeClientSetup(setup);
-  bool success = control_stream->Write(serialized_setup.AsStringView());
-  if (!success) {
-    Error(MoqtError::kGenericError, "Failed to write client SETUP message");
-    return;
-  }
+  SendControlMessage(framer_.SerializeClientSetup(setup));
   QUIC_DLOG(INFO) << ENDPOINT << "Send the SETUP message";
 }
 
@@ -123,12 +141,7 @@ void MoqtSession::Announce(absl::string_view track_namespace,
   }
   MoqtAnnounce message;
   message.track_namespace = track_namespace;
-  bool success = session_->GetStreamById(*control_stream_)
-                     ->Write(framer_.SerializeAnnounce(message).AsStringView());
-  if (!success) {
-    Error(MoqtError::kGenericError, "Failed to write ANNOUNCE message");
-    return;
-  }
+  SendControlMessage(framer_.SerializeAnnounce(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE message for "
                   << message.track_namespace;
   pending_outgoing_announces_[track_namespace] = std::move(announce_callback);
@@ -235,13 +248,7 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
   } else {
     message.track_alias = next_remote_track_alias_++;
   }
-  bool success =
-      session_->GetStreamById(*control_stream_)
-          ->Write(framer_.SerializeSubscribe(message).AsStringView());
-  if (!success) {
-    Error(MoqtError::kGenericError, "Failed to write SUBSCRIBE message");
-    return false;
-  }
+  SendControlMessage(framer_.SerializeSubscribe(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE message for "
                   << message.track_namespace << ":" << message.track_name;
   active_subscribes_.try_emplace(message.subscribe_id, message, visitor);
@@ -457,13 +464,7 @@ void MoqtSession::Stream::OnClientSetupMessage(const MoqtClientSetup& message) {
     MoqtServerSetup response;
     response.selected_version = session_->parameters_.version;
     response.role = MoqtRole::kBoth;
-    bool success = stream_->Write(
-        session_->framer_.SerializeServerSetup(response).AsStringView());
-    if (!success) {
-      session_->Error(MoqtError::kGenericError,
-                      "Failed to write server SETUP message");
-      return;
-    }
+    SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
   // TODO: handle role and path.
@@ -506,13 +507,8 @@ void MoqtSession::Stream::SendSubscribeError(const MoqtSubscribe& message,
   subscribe_error.error_code = error_code;
   subscribe_error.reason_phrase = reason_phrase;
   subscribe_error.track_alias = track_alias;
-  bool success =
-      stream_->Write(session_->framer_.SerializeSubscribeError(subscribe_error)
-                         .AsStringView());
-  if (!success) {
-    session_->Error(MoqtError::kGenericError,
-                    "Failed to write SUBSCRIBE_ERROR message");
-  }
+  SendOrBufferMessage(
+      session_->framer_.SerializeSubscribeError(subscribe_error));
 }
 
 void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
@@ -573,13 +569,7 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
   }
   MoqtSubscribeOk subscribe_ok;
   subscribe_ok.subscribe_id = message.subscribe_id;
-  bool success = stream_->Write(
-      session_->framer_.SerializeSubscribeOk(subscribe_ok).AsStringView());
-  if (!success) {
-    session_->Error(MoqtError::kGenericError,
-                    "Failed to write SUBSCRIBE_OK message");
-    return;
-  }
+  SendOrBufferMessage(session_->framer_.SerializeSubscribeOk(subscribe_ok));
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << message.track_namespace << ":" << message.track_name;
   if (!end.has_value()) {
@@ -660,13 +650,7 @@ void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {
   }
   MoqtAnnounceOk ok;
   ok.track_namespace = message.track_namespace;
-  bool success =
-      stream_->Write(session_->framer_.SerializeAnnounceOk(ok).AsStringView());
-  if (!success) {
-    session_->Error(MoqtError::kGenericError,
-                    "Failed to write ANNOUNCE_OK message");
-    return;
-  }
+  SendOrBufferMessage(session_->framer_.SerializeAnnounceOk(ok));
 }
 
 void MoqtSession::Stream::OnAnnounceOkMessage(const MoqtAnnounceOk& message) {
@@ -737,6 +721,19 @@ std::optional<FullSequence> MoqtSession::LocationToAbsoluteNumber(
     sequence.object = track.next_sequence().object + object->relative_value - 1;
   }
   return sequence;
+}
+
+void MoqtSession::Stream::SendOrBufferMessage(quiche::QuicheBuffer message,
+                                              bool fin) {
+  quiche::StreamWriteOptions options;
+  options.set_send_fin(fin);
+  options.set_buffer_unconditionally(true);
+  std::array<absl::string_view, 1> write_vector = {message.AsStringView()};
+  absl::Status success = stream_->Writev(absl::MakeSpan(write_vector), options);
+  if (!success.ok()) {
+    session_->Error(MoqtError::kGenericError,
+                    "Failed to write a control message");
+  }
 }
 
 }  // namespace moqt

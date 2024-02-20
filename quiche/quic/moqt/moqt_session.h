@@ -19,6 +19,7 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/web_transport.h"
@@ -120,8 +121,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   bool PublishObject(const FullTrackName& full_track_name, uint64_t group_id,
                      uint64_t object_id, uint64_t object_send_order,
                      MoqtForwardingPreference forwarding_preference,
-                     absl::string_view payload,
-                     bool end_of_stream);
+                     absl::string_view payload, bool end_of_stream);
   // TODO: Add an API to FIN the stream for a particular track/group/object.
   // TODO: Add an API to send partial objects.
 
@@ -174,6 +174,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
     webtransport::Stream* stream() const { return stream_; }
 
+    // Sends a control message, or buffers it if there is insufficient flow
+    // control credit.
+    void SendOrBufferMessage(quiche::QuicheBuffer message, bool fin = false);
+
    private:
     friend class test::MoqtSessionPeer;
     void SendSubscribeError(const MoqtSubscribe& message,
@@ -190,6 +194,12 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     std::optional<bool> is_control_stream_;
     std::string partial_object_;
   };
+
+  // Returns the pointer to the control stream, or nullptr if none is present.
+  Stream* GetControlStream();
+  // Sends a message on the control stream; QUICHE_DCHECKs if no control stream
+  // is present.
+  void SendControlMessage(quiche::QuicheBuffer message);
 
   // Returns false if the SUBSCRIBE isn't sent.
   bool Subscribe(MoqtSubscribe& message, RemoteTrack::Visitor* visitor);

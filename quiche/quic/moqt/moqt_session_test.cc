@@ -34,6 +34,7 @@ namespace test {
 namespace {
 
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::Return;
 using ::testing::StrictMock;
 
@@ -65,10 +66,13 @@ static std::optional<MoqtMessageType> ExtractMessageType(
 class MoqtSessionPeer {
  public:
   static std::unique_ptr<MoqtParserVisitor> CreateControlStream(
-      MoqtSession* session, webtransport::Stream* stream) {
+      MoqtSession* session, webtransport::test::MockStream* stream) {
     auto new_stream = std::make_unique<MoqtSession::Stream>(
         session, stream, /*is_control_stream=*/true);
     session->control_stream_ = kControlStreamId;
+    EXPECT_CALL(*stream, visitor())
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(new_stream.get()));
     return new_stream;
   }
 
@@ -155,7 +159,9 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
       });
   EXPECT_CALL(mock_stream, GetStreamId())
       .WillOnce(Return(webtransport::StreamId(4)));
+  EXPECT_CALL(mock_session_, GetStreamById(4)).WillOnce(Return(&mock_stream));
   bool correct_message = false;
+  EXPECT_CALL(mock_stream, visitor()).WillOnce([&] { return visitor.get(); });
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
@@ -789,7 +795,9 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamClient) {
       });
   EXPECT_CALL(mock_stream, GetStreamId())
       .WillOnce(Return(webtransport::StreamId(4)));
+  EXPECT_CALL(mock_session_, GetStreamById(4)).WillOnce(Return(&mock_stream));
   bool correct_message = false;
+  EXPECT_CALL(mock_stream, visitor()).WillOnce([&] { return visitor.get(); });
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
