@@ -39,6 +39,8 @@ QUIC_FLAG(quic_reloadable_flag_quic_no_write_control_frame_upon_connection_close
 QUIC_FLAG(quic_reloadable_flag_quic_ignore_gquic_probing, true)
 // If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.
 QUIC_FLAG(quic_reloadable_flag_quic_enable_mtu_discovery_at_server, false)
+// If true, QuicConnection::ProcessValidatedPacket will use normalized address to test peer address changes.
+QUIC_FLAG(quic_reloadable_flag_quic_test_peer_addr_change_after_normalize, false)
 // If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.
 QUIC_FLAG(quic_restart_flag_quic_support_release_time_for_gso, false)
 // If true, QuicSession will block outgoing control frames when the connection is closed.

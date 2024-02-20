@@ -3033,6 +3033,36 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
   }
 }
 
+TEST_P(QuicConnectionTest, NoNormalizedPeerAddressChangeAtClient) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  QuicIpAddress peer_ip;
+  peer_ip.FromString("1.1.1.1");
+
+  QuicSocketAddress peer_addr = QuicSocketAddress(peer_ip, /*port=*/443);
+  QuicSocketAddress dualstack_peer_addr =
+      QuicSocketAddress(peer_addr.host().DualStacked(), peer_addr.port());
+
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_)).Times(AnyNumber());
+  set_perspective(Perspective::IS_CLIENT);
+  EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+
+  QuicConnectionPeer::SetDirectPeerAddress(&connection_, dualstack_peer_addr);
+
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress, peer_addr,
+                                  ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.connected());
+
+  if (GetQuicReloadableFlag(quic_test_peer_addr_change_after_normalize)) {
+    EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
+  } else {
+    EXPECT_EQ(1u, connection_.GetStats().packets_dropped);
+  }
+}
+
 TEST_P(QuicConnectionTest, ServerAddressChangesToKnownAddress) {
   if (!connection_.version().HasIetfQuicFrames()) {
     return;

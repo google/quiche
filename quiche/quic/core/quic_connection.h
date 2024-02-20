@@ -2021,6 +2021,8 @@ class QUICHE_EXPORT QuicConnection
                                  QuicPacketWriter* writer,
                                  const QuicEcnCodepoint ecn_codepoint);
 
+  bool PeerAddressChanged() const;
+
   QuicConnectionContext context_;
 
   QuicFramer framer_;
@@ -2429,6 +2431,9 @@ class QUICHE_EXPORT QuicConnection
 
   const bool quic_limit_new_streams_per_loop_2_ =
       GetQuicReloadableFlag(quic_limit_new_streams_per_loop_2);
+
+  const bool quic_test_peer_addr_change_after_normalize_ =
+      GetQuicReloadableFlag(quic_test_peer_addr_change_after_normalize);
 };
 
 }  // namespace quic

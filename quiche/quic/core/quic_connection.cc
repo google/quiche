@@ -2940,11 +2940,22 @@ void QuicConnection::SetDefaultPathState(PathState new_path_state) {
   packet_creator_.SetServerConnectionId(default_path_.server_connection_id);
 }
 
+// TODO(wub): Inline this function when deprecating
+// --quic_test_peer_addr_change_after_normalize.
+bool QuicConnection::PeerAddressChanged() const {
+  if (quic_test_peer_addr_change_after_normalize_) {
+    return direct_peer_address_.Normalized() !=
+           last_received_packet_info_.source_address.Normalized();
+  }
+
+  return direct_peer_address_ != last_received_packet_info_.source_address;
+}
+
 bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   if (perspective_ == Perspective::IS_CLIENT && version().HasIetfQuicFrames() &&
       direct_peer_address_.IsInitialized() &&
       last_received_packet_info_.source_address.IsInitialized() &&
-      direct_peer_address_ != last_received_packet_info_.source_address &&
+      PeerAddressChanged() &&
       !IsKnownServerAddress(last_received_packet_info_.source_address)) {
     // Discard packets received from unseen server addresses.
     return false;
