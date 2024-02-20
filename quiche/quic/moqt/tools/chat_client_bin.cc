@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -39,6 +40,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
     "If true, don't verify the server certificate.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, output_file, "",
+    "chat messages will stream to a file instead of stdout");
+
 class ChatClient {
  public:
   ChatClient(quic::QuicServerId& server_id, std::string path,
@@ -56,6 +61,11 @@ class ChatClient {
     std::unique_ptr<quic::ProofVerifier> verifier;
     const bool ignore_certificate = quiche::GetQuicheCommandLineFlag(
         FLAGS_disable_certificate_verification);
+    output_filename_ = quiche::GetQuicheCommandLineFlag(FLAGS_output_file);
+    if (!output_filename_.empty()) {
+      output_file_.open(output_filename_);
+      output_file_ << "Chat transcript:\n";
+    }
     if (ignore_certificate) {
       verifier = std::make_unique<quic::FakeProofVerifier>();
     } else {
@@ -93,6 +103,13 @@ class ChatClient {
   moqt::MoqtSession* session() { return session_; }
 
   moqt::FullSequence& next_sequence() { return next_sequence_; }
+
+  bool has_output_file() { return !output_filename_.empty(); }
+
+  void WriteToFile(absl::string_view user, absl::string_view message) {
+    output_file_ << user << ": " << message << "\n\n";
+    output_file_.flush();
+  }
 
   class QUICHE_EXPORT RemoteTrackVisitor : public moqt::RemoteTrack::Visitor {
    public:
@@ -136,6 +153,10 @@ class ChatClient {
       username = username.substr(username.find_last_of('/') + 1);
       if (!client_->other_users_.contains(username)) {
         std::cout << "Username " << username << "doesn't exist\n";
+        return;
+      }
+      if (client_->has_output_file()) {
+        client_->WriteToFile(username, object);
         return;
       }
       std::cout << username << ": " << object << "\n";
@@ -201,7 +222,6 @@ class ChatClient {
     }
     while (std::getline(f, line)) {
       if (!got_version) {
-        // Chat server currently does not send version
         if (line != "version=1") {
           session_->Error(moqt::MoqtError::kProtocolViolation,
                           "Catalog does not begin with version");
@@ -305,6 +325,9 @@ class ChatClient {
 
   // Handling incoming and outgoing messages
   moqt::FullSequence next_sequence_ = {0, 0};
+
+  std::ofstream output_file_;
+  std::string output_filename_;
 };
 
 // A client for MoQT over chat, used for interop testing. See
@@ -335,8 +358,13 @@ int main(int argc, char* argv[]) {
     client.RunEventLoop();
   }
   if (client.session_is_open()) {
-    std::cout << "Fully connected. Press ENTER to begin input of message, "
-              << "ENTER when done. Exit session if the message is ':exit'\n";
+    if (client.has_output_file()) {
+      std::cout << "Fully connected. Messages are in the output file. Exit the "
+                << "session by entering :exit\n";
+    } else {
+      std::cout << "Fully connected. Press ENTER to begin input of message, "
+                << "ENTER when done. Exit session if the message is ':exit'\n";
+    }
   }
   bool session_is_open = client.session_is_open();
   struct pollfd poll_settings = {
@@ -349,8 +377,10 @@ int main(int argc, char* argv[]) {
     while (poll(&poll_settings, 1, 0) <= 0) {
       client.RunEventLoop();
     }
-    std::cin.ignore(10, '\n');
-    std::cout << username << ": ";
+    if (!client.has_output_file()) {
+      std::cin.ignore(10, '\n');
+      std::cout << username << ": ";
+    }
     std::getline(std::cin, message_to_send);
     if (message_to_send.empty()) {
       continue;
@@ -360,6 +390,9 @@ int main(int argc, char* argv[]) {
       // TODO: Close the session.
       session_is_open = false;
       break;
+    }
+    if (client.has_output_file()) {
+      client.WriteToFile(username, message_to_send);
     }
     client.session()->PublishObject(
         client.my_track_name(), client.next_sequence().group++,
