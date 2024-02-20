@@ -818,7 +818,7 @@ class QUICHE_NO_EXPORT AnnounceErrorMessage : public TestMessageBase {
 
   MoqtAnnounceError announce_error_ = {
       /*track_namespace=*/"foo",
-      /*error_code=*/1,
+      /*error_code=*/MoqtAnnounceErrorCode::kAnnounceNotSupported,
       /*reason_phrase=*/"bar",
   };
 };

@@ -35,9 +35,19 @@ using MoqtSessionTerminatedCallback =
     quiche::SingleUseCallback<void(absl::string_view error_message)>;
 using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
 // If |error_message| is nullopt, the ANNOUNCE was successful.
-using MoqtAnnounceCallback = quiche::SingleUseCallback<void(
+using MoqtOutgoingAnnounceCallback = quiche::SingleUseCallback<void(
     absl::string_view track_namespace,
-    std::optional<absl::string_view> error_message)>;
+    std::optional<MoqtAnnounceErrorReason> error)>;
+using MoqtIncomingAnnounceCallback =
+    quiche::MultiUseCallback<std::optional<MoqtAnnounceErrorReason>(
+        absl::string_view track_namespace)>;
+
+inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
+    absl::string_view /*track_namespace*/) {
+  return std::optional(MoqtAnnounceErrorReason{
+      MoqtAnnounceErrorCode::kAnnounceNotSupported,
+      "This endpoint does not accept incoming ANNOUNCE messages"});
+};
 
 // Callbacks for session-level events.
 struct MoqtSessionCallbacks {
@@ -45,6 +55,9 @@ struct MoqtSessionCallbacks {
   MoqtSessionTerminatedCallback session_terminated_callback =
       +[](absl::string_view) {};
   MoqtSessionDeletedCallback session_deleted_callback = +[] {};
+
+  MoqtIncomingAnnounceCallback incoming_announce_callback =
+      DefaultIncomingAnnounceCallback;
 };
 
 class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
@@ -59,6 +72,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
             std::move(callbacks.session_terminated_callback)),
         session_deleted_callback_(
             std::move(callbacks.session_deleted_callback)),
+        incoming_announce_callback_(
+            std::move(callbacks.incoming_announce_callback)),
         framer_(quiche::SimpleBufferAllocator::Get(),
                 parameters.using_webtrans) {}
   ~MoqtSession() { std::move(session_deleted_callback_)(); }
@@ -87,7 +102,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // |announce_callback| when the response arrives. Will fail immediately if
   // there is already an unresolved ANNOUNCE for that namespace.
   void Announce(absl::string_view track_namespace,
-                MoqtAnnounceCallback announce_callback);
+                MoqtOutgoingAnnounceCallback announce_callback);
   bool HasSubscribers(const FullTrackName& full_track_name) const;
 
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
@@ -217,6 +232,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   MoqtSessionEstablishedCallback session_established_callback_;
   MoqtSessionTerminatedCallback session_terminated_callback_;
   MoqtSessionDeletedCallback session_deleted_callback_;
+  MoqtIncomingAnnounceCallback incoming_announce_callback_;
   MoqtFramer framer_;
 
   std::optional<webtransport::StreamId> control_stream_;
@@ -246,7 +262,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   uint64_t next_subscribe_id_ = 0;
 
   // Indexed by track namespace.
-  absl::flat_hash_map<std::string, MoqtAnnounceCallback>
+  absl::flat_hash_map<std::string, MoqtOutgoingAnnounceCallback>
       pending_outgoing_announces_;
 };
 

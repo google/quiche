@@ -90,6 +90,18 @@ enum class QUICHE_EXPORT MoqtTrackRequestParameter : uint64_t {
   kAuthorizationInfo = 0x2,
 };
 
+// TODO: those are non-standard; add standard error codes once those exist, see
+// <https://github.com/moq-wg/moq-transport/issues/393>.
+enum class MoqtAnnounceErrorCode : uint64_t {
+  kInternalError = 0,
+  kAnnounceNotSupported = 1,
+};
+
+struct MoqtAnnounceErrorReason {
+  MoqtAnnounceErrorCode error_code;
+  std::string reason_phrase;
+};
+
 struct FullTrackName {
   std::string track_namespace;
   std::string track_name;
@@ -276,7 +288,7 @@ struct QUICHE_EXPORT MoqtAnnounceOk {
 
 struct QUICHE_EXPORT MoqtAnnounceError {
   absl::string_view track_namespace;
-  uint64_t error_code;
+  MoqtAnnounceErrorCode error_code;
   absl::string_view reason_phrase;
 };
 

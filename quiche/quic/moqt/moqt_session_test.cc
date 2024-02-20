@@ -313,8 +313,9 @@ TEST_F(MoqtSessionTest, AddLocalTrack) {
 }
 
 TEST_F(MoqtSessionTest, AnnounceWithOk) {
-  testing::MockFunction<void(absl::string_view track_namespace,
-                             std::optional<absl::string_view> error_message)>
+  testing::MockFunction<void(
+      absl::string_view track_namespace,
+      std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_resolved_callback;
   StrictMock<webtransport::test::MockStream> mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =
@@ -337,18 +338,19 @@ TEST_F(MoqtSessionTest, AnnounceWithOk) {
   correct_message = false;
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
       .WillOnce([&](absl::string_view track_namespace,
-                    std::optional<absl::string_view> error_message) {
+                    std::optional<MoqtAnnounceErrorReason> error) {
         correct_message = true;
         EXPECT_EQ(track_namespace, "foo");
-        EXPECT_FALSE(error_message.has_value());
+        EXPECT_FALSE(error.has_value());
       });
   stream_input->OnAnnounceOkMessage(ok);
   EXPECT_TRUE(correct_message);
 }
 
 TEST_F(MoqtSessionTest, AnnounceWithError) {
-  testing::MockFunction<void(absl::string_view track_namespace,
-                             std::optional<absl::string_view> error_message)>
+  testing::MockFunction<void(
+      absl::string_view track_namespace,
+      std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_resolved_callback;
   StrictMock<webtransport::test::MockStream> mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =
@@ -367,14 +369,18 @@ TEST_F(MoqtSessionTest, AnnounceWithError) {
 
   MoqtAnnounceError error = {
       /*track_namespace=*/"foo",
+      /*error_code=*/MoqtAnnounceErrorCode::kInternalError,
+      /*reason_phrase=*/"Test error",
   };
   correct_message = false;
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
       .WillOnce([&](absl::string_view track_namespace,
-                    std::optional<absl::string_view> error_message) {
+                    std::optional<MoqtAnnounceErrorReason> error) {
         correct_message = true;
         EXPECT_EQ(track_namespace, "foo");
-        EXPECT_TRUE(error_message.has_value());
+        ASSERT_TRUE(error.has_value());
+        EXPECT_EQ(error->error_code, MoqtAnnounceErrorCode::kInternalError);
+        EXPECT_EQ(error->reason_phrase, "Test error");
       });
   stream_input->OnAnnounceErrorMessage(error);
   EXPECT_TRUE(correct_message);
@@ -526,6 +532,8 @@ TEST_F(MoqtSessionTest, ReplyToAnnounce) {
       /*track_namespace=*/"foo",
   };
   bool correct_message = false;
+  EXPECT_CALL(session_callbacks_.incoming_announce_callback, Call("foo"))
+      .WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {

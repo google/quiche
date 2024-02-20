@@ -31,6 +31,7 @@ namespace {
 using ::quic::simulator::Simulator;
 using ::testing::_;
 using ::testing::Assign;
+using ::testing::Return;
 
 class ClientEndpoint : public quic::simulator::QuicEndpointWithConnection {
  public:
@@ -62,6 +63,7 @@ class ClientEndpoint : public quic::simulator::QuicEndpointWithConnection {
   testing::MockFunction<void(absl::string_view)>& terminated_callback() {
     return callbacks_.session_terminated_callback;
   }
+  MockSessionCallbacks& callbacks() { return callbacks_; }
 
  private:
   MockSessionCallbacks callbacks_;
@@ -104,6 +106,7 @@ class ServerEndpoint : public quic::simulator::QuicEndpointWithConnection {
   testing::MockFunction<void(absl::string_view)>& terminated_callback() {
     return callbacks_.session_terminated_callback;
   }
+  MockSessionCallbacks& callbacks() { return callbacks_; }
 
  private:
   MockSessionCallbacks callbacks_;
@@ -189,19 +192,44 @@ TEST_F(MoqtIntegrationTest, VersionMismatch) {
   EXPECT_TRUE(success);
 }
 
-TEST_F(MoqtIntegrationTest, AnnounceExchange) {
+TEST_F(MoqtIntegrationTest, AnnounceSuccess) {
   EstablishSession();
-  testing::MockFunction<void(absl::string_view track_namespace,
-                             std::optional<absl::string_view> error_message)>
+  EXPECT_CALL(server_->callbacks().incoming_announce_callback, Call("foo"))
+      .WillOnce(Return(std::nullopt));
+  testing::MockFunction<void(
+      absl::string_view track_namespace,
+      std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
   client_->session()->Announce("foo", announce_callback.AsStdFunction());
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
       .WillOnce([&](absl::string_view track_namespace,
-                    std::optional<absl::string_view> error_message) {
+                    std::optional<MoqtAnnounceErrorReason> error) {
         matches = true;
         EXPECT_EQ(track_namespace, "foo");
-        EXPECT_FALSE(error_message.has_value());
+        EXPECT_FALSE(error.has_value());
+      });
+  bool success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
+  EXPECT_TRUE(success);
+}
+
+TEST_F(MoqtIntegrationTest, AnnounceFailure) {
+  EstablishSession();
+  testing::MockFunction<void(
+      absl::string_view track_namespace,
+      std::optional<MoqtAnnounceErrorReason> error_message)>
+      announce_callback;
+  client_->session()->Announce("foo", announce_callback.AsStdFunction());
+  bool matches = false;
+  EXPECT_CALL(announce_callback, Call(_, _))
+      .WillOnce([&](absl::string_view track_namespace,
+                    std::optional<MoqtAnnounceErrorReason> error) {
+        matches = true;
+        EXPECT_EQ(track_namespace, "foo");
+        ASSERT_TRUE(error.has_value());
+        EXPECT_EQ(error->error_code,
+                  MoqtAnnounceErrorCode::kAnnounceNotSupported);
       });
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });

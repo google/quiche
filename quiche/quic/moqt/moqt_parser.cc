@@ -518,9 +518,11 @@ size_t MoqtParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
   if (!reader.ReadStringPieceVarInt62(&announce_error.track_namespace)) {
     return 0;
   }
-  if (!reader.ReadVarInt62(&announce_error.error_code)) {
+  uint64_t error_code;
+  if (!reader.ReadVarInt62(&error_code)) {
     return 0;
   }
+  announce_error.error_code = static_cast<MoqtAnnounceErrorCode>(error_code);
   if (!reader.ReadStringPieceVarInt62(&announce_error.reason_phrase)) {
     return 0;
   }

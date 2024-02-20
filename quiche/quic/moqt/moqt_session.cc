@@ -133,10 +133,13 @@ void MoqtSession::AddLocalTrack(const FullTrackName& full_track_name,
 // TODO: Create state that allows ANNOUNCE_OK/ERROR on spurious namespaces to
 // trigger session errors.
 void MoqtSession::Announce(absl::string_view track_namespace,
-                           MoqtAnnounceCallback announce_callback) {
+                           MoqtOutgoingAnnounceCallback announce_callback) {
   if (pending_outgoing_announces_.contains(track_namespace)) {
     std::move(announce_callback)(
-        track_namespace, "ANNOUNCE message already outstanding for namespace");
+        track_namespace,
+        MoqtAnnounceErrorReason{
+            MoqtAnnounceErrorCode::kInternalError,
+            "ANNOUNCE message already outstanding for namespace"});
     return;
   }
   MoqtAnnounce message;
@@ -648,6 +651,16 @@ void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {
   if (!CheckIfIsControlStream()) {
     return;
   }
+  std::optional<MoqtAnnounceErrorReason> error =
+      session_->incoming_announce_callback_(message.track_namespace);
+  if (error.has_value()) {
+    MoqtAnnounceError reply;
+    reply.track_namespace = message.track_namespace;
+    reply.error_code = error->error_code;
+    reply.reason_phrase = error->reason_phrase;
+    SendOrBufferMessage(session_->framer_.SerializeAnnounceError(reply));
+    return;
+  }
   MoqtAnnounceOk ok;
   ok.track_namespace = message.track_namespace;
   SendOrBufferMessage(session_->framer_.SerializeAnnounceOk(ok));
@@ -678,7 +691,10 @@ void MoqtSession::Stream::OnAnnounceErrorMessage(
                     "Received ANNOUNCE_ERROR for nonexistent announce");
     return;
   }
-  std::move(it->second)(message.track_namespace, message.reason_phrase);
+  std::move(it->second)(
+      message.track_namespace,
+      MoqtAnnounceErrorReason{message.error_code,
+                              std::string(message.reason_phrase)});
   session_->pending_outgoing_announces_.erase(it);
 }
 

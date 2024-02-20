@@ -21,11 +21,20 @@ struct MockSessionCallbacks {
   testing::MockFunction<void()> session_established_callback;
   testing::MockFunction<void(absl::string_view)> session_terminated_callback;
   testing::MockFunction<void()> session_deleted_callback;
+  testing::MockFunction<std::optional<MoqtAnnounceErrorReason>(
+      absl::string_view)>
+      incoming_announce_callback;
+
+  MockSessionCallbacks() {
+    ON_CALL(incoming_announce_callback, Call(testing::_))
+        .WillByDefault(DefaultIncomingAnnounceCallback);
+  }
 
   MoqtSessionCallbacks AsSessionCallbacks() {
     return MoqtSessionCallbacks{session_established_callback.AsStdFunction(),
                                 session_terminated_callback.AsStdFunction(),
-                                session_deleted_callback.AsStdFunction()};
+                                session_deleted_callback.AsStdFunction(),
+                                incoming_announce_callback.AsStdFunction()};
   }
 };
 

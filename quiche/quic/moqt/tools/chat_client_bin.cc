@@ -176,11 +176,11 @@ class ChatClient {
     // By not sending a visitor, the application will not fulfill subscriptions
     // to previous objects.
     session_->AddLocalTrack(my_track_name_, nullptr);
-    moqt::MoqtAnnounceCallback announce_callback =
+    moqt::MoqtOutgoingAnnounceCallback announce_callback =
         [&](absl::string_view track_namespace,
-            std::optional<absl::string_view> message) {
-          if (message.has_value()) {
-            std::cout << "ANNOUNCE rejected, " << *message << "\n";
+            std::optional<moqt::MoqtAnnounceErrorReason> reason) {
+          if (reason.has_value()) {
+            std::cout << "ANNOUNCE rejected, " << reason->reason_phrase << "\n";
             session_->Error(moqt::MoqtError::kGenericError,
                             "Local ANNOUNCE rejected");
             return;
