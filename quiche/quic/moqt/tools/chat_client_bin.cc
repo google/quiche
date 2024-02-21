@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/functional/bind_front.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
@@ -31,6 +32,7 @@
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
+#include "quiche/quic/tools/interactive_cli.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
@@ -65,6 +67,7 @@ class ChatClient {
     if (!output_filename_.empty()) {
       output_file_.open(output_filename_);
       output_file_ << "Chat transcript:\n";
+      output_file_.flush();
     }
     if (ignore_certificate) {
       verifier = std::make_unique<quic::FakeProofVerifier>();
@@ -76,6 +79,12 @@ class ChatClient {
     session_callbacks_.session_established_callback = [this]() {
       std::cout << "Session established\n";
       session_is_open_ = true;
+      if (output_filename_.empty()) {  // Use the CLI.
+        cli_ = std::make_unique<quic::InteractiveCli>(
+            event_loop_.get(),
+            absl::bind_front(&ChatClient::OnTerminalLineInput, this));
+        cli_->PrintLine("Fully connected. Enter '/exit' to exit the chat.\n");
+      }
     };
     session_callbacks_.session_terminated_callback =
         [this](absl::string_view error_message) {
@@ -88,6 +97,20 @@ class ChatClient {
     client_->Connect(path, std::move(session_callbacks_));
   }
 
+  void OnTerminalLineInput(absl::string_view input_message) {
+    if (input_message.empty()) {
+      return;
+    }
+    if (input_message == "/exit") {
+      session_is_open_ = false;
+      return;
+    }
+    session_->PublishObject(my_track_name_, next_sequence_.group++,
+                            next_sequence_.object, /*object_send_order=*/0,
+                            moqt::MoqtForwardingPreference::kObject,
+                            input_message, true);
+  }
+
   bool session_is_open() const { return session_is_open_; }
   bool is_syncing() const {
     return !catalog_group_.has_value() || subscribes_to_make_ > 0 ||
@@ -97,12 +120,6 @@ class ChatClient {
   void RunEventLoop() {
     event_loop_->RunEventLoopOnce(quic::QuicTime::Delta::FromMilliseconds(500));
   }
-
-  const moqt::FullTrackName& my_track_name() { return my_track_name_; }
-
-  moqt::MoqtSession* session() { return session_; }
-
-  moqt::FullSequence& next_sequence() { return next_sequence_; }
 
   bool has_output_file() { return !output_filename_.empty(); }
 
@@ -148,7 +165,6 @@ class ChatClient {
         client_->ProcessCatalog(object, this, group_sequence, object_sequence);
         return;
       }
-      // TODO: Message is from another chat participant
       std::string username = full_track_name.track_namespace;
       username = username.substr(username.find_last_of('/') + 1);
       if (!client_->other_users_.contains(username)) {
@@ -159,11 +175,17 @@ class ChatClient {
         client_->WriteToFile(username, object);
         return;
       }
-      std::cout << username << ": " << object << "\n";
+      if (cli_ != nullptr) {
+        std::string full_output = absl::StrCat(username, ": ", object);
+        cli_->PrintLine(full_output);
+      }
     }
+
+    void set_cli(quic::InteractiveCli* cli) { cli_ = cli; }
 
    private:
     ChatClient* client_;
+    quic::InteractiveCli* cli_;
   };
 
   // returns false on error
@@ -326,8 +348,13 @@ class ChatClient {
   // Handling incoming and outgoing messages
   moqt::FullSequence next_sequence_ = {0, 0};
 
+  // Used when chat output goes to file.
   std::ofstream output_file_;
   std::string output_filename_;
+
+  // Used when there is no output file, and both input and output are in the
+  // terminal.
+  std::unique_ptr<quic::InteractiveCli> cli_;
 };
 
 // A client for MoQT over chat, used for interop testing. See
@@ -357,47 +384,31 @@ int main(int argc, char* argv[]) {
   while (client.is_syncing()) {
     client.RunEventLoop();
   }
-  if (client.session_is_open()) {
-    if (client.has_output_file()) {
-      std::cout << "Fully connected. Messages are in the output file. Exit the "
-                << "session by entering :exit\n";
-    } else {
-      std::cout << "Fully connected. Press ENTER to begin input of message, "
-                << "ENTER when done. Exit session if the message is ':exit'\n";
-    }
+  if (!client.session_is_open()) {
+    return 1;  // Something went wrong in connecting.
   }
-  bool session_is_open = client.session_is_open();
+  if (!client.has_output_file()) {
+    while (client.session_is_open()) {
+      client.RunEventLoop();
+    }
+    return 0;
+  }
+  // There is an output file.
+  std::cout << "Fully connected. Messages are in the output file. Exit the "
+            << "session by entering /exit\n";
   struct pollfd poll_settings = {
       0,
       POLLIN,
       POLLIN,
   };
-  while (session_is_open) {
+  while (client.session_is_open()) {
     std::string message_to_send;
     while (poll(&poll_settings, 1, 0) <= 0) {
       client.RunEventLoop();
     }
-    if (!client.has_output_file()) {
-      std::cin.ignore(10, '\n');
-      std::cout << username << ": ";
-    }
     std::getline(std::cin, message_to_send);
-    if (message_to_send.empty()) {
-      continue;
-    }
-    if (message_to_send == ":exit") {
-      std::cout << "Exiting the app.\n";
-      // TODO: Close the session.
-      session_is_open = false;
-      break;
-    }
-    if (client.has_output_file()) {
-      client.WriteToFile(username, message_to_send);
-    }
-    client.session()->PublishObject(
-        client.my_track_name(), client.next_sequence().group++,
-        client.next_sequence().object, /*object_send_order=*/0,
-        moqt::MoqtForwardingPreference::kObject, message_to_send, true);
+    client.OnTerminalLineInput(message_to_send);
+    client.WriteToFile(username, message_to_send);
   }
   return 0;
 }
