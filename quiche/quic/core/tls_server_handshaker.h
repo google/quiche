@@ -141,8 +141,12 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
     return &tls_connection_;
   }
 
-  virtual void ProcessAdditionalTransportParameters(
-      const TransportParameters& /*params*/) {}
+  // Returns true if the handshake should continue. If false is returned, the
+  // caller should fail the handshake.
+  virtual bool ProcessAdditionalTransportParameters(
+      const TransportParameters& /*params*/) {
+    return true;
+  }
 
   // Called when a potentially async operation is done and the done callback
   // needs to advance the handshake.

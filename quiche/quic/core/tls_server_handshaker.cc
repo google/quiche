@@ -531,7 +531,10 @@ bool TlsServerHandshaker::ProcessTransportParameters(
     return false;
   }
 
-  ProcessAdditionalTransportParameters(client_params);
+  if (!ProcessAdditionalTransportParameters(client_params)) {
+    *error_details = "Failed to process additional transport parameters";
+    return false;
+  }
 
   return true;
 }
