@@ -41,7 +41,7 @@ InteractiveCli::InteractiveCli(QuicEventLoop* event_loop,
     QUICHE_LOG(FATAL) << "Both stdin and stdout must be a TTY";
   }
 
-  bool success =
+  [[maybe_unused]] bool success =
       event_loop_->RegisterSocket(STDIN_FILENO, kSocketEventReadable, this);
   QUICHE_LOG_IF(FATAL, !success)
       << "Failed to register stdin with the event loop";
@@ -66,7 +66,7 @@ InteractiveCli::~InteractiveCli() {
     tcsetattr(STDIN_FILENO, TCSANOW,
               reinterpret_cast<termios*>(old_termios_.get()));
   }
-  bool success = event_loop_->UnregisterSocket(STDIN_FILENO);
+  [[maybe_unused]] bool success = event_loop_->UnregisterSocket(STDIN_FILENO);
   QUICHE_LOG_IF(ERROR, !success) << "Failed to unregister stdin";
 }
 
