@@ -12,6 +12,9 @@
 #define EXPECT_QUICHE_DEBUG_DEATH_IMPL(condition, message) \
   EXPECT_DEBUG_DEATH(condition, message)
 
+#define EXPECT_QUICHE_DEATH_IMPL(condition, message) \
+  EXPECT_DEATH(condition, message)
+
 #define QUICHE_TEST_DISABLED_IN_CHROME_IMPL(name) name
 #define QUICHE_SLOW_TEST_IMPL(test) test
 

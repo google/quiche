@@ -36,9 +36,9 @@ TEST(HpackExampleToStringOrDie, GoodInput) {
 
 #ifdef GTEST_HAS_DEATH_TEST
 TEST(HpackExampleToStringOrDie, InvalidInput) {
-  EXPECT_DEATH(HpackExampleToStringOrDie("4"), "Truncated");
-  EXPECT_DEATH(HpackExampleToStringOrDie("4x"), "half");
-  EXPECT_DEATH(HpackExampleToStringOrDie(""), "empty");
+  EXPECT_QUICHE_DEATH(HpackExampleToStringOrDie("4"), "Truncated");
+  EXPECT_QUICHE_DEATH(HpackExampleToStringOrDie("4x"), "half");
+  EXPECT_QUICHE_DEATH(HpackExampleToStringOrDie(""), "empty");
 }
 #endif
 

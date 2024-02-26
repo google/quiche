@@ -36,6 +36,9 @@ inline std::string QuicheGetCommonSourcePath() {
 #define EXPECT_QUICHE_DEBUG_DEATH(condition, message) \
   EXPECT_QUICHE_DEBUG_DEATH_IMPL(condition, message)
 
+#define EXPECT_QUICHE_DEATH(condition, message) \
+  EXPECT_QUICHE_DEATH_IMPL(condition, message)
+
 #define QUICHE_TEST_DISABLED_IN_CHROME(name) \
   QUICHE_TEST_DISABLED_IN_CHROME_IMPL(name)
 
