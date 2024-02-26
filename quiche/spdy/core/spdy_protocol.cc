@@ -15,6 +15,8 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
@@ -473,9 +475,16 @@ size_t SpdyHeadersIR::size() const {
     size += 5;
   }
 
+  // TODO(b/322146543): Remove `hpack_overhead` with deprecation of
+  // --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes.
+  size_t hpack_overhead = kPerHeaderHpackOverheadOld;
+  if (GetQuicheReloadableFlag(http2, http2_add_hpack_overhead_bytes)) {
+    QUICHE_RELOADABLE_FLAG_COUNT(http2_add_hpack_overhead_bytes);
+    hpack_overhead = kPerHeaderHpackOverheadNew;
+  }
   // Assume no hpack encoding is applied.
-  size += header_block().TotalBytesUsed() +
-          header_block().size() * kPerHeaderHpackOverhead;
+  size +=
+      header_block().TotalBytesUsed() + header_block().size() * hpack_overhead;
   if (size > kHttp2MaxControlFrameSendSize) {
     size += GetNumberRequiredContinuationFrames(size) *
             kContinuationFrameMinimumSize;

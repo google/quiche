@@ -331,10 +331,21 @@ inline constexpr int32_t kInitialStreamWindowSize = 64 * 1024 - 1;
 inline constexpr int32_t kInitialSessionWindowSize = 64 * 1024 - 1;
 // The NPN string for HTTP2, "h2".
 QUICHE_EXPORT extern const char* const kHttp2Npn;
+// An estimate of the HPACK overhead for each header field in bytes, intended to
+// be no smaller than actual overhead, based on the literal header field
+// representation in RFC 7541 Section 6.2 (with or without indexing):
+//   - 1 byte for the opcode.
+//   - 2 bytes for the name length (assuming new name).
+//   - 3 bytes for the value length.
+// TODO(b/322146543): Remove the `New` suffix with deprecation of
+// --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes.
+inline constexpr size_t kPerHeaderHpackOverheadNew = 6;
 // An estimate size of the HPACK overhead for each header field. 1 bytes for
 // indexed literal, 1 bytes for key literal and length encoding, and 2 bytes for
 // value literal and length encoding.
-inline constexpr size_t kPerHeaderHpackOverhead = 4;
+// TODO(b/322146543): Remove with deprecation of
+// --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes.
+inline constexpr size_t kPerHeaderHpackOverheadOld = 4;
 
 // Names of pseudo-headers defined for HTTP/2 requests.
 QUICHE_EXPORT extern const char* const kHttp2AuthorityHeader;
