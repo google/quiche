@@ -186,8 +186,7 @@ class StructuredHeaderParser {
         member = ReadItemOrInnerList();
         if (!member) return std::nullopt;
       } else {
-        std::optional<Parameters> parameters;
-        parameters = ReadParameters();
+        std::optional<Parameters> parameters = ReadParameters();
         if (!parameters) return std::nullopt;
         member = ParameterizedMember{Item(true), std::move(*parameters)};
       }
@@ -238,7 +237,7 @@ class StructuredHeaderParser {
         if (!item) return std::nullopt;
         value = std::move(*item);
       }
-      if (!parameters.emplace(*name, value).second) {
+      if (!parameters.emplace(*name, std::move(value)).second) {
         QUICHE_DVLOG(1) << "ReadParameterisedIdentifier: duplicated parameter: "
                         << *name;
         return std::nullopt;
@@ -252,7 +251,6 @@ class StructuredHeaderParser {
   // Parses an Item or Inner List ([RFC8941] 4.2.1.1).
   std::optional<ParameterizedMember> ReadItemOrInnerList() {
     QUICHE_CHECK_EQ(version_, kFinal);
-    std::vector<Item> member;
     bool member_is_inner_list = (!input_.empty() && input_.front() == '(');
     if (member_is_inner_list) {
       return ReadInnerList();
@@ -304,8 +302,7 @@ class StructuredHeaderParser {
     while (true) {
       SkipWhitespaces();
       if (ConsumeChar(')')) {
-        std::optional<Parameters> parameters;
-        parameters = ReadParameters();
+        std::optional<Parameters> parameters = ReadParameters();
         if (!parameters) return std::nullopt;
         return ParameterizedMember(std::move(inner_list), true,
                                    std::move(*parameters));
