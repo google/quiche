@@ -922,14 +922,6 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
     // Suppress the write before encryption gets established.
     return false;
   }
-  if (GetQuicRestartFlag(quic_allow_control_frames_while_procesing)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_allow_control_frames_while_procesing, 1, 3);
-  } else {
-    if (connection_->framer().is_processing_packet()) {
-      // The frame will be sent when OnCanWrite() is called.
-      return false;
-    }
-  }
   SetTransmissionType(type);
   QuicConnection::ScopedEncryptionLevelContext context(
       connection(), GetEncryptionLevelToSendApplicationData());

@@ -389,12 +389,6 @@ TEST_P(QuicPacketCreatorTest, SerializeLargerPacketWithPadding) {
 }
 
 TEST_P(QuicPacketCreatorTest, IncreaseMaxPacketLengthWithFramesPending) {
-  if (!GetQuicRestartFlag(quic_allow_control_frames_while_procesing)) {
-    // When this flag is not set, the call to SetMaxPacketLength()
-    // is an error which triggers a QUICHE_DCHECK.
-    return;
-  }
-
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
   const QuicByteCount packet_size = 100 + kDefaultMaxPacketSize;
 
