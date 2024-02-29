@@ -147,6 +147,19 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
       WebTransportSessionId /*session_id*/) override {
     QUICHE_NOTREACHED();
   }
+  bool OnMetadataFrameStart(QuicByteCount /*header_length*/,
+                            QuicByteCount /*payload_length*/) override {
+    error_detail_ = "METADATA frame forbidden";
+    return false;
+  }
+  bool OnMetadataFramePayload(absl::string_view /*payload*/) override {
+    QUICHE_NOTREACHED();
+    return false;
+  }
+  bool OnMetadataFrameEnd() override {
+    QUICHE_NOTREACHED();
+    return false;
+  }
   bool OnUnknownFrameStart(uint64_t /*frame_type*/,
                            QuicByteCount
                            /*header_length*/,

@@ -144,6 +144,32 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     stream_->OnWebTransportStreamFrameType(header_length, session_id);
   }
 
+  bool OnMetadataFrameStart(QuicByteCount header_length,
+                            QuicByteCount payload_length) override {
+    if (!VersionUsesHttp3(stream_->transport_version())) {
+      CloseConnectionOnWrongFrame("Metadata");
+      return false;
+    }
+    return stream_->OnMetadataFrameStart(header_length, payload_length);
+  }
+
+  bool OnMetadataFramePayload(absl::string_view payload) override {
+    QUICHE_DCHECK(!payload.empty());
+    if (!VersionUsesHttp3(stream_->transport_version())) {
+      CloseConnectionOnWrongFrame("Metadata");
+      return false;
+    }
+    return stream_->OnMetadataFramePayload(payload);
+  }
+
+  bool OnMetadataFrameEnd() override {
+    if (!VersionUsesHttp3(stream_->transport_version())) {
+      CloseConnectionOnWrongFrame("Metadata");
+      return false;
+    }
+    return stream_->OnMetadataFrameEnd();
+  }
+
   bool OnUnknownFrameStart(uint64_t frame_type, QuicByteCount header_length,
                            QuicByteCount payload_length) override {
     return stream_->OnUnknownFrameStart(frame_type, header_length,
@@ -697,6 +723,16 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
   }
 }
 
+void QuicSpdyStream::RegisterMetadataVisitor(MetadataVisitor* visitor) {
+  QUIC_BUG_IF(Metadata visitor requires http3 metadata flag,
+              !GetQuicReloadableFlag(quic_enable_http3_metadata_decoding));
+  metadata_visitor_ = visitor;
+}
+
+void QuicSpdyStream::UnregisterMetadataVisitor() {
+  metadata_visitor_ = nullptr;
+}
+
 void QuicSpdyStream::OnPriorityFrame(
     const spdy::SpdyStreamPrecedence& precedence) {
   QUICHE_DCHECK_EQ(Perspective::IS_SERVER,
@@ -1162,6 +1198,102 @@ void QuicSpdyStream::OnWebTransportStreamFrameType(
       std::make_unique<WebTransportDataStream>(this, session_id);
   spdy_session_->AssociateIncomingWebTransportStreamWithSession(session_id,
                                                                 id());
+}
+
+bool QuicSpdyStream::OnMetadataFrameStart(QuicByteCount header_length,
+                                          QuicByteCount payload_length) {
+  if (metadata_visitor_ == nullptr) {
+    return OnUnknownFrameStart(
+        static_cast<uint64_t>(quic::HttpFrameType::METADATA), header_length,
+        payload_length);
+  }
+  QUIC_BUG_IF(Invalid METADATA state, received_metadata_payload_ != nullptr)
+      << "Invalid metadata state";
+  received_metadata_payload_ =
+      std::make_unique<ReceivedMetadataPayload>(payload_length);
+  received_metadata_payload_->frame_len = header_length + payload_length;
+
+  // Consume the frame header.
+  QUIC_DVLOG(1) << ENDPOINT << "Consuming " << header_length
+                << " byte long frame header of METADATA.";
+  sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
+  return true;
+}
+
+bool QuicSpdyStream::OnMetadataFramePayload(absl::string_view payload) {
+  if (metadata_visitor_ == nullptr) {
+    return OnUnknownFramePayload(payload);
+  }
+  received_metadata_payload_->buffer.push_back(std::string(payload));
+  received_metadata_payload_->bytes_remaining -= payload.size();
+
+  // Consume the frame payload.
+  QUIC_DVLOG(1) << ENDPOINT << "Consuming " << payload.size()
+                << " bytes of payload of METADATA.";
+  sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
+  return true;
+}
+namespace {
+class MetadataHeadersDecoder : public QpackDecodedHeadersAccumulator::Visitor {
+ public:
+  void OnHeadersDecoded(QuicHeaderList headers,
+                        bool header_list_size_limit_exceeded) override {
+    header_list_size_limit_exceeded_ = header_list_size_limit_exceeded;
+    headers_ = std::move(headers);
+  }
+
+  void OnHeaderDecodingError(QuicErrorCode error_code,
+                             absl::string_view error_message) override {
+    error_code_ = error_code;
+    error_message_ = absl::StrCat("Error decoding metadata: ", error_message);
+  }
+
+  QuicErrorCode error_code() { return error_code_; }
+  std::string error_message() { return error_message_; }
+  QuicHeaderList& headers() { return headers_; }
+  bool header_list_size_limit_exceeded() {
+    return header_list_size_limit_exceeded_;
+  }
+
+ private:
+  QuicErrorCode error_code_ = QUIC_NO_ERROR;
+  QuicHeaderList headers_;
+  std::string error_message_;
+  bool header_list_size_limit_exceeded_ = false;
+};
+}  // namespace
+
+bool QuicSpdyStream::OnMetadataFrameEnd() {
+  if (metadata_visitor_ == nullptr) {
+    return OnUnknownFrameEnd();
+  }
+  QUIC_BUG_IF(METADATA bytes remaining,
+              received_metadata_payload_->bytes_remaining != 0)
+      << "More metadata remaining: "
+      << received_metadata_payload_->bytes_remaining;
+
+  quic::NoopEncoderStreamErrorDelegate delegate;
+  quic::QpackDecoder qpack_decoder(/*maximum_dynamic_table_capacity=*/0,
+                                   /*maximum_blocked_streams=*/0, &delegate);
+
+  constexpr size_t kMaxMetadataBlockSize = 1 << 20;  // 1 MB
+  MetadataHeadersDecoder decoder;
+  quic::QpackDecodedHeadersAccumulator accumulator(
+      id(), &qpack_decoder, &decoder, kMaxMetadataBlockSize);
+  for (const std::string& slice : received_metadata_payload_->buffer) {
+    accumulator.Decode(slice);
+    if (decoder.error_code() != QUIC_NO_ERROR) {
+      OnUnrecoverableError(QUIC_DECOMPRESSION_FAILURE, decoder.error_message());
+      return false;
+    }
+  }
+
+  accumulator.EndHeaderBlock();
+
+  metadata_visitor_->OnMetadataComplete(received_metadata_payload_->frame_len,
+                                        decoder.headers());
+  received_metadata_payload_.reset();
+  return true;
 }
 
 bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,

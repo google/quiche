@@ -71,6 +71,43 @@ class QUICHE_EXPORT QuicSpdyStream
     virtual ~Visitor() {}
   };
 
+  // Class which receives HTTP/3 METADATA.
+  class QUICHE_EXPORT MetadataVisitor {
+   public:
+    virtual ~MetadataVisitor() = default;
+
+    // Called when HTTP/3 METADATA has been received and parsed.
+    virtual void OnMetadataComplete(size_t frame_len,
+                                    const QuicHeaderList& header_list) = 0;
+  };
+
+  class QUICHE_EXPORT Http3DatagramVisitor {
+   public:
+    virtual ~Http3DatagramVisitor() {}
+
+    // Called when an HTTP/3 datagram is received. |payload| does not contain
+    // the stream ID.
+    virtual void OnHttp3Datagram(QuicStreamId stream_id,
+                                 absl::string_view payload) = 0;
+
+    // Called when a Capsule with an unknown type is received.
+    virtual void OnUnknownCapsule(QuicStreamId stream_id,
+                                  const quiche::UnknownCapsule& capsule) = 0;
+  };
+
+  class QUICHE_EXPORT ConnectIpVisitor {
+   public:
+    virtual ~ConnectIpVisitor() {}
+
+    virtual bool OnAddressAssignCapsule(
+        const quiche::AddressAssignCapsule& capsule) = 0;
+    virtual bool OnAddressRequestCapsule(
+        const quiche::AddressRequestCapsule& capsule) = 0;
+    virtual bool OnRouteAdvertisementCapsule(
+        const quiche::RouteAdvertisementCapsule& capsule) = 0;
+    virtual void OnHeadersWritten() = 0;
+  };
+
   QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session,
                  StreamType type);
   QuicSpdyStream(PendingStream* pending, QuicSpdySession* spdy_session);
@@ -257,20 +294,6 @@ class QUICHE_EXPORT QuicSpdyStream
   // to allow mocking in tests.
   virtual MessageStatus SendHttp3Datagram(absl::string_view payload);
 
-  class QUICHE_EXPORT Http3DatagramVisitor {
-   public:
-    virtual ~Http3DatagramVisitor() {}
-
-    // Called when an HTTP/3 datagram is received. |payload| does not contain
-    // the stream ID.
-    virtual void OnHttp3Datagram(QuicStreamId stream_id,
-                                 absl::string_view payload) = 0;
-
-    // Called when a Capsule with an unknown type is received.
-    virtual void OnUnknownCapsule(QuicStreamId stream_id,
-                                  const quiche::UnknownCapsule& capsule) = 0;
-  };
-
   // Registers |visitor| to receive HTTP/3 datagrams and enables Capsule
   // Protocol by registering a CapsuleParser. |visitor| must be valid until a
   // corresponding call to UnregisterHttp3DatagramVisitor.
@@ -283,19 +306,6 @@ class QUICHE_EXPORT QuicSpdyStream
   // Replaces the current HTTP/3 datagram visitor with a different visitor.
   // Mainly meant to be used by the visitors' move operators.
   void ReplaceHttp3DatagramVisitor(Http3DatagramVisitor* visitor);
-
-  class QUICHE_EXPORT ConnectIpVisitor {
-   public:
-    virtual ~ConnectIpVisitor() {}
-
-    virtual bool OnAddressAssignCapsule(
-        const quiche::AddressAssignCapsule& capsule) = 0;
-    virtual bool OnAddressRequestCapsule(
-        const quiche::AddressRequestCapsule& capsule) = 0;
-    virtual bool OnRouteAdvertisementCapsule(
-        const quiche::RouteAdvertisementCapsule& capsule) = 0;
-    virtual void OnHeadersWritten() = 0;
-  };
 
   // Registers |visitor| to receive CONNECT-IP capsules. |visitor| must be
   // valid until a corresponding call to UnregisterConnectIpVisitor.
@@ -324,6 +334,11 @@ class QUICHE_EXPORT QuicSpdyStream
   const std::string& invalid_request_details() const {
     return invalid_request_details_;
   }
+
+  // Registers |visitor| to receive HTTP/3 METADATA. |visitor| must be valid
+  // until a corresponding call to UnregisterRegisterMetadataVisitor.
+  void RegisterMetadataVisitor(MetadataVisitor* visitor);
+  void UnregisterMetadataVisitor();
 
  protected:
   // Called when the received headers are too large. By default this will
@@ -397,6 +412,10 @@ class QUICHE_EXPORT QuicSpdyStream
   bool OnHeadersFrameEnd();
   void OnWebTransportStreamFrameType(QuicByteCount header_length,
                                      WebTransportSessionId session_id);
+  bool OnMetadataFrameStart(QuicByteCount header_length,
+                            QuicByteCount payload_length);
+  bool OnMetadataFramePayload(absl::string_view payload);
+  bool OnMetadataFrameEnd();
   bool OnUnknownFrameStart(uint64_t frame_type, QuicByteCount header_length,
                            QuicByteCount payload_length);
   bool OnUnknownFramePayload(absl::string_view payload);
@@ -500,6 +519,19 @@ class QUICHE_EXPORT QuicSpdyStream
   Http3DatagramVisitor* datagram_visitor_ = nullptr;
   // CONNECT-IP support.
   ConnectIpVisitor* connect_ip_visitor_ = nullptr;
+
+  // Present if HTTP/3 METADATA frames should be parsed.
+  MetadataVisitor* metadata_visitor_ = nullptr;
+  struct ReceivedMetadataPayload {
+    explicit ReceivedMetadataPayload(size_t remaining)
+        : bytes_remaining(remaining) {}
+
+    std::list<std::string> buffer;
+    size_t frame_len = 0;
+    size_t bytes_remaining = 0;
+  };
+  // Present if an HTTP/3 METADATA is currently being parsed.
+  std::unique_ptr<ReceivedMetadataPayload> received_metadata_payload_;
 
   // Empty if the headers are valid.
   std::string invalid_request_details_;

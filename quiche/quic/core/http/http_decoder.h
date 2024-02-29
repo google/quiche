@@ -97,6 +97,20 @@ class QUICHE_EXPORT HttpDecoder {
     virtual void OnWebTransportStreamFrameType(
         QuicByteCount header_length, WebTransportSessionId session_id) = 0;
 
+    // Called when a METADATA frame has been received.
+    // |header_length| and |payload_length| are the length of the frame header
+    // and payload, respectively.
+    virtual bool OnMetadataFrameStart(QuicByteCount header_length,
+                                      QuicByteCount payload_length) = 0;
+
+    // Called when part of the payload of the METADATA frame has been read.  May
+    // be called multiple times for a single frame.  |payload| is guaranteed to
+    // be non-empty.
+    virtual bool OnMetadataFramePayload(absl::string_view payload) = 0;
+
+    // Called when the METADATA frame has been completely processed.
+    virtual bool OnMetadataFrameEnd() = 0;
+
     // Called when a frame of unknown type |frame_type| has been received.
     // Frame type might be reserved, Visitor must make sure to ignore.
     // |header_length| and |payload_length| are the length of the frame header
@@ -268,6 +282,9 @@ class QUICHE_EXPORT HttpDecoder {
   std::array<char, sizeof(uint64_t)> length_buffer_;
   // Remaining unparsed type field data.
   std::array<char, sizeof(uint64_t)> type_buffer_;
+
+  // Latched value of --quic_enable_http3_metadata_decoding.
+  const bool enable_metadata_decoding_;
 };
 
 }  // namespace quic

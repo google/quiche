@@ -56,6 +56,9 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnPriorityUpdateFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnAcceptChFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnAcceptChFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnMetadataFrameStart(_, _)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnMetadataFramePayload(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnMetadataFrameEnd()).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFrameStart(_, _, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFrameEnd()).WillByDefault(Return(true));
@@ -468,6 +471,58 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
   EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("r")));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("s")));
   EXPECT_CALL(visitor_, OnHeadersFrameEnd());
+  ProcessInputCharByChar(input);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, MetadataFrame) {
+  if (!GetQuicReloadableFlag(quic_enable_http3_metadata_decoding)) {
+    return;
+  }
+  InSequence s;
+  std::string input =
+      absl::StrCat(absl::HexStringToBytes("404d"  // 2 byte type (METADATA)
+                                          "08"),  // length
+                   "Metadata");                   // headers
+
+  // Visitor pauses processing.
+  EXPECT_CALL(visitor_, OnMetadataFrameStart(3, 8)).WillOnce(Return(false));
+  absl::string_view remaining_input(input);
+  QuicByteCount processed_bytes =
+      ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(3u, processed_bytes);
+  remaining_input = remaining_input.substr(processed_bytes);
+
+  EXPECT_CALL(visitor_, OnMetadataFramePayload(absl::string_view("Metadata")))
+      .WillOnce(Return(false));
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(remaining_input.size(), processed_bytes);
+
+  EXPECT_CALL(visitor_, OnMetadataFrameEnd()).WillOnce(Return(false));
+  EXPECT_EQ(0u, ProcessInputWithGarbageAppended(""));
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the full frame.
+  EXPECT_CALL(visitor_, OnMetadataFrameStart(3, 8));
+  EXPECT_CALL(visitor_, OnMetadataFramePayload(absl::string_view("Metadata")));
+  EXPECT_CALL(visitor_, OnMetadataFrameEnd());
+  EXPECT_EQ(input.size(), ProcessInput(input));
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the frame incrementally.
+  EXPECT_CALL(visitor_, OnMetadataFrameStart(3, 8));
+  EXPECT_CALL(visitor_, OnMetadataFramePayload(absl::string_view("M")));
+  EXPECT_CALL(visitor_, OnMetadataFramePayload(absl::string_view("e")));
+  EXPECT_CALL(visitor_, OnMetadataFramePayload(absl::string_view("t")));
+  EXPECT_CALL(visitor_, OnMetadataFramePayload(absl::string_view("a")));
+  EXPECT_CALL(visitor_, OnMetadataFramePayload(absl::string_view("d")));
+  EXPECT_CALL(visitor_, OnMetadataFramePayload(absl::string_view("a")));
+  EXPECT_CALL(visitor_, OnMetadataFramePayload(absl::string_view("t")));
+  EXPECT_CALL(visitor_, OnMetadataFramePayload(absl::string_view("a")));
+  EXPECT_CALL(visitor_, OnMetadataFrameEnd());
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());

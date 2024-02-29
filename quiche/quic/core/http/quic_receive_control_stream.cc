@@ -172,6 +172,22 @@ void QuicReceiveControlStream::OnWebTransportStreamFrameType(
       << "Parsed WEBTRANSPORT_STREAM on a control stream.";
 }
 
+bool QuicReceiveControlStream::OnMetadataFrameStart(
+    QuicByteCount /*header_length*/, QuicByteCount /*payload_length*/) {
+  return ValidateFrameType(HttpFrameType::METADATA);
+}
+
+bool QuicReceiveControlStream::OnMetadataFramePayload(
+    absl::string_view /*payload*/) {
+  // Ignore METADATA frames.
+  return true;
+}
+
+bool QuicReceiveControlStream::OnMetadataFrameEnd() {
+  // Ignore METADATA frames.
+  return true;
+}
+
 bool QuicReceiveControlStream::OnUnknownFrameStart(
     uint64_t frame_type, QuicByteCount /*header_length*/,
     QuicByteCount payload_length) {

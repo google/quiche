@@ -43,7 +43,9 @@ HttpDecoder::HttpDecoder(Visitor* visitor)
       current_type_field_length_(0),
       remaining_type_field_length_(0),
       error_(QUIC_NO_ERROR),
-      error_detail_("") {
+      error_detail_(""),
+      enable_metadata_decoding_(
+          GetQuicReloadableFlag(quic_enable_http3_metadata_decoding)) {
   QUICHE_DCHECK(visitor_);
 }
 
@@ -282,6 +284,14 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       continue_processing = visitor_->OnAcceptChFrameStart(header_length);
       break;
     default:
+      if (enable_metadata_decoding_ &&
+          current_frame_type_ ==
+              static_cast<uint64_t>(HttpFrameType::METADATA)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_http3_metadata_decoding, 1, 3);
+        continue_processing = visitor_->OnMetadataFrameStart(
+            header_length, current_frame_length_);
+        break;
+      }
       continue_processing = visitor_->OnUnknownFrameStart(
           current_frame_type_, header_length, current_frame_length_);
       break;
@@ -376,6 +386,20 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     default: {
+      if (enable_metadata_decoding_ &&
+          current_frame_type_ ==
+              static_cast<uint64_t>(HttpFrameType::METADATA)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_http3_metadata_decoding, 2, 3);
+        QuicByteCount bytes_to_read = std::min<QuicByteCount>(
+            remaining_frame_length_, reader->BytesRemaining());
+        absl::string_view payload;
+        bool success = reader->ReadStringPiece(&payload, bytes_to_read);
+        QUICHE_DCHECK(success);
+        QUICHE_DCHECK(!payload.empty());
+        continue_processing = visitor_->OnMetadataFramePayload(payload);
+        remaining_frame_length_ -= payload.length();
+        break;
+      }
       continue_processing = HandleUnknownFramePayload(reader);
       break;
     }
@@ -432,6 +456,12 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     default:
+      if (enable_metadata_decoding_ &&
+          current_frame_type_ ==
+              static_cast<uint64_t>(HttpFrameType::METADATA)) {
+        continue_processing = visitor_->OnMetadataFrameEnd();
+        break;
+      }
       continue_processing = visitor_->OnUnknownFrameEnd();
   }
 

@@ -2728,6 +2728,81 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, ReceiveUnknownFrame) {
   OnStreamFrame(unknown_frame);
 }
 
+TEST_P(QuicSpdyStreamIncrementalConsumptionTest,
+       ReceiveUnsupportedMetadataFrame) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+
+  quiche::HttpHeaderBlock headers;
+  headers.AppendValueOrAddHeader("key1", "val1");
+  headers.AppendValueOrAddHeader("key2", "val2");
+  quic::NoopDecoderStreamErrorDelegate delegate;
+  QpackEncoder qpack_encoder(&delegate, quic::HuffmanEncoding::kDisabled);
+  std::string metadata_frame_payload = qpack_encoder.EncodeHeaderList(
+      stream_->id(), headers,
+      /* encoder_stream_sent_byte_count = */ nullptr);
+  std::string metadata_frame_header =
+      quic::HttpEncoder::SerializeMetadataFrameHeader(
+          metadata_frame_payload.size());
+  std::string metadata_frame = metadata_frame_header + metadata_frame_payload;
+
+  EXPECT_CALL(debug_visitor,
+              OnUnknownFrameReceived(
+                  stream_->id(), /* frame_type = */ 0x4d,
+                  /* payload_length = */ metadata_frame_payload.length()));
+  OnStreamFrame(metadata_frame);
+}
+
+class MockMetadataVisitor : public QuicSpdyStream::MetadataVisitor {
+ public:
+  ~MockMetadataVisitor() override = default;
+  MOCK_METHOD(void, OnMetadataComplete,
+              (size_t frame_len, const QuicHeaderList& header_list),
+              (override));
+};
+
+TEST_P(QuicSpdyStreamIncrementalConsumptionTest, ReceiveMetadataFrame) {
+  if (!UsesHttp3() ||
+      !GetQuicReloadableFlag(quic_enable_http3_metadata_decoding)) {
+    return;
+  }
+  StrictMock<MockMetadataVisitor> metadata_visitor;
+  Initialize(kShouldProcessData);
+  stream_->RegisterMetadataVisitor(&metadata_visitor);
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+
+  quiche::HttpHeaderBlock headers;
+  headers.AppendValueOrAddHeader("key1", "val1");
+  headers.AppendValueOrAddHeader("key2", "val2");
+  quic::NoopDecoderStreamErrorDelegate delegate;
+  QpackEncoder qpack_encoder(&delegate, quic::HuffmanEncoding::kDisabled);
+  std::string metadata_frame_payload = qpack_encoder.EncodeHeaderList(
+      stream_->id(), headers,
+      /* encoder_stream_sent_byte_count = */ nullptr);
+  std::string metadata_frame_header =
+      quic::HttpEncoder::SerializeMetadataFrameHeader(
+          metadata_frame_payload.size());
+  std::string metadata_frame = metadata_frame_header + metadata_frame_payload;
+
+  EXPECT_CALL(metadata_visitor, OnMetadataComplete(metadata_frame.size(), _))
+      .WillOnce(testing::WithArgs<1>(
+          Invoke([&headers](const QuicHeaderList& header_list) {
+            quiche::HttpHeaderBlock actual_headers;
+            for (const auto& header : header_list) {
+              actual_headers.AppendValueOrAddHeader(header.first,
+                                                    header.second);
+            }
+            EXPECT_EQ(headers, actual_headers);
+          })));
+  OnStreamFrame(metadata_frame);
+}
+
 TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
   if (!UsesHttp3()) {
     return;

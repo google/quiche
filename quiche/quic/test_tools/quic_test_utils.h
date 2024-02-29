@@ -1504,6 +1504,12 @@ class MockHttpDecoderVisitor : public HttpDecoder::Visitor {
               (QuicByteCount header_length, WebTransportSessionId session_id),
               (override));
 
+  MOCK_METHOD(bool, OnMetadataFrameStart,
+              (QuicByteCount header_length, QuicByteCount payload_length),
+              (override));
+  MOCK_METHOD(bool, OnMetadataFramePayload, (absl::string_view payload),
+              (override));
+  MOCK_METHOD(bool, OnMetadataFrameEnd, (), (override));
   MOCK_METHOD(bool, OnUnknownFrameStart,
               (uint64_t frame_type, QuicByteCount header_length,
                QuicByteCount payload_length),

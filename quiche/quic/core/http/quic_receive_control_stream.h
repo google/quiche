@@ -52,6 +52,10 @@ class QUICHE_EXPORT QuicReceiveControlStream : public QuicStream,
   bool OnAcceptChFrame(const AcceptChFrame& frame) override;
   void OnWebTransportStreamFrameType(QuicByteCount header_length,
                                      WebTransportSessionId session_id) override;
+  bool OnMetadataFrameStart(QuicByteCount header_length,
+                            QuicByteCount payload_length) override;
+  bool OnMetadataFramePayload(absl::string_view payload) override;
+  bool OnMetadataFrameEnd() override;
   bool OnUnknownFrameStart(uint64_t frame_type, QuicByteCount header_length,
                            QuicByteCount payload_length) override;
   bool OnUnknownFramePayload(absl::string_view payload) override;
