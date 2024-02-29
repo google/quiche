@@ -46,10 +46,6 @@ class QUICHE_EXPORT PacingSender {
 
   void set_remove_non_initial_burst() { remove_non_initial_burst_ = true; }
 
-  void set_alarm_granularity(QuicTime::Delta alarm_granularity) {
-    alarm_granularity_ = alarm_granularity;
-  }
-
   QuicBandwidth max_pacing_rate() const { return max_pacing_rate_; }
 
   void OnCongestionEvent(bool rtt_updated, QuicByteCount bytes_in_flight,
@@ -100,11 +96,6 @@ class QUICHE_EXPORT PacingSender {
   // Number of unpaced packets to be sent before packets are delayed. This token
   // is consumed after burst_tokens_ ran out.
   uint32_t lumpy_tokens_;
-
-  // If the next send time is within alarm_granularity_, send immediately.
-  // TODO(fayang): Remove alarm_granularity_ when deprecating
-  // quic_offload_pacing_to_usps2 flag.
-  QuicTime::Delta alarm_granularity_;
 
   // Indicates whether pacing throttles the sending. If true, make up for lost
   // time.

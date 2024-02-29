@@ -25,7 +25,6 @@ PacingSender::PacingSender()
       ideal_next_packet_send_time_(QuicTime::Zero()),
       initial_burst_size_(kInitialUnpacedBurst),
       lumpy_tokens_(0),
-      alarm_granularity_(kAlarmGranularity),
       pacing_limited_(false) {}
 
 PacingSender::~PacingSender() {}
@@ -164,7 +163,7 @@ QuicTime::Delta PacingSender::TimeUntilSend(
   }
 
   // If the next send time is within the alarm granularity, send immediately.
-  if (ideal_next_packet_send_time_ > now + alarm_granularity_) {
+  if (ideal_next_packet_send_time_ > now + kAlarmGranularity) {
     QUIC_DVLOG(1) << "Delaying packet: "
                   << (ideal_next_packet_send_time_ - now).ToMicroseconds();
     return ideal_next_packet_send_time_ - now;
