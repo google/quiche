@@ -145,6 +145,11 @@ MasqueServerSession::MasqueServerSession(
 
   masque_server_backend_->RegisterBackendClient(connection_id(), this);
   QUICHE_DCHECK_NE(event_loop_, nullptr);
+
+  // We don't currently use `masque_mode_` but will in the future. To silence
+  // clang's `-Wunused-private-field` warning for this when building QUICHE for
+  // Chrome, add a use of it here.
+  (void)masque_mode_;
 }
 
 void MasqueServerSession::OnMessageAcked(QuicMessageId message_id,

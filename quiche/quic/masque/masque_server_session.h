@@ -214,7 +214,6 @@ class QUIC_NO_EXPORT MasqueServerSession
   std::list<ConnectUdpServerState> connect_udp_server_states_;
   std::list<ConnectIpServerState> connect_ip_server_states_;
   std::list<ConnectEthernetServerState> connect_ethernet_server_states_;
-  bool masque_initialized_ = false;
 };
 
 }  // namespace quic

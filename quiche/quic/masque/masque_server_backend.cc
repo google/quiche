@@ -28,10 +28,10 @@
 
 namespace quic {
 
-MasqueServerBackend::MasqueServerBackend(MasqueMode masque_mode,
+MasqueServerBackend::MasqueServerBackend(MasqueMode /*masque_mode*/,
                                          const std::string& server_authority,
                                          const std::string& cache_directory)
-    : masque_mode_(masque_mode), server_authority_(server_authority) {
+    : server_authority_(server_authority) {
   // Start with client IP 10.1.1.2.
   connect_ip_next_client_ip_[0] = 10;
   connect_ip_next_client_ip_[1] = 1;
@@ -41,6 +41,11 @@ MasqueServerBackend::MasqueServerBackend(MasqueMode masque_mode,
   if (!cache_directory.empty()) {
     QuicMemoryCacheBackend::InitializeBackend(cache_directory);
   }
+
+  // We don't currently use `masque_mode_` but will in the future. To silence
+  // clang's `-Wunused-private-field` warning for this when building QUICHE for
+  // Chrome, add a use of it here.
+  (void)masque_mode_;
 }
 
 bool MasqueServerBackend::MaybeHandleMasqueRequest(
