@@ -266,6 +266,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
 
     void set_stream_id(Http2StreamId stream_id) {
       stream_id_ = stream_id;
+      error_encountered_ = false;
       result_ = Http2VisitorInterface::HEADER_OK;
     }
 
@@ -296,6 +297,8 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     bool CanReceiveBody() const;
 
    private:
+    void SetResult(Http2VisitorInterface::OnHeaderResult result);
+
     OgHttp2Session& session_;
     Http2VisitorInterface& visitor_;
     Http2StreamId stream_id_ = 0;
@@ -305,6 +308,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     std::unique_ptr<HeaderValidatorBase> validator_;
     HeaderType type_ = HeaderType::RESPONSE;
     bool frame_contains_fin_ = false;
+    bool error_encountered_ = false;
   };
 
   struct QUICHE_EXPORT ProcessBytesResultVisitor;

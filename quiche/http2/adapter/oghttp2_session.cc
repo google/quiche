@@ -216,12 +216,13 @@ OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
+  error_encountered_ = false;
   result_ = Http2VisitorInterface::HEADER_OK;
   const bool status = visitor_.OnBeginHeadersForStream(stream_id_);
   if (!status) {
     QUICHE_VLOG(1)
         << "Visitor rejected header block, returning HEADER_CONNECTION_ERROR";
-    result_ = Http2VisitorInterface::HEADER_CONNECTION_ERROR;
+    SetResult(Http2VisitorInterface::HEADER_CONNECTION_ERROR);
   }
   validator_->StartHeaderBlock();
 }
@@ -242,7 +243,7 @@ Http2VisitorInterface::OnHeaderResult InterpretHeaderStatus(
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     absl::string_view key, absl::string_view value) {
-  if (result_ != Http2VisitorInterface::HEADER_OK) {
+  if (error_encountered_) {
     QUICHE_VLOG(2) << "Early return; status not HEADER_OK";
     return;
   }
@@ -254,28 +255,31 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
   if (validation_result != HeaderValidator::HEADER_OK) {
     QUICHE_VLOG(2) << "Header validation failed with result "
                    << static_cast<int>(validation_result);
-    result_ = InterpretHeaderStatus(validation_result);
+    SetResult(InterpretHeaderStatus(validation_result));
     return;
   }
-  result_ = visitor_.OnHeaderForStream(stream_id_, key, value);
+  const Http2VisitorInterface::OnHeaderResult result =
+      visitor_.OnHeaderForStream(stream_id_, key, value);
+  SetResult(result);
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
     size_t /* uncompressed_header_bytes */,
     size_t /* compressed_header_bytes */) {
-  if (result_ == Http2VisitorInterface::HEADER_OK) {
+  const bool frame_contains_fin = frame_contains_fin_;
+  frame_contains_fin_ = false;
+  if (!error_encountered_) {
     if (!validator_->FinishHeaderBlock(type_)) {
       QUICHE_VLOG(1) << "FinishHeaderBlock returned false; returning "
-                        "HEADER_HTTP_MESSAGING";
-      result_ = Http2VisitorInterface::HEADER_HTTP_MESSAGING;
+                     << "HEADER_HTTP_MESSAGING";
+      SetResult(Http2VisitorInterface::HEADER_HTTP_MESSAGING);
     }
   }
-  if (frame_contains_fin_ && IsResponse(type_) &&
-      StatusIs1xx(status_header())) {
+  if (frame_contains_fin && IsResponse(type_) && StatusIs1xx(status_header())) {
     QUICHE_VLOG(1) << "Unexpected end of stream without final headers";
-    result_ = Http2VisitorInterface::HEADER_HTTP_MESSAGING;
+    SetResult(Http2VisitorInterface::HEADER_HTTP_MESSAGING);
   }
-  if (result_ == Http2VisitorInterface::HEADER_OK) {
+  if (!error_encountered_) {
     const bool result = visitor_.OnEndHeadersForStream(stream_id_);
     if (!result) {
       session_.fatal_visitor_callback_failure_ = true;
@@ -284,7 +288,6 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
   } else {
     session_.OnHeaderStatus(stream_id_, result_);
   }
-  frame_contains_fin_ = false;
 }
 
 // TODO(diannahu): Add checks for request methods.
@@ -304,6 +307,14 @@ bool OgHttp2Session::PassthroughHeadersHandler::CanReceiveBody() const {
       return true;
   }
   return true;
+}
+
+void OgHttp2Session::PassthroughHeadersHandler::SetResult(
+    Http2VisitorInterface::OnHeaderResult result) {
+  if (result != Http2VisitorInterface::HEADER_OK) {
+    error_encountered_ = true;
+    result_ = result;
+  }
 }
 
 // A visitor that extracts an int64_t from each type of a ProcessBytesResult.
