@@ -355,8 +355,8 @@ size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
   MoqtSubscribe subscribe_request;
   if (!reader.ReadVarInt62(&subscribe_request.subscribe_id) ||
       !reader.ReadVarInt62(&subscribe_request.track_alias) ||
-      !reader.ReadStringPieceVarInt62(&subscribe_request.track_namespace) ||
-      !reader.ReadStringPieceVarInt62(&subscribe_request.track_name) ||
+      !reader.ReadStringVarInt62(subscribe_request.track_namespace) ||
+      !reader.ReadStringVarInt62(subscribe_request.track_name) ||
       !ReadLocation(reader, subscribe_request.start_group)) {
     return 0;
   }
@@ -429,7 +429,7 @@ size_t MoqtParser::ProcessSubscribeError(quic::QuicDataReader& reader) {
   uint64_t error_code;
   if (!reader.ReadVarInt62(&subscribe_error.subscribe_id) ||
       !reader.ReadVarInt62(&error_code) ||
-      !reader.ReadStringPieceVarInt62(&subscribe_error.reason_phrase) ||
+      !reader.ReadStringVarInt62(subscribe_error.reason_phrase) ||
       !reader.ReadVarInt62(&subscribe_error.track_alias)) {
     return 0;
   }
@@ -462,7 +462,7 @@ size_t MoqtParser::ProcessSubscribeRst(quic::QuicDataReader& reader) {
   MoqtSubscribeRst subscribe_rst;
   if (!reader.ReadVarInt62(&subscribe_rst.subscribe_id) ||
       !reader.ReadVarInt62(&subscribe_rst.error_code) ||
-      !reader.ReadStringPieceVarInt62(&subscribe_rst.reason_phrase) ||
+      !reader.ReadStringVarInt62(subscribe_rst.reason_phrase) ||
       !reader.ReadVarInt62(&subscribe_rst.final_group) ||
       !reader.ReadVarInt62(&subscribe_rst.final_object)) {
     return 0;
@@ -473,7 +473,7 @@ size_t MoqtParser::ProcessSubscribeRst(quic::QuicDataReader& reader) {
 
 size_t MoqtParser::ProcessAnnounce(quic::QuicDataReader& reader) {
   MoqtAnnounce announce;
-  if (!reader.ReadStringPieceVarInt62(&announce.track_namespace)) {
+  if (!reader.ReadStringVarInt62(announce.track_namespace)) {
     return 0;
   }
   uint64_t num_params;
@@ -506,7 +506,7 @@ size_t MoqtParser::ProcessAnnounce(quic::QuicDataReader& reader) {
 
 size_t MoqtParser::ProcessAnnounceOk(quic::QuicDataReader& reader) {
   MoqtAnnounceOk announce_ok;
-  if (!reader.ReadStringPieceVarInt62(&announce_ok.track_namespace)) {
+  if (!reader.ReadStringVarInt62(announce_ok.track_namespace)) {
     return 0;
   }
   visitor_.OnAnnounceOkMessage(announce_ok);
@@ -515,7 +515,7 @@ size_t MoqtParser::ProcessAnnounceOk(quic::QuicDataReader& reader) {
 
 size_t MoqtParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
   MoqtAnnounceError announce_error;
-  if (!reader.ReadStringPieceVarInt62(&announce_error.track_namespace)) {
+  if (!reader.ReadStringVarInt62(announce_error.track_namespace)) {
     return 0;
   }
   uint64_t error_code;
@@ -523,7 +523,7 @@ size_t MoqtParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
     return 0;
   }
   announce_error.error_code = static_cast<MoqtAnnounceErrorCode>(error_code);
-  if (!reader.ReadStringPieceVarInt62(&announce_error.reason_phrase)) {
+  if (!reader.ReadStringVarInt62(announce_error.reason_phrase)) {
     return 0;
   }
   visitor_.OnAnnounceErrorMessage(announce_error);
@@ -532,7 +532,7 @@ size_t MoqtParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
 
 size_t MoqtParser::ProcessUnannounce(quic::QuicDataReader& reader) {
   MoqtUnannounce unannounce;
-  if (!reader.ReadStringPieceVarInt62(&unannounce.track_namespace)) {
+  if (!reader.ReadStringVarInt62(unannounce.track_namespace)) {
     return 0;
   }
   visitor_.OnUnannounceMessage(unannounce);
@@ -541,7 +541,7 @@ size_t MoqtParser::ProcessUnannounce(quic::QuicDataReader& reader) {
 
 size_t MoqtParser::ProcessGoAway(quic::QuicDataReader& reader) {
   MoqtGoAway goaway;
-  if (!reader.ReadStringPieceVarInt62(&goaway.new_session_uri)) {
+  if (!reader.ReadStringVarInt62(goaway.new_session_uri)) {
     return 0;
   }
   visitor_.OnGoAwayMessage(goaway);

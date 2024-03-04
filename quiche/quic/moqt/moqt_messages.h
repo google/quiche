@@ -157,7 +157,7 @@ H AbslHashValue(H h, const FullTrackName& m) {
 struct QUICHE_EXPORT MoqtClientSetup {
   std::vector<MoqtVersion> supported_versions;
   std::optional<MoqtRole> role;
-  std::optional<absl::string_view> path;
+  std::optional<std::string> path;
 };
 
 struct QUICHE_EXPORT MoqtServerSetup {
@@ -230,14 +230,14 @@ inline MoqtSubscribeLocationMode GetModeForSubscribeLocation(
 struct QUICHE_EXPORT MoqtSubscribe {
   uint64_t subscribe_id;
   uint64_t track_alias;
-  absl::string_view track_namespace;
-  absl::string_view track_name;
+  std::string track_namespace;
+  std::string track_name;
   // If the mode is kNone, the these are std::nullopt.
   std::optional<MoqtSubscribeLocation> start_group;
   std::optional<MoqtSubscribeLocation> start_object;
   std::optional<MoqtSubscribeLocation> end_group;
   std::optional<MoqtSubscribeLocation> end_object;
-  std::optional<absl::string_view> authorization_info;
+  std::optional<std::string> authorization_info;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeOk {
@@ -255,7 +255,7 @@ enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
 struct QUICHE_EXPORT MoqtSubscribeError {
   uint64_t subscribe_id;
   SubscribeErrorCode error_code;
-  absl::string_view reason_phrase;
+  std::string reason_phrase;
   uint64_t track_alias;
 };
 
@@ -272,32 +272,32 @@ struct QUICHE_EXPORT MoqtSubscribeFin {
 struct QUICHE_EXPORT MoqtSubscribeRst {
   uint64_t subscribe_id;
   uint64_t error_code;
-  absl::string_view reason_phrase;
+  std::string reason_phrase;
   uint64_t final_group;
   uint64_t final_object;
 };
 
 struct QUICHE_EXPORT MoqtAnnounce {
-  absl::string_view track_namespace;
-  std::optional<absl::string_view> authorization_info;
+  std::string track_namespace;
+  std::optional<std::string> authorization_info;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceOk {
-  absl::string_view track_namespace;
+  std::string track_namespace;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceError {
-  absl::string_view track_namespace;
+  std::string track_namespace;
   MoqtAnnounceErrorCode error_code;
-  absl::string_view reason_phrase;
+  std::string reason_phrase;
 };
 
 struct QUICHE_EXPORT MoqtUnannounce {
-  absl::string_view track_namespace;
+  std::string track_namespace;
 };
 
 struct QUICHE_EXPORT MoqtGoAway {
-  absl::string_view new_session_uri;
+  std::string new_session_uri;
 };
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);

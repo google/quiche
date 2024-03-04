@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <string>
 
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -110,6 +111,13 @@ class QUICHE_EXPORT QuicheDataReader {
   // Returns false if there is not enough space in the buffer to read
   // the number and subsequent string, true otherwise.
   bool ReadStringPieceVarInt62(absl::string_view* result);
+
+  // Reads a string prefixed with a RFC 9000 varint length prefix, and copies it
+  // into the provided string.
+  //
+  // Returns false if there is not enough space in the buffer to read
+  // the number and subsequent string, true otherwise.
+  bool ReadStringVarInt62(std::string& result);
 
   // Returns the remaining payload as a absl::string_view.
   //

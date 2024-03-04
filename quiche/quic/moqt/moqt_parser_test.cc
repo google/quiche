@@ -104,116 +104,51 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     messages_received_++;
     last_message_ = TestMessageBase::MessageStructuredData(object);
   }
-  void OnClientSetupMessage(const MoqtClientSetup& message) override {
+
+  template <typename Message>
+  void OnControlMessage(const Message& message) {
     end_of_message_ = true;
-    messages_received_++;
-    MoqtClientSetup client_setup = message;
-    if (client_setup.path.has_value()) {
-      string0_ = std::string(*client_setup.path);
-      client_setup.path = absl::string_view(string0_);
-    }
-    last_message_ = TestMessageBase::MessageStructuredData(client_setup);
+    ++messages_received_;
+    last_message_ = TestMessageBase::MessageStructuredData(message);
+  }
+  void OnClientSetupMessage(const MoqtClientSetup& message) override {
+    OnControlMessage(message);
   }
   void OnServerSetupMessage(const MoqtServerSetup& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtServerSetup server_setup = message;
-    last_message_ = TestMessageBase::MessageStructuredData(server_setup);
+    OnControlMessage(message);
   }
   void OnSubscribeMessage(const MoqtSubscribe& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtSubscribe subscribe_request = message;
-    string0_ = std::string(subscribe_request.track_namespace);
-    subscribe_request.track_namespace = absl::string_view(string0_);
-    string1_ = std::string(subscribe_request.track_name);
-    subscribe_request.track_name = absl::string_view(string1_);
-    if (subscribe_request.authorization_info.has_value()) {
-      string2_ = std::string(*subscribe_request.authorization_info);
-      subscribe_request.authorization_info = absl::string_view(string2_);
-    }
-    last_message_ = TestMessageBase::MessageStructuredData(subscribe_request);
+    OnControlMessage(message);
   }
   void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtSubscribeOk subscribe_ok = message;
-    last_message_ = TestMessageBase::MessageStructuredData(subscribe_ok);
+    OnControlMessage(message);
   }
   void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtSubscribeError subscribe_error = message;
-    string0_ = std::string(subscribe_error.reason_phrase);
-    subscribe_error.reason_phrase = absl::string_view(string0_);
-    last_message_ = TestMessageBase::MessageStructuredData(subscribe_error);
+    OnControlMessage(message);
   }
   void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtUnsubscribe unsubscribe = message;
-    last_message_ = TestMessageBase::MessageStructuredData(unsubscribe);
+    OnControlMessage(message);
   }
   void OnSubscribeFinMessage(const MoqtSubscribeFin& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtSubscribeFin subscribe_fin = message;
-    last_message_ = TestMessageBase::MessageStructuredData(subscribe_fin);
+    OnControlMessage(message);
   }
   void OnSubscribeRstMessage(const MoqtSubscribeRst& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtSubscribeRst subscribe_rst = message;
-    string0_ = std::string(subscribe_rst.reason_phrase);
-    subscribe_rst.reason_phrase = absl::string_view(string0_);
-    last_message_ = TestMessageBase::MessageStructuredData(subscribe_rst);
+    OnControlMessage(message);
   }
   void OnAnnounceMessage(const MoqtAnnounce& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtAnnounce announce = message;
-    string0_ = std::string(announce.track_namespace);
-    announce.track_namespace = absl::string_view(string0_);
-    if (announce.authorization_info.has_value()) {
-      string1_ = std::string(*announce.authorization_info);
-      announce.authorization_info = absl::string_view(string1_);
-    }
-    last_message_ = TestMessageBase::MessageStructuredData(announce);
+    OnControlMessage(message);
   }
   void OnAnnounceOkMessage(const MoqtAnnounceOk& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtAnnounceOk announce_ok = message;
-    string0_ = std::string(announce_ok.track_namespace);
-    announce_ok.track_namespace = absl::string_view(string0_);
-    last_message_ = TestMessageBase::MessageStructuredData(announce_ok);
+    OnControlMessage(message);
   }
   void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtAnnounceError announce_error = message;
-    string0_ = std::string(announce_error.track_namespace);
-    announce_error.track_namespace = absl::string_view(string0_);
-    string1_ = std::string(announce_error.reason_phrase);
-    announce_error.reason_phrase = absl::string_view(string1_);
-    last_message_ = TestMessageBase::MessageStructuredData(announce_error);
+    OnControlMessage(message);
   }
   void OnUnannounceMessage(const MoqtUnannounce& message) override {
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtUnannounce unannounce = message;
-    string0_ = std::string(unannounce.track_namespace);
-    unannounce.track_namespace = absl::string_view(string0_);
-    last_message_ = TestMessageBase::MessageStructuredData(unannounce);
+    OnControlMessage(message);
   }
   void OnGoAwayMessage(const MoqtGoAway& message) override {
-    got_goaway_ = true;
-    end_of_message_ = true;
-    messages_received_++;
-    MoqtGoAway goaway = message;
-    string0_ = std::string(goaway.new_session_uri);
-    goaway.new_session_uri = absl::string_view(string0_);
-    last_message_ = TestMessageBase::MessageStructuredData(goaway);
+    OnControlMessage(message);
   }
   void OnParsingError(MoqtError code, absl::string_view reason) override {
     QUIC_LOG(INFO) << "Parsing error: " << reason;
@@ -223,14 +158,10 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
 
   std::optional<absl::string_view> object_payload_;
   bool end_of_message_ = false;
-  bool got_goaway_ = false;
   std::optional<absl::string_view> parsing_error_;
   MoqtError parsing_error_code_;
   uint64_t messages_received_ = 0;
   std::optional<TestMessageBase::MessageStructuredData> last_message_;
-  // Stored strings for last_message_. The visitor API does not promise the
-  // memory pointed to by string_views is persistent.
-  std::string string0_, string1_, string2_;
 };
 
 class MoqtParserTest

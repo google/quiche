@@ -231,6 +231,13 @@ bool QuicheDataReader::ReadStringPieceVarInt62(absl::string_view* result) {
   return ReadStringPiece(result, result_length);
 }
 
+bool QuicheDataReader::ReadStringVarInt62(std::string& result) {
+  absl::string_view result_view;
+  bool success = ReadStringPieceVarInt62(&result_view);
+  result = std::string(result_view);
+  return success;
+}
+
 absl::string_view QuicheDataReader::ReadRemainingPayload() {
   absl::string_view payload = PeekRemainingPayload();
   pos_ = len_;
