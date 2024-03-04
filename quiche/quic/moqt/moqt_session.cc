@@ -449,6 +449,7 @@ void MoqtSession::Stream::OnClientSetupMessage(const MoqtClientSetup& message) {
   } else {
     is_control_stream_ = true;
   }
+  session_->control_stream_ = stream_->GetStreamId();
   if (perspective() == Perspective::IS_CLIENT) {
     session_->Error(MoqtError::kProtocolViolation,
                     "Received CLIENT_SETUP from server");

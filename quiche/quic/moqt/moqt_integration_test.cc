@@ -214,6 +214,33 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccess) {
   EXPECT_TRUE(success);
 }
 
+TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
+  EstablishSession();
+  EXPECT_CALL(server_->callbacks().incoming_announce_callback, Call("foo"))
+      .WillOnce(Return(std::nullopt));
+  MockRemoteTrackVisitor server_visitor;
+  testing::MockFunction<void(
+      absl::string_view track_namespace,
+      std::optional<MoqtAnnounceErrorReason> error_message)>
+      announce_callback;
+  client_->session()->Announce("foo", announce_callback.AsStdFunction());
+  bool matches = false;
+  EXPECT_CALL(announce_callback, Call(_, _))
+      .WillOnce([&](absl::string_view track_namespace,
+                    std::optional<MoqtAnnounceErrorReason> error) {
+        EXPECT_EQ(track_namespace, "foo");
+        EXPECT_FALSE(error.has_value());
+        server_->session()->SubscribeCurrentGroup(track_namespace, "/catalog",
+                                                  &server_visitor);
+      });
+  EXPECT_CALL(server_visitor, OnReply(_, _)).WillOnce([&]() {
+    matches = true;
+  });
+  bool success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
+  EXPECT_TRUE(success);
+}
+
 TEST_F(MoqtIntegrationTest, AnnounceFailure) {
   EstablishSession();
   testing::MockFunction<void(

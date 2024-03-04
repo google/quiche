@@ -211,6 +211,7 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
         EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kServerSetup);
         return absl::OkStatus();
       });
+  EXPECT_CALL(mock_stream, GetStreamId()).WillOnce(Return(0));
   EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
   stream_input->OnClientSetupMessage(setup);
 }
@@ -858,6 +859,7 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
         EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kServerSetup);
         return absl::OkStatus();
       });
+  EXPECT_CALL(mock_stream, GetStreamId()).WillOnce(Return(0));
   EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
   stream_input->OnClientSetupMessage(setup);
 
