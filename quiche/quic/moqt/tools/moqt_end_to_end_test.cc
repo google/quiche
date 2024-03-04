@@ -54,19 +54,22 @@ class MoqtEndToEndTest : public quiche::test::QuicheTest {
     event_loop_ = server_.quic_server().event_loop();
   }
 
-  absl::StatusOr<MoqtSessionCallbacks> ServerBackend(absl::string_view path) {
+  absl::StatusOr<MoqtConfigureSessionCallback> ServerBackend(
+      absl::string_view path) {
     QUICHE_LOG(INFO) << "Server: Received a request for path " << path;
     if (path == kNotFoundPath) {
       return absl::NotFoundError("404 test endpoint");
     }
-    MoqtSessionCallbacks callbacks;
-    callbacks.session_established_callback = []() {
-      QUICHE_LOG(INFO) << "Server: session established";
+    return [](MoqtSession* session) {
+      session->callbacks().session_established_callback = []() {
+        QUICHE_LOG(INFO) << "Server: session established";
+      };
+      session->callbacks().session_terminated_callback =
+          [](absl::string_view reason) {
+            QUICHE_LOG(INFO)
+                << "Server: session terminated with reason: " << reason;
+          };
     };
-    callbacks.session_terminated_callback = [](absl::string_view reason) {
-      QUICHE_LOG(INFO) << "Server: session terminated with reason: " << reason;
-    };
-    return std::move(callbacks);
   }
 
   std::unique_ptr<MoqtClient> CreateClient() {

@@ -63,20 +63,13 @@ struct MoqtSessionCallbacks {
 class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
  public:
   MoqtSession(webtransport::Session* session, MoqtSessionParameters parameters,
-              MoqtSessionCallbacks callbacks)
+              MoqtSessionCallbacks callbacks = MoqtSessionCallbacks())
       : session_(session),
         parameters_(parameters),
-        session_established_callback_(
-            std::move(callbacks.session_established_callback)),
-        session_terminated_callback_(
-            std::move(callbacks.session_terminated_callback)),
-        session_deleted_callback_(
-            std::move(callbacks.session_deleted_callback)),
-        incoming_announce_callback_(
-            std::move(callbacks.incoming_announce_callback)),
+        callbacks_(std::move(callbacks)),
         framer_(quiche::SimpleBufferAllocator::Get(),
                 parameters.using_webtrans) {}
-  ~MoqtSession() { std::move(session_deleted_callback_)(); }
+  ~MoqtSession() { std::move(callbacks_.session_deleted_callback)(); }
 
   // webtransport::SessionVisitor implementation.
   void OnSessionReady() override;
@@ -139,6 +132,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                      absl::string_view payload, bool end_of_stream);
   // TODO: Add an API to FIN the stream for a particular track/group/object.
   // TODO: Add an API to send partial objects.
+
+  MoqtSessionCallbacks& callbacks() { return callbacks_; }
 
  private:
   friend class test::MoqtSessionPeer;
@@ -229,10 +224,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
   webtransport::Session* session_;
   MoqtSessionParameters parameters_;
-  MoqtSessionEstablishedCallback session_established_callback_;
-  MoqtSessionTerminatedCallback session_terminated_callback_;
-  MoqtSessionDeletedCallback session_deleted_callback_;
-  MoqtIncomingAnnounceCallback incoming_announce_callback_;
+  MoqtSessionCallbacks callbacks_;
   MoqtFramer framer_;
 
   std::optional<webtransport::StreamId> control_stream_;

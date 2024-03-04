@@ -91,7 +91,7 @@ void MoqtSession::OnSessionClosed(webtransport::SessionErrorCode,
   QUICHE_DLOG(INFO) << ENDPOINT << "Underlying session closed with message: "
                     << error_message;
   error_ = error_message;
-  std::move(session_terminated_callback_)(error_message);
+  std::move(callbacks_.session_terminated_callback)(error_message);
 }
 
 void MoqtSession::OnIncomingBidirectionalStreamAvailable() {
@@ -122,7 +122,7 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
                     << static_cast<int>(code) << " and message: " << error;
   error_ = std::string(error);
   session_->CloseSession(static_cast<uint64_t>(code), error);
-  std::move(session_terminated_callback_)(error);
+  std::move(callbacks_.session_terminated_callback)(error);
 }
 
 void MoqtSession::AddLocalTrack(const FullTrackName& full_track_name,
@@ -471,7 +471,7 @@ void MoqtSession::Stream::OnClientSetupMessage(const MoqtClientSetup& message) {
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
   // TODO: handle role and path.
-  std::move(session_->session_established_callback_)();
+  std::move(session_->callbacks_.session_established_callback)();
 }
 
 void MoqtSession::Stream::OnServerSetupMessage(const MoqtServerSetup& message) {
@@ -498,7 +498,7 @@ void MoqtSession::Stream::OnServerSetupMessage(const MoqtServerSetup& message) {
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle role and path.
-  std::move(session_->session_established_callback_)();
+  std::move(session_->callbacks_.session_established_callback)();
 }
 
 void MoqtSession::Stream::SendSubscribeError(const MoqtSubscribe& message,
@@ -652,7 +652,7 @@ void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {
     return;
   }
   std::optional<MoqtAnnounceErrorReason> error =
-      session_->incoming_announce_callback_(message.track_namespace);
+      session_->callbacks_.incoming_announce_callback(message.track_namespace);
   if (error.has_value()) {
     MoqtAnnounceError reply;
     reply.track_namespace = message.track_namespace;

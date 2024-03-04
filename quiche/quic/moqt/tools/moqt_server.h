@@ -19,9 +19,13 @@
 
 namespace moqt {
 
+// A callback to configure an already created MoQT session.
+using MoqtConfigureSessionCallback =
+    quiche::SingleUseCallback<void(MoqtSession* session)>;
+
 // A callback to provide MoQT handler based on the path in the request.
 using MoqtIncomingSessionCallback =
-    quiche::MultiUseCallback<absl::StatusOr<MoqtSessionCallbacks>(
+    quiche::MultiUseCallback<absl::StatusOr<MoqtConfigureSessionCallback>(
         absl::string_view path)>;
 
 // A simple MoQT server.
