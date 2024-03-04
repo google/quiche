@@ -3,6 +3,7 @@
 #include <string>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/string_view.h"
 #include "openssl/hpke.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_response.h"
@@ -20,13 +21,17 @@ struct ObliviousHttpResponseTestStrings {
 std::string GetHpkePrivateKey() {
   absl::string_view hpke_key_hex =
       "b77431ecfa8f4cfc30d6e467aafa06944dffe28cb9dd1409e33a3045f5adc8a1";
-  return absl::HexStringToBytes(hpke_key_hex);
+  std::string hpke_key_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(hpke_key_hex, &hpke_key_bytes));
+  return hpke_key_bytes;
 }
 
 std::string GetHpkePublicKey() {
   absl::string_view public_key =
       "6d21cfe09fbea5122f9ebc2eb2a69fcc4f06408cd54aac934f012e76fcdcef62";
-  return absl::HexStringToBytes(public_key);
+  std::string public_key_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(public_key, &public_key_bytes));
+  return public_key_bytes;
 }
 
 const ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id,

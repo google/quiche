@@ -31,7 +31,9 @@ TEST(QuicheTextUtilsTest, RemoveLeadingAndTrailingWhitespace) {
 
 TEST(QuicheTextUtilsTest, HexDump) {
   // Verify output for empty input.
-  EXPECT_EQ("", quiche::QuicheTextUtils::HexDump(absl::HexStringToBytes("")));
+  std::string empty;
+  ASSERT_TRUE(absl::HexStringToBytes("", &empty));
+  EXPECT_EQ("", quiche::QuicheTextUtils::HexDump(empty));
   // Verify output of the HexDump method is as expected.
   char packet[] = {
       0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x51, 0x55, 0x49, 0x43, 0x21,
@@ -51,13 +53,17 @@ TEST(QuicheTextUtilsTest, HexDump) {
       "0x0040:  6c69 6e65 7320 6f66 206f 7574 7075 742e  lines.of.output.\n"
       "0x0050:  0102 03                                  ...\n");
   // Verify that 0x21 and 0x7e are printable, 0x20 and 0x7f are not.
-  EXPECT_EQ(
-      "0x0000:  2021 7e7f                                .!~.\n",
-      quiche::QuicheTextUtils::HexDump(absl::HexStringToBytes("20217e7f")));
+  std::string printable_and_unprintable_chars;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("20217e7f", &printable_and_unprintable_chars));
+  EXPECT_EQ("0x0000:  2021 7e7f                                .!~.\n",
+            quiche::QuicheTextUtils::HexDump(printable_and_unprintable_chars));
   // Verify that values above numeric_limits<unsigned char>::max() are formatted
   // properly on platforms where char is unsigned.
+  std::string large_chars;
+  ASSERT_TRUE(absl::HexStringToBytes("90aaff", &large_chars));
   EXPECT_EQ("0x0000:  90aa ff                                  ...\n",
-            quiche::QuicheTextUtils::HexDump(absl::HexStringToBytes("90aaff")));
+            quiche::QuicheTextUtils::HexDump(large_chars));
 }
 
 TEST(QuicheTextUtilsTest, Base64Encode) {

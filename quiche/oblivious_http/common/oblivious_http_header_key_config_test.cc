@@ -1,6 +1,7 @@
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 #include <cstdint>
+#include <string>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
@@ -169,19 +170,24 @@ MATCHER_P(HasAeadId, id, "") {
 }
 
 TEST(ObliviousHttpKeyConfigs, SingleKeyConfig) {
-  std::string key = absl::HexStringToBytes(
+  std::string key;
+  ASSERT_TRUE(absl::HexStringToBytes(
       "4b0020f83e0a17cbdb18d2684dd2a9b087a43e5f3fa3fa27a049bc746a6e97a1e0244b00"
-      "0400010002");
+      "0400010002",
+      &key));
   auto configs = ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key).value();
   EXPECT_THAT(configs, Property(&ObliviousHttpKeyConfigs::NumKeys, 1));
   EXPECT_THAT(
       configs.PreferredConfig(),
       AllOf(HasKeyId(0x4b), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
             HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_256_GCM)));
+  std::string expected_public_key;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "f83e0a17cbdb18d2684dd2a9b087a43e5f3fa3fa27a049bc746a6e97a1e0244b",
+      &expected_public_key));
   EXPECT_THAT(
       configs.GetPublicKeyForId(configs.PreferredConfig().GetKeyId()).value(),
-      StrEq(absl::HexStringToBytes(
-          "f83e0a17cbdb18d2684dd2a9b087a43e5f3fa3fa27a049bc746a6e97a1e0244b")));
+      StrEq(expected_public_key));
 }
 
 TEST(ObliviousHttpKeyConfigs, TwoSimilarKeyConfigs) {

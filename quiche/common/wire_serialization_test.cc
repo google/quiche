@@ -6,10 +6,12 @@
 
 #include <limits>
 #include <optional>
+#include <string>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -45,7 +47,9 @@ void ExpectEncoding(const std::string& description, absl::string_view expected,
 template <typename... Ts>
 void ExpectEncodingHex(const std::string& description,
                        absl::string_view expected_hex, Ts... data) {
-  ExpectEncoding(description, absl::HexStringToBytes(expected_hex), data...);
+  std::string expected;
+  ASSERT_TRUE(absl::HexStringToBytes(expected_hex, &expected));
+  ExpectEncoding(description, expected, data...);
 }
 
 TEST(SerializationTest, SerializeStrings) {
@@ -79,7 +83,9 @@ TEST(SerializationTest, SerializeLittleEndian) {
   QUICHE_ASSERT_OK(
       SerializeIntoWriter(writer, WireUint16(0x1234), WireUint16(0xabcd)));
   absl::string_view actual(writer.data(), writer.length());
-  EXPECT_EQ(actual, absl::HexStringToBytes("3412cdab"));
+  std::string expected;
+  ASSERT_TRUE(absl::HexStringToBytes("3412cdab", &expected));
+  EXPECT_EQ(actual, expected);
 }
 
 TEST(SerializationTest, SerializeVarInt62) {
