@@ -45,6 +45,7 @@ quiche_core_hdrs = [
     "common/quiche_data_reader.h",
     "common/quiche_data_writer.h",
     "common/quiche_endian.h",
+    "common/quiche_feature_flags_list.h",
     "common/quiche_ip_address.h",
     "common/quiche_ip_address_family.h",
     "common/quiche_linked_hash_map.h",
