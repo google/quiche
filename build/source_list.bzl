@@ -1508,6 +1508,7 @@ moqt_srcs = [
     "quic/moqt/tools/chat_client_bin.cc",
     "quic/moqt/tools/moqt_client.cc",
     "quic/moqt/tools/moqt_end_to_end_test.cc",
+    "quic/moqt/tools/moqt_ingestion_server_bin.cc",
     "quic/moqt/tools/moqt_server.cc",
 ]
 binary_http_hdrs = [

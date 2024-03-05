@@ -1512,6 +1512,7 @@ moqt_srcs = [
     "src/quiche/quic/moqt/tools/chat_client_bin.cc",
     "src/quiche/quic/moqt/tools/moqt_client.cc",
     "src/quiche/quic/moqt/tools/moqt_end_to_end_test.cc",
+    "src/quiche/quic/moqt/tools/moqt_ingestion_server_bin.cc",
     "src/quiche/quic/moqt/tools/moqt_server.cc",
 ]
 binary_http_hdrs = [
