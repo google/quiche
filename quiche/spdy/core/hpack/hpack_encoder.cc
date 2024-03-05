@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -259,15 +260,11 @@ void HpackEncoder::CookieToCrumbs(const Representation& cookie,
 // static
 void HpackEncoder::DecomposeRepresentation(const Representation& header_field,
                                            Representations* out) {
-  size_t pos = 0;
-  size_t end = 0;
-  while (end != absl::string_view::npos) {
-    end = header_field.second.find('\0', pos);
-    out->push_back(std::make_pair(
-        header_field.first,
-        header_field.second.substr(
-            pos, end == absl::string_view::npos ? end : end - pos)));
-    pos = end + 1;
+  std::vector<absl::string_view> pieces =
+      absl::StrSplit(header_field.second, '\0');
+  out->reserve(pieces.size());
+  for (absl::string_view piece : pieces) {
+    out->push_back(std::make_pair(header_field.first, piece));
   }
 }
 
