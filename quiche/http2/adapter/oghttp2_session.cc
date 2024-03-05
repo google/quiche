@@ -216,8 +216,7 @@ OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
-  error_encountered_ = false;
-  result_ = Http2VisitorInterface::HEADER_OK;
+  Reset();
   const bool status = visitor_.OnBeginHeadersForStream(stream_id_);
   if (!status) {
     QUICHE_VLOG(1)
@@ -266,8 +265,6 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
     size_t /* uncompressed_header_bytes */,
     size_t /* compressed_header_bytes */) {
-  const bool frame_contains_fin = frame_contains_fin_;
-  frame_contains_fin_ = false;
   if (!error_encountered_) {
     if (!validator_->FinishHeaderBlock(type_)) {
       QUICHE_VLOG(1) << "FinishHeaderBlock returned false; returning "
@@ -275,7 +272,8 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
       SetResult(Http2VisitorInterface::HEADER_HTTP_MESSAGING);
     }
   }
-  if (frame_contains_fin && IsResponse(type_) && StatusIs1xx(status_header())) {
+  if (frame_contains_fin_ && IsResponse(type_) &&
+      StatusIs1xx(status_header())) {
     QUICHE_VLOG(1) << "Unexpected end of stream without final headers";
     SetResult(Http2VisitorInterface::HEADER_HTTP_MESSAGING);
   }
@@ -1401,9 +1399,7 @@ void OgHttp2Session::OnHeaders(spdy::SpdyStreamId stream_id,
                         ConnectionError::kInvalidNewStreamId);
     return;
   }
-  if (fin) {
-    headers_handler_.set_frame_contains_fin();
-  }
+  headers_handler_.set_frame_contains_fin(fin);
   if (IsServerSession()) {
     const auto new_stream_id = static_cast<Http2StreamId>(stream_id);
     if (stream_map_.find(new_stream_id) != stream_map_.end() && fin) {

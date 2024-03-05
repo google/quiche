@@ -264,13 +264,13 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     PassthroughHeadersHandler(OgHttp2Session& session,
                               Http2VisitorInterface& visitor);
 
-    void set_stream_id(Http2StreamId stream_id) {
-      stream_id_ = stream_id;
+    void Reset() {
       error_encountered_ = false;
       result_ = Http2VisitorInterface::HEADER_OK;
     }
 
-    void set_frame_contains_fin() { frame_contains_fin_ = true; }
+    void set_stream_id(Http2StreamId stream_id) { stream_id_ = stream_id; }
+    void set_frame_contains_fin(bool value) { frame_contains_fin_ = value; }
     void set_header_type(HeaderType type) { type_ = type; }
     HeaderType header_type() const { return type_; }
 
