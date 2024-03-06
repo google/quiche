@@ -10,11 +10,10 @@
 
 #include "quiche/common/platform/api/quiche_flags.h"
 
-#define GetQuicReloadableFlag(flag) GetQuicheReloadableFlag(quic, flag)
-#define SetQuicReloadableFlag(flag, value) \
-  SetQuicheReloadableFlag(quic, flag, value)
-#define GetQuicRestartFlag(flag) GetQuicheRestartFlag(quic, flag)
-#define SetQuicRestartFlag(flag, value) SetQuicheRestartFlag(quic, flag, value)
+#define GetQuicReloadableFlag(flag) GetQuicheReloadableFlag(flag)
+#define SetQuicReloadableFlag(flag, value) SetQuicheReloadableFlag(flag, value)
+#define GetQuicRestartFlag(flag) GetQuicheRestartFlag(flag)
+#define SetQuicRestartFlag(flag, value) SetQuicheRestartFlag(flag, value)
 #define GetQuicFlag(flag) GetQuicheFlag(flag)
 #define SetQuicFlag(flag, value) SetQuicheFlag(flag, value)
 

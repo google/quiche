@@ -478,7 +478,7 @@ size_t SpdyHeadersIR::size() const {
   // TODO(b/322146543): Remove `hpack_overhead` with deprecation of
   // --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes.
   size_t hpack_overhead = kPerHeaderHpackOverheadOld;
-  if (GetQuicheReloadableFlag(http2, http2_add_hpack_overhead_bytes)) {
+  if (GetQuicheReloadableFlag(http2_add_hpack_overhead_bytes)) {
     QUICHE_RELOADABLE_FLAG_COUNT(http2_add_hpack_overhead_bytes);
     hpack_overhead = kPerHeaderHpackOverheadNew;
   }
