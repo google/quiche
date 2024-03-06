@@ -325,6 +325,39 @@ TEST_P(HpackEncoderTestWithDefaultStrategy, EncodeRepresentations) {
   EXPECT_GE(kInitialDynamicTableSize, encoder_.GetDynamicTableSize());
 }
 
+TEST_P(HpackEncoderTestWithDefaultStrategy, WithoutCookieCrumbling) {
+  EXPECT_EQ(kInitialDynamicTableSize, encoder_.GetDynamicTableSize());
+  encoder_.SetHeaderListener(
+      [this](absl::string_view name, absl::string_view value) {
+        this->SaveHeaders(name, value);
+      });
+  encoder_.DisableCookieCrumbling();
+
+  const std::vector<std::pair<absl::string_view, absl::string_view>>
+      header_list = {{"cookie", "val1; val2;val3"},
+                     {":path", "/home"},
+                     {"accept", "text/html, text/plain,application/xml"},
+                     {"cookie", "val4"},
+                     {"withnul", absl::string_view("one\0two", 7)}};
+  ExpectNonIndexedLiteralWithNameIndex(peer_.table()->GetByName(":path"),
+                                       "/home");
+  ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val1; val2;val3");
+  ExpectIndexedLiteral(peer_.table()->GetByName("accept"),
+                       "text/html, text/plain,application/xml");
+  ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val4");
+  ExpectIndexedLiteral("withnul", absl::string_view("one\0two", 7));
+
+  CompareWithExpectedEncoding(header_list);
+  EXPECT_THAT(
+      headers_observed_,
+      ElementsAre(Pair(":path", "/home"), Pair("cookie", "val1; val2;val3"),
+                  Pair("accept", "text/html, text/plain,application/xml"),
+                  Pair("cookie", "val4"),
+                  Pair("withnul", absl::string_view("one\0two", 7))));
+  // Insertions and evictions have happened over the course of the test.
+  EXPECT_GE(kInitialDynamicTableSize, encoder_.GetDynamicTableSize());
+}
+
 TEST_P(HpackEncoderTestWithDefaultStrategy, DynamicTableGrows) {
   EXPECT_EQ(kInitialDynamicTableSize, encoder_.GetDynamicTableSize());
   peer_.table()->SetMaxSize(4096);
@@ -440,6 +473,15 @@ TEST_P(HpackEncoderTest, CookieHeaderIsCrumbled) {
   ExpectIndex(DynamicIndexToWireIndex(cookie_a_index_));
   ExpectIndex(DynamicIndexToWireIndex(cookie_c_index_));
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "e=ff");
+
+  Http2HeaderBlock headers;
+  headers["cookie"] = "a=bb; c=dd; e=ff";
+  CompareWithExpectedEncoding(headers);
+}
+
+TEST_P(HpackEncoderTest, CookieHeaderIsNotCrumbled) {
+  encoder_.DisableCookieCrumbling();
+  ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "a=bb; c=dd; e=ff");
 
   Http2HeaderBlock headers;
   headers["cookie"] = "a=bb; c=dd; e=ff";

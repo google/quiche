@@ -97,6 +97,12 @@ class QUICHE_EXPORT HpackEncoder {
 
   void DisableCompression() { enable_compression_ = false; }
 
+  // Disables the deconstruction of Cookie header values into individual
+  // components, as described in
+  // https://httpwg.org/specs/rfc9113.html#CompressCookie. The deconstructed
+  // representation can cause problems for some HTTP/2 endpoints.
+  void DisableCookieCrumbling() { crumble_cookies_ = false; }
+
   // Returns the current dynamic table size, including the 32 bytes per entry
   // overhead mentioned in RFC 7541 section 4.1.
   size_t GetDynamicTableSize() const { return header_table_.size(); }
@@ -142,6 +148,7 @@ class QUICHE_EXPORT HpackEncoder {
   IndexingPolicy should_index_;
   bool enable_compression_;
   bool should_emit_table_size_;
+  bool crumble_cookies_;
 };
 
 }  // namespace spdy

@@ -86,7 +86,8 @@ HpackEncoder::HpackEncoder()
       listener_(NoOpListener),
       should_index_(DefaultPolicy),
       enable_compression_(true),
-      should_emit_table_size_(false) {}
+      should_emit_table_size_(false),
+      crumble_cookies_(true) {}
 
 HpackEncoder::~HpackEncoder() = default;
 
@@ -101,7 +102,11 @@ std::string HpackEncoder::EncodeHeaderBlock(
       // Note that there can only be one "cookie" header, because header_set is
       // a map.
       found_cookie = true;
-      CookieToCrumbs(header, &regular_headers);
+      if (crumble_cookies_) {
+        CookieToCrumbs(header, &regular_headers);
+      } else {
+        DecomposeRepresentation(header, &regular_headers);
+      }
     } else if (!header.first.empty() &&
                header.first[0] == kPseudoHeaderPrefix) {
       DecomposeRepresentation(header, &pseudo_headers);
@@ -302,7 +307,11 @@ HpackEncoder::Encoderator::Encoderator(const Http2HeaderBlock& header_set,
       // Note that there can only be one "cookie" header, because header_set
       // is a map.
       found_cookie = true;
-      CookieToCrumbs(header, &regular_headers_);
+      if (encoder_->crumble_cookies_) {
+        CookieToCrumbs(header, &regular_headers_);
+      } else {
+        DecomposeRepresentation(header, &regular_headers_);
+      }
     } else if (!header.first.empty() &&
                header.first[0] == kPseudoHeaderPrefix) {
       DecomposeRepresentation(header, &pseudo_headers_);
@@ -321,7 +330,11 @@ HpackEncoder::Encoderator::Encoderator(const Representations& representations,
     : encoder_(encoder), has_next_(true) {
   for (const auto& header : representations) {
     if (header.first == "cookie") {
-      CookieToCrumbs(header, &regular_headers_);
+      if (encoder_->crumble_cookies_) {
+        CookieToCrumbs(header, &regular_headers_);
+      } else {
+        DecomposeRepresentation(header, &regular_headers_);
+      }
     } else if (!header.first.empty() &&
                header.first[0] == kPseudoHeaderPrefix) {
       pseudo_headers_.push_back(header);
