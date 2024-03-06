@@ -29,7 +29,7 @@ message SpendTokenData {
   // unblinded.
   bytes unblinded_token_signature = 3;
   // The version number of the signing key that was used during blind-signing.
-  int64 signing_key_version = 4;
+  uint64 signing_key_version = 4;
   // A use case identifying the caller. Should be a fixed, hardcoded value to
   // prevent cross-spending tokens.
   anonymous_tokens.AnonymousTokensUseCase use_case = 5;

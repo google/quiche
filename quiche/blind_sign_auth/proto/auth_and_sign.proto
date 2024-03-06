@@ -54,7 +54,7 @@ message AuthAndSignRequest {
 
   // Indicates which key to use for signing. Only set if key type is
   // PUBLIC_METADATA.
-  int64 key_version = 12;
+  uint64 key_version = 12;
 
   // Only set one of this or public_metadata_info. Uses IETF privacy pass
   // extensions spec for format.
