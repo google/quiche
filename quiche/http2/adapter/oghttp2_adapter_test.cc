@@ -6676,6 +6676,67 @@ TEST(OgHttp2AdapterInteractionTest,
   EXPECT_EQ(client_visitor.data().size(), static_cast<size_t>(result));
 }
 
+TEST(OgHttp2AdapterInteractionTest, ClientServerInteractionWithCookies) {
+  DataSavingVisitor client_visitor;
+  OgHttp2Adapter::Options client_options;
+  client_options.perspective = Perspective::kClient;
+  auto client_adapter = OgHttp2Adapter::Create(client_visitor, client_options);
+
+  // The Cookie header field value will be consolidated during HEADERS frame
+  // serialization.
+  const std::vector<Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"},
+                 {"cookie", "a; b=2; c"},
+                 {"cookie", "d=e, f, g; h"}});
+
+  const int32_t stream_id1 =
+      client_adapter->SubmitRequest(headers1, nullptr, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  EXPECT_CALL(client_visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(client_visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(client_visitor,
+              OnBeforeFrameSent(HEADERS, stream_id1, _,
+                                END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(client_visitor,
+              OnFrameSent(HEADERS, stream_id1, _,
+                          END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+  int send_result = client_adapter->Send();
+  EXPECT_EQ(0, send_result);
+
+  DataSavingVisitor server_visitor;
+  OgHttp2Adapter::Options server_options;
+  server_options.perspective = Perspective::kServer;
+  auto server_adapter = OgHttp2Adapter::Create(server_visitor, server_options);
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(server_visitor, OnFrameHeader(0, _, SETTINGS, 0));
+  EXPECT_CALL(server_visitor, OnSettingsStart());
+  EXPECT_CALL(server_visitor, OnSetting).Times(testing::AnyNumber());
+  EXPECT_CALL(server_visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(server_visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(server_visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(server_visitor, OnHeaderForStream(1, ":method", "GET"));
+  EXPECT_CALL(server_visitor, OnHeaderForStream(1, ":scheme", "http"));
+  EXPECT_CALL(server_visitor,
+              OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(server_visitor,
+              OnHeaderForStream(1, ":path", "/this/is/request/one"));
+  EXPECT_CALL(server_visitor,
+              OnHeaderForStream(1, "cookie", "a; b=2; c; d=e, f, g; h"));
+  EXPECT_CALL(server_visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(server_visitor, OnEndStream(1));
+
+  int64_t result = server_adapter->ProcessBytes(client_visitor.data());
+  EXPECT_EQ(client_visitor.data().size(), static_cast<size_t>(result));
+}
+
 TEST(OgHttp2AdapterTest, ServerForbidsNewStreamBelowWatermark) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options;

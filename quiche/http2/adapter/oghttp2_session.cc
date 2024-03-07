@@ -376,6 +376,11 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
     headers_handler_.SetMaxFieldSize(*options_.max_header_field_size);
   }
   headers_handler_.SetAllowObsText(options_.allow_obs_text);
+  if (!options_.crumble_cookies) {
+    // As seen in https://github.com/envoyproxy/envoy/issues/32611, some HTTP/2
+    // endpoints don't properly handle multiple `Cookie` header fields.
+    framer_.GetHpackEncoder()->DisableCookieCrumbling();
+  }
 }
 
 OgHttp2Session::~OgHttp2Session() {}

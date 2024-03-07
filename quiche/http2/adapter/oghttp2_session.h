@@ -84,6 +84,9 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     // If true, allows different values for `host` and `:authority` headers to
     // be present in request headers.
     bool allow_different_host_and_authority = false;
+    // If true, crumbles `Cookie` header field values for potentially better
+    // HPACK compression.
+    bool crumble_cookies = false;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);
