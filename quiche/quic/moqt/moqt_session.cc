@@ -355,6 +355,7 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
   write_options.set_send_fin(end_of_stream);
   for (auto subscription : subscriptions) {
     if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
+      object.subscribe_id = subscription->subscribe_id();
       quiche::QuicheBuffer datagram =
           framer_.SerializeObjectDatagram(object, payload);
       // TODO(martinduke): It's OK to just silently fail, but better to notify
