@@ -77,7 +77,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                        const std::string&) override;
   void OnIncomingBidirectionalStreamAvailable() override;
   void OnIncomingUnidirectionalStreamAvailable() override;
-  void OnDatagramReceived(absl::string_view /*datagram*/) override {}
+  void OnDatagramReceived(absl::string_view datagram) override;
   void OnCanCreateNewOutgoingBidirectionalStream() override {}
   void OnCanCreateNewOutgoingUnidirectionalStream() override {}
 
@@ -221,6 +221,11 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // Returns the stream ID if successful, nullopt if not.
   // TODO: Add a callback if stream creation is delayed.
   std::optional<webtransport::StreamId> OpenUnidirectionalStream();
+
+  // Get FullTrackName and visitor for a subscribe_id and track_alias. Returns
+  // nullptr if not present.
+  std::pair<FullTrackName, RemoteTrack::Visitor*> TrackPropertiesFromAlias(
+      const MoqtObject& message);
 
   webtransport::Session* session_;
   MoqtSessionParameters parameters_;

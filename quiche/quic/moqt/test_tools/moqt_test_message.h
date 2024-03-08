@@ -184,10 +184,9 @@ class QUICHE_NO_EXPORT ObjectStreamMessage : public ObjectMessage {
   };
 };
 
-class QUICHE_NO_EXPORT ObjectPreferDatagramMessage : public ObjectMessage {
+class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
  public:
-  ObjectPreferDatagramMessage()
-      : ObjectMessage(MoqtMessageType::kObjectPreferDatagram) {
+  ObjectDatagramMessage() : ObjectMessage(MoqtMessageType::kObjectDatagram) {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     object_.forwarding_preference = MoqtForwardingPreference::kDatagram;
   }
@@ -891,8 +890,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
   switch (message_type) {
     case MoqtMessageType::kObjectStream:
       return std::make_unique<ObjectStreamMessage>();
-    case MoqtMessageType::kObjectPreferDatagram:
-      return std::make_unique<ObjectPreferDatagramMessage>();
+    case MoqtMessageType::kObjectDatagram:
+      return std::make_unique<ObjectDatagramMessage>();
     case MoqtMessageType::kSubscribe:
       return std::make_unique<SubscribeMessage>();
     case MoqtMessageType::kSubscribeOk:

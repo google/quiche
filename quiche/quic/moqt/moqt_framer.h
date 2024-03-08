@@ -36,6 +36,8 @@ class QUICHE_EXPORT MoqtFramer {
   // header if `is_first_in_stream` is set to true.
   quiche::QuicheBuffer SerializeObjectHeader(const MoqtObject& message,
                                              bool is_first_in_stream);
+  quiche::QuicheBuffer SerializeObjectDatagram(const MoqtObject& message,
+                                               absl::string_view payload);
   quiche::QuicheBuffer SerializeClientSetup(const MoqtClientSetup& message);
   quiche::QuicheBuffer SerializeServerSetup(const MoqtServerSetup& message);
   // Returns an empty buffer if there is an illegal combination of locations.

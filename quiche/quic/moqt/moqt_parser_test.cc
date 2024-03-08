@@ -25,19 +25,19 @@ namespace {
 
 inline bool IsObjectMessage(MoqtMessageType type) {
   return (type == MoqtMessageType::kObjectStream ||
-          type == MoqtMessageType::kObjectPreferDatagram ||
+          type == MoqtMessageType::kObjectDatagram ||
           type == MoqtMessageType::kStreamHeaderTrack ||
           type == MoqtMessageType::kStreamHeaderGroup);
 }
 
 inline bool IsObjectWithoutPayloadLength(MoqtMessageType type) {
   return (type == MoqtMessageType::kObjectStream ||
-          type == MoqtMessageType::kObjectPreferDatagram);
+          type == MoqtMessageType::kObjectDatagram);
 }
 
 std::vector<MoqtMessageType> message_types = {
     MoqtMessageType::kObjectStream,
-    MoqtMessageType::kObjectPreferDatagram,
+    // kObjectDatagram is a unique set of tests.
     MoqtMessageType::kSubscribe,
     MoqtMessageType::kSubscribeOk,
     MoqtMessageType::kSubscribeError,
@@ -330,27 +330,6 @@ TEST_F(MoqtMessageSpecificTest, ObjectStreamSeparateFin) {
   // FIN.
   MoqtParser parser(kRawQuic, visitor_);
   auto message = std::make_unique<ObjectStreamMessage>();
-  parser.ProcessData(message->PacketSample(), false);
-  EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
-  EXPECT_TRUE(visitor_.object_payload_.has_value());
-  EXPECT_EQ(*(visitor_.object_payload_), "foo");
-  EXPECT_FALSE(visitor_.end_of_message_);
-
-  parser.ProcessData(absl::string_view(), true);  // send the FIN
-  EXPECT_EQ(visitor_.messages_received_, 2);
-  EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
-  EXPECT_TRUE(visitor_.object_payload_.has_value());
-  EXPECT_EQ(*(visitor_.object_payload_), "");
-  EXPECT_TRUE(visitor_.end_of_message_);
-  EXPECT_FALSE(visitor_.parsing_error_.has_value());
-}
-
-TEST_F(MoqtMessageSpecificTest, ObjectPreferDatagramSeparateFin) {
-  // OBJECT can return on an unknown-length message even without receiving a
-  // FIN.
-  MoqtParser parser(kRawQuic, visitor_);
-  auto message = std::make_unique<ObjectPreferDatagramMessage>();
   parser.ProcessData(message->PacketSample(), false);
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
@@ -805,6 +784,45 @@ TEST_F(MoqtMessageSpecificTest, RelativeLocation) {
   ASSERT_TRUE(message.start_object.has_value());
   ASSERT_FALSE(message.start_object->absolute);
   EXPECT_EQ(message.start_object->relative_value, 1);
+}
+
+TEST_F(MoqtMessageSpecificTest, DatagramSuccessful) {
+  ObjectDatagramMessage message;
+  MoqtObject object;
+  absl::string_view payload =
+      MoqtParser::ProcessDatagram(message.PacketSample(), object);
+  TestMessageBase::MessageStructuredData object_metadata =
+      TestMessageBase::MessageStructuredData(object);
+  EXPECT_TRUE(message.EqualFieldValues(object_metadata));
+  EXPECT_EQ(payload, "foo");
+}
+
+TEST_F(MoqtMessageSpecificTest, WrongMessageInDatagram) {
+  MoqtParser parser(kRawQuic, visitor_);
+  ObjectStreamMessage message;
+  MoqtObject object;
+  absl::string_view payload =
+      MoqtParser::ProcessDatagram(message.PacketSample(), object);
+  EXPECT_TRUE(payload.empty());
+}
+
+TEST_F(MoqtMessageSpecificTest, TruncatedDatagram) {
+  MoqtParser parser(kRawQuic, visitor_);
+  ObjectDatagramMessage message;
+  message.set_wire_image_size(4);
+  MoqtObject object;
+  absl::string_view payload =
+      MoqtParser::ProcessDatagram(message.PacketSample(), object);
+  EXPECT_TRUE(payload.empty());
+}
+
+TEST_F(MoqtMessageSpecificTest, VeryTruncatedDatagram) {
+  MoqtParser parser(kRawQuic, visitor_);
+  char message = 0x40;
+  MoqtObject object;
+  absl::string_view payload = MoqtParser::ProcessDatagram(
+      absl::string_view(&message, sizeof(message)), object);
+  EXPECT_TRUE(payload.empty());
 }
 
 }  // namespace moqt::test

@@ -30,6 +30,7 @@ namespace moqt {
 namespace {
 
 using ::quiche::QuicheBuffer;
+using ::quiche::WireBytes;
 using ::quiche::WireOptional;
 using ::quiche::WireSpan;
 using ::quiche::WireStringWithVarInt62Length;
@@ -211,6 +212,15 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
           WireVarInt62(message.object_id),
           WireVarInt62(message.object_send_order));
   }
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
+    const MoqtObject& message, absl::string_view payload) {
+  return Serialize(
+      WireVarInt62(MoqtMessageType::kObjectDatagram),
+      WireVarInt62(message.subscribe_id), WireVarInt62(message.track_alias),
+      WireVarInt62(message.group_id), WireVarInt62(message.object_id),
+      WireVarInt62(message.object_send_order), WireBytes(payload));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(

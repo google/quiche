@@ -113,6 +113,25 @@ void MoqtParser::ProcessData(absl::string_view data, bool fin) {
   }
 }
 
+// static
+absl::string_view MoqtParser::ProcessDatagram(absl::string_view data,
+                                              MoqtObject& object_metadata) {
+  uint64_t value;
+  quic::QuicDataReader reader(data);
+  if (!reader.ReadVarInt62(&value)) {
+    return absl::string_view();
+  }
+  if (static_cast<MoqtMessageType>(value) != MoqtMessageType::kObjectDatagram) {
+    return absl::string_view();
+  }
+  size_t processed_data = ParseObjectHeader(reader, object_metadata,
+                                            MoqtMessageType::kObjectDatagram);
+  if (processed_data == 0) {  // Incomplete header
+    return absl::string_view();
+  }
+  return reader.PeekRemainingPayload();
+}
+
 size_t MoqtParser::ProcessMessage(absl::string_view data, bool fin) {
   uint64_t value;
   quic::QuicDataReader reader(data);
@@ -128,8 +147,10 @@ size_t MoqtParser::ProcessMessage(absl::string_view data, bool fin) {
   }
   auto type = static_cast<MoqtMessageType>(value);
   switch (type) {
+    case MoqtMessageType::kObjectDatagram:
+      ParseError("Received OBJECT_DATAGRAM on stream");
+      return 0;
     case MoqtMessageType::kObjectStream:
-    case MoqtMessageType::kObjectPreferDatagram:
     case MoqtMessageType::kStreamHeaderTrack:
     case MoqtMessageType::kStreamHeaderGroup:
       return ProcessObject(reader, type, fin);
@@ -167,36 +188,18 @@ size_t MoqtParser::ProcessMessage(absl::string_view data, bool fin) {
 
 size_t MoqtParser::ProcessObject(quic::QuicDataReader& reader,
                                  MoqtMessageType type, bool fin) {
-  size_t processed_data;
+  size_t processed_data = 0;
   QUICHE_DCHECK(!ObjectPayloadInProgress());
   if (!ObjectStreamInitialized()) {
-    // nothing has been processed on the stream.
     object_metadata_ = MoqtObject();
-    if (!reader.ReadVarInt62(&object_metadata_->subscribe_id) ||
-        !reader.ReadVarInt62(&object_metadata_->track_alias)) {
+    processed_data = ParseObjectHeader(reader, object_metadata_.value(), type);
+    if (processed_data == 0) {
       object_metadata_.reset();
       return 0;
     }
-    if (type != MoqtMessageType::kStreamHeaderTrack &&
-        !reader.ReadVarInt62(&object_metadata_->group_id)) {
-      object_metadata_.reset();
-      return 0;
-    }
-    if (type != MoqtMessageType::kStreamHeaderTrack &&
-        type != MoqtMessageType::kStreamHeaderGroup &&
-        !reader.ReadVarInt62(&object_metadata_->object_id)) {
-      object_metadata_.reset();
-      return 0;
-    }
-    if (!reader.ReadVarInt62(&object_metadata_->object_send_order)) {
-      object_metadata_.reset();
-      return 0;
-    }
-    object_metadata_->forwarding_preference = GetForwardingPreference(type);
   }
   // At this point, enough data has been processed to store in object_metadata_,
   // even if there's nothing else in the buffer.
-  processed_data = reader.PreviouslyReadPayload().length();
   QUICHE_DCHECK(payload_length_remaining_ == 0);
   switch (type) {
     case MoqtMessageType::kStreamHeaderTrack:
@@ -545,6 +548,29 @@ size_t MoqtParser::ProcessGoAway(quic::QuicDataReader& reader) {
     return 0;
   }
   visitor_.OnGoAwayMessage(goaway);
+  return reader.PreviouslyReadPayload().length();
+}
+
+// static
+size_t MoqtParser::ParseObjectHeader(quic::QuicDataReader& reader,
+                                     MoqtObject& object, MoqtMessageType type) {
+  if (!reader.ReadVarInt62(&object.subscribe_id) ||
+      !reader.ReadVarInt62(&object.track_alias)) {
+    return 0;
+  }
+  if (type != MoqtMessageType::kStreamHeaderTrack &&
+      !reader.ReadVarInt62(&object.group_id)) {
+    return 0;
+  }
+  if (type != MoqtMessageType::kStreamHeaderTrack &&
+      type != MoqtMessageType::kStreamHeaderGroup &&
+      !reader.ReadVarInt62(&object.object_id)) {
+    return 0;
+  }
+  if (!reader.ReadVarInt62(&object.object_send_order)) {
+    return 0;
+  }
+  object.forwarding_preference = GetForwardingPreference(type);
   return reader.PreviouslyReadPayload().length();
 }
 

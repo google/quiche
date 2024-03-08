@@ -47,7 +47,7 @@ inline constexpr size_t kMaxMessageHeaderSize = 2048;
 
 enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kObjectStream = 0x00,
-  kObjectPreferDatagram = 0x01,
+  kObjectDatagram = 0x01,
   kSubscribe = 0x03,
   kSubscribeOk = 0x04,
   kSubscribeError = 0x05,

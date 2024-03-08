@@ -31,7 +31,6 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
   std::vector<MoqtFramerTestParams> params;
   std::vector<MoqtMessageType> message_types = {
       MoqtMessageType::kObjectStream,
-      MoqtMessageType::kObjectPreferDatagram,
       MoqtMessageType::kSubscribe,
       MoqtMessageType::kSubscribeOk,
       MoqtMessageType::kSubscribeError,
@@ -106,7 +105,6 @@ class MoqtFramerTest
       TestMessageBase::MessageStructuredData& structured_data) {
     switch (message_type_) {
       case MoqtMessageType::kObjectStream:
-      case MoqtMessageType::kObjectPreferDatagram:
       case MoqtMessageType::kStreamHeaderTrack:
       case MoqtMessageType::kStreamHeaderGroup: {
         MoqtObject data = std::get<MoqtObject>(structured_data);
@@ -164,6 +162,9 @@ class MoqtFramerTest
         auto data = std::get<MoqtServerSetup>(structured_data);
         return framer_.SerializeServerSetup(data);
       }
+      default:
+        // kObjectDatagram is a totally different code path.
+        return quiche::QuicheBuffer();
     }
   }
 
@@ -242,6 +243,24 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(object, false),
                   "requires knowing the object length");
   EXPECT_TRUE(buffer.empty());
+}
+
+TEST_F(MoqtFramerSimpleTest, Datagram) {
+  auto datagram = std::make_unique<ObjectDatagramMessage>();
+  MoqtObject object = {
+      /*subscribe_id=*/3,
+      /*track_alias=*/4,
+      /*group_id=*/5,
+      /*object_id=*/6,
+      /*object_send_order=*/7,
+      /*forwarding_preference=*/MoqtForwardingPreference::kObject,
+      /*payload_length=*/std::nullopt,
+  };
+  std::string payload = "foo";
+  quiche::QuicheBuffer buffer;
+  buffer = framer_.SerializeObjectDatagram(object, payload);
+  EXPECT_EQ(buffer.size(), datagram->total_message_size());
+  EXPECT_EQ(buffer.AsStringView(), datagram->PacketSample());
 }
 
 }  // namespace moqt::test

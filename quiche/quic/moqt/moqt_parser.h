@@ -66,6 +66,12 @@ class QUICHE_EXPORT MoqtParser {
   // datagram rather than a stream.
   void ProcessData(absl::string_view data, bool fin);
 
+  // Provide a separate path for datagrams. Returns the payload bytes, or empty
+  // string_view on error. The caller provides the whole datagram in |data|.
+  // The function puts the object metadata in |object_metadata|.
+  static absl::string_view ProcessDatagram(absl::string_view data,
+                                           MoqtObject& object_metadata);
+
  private:
   // The central switch statement to dispatch a message to the correct
   // Process* function. Returns 0 if it could not parse the full messsage
@@ -91,6 +97,9 @@ class QUICHE_EXPORT MoqtParser {
   size_t ProcessAnnounceError(quic::QuicDataReader& reader);
   size_t ProcessUnannounce(quic::QuicDataReader& reader);
   size_t ProcessGoAway(quic::QuicDataReader& reader);
+
+  static size_t ParseObjectHeader(quic::QuicDataReader& reader,
+                                  MoqtObject& object, MoqtMessageType type);
 
   // If |error| is not provided, assumes kProtocolViolation.
   void ParseError(absl::string_view reason);

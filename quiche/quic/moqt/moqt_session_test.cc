@@ -895,6 +895,56 @@ TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
   EXPECT_FALSE(session_.HasSubscribers(ftn));
 }
 
+TEST_F(MoqtSessionTest, SendDatagram) {
+  FullTrackName ftn("foo", "bar");
+  MockLocalTrackVisitor track_visitor;
+  session_.AddLocalTrack(ftn, &track_visitor);
+  MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
+
+  // Publish in window.
+  bool correct_message = false;
+  uint8_t kExpectedMessage[] = {
+      0x01, 0x00, 0x02, 0x05, 0x00, 0x00, 0x64,
+      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66,
+  };
+  EXPECT_CALL(mock_session_, SendOrQueueDatagram(_))
+      .WillOnce([&](absl::string_view datagram) {
+        if (datagram.size() == sizeof(kExpectedMessage)) {
+          correct_message = (0 == memcmp(datagram.data(), kExpectedMessage,
+                                         sizeof(kExpectedMessage)));
+        }
+        return webtransport::DatagramStatus(
+            webtransport::DatagramStatusCode::kSuccess, "");
+      });
+  session_.PublishObject(ftn, 5, 0, 0, MoqtForwardingPreference::kDatagram,
+                         "deadbeef", true);
+  EXPECT_TRUE(correct_message);
+}
+
+TEST_F(MoqtSessionTest, ReceiveDatagram) {
+  MockRemoteTrackVisitor visitor_;
+  FullTrackName ftn("foo", "bar");
+  std::string payload = "deadbeef";
+  MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor_, 2);
+  MoqtObject object = {
+      /*subscribe_id=*/1,
+      /*track_alias=*/2,
+      /*group_sequence=*/0,
+      /*object_sequence=*/0,
+      /*object_send_order=*/0,
+      /*forwarding_preference=*/MoqtForwardingPreference::kDatagram,
+      /*payload_length=*/8,
+  };
+  char datagram[] = {0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x64,
+                     0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
+  EXPECT_CALL(visitor_,
+              OnObjectFragment(ftn, object.group_id, object.object_id,
+                               object.object_send_order,
+                               object.forwarding_preference, payload, true))
+      .Times(1);
+  session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
+}
+
 // TODO: Cover more error cases in the above
 
 }  // namespace test
