@@ -113,11 +113,13 @@ int QuicPollEventLoop::PollWithRetries(absl::Span<pollfd> fds,
     poll_result =
         PollSyscall(fds.data(), fds.size(), static_cast<int>(timeout_ms));
 
-    // Retry if EINTR happens.
-    bool is_eintr = poll_result < 0 && errno == EINTR;
-    if (!is_eintr) {
+    // Stop if there are events or a non-EINTR error.
+    bool done = poll_result > 0 || (poll_result < 0 && errno != EINTR);
+    if (done) {
       break;
     }
+    // Poll until `clock_` shows the timeout was exceeded.
+    // PollSyscall uses a system clock internally that may run faster.
     QuicTime now = clock_->Now();
     if (now >= timeout_at) {
       break;

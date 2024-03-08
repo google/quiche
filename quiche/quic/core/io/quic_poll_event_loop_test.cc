@@ -70,17 +70,25 @@ class QuicPollEventLoopForTest : public QuicPollEventLoop {
       eintr_after_ = QuicTime::Delta::Infinite();
       return -1;
     }
-    clock_->AdvanceTime(QuicTime::Delta::FromMilliseconds(timeout));
+    if (poll_return_after_ != QuicTime::Delta::Infinite()) {
+      clock_->AdvanceTime(poll_return_after_);
+      poll_return_after_ = QuicTime::Delta::Infinite();
+    } else {
+      clock_->AdvanceTime(QuicTime::Delta::FromMilliseconds(timeout));
+    }
+
     return QuicPollEventLoop::PollSyscall(fds, nfds, timeout);
   }
 
   void TriggerEintrAfter(QuicTime::Delta time) { eintr_after_ = time; }
+  void ReturnFromPollAfter(QuicTime::Delta time) { poll_return_after_ = time; }
 
   const std::vector<int>& timeouts() const { return timeouts_; }
 
  private:
   MockClock* clock_;
   QuicTime::Delta eintr_after_ = QuicTime::Delta::Infinite();
+  QuicTime::Delta poll_return_after_ = QuicTime::Delta::Infinite();
   std::vector<int> timeouts_;
 };
 
@@ -255,6 +263,15 @@ TEST_F(QuicPollEventLoopTest, EintrHandler) {
   ASSERT_TRUE(loop_.RegisterSocket(read_fd_, kAllEvents, &listener));
 
   loop_.TriggerEintrAfter(QuicTime::Delta::FromMilliseconds(25));
+  loop_.RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(100));
+  EXPECT_THAT(loop_.timeouts(), ElementsAre(100, 75));
+}
+
+TEST_F(QuicPollEventLoopTest, PollReturnsEarly) {
+  testing::StrictMock<MockQuicSocketEventListener> listener;
+  ASSERT_TRUE(loop_.RegisterSocket(read_fd_, kAllEvents, &listener));
+
+  loop_.ReturnFromPollAfter(QuicTime::Delta::FromMilliseconds(25));
   loop_.RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(100));
   EXPECT_THAT(loop_.timeouts(), ElementsAre(100, 75));
 }
