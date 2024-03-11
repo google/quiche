@@ -116,7 +116,7 @@ class MoqtSessionPeer {
     ASSERT_NE(it, session->local_tracks_.end());
     LocalTrack& track = it->second;
     track.set_track_alias(track_alias);
-    track.AddWindow(SubscribeWindow(subscribe_id, start_group, start_object));
+    track.AddWindow(subscribe_id, start_group, start_object);
     session->used_track_aliases_.emplace(track_alias);
   }
 
@@ -300,7 +300,9 @@ TEST_F(MoqtSessionTest, AddLocalTrack) {
 
   // Add the track. Now Subscribe should succeed.
   MockLocalTrackVisitor local_track_visitor;
-  session_.AddLocalTrack(FullTrackName("foo", "bar"), &local_track_visitor);
+  session_.AddLocalTrack(FullTrackName("foo", "bar"),
+                         MoqtForwardingPreference::kObject,
+                         &local_track_visitor);
   correct_message = true;
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
@@ -391,7 +393,8 @@ TEST_F(MoqtSessionTest, HasSubscribers) {
   MockLocalTrackVisitor local_track_visitor;
   FullTrackName ftn("foo", "bar");
   EXPECT_FALSE(session_.HasSubscribers(ftn));
-  session_.AddLocalTrack(ftn, &local_track_visitor);
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kGroup,
+                         &local_track_visitor);
   EXPECT_FALSE(session_.HasSubscribers(ftn));
 
   // Peer subscribes.
@@ -425,11 +428,11 @@ TEST_F(MoqtSessionTest, HasSubscribers) {
 TEST_F(MoqtSessionTest, SubscribeForPast) {
   MockLocalTrackVisitor local_track_visitor;
   FullTrackName ftn("foo", "bar");
-  session_.AddLocalTrack(ftn, &local_track_visitor);
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kObject,
+                         &local_track_visitor);
 
   // Send Sequence (2, 0) so that next_sequence is set correctly.
-  session_.PublishObject(ftn, 2, 0, 0, MoqtForwardingPreference::kObject, "foo",
-                         true);
+  session_.PublishObject(ftn, 2, 0, 0, "foo", true);
   // Peer subscribes to (0, 0)
   MoqtSubscribe request = {
       /*subscribe_id=*/1,
@@ -687,13 +690,13 @@ TEST_F(MoqtSessionTest, CreateUniStreamAndSend) {
   StrictMock<webtransport::test::MockStream> mock_stream;
   FullTrackName ftn("foo", "bar");
   MockLocalTrackVisitor track_visitor;
-  session_.AddLocalTrack(ftn, &track_visitor);
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kObject,
+                         &track_visitor);
   MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
 
   // No subscription; this is a no-op except to update next_sequence.
   EXPECT_CALL(mock_stream, Writev(_, _)).Times(0);
-  session_.PublishObject(ftn, 4, 1, 0, MoqtForwardingPreference::kObject,
-                         "deadbeef", true);
+  session_.PublishObject(ftn, 4, 1, 0, "deadbeef", true);
   EXPECT_EQ(MoqtSessionPeer::next_sequence(&session_, ftn), FullSequence(4, 2));
 
   // Publish in window.
@@ -717,8 +720,7 @@ TEST_F(MoqtSessionTest, CreateUniStreamAndSend) {
                                        sizeof(kExpectedMessage)));
         return absl::OkStatus();
       });
-  session_.PublishObject(ftn, 5, 0, 0, MoqtForwardingPreference::kObject,
-                         "deadbeef", true);
+  session_.PublishObject(ftn, 5, 0, 0, "deadbeef", true);
   EXPECT_TRUE(correct_message);
 }
 
@@ -730,20 +732,21 @@ TEST_F(MoqtSessionTest, CannotOpenUniStream) {
   StrictMock<webtransport::test::MockStream> mock_stream;
   FullTrackName ftn("foo", "bar");
   MockLocalTrackVisitor track_visitor;
-  session_.AddLocalTrack(ftn, &track_visitor);
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kObject,
+                         &track_visitor);
   MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
   ;
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .WillOnce(Return(false));
-  EXPECT_FALSE(session_.PublishObject(
-      ftn, 5, 0, 0, MoqtForwardingPreference::kObject, "deadbeef", true));
+  EXPECT_FALSE(session_.PublishObject(ftn, 5, 0, 0, "deadbeef", true));
 }
 
 TEST_F(MoqtSessionTest, GetStreamByIdFails) {
   StrictMock<webtransport::test::MockStream> mock_stream;
   FullTrackName ftn("foo", "bar");
   MockLocalTrackVisitor track_visitor;
-  session_.AddLocalTrack(ftn, &track_visitor);
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kObject,
+                         &track_visitor);
   MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .WillOnce(Return(true));
@@ -754,14 +757,14 @@ TEST_F(MoqtSessionTest, GetStreamByIdFails) {
       .WillRepeatedly(Return(kOutgoingUniStreamId));
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
       .WillOnce(Return(nullptr));
-  EXPECT_FALSE(session_.PublishObject(
-      ftn, 5, 0, 0, MoqtForwardingPreference::kObject, "deadbeef", true));
+  EXPECT_FALSE(session_.PublishObject(ftn, 5, 0, 0, "deadbeef", true));
 }
 
 TEST_F(MoqtSessionTest, SubscribeProposesBadTrackAlias) {
   MockLocalTrackVisitor local_track_visitor;
   FullTrackName ftn("foo", "bar");
-  session_.AddLocalTrack(ftn, &local_track_visitor);
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kGroup,
+                         &local_track_visitor);
   MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
 
   // Peer subscribes.
@@ -882,7 +885,7 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
 TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
   FullTrackName ftn("foo", "bar");
   MockLocalTrackVisitor visitor;
-  session_.AddLocalTrack(ftn, &visitor);
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kTrack, &visitor);
   MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 1, 3, 4);
   EXPECT_TRUE(session_.HasSubscribers(ftn));
   StrictMock<webtransport::test::MockStream> mock_stream;
@@ -898,7 +901,8 @@ TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
 TEST_F(MoqtSessionTest, SendDatagram) {
   FullTrackName ftn("foo", "bar");
   MockLocalTrackVisitor track_visitor;
-  session_.AddLocalTrack(ftn, &track_visitor);
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kDatagram,
+                         &track_visitor);
   MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
 
   // Publish in window.
@@ -916,8 +920,7 @@ TEST_F(MoqtSessionTest, SendDatagram) {
         return webtransport::DatagramStatus(
             webtransport::DatagramStatusCode::kSuccess, "");
       });
-  session_.PublishObject(ftn, 5, 0, 0, MoqtForwardingPreference::kDatagram,
-                         "deadbeef", true);
+  session_.PublishObject(ftn, 5, 0, 0, "deadbeef", true);
   EXPECT_TRUE(correct_message);
 }
 
@@ -943,6 +946,37 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
                                object.forwarding_preference, payload, true))
       .Times(1);
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
+}
+
+TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
+  MockRemoteTrackVisitor visitor_;
+  FullTrackName ftn("foo", "bar");
+  std::string payload = "deadbeef";
+  MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor_, 2);
+  MoqtObject object = {
+      /*subscribe_id=*/1,
+      /*track_alias=*/2,
+      /*group_sequence=*/0,
+      /*object_sequence=*/0,
+      /*object_send_order=*/0,
+      /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
+      /*payload_length=*/8,
+  };
+  StrictMock<webtransport::test::MockStream> mock_stream;
+  std::unique_ptr<MoqtParserVisitor> object_stream =
+      MoqtSessionPeer::CreateUniStream(&session_, &mock_stream);
+
+  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _, _)).Times(1);
+  EXPECT_CALL(mock_stream, GetStreamId())
+      .WillRepeatedly(Return(kIncomingUniStreamId));
+  object_stream->OnObjectMessage(object, payload, true);
+  ++object.object_id;
+  object.forwarding_preference = MoqtForwardingPreference::kTrack;
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Forwarding preference changes mid-track"))
+      .Times(1);
+  object_stream->OnObjectMessage(object, payload, true);
 }
 
 // TODO: Cover more error cases in the above

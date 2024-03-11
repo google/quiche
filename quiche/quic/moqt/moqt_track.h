@@ -33,12 +33,19 @@ class LocalTrack {
         const SubscribeWindow& window) = 0;
   };
   // |visitor| must not be nullptr.
-  LocalTrack(const FullTrackName& full_track_name, Visitor* visitor)
-      : full_track_name_(full_track_name), visitor_(visitor) {}
+  LocalTrack(const FullTrackName& full_track_name,
+             MoqtForwardingPreference forwarding_preference, Visitor* visitor)
+      : full_track_name_(full_track_name),
+        forwarding_preference_(forwarding_preference),
+        windows_(forwarding_preference),
+        visitor_(visitor) {}
   // Creates a LocalTrack that does not start at sequence (0,0)
-  LocalTrack(const FullTrackName& full_track_name, Visitor* visitor,
+  LocalTrack(const FullTrackName& full_track_name,
+             MoqtForwardingPreference forwarding_preference, Visitor* visitor,
              FullSequence next_sequence)
       : full_track_name_(full_track_name),
+        forwarding_preference_(forwarding_preference),
+        windows_(forwarding_preference),
         next_sequence_(next_sequence),
         visitor_(visitor) {}
 
@@ -55,7 +62,18 @@ class LocalTrack {
     return windows_.SequenceIsSubscribed(sequence);
   }
 
-  void AddWindow(SubscribeWindow window) { windows_.AddWindow(window); }
+  void AddWindow(uint64_t subscribe_id, uint64_t start_group,
+                 uint64_t start_object) {
+    windows_.AddWindow(subscribe_id, start_group, start_object);
+  }
+
+  void AddWindow(uint64_t subscribe_id, uint64_t start_group,
+                 uint64_t start_object, uint64_t end_group,
+                 uint64_t end_object) {
+    windows_.AddWindow(subscribe_id, start_group, start_object, end_group,
+                       end_object);
+  }
+
   void DeleteWindow(uint64_t subscribe_id) {
     windows_.RemoveWindow(subscribe_id);
   }
@@ -77,10 +95,16 @@ class LocalTrack {
     return windows_.GetWindow(subscribe_id);
   }
 
+  MoqtForwardingPreference forwarding_preference() const {
+    return forwarding_preference_;
+  }
+
  private:
   // This only needs to track subscriptions to current and future objects;
   // requests for objects in the past are forwarded to the application.
   const FullTrackName full_track_name_;
+  // The forwarding preference for the track.
+  MoqtForwardingPreference forwarding_preference_;
   // Let the first SUBSCRIBE determine the track alias.
   std::optional<uint64_t> track_alias_;
   // The sequence numbers from this track to which the peer is subscribed.
@@ -122,12 +146,25 @@ class RemoteTrack {
 
   Visitor* visitor() { return visitor_; }
 
+  // When called while processing the first object in the track, sets the
+  // forwarding preference to the value indicated by the incoming encoding.
+  // Otherwise, returns true if the incoming object does not violate the rule
+  // that the preference is consistent.
+  bool CheckForwardingPreference(MoqtForwardingPreference preference) {
+    if (forwarding_preference_.has_value()) {
+      return forwarding_preference_.value() == preference;
+    }
+    forwarding_preference_ = preference;
+    return true;
+  }
+
  private:
   // TODO: There is no accounting for the number of outstanding subscribes,
   // because we can't match track names to individual subscribes.
   const FullTrackName full_track_name_;
   const uint64_t track_alias_;
   Visitor* visitor_;
+  std::optional<MoqtForwardingPreference> forwarding_preference_;
 };
 
 }  // namespace moqt

@@ -107,7 +107,6 @@ class ChatClient {
     }
     session_->PublishObject(my_track_name_, next_sequence_.group++,
                             next_sequence_.object, /*object_send_order=*/0,
-                            moqt::MoqtForwardingPreference::kObject,
                             input_message, true);
   }
 
@@ -197,7 +196,8 @@ class ChatClient {
     }
     // By not sending a visitor, the application will not fulfill subscriptions
     // to previous objects.
-    session_->AddLocalTrack(my_track_name_, nullptr);
+    session_->AddLocalTrack(my_track_name_,
+                            moqt::MoqtForwardingPreference::kObject, nullptr);
     moqt::MoqtOutgoingAnnounceCallback announce_callback =
         [&](absl::string_view track_namespace,
             std::optional<moqt::MoqtAnnounceErrorReason> reason) {

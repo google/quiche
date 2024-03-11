@@ -268,7 +268,8 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
   FullTrackName full_track_name("foo", "bar");
   MockLocalTrackVisitor server_visitor;
   MockRemoteTrackVisitor client_visitor;
-  server_->session()->AddLocalTrack(full_track_name, &server_visitor);
+  server_->session()->AddLocalTrack(
+      full_track_name, MoqtForwardingPreference::kObject, &server_visitor);
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
   EXPECT_CALL(client_visitor, OnReply(full_track_name, expected_reason))
@@ -286,7 +287,8 @@ TEST_F(MoqtIntegrationTest, SubscribeRelativeOk) {
   FullTrackName full_track_name("foo", "bar");
   MockLocalTrackVisitor server_visitor;
   MockRemoteTrackVisitor client_visitor;
-  server_->session()->AddLocalTrack(full_track_name, &server_visitor);
+  server_->session()->AddLocalTrack(
+      full_track_name, MoqtForwardingPreference::kObject, &server_visitor);
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
   EXPECT_CALL(client_visitor, OnReply(full_track_name, expected_reason))
@@ -304,7 +306,8 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentGroupOk) {
   FullTrackName full_track_name("foo", "bar");
   MockLocalTrackVisitor server_visitor;
   MockRemoteTrackVisitor client_visitor;
-  server_->session()->AddLocalTrack(full_track_name, &server_visitor);
+  server_->session()->AddLocalTrack(
+      full_track_name, MoqtForwardingPreference::kObject, &server_visitor);
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
   EXPECT_CALL(client_visitor, OnReply(full_track_name, expected_reason))

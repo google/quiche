@@ -149,8 +149,10 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
 }
 
 void MoqtSession::AddLocalTrack(const FullTrackName& full_track_name,
+                                MoqtForwardingPreference forwarding_preference,
                                 LocalTrack::Visitor* visitor) {
-  local_tracks_.try_emplace(full_track_name, full_track_name, visitor);
+  local_tracks_.try_emplace(full_track_name, full_track_name,
+                            forwarding_preference, visitor);
 }
 
 // TODO: Create state that allows ANNOUNCE_OK/ERROR on spurious namespaces to
@@ -306,22 +308,38 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
           {{"", ""}, nullptr});
     }
     visitor = subscribe_it->second.visitor;
+    // This does not check that early objects have a consistent forwarding
+    // preference.
     return std::pair<FullTrackName, RemoteTrack::Visitor*>(
         {{subscribe_it->second.message.track_namespace,
           subscribe_it->second.message.track_name},
          subscribe_it->second.visitor});
   }
+  RemoteTrack& track = it->second;
+  if (!track.CheckForwardingPreference(message.forwarding_preference)) {
+    // Incorrect forwarding preference.
+    Error(MoqtError::kProtocolViolation,
+          "Forwarding preference changes mid-track");
+    return std::pair<FullTrackName, RemoteTrack::Visitor*>({{"", ""}, nullptr});
+  }
   return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-      {{it->second.full_track_name().track_namespace,
-        it->second.full_track_name().track_name},
-       it->second.visitor()});
+      {{track.full_track_name().track_namespace,
+        track.full_track_name().track_name},
+       track.visitor()});
 }
 
 bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
                                 uint64_t group_id, uint64_t object_id,
                                 uint64_t object_send_order,
-                                MoqtForwardingPreference forwarding_preference,
                                 absl::string_view payload, bool end_of_stream) {
+  auto track_it = local_tracks_.find(full_track_name);
+  if (track_it == local_tracks_.end()) {
+    QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT for nonexistent track";
+    return false;
+  }
+  LocalTrack& track = track_it->second;
+  MoqtForwardingPreference forwarding_preference =
+      track.forwarding_preference();
   if ((forwarding_preference == MoqtForwardingPreference::kObject ||
        forwarding_preference == MoqtForwardingPreference::kDatagram) &&
       !end_of_stream) {
@@ -330,12 +348,6 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
            "immediately closed";
     return false;
   }
-  auto track_it = local_tracks_.find(full_track_name);
-  if (track_it == local_tracks_.end()) {
-    QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT for nonexistent track";
-    return false;
-  }
-  LocalTrack& track = track_it->second;
   track.SentSequence(FullSequence(group_id, object_id));
   std::vector<SubscribeWindow*> subscriptions =
       track.ShouldSend({group_id, object_id});
@@ -365,8 +377,7 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
     }
     bool new_stream = false;
     std::optional<webtransport::StreamId> stream_id =
-        subscription->GetStreamForSequence({group_id, object_id},
-                                           forwarding_preference);
+        subscription->GetStreamForSequence(FullSequence(group_id, object_id));
     if (!stream_id.has_value()) {
       new_stream = true;
       stream_id = OpenUnidirectionalStream();
@@ -377,8 +388,7 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
         continue;
       }
       if (!end_of_stream) {
-        subscription->AddStream(forwarding_preference, *stream_id, group_id,
-                                object_id);
+        subscription->AddStream(group_id, object_id, *stream_id);
       }
     }
     webtransport::Stream* stream = session_->GetStreamById(*stream_id);
@@ -403,7 +413,7 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
                      << object.group_id << ":" << object.object_id
                      << " on stream " << *stream_id;
     if (end_of_stream && !new_stream) {
-      subscription->RemoveStream(forwarding_preference, group_id, object_id);
+      subscription->RemoveStream(group_id, object_id);
     }
   }
   return (failures == 0);
@@ -595,9 +605,11 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
     // and only then sends the Subscribe OK.
     SubscribeWindow window =
         end.has_value()
-            ? SubscribeWindow(message.subscribe_id, start->group, start->object,
-                              end->group, end->object)
-            : SubscribeWindow(message.subscribe_id, start->group,
+            ? SubscribeWindow(message.subscribe_id,
+                              track.forwarding_preference(), start->group,
+                              start->object, end->group, end->object)
+            : SubscribeWindow(message.subscribe_id,
+                              track.forwarding_preference(), start->group,
                               start->object);
     std::optional<absl::string_view> past_objects_available =
         track.visitor()->OnSubscribeForPast(window);
@@ -613,12 +625,11 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << message.track_namespace << ":" << message.track_name;
   if (!end.has_value()) {
-    track.AddWindow(
-        SubscribeWindow(message.subscribe_id, start->group, start->object));
+    track.AddWindow(message.subscribe_id, start->group, start->object);
     return;
   }
-  track.AddWindow(SubscribeWindow(message.subscribe_id, start->group,
-                                  start->object, end->group, end->object));
+  track.AddWindow(message.subscribe_id, start->group, start->object, end->group,
+                  end->object);
 }
 
 void MoqtSession::Stream::OnSubscribeOkMessage(const MoqtSubscribeOk& message) {

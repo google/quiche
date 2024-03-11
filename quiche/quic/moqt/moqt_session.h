@@ -90,6 +90,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // is nullptr, then incoming SUBSCRIBE for objects in the path will receive
   // SUBSCRIBE_OK, but never actually get the objects.
   void AddLocalTrack(const FullTrackName& full_track_name,
+                     MoqtForwardingPreference forwarding_preference,
                      LocalTrack::Visitor* visitor);
   // Send an ANNOUNCE message for |track_namespace|, and call
   // |announce_callback| when the response arrives. Will fail immediately if
@@ -128,7 +129,6 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // partial objects.
   bool PublishObject(const FullTrackName& full_track_name, uint64_t group_id,
                      uint64_t object_id, uint64_t object_send_order,
-                     MoqtForwardingPreference forwarding_preference,
                      absl::string_view payload, bool end_of_stream);
   // TODO: Add an API to FIN the stream for a particular track/group/object.
   // TODO: Add an API to send partial objects.

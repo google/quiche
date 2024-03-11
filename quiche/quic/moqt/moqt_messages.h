@@ -125,6 +125,11 @@ struct FullTrackName {
   friend H AbslHashValue(H h, const FullTrackName& m);
 };
 
+template <typename H>
+H AbslHashValue(H h, const FullTrackName& m) {
+  return H::combine(std::move(h), m.track_namespace, m.track_name);
+}
+
 // These are absolute sequence numbers.
 struct FullSequence {
   uint64_t group = 0;
@@ -150,8 +155,8 @@ struct FullSequence {
 };
 
 template <typename H>
-H AbslHashValue(H h, const FullTrackName& m) {
-  return H::combine(std::move(h), m.track_namespace, m.track_name);
+H AbslHashValue(H h, const FullSequence& m) {
+  return H::combine(std::move(h), m.group, m.object);
 }
 
 struct QUICHE_EXPORT MoqtClientSetup {

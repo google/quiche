@@ -22,74 +22,49 @@ bool SubscribeWindow::InWindow(const FullSequence& seq) const {
 }
 
 std::optional<webtransport::StreamId> SubscribeWindow::GetStreamForSequence(
-    FullSequence sequence,
-    MoqtForwardingPreference forwarding_preference) const {
-  if (forwarding_preference == MoqtForwardingPreference::kTrack) {
-    return track_stream_;
-  }
-  auto group_it = group_streams_.find(sequence.group);
-  if (group_it == group_streams_.end()) {
+    FullSequence sequence) const {
+  FullSequence index = SequenceToIndex(sequence);
+  auto stream_it = send_streams_.find(index);
+  if (stream_it == send_streams_.end()) {
     return std::nullopt;
   }
-  if (forwarding_preference == MoqtForwardingPreference::kGroup) {
-    return group_it->second.group_stream;
-  }
-  auto object_it = group_it->second.object_streams.find(sequence.object);
-  if (object_it == group_it->second.object_streams.end()) {
-    return std::nullopt;
-  }
-  return object_it->second;
+  return stream_it->second;
 }
 
-void SubscribeWindow::AddStream(MoqtForwardingPreference forwarding_preference,
-                                uint64_t group_id, uint64_t object_id,
+void SubscribeWindow::AddStream(uint64_t group_id, uint64_t object_id,
                                 webtransport::StreamId stream_id) {
-  if (forwarding_preference == MoqtForwardingPreference::kTrack) {
-    QUIC_BUG_IF(quic_bug_moqt_draft_02_01, track_stream_.has_value())
-        << "Track stream already assigned";
-    track_stream_ = stream_id;
+  if (!InWindow(FullSequence(group_id, object_id))) {
     return;
   }
-  if (forwarding_preference == MoqtForwardingPreference::kGroup) {
-    QUIC_BUG_IF(quic_bug_moqt_draft_02_02,
-                group_streams_[group_id].group_stream.has_value())
-        << "Group stream already assigned";
-    group_streams_[group_id].group_stream = stream_id;
+  FullSequence index = SequenceToIndex(FullSequence(group_id, object_id));
+  if (forwarding_preference_ == MoqtForwardingPreference::kDatagram) {
+    QUIC_BUG(quic_bug_moqt_draft_03_01) << "Adding a stream for datagram";
     return;
   }
-  // ObjectStream or ObjectPreferDatagram
-  QUIC_BUG_IF(quic_bug_moqt_draft_02_03,
-              group_streams_[group_id].object_streams.contains(object_id))
-      << "Object stream already assigned";
-  group_streams_[group_id].object_streams[object_id] = stream_id;
+  auto stream_it = send_streams_.find(index);
+  if (stream_it != send_streams_.end()) {
+    QUIC_BUG(quic_bug_moqt_draft_03_02) << "Stream already added";
+    return;
+  }
+  send_streams_[index] = stream_id;
 }
 
-void SubscribeWindow::RemoveStream(
-    MoqtForwardingPreference forwarding_preference, uint64_t group_id,
-    uint64_t object_id) {
-  if (forwarding_preference == moqt::MoqtForwardingPreference::kTrack) {
-    track_stream_ = std::nullopt;
-    return;
-  }
-  auto group_it = group_streams_.find(group_id);
-  if (group_it == group_streams_.end()) {
-    return;
-  }
-  GroupStreams& group = group_it->second;
-  if (forwarding_preference == moqt::MoqtForwardingPreference::kGroup) {
-    group.group_stream = std::nullopt;
-    if (group.object_streams.empty()) {
-      group_streams_.erase(group_id);
-    }
-    return;
-  }
-  // ObjectStream or ObjectPreferDatagram
-  if (group.object_streams.contains(object_id)) {
-    group_streams_[group_id].object_streams.erase(object_id);
-    if (!group.group_stream.has_value() &&
-        group_streams_[group_id].object_streams.empty()) {
-      group_streams_.erase(group_id);
-    }
+void SubscribeWindow::RemoveStream(uint64_t group_id, uint64_t object_id) {
+  FullSequence index = SequenceToIndex(FullSequence(group_id, object_id));
+  send_streams_.erase(index);
+}
+
+FullSequence SubscribeWindow::SequenceToIndex(FullSequence sequence) const {
+  switch (forwarding_preference_) {
+    case MoqtForwardingPreference::kTrack:
+      return FullSequence(0, 0);
+    case MoqtForwardingPreference::kGroup:
+      return FullSequence(sequence.group, 0);
+    case MoqtForwardingPreference::kObject:
+      return sequence;
+    case MoqtForwardingPreference::kDatagram:
+      QUIC_BUG(quic_bug_moqt_draft_03_01) << "No stream for datagram";
+      return FullSequence(0, 0);
   }
 }
 

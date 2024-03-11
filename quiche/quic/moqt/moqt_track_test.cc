@@ -19,7 +19,8 @@ namespace test {
 class LocalTrackTest : public quic::test::QuicTest {
  public:
   LocalTrackTest()
-      : track_(FullTrackName("foo", "bar"), &visitor_, FullSequence(4, 1)) {}
+      : track_(FullTrackName("foo", "bar"), MoqtForwardingPreference::kTrack,
+               &visitor_, FullSequence(4, 1)) {}
   LocalTrack track_;
   MockLocalTrackVisitor visitor_;
 };
@@ -34,6 +35,7 @@ TEST_F(LocalTrackTest, Queries) {
   track_.SentSequence(FullSequence(4, 1));
   EXPECT_EQ(track_.next_sequence(), FullSequence(4, 2));
   EXPECT_FALSE(track_.HasSubscriber());
+  EXPECT_EQ(track_.forwarding_preference(), MoqtForwardingPreference::kTrack);
 }
 
 TEST_F(LocalTrackTest, SetTrackAlias) {
@@ -43,7 +45,7 @@ TEST_F(LocalTrackTest, SetTrackAlias) {
 }
 
 TEST_F(LocalTrackTest, AddGetDeleteWindow) {
-  track_.AddWindow(SubscribeWindow(0, 4, 1));
+  track_.AddWindow(0, 4, 1);
   EXPECT_EQ(track_.GetWindow(0)->subscribe_id(), 0);
   EXPECT_EQ(track_.GetWindow(1), nullptr);
   track_.DeleteWindow(0);
@@ -51,7 +53,7 @@ TEST_F(LocalTrackTest, AddGetDeleteWindow) {
 }
 
 TEST_F(LocalTrackTest, ShouldSend) {
-  track_.AddWindow(SubscribeWindow(0, 4, 1));
+  track_.AddWindow(0, 4, 1);
   EXPECT_TRUE(track_.HasSubscriber());
   EXPECT_TRUE(track_.ShouldSend(FullSequence(3, 12)).empty());
   EXPECT_TRUE(track_.ShouldSend(FullSequence(4, 0)).empty());
@@ -71,6 +73,15 @@ TEST_F(RemoteTrackTest, Queries) {
   EXPECT_EQ(track_.full_track_name(), FullTrackName("foo", "bar"));
   EXPECT_EQ(track_.track_alias(), 5);
   EXPECT_EQ(track_.visitor(), &visitor_);
+}
+
+TEST_F(RemoteTrackTest, UpdateForwardingPreference) {
+  EXPECT_TRUE(
+      track_.CheckForwardingPreference(MoqtForwardingPreference::kObject));
+  EXPECT_TRUE(
+      track_.CheckForwardingPreference(MoqtForwardingPreference::kObject));
+  EXPECT_FALSE(
+      track_.CheckForwardingPreference(MoqtForwardingPreference::kDatagram));
 }
 
 // TODO: Write test for GetStreamForSequence.
