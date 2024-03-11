@@ -1996,7 +1996,8 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&*session_));
 
   // Push unidirectional stream is type 0x01.
-  std::string frame_type1 = absl::HexStringToBytes("01");
+  std::string frame_type1;
+  ASSERT_TRUE(absl::HexStringToBytes("01", &frame_type1));
   QuicStreamId stream_id1 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
   EXPECT_CALL(*connection_,
@@ -2016,9 +2017,11 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&*session_));
 
   // Push unidirectional stream is type 0x01.
-  std::string frame_type = absl::HexStringToBytes("01");
+  std::string frame_type;
+  ASSERT_TRUE(absl::HexStringToBytes("01", &frame_type));
   // The first field of a push stream is the Push ID.
-  std::string push_id = absl::HexStringToBytes("4000");
+  std::string push_id;
+  ASSERT_TRUE(absl::HexStringToBytes("4000", &push_id));
 
   QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
@@ -2746,7 +2749,8 @@ TEST_P(QuicSpdySessionTestServer, StreamClosedWhileHeaderDecodingBlocked) {
   TestStream* stream = session_->CreateIncomingStream(stream_id);
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string headers_frame_payload = absl::HexStringToBytes("020080");
+  std::string headers_frame_payload;
+  ASSERT_TRUE(absl::HexStringToBytes("020080", &headers_frame_payload));
   std::string headers_frame_header =
       HttpEncoder::SerializeHeadersFrameHeader(headers_frame_payload.length());
   std::string headers_frame =
@@ -2778,7 +2782,8 @@ TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
   TestStream* stream = session_->CreateIncomingStream(stream_id);
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string headers_frame_payload = absl::HexStringToBytes("020080");
+  std::string headers_frame_payload;
+  ASSERT_TRUE(absl::HexStringToBytes("020080", &headers_frame_payload));
   std::string headers_frame_header =
       HttpEncoder::SerializeHeadersFrameHeader(headers_frame_payload.length());
   std::string headers_frame =
@@ -2809,7 +2814,8 @@ TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
   // Payload consists of two bytes.  The first byte is an unknown unidirectional
   // stream type.  The second one would be the type of a push stream, but it
   // must not be interpreted as stream type.
-  std::string payload = absl::HexStringToBytes("3f01");
+  std::string payload;
+  ASSERT_TRUE(absl::HexStringToBytes("3f01", &payload));
   QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0,
                         payload);
 
@@ -2857,7 +2863,8 @@ TEST_P(QuicSpdySessionTestClient, FinAfterInvalidIncomingStreamType) {
   // Payload consists of two bytes.  The first byte is an unknown unidirectional
   // stream type.  The second one would be the type of a push stream, but it
   // must not be interpreted as stream type.
-  std::string payload = absl::HexStringToBytes("3f01");
+  std::string payload;
+  ASSERT_TRUE(absl::HexStringToBytes("3f01", &payload));
   QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0,
                         payload);
 
@@ -2896,7 +2903,8 @@ TEST_P(QuicSpdySessionTestClient, ResetInMiddleOfStreamType) {
   ASSERT_TRUE(session_->UsesPendingStreamForFrame(STREAM_FRAME, stream_id));
 
   // Payload is the first byte of a two byte varint encoding.
-  std::string payload = absl::HexStringToBytes("40");
+  std::string payload;
+  ASSERT_TRUE(absl::HexStringToBytes("40", &payload));
   QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0,
                         payload);
 
@@ -2926,7 +2934,8 @@ TEST_P(QuicSpdySessionTestClient, FinInMiddleOfStreamType) {
   ASSERT_TRUE(session_->UsesPendingStreamForFrame(STREAM_FRAME, stream_id));
 
   // Payload is the first byte of a two byte varint encoding with a FIN.
-  std::string payload = absl::HexStringToBytes("40");
+  std::string payload;
+  ASSERT_TRUE(absl::HexStringToBytes("40", &payload));
   QuicStreamFrame frame(stream_id, /* fin = */ true, /* offset = */ 0, payload);
 
   session_->OnStreamFrame(frame);
@@ -3015,9 +3024,11 @@ TEST_P(QuicSpdySessionTestClient, EncoderStreamError) {
   }
 
   CompleteHandshake();
-  std::string data = absl::HexStringToBytes(
-      "02"    // Encoder stream.
-      "00");  // Duplicate entry 0, but no entries exist.
+  std::string data;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("02"   // Encoder stream.
+                             "00",  // Duplicate entry 0, but no entries exist.
+                             &data));
 
   QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
@@ -3038,9 +3049,11 @@ TEST_P(QuicSpdySessionTestClient, DecoderStreamError) {
   }
 
   CompleteHandshake();
-  std::string data = absl::HexStringToBytes(
-      "03"    // Decoder stream.
-      "00");  // Insert Count Increment with forbidden increment value of zero.
+  std::string data;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "03"   // Decoder stream.
+      "00",  // Insert Count Increment with forbidden increment value of zero.
+      &data));
 
   QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
@@ -3123,10 +3136,12 @@ TEST_P(QuicSpdySessionTestClient, CloseConnectionOnCancelPush) {
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
   session_->OnStreamFrame(data2);
 
-  std::string cancel_push_frame = absl::HexStringToBytes(
-      "03"    // CANCEL_PUSH
-      "01"    // length
-      "00");  // push ID
+  std::string cancel_push_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("03"   // CANCEL_PUSH
+                             "01"   // length
+                             "00",  // push ID
+                             &cancel_push_frame));
   QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
                         cancel_push_frame);
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR,
@@ -3188,14 +3203,16 @@ TEST_P(QuicSpdySessionTestServer, FineGrainedHpackErrorCodes) {
 
   // Index 126 does not exist (static table has 61 entries and dynamic table is
   // empty).
-  std::string headers_frame = absl::HexStringToBytes(
-      "000006"    // length
-      "01"        // type
-      "24"        // flags: PRIORITY | END_HEADERS
-      "00000005"  // stream_id
-      "00000000"  // stream dependency
-      "10"        // weight
-      "fe");      // payload: reference to index 126.
+  std::string headers_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("000006"    // length
+                             "01"        // type
+                             "24"        // flags: PRIORITY | END_HEADERS
+                             "00000005"  // stream_id
+                             "00000000"  // stream dependency
+                             "10"        // weight
+                             "fe",       // payload: reference to index 126.
+                             &headers_frame));
   QuicStreamId headers_stream_id =
       QuicUtils::GetHeadersStreamId(transport_version());
   QuicStreamFrame data(headers_stream_id, false, 0, headers_frame);
@@ -3333,10 +3350,12 @@ TEST_P(QuicSpdySessionTestServer, CloseConnectionOnCancelPush) {
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
   session_->OnStreamFrame(data2);
 
-  std::string cancel_push_frame = absl::HexStringToBytes(
-      "03"    // CANCEL_PUSH
-      "01"    // length
-      "00");  // push ID
+  std::string cancel_push_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("03"   // CANCEL_PUSH
+                             "01"   // length
+                             "00",  // push ID
+                             &cancel_push_frame));
   QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
                         cancel_push_frame);
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR,
@@ -3487,13 +3506,15 @@ TEST_P(QuicSpdySessionTestClient, AcceptChViaAlps) {
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_->set_debug_visitor(&debug_visitor);
 
-  std::string serialized_accept_ch_frame = absl::HexStringToBytes(
-      "4089"      // type (ACCEPT_CH)
-      "08"        // length
-      "03"        // length of origin
-      "666f6f"    // origin "foo"
-      "03"        // length of value
-      "626172");  // value "bar"
+  std::string serialized_accept_ch_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("4089"     // type (ACCEPT_CH)
+                             "08"       // length
+                             "03"       // length of origin
+                             "666f6f"   // origin "foo"
+                             "03"       // length of value
+                             "626172",  // value "bar"
+                             &serialized_accept_ch_frame));
 
   AcceptChFrame expected_accept_ch_frame{{{"foo", "bar"}}};
   EXPECT_CALL(debug_visitor,
@@ -3511,10 +3532,12 @@ TEST_P(QuicSpdySessionTestClient, AlpsForbiddenFrame) {
     return;
   }
 
-  std::string forbidden_frame = absl::HexStringToBytes(
-      "00"        // type (DATA)
-      "03"        // length
-      "66666f");  // "foo"
+  std::string forbidden_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("00"       // type (DATA)
+                             "03"       // length
+                             "66666f",  // "foo"
+                             &forbidden_frame));
 
   auto error = session_->OnAlpsData(
       reinterpret_cast<const uint8_t*>(forbidden_frame.data()),
@@ -3529,9 +3552,11 @@ TEST_P(QuicSpdySessionTestClient, AlpsIncompleteFrame) {
     return;
   }
 
-  std::string incomplete_frame = absl::HexStringToBytes(
-      "04"    // type (SETTINGS)
-      "03");  // non-zero length but empty payload
+  std::string incomplete_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("04"   // type (SETTINGS)
+                             "03",  // non-zero length but empty payload
+                             &incomplete_frame));
 
   auto error = session_->OnAlpsData(
       reinterpret_cast<const uint8_t*>(incomplete_frame.data()),
@@ -3556,13 +3581,15 @@ TEST_P(QuicSpdySessionTestClient, SettingsViaAlpsThenOnControlStream) {
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_->set_debug_visitor(&debug_visitor);
 
-  std::string serialized_settings_frame1 = absl::HexStringToBytes(
-      "04"    // type (SETTINGS)
-      "05"    // length
-      "01"    // SETTINGS_QPACK_MAX_TABLE_CAPACITY
-      "4400"  // 0x0400 = 1024
-      "07"    // SETTINGS_QPACK_BLOCKED_STREAMS
-      "20");  // 0x20 = 32
+  std::string serialized_settings_frame1;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("04"    // type (SETTINGS)
+                             "05"    // length
+                             "01"    // SETTINGS_QPACK_MAX_TABLE_CAPACITY
+                             "4400"  // 0x0400 = 1024
+                             "07"    // SETTINGS_QPACK_BLOCKED_STREAMS
+                             "20",   // 0x20 = 32
+                             &serialized_settings_frame1));
 
   SettingsFrame expected_settings_frame1{
       {{SETTINGS_QPACK_MAX_TABLE_CAPACITY, 1024},
@@ -3582,7 +3609,8 @@ TEST_P(QuicSpdySessionTestClient, SettingsViaAlpsThenOnControlStream) {
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
   EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(control_stream_id));
 
-  std::string stream_type = absl::HexStringToBytes("00");
+  std::string stream_type;
+  ASSERT_TRUE(absl::HexStringToBytes("00", &stream_type));
   session_->OnStreamFrame(QuicStreamFrame(control_stream_id, /* fin = */ false,
                                           /* offset = */ 0, stream_type));
 
@@ -3594,13 +3622,15 @@ TEST_P(QuicSpdySessionTestClient, SettingsViaAlpsThenOnControlStream) {
       {{SETTINGS_QPACK_MAX_TABLE_CAPACITY, 1024},
        {SETTINGS_QPACK_BLOCKED_STREAMS, 48}}};
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(expected_settings_frame2));
-  std::string serialized_settings_frame2 = absl::HexStringToBytes(
-      "04"    // type (SETTINGS)
-      "05"    // length
-      "01"    // SETTINGS_QPACK_MAX_TABLE_CAPACITY
-      "4400"  // 0x0400 = 1024
-      "07"    // SETTINGS_QPACK_BLOCKED_STREAMS
-      "30");  // 0x30 = 48
+  std::string serialized_settings_frame2;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("04"    // type (SETTINGS)
+                             "05"    // length
+                             "01"    // SETTINGS_QPACK_MAX_TABLE_CAPACITY
+                             "4400"  // 0x0400 = 1024
+                             "07"    // SETTINGS_QPACK_BLOCKED_STREAMS
+                             "30",   // 0x30 = 48
+                             &serialized_settings_frame2));
   session_->OnStreamFrame(QuicStreamFrame(control_stream_id, /* fin = */ false,
                                           /* offset = */ stream_type.length(),
                                           serialized_settings_frame2));
@@ -3622,11 +3652,13 @@ TEST_P(QuicSpdySessionTestClient,
   QpackEncoder* qpack_encoder = session_->qpack_encoder();
   EXPECT_EQ(0u, qpack_encoder->MaximumDynamicTableCapacity());
 
-  std::string serialized_settings_frame1 = absl::HexStringToBytes(
-      "04"      // type (SETTINGS)
-      "03"      // length
-      "01"      // SETTINGS_QPACK_MAX_TABLE_CAPACITY
-      "4400");  // 0x0400 = 1024
+  std::string serialized_settings_frame1;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("04"     // type (SETTINGS)
+                             "03"     // length
+                             "01"     // SETTINGS_QPACK_MAX_TABLE_CAPACITY
+                             "4400",  // 0x0400 = 1024
+                             &serialized_settings_frame1));
 
   auto error = session_->OnAlpsData(
       reinterpret_cast<const uint8_t*>(serialized_settings_frame1.data()),
@@ -3638,7 +3670,8 @@ TEST_P(QuicSpdySessionTestClient,
   const QuicStreamId control_stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
 
-  std::string stream_type = absl::HexStringToBytes("00");
+  std::string stream_type;
+  ASSERT_TRUE(absl::HexStringToBytes("00", &stream_type));
   session_->OnStreamFrame(QuicStreamFrame(control_stream_id, /* fin = */ false,
                                           /* offset = */ 0, stream_type));
 
@@ -3648,11 +3681,13 @@ TEST_P(QuicSpdySessionTestClient,
                       "Server sent an SETTINGS_QPACK_MAX_TABLE_CAPACITY: "
                       "32 while current value is: 1024",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
-  std::string serialized_settings_frame2 = absl::HexStringToBytes(
-      "04"    // type (SETTINGS)
-      "02"    // length
-      "01"    // SETTINGS_QPACK_MAX_TABLE_CAPACITY
-      "20");  // 0x20 = 32
+  std::string serialized_settings_frame2;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("04"   // type (SETTINGS)
+                             "02"   // length
+                             "01"   // SETTINGS_QPACK_MAX_TABLE_CAPACITY
+                             "20",  // 0x20 = 32
+                             &serialized_settings_frame2));
   session_->OnStreamFrame(QuicStreamFrame(control_stream_id, /* fin = */ false,
                                           /* offset = */ stream_type.length(),
                                           serialized_settings_frame2));
@@ -3664,11 +3699,13 @@ TEST_P(QuicSpdySessionTestClient, AlpsTwoSettingsFrame) {
     return;
   }
 
-  std::string banned_frame = absl::HexStringToBytes(
-      "04"    // type (SETTINGS)
-      "00"    // length
-      "04"    // type (SETTINGS)
-      "00");  // length
+  std::string banned_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("04"   // type (SETTINGS)
+                             "00"   // length
+                             "04"   // type (SETTINGS)
+                             "00",  // length
+                             &banned_frame));
 
   auto error = session_->OnAlpsData(
       reinterpret_cast<const uint8_t*>(banned_frame.data()),
@@ -4134,25 +4171,33 @@ TEST_P(QuicSpdySessionTestClient, LimitEncoderDynamicTableSize) {
       QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer)->slice;
   absl::string_view stream_data(slice.data(), slice.length());
 
-  EXPECT_EQ(absl::HexStringToBytes(
-                "000009"  // frame length
-                "01"      // frame type HEADERS
-                "25"),    // flags END_STREAM | END_HEADERS | PRIORITY
-            stream_data.substr(0, 5));
+  std::string expected_stream_data_1;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("000009"  // frame length
+                             "01"      // frame type HEADERS
+                             "25",  // flags END_STREAM | END_HEADERS | PRIORITY
+                             &expected_stream_data_1));
+  EXPECT_EQ(expected_stream_data_1, stream_data.substr(0, 5));
   stream_data.remove_prefix(5);
 
   // Ignore stream ID as it might differ between QUIC versions.
   stream_data.remove_prefix(4);
 
-  EXPECT_EQ(absl::HexStringToBytes("00000000"  // stream dependency
-                                   "92"),      // stream weight
-            stream_data.substr(0, 5));
+  std::string expected_stream_data_2;
+
+  ASSERT_TRUE(
+      absl::HexStringToBytes("00000000"  // stream dependency
+                             "92",       // stream weight
+                             &expected_stream_data_2));
+  EXPECT_EQ(expected_stream_data_2, stream_data.substr(0, 5));
   stream_data.remove_prefix(5);
 
-  EXPECT_EQ(absl::HexStringToBytes(
-                "3fe17f"  // Dynamic Table Size Update to 16384
-                "82"),    // Indexed Header Field Representation with index 2
-            stream_data);
+  std::string expected_stream_data_3;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "3fe17f"  // Dynamic Table Size Update to 16384
+      "82",     // Indexed Header Field Representation with index 2
+      &expected_stream_data_3));
+  EXPECT_EQ(expected_stream_data_3, stream_data);
 }
 
 class QuicSpdySessionTestServerNoExtendedConnect

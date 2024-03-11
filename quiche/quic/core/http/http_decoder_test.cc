@@ -5,6 +5,7 @@
 #include "quiche/quic/core/http/http_decoder.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/base/macros.h"
@@ -151,10 +152,12 @@ TEST_F(HttpDecoderTest, UnknownFrame) {
 
 TEST_F(HttpDecoderTest, CancelPush) {
   InSequence s;
-  std::string input = absl::HexStringToBytes(
-      "03"    // type (CANCEL_PUSH)
-      "01"    // length
-      "01");  // Push Id
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("03"   // type (CANCEL_PUSH)
+                             "01"   // length
+                             "01",  // Push Id
+                             &input));
 
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(1u, ProcessInput(input));
@@ -164,11 +167,14 @@ TEST_F(HttpDecoderTest, CancelPush) {
 
 TEST_F(HttpDecoderTest, PushPromiseFrame) {
   InSequence s;
-  std::string input =
-      absl::StrCat(absl::HexStringToBytes("05"    // type (PUSH PROMISE)
-                                          "08"    // length
-                                          "1f"),  // push id 31
-                   "Headers");                    // headers
+  std::string push_promise_bytes;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("05"   // type (PUSH PROMISE)
+                             "08"   // length
+                             "1f",  // push id 31
+                             &push_promise_bytes));
+  std::string input = absl::StrCat(push_promise_bytes,
+                                   "Headers");  // headers
 
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(1u, ProcessInput(input));
@@ -178,10 +184,12 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
 
 TEST_F(HttpDecoderTest, MaxPushId) {
   InSequence s;
-  std::string input = absl::HexStringToBytes(
-      "0D"    // type (MAX_PUSH_ID)
-      "01"    // length
-      "01");  // Push Id
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0D"   // type (MAX_PUSH_ID)
+                             "01"   // length
+                             "01",  // Push Id
+                             &input));
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnMaxPushIdFrame()).WillOnce(Return(false));
@@ -204,7 +212,8 @@ TEST_F(HttpDecoderTest, MaxPushId) {
 
 TEST_F(HttpDecoderTest, SettingsFrame) {
   InSequence s;
-  std::string input = absl::HexStringToBytes(
+  std::string input;
+  ASSERT_TRUE(absl::HexStringToBytes(
       "04"    // type (SETTINGS)
       "07"    // length
       "01"    // identifier (SETTINGS_QPACK_MAX_TABLE_CAPACITY)
@@ -212,7 +221,8 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
       "06"    // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
       "05"    // content
       "4100"  // identifier, encoded on 2 bytes (0x40), value is 256 (0x100)
-      "04");  // content
+      "04",   // content
+      &input));
 
   SettingsFrame frame;
   frame.values[1] = 2;
@@ -284,13 +294,15 @@ TEST_F(HttpDecoderTest, CorruptSettingsFrame) {
 }
 
 TEST_F(HttpDecoderTest, DuplicateSettingsIdentifier) {
-  std::string input = absl::HexStringToBytes(
-      "04"    // type (SETTINGS)
-      "04"    // length
-      "01"    // identifier
-      "01"    // content
-      "01"    // identifier
-      "02");  // content
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("04"   // type (SETTINGS)
+                             "04"   // length
+                             "01"   // identifier
+                             "01"   // content
+                             "01"   // identifier
+                             "02",  // content
+                             &input));
 
   EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
   EXPECT_CALL(visitor_, OnError(&decoder_));
@@ -304,9 +316,13 @@ TEST_F(HttpDecoderTest, DuplicateSettingsIdentifier) {
 
 TEST_F(HttpDecoderTest, DataFrame) {
   InSequence s;
-  std::string input = absl::StrCat(absl::HexStringToBytes("00"    // type (DATA)
-                                                          "05"),  // length
-                                   "Data!");                      // data
+  std::string type_and_length_bytes;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("00"   // type (DATA)
+                             "05",  // length
+                             &type_and_length_bytes));
+  std::string input = absl::StrCat(type_and_length_bytes,
+                                   "Data!");  // data
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnDataFrameStart(2, 5)).WillOnce(Return(false));
@@ -403,10 +419,12 @@ TEST_F(HttpDecoderTest, PartialDeliveryOfLargeFrameType) {
 
 TEST_F(HttpDecoderTest, GoAway) {
   InSequence s;
-  std::string input = absl::HexStringToBytes(
-      "07"    // type (GOAWAY)
-      "01"    // length
-      "01");  // ID
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("07"   // type (GOAWAY)
+                             "01"   // length
+                             "01",  // ID
+                             &input));
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnGoAwayFrame(GoAwayFrame({1})))
@@ -430,10 +448,13 @@ TEST_F(HttpDecoderTest, GoAway) {
 
 TEST_F(HttpDecoderTest, HeadersFrame) {
   InSequence s;
-  std::string input =
-      absl::StrCat(absl::HexStringToBytes("01"    // type (HEADERS)
-                                          "07"),  // length
-                   "Headers");                    // headers
+  std::string type_and_length_bytes;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("01"   // type (HEADERS)
+                             "07",  // length
+                             &type_and_length_bytes));
+  std::string input = absl::StrCat(type_and_length_bytes,
+                                   "Headers");  // headers
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7)).WillOnce(Return(false));
@@ -481,10 +502,13 @@ TEST_F(HttpDecoderTest, MetadataFrame) {
     return;
   }
   InSequence s;
-  std::string input =
-      absl::StrCat(absl::HexStringToBytes("404d"  // 2 byte type (METADATA)
-                                          "08"),  // length
-                   "Metadata");                   // headers
+  std::string type_and_length_bytes;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("404d"  // 2 byte type (METADATA)
+                             "08",   // length
+                             &type_and_length_bytes));
+  std::string input = absl::StrCat(type_and_length_bytes,
+                                   "Metadata");  // headers
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnMetadataFrameStart(3, 8)).WillOnce(Return(false));
@@ -530,9 +554,11 @@ TEST_F(HttpDecoderTest, MetadataFrame) {
 
 TEST_F(HttpDecoderTest, EmptyDataFrame) {
   InSequence s;
-  std::string input = absl::HexStringToBytes(
-      "00"    // type (DATA)
-      "00");  // length
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("00"   // type (DATA)
+                             "00",  // length
+                             &input));
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnDataFrameStart(2, 0)).WillOnce(Return(false));
@@ -560,9 +586,11 @@ TEST_F(HttpDecoderTest, EmptyDataFrame) {
 
 TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
   InSequence s;
-  std::string input = absl::HexStringToBytes(
-      "01"    // type (HEADERS)
-      "00");  // length
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("01"   // type (HEADERS)
+                             "00",  // length
+                             &input));
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 0)).WillOnce(Return(false));
@@ -589,9 +617,11 @@ TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
 }
 
 TEST_F(HttpDecoderTest, GoawayWithOverlyLargePayload) {
-  std::string input = absl::HexStringToBytes(
-      "07"    // type (GOAWAY)
-      "10");  // length exceeding the maximum possible length for GOAWAY frame
+  std::string input;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "07"   // type (GOAWAY)
+      "10",  // length exceeding the maximum possible length for GOAWAY frame
+      &input));
   // Process all data at once.
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(2u, ProcessInput(input));
@@ -600,10 +630,12 @@ TEST_F(HttpDecoderTest, GoawayWithOverlyLargePayload) {
 }
 
 TEST_F(HttpDecoderTest, MaxPushIdWithOverlyLargePayload) {
-  std::string input = absl::HexStringToBytes(
-      "0d"    // type (MAX_PUSH_ID)
-      "10");  // length exceeding the maximum possible length for MAX_PUSH_ID
-              // frame
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0d"   // type (MAX_PUSH_ID)
+                             "10",  // length exceeding the maximum possible
+                                    // length for MAX_PUSH_ID frame
+                             &input));
   // Process all data at once.
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(2u, ProcessInput(input));
@@ -623,7 +655,7 @@ TEST_F(HttpDecoderTest, FrameWithOverlyLargePayload) {
     ::testing::NiceMock<MockHttpDecoderVisitor> visitor;
     HttpDecoder decoder(&visitor);
     QuicDataWriter writer(max_input_length, input);
-    ASSERT_TRUE(writer.WriteVarInt62(frame_type));         // frame type.
+    ASSERT_TRUE(writer.WriteVarInt62(frame_type));  // frame type.
     ASSERT_TRUE(
         writer.WriteVarInt62(quiche::kVarInt62MaxValue));  // frame length.
     ASSERT_TRUE(writer.WriteUInt8(0x00));  // one byte of payload.
@@ -647,10 +679,12 @@ TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
 }
 
 TEST_F(HttpDecoderTest, Http2Frame) {
-  std::string input = absl::HexStringToBytes(
-      "06"    // PING in HTTP/2 but not supported in HTTP/3.
-      "05"    // length
-      "15");  // random payload
+  std::string input;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "06"   // PING in HTTP/2 but not supported in HTTP/3.
+      "05"   // length
+      "15",  // random payload
+      &input));
 
   // Process the full frame.
   EXPECT_CALL(visitor_, OnError(&decoder_));
@@ -662,13 +696,19 @@ TEST_F(HttpDecoderTest, Http2Frame) {
 
 TEST_F(HttpDecoderTest, HeadersPausedThenData) {
   InSequence s;
-  std::string input =
-      absl::StrCat(absl::HexStringToBytes("01"    // type (HEADERS)
-                                          "07"),  // length
-                   "Headers",                     // headers
-                   absl::HexStringToBytes("00"    // type (DATA)
-                                          "05"),  // length
-                   "Data!");                      // data
+  std::string headers_type_and_length_bytes;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("01"   // type (HEADERS)
+                             "07",  // length,
+                             &headers_type_and_length_bytes));
+  std::string headers = absl::StrCat(headers_type_and_length_bytes, "Headers");
+  std::string data_type_and_length_bytes;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("00"   // type (DATA)
+                             "05",  // length
+                             &data_type_and_length_bytes));
+  std::string data = absl::StrCat(data_type_and_length_bytes, "Data!");
+  std::string input = absl::StrCat(headers, data);
 
   // Visitor pauses processing, maybe because header decompression is blocked.
   EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7));
@@ -775,9 +815,11 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
 }
 
 TEST_F(HttpDecoderTest, EmptySettingsFrame) {
-  std::string input = absl::HexStringToBytes(
-      "04"    // type (SETTINGS)
-      "00");  // frame length
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("04"   // type (SETTINGS)
+                             "00",  // frame length
+                             &input));
 
   EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
 
@@ -790,9 +832,11 @@ TEST_F(HttpDecoderTest, EmptySettingsFrame) {
 }
 
 TEST_F(HttpDecoderTest, EmptyGoAwayFrame) {
-  std::string input = absl::HexStringToBytes(
-      "07"    // type (GOAWAY)
-      "00");  // frame length
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("07"   // type (GOAWAY)
+                             "00",  // frame length
+                             &input));
 
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(input.size(), ProcessInput(input));
@@ -801,9 +845,11 @@ TEST_F(HttpDecoderTest, EmptyGoAwayFrame) {
 }
 
 TEST_F(HttpDecoderTest, EmptyMaxPushIdFrame) {
-  std::string input = absl::HexStringToBytes(
-      "0d"    // type (MAX_PUSH_ID)
-      "00");  // frame length
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0d"   // type (MAX_PUSH_ID)
+                             "00",  // frame length
+                             &input));
 
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(input.size(), ProcessInput(input));
@@ -828,10 +874,12 @@ TEST_F(HttpDecoderTest, ObsoletePriorityUpdateFrame) {
   const QuicByteCount header_length = 2;
   const QuicByteCount payload_length = 3;
   InSequence s;
-  std::string input = absl::HexStringToBytes(
-      "0f"        // type (obsolete PRIORITY_UPDATE)
-      "03"        // length
-      "666f6f");  // payload "foo"
+  std::string input;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0f"       // type (obsolete PRIORITY_UPDATE)
+                             "03"       // length
+                             "666f6f",  // payload "foo"
+                             &input));
 
   // Process frame as a whole.
   EXPECT_CALL(visitor_,
@@ -859,10 +907,12 @@ TEST_F(HttpDecoderTest, ObsoletePriorityUpdateFrame) {
 
 TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
   InSequence s;
-  std::string input1 = absl::HexStringToBytes(
-      "800f0700"  // type (PRIORITY_UPDATE)
-      "01"        // length
-      "03");      // prioritized element id
+  std::string input1;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("800f0700"  // type (PRIORITY_UPDATE)
+                             "01"        // length
+                             "03",       // prioritized element id
+                             &input1));
 
   PriorityUpdateFrame priority_update1;
   priority_update1.prioritized_element_id = 0x03;
@@ -896,11 +946,13 @@ TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
 
-  std::string input2 = absl::HexStringToBytes(
-      "800f0700"  // type (PRIORITY_UPDATE)
-      "04"        // length
-      "05"        // prioritized element id
-      "666f6f");  // priority field value: "foo"
+  std::string input2;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("800f0700"  // type (PRIORITY_UPDATE)
+                             "04"        // length
+                             "05"        // prioritized element id
+                             "666f6f",   // priority field value: "foo"
+                             &input2));
 
   PriorityUpdateFrame priority_update2;
   priority_update2.prioritized_element_id = 0x05;
@@ -936,8 +988,9 @@ TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
 }
 
 TEST_F(HttpDecoderTest, CorruptPriorityUpdateFrame) {
-  std::string payload =
-      absl::HexStringToBytes("4005");  // prioritized element id
+  std::string payload;
+  ASSERT_TRUE(absl::HexStringToBytes("4005",  // prioritized element id
+                                     &payload));
   struct {
     size_t payload_length;
     const char* const error_message;
@@ -947,8 +1000,9 @@ TEST_F(HttpDecoderTest, CorruptPriorityUpdateFrame) {
   };
 
   for (const auto& test_data : kTestData) {
-    std::string input =
-        absl::HexStringToBytes("800f0700");  // type PRIORITY_UPDATE
+    std::string input;
+    ASSERT_TRUE(absl::HexStringToBytes("800f0700",  // type PRIORITY_UPDATE
+                                       &input));
     input.push_back(test_data.payload_length);
     size_t header_length = input.size();
     input.append(payload.data(), test_data.payload_length);
@@ -967,9 +1021,11 @@ TEST_F(HttpDecoderTest, CorruptPriorityUpdateFrame) {
 
 TEST_F(HttpDecoderTest, AcceptChFrame) {
   InSequence s;
-  std::string input1 = absl::HexStringToBytes(
-      "4089"  // type (ACCEPT_CH)
-      "00");  // length
+  std::string input1;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("4089"  // type (ACCEPT_CH)
+                             "00",   // length
+                             &input1));
 
   AcceptChFrame accept_ch1;
 
@@ -1001,13 +1057,15 @@ TEST_F(HttpDecoderTest, AcceptChFrame) {
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
 
-  std::string input2 = absl::HexStringToBytes(
-      "4089"      // type (ACCEPT_CH)
-      "08"        // length
-      "03"        // length of origin
-      "666f6f"    // origin "foo"
-      "03"        // length of value
-      "626172");  // value "bar"
+  std::string input2;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("4089"     // type (ACCEPT_CH)
+                             "08"       // length
+                             "03"       // length of origin
+                             "666f6f"   // origin "foo"
+                             "03"       // length of value
+                             "626172",  // value "bar"
+                             &input2));
 
   AcceptChFrame accept_ch2;
   accept_ch2.entries.push_back({"foo", "bar"});
@@ -1044,7 +1102,8 @@ TEST_F(HttpDecoderTest, WebTransportStreamDisabled) {
   InSequence s;
 
   // Unknown frame of type 0x41 and length 0x104.
-  std::string input = absl::HexStringToBytes("40414104");
+  std::string input;
+  ASSERT_TRUE(absl::HexStringToBytes("40414104", &input));
   EXPECT_CALL(visitor_, OnUnknownFrameStart(0x41, input.size(), 0x104));
   EXPECT_EQ(ProcessInput(input), input.size());
 }
@@ -1055,7 +1114,8 @@ TEST(HttpDecoderTestNoFixture, WebTransportStream) {
   decoder.EnableWebTransportStreamParsing();
 
   // WebTransport stream for session ID 0x104, with four bytes of extra data.
-  std::string input = absl::HexStringToBytes("40414104ffffffff");
+  std::string input;
+  ASSERT_TRUE(absl::HexStringToBytes("40414104ffffffff", &input));
   EXPECT_CALL(visitor, OnWebTransportStreamFrameType(4, 0x104));
   QuicByteCount bytes = decoder.ProcessInput(input.data(), input.size());
   EXPECT_EQ(bytes, 4u);
@@ -1066,7 +1126,8 @@ TEST(HttpDecoderTestNoFixture, WebTransportStreamError) {
   HttpDecoder decoder(&visitor);
   decoder.EnableWebTransportStreamParsing();
 
-  std::string input = absl::HexStringToBytes("404100");
+  std::string input;
+  ASSERT_TRUE(absl::HexStringToBytes("404100", &input));
   EXPECT_CALL(visitor, OnWebTransportStreamFrameType(_, _));
   decoder.ProcessInput(input.data(), input.size());
 
@@ -1079,7 +1140,8 @@ TEST(HttpDecoderTestNoFixture, WebTransportStreamError) {
 }
 
 TEST_F(HttpDecoderTest, DecodeSettings) {
-  std::string input = absl::HexStringToBytes(
+  std::string input;
+  ASSERT_TRUE(absl::HexStringToBytes(
       "04"    // type (SETTINGS)
       "07"    // length
       "01"    // identifier (SETTINGS_QPACK_MAX_TABLE_CAPACITY)
@@ -1087,7 +1149,8 @@ TEST_F(HttpDecoderTest, DecodeSettings) {
       "06"    // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
       "05"    // content
       "4100"  // identifier, encoded on 2 bytes (0x40), value is 256 (0x100)
-      "04");  // content
+      "04",   // content
+      &input));
 
   SettingsFrame frame;
   frame.values[1] = 2;
@@ -1099,18 +1162,20 @@ TEST_F(HttpDecoderTest, DecodeSettings) {
   EXPECT_EQ(frame, out);
 
   // non-settings frame.
-  input = absl::HexStringToBytes(
-      "0D"    // type (MAX_PUSH_ID)
-      "01"    // length
-      "01");  // Push Id
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0D"   // type (MAX_PUSH_ID)
+                             "01"   // length
+                             "01",  // Push Id
+                             &input));
 
   EXPECT_FALSE(HttpDecoder::DecodeSettings(input.data(), input.size(), &out));
 
   // Corrupt SETTINGS.
-  input = absl::HexStringToBytes(
-      "04"    // type (SETTINGS)
-      "01"    // length
-      "42");  // First byte of setting identifier, indicating a 2-byte varint62.
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "04"   // type (SETTINGS)
+      "01"   // length
+      "42",  // First byte of setting identifier, indicating a 2-byte varint62.
+      &input));
 
   EXPECT_FALSE(HttpDecoder::DecodeSettings(input.data(), input.size(), &out));
 }
