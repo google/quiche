@@ -5,6 +5,7 @@
 #include "quiche/blind_sign_auth/cached_blind_sign_auth.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -63,7 +64,7 @@ class CachedBlindSignAuthTest : public QuicheTest {
 
   MockBlindSignAuthInterface mock_blind_sign_auth_interface_;
   std::unique_ptr<CachedBlindSignAuth> cached_blind_sign_auth_;
-  std::string oauth_token_ = "oauth_token";
+  std::optional<std::string> oauth_token_ = "oauth_token";
   std::vector<BlindSignToken> fake_tokens_;
 };
 

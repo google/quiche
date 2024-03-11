@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,8 +28,8 @@
 #include "anonymous_tokens/cpp/shared/proto_utils.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
-#include "quiche/blind_sign_auth/blind_sign_http_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
+#include "quiche/blind_sign_auth/blind_sign_message_interface.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
 #include "quiche/common/quiche_random.h"
@@ -46,8 +47,8 @@ constexpr absl::string_view kIssuerHostname =
 
 }  // namespace
 
-void BlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
-                              ProxyLayer proxy_layer,
+void BlindSignAuth::GetTokens(std::optional<std::string> oauth_token,
+                              int num_tokens, ProxyLayer proxy_layer,
                               SignedTokenCallback callback) {
   // Create GetInitialData RPC.
   privacy::ppn::GetInitialDataRequest request;
@@ -69,8 +70,8 @@ void BlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
 }
 
 void BlindSignAuth::GetInitialDataCallback(
-    std::string oauth_token, int num_tokens, ProxyLayer proxy_layer,
-    SignedTokenCallback callback,
+    std::optional<std::string> oauth_token, int num_tokens,
+    ProxyLayer proxy_layer, SignedTokenCallback callback,
     absl::StatusOr<BlindSignHttpResponse> response) {
   if (!response.ok()) {
     QUICHE_LOG(WARNING) << "GetInitialDataRequest failed: "
@@ -125,8 +126,9 @@ void BlindSignAuth::GetInitialDataCallback(
 
 void BlindSignAuth::GeneratePrivacyPassTokens(
     privacy::ppn::GetInitialDataResponse initial_data_response,
-    absl::Time public_metadata_expiry_time, std::string oauth_token,
-    int num_tokens, ProxyLayer proxy_layer, SignedTokenCallback callback) {
+    absl::Time public_metadata_expiry_time,
+    std::optional<std::string> oauth_token, int num_tokens,
+    ProxyLayer proxy_layer, SignedTokenCallback callback) {
   // Set up values used in the token generation loop.
   anonymous_tokens::RSAPublicKey public_key_proto;
   if (!public_key_proto.ParseFromString(
@@ -220,7 +222,6 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
   }
 
   privacy::ppn::AuthAndSignRequest sign_request;
-  sign_request.set_oauth_token(oauth_token);
   sign_request.set_service_type("chromeipblinding");
   sign_request.set_key_type(privacy::ppn::AT_PUBLIC_METADATA_KEY_TYPE);
   sign_request.set_key_version(
@@ -256,8 +257,9 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
 
 void BlindSignAuth::GenerateRsaBssaTokens(
     privacy::ppn::GetInitialDataResponse initial_data_response,
-    absl::Time public_metadata_expiry_time, std::string oauth_token,
-    int num_tokens, ProxyLayer proxy_layer, SignedTokenCallback callback) {
+    absl::Time public_metadata_expiry_time,
+    std::optional<std::string> oauth_token, int num_tokens,
+    ProxyLayer proxy_layer, SignedTokenCallback callback) {
   // Create public metadata client.
   auto bssa_client =
       anonymous_tokens::AnonymousTokensRsaBssaClient::
@@ -311,7 +313,6 @@ void BlindSignAuth::GenerateRsaBssaTokens(
 
   // Create AuthAndSign RPC.
   privacy::ppn::AuthAndSignRequest sign_request;
-  sign_request.set_oauth_token(std::string(oauth_token));
   sign_request.set_service_type("chromeipblinding");
   sign_request.set_key_type(privacy::ppn::AT_PUBLIC_METADATA_KEY_TYPE);
   sign_request.set_key_version(
@@ -332,8 +333,8 @@ void BlindSignAuth::GenerateRsaBssaTokens(
       &BlindSignAuth::AuthAndSignCallback, this, public_metadata_info,
       public_metadata_expiry_time, *at_sign_request, *std::move(bssa_client),
       std::move(callback));
-  http_fetcher_->DoRequest(BlindSignHttpRequestType::kAuthAndSign,
-                           oauth_token.data(), sign_request.SerializeAsString(),
+  http_fetcher_->DoRequest(BlindSignHttpRequestType::kAuthAndSign, oauth_token,
+                           sign_request.SerializeAsString(),
                            std::move(auth_and_sign_callback));
 }
 

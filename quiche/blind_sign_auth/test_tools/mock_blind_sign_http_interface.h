@@ -5,21 +5,23 @@
 #ifndef QUICHE_BLIND_SIGN_AUTH_TEST_TOOLS_MOCK_BLIND_SIGN_HTTP_INTERFACE_H_
 #define QUICHE_BLIND_SIGN_AUTH_TEST_TOOLS_MOCK_BLIND_SIGN_HTTP_INTERFACE_H_
 
+#include <optional>
 #include <string>
 
-#include "quiche/blind_sign_auth/blind_sign_http_interface.h"
+#include "absl/strings/string_view.h"
+#include "quiche/blind_sign_auth/blind_sign_message_interface.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace quiche::test {
 
 class QUICHE_NO_EXPORT MockBlindSignHttpInterface
-    : public BlindSignHttpInterface {
+    : public BlindSignMessageInterface {
  public:
   MOCK_METHOD(void, DoRequest,
               (BlindSignHttpRequestType request_type,
-               const std::string& authorization_header, const std::string& body,
-               BlindSignHttpCallback callback),
+               std::optional<absl::string_view> authorization_header,
+               const std::string& body, BlindSignHttpCallback callback),
               (override));
 };
 

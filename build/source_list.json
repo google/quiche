@@ -1615,8 +1615,8 @@
     "quiche/blind_sign_auth/blind_sign_auth.h",
     "quiche/blind_sign_auth/blind_sign_auth_interface.h",
     "quiche/blind_sign_auth/blind_sign_auth_protos.h",
-    "quiche/blind_sign_auth/blind_sign_http_interface.h",
     "quiche/blind_sign_auth/blind_sign_http_response.h",
+    "quiche/blind_sign_auth/blind_sign_message_interface.h",
     "quiche/blind_sign_auth/cached_blind_sign_auth.h",
     "quiche/blind_sign_auth/test_tools/mock_blind_sign_auth_interface.h",
     "quiche/blind_sign_auth/test_tools/mock_blind_sign_http_interface.h"

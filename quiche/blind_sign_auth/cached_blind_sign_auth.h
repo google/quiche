@@ -36,10 +36,10 @@ class QUICHE_EXPORT CachedBlindSignAuth : public BlindSignAuthInterface {
   // Tokens are single-use. They will not be usable after the expiration time.
   //
   // The GetTokens callback may be called synchronously on the calling thread,
-  // or asynchronously on BlindSignAuth's BlindSignHttpInterface thread.
+  // or asynchronously on BlindSignAuth's BlindSignMessageInterface thread.
   // The GetTokens callback must not acquire any locks that the calling thread
   // owns, otherwise the callback will deadlock.
-  void GetTokens(std::string oauth_token, int num_tokens,
+  void GetTokens(std::optional<std::string> oauth_token, int num_tokens,
                  ProxyLayer proxy_layer, SignedTokenCallback callback) override;
 
   // Removes all tokens in the cache.

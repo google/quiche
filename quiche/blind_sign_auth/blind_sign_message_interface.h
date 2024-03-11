@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_HTTP_INTERFACE_H_
-#define QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_HTTP_INTERFACE_H_
+#ifndef QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_MESSAGE_INTERFACE_H_
+#define QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_MESSAGE_INTERFACE_H_
 
+#include <optional>
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -26,9 +28,9 @@ enum class BlindSignHttpRequestType {
 // Interface for async HTTP POST requests in BlindSignAuth.
 // Implementers must send a request to a signer server's URL
 // and call the provided callback when the request is complete.
-class QUICHE_EXPORT BlindSignHttpInterface {
+class QUICHE_EXPORT BlindSignMessageInterface {
  public:
-  virtual ~BlindSignHttpInterface() = default;
+  virtual ~BlindSignMessageInterface() = default;
   // Non-HTTP errors (like failing to create a socket) must return an
   // absl::Status.
   // HTTP errors must set status_code and body in BlindSignHttpResponse.
@@ -39,11 +41,11 @@ class QUICHE_EXPORT BlindSignHttpInterface {
   // DoRequest is async. When the request completes, the implementer must call
   // the provided callback.
   virtual void DoRequest(BlindSignHttpRequestType request_type,
-                         const std::string& authorization_header,
+                         std::optional<absl::string_view> authorization_header,
                          const std::string& body,
                          BlindSignHttpCallback callback) = 0;
 };
 
 }  // namespace quiche
 
-#endif  // QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_HTTP_INTERFACE_H_
+#endif  // QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_MESSAGE_INTERFACE_H_

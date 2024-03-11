@@ -5,6 +5,7 @@
 #ifndef QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_AUTH_INTERFACE_H_
 #define QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_AUTH_INTERFACE_H_
 
+#include <optional>
 #include <string>
 
 #include "absl/status/statusor.h"
@@ -38,7 +39,7 @@ class QUICHE_EXPORT BlindSignAuthInterface {
   virtual ~BlindSignAuthInterface() = default;
 
   // Returns signed unblinded tokens in a callback. Tokens are single-use.
-  virtual void GetTokens(std::string oauth_token, int num_tokens,
+  virtual void GetTokens(std::optional<std::string> oauth_token, int num_tokens,
                          ProxyLayer proxy_layer,
                          SignedTokenCallback callback) = 0;
 };

@@ -21,8 +21,8 @@
 #include "openssl/digest.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
-#include "quiche/blind_sign_auth/blind_sign_http_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_http_response.h"
+#include "quiche/blind_sign_auth/blind_sign_message_interface.h"
 #include "quiche/blind_sign_auth/test_tools/mock_blind_sign_http_interface.h"
 #include "quiche/common/platform/api/quiche_mutex.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -186,7 +186,6 @@ class BlindSignAuthTest : public QuicheTest {
     ASSERT_TRUE(request.ParseFromString(body));
 
     // Validate AuthAndSignRequest.
-    EXPECT_EQ(request.oauth_token(), oauth_token_);
     EXPECT_EQ(request.service_type(), "chromeipblinding");
     // Phosphor does not need the public key hash if the KeyType is
     // privacy::ppn::AT_PUBLIC_METADATA_KEY_TYPE.
