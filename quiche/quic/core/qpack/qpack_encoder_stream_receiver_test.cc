@@ -56,14 +56,17 @@ TEST_F(QpackEncoderStreamReceiverTest, InsertWithNameReference) {
   EXPECT_CALL(*delegate(),
               OnInsertWithNameReference(false, 42, Eq(std::string(127, 'Z'))));
 
-  Decode(absl::HexStringToBytes(
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes(
       "c500"
       "c28294e7"
       "bf4a03626172"
       "aa7f005a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
       "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
       "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
-      "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"));
+      "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+      &encoded_data));
+  Decode(encoded_data);
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, InsertWithNameReferenceIndexTooLarge) {
@@ -71,7 +74,10 @@ TEST_F(QpackEncoderStreamReceiverTest, InsertWithNameReferenceIndexTooLarge) {
               OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE,
                               Eq("Encoded integer too large.")));
 
-  Decode(absl::HexStringToBytes("bfffffffffffffffffffffff"));
+  std::string encoded_data;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("bfffffffffffffffffffffff", &encoded_data));
+  Decode(encoded_data);
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, InsertWithNameReferenceValueTooLong) {
@@ -79,7 +85,10 @@ TEST_F(QpackEncoderStreamReceiverTest, InsertWithNameReferenceValueTooLong) {
               OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE,
                               Eq("Encoded integer too large.")));
 
-  Decode(absl::HexStringToBytes("c57fffffffffffffffffffff"));
+  std::string encoded_data;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("c57fffffffffffffffffffff", &encoded_data));
+  Decode(encoded_data);
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, InsertWithoutNameReference) {
@@ -95,7 +104,8 @@ TEST_F(QpackEncoderStreamReceiverTest, InsertWithoutNameReference) {
               OnInsertWithoutNameReference(Eq(std::string(31, 'Z')),
                                            Eq(std::string(127, 'Z'))));
 
-  Decode(absl::HexStringToBytes(
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes(
       "4000"
       "4362617203626172"
       "6294e78294e7"
@@ -103,7 +113,9 @@ TEST_F(QpackEncoderStreamReceiverTest, InsertWithoutNameReference) {
       "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
       "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
       "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
-      "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"));
+      "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+      &encoded_data));
+  Decode(encoded_data);
 }
 
 // Name Length value is too large for varint decoder to decode.
@@ -113,7 +125,9 @@ TEST_F(QpackEncoderStreamReceiverTest,
               OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE,
                               Eq("Encoded integer too large.")));
 
-  Decode(absl::HexStringToBytes("5fffffffffffffffffffff"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("5fffffffffffffffffffff", &encoded_data));
+  Decode(encoded_data);
 }
 
 // Name Length value can be decoded by varint decoder but exceeds 1 MB limit.
@@ -123,7 +137,9 @@ TEST_F(QpackEncoderStreamReceiverTest,
               OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_STRING_LITERAL_TOO_LONG,
                               Eq("String literal too long.")));
 
-  Decode(absl::HexStringToBytes("5fffff7f"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("5fffff7f", &encoded_data));
+  Decode(encoded_data);
 }
 
 // Value Length value is too large for varint decoder to decode.
@@ -133,7 +149,10 @@ TEST_F(QpackEncoderStreamReceiverTest,
               OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE,
                               Eq("Encoded integer too large.")));
 
-  Decode(absl::HexStringToBytes("436261727fffffffffffffffffffff"));
+  std::string encoded_data;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("436261727fffffffffffffffffffff", &encoded_data));
+  Decode(encoded_data);
 }
 
 // Value Length value can be decoded by varint decoder but exceeds 1 MB limit.
@@ -143,7 +162,9 @@ TEST_F(QpackEncoderStreamReceiverTest,
               OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_STRING_LITERAL_TOO_LONG,
                               Eq("String literal too long.")));
 
-  Decode(absl::HexStringToBytes("436261727fffff7f"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("436261727fffff7f", &encoded_data));
+  Decode(encoded_data);
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, Duplicate) {
@@ -152,7 +173,9 @@ TEST_F(QpackEncoderStreamReceiverTest, Duplicate) {
   // Large index requires two extension bytes.
   EXPECT_CALL(*delegate(), OnDuplicate(500));
 
-  Decode(absl::HexStringToBytes("111fd503"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("111fd503", &encoded_data));
+  Decode(encoded_data);
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, DuplicateIndexTooLarge) {
@@ -160,7 +183,9 @@ TEST_F(QpackEncoderStreamReceiverTest, DuplicateIndexTooLarge) {
               OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE,
                               Eq("Encoded integer too large.")));
 
-  Decode(absl::HexStringToBytes("1fffffffffffffffffffff"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("1fffffffffffffffffffff", &encoded_data));
+  Decode(encoded_data);
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, SetDynamicTableCapacity) {
@@ -169,7 +194,9 @@ TEST_F(QpackEncoderStreamReceiverTest, SetDynamicTableCapacity) {
   // Large capacity requires two extension bytes.
   EXPECT_CALL(*delegate(), OnSetDynamicTableCapacity(500));
 
-  Decode(absl::HexStringToBytes("313fd503"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("313fd503", &encoded_data));
+  Decode(encoded_data);
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, SetDynamicTableCapacityTooLarge) {
@@ -177,7 +204,9 @@ TEST_F(QpackEncoderStreamReceiverTest, SetDynamicTableCapacityTooLarge) {
               OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE,
                               Eq("Encoded integer too large.")));
 
-  Decode(absl::HexStringToBytes("3fffffffffffffffffffff"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("3fffffffffffffffffffff", &encoded_data));
+  Decode(encoded_data);
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, InvalidHuffmanEncoding) {
@@ -185,7 +214,9 @@ TEST_F(QpackEncoderStreamReceiverTest, InvalidHuffmanEncoding) {
               OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_HUFFMAN_ENCODING_ERROR,
                               Eq("Error in Huffman-encoded string.")));
 
-  Decode(absl::HexStringToBytes("c281ff"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("c281ff", &encoded_data));
+  Decode(encoded_data);
 }
 
 }  // namespace

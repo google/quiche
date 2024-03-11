@@ -38,60 +38,78 @@ class QpackDecoderStreamReceiverTest : public QuicTest {
 };
 
 TEST_F(QpackDecoderStreamReceiverTest, InsertCountIncrement) {
+  std::string encoded_data;
   EXPECT_CALL(delegate_, OnInsertCountIncrement(0));
-  stream_.Decode(absl::HexStringToBytes("00"));
+  ASSERT_TRUE(absl::HexStringToBytes("00", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_, OnInsertCountIncrement(10));
-  stream_.Decode(absl::HexStringToBytes("0a"));
+  ASSERT_TRUE(absl::HexStringToBytes("0a", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_, OnInsertCountIncrement(63));
-  stream_.Decode(absl::HexStringToBytes("3f00"));
+  ASSERT_TRUE(absl::HexStringToBytes("3f00", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_, OnInsertCountIncrement(200));
-  stream_.Decode(absl::HexStringToBytes("3f8901"));
+  ASSERT_TRUE(absl::HexStringToBytes("3f8901", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_,
               OnErrorDetected(QUIC_QPACK_DECODER_STREAM_INTEGER_TOO_LARGE,
                               Eq("Encoded integer too large.")));
-  stream_.Decode(absl::HexStringToBytes("3fffffffffffffffffffff"));
+  ASSERT_TRUE(absl::HexStringToBytes("3fffffffffffffffffffff", &encoded_data));
+  stream_.Decode(encoded_data);
 }
 
 TEST_F(QpackDecoderStreamReceiverTest, HeaderAcknowledgement) {
+  std::string encoded_data;
   EXPECT_CALL(delegate_, OnHeaderAcknowledgement(0));
-  stream_.Decode(absl::HexStringToBytes("80"));
+  ASSERT_TRUE(absl::HexStringToBytes("80", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_, OnHeaderAcknowledgement(37));
-  stream_.Decode(absl::HexStringToBytes("a5"));
+  ASSERT_TRUE(absl::HexStringToBytes("a5", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_, OnHeaderAcknowledgement(127));
-  stream_.Decode(absl::HexStringToBytes("ff00"));
+  ASSERT_TRUE(absl::HexStringToBytes("ff00", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_, OnHeaderAcknowledgement(503));
-  stream_.Decode(absl::HexStringToBytes("fff802"));
+  ASSERT_TRUE(absl::HexStringToBytes("fff802", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_,
               OnErrorDetected(QUIC_QPACK_DECODER_STREAM_INTEGER_TOO_LARGE,
                               Eq("Encoded integer too large.")));
-  stream_.Decode(absl::HexStringToBytes("ffffffffffffffffffffff"));
+  ASSERT_TRUE(absl::HexStringToBytes("ffffffffffffffffffffff", &encoded_data));
+  stream_.Decode(encoded_data);
 }
 
 TEST_F(QpackDecoderStreamReceiverTest, StreamCancellation) {
+  std::string encoded_data;
   EXPECT_CALL(delegate_, OnStreamCancellation(0));
-  stream_.Decode(absl::HexStringToBytes("40"));
+  ASSERT_TRUE(absl::HexStringToBytes("40", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_, OnStreamCancellation(19));
-  stream_.Decode(absl::HexStringToBytes("53"));
+  ASSERT_TRUE(absl::HexStringToBytes("53", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_, OnStreamCancellation(63));
-  stream_.Decode(absl::HexStringToBytes("7f00"));
+  ASSERT_TRUE(absl::HexStringToBytes("7f00", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_, OnStreamCancellation(110));
-  stream_.Decode(absl::HexStringToBytes("7f2f"));
+  ASSERT_TRUE(absl::HexStringToBytes("7f2f", &encoded_data));
+  stream_.Decode(encoded_data);
 
   EXPECT_CALL(delegate_,
               OnErrorDetected(QUIC_QPACK_DECODER_STREAM_INTEGER_TOO_LARGE,
                               Eq("Encoded integer too large.")));
-  stream_.Decode(absl::HexStringToBytes("7fffffffffffffffffffff"));
+  ASSERT_TRUE(absl::HexStringToBytes("7fffffffffffffffffffff", &encoded_data));
+  stream_.Decode(encoded_data);
 }
 
 }  // namespace

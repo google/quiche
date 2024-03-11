@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/qpack_instruction_encoder.h"
 
+#include <string>
+
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -72,7 +74,9 @@ class QpackInstructionEncoderTest : public QuicTestWithParam<bool> {
   bool EncodedSegmentMatches(absl::string_view hex_encoded_expected_substring) {
     auto recently_encoded =
         absl::string_view(output_).substr(verified_position_);
-    auto expected = absl::HexStringToBytes(hex_encoded_expected_substring);
+    std::string expected;
+    EXPECT_TRUE(
+        absl::HexStringToBytes(hex_encoded_expected_substring, &expected));
     verified_position_ = output_.size();
     return recently_encoded == expected;
   }

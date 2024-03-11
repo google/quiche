@@ -5,6 +5,7 @@
 #include "quiche/quic/core/qpack/qpack_instruction_decoder.h"
 
 #include <algorithm>
+#include <string>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
@@ -125,15 +126,18 @@ INSTANTIATE_TEST_SUITE_P(All, QpackInstructionDecoderTest,
                                 FragmentMode::kOctetByOctet));
 
 TEST_P(QpackInstructionDecoderTest, SBitAndVarint2) {
+  std::string encoded_data;
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()));
-  DecodeInstruction(absl::HexStringToBytes("7f01ff65"));
+  ASSERT_TRUE(absl::HexStringToBytes("7f01ff65", &encoded_data));
+  DecodeInstruction(encoded_data);
 
   EXPECT_TRUE(decoder_->s_bit());
   EXPECT_EQ(64u, decoder_->varint());
   EXPECT_EQ(356u, decoder_->varint2());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()));
-  DecodeInstruction(absl::HexStringToBytes("05c8"));
+  ASSERT_TRUE(absl::HexStringToBytes("05c8", &encoded_data));
+  DecodeInstruction(encoded_data);
 
   EXPECT_FALSE(decoder_->s_bit());
   EXPECT_EQ(5u, decoder_->varint());
@@ -141,47 +145,57 @@ TEST_P(QpackInstructionDecoderTest, SBitAndVarint2) {
 }
 
 TEST_P(QpackInstructionDecoderTest, NameAndValue) {
+  std::string encoded_data;
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
-  DecodeInstruction(absl::HexStringToBytes("83666f6f03626172"));
+  ASSERT_TRUE(absl::HexStringToBytes("83666f6f03626172", &encoded_data));
+  DecodeInstruction(encoded_data);
 
   EXPECT_EQ("foo", decoder_->name());
   EXPECT_EQ("bar", decoder_->value());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
-  DecodeInstruction(absl::HexStringToBytes("8000"));
+  ASSERT_TRUE(absl::HexStringToBytes("8000", &encoded_data));
+  DecodeInstruction(encoded_data);
 
   EXPECT_EQ("", decoder_->name());
   EXPECT_EQ("", decoder_->value());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
-  DecodeInstruction(absl::HexStringToBytes("c294e7838c767f"));
+  ASSERT_TRUE(absl::HexStringToBytes("c294e7838c767f", &encoded_data));
+  DecodeInstruction(encoded_data);
 
   EXPECT_EQ("foo", decoder_->name());
   EXPECT_EQ("bar", decoder_->value());
 }
 
 TEST_P(QpackInstructionDecoderTest, InvalidHuffmanEncoding) {
+  std::string encoded_data;
   EXPECT_CALL(delegate_,
               OnInstructionDecodingError(
                   QpackInstructionDecoder::ErrorCode::HUFFMAN_ENCODING_ERROR,
                   Eq("Error in Huffman-encoded string.")));
-  DecodeInstruction(absl::HexStringToBytes("c1ff"));
+  ASSERT_TRUE(absl::HexStringToBytes("c1ff", &encoded_data));
+  DecodeInstruction(encoded_data);
 }
 
 TEST_P(QpackInstructionDecoderTest, InvalidVarintEncoding) {
+  std::string encoded_data;
   EXPECT_CALL(delegate_,
               OnInstructionDecodingError(
                   QpackInstructionDecoder::ErrorCode::INTEGER_TOO_LARGE,
                   Eq("Encoded integer too large.")));
-  DecodeInstruction(absl::HexStringToBytes("ffffffffffffffffffffff"));
+  ASSERT_TRUE(absl::HexStringToBytes("ffffffffffffffffffffff", &encoded_data));
+  DecodeInstruction(encoded_data);
 }
 
 TEST_P(QpackInstructionDecoderTest, StringLiteralTooLong) {
+  std::string encoded_data;
   EXPECT_CALL(delegate_,
               OnInstructionDecodingError(
                   QpackInstructionDecoder::ErrorCode::STRING_LITERAL_TOO_LONG,
                   Eq("String literal too long.")));
-  DecodeInstruction(absl::HexStringToBytes("bfffff7f"));
+  ASSERT_TRUE(absl::HexStringToBytes("bfffff7f", &encoded_data));
+  DecodeInstruction(encoded_data);
 }
 
 TEST_P(QpackInstructionDecoderTest, DelegateSignalsError) {
@@ -201,8 +215,9 @@ TEST_P(QpackInstructionDecoderTest, DelegateSignalsError) {
         return false;
       }));
 
-  EXPECT_FALSE(
-      decoder_->Decode(absl::HexStringToBytes("01000200030004000500")));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("01000200030004000500", &encoded_data));
+  EXPECT_FALSE(decoder_->Decode(encoded_data));
 }
 
 // QpackInstructionDecoder must not crash if it is destroyed from a
@@ -214,7 +229,9 @@ TEST_P(QpackInstructionDecoderTest, DelegateSignalsErrorAndDestroysDecoder) {
         decoder_.reset();
         return false;
       }));
-  DecodeInstruction(absl::HexStringToBytes("0100"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("0100", &encoded_data));
+  DecodeInstruction(encoded_data);
 }
 
 }  // namespace

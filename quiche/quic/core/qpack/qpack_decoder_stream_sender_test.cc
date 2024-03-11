@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/qpack_decoder_stream_sender.h"
 
+#include <string>
+
 #include "absl/strings/escaping.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
@@ -27,72 +29,89 @@ class QpackDecoderStreamSenderTest : public QuicTest {
 };
 
 TEST_F(QpackDecoderStreamSenderTest, InsertCountIncrement) {
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("00"))));
+  std::string stream_data;
+  ASSERT_TRUE(absl::HexStringToBytes("00", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendInsertCountIncrement(0);
   stream_.Flush();
 
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("0a"))));
+  ASSERT_TRUE(absl::HexStringToBytes("0a", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendInsertCountIncrement(10);
   stream_.Flush();
 
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("3f00"))));
+  ASSERT_TRUE(absl::HexStringToBytes("3f00", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendInsertCountIncrement(63);
   stream_.Flush();
 
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("3f8901"))));
+  ASSERT_TRUE(absl::HexStringToBytes("3f8901", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendInsertCountIncrement(200);
   stream_.Flush();
 }
 
 TEST_F(QpackDecoderStreamSenderTest, HeaderAcknowledgement) {
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("80"))));
+  std::string stream_data;
+  ASSERT_TRUE(absl::HexStringToBytes("80", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendHeaderAcknowledgement(0);
   stream_.Flush();
 
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("a5"))));
+  ASSERT_TRUE(absl::HexStringToBytes("a5", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendHeaderAcknowledgement(37);
   stream_.Flush();
 
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("ff00"))));
+  ASSERT_TRUE(absl::HexStringToBytes("ff00", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendHeaderAcknowledgement(127);
   stream_.Flush();
 
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("fff802"))));
+  ASSERT_TRUE(absl::HexStringToBytes("fff802", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendHeaderAcknowledgement(503);
   stream_.Flush();
 }
 
 TEST_F(QpackDecoderStreamSenderTest, StreamCancellation) {
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("40"))));
+  std::string stream_data;
+  ASSERT_TRUE(absl::HexStringToBytes("40", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendStreamCancellation(0);
   stream_.Flush();
 
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("53"))));
+  ASSERT_TRUE(absl::HexStringToBytes("53", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendStreamCancellation(19);
   stream_.Flush();
 
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("7f00"))));
+  ASSERT_TRUE(absl::HexStringToBytes("7f00", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendStreamCancellation(63);
   stream_.Flush();
 
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("7f2f"))));
+  ASSERT_TRUE(absl::HexStringToBytes("7f2f", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.SendStreamCancellation(110);
   stream_.Flush();
 }
 
 TEST_F(QpackDecoderStreamSenderTest, Coalesce) {
+  std::string stream_data;
   stream_.SendInsertCountIncrement(10);
   stream_.SendHeaderAcknowledgement(37);
   stream_.SendStreamCancellation(0);
 
-  EXPECT_CALL(delegate_, WriteStreamData(Eq(absl::HexStringToBytes("0aa540"))));
+  ASSERT_TRUE(absl::HexStringToBytes("0aa540", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.Flush();
 
   stream_.SendInsertCountIncrement(63);
   stream_.SendStreamCancellation(110);
 
-  EXPECT_CALL(delegate_,
-              WriteStreamData(Eq(absl::HexStringToBytes("3f007f2f"))));
+  ASSERT_TRUE(absl::HexStringToBytes("3f007f2f", &stream_data));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(stream_data)));
   stream_.Flush();
 }
 

@@ -5,6 +5,7 @@
 #include "quiche/quic/core/qpack/qpack_decoded_headers_accumulator.h"
 
 #include <cstring>
+#include <string>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
@@ -79,7 +80,9 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, EmptyPayload) {
 
 // HEADERS frame payload must have a complete Header Block Prefix.
 TEST_F(QpackDecodedHeadersAccumulatorTest, TruncatedHeaderBlockPrefix) {
-  accumulator_.Decode(absl::HexStringToBytes("00"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("00", &encoded_data));
+  accumulator_.Decode(encoded_data);
 
   EXPECT_CALL(visitor_,
               OnHeaderDecodingError(QUIC_QPACK_DECOMPRESSION_FAILED,
@@ -88,7 +91,8 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, TruncatedHeaderBlockPrefix) {
 }
 
 TEST_F(QpackDecodedHeadersAccumulatorTest, EmptyHeaderList) {
-  std::string encoded_data(absl::HexStringToBytes("0000"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("0000", &encoded_data));
   accumulator_.Decode(encoded_data);
 
   QuicHeaderList header_list;
@@ -104,7 +108,9 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, EmptyHeaderList) {
 // This payload is the prefix of a valid payload, but EndHeaderBlock() is called
 // before it can be completely decoded.
 TEST_F(QpackDecodedHeadersAccumulatorTest, TruncatedPayload) {
-  accumulator_.Decode(absl::HexStringToBytes("00002366"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("00002366", &encoded_data));
+  accumulator_.Decode(encoded_data);
 
   EXPECT_CALL(visitor_, OnHeaderDecodingError(QUIC_QPACK_DECOMPRESSION_FAILED,
                                               Eq("Incomplete header block.")));
@@ -116,11 +122,14 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, InvalidPayload) {
   EXPECT_CALL(visitor_,
               OnHeaderDecodingError(QUIC_QPACK_DECOMPRESSION_FAILED,
                                     Eq("Static table entry not found.")));
-  accumulator_.Decode(absl::HexStringToBytes("0000ff23ff24"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("0000ff23ff24", &encoded_data));
+  accumulator_.Decode(encoded_data);
 }
 
 TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
-  std::string encoded_data(absl::HexStringToBytes("000023666f6f03626172"));
+  std::string encoded_data;
+  ASSERT_TRUE(absl::HexStringToBytes("000023666f6f03626172", &encoded_data));
   accumulator_.Decode(encoded_data);
 
   QuicHeaderList header_list;
@@ -137,18 +146,22 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
 // Test that Decode() calls are not ignored after header list limit is exceeded,
 // otherwise decoding could fail with "incomplete header block" error.
 TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedLimitThenSplitInstruction) {
+  std::string encoded_data;
   // Total length of header list exceeds kMaxHeaderListSize.
-  accumulator_.Decode(absl::HexStringToBytes(
+  ASSERT_TRUE(absl::HexStringToBytes(
       "0000"                                      // header block prefix
       "26666f6f626172"                            // header key: "foobar"
       "7d61616161616161616161616161616161616161"  // header value: 'a' 125 times
       "616161616161616161616161616161616161616161616161616161616161616161616161"
       "616161616161616161616161616161616161616161616161616161616161616161616161"
       "61616161616161616161616161616161616161616161616161616161616161616161"
-      "ff"));  // first byte of a two-byte long Indexed Header Field instruction
-  accumulator_.Decode(absl::HexStringToBytes(
-      "0f"  // second byte of a two-byte long Indexed Header Field instruction
-      ));
+      "ff",  // first byte of a two-byte long Indexed Header Field instruction
+      &encoded_data));
+  accumulator_.Decode(encoded_data);
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "0f",  // second byte of a two-byte long Indexed Header Field instruction
+      &encoded_data));
+  accumulator_.Decode(encoded_data);
 
   EXPECT_CALL(visitor_, OnHeadersDecoded(_, true));
   accumulator_.EndHeaderBlock();
@@ -156,15 +169,18 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedLimitThenSplitInstruction) {
 
 // Test that header list limit enforcement works with blocked encoding.
 TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedLimitBlocked) {
+  std::string encoded_data;
   // Total length of header list exceeds kMaxHeaderListSize.
-  accumulator_.Decode(absl::HexStringToBytes(
+  ASSERT_TRUE(absl::HexStringToBytes(
       "0200"            // header block prefix
       "80"              // reference to dynamic table entry not yet received
       "26666f6f626172"  // header key: "foobar"
       "7d61616161616161616161616161616161616161"  // header value: 'a' 125 times
       "616161616161616161616161616161616161616161616161616161616161616161616161"
       "616161616161616161616161616161616161616161616161616161616161616161616161"
-      "61616161616161616161616161616161616161616161616161616161616161616161"));
+      "61616161616161616161616161616161616161616161616161616161616161616161",
+      &encoded_data));
+  accumulator_.Decode(encoded_data);
   accumulator_.EndHeaderBlock();
 
   // Set dynamic table capacity.
@@ -181,8 +197,9 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedLimitBlocked) {
 }
 
 TEST_F(QpackDecodedHeadersAccumulatorTest, BlockedDecoding) {
+  std::string encoded_data;
   // Reference to dynamic table entry not yet received.
-  std::string encoded_data(absl::HexStringToBytes("020080"));
+  ASSERT_TRUE(absl::HexStringToBytes("020080", &encoded_data));
   accumulator_.Decode(encoded_data);
   accumulator_.EndHeaderBlock();
 
@@ -208,8 +225,10 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, BlockedDecoding) {
 
 TEST_F(QpackDecodedHeadersAccumulatorTest,
        BlockedDecodingUnblockedBeforeEndOfHeaderBlock) {
+  std::string encoded_data;
   // Reference to dynamic table entry not yet received.
-  accumulator_.Decode(absl::HexStringToBytes("020080"));
+  ASSERT_TRUE(absl::HexStringToBytes("020080", &encoded_data));
+  accumulator_.Decode(encoded_data);
 
   // Set dynamic table capacity.
   qpack_decoder_.OnSetDynamicTableCapacity(kMaxDynamicTableCapacity);
@@ -219,7 +238,8 @@ TEST_F(QpackDecodedHeadersAccumulatorTest,
   // Rest of header block: same entry again.
   EXPECT_CALL(decoder_stream_sender_delegate_,
               WriteStreamData(Eq(kHeaderAcknowledgement)));
-  accumulator_.Decode(absl::HexStringToBytes("80"));
+  ASSERT_TRUE(absl::HexStringToBytes("80", &encoded_data));
+  accumulator_.Decode(encoded_data);
 
   QuicHeaderList header_list;
   EXPECT_CALL(visitor_, OnHeadersDecoded(_, false))
@@ -235,14 +255,18 @@ TEST_F(QpackDecodedHeadersAccumulatorTest,
 // Regression test for https://crbug.com/1024263.
 TEST_F(QpackDecodedHeadersAccumulatorTest,
        BlockedDecodingUnblockedAndErrorBeforeEndOfHeaderBlock) {
+  std::string encoded_data;
   // Required Insert Count higher than number of entries causes decoding to be
   // blocked.
-  accumulator_.Decode(absl::HexStringToBytes("0200"));
+  ASSERT_TRUE(absl::HexStringToBytes("0200", &encoded_data));
+  accumulator_.Decode(encoded_data);
   // Indexed Header Field instruction addressing dynamic table entry with
   // relative index 0, absolute index 0.
-  accumulator_.Decode(absl::HexStringToBytes("80"));
+  ASSERT_TRUE(absl::HexStringToBytes("80", &encoded_data));
+  accumulator_.Decode(encoded_data);
   // Relative index larger than or equal to Base is invalid.
-  accumulator_.Decode(absl::HexStringToBytes("81"));
+  ASSERT_TRUE(absl::HexStringToBytes("81", &encoded_data));
+  accumulator_.Decode(encoded_data);
 
   // Set dynamic table capacity.
   qpack_decoder_.OnSetDynamicTableCapacity(kMaxDynamicTableCapacity);
