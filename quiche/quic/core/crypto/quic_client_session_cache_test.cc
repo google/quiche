@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
 
+#include <string>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/common/quiche_text_utils.h"
@@ -158,8 +160,8 @@ class QuicClientSessionCacheTest : public QuicTest {
 
  protected:
   bssl::UniquePtr<SSL_SESSION> NewSSLSession() {
-    std::string cached_session =
-        absl::HexStringToBytes(absl::string_view(kCachedSession));
+    std::string cached_session;
+    EXPECT_TRUE(absl::HexStringToBytes(kCachedSession, &cached_session));
     SSL_SESSION* session = SSL_SESSION_from_bytes(
         reinterpret_cast<const uint8_t*>(cached_session.data()),
         cached_session.size(), ssl_ctx_.get());

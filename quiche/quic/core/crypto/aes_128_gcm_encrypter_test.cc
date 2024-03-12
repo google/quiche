@@ -182,12 +182,18 @@ TEST_F(Aes128GcmEncrypterTest, Encrypt) {
     const TestGroupInfo& test_info = test_group_info[i];
     for (size_t j = 0; test_vectors[j].key != nullptr; j++) {
       // Decode the test vector.
-      std::string key = absl::HexStringToBytes(test_vectors[j].key);
-      std::string iv = absl::HexStringToBytes(test_vectors[j].iv);
-      std::string pt = absl::HexStringToBytes(test_vectors[j].pt);
-      std::string aad = absl::HexStringToBytes(test_vectors[j].aad);
-      std::string ct = absl::HexStringToBytes(test_vectors[j].ct);
-      std::string tag = absl::HexStringToBytes(test_vectors[j].tag);
+      std::string key;
+      std::string iv;
+      std::string pt;
+      std::string aad;
+      std::string ct;
+      std::string tag;
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].key, &key));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].iv, &iv));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].pt, &pt));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].aad, &aad));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].ct, &ct));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].tag, &tag));
 
       // The test vector's lengths should look sane. Note that the lengths
       // in |test_info| are in bits.
@@ -219,14 +225,19 @@ TEST_F(Aes128GcmEncrypterTest, Encrypt) {
 }
 
 TEST_F(Aes128GcmEncrypterTest, EncryptPacket) {
-  std::string key = absl::HexStringToBytes("d95a145250826c25a77b6a84fd4d34fc");
-  std::string iv = absl::HexStringToBytes("50c4431ebb18283448e276e2");
+  std::string key;
+  std::string iv;
+  std::string aad;
+  std::string pt;
+  std::string ct;
+  ASSERT_TRUE(absl::HexStringToBytes("d95a145250826c25a77b6a84fd4d34fc", &key));
+  ASSERT_TRUE(absl::HexStringToBytes("50c4431ebb18283448e276e2", &iv));
+  ASSERT_TRUE(
+      absl::HexStringToBytes("875d49f64a70c9cbe713278f44ff000005", &aad));
+  ASSERT_TRUE(absl::HexStringToBytes("aa0003a250bd000000000001", &pt));
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "7dd4708b989ee7d38a013e3656e9b37beefd05808fe1ab41e3b4f2c0", &ct));
   uint64_t packet_num = 0x13278f44;
-  std::string aad =
-      absl::HexStringToBytes("875d49f64a70c9cbe713278f44ff000005");
-  std::string pt = absl::HexStringToBytes("aa0003a250bd000000000001");
-  std::string ct = absl::HexStringToBytes(
-      "7dd4708b989ee7d38a013e3656e9b37beefd05808fe1ab41e3b4f2c0");
 
   std::vector<char> out(ct.size());
   size_t out_size;
@@ -257,13 +268,16 @@ TEST_F(Aes128GcmEncrypterTest, GetCiphertextSize) {
 
 TEST_F(Aes128GcmEncrypterTest, GenerateHeaderProtectionMask) {
   Aes128GcmEncrypter encrypter;
-  std::string key = absl::HexStringToBytes("d9132370cb18476ab833649cf080d970");
-  std::string sample =
-      absl::HexStringToBytes("d1d7998068517adb769b48b924a32c47");
+  std::string key;
+  std::string sample;
+  std::string expected_mask;
+  ASSERT_TRUE(absl::HexStringToBytes("d9132370cb18476ab833649cf080d970", &key));
+  ASSERT_TRUE(
+      absl::HexStringToBytes("d1d7998068517adb769b48b924a32c47", &sample));
+  ASSERT_TRUE(absl::HexStringToBytes("b132c37d6164da4ea4dc9b763aceec27",
+                                     &expected_mask));
   ASSERT_TRUE(encrypter.SetHeaderProtectionKey(key));
   std::string mask = encrypter.GenerateHeaderProtectionMask(sample);
-  std::string expected_mask =
-      absl::HexStringToBytes("b132c37d6164da4ea4dc9b763aceec27");
   quiche::test::CompareCharArraysWithHexError(
       "header protection mask", mask.data(), mask.size(), expected_mask.data(),
       expected_mask.size());

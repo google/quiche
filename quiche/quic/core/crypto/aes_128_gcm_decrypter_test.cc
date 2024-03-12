@@ -228,14 +228,19 @@ TEST_F(Aes128GcmDecrypterTest, Decrypt) {
       bool has_pt = test_vectors[j].pt;
 
       // Decode the test vector.
-      std::string key = absl::HexStringToBytes(test_vectors[j].key);
-      std::string iv = absl::HexStringToBytes(test_vectors[j].iv);
-      std::string ct = absl::HexStringToBytes(test_vectors[j].ct);
-      std::string aad = absl::HexStringToBytes(test_vectors[j].aad);
-      std::string tag = absl::HexStringToBytes(test_vectors[j].tag);
+      std::string key;
+      std::string iv;
+      std::string ct;
+      std::string aad;
+      std::string tag;
       std::string pt;
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].key, &key));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].iv, &iv));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].ct, &ct));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].aad, &aad));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].tag, &tag));
       if (has_pt) {
-        pt = absl::HexStringToBytes(test_vectors[j].pt);
+        ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].pt, &pt));
       }
 
       // The test vector's lengths should look sane. Note that the lengths
@@ -274,14 +279,17 @@ TEST_F(Aes128GcmDecrypterTest, Decrypt) {
 
 TEST_F(Aes128GcmDecrypterTest, GenerateHeaderProtectionMask) {
   Aes128GcmDecrypter decrypter;
-  std::string key = absl::HexStringToBytes("d9132370cb18476ab833649cf080d970");
-  std::string sample =
-      absl::HexStringToBytes("d1d7998068517adb769b48b924a32c47");
+  std::string key;
+  std::string sample;
+  std::string expected_mask;
+  ASSERT_TRUE(absl::HexStringToBytes("d9132370cb18476ab833649cf080d970", &key));
+  ASSERT_TRUE(
+      absl::HexStringToBytes("d1d7998068517adb769b48b924a32c47", &sample));
+  ASSERT_TRUE(absl::HexStringToBytes("b132c37d6164da4ea4dc9b763aceec27",
+                                     &expected_mask));
   QuicDataReader sample_reader(sample.data(), sample.size());
   ASSERT_TRUE(decrypter.SetHeaderProtectionKey(key));
   std::string mask = decrypter.GenerateHeaderProtectionMask(&sample_reader);
-  std::string expected_mask =
-      absl::HexStringToBytes("b132c37d6164da4ea4dc9b763aceec27");
   quiche::test::CompareCharArraysWithHexError(
       "header protection mask", mask.data(), mask.size(), expected_mask.data(),
       expected_mask.size());

@@ -71,10 +71,14 @@ TEST_F(QuicHKDFTest, HKDF) {
     const HKDFInput& test(kHKDFInputs[i]);
     SCOPED_TRACE(i);
 
-    const std::string key = absl::HexStringToBytes(test.key_hex);
-    const std::string salt = absl::HexStringToBytes(test.salt_hex);
-    const std::string info = absl::HexStringToBytes(test.info_hex);
-    const std::string expected = absl::HexStringToBytes(test.output_hex);
+    std::string key;
+    std::string salt;
+    std::string info;
+    std::string expected;
+    ASSERT_TRUE(absl::HexStringToBytes(test.key_hex, &key));
+    ASSERT_TRUE(absl::HexStringToBytes(test.salt_hex, &salt));
+    ASSERT_TRUE(absl::HexStringToBytes(test.info_hex, &info));
+    ASSERT_TRUE(absl::HexStringToBytes(test.output_hex, &expected));
 
     // We set the key_length to the length of the expected output and then take
     // the result from the first key, which is the client write key.

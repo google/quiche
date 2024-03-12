@@ -5,6 +5,7 @@
 #include "quiche/quic/core/crypto/transport_parameters.h"
 
 #include <cstring>
+#include <string>
 #include <utility>
 
 #include "absl/base/macros.h"
@@ -288,8 +289,10 @@ TEST_P(TransportParametersTest, CopyConstructor) {
       CreateFakeInitialSourceConnectionId();
   orig_params.retry_source_connection_id = CreateFakeRetrySourceConnectionId();
   orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
-  orig_params.google_handshake_message =
-      absl::HexStringToBytes(kFakeGoogleHandshakeMessage);
+  std::string google_handshake_message;
+  ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
+                                     &google_handshake_message));
+  orig_params.google_handshake_message = std::move(google_handshake_message);
   orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
@@ -324,8 +327,10 @@ TEST_P(TransportParametersTest, RoundTripClient) {
   orig_params.initial_source_connection_id =
       CreateFakeInitialSourceConnectionId();
   orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
-  orig_params.google_handshake_message =
-      absl::HexStringToBytes(kFakeGoogleHandshakeMessage);
+  std::string google_handshake_message;
+  ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
+                                     &google_handshake_message));
+  orig_params.google_handshake_message = std::move(google_handshake_message);
   orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
@@ -634,7 +639,10 @@ TEST_P(TransportParametersTest, ParseClientParams) {
   ASSERT_TRUE(new_params.google_connection_options.has_value());
   EXPECT_EQ(CreateFakeGoogleConnectionOptions(),
             new_params.google_connection_options.value());
-  EXPECT_EQ(absl::HexStringToBytes(kFakeGoogleHandshakeMessage),
+  std::string expected_google_handshake_message;
+  ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
+                                     &expected_google_handshake_message));
+  EXPECT_EQ(expected_google_handshake_message,
             new_params.google_handshake_message);
 }
 
@@ -1066,8 +1074,10 @@ TEST_P(TransportParametersTest, Degrease) {
   orig_params.initial_source_connection_id =
       CreateFakeInitialSourceConnectionId();
   orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
-  orig_params.google_handshake_message =
-      absl::HexStringToBytes(kFakeGoogleHandshakeMessage);
+  std::string google_handshake_message;
+  ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
+                                     &google_handshake_message));
+  orig_params.google_handshake_message = std::move(google_handshake_message);
   orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;

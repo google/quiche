@@ -183,12 +183,18 @@ TEST_F(Aes128Gcm12EncrypterTest, Encrypt) {
     const TestGroupInfo& test_info = test_group_info[i];
     for (size_t j = 0; test_vectors[j].key != nullptr; j++) {
       // Decode the test vector.
-      std::string key = absl::HexStringToBytes(test_vectors[j].key);
-      std::string iv = absl::HexStringToBytes(test_vectors[j].iv);
-      std::string pt = absl::HexStringToBytes(test_vectors[j].pt);
-      std::string aad = absl::HexStringToBytes(test_vectors[j].aad);
-      std::string ct = absl::HexStringToBytes(test_vectors[j].ct);
-      std::string tag = absl::HexStringToBytes(test_vectors[j].tag);
+      std::string key;
+      std::string iv;
+      std::string pt;
+      std::string aad;
+      std::string ct;
+      std::string tag;
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].key, &key));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].iv, &iv));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].pt, &pt));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].aad, &aad));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].ct, &ct));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].tag, &tag));
 
       // The test vector's lengths should look sane. Note that the lengths
       // in |test_info| are in bits.

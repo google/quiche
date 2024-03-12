@@ -143,14 +143,19 @@ TEST_F(ChaCha20Poly1305DecrypterTest, Decrypt) {
     bool has_pt = test_vectors[i].pt;
 
     // Decode the test vector.
-    std::string key = absl::HexStringToBytes(test_vectors[i].key);
-    std::string iv = absl::HexStringToBytes(test_vectors[i].iv);
-    std::string fixed = absl::HexStringToBytes(test_vectors[i].fixed);
-    std::string aad = absl::HexStringToBytes(test_vectors[i].aad);
-    std::string ct = absl::HexStringToBytes(test_vectors[i].ct);
+    std::string key;
+    std::string iv;
+    std::string fixed;
+    std::string aad;
+    std::string ct;
     std::string pt;
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].key, &key));
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].iv, &iv));
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].fixed, &fixed));
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].aad, &aad));
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].ct, &ct));
     if (has_pt) {
-      pt = absl::HexStringToBytes(test_vectors[i].pt);
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].pt, &pt));
     }
 
     ChaCha20Poly1305Decrypter decrypter;
