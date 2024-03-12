@@ -318,13 +318,22 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
       return std::pair<FullTrackName, RemoteTrack::Visitor*>(
           {{"", ""}, nullptr});
     }
-    visitor = subscribe_it->second.visitor;
-    // This does not check that early objects have a consistent forwarding
-    // preference.
+    ActiveSubscribe& subscribe = subscribe_it->second;
+    visitor = subscribe.visitor;
+    subscribe.received_object = true;
+    if (subscribe.forwarding_preference.has_value()) {
+      if (message.forwarding_preference != *subscribe.forwarding_preference) {
+        Error(MoqtError::kProtocolViolation,
+              "Forwarding preference changes mid-track");
+        return std::pair<FullTrackName, RemoteTrack::Visitor*>(
+            {{"", ""}, nullptr});
+      }
+    } else {
+      subscribe.forwarding_preference = message.forwarding_preference;
+    }
     return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-        {{subscribe_it->second.message.track_namespace,
-          subscribe_it->second.message.track_name},
-         subscribe_it->second.visitor});
+        {{subscribe.message.track_namespace, subscribe.message.track_name},
+         subscribe.visitor});
   }
   RemoteTrack& track = it->second;
   if (!track.CheckForwardingPreference(message.forwarding_preference)) {
@@ -669,8 +678,16 @@ void MoqtSession::Stream::OnSubscribeOkMessage(const MoqtSubscribeOk& message) {
   // session_->remote_tracks_.
   FullTrackName ftn(subscribe.track_namespace, subscribe.track_name);
   RemoteTrack::Visitor* visitor = it->second.visitor;
-  session_->remote_tracks_.try_emplace(subscribe.track_alias, ftn,
-                                       subscribe.track_alias, visitor);
+  auto [track_iter, new_entry] = session_->remote_tracks_.try_emplace(
+      subscribe.track_alias, ftn, subscribe.track_alias, visitor);
+  if (it->second.forwarding_preference.has_value()) {
+    if (!track_iter->second.CheckForwardingPreference(
+            *it->second.forwarding_preference)) {
+      session_->Error(MoqtError::kProtocolViolation,
+                      "Forwarding preference different in early objects");
+      return;
+    }
+  }
   // TODO: handle expires.
   if (visitor != nullptr) {
     visitor->OnReply(ftn, std::nullopt);
@@ -687,6 +704,11 @@ void MoqtSession::Stream::OnSubscribeErrorMessage(
   if (it == session_->active_subscribes_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
                     "Received SUBSCRIBE_ERROR for nonexistent subscribe");
+    return;
+  }
+  if (it->second.received_object) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received SUBSCRIBE_ERROR after object");
     return;
   }
   MoqtSubscribe& subscribe = it->second.message;

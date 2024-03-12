@@ -253,6 +253,12 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   struct ActiveSubscribe {
     MoqtSubscribe message;
     RemoteTrack::Visitor* visitor;
+    // The forwarding preference of the first received object, which all
+    // subsequent objects must match.
+    std::optional<MoqtForwardingPreference> forwarding_preference;
+    // If true, an object has arrived for the subscription before SUBSCRIBE_OK
+    // arrived.
+    bool received_object = false;
   };
   // Outgoing SUBSCRIBEs that have not received SUBSCRIBE_OK or SUBSCRIBE_ERROR.
   absl::flat_hash_map<uint64_t, ActiveSubscribe> active_subscribes_;
