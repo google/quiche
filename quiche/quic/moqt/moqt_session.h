@@ -262,8 +262,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   absl::flat_hash_map<std::string, MoqtOutgoingAnnounceCallback>
       pending_outgoing_announces_;
 
-  // The role the peer advertised in its SETUP message.
-  MoqtRole peer_role_;
+  // The role the peer advertised in its SETUP message. Initialize it to avoid
+  // an uninitialized value if no SETUP arrives or it arrives with no Role
+  // parameter, and other checks have changed/been disabled.
+  MoqtRole peer_role_ = MoqtRole::kPubSub;
 };
 
 }  // namespace moqt

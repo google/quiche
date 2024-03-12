@@ -281,7 +281,9 @@ size_t MoqtParser::ProcessClientSetup(quic::QuicDataReader& reader) {
           return 0;
         }
         uint64_t index;
-        StringViewToVarInt(value, index);
+        if (!StringViewToVarInt(value, index)) {
+          return 0;
+        }
         if (index > static_cast<uint64_t>(MoqtRole::kRoleMax)) {
           ParseError("Invalid ROLE parameter");
           return 0;
@@ -343,7 +345,9 @@ size_t MoqtParser::ProcessServerSetup(quic::QuicDataReader& reader) {
           return 0;
         }
         uint64_t index;
-        StringViewToVarInt(value, index);
+        if (!StringViewToVarInt(value, index)) {
+          return 0;
+        }
         if (index > static_cast<uint64_t>(MoqtRole::kRoleMax)) {
           ParseError("Invalid ROLE parameter");
           return 0;
