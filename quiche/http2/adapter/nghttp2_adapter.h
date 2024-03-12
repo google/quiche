@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/inlined_vector.h"
 #include "quiche/http2/adapter/http2_adapter.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/nghttp2_session.h"
@@ -87,13 +88,25 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
 
   bool ResumeStream(Http2StreamId stream_id) override;
 
+  void FrameNotSent(Http2StreamId stream_id, uint8_t frame_type) override;
+
   // Removes references to the `stream_id` from this adapter.
   void RemoveStream(Http2StreamId stream_id);
 
   // Accessor for testing.
   size_t sources_size() const { return sources_.size(); }
+  size_t stream_metadata_size() const { return stream_metadata_.size(); }
+  size_t pending_metadata_count(Http2StreamId stream_id) const {
+    if (auto it = stream_metadata_.find(stream_id);
+        it != stream_metadata_.end()) {
+      return it->second.size();
+    }
+    return 0;
+  }
 
  private:
+  class NotifyingMetadataSource;
+
   NgHttp2Adapter(Http2VisitorInterface& visitor, Perspective perspective,
                  const nghttp2_option* options);
 
@@ -101,10 +114,17 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
   // such as preparing initial SETTINGS.
   void Initialize();
 
+  void RemovePendingMetadata(Http2StreamId stream_id);
+
   std::unique_ptr<NgHttp2Session> session_;
   Http2VisitorInterface& visitor_;
   const nghttp2_option* options_;
   Perspective perspective_;
+
+  using MetadataSourceVec =
+      absl::InlinedVector<std::unique_ptr<MetadataSource>, 2>;
+  using MetadataMap = absl::flat_hash_map<Http2StreamId, MetadataSourceVec>;
+  MetadataMap stream_metadata_;
 
   absl::flat_hash_map<int32_t, std::unique_ptr<DataFrameSource>> sources_;
 };

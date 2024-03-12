@@ -19,11 +19,16 @@ namespace {
 
 using ConnectionError = Http2VisitorInterface::ConnectionError;
 
-// A metadata source that deletes itself upon completion.
-class SelfDeletingMetadataSource : public MetadataSource {
+}  // anonymous namespace
+
+// A metadata source that notifies the owning NgHttp2Adapter upon completion or
+// failure.
+class NgHttp2Adapter::NotifyingMetadataSource : public MetadataSource {
  public:
-  explicit SelfDeletingMetadataSource(std::unique_ptr<MetadataSource> source)
-      : source_(std::move(source)) {}
+  explicit NotifyingMetadataSource(NgHttp2Adapter* adapter,
+                                   Http2StreamId stream_id,
+                                   std::unique_ptr<MetadataSource> source)
+      : adapter_(adapter), stream_id_(stream_id), source_(std::move(source)) {}
 
   size_t NumFrames(size_t max_frame_size) const override {
     return source_->NumFrames(max_frame_size);
@@ -32,21 +37,21 @@ class SelfDeletingMetadataSource : public MetadataSource {
   std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) override {
     const auto result = source_->Pack(dest, dest_len);
     if (result.first < 0 || result.second) {
-      delete this;
+      adapter_->RemovePendingMetadata(stream_id_);
     }
     return result;
   }
 
   void OnFailure() override {
     source_->OnFailure();
-    delete this;
+    adapter_->RemovePendingMetadata(stream_id_);
   }
 
  private:
+  NgHttp2Adapter* const adapter_;
+  const Http2StreamId stream_id_;
   std::unique_ptr<MetadataSource> source_;
 };
-
-}  // anonymous namespace
 
 /* static */
 std::unique_ptr<NgHttp2Adapter> NgHttp2Adapter::CreateClientAdapter(
@@ -128,13 +133,15 @@ void NgHttp2Adapter::SubmitWindowUpdate(Http2StreamId stream_id,
 void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
                                     size_t max_frame_size,
                                     std::unique_ptr<MetadataSource> source) {
-  auto* wrapped_source = new SelfDeletingMetadataSource(std::move(source));
+  auto wrapped_source = std::make_unique<NotifyingMetadataSource>(
+      this, stream_id, std::move(source));
   const size_t num_frames = wrapped_source->NumFrames(max_frame_size);
   size_t num_successes = 0;
   for (size_t i = 1; i <= num_frames; ++i) {
-    const int result = nghttp2_submit_extension(
-        session_->raw_ptr(), kMetadataFrameType,
-        i == num_frames ? kMetadataEndFlag : 0, stream_id, wrapped_source);
+    const int result =
+        nghttp2_submit_extension(session_->raw_ptr(), kMetadataFrameType,
+                                 i == num_frames ? kMetadataEndFlag : 0,
+                                 stream_id, wrapped_source.get());
     if (result != 0) {
       QUICHE_LOG(DFATAL) << "Failed to submit extension frame " << i << " of "
                          << num_frames;
@@ -142,8 +149,11 @@ void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
     }
     ++num_successes;
   }
-  if (num_successes == 0) {
-    delete wrapped_source;
+  if (num_successes > 0) {
+    // Finds the MetadataSourceVec for `stream_id` or inserts a new one if not
+    // present.
+    auto [it, _] = stream_metadata_.insert({stream_id, MetadataSourceVec{}});
+    it->second.push_back(std::move(wrapped_source));
   }
 }
 
@@ -268,6 +278,12 @@ bool NgHttp2Adapter::ResumeStream(Http2StreamId stream_id) {
   return 0 == nghttp2_session_resume_data(session_->raw_ptr(), stream_id);
 }
 
+void NgHttp2Adapter::FrameNotSent(Http2StreamId stream_id, uint8_t frame_type) {
+  if (frame_type == kMetadataFrameType) {
+    RemovePendingMetadata(stream_id);
+  }
+}
+
 void NgHttp2Adapter::RemoveStream(Http2StreamId stream_id) {
   sources_.erase(stream_id);
 }
@@ -303,6 +319,16 @@ void NgHttp2Adapter::Initialize() {
     nghttp2_option_del(owned_options);
   }
   options_ = nullptr;
+}
+
+void NgHttp2Adapter::RemovePendingMetadata(Http2StreamId stream_id) {
+  auto it = stream_metadata_.find(stream_id);
+  if (it != stream_metadata_.end()) {
+    it->second.erase(it->second.begin());
+    if (it->second.empty()) {
+      stream_metadata_.erase(it);
+    }
+  }
 }
 
 }  // namespace adapter
