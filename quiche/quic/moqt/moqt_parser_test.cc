@@ -450,13 +450,43 @@ TEST_F(MoqtMessageSpecificTest, StreamHeaderTrackFollowOn) {
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
 }
 
+TEST_F(MoqtMessageSpecificTest, ClientSetupRoleIsInvalid) {
+  MoqtParser parser(kRawQuic, visitor_);
+  char setup[] = {
+      0x40, 0x40, 0x02, 0x01, 0x02,  // versions
+      0x03,                          // 3 params
+      0x00, 0x01, 0x04,              // role = invalid
+      0x01, 0x03, 0x66, 0x6f, 0x6f   // path = "foo"
+  };
+  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_, "Invalid ROLE parameter");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtMessageSpecificTest, ServerSetupRoleIsInvalid) {
+  MoqtParser parser(kRawQuic, visitor_);
+  char setup[] = {
+      0x40, 0x41, 0x01,
+      0x01,                         // 1 param
+      0x00, 0x01, 0x04,             // role = invalid
+      0x01, 0x03, 0x66, 0x6f, 0x6f  // path = "foo"
+  };
+  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_, "Invalid ROLE parameter");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
 TEST_F(MoqtMessageSpecificTest, SetupRoleAppearsTwice) {
   MoqtParser parser(kRawQuic, visitor_);
   char setup[] = {
       0x40, 0x40, 0x02, 0x01, 0x02,  // versions
       0x03,                          // 3 params
-      0x00, 0x01, 0x03,              // role = both
-      0x00, 0x01, 0x03,              // role = both
+      0x00, 0x01, 0x03,              // role = PubSub
+      0x00, 0x01, 0x03,              // role = PubSub
       0x01, 0x03, 0x66, 0x6f, 0x6f   // path = "foo"
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
@@ -466,7 +496,7 @@ TEST_F(MoqtMessageSpecificTest, SetupRoleAppearsTwice) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
-TEST_F(MoqtMessageSpecificTest, SetupRoleIsMissing) {
+TEST_F(MoqtMessageSpecificTest, ClientSetupRoleIsMissing) {
   MoqtParser parser(kRawQuic, visitor_);
   char setup[] = {
       0x40, 0x40, 0x02, 0x01, 0x02,  // versions = 1, 2
@@ -481,13 +511,26 @@ TEST_F(MoqtMessageSpecificTest, SetupRoleIsMissing) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
+TEST_F(MoqtMessageSpecificTest, ServerSetupRoleIsMissing) {
+  MoqtParser parser(kRawQuic, visitor_);
+  char setup[] = {
+      0x40, 0x41, 0x01, 0x00,  // 1 param
+  };
+  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_,
+            "ROLE parameter missing from SERVER_SETUP message");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
 TEST_F(MoqtMessageSpecificTest, SetupRoleVarintLengthIsWrong) {
   MoqtParser parser(kRawQuic, visitor_);
   char setup[] = {
       0x40, 0x40,                   // type
       0x02, 0x01, 0x02,             // versions
       0x02,                         // 2 parameters
-      0x00, 0x02, 0x03,             // role = both, but length is 2
+      0x00, 0x02, 0x03,             // role = PubSub, but length is 2
       0x01, 0x03, 0x66, 0x6f, 0x6f  // path = "foo"
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
@@ -519,7 +562,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
   char setup[] = {
       0x40, 0x40, 0x02, 0x01, 0x02,  // versions = 1, 2
       0x03,                          // 3 params
-      0x00, 0x01, 0x03,              // role = both
+      0x00, 0x01, 0x03,              // role = PubSub
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
   };
@@ -536,7 +579,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
   char setup[] = {
       0x40, 0x40, 0x02, 0x01, 0x02,  // versions = 1, 2
       0x02,                          // 2 params
-      0x00, 0x01, 0x03,              // role = both
+      0x00, 0x01, 0x03,              // role = PubSub
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
@@ -552,7 +595,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   char setup[] = {
       0x40, 0x40, 0x02, 0x01, 0x02,  // versions = 1, 2
       0x01,                          // 1 param
-      0x00, 0x01, 0x03,              // role = both
+      0x00, 0x01, 0x03,              // role = PubSub
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);

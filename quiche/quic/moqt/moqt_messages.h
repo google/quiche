@@ -33,6 +33,7 @@ enum class MoqtVersion : uint64_t {
 
 struct QUICHE_EXPORT MoqtSessionParameters {
   // TODO: support multiple versions.
+  // TODO: support roles other than PubSub.
   MoqtVersion version;
   quic::Perspective perspective;
   bool using_webtrans;
@@ -76,9 +77,10 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
 };
 
 enum class QUICHE_EXPORT MoqtRole : uint64_t {
-  kIngestion = 0x1,
-  kDelivery = 0x2,
-  kBoth = 0x3,
+  kPublisher = 0x1,
+  kSubscriber = 0x2,
+  kPubSub = 0x3,
+  kRoleMax = 0x3,
 };
 
 enum class QUICHE_EXPORT MoqtSetupParameter : uint64_t {

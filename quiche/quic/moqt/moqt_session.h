@@ -261,6 +261,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // Indexed by track namespace.
   absl::flat_hash_map<std::string, MoqtOutgoingAnnounceCallback>
       pending_outgoing_announces_;
+
+  // The role the peer advertised in its SETUP message.
+  MoqtRole peer_role_;
 };
 
 }  // namespace moqt

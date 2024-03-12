@@ -19,7 +19,6 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
-#include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -126,6 +125,10 @@ class MoqtSessionPeer {
     LocalTrack& track = it->second;
     return track.next_sequence();
   }
+
+  static void set_peer_role(MoqtSession* session, MoqtRole role) {
+    session->peer_role_ = role;
+  }
 };
 
 class MoqtSessionTest : public quic::test::QuicTest {
@@ -179,7 +182,7 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
   // Handle the server setup
   MoqtServerSetup setup = {
       MoqtVersion::kDraft02,
-      MoqtRole::kBoth,
+      MoqtRole::kPubSub,
   };
   EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
   stream_input->OnServerSetupMessage(setup);
@@ -200,7 +203,7 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);
   MoqtClientSetup setup = {
       /*supported_versions=*/{MoqtVersion::kDraft02},
-      /*role=*/MoqtRole::kBoth,
+      /*role=*/MoqtRole::kPubSub,
       /*path=*/std::nullopt,
   };
   bool correct_message = false;
@@ -851,7 +854,7 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);
   MoqtClientSetup setup = {
       /*supported_versions*/ {MoqtVersion::kDraft02},
-      /*role=*/MoqtRole::kBoth,
+      /*role=*/MoqtRole::kPubSub,
       /*path=*/std::nullopt,
   };
   bool correct_message = false;
@@ -977,6 +980,57 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
                            "Forwarding preference changes mid-track"))
       .Times(1);
   object_stream->OnObjectMessage(object, payload, true);
+}
+
+TEST_F(MoqtSessionTest, AnnounceToPublisher) {
+  MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kPublisher);
+  testing::MockFunction<void(
+      absl::string_view track_namespace,
+      std::optional<MoqtAnnounceErrorReason> error_message)>
+      announce_resolved_callback;
+  EXPECT_CALL(announce_resolved_callback, Call(_, _)).Times(1);
+  session_.Announce("foo", announce_resolved_callback.AsStdFunction());
+}
+
+TEST_F(MoqtSessionTest, SubscribeFromPublisher) {
+  MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kPublisher);
+  MoqtSubscribe request = {
+      /*subscribe_id=*/1,
+      /*track_alias=*/2,
+      /*track_namespace=*/"foo",
+      /*track_name=*/"bar",
+      /*start_group=*/MoqtSubscribeLocation(true, static_cast<uint64_t>(0)),
+      /*start_object=*/MoqtSubscribeLocation(true, static_cast<uint64_t>(0)),
+      /*end_group=*/std::nullopt,
+      /*end_object=*/std::nullopt,
+      /*authorization_info=*/std::nullopt,
+  };
+  StrictMock<webtransport::test::MockStream> mock_stream;
+  std::unique_ptr<MoqtParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  // Request for track returns Protocol Violation.
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Received SUBSCRIBE from publisher"))
+      .Times(1);
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_)).Times(1);
+  stream_input->OnSubscribeMessage(request);
+}
+
+TEST_F(MoqtSessionTest, AnnounceFromSubscriber) {
+  MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kSubscriber);
+  StrictMock<webtransport::test::MockStream> mock_stream;
+  std::unique_ptr<MoqtParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  MoqtAnnounce announce = {
+      /*track_namespace=*/"foo",
+  };
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Received ANNOUNCE from Subscriber"))
+      .Times(1);
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_)).Times(1);
+  stream_input->OnAnnounceMessage(announce);
 }
 
 // TODO: Cover more error cases in the above

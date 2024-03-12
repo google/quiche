@@ -74,7 +74,7 @@ void MoqtSession::OnSessionReady() {
   control_stream_ = control_stream->GetStreamId();
   MoqtClientSetup setup = MoqtClientSetup{
       .supported_versions = std::vector<MoqtVersion>{parameters_.version},
-      .role = MoqtRole::kBoth,
+      .role = MoqtRole::kPubSub,
   };
   if (!parameters_.using_webtrans) {
     setup.path = parameters_.path;
@@ -159,6 +159,13 @@ void MoqtSession::AddLocalTrack(const FullTrackName& full_track_name,
 // trigger session errors.
 void MoqtSession::Announce(absl::string_view track_namespace,
                            MoqtOutgoingAnnounceCallback announce_callback) {
+  if (peer_role_ == MoqtRole::kPublisher) {
+    std::move(announce_callback)(
+        track_namespace,
+        MoqtAnnounceErrorReason{MoqtAnnounceErrorCode::kInternalError,
+                                "ANNOUNCE cannot be sent to Publisher"});
+    return;
+  }
   if (pending_outgoing_announces_.contains(track_namespace)) {
     std::move(announce_callback)(
         track_namespace,
@@ -263,6 +270,10 @@ bool MoqtSession::SubscribeCurrentGroup(absl::string_view track_namespace,
 
 bool MoqtSession::Subscribe(MoqtSubscribe& message,
                             RemoteTrack::Visitor* visitor) {
+  if (peer_role_ == MoqtRole::kSubscriber) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE to subscriber peer";
+    return false;
+  }
   // TODO(martinduke): support authorization info
   message.subscribe_id = next_subscribe_id_++;
   FullTrackName ftn(std::string(message.track_namespace),
@@ -513,12 +524,13 @@ void MoqtSession::Stream::OnClientSetupMessage(const MoqtClientSetup& message) {
   if (session_->parameters_.perspective == Perspective::IS_SERVER) {
     MoqtServerSetup response;
     response.selected_version = session_->parameters_.version;
-    response.role = MoqtRole::kBoth;
+    response.role = MoqtRole::kPubSub;
     SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
   // TODO: handle role and path.
   std::move(session_->callbacks_.session_established_callback)();
+  session_->peer_role_ = *message.role;
 }
 
 void MoqtSession::Stream::OnServerSetupMessage(const MoqtServerSetup& message) {
@@ -546,6 +558,7 @@ void MoqtSession::Stream::OnServerSetupMessage(const MoqtServerSetup& message) {
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle role and path.
   std::move(session_->callbacks_.session_established_callback)();
+  session_->peer_role_ = *message.role;
 }
 
 void MoqtSession::Stream::SendSubscribeError(const MoqtSubscribe& message,
@@ -564,6 +577,12 @@ void MoqtSession::Stream::SendSubscribeError(const MoqtSubscribe& message,
 void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
   std::string reason_phrase = "";
   if (!CheckIfIsControlStream()) {
+    return;
+  }
+  if (session_->peer_role_ == MoqtRole::kPublisher) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Publisher peer sent SUBSCRIBE";
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received SUBSCRIBE from publisher");
     return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE for "
@@ -696,6 +715,12 @@ void MoqtSession::Stream::OnUnsubscribeMessage(const MoqtUnsubscribe& message) {
 }
 
 void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {
+  if (session_->peer_role_ == MoqtRole::kSubscriber) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Subscriber peer sent SUBSCRIBE";
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received ANNOUNCE from Subscriber");
+    return;
+  }
   if (!CheckIfIsControlStream()) {
     return;
   }

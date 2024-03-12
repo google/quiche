@@ -348,13 +348,13 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       0x40, 0x40,                   // type
       0x02, 0x01, 0x02,             // versions
       0x02,                         // 2 parameters
-      0x00, 0x01, 0x03,             // role = both
+      0x00, 0x01, 0x03,             // role = PubSub
       0x01, 0x03, 0x66, 0x6f, 0x6f  // path = "foo"
   };
   MoqtClientSetup client_setup_ = {
       /*supported_versions=*/std::vector<MoqtVersion>(
           {static_cast<MoqtVersion>(1), static_cast<MoqtVersion>(2)}),
-      /*role=*/MoqtRole::kBoth,
+      /*role=*/MoqtRole::kPubSub,
       /*path=*/"foo",
   };
 };
@@ -380,7 +380,7 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("--v");  // first two bytes are already a 2b varint
+    ExpandVarintsImpl("--vvvv-");  // first two bytes are already a 2b varint
   }
 
   MessageStructuredData structured_data() const override {
@@ -388,13 +388,14 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[4] = {
-      0x40, 0x41,  // type
-      0x01, 0x00,  // version, zero params
+  uint8_t raw_packet_[7] = {
+      0x40, 0x41,        // type
+      0x01, 0x01,        // version, one param
+      0x00, 0x01, 0x03,  // role = PubSub
   };
   MoqtServerSetup server_setup_ = {
       /*selected_version=*/static_cast<MoqtVersion>(1),
-      /*role=*/std::nullopt,
+      /*role=*/MoqtRole::kPubSub,
   };
 };
 

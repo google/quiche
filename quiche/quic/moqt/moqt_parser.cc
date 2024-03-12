@@ -282,6 +282,10 @@ size_t MoqtParser::ProcessClientSetup(quic::QuicDataReader& reader) {
         }
         uint64_t index;
         StringViewToVarInt(value, index);
+        if (index > static_cast<uint64_t>(MoqtRole::kRoleMax)) {
+          ParseError("Invalid ROLE parameter");
+          return 0;
+        }
         setup.role = static_cast<MoqtRole>(index);
         break;
       case MoqtSetupParameter::kPath:
@@ -340,6 +344,10 @@ size_t MoqtParser::ProcessServerSetup(quic::QuicDataReader& reader) {
         }
         uint64_t index;
         StringViewToVarInt(value, index);
+        if (index > static_cast<uint64_t>(MoqtRole::kRoleMax)) {
+          ParseError("Invalid ROLE parameter");
+          return 0;
+        }
         setup.role = static_cast<MoqtRole>(index);
         break;
       case MoqtSetupParameter::kPath:
@@ -349,6 +357,10 @@ size_t MoqtParser::ProcessServerSetup(quic::QuicDataReader& reader) {
         // Skip over the parameter.
         break;
     }
+  }
+  if (!setup.role.has_value()) {
+    ParseError("ROLE parameter missing from SERVER_SETUP message");
+    return 0;
   }
   visitor_.OnServerSetupMessage(setup);
   return reader.PreviouslyReadPayload().length();
