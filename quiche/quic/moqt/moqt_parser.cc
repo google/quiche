@@ -90,7 +90,7 @@ void MoqtParser::ProcessData(absl::string_view data, bool fin) {
     size_t message_len = ProcessMessage(reader->PeekRemainingPayload(), fin);
     if (message_len == 0) {
       if (reader->BytesRemaining() > kMaxMessageHeaderSize) {
-        ParseError(MoqtError::kGenericError,
+        ParseError(MoqtError::kInternalError,
                    "Cannot parse non-OBJECT messages > 2KB");
         return;
       }

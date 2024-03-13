@@ -693,7 +693,7 @@ TEST_F(MoqtMessageSpecificTest, Setup2KB) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_, "Cannot parse non-OBJECT messages > 2KB");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kGenericError);
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInternalError);
 }
 
 TEST_F(MoqtMessageSpecificTest, UnknownMessageType) {

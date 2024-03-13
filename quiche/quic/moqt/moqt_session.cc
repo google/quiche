@@ -66,7 +66,7 @@ void MoqtSession::OnSessionReady() {
   webtransport::Stream* control_stream =
       session_->OpenOutgoingBidirectionalStream();
   if (control_stream == nullptr) {
-    Error(MoqtError::kGenericError, "Unable to open a control stream");
+    Error(MoqtError::kInternalError, "Unable to open a control stream");
     return;
   }
   control_stream->SetVisitor(std::make_unique<Stream>(
@@ -602,7 +602,7 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
     QUIC_DLOG(INFO) << ENDPOINT << "Rejected because "
                     << message.track_namespace << ":" << message.track_name
                     << " does not exist";
-    SendSubscribeError(message, SubscribeErrorCode::kGenericError,
+    SendSubscribeError(message, SubscribeErrorCode::kInternalError,
                        "Track does not exist", message.track_alias);
     return;
   }
@@ -642,7 +642,7 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
     std::optional<absl::string_view> past_objects_available =
         track.visitor()->OnSubscribeForPast(window);
     if (past_objects_available.has_value()) {
-      SendSubscribeError(message, SubscribeErrorCode::kGenericError,
+      SendSubscribeError(message, SubscribeErrorCode::kInternalError,
                          "Object does not exist", message.track_alias);
       return;
     }
@@ -842,7 +842,7 @@ void MoqtSession::Stream::SendOrBufferMessage(quiche::QuicheBuffer message,
   std::array<absl::string_view, 1> write_vector = {message.AsStringView()};
   absl::Status success = stream_->Writev(absl::MakeSpan(write_vector), options);
   if (!success.ok()) {
-    session_->Error(MoqtError::kGenericError,
+    session_->Error(MoqtError::kInternalError,
                     "Failed to write a control message");
   }
 }

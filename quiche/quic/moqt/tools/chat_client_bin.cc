@@ -203,7 +203,7 @@ class ChatClient {
             std::optional<moqt::MoqtAnnounceErrorReason> reason) {
           if (reason.has_value()) {
             std::cout << "ANNOUNCE rejected, " << reason->reason_phrase << "\n";
-            session_->Error(moqt::MoqtError::kGenericError,
+            session_->Error(moqt::MoqtError::kInternalError,
                             "Local ANNOUNCE rejected");
             return;
           }

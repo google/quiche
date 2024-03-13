@@ -68,7 +68,7 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
 
 enum class QUICHE_EXPORT MoqtError : uint64_t {
   kNoError = 0x0,
-  kGenericError = 0x1,
+  kInternalError = 0x1,
   kUnauthorized = 0x2,
   kProtocolViolation = 0x3,
   kDuplicateTrackAlias = 0x4,
@@ -254,7 +254,7 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
 };
 
 enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
-  kGenericError = 0x0,
+  kInternalError = 0x0,
   kInvalidRange = 0x1,
   kRetryTrackAlias = 0x2,
 };
