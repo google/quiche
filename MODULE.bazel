@@ -1,0 +1,45 @@
+module(
+    name = "com_google_quiche",
+    version = "",
+)
+
+bazel_dep(
+    name = "bazel_skylib",
+    version = "1.4.1",
+)
+bazel_dep(
+    name = "boringssl",
+    version = "0.0.0-20240126-22d349c",
+)
+bazel_dep(
+    name = "googletest",
+    version = "1.14.0.bcr.1",
+    repo_name = "com_google_googletest",
+)
+bazel_dep(
+    name = "platforms",
+    version = "0.0.8",
+)
+bazel_dep(
+    name = "protobuf",
+    version = "23.1",
+    repo_name = "com_google_protobuf",
+)
+bazel_dep(
+    name = "rules_cc",
+    version = "0.0.9",
+)
+bazel_dep(
+    name = "zlib",
+    version = "1.2.13",
+)
+# -- bazel_dep definitions -- #
+
+non_module_deps = use_extension("//:extensions.bzl", "non_module_deps")
+use_repo(
+    non_module_deps,
+    "com_google_absl",
+    "com_google_googleurl",
+    "com_google_quic_trace",
+)
+# End of extension `non_module_deps`

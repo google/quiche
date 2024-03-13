@@ -1,6 +1,6 @@
 # Automatically detect host platform to pick config
 common --enable_platform_specific_config
-
+common --enable_bzlmod
 build --cxxopt=-std=c++17
 build --cxxopt=-fno-rtti
 
