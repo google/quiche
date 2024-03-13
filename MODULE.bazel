@@ -1,6 +1,7 @@
 module(
-    name = "com_google_quiche",
-    version = "",
+    name = "quiche",
+    version = "0.0.0",
+    repo_name = "com_google_quiche",
 )
 
 bazel_dep(
