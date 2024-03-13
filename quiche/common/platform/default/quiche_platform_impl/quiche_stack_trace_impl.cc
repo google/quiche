@@ -4,6 +4,7 @@
 
 #include "quiche_platform_impl/quiche_stack_trace_impl.h"
 
+#include <string>
 #include <vector>
 
 #include "absl/base/macros.h"
@@ -11,6 +12,7 @@
 #include "absl/debugging/symbolize.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 
 namespace quiche {
 
@@ -20,15 +22,18 @@ constexpr int kMaxSymbolSize = 1024;
 constexpr absl::string_view kUnknownSymbol = "(unknown)";
 }  // namespace
 
-std::string QuicheStackTraceImpl() {
+std::vector<void*> CurrentStackTraceImpl() {
   std::vector<void*> stacktrace(kMaxStackSize, nullptr);
   int num_frames = absl::GetStackTrace(stacktrace.data(), stacktrace.size(),
                                        /*skip_count=*/0);
   if (num_frames <= 0) {
-    return "";
+    return {};
   }
   stacktrace.resize(num_frames);
+  return stacktrace;
+}
 
+std::string SymbolizeStackTraceImpl(absl::Span<void* const> stacktrace) {
   std::string formatted_trace = "Stack trace:\n";
   for (void* function : stacktrace) {
     char symbol_name[kMaxSymbolSize];
@@ -38,6 +43,10 @@ std::string QuicheStackTraceImpl() {
         success ? absl::string_view(symbol_name) : kUnknownSymbol);
   }
   return formatted_trace;
+}
+
+std::string QuicheStackTraceImpl() {
+  return SymbolizeStackTraceImpl(CurrentStackTraceImpl());
 }
 
 bool QuicheShouldRunStackTraceTestImpl() {

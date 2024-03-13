@@ -28,6 +28,13 @@ ABSL_ATTRIBUTE_NOINLINE std::string QuicheDesignatedStackTraceTestFunction() {
   return result;
 }
 
+ABSL_ATTRIBUTE_NOINLINE std::string
+QuicheDesignatedTwoStepStackTraceTestFunction() {
+  std::string result = SymbolizeStackTrace(CurrentStackTrace());
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+  return result;
+}
+
 TEST(QuicheStackTraceTest, GetStackTrace) {
   if (!ShouldRunTest()) {
     return;
@@ -36,6 +43,16 @@ TEST(QuicheStackTraceTest, GetStackTrace) {
   std::string stacktrace = QuicheDesignatedStackTraceTestFunction();
   EXPECT_THAT(stacktrace,
               testing::HasSubstr("QuicheDesignatedStackTraceTestFunction"));
+}
+
+TEST(QuicheStackTraceTest, GetStackTraceInTwoSteps) {
+  if (!ShouldRunTest()) {
+    return;
+  }
+
+  std::string stacktrace = QuicheDesignatedTwoStepStackTraceTestFunction();
+  EXPECT_THAT(stacktrace, testing::HasSubstr(
+                              "QuicheDesignatedTwoStepStackTraceTestFunction"));
 }
 
 }  // namespace
