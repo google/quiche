@@ -37,7 +37,7 @@ class QUICHE_EXPORT ClientProofSource {
   // |server_hostname| is typically a full domain name(www.foo.com), but it
   // could also be a wildcard domain(*.foo.com), or a "*" which will return the
   // default cert.
-  virtual const CertAndKey* GetCertAndKey(
+  virtual std::shared_ptr<const CertAndKey> GetCertAndKey(
       absl::string_view server_hostname) const = 0;
 };
 
@@ -58,10 +58,12 @@ class QUICHE_EXPORT DefaultClientProofSource : public ClientProofSource {
                      CertificatePrivateKey private_key);
 
   // ClientProofSource implementation
-  const CertAndKey* GetCertAndKey(absl::string_view hostname) const override;
+  std::shared_ptr<const CertAndKey> GetCertAndKey(
+      absl::string_view hostname) const override;
 
  private:
-  const CertAndKey* LookupExact(absl::string_view map_key) const;
+  std::shared_ptr<const CertAndKey> LookupExact(
+      absl::string_view map_key) const;
   absl::flat_hash_map<std::string, std::shared_ptr<CertAndKey>> cert_and_keys_;
 };
 

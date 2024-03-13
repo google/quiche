@@ -44,7 +44,7 @@ TlsClientHandshaker::TlsClientHandshaker(
                           crypto_config->tls_signature_algorithms()->c_str());
   }
   if (crypto_config->proof_source() != nullptr) {
-    const ClientProofSource::CertAndKey* cert_and_key =
+    std::shared_ptr<const ClientProofSource::CertAndKey> cert_and_key =
         crypto_config->proof_source()->GetCertAndKey(server_id.host());
     if (cert_and_key != nullptr) {
       QUIC_DVLOG(1) << "Setting client cert and key for " << server_id.host();

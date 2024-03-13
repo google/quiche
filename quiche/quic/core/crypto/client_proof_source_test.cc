@@ -56,7 +56,7 @@ CertificatePrivateKey EmptyPrivateKey() {
 #define VERIFY_CERT_AND_KEY_MATCHES(lhs, rhs) \
   do {                                        \
     SCOPED_TRACE(testing::Message());         \
-    VerifyCertAndKeyMatches(lhs, rhs);        \
+    VerifyCertAndKeyMatches(lhs.get(), rhs);  \
   } while (0)
 
 void VerifyCertAndKeyMatches(const ClientProofSource::CertAndKey* lhs,
