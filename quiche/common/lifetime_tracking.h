@@ -36,19 +36,14 @@
 #ifndef QUICHE_COMMON_LIFETIME_TRACKING_H_
 #define QUICHE_COMMON_LIFETIME_TRACKING_H_
 
-#include <array>
-#include <cstddef>
-#include <iostream>
 #include <memory>
 #include <optional>
-#include <sstream>
-#include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/log/die_if_null.h"
 #include "absl/strings/str_format.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_stack_trace.h"
 
 namespace quiche {
@@ -100,7 +95,10 @@ class QUICHE_EXPORT LifetimeTracker {
  private:
   friend class LifetimeTrackable;
   explicit LifetimeTracker(std::shared_ptr<const LifetimeInfo> info)
-      : info_(ABSL_DIE_IF_NULL(info)) {}
+      : info_(std::move(info)) {
+    QUICHE_CHECK(info_ != nullptr)
+        << "Passed a null info pointer into the lifetime tracker";
+  }
   void CopyFrom(const LifetimeTracker& other) { info_ = other.info_; }
 
   std::shared_ptr<const LifetimeInfo> info_;
