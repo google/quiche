@@ -2822,6 +2822,51 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, ReceiveMetadataFrame) {
   OnStreamFrame(metadata_frame);
 }
 
+TEST_P(QuicSpdyStreamIncrementalConsumptionTest,
+       ResetDuringMultipleMetadataFrames) {
+  if (!UsesHttp3() ||
+      !GetQuicReloadableFlag(quic_enable_http3_metadata_decoding)) {
+    return;
+  }
+  StrictMock<MockMetadataVisitor> metadata_visitor;
+  Initialize(kShouldProcessData);
+  stream_->RegisterMetadataVisitor(&metadata_visitor);
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+
+  quiche::HttpHeaderBlock headers;
+  headers.AppendValueOrAddHeader("key1", "val1");
+  headers.AppendValueOrAddHeader("key2", "val2");
+  quic::NoopDecoderStreamErrorDelegate delegate;
+  QpackEncoder qpack_encoder(&delegate, quic::HuffmanEncoding::kDisabled);
+  std::string metadata_frame_payload = qpack_encoder.EncodeHeaderList(
+      stream_->id(), headers,
+      /* encoder_stream_sent_byte_count = */ nullptr);
+  std::string metadata_frame_header =
+      quic::HttpEncoder::SerializeMetadataFrameHeader(
+          metadata_frame_payload.size());
+  std::string metadata_frame = metadata_frame_header + metadata_frame_payload;
+
+  EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AnyNumber());
+  EXPECT_CALL(*session_, MaybeSendStopSendingFrame(_, _));
+  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, _, _));
+  // Reset the stream while processing the first frame and do not
+  // receive a callback about the second.
+  EXPECT_CALL(metadata_visitor, OnMetadataComplete(metadata_frame.size(), _))
+      .WillOnce(testing::WithArgs<1>(
+          Invoke([&headers, this](const QuicHeaderList& header_list) {
+            quiche::HttpHeaderBlock actual_headers;
+            for (const auto& header : header_list) {
+              actual_headers.AppendValueOrAddHeader(header.first,
+                                                    header.second);
+            }
+            EXPECT_EQ(headers, actual_headers);
+            stream_->Reset(QUIC_STREAM_CANCELLED);
+          })));
+  std::string data = metadata_frame + metadata_frame;
+  OnStreamFrame(data);
+}
+
 TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
   if (!UsesHttp3()) {
     return;

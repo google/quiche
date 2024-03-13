@@ -1293,7 +1293,7 @@ bool QuicSpdyStream::OnMetadataFrameEnd() {
   metadata_visitor_->OnMetadataComplete(received_metadata_payload_->frame_len,
                                         decoder.headers());
   received_metadata_payload_.reset();
-  return true;
+  return !sequencer()->IsClosed() && !reading_stopped();
 }
 
 bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
