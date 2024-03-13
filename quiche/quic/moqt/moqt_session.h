@@ -168,8 +168,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override;
     void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override;
     void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
-    void OnSubscribeFinMessage(const MoqtSubscribeFin& /*message*/) override {}
-    void OnSubscribeRstMessage(const MoqtSubscribeRst& /*message*/) override {}
+    void OnSubscribeDoneMessage(const MoqtSubscribeDone& /*message*/) override {
+    }
     void OnAnnounceMessage(const MoqtAnnounce& message) override;
     void OnAnnounceOkMessage(const MoqtAnnounceOk& message) override;
     void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override;

@@ -166,10 +166,8 @@ size_t MoqtParser::ProcessMessage(absl::string_view data, bool fin) {
       return ProcessSubscribeError(reader);
     case MoqtMessageType::kUnsubscribe:
       return ProcessUnsubscribe(reader);
-    case MoqtMessageType::kSubscribeFin:
-      return ProcessSubscribeFin(reader);
-    case MoqtMessageType::kSubscribeRst:
-      return ProcessSubscribeRst(reader);
+    case MoqtMessageType::kSubscribeDone:
+      return ProcessSubscribeDone(reader);
     case MoqtMessageType::kAnnounce:
       return ProcessAnnounce(reader);
     case MoqtMessageType::kAnnounceOk:
@@ -434,11 +432,24 @@ size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
 size_t MoqtParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   MoqtSubscribeOk subscribe_ok;
   uint64_t milliseconds;
+  uint8_t content_exists;
   if (!reader.ReadVarInt62(&subscribe_ok.subscribe_id) ||
-      !reader.ReadVarInt62(&milliseconds)) {
+      !reader.ReadVarInt62(&milliseconds) ||
+      !reader.ReadUInt8(&content_exists)) {
+    return 0;
+  }
+  if (content_exists > 1) {
+    ParseError("SUBSCRIBE_OK ContentExists has invalid value");
     return 0;
   }
   subscribe_ok.expires = quic::QuicTimeDelta::FromMilliseconds(milliseconds);
+  if (content_exists) {
+    subscribe_ok.largest_id = FullSequence();
+    if (!reader.ReadVarInt62(&subscribe_ok.largest_id->group) ||
+        !reader.ReadVarInt62(&subscribe_ok.largest_id->object)) {
+      return 0;
+    }
+  }
   visitor_.OnSubscribeOkMessage(subscribe_ok);
   return reader.PreviouslyReadPayload().length();
 }
@@ -466,27 +477,27 @@ size_t MoqtParser::ProcessUnsubscribe(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtParser::ProcessSubscribeFin(quic::QuicDataReader& reader) {
-  MoqtSubscribeFin subscribe_fin;
-  if (!reader.ReadVarInt62(&subscribe_fin.subscribe_id) ||
-      !reader.ReadVarInt62(&subscribe_fin.final_group) ||
-      !reader.ReadVarInt62(&subscribe_fin.final_object)) {
+size_t MoqtParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
+  MoqtSubscribeDone subscribe_done;
+  uint8_t content_exists;
+  if (!reader.ReadVarInt62(&subscribe_done.subscribe_id) ||
+      !reader.ReadVarInt62(&subscribe_done.status_code) ||
+      !reader.ReadStringVarInt62(subscribe_done.reason_phrase) ||
+      !reader.ReadUInt8(&content_exists)) {
     return 0;
   }
-  visitor_.OnSubscribeFinMessage(subscribe_fin);
-  return reader.PreviouslyReadPayload().length();
-}
-
-size_t MoqtParser::ProcessSubscribeRst(quic::QuicDataReader& reader) {
-  MoqtSubscribeRst subscribe_rst;
-  if (!reader.ReadVarInt62(&subscribe_rst.subscribe_id) ||
-      !reader.ReadVarInt62(&subscribe_rst.error_code) ||
-      !reader.ReadStringVarInt62(subscribe_rst.reason_phrase) ||
-      !reader.ReadVarInt62(&subscribe_rst.final_group) ||
-      !reader.ReadVarInt62(&subscribe_rst.final_object)) {
+  if (content_exists > 1) {
+    ParseError("SUBSCRIBE_DONE ContentExists has invalid value");
     return 0;
   }
-  visitor_.OnSubscribeRstMessage(subscribe_rst);
+  if (content_exists == 1) {
+    subscribe_done.final_id = FullSequence();
+    if (!reader.ReadVarInt62(&subscribe_done.final_id->group) ||
+        !reader.ReadVarInt62(&subscribe_done.final_id->object)) {
+      return 0;
+    }
+  }
+  visitor_.OnSubscribeDoneMessage(subscribe_done);
   return reader.PreviouslyReadPayload().length();
 }
 

@@ -734,6 +734,7 @@ void MoqtSession::Stream::OnUnsubscribeMessage(const MoqtUnsubscribe& message) {
   for (auto& [name, track] : session_->local_tracks_) {
     track.DeleteWindow(message.subscribe_id);
   }
+  // TODO(martinduke): Send SUBSCRIBE_DONE in response.
 }
 
 void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {

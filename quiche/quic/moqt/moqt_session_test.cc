@@ -42,7 +42,7 @@ constexpr webtransport::StreamId kIncomingUniStreamId = 15;
 constexpr webtransport::StreamId kOutgoingUniStreamId = 14;
 
 constexpr MoqtSessionParameters default_parameters = {
-    /*version=*/MoqtVersion::kDraft02,
+    /*version=*/MoqtVersion::kDraft03,
     /*perspective=*/quic::Perspective::IS_CLIENT,
     /*using_webtrans=*/true,
     /*path=*/std::string(),
@@ -185,7 +185,7 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
           &session_, visitor.get());
   // Handle the server setup
   MoqtServerSetup setup = {
-      MoqtVersion::kDraft02,
+      MoqtVersion::kDraft03,
       MoqtRole::kPubSub,
   };
   EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
@@ -194,7 +194,7 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
 
 TEST_F(MoqtSessionTest, OnClientSetup) {
   MoqtSessionParameters server_parameters = {
-      /*version=*/MoqtVersion::kDraft02,
+      /*version=*/MoqtVersion::kDraft03,
       /*perspective=*/quic::Perspective::IS_SERVER,
       /*using_webtrans=*/true,
       /*path=*/"",
@@ -206,7 +206,7 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
   std::unique_ptr<MoqtParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);
   MoqtClientSetup setup = {
-      /*supported_versions=*/{MoqtVersion::kDraft02},
+      /*supported_versions=*/{MoqtVersion::kDraft03},
       /*role=*/MoqtRole::kPubSub,
       /*path=*/std::nullopt,
   };
@@ -607,7 +607,7 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
 
 TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
   MoqtSessionParameters parameters = {
-      /*version=*/MoqtVersion::kDraft02,
+      /*version=*/MoqtVersion::kDraft03,
       /*perspective=*/quic::Perspective::IS_CLIENT,
       /*using_webtrans=*/true,
       /*path=*/"",
@@ -685,6 +685,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/1,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
+      /*largest_id=*/std::nullopt,
   };
   StrictMock<webtransport::test::MockStream> mock_control_stream;
   std::unique_ptr<MoqtParserVisitor> control_stream =
@@ -853,6 +854,7 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/1,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
+      /*largest_id=*/std::nullopt,
   };
   StrictMock<webtransport::test::MockStream> mock_control_stream;
   std::unique_ptr<MoqtParserVisitor> control_stream =
@@ -1016,7 +1018,7 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamClient) {
 
 TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
   MoqtSessionParameters server_parameters = {
-      /*version=*/MoqtVersion::kDraft02,
+      /*version=*/MoqtVersion::kDraft03,
       /*perspective=*/quic::Perspective::IS_SERVER,
       /*using_webtrans=*/true,
       /*path=*/"",
@@ -1028,7 +1030,7 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
   std::unique_ptr<MoqtParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);
   MoqtClientSetup setup = {
-      /*supported_versions*/ {MoqtVersion::kDraft02},
+      /*supported_versions*/ {MoqtVersion::kDraft03},
       /*role=*/MoqtRole::kPubSub,
       /*path=*/std::nullopt,
   };

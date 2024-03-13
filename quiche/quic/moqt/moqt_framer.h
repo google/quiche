@@ -46,8 +46,7 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeSubscribeError(
       const MoqtSubscribeError& message);
   quiche::QuicheBuffer SerializeUnsubscribe(const MoqtUnsubscribe& message);
-  quiche::QuicheBuffer SerializeSubscribeFin(const MoqtSubscribeFin& message);
-  quiche::QuicheBuffer SerializeSubscribeRst(const MoqtSubscribeRst& message);
+  quiche::QuicheBuffer SerializeSubscribeDone(const MoqtSubscribeDone& message);
   quiche::QuicheBuffer SerializeAnnounce(const MoqtAnnounce& message);
   quiche::QuicheBuffer SerializeAnnounceOk(const MoqtAnnounceOk& message);
   quiche::QuicheBuffer SerializeAnnounceError(const MoqtAnnounceError& message);

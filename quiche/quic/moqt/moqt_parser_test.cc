@@ -42,8 +42,7 @@ std::vector<MoqtMessageType> message_types = {
     MoqtMessageType::kSubscribeOk,
     MoqtMessageType::kSubscribeError,
     MoqtMessageType::kUnsubscribe,
-    MoqtMessageType::kSubscribeFin,
-    MoqtMessageType::kSubscribeRst,
+    MoqtMessageType::kSubscribeDone,
     MoqtMessageType::kAnnounce,
     MoqtMessageType::kAnnounceOk,
     MoqtMessageType::kAnnounceError,
@@ -129,10 +128,7 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
   void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeFinMessage(const MoqtSubscribeFin& message) override {
-    OnControlMessage(message);
-  }
-  void OnSubscribeRstMessage(const MoqtSubscribeRst& message) override {
+  void OnSubscribeDoneMessage(const MoqtSubscribeDone& message) override {
     OnControlMessage(message);
   }
   void OnAnnounceMessage(const MoqtAnnounce& message) override {
@@ -866,6 +862,28 @@ TEST_F(MoqtMessageSpecificTest, VeryTruncatedDatagram) {
   absl::string_view payload = MoqtParser::ProcessDatagram(
       absl::string_view(&message, sizeof(message)), object);
   EXPECT_TRUE(payload.empty());
+}
+
+TEST_F(MoqtMessageSpecificTest, SubscribeOkInvalidContentExists) {
+  MoqtParser parser(kRawQuic, visitor_);
+  SubscribeOkMessage subscribe_ok;
+  subscribe_ok.SetInvalidContentExists();
+  parser.ProcessData(subscribe_ok.PacketSample(), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_,
+            "SUBSCRIBE_OK ContentExists has invalid value");
+}
+
+TEST_F(MoqtMessageSpecificTest, SubscribeDoneInvalidContentExists) {
+  MoqtParser parser(kRawQuic, visitor_);
+  SubscribeDoneMessage subscribe_done;
+  subscribe_done.SetInvalidContentExists();
+  parser.ProcessData(subscribe_done.PacketSample(), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_,
+            "SUBSCRIBE_DONE ContentExists has invalid value");
 }
 
 }  // namespace moqt::test

@@ -28,10 +28,8 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "SUBSCRIBE_ERROR";
     case MoqtMessageType::kUnsubscribe:
       return "UNSUBSCRIBE";
-    case MoqtMessageType::kSubscribeFin:
-      return "SUBSCRIBE_FIN";
-    case MoqtMessageType::kSubscribeRst:
-      return "SUBSCRIBE_RST";
+    case MoqtMessageType::kSubscribeDone:
+      return "SUBSCRIBE_DONE";
     case MoqtMessageType::kAnnounce:
       return "ANNOUNCE";
     case MoqtMessageType::kAnnounceOk:

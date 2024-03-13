@@ -27,7 +27,7 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft02 = 0xff000002,
+  kDraft03 = 0xff000003,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
@@ -57,8 +57,7 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kAnnounceError = 0x08,
   kUnannounce = 0x09,
   kUnsubscribe = 0x0a,
-  kSubscribeFin = 0x0b,
-  kSubscribeRst = 0x0c,
+  kSubscribeDone = 0x0b,
   kGoAway = 0x10,
   kClientSetup = 0x40,
   kServerSetup = 0x41,
@@ -251,6 +250,8 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
   uint64_t subscribe_id;
   // The message uses ms, but expires is in us.
   quic::QuicTimeDelta expires = quic::QuicTimeDelta::FromMilliseconds(0);
+  // If ContextExists on the wire is zero, largest_id has no value.
+  std::optional<FullSequence> largest_id;
 };
 
 enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
@@ -270,18 +271,21 @@ struct QUICHE_EXPORT MoqtUnsubscribe {
   uint64_t subscribe_id;
 };
 
-struct QUICHE_EXPORT MoqtSubscribeFin {
-  uint64_t subscribe_id;
-  uint64_t final_group;
-  uint64_t final_object;
+enum class QUICHE_EXPORT SubscribeDoneCode : uint64_t {
+  kUnsubscribed = 0x0,
+  kInternalError = 0x1,
+  kUnauthorized = 0x2,
+  kTrackEnded = 0x3,
+  kSubscriptionEnded = 0x4,
+  kGoingAway = 0x5,
+  kExpired = 0x6,
 };
 
-struct QUICHE_EXPORT MoqtSubscribeRst {
+struct QUICHE_EXPORT MoqtSubscribeDone {
   uint64_t subscribe_id;
-  uint64_t error_code;
+  uint64_t status_code;
   std::string reason_phrase;
-  uint64_t final_group;
-  uint64_t final_object;
+  std::optional<FullSequence> final_id;
 };
 
 struct QUICHE_EXPORT MoqtAnnounce {

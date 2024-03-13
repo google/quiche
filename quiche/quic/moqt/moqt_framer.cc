@@ -34,6 +34,7 @@ using ::quiche::WireBytes;
 using ::quiche::WireOptional;
 using ::quiche::WireSpan;
 using ::quiche::WireStringWithVarInt62Length;
+using ::quiche::WireUint8;
 using ::quiche::WireVarInt62;
 
 // Encoding for MOQT Locations:
@@ -288,9 +289,17 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
     const MoqtSubscribeOk& message) {
+  if (message.largest_id.has_value()) {
+    return Serialize(WireVarInt62(MoqtMessageType::kSubscribeOk),
+                     WireVarInt62(message.subscribe_id),
+                     WireVarInt62(message.expires.ToMilliseconds()),
+                     WireUint8(1), WireVarInt62(message.largest_id->group),
+                     WireVarInt62(message.largest_id->object));
+  }
   return Serialize(WireVarInt62(MoqtMessageType::kSubscribeOk),
                    WireVarInt62(message.subscribe_id),
-                   WireVarInt62(message.expires.ToMilliseconds()));
+                   WireVarInt62(message.expires.ToMilliseconds()),
+                   WireUint8(0));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeError(
@@ -308,21 +317,20 @@ quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribe(
                    WireVarInt62(message.subscribe_id));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeSubscribeFin(
-    const MoqtSubscribeFin& message) {
-  return Serialize(WireVarInt62(MoqtMessageType::kSubscribeFin),
-                   WireVarInt62(message.subscribe_id),
-                   WireVarInt62(message.final_group),
-                   WireVarInt62(message.final_object));
-}
-
-quiche::QuicheBuffer MoqtFramer::SerializeSubscribeRst(
-    const MoqtSubscribeRst& message) {
+quiche::QuicheBuffer MoqtFramer::SerializeSubscribeDone(
+    const MoqtSubscribeDone& message) {
+  if (message.final_id.has_value()) {
+    return Serialize(WireVarInt62(MoqtMessageType::kSubscribeDone),
+                     WireVarInt62(message.subscribe_id),
+                     WireVarInt62(message.status_code),
+                     WireStringWithVarInt62Length(message.reason_phrase),
+                     WireUint8(1), WireVarInt62(message.final_id->group),
+                     WireVarInt62(message.final_id->object));
+  }
   return Serialize(
-      WireVarInt62(MoqtMessageType::kSubscribeRst),
-      WireVarInt62(message.subscribe_id), WireVarInt62(message.error_code),
-      WireStringWithVarInt62Length(message.reason_phrase),
-      WireVarInt62(message.final_group), WireVarInt62(message.final_object));
+      WireVarInt62(MoqtMessageType::kSubscribeDone),
+      WireVarInt62(message.subscribe_id), WireVarInt62(message.status_code),
+      WireStringWithVarInt62Length(message.reason_phrase), WireUint8(0));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeAnnounce(
