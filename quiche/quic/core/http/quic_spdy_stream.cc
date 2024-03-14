@@ -1207,11 +1207,11 @@ bool QuicSpdyStream::OnMetadataFrameStart(QuicByteCount header_length,
         static_cast<uint64_t>(quic::HttpFrameType::METADATA), header_length,
         payload_length);
   }
-  QUIC_BUG_IF(Invalid METADATA state, received_metadata_payload_ != nullptr)
-      << "Invalid metadata state";
-  received_metadata_payload_ =
-      std::make_unique<ReceivedMetadataPayload>(payload_length);
-  received_metadata_payload_->frame_len = header_length + payload_length;
+
+  QUIC_BUG_IF(Invalid METADATA state, metadata_decoder_ != nullptr);
+  constexpr size_t kMaxMetadataBlockSize = 1 << 20;  // 1 MB
+  metadata_decoder_ = std::make_unique<MetadataDecoder>(
+      id(), kMaxMetadataBlockSize, header_length, payload_length);
 
   // Consume the frame header.
   QUIC_DVLOG(1) << ENDPOINT << "Consuming " << header_length
@@ -1224,8 +1224,12 @@ bool QuicSpdyStream::OnMetadataFramePayload(absl::string_view payload) {
   if (metadata_visitor_ == nullptr) {
     return OnUnknownFramePayload(payload);
   }
-  received_metadata_payload_->buffer.push_back(std::string(payload));
-  received_metadata_payload_->bytes_remaining -= payload.size();
+
+  if (!metadata_decoder_->Decode(payload)) {
+    OnUnrecoverableError(QUIC_DECOMPRESSION_FAILURE,
+                         metadata_decoder_->error_message());
+    return false;
+  }
 
   // Consume the frame payload.
   QUIC_DVLOG(1) << ENDPOINT << "Consuming " << payload.size()
@@ -1233,66 +1237,21 @@ bool QuicSpdyStream::OnMetadataFramePayload(absl::string_view payload) {
   sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
   return true;
 }
-namespace {
-class MetadataHeadersDecoder : public QpackDecodedHeadersAccumulator::Visitor {
- public:
-  void OnHeadersDecoded(QuicHeaderList headers,
-                        bool header_list_size_limit_exceeded) override {
-    header_list_size_limit_exceeded_ = header_list_size_limit_exceeded;
-    headers_ = std::move(headers);
-  }
-
-  void OnHeaderDecodingError(QuicErrorCode error_code,
-                             absl::string_view error_message) override {
-    error_code_ = error_code;
-    error_message_ = absl::StrCat("Error decoding metadata: ", error_message);
-  }
-
-  QuicErrorCode error_code() { return error_code_; }
-  std::string error_message() { return error_message_; }
-  QuicHeaderList& headers() { return headers_; }
-  bool header_list_size_limit_exceeded() {
-    return header_list_size_limit_exceeded_;
-  }
-
- private:
-  QuicErrorCode error_code_ = QUIC_NO_ERROR;
-  QuicHeaderList headers_;
-  std::string error_message_;
-  bool header_list_size_limit_exceeded_ = false;
-};
-}  // namespace
 
 bool QuicSpdyStream::OnMetadataFrameEnd() {
   if (metadata_visitor_ == nullptr) {
     return OnUnknownFrameEnd();
   }
-  QUIC_BUG_IF(METADATA bytes remaining,
-              received_metadata_payload_->bytes_remaining != 0)
-      << "More metadata remaining: "
-      << received_metadata_payload_->bytes_remaining;
 
-  quic::NoopEncoderStreamErrorDelegate delegate;
-  quic::QpackDecoder qpack_decoder(/*maximum_dynamic_table_capacity=*/0,
-                                   /*maximum_blocked_streams=*/0, &delegate);
-
-  constexpr size_t kMaxMetadataBlockSize = 1 << 20;  // 1 MB
-  MetadataHeadersDecoder decoder;
-  quic::QpackDecodedHeadersAccumulator accumulator(
-      id(), &qpack_decoder, &decoder, kMaxMetadataBlockSize);
-  for (const std::string& slice : received_metadata_payload_->buffer) {
-    accumulator.Decode(slice);
-    if (decoder.error_code() != QUIC_NO_ERROR) {
-      OnUnrecoverableError(QUIC_DECOMPRESSION_FAILURE, decoder.error_message());
-      return false;
-    }
+  if (!metadata_decoder_->EndHeaderBlock()) {
+    OnUnrecoverableError(QUIC_DECOMPRESSION_FAILURE,
+                         metadata_decoder_->error_message());
+    return false;
   }
 
-  accumulator.EndHeaderBlock();
-
-  metadata_visitor_->OnMetadataComplete(received_metadata_payload_->frame_len,
-                                        decoder.headers());
-  received_metadata_payload_.reset();
+  metadata_visitor_->OnMetadataComplete(metadata_decoder_->frame_len(),
+                                        metadata_decoder_->headers());
+  metadata_decoder_.reset();
   return !sequencer()->IsClosed() && !reading_stopped();
 }
 

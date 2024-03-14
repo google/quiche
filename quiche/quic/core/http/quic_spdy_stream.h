@@ -21,6 +21,7 @@
 #include "absl/types/span.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/http_encoder.h"
+#include "quiche/quic/core/http/metadata_decoder.h"
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/http/quic_spdy_stream_body_manager.h"
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
@@ -522,16 +523,9 @@ class QUICHE_EXPORT QuicSpdyStream
 
   // Present if HTTP/3 METADATA frames should be parsed.
   MetadataVisitor* metadata_visitor_ = nullptr;
-  struct ReceivedMetadataPayload {
-    explicit ReceivedMetadataPayload(size_t remaining)
-        : bytes_remaining(remaining) {}
 
-    std::list<std::string> buffer;
-    size_t frame_len = 0;
-    size_t bytes_remaining = 0;
-  };
   // Present if an HTTP/3 METADATA is currently being parsed.
-  std::unique_ptr<ReceivedMetadataPayload> received_metadata_payload_;
+  std::unique_ptr<MetadataDecoder> metadata_decoder_;
 
   // Empty if the headers are valid.
   std::string invalid_request_details_;
