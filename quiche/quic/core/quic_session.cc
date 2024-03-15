@@ -679,6 +679,10 @@ void QuicSession::OnCanWrite() {
              quic_no_write_control_frame_upon_connection_close) &&
          !connection_->connected()) ||
         crypto_stream->HasBufferedCryptoFrames()) {
+      if (!connection_->connected()) {
+        QUIC_RELOADABLE_FLAG_COUNT(
+            quic_no_write_control_frame_upon_connection_close);
+      }
       // Cannot finish writing buffered crypto frames, connection is either
       // write blocked or closed.
       return;
