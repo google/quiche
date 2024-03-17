@@ -8,13 +8,15 @@
 #include <sys/types.h>
 
 #include <cstddef>
-#include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/qpack/qpack_decoded_headers_accumulator.h"
 #include "quiche/quic/core/qpack/qpack_decoder.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 

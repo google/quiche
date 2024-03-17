@@ -4,6 +4,16 @@
 
 #include "quiche/quic/core/http/metadata_decoder.h"
 
+#include <cstddef>
+#include <utility>
+
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+#include "quiche/quic/core/http/quic_header_list.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
+
 namespace quic {
 
 MetadataDecoder::MetadataDecoder(QuicStreamId id, size_t max_header_list_size,
