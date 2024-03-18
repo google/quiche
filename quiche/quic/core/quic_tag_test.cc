@@ -36,13 +36,17 @@ TEST_F(QuicTagTest, MakeQuicTag) {
 TEST_F(QuicTagTest, ParseQuicTag) {
   QuicTag tag_abcd = MakeQuicTag('A', 'B', 'C', 'D');
   EXPECT_EQ(ParseQuicTag("ABCD"), tag_abcd);
+  EXPECT_EQ(ParseQuicTag(" ABCD "), tag_abcd);
   EXPECT_EQ(ParseQuicTag("ABCDE"), tag_abcd);
+  EXPECT_EQ(ParseQuicTag("ABCDEFGH"), tag_abcd);
   QuicTag tag_efgh = MakeQuicTag('E', 'F', 'G', 'H');
   EXPECT_EQ(ParseQuicTag("EFGH"), tag_efgh);
   QuicTag tag_ijk = MakeQuicTag('I', 'J', 'K', 0);
   EXPECT_EQ(ParseQuicTag("IJK"), tag_ijk);
   QuicTag tag_l = MakeQuicTag('L', 0, 0, 0);
   EXPECT_EQ(ParseQuicTag("L"), tag_l);
+  EXPECT_EQ(ParseQuicTag(" L"), tag_l);
+  EXPECT_EQ(ParseQuicTag("L "), tag_l);
   QuicTag tag_hex = MakeQuicTag('M', 'N', 'O', static_cast<char>(255));
   EXPECT_EQ(ParseQuicTag("4d4e4fff"), tag_hex);
   EXPECT_EQ(ParseQuicTag("4D4E4FFF"), tag_hex);
@@ -52,6 +56,7 @@ TEST_F(QuicTagTest, ParseQuicTag) {
   EXPECT_EQ(ParseQuicTag("r$_7"), tag_with_custom_chars);
   QuicTag tag_zero = 0;
   EXPECT_EQ(ParseQuicTag(""), tag_zero);
+  EXPECT_EQ(ParseQuicTag(" "), tag_zero);
   QuicTagVector tag_vector;
   EXPECT_EQ(ParseQuicTagVector(""), tag_vector);
   EXPECT_EQ(ParseQuicTagVector(" "), tag_vector);

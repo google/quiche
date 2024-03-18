@@ -50,9 +50,13 @@ QUICHE_EXPORT bool FindMutualQuicTag(const QuicTagVector& our_tags,
 QUICHE_EXPORT std::string QuicTagToString(QuicTag tag);
 
 // Utility function that converts a string of the form "ABCD" to its
-// corresponding QuicTag. Note that tags that are less than four characters
-// long are right-padded with zeroes. Tags that contain non-ASCII characters
-// are represented as 8-character-long hexadecimal strings.
+// corresponding QuicTag. Note that `tag_string` will have leading and trailing
+// whitespace removed and will then be converted to a QuicTag as follows:
+//  - If the tag string is 8 bytes in length and all bytes are valid hexidecimal
+//    ASCII characters, then the returned QuicTag will have a corresponding
+//    hexidecimal value.
+//  - Otherwise, the QuicTag will be produced using the first four bytes of the
+//    tag string, right-padding with zeroes if there are fewer than four bytes.
 QUICHE_EXPORT QuicTag ParseQuicTag(absl::string_view tag_string);
 
 // Utility function that converts a string of the form "ABCD,EFGH" to a vector
