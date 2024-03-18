@@ -301,9 +301,7 @@ BandwidthSampler::OnCongestionEvent(QuicTime ack_time,
   SendTimeState last_acked_packet_send_state;
   QuicBandwidth max_send_rate = QuicBandwidth::Zero();
   for (const auto& packet : acked_packets) {
-    if (GetQuicReloadableFlag(quic_bbr2_fix_spurious_loss_bytes_counting) &&
-        packet.spurious_loss) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_fix_spurious_loss_bytes_counting);
+    if (packet.spurious_loss) {
       // If the packet has been detected as lost before, QuicSentPacketManager
       // should set the AckedPacket.bytes_acked to 0 before passing the packet
       // to the congestion controller.

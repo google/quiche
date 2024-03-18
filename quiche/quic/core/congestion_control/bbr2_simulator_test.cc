@@ -1888,16 +1888,9 @@ TEST_F(Bbr2DefaultTopologyTest, SpuriousLossEvent) {
   sender_->OnCongestionEvent(false, sender_unacked_map()->bytes_in_flight(),
                              now, acked_packets, {}, 0, 0);
 
-  if (GetQuicReloadableFlag(quic_bbr2_fix_spurious_loss_bytes_counting)) {
-    EXPECT_EQ(sender_->GetNetworkModel().total_bytes_sent(),
-              sender_->GetNetworkModel().total_bytes_acked() +
-                  sender_->GetNetworkModel().total_bytes_lost());
-  } else {
-    // This is the bug fixed by the flag.
-    EXPECT_LT(sender_->GetNetworkModel().total_bytes_sent(),
-              sender_->GetNetworkModel().total_bytes_acked() +
-                  sender_->GetNetworkModel().total_bytes_lost());
-  }
+  EXPECT_EQ(sender_->GetNetworkModel().total_bytes_sent(),
+            sender_->GetNetworkModel().total_bytes_acked() +
+                sender_->GetNetworkModel().total_bytes_lost());
 }
 
 // After quiescence, if the sender is in PROBE_RTT, it should transition to
