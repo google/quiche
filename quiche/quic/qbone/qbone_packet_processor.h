@@ -9,6 +9,8 @@
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 
+#include <cstdint>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
@@ -63,11 +65,16 @@ class QbonePacketProcessor {
    public:
     virtual ~StatsInterface();
 
-    virtual void OnPacketForwarded(Direction direction) = 0;
-    virtual void OnPacketDroppedSilently(Direction direction) = 0;
-    virtual void OnPacketDroppedWithIcmp(Direction direction) = 0;
-    virtual void OnPacketDroppedWithTcpReset(Direction direction) = 0;
-    virtual void OnPacketDeferred(Direction direction) = 0;
+    virtual void OnPacketForwarded(Direction direction,
+                                   uint8_t traffic_class) = 0;
+    virtual void OnPacketDroppedSilently(Direction direction,
+                                         uint8_t traffic_class) = 0;
+    virtual void OnPacketDroppedWithIcmp(Direction direction,
+                                         uint8_t traffic_class) = 0;
+    virtual void OnPacketDroppedWithTcpReset(Direction direction,
+                                             uint8_t traffic_class) = 0;
+    virtual void OnPacketDeferred(Direction direction,
+                                  uint8_t traffic_class) = 0;
   };
 
   // Allows to implement a custom packet filter on top of the filtering done by
@@ -109,9 +116,6 @@ class QbonePacketProcessor {
     // FilterPacket().
     uint8_t TransportProtocolFromHeader(absl::string_view ipv6_header) {
       return ipv6_header[6];
-    }
-    uint8_t TrafficClassFromHeader(absl::string_view ipv6_header) {
-      return ipv6_header[0] << 4 | ipv6_header[1] >> 4;
     }
 
     QuicIpAddress SourceIpFromHeader(absl::string_view ipv6_header) {
@@ -157,6 +161,9 @@ class QbonePacketProcessor {
   }
 
   static const QuicIpAddress kInvalidIpAddress;
+
+  // This function assumes that the packet is valid.
+  static uint8_t TrafficClassFromHeader(absl::string_view ipv6_header);
 
  protected:
   // Processes the header and returns what should be done with the packet.

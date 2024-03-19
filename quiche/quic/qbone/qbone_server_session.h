@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_SERVER_SESSION_H_
 #define QUICHE_QUIC_QBONE_QBONE_SERVER_SESSION_H_
 
+#include <cstdint>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
@@ -59,14 +61,16 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
   void SendPacketToNetwork(absl::string_view packet) override;
 
   // QbonePacketProcessor::StatsInterface implementation.
-  void OnPacketForwarded(QbonePacketProcessor::Direction direction) override {}
-  void OnPacketDroppedSilently(
-      QbonePacketProcessor::Direction direction) override {}
-  void OnPacketDroppedWithIcmp(
-      QbonePacketProcessor::Direction direction) override {}
-  void OnPacketDroppedWithTcpReset(
-      QbonePacketProcessor::Direction direction) override {}
-  void OnPacketDeferred(QbonePacketProcessor::Direction direction) override {}
+  void OnPacketForwarded(QbonePacketProcessor::Direction direction,
+                         uint8_t traffic_class) override {}
+  void OnPacketDroppedSilently(QbonePacketProcessor::Direction direction,
+                               uint8_t traffic_class) override {}
+  void OnPacketDroppedWithIcmp(QbonePacketProcessor::Direction direction,
+                               uint8_t traffic_class) override {}
+  void OnPacketDroppedWithTcpReset(QbonePacketProcessor::Direction direction,
+                                   uint8_t traffic_class) override {}
+  void OnPacketDeferred(QbonePacketProcessor::Direction direction,
+                        uint8_t traffic_class) override {}
 
  protected:
   // QboneSessionBase interface implementation.

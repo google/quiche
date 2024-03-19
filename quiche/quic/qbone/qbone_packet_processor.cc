@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 
+#include <cstdint>
 #include <cstring>
 
 #include "absl/base/optimization.h"
@@ -68,10 +69,11 @@ QbonePacketProcessor::Filter::FilterPacket(Direction direction,
 
 void QbonePacketProcessor::ProcessPacket(std::string* packet,
                                          Direction direction) {
+  uint8_t traffic_class = TrafficClassFromHeader(*packet);
   if (ABSL_PREDICT_FALSE(!IsValid())) {
     QUIC_BUG(quic_bug_11024_1)
         << "QuicPacketProcessor is invoked in an invalid state.";
-    stats_->OnPacketDroppedSilently(direction);
+    stats_->OnPacketDroppedSilently(direction, traffic_class);
     return;
   }
 
@@ -96,13 +98,13 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
           output_->SendPacketToClient(*packet);
           break;
       }
-      stats_->OnPacketForwarded(direction);
+      stats_->OnPacketForwarded(direction, traffic_class);
       break;
     case ProcessingResult::SILENT_DROP:
-      stats_->OnPacketDroppedSilently(direction);
+      stats_->OnPacketDroppedSilently(direction, traffic_class);
       break;
     case ProcessingResult::DEFER:
-      stats_->OnPacketDeferred(direction);
+      stats_->OnPacketDeferred(direction, traffic_class);
       break;
     case ProcessingResult::ICMP:
       if (icmp_header.icmp6_type == ICMP6_ECHO_REPLY) {
@@ -115,17 +117,17 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
       } else {
         SendIcmpResponse(dst, &icmp_header, *packet, direction);
       }
-      stats_->OnPacketDroppedWithIcmp(direction);
+      stats_->OnPacketDroppedWithIcmp(direction, traffic_class);
       break;
     case ProcessingResult::ICMP_AND_TCP_RESET:
       SendIcmpResponse(dst, &icmp_header, *packet, direction);
-      stats_->OnPacketDroppedWithIcmp(direction);
+      stats_->OnPacketDroppedWithIcmp(direction, traffic_class);
       SendTcpReset(*packet, direction);
-      stats_->OnPacketDroppedWithTcpReset(direction);
+      stats_->OnPacketDroppedWithTcpReset(direction, traffic_class);
       break;
     case ProcessingResult::TCP_RESET:
       SendTcpReset(*packet, direction);
-      stats_->OnPacketDroppedWithTcpReset(direction);
+      stats_->OnPacketDroppedWithTcpReset(direction, traffic_class);
       break;
   }
 }
@@ -288,4 +290,15 @@ void QbonePacketProcessor::SendResponse(Direction original_direction,
   }
 }
 
+uint8_t QbonePacketProcessor::TrafficClassFromHeader(
+    absl::string_view ipv6_header) {
+  // Packets that reach this function should have already been validated.
+  // However, there are tests that bypass that validation that fail because this
+  // would be out of bounds.
+  if (ipv6_header.length() < 2) {
+    return 0;  // Default to BE1
+  }
+
+  return ipv6_header[0] << 4 | ipv6_header[1] >> 4;
+}
 }  // namespace quic
