@@ -459,6 +459,7 @@ bool HttpDecoder::FinishParsing() {
       if (enable_metadata_decoding_ &&
           current_frame_type_ ==
               static_cast<uint64_t>(HttpFrameType::METADATA)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_http3_metadata_decoding, 3, 3);
         continue_processing = visitor_->OnMetadataFrameEnd();
         break;
       }
