@@ -9,6 +9,42 @@
 // This visitor implementation needs visibility into the
 // nghttp2_session_callbacks type. There's no public header, so we'll redefine
 // the struct here.
+#ifdef NGHTTP2_16
+namespace {
+using FunctionPtr = void (*)(void);
+}  // namespace
+
+struct nghttp2_session_callbacks {
+  nghttp2_send_callback send_callback;
+  FunctionPtr send_callback2;
+  nghttp2_recv_callback recv_callback;
+  FunctionPtr recv_callback2;
+  nghttp2_on_frame_recv_callback on_frame_recv_callback;
+  nghttp2_on_invalid_frame_recv_callback on_invalid_frame_recv_callback;
+  nghttp2_on_data_chunk_recv_callback on_data_chunk_recv_callback;
+  nghttp2_before_frame_send_callback before_frame_send_callback;
+  nghttp2_on_frame_send_callback on_frame_send_callback;
+  nghttp2_on_frame_not_send_callback on_frame_not_send_callback;
+  nghttp2_on_stream_close_callback on_stream_close_callback;
+  nghttp2_on_begin_headers_callback on_begin_headers_callback;
+  nghttp2_on_header_callback on_header_callback;
+  nghttp2_on_header_callback2 on_header_callback2;
+  nghttp2_on_invalid_header_callback on_invalid_header_callback;
+  nghttp2_on_invalid_header_callback2 on_invalid_header_callback2;
+  nghttp2_select_padding_callback select_padding_callback;
+  FunctionPtr select_padding_callback2;
+  nghttp2_data_source_read_length_callback read_length_callback;
+  FunctionPtr read_length_callback2;
+  nghttp2_on_begin_frame_callback on_begin_frame_callback;
+  nghttp2_send_data_callback send_data_callback;
+  nghttp2_pack_extension_callback pack_extension_callback;
+  FunctionPtr pack_extension_callback2;
+  nghttp2_unpack_extension_callback unpack_extension_callback;
+  nghttp2_on_extension_chunk_recv_callback on_extension_chunk_recv_callback;
+  nghttp2_error_callback error_callback;
+  nghttp2_error_callback2 error_callback2;
+};
+#else
 struct nghttp2_session_callbacks {
   nghttp2_send_callback send_callback;
   nghttp2_recv_callback recv_callback;
@@ -34,6 +70,7 @@ struct nghttp2_session_callbacks {
   nghttp2_error_callback error_callback;
   nghttp2_error_callback2 error_callback2;
 };
+#endif
 
 namespace http2 {
 namespace adapter {
