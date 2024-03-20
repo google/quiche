@@ -281,7 +281,12 @@ int RunMasqueClient(int argc, char* argv[]) {
         QUIC_LOG(ERROR) << "Signature authentication key ID cannot be empty";
         return 1;
       }
-      private_key_seed = absl::HexStringToBytes(signature_auth_param_split[1]);
+      if (!absl::HexStringToBytes(signature_auth_param_split[1],
+                                  &private_key_seed)) {
+        QUIC_LOG(ERROR) << "Signature authentication key hex value is invalid";
+        return 1;
+      }
+
       if (private_key_seed.size() != kEd25519Rfc8032PrivateKeySize) {
         QUIC_LOG(ERROR)
             << "Invalid signature authentication private key length "

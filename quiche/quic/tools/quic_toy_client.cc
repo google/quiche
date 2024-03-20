@@ -63,6 +63,7 @@
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
@@ -367,8 +368,10 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       << "The length of --server_connection_id must be even. It is "
       << server_connection_id_hex_string.size() << "-byte long.";
   if (!server_connection_id_hex_string.empty()) {
-    const std::string server_connection_id_bytes =
-        absl::HexStringToBytes(server_connection_id_hex_string);
+    std::string server_connection_id_bytes;
+    QUICHE_CHECK(absl::HexStringToBytes(server_connection_id_hex_string,
+                                        &server_connection_id_bytes))
+        << "Failed to parse --server_connection_id hex string.";
     client->set_server_connection_id_override(QuicConnectionId(
         server_connection_id_bytes.data(), server_connection_id_bytes.size()));
   }
@@ -428,8 +431,9 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   if (!quiche::GetQuicheCommandLineFlag(FLAGS_body_hex).empty()) {
     QUICHE_DCHECK(quiche::GetQuicheCommandLineFlag(FLAGS_body).empty())
         << "Only set one of --body and --body_hex.";
-    body = absl::HexStringToBytes(
-        quiche::GetQuicheCommandLineFlag(FLAGS_body_hex));
+    QUICHE_DCHECK(absl::HexStringToBytes(
+        quiche::GetQuicheCommandLineFlag(FLAGS_body_hex), &body))
+        << "Failed to parse --body_hex.";
   }
 
   // Construct a GET or POST request for supplied URL.
@@ -466,10 +470,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       std::cout << "headers:" << header_block.DebugString();
       if (!quiche::GetQuicheCommandLineFlag(FLAGS_body_hex).empty()) {
         // Print the user provided hex, rather than binary body.
-        std::cout << "body:\n"
-                  << QuicheTextUtils::HexDump(absl::HexStringToBytes(
-                         quiche::GetQuicheCommandLineFlag(FLAGS_body_hex)))
-                  << std::endl;
+        std::cout << "body:\n" << QuicheTextUtils::HexDump(body) << std::endl;
       } else {
         std::cout << "body: " << body << std::endl;
       }

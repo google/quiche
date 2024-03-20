@@ -6,6 +6,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
@@ -18,6 +20,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -83,8 +86,13 @@ bool WebTransportFingerprintProofVerifier::AddFingerprint(
 
   std::string normalized =
       absl::StrReplaceAll(fingerprint.fingerprint, {{":", ""}});
-  hashes_.push_back(WebTransportHash{fingerprint.algorithm,
-                                     absl::HexStringToBytes(normalized)});
+  std::string normalized_bytes;
+  if (!absl::HexStringToBytes(normalized, &normalized_bytes)) {
+    QUIC_DLOG(WARNING) << "Fingerprint hexadecimal is invalid";
+    return false;
+  }
+  hashes_.push_back(
+      WebTransportHash{fingerprint.algorithm, std::move(normalized_bytes)});
   return true;
 }
 

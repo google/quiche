@@ -193,7 +193,10 @@ void MasqueServerBackend::SetSignatureAuth(absl::string_view signature_auth) {
     quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[1]);
     SignatureAuthCredential credential;
     credential.key_id = std::string(kv[0]);
-    std::string public_key = absl::HexStringToBytes(kv[1]);
+    std::string public_key;
+    if (!absl::HexStringToBytes(kv[1], &public_key)) {
+      QUIC_LOG(FATAL) << "Invalid signature auth public key hex " << kv[1];
+    }
     if (public_key.size() != sizeof(credential.public_key)) {
       QUIC_LOG(FATAL) << "Invalid signature auth public key length "
                       << public_key.size();
