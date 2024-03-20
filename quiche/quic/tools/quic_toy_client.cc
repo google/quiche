@@ -431,9 +431,9 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   if (!quiche::GetQuicheCommandLineFlag(FLAGS_body_hex).empty()) {
     QUICHE_DCHECK(quiche::GetQuicheCommandLineFlag(FLAGS_body).empty())
         << "Only set one of --body and --body_hex.";
-    QUICHE_DCHECK(absl::HexStringToBytes(
-        quiche::GetQuicheCommandLineFlag(FLAGS_body_hex), &body))
-        << "Failed to parse --body_hex.";
+    const bool success = absl::HexStringToBytes(
+        quiche::GetQuicheCommandLineFlag(FLAGS_body_hex), &body);
+    QUICHE_DCHECK(success) << "Failed to parse --body_hex.";
   }
 
   // Construct a GET or POST request for supplied URL.
