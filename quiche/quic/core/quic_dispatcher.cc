@@ -435,7 +435,8 @@ namespace {
 constexpr bool IsSourceUdpPortBlocked(uint16_t port) {
   // These UDP source ports have been observed in large scale denial of service
   // attacks and are not expected to ever carry user traffic, they are therefore
-  // blocked as a safety measure. See draft-ietf-quic-applicability for details.
+  // blocked as a safety measure. See section 8.1 of RFC 9308 for details.
+  // https://www.rfc-editor.org/rfc/rfc9308.html#section-8.1
   constexpr uint16_t blocked_ports[] = {
       0,      // We cannot send to port 0 so drop that source port.
       17,     // Quote of the Day, can loop with QUIC.
