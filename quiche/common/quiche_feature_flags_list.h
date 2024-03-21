@@ -9,8 +9,6 @@
 #if defined(QUICHE_FLAG)
 
 QUICHE_FLAG(bool, quiche_reloadable_flag_http2_add_hpack_overhead_bytes, false, "If true, HTTP/2 HEADERS frames will use two additional bytes of HPACK overhead per header in their SpdyFrameIR::size() estimate.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_http2_testonly_default_false, false, "A testonly reloadable flag that will always default to false.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_http2_testonly_default_true, false, "A testonly reloadable flag that will always default to true.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_act_upon_invalid_header, true, "If true, reject or send error response code upon receiving invalid request or response headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_add_stream_info_to_idle_close_detail, false, "If true, include stream information in idle timeout connection close detail.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_allow_client_enabled_bbr_v2, true, "If true, allow client to enable BBRv2 on server via connection option 'B2ON'.")
@@ -51,17 +49,11 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_test_peer_addr_change_after_normal
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_false, false, "A testonly reloadable flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_true, true, "A testonly reloadable flag that will always default to true.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_received_client_addresses_cache, true, "If true, use a LRU cache to record client addresses of packets received on server's original address.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_spdy_testonly_default_false, false, "A testonly reloadable flag that will always default to false.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_spdy_testonly_default_true, false, "A testonly reloadable flag that will always default to true.")
-QUICHE_FLAG(bool, quiche_restart_flag_http2_testonly_default_false, false, "A testonly restart flag that will always default to false.")
-QUICHE_FLAG(bool, quiche_restart_flag_http2_testonly_default_true, false, "A testonly restart flag that will always default to true.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_opport_bundle_qpack_decoder_data3, false, "If true, always bundle qpack decoder data with other frames opportunistically.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_ect1, false, "When true, allows sending of QUIC packets marked ECT(1). A different flag (TBD) will actually utilize this capability to send ECT(1).")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_release_time_for_gso, false, "If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_false, false, "A testonly restart flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_true, true, "A testonly restart flag that will always default to true.")
-QUICHE_FLAG(bool, quiche_restart_flag_spdy_testonly_default_false, false, "A testonly restart flag that will always default to false.")
-QUICHE_FLAG(bool, quiche_restart_flag_spdy_testonly_default_true, false, "A testonly restart flag that will always default to true.")
 
 #endif
 // clang-format on
