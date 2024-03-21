@@ -401,14 +401,13 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   }
   // The framer might have extracted the incorrect Connection ID length from a
   // short header. |packet| could be gQUIC; if Q043, the connection ID has been
-  // parsed correctly thanks to the fixed bit. If a Q046 or Q050 short header,
+  // parsed correctly thanks to the fixed bit. If a Q046 short header,
   // the dispatcher might have assumed it was a long connection ID when (because
   // it was gQUIC) it actually issued or kept an 8-byte ID. The other case is
   // where NEW_CONNECTION_IDs are not using the generator, and the dispatcher
   // is, due to flag misconfiguration.
   if (!packet_info.version_flag &&
-      (IsSupportedVersion(ParsedQuicVersion::Q046()) ||
-       IsSupportedVersion(ParsedQuicVersion::Q050()))) {
+      IsSupportedVersion(ParsedQuicVersion::Q046())) {
     ReceivedPacketInfo gquic_packet_info(self_address, peer_address, packet);
     // Try again without asking |connection_id_generator_| for the length.
     const QuicErrorCode gquic_error = QuicFramer::ParsePublicHeaderDispatcher(

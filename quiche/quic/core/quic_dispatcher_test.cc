@@ -1562,6 +1562,24 @@ TEST_P(QuicDispatcherTestOneVersion,
 }
 
 TEST_P(QuicDispatcherTestOneVersion,
+       RejectDeprecatedVersionQ050WithVersionNegotiation) {
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  CreateTimeWaitListManager();
+  uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
+      0xFF, 'Q', '0', '5', '0', /*connection ID length byte*/ 0x50};
+  QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
+                                     kMinPacketSizeForVersionNegotiation,
+                                     QuicTime::Zero());
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(
+      *time_wait_list_manager_,
+      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                   /*use_length_prefix=*/true, _, _, _, _))
+      .Times(1);
+  dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
+}
+
+TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionT051WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
@@ -1579,7 +1597,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
 
-static_assert(quic::SupportedVersions().size() == 5u,
+static_assert(quic::SupportedVersions().size() == 4u,
               "Please add new RejectDeprecatedVersion tests above this assert "
               "when deprecating versions");
 
@@ -1907,11 +1925,11 @@ TEST_P(QuicDispatcherTestOneVersion, SelectAlpn) {
   EXPECT_EQ(QuicDispatcherPeer::SelectAlpn(dispatcher_.get(), {}), "");
   EXPECT_EQ(QuicDispatcherPeer::SelectAlpn(dispatcher_.get(), {""}), "");
   EXPECT_EQ(QuicDispatcherPeer::SelectAlpn(dispatcher_.get(), {"hq"}), "hq");
-  // Q033 is no longer supported but Q050 is.
-  QuicEnableVersion(ParsedQuicVersion::Q050());
+  // Q033 is no longer supported but Q046 is.
+  QuicEnableVersion(ParsedQuicVersion::Q046());
   EXPECT_EQ(
-      QuicDispatcherPeer::SelectAlpn(dispatcher_.get(), {"h3-Q033", "h3-Q050"}),
-      "h3-Q050");
+      QuicDispatcherPeer::SelectAlpn(dispatcher_.get(), {"h3-Q033", "h3-Q046"}),
+      "h3-Q046");
 }
 
 // Verify the stopgap test: Packets with truncated connection IDs should be

@@ -29,7 +29,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disable_batch_write, false, "If tr
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disable_server_blackhole_detection, false, "If true, disable blackhole detection on server side.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disable_version_draft_29, false, "If true, disable QUIC version h3-29.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disable_version_q046, false, "If true, disable QUIC version Q046.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disable_version_q050, true, "If true, disable QUIC version Q050.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disable_version_rfcv1, false, "If true, disable QUIC version h3 (RFCv1).")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_discard_initial_packet_with_key_dropped, false, "If true, discard INITIAL packet if the key has been dropped.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_disable_resumption, true, "If true, disable resumption when receiving NRES connection option.")

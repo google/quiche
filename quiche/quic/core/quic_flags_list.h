@@ -59,8 +59,6 @@ QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, disable QUIC version Q046.
 QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q046, true)
-// If true, disable QUIC version Q050.
-QUIC_FLAG(quic_reloadable_flag_quic_disable_version_q050, true)
 // If true, disable QUIC version h3 (RFCv1).
 QUIC_FLAG(quic_reloadable_flag_quic_disable_version_rfcv1, false)
 // If true, disable QUIC version h3-29.

@@ -372,7 +372,7 @@ TEST_F(LoadBalancerEncoderTest, MaybeReplaceConnectionIdReturnsNoChange) {
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, false);
   ASSERT_TRUE(encoder.has_value());
   EXPECT_EQ(encoder->MaybeReplaceConnectionId(TestConnectionId(1),
-                                              ParsedQuicVersion::Q050()),
+                                              ParsedQuicVersion::Q046()),
             std::nullopt);
 }
 
