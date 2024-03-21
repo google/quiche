@@ -72,7 +72,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_disable_batch_write, false)
 // If true, set burst token to 2 in cwnd bootstrapping experiment.
 QUIC_FLAG(quic_reloadable_flag_quic_conservative_bursts, false)
 // If true, the HTTP/3 decoder will decode METADATA frames and not treat them as Unknown.
-QUIC_FLAG(quic_reloadable_flag_quic_enable_http3_metadata_decoding, false)
+QUIC_FLAG(quic_reloadable_flag_quic_enable_http3_metadata_decoding, true)
 // If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.
 QUIC_FLAG(quic_reloadable_flag_quic_default_to_bbr_v2, false)
 // If true, use a LRU cache to record client addresses of packets received on server\'s original address.
