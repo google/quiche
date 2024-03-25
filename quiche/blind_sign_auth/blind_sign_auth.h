@@ -12,7 +12,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
-#include "anonymous_tokens/cpp/client/anonymous_tokens_rsa_bssa_client.h"
 #include "anonymous_tokens/cpp/privacy_pass/rsa_bssa_public_metadata_client.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
@@ -46,24 +45,8 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
                               absl::StatusOr<BlindSignHttpResponse> response);
   void GeneratePrivacyPassTokens(
       privacy::ppn::GetInitialDataResponse initial_data_response,
-      absl::Time public_metadata_expiry_time,
       std::optional<std::string> oauth_token, int num_tokens,
       ProxyLayer proxy_layer, SignedTokenCallback callback);
-  void GenerateRsaBssaTokens(
-      privacy::ppn::GetInitialDataResponse initial_data_response,
-      absl::Time public_metadata_expiry_time,
-      std::optional<std::string> oauth_token, int num_tokens,
-      ProxyLayer proxy_layer, SignedTokenCallback callback);
-  void AuthAndSignCallback(
-      privacy::ppn::PublicMetadataInfo public_metadata_info,
-      absl::Time public_key_expiry_time,
-      anonymous_tokens::AnonymousTokensSignRequest
-          at_sign_request,
-      std::unique_ptr<
-          anonymous_tokens::AnonymousTokensRsaBssaClient>
-          bssa_client,
-      SignedTokenCallback callback,
-      absl::StatusOr<BlindSignHttpResponse> response);
   void PrivacyPassAuthAndSignCallback(
       std::string encoded_extensions, absl::Time public_key_expiry_time,
       anonymous_tokens::AnonymousTokensUseCase use_case,
@@ -72,8 +55,6 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
           privacy_pass_clients,
       SignedTokenCallback callback,
       absl::StatusOr<BlindSignHttpResponse> response);
-  absl::Status FingerprintPublicMetadata(
-      const privacy::ppn::PublicMetadata& metadata, uint64_t* fingerprint);
   absl::StatusCode HttpCodeToStatusCode(int http_code);
   privacy::ppn::ProxyLayer QuicheProxyLayerToPpnProxyLayer(
       quiche::ProxyLayer proxy_layer);
