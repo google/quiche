@@ -545,6 +545,12 @@ bool BalsaFrame::CheckHeaderLinesForInvalidChars(const Lines& lines,
       found_invalid = true;
       invalid_chars_[*c]++;
     }
+    if (*c == '\r' &&
+        http_validation_policy().disallow_lone_cr_in_request_headers &&
+        c + 1 < stream_end && *(c + 1) != '\n') {
+      found_invalid = true;
+      invalid_chars_[*c]++;
+    }
   }
 
   return found_invalid;

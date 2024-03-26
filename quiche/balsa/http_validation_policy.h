@@ -54,6 +54,11 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // invalid character. Invalid characters are always disallowed according to
   // InvalidCharsLevel in request headers.
   bool disallow_invalid_header_characters_in_response = false;
+
+  // If true, then signal an INVALID_HEADER_CHARACTER warning or error, or
+  // neither, depending on InvalidCharsLevel, if a request header value contains
+  // a carriage return that is not succeeded by a line feed.
+  bool disallow_lone_cr_in_request_headers = false;
 };
 
 }  // namespace quiche

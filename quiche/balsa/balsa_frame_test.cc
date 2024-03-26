@@ -803,7 +803,7 @@ void HeaderLineTestHelper(const char* firstline, bool is_request,
 
 TEST(HTTPBalsaFrame, RequestLinesParsedProperly) {
   SCOPED_TRACE("Testing that lines are properly parsed.");
-  const char firstline[] = "GET / HTTP/1.1\r\n";
+  const char firstline[] = "GET / \rHTTP/1.1\r\n";
   const std::pair<std::string, std::string> headers[] = {
       std::pair<std::string, std::string>("foo", "bar"),
       std::pair<std::string, std::string>("duck", "water"),
@@ -838,6 +838,41 @@ TEST(HTTPBalsaFrame, RequestLinesParsedProperly) {
   HeaderLineTestHelper(firstline, true, headers, headers_len, ":\t\t", "\r\n");
   HeaderLineTestHelper(firstline, true, headers, headers_len, ":\t \t", "\n");
   HeaderLineTestHelper(firstline, true, headers, headers_len, ":\t \t", "\r\n");
+}
+
+TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaders) {
+  HttpValidationPolicy policy{.disallow_lone_cr_in_request_headers = true};
+  BalsaHeaders balsa_headers;
+  BalsaFrame framer;
+  framer.set_is_request(true);
+  framer.set_balsa_headers(&balsa_headers);
+  framer.set_http_validation_policy(policy);
+  framer.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
+  const std::pair<std::string, std::string> headers[] = {
+      std::pair<std::string, std::string>("foo", "bar"),
+      std::pair<std::string, std::string>("trucks", "value-has-solo-\r-in it"),
+  };
+  std::string message =
+      CreateMessage("GET / \rHTTP/1.1\r\n", headers, 2, ":", "\r\n", "");
+  framer.ProcessInput(message.data(), message.size());
+  EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
+  // One carriage return in firstline, 1 in header value.
+  EXPECT_EQ(framer.get_invalid_chars().at('\r'), 2);
+}
+
+TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderKey) {
+  BalsaHeaders balsa_headers;
+  BalsaFrame framer;
+  framer.set_is_request(true);
+  framer.set_balsa_headers(&balsa_headers);
+  framer.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
+  const std::pair<std::string, std::string> headers[] = {
+      std::pair<std::string, std::string>("tru\rcks", "along"),
+  };
+  std::string message =
+      CreateMessage("GET / HTTP/1.1\r\n", headers, 1, ":", "\r\n", "");
+  framer.ProcessInput(message.data(), message.size());
+  EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
 }
 
 TEST(HTTPBalsaFrame, ResponseLinesParsedProperly) {
