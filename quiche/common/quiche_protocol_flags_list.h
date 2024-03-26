@@ -127,8 +127,17 @@ QUICHE_PROTOCOL_FLAG(
     "probes, in milliseconds.")
 
 QUICHE_PROTOCOL_FLAG(
+    double, quic_bbr2_default_probe_rtt_inflight_target_bdp_fraction, 0.5,
+    "The default fraction to adjust the target in flight BDP during "
+    "PROBE_RTT phase.")
+
+QUICHE_PROTOCOL_FLAG(
     int32_t, quic_bbr2_default_probe_rtt_period_ms, 10000,
     "The default period for entering PROBE_RTT, in milliseconds.")
+
+QUICHE_PROTOCOL_FLAG(
+    int32_t, quic_bbr2_default_probe_rtt_duration_ms, 200,
+    "The default time to spend in PROBE_RTT mode, in milliseconds.")
 
 QUICHE_PROTOCOL_FLAG(
     double, quic_bbr2_default_loss_threshold, 0.02,

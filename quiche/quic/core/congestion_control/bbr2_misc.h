@@ -158,10 +158,12 @@ struct QUICHE_EXPORT Bbr2Params {
   /*
    * PROBE_RTT parameters.
    */
-  float probe_rtt_inflight_target_bdp_fraction = 0.5;
+  float probe_rtt_inflight_target_bdp_fraction =
+      GetQuicFlag(quic_bbr2_default_probe_rtt_inflight_target_bdp_fraction);
   QuicTime::Delta probe_rtt_period = QuicTime::Delta::FromMilliseconds(
       GetQuicFlag(quic_bbr2_default_probe_rtt_period_ms));
-  QuicTime::Delta probe_rtt_duration = QuicTime::Delta::FromMilliseconds(200);
+  QuicTime::Delta probe_rtt_duration = QuicTime::Delta::FromMilliseconds(
+      GetQuicFlag(quic_bbr2_default_probe_rtt_duration_ms));
 
   /*
    * Parameters used by multiple modes.
