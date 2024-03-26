@@ -3,6 +3,7 @@ syntax = "proto3";
 package privacy.ppn;
 
 option java_multiple_files = true;
+option java_package = "com.google.privacy.ppn.proto";
 
 // Indicates which proxy layer a set of tokens will be used with.
 enum ProxyLayer {

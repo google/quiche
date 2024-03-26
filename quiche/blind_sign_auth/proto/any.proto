@@ -16,6 +16,9 @@ syntax = "proto3";
 
 package quiche.protobuf;
 
+option java_multiple_files = true;
+option java_package = "com.google.privacy.ppn.proto";
+
 // Cloned from
 // https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/any.proto.
 message Any {

@@ -22,6 +22,7 @@ import "quiche/blind_sign_auth/proto/public_metadata.proto";
 import "anonymous_tokens/proto/anonymous_tokens.proto";
 
 option java_multiple_files = true;
+option java_package = "com.google.privacy.ppn.proto";
 
 // Request data needed to prepare for AuthAndSign.
 message GetInitialDataRequest {

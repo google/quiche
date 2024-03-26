@@ -19,6 +19,7 @@ package privacy.ppn;
 import "anonymous_tokens/proto/anonymous_tokens.proto";
 
 option java_multiple_files = true;
+option java_package = "com.google.privacy.ppn.proto";
 
 // Contains fields which will be cryptographically linked to a blinded token and
 // visible to client, signer, and verifier. Clients should validate/set fields

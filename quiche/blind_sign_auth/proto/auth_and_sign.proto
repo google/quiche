@@ -21,6 +21,9 @@ import "quiche/blind_sign_auth/proto/key_services.proto";
 import "quiche/blind_sign_auth/proto/proxy_layer.proto";
 import "quiche/blind_sign_auth/proto/public_metadata.proto";
 
+option java_multiple_files = true;
+option java_package = "com.google.privacy.ppn.proto";
+
 // Client is requesting to auth using the provided auth token.
 // Next ID: 17
 message AuthAndSignRequest {
