@@ -1740,7 +1740,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
   }
 
   absl::string_view associated_data;
-  std::vector<char> ad_storage;
+  AssociatedDataStorage ad_storage;
   QuicPacketNumber base_packet_number;
   if (header->form == IETF_QUIC_SHORT_HEADER_PACKET ||
       header->long_packet_type != VERSION_NEGOTIATION) {
@@ -1762,7 +1762,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     bool hp_removal_failed = false;
     if (version_.HasHeaderProtection()) {
       if (!RemoveHeaderProtection(encrypted_reader, packet, header,
-                                  &full_packet_number, &ad_storage)) {
+                                  &full_packet_number, ad_storage)) {
         hp_removal_failed = true;
       }
       associated_data = absl::string_view(ad_storage.data(), ad_storage.size());
@@ -4322,11 +4322,10 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level, char* buffer,
   return true;
 }
 
-bool QuicFramer::RemoveHeaderProtection(QuicDataReader* reader,
-                                        const QuicEncryptedPacket& packet,
-                                        QuicPacketHeader* header,
-                                        uint64_t* full_packet_number,
-                                        std::vector<char>* associated_data) {
+bool QuicFramer::RemoveHeaderProtection(
+    QuicDataReader* reader, const QuicEncryptedPacket& packet,
+    QuicPacketHeader* header, uint64_t* full_packet_number,
+    AssociatedDataStorage& associated_data) {
   EncryptionLevel expected_decryption_level = GetEncryptionLevel(*header);
   QuicDecrypter* decrypter = decrypter_[expected_decryption_level].get();
   if (decrypter == nullptr) {
@@ -4424,8 +4423,8 @@ bool QuicFramer::RemoveHeaderProtection(QuicDataReader* reader,
       has_diversification_nonce, header->packet_number_length,
       header->retry_token_length_length, header->retry_token.length(),
       header->length_length);
-  *associated_data = std::vector<char>(ad.begin(), ad.end());
-  QuicDataWriter ad_writer(associated_data->size(), associated_data->data());
+  associated_data.assign(ad.begin(), ad.end());
+  QuicDataWriter ad_writer(associated_data.size(), associated_data.data());
 
   // Apply the unmasked type byte and packet number to |associated_data|.
   if (!ad_writer.WriteUInt8(header->type_byte)) {

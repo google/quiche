@@ -742,6 +742,7 @@ class QUICHE_EXPORT QuicFramer {
   friend class test::QuicFramerPeer;
 
   using NackRangeMap = std::map<QuicPacketNumber, uint8_t>;
+  using AssociatedDataStorage = absl::InlinedVector<char, 20>;
 
   // AckTimestampRange is a data structure derived from a QuicAckFrame. It is
   // used to serialize timestamps in a IETF_ACK_RECEIVE_TIMESTAMPS frame.
@@ -797,7 +798,7 @@ class QUICHE_EXPORT QuicFramer {
                               const QuicEncryptedPacket& packet,
                               QuicPacketHeader* header,
                               uint64_t* full_packet_number,
-                              std::vector<char>* associated_data);
+                              AssociatedDataStorage& associated_data);
 
   bool ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
                              QuicPacketHeader* header,
