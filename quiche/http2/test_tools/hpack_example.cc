@@ -6,6 +6,8 @@
 
 #include <ctype.h>
 
+#include <string>
+
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -22,7 +24,10 @@ void HpackExampleToStringOrDie(absl::string_view example, std::string* output) {
       QUICHE_CHECK_GT(example.size(), 1u) << "Truncated hex byte?";
       const char c1 = example[1];
       QUICHE_CHECK(isxdigit(c1)) << "Found half a byte?";
-      *output += absl::HexStringToBytes(example.substr(0, 2));
+      std::string byte;
+      QUICHE_CHECK(absl::HexStringToBytes(example.substr(0, 2), &byte))
+          << "Can't parse hex byte";
+      absl::StrAppend(output, byte);
       example.remove_prefix(2);
       continue;
     }

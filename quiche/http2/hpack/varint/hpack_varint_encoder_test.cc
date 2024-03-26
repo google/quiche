@@ -4,6 +4,9 @@
 
 #include "quiche/http2/hpack/varint/hpack_varint_encoder.h"
 
+#include <cstddef>
+#include <string>
+
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -103,8 +106,9 @@ TEST(HpackVarintEncoderTest, Long) {
   // Test encoding byte by byte, also test encoding in
   // a single ResumeEncoding() call.
   for (size_t i = 0; i < ABSL_ARRAYSIZE(kLongTestData); ++i) {
-    std::string expected_encoding =
-        absl::HexStringToBytes(kLongTestData[i].expected_encoding);
+    std::string expected_encoding;
+    ASSERT_TRUE(absl::HexStringToBytes(kLongTestData[i].expected_encoding,
+                                       &expected_encoding));
 
     std::string output;
     HpackVarintEncoder::Encode(kLongTestData[i].high_bits,
@@ -144,16 +148,22 @@ TEST(HpackVarintEncoderTest, LastByteIsZero) {
 // Test that encoder appends correctly to non-empty string.
 TEST(HpackVarintEncoderTest, Append) {
   std::string output("foo");
-  EXPECT_EQ(absl::HexStringToBytes("666f6f"), output);
+  std::string expected_encoding;
+  ASSERT_TRUE(absl::HexStringToBytes("666f6f", &expected_encoding));
+  EXPECT_EQ(expected_encoding, output);
 
   HpackVarintEncoder::Encode(0b10011000, 3, 103, &output);
-  EXPECT_EQ(absl::HexStringToBytes("666f6f9f60"), output);
+  ASSERT_TRUE(absl::HexStringToBytes("666f6f9f60", &expected_encoding));
+  EXPECT_EQ(expected_encoding, output);
 
   HpackVarintEncoder::Encode(0b10100000, 5, 8, &output);
-  EXPECT_EQ(absl::HexStringToBytes("666f6f9f60a8"), output);
+  ASSERT_TRUE(absl::HexStringToBytes("666f6f9f60a8", &expected_encoding));
+  EXPECT_EQ(expected_encoding, output);
 
   HpackVarintEncoder::Encode(0b10011000, 3, 202147110, &output);
-  EXPECT_EQ(absl::HexStringToBytes("666f6f9f60a89f9f8ab260"), output);
+  ASSERT_TRUE(
+      absl::HexStringToBytes("666f6f9f60a89f9f8ab260", &expected_encoding));
+  EXPECT_EQ(expected_encoding, output);
 }
 
 }  // namespace

@@ -6,7 +6,9 @@
 
 // Tests of HpackHuffmanDecoder and HuffmanBitBuffer.
 
+#include <cstddef>
 #include <iostream>
+#include <string>
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
@@ -186,17 +188,21 @@ class HpackHuffmanDecoderTest : public RandomDecoderTest {
 TEST_F(HpackHuffmanDecoderTest, SpecRequestExamples) {
   HpackHuffmanDecoder decoder;
   std::string test_table[] = {
-      absl::HexStringToBytes("f1e3c2e5f23a6ba0ab90f4ff"),
+      "f1e3c2e5f23a6ba0ab90f4ff",
       "www.example.com",
-      absl::HexStringToBytes("a8eb10649cbf"),
+
+      "a8eb10649cbf",
       "no-cache",
-      absl::HexStringToBytes("25a849e95ba97d7f"),
+
+      "25a849e95ba97d7f",
       "custom-key",
-      absl::HexStringToBytes("25a849e95bb8e8b4bf"),
+
+      "25a849e95bb8e8b4bf",
       "custom-value",
   };
   for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
-    const std::string& huffman_encoded(test_table[i]);
+    std::string huffman_encoded;
+    ASSERT_TRUE(absl::HexStringToBytes(test_table[i], &huffman_encoded));
     const std::string& plain_string(test_table[i + 1]);
     std::string buffer;
     decoder.Reset();
@@ -208,26 +214,26 @@ TEST_F(HpackHuffmanDecoderTest, SpecRequestExamples) {
 
 TEST_F(HpackHuffmanDecoderTest, SpecResponseExamples) {
   HpackHuffmanDecoder decoder;
-  // clang-format off
   std::string test_table[] = {
-    absl::HexStringToBytes("6402"),
-    "302",
-    absl::HexStringToBytes("aec3771a4b"),
-    "private",
-    absl::HexStringToBytes("d07abe941054d444a8200595040b8166"
-            "e082a62d1bff"),
-    "Mon, 21 Oct 2013 20:13:21 GMT",
-    absl::HexStringToBytes("9d29ad171863c78f0b97c8e9ae82ae43"
-            "d3"),
-    "https://www.example.com",
-    absl::HexStringToBytes("94e7821dd7f2e6c7b335dfdfcd5b3960"
-            "d5af27087f3672c1ab270fb5291f9587"
-            "316065c003ed4ee5b1063d5007"),
-    "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1",
+      "6402",
+      "302",
+
+      "aec3771a4b",
+      "private",
+
+      "d07abe941054d444a8200595040b8166e082a62d1bff",
+      "Mon, 21 Oct 2013 20:13:21 GMT",
+
+      "9d29ad171863c78f0b97c8e9ae82ae43d3",
+      "https://www.example.com",
+
+      "94e7821dd7f2e6c7b335dfdfcd5b3960d5af27087f3672c1ab270fb5291f9587316065c0"
+      "03ed4ee5b1063d5007",
+      "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1",
   };
-  // clang-format on
   for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
-    const std::string& huffman_encoded(test_table[i]);
+    std::string huffman_encoded;
+    ASSERT_TRUE(absl::HexStringToBytes(test_table[i], &huffman_encoded));
     const std::string& plain_string(test_table[i + 1]);
     std::string buffer;
     decoder.Reset();
