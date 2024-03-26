@@ -454,28 +454,35 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   // and the state of the connection at the moment the packet was sent,
   // specifically the information about the most recently acknowledged packet at
   // that moment.
-  struct QUICHE_EXPORT ConnectionStateOnSentPacket {
+  class QUICHE_EXPORT ConnectionStateOnSentPacket {
+   public:
     // Time at which the packet is sent.
-    QuicTime sent_time;
+    QuicTime sent_time() const { return sent_time_; }
 
     // Size of the packet.
-    QuicByteCount size;
+    QuicByteCount size() const { return size_; }
 
     // The value of |total_bytes_sent_at_last_acked_packet_| at the time the
     // packet was sent.
-    QuicByteCount total_bytes_sent_at_last_acked_packet;
+    QuicByteCount total_bytes_sent_at_last_acked_packet() const {
+      return total_bytes_sent_at_last_acked_packet_;
+    }
 
     // The value of |last_acked_packet_sent_time_| at the time the packet was
     // sent.
-    QuicTime last_acked_packet_sent_time;
+    QuicTime last_acked_packet_sent_time() const {
+      return last_acked_packet_sent_time_;
+    }
 
     // The value of |last_acked_packet_ack_time_| at the time the packet was
     // sent.
-    QuicTime last_acked_packet_ack_time;
+    QuicTime last_acked_packet_ack_time() const {
+      return last_acked_packet_ack_time_;
+    }
 
     // Send time states that are returned to the congestion controller when the
     // packet is acked or lost.
-    SendTimeState send_time_state;
+    const SendTimeState& send_time_state() const { return send_time_state_; }
 
     // Snapshot constructor. Records the current state of the bandwidth
     // sampler.
@@ -483,35 +490,43 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
     ConnectionStateOnSentPacket(QuicTime sent_time, QuicByteCount size,
                                 QuicByteCount bytes_in_flight,
                                 const BandwidthSampler& sampler)
-        : sent_time(sent_time),
-          size(size),
-          total_bytes_sent_at_last_acked_packet(
+        : sent_time_(sent_time),
+          size_(size),
+          total_bytes_sent_at_last_acked_packet_(
               sampler.total_bytes_sent_at_last_acked_packet_),
-          last_acked_packet_sent_time(sampler.last_acked_packet_sent_time_),
-          last_acked_packet_ack_time(sampler.last_acked_packet_ack_time_),
-          send_time_state(sampler.is_app_limited_, sampler.total_bytes_sent_,
-                          sampler.total_bytes_acked_, sampler.total_bytes_lost_,
-                          bytes_in_flight) {}
+          last_acked_packet_sent_time_(sampler.last_acked_packet_sent_time_),
+          last_acked_packet_ack_time_(sampler.last_acked_packet_ack_time_),
+          send_time_state_(sampler.is_app_limited_, sampler.total_bytes_sent_,
+                           sampler.total_bytes_acked_,
+                           sampler.total_bytes_lost_, bytes_in_flight) {}
 
     // Default constructor.  Required to put this structure into
     // PacketNumberIndexedQueue.
     ConnectionStateOnSentPacket()
-        : sent_time(QuicTime::Zero()),
-          size(0),
-          total_bytes_sent_at_last_acked_packet(0),
-          last_acked_packet_sent_time(QuicTime::Zero()),
-          last_acked_packet_ack_time(QuicTime::Zero()) {}
+        : sent_time_(QuicTime::Zero()),
+          size_(0),
+          total_bytes_sent_at_last_acked_packet_(0),
+          last_acked_packet_sent_time_(QuicTime::Zero()),
+          last_acked_packet_ack_time_(QuicTime::Zero()) {}
 
     friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os, const ConnectionStateOnSentPacket& p) {
-      os << "{sent_time:" << p.sent_time << ", size:" << p.size
+      os << "{sent_time:" << p.sent_time() << ", size:" << p.size()
          << ", total_bytes_sent_at_last_acked_packet:"
-         << p.total_bytes_sent_at_last_acked_packet
-         << ", last_acked_packet_sent_time:" << p.last_acked_packet_sent_time
-         << ", last_acked_packet_ack_time:" << p.last_acked_packet_ack_time
-         << ", send_time_state:" << p.send_time_state << "}";
+         << p.total_bytes_sent_at_last_acked_packet()
+         << ", last_acked_packet_sent_time:" << p.last_acked_packet_sent_time()
+         << ", last_acked_packet_ack_time:" << p.last_acked_packet_ack_time()
+         << ", send_time_state:" << p.send_time_state() << "}";
       return os;
     }
+
+   private:
+    QuicTime sent_time_;
+    QuicByteCount size_;
+    QuicByteCount total_bytes_sent_at_last_acked_packet_;
+    QuicTime last_acked_packet_sent_time_;
+    QuicTime last_acked_packet_ack_time_;
+    SendTimeState send_time_state_;
   };
 
   BandwidthSample OnPacketAcknowledged(QuicTime ack_time,

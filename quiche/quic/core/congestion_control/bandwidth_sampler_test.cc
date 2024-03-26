@@ -26,7 +26,7 @@ class BandwidthSamplerPeer {
 
   static QuicByteCount GetPacketSize(const BandwidthSampler& sampler,
                                      QuicPacketNumber packet_number) {
-    return sampler.connection_state_map_.GetEntry(packet_number)->size;
+    return sampler.connection_state_map_.GetEntry(packet_number)->size();
   }
 };
 

@@ -269,7 +269,7 @@ void BandwidthSampler::OnPacketNeutered(QuicPacketNumber packet_number) {
   connection_state_map_.Remove(
       packet_number, [&](const ConnectionStateOnSentPacket& sent_packet) {
         QUIC_CODE_COUNT(quic_bandwidth_sampler_packet_neutered);
-        total_bytes_neutered_ += sent_packet.size;
+        total_bytes_neutered_ += sent_packet.size();
       });
 }
 
@@ -402,10 +402,10 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledged(
 BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
     QuicTime ack_time, QuicPacketNumber packet_number,
     const ConnectionStateOnSentPacket& sent_packet) {
-  total_bytes_acked_ += sent_packet.size;
+  total_bytes_acked_ += sent_packet.size();
   total_bytes_sent_at_last_acked_packet_ =
-      sent_packet.send_time_state.total_bytes_sent;
-  last_acked_packet_sent_time_ = sent_packet.sent_time;
+      sent_packet.send_time_state().total_bytes_sent;
+  last_acked_packet_sent_time_ = sent_packet.sent_time();
   last_acked_packet_ack_time_ = ack_time;
   if (overestimate_avoidance_) {
     recent_ack_points_.Update(ack_time, total_bytes_acked_);
@@ -426,7 +426,7 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // There might have been no packets acknowledged at the moment when the
   // current packet was sent. In that case, there is no bandwidth sample to
   // make.
-  if (sent_packet.last_acked_packet_sent_time == QuicTime::Zero()) {
+  if (sent_packet.last_acked_packet_sent_time() == QuicTime::Zero()) {
     QUIC_BUG(quic_bug_10437_4)
         << "sent_packet.last_acked_packet_sent_time is zero";
     return BandwidthSample();
@@ -435,20 +435,20 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // Infinite rate indicates that the sampler is supposed to discard the
   // current send rate sample and use only the ack rate.
   QuicBandwidth send_rate = QuicBandwidth::Infinite();
-  if (sent_packet.sent_time > sent_packet.last_acked_packet_sent_time) {
+  if (sent_packet.sent_time() > sent_packet.last_acked_packet_sent_time()) {
     send_rate = QuicBandwidth::FromBytesAndTimeDelta(
-        sent_packet.send_time_state.total_bytes_sent -
-            sent_packet.total_bytes_sent_at_last_acked_packet,
-        sent_packet.sent_time - sent_packet.last_acked_packet_sent_time);
+        sent_packet.send_time_state().total_bytes_sent -
+            sent_packet.total_bytes_sent_at_last_acked_packet(),
+        sent_packet.sent_time() - sent_packet.last_acked_packet_sent_time());
   }
 
   AckPoint a0;
   if (overestimate_avoidance_ &&
-      ChooseA0Point(sent_packet.send_time_state.total_bytes_acked, &a0)) {
+      ChooseA0Point(sent_packet.send_time_state().total_bytes_acked, &a0)) {
     QUIC_DVLOG(2) << "Using a0 point: " << a0;
   } else {
-    a0.ack_time = sent_packet.last_acked_packet_ack_time,
-    a0.total_bytes_acked = sent_packet.send_time_state.total_bytes_acked;
+    a0.ack_time = sent_packet.last_acked_packet_ack_time(),
+    a0.total_bytes_acked = sent_packet.send_time_state().total_bytes_acked;
   }
 
   // During the slope calculation, ensure that ack time of the current packet is
@@ -457,7 +457,7 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   if (ack_time <= a0.ack_time) {
     // TODO(wub): Compare this code count before and after fixing clock jitter
     // issue.
-    if (a0.ack_time == sent_packet.sent_time) {
+    if (a0.ack_time == sent_packet.sent_time()) {
       // This is the 1st packet after quiescense.
       QUIC_CODE_COUNT_N(quic_prev_ack_time_larger_than_current_ack_time, 1, 2);
     } else {
@@ -482,7 +482,7 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // Note: this sample does not account for delayed acknowledgement time.  This
   // means that the RTT measurements here can be artificially high, especially
   // on low bandwidth connections.
-  sample.rtt = ack_time - sent_packet.sent_time;
+  sample.rtt = ack_time - sent_packet.sent_time();
   sample.send_rate = send_rate;
   SentPacketToSendTimeState(sent_packet, &sample.state_at_send);
 
@@ -547,7 +547,7 @@ SendTimeState BandwidthSampler::OnPacketLost(QuicPacketNumber packet_number,
 void BandwidthSampler::SentPacketToSendTimeState(
     const ConnectionStateOnSentPacket& sent_packet,
     SendTimeState* send_time_state) const {
-  *send_time_state = sent_packet.send_time_state;
+  *send_time_state = sent_packet.send_time_state();
   send_time_state->is_valid = true;
 }
 
