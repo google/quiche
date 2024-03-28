@@ -8,7 +8,7 @@
 
 #if defined(QUICHE_FLAG)
 
-QUICHE_FLAG(bool, quiche_reloadable_flag_http2_add_hpack_overhead_bytes, false, "If true, HTTP/2 HEADERS frames will use two additional bytes of HPACK overhead per header in their SpdyFrameIR::size() estimate.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_http2_add_hpack_overhead_bytes2, false, "If true, HTTP/2 HEADERS frames will use two additional bytes of HPACK overhead per header in their SpdyHeadersIR::size() estimate. This flag is latched in SpdyHeadersIR to ensure a consistent size() value for a const SpdyHeadersIR regardless of flag state.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_act_upon_invalid_header, true, "If true, reject or send error response code upon receiving invalid request or response headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_add_stream_info_to_idle_close_detail, false, "If true, include stream information in idle timeout connection close detail.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_allow_client_enabled_bbr_v2, true, "If true, allow client to enable BBRv2 on server via connection option 'B2ON'.")

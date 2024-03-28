@@ -22,6 +22,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
@@ -338,13 +339,13 @@ QUICHE_EXPORT extern const char* const kHttp2Npn;
 //   - 2 bytes for the name length (assuming new name).
 //   - 3 bytes for the value length.
 // TODO(b/322146543): Remove the `New` suffix with deprecation of
-// --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes.
+// --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes2.
 inline constexpr size_t kPerHeaderHpackOverheadNew = 6;
 // An estimate size of the HPACK overhead for each header field. 1 bytes for
 // indexed literal, 1 bytes for key literal and length encoding, and 2 bytes for
 // value literal and length encoding.
 // TODO(b/322146543): Remove with deprecation of
-// --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes.
+// --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes2.
 inline constexpr size_t kPerHeaderHpackOverheadOld = 4;
 
 // Names of pseudo-headers defined for HTTP/2 requests.
@@ -466,7 +467,8 @@ class QUICHE_EXPORT SpdyFrameIR {
   SpdyStreamId stream_id() const { return stream_id_; }
   virtual bool fin() const;
   // Returns an estimate of the size of the serialized frame, without applying
-  // compression. May not be exact.
+  // compression. May not be exact, but implementations should return the same
+  // value for a const frame.
   virtual size_t size() const = 0;
 
   // Returns the number of bytes of flow control window that would be consumed
@@ -755,6 +757,8 @@ class QUICHE_EXPORT SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
   bool exclusive_ = false;
   bool padded_ = false;
   int padding_payload_len_ = 0;
+  const bool add_hpack_overhead_bytes_ =
+      GetQuicheReloadableFlag(http2_add_hpack_overhead_bytes2);
 };
 
 class QUICHE_EXPORT SpdyWindowUpdateIR : public SpdyFrameIR {
