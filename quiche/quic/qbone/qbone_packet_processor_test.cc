@@ -333,6 +333,9 @@ class QbonePacketProcessorTest : public QuicTest {
     processor_ = std::make_unique<QbonePacketProcessor>(
         self_ip_, client_ip_, /*client_ip_subnet_length=*/62, &output_,
         &stats_);
+
+    // Ignore calls to RecordThroughput
+    EXPECT_CALL(stats_, RecordThroughput(_, _, _)).WillRepeatedly(Return());
   }
 
   void SendPacketFromClient(absl::string_view packet) {
@@ -356,9 +359,11 @@ class QbonePacketProcessorTest : public QuicTest {
 
 TEST_F(QbonePacketProcessorTest, EmptyPacket) {
   EXPECT_CALL(stats_, OnPacketDroppedSilently(Direction::FROM_OFF_NETWORK, _));
+  EXPECT_CALL(stats_, RecordThroughput(0, Direction::FROM_OFF_NETWORK, _));
   SendPacketFromClient("");
 
   EXPECT_CALL(stats_, OnPacketDroppedSilently(Direction::FROM_NETWORK, _));
+  EXPECT_CALL(stats_, RecordThroughput(0, Direction::FROM_NETWORK, _));
   SendPacketFromNetwork("");
 }
 
@@ -476,21 +481,29 @@ TEST_F(QbonePacketProcessorTest, FilterHelperFunctions) {
 
 TEST_F(QbonePacketProcessorTest, FilterHelperFunctionsTOS) {
   auto filter_owned = std::make_unique<TestFilter>(client_ip_, network_ip_);
-  TestFilter* filter = filter_owned.get();
   processor_->set_filter(std::move(filter_owned));
 
   EXPECT_CALL(stats_, OnPacketDroppedSilently(Direction::FROM_OFF_NETWORK, _))
       .Times(testing::AnyNumber());
+  EXPECT_CALL(stats_, RecordThroughput(kReferenceClientPacket.size(),
+                                       Direction::FROM_OFF_NETWORK, 0));
   SendPacketFromClient(kReferenceClientPacket);
-  ASSERT_EQ(0, filter->last_tos());
+
+  EXPECT_CALL(stats_, RecordThroughput(kReferenceClientPacketAF4.size(),
+                                       Direction::FROM_OFF_NETWORK, 0x80));
   SendPacketFromClient(kReferenceClientPacketAF4);
-  ASSERT_EQ(0x80, filter->last_tos());
+
+  EXPECT_CALL(stats_, RecordThroughput(kReferenceClientPacketAF3.size(),
+                                       Direction::FROM_OFF_NETWORK, 0x60));
   SendPacketFromClient(kReferenceClientPacketAF3);
-  ASSERT_EQ(0x60, filter->last_tos());
+
+  EXPECT_CALL(stats_, RecordThroughput(kReferenceClientPacketAF2.size(),
+                                       Direction::FROM_OFF_NETWORK, 0x40));
   SendPacketFromClient(kReferenceClientPacketAF2);
-  ASSERT_EQ(0x40, filter->last_tos());
+
+  EXPECT_CALL(stats_, RecordThroughput(kReferenceClientPacketAF1.size(),
+                                       Direction::FROM_OFF_NETWORK, 0x20));
   SendPacketFromClient(kReferenceClientPacketAF1);
-  ASSERT_EQ(0x20, filter->last_tos());
 }
 
 TEST_F(QbonePacketProcessorTest, Icmp6EchoResponseHasRightPayload) {

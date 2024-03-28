@@ -77,6 +77,8 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
     return;
   }
 
+  stats_->RecordThroughput(packet->size(), direction, traffic_class);
+
   uint8_t transport_protocol;
   char* transport_data;
   icmp6_hdr icmp_header;

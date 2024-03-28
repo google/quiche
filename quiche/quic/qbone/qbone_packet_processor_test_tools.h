@@ -35,6 +35,8 @@ class MockPacketProcessorStats : public QbonePacketProcessor::StatsInterface {
               (QbonePacketProcessor::Direction, uint8_t), (override));
   MOCK_METHOD(void, OnPacketDeferred,
               (QbonePacketProcessor::Direction, uint8_t), (override));
+  MOCK_METHOD(void, RecordThroughput,
+              (size_t, QbonePacketProcessor::Direction, uint8_t), (override));
 };
 
 std::string PrependIPv6HeaderForTest(const std::string& body, int hops);

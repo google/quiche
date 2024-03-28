@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 
+#include <cstddef>
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
@@ -61,6 +62,9 @@ class QbonePacketProcessor {
     virtual void SendPacketToNetwork(absl::string_view packet) = 0;
   };
 
+  // A visitor interface that allows the packet processor to collect stats
+  // without relying on a specific backend or exposing the entire packet.
+  // |traffic_class| should be extracted directly from the IPv6 header.
   class StatsInterface {
    public:
     virtual ~StatsInterface();
@@ -74,6 +78,8 @@ class QbonePacketProcessor {
     virtual void OnPacketDroppedWithTcpReset(Direction direction,
                                              uint8_t traffic_class) = 0;
     virtual void OnPacketDeferred(Direction direction,
+                                  uint8_t traffic_class) = 0;
+    virtual void RecordThroughput(size_t bytes, Direction direction,
                                   uint8_t traffic_class) = 0;
   };
 
