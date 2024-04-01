@@ -1129,6 +1129,12 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             return current - input;
           }
           const char c = *current;
+          if (http_validation_policy_.disallow_lone_cr_in_chunk_extension &&
+              c == '\r' && (current + 1 == end || *(current + 1) != '\n')) {
+            // We have a lone carriage return.
+            HandleError(BalsaFrameEnums::INVALID_CHUNK_EXTENSION);
+            return current - input;
+          }
           if (c == '\r' || c == '\n') {
             extensions_length = (extensions_start == current)
                                     ? 0

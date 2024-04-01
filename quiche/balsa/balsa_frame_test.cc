@@ -1667,6 +1667,29 @@ TEST_F(HTTPBalsaFrameTest,
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, InvalidChunkExtensionWithCarriageReturn) {
+  balsa_frame_.set_http_validation_policy(
+      HttpValidationPolicy{.disallow_lone_cr_in_chunk_extension = true});
+  std::string message_headers =
+      "POST /potato?salad=withmayo HTTP/1.1\r\n"
+      "transfer-encoding: chunked\r\n"
+      "\r\n";
+  std::string message_body =
+      "9; bad\rextension\r\n"
+      "012345678\r\n"
+      "0\r\n"
+      "\r\n";
+  std::string message =
+      std::string(message_headers) + std::string(message_body);
+
+  EXPECT_CALL(visitor_mock_,
+              HandleError(BalsaFrameEnums::INVALID_CHUNK_EXTENSION));
+  ASSERT_EQ(message_headers.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  balsa_frame_.ProcessInput(message.data() + message_headers.size(),
+                            message.size());
+}
+
 TEST_F(HTTPBalsaFrameTest,
        VisitorInvokedProperlyForRequestWithTransferEncoding) {
   std::string message_headers =

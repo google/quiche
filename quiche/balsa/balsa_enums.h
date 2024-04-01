@@ -81,6 +81,7 @@ struct QUICHE_EXPORT BalsaFrameEnums {
     // Chunking errors
     INVALID_CHUNK_LENGTH,
     CHUNK_LENGTH_OVERFLOW,
+    INVALID_CHUNK_EXTENSION,
 
     // Other errors.
     CALLED_BYTES_SPLICED_WHEN_UNSAFE_TO_DO_SO,
