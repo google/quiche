@@ -3144,7 +3144,6 @@ TEST_P(BufferedPacketStoreTest, BufferedChloWithEcn) {
   if (!version_.HasIetfQuicFrames()) {
     return;
   }
-  SetQuicReloadableFlag(quic_clone_ecn, true);
   SetQuicRestartFlag(quic_support_ect1, true);
   InSequence s;
   QuicConnectionId conn_id = TestConnectionId(1);

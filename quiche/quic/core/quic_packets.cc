@@ -373,27 +373,14 @@ std::unique_ptr<QuicReceivedPacket> QuicReceivedPacket::Clone() const {
   if (this->packet_headers()) {
     char* headers_buffer = new char[this->headers_length()];
     memcpy(headers_buffer, this->packet_headers(), this->headers_length());
-    if (GetQuicReloadableFlag(quic_clone_ecn)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_clone_ecn, 1, 2);
-      return std::make_unique<QuicReceivedPacket>(
-          buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0,
-          headers_buffer, this->headers_length(), true, this->ecn_codepoint());
-    } else {
-      return std::make_unique<QuicReceivedPacket>(
-          buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0,
-          headers_buffer, this->headers_length(), true);
-    }
-  }
-
-  if (GetQuicReloadableFlag(quic_clone_ecn)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_clone_ecn, 2, 2);
     return std::make_unique<QuicReceivedPacket>(
         buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0,
-        nullptr, 0, false, this->ecn_codepoint());
-  } else {
-    return std::make_unique<QuicReceivedPacket>(
-        buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0);
+        headers_buffer, this->headers_length(), true, this->ecn_codepoint());
   }
+
+  return std::make_unique<QuicReceivedPacket>(
+      buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0, nullptr,
+      0, false, this->ecn_codepoint());
 }
 
 std::ostream& operator<<(std::ostream& os, const QuicReceivedPacket& s) {

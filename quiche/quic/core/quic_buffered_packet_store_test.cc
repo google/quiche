@@ -671,7 +671,6 @@ TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {
 
 // Test for b/316633326.
 TEST_F(QuicBufferedPacketStoreTest, BufferedPacketRetainsEcn) {
-  SetQuicReloadableFlag(quic_clone_ecn, true);
   QuicConnectionId connection_id = TestConnectionId(1);
   QuicReceivedPacket ect1_packet(packet_content_.data(), packet_content_.size(),
                                  packet_time_, false, 0, true, nullptr, 0,

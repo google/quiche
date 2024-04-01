@@ -121,7 +121,6 @@ TEST_F(QuicPacketsTest, CopySerializedPacket) {
 }
 
 TEST_F(QuicPacketsTest, CloneReceivedPacket) {
-  SetQuicReloadableFlag(quic_clone_ecn, true);
   char header[4] = "bar";
   QuicReceivedPacket packet("foo", 3, QuicTime::Zero(), false, 0, true, header,
                             sizeof(header) - 1, false,
