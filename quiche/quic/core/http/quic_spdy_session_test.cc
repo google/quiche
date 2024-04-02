@@ -1361,7 +1361,7 @@ TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
   // In HTTP/3, Qpack stream will send data on stream reset and cause packet to
   // be flushed.
   if (VersionUsesHttp3(transport_version()) &&
-      !GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+      !GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _, _))
         .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   }
@@ -1606,7 +1606,7 @@ TEST_P(QuicSpdySessionTestServer,
     // the STOP_SENDING, so set up the EXPECT there.
     EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
     EXPECT_CALL(*connection_, SendControlFrame(_));
-  } else if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  } else if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _, _))
         .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   }

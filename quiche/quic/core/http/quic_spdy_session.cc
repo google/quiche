@@ -866,7 +866,7 @@ void QuicSpdySession::SendInitialData() {
 }
 
 bool QuicSpdySession::CheckStreamWriteBlocked(QuicStream* stream) const {
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3) &&
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4) &&
       qpack_decoder_send_stream_ != nullptr &&
       stream->id() == qpack_decoder_send_stream_->id()) {
     // Decoder data is always bundled opportunistically.

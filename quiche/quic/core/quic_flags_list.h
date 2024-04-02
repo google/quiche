@@ -35,10 +35,10 @@ QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 QUIC_FLAG(quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
 // If true, allow quic to use new ALPS codepoint to negotiate during handshake for H3 if client sends new ALPS codepoint.
 QUIC_FLAG(quic_reloadable_flag_quic_gfe_allow_alps_new_codepoint, false)
-// If true, always bundle qpack decoder data with other frames opportunistically.
-QUIC_FLAG(quic_restart_flag_quic_opport_bundle_qpack_decoder_data3, false)
 // If true, an endpoint does not detect path degrading or blackholing until handshake gets confirmed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed, true)
+// If true, bundle qpack decoder data with other frames opportunistically.
+QUIC_FLAG(quic_restart_flag_quic_opport_bundle_qpack_decoder_data4, false)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, disable QUIC version Q046.

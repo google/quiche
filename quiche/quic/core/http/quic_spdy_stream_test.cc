@@ -584,7 +584,7 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
           stream_->id(),
           QuicResetStreamError::FromInternal(QUIC_HEADERS_TOO_LARGE), 0));
 
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     auto qpack_decoder_stream =
         QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
     // Stream type and stream cancellation.
@@ -2256,7 +2256,7 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
   std::string headers = HeadersFrame(encoded_headers);
   EXPECT_CALL(debug_visitor,
               OnHeadersFrameReceived(stream_->id(), encoded_headers.length()));
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     // Decoder stream type.
     EXPECT_CALL(*session_,
                 WritevData(decoder_send_stream->id(), /* write_length = */ 1,
@@ -2294,7 +2294,7 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
   EXPECT_CALL(debug_visitor,
               OnHeadersFrameReceived(stream_->id(), encoded_trailers.length()));
   // Header acknowledgement.
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     EXPECT_CALL(*session_,
                 WritevData(decoder_send_stream->id(), _, _, _, _, _));
   }
@@ -2337,7 +2337,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   auto decoder_send_stream =
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
 
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     // Decoder stream type.
     EXPECT_CALL(*session_,
                 WritevData(decoder_send_stream->id(), /* write_length = */ 1,
@@ -2377,7 +2377,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream_->trailers_decompressed());
 
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     // Header acknowledgement.
     EXPECT_CALL(*session_,
                 WritevData(decoder_send_stream->id(), _, _, _, _, _));
@@ -2478,7 +2478,7 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
   auto decoder_send_stream =
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
 
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     // Decoder stream type.
     EXPECT_CALL(*session_,
                 WritevData(decoder_send_stream->id(), /* write_length = */ 1,
@@ -2552,7 +2552,7 @@ TEST_P(QuicSpdyStreamTest, HeaderDecodingUnblockedAfterStreamClosed) {
   // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream_->headers_decompressed());
 
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     // Decoder stream type and stream cancellation instruction.
     auto decoder_send_stream =
         QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
@@ -2603,7 +2603,7 @@ TEST_P(QuicSpdyStreamTest, HeaderDecodingUnblockedAfterResetReceived) {
   // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream_->headers_decompressed());
 
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     // Decoder stream type and stream cancellation instruction.
     auto decoder_send_stream =
         QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
@@ -3117,7 +3117,7 @@ TEST_P(QuicSpdyStreamTest, StreamCancellationWhenStreamReset) {
 
   auto qpack_decoder_stream =
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     // Stream type.
     EXPECT_CALL(*session_,
                 WritevData(qpack_decoder_stream->id(), /* write_length = */ 1,
@@ -3150,7 +3150,7 @@ TEST_P(QuicSpdyStreamTest, StreamCancellationOnResetReceived) {
 
   auto qpack_decoder_stream =
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     // Stream type.
     EXPECT_CALL(*session_,
                 WritevData(qpack_decoder_stream->id(), /* write_length = */ 1,
@@ -3544,7 +3544,7 @@ TEST_P(QuicSpdyStreamTest, ReadAfterReset) {
   QuicStreamFrame frame(stream_->id(), /* fin = */ false, 0, data_frame);
   stream_->OnStreamFrame(frame);
 
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data3)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
     // As a result of resetting the stream, stream type and stream cancellation
     // are sent on the QPACK decoder stream.
     auto qpack_decoder_stream =

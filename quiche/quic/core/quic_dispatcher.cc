@@ -141,7 +141,10 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
     return true;
   }
 
-  void MaybeBundleOpportunistically() override { QUICHE_DCHECK(false); }
+  void MaybeBundleOpportunistically(
+      TransmissionType /*transmission_type*/) override {
+    QUICHE_DCHECK(false);
+  }
 
   QuicByteCount GetFlowControlSendWindowSize(QuicStreamId /*id*/) override {
     QUICHE_DCHECK(false);

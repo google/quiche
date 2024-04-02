@@ -739,7 +739,8 @@ class QUICHE_EXPORT QuicConnection
   // QuicPacketCreator::DelegateInterface
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
-  void MaybeBundleOpportunistically() override;
+  void MaybeBundleOpportunistically(
+      TransmissionType transmission_type) override;
   QuicByteCount GetFlowControlSendWindowSize(QuicStreamId id) override {
     return visitor_->GetFlowControlSendWindowSize(id);
   }
