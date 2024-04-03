@@ -265,26 +265,25 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
 void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
     size_t /* uncompressed_header_bytes */,
     size_t /* compressed_header_bytes */) {
-  if (!error_encountered_) {
-    if (!validator_->FinishHeaderBlock(type_)) {
-      QUICHE_VLOG(1) << "FinishHeaderBlock returned false; returning "
-                     << "HEADER_HTTP_MESSAGING";
-      SetResult(Http2VisitorInterface::HEADER_HTTP_MESSAGING);
-    }
+  if (error_encountered_) {
+    // The error has already been handled.
+    return;
+  }
+  if (!validator_->FinishHeaderBlock(type_)) {
+    QUICHE_VLOG(1) << "FinishHeaderBlock returned false; returning "
+                   << "HEADER_HTTP_MESSAGING";
+    SetResult(Http2VisitorInterface::HEADER_HTTP_MESSAGING);
+    return;
   }
   if (frame_contains_fin_ && IsResponse(type_) &&
       StatusIs1xx(status_header())) {
     QUICHE_VLOG(1) << "Unexpected end of stream without final headers";
     SetResult(Http2VisitorInterface::HEADER_HTTP_MESSAGING);
   }
-  if (!error_encountered_) {
-    const bool result = visitor_.OnEndHeadersForStream(stream_id_);
-    if (!result) {
-      session_.fatal_visitor_callback_failure_ = true;
-      session_.decoder_.StopProcessing();
-    }
-  } else {
-    session_.OnHeaderStatus(stream_id_, result_);
+  const bool result = visitor_.OnEndHeadersForStream(stream_id_);
+  if (!result) {
+    session_.fatal_visitor_callback_failure_ = true;
+    session_.decoder_.StopProcessing();
   }
 }
 
@@ -311,7 +310,7 @@ void OgHttp2Session::PassthroughHeadersHandler::SetResult(
     Http2VisitorInterface::OnHeaderResult result) {
   if (result != Http2VisitorInterface::HEADER_OK) {
     error_encountered_ = true;
-    result_ = result;
+    session_.OnHeaderStatus(stream_id_, result);
   }
 }
 

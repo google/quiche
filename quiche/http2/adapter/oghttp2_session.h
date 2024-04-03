@@ -269,7 +269,6 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
 
     void Reset() {
       error_encountered_ = false;
-      result_ = Http2VisitorInterface::HEADER_OK;
     }
 
     void set_stream_id(Http2StreamId stream_id) { stream_id_ = stream_id; }
@@ -305,8 +304,6 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     OgHttp2Session& session_;
     Http2VisitorInterface& visitor_;
     Http2StreamId stream_id_ = 0;
-    Http2VisitorInterface::OnHeaderResult result_ =
-        Http2VisitorInterface::HEADER_OK;
     // Validates header blocks according to the HTTP/2 specification.
     std::unique_ptr<HeaderValidatorBase> validator_;
     HeaderType type_ = HeaderType::RESPONSE;

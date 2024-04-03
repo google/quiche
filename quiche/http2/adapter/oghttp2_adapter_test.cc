@@ -4470,6 +4470,69 @@ TEST(OgHttp2AdapterTest, ServerReceivesMoreHeaderBytesThanConfigured) {
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
+TEST(OgHttp2AdapterTest, ServerVisitorRejectsHeaders) {
+  DataSavingVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kServer;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+  EXPECT_FALSE(adapter->want_write());
+
+  const std::string frames =
+      TestFrameSequence()
+          .ClientPreface()
+          .Headers(1,
+                   {{":method", "GET"},
+                    {":scheme", "https"},
+                    {":authority", "example.com"},
+                    {":path", "/this/is/request/one"},
+                    {"header1", "ok"},
+                    {"header2", "rejected"},
+                    {"header3", "not processed"},  // CONTINUATION starts here
+                    {"header4", "not processed"},
+                    {"header5", "not processed"},
+                    {"header6", "not processed"},
+                    {"header7", "not processed"},
+                    {"header8", "not processed"}},
+                   /*fin=*/false, /*add_continuation=*/true)
+          .Serialize();
+
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0x0));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnHeaderForStream(1, "header2", _))
+      .WillOnce(testing::Return(Http2VisitorInterface::HEADER_RST_STREAM));
+  // The CONTINUATION frame header and header fields are not processed.
+
+  int64_t result = adapter->ProcessBytes(frames);
+  EXPECT_EQ(static_cast<size_t>(result), frames.size());
+
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 1, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::INTERNAL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  int send_result = adapter->Send();
+  // Some bytes should have been serialized.
+  EXPECT_EQ(0, send_result);
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            SpdyFrameType::RST_STREAM}));
+}
+
 TEST(OgHttp2AdapterTest, ServerSubmitsResponseWithDataSourceError) {
   DataSavingVisitor visitor;
   OgHttp2Adapter::Options options;
