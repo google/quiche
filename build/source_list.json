@@ -851,6 +851,7 @@
     "quiche/quic/test_tools/web_transport_resets_backend.h",
     "quiche/quic/test_tools/web_transport_test_tools.h",
     "quiche/spdy/test_tools/mock_spdy_framer_visitor.h",
+    "quiche/spdy/test_tools/mock_spdy_headers_handler.h",
     "quiche/spdy/test_tools/spdy_test_utils.h",
     "quiche/web_transport/test_tools/mock_web_transport.h"
   ],
@@ -945,6 +946,7 @@
     "quiche/quic/test_tools/test_ticket_crypter.cc",
     "quiche/quic/test_tools/web_transport_resets_backend.cc",
     "quiche/spdy/test_tools/mock_spdy_framer_visitor.cc",
+    "quiche/spdy/test_tools/mock_spdy_headers_handler.cc",
     "quiche/spdy/test_tools/spdy_test_utils.cc"
   ],
   "balsa_hdrs": [

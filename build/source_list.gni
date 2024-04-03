@@ -852,6 +852,7 @@ quiche_test_support_hdrs = [
     "src/quiche/quic/test_tools/web_transport_resets_backend.h",
     "src/quiche/quic/test_tools/web_transport_test_tools.h",
     "src/quiche/spdy/test_tools/mock_spdy_framer_visitor.h",
+    "src/quiche/spdy/test_tools/mock_spdy_headers_handler.h",
     "src/quiche/spdy/test_tools/spdy_test_utils.h",
     "src/quiche/web_transport/test_tools/mock_web_transport.h",
 ]
@@ -946,6 +947,7 @@ quiche_test_support_srcs = [
     "src/quiche/quic/test_tools/test_ticket_crypter.cc",
     "src/quiche/quic/test_tools/web_transport_resets_backend.cc",
     "src/quiche/spdy/test_tools/mock_spdy_framer_visitor.cc",
+    "src/quiche/spdy/test_tools/mock_spdy_headers_handler.cc",
     "src/quiche/spdy/test_tools/spdy_test_utils.cc",
 ]
 balsa_hdrs = [
