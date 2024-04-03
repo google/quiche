@@ -540,7 +540,11 @@ void QuicSession::OnPacketReceived(const QuicSocketAddress& /*self_address*/,
   }
 }
 
-void QuicSession::OnPathDegrading() {}
+void QuicSession::OnPathDegrading() {
+  if (visitor_) {
+    visitor_->OnPathDegrading();
+  }
+}
 
 void QuicSession::OnForwardProgressMadeAfterPathDegrading() {}
 

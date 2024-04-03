@@ -106,6 +106,9 @@ class QUICHE_EXPORT QuicSession
 
     virtual void OnServerPreferredAddressAvailable(
         const QuicSocketAddress& /*server_preferred_address*/) = 0;
+
+    // Called when connection detected path degrading.
+    virtual void OnPathDegrading() = 0;
   };
 
   // Does not take ownership of |connection| or |visitor|.

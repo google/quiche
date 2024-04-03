@@ -111,6 +111,7 @@ class QuicClientBase : public QuicSession::Visitor {
       const QuicConnectionId& /*server_connection_id*/) override {}
   void OnServerPreferredAddressAvailable(
       const QuicSocketAddress& server_preferred_address) override;
+  void OnPathDegrading() override;
 
   // Initializes the client to create a connection. Should be called exactly
   // once before calling StartConnect or Connect. Returns true if the
@@ -326,6 +327,24 @@ class QuicClientBase : public QuicSession::Visitor {
     return validated_paths_;
   }
 
+  // Enable port migration upon path degrading after given number of PTOs.
+  // If no value is provided, path degrading will be detected after 4 PTOs by
+  // default.
+  void EnablePortMigrationUponPathDegrading(
+      std::optional<int> num_ptos_for_path_degrading) {
+    allow_port_migration_ = true;
+    if (num_ptos_for_path_degrading.has_value()) {
+      session_->connection()
+          ->sent_packet_manager()
+          .set_num_ptos_for_path_degrading(num_ptos_for_path_degrading.value());
+    }
+  }
+
+  virtual void OnSocketMigrationProbingSuccess(
+      std::unique_ptr<QuicPathValidationContext> context);
+
+  virtual void OnSocketMigrationProbingFailure() {}
+
  protected:
   // TODO(rch): Move GetNumSentClientHellosFromSession and
   // GetNumReceivedServerConfigUpdatesFromSession into a new/better
@@ -471,6 +490,8 @@ class QuicClientBase : public QuicSession::Visitor {
 
   DeterministicConnectionIdGenerator connection_id_generator_{
       kQuicDefaultConnectionIdLength};
+
+  bool allow_port_migration_{false};
 };
 
 }  // namespace quic

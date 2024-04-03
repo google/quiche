@@ -5,16 +5,33 @@
 #include "quiche/quic/tools/quic_client_base.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
+#include <utility>
 
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/http/spdy_utils.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_crypto_client_stream.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -40,20 +57,14 @@ class QuicClientSocketMigrationValidationResultDelegate
       QuicTime /*start_time*/) override {
     QUIC_DLOG(INFO) << "Successfully validated path from " << *context
                     << ". Migrate to it now.";
-    auto migration_context = std::unique_ptr<PathMigrationContext>(
-        static_cast<PathMigrationContext*>(context.release()));
-    client_->session()->MigratePath(
-        migration_context->self_address(), migration_context->peer_address(),
-        migration_context->WriterToUse(), /*owns_writer=*/false);
-    QUICHE_DCHECK(migration_context->WriterToUse() != nullptr);
-    // Hand the ownership of the alternative writer to the client.
-    client_->set_writer(migration_context->ReleaseWriter());
+    client_->OnSocketMigrationProbingSuccess(std::move(context));
   }
 
   void OnPathValidationFailure(
       std::unique_ptr<QuicPathValidationContext> context) override {
     QUIC_LOG(WARNING) << "Fail to validate path " << *context
                       << ", stop migrating.";
+    client_->OnSocketMigrationProbingFailure();
     client_->session()->connection()->OnPathValidationFailureAtClient(
         /*is_multi_port=*/false, *context);
   }
@@ -84,6 +95,18 @@ class ServerPreferredAddressResultDelegateWithWriter
 };
 
 }  // namespace
+
+void QuicClientBase::OnSocketMigrationProbingSuccess(
+    std::unique_ptr<QuicPathValidationContext> context) {
+  auto migration_context = std::unique_ptr<PathMigrationContext>(
+      static_cast<PathMigrationContext*>(context.release()));
+  session()->MigratePath(
+      migration_context->self_address(), migration_context->peer_address(),
+      migration_context->WriterToUse(), /*owns_writer=*/false);
+  QUICHE_DCHECK(migration_context->WriterToUse() != nullptr);
+  // Hand the ownership of the alternative writer to the client.
+  set_writer(migration_context->ReleaseWriter());
+}
 
 QuicClientBase::NetworkHelper::~NetworkHelper() = default;
 
@@ -540,6 +563,32 @@ void QuicClientBase::OnServerPreferredAddressAvailable(
           network_helper_->GetLatestClientAddress(), server_preferred_address),
       std::make_unique<ServerPreferredAddressResultDelegateWithWriter>(this),
       PathValidationReason::kServerPreferredAddressMigration);
+}
+
+void QuicClientBase::OnPathDegrading() {
+  if (!allow_port_migration_ ||
+      session_->GetHandshakeState() != HANDSHAKE_CONFIRMED ||
+      session_->HasPendingPathValidation() ||
+      session_->connection()->multi_port_stats() != nullptr ||
+      config_.DisableConnectionMigration()) {
+    return;
+  }
+  const auto self_address = session_->self_address();
+  if (network_helper_ == nullptr ||
+      !network_helper_->CreateUDPSocketAndBind(session_->peer_address(),
+                                               self_address.host(), 0)) {
+    return;
+  }
+  QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
+  if (writer == nullptr) {
+    return;
+  }
+  session()->ValidatePath(
+      std::make_unique<PathMigrationContext>(
+          std::unique_ptr<QuicPacketWriter>(writer),
+          network_helper_->GetLatestClientAddress(), session_->peer_address()),
+      std::make_unique<QuicClientSocketMigrationValidationResultDelegate>(this),
+      PathValidationReason::kPortMigration);
 }
 
 }  // namespace quic

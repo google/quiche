@@ -160,6 +160,7 @@ class QUICHE_EXPORT QuicDispatcher
   void OnExpiredPackets(QuicConnectionId server_connection_id,
                         QuicBufferedPacketStore::BufferedPacketList
                             early_arrived_packets) override;
+  void OnPathDegrading() override {}
 
   // Create connections for previously buffered CHLOs as many as allowed.
   virtual void ProcessBufferedChlos(size_t max_connections_to_create);
