@@ -112,9 +112,12 @@ class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
   std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) override;
   void OnFailure() override {}
 
+  void InjectFailure() { fail_when_packing_ = true; }
+
  private:
   const std::string encoded_entries_;
   absl::string_view remaining_;
+  bool fail_when_packing_ = false;
 };
 
 // These matchers check whether a string consists entirely of HTTP/2 frames of

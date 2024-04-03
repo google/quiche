@@ -1730,6 +1730,10 @@ TEST(NgHttp2AdapterTest, ClientReceivesMultipleGoAwaysWithIncreasingStreamId) {
   EXPECT_THAT(data, EqualsFrames({SpdyFrameType::HEADERS}));
   visitor.Clear();
 
+  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
+      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
+  adapter->SubmitMetadata(stream_id1, 16384u, std::move(source));
+
   const std::string frames =
       TestFrameSequence()
           .ServerPreface()
@@ -2703,6 +2707,163 @@ TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithGoaway) {
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
                             static_cast<SpdyFrameType>(kMetadataFrameType)}));
   EXPECT_FALSE(adapter->want_write());
+}
+
+TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureBefore) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  adapter->SubmitSettings({});
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, _, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, _, _, 0x0, 0));
+  adapter->Send();
+
+  const std::vector<Header> headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+  const int32_t stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+
+  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
+      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
+  adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  EXPECT_TRUE(adapter->want_write());
+
+  const std::string initial_frames =
+      TestFrameSequence().ServerPreface().Serialize();
+  testing::InSequence s;
+
+  // Server preface
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), initial_result);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(kMetadataFrameType, stream_id, _, 0x4))
+      .WillOnce(testing::Return(NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE));
+  EXPECT_CALL(visitor, OnConnectionError(
+                           Http2VisitorInterface::ConnectionError::kSendError));
+
+  int result = adapter->Send();
+  EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, result);
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
+}
+
+TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureDuring) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  adapter->SubmitSettings({});
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, _, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, _, _, 0x0, 0));
+  adapter->Send();
+
+  const std::vector<Header> headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+  const int32_t stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+
+  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(
+      ToHeaders({{"more-than-one-frame", std::string(20000, 'a')}})));
+  adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  EXPECT_TRUE(adapter->want_write());
+
+  const std::string initial_frames =
+      TestFrameSequence().ServerPreface().Serialize();
+  testing::InSequence s;
+
+  // Server preface
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), initial_result);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor,
+              OnBeforeFrameSent(kMetadataFrameType, stream_id, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(kMetadataFrameType, stream_id, _, 0x0, 0))
+      .WillOnce(testing::Return(NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE));
+  EXPECT_CALL(visitor, OnConnectionError(
+                           Http2VisitorInterface::ConnectionError::kSendError));
+
+  int result = adapter->Send();
+  EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, result);
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                            static_cast<SpdyFrameType>(kMetadataFrameType)}));
+}
+
+TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureSending) {
+  DataSavingVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  adapter->SubmitSettings({});
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, _, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, _, _, 0x0, 0));
+  adapter->Send();
+
+  const std::vector<Header> headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+  const int32_t stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+
+  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(
+      ToHeaders({{"more-than-one-frame", std::string(20000, 'a')}})));
+  source->InjectFailure();
+  adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  EXPECT_TRUE(adapter->want_write());
+
+  const std::string initial_frames =
+      TestFrameSequence().ServerPreface().Serialize();
+  testing::InSequence s;
+
+  // Server preface
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t initial_result = adapter->ProcessBytes(initial_frames);
+  EXPECT_EQ(initial_frames.size(), initial_result);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnConnectionError(
+                           Http2VisitorInterface::ConnectionError::kSendError));
+
+  int result = adapter->Send();
+  EXPECT_EQ(NGHTTP2_ERR_CALLBACK_FAILURE, result);
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({
+                              SpdyFrameType::SETTINGS,
+                              SpdyFrameType::SETTINGS,
+                          }));
 }
 
 TEST(NgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {

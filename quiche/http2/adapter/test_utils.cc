@@ -97,6 +97,9 @@ TestMetadataSource::TestMetadataSource(const spdy::Http2HeaderBlock& entries)
 
 std::pair<int64_t, bool> TestMetadataSource::Pack(uint8_t* dest,
                                                   size_t dest_len) {
+  if (fail_when_packing_) {
+    return {-1, false};
+  }
   const size_t copied = std::min(dest_len, remaining_.size());
   std::memcpy(dest, remaining_.data(), copied);
   remaining_.remove_prefix(copied);
