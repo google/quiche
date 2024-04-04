@@ -279,6 +279,7 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
       StatusIs1xx(status_header())) {
     QUICHE_VLOG(1) << "Unexpected end of stream without final headers";
     SetResult(Http2VisitorInterface::HEADER_HTTP_MESSAGING);
+    return;
   }
   const bool result = visitor_.OnEndHeadersForStream(stream_id_);
   if (!result) {
