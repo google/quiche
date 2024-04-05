@@ -589,6 +589,9 @@ void QuicClientBase::OnPathDegrading() {
           network_helper_->GetLatestClientAddress(), session_->peer_address()),
       std::make_unique<QuicClientSocketMigrationValidationResultDelegate>(this),
       PathValidationReason::kPortMigration);
+  if (!session()->HasPendingPathValidation()) {
+    QUIC_CODE_COUNT(fail_to_probe_new_path_after_current_one_degraded);
+  }
 }
 
 }  // namespace quic

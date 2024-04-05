@@ -5452,6 +5452,8 @@ TEST_P(EndToEndTest, ClientPortMigrationOnPathDegrading) {
   EXPECT_EQ(1u, GetClientConnection()->GetStats().num_path_response_received);
   size_t pto_count = GetClientConnection()->GetStats().pto_count;
 
+  // Wait for new connection id to be received.
+  WaitForNewConnectionIds();
   // Use 1 PTO to detect path degrading more aggressively.
   client_->client()->EnablePortMigrationUponPathDegrading({1});
   new_writer->set_peer_address_to_drop(new_self_addr1);
