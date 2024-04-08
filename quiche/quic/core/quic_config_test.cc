@@ -537,6 +537,37 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   EXPECT_EQ(kFakeGoogleHandshakeMessage, params.google_handshake_message);
 }
 
+TEST_P(QuicConfigTest, DNATPreferredAddress) {
+  QuicIpAddress host_v4;
+  host_v4.FromString("127.0.3.1");
+  QuicSocketAddress server_address_v4 = QuicSocketAddress(host_v4, 1234);
+  QuicSocketAddress expected_server_address_v4 =
+      QuicSocketAddress(host_v4, 1235);
+
+  QuicIpAddress host_v6;
+  host_v6.FromString("2001:db8:0::1");
+  QuicSocketAddress server_address_v6 = QuicSocketAddress(host_v6, 1234);
+  QuicSocketAddress expected_server_address_v6 =
+      QuicSocketAddress(host_v6, 1235);
+
+  config_.SetIPv4AlternateServerAddressForDNat(server_address_v4,
+                                               expected_server_address_v4);
+  config_.SetIPv6AlternateServerAddressForDNat(server_address_v6,
+                                               expected_server_address_v6);
+
+  EXPECT_EQ(server_address_v4,
+            config_.GetPreferredAddressToSend(quiche::IpAddressFamily::IP_V4));
+  EXPECT_EQ(server_address_v6,
+            config_.GetPreferredAddressToSend(quiche::IpAddressFamily::IP_V6));
+
+  EXPECT_EQ(expected_server_address_v4,
+            config_.GetMappedAlternativeServerAddress(
+                quiche::IpAddressFamily::IP_V4));
+  EXPECT_EQ(expected_server_address_v6,
+            config_.GetMappedAlternativeServerAddress(
+                quiche::IpAddressFamily::IP_V6));
+}
+
 TEST_P(QuicConfigTest, FillTransportParamsNoV4PreferredAddress) {
   if (!version_.UsesTls()) {
     // TransportParameters are only used for QUIC+TLS.

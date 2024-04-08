@@ -227,9 +227,6 @@ class QuicConnectionPeer {
   static QuicSocketAddress GetReceivedServerPreferredAddress(
       QuicConnection* connection);
 
-  static QuicSocketAddress GetSentServerPreferredAddress(
-      QuicConnection* connection);
-
   static bool TestLastReceivedPacketInfoDefaults();
 
   // Overrides restrictions on sending ECN for test purposes.

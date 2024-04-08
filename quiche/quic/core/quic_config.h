@@ -418,6 +418,22 @@ class QUICHE_EXPORT QuicConfig {
   void ClearAlternateServerAddressToSend(
       quiche::IpAddressFamily address_family);
 
+  // Sets the alternate server addresses to be used for a server behind a
+  // DNAT. The `to_send` address will be sent to the client, and the
+  // `mapped` address will be the corresponding internal address. Server-only.
+  void SetIPv4AlternateServerAddressForDNat(
+      const QuicSocketAddress& alternate_server_address_ipv4_to_send,
+      const QuicSocketAddress& mapped_alternate_server_address_ipv4);
+  void SetIPv6AlternateServerAddressForDNat(
+      const QuicSocketAddress& alternate_server_address_ipv6_to_send,
+      const QuicSocketAddress& mapped_alternate_server_address_ipv6);
+
+  // Returns the address the the server will receive packest from
+  // when the client is sending to the preferred address. Will be
+  // the mapped address, if present, or the alternate address otherwise.
+  std::optional<QuicSocketAddress> GetMappedAlternativeServerAddress(
+      quiche::IpAddressFamily address_family) const;
+
   // Returns true if this config supports server preferred address,
   // either via the kSPAD connection option or the QUIC protocol flag
   // quic_always_support_server_preferred_address.
@@ -610,6 +626,14 @@ class QUICHE_EXPORT QuicConfig {
   // Note that when QUIC_CRYPTO is in use, only one of the addresses is sent.
   QuicFixedSocketAddress alternate_server_address_ipv6_;
   QuicFixedSocketAddress alternate_server_address_ipv4_;
+
+  // When a server is behind DNAT, the addresses it sends to the client will
+  // not be the source address recevied in packets from the client. These
+  // two optional members capture the internal addresses which map to
+  // the addresses sent on the wire.
+  std::optional<QuicSocketAddress> mapped_alternate_server_address_ipv6_;
+  std::optional<QuicSocketAddress> mapped_alternate_server_address_ipv4_;
+
   // Connection Id data to send from the server or receive at the client as part
   // of the preferred address transport parameter.
   std::optional<std::pair<QuicConnectionId, StatelessResetToken>>

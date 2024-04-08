@@ -1390,9 +1390,9 @@ void QuicSession::OnConfigNegotiated() {
               .Normalized()
               .host()
               .address_family();
-      std::optional<QuicSocketAddress> preferred_address =
-          config_.GetPreferredAddressToSend(address_family);
-      if (preferred_address.has_value()) {
+      std::optional<QuicSocketAddress> expected_preferred_address =
+          config_.GetMappedAlternativeServerAddress(address_family);
+      if (expected_preferred_address.has_value()) {
         // Set connection ID and token if SPAD has received and a preferred
         // address of the same address family is configured.
         std::optional<QuicNewConnectionIdFrame> frame =
@@ -1401,7 +1401,8 @@ void QuicSession::OnConfigNegotiated() {
           config_.SetPreferredAddressConnectionIdAndTokenToSend(
               frame->connection_id, frame->stateless_reset_token);
         }
-        connection_->set_sent_server_preferred_address(*preferred_address);
+        connection_->set_expected_server_preferred_address(
+            *expected_preferred_address);
       }
       // Clear the alternative address of the other address family in the
       // config.

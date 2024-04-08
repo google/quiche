@@ -538,12 +538,6 @@ QuicSocketAddress QuicConnectionPeer::GetReceivedServerPreferredAddress(
 }
 
 // static
-QuicSocketAddress QuicConnectionPeer::GetSentServerPreferredAddress(
-    QuicConnection* connection) {
-  return connection->sent_server_preferred_address_;
-}
-
-// static
 bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
   QuicConnection::ReceivedPacketInfo info{QuicTime::Zero()};
   QUIC_DVLOG(2)

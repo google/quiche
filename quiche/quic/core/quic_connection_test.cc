@@ -1484,7 +1484,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     QuicConfig config;
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
     connection_.SetFromConfig(config);
-    connection_.set_sent_server_preferred_address(kServerPreferredAddress);
+    connection_.set_expected_server_preferred_address(kServerPreferredAddress);
   }
 
   // Receive server preferred address.
