@@ -1046,8 +1046,6 @@ class QUICHE_EXPORT SpdySerializedFrame {
     return absl::string_view{frame_, size_};
   }
 
-  operator std::string() const { return std::string{frame_, size_}; }
-
   // Returns a buffer containing the contents of the frame, of which the caller
   // takes ownership, and clears this SpdySerializedFrame.
   char* ReleaseBuffer() {
