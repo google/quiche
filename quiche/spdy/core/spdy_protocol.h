@@ -996,6 +996,10 @@ class QUICHE_EXPORT SpdySerializedFrame {
   SpdySerializedFrame()
       : frame_(const_cast<char*>("")), size_(0), owns_buffer_(false) {}
 
+  // Creates a valid SpdySerializedFrame using a pre-created buffer.
+  SpdySerializedFrame(std::unique_ptr<char[]> data, size_t size)
+      : frame_(data.release()), size_(size), owns_buffer_(true) {}
+
   // Create a valid SpdySerializedFrame using a pre-created buffer.
   // If |owns_buffer| is true, this class takes ownership of the buffer and will
   // delete it on cleanup.  The buffer must have been created using new char[].
@@ -1063,10 +1067,8 @@ class QUICHE_EXPORT SpdySerializedFrame {
     return buffer;
   }
 
- protected:
-  char* frame_;
-
  private:
+  char* frame_;
   size_t size_;
   bool owns_buffer_;
 };

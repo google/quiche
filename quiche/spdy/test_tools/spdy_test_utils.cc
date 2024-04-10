@@ -97,5 +97,11 @@ void SetFrameLength(SpdySerializedFrame* frame, size_t length) {
   }
 }
 
+SpdySerializedFrame MakeSerializedFrame(const char* data, size_t length) {
+  std::unique_ptr<char[]> copy = std::make_unique<char[]>(length);
+  std::copy(data, data + length, copy.get());
+  return SpdySerializedFrame(std::move(copy), length);
+}
+
 }  // namespace test
 }  // namespace spdy

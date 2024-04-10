@@ -13,6 +13,7 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/spdy/core/array_output_buffer.h"
 #include "quiche/spdy/core/spdy_protocol.h"
+#include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 namespace spdy {
 
@@ -49,8 +50,7 @@ TEST(SpdyFrameBuilderTest, GetWritableBuffer) {
   SpdySerializedFrame frame(builder.take());
   char expected[kBuilderSize];
   memset(expected, ~1, kBuilderSize);
-  EXPECT_EQ(absl::string_view(expected, kBuilderSize),
-            absl::string_view(frame.data(), kBuilderSize));
+  EXPECT_EQ(absl::string_view(expected, kBuilderSize), frame);
 }
 
 // Verifies that SpdyFrameBuilder::GetWritableBuffer() can be used to build a
@@ -64,11 +64,10 @@ TEST(SpdyFrameBuilderTest, GetWritableOutput) {
       &builder, kBuilderSize, &actual_size);
   memset(writable_buffer, ~1, kBuilderSize);
   EXPECT_TRUE(builder.Seek(kBuilderSize));
-  SpdySerializedFrame frame(output.Begin(), kBuilderSize, false);
+  SpdySerializedFrame frame = MakeSerializedFrame(output.Begin(), kBuilderSize);
   char expected[kBuilderSize];
   memset(expected, ~1, kBuilderSize);
-  EXPECT_EQ(absl::string_view(expected, kBuilderSize),
-            absl::string_view(frame.data(), kBuilderSize));
+  EXPECT_EQ(absl::string_view(expected, kBuilderSize), frame);
 }
 
 // Verifies the case that the buffer's capacity is too small.

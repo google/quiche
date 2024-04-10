@@ -68,7 +68,7 @@ class QUICHE_EXPORT SpdyFrameBuilder {
     QUICHE_BUG_IF(spdy_bug_39_2, kMaxFrameSizeLimit < length_)
         << "Frame length " << length_
         << " is longer than the maximum possible allowed length.";
-    SpdySerializedFrame rv(buffer_.release(), length(), true);
+    SpdySerializedFrame rv(std::move(buffer_), length());
     capacity_ = 0;
     length_ = 0;
     offset_ = 0;

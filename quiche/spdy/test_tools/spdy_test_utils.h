@@ -35,6 +35,10 @@ void SetFrameFlags(SpdySerializedFrame* frame, uint8_t flags);
 
 void SetFrameLength(SpdySerializedFrame* frame, size_t length);
 
+// Makes a SpdySerializedFrame by copying the memory identified by `data` and
+// `length`.
+SpdySerializedFrame MakeSerializedFrame(const char* data, size_t length);
+
 }  // namespace test
 }  // namespace spdy
 
