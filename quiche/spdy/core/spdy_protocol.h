@@ -993,84 +993,41 @@ class QUICHE_EXPORT SpdyUnknownIR : public SpdyFrameIR {
 
 class QUICHE_EXPORT SpdySerializedFrame {
  public:
-  SpdySerializedFrame()
-      : frame_(const_cast<char*>("")), size_(0), owns_buffer_(false) {}
+  SpdySerializedFrame() : size_(0) {}
 
   // Creates a valid SpdySerializedFrame using a pre-created buffer.
   SpdySerializedFrame(std::unique_ptr<char[]> data, size_t size)
-      : frame_(data.release()), size_(size), owns_buffer_(true) {}
-
-  // Create a valid SpdySerializedFrame using a pre-created buffer.
-  // If |owns_buffer| is true, this class takes ownership of the buffer and will
-  // delete it on cleanup.  The buffer must have been created using new char[].
-  // If |owns_buffer| is false, the caller retains ownership of the buffer and
-  // is responsible for making sure the buffer outlives this frame.  In other
-  // words, this class does NOT create a copy of the buffer.
-  SpdySerializedFrame(char* data, size_t size, bool owns_buffer)
-      : frame_(data), size_(size), owns_buffer_(owns_buffer) {}
+      : frame_(std::move(data)), size_(size) {}
 
   SpdySerializedFrame(SpdySerializedFrame&& other)
-      : frame_(other.frame_),
-        size_(other.size_),
-        owns_buffer_(other.owns_buffer_) {
-    // |other| is no longer responsible for the buffer.
-    other.owns_buffer_ = false;
-  }
+      : frame_(std::move(other.frame_)), size_(other.size_) {}
+
   SpdySerializedFrame(const SpdySerializedFrame&) = delete;
   SpdySerializedFrame& operator=(const SpdySerializedFrame&) = delete;
 
   SpdySerializedFrame& operator=(SpdySerializedFrame&& other) {
-    // Free buffer if necessary.
-    if (owns_buffer_) {
-      delete[] frame_;
-    }
     // Take over |other|.
-    frame_ = other.frame_;
+    frame_ = std::move(other.frame_);
     size_ = other.size_;
-    owns_buffer_ = other.owns_buffer_;
-    // |other| is no longer responsible for the buffer.
-    other.owns_buffer_ = false;
     return *this;
   }
 
-  ~SpdySerializedFrame() {
-    if (owns_buffer_) {
-      delete[] frame_;
-    }
-  }
+  ~SpdySerializedFrame() = default;
 
   // Provides access to the frame bytes, which is a buffer containing the frame
   // packed as expected for sending over the wire.
-  char* data() const { return frame_; }
+  char* data() const { return frame_.get(); }
 
   // Returns the actual size of the underlying buffer.
   size_t size() const { return size_; }
 
   operator absl::string_view() const {
-    return absl::string_view{frame_, size_};
-  }
-
-  // Returns a buffer containing the contents of the frame, of which the caller
-  // takes ownership, and clears this SpdySerializedFrame.
-  char* ReleaseBuffer() {
-    char* buffer;
-    if (owns_buffer_) {
-      // If the buffer is owned, relinquish ownership to the caller.
-      buffer = frame_;
-      owns_buffer_ = false;
-    } else {
-      // Otherwise, we need to make a copy to give to the caller.
-      buffer = new char[size_];
-      memcpy(buffer, frame_, size_);
-    }
-    *this = SpdySerializedFrame();
-    return buffer;
+    return absl::string_view{frame_.get(), size_};
   }
 
  private:
-  char* frame_;
+  std::unique_ptr<char[]> frame_;
   size_t size_;
-  bool owns_buffer_;
 };
 
 // This interface is for classes that want to process SpdyFrameIRs without

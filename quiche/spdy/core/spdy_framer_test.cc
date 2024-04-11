@@ -204,8 +204,8 @@ class SpdyFramerPeer {
     }
     output->Reset();
     EXPECT_TRUE(framer->SerializePushPromise(push_promise, output));
-    SpdySerializedFrame serialized_headers_old_version(output->Begin(),
-                                                       output->Size(), false);
+    SpdySerializedFrame serialized_headers_old_version =
+        MakeSerializedFrame(output->Begin(), output->Size());
     framer->hpack_encoder_.reset(nullptr);
     auto* saved_debug_visitor = framer->debug_visitor_;
     framer->debug_visitor_ = nullptr;
@@ -719,8 +719,8 @@ TEST_P(SpdyFramerTest, AcceptMaxFrameSizeSetting) {
       0x00, 0x00, 0x00, 0x00,  // Junk payload
   };
 
-  SpdySerializedFrame frame(reinterpret_cast<char*>(kH2FrameData),
-                            sizeof(kH2FrameData), false);
+  SpdySerializedFrame frame = MakeSerializedFrame(
+      reinterpret_cast<char*>(kH2FrameData), sizeof(kH2FrameData));
 
   EXPECT_CALL(visitor, OnCommonHeader(1, 16384, 0x0, 0x0));
   EXPECT_CALL(visitor, OnDataFrameHeader(1, 1 << 14, false));
@@ -744,8 +744,8 @@ TEST_P(SpdyFramerTest, ExceedMaxFrameSizeSetting) {
       0x00, 0x00, 0x00, 0x00,  // Junk payload
   };
 
-  SpdySerializedFrame frame(reinterpret_cast<char*>(kH2FrameData),
-                            sizeof(kH2FrameData), false);
+  SpdySerializedFrame frame = MakeSerializedFrame(
+      reinterpret_cast<char*>(kH2FrameData), sizeof(kH2FrameData));
 
   EXPECT_CALL(visitor, OnCommonHeader(1, 16385, 0x0, 0x0));
   EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_OVERSIZED_PAYLOAD, _));
@@ -775,8 +775,8 @@ TEST_P(SpdyFramerTest, AcceptLargerMaxFrameSizeSetting) {
       0x00, 0x00, 0x00, 0x00,  // Junk payload
   };
 
-  SpdySerializedFrame frame(reinterpret_cast<char*>(kH2FrameData),
-                            sizeof(kH2FrameData), false);
+  SpdySerializedFrame frame = MakeSerializedFrame(
+      reinterpret_cast<char*>(kH2FrameData), sizeof(kH2FrameData));
 
   EXPECT_CALL(visitor, OnCommonHeader(1, big_frame_size, 0x0, 0x0));
   EXPECT_CALL(visitor, OnDataFrameHeader(1, big_frame_size, false));
@@ -804,8 +804,8 @@ TEST_P(SpdyFramerTest, OversizedDataPaddingError) {
       0x00, 0x00, 0x00, 0x00,  // Padding
   };
 
-  SpdySerializedFrame frame(reinterpret_cast<char*>(kH2FrameData),
-                            sizeof(kH2FrameData), false);
+  SpdySerializedFrame frame = MakeSerializedFrame(
+      reinterpret_cast<char*>(kH2FrameData), sizeof(kH2FrameData));
 
   {
     testing::InSequence seq;
@@ -839,7 +839,8 @@ TEST_P(SpdyFramerTest, CorrectlySizedDataPaddingNoError) {
       0x00, 0x00, 0x00, 0x00,  // Padding
   };
 
-  SpdySerializedFrame frame(kH2FrameData, sizeof(kH2FrameData), false);
+  SpdySerializedFrame frame =
+      MakeSerializedFrame(kH2FrameData, sizeof(kH2FrameData));
 
   {
     testing::InSequence seq;
@@ -879,8 +880,8 @@ TEST_P(SpdyFramerTest, OversizedHeadersPaddingError) {
       0x00, 0x00, 0x00, 0x00,  // Padding
   };
 
-  SpdySerializedFrame frame(reinterpret_cast<char*>(kH2FrameData),
-                            sizeof(kH2FrameData), false);
+  SpdySerializedFrame frame = MakeSerializedFrame(
+      reinterpret_cast<char*>(kH2FrameData), sizeof(kH2FrameData));
 
   EXPECT_CALL(visitor, OnCommonHeader(1, 5, 0x1, 0x8));
   EXPECT_CALL(visitor, OnHeaders(1, 5, false, 0, 0, false, false, false));
@@ -911,7 +912,8 @@ TEST_P(SpdyFramerTest, CorrectlySizedHeadersPaddingNoError) {
       0x00, 0x00, 0x00, 0x00,  // Padding
   };
 
-  SpdySerializedFrame frame(kH2FrameData, sizeof(kH2FrameData), false);
+  SpdySerializedFrame frame =
+      MakeSerializedFrame(kH2FrameData, sizeof(kH2FrameData));
 
   EXPECT_CALL(visitor, OnCommonHeader(1, 5, 0x1, 0x8));
   EXPECT_CALL(visitor, OnHeaders(1, 5, false, 0, 0, false, false, false));
@@ -1039,7 +1041,8 @@ TEST_P(SpdyFramerTest, SettingsWithStreamIdNotZero) {
       0x0a, 0x0b, 0x0c, 0x0d,  //  Value: 168496141
   };
 
-  SpdySerializedFrame frame(kH2FrameData, sizeof(kH2FrameData), false);
+  SpdySerializedFrame frame =
+      MakeSerializedFrame(kH2FrameData, sizeof(kH2FrameData));
 
   // We shouldn't have to read the whole frame before we signal an error.
   EXPECT_CALL(visitor, OnCommonHeader(1, 6, 0x4, 0x0));
@@ -1070,7 +1073,8 @@ TEST_P(SpdyFramerTest, GoawayWithStreamIdNotZero) {
       0x47, 0x41,              // Description
   };
 
-  SpdySerializedFrame frame(kH2FrameData, sizeof(kH2FrameData), false);
+  SpdySerializedFrame frame =
+      MakeSerializedFrame(kH2FrameData, sizeof(kH2FrameData));
 
   // We shouldn't have to read the whole frame before we signal an error.
   EXPECT_CALL(visitor, OnCommonHeader(1, 10, 0x7, 0x0));
@@ -2501,7 +2505,8 @@ TEST_P(SpdyFramerTest, SendUnexpectedContinuation) {
   };
   // frame-format on
 
-  SpdySerializedFrame frame(kH2FrameData, sizeof(kH2FrameData), false);
+  SpdySerializedFrame frame =
+      MakeSerializedFrame(kH2FrameData, sizeof(kH2FrameData));
 
   // We shouldn't have to read the whole frame before we signal an error.
   EXPECT_CALL(visitor, OnCommonHeader(42, 18, 0x9, 0x4));
@@ -2853,7 +2858,8 @@ TEST_P(SpdyFramerTest, MultipleContinuationFramesWithIterator) {
 
   EXPECT_TRUE(frame_it.HasNextFrame());
   EXPECT_GT(frame_it.NextFrame(&output_), 0u);
-  SpdySerializedFrame headers_frame(output_.Begin(), output_.Size(), false);
+  SpdySerializedFrame headers_frame =
+      MakeSerializedFrame(output_.Begin(), output_.Size());
   EXPECT_EQ(headers_frame.size(), kHttp2MaxControlFrameSendSize);
 
   TestSpdyVisitor visitor(SpdyFramer::DISABLE_COMPRESSION);
@@ -2869,7 +2875,8 @@ TEST_P(SpdyFramerTest, MultipleContinuationFramesWithIterator) {
   output_.Reset();
   EXPECT_TRUE(frame_it.HasNextFrame());
   EXPECT_GT(frame_it.NextFrame(&output_), 0u);
-  SpdySerializedFrame first_cont_frame(output_.Begin(), output_.Size(), false);
+  SpdySerializedFrame first_cont_frame =
+      MakeSerializedFrame(output_.Begin(), output_.Size());
   EXPECT_EQ(first_cont_frame.size(), kHttp2MaxControlFrameSendSize);
 
   visitor.SimulateInFramer(
@@ -2884,7 +2891,8 @@ TEST_P(SpdyFramerTest, MultipleContinuationFramesWithIterator) {
   output_.Reset();
   EXPECT_TRUE(frame_it.HasNextFrame());
   EXPECT_GT(frame_it.NextFrame(&output_), 0u);
-  SpdySerializedFrame second_cont_frame(output_.Begin(), output_.Size(), false);
+  SpdySerializedFrame second_cont_frame =
+      MakeSerializedFrame(output_.Begin(), output_.Size());
   EXPECT_LT(second_cont_frame.size(), kHttp2MaxControlFrameSendSize);
 
   visitor.SimulateInFramer(
@@ -2919,8 +2927,8 @@ TEST_P(SpdyFramerTest, PushPromiseFramesWithIterator) {
 
   EXPECT_TRUE(frame_it.HasNextFrame());
   EXPECT_GT(frame_it.NextFrame(&output_), 0u);
-  SpdySerializedFrame push_promise_frame(output_.Begin(), output_.Size(),
-                                         false);
+  SpdySerializedFrame push_promise_frame =
+      MakeSerializedFrame(output_.Begin(), output_.Size());
   EXPECT_EQ(push_promise_frame.size(), kHttp2MaxControlFrameSendSize);
 
   TestSpdyVisitor visitor(SpdyFramer::DISABLE_COMPRESSION);
@@ -2936,7 +2944,8 @@ TEST_P(SpdyFramerTest, PushPromiseFramesWithIterator) {
   EXPECT_TRUE(frame_it.HasNextFrame());
   output_.Reset();
   EXPECT_GT(frame_it.NextFrame(&output_), 0u);
-  SpdySerializedFrame first_cont_frame(output_.Begin(), output_.Size(), false);
+  SpdySerializedFrame first_cont_frame =
+      MakeSerializedFrame(output_.Begin(), output_.Size());
 
   EXPECT_EQ(first_cont_frame.size(), kHttp2MaxControlFrameSendSize);
   visitor.SimulateInFramer(
@@ -2951,7 +2960,8 @@ TEST_P(SpdyFramerTest, PushPromiseFramesWithIterator) {
   EXPECT_TRUE(frame_it.HasNextFrame());
   output_.Reset();
   EXPECT_GT(frame_it.NextFrame(&output_), 0u);
-  SpdySerializedFrame second_cont_frame(output_.Begin(), output_.Size(), false);
+  SpdySerializedFrame second_cont_frame =
+      MakeSerializedFrame(output_.Begin(), output_.Size());
   EXPECT_LT(second_cont_frame.size(), kHttp2MaxControlFrameSendSize);
 
   visitor.SimulateInFramer(
