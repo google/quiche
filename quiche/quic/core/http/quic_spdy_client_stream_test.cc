@@ -12,6 +12,7 @@
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/http/spdy_utils.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -114,6 +115,8 @@ TEST_P(QuicSpdyClientStreamTest, TestReceivingIllegalResponseStatusCode) {
                               headers);
   EXPECT_THAT(stream_->stream_error(),
               IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
+  EXPECT_EQ(stream_->ietf_application_error(),
+            static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR));
 }
 
 TEST_P(QuicSpdyClientStreamTest, InvalidResponseHeader) {
@@ -126,6 +129,8 @@ TEST_P(QuicSpdyClientStreamTest, InvalidResponseHeader) {
                               headers);
   EXPECT_THAT(stream_->stream_error(),
               IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
+  EXPECT_EQ(stream_->ietf_application_error(),
+            static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR));
 }
 
 TEST_P(QuicSpdyClientStreamTest, MissingStatusCode) {
@@ -138,6 +143,8 @@ TEST_P(QuicSpdyClientStreamTest, MissingStatusCode) {
                               headers);
   EXPECT_THAT(stream_->stream_error(),
               IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
+  EXPECT_EQ(stream_->ietf_application_error(),
+            static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR));
 }
 
 TEST_P(QuicSpdyClientStreamTest, TestFraming) {
@@ -164,6 +171,8 @@ TEST_P(QuicSpdyClientStreamTest, HostAllowedInResponseHeader) {
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
                               headers);
   EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_NO_ERROR));
+  EXPECT_EQ(stream_->ietf_application_error(),
+            static_cast<uint64_t>(QuicHttp3ErrorCode::HTTP3_NO_ERROR));
 }
 
 TEST_P(QuicSpdyClientStreamTest, Test100ContinueBeforeSuccessful) {
@@ -341,6 +350,8 @@ TEST_P(QuicSpdyClientStreamTest,
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
 
   EXPECT_NE(QUIC_STREAM_NO_ERROR, stream_->stream_error());
+  EXPECT_EQ(stream_->ietf_application_error(),
+            static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR));
 }
 
 // Test that receiving trailing headers (on the headers stream), containing a

@@ -506,6 +506,9 @@ class QUICHE_EXPORT QuicSession
 
   // Returns the Google QUIC error code
   QuicErrorCode error() const { return on_closed_frame_.quic_error_code; }
+  // The error code on the wire.  For Google QUIC frames, this has the same
+  // value as `error()`.
+  uint64_t wire_error() const { return on_closed_frame_.wire_error_code; }
   const std::string& error_details() const {
     return on_closed_frame_.error_details;
   }
