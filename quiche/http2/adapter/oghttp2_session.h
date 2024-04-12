@@ -365,6 +365,13 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   // streams, returns zero.
   Http2StreamId GetNextReadyStream();
 
+  int32_t SubmitRequestInternal(absl::Span<const Header> headers,
+                                std::unique_ptr<DataFrameSource> data_source,
+                                void* user_data);
+  int SubmitResponseInternal(Http2StreamId stream_id,
+                             absl::Span<const Header> headers,
+                             std::unique_ptr<DataFrameSource> data_source);
+
   // Sends the buffered connection preface or serialized frame data, if any.
   SendResult MaybeSendBufferedData();
 
@@ -446,6 +453,17 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   // Updates stream receive window managers to use the newly advertised stream
   // initial window.
   void UpdateStreamReceiveWindowSizes(uint32_t new_value);
+
+  // Returns true if the given stream has additional data to write before
+  // trailers or the end of the stream.
+  bool HasMoreData(const StreamState& stream_state) const;
+
+  // Returns true if the given stream has data ready to write. Trailers are
+  // considered separately.
+  bool IsReadyToWriteData(const StreamState& stream_state) const;
+
+  // Abandons any remaining data, e.g. on stream reset.
+  void AbandonData(StreamState& stream_state);
 
   // Gathers information required to construct a DATA frame header.
   struct DataFrameInfo {
