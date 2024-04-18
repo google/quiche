@@ -36,17 +36,26 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   // BlindSignMessageInterface callbacks.
   // Callers can make multiple concurrent requests to GetTokens.
   void GetTokens(std::optional<std::string> oauth_token, int num_tokens,
-                 ProxyLayer proxy_layer, SignedTokenCallback callback) override;
+                 ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
+                 SignedTokenCallback callback) override;
+
+  // Returns signed unblinded tokens and their expiration time in a callback.
+  // This function sends BlindSignAuthServiceType::kChromeIpBlinding by default
+  // for compatibility.
+  void GetTokens(std::string oauth_token, int num_tokens,
+                 ProxyLayer proxy_layer, SignedTokenCallback callback);
 
  private:
   void GetInitialDataCallback(std::optional<std::string> oauth_token,
                               int num_tokens, ProxyLayer proxy_layer,
+                              BlindSignAuthServiceType service_type,
                               SignedTokenCallback callback,
                               absl::StatusOr<BlindSignHttpResponse> response);
   void GeneratePrivacyPassTokens(
       privacy::ppn::GetInitialDataResponse initial_data_response,
       std::optional<std::string> oauth_token, int num_tokens,
-      ProxyLayer proxy_layer, SignedTokenCallback callback);
+      ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
+      SignedTokenCallback callback);
   void PrivacyPassAuthAndSignCallback(
       std::string encoded_extensions, absl::Time public_key_expiry_time,
       anonymous_tokens::AnonymousTokensUseCase use_case,
@@ -62,6 +71,9 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   BlindSignMessageInterface* http_fetcher_ = nullptr;
   privacy::ppn::BlindSignAuthOptions auth_options_;
 };
+
+std::string BlindSignAuthServiceTypeToString(
+    quiche::BlindSignAuthServiceType service_type);
 
 }  // namespace quiche
 

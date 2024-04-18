@@ -46,13 +46,21 @@ constexpr absl::string_view kIssuerHostname =
 
 }  // namespace
 
+void BlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
+                              ProxyLayer proxy_layer,
+                              SignedTokenCallback callback) {
+  GetTokens(oauth_token, num_tokens, proxy_layer,
+            BlindSignAuthServiceType::kChromeIpBlinding, std::move(callback));
+}
+
 void BlindSignAuth::GetTokens(std::optional<std::string> oauth_token,
                               int num_tokens, ProxyLayer proxy_layer,
+                              BlindSignAuthServiceType service_type,
                               SignedTokenCallback callback) {
   // Create GetInitialData RPC.
   privacy::ppn::GetInitialDataRequest request;
   request.set_use_attestation(false);
-  request.set_service_type("chromeipblinding");
+  request.set_service_type(BlindSignAuthServiceTypeToString(service_type));
   request.set_location_granularity(
       privacy::ppn::GetInitialDataRequest_LocationGranularity_CITY_GEOS);
   // Validation version must be 2 to use ProxyLayer.
@@ -63,14 +71,15 @@ void BlindSignAuth::GetTokens(std::optional<std::string> oauth_token,
   std::string body = request.SerializeAsString();
   BlindSignHttpCallback initial_data_callback = absl::bind_front(
       &BlindSignAuth::GetInitialDataCallback, this, oauth_token, num_tokens,
-      proxy_layer, std::move(callback));
+      proxy_layer, service_type, std::move(callback));
   http_fetcher_->DoRequest(BlindSignHttpRequestType::kGetInitialData,
                            oauth_token, body, std::move(initial_data_callback));
 }
 
 void BlindSignAuth::GetInitialDataCallback(
     std::optional<std::string> oauth_token, int num_tokens,
-    ProxyLayer proxy_layer, SignedTokenCallback callback,
+    ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
+    SignedTokenCallback callback,
     absl::StatusOr<BlindSignHttpResponse> response) {
   if (!response.ok()) {
     QUICHE_LOG(WARNING) << "GetInitialDataRequest failed: "
@@ -103,7 +112,8 @@ void BlindSignAuth::GetInitialDataCallback(
   if (use_privacy_pass_client) {
     QUICHE_DVLOG(1) << "Using Privacy Pass client";
     GeneratePrivacyPassTokens(initial_data_response, std::move(oauth_token),
-                              num_tokens, proxy_layer, std::move(callback));
+                              num_tokens, proxy_layer, service_type,
+                              std::move(callback));
   } else {
     QUICHE_LOG(ERROR) << "Non-Privacy Pass tokens are no longer supported";
     std::move(callback)(absl::UnimplementedError(
@@ -114,7 +124,8 @@ void BlindSignAuth::GetInitialDataCallback(
 void BlindSignAuth::GeneratePrivacyPassTokens(
     privacy::ppn::GetInitialDataResponse initial_data_response,
     std::optional<std::string> oauth_token, int num_tokens,
-    ProxyLayer proxy_layer, SignedTokenCallback callback) {
+    ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
+    SignedTokenCallback callback) {
   // Set up values used in the token generation loop.
   anonymous_tokens::RSAPublicKey public_key_proto;
   if (!public_key_proto.ParseFromString(
@@ -219,7 +230,7 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
   }
 
   privacy::ppn::AuthAndSignRequest sign_request;
-  sign_request.set_service_type("chromeipblinding");
+  sign_request.set_service_type(BlindSignAuthServiceTypeToString(service_type));
   sign_request.set_key_type(privacy::ppn::AT_PUBLIC_METADATA_KEY_TYPE);
   sign_request.set_key_version(
       initial_data_response.at_public_metadata_public_key().key_version());
@@ -380,6 +391,21 @@ privacy::ppn::ProxyLayer BlindSignAuth::QuicheProxyLayerToPpnProxyLayer(
     }
     case ProxyLayer::kProxyB: {
       return privacy::ppn::ProxyLayer::PROXY_B;
+    }
+  }
+}
+
+std::string BlindSignAuthServiceTypeToString(
+    quiche::BlindSignAuthServiceType service_type) {
+  switch (service_type) {
+    case BlindSignAuthServiceType::kChromeIpBlinding: {
+      return "chromeipblinding";
+    }
+    case BlindSignAuthServiceType::kCronetIpBlinding: {
+      return "cronetipblinding";
+    }
+    case BlindSignAuthServiceType::kWebviewIpBlinding: {
+      return "webviewipblinding";
     }
   }
 }

@@ -22,6 +22,14 @@ enum class ProxyLayer : int {
   kProxyB,
 };
 
+// BlindSignAuthServiceType indicates which service that tokens will be
+// authenticated with.
+enum class BlindSignAuthServiceType {
+  kChromeIpBlinding,
+  kCronetIpBlinding,
+  kWebviewIpBlinding,
+};
+
 // A BlindSignToken is used to authenticate a request to a privacy proxy.
 // The token string contains a serialized SpendTokenData proto.
 // The token cannot be successfully redeemed after the expiration time.
@@ -41,6 +49,7 @@ class QUICHE_EXPORT BlindSignAuthInterface {
   // Returns signed unblinded tokens in a callback. Tokens are single-use.
   virtual void GetTokens(std::optional<std::string> oauth_token, int num_tokens,
                          ProxyLayer proxy_layer,
+                         BlindSignAuthServiceType service_type,
                          SignedTokenCallback callback) = 0;
 };
 

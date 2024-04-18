@@ -40,7 +40,8 @@ class QUICHE_EXPORT CachedBlindSignAuth : public BlindSignAuthInterface {
   // The GetTokens callback must not acquire any locks that the calling thread
   // owns, otherwise the callback will deadlock.
   void GetTokens(std::optional<std::string> oauth_token, int num_tokens,
-                 ProxyLayer proxy_layer, SignedTokenCallback callback) override;
+                 ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
+                 SignedTokenCallback callback) override;
 
   // Removes all tokens in the cache.
   void ClearCache() {

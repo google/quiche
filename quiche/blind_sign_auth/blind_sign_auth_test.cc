@@ -162,9 +162,7 @@ class BlindSignAuthTest : public QuicheTest {
         std::make_unique<BlindSignAuth>(&mock_http_interface_, options);
   }
 
-  void TearDown() override {
-    blind_sign_auth_.reset(nullptr);
-  }
+  void TearDown() override { blind_sign_auth_.reset(nullptr); }
 
  public:
   void CreateSignResponse(const std::string& body, bool use_privacy_pass) {
@@ -285,6 +283,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
         done.Notify();
       };
   blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              BlindSignAuthServiceType::kChromeIpBlinding,
                               std::move(callback));
   done.WaitForNotification();
 }
@@ -317,6 +316,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadGetInitialDataResponse) {
         done.Notify();
       };
   blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              BlindSignAuthServiceType::kChromeIpBlinding,
                               std::move(callback));
   done.WaitForNotification();
 }
@@ -360,6 +360,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
         done.Notify();
       };
   blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              BlindSignAuthServiceType::kChromeIpBlinding,
                               std::move(callback));
   done.WaitForNotification();
 }
@@ -402,6 +403,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
         done.Notify();
       };
   blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              BlindSignAuthServiceType::kChromeIpBlinding,
                               std::move(callback));
   done.WaitForNotification();
 }
@@ -439,6 +441,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensFailsWithBadExtensions) {
         done.Notify();
       };
   blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
+                              BlindSignAuthServiceType::kChromeIpBlinding,
                               std::move(callback));
   done.WaitForNotification();
 }
