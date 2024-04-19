@@ -87,7 +87,7 @@ std::unique_ptr<MasqueClient> MasqueClient::Create(
     return nullptr;
   }
 
-  masque_client->set_initial_max_packet_length(kMasqueMaxOuterPacketSize);
+  masque_client->set_initial_max_packet_length(kDefaultMaxPacketSizeForTunnels);
   masque_client->set_drop_response_body(false);
   if (!masque_client->Initialize()) {
     QUIC_LOG(ERROR) << "Failed to initialize masque_client";

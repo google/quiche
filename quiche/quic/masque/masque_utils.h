@@ -28,7 +28,6 @@ QUIC_NO_EXPORT QuicConfig MasqueEncapsulatedConfig();
 // Maximum packet size for encapsulated connections.
 enum : QuicByteCount {
   kMasqueMaxEncapsulatedPacketSize = 1250,
-  kMasqueMaxOuterPacketSize = 1350,
   kMasqueIpPacketBufferSize = 1501,
   // Enough for a VLAN tag, but not Stacked VLANs.
   kMasqueEthernetFrameBufferSize = 1523,

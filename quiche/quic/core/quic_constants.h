@@ -30,6 +30,12 @@ inline constexpr uint64_t kNumMicrosPerSecond =
 inline constexpr uint32_t kDefaultNumConnections = 2;
 // Default initial maximum size in bytes of a QUIC packet.
 inline constexpr QuicByteCount kDefaultMaxPacketSize = 1250;
+// Tunnels (such as MASQUE and QBONE) reduce the inner MTU so they work best
+// with a higher outer MTU. This means that outer connections could fail on some
+// networks where the UDP MTU is between 1250 and 1350, but allows inner QUIC
+// connections to still have 1200 bytes of UDP MTU, even if we apply two nested
+// levels of connect-udp proxying, as we do for IP Protection.
+inline constexpr QuicByteCount kDefaultMaxPacketSizeForTunnels = 1350;
 // Default initial maximum size in bytes of a QUIC packet for servers.
 inline constexpr QuicByteCount kDefaultServerMaxPacketSize = 1000;
 // Maximum transmission unit on Ethernet.
