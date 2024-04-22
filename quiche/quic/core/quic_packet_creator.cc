@@ -1352,6 +1352,7 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
   // - It is not a retransmission. We check next_transmission_type_ for that.
   // - And it's not handshake data. This is always true for ConsumeData because
   //   the function is not called for handshake data.
+  const size_t original_write_length = write_length;
   if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4) &&
       next_transmission_type_ == NOT_RETRANSMISSION) {
     if (QuicByteCount send_window = delegate_->GetFlowControlSendWindowSize(id);
@@ -1381,7 +1382,7 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
   }
 
   if (!fin && (write_length == 0)) {
-    QUIC_BUG(quic_bug_10752_22)
+    QUIC_BUG_IF(quic_bug_10752_22, original_write_length == 0)
         << ENDPOINT
         << "Attempt to consume empty data without FIN. old transmission type:"
         << next_transmission_type
