@@ -13,11 +13,13 @@
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/masque/masque_client_session.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/quic/tools/quic_client_default_network_helper.h"
 #include "quiche/quic/tools/quic_default_client.h"
 
 namespace quic {
@@ -26,7 +28,8 @@ namespace quic {
 class QUIC_NO_EXPORT MasqueClient : public QuicDefaultClient,
                                     public MasqueClientSession::Owner {
  public:
-  // Constructs a MasqueClient, performs a synchronous DNS lookup.
+  // Constructs an underlying-only MasqueClient, performs a synchronous DNS
+  // lookup.
   static std::unique_ptr<MasqueClient> Create(
       const std::string& uri_template, MasqueMode masque_mode,
       QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier);
@@ -46,14 +49,33 @@ class QUIC_NO_EXPORT MasqueClient : public QuicDefaultClient,
   void OnSettingsReceived() override;
 
   MasqueMode masque_mode() const { return masque_mode_; }
+  std::string uri_template() const { return uri_template_; }
+
+  // Initializes the client, sets properties, connects and waits for settings.
+  bool Prepare(QuicByteCount max_packet_size);
+
+ protected:
+  // Constructor for when this is only an encapsulated client.
+  MasqueClient(QuicSocketAddress server_address, const QuicServerId& server_id,
+               QuicEventLoop* event_loop, const QuicConfig& config,
+               std::unique_ptr<QuicClientDefaultNetworkHelper> network_helper,
+               std::unique_ptr<ProofVerifier> proof_verifier);
+  // Constructor for when this client is both encapsulated and underlying.
+  // Should only be used by MasqueEncapsulatedClient.
+  MasqueClient(QuicSocketAddress server_address, const QuicServerId& server_id,
+               MasqueMode masque_mode, QuicEventLoop* event_loop,
+               const QuicConfig& config,
+               std::unique_ptr<QuicClientDefaultNetworkHelper> network_helper,
+               std::unique_ptr<ProofVerifier> proof_verifier,
+               const std::string& uri_template);
 
  private:
-  // Constructor is private, use Create() instead.
+  // Constructor for when this is only an underlying client.
+  // This constructor is private, use Create() instead.
   MasqueClient(QuicSocketAddress server_address, const QuicServerId& server_id,
                MasqueMode masque_mode, QuicEventLoop* event_loop,
                std::unique_ptr<ProofVerifier> proof_verifier,
                const std::string& uri_template);
-
   // Wait synchronously until we receive the peer's settings. Returns whether
   // they were received.
   bool WaitUntilSettingsReceived();

@@ -75,6 +75,14 @@ MasqueClientSession::MasqueClientSession(
   (void)masque_mode_;
 }
 
+MasqueClientSession::MasqueClientSession(
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
+    QuicConnection* connection, const QuicServerId& server_id,
+    QuicCryptoClientConfig* crypto_config, Owner* owner)
+    : QuicSpdyClientSession(config, supported_versions, connection, server_id,
+                            crypto_config),
+      owner_(owner) {}
+
 void MasqueClientSession::OnMessageAcked(QuicMessageId message_id,
                                          QuicTime /*receive_timestamp*/) {
   QUIC_DVLOG(1) << "Received ack for DATAGRAM frame " << message_id;
@@ -110,7 +118,8 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
                         &parsed_uri_template);
   if (!parsed_uri_template.path.is_nonempty()) {
     QUIC_BUG(bad URI template path)
-        << "Cannot parse path from URI template " << uri_template_;
+        << connection_id() << ": Cannot parse path from URI template \""
+        << uri_template_ << "\"";
     return nullptr;
   }
   std::string path = uri_template_.substr(parsed_uri_template.path.begin,
@@ -487,7 +496,7 @@ void MasqueClientSession::OnStreamClosed(QuicStreamId stream_id) {
 }
 
 bool MasqueClientSession::OnSettingsFrame(const SettingsFrame& frame) {
-  QUIC_DLOG(INFO) << "Received SETTINGS: " << frame;
+  QUIC_DLOG(INFO) << connection_id() << " Received SETTINGS: " << frame;
   if (!QuicSpdyClientSession::OnSettingsFrame(frame)) {
     QUIC_DLOG(ERROR) << "Failed to parse received settings";
     return false;

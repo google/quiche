@@ -30,10 +30,11 @@ namespace quic {
 // MASQUE session, as opposed to regular QUIC packets. Multiple encapsulated
 // sessions can coexist inside a MASQUE session.
 class QUIC_NO_EXPORT MasqueEncapsulatedClientSession
-    : public QuicSpdyClientSession,
+    : public MasqueClientSession,
       public MasqueClientSession::EncapsulatedClientSession,
       public MasqueClientSession::EncapsulatedIpSession {
  public:
+  // Constructor for when this is only an encapsulated session.
   // Takes ownership of |connection|, but not of |crypto_config| or
   // |masque_client_session|. All pointers must be non-null. Caller must ensure
   // that |masque_client_session| stays valid for the lifetime of the newly
@@ -43,7 +44,18 @@ class QUIC_NO_EXPORT MasqueEncapsulatedClientSession
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection, const QuicServerId& server_id,
       QuicCryptoClientConfig* crypto_config,
-      MasqueClientSession* masque_client_session);
+      MasqueClientSession* masque_client_session,
+      MasqueClientSession::Owner* owner);
+
+  // Constructor for when this session is both encapsulated and underlying.
+  MasqueEncapsulatedClientSession(
+      MasqueMode masque_mode, const std::string& uri_template,
+      const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection, const QuicServerId& server_id,
+      QuicCryptoClientConfig* crypto_config,
+      MasqueClientSession* masque_client_session,
+      MasqueClientSession::Owner* owner);
 
   // Disallow copy and assign.
   MasqueEncapsulatedClientSession(const MasqueEncapsulatedClientSession&) =

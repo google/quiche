@@ -11,7 +11,6 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -22,12 +21,7 @@ namespace quic {
 // List of QUIC versions that support MASQUE. Currently restricted to IETF QUIC.
 QUIC_NO_EXPORT ParsedQuicVersionVector MasqueSupportedVersions();
 
-// Default QuicConfig for use with MASQUE. Sets a custom max_packet_size.
-QUIC_NO_EXPORT QuicConfig MasqueEncapsulatedConfig();
-
-// Maximum packet size for encapsulated connections.
 enum : QuicByteCount {
-  kMasqueMaxEncapsulatedPacketSize = 1250,
   kMasqueIpPacketBufferSize = 1501,
   // Enough for a VLAN tag, but not Stacked VLANs.
   kMasqueEthernetFrameBufferSize = 1523,

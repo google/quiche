@@ -44,12 +44,6 @@ ParsedQuicVersionVector MasqueSupportedVersions() {
   return versions;
 }
 
-QuicConfig MasqueEncapsulatedConfig() {
-  QuicConfig config;
-  config.SetMaxPacketSizeToSend(kMasqueMaxEncapsulatedPacketSize);
-  return config;
-}
-
 std::string MasqueModeToString(MasqueMode masque_mode) {
   switch (masque_mode) {
     case MasqueMode::kInvalid:

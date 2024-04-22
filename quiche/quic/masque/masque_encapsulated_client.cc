@@ -12,10 +12,12 @@
 #include <string>
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_session.h"
@@ -30,6 +32,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_client_default_network_helper.h"
 #include "quiche/quic/tools/quic_default_client.h"
+#include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
@@ -212,7 +215,9 @@ class MasquePacketWriter : public QuicPacketWriter {
 
   QuicByteCount GetMaxPacketSize(
       const QuicSocketAddress& /*peer_address*/) const override {
-    return kMasqueMaxEncapsulatedPacketSize;
+    // This is only used as a min against the other limits, so we set it to the
+    // maximum value so it doesn't reduce the MTU.
+    return kDefaultMaxPacketSizeForTunnels;
   }
 
   bool SupportsReleaseTime() const override { return false; }
@@ -249,15 +254,50 @@ class MasqueClientDefaultNetworkHelper : public QuicClientDefaultNetworkHelper {
 
 }  // namespace
 
+// static
+std::unique_ptr<MasqueEncapsulatedClient> MasqueEncapsulatedClient::Create(
+    QuicSocketAddress server_address, const QuicServerId& server_id,
+    const std::string& uri_template, MasqueMode masque_mode,
+    QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier,
+    MasqueClient* underlying_masque_client) {
+  // Use absl::WrapUnique instead of std::make_unique because constructor is
+  // private and therefore not accessible from make_unique.
+  auto masque_client = absl::WrapUnique(new MasqueEncapsulatedClient(
+      server_address, server_id, masque_mode, event_loop,
+      std::move(proof_verifier), underlying_masque_client, uri_template));
+
+  if (masque_client == nullptr) {
+    QUIC_LOG(ERROR) << "Failed to create masque_client";
+    return nullptr;
+  }
+  if (!masque_client->Prepare(
+          MaxPacketSizeForEncapsulatedConnections(underlying_masque_client))) {
+    return nullptr;
+  }
+  return masque_client;
+}
+
 MasqueEncapsulatedClient::MasqueEncapsulatedClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,
     QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier,
     MasqueClient* masque_client)
-    : QuicDefaultClient(
-          server_address, server_id, MasqueSupportedVersions(),
-          MasqueEncapsulatedConfig(), event_loop,
+    : MasqueClient(
+          server_address, server_id, event_loop,
+          MasqueEncapsulatedConfig(masque_client),
           std::make_unique<MasqueClientDefaultNetworkHelper>(event_loop, this),
           std::move(proof_verifier)),
+      masque_client_(masque_client) {}
+
+MasqueEncapsulatedClient::MasqueEncapsulatedClient(
+    QuicSocketAddress server_address, const QuicServerId& server_id,
+    MasqueMode masque_mode, QuicEventLoop* event_loop,
+    std::unique_ptr<ProofVerifier> proof_verifier, MasqueClient* masque_client,
+    const std::string& uri_template)
+    : MasqueClient(
+          server_address, server_id, masque_mode, event_loop,
+          MasqueEncapsulatedConfig(masque_client),
+          std::make_unique<MasqueClientDefaultNetworkHelper>(event_loop, this),
+          std::move(proof_verifier), uri_template),
       masque_client_(masque_client) {}
 
 MasqueEncapsulatedClient::~MasqueEncapsulatedClient() {
@@ -270,15 +310,40 @@ std::unique_ptr<QuicSession> MasqueEncapsulatedClient::CreateQuicClientSession(
     QuicConnection* connection) {
   QUIC_DLOG(INFO) << "Creating MASQUE encapsulated session for "
                   << connection->connection_id();
+  if (!uri_template().empty()) {
+    return std::make_unique<MasqueEncapsulatedClientSession>(
+        masque_mode(), uri_template(), *config(), supported_versions,
+        connection, server_id(), crypto_config(),
+        masque_client_->masque_client_session(), this);
+  }
   return std::make_unique<MasqueEncapsulatedClientSession>(
       *config(), supported_versions, connection, server_id(), crypto_config(),
-      masque_client_->masque_client_session());
+      masque_client_->masque_client_session(), this);
 }
 
 MasqueEncapsulatedClientSession*
 MasqueEncapsulatedClient::masque_encapsulated_client_session() {
   return static_cast<MasqueEncapsulatedClientSession*>(
       QuicDefaultClient::session());
+}
+
+QuicByteCount MaxPacketSizeForEncapsulatedConnections(
+    MasqueClient* underlying_masque_client) {
+  QuicByteCount max_packet_size =
+      underlying_masque_client->masque_client_session()
+          ->GetGuaranteedLargestMessagePayload() -
+      /* max length of quarter stream ID */ sizeof(QuicStreamId) -
+      /* context ID set to zero */ sizeof(uint8_t);
+  QUICHE_CHECK_GE(max_packet_size, 1200u)
+      << "RFC 9000 requires QUIC max packet size to be above 1200 bytes";
+  return max_packet_size;
+}
+
+QuicConfig MasqueEncapsulatedConfig(MasqueClient* underlying_masque_client) {
+  QuicConfig config;
+  config.SetMaxPacketSizeToSend(
+      MaxPacketSizeForEncapsulatedConnections(underlying_masque_client));
+  return config;
 }
 
 }  // namespace quic

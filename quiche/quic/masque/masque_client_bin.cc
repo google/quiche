@@ -31,6 +31,7 @@
 #include "quiche/quic/masque/masque_client.h"
 #include "quiche/quic/masque/masque_client_session.h"
 #include "quiche/quic/masque/masque_client_tools.h"
+#include "quiche/quic/masque/masque_encapsulated_client.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
@@ -345,35 +346,6 @@ int RunMasqueClient(int argc, char* argv[]) {
   quiche::QuicheSystemEventLoop system_event_loop("masque_client");
   const bool disable_certificate_verification =
       quiche::GetQuicheCommandLineFlag(FLAGS_disable_certificate_verification);
-  std::unique_ptr<QuicEventLoop> event_loop =
-      GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
-
-  std::string uri_template = urls[0];
-  if (!absl::StrContains(uri_template, '/')) {
-    // If an authority is passed in instead of a URI template, use the default
-    // URI template.
-    uri_template =
-        absl::StrCat("https://", uri_template,
-                     "/.well-known/masque/udp/{target_host}/{target_port}/");
-  }
-  url::Parsed parsed_uri_template;
-  url::ParseStandardURL(uri_template.c_str(), uri_template.length(),
-                        &parsed_uri_template);
-  if (!parsed_uri_template.scheme.is_nonempty() ||
-      !parsed_uri_template.host.is_nonempty() ||
-      !parsed_uri_template.path.is_nonempty()) {
-    QUIC_LOG(ERROR) << "Failed to parse MASQUE URI template \"" << urls[0]
-                    << "\"";
-    return 1;
-  }
-  std::string host = uri_template.substr(parsed_uri_template.host.begin,
-                                         parsed_uri_template.host.len);
-  std::unique_ptr<ProofVerifier> proof_verifier;
-  if (disable_certificate_verification) {
-    proof_verifier = std::make_unique<FakeProofVerifier>();
-  } else {
-    proof_verifier = CreateDefaultProofVerifier(host);
-  }
   MasqueMode masque_mode = MasqueMode::kOpen;
   std::string mode_string = quiche::GetQuicheCommandLineFlag(FLAGS_masque_mode);
   if (!mode_string.empty()) {
@@ -402,22 +374,72 @@ int RunMasqueClient(int argc, char* argv[]) {
     QUIC_LOG(ERROR) << "Invalid address_family " << address_family;
     return 1;
   }
-  std::unique_ptr<MasqueClient> masque_client = MasqueClient::Create(
-      uri_template, masque_mode, event_loop.get(), std::move(proof_verifier));
-  if (masque_client == nullptr) {
-    return 1;
-  }
+  const bool dns_on_client =
+      quiche::GetQuicheCommandLineFlag(FLAGS_dns_on_client);
+  std::unique_ptr<QuicEventLoop> event_loop =
+      GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
 
-  QUIC_LOG(INFO) << "MASQUE is connected " << masque_client->connection_id()
-                 << " in " << masque_mode << " mode";
+  std::vector<std::unique_ptr<MasqueClient>> masque_clients;
+  for (absl::string_view uri_template_sv : absl::StrSplit(urls[0], ',')) {
+    std::string uri_template = std::string(uri_template_sv);
+    if (!absl::StrContains(uri_template, '/')) {
+      // If an authority is passed in instead of a URI template, use the default
+      // URI template.
+      uri_template =
+          absl::StrCat("https://", uri_template,
+                       "/.well-known/masque/udp/{target_host}/{target_port}/");
+    }
+    url::Parsed parsed_uri_template;
+    url::ParseStandardURL(uri_template.c_str(), uri_template.length(),
+                          &parsed_uri_template);
+    if (!parsed_uri_template.scheme.is_nonempty() ||
+        !parsed_uri_template.host.is_nonempty() ||
+        !parsed_uri_template.path.is_nonempty()) {
+      QUIC_LOG(ERROR) << "Failed to parse MASQUE URI template \""
+                      << uri_template << "\"";
+      return 1;
+    }
+    std::unique_ptr<MasqueClient> masque_client;
+    if (masque_clients.empty()) {
+      std::string host = uri_template.substr(parsed_uri_template.host.begin,
+                                             parsed_uri_template.host.len);
+      std::unique_ptr<ProofVerifier> proof_verifier;
+      if (disable_certificate_verification) {
+        proof_verifier = std::make_unique<FakeProofVerifier>();
+      } else {
+        proof_verifier = CreateDefaultProofVerifier(host);
+      }
+      masque_client =
+          MasqueClient::Create(uri_template, masque_mode, event_loop.get(),
+                               std::move(proof_verifier));
+    } else {
+      masque_client = tools::CreateAndConnectMasqueEncapsulatedClient(
+          masque_clients.back().get(), masque_mode, event_loop.get(),
+          uri_template, disable_certificate_verification,
+          address_family_for_lookup, dns_on_client,
+          /*is_also_underlying=*/true);
+    }
+    if (masque_client == nullptr) {
+      return 1;
+    }
 
-  masque_client->masque_client_session()->set_additional_headers(
-      quiche::GetQuicheCommandLineFlag(FLAGS_proxy_headers));
-  if (!signature_auth_param.empty()) {
-    masque_client->masque_client_session()->EnableSignatureAuth(
-        signature_auth_key_id, signature_auth_private_key,
-        signature_auth_public_key);
+    QUIC_LOG(INFO) << "MASQUE[" << masque_clients.size() << "] to "
+                   << uri_template << " is connected "
+                   << masque_client->connection_id() << " in " << masque_mode
+                   << " mode";
+
+    masque_client->masque_client_session()->set_additional_headers(
+        quiche::GetQuicheCommandLineFlag(FLAGS_proxy_headers));
+    if (!signature_auth_param.empty()) {
+      masque_client->masque_client_session()->EnableSignatureAuth(
+          signature_auth_key_id, signature_auth_private_key,
+          signature_auth_public_key);
+    }
+    masque_clients.push_back(std::move(masque_client));
   }
+  std::unique_ptr<MasqueClient> masque_client =
+      std::move(masque_clients.back());
+  masque_clients.pop_back();
 
   if (bring_up_tun) {
     QUIC_LOG(INFO) << "Bringing up tun";
@@ -440,9 +462,6 @@ int RunMasqueClient(int argc, char* argv[]) {
     QUICHE_NOTREACHED();
   }
 
-  const bool dns_on_client =
-      quiche::GetQuicheCommandLineFlag(FLAGS_dns_on_client);
-
   for (size_t i = 1; i < urls.size(); ++i) {
     if (absl::StartsWith(urls[i], "/")) {
       QuicSpdyClientStream* stream =
@@ -452,11 +471,16 @@ int RunMasqueClient(int argc, char* argv[]) {
       }
       // Print the response body to stdout.
       std::cout << std::endl << stream->data() << std::endl;
-    } else if (!tools::SendEncapsulatedMasqueRequest(
-                   masque_client.get(), event_loop.get(), urls[i],
-                   disable_certificate_verification, address_family_for_lookup,
-                   dns_on_client)) {
-      return 1;
+    } else {
+      std::unique_ptr<MasqueEncapsulatedClient> encapsulated_client =
+          tools::CreateAndConnectMasqueEncapsulatedClient(
+              masque_client.get(), masque_mode, event_loop.get(), urls[i],
+              disable_certificate_verification, address_family_for_lookup,
+              dns_on_client, /*is_also_underlying=*/false);
+      if (!encapsulated_client || !tools::SendRequestOnMasqueEncapsulatedClient(
+                                      *encapsulated_client, urls[i])) {
+        return 1;
+      }
     }
   }
 

@@ -58,15 +58,15 @@ class FakeAddressRemover {
 
 }  // namespace
 
-bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
-                                   QuicEventLoop* event_loop,
-                                   std::string url_string,
-                                   bool disable_certificate_verification,
-                                   int address_family_for_lookup,
-                                   bool dns_on_client) {
+std::unique_ptr<MasqueEncapsulatedClient>
+CreateAndConnectMasqueEncapsulatedClient(
+    MasqueClient* masque_client, MasqueMode masque_mode,
+    QuicEventLoop* event_loop, std::string url_string,
+    bool disable_certificate_verification, int address_family_for_lookup,
+    bool dns_on_client, bool is_also_underlying) {
   if (!masque_client->masque_client_session()->SupportsH3Datagram()) {
     QUIC_LOG(ERROR) << "Refusing to use MASQUE without datagram support";
-    return false;
+    return nullptr;
   }
   const QuicUrl url(url_string, "https");
   std::unique_ptr<ProofVerifier> proof_verifier;
@@ -84,7 +84,7 @@ bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
                          absl::StrCat(url.port()));
     if (!addr.IsInitialized()) {
       QUIC_LOG(ERROR) << "Unable to resolve address: " << url.host();
-      return false;
+      return nullptr;
     }
   } else {
     quiche::QuicheIpAddress fake_address =
@@ -95,43 +95,44 @@ bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
     QUICHE_CHECK(addr.IsInitialized());
   }
   const QuicServerId server_id(url.host(), url.port());
-  auto client = std::make_unique<MasqueEncapsulatedClient>(
-      addr, server_id, event_loop, std::move(proof_verifier), masque_client);
+  std::unique_ptr<MasqueEncapsulatedClient> client;
+  if (is_also_underlying) {
+    client = MasqueEncapsulatedClient::Create(
+        addr, server_id, url_string, masque_mode, event_loop,
+        std::move(proof_verifier), masque_client);
+  } else {
+    client = std::make_unique<MasqueEncapsulatedClient>(
+        addr, server_id, event_loop, std::move(proof_verifier), masque_client);
+  }
 
   if (client == nullptr) {
     QUIC_LOG(ERROR) << "Failed to create MasqueEncapsulatedClient for "
                     << url_string;
-    return false;
+    return nullptr;
   }
 
-  client->set_initial_max_packet_length(kMasqueMaxEncapsulatedPacketSize);
-  client->set_drop_response_body(false);
-  if (!client->Initialize()) {
-    QUIC_LOG(ERROR) << "Failed to initialize MasqueEncapsulatedClient for "
+  if (!client->Prepare(
+          MaxPacketSizeForEncapsulatedConnections(masque_client))) {
+    QUIC_LOG(ERROR) << "Failed to prepare MasqueEncapsulatedClient for "
                     << url_string;
-    return false;
-  }
-
-  if (!client->Connect()) {
-    QuicErrorCode error = client->session()->error();
-    QUIC_LOG(ERROR) << "Failed to connect with client "
-                    << client->session()->connection()->client_connection_id()
-                    << " server " << client->session()->connection_id()
-                    << " to " << url.HostPort()
-                    << ". Error: " << QuicErrorCodeToString(error);
-    return false;
+    return nullptr;
   }
 
   QUIC_LOG(INFO) << "Connected client "
                  << client->session()->connection()->client_connection_id()
                  << " server " << client->session()->connection_id() << " for "
                  << url_string;
+  return client;
+}
 
+bool SendRequestOnMasqueEncapsulatedClient(MasqueEncapsulatedClient& client,
+                                           std::string url_string) {
+  const QuicUrl url(url_string, "https");
   // Construct the string body from flags, if provided.
   // TODO(dschinazi) Add support for HTTP POST and non-empty bodies.
   const std::string body = "";
 
-  // Construct a GET or POST request for supplied URL.
+  // Construct a GET request for supplied URL.
   spdy::Http2HeaderBlock header_block;
   header_block[":method"] = "GET";
   header_block[":scheme"] = url.scheme();
@@ -139,27 +140,27 @@ bool SendEncapsulatedMasqueRequest(MasqueClient* masque_client,
   header_block[":path"] = url.PathParamsQuery();
 
   // Make sure to store the response, for later output.
-  client->set_store_response(true);
+  client.set_store_response(true);
 
   // Send the MASQUE init request.
-  client->SendRequestAndWaitForResponse(header_block, body,
-                                        /*fin=*/true);
+  client.SendRequestAndWaitForResponse(header_block, body,
+                                       /*fin=*/true);
 
-  if (!client->connected()) {
+  if (!client.connected()) {
     QUIC_LOG(ERROR) << "Request for " << url_string
                     << " caused connection failure. Error: "
-                    << QuicErrorCodeToString(client->session()->error());
+                    << QuicErrorCodeToString(client.session()->error());
     return false;
   }
 
-  const int response_code = client->latest_response_code();
+  const int response_code = client.latest_response_code();
   if (response_code < 200 || response_code >= 300) {
     QUIC_LOG(ERROR) << "Request for " << url_string
                     << " failed with HTTP response code " << response_code;
     return false;
   }
 
-  const std::string response_body = client->latest_response_body();
+  const std::string response_body = client.latest_response_body();
   QUIC_LOG(INFO) << "Request succeeded for " << url_string << std::endl
                  << response_body;
 

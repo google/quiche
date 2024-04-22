@@ -22,6 +22,7 @@
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/quic/tools/quic_client_default_network_helper.h"
 #include "quiche/quic/tools/quic_default_client.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_url.h"
@@ -37,6 +38,27 @@ MasqueClient::MasqueClient(QuicSocketAddress server_address,
                         event_loop, std::move(proof_verifier)),
       masque_mode_(masque_mode),
       uri_template_(uri_template) {}
+
+MasqueClient::MasqueClient(
+    QuicSocketAddress server_address, const QuicServerId& server_id,
+    MasqueMode masque_mode, QuicEventLoop* event_loop, const QuicConfig& config,
+    std::unique_ptr<QuicClientDefaultNetworkHelper> network_helper,
+    std::unique_ptr<ProofVerifier> proof_verifier,
+    const std::string& uri_template)
+    : QuicDefaultClient(server_address, server_id, MasqueSupportedVersions(),
+                        config, event_loop, std::move(network_helper),
+                        std::move(proof_verifier)),
+      masque_mode_(masque_mode),
+      uri_template_(uri_template) {}
+
+MasqueClient::MasqueClient(
+    QuicSocketAddress server_address, const QuicServerId& server_id,
+    QuicEventLoop* event_loop, const QuicConfig& config,
+    std::unique_ptr<QuicClientDefaultNetworkHelper> network_helper,
+    std::unique_ptr<ProofVerifier> proof_verifier)
+    : QuicDefaultClient(server_address, server_id, MasqueSupportedVersions(),
+                        config, event_loop, std::move(network_helper),
+                        std::move(proof_verifier)) {}
 
 std::unique_ptr<QuicSession> MasqueClient::CreateQuicClientSession(
     const ParsedQuicVersionVector& supported_versions,
@@ -86,26 +108,32 @@ std::unique_ptr<MasqueClient> MasqueClient::Create(
     QUIC_LOG(ERROR) << "Failed to create masque_client";
     return nullptr;
   }
-
-  masque_client->set_initial_max_packet_length(kDefaultMaxPacketSizeForTunnels);
-  masque_client->set_drop_response_body(false);
-  if (!masque_client->Initialize()) {
-    QUIC_LOG(ERROR) << "Failed to initialize masque_client";
+  if (!masque_client->Prepare(kDefaultMaxPacketSizeForTunnels)) {
+    QUIC_LOG(ERROR) << "Failed to prepare MASQUE client to " << host << ":"
+                    << port;
     return nullptr;
   }
-  if (!masque_client->Connect()) {
-    QuicErrorCode error = masque_client->session()->error();
-    QUIC_LOG(ERROR) << "Failed to connect to " << host << ":" << port
-                    << ". Error: " << QuicErrorCodeToString(error);
-    return nullptr;
-  }
-
-  if (!masque_client->WaitUntilSettingsReceived()) {
-    QUIC_LOG(ERROR) << "Failed to receive settings";
-    return nullptr;
-  }
-
   return masque_client;
+}
+
+bool MasqueClient::Prepare(QuicByteCount max_packet_size) {
+  set_initial_max_packet_length(max_packet_size);
+  set_drop_response_body(false);
+  if (!Initialize()) {
+    QUIC_LOG(ERROR) << "Failed to initialize MASQUE client";
+    return false;
+  }
+  if (!Connect()) {
+    QuicErrorCode error = session()->error();
+    QUIC_LOG(ERROR) << "Failed to connect. Error: "
+                    << QuicErrorCodeToString(error);
+    return false;
+  }
+  if (!WaitUntilSettingsReceived()) {
+    QUIC_LOG(ERROR) << "Failed to receive settings";
+    return false;
+  }
+  return true;
 }
 
 void MasqueClient::OnSettingsReceived() { settings_received_ = true; }
