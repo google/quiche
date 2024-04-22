@@ -46,13 +46,6 @@ constexpr absl::string_view kIssuerHostname =
 
 }  // namespace
 
-void BlindSignAuth::GetTokens(std::string oauth_token, int num_tokens,
-                              ProxyLayer proxy_layer,
-                              SignedTokenCallback callback) {
-  GetTokens(oauth_token, num_tokens, proxy_layer,
-            BlindSignAuthServiceType::kChromeIpBlinding, std::move(callback));
-}
-
 void BlindSignAuth::GetTokens(std::optional<std::string> oauth_token,
                               int num_tokens, ProxyLayer proxy_layer,
                               BlindSignAuthServiceType service_type,
