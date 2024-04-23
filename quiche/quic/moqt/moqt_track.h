@@ -9,9 +9,11 @@
 #include <optional>
 #include <vector>
 
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace moqt {
 
@@ -22,6 +24,8 @@ class LocalTrack {
    public:
     virtual ~Visitor() = default;
 
+    using PublishPastObjectsCallback = quiche::SingleUseCallback<void()>;
+
     // Requests that application re-publish objects from {start_group,
     // start_object} to the latest object. If the return value is nullopt, the
     // subscribe is valid and the application will deliver the object and
@@ -29,7 +33,7 @@ class LocalTrack {
     // is the error message (the session will send SUBSCRIBE_ERROR). Via this
     // API, the application decides if a partially fulfillable
     // SUBSCRIBE results in an error or not.
-    virtual std::optional<absl::string_view> OnSubscribeForPast(
+    virtual absl::StatusOr<PublishPastObjectsCallback> OnSubscribeForPast(
         const SubscribeWindow& window) = 0;
   };
   // |visitor| must not be nullptr.

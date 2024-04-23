@@ -15,6 +15,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -24,6 +25,7 @@
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_stream.h"
@@ -439,6 +441,44 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
   return (failures == 0);
 }
 
+void MoqtSession::CloseObjectStream(const FullTrackName& full_track_name,
+                                    uint64_t group_id) {
+  auto track_it = local_tracks_.find(full_track_name);
+  if (track_it == local_tracks_.end()) {
+    QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT for nonexistent track";
+    return;
+  }
+  LocalTrack& track = track_it->second;
+
+  MoqtForwardingPreference forwarding_preference =
+      track.forwarding_preference();
+  if (forwarding_preference == MoqtForwardingPreference::kObject ||
+      forwarding_preference == MoqtForwardingPreference::kDatagram) {
+    QUIC_BUG(MoqtSession_CloseStreamObject_wrong_type)
+        << "Forwarding preferences of Object or Datagram require stream to be "
+           "immediately closed, and thus are not valid CloseObjectStream() "
+           "targets";
+    return;
+  }
+
+  std::vector<SubscribeWindow*> subscriptions =
+      track.ShouldSend({group_id, /*object=*/0});
+  for (SubscribeWindow* subscription : subscriptions) {
+    std::optional<webtransport::StreamId> stream_id =
+        subscription->GetStreamForSequence(
+            FullSequence(group_id, /*object=*/0));
+    if (!stream_id.has_value()) {
+      continue;
+    }
+    webtransport::Stream* stream = session_->GetStreamById(*stream_id);
+    if (stream == nullptr) {
+      continue;
+    }
+    bool success = stream->SendFin();
+    QUICHE_BUG_IF(MoqtSession_CloseObjectStream_fin_failed, !success);
+  }
+}
+
 void MoqtSession::Stream::OnCanRead() {
   bool fin =
       quiche::ProcessAllReadableRegions(*stream_, [&](absl::string_view chunk) {
@@ -627,37 +667,39 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
   QUICHE_DCHECK(start.has_value());  // Parser enforces this.
   std::optional<FullSequence> end = session_->LocationToAbsoluteNumber(
       track, message.end_group, message.end_object);
+  LocalTrack::Visitor::PublishPastObjectsCallback publish_past_objects;
+  SubscribeWindow window =
+      end.has_value()
+          ? SubscribeWindow(message.subscribe_id, track.forwarding_preference(),
+                            start->group, start->object, end->group,
+                            end->object)
+          : SubscribeWindow(message.subscribe_id, track.forwarding_preference(),
+                            start->group, start->object);
   if (start < track.next_sequence() && track.visitor() != nullptr) {
-    // TODO: Rework this. It's not good that the session notifies the
-    // application -- presumably triggering the send of a bunch of objects --
-    // and only then sends the Subscribe OK.
-    SubscribeWindow window =
-        end.has_value()
-            ? SubscribeWindow(message.subscribe_id,
-                              track.forwarding_preference(), start->group,
-                              start->object, end->group, end->object)
-            : SubscribeWindow(message.subscribe_id,
-                              track.forwarding_preference(), start->group,
-                              start->object);
-    std::optional<absl::string_view> past_objects_available =
-        track.visitor()->OnSubscribeForPast(window);
-    if (past_objects_available.has_value()) {
+    absl::StatusOr<LocalTrack::Visitor::PublishPastObjectsCallback>
+        past_objects_available = track.visitor()->OnSubscribeForPast(window);
+    if (!past_objects_available.ok()) {
       SendSubscribeError(message, SubscribeErrorCode::kInternalError,
-                         "Object does not exist", message.track_alias);
+                         past_objects_available.status().message(),
+                         message.track_alias);
       return;
     }
+    publish_past_objects = *std::move(past_objects_available);
   }
   MoqtSubscribeOk subscribe_ok;
   subscribe_ok.subscribe_id = message.subscribe_id;
   SendOrBufferMessage(session_->framer_.SerializeSubscribeOk(subscribe_ok));
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << message.track_namespace << ":" << message.track_name;
-  if (!end.has_value()) {
+  if (end.has_value()) {
+    track.AddWindow(message.subscribe_id, start->group, start->object,
+                    end->group, end->object);
+  } else {
     track.AddWindow(message.subscribe_id, start->group, start->object);
-    return;
   }
-  track.AddWindow(message.subscribe_id, start->group, start->object, end->group,
-                  end->object);
+  if (publish_past_objects) {
+    std::move(publish_past_objects)();
+  }
 }
 
 void MoqtSession::Stream::OnSubscribeOkMessage(const MoqtSubscribeOk& message) {

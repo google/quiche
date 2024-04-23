@@ -16,10 +16,12 @@
 #include "quiche/quic/core/quic_generic_session.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
+#include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/test_harness.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -29,6 +31,7 @@ namespace moqt::test {
 namespace {
 
 using ::quic::simulator::Simulator;
+using ::quic::test::MemSliceFromString;
 using ::testing::_;
 using ::testing::Assign;
 using ::testing::Return;
@@ -238,6 +241,48 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
   });
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
+  EXPECT_TRUE(success);
+}
+
+TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDatainResponse) {
+  EstablishSession();
+
+  // Set up the server to subscribe to "data" track for the namespace announce
+  // it receives.
+  MockRemoteTrackVisitor server_visitor;
+  EXPECT_CALL(server_->callbacks().incoming_announce_callback, Call(_))
+      .WillOnce([&](absl::string_view track_namespace) {
+        server_->session()->SubscribeAbsolute(
+            track_namespace, "data", /*start_group=*/0,
+            /*start_object=*/0, &server_visitor);
+        return std::optional<MoqtAnnounceErrorReason>();
+      });
+
+  MoqtOutgoingQueue queue(client_->session(), FullTrackName{"test", "data"});
+  client_->session()->AddLocalTrack(FullTrackName{"test", "data"},
+                                    MoqtForwardingPreference::kGroup, &queue);
+  queue.AddObject(MemSliceFromString("object data"), /*key=*/true);
+  client_->session()->Announce(
+      "test", [](absl::string_view, std::optional<MoqtAnnounceErrorReason>) {});
+
+  bool received_object = false;
+  EXPECT_CALL(server_visitor, OnObjectFragment(_, _, _, _, _, _, _))
+      .WillOnce([&](const FullTrackName& full_track_name,
+                    uint64_t group_sequence, uint64_t object_sequence,
+                    uint64_t /*object_send_order*/,
+                    MoqtForwardingPreference forwarding_preference,
+                    absl::string_view object, bool end_of_message) {
+        EXPECT_EQ(full_track_name.track_namespace, "test");
+        EXPECT_EQ(full_track_name.track_name, "data");
+        EXPECT_EQ(group_sequence, 0u);
+        EXPECT_EQ(object_sequence, 0u);
+        EXPECT_EQ(forwarding_preference, MoqtForwardingPreference::kGroup);
+        EXPECT_EQ(object, "object data");
+        EXPECT_TRUE(end_of_message);
+        received_object = true;
+      });
+  bool success = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return received_object; });
   EXPECT_TRUE(success);
 }
 

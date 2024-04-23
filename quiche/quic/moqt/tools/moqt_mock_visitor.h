@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_session.h"
@@ -40,7 +41,7 @@ struct MockSessionCallbacks {
 
 class MockLocalTrackVisitor : public LocalTrack::Visitor {
  public:
-  MOCK_METHOD(std::optional<absl::string_view>, OnSubscribeForPast,
+  MOCK_METHOD(absl::StatusOr<PublishPastObjectsCallback>, OnSubscribeForPast,
               (const SubscribeWindow& window), (override));
 };
 

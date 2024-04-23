@@ -54,6 +54,11 @@ class QUICHE_EXPORT SubscribeWindow {
 
   void RemoveStream(uint64_t group_id, uint64_t object_id);
 
+  bool HasEnd() const { return end_.has_value(); }
+  MoqtForwardingPreference forwarding_preference() const {
+    return forwarding_preference_;
+  }
+
  private:
   // Converts an object sequence number into one that matches the way that
   // stream IDs are being mapped. (See the comment for send_streams_ below.)

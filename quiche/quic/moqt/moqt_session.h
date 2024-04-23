@@ -130,7 +130,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   bool PublishObject(const FullTrackName& full_track_name, uint64_t group_id,
                      uint64_t object_id, uint64_t object_send_order,
                      absl::string_view payload, bool end_of_stream);
-  // TODO: Add an API to FIN the stream for a particular track/group/object.
+  void CloseObjectStream(const FullTrackName& full_track_name,
+                         uint64_t group_id);
   // TODO: Add an API to send partial objects.
 
   MoqtSessionCallbacks& callbacks() { return callbacks_; }

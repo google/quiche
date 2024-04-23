@@ -1497,6 +1497,7 @@
   "moqt_hdrs": [
     "quiche/quic/moqt/moqt_framer.h",
     "quiche/quic/moqt/moqt_messages.h",
+    "quiche/quic/moqt/moqt_outgoing_queue.h",
     "quiche/quic/moqt/moqt_parser.h",
     "quiche/quic/moqt/moqt_session.h",
     "quiche/quic/moqt/moqt_subscribe_windows.h",
@@ -1511,6 +1512,8 @@
     "quiche/quic/moqt/moqt_framer_test.cc",
     "quiche/quic/moqt/moqt_integration_test.cc",
     "quiche/quic/moqt/moqt_messages.cc",
+    "quiche/quic/moqt/moqt_outgoing_queue.cc",
+    "quiche/quic/moqt/moqt_outgoing_queue_test.cc",
     "quiche/quic/moqt/moqt_parser.cc",
     "quiche/quic/moqt/moqt_parser_test.cc",
     "quiche/quic/moqt/moqt_session.cc",

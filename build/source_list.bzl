@@ -1494,6 +1494,7 @@ load_balancer_srcs = [
 moqt_hdrs = [
     "quic/moqt/moqt_framer.h",
     "quic/moqt/moqt_messages.h",
+    "quic/moqt/moqt_outgoing_queue.h",
     "quic/moqt/moqt_parser.h",
     "quic/moqt/moqt_session.h",
     "quic/moqt/moqt_subscribe_windows.h",
@@ -1508,6 +1509,8 @@ moqt_srcs = [
     "quic/moqt/moqt_framer_test.cc",
     "quic/moqt/moqt_integration_test.cc",
     "quic/moqt/moqt_messages.cc",
+    "quic/moqt/moqt_outgoing_queue.cc",
+    "quic/moqt/moqt_outgoing_queue_test.cc",
     "quic/moqt/moqt_parser.cc",
     "quic/moqt/moqt_parser_test.cc",
     "quic/moqt/moqt_session.cc",

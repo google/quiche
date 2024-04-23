@@ -456,8 +456,8 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
   std::unique_ptr<MoqtParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
   bool correct_message = true;
-  EXPECT_CALL(local_track_visitor, OnSubscribeForPast(_))
-      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(local_track_visitor, OnSubscribeForPast(_)).WillOnce(Return([] {
+  }));
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
