@@ -54,7 +54,7 @@ QuicAlarmFactory* QuicDispatcherPeer::GetAlarmFactory(
 }
 
 // static
-QuicDispatcher::WriteBlockedList* QuicDispatcherPeer::GetWriteBlockedList(
+QuicBlockedWriterList* QuicDispatcherPeer::GetWriteBlockedList(
     QuicDispatcher* dispatcher) {
   return &dispatcher->write_blocked_list_;
 }

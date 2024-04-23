@@ -26,6 +26,7 @@
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_blocked_writer_interface.h"
+#include "quiche/quic/core/quic_blocked_writer_list.h"
 #include "quiche/quic/core/quic_buffered_packet_store.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -58,10 +59,6 @@ class QUICHE_EXPORT QuicDispatcher
       public ProcessPacketInterface,
       public QuicBufferedPacketStore::VisitorInterface {
  public:
-  // Ideally we'd have a linked_hash_set: the  boolean is unused.
-  using WriteBlockedList =
-      quiche::QuicheLinkedHashMap<QuicBlockedWriterInterface*, bool>;
-
   QuicDispatcher(
       const QuicConfig* config, const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
@@ -419,7 +416,7 @@ class QUICHE_EXPORT QuicDispatcher
   QuicCompressedCertsCache compressed_certs_cache_;
 
   // The list of connections waiting to write.
-  WriteBlockedList write_blocked_list_;
+  QuicBlockedWriterList write_blocked_list_;
 
   ReferenceCountedSessionMap reference_counted_session_map_;
 

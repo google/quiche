@@ -37,8 +37,7 @@ class QuicDispatcherPeer {
 
   static QuicAlarmFactory* GetAlarmFactory(QuicDispatcher* dispatcher);
 
-  static QuicDispatcher::WriteBlockedList* GetWriteBlockedList(
-      QuicDispatcher* dispatcher);
+  static QuicBlockedWriterList* GetWriteBlockedList(QuicDispatcher* dispatcher);
 
   // Get the dispatcher's record of the last error reported to its framer
   // visitor's OnError() method.  Then set that record to QUIC_NO_ERROR.
