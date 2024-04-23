@@ -1625,14 +1625,15 @@ blind_sign_auth_hdrs = [
     "blind_sign_auth/blind_sign_auth.h",
     "blind_sign_auth/blind_sign_auth_interface.h",
     "blind_sign_auth/blind_sign_auth_protos.h",
-    "blind_sign_auth/blind_sign_http_response.h",
     "blind_sign_auth/blind_sign_message_interface.h",
+    "blind_sign_auth/blind_sign_message_response.h",
     "blind_sign_auth/cached_blind_sign_auth.h",
     "blind_sign_auth/test_tools/mock_blind_sign_auth_interface.h",
-    "blind_sign_auth/test_tools/mock_blind_sign_http_interface.h",
+    "blind_sign_auth/test_tools/mock_blind_sign_message_interface.h",
 ]
 blind_sign_auth_srcs = [
     "blind_sign_auth/blind_sign_auth.cc",
+    "blind_sign_auth/blind_sign_message_response.cc",
     "blind_sign_auth/cached_blind_sign_auth.cc",
 ]
 blind_sign_auth_tests_hdrs = [

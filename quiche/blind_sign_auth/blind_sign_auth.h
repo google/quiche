@@ -9,14 +9,13 @@
 #include <optional>
 #include <string>
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "anonymous_tokens/cpp/privacy_pass/rsa_bssa_public_metadata_client.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
-#include "quiche/blind_sign_auth/blind_sign_http_response.h"
 #include "quiche/blind_sign_auth/blind_sign_message_interface.h"
+#include "quiche/blind_sign_auth/blind_sign_message_response.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
@@ -24,14 +23,12 @@ namespace quiche {
 // BlindSignAuth provides signed, unblinded tokens to callers.
 class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
  public:
-  explicit BlindSignAuth(BlindSignMessageInterface* http_fetcher,
+  explicit BlindSignAuth(BlindSignMessageInterface* fetcher,
                          privacy::ppn::BlindSignAuthOptions auth_options)
-      : http_fetcher_(http_fetcher), auth_options_(std::move(auth_options)) {}
+      : fetcher_(fetcher), auth_options_(std::move(auth_options)) {}
 
   // Returns signed unblinded tokens and their expiration time in a callback.
   // Tokens are single-use.
-  // GetTokens starts asynchronous HTTP POST requests to a signer hostname
-  // specified by the caller, with path and query params given in the request.
   // The GetTokens callback will run on the same thread as the
   // BlindSignMessageInterface callbacks.
   // Callers can make multiple concurrent requests to GetTokens.
@@ -40,11 +37,11 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
                  SignedTokenCallback callback) override;
 
  private:
-  void GetInitialDataCallback(std::optional<std::string> oauth_token,
-                              int num_tokens, ProxyLayer proxy_layer,
-                              BlindSignAuthServiceType service_type,
-                              SignedTokenCallback callback,
-                              absl::StatusOr<BlindSignHttpResponse> response);
+  void GetInitialDataCallback(
+      std::optional<std::string> oauth_token, int num_tokens,
+      ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
+      SignedTokenCallback callback,
+      absl::StatusOr<BlindSignMessageResponse> response);
   void GeneratePrivacyPassTokens(
       privacy::ppn::GetInitialDataResponse initial_data_response,
       std::optional<std::string> oauth_token, int num_tokens,
@@ -57,12 +54,11 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
                                       PrivacyPassRsaBssaPublicMetadataClient>>
           privacy_pass_clients,
       SignedTokenCallback callback,
-      absl::StatusOr<BlindSignHttpResponse> response);
-  absl::StatusCode HttpCodeToStatusCode(int http_code);
+      absl::StatusOr<BlindSignMessageResponse> response);
   privacy::ppn::ProxyLayer QuicheProxyLayerToPpnProxyLayer(
       quiche::ProxyLayer proxy_layer);
 
-  BlindSignMessageInterface* http_fetcher_ = nullptr;
+  BlindSignMessageInterface* fetcher_ = nullptr;
   privacy::ppn::BlindSignAuthOptions auth_options_;
 };
 

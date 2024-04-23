@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_BLIND_SIGN_AUTH_TEST_TOOLS_MOCK_BLIND_SIGN_HTTP_INTERFACE_H_
-#define QUICHE_BLIND_SIGN_AUTH_TEST_TOOLS_MOCK_BLIND_SIGN_HTTP_INTERFACE_H_
+#ifndef QUICHE_BLIND_SIGN_AUTH_TEST_TOOLS_MOCK_BLIND_SIGN_MESSAGE_INTERFACE_H_
+#define QUICHE_BLIND_SIGN_AUTH_TEST_TOOLS_MOCK_BLIND_SIGN_MESSAGE_INTERFACE_H_
 
 #include <optional>
 #include <string>
@@ -15,16 +15,16 @@
 
 namespace quiche::test {
 
-class QUICHE_NO_EXPORT MockBlindSignHttpInterface
+class QUICHE_NO_EXPORT MockBlindSignMessageInterface
     : public BlindSignMessageInterface {
  public:
   MOCK_METHOD(void, DoRequest,
-              (BlindSignHttpRequestType request_type,
+              (BlindSignMessageRequestType request_type,
                std::optional<absl::string_view> authorization_header,
-               const std::string& body, BlindSignHttpCallback callback),
+               const std::string& body, BlindSignMessageCallback callback),
               (override));
 };
 
 }  // namespace quiche::test
 
-#endif  // QUICHE_BLIND_SIGN_AUTH_TEST_TOOLS_MOCK_BLIND_SIGN_HTTP_INTERFACE_H_
+#endif  // QUICHE_BLIND_SIGN_AUTH_TEST_TOOLS_MOCK_BLIND_SIGN_MESSAGE_INTERFACE_H_
