@@ -693,10 +693,10 @@ int OgHttp2Session::SubmitResponseInternal(
 
 OgHttp2Session::SendResult OgHttp2Session::MaybeSendBufferedData() {
   int64_t result = std::numeric_limits<int64_t>::max();
-  while (result > 0 && !buffered_data_.empty()) {
-    result = visitor_.OnReadyToSend(buffered_data_);
+  while (result > 0 && !buffered_data_.Empty()) {
+    result = visitor_.OnReadyToSend(buffered_data_.GetPrefix());
     if (result > 0) {
-      buffered_data_.erase(0, result);
+      buffered_data_.RemovePrefix(result);
     }
   }
   if (result < 0) {
@@ -704,7 +704,7 @@ OgHttp2Session::SendResult OgHttp2Session::MaybeSendBufferedData() {
                         ConnectionError::kSendError);
     return SendResult::SEND_ERROR;
   }
-  return buffered_data_.empty() ? SendResult::SEND_OK
+  return buffered_data_.Empty() ? SendResult::SEND_OK
                                 : SendResult::SEND_BLOCKED;
 }
 
@@ -769,7 +769,8 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
       }
       if (static_cast<size_t>(result) < frame.size()) {
         // The frame was partially written, so the rest must be buffered.
-        buffered_data_.append(frame.data() + result, frame.size() - result);
+        buffered_data_.Append(
+            absl::string_view(frame.data() + result, frame.size() - result));
         return SendResult::SEND_BLOCKED;
       }
     }
@@ -892,7 +893,7 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
       spdy::SpdySerializedFrame header =
           spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(
               data);
-      QUICHE_DCHECK(buffered_data_.empty() && frames_.empty());
+      QUICHE_DCHECK(buffered_data_.Empty() && frames_.empty());
       data.Visit(&send_logger_);
       const bool success = SendDataFrame(stream_id, absl::string_view(header),
                                          info.payload_length, state);
@@ -1646,8 +1647,9 @@ void OgHttp2Session::MaybeSetupPreface(bool sending_outbound_settings) {
   if (!queued_preface_) {
     queued_preface_ = true;
     if (!IsServerSession()) {
-      buffered_data_.assign(spdy::kHttp2ConnectionHeaderPrefix,
-                            spdy::kHttp2ConnectionHeaderPrefixSize);
+      buffered_data_.Append(
+          absl::string_view(spdy::kHttp2ConnectionHeaderPrefix,
+                            spdy::kHttp2ConnectionHeaderPrefixSize));
     }
     if (!sending_outbound_settings) {
       QUICHE_DCHECK(frames_.empty());
