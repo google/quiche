@@ -27,6 +27,7 @@ option java_package = "com.google.privacy.ppn.proto";
 // Client is requesting to auth using the provided auth token.
 // Next ID: 17
 message AuthAndSignRequest {
+
   reserved 3, 13;
 
   // A 'bearer' oauth token to be validated.
