@@ -73,9 +73,9 @@ TEST(ChunkedBufferTest, RemovePartialPrefix) {
   buffer.RemovePrefix(20);
   EXPECT_THAT(buffer.GetPrefix(), testing::StartsWith(", consectetur"));
   buffer.Append(" Anday igpay atinlay!");
-  EXPECT_EQ(
-      absl::StrJoin({kLoremIpsum.substr(26), " Anday igpay atinlay!"}, ""),
-      absl::StrJoin(buffer.Read(), ""));
+  const std::initializer_list<absl::string_view> parts = {
+      kLoremIpsum.substr(26), " Anday igpay atinlay!"};
+  EXPECT_EQ(absl::StrJoin(parts, ""), absl::StrJoin(buffer.Read(), ""));
 }
 
 TEST(ChunkedBufferTest, DifferentAppends) {
