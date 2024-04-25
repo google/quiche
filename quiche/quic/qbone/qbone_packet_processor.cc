@@ -13,8 +13,8 @@
 
 #include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/internet_checksum.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_ip_address_family.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
@@ -62,8 +62,7 @@ QbonePacketProcessor::ProcessingResult
 QbonePacketProcessor::Filter::FilterPacket(Direction direction,
                                            absl::string_view full_packet,
                                            absl::string_view payload,
-                                           icmp6_hdr* icmp_header,
-                                           OutputInterface* output) {
+                                           icmp6_hdr* icmp_header) {
   return ProcessingResult::OK;
 }
 
@@ -104,9 +103,6 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
       break;
     case ProcessingResult::SILENT_DROP:
       stats_->OnPacketDroppedSilently(direction, traffic_class);
-      break;
-    case ProcessingResult::DEFER:
-      stats_->OnPacketDeferred(direction, traffic_class);
       break;
     case ProcessingResult::ICMP:
       if (icmp_header.icmp6_type == ICMP6_ECHO_REPLY) {
@@ -158,7 +154,7 @@ QbonePacketProcessor::ProcessIPv6HeaderAndFilter(std::string* packet,
     result = filter_->FilterPacket(
         direction, *packet,
         absl::string_view(*transport_data, packet->size() - header_size),
-        icmp_header, output_);
+        icmp_header);
   }
 
   // Do not send ICMP error messages in response to ICMP errors.

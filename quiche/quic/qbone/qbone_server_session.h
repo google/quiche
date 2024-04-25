@@ -69,8 +69,6 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
                                uint8_t traffic_class) override {}
   void OnPacketDroppedWithTcpReset(QbonePacketProcessor::Direction direction,
                                    uint8_t traffic_class) override {}
-  void OnPacketDeferred(QbonePacketProcessor::Direction direction,
-                        uint8_t traffic_class) override {}
   void RecordThroughput(size_t bytes, QbonePacketProcessor::Direction direction,
                         uint8_t traffic_class) override {}
 

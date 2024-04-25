@@ -318,8 +318,7 @@ MATCHER_P(IsIcmpMessage, icmp_type,
 class MockPacketFilter : public QbonePacketProcessor::Filter {
  public:
   MOCK_METHOD(ProcessingResult, FilterPacket,
-              (Direction, absl::string_view, absl::string_view, icmp6_hdr*,
-               OutputInterface*),
+              (Direction, absl::string_view, absl::string_view, icmp6_hdr*),
               (override));
 };
 
@@ -429,7 +428,7 @@ TEST_F(QbonePacketProcessorTest, UnknownProtocol) {
 
 TEST_F(QbonePacketProcessorTest, FilterFromClient) {
   auto filter = std::make_unique<MockPacketFilter>();
-  EXPECT_CALL(*filter, FilterPacket(_, _, _, _, _))
+  EXPECT_CALL(*filter, FilterPacket(_, _, _, _))
       .WillRepeatedly(Return(ProcessingResult::SILENT_DROP));
   processor_->set_filter(std::move(filter));
 
@@ -444,8 +443,7 @@ class TestFilter : public QbonePacketProcessor::Filter {
   ProcessingResult FilterPacket(Direction direction,
                                 absl::string_view full_packet,
                                 absl::string_view payload,
-                                icmp6_hdr* icmp_header,
-                                OutputInterface* output) override {
+                                icmp6_hdr* icmp_header) override {
     EXPECT_EQ(kIPv6HeaderSize, full_packet.size() - payload.size());
     EXPECT_EQ(IPPROTO_UDP, TransportProtocolFromHeader(full_packet));
     EXPECT_EQ(client_ip_, SourceIpFromHeader(full_packet));
@@ -508,7 +506,7 @@ TEST_F(QbonePacketProcessorTest, FilterHelperFunctionsTOS) {
 
 TEST_F(QbonePacketProcessorTest, Icmp6EchoResponseHasRightPayload) {
   auto filter = std::make_unique<MockPacketFilter>();
-  EXPECT_CALL(*filter, FilterPacket(_, _, _, _, _))
+  EXPECT_CALL(*filter, FilterPacket(_, _, _, _))
       .WillOnce(WithArgs<2, 3>(
           Invoke([](absl::string_view payload, icmp6_hdr* icmp_header) {
             icmp_header->icmp6_type = ICMP6_ECHO_REPLY;

@@ -11,9 +11,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 
 namespace quic {
@@ -41,10 +43,6 @@ class QbonePacketProcessor {
     OK = 0,
     SILENT_DROP = 1,
     ICMP = 2,
-    // Equivalent to |SILENT_DROP| at the moment, but indicates that the
-    // downstream filter has buffered the packet and deferred its processing.
-    // The packet may be emitted at a later time.
-    DEFER = 3,
     // In addition to sending an ICMP message, also send a TCP RST. This option
     // requires the incoming packet to have been a valid TCP packet, as a TCP
     // RST requires information from the current connection state to be
@@ -77,8 +75,6 @@ class QbonePacketProcessor {
                                          uint8_t traffic_class) = 0;
     virtual void OnPacketDroppedWithTcpReset(Direction direction,
                                              uint8_t traffic_class) = 0;
-    virtual void OnPacketDeferred(Direction direction,
-                                  uint8_t traffic_class) = 0;
     virtual void RecordThroughput(size_t bytes, Direction direction,
                                   uint8_t traffic_class) = 0;
   };
@@ -98,22 +94,10 @@ class QbonePacketProcessor {
     //   the ICMP message with which the packet is to be rejected.
     // The method is called only on packets which were already verified as valid
     // IPv6 packets.
-    //
-    // The implementer of this method has four options to return:
-    // - OK will cause the filter to pass the packet through
-    // - SILENT_DROP will cause the filter to drop the packet silently
-    // - ICMP will cause the filter to drop the packet and send an ICMP
-    //   response.
-    // - DEFER will cause the packet to be not forwarded; the filter is
-    //   responsible for sending (or not sending) it later using |output|.
-    //
-    // Note that |output| should not be used except in the DEFER case, as the
-    // processor will perform the necessary writes itself.
     virtual ProcessingResult FilterPacket(Direction direction,
                                           absl::string_view full_packet,
                                           absl::string_view payload,
-                                          icmp6_hdr* icmp_header,
-                                          OutputInterface* output);
+                                          icmp6_hdr* icmp_header);
 
    protected:
     // Helper methods that allow to easily extract information that is required
