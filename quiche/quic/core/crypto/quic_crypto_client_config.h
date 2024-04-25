@@ -410,6 +410,8 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
   }
 #endif  // BORINGSSL_API_VERSION
 
+  const QuicSSLConfig& ssl_config() const { return ssl_config_; }
+
  private:
   // Sets the members to reasonable, default values.
   void SetDefaults();
@@ -486,6 +488,9 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
   // Set whether ALPS uses the new codepoint or not.
   bool alps_use_new_codepoint_ = false;
 #endif  // BORINGSSL_API_VERSION
+
+  // Configs applied to BoringSSL's SSL object. TLS only.
+  QuicSSLConfig ssl_config_;
 };
 
 }  // namespace quic

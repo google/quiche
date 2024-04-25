@@ -293,7 +293,7 @@ void QuicServerSessionBase::SendSettingsToCryptoStream() {
 QuicSSLConfig QuicServerSessionBase::GetSSLConfig() const {
   QUICHE_DCHECK(crypto_config_ && crypto_config_->proof_source());
 
-  QuicSSLConfig ssl_config = QuicSpdySession::GetSSLConfig();
+  QuicSSLConfig ssl_config = crypto_config_->ssl_config();
 
   ssl_config.disable_ticket_support =
       GetQuicFlag(quic_disable_server_tls_resumption);

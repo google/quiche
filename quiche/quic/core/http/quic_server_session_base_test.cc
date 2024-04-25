@@ -249,6 +249,10 @@ INSTANTIATE_TEST_SUITE_P(Tests, QuicServerSessionBaseTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
+TEST_P(QuicServerSessionBaseTest, GetSSLConfig) {
+  EXPECT_EQ(session_->QuicSpdySession::GetSSLConfig(), QuicSSLConfig());
+}
+
 TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
   // Send some data open a stream, then reset it.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,

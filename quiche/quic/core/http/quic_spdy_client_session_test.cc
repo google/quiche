@@ -211,6 +211,11 @@ INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdyClientSessionTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
                          ParamNameFormatter);
 
+TEST_P(QuicSpdyClientSessionTest, GetSSLConfig) {
+  EXPECT_EQ(session_->QuicSpdyClientSessionBase::GetSSLConfig(),
+            QuicSSLConfig());
+}
+
 TEST_P(QuicSpdyClientSessionTest, CryptoConnect) { CompleteCryptoHandshake(); }
 
 TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {

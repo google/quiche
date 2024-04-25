@@ -467,6 +467,8 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
     return source_address_token_boxer_;
   }
 
+  const QuicSSLConfig& ssl_config() const { return ssl_config_; }
+
  private:
   friend class test::QuicCryptoServerConfigPeer;
   friend struct QuicSignedServerConfig;
@@ -941,6 +943,9 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
   // When source address is validated by some other means (e.g. when using ICE),
   // source address token validation may be disabled.
   bool validate_source_address_token_;
+
+  // Configs applied to BoringSSL's SSL object. TLS only.
+  QuicSSLConfig ssl_config_;
 };
 
 struct QUICHE_EXPORT QuicSignedServerConfig

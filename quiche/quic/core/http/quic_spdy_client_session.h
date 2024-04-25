@@ -89,6 +89,10 @@ class QUICHE_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
     respect_goaway_ = respect_goaway;
   }
 
+  QuicSSLConfig GetSSLConfig() const override {
+    return crypto_config_->ssl_config();
+  }
+
  protected:
   // QuicSession methods:
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override;
