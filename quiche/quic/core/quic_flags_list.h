@@ -34,7 +34,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_can_send_ack_frequency, true)
 // If true, allow client to enable BBRv2 on server via connection option \'B2ON\'.
 QUIC_FLAG(quic_reloadable_flag_quic_allow_client_enabled_bbr_v2, true)
 // If true, allow quic to use new ALPS codepoint to negotiate during handshake for H3 if client sends new ALPS codepoint.
-QUIC_FLAG(quic_reloadable_flag_quic_gfe_allow_alps_new_codepoint, false)
+QUIC_FLAG(quic_reloadable_flag_quic_gfe_allow_alps_new_codepoint, true)
 // If true, an endpoint does not detect path degrading or blackholing until handshake gets confirmed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed, true)
 // If true, bundle qpack decoder data with other frames opportunistically.
