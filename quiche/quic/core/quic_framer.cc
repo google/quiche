@@ -18,7 +18,6 @@
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
-#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
@@ -37,7 +36,6 @@
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
-#include "quiche/quic/core/quic_connection_context.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_reader.h"
@@ -1872,21 +1870,6 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
   }
   QuicDataReader reader(decrypted_buffer, decrypted_length);
 
-  // Remember decrypted_payload in the current connection context until the end
-  // of this function.
-  auto* connection_context = QuicConnectionContext::Current();
-  if (connection_context != nullptr) {
-    connection_context->process_packet_context.decrypted_payload =
-        reader.FullPayload();
-    connection_context->process_packet_context.current_frame_offset = 0;
-  }
-  auto clear_decrypted_payload = absl::MakeCleanup([&]() {
-    if (connection_context != nullptr) {
-      connection_context->process_packet_context.decrypted_payload =
-          absl::string_view();
-    }
-  });
-
   // Update the largest packet number after we have decrypted the packet
   // so we are confident is not attacker controlled.
   if (supports_multiple_packet_number_spaces_) {
@@ -2796,13 +2779,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
   }
 
   QUIC_DVLOG(2) << ENDPOINT << "Processing IETF packet with header " << header;
-  auto* connection_context = QuicConnectionContext::Current();
   while (!reader->IsDoneReading()) {
-    if (connection_context != nullptr) {
-      connection_context->process_packet_context.current_frame_offset =
-          connection_context->process_packet_context.decrypted_payload.size() -
-          reader->BytesRemaining();
-    }
     uint64_t frame_type;
     // Will be the number of bytes into which frame_type was encoded.
     size_t encoded_bytes = reader->BytesRemaining();
