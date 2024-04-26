@@ -251,4 +251,16 @@ QUICHE_PROTOCOL_FLAG(bool, quic_always_support_server_preferred_address, false,
 QUICHE_PROTOCOL_FLAG(bool, quiche_oghttp2_debug_trace, false,
                      "If true, emits trace logs for HTTP/2 events.")
 
+QUICHE_PROTOCOL_FLAG(
+    float, quic_ack_decimation_delay, 0.25f,
+    "The fraction of a min_rtt when doing ack decimation, this fraction can be "
+    "overridden by connection option AKD3.")
+
+// Uses a 25ms delayed ack timer. Helps with better signaling
+// in low-bandwidth (< ~384 kbps), where an ack is sent per packet.
+// NOTE: If the flag value exceeds half of kMinRetransmissionTimeMs, it will be
+// clamped to that value.
+QUICHE_PROTOCOL_FLAG(int64_t, quic_default_delayed_ack_time_ms, 25,
+                     "Default maximum delayed ack time, in ms.")
+
 #endif

@@ -137,10 +137,12 @@ inline constexpr bool kIncludeDiversificationNonce = true;
 // trailing headers over QUIC.
 QUICHE_EXPORT extern const char* const kFinalOffsetHeaderKey;
 
-// Default maximum delayed ack time, in ms.
-// Uses a 25ms delayed ack timer. Helps with better signaling
-// in low-bandwidth (< ~384 kbps), where an ack is sent per packet.
-inline constexpr int64_t kDefaultDelayedAckTimeMs = 25;
+// Returns the local default delayed ack time, in ms.
+QUICHE_EXPORT int64_t GetDefaultDelayedAckTimeMs();
+
+// Delayed ack time that we assume the peer will use by default, in ms. This
+// should be equal to the default value of --quic_default_delayed_ack_time_ms.
+inline constexpr int64_t kDefaultPeerDelayedAckTimeMs = 25;
 
 // Default minimum delayed ack time, in ms (used only for sender control of ack
 // frequency).
@@ -200,9 +202,6 @@ inline constexpr int kPtoRttvarMultiplier = 2;
 // define the minimum RTO to 200ms, we will use the same until we have data to
 // support a higher or lower value.
 inline constexpr const int64_t kMinRetransmissionTimeMs = 200;
-// The delayed ack time must not be greater than half the min RTO.
-static_assert(kDefaultDelayedAckTimeMs <= kMinRetransmissionTimeMs / 2,
-              "Delayed ack time must be less than or equal half the MinRTO");
 
 // We define an unsigned 16-bit floating point value, inspired by IEEE floats
 // (http://en.wikipedia.org/wiki/Half_precision_floating-point_format),
@@ -299,8 +298,8 @@ inline constexpr QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 10;
 // This intends to avoid the beginning of slow start, when CWNDs may be
 // rapidly increasing.
 inline constexpr QuicPacketCount kMinReceivedBeforeAckDecimation = 100;
-// One quarter RTT delay when doing ack decimation.
-inline constexpr float kAckDecimationDelay = 0.25;
+// Ask peer to use one quarter RTT delay when doing ack decimation.
+inline constexpr float kPeerAckDecimationDelay = 0.25;
 
 // The default alarm granularity assumed by QUIC code.
 inline constexpr QuicTime::Delta kAlarmGranularity =

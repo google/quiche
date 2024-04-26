@@ -82,7 +82,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       largest_mtu_acked_(0),
       handshake_finished_(false),
       peer_max_ack_delay_(
-          QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
+          QuicTime::Delta::FromMilliseconds(kDefaultPeerDelayedAckTimeMs)),
       rtt_updated_(false),
       acked_packets_iter_(last_ack_frame_.packets.rbegin()),
       consecutive_pto_count_(0),
@@ -637,7 +637,7 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
   frame.packet_tolerance = kMaxRetransmittablePacketsBeforeAck;
   auto rtt = use_smoothed_rtt_in_ack_delay_ ? rtt_stats_.SmoothedOrInitialRtt()
                                             : rtt_stats_.MinOrInitialRtt();
-  frame.max_ack_delay = rtt * kAckDecimationDelay;
+  frame.max_ack_delay = rtt * kPeerAckDecimationDelay;
   frame.max_ack_delay = std::max(frame.max_ack_delay, peer_min_ack_delay_);
   // TODO(haoyuewang) Remove this once kDefaultMinAckDelayTimeMs is updated to
   // 5 ms on the client side.

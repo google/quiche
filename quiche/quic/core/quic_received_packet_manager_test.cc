@@ -40,7 +40,7 @@ namespace {
 const bool kInstigateAck = true;
 const QuicTime::Delta kMinRttMs = QuicTime::Delta::FromMilliseconds(40);
 const QuicTime::Delta kDelayedAckTime =
-    QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+    QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs());
 
 class QuicReceivedPacketManagerTest : public QuicTest {
  protected:

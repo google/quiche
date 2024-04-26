@@ -1010,7 +1010,7 @@ void QuicConfig::SetDefaults() {
 
   SetInitialStreamFlowControlWindowToSend(kMinimumFlowControlSendWindow);
   SetInitialSessionFlowControlWindowToSend(kMinimumFlowControlSendWindow);
-  SetMaxAckDelayToSendMs(kDefaultDelayedAckTimeMs);
+  SetMaxAckDelayToSendMs(GetDefaultDelayedAckTimeMs());
   SetAckDelayExponentToSend(kDefaultAckDelayExponent);
   SetMaxPacketSizeToSend(kMaxIncomingPacketSize);
   SetMaxDatagramFrameSizeToSend(kMaxAcceptedDatagramFrameSize);
@@ -1042,7 +1042,7 @@ void QuicConfig::ToHandshakeMessage(
     max_unidirectional_streams_.ToHandshakeMessage(out);
     ack_delay_exponent_.ToHandshakeMessage(out);
   }
-  if (max_ack_delay_ms_.GetSendValue() != kDefaultDelayedAckTimeMs) {
+  if (max_ack_delay_ms_.GetSendValue() != GetDefaultDelayedAckTimeMs()) {
     // Only send max ack delay if it is using a non-default value, because
     // the default value is used by QuicSentPacketManager if it is not
     // sent during the handshake, and we want to save bytes.

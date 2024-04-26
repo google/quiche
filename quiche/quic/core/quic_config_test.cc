@@ -120,7 +120,7 @@ TEST_P(QuicConfigTest, ProcessClientHello) {
     return;
   }
   const uint32_t kTestMaxAckDelayMs =
-      static_cast<uint32_t>(kDefaultDelayedAckTimeMs + 1);
+      static_cast<uint32_t>(GetDefaultDelayedAckTimeMs() + 1);
   QuicConfig client_config;
   QuicTagVector cgst;
   cgst.push_back(kQBIC);
@@ -187,7 +187,7 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
       0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
       0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f};
   const uint32_t kTestMaxAckDelayMs =
-      static_cast<uint32_t>(kDefaultDelayedAckTimeMs + 1);
+      static_cast<uint32_t>(GetDefaultDelayedAckTimeMs() + 1);
   QuicConfig server_config;
   QuicTagVector cgst;
   cgst.push_back(kQBIC);

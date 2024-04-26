@@ -1126,7 +1126,7 @@ TEST_P(EndToEndTest, SendAndReceiveCoalescedPackets) {
 // and ensure it gets to the server.
 TEST_P(EndToEndTest, SimpleRequestResponseWithAckDelayChange) {
   // Force the ACK delay to be something other than the default.
-  constexpr uint32_t kClientMaxAckDelay = kDefaultDelayedAckTimeMs + 100u;
+  const uint32_t kClientMaxAckDelay = GetDefaultDelayedAckTimeMs() + 100u;
   client_config_.SetMaxAckDelayToSendMs(kClientMaxAckDelay);
   ASSERT_TRUE(Initialize());
 

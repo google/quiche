@@ -4,6 +4,11 @@
 
 #include "quiche/quic/core/quic_constants.h"
 
+#include <algorithm>
+#include <cstdint>
+
+#include "quiche/quic/platform/api/quic_flags.h"
+
 namespace quic {
 
 const char* const kFinalOffsetHeaderKey = ":final-offset";
@@ -20,6 +25,12 @@ QuicPacketNumber MaxRandomInitialPacketNumber() {
 QuicPacketNumber FirstSendingPacketNumber() {
   static const QuicPacketNumber kFirstSendingPacketNumber = QuicPacketNumber(1);
   return kFirstSendingPacketNumber;
+}
+
+int64_t GetDefaultDelayedAckTimeMs() {
+  // The delayed ack time must not be greater than half the min RTO.
+  return std::min<int64_t>(GetQuicFlag(quic_default_delayed_ack_time_ms),
+                           kMinRetransmissionTimeMs / 2);
 }
 
 }  // namespace quic

@@ -1236,7 +1236,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   QuicTime::Delta DefaultDelayedAckTime() {
-    return QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+    return QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs());
   }
 
   const QuicStopWaitingFrame InitStopWaitingFrame(uint64_t least_unacked) {
@@ -12936,7 +12936,7 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
 
   EXPECT_EQ(captured_frame.packet_tolerance, 10u);
   EXPECT_EQ(captured_frame.max_ack_delay,
-            QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+            QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 
   // Sending packet 102 does not trigger sending another AckFrequencyFrame.
   SendStreamDataToPeer(/*id=*/1, "baz", /*offset=*/6, NO_FIN, nullptr);
@@ -12974,7 +12974,7 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrameUponHandshakeCompletion) {
 
   EXPECT_EQ(captured_frame.packet_tolerance, 2u);
   EXPECT_EQ(captured_frame.max_ack_delay,
-            QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+            QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 }
 
 TEST_P(QuicConnectionTest, FastRecoveryOfLostServerHello) {
@@ -15730,8 +15730,8 @@ TEST_P(QuicConnectionTest,
   connection_.SendStreamDataWithString(0, std::string(10, 'a'), 0, FIN);
 
   // Receives 1-RTT ACK for 0-RTT packet after RTT + ack_delay.
-  clock_.AdvanceTime(
-      kTestRTT + QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+  clock_.AdvanceTime(kTestRTT + QuicTime::Delta::FromMilliseconds(
+                                    GetDefaultDelayedAckTimeMs()));
   EXPECT_EQ(0u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
   peer_framer_.SetEncrypter(
       ENCRYPTION_FORWARD_SECURE,
@@ -15739,7 +15739,7 @@ TEST_P(QuicConnectionTest,
   QuicAckFrame ack_frame = InitAckFrame(1);
   // Peer reported ACK delay.
   ack_frame.ack_delay_time =
-      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+      QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs());
   QuicFrames frames;
   frames.push_back(QuicFrame(&ack_frame));
   QuicPacketHeader header =

@@ -42,7 +42,7 @@ struct QUICHE_EXPORT QuicAckFrequencyFrame {
 
   // The maximum time that ack packets can be delayed.
   QuicTime::Delta max_ack_delay =
-      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+      QuicTime::Delta::FromMilliseconds(kDefaultPeerDelayedAckTimeMs);
 };
 
 }  // namespace quic
