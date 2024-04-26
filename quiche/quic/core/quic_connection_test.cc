@@ -424,52 +424,52 @@ class TestConnection : public QuicConnection {
 
   TestAlarmFactory::TestAlarm* GetAckAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetAckAlarm(this));
+        &QuicConnectionPeer::GetAckAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetPingAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetPingAlarm(this));
+        &QuicConnectionPeer::GetPingAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetRetransmissionAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetRetransmissionAlarm(this));
+        &QuicConnectionPeer::GetRetransmissionAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetSendAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetSendAlarm(this));
+        &QuicConnectionPeer::GetSendAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetTimeoutAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetIdleNetworkDetectorAlarm(this));
+        &QuicConnectionPeer::GetIdleNetworkDetectorAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetMtuDiscoveryAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetMtuDiscoveryAlarm(this));
+        &QuicConnectionPeer::GetMtuDiscoveryAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetProcessUndecryptablePacketsAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(this));
+        &QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetDiscardPreviousOneRttKeysAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(this));
+        &QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetDiscardZeroRttDecryptionKeysAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetDiscardZeroRttDecryptionKeysAlarm(this));
+        &QuicConnectionPeer::GetDiscardZeroRttDecryptionKeysAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetBlackholeDetectorAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetBlackholeDetectorAlarm(this));
+        &QuicConnectionPeer::GetBlackholeDetectorAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetRetirePeerIssuedConnectionIdAlarm() {
@@ -484,7 +484,7 @@ class TestConnection : public QuicConnection {
 
   TestAlarmFactory::TestAlarm* GetMultiPortProbingAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetMultiPortProbingAlarm(this));
+        &QuicConnectionPeer::GetMultiPortProbingAlarm(this));
   }
 
   void PathDegradingTimeout() {

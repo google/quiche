@@ -117,48 +117,48 @@ QuicFramer* QuicConnectionPeer::GetFramer(QuicConnection* connection) {
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetAckAlarm(QuicConnection* connection) {
-  return connection->ack_alarm_.get();
+QuicAlarm& QuicConnectionPeer::GetAckAlarm(QuicConnection* connection) {
+  return connection->alarms_.ack_alarm();
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetPingAlarm(QuicConnection* connection) {
-  return connection->ping_manager_.alarm_.get();
+QuicAlarm& QuicConnectionPeer::GetPingAlarm(QuicConnection* connection) {
+  return *connection->ping_manager_.alarm_;
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetRetransmissionAlarm(
+QuicAlarm& QuicConnectionPeer::GetRetransmissionAlarm(
     QuicConnection* connection) {
-  return connection->retransmission_alarm_.get();
+  return connection->alarms_.retransmission_alarm();
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetSendAlarm(QuicConnection* connection) {
-  return connection->send_alarm_.get();
+QuicAlarm& QuicConnectionPeer::GetSendAlarm(QuicConnection* connection) {
+  return connection->alarms_.send_alarm();
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetMtuDiscoveryAlarm(
+QuicAlarm& QuicConnectionPeer::GetMtuDiscoveryAlarm(
     QuicConnection* connection) {
-  return connection->mtu_discovery_alarm_.get();
+  return connection->alarms_.mtu_discovery_alarm();
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(
+QuicAlarm& QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(
     QuicConnection* connection) {
-  return connection->process_undecryptable_packets_alarm_.get();
+  return connection->alarms_.process_undecryptable_packets_alarm();
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(
+QuicAlarm& QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(
     QuicConnection* connection) {
-  return connection->discard_previous_one_rtt_keys_alarm_.get();
+  return connection->alarms_.discard_previous_one_rtt_keys_alarm();
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetDiscardZeroRttDecryptionKeysAlarm(
+QuicAlarm& QuicConnectionPeer::GetDiscardZeroRttDecryptionKeysAlarm(
     QuicConnection* connection) {
-  return connection->discard_zero_rtt_decryption_keys_alarm_.get();
+  return connection->alarms_.discard_zero_rtt_decryption_keys_alarm();
 }
 
 // static
@@ -322,9 +322,9 @@ QuicNetworkBlackholeDetector& QuicConnectionPeer::GetBlackholeDetector(
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetBlackholeDetectorAlarm(
+QuicAlarm& QuicConnectionPeer::GetBlackholeDetectorAlarm(
     QuicConnection* connection) {
-  return connection->blackhole_detector_.alarm_.get();
+  return *connection->blackhole_detector_.alarm_;
 }
 
 // static
@@ -352,9 +352,9 @@ QuicTime QuicConnectionPeer::GetIdleNetworkDeadline(
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetIdleNetworkDetectorAlarm(
+QuicAlarm& QuicConnectionPeer::GetIdleNetworkDetectorAlarm(
     QuicConnection* connection) {
-  return connection->idle_network_detector_.alarm_.get();
+  return *connection->idle_network_detector_.alarm_;
 }
 
 // static
@@ -364,9 +364,9 @@ QuicIdleNetworkDetector& QuicConnectionPeer::GetIdleNetworkDetector(
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetMultiPortProbingAlarm(
+QuicAlarm& QuicConnectionPeer::GetMultiPortProbingAlarm(
     QuicConnection* connection) {
-  return connection->multi_port_probing_alarm_.get();
+  return connection->alarms_.multi_port_probing_alarm();
 }
 
 // static

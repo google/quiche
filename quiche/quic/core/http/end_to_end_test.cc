@@ -2338,9 +2338,7 @@ TEST_P(EndToEndTest, DoNotSetSendAlarmIfConnectionFlowControlBlocked) {
   // connection is still flow control blocked.
   session->connection()->OnCanWrite();
 
-  QuicAlarm* send_alarm =
-      QuicConnectionPeer::GetSendAlarm(session->connection());
-  EXPECT_FALSE(send_alarm->IsSet());
+  EXPECT_FALSE(QuicConnectionPeer::GetSendAlarm(session->connection()).IsSet());
 }
 
 TEST_P(EndToEndTest, InvalidStream) {
