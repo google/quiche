@@ -2964,7 +2964,18 @@ TEST_P(QuicSpdyStreamTest, DataBeforeHeaders) {
       CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
                       "Unexpected DATA frame received.",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
-      .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
+      .WillOnce(InvokeWithoutArgs([this]() {
+        auto* qpack_decoder_stream =
+            QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+        if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4) &&
+            GetQuicReloadableFlag(
+                quic_stop_reading_also_stops_header_decompression)) {
+          EXPECT_CALL(*session_,
+                      WritevData(qpack_decoder_stream->id(), _, _, _, _, _))
+              .Times(2);
+        }
+        stream_->StopReading();
+      }));
 
   std::string data = DataFrame(kDataFramePayload);
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, data));
@@ -3013,7 +3024,18 @@ TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
       CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
                       "HEADERS frame received after trailing HEADERS.",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
-      .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
+      .WillOnce(InvokeWithoutArgs([this]() {
+        auto* qpack_decoder_stream =
+            QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+        if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4) &&
+            GetQuicReloadableFlag(
+                quic_stop_reading_also_stops_header_decompression)) {
+          EXPECT_CALL(*session_,
+                      WritevData(qpack_decoder_stream->id(), _, _, _, _, _))
+              .Times(2);
+        }
+        stream_->StopReading();
+      }));
 
   // Receive another HEADERS frame, with no header fields.
   std::string trailers2 = HeadersFrame(Http2HeaderBlock());
@@ -3063,10 +3085,21 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
       CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
                       "Unexpected DATA frame received.",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
-      .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
+      .WillOnce(InvokeWithoutArgs([this]() {
+        auto* qpack_decoder_stream =
+            QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+        if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4) &&
+            GetQuicReloadableFlag(
+                quic_stop_reading_also_stops_header_decompression)) {
+          EXPECT_CALL(*session_,
+                      WritevData(qpack_decoder_stream->id(), _, _, _, _, _))
+              .Times(2);
+        }
+        stream_->StopReading();
+      }));
 
   // Receive more data.
-  std::string data2 = DataFrame("This payload should not be proccessed.");
+  std::string data2 = DataFrame("This payload should not be processed.");
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, offset, data2));
 }
 
