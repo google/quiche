@@ -411,6 +411,7 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
 #endif  // BORINGSSL_API_VERSION
 
   const QuicSSLConfig& ssl_config() const { return ssl_config_; }
+  QuicSSLConfig& ssl_config() { return ssl_config_; }
 
  private:
   // Sets the members to reasonable, default values.
