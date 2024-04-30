@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_idle_network_detector.h"
 
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
@@ -16,8 +17,8 @@ namespace test {
 
 class QuicIdleNetworkDetectorTestPeer {
  public:
-  static QuicAlarm* GetAlarm(QuicIdleNetworkDetector* detector) {
-    return detector->alarm_.get();
+  static QuicAlarm& GetAlarm(QuicIdleNetworkDetector* detector) {
+    return detector->alarm_;
   }
 };
 
@@ -31,30 +32,29 @@ class MockDelegate : public QuicIdleNetworkDetector::Delegate {
 
 class QuicIdleNetworkDetectorTest : public QuicTest {
  public:
-  QuicIdleNetworkDetectorTest() {
+  QuicIdleNetworkDetectorTest()
+      : alarms_(nullptr, nullptr, &detector_, alarm_factory_, arena_),
+        detector_(&delegate_, clock_.Now() + QuicTimeDelta::FromSeconds(1),
+                  &alarms_.idle_network_detector_alarm()) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
-    detector_ = std::make_unique<QuicIdleNetworkDetector>(
-        &delegate_, clock_.Now(), &arena_, &alarm_factory_,
-        /*context=*/nullptr);
     alarm_ = static_cast<MockAlarmFactory::TestAlarm*>(
-        QuicIdleNetworkDetectorTestPeer::GetAlarm(detector_.get()));
+        &alarms_.idle_network_detector_alarm());
   }
 
  protected:
   testing::StrictMock<MockDelegate> delegate_;
   QuicConnectionArena arena_;
   MockAlarmFactory alarm_factory_;
-
-  std::unique_ptr<QuicIdleNetworkDetector> detector_;
-
-  MockAlarmFactory::TestAlarm* alarm_;
+  QuicConnectionAlarms alarms_;
   MockClock clock_;
+  QuicIdleNetworkDetector detector_;
+  MockAlarmFactory::TestAlarm* alarm_;
 };
 
 TEST_F(QuicIdleNetworkDetectorTest,
        IdleNetworkDetectedBeforeHandshakeCompletes) {
   EXPECT_FALSE(alarm_->IsSet());
-  detector_->SetTimeouts(
+  detector_.SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
       /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
   EXPECT_TRUE(alarm_->IsSet());
@@ -69,14 +69,14 @@ TEST_F(QuicIdleNetworkDetectorTest,
 
 TEST_F(QuicIdleNetworkDetectorTest, HandshakeTimeout) {
   EXPECT_FALSE(alarm_->IsSet());
-  detector_->SetTimeouts(
+  detector_.SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
       /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
   EXPECT_TRUE(alarm_->IsSet());
 
   // Has network activity after 15s.
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(15));
-  detector_->OnPacketReceived(clock_.Now());
+  detector_.OnPacketReceived(clock_.Now());
   EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(15),
             alarm_->deadline());
   // Handshake does not complete for another 15s.
@@ -88,7 +88,7 @@ TEST_F(QuicIdleNetworkDetectorTest, HandshakeTimeout) {
 TEST_F(QuicIdleNetworkDetectorTest,
        IdleNetworkDetectedAfterHandshakeCompletes) {
   EXPECT_FALSE(alarm_->IsSet());
-  detector_->SetTimeouts(
+  detector_.SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
       /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
   EXPECT_TRUE(alarm_->IsSet());
@@ -97,8 +97,8 @@ TEST_F(QuicIdleNetworkDetectorTest,
 
   // Handshake completes in 200ms.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
-  detector_->OnPacketReceived(clock_.Now());
-  detector_->SetTimeouts(
+  detector_.OnPacketReceived(clock_.Now());
+  detector_.SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::Infinite(),
       /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(600));
   EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
@@ -113,15 +113,15 @@ TEST_F(QuicIdleNetworkDetectorTest,
 TEST_F(QuicIdleNetworkDetectorTest,
        DoNotExtendIdleDeadlineOnConsecutiveSentPackets) {
   EXPECT_FALSE(alarm_->IsSet());
-  detector_->SetTimeouts(
+  detector_.SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
       /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
   EXPECT_TRUE(alarm_->IsSet());
 
   // Handshake completes in 200ms.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
-  detector_->OnPacketReceived(clock_.Now());
-  detector_->SetTimeouts(
+  detector_.OnPacketReceived(clock_.Now());
+  detector_.SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::Infinite(),
       QuicTime::Delta::FromSeconds(600));
   EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
@@ -129,14 +129,14 @@ TEST_F(QuicIdleNetworkDetectorTest,
 
   // Sent packets after 200ms.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
-  detector_->OnPacketSent(clock_.Now(), QuicTime::Delta::Zero());
+  detector_.OnPacketSent(clock_.Now(), QuicTime::Delta::Zero());
   const QuicTime packet_sent_time = clock_.Now();
   EXPECT_EQ(packet_sent_time + QuicTime::Delta::FromSeconds(600),
             alarm_->deadline());
 
   // Sent another packet after 200ms
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
-  detector_->OnPacketSent(clock_.Now(), QuicTime::Delta::Zero());
+  detector_.OnPacketSent(clock_.Now(), QuicTime::Delta::Zero());
   // Verify network deadline does not extend.
   EXPECT_EQ(packet_sent_time + QuicTime::Delta::FromSeconds(600),
             alarm_->deadline());
@@ -149,10 +149,10 @@ TEST_F(QuicIdleNetworkDetectorTest,
 }
 
 TEST_F(QuicIdleNetworkDetectorTest, ShorterIdleTimeoutOnSentPacket) {
-  detector_->enable_shorter_idle_timeout_on_sent_packet();
+  detector_.enable_shorter_idle_timeout_on_sent_packet();
   QuicTime::Delta idle_network_timeout = QuicTime::Delta::Zero();
   idle_network_timeout = QuicTime::Delta::FromSeconds(30);
-  detector_->SetTimeouts(
+  detector_.SetTimeouts(
       /*handshake_timeout=*/QuicTime::Delta::Infinite(), idle_network_timeout);
   EXPECT_TRUE(alarm_->IsSet());
   const QuicTime deadline = alarm_->deadline();
@@ -160,21 +160,21 @@ TEST_F(QuicIdleNetworkDetectorTest, ShorterIdleTimeoutOnSentPacket) {
 
   // Send a packet after 15s and 2s PTO delay.
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(15));
-  detector_->OnPacketSent(clock_.Now(), QuicTime::Delta::FromSeconds(2));
+  detector_.OnPacketSent(clock_.Now(), QuicTime::Delta::FromSeconds(2));
   EXPECT_TRUE(alarm_->IsSet());
   // Verify alarm does not get extended because deadline is > PTO delay.
   EXPECT_EQ(deadline, alarm_->deadline());
 
   // Send another packet near timeout and 2 s PTO delay.
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(14));
-  detector_->OnPacketSent(clock_.Now(), QuicTime::Delta::FromSeconds(2));
+  detector_.OnPacketSent(clock_.Now(), QuicTime::Delta::FromSeconds(2));
   EXPECT_TRUE(alarm_->IsSet());
   // Verify alarm does not get extended although it is shorter than PTO.
   EXPECT_EQ(deadline, alarm_->deadline());
 
   // Receive a packet after 1s.
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
-  detector_->OnPacketReceived(clock_.Now());
+  detector_.OnPacketReceived(clock_.Now());
   EXPECT_TRUE(alarm_->IsSet());
   // Verify idle timeout gets extended by 30s.
   EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(30),
@@ -182,17 +182,17 @@ TEST_F(QuicIdleNetworkDetectorTest, ShorterIdleTimeoutOnSentPacket) {
 
   // Send a packet near timeout.
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(29));
-  detector_->OnPacketSent(clock_.Now(), QuicTime::Delta::FromSeconds(2));
+  detector_.OnPacketSent(clock_.Now(), QuicTime::Delta::FromSeconds(2));
   EXPECT_TRUE(alarm_->IsSet());
   // Verify idle timeout gets extended by 1s.
   EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(2), alarm_->deadline());
 }
 
 TEST_F(QuicIdleNetworkDetectorTest, NoAlarmAfterStopped) {
-  detector_->StopDetection();
+  detector_.StopDetection();
 
   EXPECT_QUIC_BUG(
-      detector_->SetTimeouts(
+      detector_.SetTimeouts(
           /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
           /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20)),
       "SetAlarm called after stopped");

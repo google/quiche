@@ -8,6 +8,8 @@
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_arena_scoped_ptr.h"
+#include "quiche/quic/core/quic_connection_context.h"
+#include "quiche/quic/core/quic_idle_network_detector.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 
 namespace quic {
@@ -17,6 +19,8 @@ class QuicConnection;
 class QUICHE_EXPORT QuicConnectionAlarms {
  public:
   QuicConnectionAlarms(QuicConnection* connection,
+                       QuicConnectionContext* context,
+                       QuicIdleNetworkDetector* idle_network_detector,
                        QuicAlarmFactory& alarm_factory,
                        QuicConnectionArena& arena);
 
@@ -34,6 +38,9 @@ class QUICHE_EXPORT QuicConnectionAlarms {
     return *discard_zero_rtt_decryption_keys_alarm_;
   }
   QuicAlarm& multi_port_probing_alarm() { return *multi_port_probing_alarm_; }
+  QuicAlarm& idle_network_detector_alarm() {
+    return *idle_network_detector_alarm_;
+  }
 
   const QuicAlarm& ack_alarm() const { return *ack_alarm_; }
   const QuicAlarm& retransmission_alarm() const {
@@ -52,6 +59,9 @@ class QUICHE_EXPORT QuicConnectionAlarms {
   }
   const QuicAlarm& multi_port_probing_alarm() const {
     return *multi_port_probing_alarm_;
+  }
+  const QuicAlarm& idle_network_detector_alarm() const {
+    return *idle_network_detector_alarm_;
   }
 
  private:
@@ -76,6 +86,8 @@ class QUICHE_EXPORT QuicConnectionAlarms {
   QuicArenaScopedPtr<QuicAlarm> discard_zero_rtt_decryption_keys_alarm_;
   // An alarm that fires to keep probing the multi-port path.
   QuicArenaScopedPtr<QuicAlarm> multi_port_probing_alarm_;
+  // An alarm for QuicIdleNetworkDetector.
+  QuicArenaScopedPtr<QuicAlarm> idle_network_detector_alarm_;
 };
 
 }  // namespace quic

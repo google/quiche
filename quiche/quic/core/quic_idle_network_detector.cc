@@ -14,33 +14,17 @@ namespace quic {
 
 namespace {
 
-class AlarmDelegate : public QuicAlarm::DelegateWithContext {
- public:
-  explicit AlarmDelegate(QuicIdleNetworkDetector* detector,
-                         QuicConnectionContext* context)
-      : QuicAlarm::DelegateWithContext(context), detector_(detector) {}
-  AlarmDelegate(const AlarmDelegate&) = delete;
-  AlarmDelegate& operator=(const AlarmDelegate&) = delete;
-
-  void OnAlarm() override { detector_->OnAlarm(); }
-
- private:
-  QuicIdleNetworkDetector* detector_;
-};
-
 }  // namespace
 
-QuicIdleNetworkDetector::QuicIdleNetworkDetector(
-    Delegate* delegate, QuicTime now, QuicConnectionArena* arena,
-    QuicAlarmFactory* alarm_factory, QuicConnectionContext* context)
+QuicIdleNetworkDetector::QuicIdleNetworkDetector(Delegate* delegate,
+                                                 QuicTime now, QuicAlarm* alarm)
     : delegate_(delegate),
       start_time_(now),
       handshake_timeout_(QuicTime::Delta::Infinite()),
       time_of_last_received_packet_(now),
       time_of_first_packet_sent_after_receiving_(QuicTime::Zero()),
       idle_network_timeout_(QuicTime::Delta::Infinite()),
-      alarm_(alarm_factory->CreateAlarm(
-          arena->New<AlarmDelegate>(this, context), arena)) {}
+      alarm_(*alarm) {}
 
 void QuicIdleNetworkDetector::OnAlarm() {
   if (handshake_timeout_.IsInfinite()) {
@@ -68,7 +52,7 @@ void QuicIdleNetworkDetector::SetTimeouts(
 }
 
 void QuicIdleNetworkDetector::StopDetection() {
-  alarm_->PermanentCancel();
+  alarm_.PermanentCancel();
   handshake_timeout_ = QuicTime::Delta::Infinite();
   idle_network_timeout_ = QuicTime::Delta::Infinite();
   handshake_timeout_ = QuicTime::Delta::Infinite();
@@ -119,23 +103,23 @@ void QuicIdleNetworkDetector::SetAlarm() {
       new_deadline = idle_network_deadline;
     }
   }
-  alarm_->Update(new_deadline, kAlarmGranularity);
+  alarm_.Update(new_deadline, kAlarmGranularity);
 }
 
 void QuicIdleNetworkDetector::MaybeSetAlarmOnSentPacket(
     QuicTime::Delta pto_delay) {
   QUICHE_DCHECK(shorter_idle_timeout_on_sent_packet_);
-  if (!handshake_timeout_.IsInfinite() || !alarm_->IsSet()) {
+  if (!handshake_timeout_.IsInfinite() || !alarm_.IsSet()) {
     SetAlarm();
     return;
   }
   // Make sure connection will be alive for another PTO.
-  const QuicTime deadline = alarm_->deadline();
+  const QuicTime deadline = alarm_.deadline();
   const QuicTime min_deadline = last_network_activity_time() + pto_delay;
   if (deadline > min_deadline) {
     return;
   }
-  alarm_->Update(min_deadline, kAlarmGranularity);
+  alarm_.Update(min_deadline, kAlarmGranularity);
 }
 
 QuicTime QuicIdleNetworkDetector::GetIdleNetworkDeadline() const {

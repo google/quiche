@@ -354,7 +354,7 @@ QuicTime QuicConnectionPeer::GetIdleNetworkDeadline(
 // static
 QuicAlarm& QuicConnectionPeer::GetIdleNetworkDetectorAlarm(
     QuicConnection* connection) {
-  return *connection->idle_network_detector_.alarm_;
+  return connection->alarms_.idle_network_detector_alarm();
 }
 
 // static

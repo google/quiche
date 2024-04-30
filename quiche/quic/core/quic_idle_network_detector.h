@@ -36,10 +36,7 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
     virtual void OnIdleNetworkDetected() = 0;
   };
 
-  QuicIdleNetworkDetector(Delegate* delegate, QuicTime now,
-                          QuicConnectionArena* arena,
-                          QuicAlarmFactory* alarm_factory,
-                          QuicConnectionContext* context);
+  QuicIdleNetworkDetector(Delegate* delegate, QuicTime now, QuicAlarm* alarm);
 
   void OnAlarm();
 
@@ -107,7 +104,7 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
   // Idle network timeout. Infinite means no idle network timeout.
   QuicTime::Delta idle_network_timeout_;
 
-  QuicArenaScopedPtr<QuicAlarm> alarm_;
+  QuicAlarm& alarm_;
 
   bool shorter_idle_timeout_on_sent_packet_ = false;
 

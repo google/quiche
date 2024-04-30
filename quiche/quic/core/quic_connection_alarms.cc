@@ -5,8 +5,11 @@
 #include "quiche/quic/core/quic_connection_alarms.h"
 
 #include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_context.h"
+#include "quiche/quic/core/quic_idle_network_detector.h"
+#include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
@@ -129,11 +132,27 @@ class MultiPortProbingAlarmDelegate : public QuicConnectionAlarmDelegate {
   }
 };
 
+class IdleDetectorAlarmDelegate : public QuicAlarm::DelegateWithContext {
+ public:
+  explicit IdleDetectorAlarmDelegate(QuicIdleNetworkDetector* detector,
+                                     QuicConnectionContext* context)
+      : QuicAlarm::DelegateWithContext(context), detector_(detector) {}
+  IdleDetectorAlarmDelegate(const IdleDetectorAlarmDelegate&) = delete;
+  IdleDetectorAlarmDelegate& operator=(const IdleDetectorAlarmDelegate&) =
+      delete;
+
+  void OnAlarm() override { detector_->OnAlarm(); }
+
+ private:
+  QuicIdleNetworkDetector* detector_;
+};
+
 }  // namespace
 
-QuicConnectionAlarms::QuicConnectionAlarms(QuicConnection* connection,
-                                           QuicAlarmFactory& alarm_factory,
-                                           QuicConnectionArena& arena)
+QuicConnectionAlarms::QuicConnectionAlarms(
+    QuicConnection* connection, QuicConnectionContext* context,
+    QuicIdleNetworkDetector* idle_network_detector,
+    QuicAlarmFactory& alarm_factory, QuicConnectionArena& arena)
     : ack_alarm_(alarm_factory.CreateAlarm(
           arena.New<AckAlarmDelegate>(connection), &arena)),
       retransmission_alarm_(alarm_factory.CreateAlarm(
@@ -152,6 +171,9 @@ QuicConnectionAlarms::QuicConnectionAlarms(QuicConnection* connection,
           arena.New<DiscardZeroRttDecryptionKeysAlarmDelegate>(connection),
           &arena)),
       multi_port_probing_alarm_(alarm_factory.CreateAlarm(
-          arena.New<MultiPortProbingAlarmDelegate>(connection), &arena)) {}
+          arena.New<MultiPortProbingAlarmDelegate>(connection), &arena)),
+      idle_network_detector_alarm_(alarm_factory.CreateAlarm(
+          arena.New<IdleDetectorAlarmDelegate>(idle_network_detector, context),
+          &arena)) {}
 
 }  // namespace quic
