@@ -223,7 +223,9 @@ void NgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
 
 int32_t NgHttp2Adapter::SubmitRequest(
     absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source, void* stream_user_data) {
+    std::unique_ptr<DataFrameSource> data_source, bool end_stream,
+    void* stream_user_data) {
+  QUICHE_DCHECK_EQ(end_stream, data_source == nullptr);
   auto nvs = GetNghttp2Nvs(headers);
   std::unique_ptr<nghttp2_data_provider> provider =
       MakeDataProvider(data_source.get());
@@ -238,9 +240,11 @@ int32_t NgHttp2Adapter::SubmitRequest(
   return stream_id;
 }
 
-int NgHttp2Adapter::SubmitResponse(
-    Http2StreamId stream_id, absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source) {
+int NgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
+                                   absl::Span<const Header> headers,
+                                   std::unique_ptr<DataFrameSource> data_source,
+                                   bool end_stream) {
+  QUICHE_DCHECK_EQ(end_stream, data_source == nullptr);
   auto nvs = GetNghttp2Nvs(headers);
   std::unique_ptr<nghttp2_data_provider> provider =
       MakeDataProvider(data_source.get());

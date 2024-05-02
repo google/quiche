@@ -75,10 +75,11 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
 
   int32_t SubmitRequest(absl::Span<const Header> headers,
                         std::unique_ptr<DataFrameSource> data_source,
-                        void* user_data) override;
+                        bool end_stream, void* user_data) override;
 
   int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
-                     std::unique_ptr<DataFrameSource> data_source) override;
+                     std::unique_ptr<DataFrameSource> data_source,
+                     bool end_stream) override;
 
   int SubmitTrailer(Http2StreamId stream_id,
                     absl::Span<const Header> trailers) override;

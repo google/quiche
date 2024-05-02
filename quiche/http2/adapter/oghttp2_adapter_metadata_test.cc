@@ -54,8 +54,8 @@ TEST(OgHttp2AdapterTest, ClientHandlesMetadata) {
                  {":path", "/this/is/request/one"}});
 
   const char* kSentinel1 = "arbitrary pointer 1";
-  const int32_t stream_id1 =
-      adapter->SubmitRequest(headers1, nullptr, const_cast<char*>(kSentinel1));
+  const int32_t stream_id1 = adapter->SubmitRequest(
+      headers1, nullptr, true, const_cast<char*>(kSentinel1));
   ASSERT_GT(stream_id1, 0);
   QUICHE_LOG(INFO) << "Created stream: " << stream_id1;
 
@@ -140,7 +140,8 @@ TEST(OgHttp2AdapterTest, ClientHandlesMetadataWithEmptyPayload) {
                  {":authority", "example.com"},
                  {":path", "/this/is/request/one"}});
 
-  const int32_t stream_id = adapter->SubmitRequest(headers1, nullptr, nullptr);
+  const int32_t stream_id =
+      adapter->SubmitRequest(headers1, nullptr, true, nullptr);
   ASSERT_GT(stream_id, 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -207,7 +208,8 @@ TEST(OgHttp2AdapterTest, ClientHandlesMetadataWithPayloadError) {
                  {":authority", "example.com"},
                  {":path", "/this/is/request/one"}});
 
-  const int32_t stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+  const int32_t stream_id =
+      adapter->SubmitRequest(headers, nullptr, true, nullptr);
   ASSERT_GT(stream_id, 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -284,7 +286,8 @@ TEST(OgHttp2AdapterTest, ClientHandlesMetadataWithCompletionError) {
                  {":authority", "example.com"},
                  {":path", "/this/is/request/one"}});
 
-  const int32_t stream_id = adapter->SubmitRequest(headers, nullptr, nullptr);
+  const int32_t stream_id =
+      adapter->SubmitRequest(headers, nullptr, true, nullptr);
   ASSERT_GT(stream_id, 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -368,7 +371,7 @@ TEST(OgHttp2AdapterTest, ClientSendsMetadataAfterFlowControlBlock) {
   body1->EndData();
 
   const int32_t stream_id1 =
-      adapter->SubmitRequest(headers1, std::move(body1), nullptr);
+      adapter->SubmitRequest(headers1, std::move(body1), false, nullptr);
   ASSERT_GT(stream_id1, 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -582,7 +585,7 @@ TEST(OgHttp2AdapterTest, ServerQueuesMetadataThenTrailers) {
   body1->EndData();
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
-      std::move(body1));
+      std::move(body1), false);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->want_write());
 
