@@ -2931,7 +2931,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       framer_.transport_version(), Perspective::IS_CLIENT);
 
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
     EXPECT_CALL(delegate_, GetFlowControlSendWindowSize(stream_id))
         .WillOnce(Return(data.length() - 1));
   } else {
@@ -2940,7 +2940,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 
   QuicConsumedData consumed = creator_.ConsumeData(stream_id, data, 0u, FIN);
 
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
     EXPECT_EQ(consumed.bytes_consumed, data.length() - 1);
     EXPECT_FALSE(consumed.fin_consumed);
   } else {
@@ -2961,7 +2961,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       framer_.transport_version(), Perspective::IS_CLIENT);
 
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
     EXPECT_CALL(delegate_, GetFlowControlSendWindowSize(stream_id))
         .WillOnce(Return(data.length()));
   } else {

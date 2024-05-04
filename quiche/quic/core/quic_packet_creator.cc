@@ -1313,7 +1313,7 @@ bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
 }
 
 void QuicPacketCreator::MaybeBundleOpportunistically() {
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
+  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
     delegate_->MaybeBundleOpportunistically(next_transmission_type_);
     return;
   }
@@ -1337,7 +1337,7 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
   const TransmissionType next_transmission_type = next_transmission_type_;
   MaybeBundleOpportunistically();
   // TODO(wub): Remove this QUIC_BUG when deprecating
-  // quic_opport_bundle_qpack_decoder_data4.
+  // quic_opport_bundle_qpack_decoder_data5.
   QUIC_BUG_IF(quic_packet_creator_change_transmission_type,
               next_transmission_type != next_transmission_type_)
       << ENDPOINT
@@ -1353,11 +1353,11 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
   // - And it's not handshake data. This is always true for ConsumeData because
   //   the function is not called for handshake data.
   const size_t original_write_length = write_length;
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4) &&
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5) &&
       next_transmission_type_ == NOT_RETRANSMISSION) {
     if (QuicByteCount send_window = delegate_->GetFlowControlSendWindowSize(id);
         write_length > send_window) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data4, 4, 4);
+      QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data5, 4, 4);
       QUIC_DLOG(INFO) << ENDPOINT
                       << "After bundled data, reducing (old) write_length:"
                       << write_length << "to (new) send_window:" << send_window;

@@ -2845,7 +2845,7 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
       client_connection->GetStats().packets_sent;
 
   if (version_.UsesHttp3()) {
-    if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
+    if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
       // QPACK decoder instructions and RESET_STREAM and STOP_SENDING frames are
       // sent in a single packet.
       EXPECT_EQ(packets_sent_before + 1, packets_sent_now);
@@ -3028,7 +3028,7 @@ TEST_P(EndToEndTest,
     return;
   }
   override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
-  SetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4, false);
+  SetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5, false);
   ASSERT_TRUE(Initialize());
   SendSynchronousFooRequestAndCheckResponse();
 

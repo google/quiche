@@ -38,7 +38,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_gfe_allow_alps_new_codepoint, true)
 // If true, an endpoint does not detect path degrading or blackholing until handshake gets confirmed.
 QUIC_FLAG(quic_reloadable_flag_quic_no_path_degrading_before_handshake_confirmed, true)
 // If true, bundle qpack decoder data with other frames opportunistically.
-QUIC_FLAG(quic_restart_flag_quic_opport_bundle_qpack_decoder_data4, false)
+QUIC_FLAG(quic_restart_flag_quic_opport_bundle_qpack_decoder_data5, false)
 // If true, default-enable 5RTO blachole detection.
 QUIC_FLAG(quic_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true)
 // If true, disable QUIC version Q046.

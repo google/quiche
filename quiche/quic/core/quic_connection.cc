@@ -3048,8 +3048,8 @@ bool QuicConnection::ShouldGeneratePacket(
 
 void QuicConnection::MaybeBundleOpportunistically(
     TransmissionType transmission_type) {
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data4, 1, 4);
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data5, 1, 4);
 
     const bool should_bundle_ack_frequency =
         !ack_frequency_sent_ && sent_packet_manager_.CanSendAckFrequency() &&
@@ -5703,8 +5703,8 @@ void QuicConnection::SendAllPendingAcks() {
       uber_received_packet_manager_.GetEarliestAckTimeout();
   QUIC_BUG_IF(quic_bug_12714_32, !earliest_ack_timeout.IsInitialized());
   MaybeBundleCryptoDataWithAcks();
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data4)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data4, 2, 4);
+  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data5, 2, 4);
     visitor_->MaybeBundleOpportunistically();
   }
   earliest_ack_timeout = uber_received_packet_manager_.GetEarliestAckTimeout();
