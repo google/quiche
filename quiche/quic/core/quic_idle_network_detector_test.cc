@@ -33,7 +33,8 @@ class MockDelegate : public QuicIdleNetworkDetector::Delegate {
 class QuicIdleNetworkDetectorTest : public QuicTest {
  public:
   QuicIdleNetworkDetectorTest()
-      : alarms_(nullptr, nullptr, &detector_, alarm_factory_, arena_),
+      : alarms_(nullptr, nullptr, &detector_, nullptr, nullptr, alarm_factory_,
+                arena_),
         detector_(&delegate_, clock_.Now() + QuicTimeDelta::FromSeconds(1),
                   &alarms_.idle_network_detector_alarm()) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));

@@ -10,7 +10,9 @@
 #include "quiche/quic/core/quic_arena_scoped_ptr.h"
 #include "quiche/quic/core/quic_connection_context.h"
 #include "quiche/quic/core/quic_idle_network_detector.h"
+#include "quiche/quic/core/quic_network_blackhole_detector.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
+#include "quiche/quic/core/quic_ping_manager.h"
 
 namespace quic {
 
@@ -21,6 +23,8 @@ class QUICHE_EXPORT QuicConnectionAlarms {
   QuicConnectionAlarms(QuicConnection* connection,
                        QuicConnectionContext* context,
                        QuicIdleNetworkDetector* idle_network_detector,
+                       QuicNetworkBlackholeDetector* network_blackhole_detector,
+                       QuicPingManager* ping_manager,
                        QuicAlarmFactory& alarm_factory,
                        QuicConnectionArena& arena);
 
@@ -41,6 +45,10 @@ class QUICHE_EXPORT QuicConnectionAlarms {
   QuicAlarm& idle_network_detector_alarm() {
     return *idle_network_detector_alarm_;
   }
+  QuicAlarm& network_blackhole_detector_alarm() {
+    return *network_blackhole_detector_alarm_;
+  }
+  QuicAlarm& ping_alarm() { return *ping_alarm_; }
 
   const QuicAlarm& ack_alarm() const { return *ack_alarm_; }
   const QuicAlarm& retransmission_alarm() const {
@@ -63,6 +71,10 @@ class QUICHE_EXPORT QuicConnectionAlarms {
   const QuicAlarm& idle_network_detector_alarm() const {
     return *idle_network_detector_alarm_;
   }
+  const QuicAlarm& network_blackhole_detector_alarm() const {
+    return *network_blackhole_detector_alarm_;
+  }
+  const QuicAlarm& ping_alarm() const { return *ping_alarm_; }
 
  private:
   // An alarm that fires when an ACK should be sent to the peer.
@@ -88,6 +100,10 @@ class QUICHE_EXPORT QuicConnectionAlarms {
   QuicArenaScopedPtr<QuicAlarm> multi_port_probing_alarm_;
   // An alarm for QuicIdleNetworkDetector.
   QuicArenaScopedPtr<QuicAlarm> idle_network_detector_alarm_;
+  // An alarm for QuicNetworkBlackholeDetection.
+  QuicArenaScopedPtr<QuicAlarm> network_blackhole_detector_alarm_;
+  // An alarm for QuicPingManager.
+  QuicArenaScopedPtr<QuicAlarm> ping_alarm_;
 };
 
 }  // namespace quic

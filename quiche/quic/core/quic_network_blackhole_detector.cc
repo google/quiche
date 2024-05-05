@@ -8,30 +8,9 @@
 
 namespace quic {
 
-namespace {
-
-class AlarmDelegate : public QuicAlarm::DelegateWithContext {
- public:
-  explicit AlarmDelegate(QuicNetworkBlackholeDetector* detector,
-                         QuicConnectionContext* context)
-      : QuicAlarm::DelegateWithContext(context), detector_(detector) {}
-  AlarmDelegate(const AlarmDelegate&) = delete;
-  AlarmDelegate& operator=(const AlarmDelegate&) = delete;
-
-  void OnAlarm() override { detector_->OnAlarm(); }
-
- private:
-  QuicNetworkBlackholeDetector* detector_;
-};
-
-}  // namespace
-
-QuicNetworkBlackholeDetector::QuicNetworkBlackholeDetector(
-    Delegate* delegate, QuicConnectionArena* arena,
-    QuicAlarmFactory* alarm_factory, QuicConnectionContext* context)
-    : delegate_(delegate),
-      alarm_(alarm_factory->CreateAlarm(
-          arena->New<AlarmDelegate>(this, context), arena)) {}
+QuicNetworkBlackholeDetector::QuicNetworkBlackholeDetector(Delegate* delegate,
+                                                           QuicAlarm* alarm)
+    : delegate_(delegate), alarm_(*alarm) {}
 
 void QuicNetworkBlackholeDetector::OnAlarm() {
   QuicTime next_deadline = GetEarliestDeadline();
@@ -66,9 +45,9 @@ void QuicNetworkBlackholeDetector::OnAlarm() {
 
 void QuicNetworkBlackholeDetector::StopDetection(bool permanent) {
   if (permanent) {
-    alarm_->PermanentCancel();
+    alarm_.PermanentCancel();
   } else {
-    alarm_->Cancel();
+    alarm_.Cancel();
   }
   path_degrading_deadline_ = QuicTime::Zero();
   blackhole_deadline_ = QuicTime::Zero();
@@ -113,7 +92,7 @@ QuicTime QuicNetworkBlackholeDetector::GetLastDeadline() const {
 void QuicNetworkBlackholeDetector::UpdateAlarm() const {
   // If called after OnBlackholeDetected(), the alarm may have been permanently
   // cancelled and is not safe to be armed again.
-  if (alarm_->IsPermanentlyCancelled()) {
+  if (alarm_.IsPermanentlyCancelled()) {
     return;
   }
 
@@ -125,11 +104,11 @@ void QuicNetworkBlackholeDetector::UpdateAlarm() const {
                 << path_mtu_reduction_deadline_
                 << ", blackhole_deadline_:" << blackhole_deadline_;
 
-  alarm_->Update(next_deadline, kAlarmGranularity);
+  alarm_.Update(next_deadline, kAlarmGranularity);
 }
 
 bool QuicNetworkBlackholeDetector::IsDetectionInProgress() const {
-  return alarm_->IsSet();
+  return alarm_.IsSet();
 }
 
 }  // namespace quic

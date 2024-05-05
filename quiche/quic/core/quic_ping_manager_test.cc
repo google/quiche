@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_ping_manager.h"
 
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -14,7 +15,7 @@ namespace test {
 class QuicPingManagerPeer {
  public:
   static QuicAlarm* GetAlarm(QuicPingManager* manager) {
-    return manager->alarm_.get();
+    return &manager->alarm_;
   }
 
   static void SetPerspective(QuicPingManager* manager,
@@ -37,8 +38,9 @@ class MockDelegate : public QuicPingManager::Delegate {
 class QuicPingManagerTest : public QuicTest {
  public:
   QuicPingManagerTest()
-      : manager_(Perspective::IS_CLIENT, &delegate_, &arena_, &alarm_factory_,
-                 /*context=*/nullptr),
+      : alarms_(nullptr, nullptr, nullptr, nullptr, &manager_, alarm_factory_,
+                arena_),
+        manager_(Perspective::IS_CLIENT, &delegate_, &alarms_.ping_alarm()),
         alarm_(static_cast<MockAlarmFactory::TestAlarm*>(
             QuicPingManagerPeer::GetAlarm(&manager_))) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
@@ -49,6 +51,7 @@ class QuicPingManagerTest : public QuicTest {
   MockClock clock_;
   QuicConnectionArena arena_;
   MockAlarmFactory alarm_factory_;
+  QuicConnectionAlarms alarms_;
   QuicPingManager manager_;
   MockAlarmFactory::TestAlarm* alarm_;
 };

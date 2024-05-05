@@ -40,9 +40,7 @@ class QUICHE_EXPORT QuicNetworkBlackholeDetector {
     virtual void OnPathMtuReductionDetected() = 0;
   };
 
-  QuicNetworkBlackholeDetector(Delegate* delegate, QuicConnectionArena* arena,
-                               QuicAlarmFactory* alarm_factory,
-                               QuicConnectionContext* context);
+  QuicNetworkBlackholeDetector(Delegate* delegate, QuicAlarm* alarm);
 
   // Called to stop all detections. If |permanent|, the alarm will be cancelled
   // permanently and future calls to RestartDetection will be no-op.
@@ -83,7 +81,7 @@ class QUICHE_EXPORT QuicNetworkBlackholeDetector {
   // path mtu reduction detection is in progress.
   QuicTime path_mtu_reduction_deadline_ = QuicTime::Zero();
 
-  QuicArenaScopedPtr<QuicAlarm> alarm_;
+  QuicAlarm& alarm_;
 };
 
 }  // namespace quic

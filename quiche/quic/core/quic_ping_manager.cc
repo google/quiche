@@ -15,45 +15,26 @@ namespace {
 // << 10) = 204.8s
 const int kMaxRetransmittableOnWireDelayShift = 10;
 
-class AlarmDelegate : public QuicAlarm::DelegateWithContext {
- public:
-  explicit AlarmDelegate(QuicPingManager* manager,
-                         QuicConnectionContext* context)
-      : QuicAlarm::DelegateWithContext(context), manager_(manager) {}
-  AlarmDelegate(const AlarmDelegate&) = delete;
-  AlarmDelegate& operator=(const AlarmDelegate&) = delete;
-
-  void OnAlarm() override { manager_->OnAlarm(); }
-
- private:
-  QuicPingManager* manager_;
-};
-
 }  // namespace
 
 QuicPingManager::QuicPingManager(Perspective perspective, Delegate* delegate,
-                                 QuicConnectionArena* arena,
-                                 QuicAlarmFactory* alarm_factory,
-                                 QuicConnectionContext* context)
-    : perspective_(perspective),
-      delegate_(delegate),
-      alarm_(alarm_factory->CreateAlarm(
-          arena->New<AlarmDelegate>(this, context), arena)) {}
+                                 QuicAlarm* alarm)
+    : perspective_(perspective), delegate_(delegate), alarm_(*alarm) {}
 
 void QuicPingManager::SetAlarm(QuicTime now, bool should_keep_alive,
                                bool has_in_flight_packets) {
   UpdateDeadlines(now, should_keep_alive, has_in_flight_packets);
   const QuicTime earliest_deadline = GetEarliestDeadline();
   if (!earliest_deadline.IsInitialized()) {
-    alarm_->Cancel();
+    alarm_.Cancel();
     return;
   }
   if (earliest_deadline == keep_alive_deadline_) {
     // Use 1s granularity for keep-alive time.
-    alarm_->Update(earliest_deadline, QuicTime::Delta::FromSeconds(1));
+    alarm_.Update(earliest_deadline, QuicTime::Delta::FromSeconds(1));
     return;
   }
-  alarm_->Update(earliest_deadline, kAlarmGranularity);
+  alarm_.Update(earliest_deadline, kAlarmGranularity);
 }
 
 void QuicPingManager::OnAlarm() {
@@ -82,7 +63,7 @@ void QuicPingManager::OnAlarm() {
 }
 
 void QuicPingManager::Stop() {
-  alarm_->PermanentCancel();
+  alarm_.PermanentCancel();
   retransmittable_on_wire_deadline_ = QuicTime::Zero();
   keep_alive_deadline_ = QuicTime::Zero();
 }

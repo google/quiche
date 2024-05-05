@@ -38,8 +38,7 @@ class QUICHE_EXPORT QuicPingManager {
   };
 
   QuicPingManager(Perspective perspective, Delegate* delegate,
-                  QuicConnectionArena* arena, QuicAlarmFactory* alarm_factory,
-                  QuicConnectionContext* context);
+                  QuicAlarm* alarm);
 
   // Called to set |alarm_|.
   void SetAlarm(QuicTime now, bool should_keep_alive,
@@ -52,13 +51,13 @@ class QUICHE_EXPORT QuicPingManager {
   void Stop();
 
   void set_keep_alive_timeout(QuicTime::Delta keep_alive_timeout) {
-    QUICHE_DCHECK(!alarm_->IsSet());
+    QUICHE_DCHECK(!alarm_.IsSet());
     keep_alive_timeout_ = keep_alive_timeout;
   }
 
   void set_initial_retransmittable_on_wire_timeout(
       QuicTime::Delta retransmittable_on_wire_timeout) {
-    QUICHE_DCHECK(!alarm_->IsSet());
+    QUICHE_DCHECK(!alarm_.IsSet());
     initial_retransmittable_on_wire_timeout_ = retransmittable_on_wire_timeout;
   }
 
@@ -100,7 +99,7 @@ class QUICHE_EXPORT QuicPingManager {
 
   QuicTime keep_alive_deadline_ = QuicTime::Zero();
 
-  QuicArenaScopedPtr<QuicAlarm> alarm_;
+  QuicAlarm& alarm_;
 };
 
 }  // namespace quic

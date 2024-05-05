@@ -123,7 +123,7 @@ QuicAlarm& QuicConnectionPeer::GetAckAlarm(QuicConnection* connection) {
 
 // static
 QuicAlarm& QuicConnectionPeer::GetPingAlarm(QuicConnection* connection) {
-  return *connection->ping_manager_.alarm_;
+  return connection->alarms_.ping_alarm();
 }
 
 // static
@@ -324,7 +324,7 @@ QuicNetworkBlackholeDetector& QuicConnectionPeer::GetBlackholeDetector(
 // static
 QuicAlarm& QuicConnectionPeer::GetBlackholeDetectorAlarm(
     QuicConnection* connection) {
-  return *connection->blackhole_detector_.alarm_;
+  return connection->alarms_.network_blackhole_detector_alarm();
 }
 
 // static
