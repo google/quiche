@@ -140,10 +140,11 @@ class QuicIntervalDequePeer;
 template <class T, class C = quiche::QuicheCircularDeque<T>>
 class QUICHE_NO_EXPORT QuicIntervalDeque {
  public:
+  // `Iterator` satisfies the requirements for LegacyRandomAccessIterator
+  // for efficient std::lower_bound() calls.
   class QUICHE_NO_EXPORT Iterator {
    public:
-    // Used by |std::lower_bound|
-    using iterator_category = std::forward_iterator_tag;
+    using iterator_category = std::random_access_iterator_tag;
     using value_type = T;
     using difference_type = std::ptrdiff_t;
     using pointer = T*;
@@ -192,18 +193,10 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
       return index_ == rhs.index_ && deque_ == rhs.deque_;
     }
     bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
-
-   private:
-    // A set of private operators for |std::lower_bound|
-    Iterator operator+(difference_type amount) const {
-      Iterator copy = *this;
-      copy.index_ += amount;
-      QUICHE_DCHECK(copy.index_ < copy.deque_->Size());
-      return copy;
-    }
     Iterator& operator+=(difference_type amount) {
       index_ += amount;
-      QUICHE_DCHECK(index_ < deque_->Size());
+      QUICHE_DCHECK_LE(0, index_);
+      QUICHE_DCHECK_LT(index_, deque_->Size());
       return *this;
     }
     difference_type operator-(const Iterator& rhs) const {
@@ -211,6 +204,7 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
              static_cast<difference_type>(rhs.index_);
     }
 
+   private:
     // |index_| is the index of the item in |*deque_|.
     std::size_t index_;
     // |deque_| is a pointer to the container the iterator came from.
