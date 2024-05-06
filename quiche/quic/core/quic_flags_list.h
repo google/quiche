@@ -82,7 +82,7 @@ QUIC_FLAG(quic_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false)
 // If true, when TicketCrypter fails to encrypt a session ticket, quic::TlsServerHandshaker will send a placeholder ticket, instead of an empty one, to the client.
 QUIC_FLAG(quic_reloadable_flag_quic_send_placeholder_ticket_when_encrypt_ticket_fails, true)
 // If true, when the peer sends connection options \\\\\\\'SLP1\\\\\\\', \\\\\\\'SLP2\\\\\\\' and \\\\\\\'SLPF\\\\\\\', internet facing GFEs will only allow a limited number of new requests to be processed per event loop, and postpone the rest to the following event loops. Also guard QuicConnection to iterate through all decrypters at each encryption level to get cipher id for a request.
-QUIC_FLAG(quic_reloadable_flag_quic_limit_new_streams_per_loop_2, false)
+QUIC_FLAG(quic_reloadable_flag_quic_limit_new_streams_per_loop_2, true)
 // When true, allows sending of QUIC packets marked ECT(1). A different flag (TBD) will actually utilize this capability to send ECT(1).
 QUIC_FLAG(quic_restart_flag_quic_support_ect1, false)
 // When true, defaults to BBR congestion control instead of Cubic.
