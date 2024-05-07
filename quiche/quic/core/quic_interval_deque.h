@@ -195,7 +195,7 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
     bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
     Iterator& operator+=(difference_type amount) {
       index_ += amount;
-      QUICHE_DCHECK_LE(0, index_);
+      QUICHE_DCHECK_LE(0u, index_);
       QUICHE_DCHECK_LT(index_, deque_->Size());
       return *this;
     }
