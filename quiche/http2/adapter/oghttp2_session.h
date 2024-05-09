@@ -107,9 +107,10 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
 
   int32_t SubmitRequest(absl::Span<const Header> headers,
                         std::unique_ptr<DataFrameSource> data_source,
-                        void* user_data);
+                        bool end_stream, void* user_data);
   int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
-                     std::unique_ptr<DataFrameSource> data_source);
+                     std::unique_ptr<DataFrameSource> data_source,
+                     bool end_stream);
   int SubmitTrailer(Http2StreamId stream_id, absl::Span<const Header> trailers);
   void SubmitMetadata(Http2StreamId stream_id,
                       std::unique_ptr<MetadataSource> source);
@@ -261,6 +262,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     spdy::Http2HeaderBlock headers;
     std::unique_ptr<DataFrameSource> data_source;
     void* user_data = nullptr;
+    bool end_stream;
   };
 
   class QUICHE_EXPORT PassthroughHeadersHandler
@@ -368,10 +370,11 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
 
   int32_t SubmitRequestInternal(absl::Span<const Header> headers,
                                 std::unique_ptr<DataFrameSource> data_source,
-                                void* user_data);
+                                bool end_stream, void* user_data);
   int SubmitResponseInternal(Http2StreamId stream_id,
                              absl::Span<const Header> headers,
-                             std::unique_ptr<DataFrameSource> data_source);
+                             std::unique_ptr<DataFrameSource> data_source,
+                             bool end_stream);
 
   // Sends the buffered connection preface or serialized frame data, if any.
   SendResult MaybeSendBufferedData();
@@ -410,7 +413,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   // in the stream state, and sends the `headers`.
   void StartRequest(Http2StreamId stream_id, spdy::Http2HeaderBlock headers,
                     std::unique_ptr<DataFrameSource> data_source,
-                    void* user_data);
+                    void* user_data, bool end_stream);
 
   // Sends headers for pending streams as long as the stream limit allows.
   void StartPendingStreams();

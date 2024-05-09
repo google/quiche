@@ -654,7 +654,8 @@ Http2StreamId OgHttp2Session::GetNextReadyStream() {
 
 int32_t OgHttp2Session::SubmitRequestInternal(
     absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source, void* user_data) {
+    std::unique_ptr<DataFrameSource> data_source, bool end_stream,
+    void* user_data) {
   // TODO(birenroy): return an error for the incorrect perspective
   const Http2StreamId stream_id = next_stream_id_;
   next_stream_id_ += 2;
@@ -662,26 +663,27 @@ int32_t OgHttp2Session::SubmitRequestInternal(
     // TODO(diannahu): There should probably be a limit to the number of allowed
     // pending streams.
     pending_streams_.insert(
-        {stream_id, PendingStreamState{ToHeaderBlock(headers),
-                                       std::move(data_source), user_data}});
+        {stream_id,
+         PendingStreamState{ToHeaderBlock(headers), std::move(data_source),
+                            user_data, end_stream}});
     StartPendingStreams();
   } else {
     StartRequest(stream_id, ToHeaderBlock(headers), std::move(data_source),
-                 user_data);
+                 user_data, end_stream);
   }
   return stream_id;
 }
 
 int OgHttp2Session::SubmitResponseInternal(
     Http2StreamId stream_id, absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source) {
+    std::unique_ptr<DataFrameSource> data_source, bool end_stream) {
   // TODO(birenroy): return an error for the incorrect perspective
   auto iter = stream_map_.find(stream_id);
   if (iter == stream_map_.end()) {
     QUICHE_LOG(ERROR) << "Unable to find stream " << stream_id;
     return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
   }
-  const bool end_stream = data_source == nullptr;
+  QUICHE_DCHECK_EQ(end_stream, data_source == nullptr);
   if (!end_stream) {
     // Add data source to stream state
     iter->second.outbound_body = std::move(data_source);
@@ -985,14 +987,18 @@ void OgHttp2Session::SerializeMetadata(Http2StreamId stream_id,
 
 int32_t OgHttp2Session::SubmitRequest(
     absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source, void* user_data) {
-  return SubmitRequestInternal(headers, std::move(data_source), user_data);
+    std::unique_ptr<DataFrameSource> data_source, bool end_stream,
+    void* user_data) {
+  return SubmitRequestInternal(headers, std::move(data_source), end_stream,
+                               user_data);
 }
 
-int OgHttp2Session::SubmitResponse(
-    Http2StreamId stream_id, absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source) {
-  return SubmitResponseInternal(stream_id, headers, std::move(data_source));
+int OgHttp2Session::SubmitResponse(Http2StreamId stream_id,
+                                   absl::Span<const Header> headers,
+                                   std::unique_ptr<DataFrameSource> data_source,
+                                   bool end_stream) {
+  return SubmitResponseInternal(stream_id, headers, std::move(data_source),
+                                end_stream);
 }
 
 int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
@@ -1811,7 +1817,7 @@ OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
 void OgHttp2Session::StartRequest(Http2StreamId stream_id,
                                   spdy::Http2HeaderBlock headers,
                                   std::unique_ptr<DataFrameSource> data_source,
-                                  void* user_data) {
+                                  void* user_data, bool end_stream) {
   if (received_goaway_) {
     // Do not start new streams after receiving a GOAWAY.
     goaway_rejected_streams_.insert(stream_id);
@@ -1819,7 +1825,7 @@ void OgHttp2Session::StartRequest(Http2StreamId stream_id,
   }
 
   auto iter = CreateStream(stream_id);
-  const bool end_stream = data_source == nullptr;
+  QUICHE_DCHECK_EQ(end_stream, data_source == nullptr);
   if (!end_stream) {
     iter->second.outbound_body = std::move(data_source);
     write_scheduler_.MarkStreamReady(stream_id, false);
@@ -1838,7 +1844,7 @@ void OgHttp2Session::StartPendingStreams() {
     auto& [stream_id, pending_stream] = pending_streams_.front();
     StartRequest(stream_id, std::move(pending_stream.headers),
                  std::move(pending_stream.data_source),
-                 pending_stream.user_data);
+                 pending_stream.user_data, pending_stream.end_stream);
     pending_streams_.pop_front();
   }
 }
