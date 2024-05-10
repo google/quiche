@@ -41,7 +41,7 @@ class NgHttp2SessionTest : public quiche::test::QuicheTest {
     return callbacks;
   }
 
-  DataSavingVisitor visitor_;
+  TestVisitor visitor_;
   nghttp2_option* options_ = nullptr;
 };
 

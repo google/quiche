@@ -13,7 +13,7 @@ const size_t kFrameHeaderSize = 9;
 // correctly with nghttp2-style callbacks when the amount of data read is less
 // than what the source provides.
 TEST(DataProviderTest, ReadLessThanSourceProvides) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   TestDataFrameSource source(visitor, true);
   source.AppendPayload("Example payload");
   source.EndData();
@@ -42,7 +42,7 @@ TEST(DataProviderTest, ReadLessThanSourceProvides) {
 // correctly with nghttp2-style callbacks when the amount of data read is more
 // than what the source provides.
 TEST(DataProviderTest, ReadMoreThanSourceProvides) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   const absl::string_view kPayload = "Example payload";
   TestDataFrameSource source(visitor, true);
   source.AppendPayload(kPayload);
@@ -71,7 +71,7 @@ TEST(DataProviderTest, ReadMoreThanSourceProvides) {
 // Verifies that a nghttp2_data_provider derived from a DataFrameSource works
 // correctly with nghttp2-style callbacks when the source is blocked.
 TEST(DataProviderTest, ReadFromBlockedSource) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   // Source has no payload, but also no fin, so it's blocked.
   TestDataFrameSource source(visitor, false);
   auto provider = MakeDataProvider(&source);
@@ -89,7 +89,7 @@ TEST(DataProviderTest, ReadFromBlockedSource) {
 // correctly with nghttp2-style callbacks when the source provides only fin and
 // no data.
 TEST(DataProviderTest, ReadFromZeroLengthSource) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   // Empty payload and fin=true indicates the source is done.
   TestDataFrameSource source(visitor, true);
   source.EndData();

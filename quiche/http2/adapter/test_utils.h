@@ -19,7 +19,7 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
-class QUICHE_NO_EXPORT DataSavingVisitor
+class QUICHE_NO_EXPORT TestVisitor
     : public testing::StrictMock<MockHttp2Visitor> {
  public:
   int64_t OnReadyToSend(absl::string_view data) override {

@@ -158,7 +158,7 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
 // Verifies that a client session enqueues initial SETTINGS if Send() is called
 // before any frames are explicitly queued.
 TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnSend) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kClient;
   OgHttp2Session session(visitor, options);
@@ -179,7 +179,7 @@ TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnSend) {
 // Verifies that a client session enqueues initial SETTINGS before whatever
 // frame type is passed to the first invocation of EnqueueFrame().
 TEST(OgHttp2SessionTest, ClientEnqueuesSettingsBeforeOtherFrame) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kClient;
   OgHttp2Session session(visitor, options);
@@ -205,7 +205,7 @@ TEST(OgHttp2SessionTest, ClientEnqueuesSettingsBeforeOtherFrame) {
 // Verifies that if the first call to EnqueueFrame() passes a SETTINGS frame,
 // the client session will not enqueue an additional SETTINGS frame.
 TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnce) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kClient;
   OgHttp2Session session(visitor, options);
@@ -226,7 +226,7 @@ TEST(OgHttp2SessionTest, ClientEnqueuesSettingsOnce) {
 }
 
 TEST(OgHttp2SessionTest, ClientSubmitRequest) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kClient;
   OgHttp2Session session(visitor, options);
@@ -335,7 +335,7 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
 }
 
 TEST(OgHttp2SessionTest, ClientSubmitRequestWithLargePayload) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kClient;
   OgHttp2Session session(visitor, options);
@@ -413,7 +413,7 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithLargePayload) {
 // This test exercises the case where the client request body source is read
 // blocked.
 TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kClient;
   OgHttp2Session session(visitor, options);
@@ -469,7 +469,7 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
 // This test exercises the case where the client request body source is read
 // blocked, then ends with an empty DATA frame.
 TEST(OgHttp2SessionTest, ClientSubmitRequestEmptyDataWithFin) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kClient;
   OgHttp2Session session(visitor, options);
@@ -524,7 +524,7 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestEmptyDataWithFin) {
 // This test exercises the case where the connection to the peer is write
 // blocked.
 TEST(OgHttp2SessionTest, ClientSubmitRequestWithWriteBlock) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kClient;
   OgHttp2Session session(visitor, options);
@@ -583,7 +583,7 @@ TEST(OgHttp2SessionTest, ServerConstruction) {
 }
 
 TEST(OgHttp2SessionTest, ServerHandlesFrames) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kServer;
   OgHttp2Session session(visitor, options);
@@ -704,7 +704,7 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
 // Verifies that a server session enqueues initial SETTINGS before whatever
 // frame type is passed to the first invocation of EnqueueFrame().
 TEST(OgHttp2SessionTest, ServerEnqueuesSettingsBeforeOtherFrame) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kServer;
   OgHttp2Session session(visitor, options);
@@ -726,7 +726,7 @@ TEST(OgHttp2SessionTest, ServerEnqueuesSettingsBeforeOtherFrame) {
 // Verifies that if the first call to EnqueueFrame() passes a SETTINGS frame,
 // the server session will not enqueue an additional SETTINGS frame.
 TEST(OgHttp2SessionTest, ServerEnqueuesSettingsOnce) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kServer;
   OgHttp2Session session(visitor, options);
@@ -743,7 +743,7 @@ TEST(OgHttp2SessionTest, ServerEnqueuesSettingsOnce) {
 }
 
 TEST(OgHttp2SessionTest, ServerSubmitResponse) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kServer;
   OgHttp2Session session(visitor, options);
@@ -843,7 +843,7 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
 // Tests the case where the server queues trailers after the data stream is
 // exhausted.
 TEST(OgHttp2SessionTest, ServerSendsTrailers) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kServer;
   OgHttp2Session session(visitor, options);
@@ -935,7 +935,7 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
 // Tests the case where the server queues trailers immediately after headers and
 // data, and before any writes have taken place.
 TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kServer;
   OgHttp2Session session(visitor, options);
@@ -1020,7 +1020,7 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
 }
 
 TEST(OgHttp2SessionTest, ServerSeesErrorOnEndStream) {
-  DataSavingVisitor visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kServer;
   OgHttp2Session session(visitor, options);
