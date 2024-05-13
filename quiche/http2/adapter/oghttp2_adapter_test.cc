@@ -6650,15 +6650,19 @@ TEST(OgHttp2AdapterTest, ServerRejectsStreamData) {
 // Exercises a naive mutually recursive test client and server. This test fails
 // without recursion guards in OgHttp2Session.
 TEST(OgHttp2AdapterInteractionTest, ClientServerInteractionTest) {
-  testing::NiceMock<MockHttp2Visitor> client_visitor;
+  TestVisitor client_visitor;
   OgHttp2Adapter::Options client_options;
   client_options.perspective = Perspective::kClient;
   auto client_adapter = OgHttp2Adapter::Create(client_visitor, client_options);
-  testing::NiceMock<MockHttp2Visitor> server_visitor;
+  TestVisitor server_visitor;
   OgHttp2Adapter::Options server_options;
   server_options.perspective = Perspective::kServer;
   auto server_adapter = OgHttp2Adapter::Create(server_visitor, server_options);
 
+  EXPECT_CALL(client_visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(client_visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0x0));
+  EXPECT_CALL(client_visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x5));
+  EXPECT_CALL(client_visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0x0));
   // Feeds bytes sent from the client into the server's ProcessBytes.
   EXPECT_CALL(client_visitor, OnReadyToSend(_))
       .WillRepeatedly(

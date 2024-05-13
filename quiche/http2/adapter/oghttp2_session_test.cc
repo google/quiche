@@ -52,7 +52,7 @@ TEST(OgHttp2SessionTest, ClientConstructionWithMaxStreams) {
 }
 
 TEST(OgHttp2SessionTest, ClientHandlesFrames) {
-  testing::StrictMock<MockHttp2Visitor> visitor;
+  TestVisitor visitor;
   OgHttp2Session::Options options;
   options.perspective = Perspective::kClient;
   OgHttp2Session session(visitor, options);
