@@ -1417,13 +1417,13 @@ TEST(OgHttp2AdapterTest, ClientSendsTrailers) {
                  {":path", "/this/is/request/one"}});
 
   const std::string kBody = "This is an example request body.";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload(kBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, false);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
   const int32_t stream_id1 =
       adapter->SubmitRequest(headers1, std::move(body1), false, nullptr);
-  ASSERT_GT(stream_id1, 0);
+  ASSERT_EQ(stream_id1, 1);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
@@ -2676,16 +2676,16 @@ TEST(OgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
   visitor.Clear();
 
   const std::string kBody = "This is an example request body.";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload(kBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   const int stream_id =
       adapter->SubmitRequest(ToHeaders({{":method", "POST"},
                                         {":scheme", "http"},
                                         {":authority", "example.com"},
                                         {":path", "/this/is/request/one"}}),
                              std::move(body1), false, nullptr);
-  EXPECT_GT(stream_id, 0);
+  ASSERT_EQ(stream_id, 1);
   EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor,
@@ -2799,9 +2799,9 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
   visitor.Clear();
 
   const std::string kLongBody = std::string(81000, 'c');
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload(kLongBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kLongBody);
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   const int stream_id =
       adapter->SubmitRequest(ToHeaders({{":method", "POST"},
                                         {":scheme", "http"},
@@ -2856,9 +2856,9 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSettingAfterStreamStart) {
   visitor.Clear();
 
   const std::string kLongBody = std::string(81000, 'c');
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload(kLongBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kLongBody);
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   const int stream_id =
       adapter->SubmitRequest(ToHeaders({{":method", "POST"},
                                         {":scheme", "http"},
@@ -3463,9 +3463,9 @@ TEST(OgHttp2AdapterTest, ClientEncountersFlowControlBlock) {
                  {":path", "/this/is/request/one"}});
 
   const std::string kBody = std::string(100 * 1024, 'a');
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload(kBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, false);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
   const int32_t stream_id1 =
       adapter->SubmitRequest(headers1, std::move(body1), false, nullptr);
@@ -3477,13 +3477,13 @@ TEST(OgHttp2AdapterTest, ClientEncountersFlowControlBlock) {
                  {":authority", "example.com"},
                  {":path", "/this/is/request/two"}});
 
-  auto body2 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body2->AppendPayload(kBody);
-  body2->EndData();
+  visitor.AppendPayloadForStream(3, kBody);
+  visitor.SetEndData(3, false);
+  auto body2 = std::make_unique<VisitorDataSource>(visitor, 3);
 
   const int32_t stream_id2 =
       adapter->SubmitRequest(headers2, std::move(body2), false, nullptr);
-  ASSERT_GT(stream_id2, 0);
+  ASSERT_EQ(stream_id2, 3);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
@@ -3545,9 +3545,9 @@ TEST(OgHttp2AdapterTest, ClientSendsTrailersAfterFlowControlBlock) {
                  {":authority", "example.com"},
                  {":path", "/this/is/request/one"}});
 
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload("Really small body.");
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, "Really small body.");
+  visitor.SetEndData(1, false);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
   const int32_t stream_id1 =
       adapter->SubmitRequest(headers1, std::move(body1), false, nullptr);
@@ -3560,9 +3560,9 @@ TEST(OgHttp2AdapterTest, ClientSendsTrailersAfterFlowControlBlock) {
                  {":path", "/this/is/request/two"}});
 
   const std::string kBody = std::string(100 * 1024, 'a');
-  auto body2 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body2->AppendPayload(kBody);
-  body2->EndData();
+  visitor.AppendPayloadForStream(3, kBody);
+  visitor.SetEndData(3, false);
+  auto body2 = std::make_unique<VisitorDataSource>(visitor, 3);
 
   const int32_t stream_id2 =
       adapter->SubmitRequest(headers2, std::move(body2), false, nullptr);
@@ -4224,9 +4224,9 @@ TEST(OgHttp2AdapterTest, ConnectionErrorOnDataFrameSent) {
   const int64_t read_result = adapter->ProcessBytes(frames);
   EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
 
-  auto body = std::make_unique<TestDataFrameSource>(visitor, true);
-  body->AppendPayload("Here is some data, which will lead to a fatal error");
-  TestDataFrameSource* body_ptr = body.get();
+  visitor.AppendPayloadForStream(
+      1, "Here is some data, which will lead to a fatal error");
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
   ASSERT_EQ(0, submit_result);
@@ -4249,7 +4249,8 @@ TEST(OgHttp2AdapterTest, ConnectionErrorOnDataFrameSent) {
   int send_result = adapter->Send();
   EXPECT_LT(send_result, 0);
 
-  body_ptr->AppendPayload("After the fatal error, data will be sent no more");
+  visitor.AppendPayloadForStream(
+      1, "After the fatal error, data will be sent no more");
 
   EXPECT_FALSE(adapter->want_write());
 
@@ -4337,9 +4338,9 @@ TEST(OgHttp2AdapterTest, RepeatedHeaderNames) {
 
   const std::vector<Header> headers1 = ToHeaders(
       {{":status", "200"}, {"content-length", "10"}, {"content-length", "10"}});
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload("perfection");
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, "perfection");
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result =
       adapter->SubmitResponse(1, headers1, std::move(body1), false);
@@ -4400,8 +4401,7 @@ TEST(OgHttp2AdapterTest, ServerRespondsToRequestWithTrailers) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
   const std::vector<Header> headers1 = ToHeaders({{":status", "200"}});
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  TestDataFrameSource* body1_ptr = body1.get();
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result =
       adapter->SubmitResponse(1, headers1, std::move(body1), false);
@@ -4437,7 +4437,7 @@ TEST(OgHttp2AdapterTest, ServerRespondsToRequestWithTrailers) {
   result = adapter->ProcessBytes(more_frames);
   EXPECT_EQ(more_frames.size(), static_cast<size_t>(result));
 
-  body1_ptr->EndData();
+  visitor.SetEndData(1, true);
   EXPECT_EQ(true, adapter->ResumeStream(1));
 
   EXPECT_CALL(visitor, OnFrameSent(DATA, 1, 0, END_STREAM, 0));
@@ -4600,8 +4600,8 @@ TEST(OgHttp2AdapterTest, ServerSubmitsResponseWithDataSourceError) {
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->SimulateError();
+  visitor.SimulateError(1);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1), false);
@@ -4901,9 +4901,9 @@ TEST(OgHttp2AdapterTest, ServerSendsInvalidTrailers) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload(kBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, false);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1), false);
@@ -5158,10 +5158,10 @@ TEST(OgHttp2AdapterTest, ServerHandlesHostHeaderWithLaxValidation) {
 // Tests the case where the response body is in the progress of being sent while
 // trailers are queued.
 TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
-  TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
   for (const bool add_more_body_data : {true, false}) {
+    TestVisitor visitor;
     auto adapter = OgHttp2Adapter::Create(visitor, options);
 
     const std::string frames = TestFrameSequence()
@@ -5213,9 +5213,8 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
 
     // The body source must indicate that the end of the body is not the end of
     // the stream.
-    auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-    body1->AppendPayload(kBody);
-    auto* body1_ptr = body1.get();
+    visitor.AppendPayloadForStream(1, kBody);
+    auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
     int submit_result = adapter->SubmitResponse(
         1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
         std::move(body1), false);
@@ -5232,7 +5231,7 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
     EXPECT_FALSE(adapter->want_write());
 
     if (add_more_body_data) {
-      body1_ptr->AppendPayload(" More body! This is ignored.");
+      visitor.AppendPayloadForStream(1, " More body! This is ignored.");
     }
     int trailer_result =
         adapter->SubmitTrailer(1, ToHeaders({{"final-status", "a-ok"}}));
@@ -5306,9 +5305,8 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithFlowControlBlockage) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload(kBody);
-  auto* body1_ptr = body1.get();
+  visitor.AppendPayloadForStream(1, kBody);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1), false);
@@ -5328,7 +5326,7 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithFlowControlBlockage) {
   visitor.Clear();
   EXPECT_FALSE(adapter->want_write());
 
-  body1_ptr->AppendPayload(std::string(6000, 'b'));
+  visitor.AppendPayloadForStream(1, std::string(6000, 'b'));
   // The next response body data payload is larger than the available stream
   // flow control window.
   EXPECT_LT(adapter->GetStreamSendWindowSize(1), 6000);
@@ -5412,9 +5410,9 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStream) {
 
   // Send a body that will end with the END_STREAM flag.
   const absl::string_view kBody = "This is an example response body.";
-  auto body = std::make_unique<TestDataFrameSource>(visitor, /*has_fin=*/true);
-  body->AppendPayload(kBody);
-  body->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, true);
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
@@ -5483,9 +5481,8 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStreamAndDeferral) {
   // Send a body that will end with the END_STREAM flag. Don't end the body here
   // so that more body can be added later.
   const absl::string_view kBody = "This is an example response body.";
-  auto body = std::make_unique<TestDataFrameSource>(visitor, /*has_fin=*/true);
-  body->AppendPayload(kBody);
-  TestDataFrameSource& body_ref = *body;
+  visitor.AppendPayloadForStream(1, kBody);
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
@@ -5513,8 +5510,8 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStreamAndDeferral) {
 
   // Add more body and signal the end of data. Resuming the stream should allow
   // the new body to be sent.
-  body_ref.AppendPayload(kBody);
-  body_ref.EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, true);
   adapter->ResumeStream(1);
 
   // The new body should be sent, but because it has END_STREAM, it would not be
@@ -6469,8 +6466,8 @@ TEST(OgHttp2AdapterTest, ServerSubmitResponse) {
   const absl::string_view kBody = "This is an example response body.";
   // A data fin is not sent so that the stream remains open, and the flow
   // control state can be verified.
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload(kBody);
+  visitor.AppendPayloadForStream(1, kBody);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
@@ -6556,8 +6553,8 @@ TEST(OgHttp2AdapterTest, ServerSubmitResponseWithResetFromClient) {
 
   EXPECT_FALSE(adapter->want_write());
   const absl::string_view kBody = "This is an example response body.";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload(kBody);
+  visitor.AppendPayloadForStream(1, kBody);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
@@ -6686,10 +6683,11 @@ TEST(OgHttp2AdapterInteractionTest, ClientServerInteractionTest) {
                        &client_visitor](Http2StreamId stream_id) {
         if (stream_id < 10) {
           const Http2StreamId new_stream_id = stream_id + 2;
-          auto body =
-              std::make_unique<TestDataFrameSource>(client_visitor, true);
-          body->AppendPayload("This is an example request body.");
-          body->EndData();
+          client_visitor.AppendPayloadForStream(
+              new_stream_id, "This is an example request body.");
+          client_visitor.SetEndData(new_stream_id, true);
+          auto body = std::make_unique<VisitorDataSource>(client_visitor,
+                                                          new_stream_id);
           const int created_stream_id = client_adapter->SubmitRequest(
               ToHeaders({{":method", "GET"},
                          {":scheme", "http"},
@@ -7389,8 +7387,9 @@ TEST(OgHttp2AdapterTest, SkipsSendingFramesForRejectedStream) {
   const int64_t initial_result = adapter->ProcessBytes(initial_frames);
   EXPECT_EQ(static_cast<size_t>(initial_result), initial_frames.size());
 
-  auto body = std::make_unique<TestDataFrameSource>(visitor, true);
-  body->AppendPayload("Here is some data, which will be completely ignored!");
+  visitor.AppendPayloadForStream(
+      1, "Here is some data, which will be completely ignored!");
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
@@ -7574,8 +7573,8 @@ TEST(OgHttp2AdapterTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
 
   // Submit a response for the stream.
-  auto body = std::make_unique<TestDataFrameSource>(visitor, true);
-  body->AppendPayload("This data is doomed to never be written.");
+  visitor.AppendPayloadForStream(1, "This data is doomed to never be written.");
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
   ASSERT_EQ(0, submit_result);
@@ -8451,9 +8450,8 @@ TEST(OgHttp2AdapterTest, NegativeFlowControlStreamResumption) {
   EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
 
   // Submit a response for the stream.
-  auto body = std::make_unique<TestDataFrameSource>(visitor, true);
-  TestDataFrameSource& body_ref = *body;
-  body_ref.AppendPayload(std::string(70000, 'a'));
+  visitor.AppendPayloadForStream(1, std::string(70000, 'a'));
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
   ASSERT_EQ(0, submit_result);
@@ -8485,7 +8483,7 @@ TEST(OgHttp2AdapterTest, NegativeFlowControlStreamResumption) {
   EXPECT_TRUE(adapter->want_write());
   EXPECT_LT(adapter->GetStreamSendWindowSize(1), 0);
 
-  body_ref.AppendPayload("Stream should be resumed.");
+  visitor.AppendPayloadForStream(1, "Stream should be resumed.");
   adapter->ResumeStream(1);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, ACK_FLAG));
