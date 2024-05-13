@@ -13,20 +13,21 @@ const size_t kFrameHeaderSize = 9;
 // correctly with nghttp2-style callbacks when the amount of data read is less
 // than what the source provides.
 TEST(DataProviderTest, ReadLessThanSourceProvides) {
+  const int32_t kStreamId = 1;
   TestVisitor visitor;
-  TestDataFrameSource source(visitor, true);
-  source.AppendPayload("Example payload");
-  source.EndData();
+  visitor.AppendPayloadForStream(kStreamId, "Example payload");
+  visitor.SetEndData(kStreamId, true);
+  VisitorDataSource source(visitor, kStreamId);
   auto provider = MakeDataProvider(&source);
   uint32_t data_flags = 0;
-  const int32_t kStreamId = 1;
   const size_t kReadLength = 10;
   // Read callback selects a payload length given an upper bound.
   ssize_t result =
       provider->read_callback(nullptr, kStreamId, nullptr, kReadLength,
                               &data_flags, &provider->source, nullptr);
   ASSERT_EQ(kReadLength, result);
-  EXPECT_EQ(NGHTTP2_DATA_FLAG_NO_COPY, data_flags);
+  EXPECT_EQ(NGHTTP2_DATA_FLAG_NO_COPY | NGHTTP2_DATA_FLAG_NO_END_STREAM,
+            data_flags);
 
   const uint8_t framehd[kFrameHeaderSize] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
   // Sends the frame header and some payload bytes.
@@ -42,14 +43,14 @@ TEST(DataProviderTest, ReadLessThanSourceProvides) {
 // correctly with nghttp2-style callbacks when the amount of data read is more
 // than what the source provides.
 TEST(DataProviderTest, ReadMoreThanSourceProvides) {
-  TestVisitor visitor;
+  const int32_t kStreamId = 1;
   const absl::string_view kPayload = "Example payload";
-  TestDataFrameSource source(visitor, true);
-  source.AppendPayload(kPayload);
-  source.EndData();
+  TestVisitor visitor;
+  visitor.AppendPayloadForStream(kStreamId, kPayload);
+  visitor.SetEndData(kStreamId, true);
+  VisitorDataSource source(visitor, kStreamId);
   auto provider = MakeDataProvider(&source);
   uint32_t data_flags = 0;
-  const int32_t kStreamId = 1;
   const size_t kReadLength = 30;
   // Read callback selects a payload length given an upper bound.
   ssize_t result =
@@ -71,12 +72,12 @@ TEST(DataProviderTest, ReadMoreThanSourceProvides) {
 // Verifies that a nghttp2_data_provider derived from a DataFrameSource works
 // correctly with nghttp2-style callbacks when the source is blocked.
 TEST(DataProviderTest, ReadFromBlockedSource) {
+  const int32_t kStreamId = 1;
   TestVisitor visitor;
   // Source has no payload, but also no fin, so it's blocked.
-  TestDataFrameSource source(visitor, false);
+  VisitorDataSource source(visitor, kStreamId);
   auto provider = MakeDataProvider(&source);
   uint32_t data_flags = 0;
-  const int32_t kStreamId = 1;
   const size_t kReadLength = 10;
   ssize_t result =
       provider->read_callback(nullptr, kStreamId, nullptr, kReadLength,
@@ -89,13 +90,13 @@ TEST(DataProviderTest, ReadFromBlockedSource) {
 // correctly with nghttp2-style callbacks when the source provides only fin and
 // no data.
 TEST(DataProviderTest, ReadFromZeroLengthSource) {
+  const int32_t kStreamId = 1;
   TestVisitor visitor;
+  visitor.SetEndData(kStreamId, true);
   // Empty payload and fin=true indicates the source is done.
-  TestDataFrameSource source(visitor, true);
-  source.EndData();
+  VisitorDataSource source(visitor, kStreamId);
   auto provider = MakeDataProvider(&source);
   uint32_t data_flags = 0;
-  const int32_t kStreamId = 1;
   const size_t kReadLength = 10;
   ssize_t result =
       provider->read_callback(nullptr, kStreamId, nullptr, kReadLength,

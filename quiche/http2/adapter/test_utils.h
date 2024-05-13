@@ -7,6 +7,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/adapter/chunked_buffer.h"
 #include "quiche/http2/adapter/data_source.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/mock_http2_visitor.h"
@@ -58,6 +59,23 @@ class QUICHE_NO_EXPORT TestVisitor
     }
   }
 
+  struct DataFrameHeaderInfo {
+    int64_t payload_length;
+    bool end_data;
+    bool end_stream;
+  };
+  // These methods will be moved to Http2VisitorInterface in a future CL.
+  DataFrameHeaderInfo OnReadyToSendDataForStream(Http2StreamId stream_id,
+                                                 size_t max_length);
+  bool SendDataFrame(Http2StreamId stream_id, absl::string_view frame_header,
+                     size_t payload_bytes);
+
+  // Test methods to manipulate the data frame payload to send for a stream.
+  void AppendPayloadForStream(Http2StreamId stream_id,
+                              absl::string_view payload);
+  void SetEndData(Http2StreamId stream_id, bool end_stream);
+  void SimulateError(Http2StreamId stream_id);
+
   const std::string& data() { return data_; }
   void Clear() { data_.clear(); }
 
@@ -69,14 +87,39 @@ class QUICHE_NO_EXPORT TestVisitor
   void set_has_write_error() { has_write_error_ = true; }
 
  private:
+  struct DataPayload {
+    ChunkedBuffer data;
+    bool end_data = false;
+    bool end_stream = false;
+    bool return_error = false;
+  };
   std::string data_;
   absl::flat_hash_map<Http2StreamId, std::vector<std::string>> metadata_map_;
+  absl::flat_hash_map<Http2StreamId, DataPayload> data_map_;
   size_t send_limit_ = std::numeric_limits<size_t>::max();
   bool is_write_blocked_ = false;
   bool has_write_error_ = false;
 };
 
+// A DataFrameSource that invokes visitor methods.
+class QUICHE_NO_EXPORT VisitorDataSource : public DataFrameSource {
+ public:
+  // TODO(birenroy): revert visitor type to the interface type.
+  VisitorDataSource(TestVisitor& visitor, Http2StreamId stream_id);
+
+  std::pair<int64_t, bool> SelectPayloadLength(size_t max_length) override;
+  bool Send(absl::string_view frame_header, size_t payload_length) override;
+  bool send_fin() const override;
+
+ private:
+  TestVisitor& visitor_;
+  const Http2StreamId stream_id_;
+  // Whether the stream should end with the final frame of data.
+  bool has_fin_ = false;
+};
+
 // A test DataFrameSource. Starts out in the empty, blocked state.
+// Deprecated in favor of VisitorDataSource.
 class QUICHE_NO_EXPORT TestDataFrameSource : public DataFrameSource {
  public:
   TestDataFrameSource(Http2VisitorInterface& visitor, bool has_fin);

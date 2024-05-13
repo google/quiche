@@ -18,6 +18,101 @@ using ConnectionError = Http2VisitorInterface::ConnectionError;
 
 }  // anonymous namespace
 
+TestVisitor::DataFrameHeaderInfo TestVisitor::OnReadyToSendDataForStream(
+    Http2StreamId stream_id, size_t max_length) {
+  auto it = data_map_.find(stream_id);
+  if (it == data_map_.end()) {
+    QUICHE_DVLOG(1) << "Source not in map; returning blocked.";
+    return {0, false, false};
+  }
+  DataPayload& payload = it->second;
+  if (payload.return_error) {
+    QUICHE_DVLOG(1) << "Simulating error response for stream " << stream_id;
+    return {DataFrameSource::kError, false, false};
+  }
+  const absl::string_view prefix = payload.data.GetPrefix();
+  const size_t frame_length = std::min(max_length, prefix.size());
+  const bool is_final_fragment = payload.data.Read().size() <= 1;
+  const bool end_data =
+      payload.end_data && is_final_fragment && frame_length == prefix.size();
+  const bool end_stream = payload.end_stream && end_data;
+  return {static_cast<int64_t>(frame_length), end_data, end_stream};
+}
+
+bool TestVisitor::SendDataFrame(Http2StreamId stream_id,
+                                absl::string_view frame_header,
+                                size_t payload_bytes) {
+  // Sends the frame header.
+  const int64_t frame_result = OnReadyToSend(frame_header);
+  if (frame_result < 0 ||
+      static_cast<size_t>(frame_result) != frame_header.size()) {
+    return false;
+  }
+  auto it = data_map_.find(stream_id);
+  if (it == data_map_.end()) {
+    if (payload_bytes > 0) {
+      // No bytes available to send; error condition.
+      return false;
+    } else {
+      return true;
+    }
+  }
+  DataPayload& payload = it->second;
+  absl::string_view frame_payload = payload.data.GetPrefix();
+  if (frame_payload.size() < payload_bytes) {
+    // Not enough bytes available to send; error condition.
+    return false;
+  }
+  frame_payload = frame_payload.substr(0, payload_bytes);
+  // Sends the frame payload.
+  const int64_t payload_result = OnReadyToSend(frame_payload);
+  if (payload_result < 0 ||
+      static_cast<size_t>(payload_result) != frame_payload.size()) {
+    return false;
+  }
+  payload.data.RemovePrefix(payload_bytes);
+  return true;
+}
+
+void TestVisitor::AppendPayloadForStream(Http2StreamId stream_id,
+                                         absl::string_view payload) {
+  // Allocates and appends a chunk of memory to hold `payload`, in case the test
+  // is depending on specific DATA frame boundaries.
+  auto char_data = std::unique_ptr<char[]>(new char[payload.size()]);
+  std::copy(payload.begin(), payload.end(), char_data.get());
+  data_map_[stream_id].data.Append(std::move(char_data), payload.size());
+}
+
+void TestVisitor::SetEndData(Http2StreamId stream_id, bool end_stream) {
+  DataPayload& payload = data_map_[stream_id];
+  payload.end_data = true;
+  payload.end_stream = end_stream;
+}
+
+void TestVisitor::SimulateError(Http2StreamId stream_id) {
+  DataPayload& payload = data_map_[stream_id];
+  payload.return_error = true;
+}
+
+VisitorDataSource::VisitorDataSource(TestVisitor& visitor,
+                                     Http2StreamId stream_id)
+    : visitor_(visitor), stream_id_(stream_id) {}
+
+bool VisitorDataSource::send_fin() const { return has_fin_; }
+
+std::pair<int64_t, bool> VisitorDataSource::SelectPayloadLength(
+    size_t max_length) {
+  auto [payload_length, end_data, end_stream] =
+      visitor_.OnReadyToSendDataForStream(stream_id_, max_length);
+  has_fin_ = end_stream;
+  return {payload_length, end_data};
+}
+
+bool VisitorDataSource::Send(absl::string_view frame_header,
+                             size_t payload_length) {
+  return visitor_.SendDataFrame(stream_id_, frame_header, payload_length);
+}
+
 TestDataFrameSource::TestDataFrameSource(Http2VisitorInterface& visitor,
                                          bool has_fin)
     : visitor_(visitor), has_fin_(has_fin) {}
