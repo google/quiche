@@ -890,15 +890,18 @@ TEST(NgHttp2AdapterTest, ClientSendsTrailers) {
                  {":authority", "example.com"},
                  {":path", "/this/is/request/one"}});
 
+  const Http2StreamId kStreamId = 1;
   const std::string kBody = "This is an example request body.";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload(kBody);
+  visitor.AppendPayloadForStream(kStreamId, kBody);
+  visitor.SetEndData(kStreamId, false);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, kStreamId);
   // nghttp2 does not require that the data source indicate the end of data
   // before trailers are enqueued.
 
   const int32_t stream_id1 =
       adapter->SubmitRequest(headers1, std::move(body1), false, nullptr);
   ASSERT_GT(stream_id1, 0);
+  EXPECT_EQ(stream_id1, kStreamId);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x4));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x4, 0));
@@ -2078,16 +2081,16 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
   EXPECT_FALSE(adapter->want_write());
   const char* kSentinel = "";
   const absl::string_view kBody = "This is an example request body.";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload(kBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int stream_id = adapter->SubmitRequest(
       ToHeaders({{":method", "POST"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
                  {":path", "/this/is/request/one"}}),
       std::move(body1), false, const_cast<char*>(kSentinel));
-  EXPECT_GT(stream_id, 0);
+  ASSERT_EQ(1, stream_id);
   EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
@@ -2929,9 +2932,9 @@ TEST(NgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
 
   EXPECT_FALSE(adapter->want_write());
   const absl::string_view kBody = "This is an example request body.";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload(kBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   const int stream_id =
       adapter->SubmitRequest(ToHeaders({{":method", "POST"},
                                         {":scheme", "http"},
@@ -3045,9 +3048,9 @@ TEST(NgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
   visitor.Clear();
 
   const std::string kLongBody = std::string(81000, 'c');
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload(kLongBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kLongBody);
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, true);
   const int stream_id =
       adapter->SubmitRequest(ToHeaders({{":method", "POST"},
                                         {":scheme", "http"},
@@ -3098,9 +3101,9 @@ TEST(NgHttp2AdapterTest, ClientReceivesInitialWindowSettingAfterStreamStart) {
   visitor.Clear();
 
   const std::string kLongBody = std::string(81000, 'c');
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload(kLongBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kLongBody);
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   const int stream_id =
       adapter->SubmitRequest(ToHeaders({{":method", "POST"},
                                         {":scheme", "http"},
@@ -3705,9 +3708,9 @@ TEST(NgHttp2AdapterTest, ConnectionErrorOnDataFrameSent) {
   const int64_t read_result = adapter->ProcessBytes(frames);
   EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
 
-  auto body = std::make_unique<TestDataFrameSource>(visitor, true);
-  body->AppendPayload("Here is some data, which will lead to a fatal error");
-  TestDataFrameSource* body_ptr = body.get();
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
+  visitor.AppendPayloadForStream(
+      1, "Here is some data, which will lead to a fatal error");
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
   ASSERT_EQ(0, submit_result);
@@ -3726,15 +3729,6 @@ TEST(NgHttp2AdapterTest, ConnectionErrorOnDataFrameSent) {
 
   int send_result = adapter->Send();
   EXPECT_LT(send_result, 0);
-
-  // The test data source got a signal that the first chunk of data was sent
-  // successfully, so discarded that data internally. However, due to the send
-  // error, the next Send() from nghttp2 will try to send that exact same data
-  // again. Without this line appending the exact same data back to the data
-  // source, the test crashes. It is not clear how the data source would know to
-  // not discard the data, unless told by the session? This is not intuitive.
-  body_ptr->AppendPayload(
-      "Here is some data, which will lead to a fatal error");
 
   // Apparently nghttp2 retries sending the frames that had failed before.
   EXPECT_TRUE(adapter->want_write());
@@ -4138,9 +4132,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload(kBody);
-  auto* body1_ptr = body1.get();
+  visitor.AppendPayloadForStream(1, kBody);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1), false);
@@ -4174,8 +4167,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
   visitor.Clear();
 
   // Resuming the stream results in the library wanting to write again.
-  body1_ptr->AppendPayload(kBody);
-  body1_ptr->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, true);
   adapter->ResumeStream(1);
   EXPECT_TRUE(adapter->want_write());
 
@@ -4224,9 +4217,9 @@ TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStream) {
 
   // Send a body that will end with the END_STREAM flag.
   const absl::string_view kBody = "This is an example response body.";
-  auto body = std::make_unique<TestDataFrameSource>(visitor, /*has_fin=*/true);
-  body->AppendPayload(kBody);
-  body->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, true);
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
@@ -4293,9 +4286,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStreamAndDeferral) {
   // Send a body that will end with the END_STREAM flag. Don't end the body here
   // so that more body can be added later.
   const absl::string_view kBody = "This is an example response body.";
-  auto body = std::make_unique<TestDataFrameSource>(visitor, /*has_fin=*/true);
-  body->AppendPayload(kBody);
-  TestDataFrameSource& body_ref = *body;
+  visitor.AppendPayloadForStream(1, kBody);
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
@@ -4321,8 +4313,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStreamAndDeferral) {
 
   // Add more body and signal the end of data. Resuming the stream should allow
   // the new body to be sent, though nghttp2 does not send the body.
-  body_ref.AppendPayload(kBody);
-  body_ref.EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, false);
   adapter->ResumeStream(1);
 
   // For some reason, nghttp2 drops the new body and goes straight to writing
@@ -5284,8 +5276,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
   const absl::string_view kBody = "This is an example response body.";
   // A data fin is not sent so that the stream remains open, and the flow
   // control state can be verified.
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload(kBody);
+  visitor.AppendPayloadForStream(1, kBody);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
@@ -5366,8 +5358,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponseWithResetFromClient) {
 
   EXPECT_FALSE(adapter->want_write());
   const absl::string_view kBody = "This is an example response body.";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload(kBody);
+  visitor.AppendPayloadForStream(1, kBody);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
@@ -5493,9 +5485,9 @@ TEST(NgHttp2AdapterTest, ServerSendsTrailers) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload(kBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, false);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1), false);
@@ -5667,9 +5659,9 @@ TEST(NgHttp2AdapterTest, RepeatedHeaderNames) {
 
   const std::vector<Header> headers1 = ToHeaders(
       {{":status", "200"}, {"content-length", "10"}, {"content-length", "10"}});
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload("perfection");
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, "perfection");
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result =
       adapter->SubmitResponse(1, headers1, std::move(body1), false);
@@ -5726,8 +5718,7 @@ TEST(NgHttp2AdapterTest, ServerRespondsToRequestWithTrailers) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
   const std::vector<Header> headers1 = ToHeaders({{":status", "200"}});
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  TestDataFrameSource* body1_ptr = body1.get();
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result =
       adapter->SubmitResponse(1, headers1, std::move(body1), false);
@@ -5760,7 +5751,7 @@ TEST(NgHttp2AdapterTest, ServerRespondsToRequestWithTrailers) {
   result = adapter->ProcessBytes(more_frames);
   EXPECT_EQ(more_frames.size(), static_cast<size_t>(result));
 
-  body1_ptr->EndData();
+  visitor.SetEndData(1, true);
   EXPECT_EQ(true, adapter->ResumeStream(1));
 
   EXPECT_CALL(visitor, OnFrameSent(DATA, 1, 0, 0x1, 0));
@@ -5804,8 +5795,9 @@ TEST(NgHttp2AdapterTest, ServerSubmitsResponseWithDataSourceError) {
   const int64_t result = adapter->ProcessBytes(frames);
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->SimulateError();
+  visitor.SimulateError(1);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
+
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1), false);
@@ -6038,9 +6030,9 @@ TEST(NgHttp2AdapterTest, ServerSendsInvalidTrailers) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload(kBody);
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, false);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1), false);
@@ -6886,8 +6878,9 @@ TEST(NgHttp2AdapterTest, SkipsSendingFramesForRejectedStream) {
   const int64_t initial_result = adapter->ProcessBytes(initial_frames);
   EXPECT_EQ(static_cast<size_t>(initial_result), initial_frames.size());
 
-  auto body = std::make_unique<TestDataFrameSource>(visitor, true);
-  body->AppendPayload("Here is some data, which will be completely ignored!");
+  visitor.AppendPayloadForStream(
+      1, "Here is some data, which will be completely ignored!");
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
@@ -6953,8 +6946,9 @@ TEST(NgHttp2AdapterTest, ServerQueuesMetadataWithStreamReset) {
   const int64_t initial_result = adapter->ProcessBytes(initial_frames);
   EXPECT_EQ(static_cast<size_t>(initial_result), initial_frames.size());
 
-  auto body = std::make_unique<TestDataFrameSource>(visitor, true);
-  body->AppendPayload("Here is some data, which will be completely ignored!");
+  visitor.AppendPayloadForStream(
+      1, "Here is some data, which will be completely ignored!");
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
@@ -7103,8 +7097,8 @@ TEST(NgHttp2AdapterTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
 
   // Submit a response for the stream.
-  auto body = std::make_unique<TestDataFrameSource>(visitor, true);
-  body->AppendPayload("This data is doomed to never be written.");
+  visitor.AppendPayloadForStream(1, "This data is doomed to never be written.");
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
   ASSERT_EQ(0, submit_result);
@@ -7791,9 +7785,8 @@ TEST(NgHttp2AdapterTest, NegativeFlowControlStreamResumption) {
   EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
 
   // Submit a response for the stream.
-  auto body = std::make_unique<TestDataFrameSource>(visitor, true);
-  TestDataFrameSource& body_ref = *body;
-  body_ref.AppendPayload(std::string(70000, 'a'));
+  visitor.AppendPayloadForStream(1, std::string(70000, 'a'));
+  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), std::move(body), false);
   ASSERT_EQ(0, submit_result);
@@ -7823,7 +7816,7 @@ TEST(NgHttp2AdapterTest, NegativeFlowControlStreamResumption) {
   // nghttp2 does not expose the fact that the send window size is negative.
   EXPECT_EQ(adapter->GetStreamSendWindowSize(1), 0);
 
-  body_ref.AppendPayload("Stream should be resumed.");
+  visitor.AppendPayloadForStream(1, "Stream should be resumed.");
   adapter->ResumeStream(1);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
