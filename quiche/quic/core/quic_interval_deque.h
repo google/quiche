@@ -158,7 +158,7 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
     Iterator(std::size_t index, QuicIntervalDeque* deque)
         : index_(index), deque_(deque) {}
     // Only the ++ operator attempts to update the cached index. Other operators
-    // are used by |lower_bound| to binary search and are thus private.
+    // are used by |lower_bound| to binary search.
     Iterator& operator++() {
       // Don't increment when we are at the end.
       const std::size_t container_size = deque_->container_.size();
@@ -186,6 +186,19 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
       ++(*this);
       return copy;
     }
+    Iterator& operator--() {
+      if (index_ == 0) {
+        QUIC_BUG(quic_bug_10862_4) << "Iterator out of bounds.";
+        return *this;
+      }
+      index_--;
+      return *this;
+    }
+    Iterator operator--(int) {
+      Iterator copy = *this;
+      --(*this);
+      return copy;
+    }
     reference operator*() { return deque_->container_[index_]; }
     reference operator*() const { return deque_->container_[index_]; }
     pointer operator->() { return &deque_->container_[index_]; }
@@ -194,11 +207,13 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
     }
     bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
     Iterator& operator+=(difference_type amount) {
+      // `amount` might be negative, check for underflow.
+      QUICHE_DCHECK_GE(static_cast<difference_type>(index_), -amount);
       index_ += amount;
-      QUICHE_DCHECK_LE(0u, index_);
       QUICHE_DCHECK_LT(index_, deque_->Size());
       return *this;
     }
+    Iterator& operator-=(difference_type amount) { return operator+=(-amount); }
     difference_type operator-(const Iterator& rhs) const {
       return static_cast<difference_type>(index_) -
              static_cast<difference_type>(rhs.index_);
