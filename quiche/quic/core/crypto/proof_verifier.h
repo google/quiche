@@ -74,7 +74,7 @@ class QUICHE_EXPORT ProofVerifier {
   // The signature uses SHA-256 as the hash function and PSS padding in the
   // case of RSA.
   virtual QuicAsyncStatus VerifyProof(
-      const std::string& hostname, const uint16_t port,
+      const std::string& hostname, uint16_t port,
       const std::string& server_config, QuicTransportVersion transport_version,
       absl::string_view chlo_hash, const std::vector<std::string>& certs,
       const std::string& cert_sct, const std::string& signature,
@@ -100,7 +100,7 @@ class QUICHE_EXPORT ProofVerifier {
   // will call back, on the original thread, via |callback| when complete.
   // In this case, the ProofVerifier will take ownership of |callback|.
   virtual QuicAsyncStatus VerifyCertChain(
-      const std::string& hostname, const uint16_t port,
+      const std::string& hostname, uint16_t port,
       const std::vector<std::string>& certs, const std::string& ocsp_response,
       const std::string& cert_sct, const ProofVerifyContext* context,
       std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
