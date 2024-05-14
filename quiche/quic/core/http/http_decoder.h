@@ -282,9 +282,6 @@ class QUICHE_EXPORT HttpDecoder {
   std::array<char, sizeof(uint64_t)> length_buffer_;
   // Remaining unparsed type field data.
   std::array<char, sizeof(uint64_t)> type_buffer_;
-
-  // Latched value of --quic_enable_http3_metadata_decoding.
-  const bool enable_metadata_decoding_;
 };
 
 }  // namespace quic

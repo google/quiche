@@ -498,9 +498,6 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
 }
 
 TEST_F(HttpDecoderTest, MetadataFrame) {
-  if (!GetQuicReloadableFlag(quic_enable_http3_metadata_decoding)) {
-    return;
-  }
   InSequence s;
   std::string type_and_length_bytes;
   ASSERT_TRUE(

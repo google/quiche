@@ -724,8 +724,6 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
 }
 
 void QuicSpdyStream::RegisterMetadataVisitor(MetadataVisitor* visitor) {
-  QUIC_BUG_IF(Metadata visitor requires http3 metadata flag,
-              !GetQuicReloadableFlag(quic_enable_http3_metadata_decoding));
   metadata_visitor_ = visitor;
 }
 

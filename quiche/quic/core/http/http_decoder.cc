@@ -43,9 +43,7 @@ HttpDecoder::HttpDecoder(Visitor* visitor)
       current_type_field_length_(0),
       remaining_type_field_length_(0),
       error_(QUIC_NO_ERROR),
-      error_detail_(""),
-      enable_metadata_decoding_(
-          GetQuicReloadableFlag(quic_enable_http3_metadata_decoding)) {
+      error_detail_("") {
   QUICHE_DCHECK(visitor_);
 }
 
@@ -284,10 +282,8 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       continue_processing = visitor_->OnAcceptChFrameStart(header_length);
       break;
     default:
-      if (enable_metadata_decoding_ &&
-          current_frame_type_ ==
-              static_cast<uint64_t>(HttpFrameType::METADATA)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_http3_metadata_decoding, 1, 3);
+      if (current_frame_type_ ==
+          static_cast<uint64_t>(HttpFrameType::METADATA)) {
         continue_processing = visitor_->OnMetadataFrameStart(
             header_length, current_frame_length_);
         break;
@@ -386,10 +382,8 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     default: {
-      if (enable_metadata_decoding_ &&
-          current_frame_type_ ==
-              static_cast<uint64_t>(HttpFrameType::METADATA)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_http3_metadata_decoding, 2, 3);
+      if (current_frame_type_ ==
+          static_cast<uint64_t>(HttpFrameType::METADATA)) {
         QuicByteCount bytes_to_read = std::min<QuicByteCount>(
             remaining_frame_length_, reader->BytesRemaining());
         absl::string_view payload;
@@ -456,10 +450,8 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     default:
-      if (enable_metadata_decoding_ &&
-          current_frame_type_ ==
-              static_cast<uint64_t>(HttpFrameType::METADATA)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_http3_metadata_decoding, 3, 3);
+      if (current_frame_type_ ==
+          static_cast<uint64_t>(HttpFrameType::METADATA)) {
         continue_processing = visitor_->OnMetadataFrameEnd();
         break;
       }

@@ -2786,8 +2786,7 @@ class MockMetadataVisitor : public QuicSpdyStream::MetadataVisitor {
 };
 
 TEST_P(QuicSpdyStreamIncrementalConsumptionTest, ReceiveMetadataFrame) {
-  if (!UsesHttp3() ||
-      !GetQuicReloadableFlag(quic_enable_http3_metadata_decoding)) {
+  if (!UsesHttp3()) {
     return;
   }
   StrictMock<MockMetadataVisitor> metadata_visitor;
@@ -2824,8 +2823,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, ReceiveMetadataFrame) {
 
 TEST_P(QuicSpdyStreamIncrementalConsumptionTest,
        ResetDuringMultipleMetadataFrames) {
-  if (!UsesHttp3() ||
-      !GetQuicReloadableFlag(quic_enable_http3_metadata_decoding)) {
+  if (!UsesHttp3()) {
     return;
   }
   StrictMock<MockMetadataVisitor> metadata_visitor;
