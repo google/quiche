@@ -118,32 +118,6 @@ class QUICHE_NO_EXPORT VisitorDataSource : public DataFrameSource {
   bool has_fin_ = false;
 };
 
-// A test DataFrameSource. Starts out in the empty, blocked state.
-// Deprecated in favor of VisitorDataSource.
-class QUICHE_NO_EXPORT TestDataFrameSource : public DataFrameSource {
- public:
-  TestDataFrameSource(Http2VisitorInterface& visitor, bool has_fin);
-
-  void AppendPayload(absl::string_view payload);
-  void EndData();
-  void SimulateError() { return_error_ = true; }
-
-  std::pair<int64_t, bool> SelectPayloadLength(size_t max_length) override;
-  bool Send(absl::string_view frame_header, size_t payload_length) override;
-  bool send_fin() const override { return has_fin_; }
-
- private:
-  Http2VisitorInterface& visitor_;
-  std::vector<std::string> payload_fragments_;
-  absl::string_view current_fragment_;
-  // Whether the stream should end with the final frame of data.
-  const bool has_fin_;
-  // Whether |payload_fragments_| contains the final segment of data.
-  bool end_data_ = false;
-  // Whether SelectPayloadLength() should return an error.
-  bool return_error_ = false;
-};
-
 class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
  public:
   explicit TestMetadataSource(const spdy::Http2HeaderBlock& entries);

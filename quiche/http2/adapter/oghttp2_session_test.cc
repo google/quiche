@@ -88,16 +88,16 @@ TEST(OgHttp2SessionTest, ClientHandlesFrames) {
 
   // Submit a request to ensure the first stream is created.
   const char* kSentinel1 = "arbitrary pointer 1";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload("This is an example request body.");
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, "This is an example request body.");
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int stream_id = session.SubmitRequest(
       ToHeaders({{":method", "POST"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
                  {":path", "/this/is/request/one"}}),
       std::move(body1), false, const_cast<char*>(kSentinel1));
-  EXPECT_EQ(stream_id, 1);
+  ASSERT_EQ(stream_id, 1);
 
   // Submit another request to ensure the next stream is created.
   int stream_id2 =
@@ -274,16 +274,16 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
   EXPECT_EQ(0, session.GetHpackEncoderDynamicTableSize());
 
   const char* kSentinel1 = "arbitrary pointer 1";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload("This is an example request body.");
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, "This is an example request body.");
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int stream_id = session.SubmitRequest(
       ToHeaders({{":method", "POST"},
                  {":scheme", "http"},
                  {":authority", "example.com"},
                  {":path", "/this/is/request/one"}}),
       std::move(body1), false, const_cast<char*>(kSentinel1));
-  EXPECT_GT(stream_id, 0);
+  ASSERT_EQ(stream_id, 1);
   EXPECT_TRUE(session.want_write());
   EXPECT_EQ(kSentinel1, session.GetStreamUserData(stream_id));
 
@@ -385,16 +385,16 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithLargePayload) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
   visitor.Clear();
 
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload(std::string(20000, 'a'));
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, std::string(20000, 'a'));
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int stream_id =
       session.SubmitRequest(ToHeaders({{":method", "POST"},
                                        {":scheme", "http"},
                                        {":authority", "example.com"},
                                        {":path", "/this/is/request/one"}}),
                             std::move(body1), false, nullptr);
-  EXPECT_GT(stream_id, 0);
+  ASSERT_EQ(stream_id, 1);
   EXPECT_TRUE(session.want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
@@ -420,8 +420,7 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   EXPECT_FALSE(session.want_write());
 
   const char* kSentinel1 = "arbitrary pointer 1";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  TestDataFrameSource* body_ref = body1.get();
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int stream_id = session.SubmitRequest(
       ToHeaders({{":method", "POST"},
                  {":scheme", "http"},
@@ -449,8 +448,8 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithReadBlock) {
   visitor.Clear();
   EXPECT_FALSE(session.want_write());
 
-  body_ref->AppendPayload("This is an example request body.");
-  body_ref->EndData();
+  visitor.AppendPayloadForStream(1, "This is an example request body.");
+  visitor.SetEndData(1, true);
   EXPECT_TRUE(session.ResumeStream(stream_id));
   EXPECT_TRUE(session.want_write());
 
@@ -476,8 +475,7 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestEmptyDataWithFin) {
   EXPECT_FALSE(session.want_write());
 
   const char* kSentinel1 = "arbitrary pointer 1";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  TestDataFrameSource* body_ref = body1.get();
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int stream_id = session.SubmitRequest(
       ToHeaders({{":method", "POST"},
                  {":scheme", "http"},
@@ -505,7 +503,7 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestEmptyDataWithFin) {
   visitor.Clear();
   EXPECT_FALSE(session.want_write());
 
-  body_ref->EndData();
+  visitor.SetEndData(1, true);
   EXPECT_TRUE(session.ResumeStream(stream_id));
   EXPECT_TRUE(session.want_write());
 
@@ -531,9 +529,9 @@ TEST(OgHttp2SessionTest, ClientSubmitRequestWithWriteBlock) {
   EXPECT_FALSE(session.want_write());
 
   const char* kSentinel1 = "arbitrary pointer 1";
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, true);
-  body1->AppendPayload("This is an example request body.");
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, "This is an example request body.");
+  visitor.SetEndData(1, true);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int stream_id = session.SubmitRequest(
       ToHeaders({{":method", "POST"},
                  {":scheme", "http"},
@@ -805,8 +803,8 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   EXPECT_FALSE(session.want_write());
   // A data fin is not sent so that the stream remains open, and the flow
   // control state can be verified.
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload("This is an example response body.");
+  visitor.AppendPayloadForStream(1, "This is an example response body.");
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = session.SubmitResponse(
       1,
       ToHeaders({{":status", "404"},
@@ -896,9 +894,9 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload("This is an example response body.");
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, "This is an example response body.");
+  visitor.SetEndData(1, false);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = session.SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1), false);
@@ -988,9 +986,9 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
 
   // The body source must indicate that the end of the body is not the end of
   // the stream.
-  auto body1 = std::make_unique<TestDataFrameSource>(visitor, false);
-  body1->AppendPayload("This is an example response body.");
-  body1->EndData();
+  visitor.AppendPayloadForStream(1, "This is an example response body.");
+  visitor.SetEndData(1, false);
+  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = session.SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
       std::move(body1), false);
