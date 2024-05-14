@@ -878,7 +878,9 @@ TEST(NgHttp2AdapterTest, ClientHandlesTrailers) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
-TEST(NgHttp2AdapterTest, ClientSendsTrailers) {
+using NgHttp2AdapterDataTest = quiche::test::QuicheTest;
+
+TEST_F(NgHttp2AdapterDataTest, ClientSendsTrailers) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
@@ -2045,7 +2047,7 @@ TEST(NgHttp2AdapterTest, ClientRejects101Response) {
                                             SpdyFrameType::RST_STREAM}));
 }
 
-TEST(NgHttp2AdapterTest, ClientSubmitRequest) {
+TEST_F(NgHttp2AdapterDataTest, ClientSubmitRequest) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
   int result = adapter->Send();
@@ -2895,7 +2897,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureSending) {
                           }));
 }
 
-TEST(NgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
+TEST_F(NgHttp2AdapterDataTest, ClientObeysMaxConcurrentStreams) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
   int result = adapter->Send();
@@ -3012,7 +3014,7 @@ TEST(NgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(NgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
+TEST_F(NgHttp2AdapterDataTest, ClientReceivesInitialWindowSetting) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
@@ -3074,7 +3076,8 @@ TEST(NgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
                             SpdyFrameType::DATA, SpdyFrameType::DATA}));
 }
 
-TEST(NgHttp2AdapterTest, ClientReceivesInitialWindowSettingAfterStreamStart) {
+TEST_F(NgHttp2AdapterDataTest,
+       ClientReceivesInitialWindowSettingAfterStreamStart) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
@@ -3679,7 +3682,7 @@ TEST(NgHttp2AdapterTest, ConnectionErrorOnControlFrameSent) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(NgHttp2AdapterTest, ConnectionErrorOnDataFrameSent) {
+TEST_F(NgHttp2AdapterDataTest, ConnectionErrorOnDataFrameSent) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
@@ -4081,7 +4084,7 @@ TEST(NgHttp2AdapterTest, ServerHandlesHostHeader) {
 
 // Tests the case where the response body is in the progress of being sent while
 // trailers are queued.
-TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
+TEST_F(NgHttp2AdapterDataTest, ServerSubmitsTrailersWhileDataDeferred) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
@@ -4180,7 +4183,7 @@ TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStream) {
+TEST_F(NgHttp2AdapterDataTest, ServerSubmitsTrailersWithDataEndStream) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
@@ -4248,7 +4251,8 @@ TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStream) {
                             SpdyFrameType::HEADERS}));
 }
 
-TEST(NgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStreamAndDeferral) {
+TEST_F(NgHttp2AdapterDataTest,
+       ServerSubmitsTrailersWithDataEndStreamAndDeferral) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
@@ -5218,7 +5222,7 @@ TEST(NgHttpAdapterTest, ServerReceivesGoAway) {
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
 }
 
-TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
+TEST_F(NgHttp2AdapterDataTest, ServerSubmitResponse) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
   EXPECT_FALSE(adapter->want_write());
@@ -5313,7 +5317,7 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
   EXPECT_GT(adapter->GetHpackEncoderDynamicTableSize(), 0);
 }
 
-TEST(NgHttp2AdapterTest, ServerSubmitResponseWithResetFromClient) {
+TEST_F(NgHttp2AdapterDataTest, ServerSubmitResponseWithResetFromClient) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
   EXPECT_FALSE(adapter->want_write());
@@ -5436,7 +5440,7 @@ TEST(NgHttp2AdapterTest, ServerSendsShutdown) {
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
-TEST(NgHttp2AdapterTest, ServerSendsTrailers) {
+TEST_F(NgHttp2AdapterDataTest, ServerSendsTrailers) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
   EXPECT_FALSE(adapter->want_write());
@@ -5619,7 +5623,7 @@ TEST(NgHttp2AdapterTest, ClientSendsMetadataWithContinuation) {
             absl::StrJoin(visitor.GetMetadata(1), ""));
 }
 
-TEST(NgHttp2AdapterTest, RepeatedHeaderNames) {
+TEST_F(NgHttp2AdapterDataTest, RepeatedHeaderNames) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
   EXPECT_FALSE(adapter->want_write());
@@ -5681,7 +5685,7 @@ TEST(NgHttp2AdapterTest, RepeatedHeaderNames) {
                             SpdyFrameType::DATA}));
 }
 
-TEST(NgHttp2AdapterTest, ServerRespondsToRequestWithTrailers) {
+TEST_F(NgHttp2AdapterDataTest, ServerRespondsToRequestWithTrailers) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
   EXPECT_FALSE(adapter->want_write());
@@ -5762,7 +5766,7 @@ TEST(NgHttp2AdapterTest, ServerRespondsToRequestWithTrailers) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::DATA}));
 }
 
-TEST(NgHttp2AdapterTest, ServerSubmitsResponseWithDataSourceError) {
+TEST_F(NgHttp2AdapterDataTest, ServerSubmitsResponseWithDataSourceError) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
   EXPECT_FALSE(adapter->want_write());
@@ -5993,7 +5997,7 @@ TEST(NgHttp2AdapterTest, ServerHandlesMultipleContentLength) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
-TEST(NgHttp2AdapterTest, ServerSendsInvalidTrailers) {
+TEST_F(NgHttp2AdapterDataTest, ServerSendsInvalidTrailers) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
   EXPECT_FALSE(adapter->want_write());
@@ -6848,7 +6852,7 @@ TEST(NgHttp2AdapterTest, ServerAllowsProtocolPseudoheaderAfterAck) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(NgHttp2AdapterTest, SkipsSendingFramesForRejectedStream) {
+TEST_F(NgHttp2AdapterDataTest, SkipsSendingFramesForRejectedStream) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
@@ -6917,7 +6921,7 @@ TEST(NgHttp2AdapterTest, SkipsSendingFramesForRejectedStream) {
                             SpdyFrameType::RST_STREAM}));
 }
 
-TEST(NgHttp2AdapterTest, ServerQueuesMetadataWithStreamReset) {
+TEST_F(NgHttp2AdapterDataTest, ServerQueuesMetadataWithStreamReset) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
@@ -7064,7 +7068,7 @@ TEST(NgHttp2AdapterTest, ConnectionErrorWithBlackholeSinkingData) {
   EXPECT_EQ(static_cast<size_t>(next_result), next_frame.size());
 }
 
-TEST(NgHttp2AdapterTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
+TEST_F(NgHttp2AdapterDataTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 
@@ -7746,7 +7750,7 @@ TEST(OgHttp2AdapterTest, ServerConsumesDataWithPadding) {
                                             SpdyFrameType::WINDOW_UPDATE}));
 }
 
-TEST(NgHttp2AdapterTest, NegativeFlowControlStreamResumption) {
+TEST_F(NgHttp2AdapterDataTest, NegativeFlowControlStreamResumption) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateServerAdapter(visitor);
 

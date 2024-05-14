@@ -1402,7 +1402,9 @@ TEST(OgHttp2AdapterTest, ClientHandlesTrailers) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
-TEST(OgHttp2AdapterTest, ClientSendsTrailers) {
+using OgHttp2AdapterDataTest = quiche::test::QuicheTest;
+
+TEST_F(OgHttp2AdapterDataTest, ClientSendsTrailers) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -2626,7 +2628,7 @@ TEST(OgHttp2AdapterTest, ClientRejects101Response) {
                                             SpdyFrameType::RST_STREAM}));
 }
 
-TEST(OgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
+TEST_F(OgHttp2AdapterDataTest, ClientObeysMaxConcurrentStreams) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -2758,7 +2760,7 @@ TEST(OgHttp2AdapterTest, ClientObeysMaxConcurrentStreams) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
+TEST_F(OgHttp2AdapterDataTest, ClientReceivesInitialWindowSetting) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -2825,7 +2827,8 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
                             SpdyFrameType::DATA, SpdyFrameType::DATA}));
 }
 
-TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSettingAfterStreamStart) {
+TEST_F(OgHttp2AdapterDataTest,
+       ClientReceivesInitialWindowSettingAfterStreamStart) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -3448,7 +3451,7 @@ TEST(OgHttp2AdapterTest, ClientReceivesDataOnClosedStream) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(OgHttp2AdapterTest, ClientEncountersFlowControlBlock) {
+TEST_F(OgHttp2AdapterDataTest, ClientEncountersFlowControlBlock) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -3531,7 +3534,7 @@ TEST(OgHttp2AdapterTest, ClientEncountersFlowControlBlock) {
   EXPECT_EQ(0, result);
 }
 
-TEST(OgHttp2AdapterTest, ClientSendsTrailersAfterFlowControlBlock) {
+TEST_F(OgHttp2AdapterDataTest, ClientSendsTrailersAfterFlowControlBlock) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -4192,7 +4195,7 @@ TEST(OgHttp2AdapterTest, ConnectionErrorOnControlFrameSent) {
   EXPECT_LT(send_result, 0);
 }
 
-TEST(OgHttp2AdapterTest, ConnectionErrorOnDataFrameSent) {
+TEST_F(OgHttp2AdapterDataTest, ConnectionErrorOnDataFrameSent) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -4296,7 +4299,7 @@ TEST(OgHttp2AdapterTest, ClientSendsContinuation) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
-TEST(OgHttp2AdapterTest, RepeatedHeaderNames) {
+TEST_F(OgHttp2AdapterDataTest, RepeatedHeaderNames) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -4362,7 +4365,7 @@ TEST(OgHttp2AdapterTest, RepeatedHeaderNames) {
                             SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
 }
 
-TEST(OgHttp2AdapterTest, ServerRespondsToRequestWithTrailers) {
+TEST_F(OgHttp2AdapterDataTest, ServerRespondsToRequestWithTrailers) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -4565,7 +4568,7 @@ TEST(OgHttp2AdapterTest, ServerVisitorRejectsHeaders) {
                             SpdyFrameType::RST_STREAM}));
 }
 
-TEST(OgHttp2AdapterTest, ServerSubmitsResponseWithDataSourceError) {
+TEST_F(OgHttp2AdapterDataTest, ServerSubmitsResponseWithDataSourceError) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -4862,7 +4865,7 @@ TEST(OgHttp2AdapterTest, ServerHandlesMultipleContentLength) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
-TEST(OgHttp2AdapterTest, ServerSendsInvalidTrailers) {
+TEST_F(OgHttp2AdapterDataTest, ServerSendsInvalidTrailers) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -5157,7 +5160,7 @@ TEST(OgHttp2AdapterTest, ServerHandlesHostHeaderWithLaxValidation) {
 
 // Tests the case where the response body is in the progress of being sent while
 // trailers are queued.
-TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
+TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWhileDataDeferred) {
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
   for (const bool add_more_body_data : {true, false}) {
@@ -5255,7 +5258,7 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWhileDataDeferred) {
 // Tests the case where the response body and trailers become blocked by flow
 // control while the stream is writing. Regression test for
 // https://github.com/envoyproxy/envoy/issues/31710
-TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithFlowControlBlockage) {
+TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWithFlowControlBlockage) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -5371,7 +5374,7 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithFlowControlBlockage) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStream) {
+TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWithDataEndStream) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -5441,7 +5444,8 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStream) {
                             SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
 }
 
-TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithDataEndStreamAndDeferral) {
+TEST_F(OgHttp2AdapterDataTest,
+       ServerSubmitsTrailersWithDataEndStreamAndDeferral) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -6403,7 +6407,7 @@ TEST(OgHttpAdapterTest, ServerReceivesGoAway) {
                             SpdyFrameType::HEADERS}));
 }
 
-TEST(OgHttp2AdapterTest, ServerSubmitResponse) {
+TEST_F(OgHttp2AdapterDataTest, ServerSubmitResponse) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -6503,7 +6507,7 @@ TEST(OgHttp2AdapterTest, ServerSubmitResponse) {
   EXPECT_GT(adapter->GetHpackEncoderDynamicTableSize(), 0);
 }
 
-TEST(OgHttp2AdapterTest, ServerSubmitResponseWithResetFromClient) {
+TEST_F(OgHttp2AdapterDataTest, ServerSubmitResponseWithResetFromClient) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -6644,9 +6648,10 @@ TEST(OgHttp2AdapterTest, ServerRejectsStreamData) {
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
 }
 
+using OgHttp2AdapterInteractionDataTest = OgHttp2AdapterDataTest;
 // Exercises a naive mutually recursive test client and server. This test fails
 // without recursion guards in OgHttp2Session.
-TEST(OgHttp2AdapterInteractionTest, ClientServerInteractionTest) {
+TEST_F(OgHttp2AdapterInteractionDataTest, ClientServerInteractionTest) {
   TestVisitor client_visitor;
   OgHttp2Adapter::Options client_options;
   client_options.perspective = Perspective::kClient;
@@ -7354,7 +7359,7 @@ TEST(OgHttp2AdapterTest, ServerAllowsProtocolPseudoheaderAfterAck) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(OgHttp2AdapterTest, SkipsSendingFramesForRejectedStream) {
+TEST_F(OgHttp2AdapterDataTest, SkipsSendingFramesForRejectedStream) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -7537,7 +7542,7 @@ TEST(OgHttp2AdapterTest, ConnectionErrorWithoutBlackholingData) {
   EXPECT_LT(next_result, 0);
 }
 
-TEST(OgHttp2AdapterTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
+TEST_F(OgHttp2AdapterDataTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -8408,7 +8413,7 @@ TEST(OgHttp2AdapterTest, NoopHeaderValidatorTest) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
-TEST(OgHttp2AdapterTest, NegativeFlowControlStreamResumption) {
+TEST_F(OgHttp2AdapterDataTest, NegativeFlowControlStreamResumption) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
