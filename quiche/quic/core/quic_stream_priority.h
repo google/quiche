@@ -15,6 +15,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace quic {
 
@@ -42,27 +43,22 @@ struct QUICHE_EXPORT HttpStreamPriority {
   }
 };
 
-// Represents WebTransport priorities as defined by
+// Represents the priorities of WebTransport nested data streams as defined in
 // <https://w3c.github.io/webtransport/>.
 struct QUICHE_EXPORT WebTransportStreamPriority {
-  enum class StreamType : uint8_t {
-    // WebTransport data streams.
-    kData = 0,
-    // Regular HTTP traffic. Since we're currently only supporting dedicated
-    // HTTP/3 transport, this means that all HTTP traffic is control traffic,
-    // and thus should always go first.
-    kHttp = 1,
-    // Streams that the QUIC stack declares as static.
-    kStatic = 2,
-  };
-
-  // Allows prioritizing control streams over the data streams.
-  StreamType stream_type = StreamType::kData;
+  // The stream ID of the control stream for the WebTransport session to which
+  // this data stream belongs.
+  QuicStreamId session_id = 0;
+  // Number of the send group with which the stream is associated; see
+  // https://w3c.github.io/webtransport/#dom-webtransportsendstreamoptions-sendgroup
+  uint64_t send_group_number = 0;
   // https://w3c.github.io/webtransport/#dom-webtransportsendstreamoptions-sendorder
-  int64_t send_order = 0;
+  webtransport::SendOrder send_order = 0;
 
   bool operator==(const WebTransportStreamPriority& other) const {
-    return stream_type == other.stream_type && send_order == other.send_order;
+    return session_id == other.session_id &&
+           send_group_number == other.send_group_number &&
+           send_order == other.send_order;
   }
   bool operator!=(const WebTransportStreamPriority& other) const {
     return !(*this == other);
