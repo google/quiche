@@ -233,7 +233,9 @@ int32_t NgHttp2Adapter::SubmitRequest(
   int32_t stream_id =
       nghttp2_submit_request(session_->raw_ptr(), nullptr, nvs.data(),
                              nvs.size(), provider.get(), stream_user_data);
-  sources_.emplace(stream_id, std::move(data_source));
+  if (data_source != nullptr) {
+    sources_.emplace(stream_id, std::move(data_source));
+  }
   QUICHE_VLOG(1) << "Submitted request with " << nvs.size()
                  << " request headers and user data " << stream_user_data
                  << "; resulted in stream " << stream_id;
@@ -249,7 +251,9 @@ int NgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
   std::unique_ptr<nghttp2_data_provider> provider =
       MakeDataProvider(data_source.get());
 
-  sources_.emplace(stream_id, std::move(data_source));
+  if (data_source != nullptr) {
+    sources_.emplace(stream_id, std::move(data_source));
+  }
 
   int result = nghttp2_submit_response(session_->raw_ptr(), stream_id,
                                        nvs.data(), nvs.size(), provider.get());

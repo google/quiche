@@ -146,7 +146,9 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   adapter->SetStreamUserData(stream_id2, const_cast<char*>(kSentinel2));
   adapter->SetStreamUserData(stream_id3, nullptr);
 
-  EXPECT_EQ(adapter->sources_size(), 3);
+  // These requests did not include a body, so they do not have corresponding
+  // DataFrameSources.
+  EXPECT_EQ(adapter->sources_size(), 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
@@ -231,9 +233,6 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   EXPECT_EQ(kInitialFlowControlWindowSize,
             adapter->GetStreamReceiveWindowSize(stream_id3));
 
-  // One stream was closed.
-  EXPECT_EQ(adapter->sources_size(), 2);
-
   // Connection window should be the same as the first stream.
   EXPECT_EQ(adapter->GetReceiveWindowSize(),
             adapter->GetStreamReceiveWindowSize(stream_id1));
@@ -279,7 +278,6 @@ TEST(NgHttp2AdapterTest, ClientHandlesFrames) {
   // After receiving END_STREAM for 1 and RST_STREAM for 5, the session no
   // longer expects reads.
   EXPECT_FALSE(adapter->want_read());
-  EXPECT_EQ(adapter->sources_size(), 0);
 
   // Client will not have anything else to write.
   EXPECT_FALSE(adapter->want_write());
@@ -904,6 +902,7 @@ TEST_F(NgHttp2AdapterDataTest, ClientSendsTrailers) {
       adapter->SubmitRequest(headers1, std::move(body1), false, nullptr);
   ASSERT_GT(stream_id1, 0);
   EXPECT_EQ(stream_id1, kStreamId);
+  EXPECT_EQ(adapter->sources_size(), 1);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x4));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x4, 0));
@@ -5371,15 +5370,24 @@ TEST_F(NgHttp2AdapterDataTest, ServerSubmitResponseWithResetFromClient) {
       std::move(body1), false);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->want_write());
+  EXPECT_EQ(adapter->sources_size(), 1);
 
   // Client resets the stream before the server can send the response.
   const std::string reset =
       TestFrameSequence().RstStream(1, Http2ErrorCode::CANCEL).Serialize();
   EXPECT_CALL(visitor, OnFrameHeader(1, 4, RST_STREAM, 0));
   EXPECT_CALL(visitor, OnRstStream(1, Http2ErrorCode::CANCEL));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::CANCEL));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::CANCEL))
+      .WillOnce(
+          [&adapter](Http2StreamId stream_id, Http2ErrorCode /*error_code*/) {
+            adapter->RemoveStream(stream_id);
+            return true;
+          });
   const int64_t reset_result = adapter->ProcessBytes(reset);
   EXPECT_EQ(reset.size(), static_cast<size_t>(reset_result));
+
+  // The stream's data source is dropped.
+  EXPECT_EQ(adapter->sources_size(), 0);
 
   // Outbound HEADERS and DATA are dropped.
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, _)).Times(0);
