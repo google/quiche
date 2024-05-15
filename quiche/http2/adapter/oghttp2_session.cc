@@ -873,9 +873,11 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
                 static_cast<int32_t>(max_frame_payload_)});
   while (connection_can_write == SendResult::SEND_OK && available_window > 0 &&
          IsReadyToWriteData(state)) {
-    DataFrameInfo info = GetDataFrameInfo(stream_id, available_window, state);
+    DataFrameHeaderInfo info =
+        GetDataFrameInfo(stream_id, available_window, state);
     QUICHE_VLOG(2) << "WriteForStream | length: " << info.payload_length
                    << " end_data: " << info.end_data
+                   << " end_stream: " << info.end_stream
                    << " trailers: " << state.trailers.get();
     if (info.payload_length == 0 && !info.end_data &&
         state.trailers == nullptr) {
@@ -891,9 +893,9 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
       // No more work on the stream; it has been closed.
       break;
     }
-    if (info.payload_length > 0 || info.send_fin) {
+    if (info.payload_length > 0 || info.end_stream) {
       spdy::SpdyDataIR data(stream_id);
-      data.set_fin(info.send_fin);
+      data.set_fin(info.end_stream);
       data.SetDataShallow(info.payload_length);
       spdy::SpdySerializedFrame header =
           spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(
@@ -910,13 +912,13 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
       state.send_window -= info.payload_length;
       available_window = std::min({connection_send_window_, state.send_window,
                                    static_cast<int32_t>(max_frame_payload_)});
-      if (info.send_fin) {
+      if (info.end_stream) {
         state.half_closed_local = true;
         MaybeFinWithRstStream(it);
       }
       const bool ok =
           AfterFrameSent(/* DATA */ 0, stream_id, info.payload_length,
-                         info.send_fin ? END_STREAM_FLAG : 0x0, 0);
+                         info.end_stream ? END_STREAM_FLAG : 0x0, 0);
       if (!ok) {
         LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
                             ConnectionError::kSendError);
@@ -933,7 +935,7 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
       // send, it's okay to send the trailers.
       if (state.trailers != nullptr) {
         auto block_ptr = std::move(state.trailers);
-        if (info.send_fin) {
+        if (info.end_stream) {
           QUICHE_LOG(ERROR) << "Sent fin; can't send trailers.";
 
           // TODO(birenroy,diannahu): Consider queuing a RST_STREAM
@@ -2076,26 +2078,26 @@ void OgHttp2Session::AbandonData(StreamState& stream_state) {
   stream_state.check_visitor_for_body = false;
 }
 
-OgHttp2Session::DataFrameInfo OgHttp2Session::GetDataFrameInfo(
+OgHttp2Session::DataFrameHeaderInfo OgHttp2Session::GetDataFrameInfo(
     Http2StreamId stream_id, size_t flow_control_available,
     StreamState& stream_state) {
-  DataFrameInfo info{.payload_length = 0, .end_data = true, .send_fin = true};
   if (stream_state.outbound_body != nullptr) {
+    DataFrameHeaderInfo info;
     std::tie(info.payload_length, info.end_data) =
         stream_state.outbound_body->SelectPayloadLength(flow_control_available);
-    info.send_fin =
+    info.end_stream =
         info.end_data ? stream_state.outbound_body->send_fin() : false;
+    return info;
   } else if (stream_state.check_visitor_for_body) {
-    DataFrameHeaderInfo visitor_info =
+    DataFrameHeaderInfo info =
         visitor_.OnReadyToSendDataForStream(stream_id, flow_control_available);
-    info.payload_length = visitor_info.payload_length;
-    info.end_data = visitor_info.end_data || visitor_info.end_stream;
-    info.send_fin = visitor_info.end_stream;
-  } else {
-    QUICHE_LOG(DFATAL) << "GetDataFrameInfo for stream " << stream_id
-                       << " but no body available!";
+    info.end_data = info.end_data || info.end_stream;
+    return info;
   }
-  return info;
+  QUICHE_LOG(DFATAL) << "GetDataFrameInfo for stream " << stream_id
+                     << " but no body available!";
+  return DataFrameHeaderInfo{
+      .payload_length = 0, .end_data = true, .end_stream = true};
 }
 
 bool OgHttp2Session::SendDataFrame(Http2StreamId stream_id,

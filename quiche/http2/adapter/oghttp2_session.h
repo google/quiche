@@ -471,14 +471,10 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   void AbandonData(StreamState& stream_state);
 
   // Gathers information required to construct a DATA frame header.
-  struct DataFrameInfo {
-    int64_t payload_length;
-    bool end_data;
-    bool send_fin;
-  };
-  DataFrameInfo GetDataFrameInfo(Http2StreamId stream_id,
-                                 size_t flow_control_available,
-                                 StreamState& stream_state);
+  using DataFrameHeaderInfo = Http2VisitorInterface::DataFrameHeaderInfo;
+  DataFrameHeaderInfo GetDataFrameInfo(Http2StreamId stream_id,
+                                       size_t flow_control_available,
+                                       StreamState& stream_state);
 
   // Invokes the appropriate API to send a DATA frame header and payload.
   bool SendDataFrame(Http2StreamId stream_id, absl::string_view frame_header,
