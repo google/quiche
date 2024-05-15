@@ -1402,9 +1402,12 @@ TEST(OgHttp2AdapterTest, ClientHandlesTrailers) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
-using OgHttp2AdapterDataTest = quiche::test::QuicheTest;
+class OgHttp2AdapterDataTest : public quiche::test::QuicheTestWithParam<bool> {
+};
 
-TEST_F(OgHttp2AdapterDataTest, ClientSendsTrailers) {
+INSTANTIATE_TEST_SUITE_P(BothValues, OgHttp2AdapterDataTest, testing::Bool());
+
+TEST_P(OgHttp2AdapterDataTest, ClientSendsTrailers) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -1423,8 +1426,8 @@ TEST_F(OgHttp2AdapterDataTest, ClientSendsTrailers) {
   visitor.SetEndData(1, false);
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
-  const int32_t stream_id1 =
-      adapter->SubmitRequest(headers1, std::move(body1), false, nullptr);
+  const int32_t stream_id1 = adapter->SubmitRequest(
+      headers1, GetParam() ? nullptr : std::move(body1), false, nullptr);
   ASSERT_EQ(stream_id1, 1);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -2628,7 +2631,7 @@ TEST(OgHttp2AdapterTest, ClientRejects101Response) {
                                             SpdyFrameType::RST_STREAM}));
 }
 
-TEST_F(OgHttp2AdapterDataTest, ClientObeysMaxConcurrentStreams) {
+TEST_P(OgHttp2AdapterDataTest, ClientObeysMaxConcurrentStreams) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -2681,12 +2684,12 @@ TEST_F(OgHttp2AdapterDataTest, ClientObeysMaxConcurrentStreams) {
   visitor.AppendPayloadForStream(1, kBody);
   visitor.SetEndData(1, true);
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
-  const int stream_id =
-      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
-                                        {":scheme", "http"},
-                                        {":authority", "example.com"},
-                                        {":path", "/this/is/request/one"}}),
-                             std::move(body1), false, nullptr);
+  const int stream_id = adapter->SubmitRequest(
+      ToHeaders({{":method", "POST"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}}),
+      GetParam() ? nullptr : std::move(body1), false, nullptr);
   ASSERT_EQ(stream_id, 1);
   EXPECT_TRUE(adapter->want_write());
 
@@ -2760,7 +2763,7 @@ TEST_F(OgHttp2AdapterDataTest, ClientObeysMaxConcurrentStreams) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST_F(OgHttp2AdapterDataTest, ClientReceivesInitialWindowSetting) {
+TEST_P(OgHttp2AdapterDataTest, ClientReceivesInitialWindowSetting) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -2804,12 +2807,12 @@ TEST_F(OgHttp2AdapterDataTest, ClientReceivesInitialWindowSetting) {
   visitor.AppendPayloadForStream(1, kLongBody);
   visitor.SetEndData(1, true);
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
-  const int stream_id =
-      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
-                                        {":scheme", "http"},
-                                        {":authority", "example.com"},
-                                        {":path", "/this/is/request/one"}}),
-                             std::move(body1), false, nullptr);
+  const int stream_id = adapter->SubmitRequest(
+      ToHeaders({{":method", "POST"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}}),
+      GetParam() ? nullptr : std::move(body1), false, nullptr);
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(adapter->want_write());
 
@@ -2827,7 +2830,7 @@ TEST_F(OgHttp2AdapterDataTest, ClientReceivesInitialWindowSetting) {
                             SpdyFrameType::DATA, SpdyFrameType::DATA}));
 }
 
-TEST_F(OgHttp2AdapterDataTest,
+TEST_P(OgHttp2AdapterDataTest,
        ClientReceivesInitialWindowSettingAfterStreamStart) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
@@ -2862,12 +2865,12 @@ TEST_F(OgHttp2AdapterDataTest,
   visitor.AppendPayloadForStream(1, kLongBody);
   visitor.SetEndData(1, true);
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
-  const int stream_id =
-      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
-                                        {":scheme", "http"},
-                                        {":authority", "example.com"},
-                                        {":path", "/this/is/request/one"}}),
-                             std::move(body1), false, nullptr);
+  const int stream_id = adapter->SubmitRequest(
+      ToHeaders({{":method", "POST"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}}),
+      GetParam() ? nullptr : std::move(body1), false, nullptr);
   EXPECT_GT(stream_id, 0);
   EXPECT_TRUE(adapter->want_write());
 
@@ -3451,7 +3454,7 @@ TEST(OgHttp2AdapterTest, ClientReceivesDataOnClosedStream) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST_F(OgHttp2AdapterDataTest, ClientEncountersFlowControlBlock) {
+TEST_P(OgHttp2AdapterDataTest, ClientEncountersFlowControlBlock) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -3470,8 +3473,8 @@ TEST_F(OgHttp2AdapterDataTest, ClientEncountersFlowControlBlock) {
   visitor.SetEndData(1, false);
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
-  const int32_t stream_id1 =
-      adapter->SubmitRequest(headers1, std::move(body1), false, nullptr);
+  const int32_t stream_id1 = adapter->SubmitRequest(
+      headers1, GetParam() ? nullptr : std::move(body1), false, nullptr);
   ASSERT_GT(stream_id1, 0);
 
   const std::vector<Header> headers2 =
@@ -3484,8 +3487,8 @@ TEST_F(OgHttp2AdapterDataTest, ClientEncountersFlowControlBlock) {
   visitor.SetEndData(3, false);
   auto body2 = std::make_unique<VisitorDataSource>(visitor, 3);
 
-  const int32_t stream_id2 =
-      adapter->SubmitRequest(headers2, std::move(body2), false, nullptr);
+  const int32_t stream_id2 = adapter->SubmitRequest(
+      headers2, GetParam() ? nullptr : std::move(body2), false, nullptr);
   ASSERT_EQ(stream_id2, 3);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -3534,7 +3537,7 @@ TEST_F(OgHttp2AdapterDataTest, ClientEncountersFlowControlBlock) {
   EXPECT_EQ(0, result);
 }
 
-TEST_F(OgHttp2AdapterDataTest, ClientSendsTrailersAfterFlowControlBlock) {
+TEST_P(OgHttp2AdapterDataTest, ClientSendsTrailersAfterFlowControlBlock) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -3552,8 +3555,8 @@ TEST_F(OgHttp2AdapterDataTest, ClientSendsTrailersAfterFlowControlBlock) {
   visitor.SetEndData(1, false);
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
-  const int32_t stream_id1 =
-      adapter->SubmitRequest(headers1, std::move(body1), false, nullptr);
+  const int32_t stream_id1 = adapter->SubmitRequest(
+      headers1, GetParam() ? nullptr : std::move(body1), false, nullptr);
   ASSERT_GT(stream_id1, 0);
 
   const std::vector<Header> headers2 =
@@ -3567,8 +3570,8 @@ TEST_F(OgHttp2AdapterDataTest, ClientSendsTrailersAfterFlowControlBlock) {
   visitor.SetEndData(3, false);
   auto body2 = std::make_unique<VisitorDataSource>(visitor, 3);
 
-  const int32_t stream_id2 =
-      adapter->SubmitRequest(headers2, std::move(body2), false, nullptr);
+  const int32_t stream_id2 = adapter->SubmitRequest(
+      headers2, GetParam() ? nullptr : std::move(body2), false, nullptr);
   ASSERT_GT(stream_id2, 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -4195,7 +4198,7 @@ TEST(OgHttp2AdapterTest, ConnectionErrorOnControlFrameSent) {
   EXPECT_LT(send_result, 0);
 }
 
-TEST_F(OgHttp2AdapterDataTest, ConnectionErrorOnDataFrameSent) {
+TEST_P(OgHttp2AdapterDataTest, ConnectionErrorOnDataFrameSent) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -4230,8 +4233,9 @@ TEST_F(OgHttp2AdapterDataTest, ConnectionErrorOnDataFrameSent) {
   visitor.AppendPayloadForStream(
       1, "Here is some data, which will lead to a fatal error");
   auto body = std::make_unique<VisitorDataSource>(visitor, 1);
-  int submit_result = adapter->SubmitResponse(
-      1, ToHeaders({{":status", "200"}}), std::move(body), false);
+  int submit_result =
+      adapter->SubmitResponse(1, ToHeaders({{":status", "200"}}),
+                              GetParam() ? nullptr : std::move(body), false);
   ASSERT_EQ(0, submit_result);
 
   EXPECT_TRUE(adapter->want_write());
@@ -4299,7 +4303,7 @@ TEST(OgHttp2AdapterTest, ClientSendsContinuation) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
-TEST_F(OgHttp2AdapterDataTest, RepeatedHeaderNames) {
+TEST_P(OgHttp2AdapterDataTest, RepeatedHeaderNames) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -4345,8 +4349,8 @@ TEST_F(OgHttp2AdapterDataTest, RepeatedHeaderNames) {
   visitor.SetEndData(1, true);
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
-  int submit_result =
-      adapter->SubmitResponse(1, headers1, std::move(body1), false);
+  int submit_result = adapter->SubmitResponse(
+      1, headers1, GetParam() ? nullptr : std::move(body1), false);
   ASSERT_EQ(0, submit_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -4365,7 +4369,7 @@ TEST_F(OgHttp2AdapterDataTest, RepeatedHeaderNames) {
                             SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
 }
 
-TEST_F(OgHttp2AdapterDataTest, ServerRespondsToRequestWithTrailers) {
+TEST_P(OgHttp2AdapterDataTest, ServerRespondsToRequestWithTrailers) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -4406,8 +4410,8 @@ TEST_F(OgHttp2AdapterDataTest, ServerRespondsToRequestWithTrailers) {
   const std::vector<Header> headers1 = ToHeaders({{":status", "200"}});
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
-  int submit_result =
-      adapter->SubmitResponse(1, headers1, std::move(body1), false);
+  int submit_result = adapter->SubmitResponse(
+      1, headers1, GetParam() ? nullptr : std::move(body1), false);
   ASSERT_EQ(0, submit_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -4568,7 +4572,7 @@ TEST(OgHttp2AdapterTest, ServerVisitorRejectsHeaders) {
                             SpdyFrameType::RST_STREAM}));
 }
 
-TEST_F(OgHttp2AdapterDataTest, ServerSubmitsResponseWithDataSourceError) {
+TEST_P(OgHttp2AdapterDataTest, ServerSubmitsResponseWithDataSourceError) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -4607,7 +4611,7 @@ TEST_F(OgHttp2AdapterDataTest, ServerSubmitsResponseWithDataSourceError) {
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
-      std::move(body1), false);
+      GetParam() ? nullptr : std::move(body1), false);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->want_write());
 
@@ -4865,7 +4869,7 @@ TEST(OgHttp2AdapterTest, ServerHandlesMultipleContentLength) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
-TEST_F(OgHttp2AdapterDataTest, ServerSendsInvalidTrailers) {
+TEST_P(OgHttp2AdapterDataTest, ServerSendsInvalidTrailers) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -4909,7 +4913,7 @@ TEST_F(OgHttp2AdapterDataTest, ServerSendsInvalidTrailers) {
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
-      std::move(body1), false);
+      GetParam() ? nullptr : std::move(body1), false);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->want_write());
 
@@ -5160,7 +5164,7 @@ TEST(OgHttp2AdapterTest, ServerHandlesHostHeaderWithLaxValidation) {
 
 // Tests the case where the response body is in the progress of being sent while
 // trailers are queued.
-TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWhileDataDeferred) {
+TEST_P(OgHttp2AdapterDataTest, ServerSubmitsTrailersWhileDataDeferred) {
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
   for (const bool add_more_body_data : {true, false}) {
@@ -5220,7 +5224,7 @@ TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWhileDataDeferred) {
     auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
     int submit_result = adapter->SubmitResponse(
         1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
-        std::move(body1), false);
+        GetParam() ? nullptr : std::move(body1), false);
     EXPECT_EQ(submit_result, 0);
     EXPECT_TRUE(adapter->want_write());
 
@@ -5258,7 +5262,7 @@ TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWhileDataDeferred) {
 // Tests the case where the response body and trailers become blocked by flow
 // control while the stream is writing. Regression test for
 // https://github.com/envoyproxy/envoy/issues/31710
-TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWithFlowControlBlockage) {
+TEST_P(OgHttp2AdapterDataTest, ServerSubmitsTrailersWithFlowControlBlockage) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -5312,7 +5316,7 @@ TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWithFlowControlBlockage) {
   auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
-      std::move(body1), false);
+      GetParam() ? nullptr : std::move(body1), false);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->want_write());
 
@@ -5374,7 +5378,7 @@ TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWithFlowControlBlockage) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWithDataEndStream) {
+TEST_P(OgHttp2AdapterDataTest, ServerSubmitsTrailersWithDataEndStream) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -5417,8 +5421,9 @@ TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWithDataEndStream) {
   visitor.SetEndData(1, true);
   auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
-  int submit_result = adapter->SubmitResponse(
-      1, ToHeaders({{":status", "200"}}), std::move(body), false);
+  int submit_result =
+      adapter->SubmitResponse(1, ToHeaders({{":status", "200"}}),
+                              GetParam() ? nullptr : std::move(body), false);
   ASSERT_EQ(submit_result, 0);
 
   const std::vector<Header> trailers =
@@ -5444,7 +5449,7 @@ TEST_F(OgHttp2AdapterDataTest, ServerSubmitsTrailersWithDataEndStream) {
                             SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
 }
 
-TEST_F(OgHttp2AdapterDataTest,
+TEST_P(OgHttp2AdapterDataTest,
        ServerSubmitsTrailersWithDataEndStreamAndDeferral) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
@@ -5488,8 +5493,9 @@ TEST_F(OgHttp2AdapterDataTest,
   visitor.AppendPayloadForStream(1, kBody);
   auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
-  int submit_result = adapter->SubmitResponse(
-      1, ToHeaders({{":status", "200"}}), std::move(body), false);
+  int submit_result =
+      adapter->SubmitResponse(1, ToHeaders({{":status", "200"}}),
+                              GetParam() ? nullptr : std::move(body), false);
   ASSERT_EQ(submit_result, 0);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -6407,7 +6413,7 @@ TEST(OgHttpAdapterTest, ServerReceivesGoAway) {
                             SpdyFrameType::HEADERS}));
 }
 
-TEST_F(OgHttp2AdapterDataTest, ServerSubmitResponse) {
+TEST_P(OgHttp2AdapterDataTest, ServerSubmitResponse) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -6476,7 +6482,7 @@ TEST_F(OgHttp2AdapterDataTest, ServerSubmitResponse) {
       1,
       ToHeaders({{":status", "404"},
                  {"x-comment", "I have no idea what you're talking about."}}),
-      std::move(body1), false);
+      GetParam() ? nullptr : std::move(body1), false);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->want_write());
 
@@ -6507,7 +6513,7 @@ TEST_F(OgHttp2AdapterDataTest, ServerSubmitResponse) {
   EXPECT_GT(adapter->GetHpackEncoderDynamicTableSize(), 0);
 }
 
-TEST_F(OgHttp2AdapterDataTest, ServerSubmitResponseWithResetFromClient) {
+TEST_P(OgHttp2AdapterDataTest, ServerSubmitResponseWithResetFromClient) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -6563,7 +6569,7 @@ TEST_F(OgHttp2AdapterDataTest, ServerSubmitResponseWithResetFromClient) {
       1,
       ToHeaders({{":status", "404"},
                  {"x-comment", "I have no idea what you're talking about."}}),
-      std::move(body1), false);
+      GetParam() ? nullptr : std::move(body1), false);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->want_write());
 
@@ -6649,9 +6655,12 @@ TEST(OgHttp2AdapterTest, ServerRejectsStreamData) {
 }
 
 using OgHttp2AdapterInteractionDataTest = OgHttp2AdapterDataTest;
+
+INSTANTIATE_TEST_SUITE_P(BothValues, OgHttp2AdapterInteractionDataTest,
+                         testing::Bool());
 // Exercises a naive mutually recursive test client and server. This test fails
 // without recursion guards in OgHttp2Session.
-TEST_F(OgHttp2AdapterInteractionDataTest, ClientServerInteractionTest) {
+TEST_P(OgHttp2AdapterInteractionDataTest, ClientServerInteractionTest) {
   TestVisitor client_visitor;
   OgHttp2Adapter::Options client_options;
   client_options.perspective = Perspective::kClient;
@@ -6699,7 +6708,7 @@ TEST_F(OgHttp2AdapterInteractionDataTest, ClientServerInteractionTest) {
                          {":authority", "example.com"},
                          {":path",
                           absl::StrCat("/this/is/request/", new_stream_id)}}),
-              std::move(body), false, nullptr);
+              GetParam() ? nullptr : std::move(body), false, nullptr);
           EXPECT_EQ(new_stream_id, created_stream_id);
           client_adapter->Send();
         }
@@ -7359,7 +7368,7 @@ TEST(OgHttp2AdapterTest, ServerAllowsProtocolPseudoheaderAfterAck) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST_F(OgHttp2AdapterDataTest, SkipsSendingFramesForRejectedStream) {
+TEST_P(OgHttp2AdapterDataTest, SkipsSendingFramesForRejectedStream) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -7396,8 +7405,9 @@ TEST_F(OgHttp2AdapterDataTest, SkipsSendingFramesForRejectedStream) {
       1, "Here is some data, which will be completely ignored!");
   auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
-  int submit_result = adapter->SubmitResponse(
-      1, ToHeaders({{":status", "200"}}), std::move(body), false);
+  int submit_result =
+      adapter->SubmitResponse(1, ToHeaders({{":status", "200"}}),
+                              GetParam() ? nullptr : std::move(body), false);
   ASSERT_EQ(0, submit_result);
 
   auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
@@ -7542,7 +7552,7 @@ TEST(OgHttp2AdapterTest, ConnectionErrorWithoutBlackholingData) {
   EXPECT_LT(next_result, 0);
 }
 
-TEST_F(OgHttp2AdapterDataTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
+TEST_P(OgHttp2AdapterDataTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -7580,8 +7590,9 @@ TEST_F(OgHttp2AdapterDataTest, ServerDoesNotSendFramesAfterImmediateGoAway) {
   // Submit a response for the stream.
   visitor.AppendPayloadForStream(1, "This data is doomed to never be written.");
   auto body = std::make_unique<VisitorDataSource>(visitor, 1);
-  int submit_result = adapter->SubmitResponse(
-      1, ToHeaders({{":status", "200"}}), std::move(body), false);
+  int submit_result =
+      adapter->SubmitResponse(1, ToHeaders({{":status", "200"}}),
+                              GetParam() ? nullptr : std::move(body), false);
   ASSERT_EQ(0, submit_result);
 
   // Submit a WINDOW_UPDATE frame.
@@ -8413,7 +8424,7 @@ TEST(OgHttp2AdapterTest, NoopHeaderValidatorTest) {
   EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
-TEST_F(OgHttp2AdapterDataTest, NegativeFlowControlStreamResumption) {
+TEST_P(OgHttp2AdapterDataTest, NegativeFlowControlStreamResumption) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -8457,8 +8468,9 @@ TEST_F(OgHttp2AdapterDataTest, NegativeFlowControlStreamResumption) {
   // Submit a response for the stream.
   visitor.AppendPayloadForStream(1, std::string(70000, 'a'));
   auto body = std::make_unique<VisitorDataSource>(visitor, 1);
-  int submit_result = adapter->SubmitResponse(
-      1, ToHeaders({{":status", "200"}}), std::move(body), false);
+  int submit_result =
+      adapter->SubmitResponse(1, ToHeaders({{":status", "200"}}),
+                              GetParam() ? nullptr : std::move(body), false);
   ASSERT_EQ(0, submit_result);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));

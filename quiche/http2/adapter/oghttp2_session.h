@@ -249,6 +249,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     int32_t send_window;
     std::optional<HeaderType> received_header_type;
     std::optional<size_t> remaining_content_length;
+    bool check_visitor_for_body = false;
     bool half_closed_local = false;
     bool half_closed_remote = false;
     // Indicates that `outbound_body` temporarily cannot produce data.

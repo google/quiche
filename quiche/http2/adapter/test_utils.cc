@@ -94,7 +94,7 @@ void TestVisitor::SimulateError(Http2StreamId stream_id) {
   payload.return_error = true;
 }
 
-VisitorDataSource::VisitorDataSource(TestVisitor& visitor,
+VisitorDataSource::VisitorDataSource(Http2VisitorInterface& visitor,
                                      Http2StreamId stream_id)
     : visitor_(visitor), stream_id_(stream_id) {}
 

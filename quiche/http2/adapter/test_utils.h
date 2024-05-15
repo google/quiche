@@ -59,16 +59,10 @@ class QUICHE_NO_EXPORT TestVisitor
     }
   }
 
-  struct DataFrameHeaderInfo {
-    int64_t payload_length;
-    bool end_data;
-    bool end_stream;
-  };
-  // These methods will be moved to Http2VisitorInterface in a future CL.
   DataFrameHeaderInfo OnReadyToSendDataForStream(Http2StreamId stream_id,
-                                                 size_t max_length);
+                                                 size_t max_length) override;
   bool SendDataFrame(Http2StreamId stream_id, absl::string_view frame_header,
-                     size_t payload_bytes);
+                     size_t payload_bytes) override;
 
   // Test methods to manipulate the data frame payload to send for a stream.
   void AppendPayloadForStream(Http2StreamId stream_id,
@@ -104,15 +98,14 @@ class QUICHE_NO_EXPORT TestVisitor
 // A DataFrameSource that invokes visitor methods.
 class QUICHE_NO_EXPORT VisitorDataSource : public DataFrameSource {
  public:
-  // TODO(birenroy): revert visitor type to the interface type.
-  VisitorDataSource(TestVisitor& visitor, Http2StreamId stream_id);
+  VisitorDataSource(Http2VisitorInterface& visitor, Http2StreamId stream_id);
 
   std::pair<int64_t, bool> SelectPayloadLength(size_t max_length) override;
   bool Send(absl::string_view frame_header, size_t payload_length) override;
   bool send_fin() const override;
 
  private:
-  TestVisitor& visitor_;
+  Http2VisitorInterface& visitor_;
   const Http2StreamId stream_id_;
   // Whether the stream should end with the final frame of data.
   bool has_fin_ = false;

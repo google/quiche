@@ -107,6 +107,22 @@ int64_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
   }
 }
 
+Http2VisitorInterface::DataFrameHeaderInfo
+CallbackVisitor::OnReadyToSendDataForStream(Http2StreamId /*stream_id*/,
+                                            size_t /*max_length*/) {
+  QUICHE_LOG(FATAL)
+      << "Not implemented; should not be used with nghttp2 callbacks.";
+  return {};
+}
+
+bool CallbackVisitor::SendDataFrame(Http2StreamId /*stream_id*/,
+                                    absl::string_view /*frame_header*/,
+                                    size_t /*payload_bytes*/) {
+  QUICHE_LOG(FATAL)
+      << "Not implemented; should not be used with nghttp2 callbacks.";
+  return false;
+}
+
 void CallbackVisitor::OnConnectionError(ConnectionError /*error*/) {
   QUICHE_VLOG(1) << "OnConnectionError not implemented";
 }

@@ -81,7 +81,8 @@ ssize_t OnPackExtensionCallback(nghttp2_session* session, uint8_t* buf,
 int OnError(nghttp2_session* session, int lib_error_code, const char* msg,
             size_t len, void* user_data);
 
-nghttp2_session_callbacks_unique_ptr Create();
+nghttp2_session_callbacks_unique_ptr Create(
+    nghttp2_send_data_callback send_data_callback);
 
 }  // namespace callbacks
 }  // namespace adapter

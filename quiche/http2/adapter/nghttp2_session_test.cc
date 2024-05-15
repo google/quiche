@@ -37,7 +37,7 @@ class NgHttp2SessionTest : public quiche::test::QuicheTest {
   void TearDown() override { nghttp2_option_del(options_); }
 
   nghttp2_session_callbacks_unique_ptr CreateCallbacks() {
-    nghttp2_session_callbacks_unique_ptr callbacks = callbacks::Create();
+    nghttp2_session_callbacks_unique_ptr callbacks = callbacks::Create(nullptr);
     return callbacks;
   }
 

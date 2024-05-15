@@ -348,7 +348,8 @@ int OnError(nghttp2_session* /*session*/, int /*lib_error_code*/,
   return 0;
 }
 
-nghttp2_session_callbacks_unique_ptr Create() {
+nghttp2_session_callbacks_unique_ptr Create(
+    nghttp2_send_data_callback send_data_callback) {
   nghttp2_session_callbacks* callbacks;
   nghttp2_session_callbacks_new(&callbacks);
 
@@ -372,8 +373,8 @@ nghttp2_session_callbacks_unique_ptr Create() {
   nghttp2_session_callbacks_set_on_invalid_frame_recv_callback(
       callbacks, &OnInvalidFrameReceived);
   nghttp2_session_callbacks_set_error_callback2(callbacks, &OnError);
-  nghttp2_session_callbacks_set_send_data_callback(
-      callbacks, &DataFrameSourceSendCallback);
+  nghttp2_session_callbacks_set_send_data_callback(callbacks,
+                                                   send_data_callback);
   nghttp2_session_callbacks_set_pack_extension_callback(
       callbacks, &OnPackExtensionCallback);
   nghttp2_session_callbacks_set_unpack_extension_callback(

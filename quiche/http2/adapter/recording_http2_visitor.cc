@@ -13,6 +13,22 @@ int64_t RecordingHttp2Visitor::OnReadyToSend(absl::string_view serialized) {
   return serialized.size();
 }
 
+Http2VisitorInterface::DataFrameHeaderInfo
+RecordingHttp2Visitor::OnReadyToSendDataForStream(Http2StreamId stream_id,
+                                                  size_t max_length) {
+  events_.push_back(absl::StrFormat("OnReadyToSendDataForStream %d %d",
+                                    stream_id, max_length));
+  return {70000, true, true};
+}
+
+bool RecordingHttp2Visitor::SendDataFrame(Http2StreamId stream_id,
+                                          absl::string_view /*frame_header*/,
+                                          size_t payload_bytes) {
+  events_.push_back(
+      absl::StrFormat("SendDataFrame %d %d", stream_id, payload_bytes));
+  return true;
+}
+
 void RecordingHttp2Visitor::OnConnectionError(ConnectionError error) {
   events_.push_back(
       absl::StrFormat("OnConnectionError %s", ConnectionErrorToString(error)));
