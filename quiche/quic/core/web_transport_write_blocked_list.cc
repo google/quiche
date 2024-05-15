@@ -232,7 +232,6 @@ bool WebTransportWriteBlockedList::IsStreamBlocked(
   switch (priority.type()) {
     case QuicPriorityType::kHttp:
       return main_schedule_.IsScheduled(ScheduleKey::HttpStream(stream_id));
-      break;
     case QuicPriorityType::kWebTransport:
       auto it = web_transport_session_schedulers_.find(
           ScheduleKey::WebTransportSession(priority));
