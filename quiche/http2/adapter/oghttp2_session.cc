@@ -2096,8 +2096,7 @@ OgHttp2Session::DataFrameHeaderInfo OgHttp2Session::GetDataFrameInfo(
   }
   QUICHE_LOG(DFATAL) << "GetDataFrameInfo for stream " << stream_id
                      << " but no body available!";
-  return DataFrameHeaderInfo{
-      .payload_length = 0, .end_data = true, .end_stream = true};
+  return {/*payload_length=*/0, /*end_data=*/true, /*end_stream=*/true};
 }
 
 bool OgHttp2Session::SendDataFrame(Http2StreamId stream_id,
