@@ -58,6 +58,8 @@ class QboneTunnelInterface : public quic::QboneClientControlStream::Handler {
 
   virtual QboneClient* client() = 0;
 
+  virtual bool use_quarantine_mode() const = 0;
+
   virtual State state() = 0;
 
   virtual std::string HealthString() = 0;
