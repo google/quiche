@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-syntax = "proto3";
+edition = "2023";
 
 package privacy.ppn;
+
+option features.field_presence = IMPLICIT;
 
 message BlindSignAuthOptions {
   // Use Privacy Pass crypto library and token formats instead of RSA BSSA.
