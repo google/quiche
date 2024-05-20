@@ -5,6 +5,9 @@
 #ifndef QUICHE_QUIC_QBONE_PLATFORM_MOCK_KERNEL_H_
 #define QUICHE_QUIC_QBONE_PLATFORM_MOCK_KERNEL_H_
 
+#include <cstddef>
+#include <ctime>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
 
@@ -23,6 +26,10 @@ class MockKernel : public KernelInterface {
   MOCK_METHOD(ssize_t, recvfrom,
               (int sockfd, void*, size_t len, int flags, struct sockaddr*,
                socklen_t*),
+              (override));
+  MOCK_METHOD(int, recvmmsg,
+              (int sockfd, struct mmsghdr* msgvec, unsigned int vlen, int flags,
+               struct timespec* timeout),
               (override));
   MOCK_METHOD(ssize_t, sendmsg, (int sockfd, const struct msghdr*, int flags),
               (override));
