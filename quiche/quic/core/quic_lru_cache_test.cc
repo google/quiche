@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/quic_lru_cache.h"
 
+#include <memory>
+#include <utility>
+
 #include "quiche/quic/platform/api/quic_test.h"
 
 namespace quic {

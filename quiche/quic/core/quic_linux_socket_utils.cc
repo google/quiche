@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 
 #include <cstdint>
+#include <string>
 
 #include "quiche/quic/core/quic_syscall_wrapper.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"

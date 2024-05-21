@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/quic_control_frame_manager.h"
 
+#include <memory>
 #include <utility>
+#include <vector>
 
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"

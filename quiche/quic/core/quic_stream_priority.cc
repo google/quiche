@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/quic_stream_priority.h"
 
+#include <optional>
+#include <string>
+#include <vector>
+
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/structured_headers.h"
 

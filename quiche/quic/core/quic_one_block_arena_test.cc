@@ -5,6 +5,7 @@
 #include "quiche/quic/core/quic_one_block_arena.h"
 
 #include <cstdint>
+#include <vector>
 
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"

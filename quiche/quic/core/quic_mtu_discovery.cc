@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_mtu_discovery.h"
 
+#include <ostream>
+
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_stack_trace.h"
 

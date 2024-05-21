@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <memory>
+#include <ostream>
+#include <string>
 #include <utility>
 
 #include "absl/strings/escaping.h"

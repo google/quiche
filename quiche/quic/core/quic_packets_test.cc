@@ -5,6 +5,7 @@
 #include "quiche/quic/core/quic_packets.h"
 
 #include <memory>
+#include <string>
 
 #include "absl/memory/memory.h"
 #include "quiche/quic/core/quic_time.h"

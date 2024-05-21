@@ -6,7 +6,11 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <memory>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "quiche/quic/core/congestion_control/general_loss_algorithm.h"
 #include "quiche/quic/core/congestion_control/pacing_sender.h"

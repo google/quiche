@@ -6,6 +6,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <ostream>
+#include <string>
 
 #include "absl/strings/str_cat.h"
 #include "openssl/ssl.h"

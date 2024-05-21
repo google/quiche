@@ -5,6 +5,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 
 #include <cstdint>
+#include <string>
 
 #include "openssl/ssl.h"
 #include "quiche/quic/platform/api/quic_test.h"

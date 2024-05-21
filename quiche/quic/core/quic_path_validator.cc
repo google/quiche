@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/quic_path_validator.h"
 
+#include <memory>
+#include <ostream>
+#include <utility>
+
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"

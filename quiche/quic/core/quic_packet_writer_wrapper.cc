@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
 
+#include <optional>
+
 #include "quiche/quic/core/quic_types.h"
 
 namespace quic {

@@ -4,10 +4,12 @@
 
 #include "quiche/quic/core/quic_interval.h"
 
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_test.h"

@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_connection_stats.h"
 
+#include <ostream>
+
 namespace quic {
 
 std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {

@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_idle_network_detector.h"
 
+#include <algorithm>
+
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"

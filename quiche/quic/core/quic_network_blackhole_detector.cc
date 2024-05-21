@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_network_blackhole_detector.h"
 
+#include <algorithm>
+
 #include "quiche/quic/core/quic_constants.h"
 
 namespace quic {

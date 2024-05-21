@@ -4,9 +4,11 @@
 
 #include "quiche/quic/core/quic_stream.h"
 
+#include <algorithm>
 #include <limits>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"

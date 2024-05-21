@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <limits>
+#include <ostream>
+#include <string>
 
 #include "absl/strings/str_cat.h"
 

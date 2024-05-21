@@ -4,7 +4,10 @@
 
 #include "quiche/quic/core/quic_crypto_client_handshaker.h"
 
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/proto/crypto_server_config_proto.h"

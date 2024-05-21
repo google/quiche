@@ -4,8 +4,11 @@
 
 #include "quiche/quic/core/quic_sent_packet_manager.h"
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <utility>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"

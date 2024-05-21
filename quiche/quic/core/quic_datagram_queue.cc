@@ -4,6 +4,11 @@
 
 #include "quiche/quic/core/quic_datagram_queue.h"
 
+#include <algorithm>
+#include <memory>
+#include <optional>
+#include <utility>
+
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_session.h"

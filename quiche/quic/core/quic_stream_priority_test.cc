@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_stream_priority.h"
 
+#include <optional>
+
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_test.h"
 

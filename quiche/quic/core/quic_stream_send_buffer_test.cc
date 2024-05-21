@@ -5,6 +5,8 @@
 #include "quiche/quic/core/quic_stream_send_buffer.h"
 
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_writer.h"

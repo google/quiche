@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_default_packet_writer.h"
 
+#include <optional>
+
 #include "quiche/quic/core/quic_udp_socket.h"
 
 namespace quic {

@@ -5,6 +5,7 @@
 #include "quiche/quic/core/quic_stream_send_buffer.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_interval.h"

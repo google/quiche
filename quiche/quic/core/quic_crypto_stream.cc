@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_crypto_stream.h"
 
+#include <algorithm>
 #include <optional>
 #include <string>
 

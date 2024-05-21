@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "quiche/quic/core/crypto/aes_128_gcm_12_encrypter.h"

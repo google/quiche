@@ -4,8 +4,10 @@
 
 #include "quiche/quic/core/quic_dispatcher.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <list>
 #include <map>
 #include <memory>
 #include <optional>

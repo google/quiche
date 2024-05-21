@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "quiche/quic/core/quic_stream_id_manager.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 

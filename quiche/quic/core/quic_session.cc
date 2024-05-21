@@ -4,9 +4,16 @@
 
 #include "quiche/quic/core/quic_session.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <limits>
+#include <memory>
+#include <optional>
+#include <ostream>
+#include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
