@@ -1,5 +1,7 @@
 #include "quiche/http2/adapter/callback_visitor.h"
 
+#include <cstring>
+
 #include "absl/strings/escaping.h"
 #include "quiche/http2/adapter/http2_util.h"
 #include "quiche/http2/adapter/nghttp2.h"

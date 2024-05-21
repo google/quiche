@@ -1,6 +1,10 @@
 #include "quiche/http2/adapter/nghttp2_adapter.h"
 
+#include <cstring>
+#include <iterator>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"

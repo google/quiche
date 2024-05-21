@@ -1,8 +1,12 @@
 #include "quiche/http2/adapter/oghttp2_session.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <optional>
+#include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 

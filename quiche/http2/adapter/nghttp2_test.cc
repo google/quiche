@@ -1,5 +1,9 @@
 #include "quiche/http2/adapter/nghttp2.h"
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/adapter/mock_nghttp2_callbacks.h"
 #include "quiche/http2/adapter/nghttp2_test_utils.h"

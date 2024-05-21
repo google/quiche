@@ -1,5 +1,6 @@
 #include "quiche/http2/adapter/noop_header_validator.h"
 
+#include <limits>
 #include <optional>
 #include <utility>
 #include <vector>

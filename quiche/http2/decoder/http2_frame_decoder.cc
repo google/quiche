@@ -4,6 +4,8 @@
 
 #include "quiche/http2/decoder/http2_frame_decoder.h"
 
+#include <ostream>
+
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/hpack/varint/hpack_varint_decoder.h"
 #include "quiche/http2/http2_constants.h"

@@ -1,6 +1,9 @@
 #include "quiche/http2/adapter/chunked_buffer.h"
 
 #include <algorithm>
+#include <memory>
+#include <utility>
+#include <vector>
 
 namespace http2 {
 namespace adapter {

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/adapter/data_source.h"

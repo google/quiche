@@ -1,5 +1,10 @@
 #include "quiche/http2/adapter/chunked_buffer.h"
 
+#include <algorithm>
+#include <initializer_list>
+#include <memory>
+#include <utility>
+
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"

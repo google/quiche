@@ -1,5 +1,8 @@
 #include "quiche/http2/adapter/nghttp2_session.h"
 
+#include <string>
+#include <vector>
+
 #include "quiche/http2/adapter/mock_http2_visitor.h"
 #include "quiche/http2/adapter/nghttp2_callbacks.h"
 #include "quiche/http2/adapter/nghttp2_util.h"

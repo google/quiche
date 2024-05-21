@@ -4,6 +4,8 @@
 
 #include "quiche/http2/decoder/decode_status.h"
 
+#include <ostream>
+
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 

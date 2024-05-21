@@ -1,5 +1,7 @@
 #include "quiche/http2/adapter/noop_header_validator.h"
 
+#include <string>
+
 #include "absl/strings/escaping.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 

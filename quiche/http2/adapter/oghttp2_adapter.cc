@@ -1,6 +1,8 @@
 #include "quiche/http2/adapter/oghttp2_adapter.h"
 
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <bitset>
+#include <string>
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"

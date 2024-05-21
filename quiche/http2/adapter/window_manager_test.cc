@@ -1,5 +1,6 @@
 #include "quiche/http2/adapter/window_manager.h"
 
+#include <algorithm>
 #include <list>
 
 #include "absl/functional/bind_front.h"

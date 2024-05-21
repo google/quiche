@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+#include <ostream>
+
 #include "absl/base/macros.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"

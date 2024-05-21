@@ -1,6 +1,7 @@
 #include "quiche/http2/adapter/recording_http2_visitor.h"
 
 #include <list>
+#include <string>
 
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"

@@ -4,6 +4,8 @@
 
 #include "quiche/http2/test_tools/hpack_block_collector.h"
 
+#include <string>
+
 // Tests of HpackBlockCollector. Not intended to be comprehensive, as
 // HpackBlockCollector is itself support for testing HpackBlockDecoder, and
 // should be pretty thoroughly exercised via the tests of HpackBlockDecoder.

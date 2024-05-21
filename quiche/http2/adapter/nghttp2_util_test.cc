@@ -1,5 +1,8 @@
 #include "quiche/http2/adapter/nghttp2_util.h"
 
+#include <memory>
+#include <string>
+
 #include "quiche/http2/adapter/nghttp2_test_utils.h"
 #include "quiche/http2/adapter/test_utils.h"
 #include "quiche/common/platform/api/quiche_test.h"

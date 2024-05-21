@@ -1,6 +1,7 @@
 #include "quiche/http2/adapter/header_validator.h"
 
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 

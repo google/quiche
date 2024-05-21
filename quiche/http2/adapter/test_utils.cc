@@ -1,7 +1,9 @@
 #include "quiche/http2/adapter/test_utils.h"
 
+#include <cstring>
 #include <optional>
 #include <ostream>
+#include <vector>
 
 #include "absl/strings/str_format.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"

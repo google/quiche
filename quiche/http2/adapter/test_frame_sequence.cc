@@ -2,6 +2,9 @@
 
 #include <memory>
 #include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "quiche/http2/adapter/http2_util.h"
 #include "quiche/http2/adapter/oghttp2_util.h"

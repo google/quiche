@@ -1,5 +1,8 @@
 #include "quiche/http2/adapter/event_forwarder.h"
 
+#include <string>
+#include <utility>
+
 namespace http2 {
 namespace adapter {
 

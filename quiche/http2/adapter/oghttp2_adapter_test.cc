@@ -1,6 +1,7 @@
 #include "quiche/http2/adapter/oghttp2_adapter.h"
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>

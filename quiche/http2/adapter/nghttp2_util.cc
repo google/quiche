@@ -1,7 +1,11 @@
 #include "quiche/http2/adapter/nghttp2_util.h"
 
 #include <cstdint>
+#include <cstring>
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"

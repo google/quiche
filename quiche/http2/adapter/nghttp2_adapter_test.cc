@@ -1,6 +1,8 @@
 #include "quiche/http2/adapter/nghttp2_adapter.h"
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"

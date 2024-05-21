@@ -1,5 +1,7 @@
 #include "quiche/http2/adapter/callback_visitor.h"
 
+#include <string>
+
 #include "absl/container/flat_hash_map.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/mock_nghttp2_callbacks.h"

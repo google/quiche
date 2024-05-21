@@ -1,5 +1,9 @@
 #include "quiche/http2/adapter/nghttp2_test_utils.h"
 
+#include <cstring>
+#include <ostream>
+#include <vector>
+
 #include "quiche/http2/adapter/nghttp2_util.h"
 #include "quiche/common/quiche_endian.h"
 
