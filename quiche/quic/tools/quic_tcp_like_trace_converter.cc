@@ -4,6 +4,8 @@
 
 #include "quiche/quic/tools/quic_tcp_like_trace_converter.h"
 
+#include <algorithm>
+
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 

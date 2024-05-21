@@ -5,6 +5,7 @@
 // A binary wrapper for QuicServer.  It listens forever on --port
 // (default 6121) until it's killed or ctrl-cd to death.
 
+#include <string>
 #include <vector>
 
 #include "quiche/quic/tools/quic_server_factory.h"

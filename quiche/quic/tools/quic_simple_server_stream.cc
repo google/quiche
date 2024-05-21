@@ -4,9 +4,11 @@
 
 #include "quiche/quic/tools/quic_simple_server_stream.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <list>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include "absl/strings/numbers.h"

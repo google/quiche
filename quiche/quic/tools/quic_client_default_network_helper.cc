@@ -4,6 +4,11 @@
 
 #include "quiche/quic/tools/quic_client_default_network_helper.h"
 
+#include <limits>
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "absl/cleanup/cleanup.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_packet_writer.h"

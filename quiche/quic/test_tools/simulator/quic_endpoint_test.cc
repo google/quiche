@@ -4,6 +4,7 @@
 
 #include "quiche/quic/test_tools/simulator/quic_endpoint.h"
 
+#include <memory>
 #include <utility>
 
 #include "quiche/quic/platform/api/quic_flags.h"

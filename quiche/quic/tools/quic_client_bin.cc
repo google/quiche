@@ -43,6 +43,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "quiche/quic/tools/quic_epoll_client_factory.h"
 #include "quiche/quic/tools/quic_toy_client.h"

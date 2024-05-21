@@ -4,7 +4,10 @@
 
 #include "quiche/quic/test_tools/simulator/simulator.h"
 
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/container/node_hash_map.h"
 #include "quiche/quic/platform/api/quic_logging.h"

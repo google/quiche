@@ -4,6 +4,8 @@
 
 #include "quiche/quic/tools/quic_epoll_client_factory.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/str_cat.h"

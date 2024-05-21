@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/functional/bind_front.h"
 #include "absl/status/status.h"

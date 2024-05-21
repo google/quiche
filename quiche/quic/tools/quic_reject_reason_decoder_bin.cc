@@ -6,6 +6,8 @@
 // Net.QuicClientHelloRejectReasons
 
 #include <iostream>
+#include <string>
+#include <vector>
 
 #include "absl/strings/numbers.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"

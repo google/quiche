@@ -4,6 +4,7 @@
 
 #include "quiche/quic/tools/quic_default_client.h"
 
+#include <memory>
 #include <utility>
 
 #include "quiche/quic/core/quic_connection.h"

@@ -4,6 +4,8 @@
 
 #include "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h"
 
+#include <string>
+
 #include "quiche/quic/core/quic_utils.h"
 
 namespace quic {

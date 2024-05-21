@@ -4,6 +4,11 @@
 
 #include "quiche/quic/test_tools/simulator/link.h"
 
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"

@@ -12,6 +12,7 @@
 #include <sys/types.h>
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/match.h"

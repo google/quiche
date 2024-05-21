@@ -4,7 +4,11 @@
 
 #include "quiche/quic/tools/quic_spdy_client_base.h"
 
+#include <memory>
+#include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 
 #include "absl/strings/numbers.h"

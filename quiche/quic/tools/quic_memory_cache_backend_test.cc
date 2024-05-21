@@ -4,6 +4,8 @@
 
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/match.h"

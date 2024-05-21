@@ -4,6 +4,7 @@
 
 #include "quiche/quic/tools/quic_server_factory.h"
 
+#include <memory>
 #include <utility>
 
 #include "quiche/quic/tools/quic_server.h"

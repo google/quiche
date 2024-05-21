@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/simulator/port.h"
 
+#include <string>
+
 namespace quic {
 namespace simulator {
 

@@ -4,6 +4,9 @@
 
 #include "quiche/quic/tools/quic_simple_dispatcher.h"
 
+#include <memory>
+#include <utility>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/quic_types.h"

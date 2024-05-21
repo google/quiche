@@ -4,6 +4,10 @@
 
 #include "quiche/quic/test_tools/simulator/queue.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 

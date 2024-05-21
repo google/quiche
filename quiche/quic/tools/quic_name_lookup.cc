@@ -5,6 +5,7 @@
 #include "quiche/quic/tools/quic_name_lookup.h"
 
 #include <cstring>
+#include <memory>
 #include <string>
 
 #include "absl/strings/str_cat.h"

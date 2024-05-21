@@ -5,6 +5,8 @@
 #include "quiche/quic/test_tools/simulator/switch.h"
 
 #include <cinttypes>
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/str_cat.h"

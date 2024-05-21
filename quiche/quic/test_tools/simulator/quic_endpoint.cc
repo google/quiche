@@ -4,7 +4,9 @@
 
 #include "quiche/quic/test_tools/simulator/quic_endpoint.h"
 
+#include <algorithm>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"

@@ -4,6 +4,9 @@
 
 #include "quiche/quic/tools/simple_ticket_crypter.h"
 
+#include <memory>
+#include <vector>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 

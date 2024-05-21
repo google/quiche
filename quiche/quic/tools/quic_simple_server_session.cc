@@ -4,6 +4,7 @@
 
 #include "quiche/quic/tools/quic_simple_server_session.h"
 
+#include <memory>
 #include <utility>
 
 #include "absl/memory/memory.h"

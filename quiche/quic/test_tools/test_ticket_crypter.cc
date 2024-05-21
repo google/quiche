@@ -5,6 +5,9 @@
 #include "quiche/quic/test_tools/test_ticket_crypter.h"
 
 #include <cstring>
+#include <memory>
+#include <utility>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "quiche/quic/core/crypto/quic_random.h"

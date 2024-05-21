@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/simulator/simulator.h"
 
+#include <utility>
+
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 

@@ -5,6 +5,7 @@
 #include "quiche/quic/tools/connect_udp_tunnel.h"
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>

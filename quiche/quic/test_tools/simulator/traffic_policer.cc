@@ -5,6 +5,8 @@
 #include "quiche/quic/test_tools/simulator/traffic_policer.h"
 
 #include <algorithm>
+#include <string>
+#include <utility>
 
 namespace quic {
 namespace simulator {

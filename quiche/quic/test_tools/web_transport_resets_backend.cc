@@ -5,6 +5,8 @@
 #include "quiche/quic/test_tools/web_transport_resets_backend.h"
 
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/tools/web_transport_test_visitors.h"

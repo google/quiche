@@ -4,6 +4,10 @@
 
 #include "quiche/quic/tools/simple_ticket_crypter.h"
 
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "openssl/aead.h"
 #include "openssl/rand.h"
 

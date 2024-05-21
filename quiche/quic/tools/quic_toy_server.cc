@@ -4,6 +4,8 @@
 
 #include "quiche/quic/tools/quic_toy_server.h"
 
+#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>

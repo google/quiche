@@ -5,7 +5,10 @@
 #include "quiche/quic/test_tools/simulator/quic_endpoint_base.h"
 
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"

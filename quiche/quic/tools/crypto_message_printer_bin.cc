@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "absl/strings/escaping.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"

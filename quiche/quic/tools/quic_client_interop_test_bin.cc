@@ -4,8 +4,10 @@
 
 #include <iostream>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"

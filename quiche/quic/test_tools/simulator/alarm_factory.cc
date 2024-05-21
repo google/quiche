@@ -4,6 +4,10 @@
 
 #include "quiche/quic/test_tools/simulator/alarm_factory.h"
 
+#include <algorithm>
+#include <string>
+#include <utility>
+
 #include "absl/strings/str_format.h"
 #include "quiche/quic/core/quic_alarm.h"
 

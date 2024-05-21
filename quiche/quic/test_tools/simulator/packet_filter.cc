@@ -4,6 +4,10 @@
 
 #include "quiche/quic/test_tools/simulator/packet_filter.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
 namespace quic {
 namespace simulator {
 

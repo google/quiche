@@ -5,6 +5,8 @@
 #include "quiche/quic/tools/connect_tunnel.h"
 
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/container/flat_hash_set.h"

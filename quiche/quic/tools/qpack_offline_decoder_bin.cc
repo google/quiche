@@ -4,6 +4,8 @@
 
 #include <cstddef>
 #include <iostream>
+#include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_flags.h"

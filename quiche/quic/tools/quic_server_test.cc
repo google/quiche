@@ -5,6 +5,8 @@
 #include "quiche/quic/tools/quic_server.h"
 
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/base/macros.h"
 #include "quiche/quic/core/crypto/quic_random.h"
