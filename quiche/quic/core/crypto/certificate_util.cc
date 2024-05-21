@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/crypto/certificate_util.h"
 
+#include <string>
+#include <vector>
+
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"

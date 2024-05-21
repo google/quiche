@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/congestion_control/cubic_bytes.h"
 
+#include <cmath>
 #include <cstdint>
 
 #include "quiche/quic/platform/api/quic_flags.h"

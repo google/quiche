@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"

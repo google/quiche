@@ -5,6 +5,7 @@
 #include "quiche/quic/core/crypto/chacha_base_decrypter.h"
 
 #include <cstdint>
+#include <string>
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"

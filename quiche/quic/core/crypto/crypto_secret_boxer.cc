@@ -5,7 +5,10 @@
 #include "quiche/quic/core/crypto/crypto_secret_boxer.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "openssl/aead.h"

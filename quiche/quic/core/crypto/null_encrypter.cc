@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/crypto/null_encrypter.h"
 
+#include <algorithm>
+#include <limits>
+#include <string>
+
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_writer.h"

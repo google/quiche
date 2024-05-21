@@ -5,8 +5,10 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"

@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
+#include <vector>
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"

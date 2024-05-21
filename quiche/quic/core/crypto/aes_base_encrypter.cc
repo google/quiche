@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/crypto/aes_base_encrypter.h"
 
+#include <string>
+
 #include "absl/strings/string_view.h"
 #include "openssl/aes.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/crypto/crypto_utils.h"
 
+#include <memory>
 #include <string>
 
 #include "absl/base/macros.h"

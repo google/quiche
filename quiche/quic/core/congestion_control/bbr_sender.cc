@@ -5,6 +5,7 @@
 #include "quiche/quic/core/congestion_control/bbr_sender.h"
 
 #include <algorithm>
+#include <ostream>
 #include <sstream>
 #include <string>
 

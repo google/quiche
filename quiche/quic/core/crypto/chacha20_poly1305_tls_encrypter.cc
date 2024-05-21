@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/crypto/chacha20_poly1305_tls_encrypter.h"
 
+#include <limits>
+
 #include "openssl/evp.h"
 
 namespace quic {

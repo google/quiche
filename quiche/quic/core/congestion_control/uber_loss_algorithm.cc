@@ -5,6 +5,8 @@
 #include "quiche/quic/core/congestion_control/uber_loss_algorithm.h"
 
 #include <algorithm>
+#include <memory>
+#include <utility>
 
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

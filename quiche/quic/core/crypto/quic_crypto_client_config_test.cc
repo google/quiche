@@ -5,6 +5,7 @@
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 
 #include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"

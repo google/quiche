@@ -5,6 +5,8 @@
 #include "quiche/quic/core/crypto/null_decrypter.h"
 
 #include <cstdint>
+#include <limits>
+#include <string>
 
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"

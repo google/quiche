@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/congestion_control/pacing_sender.h"
 
+#include <algorithm>
+
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"

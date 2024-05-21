@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/crypto/chacha_base_encrypter.h"
 
+#include <string>
+
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "openssl/chacha.h"

@@ -5,6 +5,8 @@
 #include "quiche/quic/core/crypto/proof_source_x509.h"
 
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "openssl/ssl.h"

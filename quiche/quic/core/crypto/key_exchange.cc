@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/crypto/key_exchange.h"
 
+#include <memory>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/curve25519_key_exchange.h"
 #include "quiche/quic/core/crypto/p256_key_exchange.h"

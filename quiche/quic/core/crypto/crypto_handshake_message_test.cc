@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
 
+#include <utility>
+#include <vector>
+
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/platform/api/quic_test.h"

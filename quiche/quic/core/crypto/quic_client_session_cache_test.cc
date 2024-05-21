@@ -4,7 +4,10 @@
 
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
 
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"

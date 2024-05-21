@@ -4,6 +4,11 @@
 
 #include "quiche/quic/core/crypto/certificate_util.h"
 
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/platform/api/quic_test.h"

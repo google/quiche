@@ -4,7 +4,11 @@
 
 #include "quiche/quic/core/congestion_control/bbr2_sender.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <ostream>
+#include <sstream>
+#include <string>
 
 #include "quiche/quic/core/congestion_control/bandwidth_sampler.h"
 #include "quiche/quic/core/congestion_control/bbr2_drain.h"

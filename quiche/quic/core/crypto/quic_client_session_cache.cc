@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "quiche/quic/core/quic_clock.h"
 
 namespace quic {

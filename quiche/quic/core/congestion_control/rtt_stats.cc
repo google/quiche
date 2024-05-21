@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 
+#include <algorithm>
 #include <cstdlib>  // std::abs
 
 #include "quiche/quic/platform/api/quic_flag_utils.h"

@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 
 namespace quic {
 

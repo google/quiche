@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/crypto/proof_source.h"
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 

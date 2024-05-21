@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/congestion_control/general_loss_algorithm.h"
 
+#include <algorithm>
+
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

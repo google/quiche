@@ -8,6 +8,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/escaping.h"

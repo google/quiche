@@ -6,9 +6,12 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <istream>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"

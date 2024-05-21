@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"

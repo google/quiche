@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/crypto/aead_base_encrypter.h"
 
+#include <algorithm>
+
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "openssl/crypto.h"

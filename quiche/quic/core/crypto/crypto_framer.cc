@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/crypto/crypto_framer.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 

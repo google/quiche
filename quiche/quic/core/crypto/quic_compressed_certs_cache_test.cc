@@ -5,6 +5,7 @@
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 
 #include <string>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/crypto/cert_compressor.h"
