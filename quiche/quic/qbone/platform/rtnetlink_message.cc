@@ -4,6 +4,7 @@
 
 #include "quiche/quic/qbone/platform/rtnetlink_message.h"
 
+#include <memory>
 #include <utility>
 
 namespace quic {

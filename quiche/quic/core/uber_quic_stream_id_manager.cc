@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/uber_quic_stream_id_manager.h"
 
+#include <string>
+
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_utils.h"
 

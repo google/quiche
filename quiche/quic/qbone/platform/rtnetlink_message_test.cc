@@ -6,6 +6,8 @@
 
 #include <net/if_arp.h>
 
+#include <string>
+
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 

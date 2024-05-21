@@ -5,6 +5,10 @@
 #include "quiche/quic/core/tls_chlo_extractor.h"
 
 #include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "openssl/ssl.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"

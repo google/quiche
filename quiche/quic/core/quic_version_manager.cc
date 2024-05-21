@@ -5,6 +5,9 @@
 #include "quiche/quic/core/quic_version_manager.h"
 
 #include <algorithm>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "quiche/quic/core/quic_versions.h"

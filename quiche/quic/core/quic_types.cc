@@ -5,6 +5,9 @@
 #include "quiche/quic/core/quic_types.h"
 
 #include <cstdint>
+#include <ostream>
+#include <string>
+#include <type_traits>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/quic_error_codes.h"

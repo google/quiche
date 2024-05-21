@@ -4,6 +4,8 @@
 
 #include "quiche/quic/qbone/qbone_packet_exchanger.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 namespace quic {

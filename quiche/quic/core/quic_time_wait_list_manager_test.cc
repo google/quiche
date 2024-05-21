@@ -7,7 +7,9 @@
 #include <cerrno>
 #include <memory>
 #include <ostream>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"

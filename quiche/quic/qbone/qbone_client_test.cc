@@ -7,6 +7,9 @@
 #include "quiche/quic/qbone/qbone_client.h"
 
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"

@@ -4,6 +4,8 @@
 
 #include "quiche/quic/qbone/bonnet/qbone_tunnel_info.h"
 
+#include <vector>
+
 namespace quic {
 
 QuicIpAddress QboneTunnelInfo::GetAddress() {

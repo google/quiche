@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <list>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 

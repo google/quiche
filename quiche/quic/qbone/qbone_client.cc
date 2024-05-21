@@ -4,6 +4,7 @@
 
 #include "quiche/quic/qbone/qbone_client.h"
 
+#include <memory>
 #include <utility>
 
 

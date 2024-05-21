@@ -4,7 +4,11 @@
 
 #include "quiche/quic/qbone/platform/netlink.h"
 
+#include <functional>
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/container/node_hash_set.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

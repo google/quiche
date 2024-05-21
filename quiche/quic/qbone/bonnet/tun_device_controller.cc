@@ -6,6 +6,9 @@
 
 #include <linux/rtnetlink.h>
 
+#include <utility>
+#include <vector>
+
 #include "absl/time/clock.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/qbone_constants.h"

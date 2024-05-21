@@ -7,6 +7,9 @@
 #include <linux/if_addr.h>
 #include <linux/rtnetlink.h>
 
+#include <string>
+#include <vector>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/platform/mock_netlink.h"

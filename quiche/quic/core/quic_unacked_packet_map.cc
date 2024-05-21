@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 #include "absl/container/inlined_vector.h"
 #include "quiche/quic/core/quic_connection_stats.h"

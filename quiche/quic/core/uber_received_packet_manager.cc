@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/uber_received_packet_manager.h"
 
+#include <algorithm>
+
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

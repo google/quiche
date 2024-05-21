@@ -9,6 +9,8 @@
 
 #include "quiche/quic/core/quic_udp_socket.h"
 
+#include <string>
+
 #include "absl/base/optimization.h"
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

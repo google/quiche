@@ -4,7 +4,10 @@
 
 #include "quiche/quic/core/quic_versions.h"
 
+#include <algorithm>
+#include <ostream>
 #include <string>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/strings/numbers.h"

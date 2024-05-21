@@ -7,6 +7,9 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <ostream>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"

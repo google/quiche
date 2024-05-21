@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/uber_received_packet_manager.h"
 
+#include <algorithm>
+#include <memory>
 #include <utility>
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"

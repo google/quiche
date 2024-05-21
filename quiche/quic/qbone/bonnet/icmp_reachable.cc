@@ -6,6 +6,8 @@
 
 #include <netinet/ip6.h>
 
+#include <string>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/io/quic_event_loop.h"

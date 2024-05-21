@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/tls_server_handshaker.h"
 
+#include <algorithm>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 

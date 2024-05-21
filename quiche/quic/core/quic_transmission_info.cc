@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_transmission_info.h"
 
+#include <string>
+
 #include "absl/strings/str_cat.h"
 
 namespace quic {

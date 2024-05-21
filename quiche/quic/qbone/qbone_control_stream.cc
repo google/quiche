@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <string>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_session.h"

@@ -4,6 +4,8 @@
 
 #include "quiche/quic/qbone/bonnet/tun_device_packet_exchanger.h"
 
+#include <string>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/bonnet/mock_packet_exchanger_stats_interface.h"
 #include "quiche/quic/qbone/mock_qbone_client.h"

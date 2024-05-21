@@ -4,6 +4,7 @@
 
 #include "quiche/quic/qbone/qbone_client_session.h"
 
+#include <memory>
 #include <utility>
 
 #include "absl/strings/string_view.h"

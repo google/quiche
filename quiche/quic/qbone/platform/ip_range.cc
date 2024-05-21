@@ -4,6 +4,8 @@
 
 #include "quiche/quic/qbone/platform/ip_range.h"
 
+#include <string>
+
 #include "quiche/common/quiche_endian.h"
 
 namespace quic {

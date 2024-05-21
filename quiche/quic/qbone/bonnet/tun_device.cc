@@ -10,6 +10,9 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include <ios>
+#include <string>
+
 #include "absl/cleanup/cleanup.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"

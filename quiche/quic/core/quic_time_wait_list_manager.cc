@@ -7,7 +7,9 @@
 #include <errno.h>
 
 #include <memory>
+#include <ostream>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"

@@ -4,7 +4,11 @@
 
 #include "quiche/quic/qbone/qbone_packet_exchanger.h"
 
+#include <list>
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/mock_qbone_client.h"

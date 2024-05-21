@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_write_blocked_list.h"
 
+#include <algorithm>
+
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 

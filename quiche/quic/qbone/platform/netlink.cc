@@ -6,7 +6,10 @@
 
 #include <linux/fib_rules.h>
 
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/str_cat.h"

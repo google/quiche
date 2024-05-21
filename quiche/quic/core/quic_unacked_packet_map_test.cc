@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <limits>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"

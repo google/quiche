@@ -7,6 +7,8 @@
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/str_cat.h"

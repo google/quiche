@@ -5,6 +5,7 @@
 #include "quiche/quic/core/quic_utils.h"
 
 #include <string>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/numeric/int128.h"

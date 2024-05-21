@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/quic_trace_visitor.h"
 
+#include <string>
+#include <vector>
+
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"

@@ -7,6 +7,7 @@
 #include <netinet/ip6.h>
 
 #include <memory>
+#include <string>
 
 #include "absl/container/node_hash_map.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
