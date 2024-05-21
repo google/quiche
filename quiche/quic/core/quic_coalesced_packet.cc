@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/quic_coalesced_packet.h"
 
+#include <string>
+#include <vector>
+
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

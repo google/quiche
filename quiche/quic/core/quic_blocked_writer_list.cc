@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_blocked_writer_list.h"
 
+#include <utility>
+
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 

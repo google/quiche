@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <numeric>
 #include <string>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"

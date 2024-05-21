@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"

@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/http/quic_spdy_server_stream_base.h"
 
+#include <memory>
+#include <string>
+
 #include "absl/memory/memory.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/platform/api/quic_flags.h"

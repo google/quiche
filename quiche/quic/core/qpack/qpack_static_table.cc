@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/qpack_static_table.h"
 
+#include <vector>
+
 #include "absl/base/macros.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 

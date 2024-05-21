@@ -5,6 +5,9 @@
 #include "quiche/quic/core/quic_connection_id_manager.h"
 
 #include <cstddef>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quiche/quic/core/quic_connection_id.h"

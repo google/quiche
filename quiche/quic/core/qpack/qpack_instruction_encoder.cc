@@ -5,6 +5,7 @@
 #include "quiche/quic/core/qpack/qpack_instruction_encoder.h"
 
 #include <limits>
+#include <string>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"

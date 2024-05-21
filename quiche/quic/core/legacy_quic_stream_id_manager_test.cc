@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/legacy_quic_stream_id_manager.h"
 
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/quic_types.h"

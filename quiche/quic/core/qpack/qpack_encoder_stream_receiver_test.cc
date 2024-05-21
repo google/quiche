@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/qpack_encoder_stream_receiver.h"
 
+#include <string>
+
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_test.h"

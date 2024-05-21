@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_coalesced_packet.h"
 
+#include <string>
+
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"

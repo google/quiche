@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/qpack_decoded_headers_accumulator.h"
 
+#include <utility>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_decoder.h"
 #include "quiche/quic/core/qpack/qpack_header_table.h"

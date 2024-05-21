@@ -5,6 +5,7 @@
 #include "quiche/quic/core/qpack/qpack_instructions.h"
 
 #include <limits>
+#include <tuple>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_logging.h"

@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/quic_arena_scoped_ptr.h"
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/platform/api/quic_test.h"
 

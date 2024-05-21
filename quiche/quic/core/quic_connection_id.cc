@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
+#include <ostream>
 #include <string>
 
 #include "absl/strings/escaping.h"

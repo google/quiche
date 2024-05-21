@@ -10,13 +10,17 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <set>
 #include <string>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"

@@ -4,7 +4,12 @@
 
 #include "quiche/quic/core/quic_connection_id_manager.h"
 
+#include <algorithm>
 #include <cstdio>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection_id.h"

@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/qpack/qpack_decoder.h"
 
+#include <memory>
 #include <utility>
 
 #include "absl/strings/string_view.h"

@@ -14,6 +14,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"

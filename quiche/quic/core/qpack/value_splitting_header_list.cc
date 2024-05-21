@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/value_splitting_header_list.h"
 
+#include <utility>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 

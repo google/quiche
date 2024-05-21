@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_encoder_stream_receiver.h"

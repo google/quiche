@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/http/quic_spdy_server_stream_base.h"
 
+#include <string>
+#include <utility>
+
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"

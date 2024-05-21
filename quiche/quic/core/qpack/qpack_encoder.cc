@@ -5,6 +5,7 @@
 #include "quiche/quic/core/qpack/qpack_encoder.h"
 
 #include <algorithm>
+#include <string>
 #include <utility>
 
 #include "absl/strings/str_cat.h"

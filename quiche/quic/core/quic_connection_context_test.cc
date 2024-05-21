@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/quic_connection_context.h"
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_thread.h"
 

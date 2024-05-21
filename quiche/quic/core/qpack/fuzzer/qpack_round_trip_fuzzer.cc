@@ -7,6 +7,11 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
+#include <limits>
+#include <map>
+#include <memory>
+#include <queue>
 #include <string>
 #include <utility>
 

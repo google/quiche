@@ -5,6 +5,7 @@
 #include "quiche/quic/core/qpack/qpack_instruction_decoder.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
 #include "absl/strings/escaping.h"

@@ -5,6 +5,8 @@
 #include "quiche/quic/core/quic_alarm.h"
 
 #include <atomic>
+#include <cstdlib>
+#include <utility>
 
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"

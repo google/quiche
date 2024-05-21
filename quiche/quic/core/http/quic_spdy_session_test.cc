@@ -6,6 +6,8 @@
 
 #include <cstdint>
 #include <limits>
+#include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>

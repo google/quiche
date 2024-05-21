@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"

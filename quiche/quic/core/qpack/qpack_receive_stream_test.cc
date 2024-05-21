@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/qpack_receive_stream.h"
 
+#include <vector>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_test.h"

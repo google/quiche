@@ -6,7 +6,10 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cmath>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "absl/types/span.h"
 #include "quiche/quic/core/io/quic_event_loop.h"

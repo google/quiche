@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"

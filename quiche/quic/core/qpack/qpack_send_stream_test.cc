@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/qpack/qpack_send_stream.h"
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"

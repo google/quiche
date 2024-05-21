@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/value_splitting_header_list.h"
 
+#include <vector>
+
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_test.h"

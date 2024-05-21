@@ -4,10 +4,13 @@
 
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 
+#include <algorithm>
+#include <array>
 #include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/memory/memory.h"

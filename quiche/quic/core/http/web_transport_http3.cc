@@ -7,6 +7,9 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 
 #include "absl/strings/string_view.h"

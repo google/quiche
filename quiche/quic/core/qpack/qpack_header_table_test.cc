@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/qpack/qpack_header_table.h"
 
+#include <memory>
 #include <tuple>
 #include <utility>
 

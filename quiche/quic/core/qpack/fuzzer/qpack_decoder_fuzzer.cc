@@ -6,7 +6,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <limits>
+#include <map>
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"

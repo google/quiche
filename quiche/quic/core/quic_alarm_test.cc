@@ -4,6 +4,11 @@
 
 #include "quiche/quic/core/quic_alarm.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "quiche/quic/core/quic_connection_context.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
