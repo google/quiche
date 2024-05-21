@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/congestion_control/bbr2_probe_bw.h"
 
+#include <algorithm>
+#include <limits>
+#include <ostream>
+
 #include "quiche/quic/core/congestion_control/bbr2_misc.h"
 #include "quiche/quic/core/congestion_control/bbr2_sender.h"
 #include "quiche/quic/core/quic_bandwidth.h"

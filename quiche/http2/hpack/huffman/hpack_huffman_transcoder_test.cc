@@ -6,6 +6,9 @@
 
 #include <stddef.h>
 
+#include <string>
+#include <tuple>
+
 #include "absl/strings/string_view.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"

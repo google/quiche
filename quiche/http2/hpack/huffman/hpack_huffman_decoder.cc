@@ -6,6 +6,9 @@
 
 #include <bitset>
 #include <limits>
+#include <ostream>
+#include <sstream>
+#include <string>
 
 #include "quiche/common/platform/api/quiche_logging.h"
 

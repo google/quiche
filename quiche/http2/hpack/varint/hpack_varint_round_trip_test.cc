@@ -9,8 +9,11 @@
 
 #include <stddef.h>
 
+#include <ios>
 #include <iterator>
+#include <limits>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 

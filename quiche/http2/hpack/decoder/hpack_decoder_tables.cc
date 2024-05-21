@@ -4,6 +4,11 @@
 
 #include "quiche/http2/hpack/decoder/hpack_decoder_tables.h"
 
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"

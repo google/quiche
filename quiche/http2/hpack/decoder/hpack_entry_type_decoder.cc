@@ -4,6 +4,10 @@
 
 #include "quiche/http2/hpack/decoder/hpack_entry_type_decoder.h"
 
+#include <ios>
+#include <ostream>
+#include <string>
+
 #include "absl/strings/str_cat.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_flag_utils.h"

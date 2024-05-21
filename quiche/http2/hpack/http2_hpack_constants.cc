@@ -4,6 +4,9 @@
 
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 
+#include <ostream>
+#include <string>
+
 #include "absl/strings/str_cat.h"
 
 namespace http2 {

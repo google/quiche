@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/congestion_control/bbr2_misc.h"
 
+#include <algorithm>
+#include <limits>
+
 #include "quiche/quic/core/congestion_control/bandwidth_sampler.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"

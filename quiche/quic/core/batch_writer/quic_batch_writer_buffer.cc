@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/batch_writer/quic_batch_writer_buffer.h"
 
+#include <algorithm>
 #include <sstream>
+#include <string>
 
 namespace quic {
 

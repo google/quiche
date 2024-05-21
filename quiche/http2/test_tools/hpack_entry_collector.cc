@@ -4,6 +4,9 @@
 
 #include "quiche/http2/test_tools/hpack_entry_collector.h"
 
+#include <ostream>
+#include <string>
+
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/http2/test_tools/hpack_string_collector.h"

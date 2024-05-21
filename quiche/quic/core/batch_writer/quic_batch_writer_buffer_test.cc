@@ -4,8 +4,11 @@
 
 #include "quiche/quic/core/batch_writer/quic_batch_writer_buffer.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"

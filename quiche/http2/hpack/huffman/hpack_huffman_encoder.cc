@@ -4,6 +4,8 @@
 
 #include "quiche/http2/hpack/huffman/hpack_huffman_encoder.h"
 
+#include <string>
+
 #include "quiche/http2/hpack/huffman/huffman_spec_tables.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 

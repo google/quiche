@@ -7,6 +7,8 @@
 #include <time.h>
 
 #include <ctime>
+#include <memory>
+#include <utility>
 
 #include "quiche/quic/core/quic_linux_socket_utils.h"
 #include "quiche/quic/platform/api/quic_server_stats.h"

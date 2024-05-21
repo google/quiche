@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "absl/base/macros.h"

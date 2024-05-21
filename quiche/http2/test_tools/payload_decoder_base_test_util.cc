@@ -4,6 +4,8 @@
 
 #include "quiche/http2/test_tools/payload_decoder_base_test_util.h"
 
+#include <memory>
+
 #include "quiche/http2/test_tools/frame_decoder_state_test_util.h"
 #include "quiche/http2/test_tools/http2_structures_test_util.h"
 #include "quiche/common/platform/api/quiche_test.h"

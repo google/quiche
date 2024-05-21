@@ -5,6 +5,7 @@
 #include "quiche/http2/hpack/varint/hpack_varint_encoder.h"
 
 #include <limits>
+#include <string>
 
 #include "quiche/common/platform/api/quiche_logging.h"
 

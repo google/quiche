@@ -5,6 +5,7 @@
 #include "quiche/quic/bindings/quic_libevent.h"
 
 #include <memory>
+#include <utility>
 
 #include "absl/time/time.h"
 #include "event2/event.h"

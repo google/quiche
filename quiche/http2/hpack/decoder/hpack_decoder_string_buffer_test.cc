@@ -7,6 +7,7 @@
 // Tests of HpackDecoderStringBuffer.
 
 #include <initializer_list>
+#include <sstream>
 #include <string>
 
 #include "absl/strings/escaping.h"

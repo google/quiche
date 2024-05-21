@@ -8,6 +8,7 @@
 
 #include <iosfwd>
 #include <ostream>
+#include <string>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"

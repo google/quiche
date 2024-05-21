@@ -5,7 +5,9 @@
 #include "quiche/http2/http2_structures.h"
 
 #include <cstring>  // For std::memcmp
+#include <ostream>
 #include <sstream>
+#include <string>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"

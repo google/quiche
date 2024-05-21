@@ -4,6 +4,7 @@
 
 #include "quiche/http2/hpack/decoder/hpack_decoder_state.h"
 
+#include <string>
 #include <utility>
 
 #include "quiche/http2/http2_constants.h"

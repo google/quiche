@@ -7,6 +7,7 @@
 // Tests of HpackEntryDecoder.
 
 #include <cstdint>
+#include <string>
 
 #include "quiche/http2/test_tools/hpack_block_builder.h"
 #include "quiche/http2/test_tools/hpack_entry_collector.h"

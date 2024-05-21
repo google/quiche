@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/batch_writer/quic_sendmmsg_batch_writer.h"
 
+#include <memory>
+#include <utility>
+
 namespace quic {
 
 QuicSendmmsgBatchWriter::QuicSendmmsgBatchWriter(

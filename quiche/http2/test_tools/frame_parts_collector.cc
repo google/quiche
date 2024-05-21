@@ -4,6 +4,7 @@
 
 #include "quiche/http2/test_tools/frame_parts_collector.h"
 
+#include <memory>
 #include <utility>
 
 #include "quiche/http2/test_tools/http2_structures_test_util.h"

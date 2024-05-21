@@ -5,6 +5,7 @@
 #include "quiche/http2/test_tools/random_util.h"
 
 #include <cmath>
+#include <string>
 
 namespace http2 {
 namespace test {

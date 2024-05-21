@@ -5,6 +5,9 @@
 #include "quiche/quic/core/batch_writer/quic_batch_writer_base.h"
 
 #include <cstdint>
+#include <limits>
+#include <memory>
+#include <utility>
 
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"

@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/congestion_control/bbr2_drain.h"
 
+#include <algorithm>
+#include <ostream>
+
 #include "quiche/quic/core/congestion_control/bbr2_sender.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 

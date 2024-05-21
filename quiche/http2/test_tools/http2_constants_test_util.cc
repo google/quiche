@@ -4,6 +4,8 @@
 
 #include "quiche/http2/test_tools/http2_constants_test_util.h"
 
+#include <vector>
+
 namespace http2 {
 namespace test {
 

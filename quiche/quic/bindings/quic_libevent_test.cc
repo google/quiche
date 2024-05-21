@@ -4,6 +4,7 @@
 
 #include "quiche/quic/bindings/quic_libevent.h"
 
+#include <atomic>
 #include <memory>
 
 #include "absl/memory/memory.h"

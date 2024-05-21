@@ -5,6 +5,7 @@
 #include "quiche/quic/core/congestion_control/bandwidth_sampler.h"
 
 #include <algorithm>
+#include <ostream>
 
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

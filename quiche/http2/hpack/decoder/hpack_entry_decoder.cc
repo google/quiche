@@ -7,6 +7,9 @@
 #include <stddef.h>
 
 #include <cstdint>
+#include <ostream>
+#include <sstream>
+#include <string>
 
 #include "absl/base/macros.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"

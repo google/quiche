@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/chlo_extractor.h"
 
+#include <memory>
+#include <optional>
+
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"

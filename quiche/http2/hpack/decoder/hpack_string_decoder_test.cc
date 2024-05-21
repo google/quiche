@@ -4,6 +4,8 @@
 
 #include "quiche/http2/hpack/decoder/hpack_string_decoder.h"
 
+#include <string>
+
 // Tests of HpackStringDecoder.
 
 #include "absl/strings/string_view.h"

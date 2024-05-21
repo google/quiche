@@ -4,6 +4,8 @@
 
 #include "quiche/http2/hpack/decoder/hpack_decoder_string_buffer.h"
 
+#include <ostream>
+#include <string>
 #include <utility>
 
 #include "quiche/common/platform/api/quiche_bug_tracker.h"

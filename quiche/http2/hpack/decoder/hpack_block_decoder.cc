@@ -5,6 +5,8 @@
 #include "quiche/http2/hpack/decoder/hpack_block_decoder.h"
 
 #include <cstdint>
+#include <ostream>
+#include <string>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/common/platform/api/quiche_flag_utils.h"

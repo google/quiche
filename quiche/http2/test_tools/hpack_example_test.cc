@@ -1,5 +1,7 @@
 #include "quiche/http2/test_tools/hpack_example.h"
 
+#include <string>
+
 // Tests of HpackExampleToStringOrDie.
 
 #include "quiche/common/platform/api/quiche_test.h"

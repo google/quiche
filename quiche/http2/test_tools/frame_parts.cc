@@ -5,6 +5,8 @@
 #include "quiche/http2/test_tools/frame_parts.h"
 
 #include <optional>
+#include <ostream>
+#include <string>
 #include <type_traits>
 
 #include "absl/strings/escaping.h"

@@ -4,6 +4,9 @@
 
 #include "quiche/http2/hpack/varint/hpack_varint_decoder.h"
 
+#include <limits>
+#include <string>
+
 #include "absl/strings/str_cat.h"
 
 namespace http2 {

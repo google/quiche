@@ -1,5 +1,7 @@
 #include "quiche/http2/test_tools/http2_random.h"
 
+#include <string>
+
 #include "absl/strings/escaping.h"
 #include "openssl/chacha.h"
 #include "openssl/rand.h"

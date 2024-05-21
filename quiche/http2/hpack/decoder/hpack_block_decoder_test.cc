@@ -7,6 +7,7 @@
 // Tests of HpackBlockDecoder.
 
 #include <cstdint>
+#include <sstream>
 #include <string>
 
 #include "absl/strings/string_view.h"

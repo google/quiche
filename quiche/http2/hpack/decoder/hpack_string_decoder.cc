@@ -4,6 +4,9 @@
 
 #include "quiche/http2/hpack/decoder/hpack_string_decoder.h"
 
+#include <ostream>
+#include <string>
+
 #include "absl/strings/str_cat.h"
 
 namespace http2 {

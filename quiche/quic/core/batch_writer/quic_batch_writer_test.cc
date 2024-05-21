@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/batch_writer/quic_batch_writer_test.h"
 
+#include <memory>
+
 #include "quiche/quic/core/batch_writer/quic_gso_batch_writer.h"
 #include "quiche/quic/core/batch_writer/quic_sendmmsg_batch_writer.h"
 

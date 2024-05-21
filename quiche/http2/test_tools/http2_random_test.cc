@@ -1,6 +1,8 @@
 #include "quiche/http2/test_tools/http2_random.h"
 
+#include <algorithm>
 #include <set>
+#include <string>
 
 #include "quiche/common/platform/api/quiche_test.h"
 
