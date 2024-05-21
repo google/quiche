@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_stop_sending_frame.h"
 
+#include <ostream>
+
 #include "quiche/quic/core/quic_error_codes.h"
 
 namespace quic {

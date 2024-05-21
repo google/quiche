@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_window_update_frame.h"
 
+#include <ostream>
+
 #include "quiche/quic/core/quic_types.h"
 
 namespace quic {

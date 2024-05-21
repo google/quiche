@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_streams_blocked_frame.h"
 
+#include <ostream>
+
 namespace quic {
 
 QuicStreamsBlockedFrame::QuicStreamsBlockedFrame()

@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_ping_frame.h"
 
+#include <ostream>
+
 namespace quic {
 
 QuicPingFrame::QuicPingFrame() : QuicInlinedFrame(PING_FRAME) {}

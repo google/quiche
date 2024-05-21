@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_stop_waiting_frame.h"
 
+#include <ostream>
+
 #include "quiche/quic/core/quic_constants.h"
 
 namespace quic {

@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 
+#include <ostream>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 

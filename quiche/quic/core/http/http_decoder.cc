@@ -4,7 +4,10 @@
 
 #include "quiche/quic/core/http/http_decoder.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <string>
+#include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"

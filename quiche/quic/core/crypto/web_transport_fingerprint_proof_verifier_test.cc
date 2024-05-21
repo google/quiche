@@ -5,6 +5,7 @@
 #include "quiche/quic/core/crypto/web_transport_fingerprint_proof_verifier.h"
 
 #include <memory>
+#include <string>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"

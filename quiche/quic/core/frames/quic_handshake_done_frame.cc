@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_handshake_done_frame.h"
 
+#include <ostream>
+
 namespace quic {
 
 QuicHandshakeDoneFrame::QuicHandshakeDoneFrame()

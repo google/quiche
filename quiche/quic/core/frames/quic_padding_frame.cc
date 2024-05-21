@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_padding_frame.h"
 
+#include <ostream>
+
 namespace quic {
 
 std::ostream& operator<<(std::ostream& os,

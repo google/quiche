@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_max_streams_frame.h"
 
+#include <ostream>
+
 namespace quic {
 
 QuicMaxStreamsFrame::QuicMaxStreamsFrame()

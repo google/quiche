@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/crypto/tls_connection.h"
 
+#include <utility>
+
 #include "absl/strings/string_view.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

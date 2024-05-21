@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/frames/quic_goaway_frame.h"
 
+#include <ostream>
 #include <string>
 
 namespace quic {

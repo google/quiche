@@ -5,8 +5,11 @@
 #include "quiche/quic/core/crypto/transport_parameters.h"
 
 #include <cstring>
+#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"

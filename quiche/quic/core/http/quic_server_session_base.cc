@@ -4,7 +4,13 @@
 
 #include "quiche/quic/core/http/quic_server_session_base.h"
 
+#include <algorithm>
+#include <cstdlib>
+#include <limits>
+#include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"
 #include "quiche/quic/core/quic_connection.h"

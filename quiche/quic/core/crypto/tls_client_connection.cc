@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/crypto/tls_client_connection.h"
 
+#include <utility>
+#include <vector>
+
 namespace quic {
 
 TlsClientConnection::TlsClientConnection(SSL_CTX* ssl_ctx, Delegate* delegate,

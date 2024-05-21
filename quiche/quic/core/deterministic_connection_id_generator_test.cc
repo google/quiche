@@ -5,6 +5,8 @@
 #include "quiche/quic/core/deterministic_connection_id_generator.h"
 
 #include <optional>
+#include <ostream>
+#include <vector>
 
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"

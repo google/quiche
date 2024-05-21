@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 
+#include <memory>
 #include <utility>
 
 #include "openssl/tls1.h"

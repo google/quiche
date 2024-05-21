@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/http/http_encoder.h"
 
+#include <string>
+
 #include "absl/base/macros.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"

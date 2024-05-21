@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/deterministic_connection_id_generator.h"
 
+#include <optional>
+
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"

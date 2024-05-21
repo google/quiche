@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/http/metadata_decoder.h"
 
+#include <string>
+
 #include "absl/strings/escaping.h"
 #include "quiche/quic/core/qpack/qpack_encoder.h"
 #include "quiche/quic/platform/api/quic_test.h"

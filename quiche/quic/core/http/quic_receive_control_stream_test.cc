@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/http/quic_receive_control_stream.h"
 
+#include <ostream>
 #include <string>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"

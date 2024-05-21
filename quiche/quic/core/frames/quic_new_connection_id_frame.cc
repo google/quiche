@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 
+#include <ostream>
+
 namespace quic {
 
 QuicNewConnectionIdFrame::QuicNewConnectionIdFrame(

@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <ostream>
 
 namespace quic {
 

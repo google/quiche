@@ -5,6 +5,7 @@
 #include "quiche/quic/core/http/quic_headers_stream.h"
 
 #include <cstdint>
+#include <memory>
 #include <ostream>
 #include <string>
 #include <tuple>

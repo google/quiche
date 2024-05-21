@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_path_challenge_frame.h"
 
+#include <ostream>
+
 #include "absl/strings/escaping.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 

@@ -5,6 +5,8 @@
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
 
 #include <memory>
+#include <ostream>
+#include <string>
 
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_error_codes.h"

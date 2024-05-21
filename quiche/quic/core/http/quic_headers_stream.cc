@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/http/quic_headers_stream.h"
 
+#include <algorithm>
+#include <utility>
+
 #include "absl/base/macros.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/quic_utils.h"

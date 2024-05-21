@@ -4,8 +4,12 @@
 
 #include "quiche/quic/core/http/http_encoder.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_data_writer.h"

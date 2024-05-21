@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
 
+#include <ostream>
+
 #include "quiche/quic/core/quic_error_codes.h"
 
 namespace quic {

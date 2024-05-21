@@ -4,8 +4,12 @@
 
 #include "quiche/quic/core/http/quic_send_control_stream.h"
 
+#include <memory>
+#include <optional>
+#include <ostream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"

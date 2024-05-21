@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 

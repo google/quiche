@@ -4,6 +4,11 @@
 
 #include "quiche/quic/core/frames/quic_frame.h"
 
+#include <ostream>
+#include <sstream>
+#include <string>
+#include <utility>
+
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"

@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/http/http_constants.h"
 
+#include <string>
+
 #include "absl/strings/str_cat.h"
 
 namespace quic {
