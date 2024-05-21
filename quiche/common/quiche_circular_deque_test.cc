@@ -8,7 +8,9 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <ostream>
 #include <type_traits>
+#include <utility>
 
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"

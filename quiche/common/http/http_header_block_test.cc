@@ -5,6 +5,7 @@
 #include "quiche/common/http/http_header_block.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "quiche/common/platform/api/quiche_test.h"

@@ -4,9 +4,11 @@
 
 #include "quiche/common/wire_serialization.h"
 
+#include <array>
 #include <limits>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"

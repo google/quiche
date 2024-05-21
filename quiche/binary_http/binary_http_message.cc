@@ -1,9 +1,11 @@
 #include "quiche/binary_http/binary_http_message.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <utility>
 #include <vector>

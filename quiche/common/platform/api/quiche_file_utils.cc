@@ -1,6 +1,8 @@
 #include "quiche/common/platform/api/quiche_file_utils.h"
 
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "quiche_platform_impl/quiche_file_utils_impl.h"
 

@@ -1,6 +1,8 @@
 #include "quiche/common/quiche_callbacks.h"
 
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "quiche/common/platform/api/quiche_test.h"
 

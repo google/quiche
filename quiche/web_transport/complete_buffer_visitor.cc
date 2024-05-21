@@ -4,6 +4,7 @@
 
 #include "quiche/web_transport/complete_buffer_visitor.h"
 
+#include <string>
 #include <utility>
 
 #include "quiche/common/platform/api/quiche_logging.h"

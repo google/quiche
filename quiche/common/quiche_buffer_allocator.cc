@@ -4,6 +4,7 @@
 
 #include "quiche/common/quiche_buffer_allocator.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "quiche/common/platform/api/quiche_bug_tracker.h"

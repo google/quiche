@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <utility>
 
 #include "quiche/common/platform/api/quiche_logging.h"
 

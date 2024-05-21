@@ -1,6 +1,7 @@
 #include "quiche/balsa/balsa_headers_sequence.h"
 
 #include <memory>
+#include <utility>
 
 #include "quiche/balsa/balsa_headers.h"
 

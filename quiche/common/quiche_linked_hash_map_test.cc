@@ -7,6 +7,7 @@
 #include "quiche/common/quiche_linked_hash_map.h"
 
 #include <memory>
+#include <tuple>
 #include <utility>
 
 #include "quiche/common/platform/api/quiche_test.h"

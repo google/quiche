@@ -6,8 +6,10 @@
 
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/crypto/proof_source.h"

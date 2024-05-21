@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+#include <string>
+#include <utility>
+
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/structured_headers.h"
 

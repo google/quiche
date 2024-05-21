@@ -4,6 +4,8 @@
 
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 
+#include <utility>
+
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace quiche {

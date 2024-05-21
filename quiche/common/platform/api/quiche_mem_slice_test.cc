@@ -6,6 +6,7 @@
 
 #include <cstring>
 #include <memory>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"

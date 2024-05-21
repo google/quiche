@@ -9,6 +9,7 @@
 #include <limits>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "quiche/common/platform/api/quiche_test.h"
 

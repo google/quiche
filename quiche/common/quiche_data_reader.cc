@@ -5,6 +5,7 @@
 #include "quiche/common/quiche_data_reader.h"
 
 #include <cstring>
+#include <string>
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"

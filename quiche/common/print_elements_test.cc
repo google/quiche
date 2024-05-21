@@ -4,6 +4,7 @@
 
 #include "quiche/common/print_elements.h"
 
+#include <deque>
 #include <list>
 #include <string>
 #include <vector>

@@ -4,6 +4,9 @@
 
 #include "quiche/common/quiche_mem_slice_storage.h"
 
+#include <algorithm>
+#include <utility>
+
 #include "quiche/quic/core/quic_utils.h"
 
 namespace quiche {

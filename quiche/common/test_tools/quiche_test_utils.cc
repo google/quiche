@@ -4,6 +4,8 @@
 
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
+#include <algorithm>
+#include <memory>
 #include <string>
 
 #include "quiche/common/platform/api/quiche_googleurl.h"

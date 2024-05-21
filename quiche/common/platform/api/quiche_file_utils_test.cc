@@ -1,6 +1,7 @@
 #include "quiche/common/platform/api/quiche_file_utils.h"
 
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "absl/algorithm/container.h"

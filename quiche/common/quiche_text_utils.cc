@@ -4,6 +4,10 @@
 
 #include "quiche/common/quiche_text_utils.h"
 
+#include <algorithm>
+#include <optional>
+#include <string>
+
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"

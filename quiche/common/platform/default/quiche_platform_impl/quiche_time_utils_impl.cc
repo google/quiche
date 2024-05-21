@@ -4,6 +4,8 @@
 
 #include "quiche_platform_impl/quiche_time_utils_impl.h"
 
+#include <optional>
+
 #include "openssl/time.h"
 
 namespace quiche {

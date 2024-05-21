@@ -1,6 +1,7 @@
 #include "quiche/common/platform/api/quiche_stack_trace.h"
 
 #include <cstdint>
+#include <string>
 
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"

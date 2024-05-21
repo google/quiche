@@ -5,6 +5,9 @@
 #include "quiche/common/btree_scheduler.h"
 
 #include <optional>
+#include <ostream>
+#include <string>
+#include <tuple>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"

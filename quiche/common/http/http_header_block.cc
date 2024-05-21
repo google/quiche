@@ -7,6 +7,8 @@
 #include <string.h>
 
 #include <algorithm>
+#include <ios>
+#include <string>
 #include <utility>
 
 #include "absl/strings/str_cat.h"

@@ -4,6 +4,8 @@
 
 #include "quiche/common/quiche_mem_slice_storage.h"
 
+#include <string>
+
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/simple_buffer_allocator.h"
 

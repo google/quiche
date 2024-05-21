@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"

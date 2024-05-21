@@ -4,6 +4,8 @@
 
 #include "quiche/common/simple_buffer_allocator.h"
 
+#include <utility>
+
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace quiche {
