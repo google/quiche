@@ -260,6 +260,11 @@ class QUICHE_EXPORT QpackEncoderHeaderTable
   MatchType FindHeaderField(absl::string_view name, absl::string_view value,
                             bool* is_static, uint64_t* index) const;
 
+  // Returns the absolute index of an entry with matching name if such exists.
+  // |index| is zero based for both the static and the dynamic table.
+  MatchType FindHeaderName(absl::string_view name, bool* is_static,
+                           uint64_t* index) const;
+
   // Returns the size of the largest entry that could be inserted into the
   // dynamic table without evicting entry |index|.  |index| might be larger than
   // inserted_entry_count(), in which case the capacity of the table is

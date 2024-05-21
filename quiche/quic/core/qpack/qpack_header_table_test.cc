@@ -119,6 +119,17 @@ class QpackEncoderHeaderTableTest
     return {static_cast<MatchType>(match_type), is_static, index};
   }
 
+  std::tuple<MatchType, bool, uint64_t> FindHeaderName(
+      absl::string_view name) const {
+    bool is_static = false;
+    uint64_t index = 0;
+
+    QpackEncoderHeaderTable::MatchType match_type =
+        table_.FindHeaderName(name, &is_static, &index);
+
+    return {static_cast<MatchType>(match_type), is_static, index};
+  }
+
   uint64_t MaxInsertSizeWithoutEvictingGivenEntry(uint64_t index) const {
     return table_.MaxInsertSizeWithoutEvictingGivenEntry(index);
   }
@@ -136,8 +147,12 @@ TEST_F(QpackEncoderHeaderTableTest, FindStaticHeaderField) {
   EXPECT_THAT(FindHeaderField(":method", "POST"),
               FieldsAre(kNameAndValue, kStaticEntry, 20u));
 
+  // ":method: TRACE" does not exist in the static table.
+  // Both following calls return the lowest index with key ":method".
   EXPECT_THAT(FindHeaderField(":method", "TRACE"),
               FieldsAre(kName, kStaticEntry, 15u));
+
+  EXPECT_THAT(FindHeaderName(":method"), FieldsAre(kName, kStaticEntry, 15u));
 
   // A header name that has a single entry with non-empty value.
   EXPECT_THAT(FindHeaderField("accept-encoding", "gzip, deflate, br"),
@@ -149,6 +164,9 @@ TEST_F(QpackEncoderHeaderTableTest, FindStaticHeaderField) {
   EXPECT_THAT(FindHeaderField("accept-encoding", ""),
               FieldsAre(kName, kStaticEntry, 31u));
 
+  EXPECT_THAT(FindHeaderName("accept-encoding"),
+              FieldsAre(kName, kStaticEntry, 31u));
+
   // A header name that has a single entry with empty value.
   EXPECT_THAT(FindHeaderField("location", ""),
               FieldsAre(kNameAndValue, kStaticEntry, 12u));
@@ -156,15 +174,19 @@ TEST_F(QpackEncoderHeaderTableTest, FindStaticHeaderField) {
   EXPECT_THAT(FindHeaderField("location", "foo"),
               FieldsAre(kName, kStaticEntry, 12u));
 
+  EXPECT_THAT(FindHeaderName("location"), FieldsAre(kName, kStaticEntry, 12u));
+
   // No matching header name.
   EXPECT_THAT(FindHeaderField("foo", ""), FieldsAre(kNoMatch, _, _));
   EXPECT_THAT(FindHeaderField("foo", "bar"), FieldsAre(kNoMatch, _, _));
+  EXPECT_THAT(FindHeaderName("foo"), FieldsAre(kNoMatch, _, _));
 }
 
 TEST_F(QpackEncoderHeaderTableTest, FindDynamicHeaderField) {
   // Dynamic table is initially entry.
   EXPECT_THAT(FindHeaderField("foo", "bar"), FieldsAre(kNoMatch, _, _));
   EXPECT_THAT(FindHeaderField("foo", "baz"), FieldsAre(kNoMatch, _, _));
+  EXPECT_THAT(FindHeaderName("foo"), FieldsAre(kNoMatch, _, _));
 
   // Insert one entry.
   InsertEntry("foo", "bar");
@@ -176,6 +198,7 @@ TEST_F(QpackEncoderHeaderTableTest, FindDynamicHeaderField) {
   // Match name only.
   EXPECT_THAT(FindHeaderField("foo", "baz"),
               FieldsAre(kName, kDynamicEntry, 0u));
+  EXPECT_THAT(FindHeaderName("foo"), FieldsAre(kName, kDynamicEntry, 0u));
 
   // Insert an identical entry.  FindHeaderField() should return the index of
   // the most recently inserted matching entry.
@@ -188,20 +211,26 @@ TEST_F(QpackEncoderHeaderTableTest, FindDynamicHeaderField) {
   // Match name only.
   EXPECT_THAT(FindHeaderField("foo", "baz"),
               FieldsAre(kName, kDynamicEntry, 1u));
+  EXPECT_THAT(FindHeaderName("foo"), FieldsAre(kName, kDynamicEntry, 1u));
 }
 
 TEST_F(QpackEncoderHeaderTableTest, FindHeaderFieldPrefersStaticTable) {
   // Insert an entry to the dynamic table that exists in the static table.
   InsertEntry(":method", "GET");
 
-  // FindHeaderField() prefers static table if both have name-and-value match.
+  // FindHeaderField() prefers static table if both tables have name-and-value
+  // match.
   EXPECT_THAT(FindHeaderField(":method", "GET"),
               FieldsAre(kNameAndValue, kStaticEntry, 17u));
 
-  // FindHeaderField() prefers static table if both have name match but no value
-  // match, and prefers the first entry with matching name.
+  // FindHeaderField() prefers static table if both tables have name match but
+  // no value match, and prefers the first entry with matching name.
   EXPECT_THAT(FindHeaderField(":method", "TRACE"),
               FieldsAre(kName, kStaticEntry, 15u));
+
+  // FindHeaderName() prefers static table if both tables have a match, and
+  // prefers the first entry with matching name.
+  EXPECT_THAT(FindHeaderName(":method"), FieldsAre(kName, kStaticEntry, 15u));
 
   // Add new entry to the dynamic table.
   InsertEntry(":method", "TRACE");

@@ -72,6 +72,11 @@ QpackEncoderHeaderTable::MatchType QpackEncoderHeaderTable::FindHeaderField(
     return MatchType::kNameAndValue;
   }
 
+  return FindHeaderName(name, is_static, index);
+}
+
+QpackEncoderHeaderTable::MatchType QpackEncoderHeaderTable::FindHeaderName(
+    absl::string_view name, bool* is_static, uint64_t* index) const {
   // Look for name match in static table.
   auto name_index_it = static_name_index_.find(name);
   if (name_index_it != static_name_index_.end()) {
