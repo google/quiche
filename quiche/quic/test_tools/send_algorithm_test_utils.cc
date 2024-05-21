@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/send_algorithm_test_utils.h"
 
+#include <string>
+
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"

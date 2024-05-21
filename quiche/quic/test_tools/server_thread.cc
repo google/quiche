@@ -4,6 +4,9 @@
 
 #include "quiche/quic/test_tools/server_thread.h"
 
+#include <memory>
+#include <utility>
+
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"

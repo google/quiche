@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/simple_session_notifier.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "quiche/quic/core/crypto/null_encrypter.h"

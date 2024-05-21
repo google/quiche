@@ -4,6 +4,9 @@
 
 #include "quiche/quic/test_tools/quic_connection_peer.h"
 
+#include <memory>
+#include <string>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/quic_packet_writer.h"

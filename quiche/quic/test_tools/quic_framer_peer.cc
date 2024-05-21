@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/quic_framer_peer.h"
 
+#include <string>
+
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
 

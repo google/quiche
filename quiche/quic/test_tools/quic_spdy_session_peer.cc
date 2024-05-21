@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/quic_spdy_session_peer.h"
 
+#include <utility>
+
 
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/qpack/qpack_receive_stream.h"

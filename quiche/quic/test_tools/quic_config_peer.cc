@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/quic_config_peer.h"
 
+#include <utility>
+
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection_id.h"
 

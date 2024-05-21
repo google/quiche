@@ -6,6 +6,8 @@
 
 #include <netinet/ip6.h>
 
+#include <string>
+
 namespace quic {
 
 std::string PrependIPv6HeaderForTest(const std::string& body, int hops) {

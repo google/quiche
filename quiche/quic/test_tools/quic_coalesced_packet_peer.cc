@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/quic_coalesced_packet_peer.h"
 
+#include <string>
+
 namespace quic {
 namespace test {
 

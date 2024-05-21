@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/quic_spdy_stream_peer.h"
 
+#include <utility>
+
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 

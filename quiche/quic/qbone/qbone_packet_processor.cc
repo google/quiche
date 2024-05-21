@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <string>
 
 #include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"

@@ -7,6 +7,8 @@
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 
+#include <limits>
+#include <memory>
 #include <utility>
 
 #include "absl/strings/string_view.h"

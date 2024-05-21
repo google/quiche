@@ -4,6 +4,8 @@
 
 #include "quiche/quic/qbone/qbone_packet_processor.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"

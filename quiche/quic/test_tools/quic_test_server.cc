@@ -4,6 +4,7 @@
 
 #include "quiche/quic/test_tools/quic_test_server.h"
 
+#include <memory>
 #include <utility>
 
 #include "absl/memory/memory.h"

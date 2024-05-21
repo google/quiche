@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/fake_proof_source.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"

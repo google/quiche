@@ -4,6 +4,9 @@
 
 #include "quiche/quic/test_tools/mock_quic_dispatcher.h"
 
+#include <memory>
+#include <utility>
+
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {

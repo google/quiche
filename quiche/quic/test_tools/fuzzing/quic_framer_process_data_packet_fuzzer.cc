@@ -5,8 +5,11 @@
 #include <fuzzer/FuzzedDataProvider.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "quiche/quic/core/crypto/null_decrypter.h"

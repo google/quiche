@@ -5,6 +5,8 @@
 #include "quiche/quic/test_tools/simple_session_cache.h"
 
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 

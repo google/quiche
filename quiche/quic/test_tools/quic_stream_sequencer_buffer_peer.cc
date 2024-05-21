@@ -5,6 +5,8 @@
 #include "quiche/quic/test_tools/quic_stream_sequencer_buffer_peer.h"
 
 #include <cstddef>
+#include <limits>
+#include <string>
 
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"

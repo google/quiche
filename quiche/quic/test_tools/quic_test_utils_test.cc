@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
+#include <string>
+
 #include "quiche/quic/platform/api/quic_test.h"
 
 namespace quic {

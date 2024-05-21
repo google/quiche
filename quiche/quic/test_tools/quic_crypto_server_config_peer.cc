@@ -4,6 +4,11 @@
 
 #include "quiche/quic/test_tools/quic_crypto_server_config_peer.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/mock_random.h"

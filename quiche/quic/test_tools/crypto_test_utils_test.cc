@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/escaping.h"

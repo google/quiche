@@ -4,6 +4,9 @@
 
 #include "quiche/quic/test_tools/quic_session_peer.h"
 
+#include <memory>
+#include <utility>
+
 #include "absl/container/flat_hash_map.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream.h"

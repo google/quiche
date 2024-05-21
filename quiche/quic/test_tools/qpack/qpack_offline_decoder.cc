@@ -27,8 +27,11 @@
 #include "quiche/quic/test_tools/qpack/qpack_offline_decoder.h"
 
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"

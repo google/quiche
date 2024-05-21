@@ -5,7 +5,10 @@
 #include "quiche/quic/test_tools/simple_quic_framer.h"
 
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"

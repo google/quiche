@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"

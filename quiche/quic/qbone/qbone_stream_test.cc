@@ -4,6 +4,9 @@
 
 #include "quiche/quic/qbone/qbone_stream.h"
 
+#include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"

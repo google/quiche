@@ -4,6 +4,9 @@
 
 #include "quiche/quic/test_tools/simulator/actor.h"
 
+#include <string>
+#include <utility>
+
 #include "quiche/quic/test_tools/simulator/simulator.h"
 
 namespace quic {

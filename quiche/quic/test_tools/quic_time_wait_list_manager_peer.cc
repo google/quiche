@@ -4,6 +4,9 @@
 
 #include "quiche/quic/test_tools/quic_time_wait_list_manager_peer.h"
 
+#include <memory>
+#include <utility>
+
 namespace quic {
 namespace test {
 

@@ -4,6 +4,9 @@
 
 #include "quiche/quic/test_tools/failing_proof_source.h"
 
+#include <memory>
+#include <string>
+
 #include "absl/strings/string_view.h"
 
 namespace quic {
