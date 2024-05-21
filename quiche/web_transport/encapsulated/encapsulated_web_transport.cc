@@ -783,4 +783,14 @@ void EncapsulatedSession::GarbageCollectStreams() {
   streams_to_garbage_collect_.clear();
 }
 
+void EncapsulatedSession::InnerStream::SetPriority(
+    const StreamPriority& priority) {
+  absl::Status status;
+  status = session_->scheduler_.UpdateSendGroup(id_, priority.send_group_id);
+  QUICHE_BUG_IF(EncapsulatedWebTransport_SetPriority_group, !status.ok())
+      << status;
+  status = session_->scheduler_.UpdateSendOrder(id_, priority.send_order);
+  QUICHE_BUG_IF(EncapsulatedWebTransport_SetPriority_order, !status.ok())
+      << status;
+}
 }  // namespace webtransport

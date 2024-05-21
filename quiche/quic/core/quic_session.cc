@@ -29,6 +29,7 @@
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/core/quic_write_blocked_list.h"
+#include "quiche/quic/core/web_transport_write_blocked_list.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -83,6 +84,18 @@ class StreamCountResetAlarmDelegate : public QuicAlarm::Delegate {
   QuicSession* session_;
 };
 
+std::unique_ptr<QuicWriteBlockedListInterface> CreateWriteBlockedList(
+    QuicPriorityType priority_type) {
+  switch (priority_type) {
+    case QuicPriorityType::kHttp:
+      return std::make_unique<QuicWriteBlockedList>();
+    case QuicPriorityType::kWebTransport:
+      return std::make_unique<WebTransportWriteBlockedList>();
+  }
+  QUICHE_NOTREACHED();
+  return nullptr;
+}
+
 }  // namespace
 
 #define ENDPOINT \
@@ -99,11 +112,12 @@ QuicSession::QuicSession(
     QuicConnection* connection, Visitor* owner, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     QuicStreamCount num_expected_unidirectional_static_streams,
-    std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer)
+    std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer,
+    QuicPriorityType priority_type)
     : connection_(connection),
       perspective_(connection->perspective()),
       visitor_(owner),
-      write_blocked_streams_(std::make_unique<QuicWriteBlockedList>()),
+      write_blocked_streams_(CreateWriteBlockedList(priority_type)),
       config_(config),
       stream_id_manager_(perspective(), connection->transport_version(),
                          kDefaultMaxStreamsPerConnection,
@@ -139,7 +153,8 @@ QuicSession::QuicSession(
       liveness_testing_in_progress_(false),
       stream_count_reset_alarm_(
           absl::WrapUnique<QuicAlarm>(connection->alarm_factory()->CreateAlarm(
-              new StreamCountResetAlarmDelegate(this)))) {
+              new StreamCountResetAlarmDelegate(this)))),
+      priority_type_(priority_type) {
   closed_streams_clean_up_alarm_ =
       absl::WrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));

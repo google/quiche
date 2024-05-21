@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -17,6 +18,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
@@ -31,7 +33,8 @@ namespace quic {
 class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
  public:
   WebTransportStreamAdapter(QuicSession* session, QuicStream* stream,
-                            QuicStreamSequencer* sequencer);
+                            QuicStreamSequencer* sequencer,
+                            std::optional<QuicStreamId> session_id);
 
   // WebTransportStream implementation.
   ABSL_MUST_USE_RESULT ReadResult Read(absl::Span<char> output) override;
@@ -60,11 +63,15 @@ class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
     stream_->Reset(QUIC_STREAM_CANCELLED);
   }
 
+  void SetPriority(const webtransport::StreamPriority& priority) override;
+
   WebTransportStreamVisitor* visitor() override { return visitor_.get(); }
 
   // Calls that need to be passed from the corresponding QuicStream methods.
   void OnDataAvailable();
   void OnCanWriteNewData();
+
+  void SetSessionId(QuicStreamId id);
 
  private:
   absl::Status CheckBeforeStreamWrite() const;
@@ -73,6 +80,7 @@ class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
   QuicStream* stream_;              // Unowned.
   QuicStreamSequencer* sequencer_;  // Unowned.
   std::unique_ptr<WebTransportStreamVisitor> visitor_;
+  std::optional<QuicStreamId> session_id_;
   bool fin_read_ = false;
 };
 

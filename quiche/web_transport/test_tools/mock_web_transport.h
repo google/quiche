@@ -52,6 +52,7 @@ class QUICHE_NO_EXPORT MockStream : public Stream {
   MOCK_METHOD(void, SendStopSending, (StreamErrorCode error), (override));
   MOCK_METHOD(void, ResetDueToInternalError, (), (override));
   MOCK_METHOD(void, MaybeResetDueToStreamObjectGone, (), (override));
+  MOCK_METHOD(void, SetPriority, (const StreamPriority&), (override));
   MOCK_METHOD(StreamVisitor*, visitor, (), (override));
   MOCK_METHOD(void, SetVisitor, (std::unique_ptr<StreamVisitor> visitor),
               (override));

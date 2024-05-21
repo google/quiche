@@ -53,16 +53,15 @@ TEST(WebTransportStreamPriority, Equals) {
 TEST(QuicStreamPriority, Default) {
   EXPECT_EQ(QuicStreamPriority::Default(QuicPriorityType::kHttp).http(),
             HttpStreamPriority());
-  EXPECT_EQ(QuicStreamPriority::Default(QuicPriorityType::kWebTransport)
-                .web_transport(),
-            WebTransportStreamPriority());
+  EXPECT_EQ(QuicStreamPriority::Default(QuicPriorityType::kWebTransport).http(),
+            HttpStreamPriority());
 }
 
 TEST(QuicStreamPriority, Equals) {
   EXPECT_EQ(QuicStreamPriority::Default(QuicPriorityType::kHttp),
             QuicStreamPriority(HttpStreamPriority()));
   EXPECT_EQ(QuicStreamPriority::Default(QuicPriorityType::kWebTransport),
-            QuicStreamPriority(WebTransportStreamPriority()));
+            QuicStreamPriority(HttpStreamPriority()));
 }
 
 TEST(QuicStreamPriority, Type) {

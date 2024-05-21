@@ -534,9 +534,6 @@ void QuicSpdyStream::OnStreamHeadersPriority(
     const spdy::SpdyStreamPrecedence& precedence) {
   QUICHE_DCHECK_EQ(Perspective::IS_SERVER,
                    session()->connection()->perspective());
-  if (session()->priority_type() != QuicPriorityType::kHttp) {
-    return;
-  }
   SetPriority(QuicStreamPriority(HttpStreamPriority{
       precedence.spdy3_priority(), HttpStreamPriority::kDefaultIncremental}));
 }
@@ -613,7 +610,7 @@ void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {
       session()->perspective() != Perspective::IS_CLIENT) {
     return;
   }
-  if (spdy_session_->priority_type() != QuicPriorityType::kHttp) {
+  if (priority().type() != QuicPriorityType::kHttp) {
     return;
   }
 
@@ -735,9 +732,6 @@ void QuicSpdyStream::OnPriorityFrame(
     const spdy::SpdyStreamPrecedence& precedence) {
   QUICHE_DCHECK_EQ(Perspective::IS_SERVER,
                    session()->connection()->perspective());
-  if (session()->priority_type() != QuicPriorityType::kHttp) {
-    return;
-  }
   SetPriority(QuicStreamPriority(HttpStreamPriority{
       precedence.spdy3_priority(), HttpStreamPriority::kDefaultIncremental}));
 }
@@ -1458,7 +1452,7 @@ void QuicSpdyStream::ConvertToWebTransportDataStream(
 QuicSpdyStream::WebTransportDataStream::WebTransportDataStream(
     QuicSpdyStream* stream, WebTransportSessionId session_id)
     : session_id(session_id),
-      adapter(stream->spdy_session_, stream, stream->sequencer()) {}
+      adapter(stream->spdy_session_, stream, stream->sequencer(), session_id) {}
 
 void QuicSpdyStream::HandleReceivedDatagram(absl::string_view payload) {
   if (datagram_visitor_ == nullptr) {

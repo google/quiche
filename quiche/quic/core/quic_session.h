@@ -120,7 +120,8 @@ class QUICHE_EXPORT QuicSession
               const QuicConfig& config,
               const ParsedQuicVersionVector& supported_versions,
               QuicStreamCount num_expected_unidirectional_static_streams,
-              std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer);
+              std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer,
+              QuicPriorityType priority_type = QuicPriorityType::kHttp);
   QuicSession(const QuicSession&) = delete;
   QuicSession& operator=(const QuicSession&) = delete;
 
@@ -687,7 +688,7 @@ class QUICHE_EXPORT QuicSession
   void OnStreamCountReset();
 
   // Returns the priority type used by the streams in the session.
-  QuicPriorityType priority_type() const { return QuicPriorityType::kHttp; }
+  QuicPriorityType priority_type() const { return priority_type_; }
 
  protected:
   using StreamMap =
@@ -985,7 +986,7 @@ class QUICHE_EXPORT QuicSession
   // A list of streams which need to write more data.  Stream register
   // themselves in their constructor, and unregisterm themselves in their
   // destructors, so the write blocked list must outlive all streams.
-  std::unique_ptr<QuicWriteBlockedList> write_blocked_streams_;
+  std::unique_ptr<QuicWriteBlockedListInterface> write_blocked_streams_;
 
   ClosedStreams closed_streams_;
 
@@ -1091,6 +1092,8 @@ class QUICHE_EXPORT QuicSession
   // event loop.
   QuicStreamCount max_streams_accepted_per_loop_ = kMaxQuicStreamCount;
   std::unique_ptr<QuicAlarm> stream_count_reset_alarm_;
+
+  QuicPriorityType priority_type_;
 };
 
 }  // namespace quic

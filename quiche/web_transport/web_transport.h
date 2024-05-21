@@ -155,6 +155,10 @@ class QUICHE_EXPORT Stream : public quiche::ReadStream,
   // garbage collected.
   virtual void MaybeResetDueToStreamObjectGone() = 0;
 
+  // Sets the send group and the send order of the stream as defined in
+  // https://w3c.github.io/webtransport/#dictdef-webtransportsendstreamoptions
+  virtual void SetPriority(const StreamPriority& priority) = 0;
+
   virtual StreamVisitor* visitor() = 0;
   virtual void SetVisitor(std::unique_ptr<StreamVisitor> visitor) = 0;
 };

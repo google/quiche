@@ -164,6 +164,8 @@ class QUICHE_EXPORT EncapsulatedSession
     void ResetDueToInternalError() override { ResetWithUserCode(0); }
     void MaybeResetDueToStreamObjectGone() override { ResetWithUserCode(0); }
 
+    void SetPriority(const StreamPriority& priority) override;
+
     void CloseReadSide(std::optional<StreamErrorCode> error);
     void CloseWriteSide(std::optional<StreamErrorCode> error);
     bool CanBeGarbageCollected() const {

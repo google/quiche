@@ -5,6 +5,8 @@
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
 
 #include <cstddef>
+#include <limits>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,6 +18,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
@@ -29,8 +32,13 @@
 namespace quic {
 
 WebTransportStreamAdapter::WebTransportStreamAdapter(
-    QuicSession* session, QuicStream* stream, QuicStreamSequencer* sequencer)
-    : session_(session), stream_(stream), sequencer_(sequencer) {}
+    QuicSession* session, QuicStream* stream, QuicStreamSequencer* sequencer,
+    std::optional<QuicStreamId> session_id)
+    : session_(session), stream_(stream), sequencer_(sequencer) {
+  if (session_id.has_value()) {
+    SetSessionId(*session_id);
+  }
+}
 
 WebTransportStream::ReadResult WebTransportStreamAdapter::Read(
     absl::Span<char> buffer) {
@@ -193,6 +201,42 @@ void WebTransportStreamAdapter::ResetWithUserCode(
 void WebTransportStreamAdapter::SendStopSending(WebTransportStreamError error) {
   stream_->SendStopSending(QuicResetStreamError(
       QUIC_STREAM_CANCELLED, WebTransportErrorToHttp3(error)));
+}
+
+void WebTransportStreamAdapter::SetPriority(
+    const webtransport::StreamPriority& priority) {
+  if (session_->priority_type() != QuicPriorityType::kWebTransport) {
+    return;
+  }
+  // If no session is yet available, associate with an invalid control stream;
+  // this will effectively result in the stream being associated with a fake
+  // session that has default urgency.
+  QuicStreamId session_id =
+      session_id_.value_or(std::numeric_limits<QuicStreamId>::max());
+  stream_->SetPriority(QuicStreamPriority(WebTransportStreamPriority{
+      session_id, priority.send_group_id, priority.send_order}));
+}
+
+void WebTransportStreamAdapter::SetSessionId(QuicStreamId id) {
+  session_id_ = id;
+
+  if (session_->priority_type() != QuicPriorityType::kWebTransport) {
+    return;
+  }
+  // Inform the write scheduler that the stream now needs to be associated
+  // with a specific session.
+  QuicStreamPriority old_priority = stream_->priority();
+  switch (old_priority.type()) {
+    case QuicPriorityType::kHttp:
+      stream_->SetPriority(
+          QuicStreamPriority(WebTransportStreamPriority{id, 0, 0}));
+      break;
+    case QuicPriorityType::kWebTransport:
+      stream_->SetPriority(QuicStreamPriority(WebTransportStreamPriority{
+          id, old_priority.web_transport().send_group_number,
+          old_priority.web_transport().send_order}));
+      break;
+  }
 }
 
 }  // namespace quic
