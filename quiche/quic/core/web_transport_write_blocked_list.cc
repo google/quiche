@@ -91,9 +91,8 @@ void WebTransportWriteBlockedList::RegisterStream(
         << ", but the session control stream is not registered; assuming "
            "default urgency.";
     QuicStreamPriority session_priority =
-        session_priority_it != priorities_.end()
-            ? session_priority_it->second
-            : QuicStreamPriority::Default(QuicPriorityType::kHttp);
+        session_priority_it != priorities_.end() ? session_priority_it->second
+                                                 : QuicStreamPriority();
 
     status = main_schedule_.Register(
         group_key,
@@ -251,7 +250,7 @@ QuicStreamPriority WebTransportWriteBlockedList::GetPriorityOfStream(
   if (it == priorities_.end()) {
     QUICHE_BUG(WTWriteBlocked_GetPriorityOfStream_not_found)
         << "Stream " << id << " not found";
-    return QuicStreamPriority::Default(QuicPriorityType::kHttp);
+    return QuicStreamPriority();
   }
   return it->second;
 }

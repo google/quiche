@@ -26,8 +26,7 @@ using ::testing::ElementsAreArray;
 class WebTransportWriteBlockedListTest : public ::quiche::test::QuicheTest {
  protected:
   void RegisterStaticStream(QuicStreamId id) {
-    list_.RegisterStream(id, /*is_static_stream=*/true,
-                         QuicStreamPriority::Default(QuicPriorityType::kHttp));
+    list_.RegisterStream(id, /*is_static_stream=*/true, QuicStreamPriority());
   }
   void RegisterHttpStream(QuicStreamId id,
                           int urgency = HttpStreamPriority::kDefaultUrgency) {
@@ -63,10 +62,8 @@ TEST_F(WebTransportWriteBlockedListTest, BasicHttpStreams) {
   RegisterHttpStream(3, HttpStreamPriority::kDefaultUrgency + 1);
   RegisterStaticStream(4);
 
-  EXPECT_EQ(list_.GetPriorityOfStream(1),
-            QuicStreamPriority::Default(QuicPriorityType::kHttp));
-  EXPECT_EQ(list_.GetPriorityOfStream(2),
-            QuicStreamPriority::Default(QuicPriorityType::kHttp));
+  EXPECT_EQ(list_.GetPriorityOfStream(1), QuicStreamPriority());
+  EXPECT_EQ(list_.GetPriorityOfStream(2), QuicStreamPriority());
   EXPECT_EQ(list_.GetPriorityOfStream(3).http().urgency, 4);
 
   EXPECT_EQ(list_.NumBlockedStreams(), 0);

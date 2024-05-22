@@ -69,13 +69,10 @@ struct QUICHE_EXPORT WebTransportStreamPriority {
 // scheduling QUIC streams.
 class QUICHE_EXPORT QuicStreamPriority {
  public:
+  QuicStreamPriority() : value_(HttpStreamPriority()) {}
   explicit QuicStreamPriority(HttpStreamPriority priority) : value_(priority) {}
   explicit QuicStreamPriority(WebTransportStreamPriority priority)
       : value_(priority) {}
-
-  static QuicStreamPriority Default(QuicPriorityType /*type*/) {
-    return QuicStreamPriority(HttpStreamPriority());
-  }
 
   QuicPriorityType type() const { return absl::visit(TypeExtractor(), value_); }
 

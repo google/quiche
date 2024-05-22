@@ -71,10 +71,9 @@ class MockQuicSession : public QboneSessionBase {
   void RegisterReliableStream(QuicStreamId stream_id) {
     // The priority effectively does not matter. Put all streams on the same
     // priority.
-    write_blocked_streams()->RegisterStream(
-        stream_id,
-        /* is_static_stream = */ false,
-        QuicStreamPriority::Default(priority_type()));
+    write_blocked_streams()->RegisterStream(stream_id,
+                                            /* is_static_stream = */ false,
+                                            QuicStreamPriority());
   }
 
   // The session take ownership of the stream.
