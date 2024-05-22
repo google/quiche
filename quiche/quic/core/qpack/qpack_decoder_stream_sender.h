@@ -23,7 +23,7 @@ class QUICHE_EXPORT QpackDecoderStreamSender {
   QpackDecoderStreamSender& operator=(const QpackDecoderStreamSender&) = delete;
 
   // Methods for serializing and buffering instructions, see
-  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5.3
+  // https://rfc-editor.org/rfc/rfc9204.html#section-4.4.
 
   // 5.3.1 Insert Count Increment
   void SendInsertCountIncrement(uint64_t increment);

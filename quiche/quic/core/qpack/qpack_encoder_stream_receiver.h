@@ -22,7 +22,7 @@ class QUICHE_EXPORT QpackEncoderStreamReceiver
       public QpackStreamReceiver {
  public:
   // An interface for handling instructions decoded from the encoder stream, see
-  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5.2
+  // https://rfc-editor.org/rfc/rfc9204.html#section-4.3.
   class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() = default;

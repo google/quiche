@@ -17,7 +17,7 @@ using QpackStaticEntry = spdy::HpackStaticEntry;
 using QpackStaticTable = spdy::HpackStaticTable;
 
 // QPACK static table defined at
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#static-table.
+// https://rfc-editor.org/rfc/rfc9204.html#section-3.1.
 QUICHE_EXPORT const std::vector<QpackStaticEntry>& QpackStaticTableVector();
 
 // Returns a QpackStaticTable instance initialized with kQpackStaticTable.

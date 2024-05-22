@@ -27,7 +27,7 @@ namespace {
 // with name reference) will be added to the dynamic table instead.  This allows
 // the number of references to the draining entry to go to zero faster, so that
 // it can be evicted.  See
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#avoiding-blocked-insertions.
+// https://rfc-editor.org/rfc/rfc9204.html#section-2.1.1.1.
 // TODO(bnc): Fine tune.
 const float kDrainingFraction = 0.25;
 

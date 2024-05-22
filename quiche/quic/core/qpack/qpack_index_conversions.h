@@ -5,9 +5,9 @@
 // Utility methods to convert between absolute indexing (used in the dynamic
 // table), relative indexing used on the encoder stream, and relative indexing
 // and post-base indexing used on request streams (in header blocks).  See:
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#indexing
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#relative-indexing
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#post-base
+// https://rfc-editor.org/rfc/rfc9204.html#section-3.2.4
+// https://rfc-editor.org/rfc/rfc9204.html#section-3.2.5
+// https://rfc-editor.org/rfc/rfc9204.html#section-3.2.6
 
 #ifndef QUICHE_QUIC_CORE_QPACK_QPACK_INDEX_CONVERSIONS_H_
 #define QUICHE_QUIC_CORE_QPACK_QPACK_INDEX_CONVERSIONS_H_

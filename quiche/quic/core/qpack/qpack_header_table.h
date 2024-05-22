@@ -272,7 +272,7 @@ class QUICHE_EXPORT QpackEncoderHeaderTable
   uint64_t MaxInsertSizeWithoutEvictingGivenEntry(uint64_t index) const;
 
   // Returns the draining index described at
-  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#avoiding-blocked-insertions.
+  // https://rfc-editor.org/rfc/rfc9204.html#section-2.1.1.1.
   // Entries with an index larger than or equal to the draining index take up
   // approximately |1.0 - draining_fraction| of dynamic table capacity.  The
   // remaining capacity is taken up by draining entries and unused space.

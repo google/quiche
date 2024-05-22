@@ -75,7 +75,7 @@ class QUICHE_EXPORT QpackProgressiveDecoder
 
     // Called when decoding is completed, with Required Insert Count of the
     // decoded header block.  Required Insert Count is defined at
-    // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#blocked-streams.
+    // https://rfc-editor.org/rfc/rfc9204.html#section-4.5.1.1.
     virtual void OnDecodingCompleted(QuicStreamId stream_id,
                                      uint64_t required_insert_count) = 0;
   };

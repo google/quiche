@@ -22,8 +22,8 @@ class QpackBlockingManagerPeer;
 }  // namespace test
 
 // Class to keep track of blocked streams and blocking dynamic table entries:
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#blocked-decoding
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#blocked-insertion
+// https://rfc-editor.org/rfc/rfc9204.html#section-2.2.1.
+// https://rfc-editor.org/rfc/rfc9204.html#section-2.1.2
 class QUICHE_EXPORT QpackBlockingManager {
  public:
   using IndexSet = std::multiset<uint64_t>;
@@ -62,7 +62,7 @@ class QUICHE_EXPORT QpackBlockingManager {
   uint64_t smallest_blocking_index() const;
 
   // Returns the Known Received Count as defined at
-  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#known-received-count.
+  // https://rfc-editor.org/rfc/rfc9204.html#section-2.1.4.
   uint64_t known_received_count() const { return known_received_count_; }
 
   // Required Insert Count for set of indices.

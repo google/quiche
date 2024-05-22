@@ -86,7 +86,7 @@ struct QUICHE_EXPORT QpackInstruction {
 using QpackLanguage = std::vector<const QpackInstruction*>;
 
 // Wire format defined in
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5
+// https://rfc-editor.org/rfc/rfc9204.html#section-4
 
 // 5.2 Encoder stream instructions
 

@@ -24,7 +24,7 @@ class QUICHE_EXPORT QpackEncoderStreamSender {
   QpackEncoderStreamSender& operator=(const QpackEncoderStreamSender&) = delete;
 
   // Methods for serializing and buffering instructions, see
-  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5.2
+  // https://rfc-editor.org/rfc/rfc9204.html#section-4.3.
 
   // 5.2.1. Insert With Name Reference
   void SendInsertWithNameReference(bool is_static, uint64_t name_index,
