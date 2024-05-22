@@ -85,9 +85,6 @@ class QUICHE_EXPORT QuicSentPacketManager {
                                            QuicByteCount /*old_cwnd*/,
                                            QuicByteCount /*new_cwnd*/) {}
 
-    virtual void OnAdjustBurstSize(int /*old_burst_size*/,
-                                   int /*new_burst_size*/) {}
-
     virtual void OnOvershootingDetected() {}
 
     virtual void OnConfigProcessed(const SendParameters& /*parameters*/) {}
