@@ -124,11 +124,11 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
     bool is_static;
     uint64_t index;
 
-    auto match_type =
+    QpackEncoderHeaderTable::MatchType match_type =
         header_table_.FindHeaderField(name, value, &is_static, &index);
 
     switch (match_type) {
-      case QpackEncoderHeaderTable::MatchType::kNameAndValue:
+      case QpackEncoderHeaderTable::MatchType::kNameAndValue: {
         if (is_static) {
           // Refer to entry directly.
           representations.push_back(
@@ -138,10 +138,10 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
         }
 
         if (index >= draining_index) {
-          // If allowed, refer to entry directly.
           if (!blocking_allowed && index >= known_received_count) {
             blocked_stream_limit_exhausted = true;
           } else {
+            // Refer to entry directly.
             representations.push_back(
                 EncodeIndexedHeaderField(is_static, index, referred_indices));
             smallest_non_evictable_index =
@@ -151,7 +151,8 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
             break;
           }
         } else {
-          // Entry is draining, needs to be duplicated.
+          // No new references should be added for entry to allow it to drain.
+          // Duplicate entry instead if possible.
           if (!blocking_allowed) {
             blocked_stream_limit_exhausted = true;
           } else if (QpackEntry::Size(name, value) >
@@ -160,7 +161,6 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
             dynamic_table_insertion_blocked = true;
           } else {
             if (can_write_to_encoder_stream) {
-              // If allowed, duplicate entry and refer to it.
               encoder_stream_sender_.SendDuplicate(
                   QpackAbsoluteIndexToEncoderStreamRelativeIndex(
                       index, header_table_.inserted_entry_count()));
@@ -176,16 +176,38 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
           }
         }
 
-        // Encode entry as string literals.
-        // TODO(b/112770235): Use already acknowledged entry with lower index if
-        // exists.
-        // TODO(b/112770235): Use static entry name with literal value if
-        // dynamic entry exists but cannot be used.
-        representations.push_back(EncodeLiteralHeaderField(name, value));
+        // Match cannot be used.
 
-        break;
+        if (!better_compression_) {
+          // Encode entry as string literals.
+          representations.push_back(EncodeLiteralHeaderField(name, value));
+          break;
+        }
 
-      case QpackEncoderHeaderTable::MatchType::kName:
+        QUIC_RELOADABLE_FLAG_COUNT(quic_better_qpack_compression);
+
+        bool is_static_name_only;
+        uint64_t index_name_only;
+        QpackEncoderHeaderTable::MatchType match_type_name_only =
+            header_table_.FindHeaderName(name, &is_static_name_only,
+                                         &index_name_only);
+
+        // If no name match found, or if the match is the same as the previous
+        // one (which could not be used), then encode entry as string literals.
+        if (match_type_name_only != QpackEncoderHeaderTable::MatchType::kName ||
+            (is_static == is_static_name_only && index == index_name_only)) {
+          representations.push_back(EncodeLiteralHeaderField(name, value));
+          break;
+        }
+
+        match_type = match_type_name_only;
+        is_static = is_static_name_only;
+        index = index_name_only;
+
+        ABSL_FALLTHROUGH_INTENDED;
+      }
+
+      case QpackEncoderHeaderTable::MatchType::kName: {
         if (is_static) {
           if (blocking_allowed &&
               QpackEntry::Size(name, value) <=
@@ -249,16 +271,12 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
           break;
         }
 
-        // Encode entry as string literals.
-        // TODO(b/112770235): Use already acknowledged entry with lower index if
-        // exists.
-        // TODO(b/112770235): Use static entry name with literal value if
-        // dynamic entry exists but cannot be used.
         representations.push_back(EncodeLiteralHeaderField(name, value));
 
         break;
+      }
 
-      case QpackEncoderHeaderTable::MatchType::kNoMatch:
+      case QpackEncoderHeaderTable::MatchType::kNoMatch: {
         // If allowed, insert entry and refer to it.
         if (!blocking_allowed) {
           blocked_stream_limit_exhausted = true;
@@ -286,6 +304,7 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
         representations.push_back(EncodeLiteralHeaderField(name, value));
 
         break;
+      }
     }
   }
 

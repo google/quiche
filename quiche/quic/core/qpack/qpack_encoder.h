@@ -20,6 +20,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_exported_stats.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
@@ -154,6 +155,10 @@ class QUICHE_EXPORT QpackEncoder : public QpackDecoderStreamReceiver::Delegate {
   uint64_t maximum_blocked_streams_;
   QpackBlockingManager blocking_manager_;
   int header_list_count_;
+
+  // Latched value of reloadable_flag_quic_better_qpack_compression.
+  const bool better_compression_ =
+      GetQuicReloadableFlag(quic_better_qpack_compression);
 };
 
 // QpackEncoder::DecoderStreamErrorDelegate implementation that does nothing.
