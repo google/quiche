@@ -10,6 +10,7 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/qpack/qpack_instruction_encoder.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_encoder_peer.h"
@@ -30,6 +31,19 @@ namespace {
 // stream.
 constexpr uint64_t kTooManyBytesBuffered = 1024 * 1024;
 
+std::string PrintToString(const testing::TestParamInfo<HuffmanEncoding>& info) {
+  switch (info.param) {
+    case HuffmanEncoding::kEnabled:
+      return "HuffmanEnabled";
+      break;
+    case HuffmanEncoding::kDisabled:
+      return "HuffmanDisabled";
+  }
+
+  QUICHE_NOTREACHED();
+  return "InvalidValue";
+}
+
 // Mock QpackEncoder::DecoderStreamErrorDelegate implementation.
 class MockDecoderStreamErrorDelegate
     : public QpackEncoder::DecoderStreamErrorDelegate {
@@ -41,10 +55,11 @@ class MockDecoderStreamErrorDelegate
               (override));
 };
 
-class QpackEncoderTest : public QuicTestWithParam<bool> {
+class QpackEncoderTest : public QuicTestWithParam<HuffmanEncoding> {
  protected:
   QpackEncoderTest()
-      : encoder_(&decoder_stream_error_delegate_, HuffmanEncoding()),
+      : huffman_encoding_(GetParam()),
+        encoder_(&decoder_stream_error_delegate_, huffman_encoding_),
         encoder_stream_sent_byte_count_(0) {
     encoder_.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate_);
     encoder_.SetMaximumBlockedStreams(1);
@@ -52,10 +67,8 @@ class QpackEncoderTest : public QuicTestWithParam<bool> {
 
   ~QpackEncoderTest() override = default;
 
-  bool DisableHuffmanEncoding() { return GetParam(); }
-  HuffmanEncoding HuffmanEncoding() {
-    return DisableHuffmanEncoding() ? HuffmanEncoding::kDisabled
-                                    : HuffmanEncoding::kEnabled;
+  bool HuffmanEnabled() const {
+    return huffman_encoding_ == HuffmanEncoding::kEnabled;
   }
 
   std::string Encode(const spdy::Http2HeaderBlock& header_list) {
@@ -63,14 +76,17 @@ class QpackEncoderTest : public QuicTestWithParam<bool> {
                                      &encoder_stream_sent_byte_count_);
   }
 
+  const HuffmanEncoding huffman_encoding_;
   StrictMock<MockDecoderStreamErrorDelegate> decoder_stream_error_delegate_;
   StrictMock<MockQpackStreamSenderDelegate> encoder_stream_sender_delegate_;
   QpackEncoder encoder_;
   QuicByteCount encoder_stream_sent_byte_count_;
 };
 
-INSTANTIATE_TEST_SUITE_P(DisableHuffmanEncoding, QpackEncoderTest,
-                         testing::Values(false, true));
+INSTANTIATE_TEST_SUITE_P(HuffmanEncoding, QpackEncoderTest,
+                         ::testing::ValuesIn({HuffmanEncoding::kEnabled,
+                                              HuffmanEncoding::kDisabled}),
+                         PrintToString);
 
 TEST_P(QpackEncoderTest, Empty) {
   EXPECT_CALL(encoder_stream_sender_delegate_, NumBytesBuffered())
@@ -91,10 +107,10 @@ TEST_P(QpackEncoderTest, EmptyName) {
   std::string output = Encode(header_list);
 
   std::string expected_output;
-  if (DisableHuffmanEncoding()) {
-    ASSERT_TRUE(absl::HexStringToBytes("00002003666f6f", &expected_output));
-  } else {
+  if (HuffmanEnabled()) {
     ASSERT_TRUE(absl::HexStringToBytes("0000208294e7", &expected_output));
+  } else {
+    ASSERT_TRUE(absl::HexStringToBytes("00002003666f6f", &expected_output));
   }
   EXPECT_EQ(expected_output, output);
 }
@@ -107,10 +123,10 @@ TEST_P(QpackEncoderTest, EmptyValue) {
   std::string output = Encode(header_list);
 
   std::string expected_output;
-  if (DisableHuffmanEncoding()) {
-    ASSERT_TRUE(absl::HexStringToBytes("000023666f6f00", &expected_output));
-  } else {
+  if (HuffmanEnabled()) {
     ASSERT_TRUE(absl::HexStringToBytes("00002a94e700", &expected_output));
+  } else {
+    ASSERT_TRUE(absl::HexStringToBytes("000023666f6f00", &expected_output));
   }
   EXPECT_EQ(expected_output, output);
 }
@@ -135,11 +151,11 @@ TEST_P(QpackEncoderTest, Simple) {
   std::string output = Encode(header_list);
 
   std::string expected_output;
-  if (DisableHuffmanEncoding()) {
+  if (HuffmanEnabled()) {
+    ASSERT_TRUE(absl::HexStringToBytes("00002a94e703626172", &expected_output));
+  } else {
     ASSERT_TRUE(
         absl::HexStringToBytes("000023666f6f03626172", &expected_output));
-  } else {
-    ASSERT_TRUE(absl::HexStringToBytes("00002a94e703626172", &expected_output));
   }
   EXPECT_EQ(expected_output, output);
 }
@@ -154,14 +170,14 @@ TEST_P(QpackEncoderTest, Multiple) {
   std::string output = Encode(header_list);
 
   std::string expected_output_hex;
-  if (DisableHuffmanEncoding()) {
-    expected_output_hex =
-        "0000"               // prefix
-        "23666f6f03626172";  // foo: bar
-  } else {
+  if (HuffmanEnabled()) {
     expected_output_hex =
         "0000"             // prefix
         "2a94e703626172";  // foo: bar
+  } else {
+    expected_output_hex =
+        "0000"               // prefix
+        "23666f6f03626172";  // foo: bar
   }
   expected_output_hex +=
       "27005a5a5a5a5a5a5a"  // 7 octet long header name, the smallest number
@@ -199,12 +215,12 @@ TEST_P(QpackEncoderTest, StaticTable) {
 
     std::string output = Encode(header_list);
     std::string expected_output;
-    if (DisableHuffmanEncoding()) {
-      ASSERT_TRUE(absl::HexStringToBytes(
-          "0000d45f1008636f6d70726573735c03666f6f", &expected_output));
-    } else {
+    if (HuffmanEnabled()) {
       ASSERT_TRUE(absl::HexStringToBytes("0000d45f108621e9aec2a11f5c8294e7",
                                          &expected_output));
+    } else {
+      ASSERT_TRUE(absl::HexStringToBytes(
+          "0000d45f1008636f6d70726573735c03666f6f", &expected_output));
     }
     EXPECT_EQ(expected_output, output);
   }
@@ -226,7 +242,7 @@ TEST_P(QpackEncoderTest, DecoderStreamError) {
               OnDecoderStreamError(QUIC_QPACK_DECODER_STREAM_INTEGER_TOO_LARGE,
                                    Eq("Encoded integer too large.")));
 
-  QpackEncoder encoder(&decoder_stream_error_delegate_, HuffmanEncoding());
+  QpackEncoder encoder(&decoder_stream_error_delegate_, huffman_encoding_);
   encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate_);
   std::string input;
   ASSERT_TRUE(absl::HexStringToBytes("ffffffffffffffffffffff", &input));
@@ -241,19 +257,19 @@ TEST_P(QpackEncoderTest, SplitAlongNullCharacter) {
   std::string output = Encode(header_list);
 
   std::string expected_output;
-  if (DisableHuffmanEncoding()) {
-    ASSERT_TRUE(
-        absl::HexStringToBytes("0000"               // prefix
-                               "23666f6f03626172"   // foo: bar
-                               "23666f6f03626172"   // foo: bar
-                               "23666f6f0362617a",  // foo: bar
-                               &expected_output));
-  } else {
+  if (HuffmanEnabled()) {
     ASSERT_TRUE(
         absl::HexStringToBytes("0000"             // prefix
                                "2a94e703626172"   // foo: bar
                                "2a94e703626172"   // foo: bar
                                "2a94e70362617a",  // foo: baz
+                               &expected_output));
+  } else {
+    ASSERT_TRUE(
+        absl::HexStringToBytes("0000"               // prefix
+                               "23666f6f03626172"   // foo: bar
+                               "23666f6f03626172"   // foo: bar
+                               "23666f6f0362617a",  // foo: bar
                                &expected_output));
   }
   EXPECT_EQ(expected_output, output);
@@ -332,14 +348,14 @@ TEST_P(QpackEncoderTest, DynamicTable) {
   ASSERT_TRUE(absl::HexStringToBytes("3fe11f", &set_dyanamic_table_capacity));
   // Insert three entries into the dynamic table.
   std::string insert_entries_hex;
-  if (DisableHuffmanEncoding()) {
-    insert_entries_hex =
-        "43"       // insert without name reference
-        "666f6f";  // Huffman-encoded name "foo"
-  } else {
+  if (HuffmanEnabled()) {
     insert_entries_hex =
         "62"     // insert without name reference
-        "94e7";  // Huffman-encoded name "foo"
+        "94e7";  // Huffman-encoded literal name "foo"
+  } else {
+    insert_entries_hex =
+        "43"       // insert without name reference
+        "666f6f";  // literal name "foo"
   }
   insert_entries_hex +=
       "03626172"   // value "bar"
@@ -383,16 +399,16 @@ TEST_P(QpackEncoderTest, SmallDynamicTable) {
   ASSERT_TRUE(absl::HexStringToBytes("3f07", &set_dyanamic_table_capacity));
   // Insert one entry into the dynamic table.
   std::string insert_entry;
-  if (DisableHuffmanEncoding()) {
+  if (HuffmanEnabled()) {
     ASSERT_TRUE(
-        absl::HexStringToBytes("43"         // insert without name reference
-                               "666f6f"     // Huffman-encoded name "foo"
+        absl::HexStringToBytes("62"    // insert without name reference
+                               "94e7"  // Huffman-encoded literal name "foo"
                                "03626172",  // value "bar"
                                &insert_entry));
   } else {
     ASSERT_TRUE(
-        absl::HexStringToBytes("62"         // insert without name reference
-                               "94e7"       // Huffman-encoded name "foo"
+        absl::HexStringToBytes("43"         // insert without name reference
+                               "666f6f"     // literal name "foo"
                                "03626172",  // value "bar"
                                &insert_entry));
   }
@@ -431,16 +447,16 @@ TEST_P(QpackEncoderTest, BlockedStream) {
   ASSERT_TRUE(absl::HexStringToBytes("3fe11f", &set_dyanamic_table_capacity));
   // Insert one entry into the dynamic table.
   std::string insert_entry1;
-  if (DisableHuffmanEncoding()) {
+  if (HuffmanEnabled()) {
     ASSERT_TRUE(
-        absl::HexStringToBytes("43"         // insert without name reference
-                               "666f6f"     // Huffman-encoded name "foo"
+        absl::HexStringToBytes("62"    // insert without name reference
+                               "94e7"  // Huffman-encoded literal name "foo"
                                "03626172",  // value "bar"
                                &insert_entry1));
   } else {
     ASSERT_TRUE(
-        absl::HexStringToBytes("62"         // insert without name reference
-                               "94e7"       // Huffman-encoded name "foo"
+        absl::HexStringToBytes("43"         // insert without name reference
+                               "666f6f"     // literal name "foo"
                                "03626172",  // value "bar"
                                &insert_entry1));
   }
@@ -467,12 +483,12 @@ TEST_P(QpackEncoderTest, BlockedStream) {
   header_list2["bar"] = "baz";                 // no match
 
   std::string entries;
-  if (DisableHuffmanEncoding()) {
+  if (HuffmanEnabled()) {
     ASSERT_TRUE(
         absl::HexStringToBytes("0000"       // prefix
-                               "23666f6f"   // literal name "foo"
+                               "2a94e7"     // literal name "foo"
                                "03626172"   // with literal value "bar"
-                               "23666f6f"   // literal name "foo"
+                               "2a94e7"     // literal name "foo"
                                "0362617a"   // with literal value "baz"
                                "55"         // name of static entry 5
                                "0362617a"   // with literal value "baz"
@@ -482,9 +498,9 @@ TEST_P(QpackEncoderTest, BlockedStream) {
   } else {
     ASSERT_TRUE(
         absl::HexStringToBytes("0000"       // prefix
-                               "2a94e7"     // literal name "foo"
+                               "23666f6f"   // literal name "foo"
                                "03626172"   // with literal value "bar"
-                               "2a94e7"     // literal name "foo"
+                               "23666f6f"   // literal name "foo"
                                "0362617a"   // with literal value "baz"
                                "55"         // name of static entry 5
                                "0362617a"   // with literal value "baz"
@@ -528,18 +544,7 @@ TEST_P(QpackEncoderTest, BlockedStream) {
   // reference already acknowledged dynamic entry 0.
   std::string expected2;
   if (GetQuicReloadableFlag(quic_better_qpack_compression)) {
-    if (DisableHuffmanEncoding()) {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0200"       // prefix
-                                 "80"         // dynamic entry 0
-                                 "23666f6f"   // literal name "foo"
-                                 "0362617a"   // with literal value "baz"
-                                 "55"         // name of static entry 5
-                                 "0362617a"   // with literal value "baz"
-                                 "23626172"   // literal name "bar"
-                                 "0362617a",  // with literal value "baz"
-                                 &expected2));
-    } else {
+    if (HuffmanEnabled()) {
       ASSERT_TRUE(
           absl::HexStringToBytes("0200"       // prefix
                                  "80"         // dynamic entry 0
@@ -550,20 +555,20 @@ TEST_P(QpackEncoderTest, BlockedStream) {
                                  "23626172"   // literal name "bar"
                                  "0362617a",  // with literal value "baz"
                                  &expected2));
+    } else {
+      ASSERT_TRUE(
+          absl::HexStringToBytes("0200"       // prefix
+                                 "80"         // dynamic entry 0
+                                 "23666f6f"   // literal name "foo"
+                                 "0362617a"   // with literal value "baz"
+                                 "55"         // name of static entry 5
+                                 "0362617a"   // with literal value "baz"
+                                 "23626172"   // literal name "bar"
+                                 "0362617a",  // with literal value "baz"
+                                 &expected2));
     }
   } else {
-    if (DisableHuffmanEncoding()) {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0200"            // prefix
-                                 "80"              // dynamic entry 0
-                                 "23666f6f"        // literal name "foo"
-                                 "0362617a"        // with literal value "baz"
-                                 "26636f6f6b6965"  // literal name "cookie"
-                                 "0362617a"        // with literal value "baz"
-                                 "23626172"        // literal name "bar"
-                                 "0362617a",       // with literal value "baz"
-                                 &expected2));
-    } else {
+    if (HuffmanEnabled()) {
       ASSERT_TRUE(
           absl::HexStringToBytes("0200"        // prefix
                                  "80"          // dynamic entry 0
@@ -573,6 +578,17 @@ TEST_P(QpackEncoderTest, BlockedStream) {
                                  "0362617a"    // with literal value "baz"
                                  "23626172"    // literal name "bar"
                                  "0362617a",   // with literal value "baz"
+                                 &expected2));
+    } else {
+      ASSERT_TRUE(
+          absl::HexStringToBytes("0200"            // prefix
+                                 "80"              // dynamic entry 0
+                                 "23666f6f"        // literal name "foo"
+                                 "0362617a"        // with literal value "baz"
+                                 "26636f6f6b6965"  // literal name "cookie"
+                                 "0362617a"        // with literal value "baz"
+                                 "23626172"        // literal name "bar"
+                                 "0362617a",       // with literal value "baz"
                                  &expected2));
     }
   }
@@ -679,10 +695,10 @@ TEST_P(QpackEncoderTest, Draining) {
   std::string entries =
       "0000"       // prefix
       "2374776f";  // literal name "two"
-  if (DisableHuffmanEncoding()) {
-    entries += "03666f6f";  // literal name "foo"
-  } else {
+  if (HuffmanEnabled()) {
     entries += "8294e7";  // literal value "foo"
+  } else {
+    entries += "03666f6f";  // literal name "foo"
   }
   entries +=
       "2374776f"   // literal name "two"
@@ -718,12 +734,12 @@ TEST_P(QpackEncoderTest, EncoderStreamWritesDisallowedThenAllowed) {
   // No Set Dynamic Table Capacity or Insert instructions are sent.
   // Headers are encoded as string literals.
   std::string entries;
-  if (DisableHuffmanEncoding()) {
+  if (HuffmanEnabled()) {
     ASSERT_TRUE(
         absl::HexStringToBytes("0000"       // prefix
-                               "23666f6f"   // literal name "foo"
+                               "2a94e7"     // literal name "foo"
                                "03626172"   // with literal value "bar"
-                               "23666f6f"   // literal name "foo"
+                               "2a94e7"     // literal name "foo"
                                "0362617a"   // with literal value "baz"
                                "55"         // name of static entry 5
                                "0362617a",  // with literal value "baz"
@@ -731,9 +747,9 @@ TEST_P(QpackEncoderTest, EncoderStreamWritesDisallowedThenAllowed) {
   } else {
     ASSERT_TRUE(
         absl::HexStringToBytes("0000"       // prefix
-                               "2a94e7"     // literal name "foo"
+                               "23666f6f"   // literal name "foo"
                                "03626172"   // with literal value "bar"
-                               "2a94e7"     // literal name "foo"
+                               "23666f6f"   // literal name "foo"
                                "0362617a"   // with literal value "baz"
                                "55"         // name of static entry 5
                                "0362617a",  // with literal value "baz"
@@ -760,14 +776,14 @@ TEST_P(QpackEncoderTest, EncoderStreamWritesDisallowedThenAllowed) {
   ASSERT_TRUE(absl::HexStringToBytes("3fe11f", &set_dyanamic_table_capacity));
   // Insert three entries into the dynamic table.
   std::string insert_entries_hex;
-  if (DisableHuffmanEncoding()) {
-    insert_entries_hex =
-        "43"       // insert without name reference
-        "666f6f";  // name "foo"
-  } else {
+  if (HuffmanEnabled()) {
     insert_entries_hex =
         "62"     // insert without name reference
-        "94e7";  // Huffman-encoded name "foo"
+        "94e7";  // Huffman-encoded literal name "foo"
+  } else {
+    insert_entries_hex =
+        "43"       // insert without name reference
+        "666f6f";  // literal name "foo"
   }
   insert_entries_hex +=
       "03626172"   // value "bar"
@@ -809,14 +825,14 @@ TEST_P(QpackEncoderTest, EncoderStreamWritesAllowedThenDisallowed) {
   ASSERT_TRUE(absl::HexStringToBytes("3fe11f", &set_dyanamic_table_capacity));
   // Insert three entries into the dynamic table.
   std::string insert_entries_hex;
-  if (DisableHuffmanEncoding()) {
-    insert_entries_hex =
-        "43"       // insert without name reference
-        "666f6f";  // name "foo"
-  } else {
+  if (HuffmanEnabled()) {
     insert_entries_hex =
         "62"     // insert without name reference
-        "94e7";  // Huffman-encoded name "foo"
+        "94e7";  // Huffman-encoded literal name "foo"
+  } else {
+    insert_entries_hex =
+        "43"       // insert without name reference
+        "666f6f";  // literal name "foo"
   }
   insert_entries_hex +=
       "03626172"   // value "bar"
@@ -887,16 +903,16 @@ TEST_P(QpackEncoderTest, UnackedEntryCannotBeEvicted) {
   ASSERT_TRUE(absl::HexStringToBytes("3f09", &set_dyanamic_table_capacity));
   // Insert one entry into the dynamic table.
   std::string insert_entries1;
-  if (DisableHuffmanEncoding()) {
+  if (HuffmanEnabled()) {
     ASSERT_TRUE(
-        absl::HexStringToBytes("43"         // insert without name reference
-                               "666f6f"     // Huffman-encoded name "foo"
+        absl::HexStringToBytes("62"    // insert without name reference
+                               "94e7"  // Huffman-encoded literal name "foo"
                                "03626172",  // value "bar"
                                &insert_entries1));
   } else {
     ASSERT_TRUE(
-        absl::HexStringToBytes("62"         // insert without name reference
-                               "94e7"       // Huffman-encoded name "foo"
+        absl::HexStringToBytes("43"         // insert without name reference
+                               "666f6f"     // literal name "foo"
                                "03626172",  // value "bar"
                                &insert_entries1));
   }
@@ -991,18 +1007,18 @@ TEST_P(QpackEncoderTest, UseStaticTableNameOnlyMatch) {
         "03626172",  // literal value "bar"
         &expected_output));
   } else {
-    if (DisableHuffmanEncoding()) {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0000"                // prefix
-                                 "27003a6d6574686f64"  // literal name ":method"
-                                 "03626172",           // literal value "bar"
-                                 &expected_output));
-    } else {
+    if (HuffmanEnabled()) {
       ASSERT_TRUE(absl::HexStringToBytes(
           "0000"          // prefix
           "2db9495339e4"  // Huffman-encoded literal name ":method"
           "03626172",     // literal value "bar"
           &expected_output));
+    } else {
+      ASSERT_TRUE(
+          absl::HexStringToBytes("0000"                // prefix
+                                 "27003a6d6574686f64"  // literal name ":method"
+                                 "03626172",           // literal value "bar"
+                                 &expected_output));
     }
   }
   EXPECT_EQ(expected_output,
@@ -1077,33 +1093,33 @@ TEST_P(QpackEncoderTest, UseDynamicTableNameOnlyMatch) {
     // Entry matches name and value of oldest dynamic table entry, which cannot
     // be used. Use the name of the most recent dynamic table entry instead, and
     // encode value as string literal.
-    if (DisableHuffmanEncoding()) {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0c00"       // prefix
-                                 "40"         // name as dynamic table entry 0
-                                 "03666f6f",  // literal value "foo"
-                                 &expected_output));
-    } else {
+    if (HuffmanEnabled()) {
       ASSERT_TRUE(absl::HexStringToBytes(
           "0c00"     // prefix
           "40"       // name as dynamic table entry 0
           "8294e7",  // Huffman-encoded literal value "foo"
           &expected_output));
+    } else {
+      ASSERT_TRUE(
+          absl::HexStringToBytes("0c00"       // prefix
+                                 "40"         // name as dynamic table entry 0
+                                 "03666f6f",  // literal value "foo"
+                                 &expected_output));
     }
   } else {
     // Entry matches name and value of oldest dynamic table entry, which cannot
     // be used. Encode both name and value as string literal instead.
-    if (DisableHuffmanEncoding()) {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0000"       // prefix
-                                 "236f6e65"   // literal name "one"
-                                 "03666f6f",  // literal value "foo"
-                                 &expected_output));
-    } else {
+    if (HuffmanEnabled()) {
       ASSERT_TRUE(
           absl::HexStringToBytes("0000"     // prefix
                                  "2a3d45"   // literal name "one"
                                  "8294e7",  // literal value "foo"
+                                 &expected_output));
+    } else {
+      ASSERT_TRUE(
+          absl::HexStringToBytes("0000"       // prefix
+                                 "236f6e65"   // literal name "one"
+                                 "03666f6f",  // literal value "foo"
                                  &expected_output));
     }
   }
