@@ -197,7 +197,8 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kB206)) {
     params_.startup_full_loss_count = params_.probe_bw_full_loss_count;
   }
-  if (ContainsQuicTag(connection_options, kBBPD)) {
+  if (GetQuicReloadableFlag(quic_bbr2_enable_bbpd_by_default) ||
+      ContainsQuicTag(connection_options, kBBPD)) {
     // Derived constant to ensure fairness.
     params_.probe_bw_probe_down_pacing_gain = 0.91;
   }

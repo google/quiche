@@ -12,6 +12,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_http2_add_hpack_overhead_bytes2, false,
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_act_upon_invalid_header, true, "If true, reject or send error response code upon receiving invalid request or response headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_add_stream_info_to_idle_close_detail, false, "If true, include stream information in idle timeout connection close detail.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_allow_client_enabled_bbr_v2, true, "If true, allow client to enable BBRv2 on server via connection option 'B2ON'.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr2_enable_bbpd_by_default, false, "If true, QUIC BBR2 will use a 0.91 PROBE_DOWN gain by default.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr2_extra_acked_window, false, "When true, the BBR4 copt sets the extra_acked window to 20 RTTs and BBR5 sets it to 40 RTTs.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr2_probe_two_rounds, true, "When true, the BB2U copt causes BBR2 to wait two rounds with out draining the queue before exiting PROBE_UP and BB2S has the same effect in STARTUP.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr2_simplify_inflight_hi, true, "When true, the BBHI copt causes QUIC BBRv2 to use a simpler algorithm for raising inflight_hi in PROBE_UP.")
