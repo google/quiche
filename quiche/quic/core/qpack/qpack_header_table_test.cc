@@ -111,24 +111,20 @@ class QpackEncoderHeaderTableTest
 
   std::tuple<MatchType, bool, uint64_t> FindHeaderField(
       absl::string_view name, absl::string_view value) const {
-    bool is_static = false;
-    uint64_t index = 0;
+    QpackEncoderHeaderTable::MatchResult match_result =
+        table_.FindHeaderField(name, value);
 
-    QpackEncoderHeaderTable::MatchType match_type =
-        table_.FindHeaderField(name, value, &is_static, &index);
-
-    return {static_cast<MatchType>(match_type), is_static, index};
+    return {static_cast<MatchType>(match_result.match_type),
+            match_result.is_static, match_result.index};
   }
 
   std::tuple<MatchType, bool, uint64_t> FindHeaderName(
       absl::string_view name) const {
-    bool is_static = false;
-    uint64_t index = 0;
+    QpackEncoderHeaderTable::MatchResult match_result =
+        table_.FindHeaderName(name);
 
-    QpackEncoderHeaderTable::MatchType match_type =
-        table_.FindHeaderName(name, &is_static, &index);
-
-    return {static_cast<MatchType>(match_type), is_static, index};
+    return {static_cast<MatchType>(match_result.match_type),
+            match_result.is_static, match_result.index};
   }
 
   uint64_t MaxInsertSizeWithoutEvictingGivenEntry(uint64_t index) const {

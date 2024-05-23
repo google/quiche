@@ -53,49 +53,50 @@ uint64_t QpackEncoderHeaderTable::InsertEntry(absl::string_view name,
   return index;
 }
 
-QpackEncoderHeaderTable::MatchType QpackEncoderHeaderTable::FindHeaderField(
-    absl::string_view name, absl::string_view value, bool* is_static,
-    uint64_t* index) const {
+QpackEncoderHeaderTable::MatchResult QpackEncoderHeaderTable::FindHeaderField(
+    absl::string_view name, absl::string_view value) const {
   QpackLookupEntry query{name, value};
 
   // Look for exact match in static table.
   auto index_it = static_index_.find(query);
   if (index_it != static_index_.end()) {
-    *index = index_it->second;
-    *is_static = true;
-    return MatchType::kNameAndValue;
+    return {/* match_type = */ MatchType::kNameAndValue,
+            /* is_static = */ true,
+            /* index = */ index_it->second};
   }
 
   // Look for exact match in dynamic table.
   index_it = dynamic_index_.find(query);
   if (index_it != dynamic_index_.end()) {
-    *index = index_it->second;
-    *is_static = false;
-    return MatchType::kNameAndValue;
+    return {/* match_type = */ MatchType::kNameAndValue,
+            /* is_static = */ false,
+            /* index = */ index_it->second};
   }
 
-  return FindHeaderName(name, is_static, index);
+  return FindHeaderName(name);
 }
 
-QpackEncoderHeaderTable::MatchType QpackEncoderHeaderTable::FindHeaderName(
-    absl::string_view name, bool* is_static, uint64_t* index) const {
+QpackEncoderHeaderTable::MatchResult QpackEncoderHeaderTable::FindHeaderName(
+    absl::string_view name) const {
   // Look for name match in static table.
   auto name_index_it = static_name_index_.find(name);
   if (name_index_it != static_name_index_.end()) {
-    *index = name_index_it->second;
-    *is_static = true;
-    return MatchType::kName;
+    return {/* match_type = */ MatchType::kName,
+            /* is_static = */ true,
+            /* index = */ name_index_it->second};
   }
 
   // Look for name match in dynamic table.
   name_index_it = dynamic_name_index_.find(name);
   if (name_index_it != dynamic_name_index_.end()) {
-    *index = name_index_it->second;
-    *is_static = false;
-    return MatchType::kName;
+    return {/* match_type = */ MatchType::kName,
+            /* is_static = */ false,
+            /* index = */ name_index_it->second};
   }
 
-  return MatchType::kNoMatch;
+  return {/* match_type = */ MatchType::kNoMatch,
+          /* is_static = */ false,
+          /* index = */ 0};
 }
 
 uint64_t QpackEncoderHeaderTable::MaxInsertSizeWithoutEvictingGivenEntry(
