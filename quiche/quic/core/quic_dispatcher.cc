@@ -63,6 +63,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_stack_trace.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/print_elements.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_text_utils.h"
@@ -1291,7 +1292,11 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
           << ", version:" << version << ", self_address:" << self_address
           << ", peer_address:" << peer_address
           << ", parsed_chlo:" << parsed_chlo
-          << ", other peer address: " << other_connection->peer_address();
+          << ", other peer address: " << other_connection->peer_address()
+          << ", other CIDs: "
+          << quiche::PrintElements(
+                 other_connection->GetActiveServerConnectionIds())
+          << ", other stats: " << other_connection->GetStats();
     }
     if (replaced_connection_id) {
       QUIC_CODE_COUNT(quic_replaced_connection_id_collision);
