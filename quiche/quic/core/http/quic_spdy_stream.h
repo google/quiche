@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/base/attributes.h"
@@ -341,6 +342,14 @@ class QUICHE_EXPORT QuicSpdyStream
   void RegisterMetadataVisitor(MetadataVisitor* visitor);
   void UnregisterMetadataVisitor();
 
+  // Returns how long header decoding was delayed due to waiting for data to
+  // arrive on the QPACK encoder stream.
+  // Returns zero if header block could be decoded as soon as it was received.
+  // Returns `nullopt` if header block is not decoded yet.
+  std::optional<QuicTime::Delta> header_decoding_delay() const {
+    return header_decoding_delay_;
+  }
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.
@@ -529,6 +538,15 @@ class QUICHE_EXPORT QuicSpdyStream
 
   // Empty if the headers are valid.
   std::string invalid_request_details_;
+
+  // Time when entire header block was received.
+  // Only set if decoding was blocked.
+  QuicTime header_block_received_time_ = QuicTime::Zero();
+
+  // Header decoding delay due to waiting for data on the QPACK encoder stream.
+  // Zero if header block could be decoded as soon as it was received.
+  // `nullopt` if header block is not decoded yet.
+  std::optional<QuicTime::Delta> header_decoding_delay_;
 };
 
 }  // namespace quic

@@ -584,10 +584,19 @@ void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers,
 
   OnStreamHeaderList(/* fin = */ false, headers_payload_length_, headers);
 
+  header_decoding_delay_ = QuicTime::Delta::Zero();
+
   if (blocked_on_decoding_headers_) {
     blocked_on_decoding_headers_ = false;
     // Continue decoding HTTP/3 frames.
     OnDataAvailable();
+    const QuicTime now = session()->GetClock()->ApproximateNow();
+    if (!header_block_received_time_.IsInitialized() ||
+        now < header_block_received_time_) {
+      QUICHE_BUG(QuicSpdyStream_time_flows_backwards);
+    } else {
+      header_decoding_delay_ = now - header_block_received_time_;
+    }
   }
 }
 
@@ -1128,6 +1137,7 @@ bool QuicSpdyStream::OnHeadersFrameEnd() {
   // |qpack_decoded_headers_accumulator_| is already reset.
   if (qpack_decoded_headers_accumulator_) {
     blocked_on_decoding_headers_ = true;
+    header_block_received_time_ = session()->GetClock()->ApproximateNow();
     return false;
   }
 

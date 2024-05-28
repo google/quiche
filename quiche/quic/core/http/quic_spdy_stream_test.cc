@@ -60,6 +60,7 @@ using testing::HasSubstr;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
 using testing::MatchesRegex;
+using testing::Optional;
 using testing::Pair;
 using testing::Return;
 using testing::SaveArg;
@@ -2253,6 +2254,8 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
   // Deliver dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
 
+  EXPECT_EQ(std::nullopt, stream_->header_decoding_delay());
+
   // HEADERS frame referencing first dynamic table entry.
   std::string encoded_headers;
   ASSERT_TRUE(absl::HexStringToBytes("020080", &encoded_headers));
@@ -2278,6 +2281,9 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
   // Verify headers.
   EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
   stream_->ConsumeHeaderList();
+
+  EXPECT_THAT(stream_->header_decoding_delay(),
+              Optional(QuicTime::Delta::Zero()));
 
   // DATA frame.
   std::string data = DataFrame(kDataFramePayload);
@@ -2336,6 +2342,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
 
   // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream_->headers_decompressed());
+  EXPECT_EQ(std::nullopt, stream_->header_decoding_delay());
 
   auto decoder_send_stream =
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
@@ -2351,6 +2358,10 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
                            /* offset = */ 1, _, _, _));
   }
   EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _));
+
+  const QuicTime::Delta delay = QuicTime::Delta::FromSeconds(1);
+  helper_.GetClock()->AdvanceTime(delay);
+
   // Deliver dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
   EXPECT_TRUE(stream_->headers_decompressed());
@@ -2358,6 +2369,8 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   // Verify headers.
   EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
   stream_->ConsumeHeaderList();
+
+  EXPECT_THAT(stream_->header_decoding_delay(), Optional(delay));
 
   // DATA frame.
   std::string data = DataFrame(kDataFramePayload);
