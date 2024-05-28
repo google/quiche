@@ -163,7 +163,8 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
       // Don't increment when we are at the end.
       const std::size_t container_size = deque_->container_.size();
       if (index_ >= container_size) {
-        QUIC_BUG(quic_bug_10862_1) << "Iterator out of bounds.";
+        QUIC_BUG(QuicIntervalDeque_operator_plus_plus_iterator_out_of_bounds)
+            << "Iterator out of bounds.";
         return *this;
       }
       index_++;
@@ -188,7 +189,8 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
     }
     Iterator& operator--() {
       if (index_ == 0) {
-        QUIC_BUG(quic_bug_10862_4) << "Iterator out of bounds.";
+        QUIC_BUG(QuicIntervalDeque_operator_minus_minus_iterator_out_of_bounds)
+            << "Iterator out of bounds.";
         return *this;
       }
       index_--;
@@ -287,7 +289,8 @@ void QuicIntervalDeque<T, C>::PushBack(const T& item) {
 template <class T, class C>
 void QuicIntervalDeque<T, C>::PopFront() {
   if (container_.size() == 0) {
-    QUIC_BUG(quic_bug_10862_2) << "Trying to pop from an empty container.";
+    QUIC_BUG(QuicIntervalDeque_PopFront_empty)
+        << "Trying to pop from an empty container.";
     return;
   }
   container_.pop_front();
@@ -370,7 +373,7 @@ void QuicIntervalDeque<T, C>::PushBackUniversal(U&& item) {
   QuicInterval<std::size_t> interval = item.interval();
   // Adding an empty interval is a bug.
   if (interval.Empty()) {
-    QUIC_BUG(quic_bug_10862_3)
+    QUIC_BUG(QuicIntervalDeque_PushBackUniversal_empty)
         << "Trying to save empty interval to quiche::QuicheCircularDeque.";
     return;
   }

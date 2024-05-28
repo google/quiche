@@ -388,6 +388,12 @@ TEST_F(QuicIntervalDequeTest, IteratorMethods) {
   it2 -= 1;
   it2 += 23;
   EXPECT_EQ(it1, it2);
+
+  it1 = qid_.DataBegin();
+  EXPECT_QUIC_BUG(it1--, "Iterator out of bounds.");
+
+  it2 = qid_.DataEnd();
+  EXPECT_QUIC_BUG(it2++, "Iterator out of bounds.");
 }
 
 }  // namespace test
