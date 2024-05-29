@@ -242,6 +242,8 @@ bool WebTransportWriteBlockedList::IsStreamBlocked(
       const Subscheduler& subscheduler = it->second;
       return subscheduler.IsScheduled(stream_id);
   }
+  QUICHE_NOTREACHED();
+  return false;
 }
 
 QuicStreamPriority WebTransportWriteBlockedList::GetPriorityOfStream(
