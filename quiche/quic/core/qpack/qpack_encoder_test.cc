@@ -35,7 +35,6 @@ std::string PrintToString(const testing::TestParamInfo<HuffmanEncoding>& info) {
   switch (info.param) {
     case HuffmanEncoding::kEnabled:
       return "HuffmanEnabled";
-      break;
     case HuffmanEncoding::kDisabled:
       return "HuffmanDisabled";
   }
