@@ -1761,8 +1761,18 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     uint64_t full_packet_number;
     bool hp_removal_failed = false;
     if (version_.HasHeaderProtection()) {
-      if (!RemoveHeaderProtection(encrypted_reader, packet, header,
-                                  &full_packet_number, ad_storage)) {
+      EncryptionLevel expected_decryption_level = GetEncryptionLevel(*header);
+      QuicDecrypter* decrypter = decrypter_[expected_decryption_level].get();
+      if (decrypter == nullptr) {
+        QUIC_DVLOG(1)
+            << ENDPOINT
+            << "No decrypter available for removing header protection at level "
+            << expected_decryption_level;
+        hp_removal_failed = true;
+      } else if (!RemoveHeaderProtection(encrypted_reader, packet, *decrypter,
+                                         perspective_, version_,
+                                         base_packet_number, header,
+                                         &full_packet_number, ad_storage)) {
         hp_removal_failed = true;
       }
       associated_data = absl::string_view(ad_storage.data(), ad_storage.size());
@@ -2113,7 +2123,7 @@ const QuicTime::Delta QuicFramer::CalculateTimestampFromWire(
 
 uint64_t QuicFramer::CalculatePacketNumberFromWire(
     QuicPacketNumberLength packet_number_length,
-    QuicPacketNumber base_packet_number, uint64_t packet_number) const {
+    QuicPacketNumber base_packet_number, uint64_t packet_number) {
   // The new packet number might have wrapped to the next epoch, or
   // it might have reverse wrapped to the previous epoch, or it might
   // remain in the same epoch.  Select the packet number closest to the
@@ -4303,23 +4313,15 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level, char* buffer,
 
 bool QuicFramer::RemoveHeaderProtection(
     QuicDataReader* reader, const QuicEncryptedPacket& packet,
+    QuicDecrypter& decrypter, Perspective perspective,
+    const ParsedQuicVersion& version, QuicPacketNumber base_packet_number,
     QuicPacketHeader* header, uint64_t* full_packet_number,
     AssociatedDataStorage& associated_data) {
-  EncryptionLevel expected_decryption_level = GetEncryptionLevel(*header);
-  QuicDecrypter* decrypter = decrypter_[expected_decryption_level].get();
-  if (decrypter == nullptr) {
-    QUIC_DVLOG(1)
-        << ENDPOINT
-        << "No decrypter available for removing header protection at level "
-        << expected_decryption_level;
-    return false;
-  }
-
   bool has_diversification_nonce =
       header->form == IETF_QUIC_LONG_HEADER_PACKET &&
       header->long_packet_type == ZERO_RTT_PROTECTED &&
-      perspective_ == Perspective::IS_CLIENT &&
-      version_.handshake_protocol == PROTOCOL_QUIC_CRYPTO;
+      perspective == Perspective::IS_CLIENT &&
+      version.handshake_protocol == PROTOCOL_QUIC_CRYPTO;
 
   // Read a sample from the ciphertext and compute the mask to use for header
   // protection.
@@ -4340,7 +4342,7 @@ bool QuicFramer::RemoveHeaderProtection(
       return false;
     }
   }
-  std::string mask = decrypter->GenerateHeaderProtectionMask(&sample_reader);
+  std::string mask = decrypter.GenerateHeaderProtectionMask(&sample_reader);
   QuicDataReader mask_reader(mask.data(), mask.size());
   if (mask.empty()) {
     QUIC_DVLOG(1) << "Failed to compute mask";
@@ -4378,16 +4380,6 @@ bool QuicFramer::RemoveHeaderProtection(
     }
   }
   QuicDataReader packet_number_reader(pn_writer.data(), pn_writer.length());
-  QuicPacketNumber base_packet_number;
-  if (supports_multiple_packet_number_spaces_) {
-    PacketNumberSpace pn_space = GetPacketNumberSpace(*header);
-    if (pn_space == NUM_PACKET_NUMBER_SPACES) {
-      return false;
-    }
-    base_packet_number = largest_decrypted_packet_numbers_[pn_space];
-  } else {
-    base_packet_number = largest_packet_number_;
-  }
   if (!ProcessAndCalculatePacketNumber(
           &packet_number_reader, header->packet_number_length,
           base_packet_number, full_packet_number)) {
@@ -4396,7 +4388,7 @@ bool QuicFramer::RemoveHeaderProtection(
 
   // Get the associated data, and apply the same unmasking operations to it.
   absl::string_view ad = GetAssociatedDataFromEncryptedPacket(
-      version_.transport_version, packet,
+      version.transport_version, packet,
       GetIncludedDestinationConnectionIdLength(*header),
       GetIncludedSourceConnectionIdLength(*header), header->version_flag,
       has_diversification_nonce, header->packet_number_length,
@@ -6486,6 +6478,119 @@ QuicErrorCode QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
       long_packet_type, version_present, has_length_prefix, version_label,
       parsed_version, destination_connection_id, source_connection_id,
       retry_token, detailed_error);
+}
+
+QuicErrorCode QuicFramer::TryDecryptInitialPacketDispatcher(
+    const QuicEncryptedPacket& packet, const ParsedQuicVersion& version,
+    PacketHeaderFormat format, QuicLongHeaderType long_packet_type,
+    const QuicConnectionId& destination_connection_id,
+    const QuicConnectionId& source_connection_id,
+    const std::optional<absl::string_view>& retry_token,
+    QuicPacketNumber largest_decrypted_inital_packet_number,
+    QuicDecrypter& decrypter, std::optional<uint64_t>* packet_number) {
+  QUICHE_DCHECK(packet_number != nullptr);
+  packet_number->reset();
+
+  // TODO(wub): Remove the version check once RFCv2 is supported by
+  // ParsePublicHeaderDispatcherShortHeaderLengthUnknown.
+  if (version != ParsedQuicVersion::RFCv1() &&
+      version != ParsedQuicVersion::Draft29()) {
+    return QUIC_NO_ERROR;
+  }
+  if (packet.length() == 0 || format != IETF_QUIC_LONG_HEADER_PACKET ||
+      !VersionHasIetfQuicFrames(version.transport_version) ||
+      long_packet_type != INITIAL) {
+    return QUIC_NO_ERROR;
+  }
+
+  QuicPacketHeader header;
+  header.destination_connection_id = destination_connection_id;
+  header.destination_connection_id_included =
+      destination_connection_id.IsEmpty() ? CONNECTION_ID_ABSENT
+                                          : CONNECTION_ID_PRESENT;
+  header.source_connection_id = source_connection_id;
+  header.source_connection_id_included = source_connection_id.IsEmpty()
+                                             ? CONNECTION_ID_ABSENT
+                                             : CONNECTION_ID_PRESENT;
+  header.reset_flag = false;
+  header.version_flag = true;
+  header.has_possible_stateless_reset_token = false;
+  header.type_byte = packet.data()[0];
+  header.version = version;
+  header.form = IETF_QUIC_LONG_HEADER_PACKET;
+  header.long_packet_type = INITIAL;
+  header.nonce = nullptr;
+  header.retry_token = retry_token.value_or(absl::string_view());
+  header.retry_token_length_length =
+      QuicDataWriter::GetVarInt62Len(header.retry_token.length());
+
+  // In a initial packet, the 3 fields after the Retry Token are:
+  // - Packet Length (i)
+  // - Packet Number (8..32)
+  // - Packet Payload (8..)
+  // Normally, GetStartOfEncryptedData returns the offset of the payload, here
+  // we want the QuicDataReader to start reading from the packet length, so we
+  // - Pass a length_length of VARIABLE_LENGTH_INTEGER_LENGTH_0,
+  // - Pass a packet number length of PACKET_1BYTE_PACKET_NUMBER,
+  // - Subtract PACKET_1BYTE_PACKET_NUMBER from the return value of
+  //   GetStartOfEncryptedData.
+  header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  // The real header.packet_number_length is populated after a successful return
+  // from RemoveHeaderProtection.
+  header.packet_number_length = PACKET_1BYTE_PACKET_NUMBER;
+
+  size_t remaining_packet_length_offset =
+      GetStartOfEncryptedData(version.transport_version, header) -
+      header.packet_number_length;
+  if (packet.length() <= remaining_packet_length_offset) {
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  QuicDataReader reader(packet.data() + remaining_packet_length_offset,
+                        packet.length() - remaining_packet_length_offset);
+
+  if (!reader.ReadVarInt62(&header.remaining_packet_length) ||
+      // If |packet| is coalesced, truncate such that |reader| only sees the
+      // first QUIC packet.
+      !reader.TruncateRemaining(header.remaining_packet_length)) {
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  header.length_length =
+      QuicDataWriter::GetVarInt62Len(header.remaining_packet_length);
+
+  AssociatedDataStorage associated_data;
+  uint64_t full_packet_number;
+  if (!RemoveHeaderProtection(&reader, packet, decrypter,
+                              Perspective::IS_SERVER, version,
+                              largest_decrypted_inital_packet_number, &header,
+                              &full_packet_number, associated_data)) {
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  ABSL_CACHELINE_ALIGNED char stack_buffer[kMaxIncomingPacketSize];
+  std::unique_ptr<char[]> heap_buffer;
+  char* decrypted_buffer;
+  size_t decrypted_buffer_length;
+  if (packet.length() <= kMaxIncomingPacketSize) {
+    decrypted_buffer = stack_buffer;
+    decrypted_buffer_length = kMaxIncomingPacketSize;
+  } else {
+    heap_buffer = std::make_unique<char[]>(packet.length());
+    decrypted_buffer = heap_buffer.get();
+    decrypted_buffer_length = packet.length();
+  }
+
+  size_t decrypted_length = 0;
+  if (!decrypter.DecryptPacket(
+          full_packet_number,
+          absl::string_view(associated_data.data(), associated_data.size()),
+          reader.ReadRemainingPayload(), decrypted_buffer, &decrypted_length,
+          decrypted_buffer_length)) {
+    return QUIC_DECRYPTION_FAILURE;
+  }
+
+  (*packet_number) = full_packet_number;
+  return QUIC_NO_ERROR;
 }
 
 // static

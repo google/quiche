@@ -172,7 +172,7 @@ class QUICHE_EXPORT QuicheDataReader {
 
   // Truncates the reader down by reducing its internal length.
   // If called immediately after calling this, BytesRemaining will
-  // return |truncation_length|. If truncation_length is less than the
+  // return |truncation_length|. If truncation_length is greater than the
   // current value of BytesRemaining, this does nothing and returns false.
   bool TruncateRemaining(size_t truncation_length);
 
