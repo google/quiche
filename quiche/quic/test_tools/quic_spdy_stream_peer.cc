@@ -12,7 +12,6 @@
 namespace quic {
 namespace test {
 
-// static
 void QuicSpdyStreamPeer::set_ack_listener(
     QuicSpdyStream* stream,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
@@ -20,15 +19,18 @@ void QuicSpdyStreamPeer::set_ack_listener(
   stream->set_ack_listener(std::move(ack_listener));
 }
 
-// static
 const QuicIntervalSet<QuicStreamOffset>&
 QuicSpdyStreamPeer::unacked_frame_headers_offsets(QuicSpdyStream* stream) {
   return stream->unacked_frame_headers_offsets_;
 }
 
-// static
 bool QuicSpdyStreamPeer::OnHeadersFrameEnd(QuicSpdyStream* stream) {
   return stream->OnHeadersFrameEnd();
+}
+
+void QuicSpdyStreamPeer::set_header_decoding_delay(QuicSpdyStream* stream,
+                                                   QuicTime::Delta delay) {
+  stream->header_decoding_delay_ = delay;
 }
 
 }  // namespace test
