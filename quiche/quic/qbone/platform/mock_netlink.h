@@ -25,8 +25,7 @@ class MockNetlink : public NetlinkInterface {
   MOCK_METHOD(bool, GetRouteInfo, (std::vector<RoutingRule>*), (override));
 
   MOCK_METHOD(bool, ChangeRoute,
-              (Verb, uint32_t, const IpRange&, uint8_t, QuicIpAddress, int32_t,
-               uint32_t),
+              (Verb, uint32_t, const IpRange&, uint8_t, QuicIpAddress, int32_t),
               (override));
 
   MOCK_METHOD(bool, GetRuleInfo, (std::vector<IpRule>*), (override));

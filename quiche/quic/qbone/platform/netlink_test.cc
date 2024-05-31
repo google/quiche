@@ -208,8 +208,7 @@ void CreateRtmsg(struct nlmsghdr* nlm, unsigned char family,
                  unsigned char destination_length, unsigned char source_length,
                  unsigned char tos, unsigned char table, unsigned char protocol,
                  unsigned char scope, unsigned char type, unsigned int flags,
-                 QuicIpAddress destination, int interface_index,
-                 int init_cwnd) {
+                 QuicIpAddress destination, int interface_index) {
   auto* msg = reinterpret_cast<struct rtmsg*>(NLMSG_DATA(nlm));
   msg->rtm_family = family;
   msg->rtm_dst_len = destination_length;
@@ -228,16 +227,6 @@ void CreateRtmsg(struct nlmsghdr* nlm, unsigned char family,
 
   // Add egress interface
   AddRTA(nlm, RTA_OIF, &interface_index, sizeof(interface_index));
-
-  // Add initcwnd
-  if (init_cwnd > 0) {
-    char data[RTA_LENGTH(sizeof(uint32_t))];
-    struct rtattr* rta = reinterpret_cast<struct rtattr*>(data);
-    rta->rta_len = sizeof(data);
-    rta->rta_type = RTA_METRICS;
-    *reinterpret_cast<uint32_t*>(RTA_DATA(rta)) = init_cwnd;
-    AddRTA(nlm, RTA_METRICS, data, sizeof(data));
-  }
 }
 
 TEST_F(NetlinkTest, GetLinkInfoWorks) {
@@ -489,7 +478,7 @@ TEST_F(NetlinkTest, GetRouteInfoWorks) {
                             buf, nullptr, RTM_NEWROUTE, seq);
                         CreateRtmsg(netlink_message, AF_INET6, 48, 0, 0,
                                     RT_TABLE_MAIN, RTPROT_STATIC, RT_SCOPE_LINK,
-                                    RTN_UNICAST, 0, destination, 7, 0);
+                                    RTN_UNICAST, 0, destination, 7);
                         ret += NLMSG_ALIGN(netlink_message->nlmsg_len);
 
                         netlink_message = CreateNetlinkMessage(
@@ -509,7 +498,6 @@ TEST_F(NetlinkTest, GetRouteInfoWorks) {
             routing_rules[0].destination_subnet.ToString());
   EXPECT_FALSE(routing_rules[0].preferred_source.IsInitialized());
   EXPECT_EQ(7, routing_rules[0].out_interface);
-  EXPECT_EQ(0, routing_rules[0].init_cwnd);
 }
 
 TEST_F(NetlinkTest, ChangeRouteAdd) {
@@ -520,7 +508,6 @@ TEST_F(NetlinkTest, ChangeRouteAdd) {
   IpRange subnet;
   subnet.FromString("ff80:dead:beef::/48");
   int egress_interface_index = 7;
-  uint32_t init_cwnd = 32;
   ExpectNetlinkPacket(
       RTM_NEWROUTE, NLM_F_ACK | NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL,
       [](void* buf, size_t len, int seq) {
@@ -533,8 +520,8 @@ TEST_F(NetlinkTest, ChangeRouteAdd) {
         netlink_message->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
         return netlink_message->nlmsg_len;
       },
-      [preferred_ip, subnet, egress_interface_index, init_cwnd](const void* buf,
-                                                                size_t len) {
+      [preferred_ip, subnet, egress_interface_index](const void* buf,
+                                                     size_t len) {
         auto* netlink_message = reinterpret_cast<const struct nlmsghdr*>(buf);
         auto* rtm =
             reinterpret_cast<const struct rtmsg*>(NLMSG_DATA(netlink_message));
@@ -592,25 +579,16 @@ TEST_F(NetlinkTest, ChangeRouteAdd) {
                         QboneConstants::kQboneRouteTableId);
               break;
             }
-            case RTA_METRICS: {
-              struct rtattr* rtax =
-                  reinterpret_cast<struct rtattr*>(RTA_DATA(rta));
-              ASSERT_EQ(rtax->rta_type, RTAX_INITCWND);
-              ASSERT_EQ(rtax->rta_len, RTA_LENGTH(sizeof(uint32_t)));
-              ASSERT_EQ(*reinterpret_cast<uint32_t*>(RTA_DATA(rtax)),
-                        init_cwnd);
-              break;
-            }
             default:
               EXPECT_TRUE(false) << "Seeing rtattr that should not be sent";
           }
           ++num_rta;
         }
-        EXPECT_EQ(6, num_rta);
+        EXPECT_EQ(5, num_rta);
       });
   EXPECT_TRUE(netlink->ChangeRoute(
       Netlink::Verb::kAdd, QboneConstants::kQboneRouteTableId, subnet,
-      RT_SCOPE_LINK, preferred_ip, egress_interface_index, init_cwnd));
+      RT_SCOPE_LINK, preferred_ip, egress_interface_index));
 }
 
 TEST_F(NetlinkTest, ChangeRouteRemove) {
@@ -692,8 +670,7 @@ TEST_F(NetlinkTest, ChangeRouteRemove) {
       });
   EXPECT_TRUE(netlink->ChangeRoute(
       Netlink::Verb::kRemove, QboneConstants::kQboneRouteTableId, subnet,
-      RT_SCOPE_LINK, preferred_ip, egress_interface_index,
-      Netlink::kUnspecifiedInitCwnd));
+      RT_SCOPE_LINK, preferred_ip, egress_interface_index));
 }
 
 TEST_F(NetlinkTest, ChangeRouteReplace) {
@@ -784,8 +761,7 @@ TEST_F(NetlinkTest, ChangeRouteReplace) {
       });
   EXPECT_TRUE(netlink->ChangeRoute(
       Netlink::Verb::kReplace, QboneConstants::kQboneRouteTableId, subnet,
-      RT_SCOPE_LINK, preferred_ip, egress_interface_index,
-      Netlink::kUnspecifiedInitCwnd));
+      RT_SCOPE_LINK, preferred_ip, egress_interface_index));
 }
 
 }  // namespace

@@ -88,8 +88,8 @@ class Netlink : public NetlinkInterface {
   // matching rule is found, a new entry will be created.
   bool ChangeRoute(Netlink::Verb verb, uint32_t table,
                    const IpRange& destination_subnet, uint8_t scope,
-                   QuicIpAddress preferred_source, int32_t interface_index,
-                   uint32_t init_cwnd) override;
+                   QuicIpAddress preferred_source,
+                   int32_t interface_index) override;
 
   // Returns the set of all rules in the routing policy database.
   bool GetRuleInfo(std::vector<Netlink::IpRule>* ip_rules) override;
