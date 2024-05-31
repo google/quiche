@@ -1097,6 +1097,8 @@ TEST_P(QuicFramerTest, LargePacket) {
   // Make sure the correct error is propagated.
   EXPECT_THAT(framer_.error(), IsError(QUIC_PACKET_TOO_LARGE));
   EXPECT_EQ("Packet too large.", framer_.detailed_error());
+  // Make sure the packet wasn't visited.
+  EXPECT_EQ(0, visitor_.packet_count_);
 }
 
 TEST_P(QuicFramerTest, LongPacketHeader) {

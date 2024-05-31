@@ -1880,6 +1880,12 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
     return RaiseError(QUIC_DECRYPTION_FAILURE);
   }
+
+  if (packet.length() > kMaxIncomingPacketSize) {
+    set_detailed_error("Packet too large.");
+    return RaiseError(QUIC_PACKET_TOO_LARGE);
+  }
+
   QuicDataReader reader(decrypted_buffer, decrypted_length);
 
   // Update the largest packet number after we have decrypted the packet
@@ -1896,11 +1902,6 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     RecordDroppedPacketReason(DroppedPacketReason::INVALID_PACKET_NUMBER);
     // The visitor suppresses further processing of the packet.
     return true;
-  }
-
-  if (packet.length() > kMaxIncomingPacketSize) {
-    set_detailed_error("Packet too large.");
-    return RaiseError(QUIC_PACKET_TOO_LARGE);
   }
 
   // Handle the payload.
