@@ -7,6 +7,7 @@
 #include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/test_tools/mock_quic_connection_alarms.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -38,16 +39,19 @@ class MockDelegate : public QuicPingManager::Delegate {
 class QuicPingManagerTest : public QuicTest {
  public:
   QuicPingManagerTest()
-      : alarms_(nullptr, nullptr, nullptr, nullptr, &manager_, alarm_factory_,
-                arena_),
+      : alarms_(&connection_alarms_delegate_, alarm_factory_, arena_),
         manager_(Perspective::IS_CLIENT, &delegate_, &alarms_.ping_alarm()),
         alarm_(static_cast<MockAlarmFactory::TestAlarm*>(
             QuicPingManagerPeer::GetAlarm(&manager_))) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
+    ON_CALL(connection_alarms_delegate_, OnPingAlarm()).WillByDefault([&] {
+      manager_.OnAlarm();
+    });
   }
 
  protected:
   testing::StrictMock<MockDelegate> delegate_;
+  MockConnectionAlarmsDelegate connection_alarms_delegate_;
   MockClock clock_;
   QuicConnectionArena arena_;
   MockAlarmFactory alarm_factory_;

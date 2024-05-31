@@ -9,22 +9,33 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_arena_scoped_ptr.h"
 #include "quiche/quic/core/quic_connection_context.h"
-#include "quiche/quic/core/quic_idle_network_detector.h"
-#include "quiche/quic/core/quic_network_blackhole_detector.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
-#include "quiche/quic/core/quic_ping_manager.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
-class QuicConnection;
+class QUICHE_EXPORT QuicConnectionAlarmsDelegate {
+ public:
+  virtual ~QuicConnectionAlarmsDelegate() = default;
+
+  virtual void OnSendAlarm() = 0;
+  virtual void OnAckAlarm() = 0;
+  virtual void OnRetransmissionAlarm() = 0;
+  virtual void OnMtuDiscoveryAlarm() = 0;
+  virtual void OnProcessUndecryptablePacketsAlarm() = 0;
+  virtual void OnDiscardPreviousOneRttKeysAlarm() = 0;
+  virtual void OnDiscardZeroRttDecryptionKeysAlarm() = 0;
+  virtual void MaybeProbeMultiPortPath() = 0;
+  virtual void OnIdleDetectorAlarm() = 0;
+  virtual void OnNetworkBlackholeDetectorAlarm() = 0;
+  virtual void OnPingAlarm() = 0;
+
+  virtual QuicConnectionContext* context() = 0;
+};
 
 class QUICHE_EXPORT QuicConnectionAlarms {
  public:
-  QuicConnectionAlarms(QuicConnection* connection,
-                       QuicConnectionContext* context,
-                       QuicIdleNetworkDetector* idle_network_detector,
-                       QuicNetworkBlackholeDetector* network_blackhole_detector,
-                       QuicPingManager* ping_manager,
+  QuicConnectionAlarms(QuicConnectionAlarmsDelegate* delegate,
                        QuicAlarmFactory& alarm_factory,
                        QuicConnectionArena& arena);
 

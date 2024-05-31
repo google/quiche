@@ -493,7 +493,8 @@ class QUICHE_EXPORT QuicConnection
       public QuicIdleNetworkDetector::Delegate,
       public QuicPathValidator::SendDelegate,
       public QuicConnectionIdManagerVisitorInterface,
-      public QuicPingManager::Delegate {
+      public QuicPingManager::Delegate,
+      public QuicConnectionAlarmsDelegate {
  public:
   // Constructs a new QuicConnection for |connection_id| and
   // |initial_peer_address| using |writer| to write packets. |owns_writer|
@@ -638,7 +639,7 @@ class QUICHE_EXPORT QuicConnection
   bool IsMsgTooBig(const QuicPacketWriter* writer, const WriteResult& result);
 
   // Called from the SendAlarmDelegate to initiate writing data.
-  virtual void OnSendAlarm();
+  void OnSendAlarm() override;
 
   // If the socket is not blocked, writes queued packets.
   void WriteIfNotBlocked();
@@ -802,7 +803,7 @@ class QUICHE_EXPORT QuicConnection
 
   // Probe the existing alternative path. Does not create a new alternative
   // path. This method is the callback for |multi_port_probing_alarm_|.
-  virtual void MaybeProbeMultiPortPath();
+  void MaybeProbeMultiPortPath() override;
 
   // Accessors
   void set_visitor(QuicConnectionVisitorInterface* visitor) {
@@ -874,12 +875,14 @@ class QUICHE_EXPORT QuicConnection
     return multi_port_stats_.get();
   }
 
+  void OnAckAlarm() override;
+
   // Sets up a packet with an QuicAckFrame and sends it out.
   void SendAck();
 
   // Called when an RTO fires.  Resets the retransmission alarm if there are
   // remaining unacked packets.
-  void OnRetransmissionTimeout();
+  void OnRetransmissionAlarm() override;
 
   // Mark all sent 0-RTT encrypted packets for retransmission. Called when new
   // 0-RTT or 1-RTT key is available in gQUIC, or when 0-RTT is rejected in IETF
@@ -929,7 +932,7 @@ class QUICHE_EXPORT QuicConnection
   void RemoveDecrypter(EncryptionLevel level);
 
   // Discard keys for the previous key phase.
-  void DiscardPreviousOneRttKeys();
+  void OnDiscardPreviousOneRttKeysAlarm() override;
 
   // Returns true if it is currently allowed to initiate a key update.
   bool IsKeyUpdateAllowed() const;
@@ -1023,7 +1026,7 @@ class QUICHE_EXPORT QuicConnection
   void DisableMtuDiscovery();
 
   // Sends an MTU discovery packet and updates the MTU discovery alarm.
-  void DiscoverMtu();
+  void OnMtuDiscoveryAlarm() override;
 
   // Sets the session notifier on the SentPacketManager.
   void SetSessionNotifier(SessionNotifierInterface* session_notifier);
@@ -1119,6 +1122,7 @@ class QUICHE_EXPORT QuicConnection
 
   // Attempts to process any queued undecryptable packets.
   void MaybeProcessUndecryptablePackets();
+  void OnProcessUndecryptablePacketsAlarm() override;
 
   // Queue a coalesced packet.
   void QueueCoalescedPacket(const QuicEncryptedPacket& packet);
@@ -1285,7 +1289,7 @@ class QUICHE_EXPORT QuicConnection
   // Log QUIC_BUG if there is pending frames for the stream with |id|.
   void QuicBugIfHasPendingFrames(QuicStreamId id) const;
 
-  QuicConnectionContext* context() { return &context_; }
+  QuicConnectionContext* context() override { return &context_; }
   const QuicConnectionContext* context() const { return &context_; }
 
   void set_tracer(std::unique_ptr<QuicConnectionTracer> tracer) {
@@ -1362,6 +1366,11 @@ class QUICHE_EXPORT QuicConnection
   bool quic_limit_new_streams_per_loop_2() const {
     return quic_limit_new_streams_per_loop_2_;
   }
+
+  void OnDiscardZeroRttDecryptionKeysAlarm() override;
+  void OnIdleDetectorAlarm() override;
+  void OnNetworkBlackholeDetectorAlarm() override;
+  void OnPingAlarm() override;
 
  protected:
   // Calls cancel() on all the alarms owned by this connection.

@@ -183,8 +183,7 @@ QuicConnection::QuicConnection(
       pending_retransmission_alarm_(false),
       defer_send_in_response_to_packets_(false),
       arena_(),
-      alarms_(this, &context_, &idle_network_detector_, &blackhole_detector_,
-              &ping_manager_, *alarm_factory_, arena_),
+      alarms_(this, *alarm_factory_, arena_),
       visitor_(nullptr),
       debug_visitor_(nullptr),
       packet_creator_(server_connection_id, &framer_, random_generator_, this),
@@ -833,6 +832,13 @@ void QuicConnection::RetireOriginalDestinationConnectionId() {
     visitor_->OnServerConnectionIdRetired(*original_destination_connection_id_);
     original_destination_connection_id_.reset();
   }
+}
+
+void QuicConnection::OnDiscardZeroRttDecryptionKeysAlarm() {
+  QUICHE_DCHECK(connected());
+  QUIC_DLOG(INFO) << "0-RTT discard alarm fired";
+  RemoveDecrypter(ENCRYPTION_ZERO_RTT);
+  RetireOriginalDestinationConnectionId();
 }
 
 bool QuicConnection::ValidateServerConnectionId(
@@ -2697,7 +2703,10 @@ void QuicConnection::OnCanWrite() {
   }
 }
 
-void QuicConnection::OnSendAlarm() { WriteIfNotBlocked(); }
+void QuicConnection::OnSendAlarm() {
+  QUICHE_DCHECK(connected());
+  WriteIfNotBlocked();
+}
 
 void QuicConnection::WriteIfNotBlocked() {
   if (framer().is_processing_packet()) {
@@ -3984,6 +3993,17 @@ void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
   WritePacket(&packet);
 }
 
+void QuicConnection::OnAckAlarm() {
+  QUICHE_DCHECK(ack_frame_updated());
+  QUICHE_DCHECK(connected());
+  QuicConnection::ScopedPacketFlusher flusher(this);
+  if (SupportsMultiplePacketNumberSpaces()) {
+    SendAllPendingAcks();
+  } else {
+    SendAck();
+  }
+}
+
 void QuicConnection::SendAck() {
   QUICHE_DCHECK(!SupportsMultiplePacketNumberSpaces());
   QUIC_DVLOG(1) << ENDPOINT << "Sending an ACK proactively";
@@ -4057,7 +4077,8 @@ WriteResult QuicConnection::SendPacketToWriter(
   return result;
 }
 
-void QuicConnection::OnRetransmissionTimeout() {
+void QuicConnection::OnRetransmissionAlarm() {
+  QUICHE_DCHECK(connected());
   ScopedRetransmissionTimeoutIndicator indicator(this);
 #ifndef NDEBUG
   if (sent_packet_manager_.unacked_packets().empty()) {
@@ -4258,7 +4279,8 @@ void QuicConnection::RemoveDecrypter(EncryptionLevel level) {
   framer_.RemoveDecrypter(level);
 }
 
-void QuicConnection::DiscardPreviousOneRttKeys() {
+void QuicConnection::OnDiscardPreviousOneRttKeysAlarm() {
+  QUICHE_DCHECK(connected());
   framer_.DiscardPreviousOneRttKeys();
 }
 
@@ -4311,6 +4333,12 @@ void QuicConnection::QueueUndecryptablePacket(
   if (perspective_ == Perspective::IS_CLIENT) {
     SetRetransmissionAlarm();
   }
+}
+
+void QuicConnection::OnProcessUndecryptablePacketsAlarm() {
+  QUICHE_DCHECK(connected());
+  ScopedPacketFlusher flusher(this);
+  MaybeProcessUndecryptablePackets();
 }
 
 void QuicConnection::MaybeProcessUndecryptablePackets() {
@@ -5051,7 +5079,8 @@ void QuicConnection::DisableMtuDiscovery() {
   mtu_discovery_alarm().Cancel();
 }
 
-void QuicConnection::DiscoverMtu() {
+void QuicConnection::OnMtuDiscoveryAlarm() {
+  QUICHE_DCHECK(connected());
   QUICHE_DCHECK(!mtu_discovery_alarm().IsSet());
 
   const QuicPacketNumber largest_sent_packet =
@@ -7317,5 +7346,14 @@ bool QuicConnection::set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint) {
   return true;
 }
 
+void QuicConnection::OnIdleDetectorAlarm() { idle_network_detector_.OnAlarm(); }
+
+void QuicConnection::OnPingAlarm() { ping_manager_.OnAlarm(); }
+
+void QuicConnection::OnNetworkBlackholeDetectorAlarm() {
+  blackhole_detector_.OnAlarm();
+}
+
 #undef ENDPOINT  // undef for jumbo builds
+
 }  // namespace quic

@@ -7,6 +7,7 @@
 #include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/test_tools/mock_quic_connection_alarms.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -34,8 +35,7 @@ const size_t kBlackholeDelayInSeconds = 10;
 class QuicNetworkBlackholeDetectorTest : public QuicTest {
  public:
   QuicNetworkBlackholeDetectorTest()
-      : alarms_(nullptr, nullptr, nullptr, &detector_, nullptr, alarm_factory_,
-                arena_),
+      : alarms_(&connection_alarms_delegate_, alarm_factory_, arena_),
         detector_(&delegate_, &alarms_.network_blackhole_detector_alarm()),
         alarm_(static_cast<MockAlarmFactory::TestAlarm*>(
             QuicNetworkBlackholeDetectorPeer::GetAlarm(&detector_))),
@@ -46,6 +46,8 @@ class QuicNetworkBlackholeDetectorTest : public QuicTest {
         blackhole_delay_(
             QuicTime::Delta::FromSeconds(kBlackholeDelayInSeconds)) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
+    ON_CALL(connection_alarms_delegate_, OnNetworkBlackholeDetectorAlarm())
+        .WillByDefault([&] { detector_.OnAlarm(); });
   }
 
  protected:
@@ -56,6 +58,7 @@ class QuicNetworkBlackholeDetectorTest : public QuicTest {
   }
 
   testing::StrictMock<MockDelegate> delegate_;
+  MockConnectionAlarmsDelegate connection_alarms_delegate_;
   QuicConnectionArena arena_;
   MockAlarmFactory alarm_factory_;
   QuicConnectionAlarms alarms_;

@@ -10,6 +10,7 @@
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/test_tools/mock_quic_connection_alarms.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -33,17 +34,19 @@ class MockDelegate : public QuicIdleNetworkDetector::Delegate {
 class QuicIdleNetworkDetectorTest : public QuicTest {
  public:
   QuicIdleNetworkDetectorTest()
-      : alarms_(nullptr, nullptr, &detector_, nullptr, nullptr, alarm_factory_,
-                arena_),
+      : alarms_(&connection_alarms_delegate_, alarm_factory_, arena_),
         detector_(&delegate_, clock_.Now() + QuicTimeDelta::FromSeconds(1),
                   &alarms_.idle_network_detector_alarm()) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     alarm_ = static_cast<MockAlarmFactory::TestAlarm*>(
         &alarms_.idle_network_detector_alarm());
+    ON_CALL(connection_alarms_delegate_, OnIdleDetectorAlarm())
+        .WillByDefault([&] { detector_.OnAlarm(); });
   }
 
  protected:
   testing::StrictMock<MockDelegate> delegate_;
+  MockConnectionAlarmsDelegate connection_alarms_delegate_;
   QuicConnectionArena arena_;
   MockAlarmFactory alarm_factory_;
   QuicConnectionAlarms alarms_;

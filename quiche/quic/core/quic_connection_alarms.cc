@@ -6,12 +6,8 @@
 
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
-#include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_context.h"
-#include "quiche/quic/core/quic_idle_network_detector.h"
-#include "quiche/quic/core/quic_network_blackhole_detector.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
-#include "quiche/quic/core/quic_ping_manager.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
@@ -21,7 +17,7 @@ namespace {
 // Base class of all alarms owned by a QuicConnection.
 class QuicConnectionAlarmDelegate : public QuicAlarm::Delegate {
  public:
-  explicit QuicConnectionAlarmDelegate(QuicConnection* connection)
+  explicit QuicConnectionAlarmDelegate(QuicConnectionAlarmsDelegate* connection)
       : connection_(connection) {}
   QuicConnectionAlarmDelegate(const QuicConnectionAlarmDelegate&) = delete;
   QuicConnectionAlarmDelegate& operator=(const QuicConnectionAlarmDelegate&) =
@@ -32,7 +28,7 @@ class QuicConnectionAlarmDelegate : public QuicAlarm::Delegate {
   }
 
  protected:
-  QuicConnection* connection_;
+  QuicConnectionAlarmsDelegate* connection_;
 };
 
 // An alarm that is scheduled to send an ack if a timeout occurs.
@@ -40,16 +36,7 @@ class AckAlarmDelegate : public QuicConnectionAlarmDelegate {
  public:
   using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
-  void OnAlarm() override {
-    QUICHE_DCHECK(connection_->ack_frame_updated());
-    QUICHE_DCHECK(connection_->connected());
-    QuicConnection::ScopedPacketFlusher flusher(connection_);
-    if (connection_->SupportsMultiplePacketNumberSpaces()) {
-      connection_->SendAllPendingAcks();
-    } else {
-      connection_->SendAck();
-    }
-  }
+  void OnAlarm() override { connection_->OnAckAlarm(); }
 };
 
 // This alarm will be scheduled any time a data-bearing packet is sent out.
@@ -59,10 +46,7 @@ class RetransmissionAlarmDelegate : public QuicConnectionAlarmDelegate {
  public:
   using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
-  void OnAlarm() override {
-    QUICHE_DCHECK(connection_->connected());
-    connection_->OnRetransmissionTimeout();
-  }
+  void OnAlarm() override { connection_->OnRetransmissionAlarm(); }
 };
 
 // An alarm that is scheduled when the SentPacketManager requires a delay
@@ -72,7 +56,6 @@ class SendAlarmDelegate : public QuicConnectionAlarmDelegate {
   using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
-    QUICHE_DCHECK(connection_->connected());
     connection_->OnSendAlarm();
   }
 };
@@ -81,10 +64,7 @@ class MtuDiscoveryAlarmDelegate : public QuicConnectionAlarmDelegate {
  public:
   using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
-  void OnAlarm() override {
-    QUICHE_DCHECK(connection_->connected());
-    connection_->DiscoverMtu();
-  }
+  void OnAlarm() override { connection_->OnMtuDiscoveryAlarm(); }
 };
 
 class ProcessUndecryptablePacketsAlarmDelegate
@@ -92,11 +72,7 @@ class ProcessUndecryptablePacketsAlarmDelegate
  public:
   using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
-  void OnAlarm() override {
-    QUICHE_DCHECK(connection_->connected());
-    QuicConnection::ScopedPacketFlusher flusher(connection_);
-    connection_->MaybeProcessUndecryptablePackets();
-  }
+  void OnAlarm() override { connection_->OnProcessUndecryptablePacketsAlarm(); }
 };
 
 class DiscardPreviousOneRttKeysAlarmDelegate
@@ -104,10 +80,7 @@ class DiscardPreviousOneRttKeysAlarmDelegate
  public:
   using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
-  void OnAlarm() override {
-    QUICHE_DCHECK(connection_->connected());
-    connection_->DiscardPreviousOneRttKeys();
-  }
+  void OnAlarm() override { connection_->OnDiscardPreviousOneRttKeysAlarm(); }
 };
 
 class DiscardZeroRttDecryptionKeysAlarmDelegate
@@ -116,10 +89,7 @@ class DiscardZeroRttDecryptionKeysAlarmDelegate
   using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
-    QUICHE_DCHECK(connection_->connected());
-    QUIC_DLOG(INFO) << "0-RTT discard alarm fired";
-    connection_->RemoveDecrypter(ENCRYPTION_ZERO_RTT);
-    connection_->RetireOriginalDestinationConnectionId();
+    connection_->OnDiscardZeroRttDecryptionKeysAlarm();
   }
 };
 
@@ -128,93 +98,73 @@ class MultiPortProbingAlarmDelegate : public QuicConnectionAlarmDelegate {
   using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
 
   void OnAlarm() override {
-    QUICHE_DCHECK(connection_->connected());
     QUIC_DLOG(INFO) << "Alternative path probing alarm fired";
     connection_->MaybeProbeMultiPortPath();
   }
 };
 
-class IdleDetectorAlarmDelegate : public QuicAlarm::DelegateWithContext {
+class IdleDetectorAlarmDelegate : public QuicConnectionAlarmDelegate {
  public:
-  explicit IdleDetectorAlarmDelegate(QuicIdleNetworkDetector* detector,
-                                     QuicConnectionContext* context)
-      : QuicAlarm::DelegateWithContext(context), detector_(detector) {}
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
+
   IdleDetectorAlarmDelegate(const IdleDetectorAlarmDelegate&) = delete;
   IdleDetectorAlarmDelegate& operator=(const IdleDetectorAlarmDelegate&) =
       delete;
 
-  void OnAlarm() override { detector_->OnAlarm(); }
-
- private:
-  QuicIdleNetworkDetector* detector_;
+  void OnAlarm() override { connection_->OnIdleDetectorAlarm(); }
 };
 
 class NetworkBlackholeDetectorAlarmDelegate
-    : public QuicAlarm::DelegateWithContext {
+    : public QuicConnectionAlarmDelegate {
  public:
-  explicit NetworkBlackholeDetectorAlarmDelegate(
-      QuicNetworkBlackholeDetector* detector, QuicConnectionContext* context)
-      : QuicAlarm::DelegateWithContext(context), detector_(detector) {}
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
+
   NetworkBlackholeDetectorAlarmDelegate(
       const NetworkBlackholeDetectorAlarmDelegate&) = delete;
   NetworkBlackholeDetectorAlarmDelegate& operator=(
       const NetworkBlackholeDetectorAlarmDelegate&) = delete;
 
-  void OnAlarm() override { detector_->OnAlarm(); }
-
- private:
-  QuicNetworkBlackholeDetector* detector_;
+  void OnAlarm() override { connection_->OnNetworkBlackholeDetectorAlarm(); }
 };
 
-class PingAlarmDelegate : public QuicAlarm::DelegateWithContext {
+class PingAlarmDelegate : public QuicConnectionAlarmDelegate {
  public:
-  explicit PingAlarmDelegate(QuicPingManager* ping_manager,
-                             QuicConnectionContext* context)
-      : QuicAlarm::DelegateWithContext(context), ping_manager_(ping_manager) {}
+  using QuicConnectionAlarmDelegate::QuicConnectionAlarmDelegate;
+
   PingAlarmDelegate(const PingAlarmDelegate&) = delete;
   PingAlarmDelegate& operator=(const PingAlarmDelegate&) = delete;
 
-  void OnAlarm() override { ping_manager_->OnAlarm(); }
-
- private:
-  QuicPingManager* ping_manager_;
+  void OnAlarm() override { connection_->OnPingAlarm(); }
 };
 
 }  // namespace
 
 QuicConnectionAlarms::QuicConnectionAlarms(
-    QuicConnection* connection, QuicConnectionContext* context,
-    QuicIdleNetworkDetector* idle_network_detector,
-    QuicNetworkBlackholeDetector* network_blackhole_detector,
-    QuicPingManager* ping_manager, QuicAlarmFactory& alarm_factory,
+    QuicConnectionAlarmsDelegate* delegate, QuicAlarmFactory& alarm_factory,
     QuicConnectionArena& arena)
     : ack_alarm_(alarm_factory.CreateAlarm(
-          arena.New<AckAlarmDelegate>(connection), &arena)),
+          arena.New<AckAlarmDelegate>(delegate), &arena)),
       retransmission_alarm_(alarm_factory.CreateAlarm(
-          arena.New<RetransmissionAlarmDelegate>(connection), &arena)),
+          arena.New<RetransmissionAlarmDelegate>(delegate), &arena)),
       send_alarm_(alarm_factory.CreateAlarm(
-          arena.New<SendAlarmDelegate>(connection), &arena)),
+          arena.New<SendAlarmDelegate>(delegate), &arena)),
       mtu_discovery_alarm_(alarm_factory.CreateAlarm(
-          arena.New<MtuDiscoveryAlarmDelegate>(connection), &arena)),
+          arena.New<MtuDiscoveryAlarmDelegate>(delegate), &arena)),
       process_undecryptable_packets_alarm_(alarm_factory.CreateAlarm(
-          arena.New<ProcessUndecryptablePacketsAlarmDelegate>(connection),
+          arena.New<ProcessUndecryptablePacketsAlarmDelegate>(delegate),
           &arena)),
       discard_previous_one_rtt_keys_alarm_(alarm_factory.CreateAlarm(
-          arena.New<DiscardPreviousOneRttKeysAlarmDelegate>(connection),
-          &arena)),
+          arena.New<DiscardPreviousOneRttKeysAlarmDelegate>(delegate), &arena)),
       discard_zero_rtt_decryption_keys_alarm_(alarm_factory.CreateAlarm(
-          arena.New<DiscardZeroRttDecryptionKeysAlarmDelegate>(connection),
+          arena.New<DiscardZeroRttDecryptionKeysAlarmDelegate>(delegate),
           &arena)),
       multi_port_probing_alarm_(alarm_factory.CreateAlarm(
-          arena.New<MultiPortProbingAlarmDelegate>(connection), &arena)),
+          arena.New<MultiPortProbingAlarmDelegate>(delegate), &arena)),
       idle_network_detector_alarm_(alarm_factory.CreateAlarm(
-          arena.New<IdleDetectorAlarmDelegate>(idle_network_detector, context),
-          &arena)),
+          arena.New<IdleDetectorAlarmDelegate>(delegate), &arena)),
       network_blackhole_detector_alarm_(alarm_factory.CreateAlarm(
-          arena.New<NetworkBlackholeDetectorAlarmDelegate>(
-              network_blackhole_detector, context),
-          &arena)),
+          arena.New<NetworkBlackholeDetectorAlarmDelegate>(delegate), &arena)),
       ping_alarm_(alarm_factory.CreateAlarm(
-          arena.New<PingAlarmDelegate>(ping_manager, context), &arena)) {}
+          arena.New<PingAlarmDelegate>(delegate), &arena)) {}
 
 }  // namespace quic

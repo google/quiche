@@ -17370,11 +17370,11 @@ TEST_P(QuicConnectionTest, RtoDisablesEcnMarking) {
   QuicPacketCreatorPeer::SetPacketNumber(
       QuicConnectionPeer::GetPacketCreator(&connection_), 1);
   SendPing();
-  connection_.OnRetransmissionTimeout();
+  connection_.OnRetransmissionAlarm();
   EXPECT_EQ(writer_->last_ecn_sent(), ECN_NOT_ECT);
   EXPECT_EQ(connection_.ecn_codepoint(), ECN_ECT1);
   // On 2nd RTO, QUIC abandons ECN.
-  connection_.OnRetransmissionTimeout();
+  connection_.OnRetransmissionAlarm();
   EXPECT_EQ(writer_->last_ecn_sent(), ECN_NOT_ECT);
   EXPECT_EQ(connection_.ecn_codepoint(), ECN_NOT_ECT);
 }
@@ -17388,11 +17388,11 @@ TEST_P(QuicConnectionTest, RtoDoesntDisableEcnMarkingIfEcnAcked) {
   connection_.OnInFlightEcnPacketAcked();
   SendPing();
   // Because an ECN packet was acked, PTOs have no effect on ECN settings.
-  connection_.OnRetransmissionTimeout();
+  connection_.OnRetransmissionAlarm();
   QuicEcnCodepoint expected_codepoint = ECN_ECT1;
   EXPECT_EQ(writer_->last_ecn_sent(), expected_codepoint);
   EXPECT_EQ(connection_.ecn_codepoint(), expected_codepoint);
-  connection_.OnRetransmissionTimeout();
+  connection_.OnRetransmissionAlarm();
   EXPECT_EQ(writer_->last_ecn_sent(), expected_codepoint);
   EXPECT_EQ(connection_.ecn_codepoint(), expected_codepoint);
 }

@@ -797,6 +797,7 @@ quiche_test_support_hdrs = [
     "src/quiche/quic/test_tools/mock_clock.h",
     "src/quiche/quic/test_tools/mock_connection_id_generator.h",
     "src/quiche/quic/test_tools/mock_load_balancer_encoder.h",
+    "src/quiche/quic/test_tools/mock_quic_connection_alarms.h",
     "src/quiche/quic/test_tools/mock_quic_dispatcher.h",
     "src/quiche/quic/test_tools/mock_quic_session_visitor.h",
     "src/quiche/quic/test_tools/mock_quic_spdy_client_stream.h",
