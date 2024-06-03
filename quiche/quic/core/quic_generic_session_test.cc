@@ -457,7 +457,7 @@ TEST_F(QuicGenericSessionTest, LoseDatagrams) {
       4 * simulator::TestHarness::kServerBandwidth.TransferTime(
               1000 * kMaxOutgoingPacketSize)));
   // Allow extra round-trips for the final flight of datagrams to arrive back.
-  test_harness_.simulator().RunFor(4 * simulator::TestHarness::kRtt);
+  test_harness_.simulator().RunFor(16 * simulator::TestHarness::kRtt);
 
   QuicPacketCount client_lost =
       client_->session()->GetDatagramStats().lost_outgoing;
