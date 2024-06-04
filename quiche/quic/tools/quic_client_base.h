@@ -8,6 +8,7 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_CLIENT_BASE_H_
 #define QUICHE_QUIC_TOOLS_QUIC_CLIENT_BASE_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -492,6 +493,7 @@ class QuicClientBase : public QuicSession::Visitor {
       kQuicDefaultConnectionIdLength};
 
   bool allow_port_migration_{false};
+  uint32_t num_path_degrading_handled_{0};
 };
 
 }  // namespace quic

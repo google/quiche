@@ -263,4 +263,8 @@ QUICHE_PROTOCOL_FLAG(
 QUICHE_PROTOCOL_FLAG(int64_t, quic_default_delayed_ack_time_ms, 25,
                      "Default maximum delayed ack time, in ms.")
 
+QUICHE_PROTOCOL_FLAG(
+    uint32_t, quic_max_num_path_degrading_to_mitigate, 5,
+    "The maximum number of path degrading to mitigate with port migration. Any "
+    "further path degrading will not kick off port migration.")
 #endif

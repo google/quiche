@@ -5470,6 +5470,59 @@ TEST_P(EndToEndTest, ClientPortMigrationOnPathDegrading) {
   EXPECT_GT(pto_count + 4, GetClientConnection()->GetStats().pto_count);
 }
 
+TEST_P(EndToEndTest, ClientLimitPortMigrationOnPathDegrading) {
+  connect_to_server_on_initialize_ = false;
+  Initialize();
+  if (!version_.HasIetfQuicFrames()) {
+    CreateClientWithWriter();
+    return;
+  }
+  const uint32_t max_num_path_degrading_to_mitigate =
+      GetQuicFlag(quic_max_num_path_degrading_to_mitigate);
+
+  delete client_writer_;
+  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+  client_->client()->EnablePortMigrationUponPathDegrading(std::nullopt);
+  ASSERT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  QuicConnection* client_connection = GetClientConnection();
+  Http2HeaderBlock headers;
+  headers[":method"] = "POST";
+  headers[":path"] = "/bar";
+  headers[":scheme"] = "https";
+  headers[":authority"] = server_hostname_;
+  // Manually trigger path degrading 5 times and expect they should all trigger
+  // port migration.
+  for (uint32_t i = 0; i < max_num_path_degrading_to_mitigate; ++i) {
+    client_->SendMessage(headers, "aaaa", false);
+    QuicSocketAddress original_self_addr = client_connection->self_address();
+    WaitForNewConnectionIds();
+    client_connection->OnPathDegradingDetected();
+    client_->SendData("bbbb", true);
+    // By the time the response is received, path validation should have been
+    // finished.
+    client_->WaitForResponse();
+    QuicSocketAddress new_self_addr = client_connection->self_address();
+    EXPECT_NE(original_self_addr, new_self_addr);
+  }
+
+  EXPECT_EQ(max_num_path_degrading_to_mitigate,
+            GetClientConnection()->GetStats().num_path_degrading);
+  EXPECT_EQ(max_num_path_degrading_to_mitigate,
+            GetClientConnection()->GetStats().num_path_response_received);
+
+  // The next path degrading shouldn't trigger port migration.
+  WaitForNewConnectionIds();
+  QuicSocketAddress original_self_addr = client_connection->self_address();
+  client_connection->OnPathDegradingDetected();
+  EXPECT_FALSE(client_->client()->HasPendingPathValidation());
+  client_->SendSynchronousRequest("/eep");
+  EXPECT_EQ(original_self_addr, client_connection->self_address());
+  EXPECT_EQ(max_num_path_degrading_to_mitigate + 1,
+            GetClientConnection()->GetStats().num_path_degrading);
+  EXPECT_EQ(max_num_path_degrading_to_mitigate,
+            GetClientConnection()->GetStats().num_path_response_received);
+}
+
 TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegrading) {
   client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPQM});
   ASSERT_TRUE(Initialize());

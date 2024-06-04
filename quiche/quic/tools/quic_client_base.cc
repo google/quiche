@@ -27,6 +27,7 @@
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -237,6 +238,7 @@ void QuicClientBase::StartConnect() {
     session()->connection()->SetVersionNegotiated();
   }
   set_connected_or_attempting_connect(true);
+  num_path_degrading_handled_ = 0;
 }
 
 void QuicClientBase::InitializeSession() { session()->Initialize(); }
@@ -573,6 +575,11 @@ void QuicClientBase::OnPathDegrading() {
       config_.DisableConnectionMigration()) {
     return;
   }
+  if (num_path_degrading_handled_ >=
+      GetQuicFlag(quic_max_num_path_degrading_to_mitigate)) {
+    QUIC_CODE_COUNT(reached_port_migration_upper_limit);
+    return;
+  }
   const auto self_address = session_->self_address();
   if (network_helper_ == nullptr ||
       !network_helper_->CreateUDPSocketAndBind(session_->peer_address(),
@@ -583,6 +590,7 @@ void QuicClientBase::OnPathDegrading() {
   if (writer == nullptr) {
     return;
   }
+  ++num_path_degrading_handled_;
   session()->ValidatePath(
       std::make_unique<PathMigrationContext>(
           std::unique_ptr<QuicPacketWriter>(writer),
