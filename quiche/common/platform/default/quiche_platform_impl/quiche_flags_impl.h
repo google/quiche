@@ -27,6 +27,7 @@
 inline bool GetQuicheFlagImplImpl(bool flag) { return flag; }
 inline int32_t GetQuicheFlagImplImpl(int32_t flag) { return flag; }
 inline int64_t GetQuicheFlagImplImpl(int64_t flag) { return flag; }
+inline uint32_t GetQuicheFlagImplImpl(uint32_t flag) { return flag; }
 inline uint64_t GetQuicheFlagImplImpl(uint64_t flag) { return flag; }
 inline double GetQuicheFlagImplImpl(double flag) { return flag; }
 inline std::string GetQuicheFlagImplImpl(const std::string& flag) {
