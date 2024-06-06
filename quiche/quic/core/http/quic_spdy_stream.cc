@@ -1708,7 +1708,7 @@ QuicByteCount QuicSpdyStream::GetMaxDatagramSize() const {
 }
 
 void QuicSpdyStream::HandleBodyAvailable() {
-  if (!capsule_parser_) {
+  if (!capsule_parser_ || !uses_capsules()) {
     OnBodyAvailable();
     return;
   }

@@ -90,6 +90,10 @@ class QUICHE_EXPORT QuicSpdyClientStream : public QuicSpdyStream {
   // response_header_. Returns false on error.
   virtual bool ParseAndValidateStatusCode();
 
+  bool uses_capsules() const override {
+    return QuicSpdyStream::uses_capsules() && !capsules_failed_;
+  }
+
  private:
   // The parsed headers received from the server.
   spdy::Http2HeaderBlock response_headers_;
@@ -97,6 +101,7 @@ class QUICHE_EXPORT QuicSpdyClientStream : public QuicSpdyStream {
   // The parsed content-length, or -1 if none is specified.
   int64_t content_length_;
   int response_code_;
+  bool capsules_failed_ = false;
   std::string data_;
   size_t header_bytes_read_;
   size_t header_bytes_written_;

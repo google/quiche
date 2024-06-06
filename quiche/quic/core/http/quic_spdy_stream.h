@@ -373,6 +373,8 @@ class QUICHE_EXPORT QuicSpdyStream
 
   void set_headers_decompressed(bool val) { headers_decompressed_ = val; }
 
+  virtual bool uses_capsules() const { return capsule_parser_ != nullptr; }
+
   void set_ack_listener(
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener) {

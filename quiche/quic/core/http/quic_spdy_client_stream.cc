@@ -107,10 +107,7 @@ void QuicSpdyClientStream::OnInitialHeadersComplete(
     if (!web_transport()->ready()) {
       // The request was rejected by WebTransport, typically due to not having a
       // 2xx status.  The reason we're using Reset() here rather than closing
-      // cleanly is that even if the server attempts to send us any form of body
-      // with a 4xx request, we've already set up the capsule parser, and we
-      // don't have any way to process anything from the response body in
-      // question.
+      // cleanly is to avoid having to process the response body.
       Reset(QUIC_STREAM_CANCELLED);
       return;
     }
@@ -118,6 +115,10 @@ void QuicSpdyClientStream::OnInitialHeadersComplete(
 
   if (!ParseAndValidateStatusCode()) {
     return;
+  }
+
+  if (uses_capsules() && (response_code_ < 200 || response_code_ >= 300)) {
+    capsules_failed_ = true;
   }
 
   ConsumeHeaderList();
