@@ -20,15 +20,15 @@ QuicConnectionContextSwitcher::QuicConnectionContextSwitcher(
     QuicConnectionContext* new_context)
     : old_context_(QuicConnectionContext::Current()) {
   current_context = new_context;
-  if (new_context && new_context->tracer) {
-    new_context->tracer->Activate();
+  if (new_context && new_context->listener) {
+    new_context->listener->Activate();
   }
 }
 
 QuicConnectionContextSwitcher::~QuicConnectionContextSwitcher() {
   QuicConnectionContext* current = QuicConnectionContext::Current();
-  if (current && current->tracer) {
-    current->tracer->Deactivate();
+  if (current && current->listener) {
+    current->listener->Deactivate();
   }
   current_context = old_context_;
 }

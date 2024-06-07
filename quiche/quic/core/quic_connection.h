@@ -1292,6 +1292,11 @@ class QUICHE_EXPORT QuicConnection
   QuicConnectionContext* context() override { return &context_; }
   const QuicConnectionContext* context() const { return &context_; }
 
+  void set_context_listener(
+      std::unique_ptr<QuicConnectionContextListener> listener) {
+    context_.listener.swap(listener);
+  }
+
   void set_tracer(std::unique_ptr<QuicConnectionTracer> tracer) {
     context_.tracer.swap(tracer);
   }
