@@ -33,7 +33,7 @@ quic::WebTransportRequestCallback CreateWebTransportCallback(
     parameters.perspective = quic::Perspective::IS_SERVER;
     parameters.path = path;
     parameters.using_webtrans = true;
-    parameters.version = MoqtVersion::kDraft03;
+    parameters.version = MoqtVersion::kDraft04;
     parameters.deliver_partial_objects = false;
     auto moqt_session = std::make_unique<MoqtSession>(session, parameters);
     std::move (*configurator)(moqt_session.get());

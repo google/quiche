@@ -168,14 +168,22 @@ size_t MoqtParser::ProcessMessage(absl::string_view data, bool fin) {
       return ProcessUnsubscribe(reader);
     case MoqtMessageType::kSubscribeDone:
       return ProcessSubscribeDone(reader);
+    case MoqtMessageType::kSubscribeUpdate:
+      return ProcessSubscribeUpdate(reader);
     case MoqtMessageType::kAnnounce:
       return ProcessAnnounce(reader);
     case MoqtMessageType::kAnnounceOk:
       return ProcessAnnounceOk(reader);
     case MoqtMessageType::kAnnounceError:
       return ProcessAnnounceError(reader);
+    case MoqtMessageType::kAnnounceCancel:
+      return ProcessAnnounceCancel(reader);
+    case MoqtMessageType::kTrackStatusRequest:
+      return ProcessTrackStatusRequest(reader);
     case MoqtMessageType::kUnannounce:
       return ProcessUnannounce(reader);
+    case MoqtMessageType::kTrackStatus:
+      return ProcessTrackStatus(reader);
     case MoqtMessageType::kGoAway:
       return ProcessGoAway(reader);
     default:
@@ -370,34 +378,53 @@ size_t MoqtParser::ProcessServerSetup(quic::QuicDataReader& reader) {
 
 size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
   MoqtSubscribe subscribe_request;
+  uint64_t filter, group, object;
   if (!reader.ReadVarInt62(&subscribe_request.subscribe_id) ||
       !reader.ReadVarInt62(&subscribe_request.track_alias) ||
       !reader.ReadStringVarInt62(subscribe_request.track_namespace) ||
       !reader.ReadStringVarInt62(subscribe_request.track_name) ||
-      !ReadLocation(reader, subscribe_request.start_group)) {
+      !reader.ReadVarInt62(&filter)) {
     return 0;
   }
-  if (!subscribe_request.start_group.has_value()) {
-    ParseError("START_GROUP must not be None in SUBSCRIBE");
-    return 0;
-  }
-  if (!ReadLocation(reader, subscribe_request.start_object)) {
-    return 0;
-  }
-  if (!subscribe_request.start_object.has_value()) {
-    ParseError("START_OBJECT must not be None in SUBSCRIBE");
-    return 0;
-  }
-  if (!ReadLocation(reader, subscribe_request.end_group) ||
-      !ReadLocation(reader, subscribe_request.end_object)) {
-    return 0;
-  }
-  if (subscribe_request.end_group.has_value() !=
-      subscribe_request.end_object.has_value()) {
-    ParseError(
-        "SUBSCRIBE end_group and end_object must be both None "
-        "or both non_None");
-    return 0;
+  MoqtFilterType filter_type = static_cast<MoqtFilterType>(filter);
+  switch (filter_type) {
+    case MoqtFilterType::kLatestGroup:
+      subscribe_request.start_object = 0;
+      break;
+    case MoqtFilterType::kLatestObject:
+      break;
+    case MoqtFilterType::kAbsoluteStart:
+    case MoqtFilterType::kAbsoluteRange:
+      if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
+        return 0;
+      }
+      subscribe_request.start_group = group;
+      subscribe_request.start_object = object;
+      if (filter_type == MoqtFilterType::kAbsoluteStart) {
+        break;
+      }
+      if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
+        return 0;
+      }
+      subscribe_request.end_group = group;
+      if (subscribe_request.end_group < subscribe_request.start_group) {
+        ParseError("End group is less than start group");
+        return 0;
+      }
+      if (object == 0) {
+        subscribe_request.end_object = std::nullopt;
+      } else {
+        subscribe_request.end_object = object - 1;
+        if (subscribe_request.start_group == subscribe_request.end_group &&
+            subscribe_request.end_object < subscribe_request.start_object) {
+          ParseError("End object comes before start object");
+          return 0;
+        }
+      }
+      break;
+    default:
+      ParseError("Invalid filter type");
+      return 0;
   }
   uint64_t num_params;
   if (!reader.ReadVarInt62(&num_params)) {
@@ -415,7 +442,7 @@ size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
         if (subscribe_request.authorization_info.has_value()) {
           ParseError(
               "AUTHORIZATION_INFO parameter appears twice in "
-              "SUBSCRIBE_REQUEST");
+              "SUBSCRIBE");
           return 0;
         }
         subscribe_request.authorization_info = value;
@@ -480,12 +507,14 @@ size_t MoqtParser::ProcessUnsubscribe(quic::QuicDataReader& reader) {
 size_t MoqtParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
   MoqtSubscribeDone subscribe_done;
   uint8_t content_exists;
+  uint64_t value;
   if (!reader.ReadVarInt62(&subscribe_done.subscribe_id) ||
-      !reader.ReadVarInt62(&subscribe_done.status_code) ||
+      !reader.ReadVarInt62(&value) ||
       !reader.ReadStringVarInt62(subscribe_done.reason_phrase) ||
       !reader.ReadUInt8(&content_exists)) {
     return 0;
   }
+  subscribe_done.status_code = static_cast<SubscribeDoneCode>(value);
   if (content_exists > 1) {
     ParseError("SUBSCRIBE_DONE ContentExists has invalid value");
     return 0;
@@ -498,6 +527,66 @@ size_t MoqtParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
     }
   }
   visitor_.OnSubscribeDoneMessage(subscribe_done);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
+  MoqtSubscribeUpdate subscribe_update;
+  uint64_t end_group, end_object, num_params;
+  if (!reader.ReadVarInt62(&subscribe_update.subscribe_id) ||
+      !reader.ReadVarInt62(&subscribe_update.start_group) ||
+      !reader.ReadVarInt62(&subscribe_update.start_object) ||
+      !reader.ReadVarInt62(&end_group) || !reader.ReadVarInt62(&end_object) ||
+      !reader.ReadVarInt62(&num_params)) {
+    return 0;
+  }
+  if (end_group == 0) {
+    // end_group remains nullopt.
+    if (end_object > 0) {
+      ParseError("SUBSCRIBE_UPDATE has end_object but no end_group");
+      return 0;
+    }
+  } else {
+    subscribe_update.end_group = end_group - 1;
+    if (subscribe_update.end_group < subscribe_update.start_group) {
+      ParseError("End group is less than start group");
+      return 0;
+    }
+  }
+  if (end_object > 0) {
+    subscribe_update.end_object = end_object - 1;
+    if (subscribe_update.end_object.has_value() &&
+        subscribe_update.start_group == *subscribe_update.end_group &&
+        *subscribe_update.end_object < subscribe_update.start_object) {
+      ParseError("End object comes before start object");
+      return 0;
+    }
+  } else {
+    subscribe_update.end_object = std::nullopt;
+  }
+  for (uint64_t i = 0; i < num_params; ++i) {
+    uint64_t type;
+    absl::string_view value;
+    if (!ReadParameter(reader, type, value)) {
+      return 0;
+    }
+    auto key = static_cast<MoqtTrackRequestParameter>(type);
+    switch (key) {
+      case MoqtTrackRequestParameter::kAuthorizationInfo:
+        if (subscribe_update.authorization_info.has_value()) {
+          ParseError(
+              "AUTHORIZATION_INFO parameter appears twice in "
+              "SUBSCRIBE_UPDATE");
+          return 0;
+        }
+        subscribe_update.authorization_info = value;
+        break;
+      default:
+        // Skip over the parameter.
+        break;
+    }
+  }
+  visitor_.OnSubscribeUpdateMessage(subscribe_update);
   return reader.PreviouslyReadPayload().length();
 }
 
@@ -560,12 +649,48 @@ size_t MoqtParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
+size_t MoqtParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
+  MoqtAnnounceCancel announce_cancel;
+  if (!reader.ReadStringVarInt62(announce_cancel.track_namespace)) {
+    return 0;
+  }
+  visitor_.OnAnnounceCancelMessage(announce_cancel);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtParser::ProcessTrackStatusRequest(quic::QuicDataReader& reader) {
+  MoqtTrackStatusRequest track_status_request;
+  if (!reader.ReadStringVarInt62(track_status_request.track_namespace)) {
+    return 0;
+  }
+  if (!reader.ReadStringVarInt62(track_status_request.track_name)) {
+    return 0;
+  }
+  visitor_.OnTrackStatusRequestMessage(track_status_request);
+  return reader.PreviouslyReadPayload().length();
+}
+
 size_t MoqtParser::ProcessUnannounce(quic::QuicDataReader& reader) {
   MoqtUnannounce unannounce;
   if (!reader.ReadStringVarInt62(unannounce.track_namespace)) {
     return 0;
   }
   visitor_.OnUnannounceMessage(unannounce);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtParser::ProcessTrackStatus(quic::QuicDataReader& reader) {
+  MoqtTrackStatus track_status;
+  uint64_t value;
+  if (!reader.ReadStringVarInt62(track_status.track_namespace) ||
+      !reader.ReadStringVarInt62(track_status.track_name) ||
+      !reader.ReadVarInt62(&value) ||
+      !reader.ReadVarInt62(&track_status.last_group) ||
+      !reader.ReadVarInt62(&track_status.last_object)) {
+    return 0;
+  }
+  track_status.status_code = static_cast<MoqtTrackStatusCode>(value);
+  visitor_.OnTrackStatusMessage(track_status);
   return reader.PreviouslyReadPayload().length();
 }
 
@@ -627,37 +752,6 @@ bool MoqtParser::ReadVarIntPieceVarInt62(quic::QuicDataReader& reader,
   }
   if (!reader.ReadVarInt62(&result)) {
     return false;
-  }
-  return true;
-}
-
-bool MoqtParser::ReadLocation(quic::QuicDataReader& reader,
-                              std::optional<MoqtSubscribeLocation>& loc) {
-  uint64_t ui64;
-  if (!reader.ReadVarInt62(&ui64)) {
-    return false;
-  }
-  auto mode = static_cast<MoqtSubscribeLocationMode>(ui64);
-  if (mode == MoqtSubscribeLocationMode::kNone) {
-    loc = std::nullopt;
-    return true;
-  }
-  if (!reader.ReadVarInt62(&ui64)) {
-    return false;
-  }
-  switch (mode) {
-    case MoqtSubscribeLocationMode::kAbsolute:
-      loc = MoqtSubscribeLocation(true, ui64);
-      break;
-    case MoqtSubscribeLocationMode::kRelativePrevious:
-      loc = MoqtSubscribeLocation(false, -1 * static_cast<int64_t>(ui64));
-      break;
-    case MoqtSubscribeLocationMode::kRelativeNext:
-      loc = MoqtSubscribeLocation(false, static_cast<int64_t>(ui64) + 1);
-      break;
-    default:
-      ParseError("Unknown location mode");
-      return false;
   }
   return true;
 }

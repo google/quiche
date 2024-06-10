@@ -5,11 +5,7 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_FRAMER_H_
 #define QUICHE_QUIC_MOQT_MOQT_FRAMER_H_
 
-#include <cstddef>
-#include <optional>
-
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -47,10 +43,17 @@ class QUICHE_EXPORT MoqtFramer {
       const MoqtSubscribeError& message);
   quiche::QuicheBuffer SerializeUnsubscribe(const MoqtUnsubscribe& message);
   quiche::QuicheBuffer SerializeSubscribeDone(const MoqtSubscribeDone& message);
+  quiche::QuicheBuffer SerializeSubscribeUpdate(
+      const MoqtSubscribeUpdate& message);
   quiche::QuicheBuffer SerializeAnnounce(const MoqtAnnounce& message);
   quiche::QuicheBuffer SerializeAnnounceOk(const MoqtAnnounceOk& message);
   quiche::QuicheBuffer SerializeAnnounceError(const MoqtAnnounceError& message);
+  quiche::QuicheBuffer SerializeAnnounceCancel(
+      const MoqtAnnounceCancel& message);
+  quiche::QuicheBuffer SerializeTrackStatusRequest(
+      const MoqtTrackStatusRequest& message);
   quiche::QuicheBuffer SerializeUnannounce(const MoqtUnannounce& message);
+  quiche::QuicheBuffer SerializeTrackStatus(const MoqtTrackStatus& message);
   quiche::QuicheBuffer SerializeGoAway(const MoqtGoAway& message);
 
  private:

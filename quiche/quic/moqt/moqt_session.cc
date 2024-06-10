@@ -197,9 +197,32 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
-  message.start_group = MoqtSubscribeLocation(true, start_group);
-  message.start_object = MoqtSubscribeLocation(true, start_object);
+  message.start_group = start_group;
+  message.start_object = start_object;
   message.end_group = std::nullopt;
+  message.end_object = std::nullopt;
+  if (!auth_info.empty()) {
+    message.authorization_info = std::move(auth_info);
+  }
+  return Subscribe(message, visitor);
+}
+
+bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
+                                    absl::string_view name,
+                                    uint64_t start_group, uint64_t start_object,
+                                    uint64_t end_group,
+                                    RemoteTrack::Visitor* visitor,
+                                    absl::string_view auth_info) {
+  if (end_group < start_group) {
+    QUIC_DLOG(ERROR) << "Subscription end is before beginning";
+    return false;
+  }
+  MoqtSubscribe message;
+  message.track_namespace = track_namespace;
+  message.track_name = name;
+  message.start_group = start_group;
+  message.start_object = start_object;
+  message.end_group = end_group;
   message.end_object = std::nullopt;
   if (!auth_info.empty()) {
     message.authorization_info = std::move(auth_info);
@@ -224,26 +247,25 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
-  message.start_group = MoqtSubscribeLocation(true, start_group);
-  message.start_object = MoqtSubscribeLocation(true, start_object);
-  message.end_group = MoqtSubscribeLocation(true, end_group);
-  message.end_object = MoqtSubscribeLocation(true, end_object);
+  message.start_group = start_group;
+  message.start_object = start_object;
+  message.end_group = end_group;
+  message.end_object = end_object;
   if (!auth_info.empty()) {
     message.authorization_info = std::move(auth_info);
   }
   return Subscribe(message, visitor);
 }
 
-bool MoqtSession::SubscribeRelative(absl::string_view track_namespace,
-                                    absl::string_view name, int64_t start_group,
-                                    int64_t start_object,
-                                    RemoteTrack::Visitor* visitor,
-                                    absl::string_view auth_info) {
+bool MoqtSession::SubscribeCurrentObject(absl::string_view track_namespace,
+                                         absl::string_view name,
+                                         RemoteTrack::Visitor* visitor,
+                                         absl::string_view auth_info) {
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
-  message.start_group = MoqtSubscribeLocation(false, start_group);
-  message.start_object = MoqtSubscribeLocation(false, start_object);
+  message.start_group = std::nullopt;
+  message.start_object = std::nullopt;
   message.end_group = std::nullopt;
   message.end_object = std::nullopt;
   if (!auth_info.empty()) {
@@ -260,14 +282,44 @@ bool MoqtSession::SubscribeCurrentGroup(absl::string_view track_namespace,
   message.track_namespace = track_namespace;
   message.track_name = name;
   // First object of current group.
-  message.start_group = MoqtSubscribeLocation(false, (uint64_t)0);
-  message.start_object = MoqtSubscribeLocation(true, (int64_t)0);
+  message.start_group = std::nullopt;
+  message.start_object = 0;
   message.end_group = std::nullopt;
   message.end_object = std::nullopt;
   if (!auth_info.empty()) {
     message.authorization_info = std::move(auth_info);
   }
   return Subscribe(message, visitor);
+}
+
+bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
+                                  absl::string_view reason_phrase) {
+  // Search all the tracks to find the subscribe ID.
+  auto name_it = local_track_by_subscribe_id_.find(subscribe_id);
+  if (name_it == local_track_by_subscribe_id_.end()) {
+    return false;
+  }
+  auto track_it = local_tracks_.find(name_it->second);
+  if (track_it == local_tracks_.end()) {
+    return false;
+  }
+  LocalTrack& track = track_it->second;
+  MoqtSubscribeDone subscribe_done;
+  subscribe_done.subscribe_id = subscribe_id;
+  subscribe_done.status_code = code;
+  subscribe_done.reason_phrase = reason_phrase;
+  SubscribeWindow* window = track.GetWindow(subscribe_id);
+  if (window == nullptr) {
+    return false;
+  }
+  subscribe_done.final_id = window->largest_delivered();
+  SendControlMessage(framer_.SerializeSubscribeDone(subscribe_done));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_DONE message for "
+                  << subscribe_id;
+  // Clean up the subscription
+  track.DeleteWindow(subscribe_id);
+  local_track_by_subscribe_id_.erase(name_it);
+  return true;
 }
 
 bool MoqtSession::Subscribe(MoqtSubscribe& message,
@@ -388,6 +440,7 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
   quiche::StreamWriteOptions write_options;
   write_options.set_send_fin(end_of_stream);
   for (auto subscription : subscriptions) {
+    subscription->OnObjectDelivered(FullSequence(group_id, object_id));
     if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
       object.subscribe_id = subscription->subscribe_id();
       quiche::QuicheBuffer datagram =
@@ -662,19 +715,37 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
     }
     session_->used_track_aliases_.insert(message.track_alias);
   }
-  std::optional<FullSequence> start = session_->LocationToAbsoluteNumber(
-      track, message.start_group, message.start_object);
-  QUICHE_DCHECK(start.has_value());  // Parser enforces this.
-  std::optional<FullSequence> end = session_->LocationToAbsoluteNumber(
-      track, message.end_group, message.end_object);
+  FullSequence start;
+  std::optional<FullSequence> end;
+  if (message.start_group.has_value()) {
+    // The filter is AbsoluteStart or AbsoluteRange.
+    QUIC_BUG_IF(quic_bug_invalid_subscribe, !message.start_object.has_value())
+        << "Start group without start object";
+    start = FullSequence(*message.start_group, *message.start_object);
+  } else {
+    // The filter is LatestObject or LatestGroup.
+    start = track.next_sequence();
+    if (message.start_object.has_value()) {
+      // The filter is LatestGroup.
+      QUIC_BUG_IF(quic_bug_invalid_subscribe, *message.start_object != 0)
+          << "LatestGroup does not start with zero";
+      start.object = 0;
+    } else {
+      --start.object;
+    }
+  }
+  if (message.end_group.has_value()) {
+    end = FullSequence(*message.end_group, message.end_object.has_value()
+                                               ? *message.end_object
+                                               : UINT64_MAX);
+  }
   LocalTrack::Visitor::PublishPastObjectsCallback publish_past_objects;
   SubscribeWindow window =
       end.has_value()
           ? SubscribeWindow(message.subscribe_id, track.forwarding_preference(),
-                            start->group, start->object, end->group,
-                            end->object)
+                            start.group, start.object, end->group, end->object)
           : SubscribeWindow(message.subscribe_id, track.forwarding_preference(),
-                            start->group, start->object);
+                            start.group, start.object);
   if (start < track.next_sequence() && track.visitor() != nullptr) {
     absl::StatusOr<LocalTrack::Visitor::PublishPastObjectsCallback>
         past_objects_available = track.visitor()->OnSubscribeForPast(window);
@@ -692,11 +763,13 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << message.track_namespace << ":" << message.track_name;
   if (end.has_value()) {
-    track.AddWindow(message.subscribe_id, start->group, start->object,
-                    end->group, end->object);
+    track.AddWindow(message.subscribe_id, start.group, start.object, end->group,
+                    end->object);
   } else {
-    track.AddWindow(message.subscribe_id, start->group, start->object);
+    track.AddWindow(message.subscribe_id, start.group, start.object);
   }
+  session_->local_track_by_subscribe_id_.emplace(message.subscribe_id,
+                                                 track.full_track_name());
   if (publish_past_objects) {
     std::move(publish_past_objects)();
   }
@@ -772,11 +845,43 @@ void MoqtSession::Stream::OnSubscribeErrorMessage(
 }
 
 void MoqtSession::Stream::OnUnsubscribeMessage(const MoqtUnsubscribe& message) {
+  session_->SubscribeIsDone(message.subscribe_id,
+                            SubscribeDoneCode::kUnsubscribed, "");
+}
+
+void MoqtSession::Stream::OnSubscribeUpdateMessage(
+    const MoqtSubscribeUpdate& message) {
   // Search all the tracks to find the subscribe ID.
-  for (auto& [name, track] : session_->local_tracks_) {
-    track.DeleteWindow(message.subscribe_id);
+  auto name_it =
+      session_->local_track_by_subscribe_id_.find(message.subscribe_id);
+  if (name_it == session_->local_track_by_subscribe_id_.end()) {
+    return;
   }
-  // TODO(martinduke): Send SUBSCRIBE_DONE in response.
+  auto track_it = session_->local_tracks_.find(name_it->second);
+  if (track_it == session_->local_tracks_.end()) {
+    return;
+  }
+  LocalTrack& track = track_it->second;
+  SubscribeWindow* window = track.GetWindow(message.subscribe_id);
+  if (window == nullptr) {
+    return;
+  }
+  FullSequence start(message.start_group, message.start_object);
+  std::optional<FullSequence> end;
+  if (message.end_group.has_value()) {
+    end = FullSequence(*message.end_group, message.end_object.has_value()
+                                               ? *message.end_object
+                                               : UINT64_MAX);
+  }
+  // TODO(martinduke): Handle the case where the update range is invalid.
+  if (window->UpdateStartEnd(start, end)) {
+    std::optional<FullSequence> largest_delivered = window->largest_delivered();
+    if (largest_delivered.has_value() && end <= *largest_delivered) {
+      session_->SubscribeIsDone(message.subscribe_id,
+                                SubscribeDoneCode::kSubscriptionEnded,
+                                "SUBSCRIBE_UPDATE moved subscription end");
+    }
+  }
 }
 
 void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {
@@ -853,28 +958,6 @@ bool MoqtSession::Stream::CheckIfIsControlStream() {
     return false;
   }
   return true;
-}
-
-std::optional<FullSequence> MoqtSession::LocationToAbsoluteNumber(
-    const LocalTrack& track, const std::optional<MoqtSubscribeLocation>& group,
-    const std::optional<MoqtSubscribeLocation>& object) {
-  FullSequence sequence;
-  if (!group.has_value() || !object.has_value()) {
-    return std::nullopt;
-  }
-  if (group->absolute) {
-    sequence.group = group->absolute_value;
-  } else {
-    sequence.group = track.next_sequence().group + group->relative_value;
-  }
-  if (object->absolute) {
-    sequence.object = object->absolute_value;
-  } else {
-    // Subtract 1 because the relative value is computed from the largest sent
-    // sequence number, not the next one.
-    sequence.object = track.next_sequence().object + object->relative_value - 1;
-  }
-  return sequence;
 }
 
 void MoqtSession::Stream::SendOrBufferMessage(quiche::QuicheBuffer message,

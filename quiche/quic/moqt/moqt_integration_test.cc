@@ -18,7 +18,6 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_session.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -123,9 +122,9 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
  public:
   void CreateDefaultEndpoints() {
     client_ = std::make_unique<ClientEndpoint>(
-        &test_harness_.simulator(), "Client", "Server", MoqtVersion::kDraft03);
+        &test_harness_.simulator(), "Client", "Server", MoqtVersion::kDraft04);
     server_ = std::make_unique<ServerEndpoint>(
-        &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft03);
+        &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft04);
     test_harness_.set_client(client_.get());
     test_harness_.set_server(server_.get());
   }
@@ -176,7 +175,7 @@ TEST_F(MoqtIntegrationTest, VersionMismatch) {
       &test_harness_.simulator(), "Client", "Server",
       MoqtVersion::kUnrecognizedVersionForTests);
   server_ = std::make_unique<ServerEndpoint>(
-      &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft03);
+      &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft04);
   test_harness_.set_client(client_.get());
   test_harness_.set_server(server_.get());
   WireUpEndpoints();
@@ -327,7 +326,7 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
   EXPECT_TRUE(success);
 }
 
-TEST_F(MoqtIntegrationTest, SubscribeRelativeOk) {
+TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
   EstablishSession();
   FullTrackName full_track_name("foo", "bar");
   MockLocalTrackVisitor server_visitor;
@@ -338,9 +337,9 @@ TEST_F(MoqtIntegrationTest, SubscribeRelativeOk) {
   bool received_ok = false;
   EXPECT_CALL(client_visitor, OnReply(full_track_name, expected_reason))
       .WillOnce([&]() { received_ok = true; });
-  client_->session()->SubscribeRelative(full_track_name.track_namespace,
-                                        full_track_name.track_name, 10, 10,
-                                        &client_visitor);
+  client_->session()->SubscribeCurrentObject(full_track_name.track_namespace,
+                                             full_track_name.track_name,
+                                             &client_visitor);
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
   EXPECT_TRUE(success);
@@ -373,9 +372,9 @@ TEST_F(MoqtIntegrationTest, SubscribeError) {
   bool received_ok = false;
   EXPECT_CALL(client_visitor, OnReply(full_track_name, expected_reason))
       .WillOnce([&]() { received_ok = true; });
-  client_->session()->SubscribeRelative(full_track_name.track_namespace,
-                                        full_track_name.track_name, 10, 10,
-                                        &client_visitor);
+  client_->session()->SubscribeCurrentObject(full_track_name.track_namespace,
+                                             full_track_name.track_name,
+                                             &client_visitor);
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
   EXPECT_TRUE(success);

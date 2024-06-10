@@ -10,6 +10,42 @@
 
 namespace moqt {
 
+MoqtFilterType GetFilterType(const MoqtSubscribe& message) {
+  if (!message.end_group.has_value() && message.end_object.has_value()) {
+    return MoqtFilterType::kNone;
+  }
+  bool has_start =
+      message.start_group.has_value() && message.start_object.has_value();
+  if (message.end_group.has_value()) {
+    if (has_start) {
+      if (*message.end_group < *message.start_group) {
+        return MoqtFilterType::kNone;
+      } else if (*message.end_group == *message.start_group &&
+                 *message.end_object <= *message.start_object) {
+        if (*message.end_object < *message.start_object) {
+          return MoqtFilterType::kNone;
+        } else if (*message.end_object == *message.start_object) {
+          return MoqtFilterType::kAbsoluteStart;
+        }
+      }
+      return MoqtFilterType::kAbsoluteRange;
+    }
+  } else {
+    if (has_start) {
+      return MoqtFilterType::kAbsoluteStart;
+    } else if (!message.start_group.has_value()) {
+      if (message.start_object.has_value()) {
+        if (message.start_object.value() == 0) {
+          return MoqtFilterType::kLatestGroup;
+        }
+      } else {
+        return MoqtFilterType::kLatestObject;
+      }
+    }
+  }
+  return MoqtFilterType::kNone;
+}
+
 std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
   switch (message_type) {
     case MoqtMessageType::kObjectStream:
@@ -30,6 +66,14 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNSUBSCRIBE";
     case MoqtMessageType::kSubscribeDone:
       return "SUBSCRIBE_DONE";
+    case MoqtMessageType::kSubscribeUpdate:
+      return "SUBSCRIBE_UPDATE";
+    case MoqtMessageType::kAnnounceCancel:
+      return "ANNOUNCE_CANCEL";
+    case MoqtMessageType::kTrackStatusRequest:
+      return "TRACK_STATUS_REQUEST";
+    case MoqtMessageType::kTrackStatus:
+      return "TRACK_STATUS";
     case MoqtMessageType::kAnnounce:
       return "ANNOUNCE";
     case MoqtMessageType::kAnnounceOk:

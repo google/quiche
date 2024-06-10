@@ -82,6 +82,45 @@ TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdDatagram) {
   EXPECT_QUIC_BUG(window.AddStream(4, 0, 2), "Adding a stream for datagram");
 }
 
+TEST_F(SubscribeWindowTest, OnObjectDelivered) {
+  SubscribeWindow window(subscribe_id_, MoqtForwardingPreference::kObject,
+                         start_group_, start_object_, end_group_, end_object_);
+  EXPECT_FALSE(window.largest_delivered().has_value());
+  window.OnObjectDelivered(FullSequence(4, 1));
+  EXPECT_TRUE(window.largest_delivered().has_value());
+  EXPECT_EQ(window.largest_delivered().value(), FullSequence(4, 1));
+  window.OnObjectDelivered(FullSequence(4, 2));
+  EXPECT_EQ(window.largest_delivered().value(), FullSequence(4, 2));
+  window.OnObjectDelivered(FullSequence(4, 0));
+  EXPECT_EQ(window.largest_delivered().value(), FullSequence(4, 2));
+}
+
+TEST_F(SubscribeWindowTest, UpdateStartEnd) {
+  SubscribeWindow window(subscribe_id_, MoqtForwardingPreference::kObject,
+                         start_group_, start_object_, end_group_, end_object_);
+  EXPECT_TRUE(
+      window.UpdateStartEnd(FullSequence(start_group_, start_object_ + 1),
+                            FullSequence(end_group_, end_object_ - 1)));
+  EXPECT_FALSE(window.InWindow(FullSequence(start_group_, start_object_)));
+  EXPECT_FALSE(window.InWindow(FullSequence(end_group_, end_object_)));
+  EXPECT_FALSE(
+      window.UpdateStartEnd(FullSequence(start_group_, start_object_),
+                            FullSequence(end_group_, end_object_ - 1)));
+  EXPECT_FALSE(
+      window.UpdateStartEnd(FullSequence(start_group_, start_object_ + 1),
+                            FullSequence(end_group_, end_object_)));
+}
+
+TEST_F(SubscribeWindowTest, UpdateStartEndOpenEnded) {
+  SubscribeWindow window(subscribe_id_, MoqtForwardingPreference::kObject,
+                         start_group_, start_object_);
+  EXPECT_TRUE(window.UpdateStartEnd(FullSequence(start_group_, start_object_),
+                                    FullSequence(end_group_, end_object_)));
+  EXPECT_FALSE(window.InWindow(FullSequence(end_group_, end_object_ + 1)));
+  EXPECT_FALSE(window.UpdateStartEnd(FullSequence(start_group_, start_object_),
+                                     std::nullopt));
+}
+
 class QUICHE_EXPORT MoqtSubscribeWindowsTest : public quic::test::QuicTest {
  public:
   MoqtSubscribeWindowsTest() : windows_(MoqtForwardingPreference::kObject) {}

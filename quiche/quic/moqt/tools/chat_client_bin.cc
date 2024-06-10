@@ -293,9 +293,9 @@ class ChatClient {
         auto new_user = other_users_.emplace(
             std::make_pair(user, ChatUser(to_subscribe, group_sequence)));
         ChatUser& user_record = new_user.first->second;
-        session_->SubscribeRelative(user_record.full_track_name.track_namespace,
-                                    user_record.full_track_name.track_name, 0,
-                                    0, visitor);
+        session_->SubscribeCurrentGroup(
+            user_record.full_track_name.track_namespace,
+            user_record.full_track_name.track_name, visitor);
         subscribes_to_make_++;
       } else {
         if (it->second.from_group == group_sequence) {

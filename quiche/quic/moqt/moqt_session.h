@@ -102,23 +102,34 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
   // the track, the message will still be sent. However, the visitor will be
   // ignored.
+  // Subscribe from (start_group, start_object) to the end of the track.
   bool SubscribeAbsolute(absl::string_view track_namespace,
                          absl::string_view name, uint64_t start_group,
                          uint64_t start_object, RemoteTrack::Visitor* visitor,
                          absl::string_view auth_info = "");
+  // Subscribe from (start_group, start_object) to the end of end_group.
+  bool SubscribeAbsolute(absl::string_view track_namespace,
+                         absl::string_view name, uint64_t start_group,
+                         uint64_t start_object, uint64_t end_group,
+                         RemoteTrack::Visitor* visitor,
+                         absl::string_view auth_info = "");
+  // Subscribe from (start_group, start_object) to (end_group, end_object).
   bool SubscribeAbsolute(absl::string_view track_namespace,
                          absl::string_view name, uint64_t start_group,
                          uint64_t start_object, uint64_t end_group,
                          uint64_t end_object, RemoteTrack::Visitor* visitor,
                          absl::string_view auth_info = "");
-  bool SubscribeRelative(absl::string_view track_namespace,
-                         absl::string_view name, int64_t start_group,
-                         int64_t start_object, RemoteTrack::Visitor* visitor,
-                         absl::string_view auth_info = "");
+  bool SubscribeCurrentObject(absl::string_view track_namespace,
+                              absl::string_view name,
+                              RemoteTrack::Visitor* visitor,
+                              absl::string_view auth_info = "");
   bool SubscribeCurrentGroup(absl::string_view track_namespace,
                              absl::string_view name,
                              RemoteTrack::Visitor* visitor,
                              absl::string_view auth_info = "");
+  // Returns true if SUBSCRIBE_DONE was sent.
+  bool SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
+                       absl::string_view reason_phrase);
 
   // Returns false if it could not open a stream when necessary, or if the
   // track does not exist (there was no call to AddLocalTrack). Will still
@@ -171,10 +182,15 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
     void OnSubscribeDoneMessage(const MoqtSubscribeDone& /*message*/) override {
     }
+    void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override;
     void OnAnnounceMessage(const MoqtAnnounce& message) override;
     void OnAnnounceOkMessage(const MoqtAnnounceOk& message) override;
     void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override;
+    void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override {};
+    void OnTrackStatusRequestMessage(
+        const MoqtTrackStatusRequest& message) override {};
     void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override {}
+    void OnTrackStatusMessage(const MoqtTrackStatus& message) override {}
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override {}
     void OnParsingError(MoqtError error_code,
                         absl::string_view reason) override;
@@ -214,11 +230,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
   // Returns false if the SUBSCRIBE isn't sent.
   bool Subscribe(MoqtSubscribe& message, RemoteTrack::Visitor* visitor);
-  // converts two MoqtLocations into absolute sequences.
-  std::optional<FullSequence> LocationToAbsoluteNumber(
-      const LocalTrack& track,
-      const std::optional<MoqtSubscribeLocation>& group,
-      const std::optional<MoqtSubscribeLocation>& object);
+
   // Returns the stream ID if successful, nullopt if not.
   // TODO: Add a callback if stream creation is delayed.
   std::optional<webtransport::StreamId> OpenUnidirectionalStream();
@@ -246,6 +258,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
   // All the tracks the peer can subscribe to.
   absl::flat_hash_map<FullTrackName, LocalTrack> local_tracks_;
+  absl::flat_hash_map<uint64_t, FullTrackName> local_track_by_subscribe_id_;
   // This is only used to check for track_alias collisions.
   absl::flat_hash_set<uint64_t> used_track_aliases_;
   uint64_t next_local_track_alias_ = 0;

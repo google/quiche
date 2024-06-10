@@ -59,14 +59,39 @@ class QUICHE_EXPORT SubscribeWindow {
     return forwarding_preference_;
   }
 
+  void OnObjectDelivered(FullSequence sequence) {
+    if (!largest_delivered_.has_value() || *largest_delivered_ < sequence) {
+      largest_delivered_ = sequence;
+    }
+  }
+
+  std::optional<FullSequence>& largest_delivered() {
+    return largest_delivered_;
+  }
+
+  // Returns true if the updated values are valid.
+  bool UpdateStartEnd(FullSequence start, std::optional<FullSequence> end) {
+    // Can't make the subscription window bigger.
+    if (!InWindow(start)) {
+      return false;
+    }
+    if (end_.has_value() && (!end.has_value() || *end_ < *end)) {
+      return false;
+    }
+    start_ = start;
+    end_ = end;
+    return true;
+  }
+
  private:
   // Converts an object sequence number into one that matches the way that
   // stream IDs are being mapped. (See the comment for send_streams_ below.)
   FullSequence SequenceToIndex(FullSequence sequence) const;
 
   const uint64_t subscribe_id_;
-  const FullSequence start_;
-  const std::optional<FullSequence> end_ = std::nullopt;
+  FullSequence start_;
+  std::optional<FullSequence> end_ = std::nullopt;
+  std::optional<FullSequence> largest_delivered_;
   // Store open streams for this subscription. If the forwarding preference is
   // kTrack, there is one entry under sequence (0, 0). If kGroup, each entry is
   // under (group, 0). If kObject, it's tracked under the full sequence. If

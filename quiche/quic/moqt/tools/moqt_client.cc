@@ -89,7 +89,7 @@ absl::Status MoqtClient::ConnectInner(std::string path,
   }
 
   MoqtSessionParameters parameters;
-  parameters.version = MoqtVersion::kDraft03;
+  parameters.version = MoqtVersion::kDraft04;
   parameters.perspective = quic::Perspective::IS_CLIENT,
   parameters.using_webtrans = true;
   parameters.path = "";
