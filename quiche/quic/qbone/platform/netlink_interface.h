@@ -73,8 +73,6 @@ class NetlinkInterface {
       uint8_t prefix_length, uint8_t ifa_flags, uint8_t ifa_scope,
       const std::vector<struct rtattr*>& additional_attributes) = 0;
 
-  static constexpr uint32_t kUnspecifiedInitCwnd = 0;
-
   // Routing rule reported back from GetRouteInfo.
   struct RoutingRule {
     uint32_t table;
@@ -82,7 +80,6 @@ class NetlinkInterface {
     QuicIpAddress preferred_source;
     uint8_t scope;
     int out_interface;
-    uint32_t init_cwnd;  // kUnspecifiedInitCwnd if unspecified
   };
 
   struct IpRule {
@@ -112,7 +109,7 @@ class NetlinkInterface {
   virtual bool ChangeRoute(Verb verb, uint32_t table,
                            const IpRange& destination_subnet, uint8_t scope,
                            QuicIpAddress preferred_source,
-                           int32_t interface_index, uint32_t init_cwnd) = 0;
+                           int32_t interface_index) = 0;
 
   // Returns the set of all rules in the routing policy database.
   virtual bool GetRuleInfo(std::vector<IpRule>* ip_rules) = 0;

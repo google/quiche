@@ -134,7 +134,6 @@ TEST_F(TunDeviceControllerTest, UpdateRoutesRemovedOldRoutes) {
             NetlinkInterface::RoutingRule matching_route{};
             matching_route.table = QboneConstants::kQboneRouteTableId;
             matching_route.out_interface = kIfindex;
-            matching_route.init_cwnd = NetlinkInterface::kUnspecifiedInitCwnd;
             for (int i = 0; i < num_matching_routes; i++) {
               routing_rules->push_back(matching_route);
             }
@@ -146,10 +145,9 @@ TEST_F(TunDeviceControllerTest, UpdateRoutesRemovedOldRoutes) {
             return true;
           }));
 
-  EXPECT_CALL(netlink_,
-              ChangeRoute(NetlinkInterface::Verb::kRemove,
-                          QboneConstants::kQboneRouteTableId, _, _, _, kIfindex,
-                          NetlinkInterface::kUnspecifiedInitCwnd))
+  EXPECT_CALL(netlink_, ChangeRoute(NetlinkInterface::Verb::kRemove,
+                                    QboneConstants::kQboneRouteTableId, _, _, _,
+                                    kIfindex))
       .Times(num_matching_routes)
       .WillRepeatedly(Return(true));
 
@@ -163,7 +161,7 @@ TEST_F(TunDeviceControllerTest, UpdateRoutesRemovedOldRoutes) {
   EXPECT_CALL(netlink_,
               ChangeRoute(NetlinkInterface::Verb::kReplace,
                           QboneConstants::kQboneRouteTableId,
-                          IpRangeEq(link_local_range_), _, _, kIfindex, _))
+                          IpRangeEq(link_local_range_), _, _, kIfindex))
       .WillOnce(Return(true));
 
   EXPECT_TRUE(controller_.UpdateRoutes(kIpRange, {}));
@@ -176,11 +174,9 @@ TEST_F(TunDeviceControllerTest, UpdateRoutesAddsNewRoutes) {
 
   EXPECT_CALL(netlink_, GetRuleInfo(_)).WillOnce(Return(true));
 
-  absl::SetFlag(&FLAGS_qbone_route_init_cwnd, 32);
   EXPECT_CALL(netlink_, ChangeRoute(NetlinkInterface::Verb::kReplace,
                                     QboneConstants::kQboneRouteTableId,
-                                    IpRangeEq(kIpRange), _, _, kIfindex,
-                                    absl::GetFlag(FLAGS_qbone_route_init_cwnd)))
+                                    IpRangeEq(kIpRange), _, _, kIfindex))
       .Times(2)
       .WillRepeatedly(Return(true))
       .RetiresOnSaturation();
@@ -193,7 +189,7 @@ TEST_F(TunDeviceControllerTest, UpdateRoutesAddsNewRoutes) {
   EXPECT_CALL(netlink_,
               ChangeRoute(NetlinkInterface::Verb::kReplace,
                           QboneConstants::kQboneRouteTableId,
-                          IpRangeEq(link_local_range_), _, _, kIfindex, _))
+                          IpRangeEq(link_local_range_), _, _, kIfindex))
       .WillOnce(Return(true));
 
   EXPECT_TRUE(controller_.UpdateRoutes(kIpRange, {kIpRange, kIpRange}));
@@ -214,7 +210,7 @@ TEST_F(TunDeviceControllerTest, EmptyUpdateRouteKeepsLinkLocalRoute) {
   EXPECT_CALL(netlink_,
               ChangeRoute(NetlinkInterface::Verb::kReplace,
                           QboneConstants::kQboneRouteTableId,
-                          IpRangeEq(link_local_range_), _, _, kIfindex, _))
+                          IpRangeEq(link_local_range_), _, _, kIfindex))
       .WillOnce(Return(true));
 
   EXPECT_TRUE(controller_.UpdateRoutes(kIpRange, {}));
@@ -228,7 +224,7 @@ TEST_F(TunDeviceControllerTest, DisablingRoutingRulesSkipsRuleCreation) {
 
   EXPECT_CALL(netlink_, ChangeRoute(NetlinkInterface::Verb::kReplace,
                                     QboneConstants::kQboneRouteTableId,
-                                    IpRangeEq(kIpRange), _, _, kIfindex, _))
+                                    IpRangeEq(kIpRange), _, _, kIfindex))
       .Times(2)
       .WillRepeatedly(Return(true))
       .RetiresOnSaturation();
@@ -236,7 +232,7 @@ TEST_F(TunDeviceControllerTest, DisablingRoutingRulesSkipsRuleCreation) {
   EXPECT_CALL(netlink_,
               ChangeRoute(NetlinkInterface::Verb::kReplace,
                           QboneConstants::kQboneRouteTableId,
-                          IpRangeEq(link_local_range_), _, _, kIfindex, _))
+                          IpRangeEq(link_local_range_), _, _, kIfindex))
       .WillOnce(Return(true));
 
   EXPECT_TRUE(controller_.UpdateRoutes(kIpRange, {kIpRange, kIpRange}));

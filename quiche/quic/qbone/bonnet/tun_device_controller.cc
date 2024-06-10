@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/flags/flag.h"
 #include "absl/time/clock.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/qbone_constants.h"
@@ -19,9 +20,8 @@ ABSL_FLAG(bool, qbone_tun_device_replace_default_routing_rules, true,
           "qbone interface to the qbone table. This is unnecessary in "
           "environments with no other ipv6 route.");
 
-ABSL_FLAG(int, qbone_route_init_cwnd, 0,
-          "If non-zero, will add initcwnd to QBONE routing rules.  Setting "
-          "a value below 10 is dangerous and not recommended.");
+ABSL_RETIRED_FLAG(int, qbone_route_init_cwnd, 0,
+                  "Deprecated. Code no longer modifies initcwnd.");
 
 namespace quic {
 
@@ -90,8 +90,7 @@ bool TunDeviceController::UpdateRoutes(
         rule.table == QboneConstants::kQboneRouteTableId) {
       if (!netlink_->ChangeRoute(NetlinkInterface::Verb::kRemove, rule.table,
                                  rule.destination_subnet, rule.scope,
-                                 rule.preferred_source, rule.out_interface,
-                                 rule.init_cwnd)) {
+                                 rule.preferred_source, rule.out_interface)) {
         QUIC_LOG(ERROR) << "Unable to remove old route to <"
                         << rule.destination_subnet.ToString() << ">";
         return false;
@@ -111,8 +110,8 @@ bool TunDeviceController::UpdateRoutes(
   for (const auto& route : routes) {
     if (!netlink_->ChangeRoute(NetlinkInterface::Verb::kReplace,
                                QboneConstants::kQboneRouteTableId, route,
-                               RT_SCOPE_LINK, desired_address, link_info.index,
-                               absl::GetFlag(FLAGS_qbone_route_init_cwnd))) {
+                               RT_SCOPE_LINK, desired_address,
+                               link_info.index)) {
       QUIC_LOG(ERROR) << "Unable to add route <" << route.ToString() << ">";
       return false;
     }
