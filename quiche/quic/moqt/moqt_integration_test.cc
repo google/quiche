@@ -8,18 +8,12 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
-#include "quiche/quic/core/crypto/quic_crypto_client_config.h"
-#include "quiche/quic/core/crypto/quic_crypto_server_config.h"
-#include "quiche/quic/core/crypto/quic_random.h"
-#include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_generic_session.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
-#include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/test_harness.h"
@@ -35,87 +29,29 @@ using ::testing::_;
 using ::testing::Assign;
 using ::testing::Return;
 
-class ClientEndpoint : public quic::simulator::QuicEndpointWithConnection {
+class ClientEndpoint : public MoqtClientEndpoint {
  public:
   ClientEndpoint(Simulator* simulator, const std::string& name,
                  const std::string& peer_name, MoqtVersion version)
-      : QuicEndpointWithConnection(simulator, name, peer_name,
-                                   quic::Perspective::IS_CLIENT,
-                                   quic::GetQuicVersionsForGenericSession()),
-        crypto_config_(
-            quic::test::crypto_test_utils::ProofVerifierForTesting()),
-        quic_session_(connection_.get(), false, nullptr, quic::QuicConfig(),
-                      "test.example.com", 443, "moqt", &session_,
-                      /*visitor_owned=*/false, nullptr, &crypto_config_),
-        session_(
-            &quic_session_,
-            MoqtSessionParameters{.version = version,
-                                  .perspective = quic::Perspective::IS_CLIENT,
-                                  .using_webtrans = false,
-                                  .deliver_partial_objects = false},
-            callbacks_.AsSessionCallbacks()) {
-    quic_session_.Initialize();
-  }
-
-  MoqtSession* session() { return &session_; }
-  quic::QuicGenericClientSession* quic_session() { return &quic_session_; }
-  testing::MockFunction<void()>& established_callback() {
-    return callbacks_.session_established_callback;
-  }
-  testing::MockFunction<void(absl::string_view)>& terminated_callback() {
-    return callbacks_.session_terminated_callback;
+      : MoqtClientEndpoint(simulator, name, peer_name, version) {
+    session()->callbacks() = callbacks_.AsSessionCallbacks();
   }
   MockSessionCallbacks& callbacks() { return callbacks_; }
 
  private:
   MockSessionCallbacks callbacks_;
-  quic::QuicCryptoClientConfig crypto_config_;
-  quic::QuicGenericClientSession quic_session_;
-  MoqtSession session_;
 };
-
-class ServerEndpoint : public quic::simulator::QuicEndpointWithConnection {
+class ServerEndpoint : public MoqtServerEndpoint {
  public:
   ServerEndpoint(Simulator* simulator, const std::string& name,
                  const std::string& peer_name, MoqtVersion version)
-      : QuicEndpointWithConnection(simulator, name, peer_name,
-                                   quic::Perspective::IS_SERVER,
-                                   quic::GetQuicVersionsForGenericSession()),
-        compressed_certs_cache_(
-            quic::QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
-        crypto_config_(quic::QuicCryptoServerConfig::TESTING,
-                       quic::QuicRandom::GetInstance(),
-                       quic::test::crypto_test_utils::ProofSourceForTesting(),
-                       quic::KeyExchangeSource::Default()),
-        quic_session_(connection_.get(), false, nullptr, quic::QuicConfig(),
-                      "moqt", &session_,
-                      /*visitor_owned=*/false, nullptr, &crypto_config_,
-                      &compressed_certs_cache_),
-        session_(
-            &quic_session_,
-            MoqtSessionParameters{.version = version,
-                                  .perspective = quic::Perspective::IS_SERVER,
-                                  .using_webtrans = false,
-                                  .deliver_partial_objects = false},
-            callbacks_.AsSessionCallbacks()) {
-    quic_session_.Initialize();
-  }
-
-  MoqtSession* session() { return &session_; }
-  testing::MockFunction<void()>& established_callback() {
-    return callbacks_.session_established_callback;
-  }
-  testing::MockFunction<void(absl::string_view)>& terminated_callback() {
-    return callbacks_.session_terminated_callback;
+      : MoqtServerEndpoint(simulator, name, peer_name, version) {
+    session()->callbacks() = callbacks_.AsSessionCallbacks();
   }
   MockSessionCallbacks& callbacks() { return callbacks_; }
 
  private:
   MockSessionCallbacks callbacks_;
-  quic::QuicCompressedCertsCache compressed_certs_cache_;
-  quic::QuicCryptoServerConfig crypto_config_;
-  quic::QuicGenericServerSession quic_session_;
-  MoqtSession session_;
 };
 
 class MoqtIntegrationTest : public quiche::test::QuicheTest {
@@ -138,9 +74,9 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
     client_->quic_session()->CryptoConnect();
     bool client_established = false;
     bool server_established = false;
-    EXPECT_CALL(client_->established_callback(), Call())
+    EXPECT_CALL(client_->callbacks().session_established_callback, Call())
         .WillOnce(Assign(&client_established, true));
-    EXPECT_CALL(server_->established_callback(), Call())
+    EXPECT_CALL(server_->callbacks().session_established_callback, Call())
         .WillOnce(Assign(&server_established, true));
     bool success = test_harness_.RunUntilWithDefaultTimeout(
         [&]() { return client_established && server_established; });
@@ -161,9 +97,9 @@ TEST_F(MoqtIntegrationTest, Handshake) {
   client_->quic_session()->CryptoConnect();
   bool client_established = false;
   bool server_established = false;
-  EXPECT_CALL(client_->established_callback(), Call())
+  EXPECT_CALL(client_->callbacks().session_established_callback, Call())
       .WillOnce(Assign(&client_established, true));
-  EXPECT_CALL(server_->established_callback(), Call())
+  EXPECT_CALL(server_->callbacks().session_established_callback, Call())
       .WillOnce(Assign(&server_established, true));
   bool success = test_harness_.RunUntilWithDefaultTimeout(
       [&]() { return client_established && server_established; });
@@ -183,11 +119,13 @@ TEST_F(MoqtIntegrationTest, VersionMismatch) {
   client_->quic_session()->CryptoConnect();
   bool client_terminated = false;
   bool server_terminated = false;
-  EXPECT_CALL(client_->established_callback(), Call()).Times(0);
-  EXPECT_CALL(server_->established_callback(), Call()).Times(0);
-  EXPECT_CALL(client_->terminated_callback(), Call(_))
+  EXPECT_CALL(client_->callbacks().session_established_callback, Call())
+      .Times(0);
+  EXPECT_CALL(server_->callbacks().session_established_callback, Call())
+      .Times(0);
+  EXPECT_CALL(client_->callbacks().session_terminated_callback, Call(_))
       .WillOnce(Assign(&client_terminated, true));
-  EXPECT_CALL(server_->terminated_callback(), Call(_))
+  EXPECT_CALL(server_->callbacks().session_terminated_callback, Call(_))
       .WillOnce(Assign(&server_terminated, true));
   bool success = test_harness_.RunUntilWithDefaultTimeout(
       [&]() { return client_terminated && server_terminated; });
