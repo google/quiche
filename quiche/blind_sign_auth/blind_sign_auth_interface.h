@@ -11,10 +11,13 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
+#include "anonymous_tokens/cpp/privacy_pass/token_encodings.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 
 namespace quiche {
+
+using ::anonymous_tokens::GeoHint;
 
 // ProxyLayer indicates which proxy layer that tokens will be used with.
 enum class ProxyLayer : int {
@@ -36,6 +39,7 @@ enum class BlindSignAuthServiceType {
 struct QUICHE_EXPORT BlindSignToken {
   std::string token;
   absl::Time expiration;
+  GeoHint geo_hint;
 };
 
 using SignedTokenCallback =

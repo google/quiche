@@ -13,7 +13,9 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
+#include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "absl/types/span.h"
 #include "anonymous_tokens/cpp/crypto/crypto_utils.h"
 #include "anonymous_tokens/cpp/privacy_pass/token_encodings.h"
 #include "anonymous_tokens/cpp/testing/utils.h"
@@ -243,6 +245,11 @@ class BlindSignAuthTest : public QuicheTest {
       std::string decoded_extensions;
       ASSERT_TRUE(absl::WebSafeBase64Unescape(
           privacy_pass_token_data.encoded_extensions(), &decoded_extensions));
+      // Validate GeoHint in BlindSignToken.
+      EXPECT_EQ(token.geo_hint.geo_hint, "US,US-AL,ALABASTER");
+      EXPECT_EQ(token.geo_hint.country_code, "US");
+      EXPECT_EQ(token.geo_hint.region, "US-AL");
+      EXPECT_EQ(token.geo_hint.city, "ALABASTER");
     }
   }
 

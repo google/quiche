@@ -12,6 +12,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "anonymous_tokens/cpp/privacy_pass/rsa_bssa_public_metadata_client.h"
+#include "anonymous_tokens/cpp/privacy_pass/token_encodings.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
 #include "quiche/blind_sign_auth/blind_sign_message_interface.h"
@@ -27,7 +28,8 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
                          privacy::ppn::BlindSignAuthOptions auth_options)
       : fetcher_(fetcher), auth_options_(std::move(auth_options)) {}
 
-  // Returns signed unblinded tokens and their expiration time in a callback.
+  // Returns signed unblinded tokens, their expiration time, and their geo in a
+  // callback.
   // Tokens are single-use.
   // The GetTokens callback will run on the same thread as the
   // BlindSignMessageInterface callbacks.
@@ -49,6 +51,7 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
       SignedTokenCallback callback);
   void PrivacyPassAuthAndSignCallback(
       std::string encoded_extensions, absl::Time public_key_expiry_time,
+      anonymous_tokens::GeoHint geo_hint,
       anonymous_tokens::AnonymousTokensUseCase use_case,
       std::vector<std::unique_ptr<anonymous_tokens::
                                       PrivacyPassRsaBssaPublicMetadataClient>>
