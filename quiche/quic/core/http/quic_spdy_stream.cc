@@ -577,19 +577,9 @@ void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers,
       /* is_sent = */ false, headers.compressed_header_bytes(),
       headers.uncompressed_header_bytes());
 
-  Http3DebugVisitor* const debug_visitor = spdy_session()->debug_visitor();
-  if (debug_visitor) {
-    debug_visitor->OnHeadersDecoded(id(), headers);
-  }
-
-  OnStreamHeaderList(/* fin = */ false, headers_payload_length_, headers);
-
   header_decoding_delay_ = QuicTime::Delta::Zero();
 
   if (blocked_on_decoding_headers_) {
-    blocked_on_decoding_headers_ = false;
-    // Continue decoding HTTP/3 frames.
-    OnDataAvailable();
     const QuicTime now = session()->GetClock()->ApproximateNow();
     if (!header_block_received_time_.IsInitialized() ||
         now < header_block_received_time_) {
@@ -597,6 +587,19 @@ void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers,
     } else {
       header_decoding_delay_ = now - header_block_received_time_;
     }
+  }
+
+  Http3DebugVisitor* const debug_visitor = spdy_session()->debug_visitor();
+  if (debug_visitor) {
+    debug_visitor->OnHeadersDecoded(id(), headers);
+  }
+
+  OnStreamHeaderList(/* fin = */ false, headers_payload_length_, headers);
+
+  if (blocked_on_decoding_headers_) {
+    blocked_on_decoding_headers_ = false;
+    // Continue decoding HTTP/3 frames.
+    OnDataAvailable();
   }
 }
 
