@@ -14,6 +14,7 @@
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/platform/api/quic_test_output.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
@@ -65,7 +66,8 @@ QuicEndpointBase::QuicEndpointBase(Simulator* simulator, std::string name,
                     kMaxOutgoingPacketSize * kTxQueueSize),
       connection_(nullptr),
       write_blocked_count_(0),
-      drop_next_packet_(false) {
+      drop_next_packet_(false),
+      connection_id_generator_(kQuicDefaultConnectionIdLength) {
   nic_tx_queue_.set_listener_interface(this);
 }
 

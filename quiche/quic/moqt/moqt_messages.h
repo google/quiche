@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -157,6 +158,11 @@ struct FullSequence {
   }
   template <typename H>
   friend H AbslHashValue(H h, const FullSequence& m);
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const FullSequence& sequence) {
+    absl::Format(&sink, "(%d; %d)", sequence.group, sequence.object);
+  }
 };
 
 template <typename H>

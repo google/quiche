@@ -482,11 +482,11 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
       ++failures;
       continue;
     }
-    QUICHE_LOG(INFO) << ENDPOINT << "Sending object length " << payload.length()
-                     << " for " << full_track_name.track_namespace << ":"
-                     << full_track_name.track_name << " with sequence "
-                     << object.group_id << ":" << object.object_id
-                     << " on stream " << *stream_id;
+    QUICHE_DVLOG(1) << ENDPOINT << "Sending object length " << payload.length()
+                    << " for " << full_track_name.track_namespace << ":"
+                    << full_track_name.track_name << " with sequence "
+                    << object.group_id << ":" << object.object_id
+                    << " on stream " << *stream_id;
     if (end_of_stream && !new_stream) {
       subscription->RemoveStream(group_id, object_id);
     }
@@ -567,7 +567,7 @@ void MoqtSession::Stream::OnObjectMessage(const MoqtObject& message,
                     "Received OBJECT message on control stream");
     return;
   }
-  QUICHE_DLOG(INFO)
+  QUICHE_DVLOG(1)
       << ENDPOINT << "Received OBJECT message on stream "
       << stream_->GetStreamId() << " for subscribe_id " << message.subscribe_id
       << " for track alias " << message.track_alias << " with sequence "
