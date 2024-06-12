@@ -1116,16 +1116,6 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
         stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
     return;
   }
-
-  // Validate against the content-length if it exists.
-  if (iter->second.remaining_content_length.has_value()) {
-    if (length > *iter->second.remaining_content_length) {
-      HandleContentLengthError(stream_id);
-      iter->second.remaining_content_length.reset();
-    } else {
-      *iter->second.remaining_content_length -= length;
-    }
-  }
 }
 
 void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
@@ -1133,7 +1123,20 @@ void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
   // Count the data against flow control, even if the stream is unknown.
   MarkDataBuffered(stream_id, len);
 
-  if (!stream_map_.contains(stream_id) || streams_reset_.contains(stream_id)) {
+  auto iter = stream_map_.find(stream_id);
+  if (iter == stream_map_.end()) {
+    return;
+  }
+  // Validate against the content-length if it exists.
+  if (iter->second.remaining_content_length.has_value()) {
+    if (len > *iter->second.remaining_content_length) {
+      HandleContentLengthError(stream_id);
+      iter->second.remaining_content_length.reset();
+    } else {
+      *iter->second.remaining_content_length -= len;
+    }
+  }
+  if (streams_reset_.contains(stream_id)) {
     // If the stream was unknown due to a protocol error, the visitor was
     // informed in OnDataFrameHeader().
     return;

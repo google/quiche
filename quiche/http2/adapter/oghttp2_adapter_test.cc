@@ -1161,54 +1161,57 @@ TEST(OgHttp2AdapterTest, ClientHandlesResponseWithContentLengthAndPadding) {
   EXPECT_CALL(visitor, OnSettingsStart());
   EXPECT_CALL(visitor, OnSettingsEnd());
 
+  // HEADERS for stream 1
   EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":status", "200"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, "content-length", "2"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  // DATA frame with padding for stream 1
   EXPECT_CALL(visitor, OnFrameHeader(1, 2 + 10, DATA, 0x9));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 2 + 10));
   EXPECT_CALL(visitor, OnDataPaddingLength(1, 10));
-  // BUG: no stream data passed through for stream 1
+  EXPECT_CALL(visitor, OnDataForStream(1, "hi"));
+  // END_STREAM for stream 1
+  EXPECT_CALL(visitor, OnEndStream(1));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  // HEADERS for stream 3
   EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 4));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
   EXPECT_CALL(visitor, OnHeaderForStream(3, ":status", "200"));
   EXPECT_CALL(visitor, OnHeaderForStream(3, "content-length", "24"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  // DATA frame with padding for stream 3 (1 of 3)
   EXPECT_CALL(visitor, OnFrameHeader(3, 2 + 11, DATA, 0x8));
   EXPECT_CALL(visitor, OnBeginDataForStream(3, 2 + 11));
   EXPECT_CALL(visitor, OnDataPaddingLength(3, 11));
   EXPECT_CALL(visitor, OnDataForStream(3, "hi"));
+  // DATA frame with padding for stream 3 (2 of 3)
   EXPECT_CALL(visitor, OnFrameHeader(3, 10 + 12, DATA, 0x8));
   EXPECT_CALL(visitor, OnBeginDataForStream(3, 10 + 12));
   EXPECT_CALL(visitor, OnDataPaddingLength(3, 12));
-  // BUG: no stream data passed through for stream 3, frame 2 of 3
-  // BUG: no OnFrameHeader/OnBeginDataForStream calls for stream 3, frame 3 of 3
+  EXPECT_CALL(visitor, OnDataForStream(3, " it's nice"));
+  // DATA frame with padding for stream 3 (3 of 3)
+  EXPECT_CALL(visitor, OnFrameHeader(3, 12 + 13, DATA, 0x9));
+  EXPECT_CALL(visitor, OnBeginDataForStream(3, 12 + 13));
   EXPECT_CALL(visitor, OnDataPaddingLength(3, 13));
+  EXPECT_CALL(visitor, OnDataForStream(3, " to meet you"));
+  // END_STREAM for stream 3
+  EXPECT_CALL(visitor, OnEndStream(3));
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::HTTP2_NO_ERROR));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, ACK_FLAG));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, ACK_FLAG, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, _, 0x0));
-  EXPECT_CALL(visitor,
-              OnFrameSent(RST_STREAM, 1, _, 0x0,
-                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
-  EXPECT_CALL(visitor,
-              OnFrameSent(RST_STREAM, 3, _, 0x0,
-                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
-  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::HTTP2_NO_ERROR));
 
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({
                                   SpdyFrameType::SETTINGS,
-                                  SpdyFrameType::RST_STREAM,
-                                  SpdyFrameType::RST_STREAM,
                               }));
 }
 
