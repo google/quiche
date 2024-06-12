@@ -1096,6 +1096,122 @@ TEST(OgHttp2AdapterTest, ClientRejects100HeadersWithContentLength) {
                                             SpdyFrameType::RST_STREAM}));
 }
 
+TEST(OgHttp2AdapterTest, ClientHandlesResponseWithContentLengthAndPadding) {
+  TestVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kClient;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  const std::vector<Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+
+  const int32_t stream_id1 =
+      adapter->SubmitRequest(headers1, nullptr, true, nullptr);
+  ASSERT_GT(stream_id1, 0);
+
+  const std::vector<Header> headers2 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/two"}});
+
+  const int32_t stream_id2 =
+      adapter->SubmitRequest(headers2, nullptr, true, nullptr);
+  ASSERT_GT(stream_id2, stream_id1);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _,
+                                         END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _,
+                                   END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id2, _,
+                                         END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id2, _,
+                                   END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  // * Stream 1 sends a response with padding that exceeds the total
+  //   Content-Length in the first DATA frame.
+  // * Stream 3 sends a response with padding that exceeds the total
+  //   Content-Length in the 2nd frame of 3.
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .Headers(1, {{":status", "200"}, {"content-length", "2"}},
+                   /*fin=*/false)
+          .Data(1, "hi", /*fin=*/true, /*padding_length=*/10)
+          .Headers(3, {{":status", "200"}, {"content-length", "24"}},
+                   /*fin=*/false)
+          .Data(3, "hi", false, 11)
+          .Data(3, " it's nice", false, 12)
+          .Data(3, " to meet you", true, 13)
+          .Serialize();
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":status", "200"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, "content-length", "2"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 2 + 10, DATA, 0x9));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 2 + 10));
+  EXPECT_CALL(visitor, OnDataPaddingLength(1, 10));
+  // BUG: no stream data passed through for stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, ":status", "200"));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, "content-length", "24"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnFrameHeader(3, 2 + 11, DATA, 0x8));
+  EXPECT_CALL(visitor, OnBeginDataForStream(3, 2 + 11));
+  EXPECT_CALL(visitor, OnDataPaddingLength(3, 11));
+  EXPECT_CALL(visitor, OnDataForStream(3, "hi"));
+  EXPECT_CALL(visitor, OnFrameHeader(3, 10 + 12, DATA, 0x8));
+  EXPECT_CALL(visitor, OnBeginDataForStream(3, 10 + 12));
+  EXPECT_CALL(visitor, OnDataPaddingLength(3, 12));
+  // BUG: no stream data passed through for stream 3, frame 2 of 3
+  // BUG: no OnFrameHeader/OnBeginDataForStream calls for stream 3, frame 3 of 3
+  EXPECT_CALL(visitor, OnDataPaddingLength(3, 13));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, ACK_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, ACK_FLAG, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 1, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 3, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  EXPECT_TRUE(adapter->want_write());
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({
+                                  SpdyFrameType::SETTINGS,
+                                  SpdyFrameType::RST_STREAM,
+                                  SpdyFrameType::RST_STREAM,
+                              }));
+}
+
 TEST(OgHttp2AdapterTest, ClientHandles204WithContent) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
