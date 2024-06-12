@@ -7,6 +7,7 @@
 #include <linux/net_tstamp.h>
 #include <netinet/in.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
@@ -14,17 +15,24 @@
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
-QuicMsgHdr::QuicMsgHdr(const char* buffer, size_t buf_len,
-                       const QuicSocketAddress& peer_address, char* cbuf,
-                       size_t cbuf_size)
-    : iov_{const_cast<char*>(buffer), buf_len},
-      cbuf_(cbuf),
-      cbuf_size_(cbuf_size),
-      cmsg_(nullptr) {
-  // Only support unconnected sockets.
+QuicMsgHdr::QuicMsgHdr(iovec* iov, size_t iov_len, char* cbuf, size_t cbuf_size)
+    : cbuf_(cbuf), cbuf_size_(cbuf_size), cmsg_(nullptr) {
+  hdr_.msg_name = nullptr;
+  hdr_.msg_namelen = 0;
+
+  hdr_.msg_iov = iov;
+  hdr_.msg_iovlen = iov_len;
+  hdr_.msg_flags = 0;
+
+  hdr_.msg_control = nullptr;
+  hdr_.msg_controllen = 0;
+}
+
+void QuicMsgHdr::SetPeerAddress(const QuicSocketAddress& peer_address) {
   QUICHE_DCHECK(peer_address.IsInitialized());
 
   raw_peer_address_ = peer_address.generic_address();
@@ -32,13 +40,6 @@ QuicMsgHdr::QuicMsgHdr(const char* buffer, size_t buf_len,
   hdr_.msg_namelen = raw_peer_address_.ss_family == AF_INET
                          ? sizeof(sockaddr_in)
                          : sizeof(sockaddr_in6);
-
-  hdr_.msg_iov = &iov_;
-  hdr_.msg_iovlen = 1;
-  hdr_.msg_flags = 0;
-
-  hdr_.msg_control = nullptr;
-  hdr_.msg_controllen = 0;
 }
 
 void QuicMsgHdr::SetIpInNextCmsg(const QuicIpAddress& self_address) {

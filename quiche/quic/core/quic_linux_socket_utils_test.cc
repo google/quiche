@@ -134,9 +134,11 @@ void CheckIpAndGsoSizeInCbuf(msghdr* hdr, const void* cbuf,
 TEST_F(QuicLinuxSocketUtilsTest, QuicMsgHdr) {
   QuicSocketAddress peer_addr(QuicIpAddress::Loopback4(), 1234);
   char packet_buf[1024];
+  iovec iov{packet_buf, sizeof(packet_buf)};
 
   {
-    QuicMsgHdr quic_hdr(packet_buf, sizeof(packet_buf), peer_addr, nullptr, 0);
+    QuicMsgHdr quic_hdr(&iov, 1, nullptr, 0);
+    quic_hdr.SetPeerAddress(peer_addr);
     CheckMsghdrWithoutCbuf(quic_hdr.hdr(), packet_buf, sizeof(packet_buf),
                            peer_addr);
   }
@@ -145,8 +147,8 @@ TEST_F(QuicLinuxSocketUtilsTest, QuicMsgHdr) {
     QuicIpAddress self_addr =
         is_ipv4 ? QuicIpAddress::Loopback4() : QuicIpAddress::Loopback6();
     alignas(cmsghdr) char cbuf[kCmsgSpaceForIp + kCmsgSpaceForTTL];
-    QuicMsgHdr quic_hdr(packet_buf, sizeof(packet_buf), peer_addr, cbuf,
-                        sizeof(cbuf));
+    QuicMsgHdr quic_hdr(&iov, 1, cbuf, sizeof(cbuf));
+    quic_hdr.SetPeerAddress(peer_addr);
     msghdr* hdr = const_cast<msghdr*>(quic_hdr.hdr());
 
     EXPECT_EQ(nullptr, hdr->msg_control);

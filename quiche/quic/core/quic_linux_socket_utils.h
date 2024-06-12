@@ -24,6 +24,7 @@
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 
 #ifndef SOL_UDP
@@ -77,9 +78,12 @@ inline constexpr int kCmsgSpaceForTOS = CMSG_SPACE(sizeof(int));
 //   QuicLinuxSocketUtils::WritePacket(fd, hdr);
 class QUICHE_EXPORT QuicMsgHdr {
  public:
-  QuicMsgHdr(const char* buffer, size_t buf_len,
-             const QuicSocketAddress& peer_address, char* cbuf,
-             size_t cbuf_size);
+  // Creates a QuicMsgHeader without setting the peer address in
+  // msghdr.msg_name. This can be set later with SetPeerAddress().
+  QuicMsgHdr(iovec* iov, size_t iov_len, char* cbuf, size_t cbuf_size);
+
+  // Sets the peer address in msghdr.msg_name.
+  void SetPeerAddress(const QuicSocketAddress& peer_address);
 
   // Set IP info in the next cmsg. Both IPv4 and IPv6 are supported.
   void SetIpInNextCmsg(const QuicIpAddress& self_address);
@@ -97,7 +101,6 @@ class QUICHE_EXPORT QuicMsgHdr {
                                 size_t data_size);
 
   msghdr hdr_;
-  iovec iov_;
   sockaddr_storage raw_peer_address_;
   char* cbuf_;
   const size_t cbuf_size_;

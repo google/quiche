@@ -5,7 +5,10 @@
 #ifndef QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_GSO_BATCH_WRITER_H_
 #define QUICHE_QUIC_CORE_BATCH_WRITER_QUIC_GSO_BATCH_WRITER_H_
 
+#include <cstddef>
+
 #include "quiche/quic/core/batch_writer/quic_batch_writer_base.h"
+#include "quiche/quic/core/quic_linux_socket_utils.h"
 
 namespace quic {
 
@@ -71,11 +74,12 @@ class QUICHE_EXPORT QuicGsoBatchWriter : public QuicUdpBatchWriter {
                               /*num_packets_sent=*/0, /*bytes_written=*/0};
     WriteResult& write_result = result.write_result;
 
-    int total_bytes = batch_buffer().SizeInUse();
+    size_t total_bytes = batch_buffer().SizeInUse();
     const BufferedWrite& first = buffered_writes().front();
     char cbuf[CmsgSpace];
-    QuicMsgHdr hdr(first.buffer, total_bytes, first.peer_address, cbuf,
-                   sizeof(cbuf));
+    iovec iov{const_cast<char*>(first.buffer), total_bytes};
+    QuicMsgHdr hdr(&iov, 1, cbuf, sizeof(cbuf));
+    hdr.SetPeerAddress(first.peer_address);
 
     uint16_t gso_size = buffered_writes().size() > 1 ? first.buf_len : 0;
     cmsg_builder(&hdr, first.self_address, gso_size, first.release_time,
