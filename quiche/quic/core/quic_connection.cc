@@ -24,6 +24,7 @@
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
@@ -5548,11 +5549,15 @@ void QuicConnection::MaybeStartIetfPeerMigration() {
            "current_effective_peer_migration_type_: "
         << current_effective_peer_migration_type_;
     // Peer migrated before handshake gets confirmed.
-    CloseConnection((current_effective_peer_migration_type_ == PORT_CHANGE
-                         ? QUIC_PEER_PORT_CHANGE_HANDSHAKE_UNCONFIRMED
-                         : QUIC_CONNECTION_MIGRATION_HANDSHAKE_UNCONFIRMED),
-                    "Peer address changed before handshake is confirmed.",
-                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    CloseConnection(
+        (current_effective_peer_migration_type_ == PORT_CHANGE
+             ? QUIC_PEER_PORT_CHANGE_HANDSHAKE_UNCONFIRMED
+             : QUIC_CONNECTION_MIGRATION_HANDSHAKE_UNCONFIRMED),
+        absl::StrFormat(
+            "Peer address changed from %s to %s before handshake is confirmed.",
+            default_path_.peer_address.ToString(),
+            GetEffectivePeerAddressFromCurrentPacket().ToString()),
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
 
