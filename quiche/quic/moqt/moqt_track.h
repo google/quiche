@@ -9,6 +9,7 @@
 #include <optional>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -72,6 +73,24 @@ class LocalTrack {
   }
 
   void AddWindow(uint64_t subscribe_id, uint64_t start_group,
+                 uint64_t start_object, uint64_t end_group) {
+    // The end object might be unknown.
+    auto it = max_object_ids_.find(end_group);
+    if (end_group >= next_sequence_.group) {
+      // Group is not fully published yet, so end object is unknown.
+      windows_.AddWindow(subscribe_id, next_sequence_, start_group,
+                         start_object, end_group, UINT64_MAX);
+      return;
+    }
+    while (it == max_object_ids_.end()) {
+      // Find the latest group ID that actually had an object.
+      it = max_object_ids_.find(--end_group);
+    }
+    windows_.AddWindow(subscribe_id, next_sequence_, start_group, start_object,
+                       end_group, it->second);
+  }
+
+  void AddWindow(uint64_t subscribe_id, uint64_t start_group,
                  uint64_t start_object, uint64_t end_group,
                  uint64_t end_object) {
     windows_.AddWindow(subscribe_id, next_sequence_, start_group, start_object,
@@ -88,8 +107,18 @@ class LocalTrack {
 
   // Updates next_sequence_ if |sequence| is larger.
   void SentSequence(FullSequence sequence) {
+    if (sequence.group > next_sequence_.group) {
+      max_object_ids_[next_sequence_.group] = next_sequence_.object - 1;
+    }
+    if (sequence.group < next_sequence_.group) {
+      // Late object from previous group.
+      auto it = max_object_ids_.find(sequence.group);
+      if (it == max_object_ids_.end() || it->second < sequence.object) {
+        max_object_ids_[sequence.group] = sequence.object;
+      }
+    }
     if (next_sequence_ <= sequence) {
-      next_sequence_ = {sequence.group, sequence.object + 1};
+      next_sequence_ = sequence.next();
     }
   }
 
@@ -116,6 +145,9 @@ class LocalTrack {
   // By recording the highest observed sequence number, MoQT can interpret
   // relative sequence numbers in SUBSCRIBEs.
   FullSequence next_sequence_ = {0, 0};
+  // The highest object ID observed for each group ID. An entry only exists for
+  // the group after a later group has been observed.
+  absl::flat_hash_map<uint64_t, uint64_t> max_object_ids_;
   Visitor* visitor_;
 };
 

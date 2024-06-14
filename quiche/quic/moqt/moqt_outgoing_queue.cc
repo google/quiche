@@ -52,16 +52,13 @@ MoqtOutgoingQueue::OnSubscribeForPast(const SubscribeWindow& window) {
       MoqtOutgoingQueue_requires_kGroup,
       window.forwarding_preference() != MoqtForwardingPreference::kGroup)
       << "MoqtOutgoingQueue currently only supports kGroup.";
-  if (window.HasEnd()) {
-    // TODO: support this (this would require changing the logic for closing the
-    // stream below).
-    return absl::UnimplementedError("SUBSCRIBEs with an end are not supported");
-  }
   return [this, &window]() {
     for (size_t i = 0; i < queue_.size(); ++i) {
       const uint64_t group_id = first_group_in_queue() + i;
       const Group& group = queue_[i];
-      const bool is_last_group = (i == queue_.size() - 1);
+      const bool is_last_group =
+          ((i == queue_.size() - 1) ||
+           !window.InWindow(FullSequence{group_id + 1, 0}));
       for (size_t j = 0; j < group.size(); ++j) {
         const FullSequence sequence{group_id, j};
         if (!window.InWindow(sequence)) {

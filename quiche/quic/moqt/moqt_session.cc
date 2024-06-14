@@ -4,6 +4,7 @@
 
 #include "quiche/quic/moqt/moqt_session.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -724,7 +725,6 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
     session_->used_track_aliases_.insert(message.track_alias);
   }
   FullSequence start;
-  std::optional<FullSequence> end;
   if (message.start_group.has_value()) {
     // The filter is AbsoluteStart or AbsoluteRange.
     QUIC_BUG_IF(quic_bug_invalid_subscribe, !message.start_object.has_value())
@@ -742,16 +742,17 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
       --start.object;
     }
   }
-  if (message.end_group.has_value()) {
-    end = FullSequence(*message.end_group, message.end_object.has_value()
-                                               ? *message.end_object
-                                               : UINT64_MAX);
-  }
   LocalTrack::Visitor::PublishPastObjectsCallback publish_past_objects;
-  SubscribeWindow window =
-      SubscribeWindow(message.subscribe_id, track.forwarding_preference(),
-                      track.next_sequence(), start, end);
   if (start < track.next_sequence() && track.visitor() != nullptr) {
+    // Pull a copy of objects that have already been published.
+    FullSequence end_of_past_subscription{
+        message.end_group.has_value() ? *message.end_group : UINT64_MAX,
+        message.end_object.has_value() ? *message.end_object : UINT64_MAX};
+    end_of_past_subscription =
+        std::min(end_of_past_subscription, track.next_sequence());
+    SubscribeWindow window =
+        SubscribeWindow(message.subscribe_id, track.forwarding_preference(),
+                        track.next_sequence(), start, end_of_past_subscription);
     absl::StatusOr<LocalTrack::Visitor::PublishPastObjectsCallback>
         past_objects_available = track.visitor()->OnSubscribeForPast(window);
     if (!past_objects_available.ok()) {
@@ -767,11 +768,14 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
   SendOrBufferMessage(session_->framer_.SerializeSubscribeOk(subscribe_ok));
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << message.track_namespace << ":" << message.track_name;
-  if (end.has_value()) {
-    track.AddWindow(message.subscribe_id, start.group, start.object, end->group,
-                    end->object);
-  } else {
+  if (!message.end_group.has_value()) {
     track.AddWindow(message.subscribe_id, start.group, start.object);
+  } else if (message.end_object.has_value()) {
+    track.AddWindow(message.subscribe_id, start.group, start.object,
+                    *message.end_group, *message.end_object);
+  } else {
+    track.AddWindow(message.subscribe_id, start.group, start.object,
+                    *message.end_group);
   }
   session_->local_track_by_subscribe_id_.emplace(message.subscribe_id,
                                                  track.full_track_name());

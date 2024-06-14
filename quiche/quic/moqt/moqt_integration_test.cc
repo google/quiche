@@ -162,7 +162,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
   EXPECT_TRUE(success);
 }
 
-TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDatainResponse) {
+TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
   EstablishSession();
 
   // Set up the server to subscribe to "data" track for the namespace announce
@@ -180,6 +180,10 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDatainResponse) {
   client_->session()->AddLocalTrack(FullTrackName{"test", "data"},
                                     MoqtForwardingPreference::kGroup, &queue);
   queue.AddObject(MemSliceFromString("object data"), /*key=*/true);
+  bool received_subscribe_ok = false;
+  EXPECT_CALL(server_visitor, OnReply(_, _)).WillOnce([&]() {
+    received_subscribe_ok = true;
+  });
   client_->session()->Announce(
       "test", [](absl::string_view, std::optional<MoqtAnnounceErrorReason>) {});
 
@@ -201,6 +205,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDatainResponse) {
       });
   bool success = test_harness_.RunUntilWithDefaultTimeout(
       [&]() { return received_object; });
+  EXPECT_TRUE(received_subscribe_ok);
   EXPECT_TRUE(success);
 }
 

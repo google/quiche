@@ -68,9 +68,6 @@ bool SubscribeWindow::OnObjectSent(FullSequence sequence) {
       next_to_backfill_ = std::nullopt;
     }
   }
-  // TODO(martinduke): If the subscription ends in a full group with undefined
-  // object sequence, the only way to know to send SUBSCRIBE_DONE is by getting
-  // an upstream SUBSCRIBE_DONE.
   return (!next_to_backfill_.has_value() && end_.has_value() &&
           *end_ <= sequence);
 }
