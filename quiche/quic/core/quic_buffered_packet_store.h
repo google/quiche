@@ -118,9 +118,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
   // Generator to use with the connection. It is ignored if |parsed_chlo| is
   // absent.
   EnqueuePacketResult EnqueuePacket(
-      QuicConnectionId connection_id, bool ietf_quic,
-      const QuicReceivedPacket& packet, QuicSocketAddress self_address,
-      QuicSocketAddress peer_address, const ParsedQuicVersion& version,
+      const ReceivedPacketInfo& packet_info,
       std::optional<ParsedClientHello> parsed_chlo,
       ConnectionIdGeneratorInterface* connection_id_generator);
 

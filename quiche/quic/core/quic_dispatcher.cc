@@ -1163,9 +1163,7 @@ void QuicDispatcher::BufferEarlyPacket(const ReceivedPacketInfo& packet_info) {
   // The connection ID generator will only be set for CHLOs, not for early
   // packets.
   EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
-      packet_info.destination_connection_id,
-      packet_info.form != GOOGLE_QUIC_PACKET, packet_info.packet,
-      packet_info.self_address, packet_info.peer_address, packet_info.version,
+      packet_info,
       /*parsed_chlo=*/std::nullopt, /*connection_id_generator=*/nullptr);
   if (rs != EnqueuePacketResult::SUCCESS) {
     OnBufferPacketFailure(rs, packet_info.destination_connection_id);
@@ -1180,10 +1178,7 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
     QUIC_BUG_IF(quic_bug_12724_7, buffered_packets_.HasChloForConnection(
                                       packet_info->destination_connection_id));
     EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
-        packet_info->destination_connection_id,
-        packet_info->form != GOOGLE_QUIC_PACKET, packet_info->packet,
-        packet_info->self_address, packet_info->peer_address,
-        packet_info->version, std::move(parsed_chlo), &ConnectionIdGenerator());
+        *packet_info, std::move(parsed_chlo), &ConnectionIdGenerator());
     if (rs != EnqueuePacketResult::SUCCESS) {
       OnBufferPacketFailure(rs, packet_info->destination_connection_id);
     }
