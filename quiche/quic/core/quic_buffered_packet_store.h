@@ -17,13 +17,19 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_packet_creator.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_stream_frame_data_producer.h"
+#include "quiche/quic/core/quic_stream_send_buffer.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/core/tls_chlo_extractor.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 
 namespace quic {
@@ -204,6 +210,80 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
   // arrive.
   quiche::QuicheLinkedHashMap<QuicConnectionId, bool, QuicConnectionIdHash>
       connections_with_chlo_;
+};
+
+// Collects packets serialized by a QuicPacketCreator.
+class QUICHE_NO_EXPORT PacketCollector
+    : public QuicPacketCreator::DelegateInterface,
+      public QuicStreamFrameDataProducer {
+ public:
+  explicit PacketCollector(quiche::QuicheBufferAllocator* allocator)
+      : send_buffer_(allocator) {}
+  ~PacketCollector() override = default;
+
+  // QuicPacketCreator::DelegateInterface methods:
+  void OnSerializedPacket(SerializedPacket serialized_packet) override {
+    // Make a copy of the serialized packet to send later.
+    packets_.emplace_back(
+        new QuicEncryptedPacket(CopyBuffer(serialized_packet),
+                                serialized_packet.encrypted_length, true));
+  }
+
+  QuicPacketBuffer GetPacketBuffer() override {
+    // Let QuicPacketCreator to serialize packets on stack buffer.
+    return {nullptr, nullptr};
+  }
+
+  void OnUnrecoverableError(QuicErrorCode /*error*/,
+                            const std::string& /*error_details*/) override {}
+
+  bool ShouldGeneratePacket(HasRetransmittableData /*retransmittable*/,
+                            IsHandshake /*handshake*/) override {
+    QUICHE_DCHECK(false);
+    return true;
+  }
+
+  void MaybeBundleOpportunistically(
+      TransmissionType /*transmission_type*/) override {
+    QUICHE_DCHECK(false);
+  }
+
+  QuicByteCount GetFlowControlSendWindowSize(QuicStreamId /*id*/) override {
+    QUICHE_DCHECK(false);
+    return std::numeric_limits<QuicByteCount>::max();
+  }
+
+  SerializedPacketFate GetSerializedPacketFate(
+      bool /*is_mtu_discovery*/,
+      EncryptionLevel /*encryption_level*/) override {
+    return SEND_TO_WRITER;
+  }
+
+  // QuicStreamFrameDataProducer
+  WriteStreamDataResult WriteStreamData(QuicStreamId /*id*/,
+                                        QuicStreamOffset offset,
+                                        QuicByteCount data_length,
+                                        QuicDataWriter* writer) override {
+    if (send_buffer_.WriteStreamData(offset, data_length, writer)) {
+      return WRITE_SUCCESS;
+    }
+    return WRITE_FAILED;
+  }
+  bool WriteCryptoData(EncryptionLevel /*level*/, QuicStreamOffset offset,
+                       QuicByteCount data_length,
+                       QuicDataWriter* writer) override {
+    return send_buffer_.WriteStreamData(offset, data_length, writer);
+  }
+
+  std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets() {
+    return &packets_;
+  }
+
+ private:
+  std::vector<std::unique_ptr<QuicEncryptedPacket>> packets_;
+  // This is only needed until the packets are encrypted. Once packets are
+  // encrypted, the stream data is no longer required.
+  QuicStreamSendBuffer send_buffer_;
 };
 
 }  // namespace quic
