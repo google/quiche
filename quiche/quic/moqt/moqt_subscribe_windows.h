@@ -21,23 +21,38 @@ namespace moqt {
 // subscribed, the streams involved, and the subscribe IDs.
 class QUICHE_EXPORT SubscribeWindow {
  public:
-  // Creates a half-open window.
+  // Creates a half-open window. |next_object| is the expected sequence number
+  // of the next published object on the track.
   SubscribeWindow(uint64_t subscribe_id,
                   MoqtForwardingPreference forwarding_preference,
-                  uint64_t start_group, uint64_t start_object)
-      : subscribe_id_(subscribe_id),
-        start_({start_group, start_object}),
-        forwarding_preference_(forwarding_preference) {}
+                  FullSequence next_object, uint64_t start_group,
+                  uint64_t start_object)
+      : SubscribeWindow(subscribe_id, forwarding_preference, next_object,
+                        FullSequence(start_group, start_object), std::nullopt) {
+  }
 
   // Creates a closed window.
   SubscribeWindow(uint64_t subscribe_id,
                   MoqtForwardingPreference forwarding_preference,
-                  uint64_t start_group, uint64_t start_object,
-                  uint64_t end_group, uint64_t end_object)
+                  FullSequence next_object, uint64_t start_group,
+                  uint64_t start_object, uint64_t end_group,
+                  uint64_t end_object)
+      : SubscribeWindow(subscribe_id, forwarding_preference, next_object,
+                        FullSequence(start_group, start_object),
+                        FullSequence(end_group, end_object)) {}
+
+  SubscribeWindow(uint64_t subscribe_id,
+                  MoqtForwardingPreference forwarding_preference,
+                  FullSequence next_object, FullSequence start,
+                  std::optional<FullSequence> end)
       : subscribe_id_(subscribe_id),
-        start_({start_group, start_object}),
-        end_(FullSequence(end_group, end_object)),
-        forwarding_preference_(forwarding_preference) {}
+        start_(start),
+        end_(end),
+        original_next_object_(next_object),
+        forwarding_preference_(forwarding_preference) {
+    next_to_backfill_ =
+        (start < next_object) ? start : std::optional<FullSequence>();
+  }
 
   uint64_t subscribe_id() const { return subscribe_id_; }
 
@@ -59,29 +74,15 @@ class QUICHE_EXPORT SubscribeWindow {
     return forwarding_preference_;
   }
 
-  void OnObjectDelivered(FullSequence sequence) {
-    if (!largest_delivered_.has_value() || *largest_delivered_ < sequence) {
-      largest_delivered_ = sequence;
-    }
-  }
+  // Returns true if the object delivery completed the subscription
+  bool OnObjectSent(FullSequence sequence);
 
   std::optional<FullSequence>& largest_delivered() {
     return largest_delivered_;
   }
 
   // Returns true if the updated values are valid.
-  bool UpdateStartEnd(FullSequence start, std::optional<FullSequence> end) {
-    // Can't make the subscription window bigger.
-    if (!InWindow(start)) {
-      return false;
-    }
-    if (end_.has_value() && (!end.has_value() || *end_ < *end)) {
-      return false;
-    }
-    start_ = start;
-    end_ = end;
-    return true;
-  }
+  bool UpdateStartEnd(FullSequence start, std::optional<FullSequence> end);
 
  private:
   // Converts an object sequence number into one that matches the way that
@@ -90,8 +91,13 @@ class QUICHE_EXPORT SubscribeWindow {
 
   const uint64_t subscribe_id_;
   FullSequence start_;
-  std::optional<FullSequence> end_ = std::nullopt;
+  std::optional<FullSequence> end_;
   std::optional<FullSequence> largest_delivered_;
+  // The next sequence number to be redelivered, because it was published prior
+  // to the subscription. Is nullopt if no redeliveries are needed.
+  std::optional<FullSequence> next_to_backfill_;
+  // The first unpublished sequence number when the subscribe arrived.
+  const FullSequence original_next_object_;
   // Store open streams for this subscription. If the forwarding preference is
   // kTrack, there is one entry under sequence (0, 0). If kGroup, each entry is
   // under (group, 0). If kObject, it's tracked under the full sequence. If
@@ -115,19 +121,19 @@ class QUICHE_EXPORT MoqtSubscribeWindows {
 
   // |start_group| and |start_object| must be absolute sequence numbers. An
   // optimization could consolidate overlapping subscribe windows.
-  void AddWindow(uint64_t subscribe_id, uint64_t start_group,
-                 uint64_t start_object) {
+  void AddWindow(uint64_t subscribe_id, FullSequence next_object,
+                 uint64_t start_group, uint64_t start_object) {
     windows_.emplace(subscribe_id,
                      SubscribeWindow(subscribe_id, forwarding_preference_,
-                                     start_group, start_object));
+                                     next_object, start_group, start_object));
   }
-  void AddWindow(uint64_t subscribe_id, uint64_t start_group,
-                 uint64_t start_object, uint64_t end_group,
-                 uint64_t end_object) {
+  void AddWindow(uint64_t subscribe_id, FullSequence next_object,
+                 uint64_t start_group, uint64_t start_object,
+                 uint64_t end_group, uint64_t end_object) {
     windows_.emplace(
         subscribe_id,
-        SubscribeWindow(subscribe_id, forwarding_preference_, start_group,
-                        start_object, end_group, end_object));
+        SubscribeWindow(subscribe_id, forwarding_preference_, next_object,
+                        start_group, start_object, end_group, end_object));
   }
   void RemoveWindow(uint64_t subscribe_id) { windows_.erase(subscribe_id); }
 

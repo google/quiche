@@ -68,14 +68,14 @@ class LocalTrack {
 
   void AddWindow(uint64_t subscribe_id, uint64_t start_group,
                  uint64_t start_object) {
-    windows_.AddWindow(subscribe_id, start_group, start_object);
+    windows_.AddWindow(subscribe_id, next_sequence_, start_group, start_object);
   }
 
   void AddWindow(uint64_t subscribe_id, uint64_t start_group,
                  uint64_t start_object, uint64_t end_group,
                  uint64_t end_object) {
-    windows_.AddWindow(subscribe_id, start_group, start_object, end_group,
-                       end_object);
+    windows_.AddWindow(subscribe_id, next_sequence_, start_group, start_object,
+                       end_group, end_object);
   }
 
   void DeleteWindow(uint64_t subscribe_id) {

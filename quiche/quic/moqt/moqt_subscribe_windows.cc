@@ -54,6 +54,41 @@ void SubscribeWindow::RemoveStream(uint64_t group_id, uint64_t object_id) {
   send_streams_.erase(index);
 }
 
+bool SubscribeWindow::OnObjectSent(FullSequence sequence) {
+  if (!largest_delivered_.has_value() || *largest_delivered_ < sequence) {
+    largest_delivered_ = sequence;
+  }
+  // Update next_to_backfill_
+  if (sequence < original_next_object_ && next_to_backfill_.has_value() &&
+      *next_to_backfill_ <= sequence) {
+    next_to_backfill_ = sequence.next();
+    if (next_to_backfill_ == original_next_object_ ||
+        *next_to_backfill_ == end_) {
+      // Redelivery is complete.
+      next_to_backfill_ = std::nullopt;
+    }
+  }
+  // TODO(martinduke): If the subscription ends in a full group with undefined
+  // object sequence, the only way to know to send SUBSCRIBE_DONE is by getting
+  // an upstream SUBSCRIBE_DONE.
+  return (!next_to_backfill_.has_value() && end_.has_value() &&
+          *end_ <= sequence);
+}
+
+bool SubscribeWindow::UpdateStartEnd(FullSequence start,
+                                     std::optional<FullSequence> end) {
+  // Can't make the subscription window bigger.
+  if (!InWindow(start)) {
+    return false;
+  }
+  if (end_.has_value() && (!end.has_value() || *end_ < *end)) {
+    return false;
+  }
+  start_ = start;
+  end_ = end;
+  return true;
+}
+
 FullSequence SubscribeWindow::SequenceToIndex(FullSequence sequence) const {
   switch (forwarding_preference_) {
     case MoqtForwardingPreference::kTrack:

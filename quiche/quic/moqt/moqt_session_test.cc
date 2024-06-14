@@ -1233,7 +1233,7 @@ TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {
   MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
   // Get the window, set the maximum delivered.
   LocalTrack& track = MoqtSessionPeer::local_track(&session_, ftn);
-  track.GetWindow(0)->OnObjectDelivered(FullSequence(7, 3));
+  track.GetWindow(0)->OnObjectSent(FullSequence(7, 3));
   // Update the end to fall at the last delivered object.
   MoqtSubscribeUpdate update = {
       /*subscribe_id=*/0,

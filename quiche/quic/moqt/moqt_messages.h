@@ -156,6 +156,7 @@ struct FullSequence {
     object = other.object;
     return *this;
   }
+  FullSequence next() const { return FullSequence{group, object + 1}; }
   template <typename H>
   friend H AbslHashValue(H h, const FullSequence& m);
 

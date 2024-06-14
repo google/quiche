@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -422,7 +423,8 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
            "immediately closed";
     return false;
   }
-  track.SentSequence(FullSequence(group_id, object_id));
+  FullSequence sequence{group_id, object_id};
+  track.SentSequence(sequence);
   std::vector<SubscribeWindow*> subscriptions =
       track.ShouldSend({group_id, object_id});
   if (subscriptions.empty()) {
@@ -439,8 +441,11 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
   int failures = 0;
   quiche::StreamWriteOptions write_options;
   write_options.set_send_fin(end_of_stream);
+  absl::flat_hash_set<uint64_t> subscribes_to_close;
   for (auto subscription : subscriptions) {
-    subscription->OnObjectDelivered(FullSequence(group_id, object_id));
+    if (subscription->OnObjectSent(sequence)) {
+      subscribes_to_close.insert(subscription->subscribe_id());
+    }
     if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
       object.subscribe_id = subscription->subscribe_id();
       quiche::QuicheBuffer datagram =
@@ -452,7 +457,7 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
     }
     bool new_stream = false;
     std::optional<webtransport::StreamId> stream_id =
-        subscription->GetStreamForSequence(FullSequence(group_id, object_id));
+        subscription->GetStreamForSequence(sequence);
     if (!stream_id.has_value()) {
       new_stream = true;
       stream_id = OpenUnidirectionalStream();
@@ -490,6 +495,9 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
     if (end_of_stream && !new_stream) {
       subscription->RemoveStream(group_id, object_id);
     }
+  }
+  for (uint64_t subscribe_id : subscribes_to_close) {
+    SubscribeIsDone(subscribe_id, SubscribeDoneCode::kSubscriptionEnded, "");
   }
   return (failures == 0);
 }
@@ -741,11 +749,8 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
   }
   LocalTrack::Visitor::PublishPastObjectsCallback publish_past_objects;
   SubscribeWindow window =
-      end.has_value()
-          ? SubscribeWindow(message.subscribe_id, track.forwarding_preference(),
-                            start.group, start.object, end->group, end->object)
-          : SubscribeWindow(message.subscribe_id, track.forwarding_preference(),
-                            start.group, start.object);
+      SubscribeWindow(message.subscribe_id, track.forwarding_preference(),
+                      track.next_sequence(), start, end);
   if (start < track.next_sequence() && track.visitor() != nullptr) {
     absl::StatusOr<LocalTrack::Visitor::PublishPastObjectsCallback>
         past_objects_available = track.visitor()->OnSubscribeForPast(window);

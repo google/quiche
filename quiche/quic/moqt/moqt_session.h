@@ -127,9 +127,6 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                              absl::string_view name,
                              RemoteTrack::Visitor* visitor,
                              absl::string_view auth_info = "");
-  // Returns true if SUBSCRIBE_DONE was sent.
-  bool SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
-                       absl::string_view reason_phrase);
 
   // Returns false if it could not open a stream when necessary, or if the
   // track does not exist (there was no call to AddLocalTrack). Will still
@@ -222,6 +219,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     std::string partial_object_;
   };
 
+  // Returns true if SUBSCRIBE_DONE was sent.
+  bool SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
+                       absl::string_view reason_phrase);
   // Returns the pointer to the control stream, or nullptr if none is present.
   Stream* GetControlStream();
   // Sends a message on the control stream; QUICHE_DCHECKs if no control stream
