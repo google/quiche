@@ -136,15 +136,31 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
            "length in advance";
     return quiche::QuicheBuffer();
   }
+  if (message.object_status != MoqtObjectStatus::kNormal &&
+      message.payload_length.has_value() && *message.payload_length > 0) {
+    QUIC_BUG(quic_bug_serialize_object_input_03)
+        << "Object status must be kNormal if payload is non-empty";
+    return quiche::QuicheBuffer();
+  }
   if (!is_first_in_stream) {
     switch (message.forwarding_preference) {
       case MoqtForwardingPreference::kTrack:
-        return Serialize(WireVarInt62(message.group_id),
-                         WireVarInt62(message.object_id),
-                         WireVarInt62(*message.payload_length));
+        return (*message.payload_length == 0)
+                   ? Serialize(WireVarInt62(message.group_id),
+                               WireVarInt62(message.object_id),
+                               WireVarInt62(*message.payload_length),
+                               WireVarInt62(message.object_status))
+                   : Serialize(WireVarInt62(message.group_id),
+                               WireVarInt62(message.object_id),
+                               WireVarInt62(*message.payload_length));
       case MoqtForwardingPreference::kGroup:
-        return Serialize(WireVarInt62(message.object_id),
-                         WireVarInt62(*message.payload_length));
+        return (*message.payload_length == 0)
+                   ? Serialize(WireVarInt62(message.object_id),
+                               WireVarInt62(*message.payload_length),
+                               WireVarInt62(static_cast<uint64_t>(
+                                   message.object_status)))
+                   : Serialize(WireVarInt62(message.object_id),
+                               WireVarInt62(*message.payload_length));
       default:
         QUIC_BUG(quic_bug_serialize_object_input_02)
             << "Object or Datagram forwarding_preference must be first in "
@@ -156,36 +172,64 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
       GetMessageTypeForForwardingPreference(message.forwarding_preference);
   switch (message.forwarding_preference) {
     case MoqtForwardingPreference::kTrack:
-      return Serialize(
-          WireVarInt62(message_type), WireVarInt62(message.subscribe_id),
-          WireVarInt62(message.track_alias),
-          WireVarInt62(message.object_send_order),
-          WireVarInt62(message.group_id), WireVarInt62(message.object_id),
-          WireVarInt62(*message.payload_length));
+      return (*message.payload_length == 0)
+                 ? Serialize(WireVarInt62(message_type),
+                             WireVarInt62(message.subscribe_id),
+                             WireVarInt62(message.track_alias),
+                             WireVarInt62(message.object_send_order),
+                             WireVarInt62(message.group_id),
+                             WireVarInt62(message.object_id),
+                             WireVarInt62(*message.payload_length),
+                             WireVarInt62(message.object_status))
+                 : Serialize(WireVarInt62(message_type),
+                             WireVarInt62(message.subscribe_id),
+                             WireVarInt62(message.track_alias),
+                             WireVarInt62(message.object_send_order),
+                             WireVarInt62(message.group_id),
+                             WireVarInt62(message.object_id),
+                             WireVarInt62(*message.payload_length));
     case MoqtForwardingPreference::kGroup:
-      return Serialize(
-          WireVarInt62(message_type), WireVarInt62(message.subscribe_id),
-          WireVarInt62(message.track_alias), WireVarInt62(message.group_id),
-          WireVarInt62(message.object_send_order),
-          WireVarInt62(message.object_id),
-          WireVarInt62(*message.payload_length));
+      return (*message.payload_length == 0)
+                 ? Serialize(WireVarInt62(message_type),
+                             WireVarInt62(message.subscribe_id),
+                             WireVarInt62(message.track_alias),
+                             WireVarInt62(message.group_id),
+                             WireVarInt62(message.object_send_order),
+                             WireVarInt62(message.object_id),
+                             WireVarInt62(*message.payload_length),
+                             WireVarInt62(message.object_status))
+                 : Serialize(WireVarInt62(message_type),
+                             WireVarInt62(message.subscribe_id),
+                             WireVarInt62(message.track_alias),
+                             WireVarInt62(message.group_id),
+                             WireVarInt62(message.object_send_order),
+                             WireVarInt62(message.object_id),
+                             WireVarInt62(*message.payload_length));
     case MoqtForwardingPreference::kObject:
     case MoqtForwardingPreference::kDatagram:
       return Serialize(
           WireVarInt62(message_type), WireVarInt62(message.subscribe_id),
           WireVarInt62(message.track_alias), WireVarInt62(message.group_id),
           WireVarInt62(message.object_id),
-          WireVarInt62(message.object_send_order));
+          WireVarInt62(message.object_send_order),
+          WireVarInt62(message.object_status));
   }
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
     const MoqtObject& message, absl::string_view payload) {
+  if (message.object_status != MoqtObjectStatus::kNormal && !payload.empty()) {
+    QUIC_BUG(quic_bug_serialize_object_datagram_01)
+        << "Object status must be kNormal if payload is non-empty";
+    return quiche::QuicheBuffer();
+  }
   return Serialize(
       WireVarInt62(MoqtMessageType::kObjectDatagram),
       WireVarInt62(message.subscribe_id), WireVarInt62(message.track_alias),
       WireVarInt62(message.group_id), WireVarInt62(message.object_id),
-      WireVarInt62(message.object_send_order), WireBytes(payload));
+      WireVarInt62(message.object_send_order),
+      WireVarInt62(static_cast<uint64_t>(message.object_status)),
+      WireBytes(payload));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(

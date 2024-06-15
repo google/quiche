@@ -131,6 +131,7 @@ class QUICHE_EXPORT MoqtParser {
   // for the most recent object.
   bool ObjectPayloadInProgress() const {
     return (object_metadata_.has_value() &&
+            object_metadata_->object_status == MoqtObjectStatus::kNormal &&
             (object_metadata_->forwarding_preference ==
                  MoqtForwardingPreference::kObject ||
              object_metadata_->forwarding_preference ==

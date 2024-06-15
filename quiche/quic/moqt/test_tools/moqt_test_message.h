@@ -19,7 +19,6 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/platform/api/quic_logging.h"
-#include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_endian.h"
 
@@ -140,6 +139,10 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "OBJECT Object Send Order mismatch";
       return false;
     }
+    if (cast.object_status != object_.object_status) {
+      QUIC_LOG(INFO) << "OBJECT Object Status mismatch";
+      return false;
+    }
     if (cast.forwarding_preference != object_.forwarding_preference) {
       QUIC_LOG(INFO) << "OBJECT Object Send Order mismatch";
       return false;
@@ -162,6 +165,7 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       /*group_id*/ 5,
       /*object_id=*/6,
       /*object_send_order=*/7,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kTrack,
       /*payload_length=*/std::nullopt,
   };
@@ -175,13 +179,13 @@ class QUICHE_NO_EXPORT ObjectStreamMessage : public ObjectMessage {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvvvv");  // first six fields are varints
+    ExpandVarintsImpl("vvvvvvv---");  // first six fields are varints
   }
 
  private:
-  uint8_t raw_packet_[9] = {
-      0x00, 0x03, 0x04, 0x05, 0x06, 0x07,  // varints
-      0x66, 0x6f, 0x6f,                    // payload = "foo"
+  uint8_t raw_packet_[10] = {
+      0x00, 0x03, 0x04, 0x05, 0x06, 0x07, 0x00,  // varints
+      0x66, 0x6f, 0x6f,                          // payload = "foo"
   };
 };
 
@@ -193,13 +197,13 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvvvv");  // first six fields are varints
+    ExpandVarintsImpl("vvvvvvv---");  // first six fields are varints
   }
 
  private:
-  uint8_t raw_packet_[9] = {
-      0x01, 0x03, 0x04, 0x05, 0x06, 0x07,  // varints
-      0x66, 0x6f, 0x6f,                    // payload = "foo"
+  uint8_t raw_packet_[10] = {
+      0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x00,  // varints
+      0x66, 0x6f, 0x6f,                          // payload = "foo"
   };
 };
 
@@ -247,7 +251,8 @@ class QUICHE_NO_EXPORT StreamMiddlerTrackMessage : public ObjectMessage {
 
  private:
   uint8_t raw_packet_[6] = {
-      0x09, 0x0a, 0x03, 0x62, 0x61, 0x72,  // object middler; payload = "bar"
+      0x09, 0x0a,              // object middler
+      0x03, 0x62, 0x61, 0x72,  // payload = "bar"
   };
 };
 

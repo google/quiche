@@ -437,6 +437,7 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
   object.group_id = group_id;
   object.object_id = object_id;
   object.object_send_order = object_send_order;
+  object.object_status = MoqtObjectStatus::kNormal;
   object.forwarding_preference = forwarding_preference;
   object.payload_length = payload.size();
   int failures = 0;

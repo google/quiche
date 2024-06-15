@@ -571,6 +571,7 @@ TEST_F(MoqtSessionTest, IncomingObject) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*object_send_order=*/0,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
   };
@@ -595,6 +596,7 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*object_send_order=*/0,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/16,
   };
@@ -629,6 +631,7 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*object_send_order=*/0,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/16,
   };
@@ -664,6 +667,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*object_send_order=*/0,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
   };
@@ -719,6 +723,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*object_send_order=*/0,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
   };
@@ -778,6 +783,7 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*object_send_order=*/0,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
   };
@@ -828,6 +834,7 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*object_send_order=*/0,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
   };
@@ -1103,7 +1110,7 @@ TEST_F(MoqtSessionTest, SendDatagram) {
   // Publish in window.
   bool correct_message = false;
   uint8_t kExpectedMessage[] = {
-      0x01, 0x00, 0x02, 0x05, 0x00, 0x00, 0x64,
+      0x01, 0x00, 0x02, 0x05, 0x00, 0x00, 0x00, 0x64,
       0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66,
   };
   EXPECT_CALL(mock_session_, SendOrQueueDatagram(_))
@@ -1130,10 +1137,11 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*object_send_order=*/0,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kDatagram,
       /*payload_length=*/8,
   };
-  char datagram[] = {0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x64,
+  char datagram[] = {0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x64,
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(visitor_,
               OnObjectFragment(ftn, object.group_id, object.object_id,
@@ -1154,6 +1162,7 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*object_send_order=*/0,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
   };

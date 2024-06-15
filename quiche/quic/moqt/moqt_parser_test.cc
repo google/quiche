@@ -407,7 +407,9 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObjectFirstIncomplete) {
   EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_FALSE(visitor_.end_of_message_);
   EXPECT_TRUE(visitor_.object_payload_.has_value());
-  EXPECT_EQ(visitor_.object_payload_->length(), 94);
+  // The value "93" is the overall wire image size of 100 minus the non-payload
+  // part of the message.
+  EXPECT_EQ(visitor_.object_payload_->length(), 93);
 
   // third part includes FIN
   parser.ProcessData("bar", true);
@@ -701,6 +703,33 @@ TEST_F(MoqtMessageSpecificTest, DataAfterFin) {
   parser.ProcessData("foo", false);
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_, "Data after end of stream");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtMessageSpecificTest, NonNormalObjectHasPayload) {
+  MoqtParser parser(kRawQuic, visitor_);
+  char object_stream[] = {
+      0x00, 0x03, 0x04, 0x05, 0x06, 0x07, 0x02,  // varints
+      0x66, 0x6f, 0x6f,                          // payload = "foo"
+  };
+  parser.ProcessData(absl::string_view(object_stream, sizeof(object_stream)),
+                     false);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_,
+            "Object with non-normal status has payload");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtMessageSpecificTest, InvalidObjectStatus) {
+  MoqtParser parser(kRawQuic, visitor_);
+  char object_stream[] = {
+      0x00, 0x03, 0x04, 0x05, 0x06, 0x07, 0x06,  // varints
+      0x66, 0x6f, 0x6f,                          // payload = "foo"
+  };
+  parser.ProcessData(absl::string_view(object_stream, sizeof(object_stream)),
+                     false);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_, "Invalid object status");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 

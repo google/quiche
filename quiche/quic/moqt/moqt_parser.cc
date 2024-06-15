@@ -220,10 +220,32 @@ size_t MoqtParser::ProcessObject(quic::QuicDataReader& reader,
         return processed_data;
       }
       object_metadata_->payload_length = length;
+      uint64_t status = 0;  // Defaults to kNormal.
+      if (length == 0 && !reader.ReadVarInt62(&status)) {
+        return processed_data;
+      }
+      object_metadata_->object_status = IntegerToObjectStatus(status);
       break;
     }
     default:
       break;
+  }
+  if (object_metadata_->object_status ==
+      MoqtObjectStatus::kInvalidObjectStatus) {
+    ParseError("Invalid object status");
+    return processed_data;
+  }
+  if (object_metadata_->object_status != MoqtObjectStatus::kNormal) {
+    // It is impossible to express an explicit length with this status.
+    if ((type == MoqtMessageType::kObjectStream ||
+         type == MoqtMessageType::kObjectDatagram) &&
+        reader.BytesRemaining() > 0) {
+      // There is additional data in the stream/datagram, which is an error.
+      ParseError("Object with non-normal status has payload");
+      return processed_data;
+    }
+    visitor_.OnObjectMessage(*object_metadata_, "", true);
+    return processed_data;
   }
   bool has_length = object_metadata_->payload_length.has_value();
   bool received_complete_message = false;
@@ -722,6 +744,13 @@ size_t MoqtParser::ParseObjectHeader(quic::QuicDataReader& reader,
   if (!reader.ReadVarInt62(&object.object_send_order)) {
     return 0;
   }
+  uint64_t status = 0;  // Defaults to kNormal.
+  if ((type == MoqtMessageType::kObjectStream ||
+       type == MoqtMessageType::kObjectDatagram) &&
+      !reader.ReadVarInt62(&status)) {
+    return 0;
+  }
+  object.object_status = IntegerToObjectStatus(status);
   object.forwarding_preference = GetForwardingPreference(type);
   return reader.PreviouslyReadPayload().length();
 }

@@ -190,6 +190,17 @@ enum class QUICHE_EXPORT MoqtForwardingPreference : uint8_t {
   kDatagram = 0x3,
 };
 
+enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
+  kNormal = 0x0,
+  kObjectDoesNotExist = 0x1,
+  kGroupDoesNotExist = 0x2,
+  kEndOfGroup = 0x3,
+  kEndOfTrack = 0x4,
+  kInvalidObjectStatus = 0x5,
+};
+
+MoqtObjectStatus IntegerToObjectStatus(uint64_t integer);
+
 // The data contained in every Object message, although the message type
 // implies some of the values. |payload_length| has no value if the length
 // is unknown (because it runs to the end of the stream.)
@@ -199,6 +210,7 @@ struct QUICHE_EXPORT MoqtObject {
   uint64_t group_id;
   uint64_t object_id;
   uint64_t object_send_order;
+  MoqtObjectStatus object_status;
   MoqtForwardingPreference forwarding_preference;
   std::optional<uint64_t> payload_length;
 };

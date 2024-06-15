@@ -10,6 +10,13 @@
 
 namespace moqt {
 
+MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
+  if (integer >= 0x5) {
+    return MoqtObjectStatus::kInvalidObjectStatus;
+  }
+  return static_cast<MoqtObjectStatus>(integer);
+}
+
 MoqtFilterType GetFilterType(const MoqtSubscribe& message) {
   if (!message.end_group.has_value() && message.end_object.has_value()) {
     return MoqtFilterType::kNone;

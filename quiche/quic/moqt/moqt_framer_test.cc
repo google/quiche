@@ -241,6 +241,7 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*object_send_order=*/7,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kObject,
       /*payload_length=*/std::nullopt,
   };
@@ -253,6 +254,11 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(object, false),
                   "requires knowing the object length");
   EXPECT_TRUE(buffer.empty());
+  object.payload_length = 5;
+  object.object_status = MoqtObjectStatus::kEndOfGroup;
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(object, false),
+                  "Object status must be kNormal if payload is non-empty");
+  EXPECT_TRUE(buffer.empty());
 }
 
 TEST_F(MoqtFramerSimpleTest, Datagram) {
@@ -263,6 +269,7 @@ TEST_F(MoqtFramerSimpleTest, Datagram) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*object_send_order=*/7,
+      /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kObject,
       /*payload_length=*/std::nullopt,
   };
