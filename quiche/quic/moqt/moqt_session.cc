@@ -744,6 +744,7 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
     }
   }
   LocalTrack::Visitor::PublishPastObjectsCallback publish_past_objects;
+  std::optional<SubscribeWindow> past_window;
   if (start < track.next_sequence() && track.visitor() != nullptr) {
     // Pull a copy of objects that have already been published.
     FullSequence end_of_past_subscription{
@@ -751,11 +752,11 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
         message.end_object.has_value() ? *message.end_object : UINT64_MAX};
     end_of_past_subscription =
         std::min(end_of_past_subscription, track.next_sequence());
-    SubscribeWindow window =
-        SubscribeWindow(message.subscribe_id, track.forwarding_preference(),
+    past_window.emplace(message.subscribe_id, track.forwarding_preference(),
                         track.next_sequence(), start, end_of_past_subscription);
     absl::StatusOr<LocalTrack::Visitor::PublishPastObjectsCallback>
-        past_objects_available = track.visitor()->OnSubscribeForPast(window);
+        past_objects_available =
+            track.visitor()->OnSubscribeForPast(*past_window);
     if (!past_objects_available.ok()) {
       SendSubscribeError(message, SubscribeErrorCode::kInternalError,
                          past_objects_available.status().message(),
@@ -781,6 +782,7 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
   session_->local_track_by_subscribe_id_.emplace(message.subscribe_id,
                                                  track.full_track_name());
   if (publish_past_objects) {
+    QUICHE_DCHECK(past_window.has_value());
     std::move(publish_past_objects)();
   }
 }
