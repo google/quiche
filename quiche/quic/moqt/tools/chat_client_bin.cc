@@ -129,7 +129,9 @@ class ChatClient {
 
   class QUICHE_EXPORT RemoteTrackVisitor : public moqt::RemoteTrack::Visitor {
    public:
-    RemoteTrackVisitor(ChatClient* client) : client_(client) {}
+    RemoteTrackVisitor(ChatClient* client) : client_(client) {
+      cli_ = client->cli_.get();
+    }
 
     void OnReply(const moqt::FullTrackName& full_track_name,
                  std::optional<absl::string_view> reason_phrase) override {
