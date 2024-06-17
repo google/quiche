@@ -52,9 +52,7 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "This is the seed for Pseudo-random number"
     " generator used when generating random messages for unittests");
 
-namespace quiche {
-
-namespace test {
+namespace quiche::test {
 
 // This random engine from the standard library supports initialization with a
 // seed, which is helpful for reproducing any unit test failures that are due to
@@ -858,6 +856,46 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaders) {
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
   // One carriage return in firstline, 1 in header value.
   EXPECT_EQ(framer.get_invalid_chars().at('\r'), 2);
+}
+
+// Test that lone '\r' detection works correctly in the firstline
+// even if it is the last character of fractional input.
+TEST(HTTPBalsaFrame, CarriageReturnIllegalInFirstLineOnInputBoundary) {
+  HttpValidationPolicy policy{.disallow_lone_cr_in_request_headers = true};
+  BalsaHeaders balsa_headers;
+  BalsaFrame framer;
+  framer.set_is_request(true);
+  framer.set_balsa_headers(&balsa_headers);
+  framer.set_http_validation_policy(policy);
+  framer.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
+  constexpr absl::string_view message1("GET / \r");
+  constexpr absl::string_view message2("HTTP/1.1\r\n\r\n");
+  EXPECT_EQ(message1.size(),
+            framer.ProcessInput(message1.data(), message1.size()));
+  EXPECT_EQ(message2.size(),
+            framer.ProcessInput(message2.data(), message2.size()));
+  EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
+  EXPECT_EQ(framer.get_invalid_chars().at('\r'), 1);
+}
+
+// Test that lone '\r' detection works correctly in header values
+// even if it is the last character of fractional input.
+TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderValueOnInputBoundary) {
+  HttpValidationPolicy policy{.disallow_lone_cr_in_request_headers = true};
+  BalsaHeaders balsa_headers;
+  BalsaFrame framer;
+  framer.set_is_request(true);
+  framer.set_balsa_headers(&balsa_headers);
+  framer.set_http_validation_policy(policy);
+  framer.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
+  constexpr absl::string_view message1("GET / HTTP/1.1\r\nfoo: b\r");
+  constexpr absl::string_view message2("ar\r\n\r\n");
+  EXPECT_EQ(message1.size(),
+            framer.ProcessInput(message1.data(), message1.size()));
+  EXPECT_EQ(message2.size(),
+            framer.ProcessInput(message2.data(), message2.size()));
+  EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
+  EXPECT_EQ(framer.get_invalid_chars().at('\r'), 1);
 }
 
 TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderKey) {
@@ -1688,6 +1726,24 @@ TEST_F(HTTPBalsaFrameTest, InvalidChunkExtensionWithCarriageReturn) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   balsa_frame_.ProcessInput(message.data() + message_headers.size(),
                             message.size());
+}
+
+// TODO(b/347710034): Fix behavior.
+TEST_F(HTTPBalsaFrameTest,
+       ChunkExtensionLoneCarriageReturnDetectionAtBoundary) {
+  balsa_frame_.set_http_validation_policy(
+      HttpValidationPolicy{.disallow_lone_cr_in_chunk_extension = true});
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  constexpr absl::string_view headers(
+      "POST / HTTP/1.1\r\n"
+      "transfer-encoding: chunked\r\n\r\n");
+  ASSERT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+
+  constexpr absl::string_view body1("3\r");
+  ASSERT_EQ(1, balsa_frame_.ProcessInput(body1.data(), body1.size()));
+  EXPECT_EQ(BalsaFrameEnums::INVALID_CHUNK_EXTENSION, balsa_frame_.ErrorCode());
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -4295,7 +4351,4 @@ TEST_F(HTTPBalsaFrameTest, NullInValue) {
 }
 
 }  // namespace
-
-}  // namespace test
-
-}  // namespace quiche
+}  // namespace quiche::test
