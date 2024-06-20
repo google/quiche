@@ -14,6 +14,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_constants.h"
@@ -509,8 +510,9 @@ TEST_P(QuicStreamTest, ConnectionCloseAfterStreamClose) {
   }
   EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
   EXPECT_THAT(stream_->connection_error(), IsQuicNoError());
-  stream_->OnConnectionClosed(QUIC_INTERNAL_ERROR,
-                              ConnectionCloseSource::FROM_SELF);
+  QuicConnectionCloseFrame frame;
+  frame.quic_error_code = QUIC_INTERNAL_ERROR;
+  stream_->OnConnectionClosed(frame, ConnectionCloseSource::FROM_SELF);
   EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
   EXPECT_THAT(stream_->connection_error(), IsQuicNoError());
 }
@@ -1104,8 +1106,9 @@ TEST_P(QuicStreamTest, ConnectionClosed) {
           stream_->id(),
           QuicResetStreamError::FromInternal(QUIC_RST_ACKNOWLEDGEMENT), 9));
   QuicConnectionPeer::SetConnectionClose(connection_);
-  stream_->OnConnectionClosed(QUIC_INTERNAL_ERROR,
-                              ConnectionCloseSource::FROM_SELF);
+  QuicConnectionCloseFrame frame;
+  frame.quic_error_code = QUIC_INTERNAL_ERROR;
+  stream_->OnConnectionClosed(frame, ConnectionCloseSource::FROM_SELF);
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
   // Stream stops waiting for acks as connection is going to close.
   EXPECT_FALSE(stream_->IsWaitingForAcks());

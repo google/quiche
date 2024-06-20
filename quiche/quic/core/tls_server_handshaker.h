@@ -75,7 +75,7 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   void OnPacketDecrypted(EncryptionLevel level) override;
   void OnOneRttPacketAcknowledged() override {}
   void OnHandshakePacketSent() override {}
-  void OnConnectionClosed(QuicErrorCode error,
+  void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
   void OnHandshakeDoneReceived() override;
   std::string GetAddressToken(

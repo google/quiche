@@ -412,9 +412,9 @@ bool TlsServerHandshaker::ExportKeyingMaterial(absl::string_view label,
   return ExportKeyingMaterialForLabel(label, context, result_len, result);
 }
 
-void TlsServerHandshaker::OnConnectionClosed(QuicErrorCode error,
-                                             ConnectionCloseSource source) {
-  TlsHandshaker::OnConnectionClosed(error, source);
+void TlsServerHandshaker::OnConnectionClosed(
+    const QuicConnectionCloseFrame& frame, ConnectionCloseSource source) {
+  TlsHandshaker::OnConnectionClosed(frame.quic_error_code, source);
 }
 
 ssl_early_data_reason_t TlsServerHandshaker::EarlyDataReason() const {

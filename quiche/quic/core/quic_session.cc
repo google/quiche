@@ -515,11 +515,11 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
     source_ = source;
   }
 
-  GetMutableCryptoStream()->OnConnectionClosed(frame.quic_error_code, source);
+  GetMutableCryptoStream()->OnConnectionClosed(frame, source);
 
   PerformActionOnActiveStreams([this, frame, source](QuicStream* stream) {
     QuicStreamId id = stream->id();
-    stream->OnConnectionClosed(frame.quic_error_code, source);
+    stream->OnConnectionClosed(frame, source);
     auto it = stream_map_.find(id);
     if (it != stream_map_.end()) {
       QUIC_BUG_IF(quic_bug_12435_2, !it->second->IsZombie())

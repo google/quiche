@@ -25,6 +25,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_flow_controller.h"
@@ -197,7 +198,7 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
 
   // Called by the session when the endpoint receives or sends a connection
   // close, and should immediately close the stream.
-  virtual void OnConnectionClosed(QuicErrorCode error,
+  virtual void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                                   ConnectionCloseSource source);
 
   const QuicStreamPriority& priority() const;

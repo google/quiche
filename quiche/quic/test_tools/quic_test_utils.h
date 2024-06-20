@@ -886,7 +886,7 @@ class MockQuicCryptoStream : public QuicCryptoStream {
   }
   void SetPreviousCachedNetworkParams(
       CachedNetworkParameters /*cached_network_params*/) override {}
-  void OnConnectionClosed(QuicErrorCode /*error*/,
+  void OnConnectionClosed(const QuicConnectionCloseFrame& /*frame*/,
                           ConnectionCloseSource /*source*/) override {}
   HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }
   void SetServerApplicationStateForResumption(

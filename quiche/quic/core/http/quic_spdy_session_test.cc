@@ -194,7 +194,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
 
   MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
 
-  void OnConnectionClosed(QuicErrorCode /*error*/,
+  void OnConnectionClosed(const QuicConnectionCloseFrame& /*frame*/,
                           ConnectionCloseSource /*source*/) override {}
   SSL* GetSsl() const override { return nullptr; }
   bool IsCryptoFrameExpectedForEncryptionLevel(
