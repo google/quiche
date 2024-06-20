@@ -214,13 +214,13 @@ int CreateTapInterface() {
 }
 #endif  // defined(__linux__)
 
-std::string ComputeSignatureAuthContext(uint16_t signature_scheme,
+std::string ComputeConcealedAuthContext(uint16_t signature_scheme,
                                         absl::string_view key_id,
                                         absl::string_view public_key,
                                         absl::string_view scheme,
                                         absl::string_view host, uint16_t port,
                                         absl::string_view realm) {
-  QUIC_DVLOG(2) << "ComputeSignatureAuthContext: key_id=\"" << key_id
+  QUIC_DVLOG(2) << "ComputeConcealedAuthContext: key_id=\"" << key_id
                 << "\" public_key=" << absl::WebSafeBase64Escape(public_key)
                 << " scheme=\"" << scheme << "\" host=\"" << host
                 << "\" port=" << port << " realm=\"" << realm << "\"";
@@ -240,14 +240,14 @@ std::string ComputeSignatureAuthContext(uint16_t signature_scheme,
       !writer.WriteStringPieceVarInt62(scheme) ||
       !writer.WriteStringPieceVarInt62(host) || !writer.WriteUInt16(port) ||
       !writer.WriteStringPieceVarInt62(realm) || writer.remaining() != 0) {
-    QUIC_LOG(FATAL) << "ComputeSignatureAuthContext failed";
+    QUIC_LOG(FATAL) << "ComputeConcealedAuthContext failed";
   }
   return key_exporter_context;
 }
 
-std::string SignatureAuthDataCoveredBySignature(
+std::string ConcealedAuthDataCoveredBySignature(
     absl::string_view signature_input) {
-  return absl::StrCat(std::string(64, 0x20), "HTTP Signature Authentication",
+  return absl::StrCat(std::string(64, 0x20), "HTTP Concealed Authentication",
                       std::string(1, 0x00), signature_input);
 }
 

@@ -40,15 +40,15 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "Allows setting MASQUE mode, currently only valid value is \"open\".");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
-    std::string, signature_auth, "",
-    "Require HTTP Signature Authentication. Pass in a list of key identifiers "
+    std::string, concealed_auth, "",
+    "Require HTTP Concealed Authentication. Pass in a list of key identifiers "
     "and hex-encoded public keys. "
     "Separated with colons and semicolons. "
     "For example: \"kid1:0123...f;kid2:0123...f\".");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
-    bool, signature_auth_on_all_requests, false,
-    "If set to true, enable signature auth on all requests (such as GET) "
+    bool, concealed_auth_on_all_requests, false,
+    "If set to true, enable concealed auth on all requests (such as GET) "
     "instead of just MASQUE.");
 
 int main(int argc, char* argv[]) {
@@ -72,10 +72,10 @@ int main(int argc, char* argv[]) {
       masque_mode, quiche::GetQuicheCommandLineFlag(FLAGS_server_authority),
       quiche::GetQuicheCommandLineFlag(FLAGS_cache_dir));
 
-  backend->SetSignatureAuth(
-      quiche::GetQuicheCommandLineFlag(FLAGS_signature_auth));
-  backend->SetSignatureAuthOnAllRequests(
-      quiche::GetQuicheCommandLineFlag(FLAGS_signature_auth_on_all_requests));
+  backend->SetConcealedAuth(
+      quiche::GetQuicheCommandLineFlag(FLAGS_concealed_auth));
+  backend->SetConcealedAuthOnAllRequests(
+      quiche::GetQuicheCommandLineFlag(FLAGS_concealed_auth_on_all_requests));
 
   auto server =
       std::make_unique<quic::MasqueServer>(masque_mode, backend.get());

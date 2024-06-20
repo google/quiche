@@ -182,10 +182,10 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
   // QuicSpdyStream::Visitor
   void OnClose(QuicSpdyStream* stream) override;
 
-  // Set the signature auth key ID and private key. key_id MUST be non-empty,
+  // Set the concealed auth key ID and private key. key_id MUST be non-empty,
   // private_key MUST be ED25519_PRIVATE_KEY_LEN bytes long and public_key MUST
   // be ED25519_PUBLIC_KEY_LEN bytes long.
-  void EnableSignatureAuth(absl::string_view key_id,
+  void EnableConcealedAuth(absl::string_view key_id,
                            absl::string_view private_key,
                            absl::string_view public_key);
 
@@ -328,16 +328,16 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
   const ConnectEthernetClientState* GetOrCreateConnectEthernetClientState(
       EncapsulatedEthernetSession* encapsulated_ethernet_session);
 
-  std::optional<std::string> ComputeSignatureAuthHeader(const QuicUrl& url);
+  std::optional<std::string> ComputeConcealedAuthHeader(const QuicUrl& url);
   void AddAdditionalHeaders(spdy::Http2HeaderBlock& headers,
                             const QuicUrl& url);
 
   MasqueMode masque_mode_;
   std::string uri_template_;
   std::string additional_headers_;
-  std::string signature_auth_key_id_;
-  std::string signature_auth_private_key_;
-  std::string signature_auth_public_key_;
+  std::string concealed_auth_key_id_;
+  std::string concealed_auth_private_key_;
+  std::string concealed_auth_public_key_;
   std::list<ConnectUdpClientState> connect_udp_client_states_;
   std::list<ConnectIpClientState> connect_ip_client_states_;
   std::list<ConnectEthernetClientState> connect_ethernet_client_states_;

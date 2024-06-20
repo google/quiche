@@ -82,7 +82,7 @@ class QUIC_NO_EXPORT MasqueServerSession
                                   QuicSocketEventMask events);
   bool HandleConnectEthernetSocketEvent(QuicUdpSocketFd fd,
                                         QuicSocketEventMask events);
-  std::unique_ptr<QuicBackendResponse> MaybeCheckSignatureAuth(
+  std::unique_ptr<QuicBackendResponse> MaybeCheckConcealedAuth(
       const spdy::Http2HeaderBlock& request_headers,
       absl::string_view authority, absl::string_view scheme,
       QuicSimpleServerBackend::RequestHandler* request_handler);

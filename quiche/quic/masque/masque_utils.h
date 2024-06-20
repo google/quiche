@@ -54,23 +54,23 @@ int CreateTunInterface(const QuicIpAddress& client_address, bool server = true);
 // Create a TAP interface. Requires root.
 int CreateTapInterface();
 
-inline constexpr size_t kSignatureAuthSignatureInputSize = 32;
-inline constexpr size_t kSignatureAuthVerificationSize = 16;
-inline constexpr size_t kSignatureAuthExporterSize =
-    kSignatureAuthSignatureInputSize + kSignatureAuthVerificationSize;
+inline constexpr size_t kConcealedAuthSignatureInputSize = 32;
+inline constexpr size_t kConcealedAuthVerificationSize = 16;
+inline constexpr size_t kConcealedAuthExporterSize =
+    kConcealedAuthSignatureInputSize + kConcealedAuthVerificationSize;
 inline constexpr uint16_t kEd25519SignatureScheme = 0x0807;
-inline constexpr absl::string_view kSignatureAuthLabel =
-    "EXPORTER-HTTP-Signature-Authentication";
+inline constexpr absl::string_view kConcealedAuthLabel =
+    "EXPORTER-HTTP-Concealed-Authentication";
 
 // Returns the signature auth TLS key exporter context.
-QUIC_NO_EXPORT std::string ComputeSignatureAuthContext(
+QUIC_NO_EXPORT std::string ComputeConcealedAuthContext(
     uint16_t signature_scheme, absl::string_view key_id,
     absl::string_view public_key, absl::string_view scheme,
     absl::string_view host, uint16_t port, absl::string_view realm);
 
 // Returns the data covered by signature auth signatures, computed by
 // concatenating a fixed prefix from the specification and the signature input.
-QUIC_NO_EXPORT std::string SignatureAuthDataCoveredBySignature(
+QUIC_NO_EXPORT std::string ConcealedAuthDataCoveredBySignature(
     absl::string_view signature_input);
 
 }  // namespace quic

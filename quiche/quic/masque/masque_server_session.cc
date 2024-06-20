@@ -188,19 +188,19 @@ void MasqueServerSession::OnStreamClosed(QuicStreamId stream_id) {
 }
 
 std::unique_ptr<QuicBackendResponse>
-MasqueServerSession::MaybeCheckSignatureAuth(
+MasqueServerSession::MaybeCheckConcealedAuth(
     const spdy::Http2HeaderBlock& request_headers, absl::string_view authority,
     absl::string_view scheme,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
   // TODO(dschinazi) Add command-line flag that makes this implementation
   // probe-resistant by returning the usual failure instead of 401.
-  constexpr absl::string_view kSignatureAuthStatus = "401";
-  if (!masque_server_backend_->IsSignatureAuthEnabled()) {
+  constexpr absl::string_view kConcealedAuthStatus = "401";
+  if (!masque_server_backend_->IsConcealedAuthEnabled()) {
     return nullptr;
   }
   auto authorization_pair = request_headers.find("authorization");
   if (authorization_pair == request_headers.end()) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Missing authorization header");
   }
   absl::string_view credentials = authorization_pair->second;
@@ -208,12 +208,12 @@ MasqueServerSession::MaybeCheckSignatureAuth(
   std::vector<absl::string_view> v =
       absl::StrSplit(credentials, absl::MaxSplits(' ', 1));
   if (v.size() != 2) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Authorization header missing space");
   }
   absl::string_view auth_scheme = v[0];
-  if (auth_scheme != "Signature") {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+  if (auth_scheme != "Concealed") {
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Unexpected auth scheme");
   }
   absl::string_view auth_parameters = v[1];
@@ -242,58 +242,58 @@ MasqueServerSession::MaybeCheckSignatureAuth(
     switch (param_name[0]) {
       case 'k': {
         if (key_id.has_value()) {
-          return CreateBackendErrorResponse(kSignatureAuthStatus,
+          return CreateBackendErrorResponse(kConcealedAuthStatus,
                                             "Duplicate k");
         }
         if (!absl::WebSafeBase64Unescape(param_value, &decoded_param)) {
-          return CreateBackendErrorResponse(kSignatureAuthStatus,
+          return CreateBackendErrorResponse(kConcealedAuthStatus,
                                             "Failed to base64 decode k");
         }
         key_id = decoded_param;
       } break;
       case 'a': {
         if (header_public_key.has_value()) {
-          return CreateBackendErrorResponse(kSignatureAuthStatus,
+          return CreateBackendErrorResponse(kConcealedAuthStatus,
                                             "Duplicate a");
         }
         if (!absl::WebSafeBase64Unescape(param_value, &decoded_param)) {
-          return CreateBackendErrorResponse(kSignatureAuthStatus,
+          return CreateBackendErrorResponse(kConcealedAuthStatus,
                                             "Failed to base64 decode a");
         }
         header_public_key = decoded_param;
       } break;
       case 'p': {
         if (proof.has_value()) {
-          return CreateBackendErrorResponse(kSignatureAuthStatus,
+          return CreateBackendErrorResponse(kConcealedAuthStatus,
                                             "Duplicate p");
         }
         if (!absl::WebSafeBase64Unescape(param_value, &decoded_param)) {
-          return CreateBackendErrorResponse(kSignatureAuthStatus,
+          return CreateBackendErrorResponse(kConcealedAuthStatus,
                                             "Failed to base64 decode p");
         }
         proof = decoded_param;
       } break;
       case 's': {
         if (signature_scheme.has_value()) {
-          return CreateBackendErrorResponse(kSignatureAuthStatus,
+          return CreateBackendErrorResponse(kConcealedAuthStatus,
                                             "Duplicate s");
         }
         int signature_scheme_int = 0;
         if (!absl::SimpleAtoi(param_value, &signature_scheme_int) ||
             signature_scheme_int < 0 ||
             signature_scheme_int > std::numeric_limits<uint16_t>::max()) {
-          return CreateBackendErrorResponse(kSignatureAuthStatus,
+          return CreateBackendErrorResponse(kConcealedAuthStatus,
                                             "Failed to parse s");
         }
         signature_scheme = static_cast<uint16_t>(signature_scheme_int);
       } break;
       case 'v': {
         if (verification.has_value()) {
-          return CreateBackendErrorResponse(kSignatureAuthStatus,
+          return CreateBackendErrorResponse(kConcealedAuthStatus,
                                             "Duplicate v");
         }
         if (!absl::WebSafeBase64Unescape(param_value, &decoded_param)) {
-          return CreateBackendErrorResponse(kSignatureAuthStatus,
+          return CreateBackendErrorResponse(kConcealedAuthStatus,
                                             "Failed to base64 decode v");
         }
         verification = decoded_param;
@@ -301,40 +301,40 @@ MasqueServerSession::MaybeCheckSignatureAuth(
     }
   }
   if (!key_id.has_value()) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Missing k auth parameter");
   }
   if (!header_public_key.has_value()) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Missing a auth parameter");
   }
   if (!proof.has_value()) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Missing p auth parameter");
   }
   if (!signature_scheme.has_value()) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Missing s auth parameter");
   }
   if (!verification.has_value()) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Missing v auth parameter");
   }
   uint8_t config_public_key[ED25519_PUBLIC_KEY_LEN];
-  if (!masque_server_backend_->GetSignatureAuthKeyForId(*key_id,
+  if (!masque_server_backend_->GetConcealedAuthKeyForId(*key_id,
                                                         config_public_key)) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Unexpected key id");
   }
   if (*header_public_key !=
       std::string(reinterpret_cast<const char*>(config_public_key),
                   sizeof(config_public_key))) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Unexpected public key in header");
   }
   std::string realm = "";
   QuicUrl url(absl::StrCat(scheme, "://", authority, "/"));
-  std::optional<std::string> key_exporter_context = ComputeSignatureAuthContext(
+  std::optional<std::string> key_exporter_context = ComputeConcealedAuthContext(
       kEd25519SignatureScheme, *key_id, *header_public_key, scheme, url.host(),
       url.port(), realm);
   if (!key_exporter_context.has_value()) {
@@ -346,20 +346,20 @@ MasqueServerSession::MaybeCheckSignatureAuth(
   QUICHE_DCHECK(!key_exporter_context->empty());
   std::string key_exporter_output;
   if (!GetMutableCryptoStream()->ExportKeyingMaterial(
-          kSignatureAuthLabel, *key_exporter_context,
-          kSignatureAuthExporterSize, &key_exporter_output)) {
+          kConcealedAuthLabel, *key_exporter_context,
+          kConcealedAuthExporterSize, &key_exporter_output)) {
     return CreateBackendErrorResponse("500", "Key exporter failed");
   }
-  QUICHE_CHECK_EQ(key_exporter_output.size(), kSignatureAuthExporterSize);
+  QUICHE_CHECK_EQ(key_exporter_output.size(), kConcealedAuthExporterSize);
   std::string signature_input =
-      key_exporter_output.substr(0, kSignatureAuthSignatureInputSize);
+      key_exporter_output.substr(0, kConcealedAuthSignatureInputSize);
   QUIC_DVLOG(1) << "signature_input: "
                 << absl::WebSafeBase64Escape(signature_input);
   std::string expected_verification = key_exporter_output.substr(
-      kSignatureAuthSignatureInputSize, kSignatureAuthVerificationSize);
+      kConcealedAuthSignatureInputSize, kConcealedAuthVerificationSize);
   if (verification != expected_verification) {
     return CreateBackendErrorResponse(
-        kSignatureAuthStatus,
+        kConcealedAuthStatus,
         absl::StrCat("Unexpected verification, expected ",
                      absl::WebSafeBase64Escape(expected_verification),
                      " but got ", absl::WebSafeBase64Escape(*verification),
@@ -367,15 +367,15 @@ MasqueServerSession::MaybeCheckSignatureAuth(
                      absl::WebSafeBase64Escape(*key_exporter_context)));
   }
   std::string data_covered_by_signature =
-      SignatureAuthDataCoveredBySignature(signature_input);
+      ConcealedAuthDataCoveredBySignature(signature_input);
   QUIC_DVLOG(1) << "data_covered_by_signature: "
                 << absl::WebSafeBase64Escape(data_covered_by_signature);
   if (*signature_scheme != kEd25519SignatureScheme) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Unexpected signature scheme");
   }
   if (proof->size() != ED25519_SIGNATURE_LEN) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Unexpected proof length");
   }
   if (ED25519_verify(
@@ -383,7 +383,7 @@ MasqueServerSession::MaybeCheckSignatureAuth(
           data_covered_by_signature.size(),
           reinterpret_cast<const uint8_t*>(proof->data()),
           config_public_key) != 1) {
-    return CreateBackendErrorResponse(kSignatureAuthStatus,
+    return CreateBackendErrorResponse(kConcealedAuthStatus,
                                       "Signature failed to validate");
   }
   QUIC_LOG(INFO) << "Successfully validated signature auth for stream ID "
@@ -411,11 +411,11 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   if (scheme.empty()) {
     return CreateBackendErrorResponse("400", "Empty scheme");
   }
-  // Signature authentication.
-  auto signature_auth_reply = MaybeCheckSignatureAuth(
+  // Concealed authentication.
+  auto concealed_auth_reply = MaybeCheckConcealedAuth(
       request_headers, authority, scheme, request_handler);
-  if (signature_auth_reply) {
-    return signature_auth_reply;
+  if (concealed_auth_reply) {
+    return concealed_auth_reply;
   }
   // Path.
   auto path_pair = request_headers.find(":path");
@@ -437,7 +437,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   absl::string_view method = method_pair->second;
   if (method != "CONNECT") {
     QUIC_DLOG(ERROR) << "MASQUE request with bad method \"" << method << "\"";
-    if (masque_server_backend_->IsSignatureAuthOnAllRequests()) {
+    if (masque_server_backend_->IsConcealedAuthOnAllRequests()) {
       return nullptr;
     } else {
       return CreateBackendErrorResponse("400", "Bad method");
@@ -447,7 +447,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   auto protocol_pair = request_headers.find(":protocol");
   if (protocol_pair == request_headers.end()) {
     QUIC_DLOG(ERROR) << "MASQUE request is missing :protocol";
-    if (masque_server_backend_->IsSignatureAuthOnAllRequests()) {
+    if (masque_server_backend_->IsConcealedAuthOnAllRequests()) {
       return nullptr;
     } else {
       return CreateBackendErrorResponse("400", "Missing :protocol");
@@ -458,7 +458,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
       protocol != "connect-ethernet") {
     QUIC_DLOG(ERROR) << "MASQUE request with bad protocol \"" << protocol
                      << "\"";
-    if (masque_server_backend_->IsSignatureAuthOnAllRequests()) {
+    if (masque_server_backend_->IsConcealedAuthOnAllRequests()) {
       return nullptr;
     } else {
       return CreateBackendErrorResponse("400", "Bad protocol");

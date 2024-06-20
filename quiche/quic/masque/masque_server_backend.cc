@@ -64,7 +64,7 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
        protocol_pair->second != "connect-ip" &&
        protocol_pair->second != "connect-ethernet")) {
     // This is not a MASQUE request.
-    if (!signature_auth_on_all_requests_) {
+    if (!concealed_auth_on_all_requests_) {
       return false;
     }
   }
@@ -177,12 +177,12 @@ QuicIpAddress MasqueServerBackend::GetNextClientIpAddress() {
   return address;
 }
 
-void MasqueServerBackend::SetSignatureAuth(absl::string_view signature_auth) {
-  signature_auth_credentials_.clear();
-  if (signature_auth.empty()) {
+void MasqueServerBackend::SetConcealedAuth(absl::string_view concealed_auth) {
+  concealed_auth_credentials_.clear();
+  if (concealed_auth.empty()) {
     return;
   }
-  for (absl::string_view sp : absl::StrSplit(signature_auth, ';')) {
+  for (absl::string_view sp : absl::StrSplit(concealed_auth, ';')) {
     quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&sp);
     if (sp.empty()) {
       continue;
@@ -191,26 +191,26 @@ void MasqueServerBackend::SetSignatureAuth(absl::string_view signature_auth) {
         absl::StrSplit(sp, absl::MaxSplits(':', 1));
     quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[0]);
     quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[1]);
-    SignatureAuthCredential credential;
+    ConcealedAuthCredential credential;
     credential.key_id = std::string(kv[0]);
     std::string public_key;
     if (!absl::HexStringToBytes(kv[1], &public_key)) {
-      QUIC_LOG(FATAL) << "Invalid signature auth public key hex " << kv[1];
+      QUIC_LOG(FATAL) << "Invalid concealed auth public key hex " << kv[1];
     }
     if (public_key.size() != sizeof(credential.public_key)) {
-      QUIC_LOG(FATAL) << "Invalid signature auth public key length "
+      QUIC_LOG(FATAL) << "Invalid concealed auth public key length "
                       << public_key.size();
     }
     memcpy(credential.public_key, public_key.data(),
            sizeof(credential.public_key));
-    signature_auth_credentials_.push_back(credential);
+    concealed_auth_credentials_.push_back(credential);
   }
 }
 
-bool MasqueServerBackend::GetSignatureAuthKeyForId(
+bool MasqueServerBackend::GetConcealedAuthKeyForId(
     absl::string_view key_id,
     uint8_t out_public_key[ED25519_PUBLIC_KEY_LEN]) const {
-  for (const auto& credential : signature_auth_credentials_) {
+  for (const auto& credential : concealed_auth_credentials_) {
     if (credential.key_id == key_id) {
       memcpy(out_public_key, credential.public_key,
              sizeof(credential.public_key));

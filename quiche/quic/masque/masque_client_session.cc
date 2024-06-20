@@ -721,7 +721,7 @@ void MasqueClientSession::RemoveFakeAddress(
   fake_addresses_.erase(fake_address.ToPackedString());
 }
 
-void MasqueClientSession::EnableSignatureAuth(absl::string_view key_id,
+void MasqueClientSession::EnableConcealedAuth(absl::string_view key_id,
                                               absl::string_view private_key,
                                               absl::string_view public_key) {
   QUICHE_CHECK(!key_id.empty());
@@ -729,9 +729,9 @@ void MasqueClientSession::EnableSignatureAuth(absl::string_view key_id,
                   static_cast<size_t>(ED25519_PRIVATE_KEY_LEN));
   QUICHE_CHECK_EQ(public_key.size(),
                   static_cast<size_t>(ED25519_PUBLIC_KEY_LEN));
-  signature_auth_key_id_ = key_id;
-  signature_auth_private_key_ = private_key;
-  signature_auth_public_key_ = public_key;
+  concealed_auth_key_id_ = key_id;
+  concealed_auth_private_key_ = private_key;
+  concealed_auth_public_key_ = public_key;
 }
 
 QuicSpdyClientStream* MasqueClientSession::SendGetRequest(
@@ -775,9 +775,9 @@ void MasqueClientSession::OnClose(QuicSpdyStream* stream) {
   QUIC_DVLOG(1) << "Closing stream " << stream->id();
 }
 
-std::optional<std::string> MasqueClientSession::ComputeSignatureAuthHeader(
+std::optional<std::string> MasqueClientSession::ComputeConcealedAuthHeader(
     const QuicUrl& url) {
-  if (signature_auth_private_key_.empty()) {
+  if (concealed_auth_private_key_.empty()) {
     return std::nullopt;
   }
   std::string scheme = url.scheme();
@@ -785,27 +785,27 @@ std::optional<std::string> MasqueClientSession::ComputeSignatureAuthHeader(
   uint16_t port = url.port();
   std::string realm = "";
   std::string key_exporter_output;
-  std::string key_exporter_context = ComputeSignatureAuthContext(
-      kEd25519SignatureScheme, signature_auth_key_id_,
-      signature_auth_public_key_, scheme, host, port, realm);
+  std::string key_exporter_context = ComputeConcealedAuthContext(
+      kEd25519SignatureScheme, concealed_auth_key_id_,
+      concealed_auth_public_key_, scheme, host, port, realm);
   QUIC_DVLOG(1) << "key_exporter_context: "
                 << absl::WebSafeBase64Escape(key_exporter_context);
   QUICHE_DCHECK(!key_exporter_context.empty());
   if (!GetMutableCryptoStream()->ExportKeyingMaterial(
-          kSignatureAuthLabel, key_exporter_context, kSignatureAuthExporterSize,
+          kConcealedAuthLabel, key_exporter_context, kConcealedAuthExporterSize,
           &key_exporter_output)) {
-    QUIC_LOG(FATAL) << "Signature auth TLS exporter failed";
+    QUIC_LOG(FATAL) << "Concealed auth TLS exporter failed";
     return std::nullopt;
   }
-  QUICHE_CHECK_EQ(key_exporter_output.size(), kSignatureAuthExporterSize);
+  QUICHE_CHECK_EQ(key_exporter_output.size(), kConcealedAuthExporterSize);
   std::string signature_input =
-      key_exporter_output.substr(0, kSignatureAuthSignatureInputSize);
+      key_exporter_output.substr(0, kConcealedAuthSignatureInputSize);
   QUIC_DVLOG(1) << "signature_input: "
                 << absl::WebSafeBase64Escape(signature_input);
   std::string verification = key_exporter_output.substr(
-      kSignatureAuthSignatureInputSize, kSignatureAuthVerificationSize);
+      kConcealedAuthSignatureInputSize, kConcealedAuthVerificationSize);
   std::string data_covered_by_signature =
-      SignatureAuthDataCoveredBySignature(signature_input);
+      ConcealedAuthDataCoveredBySignature(signature_input);
   QUIC_DVLOG(1) << "data_covered_by_signature: "
                 << absl::WebSafeBase64Escape(data_covered_by_signature);
   uint8_t signature[ED25519_SIGNATURE_LEN];
@@ -814,13 +814,13 @@ std::optional<std::string> MasqueClientSession::ComputeSignatureAuthHeader(
           reinterpret_cast<const uint8_t*>(data_covered_by_signature.data()),
           data_covered_by_signature.size(),
           reinterpret_cast<const uint8_t*>(
-              signature_auth_private_key_.data())) != 1) {
-    QUIC_LOG(FATAL) << "Signature auth signature failed";
+              concealed_auth_private_key_.data())) != 1) {
+    QUIC_LOG(FATAL) << "Concealed auth signature failed";
     return std::nullopt;
   }
   return absl::StrCat(
-      "Signature k=", absl::WebSafeBase64Escape(signature_auth_key_id_),
-      ", a=", absl::WebSafeBase64Escape(signature_auth_public_key_), ", p=",
+      "Concealed k=", absl::WebSafeBase64Escape(concealed_auth_key_id_),
+      ", a=", absl::WebSafeBase64Escape(concealed_auth_public_key_), ", p=",
       absl::WebSafeBase64Escape(absl::string_view(
           reinterpret_cast<const char*>(signature), sizeof(signature))),
       ", s=", kEd25519SignatureScheme,
@@ -829,10 +829,10 @@ std::optional<std::string> MasqueClientSession::ComputeSignatureAuthHeader(
 
 void MasqueClientSession::AddAdditionalHeaders(spdy::Http2HeaderBlock& headers,
                                                const QuicUrl& url) {
-  std::optional<std::string> signature_auth_header =
-      ComputeSignatureAuthHeader(url);
-  if (signature_auth_header.has_value()) {
-    headers["authorization"] = *signature_auth_header;
+  std::optional<std::string> concealed_auth_header =
+      ComputeConcealedAuthHeader(url);
+  if (concealed_auth_header.has_value()) {
+    headers["authorization"] = *concealed_auth_header;
   }
   if (additional_headers_.empty()) {
     return;
