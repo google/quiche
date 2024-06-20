@@ -1728,9 +1728,10 @@ TEST_F(HTTPBalsaFrameTest, InvalidChunkExtensionWithCarriageReturn) {
                             message.size());
 }
 
-// TODO(b/347710034): Fix behavior.
-TEST_F(HTTPBalsaFrameTest,
-       ChunkExtensionLoneCarriageReturnDetectionAtBoundary) {
+// Regression test for b/347710034: `disallow_lone_cr_in_chunk_extension` should
+// not trigger false positive when "\r\n" terminating chunk length is separated
+// into multiple calls to ProcessInput().
+TEST_F(HTTPBalsaFrameTest, ChunkExtensionCarriageReturnLineFeedAtBoundary) {
   balsa_frame_.set_http_validation_policy(
       HttpValidationPolicy{.disallow_lone_cr_in_chunk_extension = true});
   EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
@@ -1742,7 +1743,43 @@ TEST_F(HTTPBalsaFrameTest,
             balsa_frame_.ProcessInput(headers.data(), headers.size()));
 
   constexpr absl::string_view body1("3\r");
-  ASSERT_EQ(1, balsa_frame_.ProcessInput(body1.data(), body1.size()));
+  ASSERT_EQ(body1.size(),
+            balsa_frame_.ProcessInput(body1.data(), body1.size()));
+  ASSERT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+
+  constexpr absl::string_view body2(
+      "\nfoo\r\n"
+      "0\r\n\r\n");
+
+  EXPECT_CALL(visitor_mock_, OnBodyChunkInput("foo"));
+  EXPECT_CALL(visitor_mock_, MessageDone());
+  ASSERT_EQ(body2.size(),
+            balsa_frame_.ProcessInput(body2.data(), body2.size()));
+
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+}
+
+// A CR character followed by a non-LF character is detected even if separated
+// into multiple calls to ProcessInput().
+TEST_F(HTTPBalsaFrameTest, ChunkExtensionLoneCarriageReturnAtBoundary) {
+  balsa_frame_.set_http_validation_policy(
+      HttpValidationPolicy{.disallow_lone_cr_in_chunk_extension = true});
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  constexpr absl::string_view headers(
+      "POST / HTTP/1.1\r\n"
+      "transfer-encoding: chunked\r\n\r\n");
+  ASSERT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+
+  constexpr absl::string_view body1("3\r");
+  ASSERT_EQ(body1.size(),
+            balsa_frame_.ProcessInput(body1.data(), body1.size()));
+  ASSERT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+
+  constexpr absl::string_view body2("a");
+  EXPECT_EQ(0, balsa_frame_.ProcessInput(body2.data(), body2.size()));
   EXPECT_EQ(BalsaFrameEnums::INVALID_CHUNK_EXTENSION, balsa_frame_.ErrorCode());
 }
 
