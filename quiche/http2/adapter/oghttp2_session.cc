@@ -531,8 +531,8 @@ OgHttp2Session::ProcessBytesImpl(absl::string_view bytes) {
 int OgHttp2Session::Consume(Http2StreamId stream_id, size_t num_bytes) {
   auto it = stream_map_.find(stream_id);
   if (it == stream_map_.end()) {
-    QUICHE_LOG(ERROR) << "Stream " << stream_id << " not found when consuming "
-                      << num_bytes << " bytes";
+    QUICHE_VLOG(1) << "Stream " << stream_id << " not found when consuming "
+                   << num_bytes << " bytes";
   } else {
     it->second.window_manager.MarkDataFlushed(num_bytes);
   }
