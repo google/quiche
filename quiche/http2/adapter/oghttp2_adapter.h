@@ -38,6 +38,7 @@ class QUICHE_EXPORT OgHttp2Adapter : public Http2Adapter {
                           int window_increment) override;
   void SubmitMetadata(Http2StreamId stream_id, size_t max_frame_size,
                       std::unique_ptr<MetadataSource> source) override;
+  void SubmitMetadata(Http2StreamId stream_id, size_t num_frames) override;
   int Send() override;
   int GetSendWindowSize() const override;
   int GetStreamSendWindowSize(Http2StreamId stream_id) const override;

@@ -994,6 +994,30 @@ void OgHttp2Session::SerializeMetadata(Http2StreamId stream_id,
   }
 }
 
+void OgHttp2Session::SerializeMetadata(Http2StreamId stream_id) {
+  const uint32_t max_payload_size =
+      std::min(kMaxAllowedMetadataFrameSize, max_frame_payload_);
+  auto payload_buffer = std::make_unique<uint8_t[]>(max_payload_size);
+
+  while (true) {
+    auto [written, end_metadata] = visitor_.PackMetadataForStream(
+        stream_id, payload_buffer.get(), max_payload_size);
+    if (written < 0) {
+      // Unable to pack any metadata.
+      return;
+    }
+    QUICHE_DCHECK_LE(static_cast<size_t>(written), max_payload_size);
+    auto payload = absl::string_view(
+        reinterpret_cast<const char*>(payload_buffer.get()), written);
+    EnqueueFrame(std::make_unique<spdy::SpdyUnknownIR>(
+        stream_id, kMetadataFrameType, end_metadata ? kMetadataEndFlag : 0u,
+        std::string(payload)));
+    if (end_metadata) {
+      return;
+    }
+  }
+}
+
 int32_t OgHttp2Session::SubmitRequest(
     absl::Span<const Header> headers,
     std::unique_ptr<DataFrameSource> data_source, bool end_stream,
@@ -1043,6 +1067,10 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
 void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id,
                                     std::unique_ptr<MetadataSource> source) {
   SerializeMetadata(stream_id, std::move(source));
+}
+
+void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id) {
+  SerializeMetadata(stream_id);
 }
 
 void OgHttp2Session::SubmitSettings(absl::Span<const Http2Setting> settings) {

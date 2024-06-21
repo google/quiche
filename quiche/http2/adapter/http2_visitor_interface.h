@@ -280,6 +280,16 @@ class QUICHE_EXPORT Http2VisitorInterface {
   // Returns false if there was an error unpacking the metadata payload.
   virtual bool OnMetadataEndForStream(Http2StreamId stream_id) = 0;
 
+  // Called when the connection is ready to send a metadata payload for a
+  // stream. Should return the number of payload bytes copied to |dest|, or a
+  // negative integer to indicate an error, as well as a boolean indicating
+  // whether the metadata payload has been completely copied.
+  virtual std::pair<int64_t, bool> PackMetadataForStream(
+      Http2StreamId /*stream_id*/, uint8_t* /*dest*/, size_t /*dest_len*/) {
+    QUICHE_LOG(DFATAL) << "Not implemented";
+    return {-1, false};
+  }
+
   // Invoked with an error message from the application.
   virtual void OnErrorDebug(absl::string_view message) = 0;
 

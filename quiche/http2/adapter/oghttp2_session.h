@@ -114,6 +114,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   int SubmitTrailer(Http2StreamId stream_id, absl::Span<const Header> trailers);
   void SubmitMetadata(Http2StreamId stream_id,
                       std::unique_ptr<MetadataSource> source);
+  void SubmitMetadata(Http2StreamId stream_id);
   void SubmitSettings(absl::Span<const Http2Setting> settings);
 
   bool IsServerSession() const {
@@ -393,6 +394,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
 
   void SerializeMetadata(Http2StreamId stream_id,
                          std::unique_ptr<MetadataSource> source);
+  void SerializeMetadata(Http2StreamId stream_id);
 
   void SendHeaders(Http2StreamId stream_id, spdy::Http2HeaderBlock headers,
                    bool end_stream);

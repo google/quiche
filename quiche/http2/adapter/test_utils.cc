@@ -18,6 +18,12 @@ namespace {
 
 using ConnectionError = Http2VisitorInterface::ConnectionError;
 
+std::string EncodeHeaders(const spdy::Http2HeaderBlock& entries) {
+  spdy::HpackEncoder encoder;
+  encoder.DisableCompression();
+  return encoder.EncodeHeaderBlock(entries);
+}
+
 }  // anonymous namespace
 
 TestVisitor::DataFrameHeaderInfo TestVisitor::OnReadyToSendDataForStream(
@@ -96,6 +102,28 @@ void TestVisitor::SimulateError(Http2StreamId stream_id) {
   payload.return_error = true;
 }
 
+std::pair<int64_t, bool> TestVisitor::PackMetadataForStream(
+    Http2StreamId stream_id, uint8_t* dest, size_t dest_len) {
+  auto it = outbound_metadata_map_.find(stream_id);
+  if (it == outbound_metadata_map_.end()) {
+    return {-1, false};
+  }
+  const size_t to_copy = std::min(it->second.size(), dest_len);
+  auto* src = reinterpret_cast<uint8_t*>(it->second.data());
+  std::copy(src, src + to_copy, dest);
+  it->second = it->second.substr(to_copy);
+  if (it->second.empty()) {
+    outbound_metadata_map_.erase(it);
+    return {to_copy, true};
+  }
+  return {to_copy, false};
+}
+
+void TestVisitor::AppendMetadataForStream(
+    Http2StreamId stream_id, const spdy::Http2HeaderBlock& payload) {
+  outbound_metadata_map_.insert({stream_id, EncodeHeaders(payload)});
+}
+
 VisitorDataSource::VisitorDataSource(Http2VisitorInterface& visitor,
                                      Http2StreamId stream_id)
     : visitor_(visitor), stream_id_(stream_id) {}
@@ -113,12 +141,6 @@ std::pair<int64_t, bool> VisitorDataSource::SelectPayloadLength(
 bool VisitorDataSource::Send(absl::string_view frame_header,
                              size_t payload_length) {
   return visitor_.SendDataFrame(stream_id_, frame_header, payload_length);
-}
-
-std::string EncodeHeaders(const spdy::Http2HeaderBlock& entries) {
-  spdy::HpackEncoder encoder;
-  encoder.DisableCompression();
-  return encoder.EncodeHeaderBlock(entries);
 }
 
 TestMetadataSource::TestMetadataSource(const spdy::Http2HeaderBlock& entries)

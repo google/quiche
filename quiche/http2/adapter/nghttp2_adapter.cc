@@ -76,6 +76,37 @@ class NgHttp2Adapter::NotifyingMetadataSource : public MetadataSource {
   std::unique_ptr<MetadataSource> source_;
 };
 
+// A metadata source that notifies the owning NgHttp2Adapter upon completion or
+// failure.
+class NgHttp2Adapter::NotifyingVisitorMetadataSource : public MetadataSource {
+ public:
+  explicit NotifyingVisitorMetadataSource(NgHttp2Adapter* adapter,
+                                          Http2StreamId stream_id,
+                                          Http2VisitorInterface& visitor)
+      : adapter_(adapter), stream_id_(stream_id), visitor_(visitor) {}
+
+  size_t NumFrames(size_t /*max_frame_size*/) const override {
+    QUICHE_LOG(DFATAL) << "Should not be invoked.";
+    return 0;
+  }
+
+  std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) override {
+    const auto [packed, end_metadata] =
+        visitor_.PackMetadataForStream(stream_id_, dest, dest_len);
+    if (packed < 0 || end_metadata) {
+      adapter_->RemovePendingMetadata(stream_id_);
+    }
+    return {packed, end_metadata};
+  }
+
+  void OnFailure() override { adapter_->RemovePendingMetadata(stream_id_); }
+
+ private:
+  NgHttp2Adapter* const adapter_;
+  const Http2StreamId stream_id_;
+  Http2VisitorInterface& visitor_;
+};
+
 /* static */
 std::unique_ptr<NgHttp2Adapter> NgHttp2Adapter::CreateClientAdapter(
     Http2VisitorInterface& visitor, const nghttp2_option* options) {
@@ -159,6 +190,31 @@ void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
   auto wrapped_source = std::make_unique<NotifyingMetadataSource>(
       this, stream_id, std::move(source));
   const size_t num_frames = wrapped_source->NumFrames(max_frame_size);
+  size_t num_successes = 0;
+  for (size_t i = 1; i <= num_frames; ++i) {
+    const int result =
+        nghttp2_submit_extension(session_->raw_ptr(), kMetadataFrameType,
+                                 i == num_frames ? kMetadataEndFlag : 0,
+                                 stream_id, wrapped_source.get());
+    if (result != 0) {
+      QUICHE_LOG(DFATAL) << "Failed to submit extension frame " << i << " of "
+                         << num_frames;
+      break;
+    }
+    ++num_successes;
+  }
+  if (num_successes > 0) {
+    // Finds the MetadataSourceVec for `stream_id` or inserts a new one if not
+    // present.
+    auto [it, _] = stream_metadata_.insert({stream_id, MetadataSourceVec{}});
+    it->second.push_back(std::move(wrapped_source));
+  }
+}
+
+void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
+                                    size_t num_frames) {
+  auto wrapped_source = std::make_unique<NotifyingVisitorMetadataSource>(
+      this, stream_id, visitor_);
   size_t num_successes = 0;
   for (size_t i = 1; i <= num_frames; ++i) {
     const int result =

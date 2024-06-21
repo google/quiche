@@ -188,6 +188,12 @@ bool RecordingHttp2Visitor::OnMetadataEndForStream(Http2StreamId stream_id) {
   return true;
 }
 
+std::pair<int64_t, bool> RecordingHttp2Visitor::PackMetadataForStream(
+    Http2StreamId stream_id, uint8_t* /*dest*/, size_t /*dest_len*/) {
+  events_.push_back(absl::StrFormat("PackMetadataForStream %d", stream_id));
+  return {1, true};
+}
+
 void RecordingHttp2Visitor::OnErrorDebug(absl::string_view message) {
   events_.push_back(absl::StrFormat("OnErrorDebug %s", message));
 }

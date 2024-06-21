@@ -56,6 +56,8 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
   void SubmitMetadata(Http2StreamId stream_id, size_t max_frame_size,
                       std::unique_ptr<MetadataSource> source) override;
 
+  void SubmitMetadata(Http2StreamId stream_id, size_t num_frames) override;
+
   int Send() override;
 
   int GetSendWindowSize() const override;
@@ -117,6 +119,7 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
 
  private:
   class NotifyingMetadataSource;
+  class NotifyingVisitorMetadataSource;
 
   NgHttp2Adapter(Http2VisitorInterface& visitor, Perspective perspective,
                  const nghttp2_option* options);

@@ -2601,13 +2601,24 @@ TEST(NgHttp2AdapterTest, ClientAcceptsHeadResponseWithContentLength) {
   adapter->Send();
 }
 
-TEST(NgHttp2AdapterTest, SubmitMetadata) {
+class MetadataApiTest : public quiche::test::QuicheTestWithParam<bool> {};
+
+INSTANTIATE_TEST_SUITE_P(WithAndWithoutNewApi, MetadataApiTest,
+                         testing::Bool());
+
+TEST_P(MetadataApiTest, SubmitMetadata) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
-  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
-      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
-  adapter->SubmitMetadata(1, 16384u, std::move(source));
+  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(1, block);
+    adapter->SubmitMetadata(1, 1);
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(block);
+    adapter->SubmitMetadata(1, 16384u, std::move(source));
+  }
   EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(kMetadataFrameType, 1, _, 0x4));
@@ -2624,14 +2635,24 @@ TEST(NgHttp2AdapterTest, SubmitMetadata) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(NgHttp2AdapterTest, SubmitMetadataMultipleFrames) {
+size_t DivRoundUp(size_t numerator, size_t denominator) {
+  return numerator / denominator + (numerator % denominator == 0 ? 0 : 1);
+}
+
+TEST_P(MetadataApiTest, SubmitMetadataMultipleFrames) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
   const auto kLargeValue = std::string(63 * 1024, 'a');
-  auto source = std::make_unique<TestMetadataSource>(
-      ToHeaderBlock(ToHeaders({{"large-value", kLargeValue}})));
-  adapter->SubmitMetadata(1, 16384u, std::move(source));
+  const spdy::Http2HeaderBlock block =
+      ToHeaderBlock(ToHeaders({{"large-value", kLargeValue}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(1, block);
+    adapter->SubmitMetadata(1, DivRoundUp(kLargeValue.size(), 16384u));
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(block);
+    adapter->SubmitMetadata(1, 16384u, std::move(source));
+  }
   EXPECT_TRUE(adapter->want_write());
 
   testing::InSequence seq;
@@ -2658,13 +2679,19 @@ TEST(NgHttp2AdapterTest, SubmitMetadataMultipleFrames) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(NgHttp2AdapterTest, SubmitConnectionMetadata) {
+TEST_P(MetadataApiTest, SubmitConnectionMetadata) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
-  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
-      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
-  adapter->SubmitMetadata(0, 16384u, std::move(source));
+  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(0, block);
+    adapter->SubmitMetadata(0, 1);
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(block);
+    adapter->SubmitMetadata(0, 16384u, std::move(source));
+  }
   EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(kMetadataFrameType, 0, _, 0x4));
@@ -2681,7 +2708,7 @@ TEST(NgHttp2AdapterTest, SubmitConnectionMetadata) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithGoaway) {
+TEST_P(MetadataApiTest, ClientSubmitMetadataWithGoaway) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
@@ -2699,9 +2726,15 @@ TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithGoaway) {
   const int32_t stream_id =
       adapter->SubmitRequest(headers, nullptr, true, nullptr);
 
-  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
-      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
-  adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(stream_id, block);
+    adapter->SubmitMetadata(stream_id, 1);
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(block);
+    adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  }
   EXPECT_TRUE(adapter->want_write());
 
   const std::string initial_frames =
@@ -2742,7 +2775,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithGoaway) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureBefore) {
+TEST_P(MetadataApiTest, ClientSubmitMetadataWithFailureBefore) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
@@ -2760,9 +2793,15 @@ TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureBefore) {
   const int32_t stream_id =
       adapter->SubmitRequest(headers, nullptr, true, nullptr);
 
-  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
-      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
-  adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(stream_id, block);
+    adapter->SubmitMetadata(stream_id, 1);
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(block);
+    adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  }
   EXPECT_TRUE(adapter->want_write());
 
   const std::string initial_frames =
@@ -2794,7 +2833,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureBefore) {
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
 }
 
-TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureDuring) {
+TEST_P(MetadataApiTest, ClientSubmitMetadataWithFailureDuring) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
@@ -2812,9 +2851,15 @@ TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureDuring) {
   const int32_t stream_id =
       adapter->SubmitRequest(headers, nullptr, true, nullptr);
 
-  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(
-      ToHeaders({{"more-than-one-frame", std::string(20000, 'a')}})));
-  adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  const spdy::Http2HeaderBlock block = ToHeaderBlock(
+      ToHeaders({{"more-than-one-frame", std::string(20000, 'a')}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(stream_id, block);
+    adapter->SubmitMetadata(stream_id, 2);
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(block);
+    adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  }
   EXPECT_TRUE(adapter->want_write());
 
   const std::string initial_frames =
@@ -2849,7 +2894,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureDuring) {
                             static_cast<SpdyFrameType>(kMetadataFrameType)}));
 }
 
-TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureSending) {
+TEST_P(MetadataApiTest, ClientSubmitMetadataWithFailureSending) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
@@ -2867,10 +2912,16 @@ TEST(NgHttp2AdapterTest, ClientSubmitMetadataWithFailureSending) {
   const int32_t stream_id =
       adapter->SubmitRequest(headers, nullptr, true, nullptr);
 
-  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(
-      ToHeaders({{"more-than-one-frame", std::string(20000, 'a')}})));
-  source->InjectFailure();
-  adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  if (GetParam()) {
+    // The test visitor returns an error if no metadata payload is found for the
+    // stream.
+    adapter->SubmitMetadata(stream_id, 2);
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(
+        ToHeaders({{"more-than-one-frame", std::string(20000, 'a')}})));
+    source->InjectFailure();
+    adapter->SubmitMetadata(stream_id, 16384u, std::move(source));
+  }
   EXPECT_TRUE(adapter->want_write());
 
   const std::string initial_frames =

@@ -70,6 +70,14 @@ class QUICHE_NO_EXPORT TestVisitor
   void SetEndData(Http2StreamId stream_id, bool end_stream);
   void SimulateError(Http2StreamId stream_id);
 
+  std::pair<int64_t, bool> PackMetadataForStream(Http2StreamId stream_id,
+                                                 uint8_t* dest,
+                                                 size_t dest_len) override;
+
+  // Test methods to manipulate the metadata payload to send for a stream.
+  void AppendMetadataForStream(Http2StreamId stream_id,
+                               const spdy::Http2HeaderBlock& payload);
+
   const std::string& data() { return data_; }
   void Clear() { data_.clear(); }
 
@@ -90,6 +98,7 @@ class QUICHE_NO_EXPORT TestVisitor
   std::string data_;
   absl::flat_hash_map<Http2StreamId, std::vector<std::string>> metadata_map_;
   absl::flat_hash_map<Http2StreamId, DataPayload> data_map_;
+  absl::flat_hash_map<Http2StreamId, std::string> outbound_metadata_map_;
   size_t send_limit_ = std::numeric_limits<size_t>::max();
   bool is_write_blocked_ = false;
   bool has_write_error_ = false;

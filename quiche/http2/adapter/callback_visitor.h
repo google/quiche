@@ -76,6 +76,10 @@ class QUICHE_EXPORT CallbackVisitor : public Http2VisitorInterface {
   bool OnMetadataForStream(Http2StreamId stream_id,
                            absl::string_view metadata) override;
   bool OnMetadataEndForStream(Http2StreamId stream_id) override;
+  std::pair<int64_t, bool> PackMetadataForStream(Http2StreamId stream_id,
+                                                 uint8_t* dest,
+                                                 size_t dest_len) override;
+
   void OnErrorDebug(absl::string_view message) override;
 
   size_t stream_map_size() const { return stream_map_.size(); }

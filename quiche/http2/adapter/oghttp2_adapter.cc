@@ -79,6 +79,15 @@ void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
   session_->SubmitMetadata(stream_id, std::move(source));
 }
 
+void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
+                                    size_t /* num_frames */) {
+  // Not necessary to pass max_frame_size along, since OgHttp2Session tracks the
+  // peer's advertised max frame size. Not necessary to pass the number of
+  // frames along, since OgHttp2Session will invoke the visitor method until it
+  // is done packing the payload.
+  session_->SubmitMetadata(stream_id);
+}
+
 int OgHttp2Adapter::Send() { return session_->Send(); }
 
 int OgHttp2Adapter::GetSendWindowSize() const {

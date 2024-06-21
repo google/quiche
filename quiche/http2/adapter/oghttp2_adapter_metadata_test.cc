@@ -351,7 +351,12 @@ TEST(OgHttp2AdapterTest, ClientHandlesMetadataWithCompletionError) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
 }
 
-TEST(OgHttp2AdapterTest, ClientSendsMetadataAfterFlowControlBlock) {
+class MetadataApiTest : public quiche::test::QuicheTestWithParam<bool> {};
+
+INSTANTIATE_TEST_SUITE_P(WithAndWithoutNewApi, MetadataApiTest,
+                         testing::Bool());
+
+TEST_P(MetadataApiTest, ClientSendsMetadataAfterFlowControlBlock) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
@@ -387,9 +392,15 @@ TEST(OgHttp2AdapterTest, ClientSendsMetadataAfterFlowControlBlock) {
   EXPECT_FALSE(adapter->want_write());
   EXPECT_EQ(0, adapter->GetSendWindowSize());
 
-  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
-      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
-  adapter->SubmitMetadata(1, 16384u, std::move(source));
+  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(stream_id1, block);
+    adapter->SubmitMetadata(stream_id1, 1);
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(block);
+    adapter->SubmitMetadata(1, 16384u, std::move(source));
+  }
   EXPECT_CALL(visitor, OnBeforeFrameSent(kMetadataFrameType, 1, _, 0x4));
   EXPECT_CALL(visitor, OnFrameSent(kMetadataFrameType, 1, _, 0x4, 0));
 
@@ -460,15 +471,21 @@ TEST(OgHttp2AdapterTest, ClientSendsMetadataWithContinuation) {
             absl::StrJoin(visitor.GetMetadata(1), ""));
 }
 
-TEST(OgHttp2AdapterTest, SubmitMetadata) {
+TEST_P(MetadataApiTest, SubmitMetadata) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
-  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
-      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
-  adapter->SubmitMetadata(1, 16384u, std::move(source));
+  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(1, block);
+    adapter->SubmitMetadata(1, 1);
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(block);
+    adapter->SubmitMetadata(1, 16384u, std::move(source));
+  }
   EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -484,16 +501,26 @@ TEST(OgHttp2AdapterTest, SubmitMetadata) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(OgHttp2AdapterTest, SubmitMetadataMultipleFrames) {
+size_t DivRoundUp(size_t numerator, size_t denominator) {
+  return numerator / denominator + (numerator % denominator == 0 ? 0 : 1);
+}
+
+TEST_P(MetadataApiTest, SubmitMetadataMultipleFrames) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
   const auto kLargeValue = std::string(63 * 1024, 'a');
-  auto source = std::make_unique<TestMetadataSource>(
-      ToHeaderBlock(ToHeaders({{"large-value", kLargeValue}})));
-  adapter->SubmitMetadata(1, 16384u, std::move(source));
+  const spdy::Http2HeaderBlock block =
+      ToHeaderBlock(ToHeaders({{"large-value", kLargeValue}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(1, block);
+    adapter->SubmitMetadata(1, DivRoundUp(kLargeValue.size(), 16384u));
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(block);
+    adapter->SubmitMetadata(1, 16384u, std::move(source));
+  }
   EXPECT_TRUE(adapter->want_write());
 
   testing::InSequence seq;
@@ -520,15 +547,21 @@ TEST(OgHttp2AdapterTest, SubmitMetadataMultipleFrames) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(OgHttp2AdapterTest, SubmitConnectionMetadata) {
+TEST_P(MetadataApiTest, SubmitConnectionMetadata) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
-  auto source = std::make_unique<TestMetadataSource>(ToHeaderBlock(ToHeaders(
-      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}})));
-  adapter->SubmitMetadata(0, 16384u, std::move(source));
+  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+      {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(0, block);
+    adapter->SubmitMetadata(0, 1);
+  } else {
+    auto source = std::make_unique<TestMetadataSource>(block);
+    adapter->SubmitMetadata(0, 16384u, std::move(source));
+  }
   EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -544,7 +577,7 @@ TEST(OgHttp2AdapterTest, SubmitConnectionMetadata) {
   EXPECT_FALSE(adapter->want_write());
 }
 
-TEST(OgHttp2AdapterTest, ServerQueuesMetadataThenTrailers) {
+TEST_P(MetadataApiTest, ServerQueuesMetadataThenTrailers) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kServer;
@@ -606,10 +639,15 @@ TEST(OgHttp2AdapterTest, ServerQueuesMetadataThenTrailers) {
   visitor.Clear();
   EXPECT_FALSE(adapter->want_write());
 
-  spdy::Http2HeaderBlock block;
-  block["key"] = "wild value!";
-  adapter->SubmitMetadata(
-      1, 16384u, std::make_unique<TestMetadataSource>(std::move(block)));
+  const spdy::Http2HeaderBlock block =
+      ToHeaderBlock(ToHeaders({{"key", "wild value!"}}));
+  if (GetParam()) {
+    visitor.AppendMetadataForStream(1, block);
+    adapter->SubmitMetadata(1, 1);
+  } else {
+    adapter->SubmitMetadata(
+        1, 16384u, std::make_unique<TestMetadataSource>(std::move(block)));
+  }
 
   int trailer_result =
       adapter->SubmitTrailer(1, ToHeaders({{":final-status", "a-ok"}}));

@@ -68,6 +68,9 @@ class QUICHE_NO_EXPORT RecordingHttp2Visitor : public Http2VisitorInterface {
   bool OnMetadataForStream(Http2StreamId stream_id,
                            absl::string_view metadata) override;
   bool OnMetadataEndForStream(Http2StreamId stream_id) override;
+  std::pair<int64_t, bool> PackMetadataForStream(Http2StreamId stream_id,
+                                                 uint8_t* dest,
+                                                 size_t dest_len) override;
   void OnErrorDebug(absl::string_view message) override;
 
   const EventSequence& GetEventSequence() const { return events_; }

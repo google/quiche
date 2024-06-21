@@ -558,6 +558,12 @@ bool CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
   return true;
 }
 
+std::pair<int64_t, bool> CallbackVisitor::PackMetadataForStream(
+    Http2StreamId /*stream_id*/, uint8_t* /*dest*/, size_t /*dest_len*/) {
+  QUICHE_LOG(DFATAL) << "Unimplemented.";
+  return {-1, false};
+}
+
 void CallbackVisitor::OnErrorDebug(absl::string_view message) {
   QUICHE_VLOG(1) << "OnErrorDebug(message=[" << absl::CEscape(message) << "])";
   if (callbacks_->error_callback2) {

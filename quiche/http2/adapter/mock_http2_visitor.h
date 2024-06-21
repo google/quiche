@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_MOCK_HTTP2_VISITOR_H_
 #define QUICHE_HTTP2_ADAPTER_MOCK_HTTP2_VISITOR_H_
 
+#include <algorithm>
 #include <cstdint>
 
 #include "quiche/http2/adapter/http2_visitor_interface.h"
@@ -116,6 +117,10 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
               (override));
 
   MOCK_METHOD(bool, OnMetadataEndForStream, (Http2StreamId stream_id),
+              (override));
+
+  MOCK_METHOD((std::pair<int64_t, bool>), PackMetadataForStream,
+              (Http2StreamId stream_id, uint8_t* dest, size_t dest_len),
               (override));
 
   MOCK_METHOD(void, OnErrorDebug, (absl::string_view message), (override));
