@@ -60,6 +60,8 @@ const char* BalsaFrameEnums::ErrorCodeToString(
       return "FAILED_TO_FIND_NL_AFTER_REQUEST_HTTP_VERSION";
     case FAILED_CONVERTING_STATUS_CODE_TO_INT:
       return "FAILED_CONVERTING_STATUS_CODE_TO_INT";
+    case INVALID_TARGET_URI:
+      return "INVALID_TARGET_URI";
     case HEADERS_TOO_LONG:
       return "HEADERS_TOO_LONG";
     case UNPARSABLE_CONTENT_LENGTH:

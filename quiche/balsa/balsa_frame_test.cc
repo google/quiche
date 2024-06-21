@@ -1976,6 +1976,152 @@ TEST_F(HTTPBalsaFrameTest,
             balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, AbsoluteFormTargetUri) {
+  std::string message =
+      "GET http://www.google.com/index.html HTTP/1.1\r\n"
+      "Host: example.com\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(true);
+
+  EXPECT_CALL(visitor_mock_, OnHeaderInput(message));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ("http://www.google.com/index.html",
+            balsa_frame_.headers()->request_uri());
+  EXPECT_EQ("example.com", balsa_frame_.headers()->GetHeader("host"));
+}
+
+TEST_F(HTTPBalsaFrameTest, InvalidAbsoluteFormTargetUri) {
+  std::string message =
+      "GET -pwn/index.html HTTP/1.1\r\n"
+      "Host: example.com\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(true);
+
+  EXPECT_CALL(visitor_mock_, OnHeaderInput(message));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ("-pwn/index.html", balsa_frame_.headers()->request_uri());
+  EXPECT_EQ("example.com", balsa_frame_.headers()->GetHeader("host"));
+}
+
+TEST_F(HTTPBalsaFrameTest, RejectInvalidAbsoluteFormTargetUri) {
+  HttpValidationPolicy http_validation_policy{.disallow_invalid_target_uris =
+                                                  true};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  std::string message =
+      "GET -pwn/index.html HTTP/1.1\r\n"
+      "Host: example.com\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(true);
+
+  const size_t end_of_first_line = message.find_first_of("\r\n") + 1;
+  EXPECT_EQ(end_of_first_line,
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::INVALID_TARGET_URI, balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, RejectStarForNonOptions) {
+  HttpValidationPolicy http_validation_policy{.disallow_invalid_target_uris =
+                                                  true};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  std::string message =
+      "GET * HTTP/1.1\r\n"
+      "Host: example.com\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(true);
+
+  const size_t end_of_first_line = message.find_first_of("\r\n") + 1;
+  EXPECT_EQ(end_of_first_line,
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::INVALID_TARGET_URI, balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, AllowStarForOptions) {
+  HttpValidationPolicy http_validation_policy{.disallow_invalid_target_uris =
+                                                  true};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  std::string message =
+      "OPTIONS * HTTP/1.1\r\n"
+      "Host: example.com\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(true);
+
+  EXPECT_CALL(visitor_mock_, OnHeaderInput(message));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+}
+
+TEST_F(HTTPBalsaFrameTest, RejectConnectWithNoPort) {
+  HttpValidationPolicy http_validation_policy{.disallow_invalid_target_uris =
+                                                  true};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  std::string message =
+      "CONNECT example.com HTTP/1.1\r\n"
+      "Host: example.com\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(true);
+
+  const size_t end_of_first_line = message.find_first_of("\r\n") + 1;
+  EXPECT_EQ(end_of_first_line,
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::INVALID_TARGET_URI, balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, RejectConnectWithInvalidPort) {
+  HttpValidationPolicy http_validation_policy{.disallow_invalid_target_uris =
+                                                  true};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  std::string message =
+      "CONNECT example.com:443z HTTP/1.1\r\n"
+      "Host: example.com\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(true);
+
+  const size_t end_of_first_line = message.find_first_of("\r\n") + 1;
+  EXPECT_EQ(end_of_first_line,
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::INVALID_TARGET_URI, balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, AllowConnectWithValidPort) {
+  HttpValidationPolicy http_validation_policy{.disallow_invalid_target_uris =
+                                                  true};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  std::string message =
+      "CONNECT example.com:443 HTTP/1.1\r\n"
+      "Host: example.com\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(true);
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+}
+
 TEST_F(HTTPBalsaFrameTest,
        VisitorInvokedProperlyWithRequestFirstLineWarningWithMethodAndURI) {
   std::string message = "GET /uri\n";

@@ -63,6 +63,9 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // The RFC is quite specific about chunk extensions formatting, but we only
   // verify that there are no CR without a subsequent LF.
   bool disallow_lone_cr_in_chunk_extension = false;
+
+  // If true, then requests with a target URI that is invalid will be rejected.
+  bool disallow_invalid_target_uris = false;
 };
 
 }  // namespace quiche
