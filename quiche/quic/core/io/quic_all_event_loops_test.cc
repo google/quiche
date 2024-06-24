@@ -193,6 +193,29 @@ TEST_P(QuicEventLoopFactoryTest, ArtificialNotifyFromCallback) {
   }
 }
 
+// Verify that artificial events are notified on the next iteration. This is to
+// prevent infinite loops in RunEventLoopOnce when the event callback keeps
+// adding artificial events.
+TEST_P(QuicEventLoopFactoryTest, ArtificialNotifyOncePerIteration) {
+  testing::StrictMock<MockQuicSocketEventListener> listener;
+  ASSERT_TRUE(loop_->RegisterSocket(read_fd_, kSocketEventReadable, &listener));
+
+  constexpr absl::string_view kData = "test test test test test test test ";
+  ASSERT_EQ(kData.size(), write(write_fd_, kData.data(), kData.size()));
+
+  int64_t read_event_count_ = 0;
+  EXPECT_CALL(listener, OnSocketEvent(_, read_fd_, kSocketEventReadable))
+      .WillRepeatedly([&]() {
+        read_event_count_++;
+        EXPECT_TRUE(
+            loop_->ArtificiallyNotifyEvent(read_fd_, kSocketEventReadable));
+      });
+  for (size_t i = 1; i < 5; i++) {
+    loop_->RunEventLoopOnce(QuicTime::Delta::FromSeconds(10));
+    EXPECT_EQ(read_event_count_, i);
+  }
+}
+
 TEST_P(QuicEventLoopFactoryTest, WriterUnblocked) {
   testing::StrictMock<MockQuicSocketEventListener> listener;
   ASSERT_TRUE(loop_->RegisterSocket(write_fd_, kAllEvents, &listener));

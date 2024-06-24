@@ -178,10 +178,10 @@ void QuicPollEventLoop::DispatchIoEvent(std::vector<ReadyListEntry>& ready_list,
   Registration& registration = *it->second;
 
   mask |= GetPollMask(registration.artificially_notify_at_next_iteration);
-  registration.artificially_notify_at_next_iteration = QuicSocketEventMask();
-
   // poll() always returns certain classes of events even if not requested.
-  mask &= GetPollMask(registration.events);
+  mask &= GetPollMask(registration.events |
+                      registration.artificially_notify_at_next_iteration);
+  registration.artificially_notify_at_next_iteration = QuicSocketEventMask();
   if (!mask) {
     return;
   }

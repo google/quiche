@@ -56,23 +56,28 @@ class LibeventAlarm : public QuicAlarm {
   void CancelImpl() override { event_del(event_.get()); }
 
  private:
-  // While we inline `struct event` elsewhere, it is actually quite large, so
-  // doing that for the libevent-based QuicAlarm would cause it to not fit into
-  // the QuicConnectionArena.
-  struct EventDeleter {
-    void operator()(event* ev) { event_free(ev); }
-  };
-  std::unique_ptr<event, EventDeleter> event_;
+  std::unique_ptr<event, LibeventEventDeleter> event_;
   QuicClock* clock_;
 };
 
 LibeventQuicEventLoop::LibeventQuicEventLoop(event_base* base, QuicClock* clock)
     : base_(base),
       edge_triggered_(event_base_get_features(base) & EV_FEATURE_ET),
-      clock_(clock) {
+      clock_(clock),
+      artifical_event_timer_(evtimer_new(
+          base_,
+          [](evutil_socket_t, LibeventEventMask, void* arg) {
+            auto* self = reinterpret_cast<LibeventQuicEventLoop*>(arg);
+            self->ActivateArtificialEvents();
+          },
+          this)) {
   QUICHE_CHECK_LE(sizeof(event), event_get_struct_event_size())
       << "libevent ABI mismatch: sizeof(event) is bigger than the one QUICHE "
          "has been compiled with";
+}
+
+LibeventQuicEventLoop::~LibeventQuicEventLoop() {
+  event_del(artifical_event_timer_.get());
 }
 
 bool LibeventQuicEventLoop::RegisterSocket(QuicUdpSocketFd fd,
@@ -84,6 +89,7 @@ bool LibeventQuicEventLoop::RegisterSocket(QuicUdpSocketFd fd,
 }
 
 bool LibeventQuicEventLoop::UnregisterSocket(QuicUdpSocketFd fd) {
+  fds_with_artifical_events_.erase(fd);
   return registration_map_.erase(fd);
 }
 
@@ -108,8 +114,28 @@ bool LibeventQuicEventLoop::ArtificiallyNotifyEvent(
   if (it == registration_map_.end()) {
     return false;
   }
-  it->second.ArtificiallyNotify(events);
+  it->second.RecordArtificalEvents(events);
+  fds_with_artifical_events_.insert(fd);
+  if (!evtimer_pending(artifical_event_timer_.get(), nullptr)) {
+    struct timeval tv = {0, 0};  // Fire immediately in the next iteration.
+    evtimer_add(artifical_event_timer_.get(), &tv);
+  }
   return true;
+}
+
+void LibeventQuicEventLoop::ActivateArtificialEvents() {
+  absl::flat_hash_set<QuicUdpSocketFd> fds_with_artifical_events;
+  {
+    using std::swap;
+    swap(fds_with_artifical_events_, fds_with_artifical_events);
+  }
+  for (QuicUdpSocketFd fd : fds_with_artifical_events) {
+    auto it = registration_map_.find(fd);
+    if (it == registration_map_.end()) {
+      continue;
+    }
+    it->second.MaybeNotifyArtificalEvents();
+  }
 }
 
 void LibeventQuicEventLoop::RunEventLoopOnce(QuicTime::Delta default_timeout) {
@@ -156,8 +182,18 @@ LibeventQuicEventLoop::Registration::~Registration() {
   }
 }
 
-void LibeventQuicEventLoop::Registration::ArtificiallyNotify(
+void LibeventQuicEventLoop::Registration::RecordArtificalEvents(
     QuicSocketEventMask events) {
+  artificial_events_ |= events;
+}
+
+void LibeventQuicEventLoop::Registration::MaybeNotifyArtificalEvents() {
+  if (artificial_events_ == 0) {
+    return;
+  }
+  QuicSocketEventMask events = artificial_events_;
+  artificial_events_ = 0;
+
   if (loop_->SupportsEdgeTriggered()) {
     event_active(&both_events_, QuicEventsToLibeventEventMask(events), 0);
     return;

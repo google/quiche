@@ -6,7 +6,10 @@
 #define QUICHE_QUIC_BINDINGS_QUIC_LIBEVENT_H_
 
 #include <memory>
+#include <optional>
+#include <utility>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/container/node_hash_map.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
@@ -17,12 +20,20 @@
 
 namespace quic {
 
+// While we inline `struct event` sometimes, it is actually quite large, so
+// doing that for the libevent-based QuicAlarm would cause it to not fit into
+// the QuicConnectionArena.
+struct QUICHE_NO_EXPORT LibeventEventDeleter {
+  void operator()(event* ev) { event_free(ev); }
+};
+
 // Provides a libevent-based implementation of QuicEventLoop.  Since libevent
 // uses relative time for all timeouts, the provided clock does not need to use
 // the UNIX time.
 class QUICHE_EXPORT LibeventQuicEventLoop : public QuicEventLoop {
  public:
   explicit LibeventQuicEventLoop(event_base* base, QuicClock* clock);
+  ~LibeventQuicEventLoop() override;
 
   // QuicEventLoop implementation.
   bool SupportsEdgeTriggered() const override { return edge_triggered_; }
@@ -46,6 +57,8 @@ class QUICHE_EXPORT LibeventQuicEventLoop : public QuicEventLoop {
   QuicClock* clock() const { return clock_; }
 
  private:
+  void ActivateArtificialEvents();
+
   class AlarmFactory : public QuicAlarmFactory {
    public:
     AlarmFactory(LibeventQuicEventLoop* loop) : loop_(loop) {}
@@ -66,8 +79,15 @@ class QUICHE_EXPORT LibeventQuicEventLoop : public QuicEventLoop {
                  QuicSocketEventMask events, QuicSocketEventListener* listener);
     ~Registration();
 
-    void ArtificiallyNotify(QuicSocketEventMask events);
     void Rearm(QuicSocketEventMask events);
+
+    // Record artificial events that should be notified on the next iteration of
+    // the event loop.
+    void RecordArtificalEvents(QuicSocketEventMask events);
+
+    // If any artificial events have been recorded, notify the listener about
+    // them in the current iteration.
+    void MaybeNotifyArtificalEvents();
 
    private:
     LibeventQuicEventLoop* loop_;
@@ -79,6 +99,9 @@ class QUICHE_EXPORT LibeventQuicEventLoop : public QuicEventLoop {
     // events and write events separately.
     event read_event_;
     event write_event_;
+
+    // Recorded artificial events to be notified on the next iteration.
+    QuicSocketEventMask artificial_events_ = 0;
   };
 
   using RegistrationMap = absl::node_hash_map<QuicUdpSocketFd, Registration>;
@@ -88,6 +111,8 @@ class QUICHE_EXPORT LibeventQuicEventLoop : public QuicEventLoop {
   QuicClock* clock_;
 
   RegistrationMap registration_map_;
+  std::unique_ptr<event, LibeventEventDeleter> artifical_event_timer_;
+  absl::flat_hash_set<QuicUdpSocketFd> fds_with_artifical_events_;
 };
 
 // RAII-style wrapper around event_base.
