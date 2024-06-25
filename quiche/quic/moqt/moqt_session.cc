@@ -136,6 +136,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   if (visitor != nullptr) {
     visitor->OnObjectFragment(full_track_name, message.group_id,
                               message.object_id, message.object_send_order,
+                              message.object_status,
                               message.forwarding_preference, payload, true);
   }
 }
@@ -404,28 +405,41 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
        track.visitor()});
 }
 
+// TODO(martinduke): Throw errors if the object status is inconsistent with
+// sequence numbers we have already observed on the track.
 bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
                                 uint64_t group_id, uint64_t object_id,
                                 uint64_t object_send_order,
-                                absl::string_view payload, bool end_of_stream) {
+                                MoqtObjectStatus status,
+                                absl::string_view payload) {
   auto track_it = local_tracks_.find(full_track_name);
   if (track_it == local_tracks_.end()) {
     QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT for nonexistent track";
     return false;
   }
+  // TODO(martinduke): Write a test for this QUIC_BUG.
+  QUIC_BUG_IF(moqt_publish_abnormal_with_payload,
+              status != MoqtObjectStatus::kNormal && !payload.empty());
   LocalTrack& track = track_it->second;
+  bool end_of_stream = false;
   MoqtForwardingPreference forwarding_preference =
       track.forwarding_preference();
-  if ((forwarding_preference == MoqtForwardingPreference::kObject ||
-       forwarding_preference == MoqtForwardingPreference::kDatagram) &&
-      !end_of_stream) {
-    QUIC_BUG(MoqtSession_PublishObject_end_of_stream_required)
-        << "Forwarding preferences of Object or Datagram require stream to be "
-           "immediately closed";
-    return false;
+  switch (forwarding_preference) {
+    case MoqtForwardingPreference::kTrack:
+      end_of_stream = (status == MoqtObjectStatus::kEndOfTrack);
+      break;
+    case MoqtForwardingPreference::kObject:
+    case MoqtForwardingPreference::kDatagram:
+      end_of_stream = true;
+      break;
+    case MoqtForwardingPreference::kGroup:
+      end_of_stream = (status == MoqtObjectStatus::kEndOfGroup ||
+                       status == MoqtObjectStatus::kGroupDoesNotExist ||
+                       status == MoqtObjectStatus::kEndOfTrack);
+      break;
   }
   FullSequence sequence{group_id, object_id};
-  track.SentSequence(sequence);
+  track.SentSequence(sequence, status);
   std::vector<SubscribeWindow*> subscriptions =
       track.ShouldSend({group_id, object_id});
   if (subscriptions.empty()) {
@@ -437,7 +451,7 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
   object.group_id = group_id;
   object.object_id = object_id;
   object.object_send_order = object_send_order;
-  object.object_status = MoqtObjectStatus::kNormal;
+  object.object_status = status;
   object.forwarding_preference = forwarding_preference;
   object.payload_length = payload.size();
   int failures = 0;
@@ -445,7 +459,7 @@ bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
   write_options.set_send_fin(end_of_stream);
   absl::flat_hash_set<uint64_t> subscribes_to_close;
   for (auto subscription : subscriptions) {
-    if (subscription->OnObjectSent(sequence)) {
+    if (subscription->OnObjectSent(sequence, status)) {
       subscribes_to_close.insert(subscription->subscribe_id());
     }
     if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
@@ -600,10 +614,10 @@ void MoqtSession::Stream::OnObjectMessage(const MoqtObject& message,
   }
   auto [full_track_name, visitor] = session_->TrackPropertiesFromAlias(message);
   if (visitor != nullptr) {
-    visitor->OnObjectFragment(full_track_name, message.group_id,
-                              message.object_id, message.object_send_order,
-                              message.forwarding_preference, payload,
-                              end_of_message);
+    visitor->OnObjectFragment(
+        full_track_name, message.group_id, message.object_id,
+        message.object_send_order, message.object_status,
+        message.forwarding_preference, payload, end_of_message);
   }
   partial_object_.clear();
 }

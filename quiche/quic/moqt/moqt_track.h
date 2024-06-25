@@ -82,10 +82,6 @@ class LocalTrack {
                          start_object, end_group, UINT64_MAX);
       return;
     }
-    while (it == max_object_ids_.end()) {
-      // Find the latest group ID that actually had an object.
-      it = max_object_ids_.find(--end_group);
-    }
     windows_.AddWindow(subscribe_id, next_sequence_, start_group, start_object,
                        end_group, it->second);
   }
@@ -105,20 +101,34 @@ class LocalTrack {
   // by one.
   const FullSequence& next_sequence() const { return next_sequence_; }
 
-  // Updates next_sequence_ if |sequence| is larger.
-  void SentSequence(FullSequence sequence) {
-    if (sequence.group > next_sequence_.group) {
-      max_object_ids_[next_sequence_.group] = next_sequence_.object - 1;
-    }
-    if (sequence.group < next_sequence_.group) {
-      // Late object from previous group.
-      auto it = max_object_ids_.find(sequence.group);
-      if (it == max_object_ids_.end() || it->second < sequence.object) {
+  // Updates next_sequence_ if |sequence| is larger. Updates max_object_ids_
+  // if relevant.
+  void SentSequence(FullSequence sequence, MoqtObjectStatus status) {
+    QUICHE_DCHECK(max_object_ids_.find(sequence.group) ==
+                      max_object_ids_.end() ||
+                  max_object_ids_[sequence.group] < sequence.object);
+    switch (status) {
+      case MoqtObjectStatus::kNormal:
+      case MoqtObjectStatus::kObjectDoesNotExist:
+        if (next_sequence_ <= sequence) {
+          next_sequence_ = sequence.next();
+        }
+        break;
+      case MoqtObjectStatus::kGroupDoesNotExist:
+        max_object_ids_[sequence.group] = 0;
+        break;
+      case MoqtObjectStatus::kEndOfGroup:
         max_object_ids_[sequence.group] = sequence.object;
-      }
-    }
-    if (next_sequence_ <= sequence) {
-      next_sequence_ = sequence.next();
+        if (next_sequence_ <= sequence) {
+          next_sequence_ = FullSequence(sequence.group + 1, 0);
+        }
+        break;
+      case MoqtObjectStatus::kEndOfTrack:
+        max_object_ids_[sequence.group] = sequence.object;
+        break;
+      default:
+        QUICHE_DCHECK(false);
+        return;
     }
   }
 
@@ -145,8 +155,9 @@ class LocalTrack {
   // By recording the highest observed sequence number, MoQT can interpret
   // relative sequence numbers in SUBSCRIBEs.
   FullSequence next_sequence_ = {0, 0};
-  // The highest object ID observed for each group ID. An entry only exists for
-  // the group after a later group has been observed.
+  // The object ID of each EndOfGroup object received, indexed by group ID.
+  // Entry does not exist, if no kGroupDoesNotExist, EndOfGroup, or
+  // EndOfTrack has been received for that group.
   absl::flat_hash_map<uint64_t, uint64_t> max_object_ids_;
   Visitor* visitor_;
 };
@@ -166,6 +177,7 @@ class RemoteTrack {
     virtual void OnObjectFragment(
         const FullTrackName& full_track_name, uint64_t group_sequence,
         uint64_t object_sequence, uint64_t object_send_order,
+        MoqtObjectStatus object_status,
         MoqtForwardingPreference forwarding_preference,
         absl::string_view object, bool end_of_message) = 0;
     // TODO(martinduke): Add final sequence numbers

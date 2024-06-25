@@ -85,12 +85,15 @@ TEST_F(SubscribeWindowTest, OnObjectSent) {
   SubscribeWindow window(subscribe_id_, MoqtForwardingPreference::kObject,
                          right_edge_, start_, end_);
   EXPECT_FALSE(window.largest_delivered().has_value());
-  EXPECT_FALSE(window.OnObjectSent(FullSequence(4, 1)));
+  EXPECT_FALSE(
+      window.OnObjectSent(FullSequence(4, 1), MoqtObjectStatus::kNormal));
   EXPECT_TRUE(window.largest_delivered().has_value());
   EXPECT_EQ(window.largest_delivered().value(), FullSequence(4, 1));
-  EXPECT_FALSE(window.OnObjectSent(FullSequence(4, 2)));
+  EXPECT_FALSE(
+      window.OnObjectSent(FullSequence(4, 2), MoqtObjectStatus::kNormal));
   EXPECT_EQ(window.largest_delivered().value(), FullSequence(4, 2));
-  EXPECT_FALSE(window.OnObjectSent(FullSequence(4, 0)));
+  EXPECT_FALSE(
+      window.OnObjectSent(FullSequence(4, 0), MoqtObjectStatus::kNormal));
   EXPECT_EQ(window.largest_delivered().value(), FullSequence(4, 2));
 }
 
@@ -98,24 +101,30 @@ TEST_F(SubscribeWindowTest, AllObjectsUnpublishedAtStart) {
   SubscribeWindow window(subscribe_id_, MoqtForwardingPreference::kObject,
                          FullSequence(0, 0), FullSequence(0, 0),
                          FullSequence(0, 1));
-  EXPECT_FALSE(window.OnObjectSent(FullSequence(0, 0)));
-  EXPECT_TRUE(window.OnObjectSent(FullSequence(0, 1)));
+  EXPECT_FALSE(
+      window.OnObjectSent(FullSequence(0, 0), MoqtObjectStatus::kNormal));
+  EXPECT_TRUE(
+      window.OnObjectSent(FullSequence(0, 1), MoqtObjectStatus::kNormal));
 }
 
 TEST_F(SubscribeWindowTest, AllObjectsPublishedAtStart) {
   SubscribeWindow window(subscribe_id_, MoqtForwardingPreference::kObject,
                          FullSequence(4, 0), FullSequence(0, 0),
                          FullSequence(0, 1));
-  EXPECT_FALSE(window.OnObjectSent(FullSequence(0, 0)));
-  EXPECT_TRUE(window.OnObjectSent(FullSequence(0, 1)));
+  EXPECT_FALSE(
+      window.OnObjectSent(FullSequence(0, 0), MoqtObjectStatus::kNormal));
+  EXPECT_TRUE(
+      window.OnObjectSent(FullSequence(0, 1), MoqtObjectStatus::kNormal));
 }
 
 TEST_F(SubscribeWindowTest, SomeObjectsUnpublishedAtStart) {
   SubscribeWindow window(subscribe_id_, MoqtForwardingPreference::kObject,
                          FullSequence(0, 1), FullSequence(0, 0),
                          FullSequence(0, 1));
-  EXPECT_FALSE(window.OnObjectSent(FullSequence(0, 0)));
-  EXPECT_TRUE(window.OnObjectSent(FullSequence(0, 1)));
+  EXPECT_FALSE(
+      window.OnObjectSent(FullSequence(0, 0), MoqtObjectStatus::kNormal));
+  EXPECT_TRUE(
+      window.OnObjectSent(FullSequence(0, 1), MoqtObjectStatus::kNormal));
 }
 
 TEST_F(SubscribeWindowTest, UpdateStartEnd) {

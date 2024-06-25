@@ -137,7 +137,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // partial objects.
   bool PublishObject(const FullTrackName& full_track_name, uint64_t group_id,
                      uint64_t object_id, uint64_t object_send_order,
-                     absl::string_view payload, bool end_of_stream);
+                     MoqtObjectStatus status, absl::string_view payload);
   void CloseObjectStream(const FullTrackName& full_track_name,
                          uint64_t group_id);
   // TODO: Add an API to send partial objects.

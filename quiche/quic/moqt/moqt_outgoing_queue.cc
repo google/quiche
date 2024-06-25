@@ -42,8 +42,7 @@ void MoqtOutgoingQueue::AddObject(quiche::QuicheMemSlice payload, bool key) {
   absl::string_view payload_view = payload.AsStringView();
   uint64_t object_id = queue_.back().size();
   queue_.back().push_back(std::move(payload));
-  PublishObject(current_group_id_, object_id, payload_view,
-                /*close_stream=*/false);
+  PublishObject(current_group_id_, object_id, payload_view);
 }
 
 absl::StatusOr<MoqtOutgoingQueue::PublishPastObjectsCallback>
@@ -65,24 +64,28 @@ MoqtOutgoingQueue::OnSubscribeForPast(const SubscribeWindow& window) {
           continue;
         }
         const bool is_last_object = (j == group.size() - 1);
-        const bool should_close_stream = !is_last_group && is_last_object;
-        PublishObject(group_id, j, group[j].AsStringView(),
-                      should_close_stream);
+        PublishObject(group_id, j, group[j].AsStringView());
+        if (!is_last_group && is_last_object) {
+          // Close the group
+          CloseStreamForGroup(group_id);
+        }
       }
     }
   };
 }
 
 void MoqtOutgoingQueue::CloseStreamForGroup(uint64_t group_id) {
+  session_->PublishObject(track_, group_id, queue_[group_id].size(),
+                          /*object_send_order=*/group_id,
+                          MoqtObjectStatus::kEndOfGroup, "");
   session_->CloseObjectStream(track_, group_id);
 }
 
 void MoqtOutgoingQueue::PublishObject(uint64_t group_id, uint64_t object_id,
-                                      absl::string_view payload,
-                                      bool close_stream) {
+                                      absl::string_view payload) {
   session_->PublishObject(track_, group_id, object_id,
-                          /*object_send_order=*/group_id, payload,
-                          close_stream);
+                          /*object_send_order=*/group_id,
+                          MoqtObjectStatus::kNormal, payload);
 }
 
 }  // namespace moqt

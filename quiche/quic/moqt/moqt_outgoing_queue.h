@@ -54,7 +54,7 @@ class MoqtOutgoingQueue : public LocalTrack::Visitor {
   // Interface to MoqtSession; can be mocked out for tests.
   virtual void CloseStreamForGroup(uint64_t group_id);
   virtual void PublishObject(uint64_t group_id, uint64_t object_id,
-                             absl::string_view payload, bool close_stream);
+                             absl::string_view payload);
 
  private:
   // The number of recent groups to keep around for newly joined subscribers.

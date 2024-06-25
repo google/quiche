@@ -155,6 +155,7 @@ class ObjectReceiver : public RemoteTrack::Visitor {
   void OnObjectFragment(const FullTrackName& full_track_name,
                         uint64_t group_sequence, uint64_t object_sequence,
                         uint64_t /*object_send_order*/,
+                        MoqtObjectStatus /*status*/,
                         MoqtForwardingPreference /*forwarding_preference*/,
                         absl::string_view object,
                         bool end_of_message) override {

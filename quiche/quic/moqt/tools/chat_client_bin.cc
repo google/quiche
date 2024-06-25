@@ -105,9 +105,14 @@ class ChatClient {
       session_is_open_ = false;
       return;
     }
-    session_->PublishObject(my_track_name_, next_sequence_.group++,
+    session_->PublishObject(my_track_name_, next_sequence_.group,
+                            next_sequence_.object++, /*object_send_order=*/0,
+                            moqt::MoqtObjectStatus::kNormal, input_message);
+    session_->PublishObject(my_track_name_, next_sequence_.group,
                             next_sequence_.object, /*object_send_order=*/0,
-                            input_message, true);
+                            moqt::MoqtObjectStatus::kEndOfGroup, "");
+    ++next_sequence_.group;
+    next_sequence_.object = 0;
   }
 
   bool session_is_open() const { return session_is_open_; }
@@ -152,6 +157,7 @@ class ChatClient {
     void OnObjectFragment(
         const moqt::FullTrackName& full_track_name, uint64_t group_sequence,
         uint64_t object_sequence, uint64_t /*object_send_order*/,
+        moqt::MoqtObjectStatus /*status*/,
         moqt::MoqtForwardingPreference /*forwarding_preference*/,
         absl::string_view object, bool end_of_message) override {
       if (!end_of_message) {

@@ -188,16 +188,17 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
       "test", [](absl::string_view, std::optional<MoqtAnnounceErrorReason>) {});
 
   bool received_object = false;
-  EXPECT_CALL(server_visitor, OnObjectFragment(_, _, _, _, _, _, _))
+  EXPECT_CALL(server_visitor, OnObjectFragment(_, _, _, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name,
                     uint64_t group_sequence, uint64_t object_sequence,
-                    uint64_t /*object_send_order*/,
+                    uint64_t /*object_send_order*/, MoqtObjectStatus status,
                     MoqtForwardingPreference forwarding_preference,
                     absl::string_view object, bool end_of_message) {
         EXPECT_EQ(full_track_name.track_namespace, "test");
         EXPECT_EQ(full_track_name.track_name, "data");
         EXPECT_EQ(group_sequence, 0u);
         EXPECT_EQ(object_sequence, 0u);
+        EXPECT_EQ(status, MoqtObjectStatus::kNormal);
         EXPECT_EQ(forwarding_preference, MoqtForwardingPreference::kGroup);
         EXPECT_EQ(object, "object data");
         EXPECT_TRUE(end_of_message);

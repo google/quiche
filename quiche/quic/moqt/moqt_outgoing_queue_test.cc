@@ -35,8 +35,8 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue {
 
   MOCK_METHOD(void, CloseStreamForGroup, (uint64_t group_id), (override));
   MOCK_METHOD(void, PublishObject,
-              (uint64_t group_id, uint64_t object_id, absl::string_view payload,
-               bool close_stream),
+              (uint64_t group_id, uint64_t object_id,
+               absl::string_view payload),
               (override));
 };
 
@@ -50,9 +50,9 @@ TEST(MoqtOutgoingQueue, SingleGroup) {
   TestMoqtOutgoingQueue queue;
   {
     testing::InSequence seq;
-    EXPECT_CALL(queue, PublishObject(0, 0, "a", false));
-    EXPECT_CALL(queue, PublishObject(0, 1, "b", false));
-    EXPECT_CALL(queue, PublishObject(0, 2, "c", false));
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
   }
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
@@ -63,13 +63,13 @@ TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromZero) {
   TestMoqtOutgoingQueue queue;
   {
     testing::InSequence seq;
-    EXPECT_CALL(queue, PublishObject(0, 0, "a", false));
-    EXPECT_CALL(queue, PublishObject(0, 1, "b", false));
-    EXPECT_CALL(queue, PublishObject(0, 2, "c", false));
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
 
-    EXPECT_CALL(queue, PublishObject(0, 0, "a", false));
-    EXPECT_CALL(queue, PublishObject(0, 1, "b", false));
-    EXPECT_CALL(queue, PublishObject(0, 2, "c", false));
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
   }
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
@@ -82,12 +82,12 @@ TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromMidGroup) {
   TestMoqtOutgoingQueue queue;
   {
     testing::InSequence seq;
-    EXPECT_CALL(queue, PublishObject(0, 0, "a", false));
-    EXPECT_CALL(queue, PublishObject(0, 1, "b", false));
-    EXPECT_CALL(queue, PublishObject(0, 2, "c", false));
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
 
-    EXPECT_CALL(queue, PublishObject(0, 1, "b", false));
-    EXPECT_CALL(queue, PublishObject(0, 2, "c", false));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
   }
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
@@ -100,13 +100,13 @@ TEST(MoqtOutgoingQueue, TwoGroups) {
   TestMoqtOutgoingQueue queue;
   {
     testing::InSequence seq;
-    EXPECT_CALL(queue, PublishObject(0, 0, "a", false));
-    EXPECT_CALL(queue, PublishObject(0, 1, "b", false));
-    EXPECT_CALL(queue, PublishObject(0, 2, "c", false));
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
     EXPECT_CALL(queue, CloseStreamForGroup(0));
-    EXPECT_CALL(queue, PublishObject(1, 0, "d", false));
-    EXPECT_CALL(queue, PublishObject(1, 1, "e", false));
-    EXPECT_CALL(queue, PublishObject(1, 2, "f", false));
+    EXPECT_CALL(queue, PublishObject(1, 0, "d"));
+    EXPECT_CALL(queue, PublishObject(1, 1, "e"));
+    EXPECT_CALL(queue, PublishObject(1, 2, "f"));
   }
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
@@ -120,19 +120,20 @@ TEST(MoqtOutgoingQueue, TwoGroupsPastSubscribe) {
   TestMoqtOutgoingQueue queue;
   {
     testing::InSequence seq;
-    EXPECT_CALL(queue, PublishObject(0, 0, "a", false));
-    EXPECT_CALL(queue, PublishObject(0, 1, "b", false));
-    EXPECT_CALL(queue, PublishObject(0, 2, "c", false));
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
     EXPECT_CALL(queue, CloseStreamForGroup(0));
-    EXPECT_CALL(queue, PublishObject(1, 0, "d", false));
-    EXPECT_CALL(queue, PublishObject(1, 1, "e", false));
-    EXPECT_CALL(queue, PublishObject(1, 2, "f", false));
+    EXPECT_CALL(queue, PublishObject(1, 0, "d"));
+    EXPECT_CALL(queue, PublishObject(1, 1, "e"));
+    EXPECT_CALL(queue, PublishObject(1, 2, "f"));
 
-    EXPECT_CALL(queue, PublishObject(0, 1, "b", false));
-    EXPECT_CALL(queue, PublishObject(0, 2, "c", true));
-    EXPECT_CALL(queue, PublishObject(1, 0, "d", false));
-    EXPECT_CALL(queue, PublishObject(1, 1, "e", false));
-    EXPECT_CALL(queue, PublishObject(1, 2, "f", false));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
+    EXPECT_CALL(queue, CloseStreamForGroup(0));
+    EXPECT_CALL(queue, PublishObject(1, 0, "d"));
+    EXPECT_CALL(queue, PublishObject(1, 1, "e"));
+    EXPECT_CALL(queue, PublishObject(1, 2, "f"));
   }
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
@@ -148,20 +149,20 @@ TEST(MoqtOutgoingQueue, FiveGroups) {
   TestMoqtOutgoingQueue queue;
   {
     testing::InSequence seq;
-    EXPECT_CALL(queue, PublishObject(0, 0, "a", false));
-    EXPECT_CALL(queue, PublishObject(0, 1, "b", false));
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
     EXPECT_CALL(queue, CloseStreamForGroup(0));
-    EXPECT_CALL(queue, PublishObject(1, 0, "c", false));
-    EXPECT_CALL(queue, PublishObject(1, 1, "d", false));
+    EXPECT_CALL(queue, PublishObject(1, 0, "c"));
+    EXPECT_CALL(queue, PublishObject(1, 1, "d"));
     EXPECT_CALL(queue, CloseStreamForGroup(1));
-    EXPECT_CALL(queue, PublishObject(2, 0, "e", false));
-    EXPECT_CALL(queue, PublishObject(2, 1, "f", false));
+    EXPECT_CALL(queue, PublishObject(2, 0, "e"));
+    EXPECT_CALL(queue, PublishObject(2, 1, "f"));
     EXPECT_CALL(queue, CloseStreamForGroup(2));
-    EXPECT_CALL(queue, PublishObject(3, 0, "g", false));
-    EXPECT_CALL(queue, PublishObject(3, 1, "h", false));
+    EXPECT_CALL(queue, PublishObject(3, 0, "g"));
+    EXPECT_CALL(queue, PublishObject(3, 1, "h"));
     EXPECT_CALL(queue, CloseStreamForGroup(3));
-    EXPECT_CALL(queue, PublishObject(4, 0, "i", false));
-    EXPECT_CALL(queue, PublishObject(4, 1, "j", false));
+    EXPECT_CALL(queue, PublishObject(4, 0, "i"));
+    EXPECT_CALL(queue, PublishObject(4, 1, "j"));
   }
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
@@ -179,28 +180,30 @@ TEST(MoqtOutgoingQueue, FiveGroupsPastSubscribe) {
   TestMoqtOutgoingQueue queue;
   {
     testing::InSequence seq;
-    EXPECT_CALL(queue, PublishObject(0, 0, "a", false));
-    EXPECT_CALL(queue, PublishObject(0, 1, "b", false));
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
     EXPECT_CALL(queue, CloseStreamForGroup(0));
-    EXPECT_CALL(queue, PublishObject(1, 0, "c", false));
-    EXPECT_CALL(queue, PublishObject(1, 1, "d", false));
+    EXPECT_CALL(queue, PublishObject(1, 0, "c"));
+    EXPECT_CALL(queue, PublishObject(1, 1, "d"));
     EXPECT_CALL(queue, CloseStreamForGroup(1));
-    EXPECT_CALL(queue, PublishObject(2, 0, "e", false));
-    EXPECT_CALL(queue, PublishObject(2, 1, "f", false));
+    EXPECT_CALL(queue, PublishObject(2, 0, "e"));
+    EXPECT_CALL(queue, PublishObject(2, 1, "f"));
     EXPECT_CALL(queue, CloseStreamForGroup(2));
-    EXPECT_CALL(queue, PublishObject(3, 0, "g", false));
-    EXPECT_CALL(queue, PublishObject(3, 1, "h", false));
+    EXPECT_CALL(queue, PublishObject(3, 0, "g"));
+    EXPECT_CALL(queue, PublishObject(3, 1, "h"));
     EXPECT_CALL(queue, CloseStreamForGroup(3));
-    EXPECT_CALL(queue, PublishObject(4, 0, "i", false));
-    EXPECT_CALL(queue, PublishObject(4, 1, "j", false));
+    EXPECT_CALL(queue, PublishObject(4, 0, "i"));
+    EXPECT_CALL(queue, PublishObject(4, 1, "j"));
 
     // Past SUBSCRIBE would only get the three most recent groups.
-    EXPECT_CALL(queue, PublishObject(2, 0, "e", false));
-    EXPECT_CALL(queue, PublishObject(2, 1, "f", true));
-    EXPECT_CALL(queue, PublishObject(3, 0, "g", false));
-    EXPECT_CALL(queue, PublishObject(3, 1, "h", true));
-    EXPECT_CALL(queue, PublishObject(4, 0, "i", false));
-    EXPECT_CALL(queue, PublishObject(4, 1, "j", false));
+    EXPECT_CALL(queue, PublishObject(2, 0, "e"));
+    EXPECT_CALL(queue, PublishObject(2, 1, "f"));
+    EXPECT_CALL(queue, CloseStreamForGroup(2));
+    EXPECT_CALL(queue, PublishObject(3, 0, "g"));
+    EXPECT_CALL(queue, PublishObject(3, 1, "h"));
+    EXPECT_CALL(queue, CloseStreamForGroup(3));
+    EXPECT_CALL(queue, PublishObject(4, 0, "i"));
+    EXPECT_CALL(queue, PublishObject(4, 1, "j"));
   }
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);

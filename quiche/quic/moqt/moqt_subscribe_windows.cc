@@ -54,14 +54,26 @@ void SubscribeWindow::RemoveStream(uint64_t group_id, uint64_t object_id) {
   send_streams_.erase(index);
 }
 
-bool SubscribeWindow::OnObjectSent(FullSequence sequence) {
+bool SubscribeWindow::OnObjectSent(FullSequence sequence,
+                                   MoqtObjectStatus status) {
   if (!largest_delivered_.has_value() || *largest_delivered_ < sequence) {
     largest_delivered_ = sequence;
   }
   // Update next_to_backfill_
   if (sequence < original_next_object_ && next_to_backfill_.has_value() &&
       *next_to_backfill_ <= sequence) {
-    next_to_backfill_ = sequence.next();
+    switch (status) {
+      case MoqtObjectStatus::kNormal:
+      case MoqtObjectStatus::kObjectDoesNotExist:
+        next_to_backfill_ = sequence.next();
+        break;
+      case MoqtObjectStatus::kEndOfGroup:
+        next_to_backfill_ = FullSequence(sequence.group + 1, 0);
+        break;
+      default:  // Includes kEndOfTrack.
+        next_to_backfill_ = std::nullopt;
+        break;
+    }
     if (next_to_backfill_ == original_next_object_ ||
         *next_to_backfill_ == end_) {
       // Redelivery is complete.

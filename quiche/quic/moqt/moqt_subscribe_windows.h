@@ -75,7 +75,7 @@ class QUICHE_EXPORT SubscribeWindow {
   }
 
   // Returns true if the object delivery completed the subscription
-  bool OnObjectSent(FullSequence sequence);
+  bool OnObjectSent(FullSequence sequence, MoqtObjectStatus status);
 
   std::optional<FullSequence>& largest_delivered() {
     return largest_delivered_;
