@@ -4640,25 +4640,51 @@ TEST_F(HTTPBalsaFrameTest, ContinuationDisallowed) {
   EXPECT_EQ(BalsaFrameEnums::INVALID_HEADER_FORMAT, balsa_frame_.ErrorCode());
 }
 
-TEST_F(HTTPBalsaFrameTest, NullInValue) {
+TEST_F(HTTPBalsaFrameTest, NullAtBeginningOrEndOfValue) {
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
+
   constexpr absl::string_view null_string("\0", 1);
   const std::string message =
       absl::StrCat("GET / HTTP/1.1\r\n",                                 //
                    "key1: ", null_string, "value starts with null\r\n",  //
-                   "key2: value ", null_string, "includes null\r\n",     //
-                   "key3: value ends in null", null_string, "\r\n",      //
+                   "key2: value ends in null", null_string, "\r\n",      //
                    "\r\n");
 
   // TODO(b/314138604): RFC9110 Section 5.5 requires received CR, LF and NUL
-  // characters to be replaced with SP, see
+  // characters to be replaced with SP if the message is not rejected, see
   // https://www.rfc-editor.org/rfc/rfc9110.html#name-field-values.
   // BalsaFrame currently strips (instead of replacing) NUL at the beginning or
-  // end of the header value, but keeps it if it occurs in the middle.
+  // end of the header value.
   FakeHeaders fake_headers;
   fake_headers.AddKeyValue("key1", "value starts with null");
+  fake_headers.AddKeyValue("key2", "value ends in null");
+  EXPECT_CALL(visitor_mock_,
+              HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_FALSE(balsa_frame_.Error());
+}
+
+TEST_F(HTTPBalsaFrameTest, NullInMiddleOfValue) {
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
+
+  constexpr absl::string_view null_string("\0", 1);
+  const std::string message =
+      absl::StrCat("GET / HTTP/1.1\r\n",                             //
+                   "key: value ", null_string, "includes null\r\n",  //
+                   "\r\n");
+
+  // TODO(b/314138604): RFC9110 Section 5.5 requires received CR, LF and NUL
+  // characters to be replaced with SP if the message is not rejected, see
+  // https://www.rfc-editor.org/rfc/rfc9110.html#name-field-values.
+  // BalsaFrame currently keeps the NUL character if it occurs in the middle.
+  FakeHeaders fake_headers;
   fake_headers.AddKeyValue(
-      "key2", absl::StrCat("value ", null_string, "includes null"));
-  fake_headers.AddKeyValue("key3", "value ends in null");
+      "key", absl::StrCat("value ", null_string, "includes null"));
+  EXPECT_CALL(visitor_mock_,
+              HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
   EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
 
   EXPECT_EQ(message.size(),
