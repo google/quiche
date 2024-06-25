@@ -721,6 +721,72 @@ TEST(HTTPBalsaFrame, RequestFirstLineParsedCorrectly) {
   FirstLineParsedCorrectlyHelper(request_tokens, 0, true, "   \t \t  ");
 }
 
+TEST(HTTPBalsaFrame, RequestLineSanitizedProperly) {
+  SCOPED_TRACE("Testing that the request line is properly sanitized.");
+  using enum HttpValidationPolicy::FirstLineValidationOption;
+  using FirstLineValidationOption =
+      HttpValidationPolicy::FirstLineValidationOption;
+
+  struct TestCase {
+    const absl::string_view input;     // Input to the parser.
+    const absl::string_view parsed;    // Expected output.
+    FirstLineValidationOption option;  // Whether to sanitize/reject.
+    BalsaFrameEnums::ErrorCode expected_error;
+  };
+  const std::vector<TestCase> cases = {
+      // No invalid whitespace.
+      {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1", NONE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1", SANITIZE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1", REJECT,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // Illegal CR in the request-line.
+      {"GET /\rHTTP/1.1\r\n", "GET /\rHTTP/1.1", NONE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET /\rHTTP/1.1\r\n", "GET / HTTP/1.1", SANITIZE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET /\rHTTP/1.1\r\n", "", REJECT,
+       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE},
+
+      // Invalid tab in the request-line.
+      {"GET \t/ HTTP/1.1\r\n", "GET \t/ HTTP/1.1", NONE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET \t/ HTTP/1.1\r\n", "GET  / HTTP/1.1", SANITIZE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET \t/ HTTP/1.1\r\n", "", REJECT,
+       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE},
+
+      // Both CR and tab in the request-line.
+      {"GET \t/\rHTTP/1.1 \r\n", "GET \t/\rHTTP/1.1", NONE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET \t/\rHTTP/1.1 \r\n", "GET  / HTTP/1.1", SANITIZE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET \t/\rHTTP/1.1 \r\n", "", REJECT,
+       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE},
+  };
+  const absl::string_view kHeaderLineAndEnding = "Foo: bar\r\n\r\n";
+  for (auto& [firstline, parsed, ws_option, expected_error] : cases) {
+    SCOPED_TRACE(
+        absl::StrCat("Input: ", absl::CEscape(firstline),
+                     " Expected output: ", absl::CEscape(parsed),
+                     " whitespace option: ", static_cast<int>(ws_option)));
+    const std::string input = absl::StrCat(firstline, kHeaderLineAndEnding);
+
+    BalsaHeaders headers;
+    BalsaFrame framer;
+    HttpValidationPolicy policy;
+    policy.sanitize_cr_tab_in_first_line = ws_option;
+    framer.set_http_validation_policy(policy);
+    framer.set_is_request(true);
+    framer.set_balsa_headers(&headers);
+    framer.ProcessInput(input.data(), input.size());
+    EXPECT_EQ(headers.first_line(), parsed);
+    EXPECT_EQ(framer.ErrorCode(), expected_error);
+  }
+}
+
 TEST_F(HTTPBalsaFrameTest, NonnumericResponseCode) {
   balsa_frame_.set_is_request(false);
 
@@ -783,6 +849,73 @@ TEST(HTTPBalsaFrame, ResponseFirstLineParsedCorrectly) {
   FirstLineParsedCorrectlyHelper(response_tokens, 4242, false, "   \t \t  ");
 }
 
+TEST(HTTPBalsaFrame, StatusLineSanitizedProperly) {
+  SCOPED_TRACE("Testing that the status line is properly sanitized.");
+  using enum HttpValidationPolicy::FirstLineValidationOption;
+  using FirstLineValidationOption =
+      HttpValidationPolicy::FirstLineValidationOption;
+
+  struct TestCase {
+    const absl::string_view input;     // Input to the parser.
+    const absl::string_view parsed;    // Expected output.
+    FirstLineValidationOption option;  // Whether to sanitize/reject.
+    BalsaFrameEnums::ErrorCode expected_error;
+  };
+  const std::vector<TestCase> cases = {
+      // No invalid whitespace.
+      {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK", NONE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK", SANITIZE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK", REJECT,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // Illegal CR in the status-line.
+      {"HTTP/1.1 200\rOK\r\n", "HTTP/1.1 200\rOK", NONE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 200\rOK\r\n", "HTTP/1.1 200 OK", SANITIZE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 200\rOK\r\n", "", REJECT,
+       BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE},
+
+      // Invalid tab in the status-line.
+      {"HTTP/1.1 \t200 OK\r\n", "HTTP/1.1 \t200 OK", NONE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 \t200 OK\r\n", "HTTP/1.1  200 OK", SANITIZE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 \t200 OK\r\n", "", REJECT,
+       BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE},
+
+      // Both CR and tab in the request-line.
+      {"HTTP/1.1 \t200\rOK \r\n", "HTTP/1.1 \t200\rOK", NONE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 \t200\rOK \r\n", "HTTP/1.1  200 OK", SANITIZE,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 \t200\rOK \r\n", "", REJECT,
+       BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE},
+  };
+  const absl::string_view kHeaderLineAndEnding =
+      "Foo: bar\r\nContent-Length: 0\r\n\r\n";
+  for (auto& [firstline, parsed, ws_option, expected_error] : cases) {
+    SCOPED_TRACE(
+        absl::StrCat("Input: ", absl::CEscape(firstline),
+                     " Expected output: ", absl::CEscape(parsed),
+                     " whitespace option: ", static_cast<int>(ws_option)));
+    const std::string input = absl::StrCat(firstline, kHeaderLineAndEnding);
+
+    BalsaHeaders headers;
+    BalsaFrame framer;
+    HttpValidationPolicy policy;
+    policy.sanitize_cr_tab_in_first_line = ws_option;
+    framer.set_http_validation_policy(policy);
+    framer.set_is_request(false);
+    framer.set_balsa_headers(&headers);
+    framer.ProcessInput(input.data(), input.size());
+    EXPECT_EQ(headers.first_line(), parsed);
+    EXPECT_EQ(framer.ErrorCode(), expected_error);
+  }
+}
+
 void HeaderLineTestHelper(const char* firstline, bool is_request,
                           const std::pair<std::string, std::string>* headers,
                           size_t headers_len, const char* colon,
@@ -801,7 +934,7 @@ void HeaderLineTestHelper(const char* firstline, bool is_request,
 
 TEST(HTTPBalsaFrame, RequestLinesParsedProperly) {
   SCOPED_TRACE("Testing that lines are properly parsed.");
-  const char firstline[] = "GET / \rHTTP/1.1\r\n";
+  const char firstline[] = "GET / HTTP/1.1\r\n";
   const std::pair<std::string, std::string> headers[] = {
       std::pair<std::string, std::string>("foo", "bar"),
       std::pair<std::string, std::string>("duck", "water"),

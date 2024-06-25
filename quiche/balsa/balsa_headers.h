@@ -26,6 +26,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/balsa/balsa_enums.h"
 #include "quiche/balsa/header_api.h"
+#include "quiche/balsa/http_validation_policy.h"
 #include "quiche/balsa/standard_header_map.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -283,13 +284,13 @@ class QUICHE_EXPORT BalsaBuffer {
     can_write_to_contiguous_buffer_ = b.can_write_to_contiguous_buffer_;
   }
 
-  const char* StartOfFirstBlock() const {
+  char* StartOfFirstBlock() const {
     QUICHE_BUG_IF(bug_if_1182_1, blocks_.empty())
         << "First block not allocated yet!";
     return blocks_.empty() ? nullptr : blocks_[0].buffer.get();
   }
 
-  const char* EndOfFirstBlock() const {
+  char* EndOfFirstBlock() const {
     QUICHE_BUG_IF(bug_if_1182_2, blocks_.empty())
         << "First block not allocated yet!";
     return blocks_.empty() ? nullptr : blocks_[0].start_of_unused_bytes();
@@ -1044,9 +1045,10 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
   friend class HTTPMessage;
   friend class test::BalsaHeadersTestPeer;
 
-  friend bool ParseHTTPFirstLine(const char* begin, const char* end,
-                                 bool is_request, BalsaHeaders* headers,
-                                 BalsaFrameEnums::ErrorCode* error_code);
+  friend bool ParseHTTPFirstLine(
+      char* begin, char* end, bool is_request, BalsaHeaders* headers,
+      BalsaFrameEnums::ErrorCode* error_code,
+      HttpValidationPolicy::FirstLineValidationOption whitespace_option);
 
   // Reverse iterators have been removed for lack of use, refer to
   // cl/30618773 in case they are needed.
@@ -1073,11 +1075,11 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
     balsa_buffer_.NoMoreWriteToContiguousBuffer();
   }
 
-  const char* OriginalHeaderStreamBegin() const {
+  char* OriginalHeaderStreamBegin() const {
     return balsa_buffer_.StartOfFirstBlock();
   }
 
-  const char* OriginalHeaderStreamEnd() const {
+  char* OriginalHeaderStreamEnd() const {
     return balsa_buffer_.EndOfFirstBlock();
   }
 

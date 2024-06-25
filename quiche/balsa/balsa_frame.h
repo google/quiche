@@ -206,7 +206,7 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   inline void ProcessTransferEncodingLine(size_t line_idx);
 
-  void ProcessFirstLine(const char* begin, const char* end);
+  void ProcessFirstLine(char* begin, char* end);
 
   void CleanUpKeyValueWhitespace(const char* stream_begin,
                                  const char* line_begin, const char* current,

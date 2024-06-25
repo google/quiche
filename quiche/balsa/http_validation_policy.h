@@ -66,6 +66,17 @@ struct QUICHE_EXPORT HttpValidationPolicy {
 
   // If true, then requests with a target URI that is invalid will be rejected.
   bool disallow_invalid_target_uris = false;
+
+  // If SANITIZE, a request-line containing tab or carriage return will have
+  // those characters replaced with space. If REJECT, a request-line containing
+  // tab or carriage return will be rejected.
+  enum class FirstLineValidationOption {
+    NONE,
+    SANITIZE,
+    REJECT,
+  };
+  FirstLineValidationOption sanitize_cr_tab_in_first_line =
+      FirstLineValidationOption::NONE;
 };
 
 }  // namespace quiche

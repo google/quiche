@@ -41,6 +41,9 @@ namespace quiche {
 
 namespace {
 
+using FirstLineValidationOption =
+    HttpValidationPolicy::FirstLineValidationOption;
+
 constexpr size_t kContinueStatusCode = 100;
 constexpr size_t kSwitchingProtocolsStatusCode = 101;
 
@@ -101,9 +104,8 @@ namespace {
 // whose indices fall in [*first_whitespace, *first_nonwhite), while the
 // non-whitespace span are the characters whose indices fall in
 // [*first_nonwhite, returnvalue - begin).
-inline const char* ParseOneIsland(const char* current, const char* begin,
-                                  const char* end, size_t* first_whitespace,
-                                  size_t* first_nonwhite) {
+inline char* ParseOneIsland(char* current, char* begin, char* end,
+                            size_t* first_whitespace, size_t* first_nonwhite) {
   *first_whitespace = current - begin;
   while (current < end && CHAR_LE(*current, ' ')) {
     ++current;
@@ -151,16 +153,32 @@ inline const char* ParseOneIsland(const char* current, const char* begin,
 //  ProcessFirstLine(begin, end, is_request, &headers, &error_code);
 //
 
-bool ParseHTTPFirstLine(const char* begin, const char* end, bool is_request,
+bool ParseHTTPFirstLine(char* begin, char* end, bool is_request,
                         BalsaHeaders* headers,
-                        BalsaFrameEnums::ErrorCode* error_code) {
+                        BalsaFrameEnums::ErrorCode* error_code,
+                        FirstLineValidationOption whitespace_option) {
   while (begin < end && (end[-1] == '\n' || end[-1] == '\r')) {
     --end;
   }
 
-  const char* current =
-      ParseOneIsland(begin, begin, end, &headers->whitespace_1_idx_,
-                     &headers->non_whitespace_1_idx_);
+  if (whitespace_option != FirstLineValidationOption::NONE) {
+    constexpr absl::string_view kBadWhitespace = "\r\t";
+    char* pos = std::find_first_of(begin, end, kBadWhitespace.begin(),
+                                   kBadWhitespace.end());
+    if (pos != end) {
+      if (whitespace_option == FirstLineValidationOption::REJECT) {
+        *error_code = static_cast<BalsaFrameEnums::ErrorCode>(
+            BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE +
+            static_cast<int>(is_request));
+        return false;
+      }
+      QUICHE_DCHECK(whitespace_option == FirstLineValidationOption::SANITIZE);
+      std::replace_if(
+          pos, end, [](char c) { return c == '\r' || c == '\t'; }, ' ');
+    }
+  }
+  char* current = ParseOneIsland(begin, begin, end, &headers->whitespace_1_idx_,
+                                 &headers->non_whitespace_1_idx_);
   current = ParseOneIsland(current, begin, end, &headers->whitespace_2_idx_,
                            &headers->non_whitespace_2_idx_);
   current = ParseOneIsland(current, begin, end, &headers->whitespace_3_idx_,
@@ -326,9 +344,11 @@ bool IsValidTargetUri(absl::string_view method, absl::string_view target_uri) {
 //
 // Another precondition for this function is that [begin, end) includes
 // at most one newline, which must be at the end of the line.
-void BalsaFrame::ProcessFirstLine(const char* begin, const char* end) {
+void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
   BalsaFrameEnums::ErrorCode previous_error = last_error_;
-  if (!ParseHTTPFirstLine(begin, end, is_request_, headers_, &last_error_)) {
+  if (!ParseHTTPFirstLine(
+          begin, end, is_request_, headers_, &last_error_,
+          http_validation_policy().sanitize_cr_tab_in_first_line)) {
     parse_state_ = BalsaFrameEnums::ERROR;
     HandleError(last_error_);
     return;
@@ -889,7 +909,7 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
       if (lines_.size() == 1) {
         headers_->WriteFromFramer(checkpoint, 1 + message_current - checkpoint);
         checkpoint = message_current + 1;
-        const char* begin = headers_->OriginalHeaderStreamBegin();
+        char* begin = headers_->OriginalHeaderStreamBegin();
 
         QUICHE_DVLOG(1) << "First line "
                         << std::string(begin, lines_[0].second);
