@@ -62,11 +62,16 @@ const int kInitialFlowControlWindowSize = 64 * 1024 - 1;
 
 // The pseudo-header fields as specified in RFC 7540 Section 8.1.2.3 (request)
 // and Section 8.1.2.4 (response).
-ABSL_CONST_INIT QUICHE_EXPORT extern const char kHttp2MethodPseudoHeader[];
-ABSL_CONST_INIT QUICHE_EXPORT extern const char kHttp2SchemePseudoHeader[];
-ABSL_CONST_INIT QUICHE_EXPORT extern const char kHttp2AuthorityPseudoHeader[];
-ABSL_CONST_INIT QUICHE_EXPORT extern const char kHttp2PathPseudoHeader[];
-ABSL_CONST_INIT QUICHE_EXPORT extern const char kHttp2StatusPseudoHeader[];
+QUICHE_EXPORT inline constexpr absl::string_view kHttp2MethodPseudoHeader =
+    ":method";
+QUICHE_EXPORT inline constexpr absl::string_view kHttp2SchemePseudoHeader =
+    ":scheme";
+QUICHE_EXPORT inline constexpr absl::string_view kHttp2AuthorityPseudoHeader =
+    ":authority";
+QUICHE_EXPORT inline constexpr absl::string_view kHttp2PathPseudoHeader =
+    ":path";
+QUICHE_EXPORT inline constexpr absl::string_view kHttp2StatusPseudoHeader =
+    ":status";
 
 ABSL_CONST_INIT QUICHE_EXPORT extern const uint8_t kMetadataFrameType;
 ABSL_CONST_INIT QUICHE_EXPORT extern const uint8_t kMetadataEndFlag;
