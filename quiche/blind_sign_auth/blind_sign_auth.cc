@@ -370,7 +370,10 @@ std::string BlindSignAuthServiceTypeToString(
       return "cronetipblinding";
     }
     case BlindSignAuthServiceType::kWebviewIpBlinding: {
-      return "webviewipblinding";
+      // Currently WebView uses the same service type as Chrome.
+      // TODO(b/280621504): Change this once we have a more specific service
+      // type.
+      return "chromeipblinding";
     }
   }
 }
