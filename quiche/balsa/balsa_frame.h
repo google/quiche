@@ -11,7 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
 #include "quiche/balsa/balsa_enums.h"
 #include "quiche/balsa/balsa_headers.h"
 #include "quiche/balsa/balsa_visitor_interface.h"
@@ -164,10 +163,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   BalsaFrameEnums::ErrorCode ErrorCode() const { return last_error_; }
 
-  const absl::flat_hash_map<char, int>& get_invalid_chars() const {
-    return invalid_chars_;
-  }
-
   const BalsaHeaders* headers() const { return headers_; }
   BalsaHeaders* mutable_headers() { return headers_; }
 
@@ -217,7 +212,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
                           BalsaHeaders* headers);
 
   // Returns true if there are invalid characters, false otherwise.
-  // Will also update counts per invalid character in invalid_chars_.
   bool CheckHeaderLinesForInvalidChars(const Lines& lines,
                                        const BalsaHeaders* headers);
 
@@ -290,7 +284,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   uint32_t term_chars_;
   BalsaFrameEnums::ParseState parse_state_;
   BalsaFrameEnums::ErrorCode last_error_;
-  absl::flat_hash_map<char, int> invalid_chars_;
 
   Lines lines_;
 

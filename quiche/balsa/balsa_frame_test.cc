@@ -987,8 +987,6 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaders) {
       CreateMessage("GET / \rHTTP/1.1\r\n", headers, 2, ":", "\r\n", "");
   framer.ProcessInput(message.data(), message.size());
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
-  // One carriage return in firstline, 1 in header value.
-  EXPECT_EQ(framer.get_invalid_chars().at('\r'), 2);
 }
 
 // Test that lone '\r' detection works correctly in the firstline
@@ -1008,7 +1006,6 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInFirstLineOnInputBoundary) {
   EXPECT_EQ(message2.size(),
             framer.ProcessInput(message2.data(), message2.size()));
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
-  EXPECT_EQ(framer.get_invalid_chars().at('\r'), 1);
 }
 
 // Test that lone '\r' detection works correctly in header values
@@ -1028,7 +1025,6 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderValueOnInputBoundary) {
   EXPECT_EQ(message2.size(),
             framer.ProcessInput(message2.data(), message2.size()));
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
-  EXPECT_EQ(framer.get_invalid_chars().at('\r'), 1);
 }
 
 TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderKey) {
@@ -4063,14 +4059,12 @@ TEST_P(HTTPBalsaFrameTestOneChar, InvalidCharsWarningSet) {
                 HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER))
         .Times(0);
     balsa_frame_.ProcessInput(message.data(), message.size());
-    EXPECT_THAT(balsa_frame_.get_invalid_chars(), IsEmpty());
   } else {
     // invalid char
     absl::flat_hash_map<char, int> expected_count = {{c, 1}};
     EXPECT_CALL(visitor_mock_,
                 HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
     balsa_frame_.ProcessInput(message.data(), message.size());
-    EXPECT_EQ(balsa_frame_.get_invalid_chars(), expected_count);
   }
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
@@ -4110,7 +4104,7 @@ TEST_F(HTTPBalsaFrameTest, InvalidCharInFirstLine) {
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
 }
 
-TEST_F(HTTPBalsaFrameTest, InvalidCharsAreCounted) {
+TEST_F(HTTPBalsaFrameTest, InvalidCharsAreDetected) {
   balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
   const std::string kInvalid1 =
       "GET /foo \\x00\\x00\\x00HTTP/1.1\r\n"
@@ -4121,14 +4115,8 @@ TEST_F(HTTPBalsaFrameTest, InvalidCharsAreCounted) {
   EXPECT_CALL(visitor_mock_,
               HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
   balsa_frame_.ProcessInput(message.data(), message.size());
-  absl::flat_hash_map<char, int> expected_count = {{'\0', 4}, {'\4', 2}};
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
-  EXPECT_EQ(balsa_frame_.get_invalid_chars(), expected_count);
-
-  absl::flat_hash_map<char, int> empty_count;
-  balsa_frame_.Reset();
-  EXPECT_EQ(balsa_frame_.get_invalid_chars(), empty_count);
 }
 
 // Test gibberish in headers and trailer. GFE does not crash but garbage in

@@ -74,7 +74,6 @@ void BalsaFrame::Reset() {
   term_chars_ = 0;
   parse_state_ = BalsaFrameEnums::READING_HEADER_AND_FIRSTLINE;
   last_error_ = BalsaFrameEnums::BALSA_NO_ERROR;
-  invalid_chars_.clear();
   lines_.clear();
   if (continue_headers_ != nullptr) {
     continue_headers_->Clear();
@@ -659,13 +658,11 @@ bool BalsaFrame::CheckHeaderLinesForInvalidChars(const Lines& lines,
   for (const char* c = stream_begin; c < stream_end; c++) {
     if (header_properties::IsInvalidHeaderChar(*c)) {
       found_invalid = true;
-      invalid_chars_[*c]++;
     }
     if (*c == '\r' &&
         http_validation_policy().disallow_lone_cr_in_request_headers &&
         c + 1 < stream_end && *(c + 1) != '\n') {
       found_invalid = true;
-      invalid_chars_[*c]++;
     }
   }
 
