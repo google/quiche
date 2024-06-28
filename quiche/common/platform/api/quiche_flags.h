@@ -9,7 +9,7 @@
 
 // Flags accessed via GetQuicheReloadableFlag/GetQuicheRestartFlag are temporary
 // boolean flags that are used to enable or disable code behavior changes.  The
-// current list is available in the quiche/quic/core/quic_flags_list.h file.
+// current list is available at quiche/common/quiche_feature_flags_list.h.
 #define GetQuicheReloadableFlag(flag) GetQuicheReloadableFlagImpl(flag)
 #define SetQuicheReloadableFlag(flag, value) \
   SetQuicheReloadableFlagImpl(flag, value)
@@ -17,8 +17,8 @@
 #define SetQuicheRestartFlag(flag, value) SetQuicheRestartFlagImpl(flag, value)
 
 // Flags accessed via GetQuicheFlag are permanent flags used to control QUICHE
-// library behavior.  The current list is available in the
-// quiche/common/quiche_protocol_flags_list.h file.
+// library behavior.  The current list is available at
+// quiche/common/quiche_protocol_flags_list.h.
 #define GetQuicheFlag(flag) GetQuicheFlagImpl(flag)
 #define SetQuicheFlag(flag, value) SetQuicheFlagImpl(flag, value)
 

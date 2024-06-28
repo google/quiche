@@ -13,9 +13,10 @@
 
 #include "quiche/common/platform/api/quiche_export.h"
 
-#define QUIC_FLAG(flag, value) QUICHE_EXPORT extern bool FLAGS_##flag;
-#include "quiche/quic/core/quic_flags_list.h"
-#undef QUIC_FLAG
+#define QUICHE_FLAG(type, flag, internal_value, external_value, doc) \
+  QUICHE_EXPORT extern type FLAGS_##flag;
+#include "quiche/common/quiche_feature_flags_list.h"
+#undef QUICHE_FLAG
 
 // Protocol flags.
 #define QUICHE_PROTOCOL_FLAG(type, flag, ...) \
@@ -38,8 +39,8 @@ inline std::string GetQuicheFlagImplImpl(const std::string& flag) {
 // ------------------------------------------------------------------------
 // QUICHE feature flags implementation.
 // ------------------------------------------------------------------------
-#define QUICHE_RELOADABLE_FLAG(flag) quic_reloadable_flag_##flag
-#define QUICHE_RESTART_FLAG(flag) quic_restart_flag_##flag
+#define QUICHE_RELOADABLE_FLAG(flag) quiche_reloadable_flag_##flag
+#define QUICHE_RESTART_FLAG(flag) quiche_restart_flag_##flag
 #define GetQuicheReloadableFlagImpl(flag) \
   GetQuicheFlag(QUICHE_RELOADABLE_FLAG(flag))
 #define SetQuicheReloadableFlagImpl(flag, value) \

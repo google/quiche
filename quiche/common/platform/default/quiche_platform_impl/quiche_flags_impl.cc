@@ -4,9 +4,10 @@
 
 #include "quiche_platform_impl/quiche_flags_impl.h"
 
-#define QUIC_FLAG(flag, value) bool FLAGS_##flag = value;
-#include "quiche/quic/core/quic_flags_list.h"
-#undef QUIC_FLAG
+#define QUICHE_FLAG(type, flag, internal_value, external_value, doc) \
+  type FLAGS_##flag = external_value;
+#include "quiche/common/quiche_feature_flags_list.h"
+#undef QUICHE_FLAG
 
 #define QUICHE_PROTOCOL_FLAG(type, flag, value, doc) type FLAGS_##flag = value;
 #include "quiche/common/quiche_protocol_flags_list.h"
