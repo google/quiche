@@ -1527,6 +1527,7 @@ moqt_srcs = [
     "quic/moqt/moqt_session_test.cc",
     "quic/moqt/moqt_subscribe_windows.cc",
     "quic/moqt/moqt_subscribe_windows_test.cc",
+    "quic/moqt/moqt_track.cc",
     "quic/moqt/moqt_track_test.cc",
     "quic/moqt/test_tools/moqt_simulator_harness.cc",
     "quic/moqt/tools/chat_client_bin.cc",

@@ -69,36 +69,14 @@ class LocalTrack {
   }
 
   void AddWindow(uint64_t subscribe_id, uint64_t start_group,
-                 uint64_t start_object) {
-    QUIC_BUG_IF(quic_bug_subscribe_to_canceled_track, announce_canceled_)
-        << "Canceled track got subscription";
-    windows_.AddWindow(subscribe_id, next_sequence_, start_group, start_object);
-  }
+                 uint64_t start_object);
 
   void AddWindow(uint64_t subscribe_id, uint64_t start_group,
-                 uint64_t start_object, uint64_t end_group) {
-    QUIC_BUG_IF(quic_bug_subscribe_to_canceled_track, announce_canceled_)
-        << "Canceled track got subscription";
-    // The end object might be unknown.
-    auto it = max_object_ids_.find(end_group);
-    if (end_group >= next_sequence_.group) {
-      // Group is not fully published yet, so end object is unknown.
-      windows_.AddWindow(subscribe_id, next_sequence_, start_group,
-                         start_object, end_group, UINT64_MAX);
-      return;
-    }
-    windows_.AddWindow(subscribe_id, next_sequence_, start_group, start_object,
-                       end_group, it->second);
-  }
+                 uint64_t start_object, uint64_t end_group);
 
   void AddWindow(uint64_t subscribe_id, uint64_t start_group,
                  uint64_t start_object, uint64_t end_group,
-                 uint64_t end_object) {
-    QUIC_BUG_IF(quic_bug_subscribe_to_canceled_track, announce_canceled_)
-        << "Canceled track got subscription";
-    windows_.AddWindow(subscribe_id, next_sequence_, start_group, start_object,
-                       end_group, end_object);
-  }
+                 uint64_t end_object);
 
   void DeleteWindow(uint64_t subscribe_id) {
     windows_.RemoveWindow(subscribe_id);
@@ -110,34 +88,7 @@ class LocalTrack {
 
   // Updates next_sequence_ if |sequence| is larger. Updates max_object_ids_
   // if relevant.
-  void SentSequence(FullSequence sequence, MoqtObjectStatus status) {
-    QUICHE_DCHECK(max_object_ids_.find(sequence.group) ==
-                      max_object_ids_.end() ||
-                  max_object_ids_[sequence.group] < sequence.object);
-    switch (status) {
-      case MoqtObjectStatus::kNormal:
-      case MoqtObjectStatus::kObjectDoesNotExist:
-        if (next_sequence_ <= sequence) {
-          next_sequence_ = sequence.next();
-        }
-        break;
-      case MoqtObjectStatus::kGroupDoesNotExist:
-        max_object_ids_[sequence.group] = 0;
-        break;
-      case MoqtObjectStatus::kEndOfGroup:
-        max_object_ids_[sequence.group] = sequence.object;
-        if (next_sequence_ <= sequence) {
-          next_sequence_ = FullSequence(sequence.group + 1, 0);
-        }
-        break;
-      case MoqtObjectStatus::kEndOfTrack:
-        max_object_ids_[sequence.group] = sequence.object;
-        break;
-      default:
-        QUICHE_DCHECK(false);
-        return;
-    }
-  }
+  void SentSequence(FullSequence sequence, MoqtObjectStatus status);
 
   bool HasSubscriber() const { return !windows_.IsEmpty(); }
 
@@ -213,13 +164,7 @@ class RemoteTrack {
   // forwarding preference to the value indicated by the incoming encoding.
   // Otherwise, returns true if the incoming object does not violate the rule
   // that the preference is consistent.
-  bool CheckForwardingPreference(MoqtForwardingPreference preference) {
-    if (forwarding_preference_.has_value()) {
-      return forwarding_preference_.value() == preference;
-    }
-    forwarding_preference_ = preference;
-    return true;
-  }
+  bool CheckForwardingPreference(MoqtForwardingPreference preference);
 
  private:
   // TODO: There is no accounting for the number of outstanding subscribes,
