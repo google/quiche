@@ -3938,13 +3938,9 @@ TEST_F(HTTPBalsaFrameTest, FrameAndResetAndFrameAgain) {
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
-TEST_F(HTTPBalsaFrameTest, TrackInvalidChars) {
-  EXPECT_FALSE(balsa_frame_.track_invalid_chars());
-}
-
 // valid chars are 9 (tab), 10 (LF), 13(CR), and 32-255
-TEST_F(HTTPBalsaFrameTest, InvalidCharsInHeaderValueWarning) {
-  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
+TEST_F(HTTPBalsaFrameTest, InvalidCharsInHeaderValueError) {
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
   // nulls are double escaped since otherwise this initialized wrong
   const std::string kEscapedInvalid1 =
       "GET /foo HTTP/1.1\r\n"
@@ -3957,16 +3953,16 @@ TEST_F(HTTPBalsaFrameTest, InvalidCharsInHeaderValueWarning) {
   absl::CUnescape(kEscapedInvalid1, &message);
 
   EXPECT_CALL(visitor_mock_,
-              HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
+              HandleError(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
 
   balsa_frame_.ProcessInput(message.data(), message.size());
-  EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
 }
 
-// Header names reject invalid chars even at the warning level.
-TEST_F(HTTPBalsaFrameTest, InvalidCharsInHeaderKeyError) {
-  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
+// Header names reject invalid chars even when the InvalidCharsLevel is kOff.
+TEST_F(HTTPBalsaFrameTest, InvalidCharsInHeaderNameError) {
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kOff);
   // nulls are double escaped since otherwise this initialized wrong
   const std::string kEscapedInvalid1 =
       "GET /foo HTTP/1.1\r\n"
@@ -4043,8 +4039,8 @@ class HTTPBalsaFrameTestOneChar : public HTTPBalsaFrameTest,
   char GetCharUnderTest() { return GetParam(); }
 };
 
-TEST_P(HTTPBalsaFrameTestOneChar, InvalidCharsWarningSet) {
-  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
+TEST_P(HTTPBalsaFrameTestOneChar, InvalidCharsErrorSet) {
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
   const std::string kRequest =
       "GET /foo HTTP/1.1\r\n"
       "Bogus-Char-Goes-Here: ";
@@ -4056,25 +4052,26 @@ TEST_P(HTTPBalsaFrameTestOneChar, InvalidCharsWarningSet) {
   if (c == 9 || c == 10 || c == 13) {
     // valid char
     EXPECT_CALL(visitor_mock_,
-                HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER))
+                HandleError(BalsaFrameEnums::INVALID_HEADER_CHARACTER))
         .Times(0);
     balsa_frame_.ProcessInput(message.data(), message.size());
+    EXPECT_FALSE(balsa_frame_.Error());
+    EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   } else {
     // invalid char
-    absl::flat_hash_map<char, int> expected_count = {{c, 1}};
     EXPECT_CALL(visitor_mock_,
-                HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
+                HandleError(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
     balsa_frame_.ProcessInput(message.data(), message.size());
+    EXPECT_TRUE(balsa_frame_.Error());
+    EXPECT_FALSE(balsa_frame_.MessageFullyRead());
   }
-  EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
 }
 
 INSTANTIATE_TEST_SUITE_P(TestInvalidCharSet, HTTPBalsaFrameTestOneChar,
                          Range<char>(0, 32));
 
 TEST_F(HTTPBalsaFrameTest, InvalidCharEndOfLine) {
-  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
   const std::string kInvalid1 =
       "GET /foo HTTP/1.1\r\n"
       "Header-Key: headervalue\\x00\r\n"
@@ -4083,14 +4080,14 @@ TEST_F(HTTPBalsaFrameTest, InvalidCharEndOfLine) {
   absl::CUnescape(kInvalid1, &message);
 
   EXPECT_CALL(visitor_mock_,
-              HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
+              HandleError(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
   balsa_frame_.ProcessInput(message.data(), message.size());
-  EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
 }
 
 TEST_F(HTTPBalsaFrameTest, InvalidCharInFirstLine) {
-  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
   const std::string kInvalid1 =
       "GET /foo \\x00HTTP/1.1\r\n"
       "Legit-Header: legitvalue\r\n\r\n";
@@ -4098,25 +4095,10 @@ TEST_F(HTTPBalsaFrameTest, InvalidCharInFirstLine) {
   absl::CUnescape(kInvalid1, &message);
 
   EXPECT_CALL(visitor_mock_,
-              HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
+              HandleError(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
   balsa_frame_.ProcessInput(message.data(), message.size());
-  EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
-}
-
-TEST_F(HTTPBalsaFrameTest, InvalidCharsAreDetected) {
-  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
-  const std::string kInvalid1 =
-      "GET /foo \\x00\\x00\\x00HTTP/1.1\r\n"
-      "Bogus-Header: \\x00\\x04\\x04value\r\n\r\n";
-  std::string message;
-  absl::CUnescape(kInvalid1, &message);
-
-  EXPECT_CALL(visitor_mock_,
-              HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
-  balsa_frame_.ProcessInput(message.data(), message.size());
-  EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
 }
 
 // Test gibberish in headers and trailer. GFE does not crash but garbage in
@@ -4629,7 +4611,7 @@ TEST_F(HTTPBalsaFrameTest, ContinuationDisallowed) {
 }
 
 TEST_F(HTTPBalsaFrameTest, NullAtBeginningOrEndOfValue) {
-  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
 
   constexpr absl::string_view null_string("\0", 1);
   const std::string message =
@@ -4647,16 +4629,15 @@ TEST_F(HTTPBalsaFrameTest, NullAtBeginningOrEndOfValue) {
   fake_headers.AddKeyValue("key1", "value starts with null");
   fake_headers.AddKeyValue("key2", "value ends in null");
   EXPECT_CALL(visitor_mock_,
-              HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
-  EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
+              HandleError(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
 
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
-  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_TRUE(balsa_frame_.Error());
 }
 
 TEST_F(HTTPBalsaFrameTest, NullInMiddleOfValue) {
-  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kWarning);
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
 
   constexpr absl::string_view null_string("\0", 1);
   const std::string message =
@@ -4672,12 +4653,11 @@ TEST_F(HTTPBalsaFrameTest, NullInMiddleOfValue) {
   fake_headers.AddKeyValue(
       "key", absl::StrCat("value ", null_string, "includes null"));
   EXPECT_CALL(visitor_mock_,
-              HandleWarning(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
-  EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
+              HandleError(BalsaFrameEnums::INVALID_HEADER_CHARACTER));
 
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
-  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_TRUE(balsa_frame_.Error());
 }
 
 }  // namespace

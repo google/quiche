@@ -36,7 +36,7 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   typedef BalsaHeaders::HeaderLines HeaderLines;
   typedef BalsaHeaders::HeaderTokenList HeaderTokenList;
 
-  enum class InvalidCharsLevel { kOff, kWarning, kError };
+  enum class InvalidCharsLevel { kOff, kError };
 
   static constexpr int32_t kValidTerm1 = '\n' << 16 | '\r' << 8 | '\n';
   static constexpr int32_t kValidTerm1Mask = 0xFF << 16 | 0xFF << 8 | 0xFF;
@@ -122,10 +122,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   void set_invalid_chars_level(InvalidCharsLevel v) {
     invalid_chars_level_ = v;
-  }
-
-  bool track_invalid_chars() {
-    return invalid_chars_level_ != InvalidCharsLevel::kOff;
   }
 
   bool invalid_chars_error_enabled() {
