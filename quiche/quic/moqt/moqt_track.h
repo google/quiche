@@ -14,6 +14,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/quiche_callbacks.h"
 
 namespace moqt {
@@ -69,11 +70,15 @@ class LocalTrack {
 
   void AddWindow(uint64_t subscribe_id, uint64_t start_group,
                  uint64_t start_object) {
+    QUIC_BUG_IF(quic_bug_subscribe_to_canceled_track, announce_canceled_)
+        << "Canceled track got subscription";
     windows_.AddWindow(subscribe_id, next_sequence_, start_group, start_object);
   }
 
   void AddWindow(uint64_t subscribe_id, uint64_t start_group,
                  uint64_t start_object, uint64_t end_group) {
+    QUIC_BUG_IF(quic_bug_subscribe_to_canceled_track, announce_canceled_)
+        << "Canceled track got subscription";
     // The end object might be unknown.
     auto it = max_object_ids_.find(end_group);
     if (end_group >= next_sequence_.group) {
@@ -89,6 +94,8 @@ class LocalTrack {
   void AddWindow(uint64_t subscribe_id, uint64_t start_group,
                  uint64_t start_object, uint64_t end_group,
                  uint64_t end_object) {
+    QUIC_BUG_IF(quic_bug_subscribe_to_canceled_track, announce_canceled_)
+        << "Canceled track got subscription";
     windows_.AddWindow(subscribe_id, next_sequence_, start_group, start_object,
                        end_group, end_object);
   }
@@ -142,6 +149,9 @@ class LocalTrack {
     return forwarding_preference_;
   }
 
+  void set_announce_cancel() { announce_canceled_ = true; }
+  bool canceled() const { return announce_canceled_; }
+
  private:
   // This only needs to track subscriptions to current and future objects;
   // requests for objects in the past are forwarded to the application.
@@ -160,6 +170,11 @@ class LocalTrack {
   // EndOfTrack has been received for that group.
   absl::flat_hash_map<uint64_t, uint64_t> max_object_ids_;
   Visitor* visitor_;
+
+  // If true, the session has received ANNOUNCE_CANCELED for this namespace.
+  // Additional subscribes will be a protocol error, and the track can be
+  // destroyed once all active subscribes end.
+  bool announce_canceled_ = false;
 };
 
 // A track on the peer to which the session has subscribed.

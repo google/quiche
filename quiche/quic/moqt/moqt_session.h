@@ -98,6 +98,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   void Announce(absl::string_view track_namespace,
                 MoqtOutgoingAnnounceCallback announce_callback);
   bool HasSubscribers(const FullTrackName& full_track_name) const;
+  // Send an ANNOUNCE_CANCEL and delete local tracks in that namespace when all
+  // subscriptions are closed for that track.
+  void CancelAnnounce(absl::string_view track_namespace);
 
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
   // the track, the message will still be sent. However, the visitor will be
@@ -177,13 +180,14 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override;
     void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override;
     void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
+    // There is no state to update for SUBSCRIBE_DONE.
     void OnSubscribeDoneMessage(const MoqtSubscribeDone& /*message*/) override {
     }
     void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override;
     void OnAnnounceMessage(const MoqtAnnounce& message) override;
     void OnAnnounceOkMessage(const MoqtAnnounceOk& message) override;
     void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override;
-    void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override {};
+    void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override;
     void OnTrackStatusRequestMessage(
         const MoqtTrackStatusRequest& message) override {};
     void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override {}

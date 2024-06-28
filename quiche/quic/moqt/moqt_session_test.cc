@@ -108,19 +108,23 @@ class MoqtSessionPeer {
     session->active_subscribes_[subscribe_id] = {subscribe, visitor};
   }
 
-  static LocalTrack& local_track(MoqtSession* session, FullTrackName& name) {
-    return session->local_tracks_.find(name)->second;
+  static LocalTrack* local_track(MoqtSession* session, FullTrackName& name) {
+    auto it = session->local_tracks_.find(name);
+    if (it == session->local_tracks_.end()) {
+      return nullptr;
+    }
+    return &it->second;
   }
 
   static void AddSubscription(MoqtSession* session, FullTrackName& name,
                               uint64_t subscribe_id, uint64_t track_alias,
                               uint64_t start_group, uint64_t start_object) {
-    LocalTrack& track = local_track(session, name);
-    track.set_track_alias(track_alias);
-    track.AddWindow(subscribe_id, start_group, start_object);
+    LocalTrack* track = local_track(session, name);
+    track->set_track_alias(track_alias);
+    track->AddWindow(subscribe_id, start_group, start_object);
     session->used_track_aliases_.emplace(track_alias);
     session->local_track_by_subscribe_id_.emplace(subscribe_id,
-                                                  track.full_track_name());
+                                                  track->full_track_name());
   }
 
   static FullSequence next_sequence(MoqtSession* session, FullTrackName& name) {
@@ -1243,9 +1247,9 @@ TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {
   session_.AddLocalTrack(ftn, MoqtForwardingPreference::kTrack, &track_visitor);
   MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
   // Get the window, set the maximum delivered.
-  LocalTrack& track = MoqtSessionPeer::local_track(&session_, ftn);
-  track.GetWindow(0)->OnObjectSent(FullSequence(7, 3),
-                                   MoqtObjectStatus::kNormal);
+  LocalTrack* track = MoqtSessionPeer::local_track(&session_, ftn);
+  track->GetWindow(0)->OnObjectSent(FullSequence(7, 3),
+                                    MoqtObjectStatus::kNormal);
   // Update the end to fall at the last delivered object.
   MoqtSubscribeUpdate update = {
       /*subscribe_id=*/0,
@@ -1270,6 +1274,108 @@ TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {
   stream_input->OnSubscribeUpdateMessage(update);
   EXPECT_TRUE(correct_message);
   EXPECT_FALSE(session_.HasSubscribers(ftn));
+}
+
+TEST_F(MoqtSessionTest, ProcessAnnounceCancelNoSubscribes) {
+  MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kSubscriber);
+  FullTrackName ftn("foo", "bar");
+  MockLocalTrackVisitor track_visitor;
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kTrack, &track_visitor);
+  EXPECT_NE(MoqtSessionPeer::local_track(&session_, ftn), nullptr);
+  StrictMock<webtransport::test::MockStream> mock_stream;
+  MoqtAnnounceCancel cancel = {
+      /*track_namespace=*/"foo",
+  };
+  std::unique_ptr<MoqtParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  stream_input->OnAnnounceCancelMessage(cancel);
+  EXPECT_EQ(MoqtSessionPeer::local_track(&session_, ftn), nullptr);
+}
+
+TEST_F(MoqtSessionTest, ProcessAnnounceCancelActiveSubscribes) {
+  MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kSubscriber);
+  FullTrackName ftn("foo", "bar");
+  MockLocalTrackVisitor track_visitor;
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kTrack, &track_visitor);
+  EXPECT_NE(MoqtSessionPeer::local_track(&session_, ftn), nullptr);
+  MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
+  MoqtSessionPeer::AddSubscription(&session_, ftn, 1, 2, 7, 0);
+  StrictMock<webtransport::test::MockStream> mock_stream;
+  MoqtAnnounceCancel cancel = {
+      /*track_namespace=*/"foo",
+  };
+  std::unique_ptr<MoqtParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  stream_input->OnAnnounceCancelMessage(cancel);
+  // The track is still there because there is a subscribe.
+  EXPECT_NE(MoqtSessionPeer::local_track(&session_, ftn), nullptr);
+  // Unsubscribe from 0.
+  MoqtUnsubscribe unsubscribe = {
+      /*subscribe_id=*/0,
+  };
+  EXPECT_CALL(mock_session_, GetStreamById(4)).WillOnce(Return(&mock_stream));
+  bool correct_message = false;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]),
+                  MoqtMessageType::kSubscribeDone);
+        return absl::OkStatus();
+      });
+  stream_input->OnUnsubscribeMessage(unsubscribe);
+  EXPECT_TRUE(correct_message);
+  EXPECT_NE(MoqtSessionPeer::local_track(&session_, ftn), nullptr);
+  // Unsubscribe from 1.
+  unsubscribe.subscribe_id = 1;
+  EXPECT_CALL(mock_session_, GetStreamById(4)).WillOnce(Return(&mock_stream));
+  correct_message = false;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]),
+                  MoqtMessageType::kSubscribeDone);
+        return absl::OkStatus();
+      });
+  stream_input->OnUnsubscribeMessage(unsubscribe);
+  EXPECT_TRUE(correct_message);
+
+  EXPECT_EQ(MoqtSessionPeer::local_track(&session_, ftn), nullptr);
+}
+
+TEST_F(MoqtSessionTest, AnnounceCancelThenSubscribe) {
+  MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kSubscriber);
+  FullTrackName ftn("foo", "bar");
+  MockLocalTrackVisitor track_visitor;
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kTrack, &track_visitor);
+  EXPECT_NE(MoqtSessionPeer::local_track(&session_, ftn), nullptr);
+  MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
+  StrictMock<webtransport::test::MockStream> mock_stream;
+  MoqtAnnounceCancel cancel = {
+      /*track_namespace=*/"foo",
+  };
+  std::unique_ptr<MoqtParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  stream_input->OnAnnounceCancelMessage(cancel);
+  // The track is still there because there is a subscribe.
+  EXPECT_NE(MoqtSessionPeer::local_track(&session_, ftn), nullptr);
+  MoqtSubscribe subscribe = {
+      /*subscribe_id=*/1,
+      /*track_alias=*/2,
+      /*track_namespace=*/"foo",
+      /*track_name=*/"bar",
+      /*start_group=*/4,
+      /*start_object=*/0,
+      /*end_group=*/std::nullopt,
+      /*end_object=*/std::nullopt,
+      /*authorization_info=*/std::nullopt,
+  };
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Received SUBSCRIBE for canceled track"))
+      .Times(1);
+  stream_input->OnSubscribeMessage(subscribe);
 }
 
 // TODO: Cover more error cases in the above

@@ -9,13 +9,14 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
 
 #include "absl/algorithm/container.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/node_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -192,6 +193,18 @@ bool MoqtSession::HasSubscribers(const FullTrackName& full_track_name) const {
   return (it != local_tracks_.end() && it->second.HasSubscriber());
 }
 
+void MoqtSession::CancelAnnounce(absl::string_view track_namespace) {
+  for (auto it = local_tracks_.begin(); it != local_tracks_.end(); ++it) {
+    if (it->first.track_namespace == track_namespace) {
+      it->second.set_announce_cancel();
+    }
+  }
+  absl::erase_if(local_tracks_, [&](const auto& it) {
+    return it.first.track_namespace == track_namespace &&
+           !it.second.HasSubscriber();
+  });
+}
+
 bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
                                     absl::string_view name,
                                     uint64_t start_group, uint64_t start_object,
@@ -322,6 +335,9 @@ bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
   // Clean up the subscription
   track.DeleteWindow(subscribe_id);
   local_track_by_subscribe_id_.erase(name_it);
+  if (track.canceled() && !track.HasSubscriber()) {
+    local_tracks_.erase(track_it);
+  }
   return true;
 }
 
@@ -724,6 +740,14 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
     return;
   }
   LocalTrack& track = it->second;
+  if (it->second.canceled()) {
+    // Note that if the track has already been deleted, there will not be a
+    // protocol violation, which the spec says there SHOULD be. It's not worth
+    // keeping state on deleted tracks.
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received SUBSCRIBE for canceled track");
+    return;
+  }
   if ((track.track_alias().has_value() &&
        message.track_alias != *track.track_alias()) ||
       session_->used_track_aliases_.contains(message.track_alias)) {
@@ -965,6 +989,11 @@ void MoqtSession::Stream::OnAnnounceErrorMessage(
       MoqtAnnounceErrorReason{message.error_code,
                               std::string(message.reason_phrase)});
   session_->pending_outgoing_announces_.erase(it);
+}
+
+void MoqtSession::Stream::OnAnnounceCancelMessage(
+    const MoqtAnnounceCancel& message) {
+  session_->CancelAnnounce(message.track_namespace);
 }
 
 void MoqtSession::Stream::OnParsingError(MoqtError error_code,
