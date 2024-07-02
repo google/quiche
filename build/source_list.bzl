@@ -302,7 +302,6 @@ quiche_core_hdrs = [
     "quic/core/quic_default_connection_helper.h",
     "quic/core/quic_dispatcher.h",
     "quic/core/quic_error_codes.h",
-    "quic/core/quic_flags_list.h",
     "quic/core/quic_flow_controller.h",
     "quic/core/quic_framer.h",
     "quic/core/quic_generic_session.h",

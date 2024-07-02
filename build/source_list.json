@@ -301,7 +301,6 @@
     "quiche/quic/core/quic_default_connection_helper.h",
     "quiche/quic/core/quic_dispatcher.h",
     "quiche/quic/core/quic_error_codes.h",
-    "quiche/quic/core/quic_flags_list.h",
     "quiche/quic/core/quic_flow_controller.h",
     "quiche/quic/core/quic_framer.h",
     "quiche/quic/core/quic_generic_session.h",
