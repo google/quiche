@@ -60,6 +60,8 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
       absl::StatusOr<BlindSignMessageResponse> response);
   privacy::ppn::ProxyLayer QuicheProxyLayerToPpnProxyLayer(
       quiche::ProxyLayer proxy_layer);
+  // Replaces '+' and '/' with '-' and '_' in a Base64 string.
+  std::string ConvertBase64ToWebSafeBase64(std::string base64_string);
 
   BlindSignMessageInterface* fetcher_ = nullptr;
   privacy::ppn::BlindSignAuthOptions auth_options_;

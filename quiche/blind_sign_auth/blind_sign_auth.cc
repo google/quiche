@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -336,9 +337,9 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
 
     privacy::ppn::PrivacyPassTokenData privacy_pass_token_data;
     privacy_pass_token_data.mutable_token()->assign(
-        absl::WebSafeBase64Escape(*marshaled_token));
+        ConvertBase64ToWebSafeBase64(absl::Base64Escape(*marshaled_token)));
     privacy_pass_token_data.mutable_encoded_extensions()->assign(
-        absl::WebSafeBase64Escape(encoded_extensions));
+        ConvertBase64ToWebSafeBase64(absl::Base64Escape(encoded_extensions)));
     privacy_pass_token_data.set_use_case_override(use_case);
     tokens_vec.push_back(
         BlindSignToken{privacy_pass_token_data.SerializeAsString(),
@@ -358,6 +359,13 @@ privacy::ppn::ProxyLayer BlindSignAuth::QuicheProxyLayerToPpnProxyLayer(
       return privacy::ppn::ProxyLayer::PROXY_B;
     }
   }
+}
+
+std::string BlindSignAuth::ConvertBase64ToWebSafeBase64(
+    std::string base64_string) {
+  absl::c_replace(base64_string, /*old_value=*/'+', /*new_value=*/'-');
+  absl::c_replace(base64_string, /*old_value=*/'/', /*new_value=*/'_');
+  return base64_string;
 }
 
 std::string BlindSignAuthServiceTypeToString(
