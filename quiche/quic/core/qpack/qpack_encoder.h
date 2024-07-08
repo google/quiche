@@ -155,10 +155,6 @@ class QUICHE_EXPORT QpackEncoder : public QpackDecoderStreamReceiver::Delegate {
   uint64_t maximum_blocked_streams_;
   QpackBlockingManager blocking_manager_;
   int header_list_count_;
-
-  // Latched value of reloadable_flag_quic_better_qpack_compression.
-  const bool better_compression_ =
-      GetQuicReloadableFlag(quic_better_qpack_compression);
 };
 
 // QpackEncoder::DecoderStreamErrorDelegate implementation that does nothing.

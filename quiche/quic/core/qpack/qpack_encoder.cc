@@ -177,14 +177,6 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
 
         // Match cannot be used.
 
-        if (!better_compression_) {
-          // Encode entry as string literals.
-          representations.push_back(EncodeLiteralHeaderField(name, value));
-          break;
-        }
-
-        QUIC_RELOADABLE_FLAG_COUNT(quic_better_qpack_compression);
-
         QpackEncoderHeaderTable::MatchResult match_result_name_only =
             header_table_.FindHeaderName(name);
 

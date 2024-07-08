@@ -542,54 +542,28 @@ TEST_P(QpackEncoderTest, BlockedStream) {
   // Stream 3 is blocked.  Stream 4 is not allowed to block, but it can
   // reference already acknowledged dynamic entry 0.
   std::string expected2;
-  if (GetQuicReloadableFlag(quic_better_qpack_compression)) {
-    if (HuffmanEnabled()) {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0200"       // prefix
-                                 "80"         // dynamic entry 0
-                                 "2a94e7"     // literal name "foo"
-                                 "0362617a"   // with literal value "baz"
-                                 "55"         // name of static entry 5
-                                 "0362617a"   // with literal value "baz"
-                                 "23626172"   // literal name "bar"
-                                 "0362617a",  // with literal value "baz"
-                                 &expected2));
-    } else {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0200"       // prefix
-                                 "80"         // dynamic entry 0
-                                 "23666f6f"   // literal name "foo"
-                                 "0362617a"   // with literal value "baz"
-                                 "55"         // name of static entry 5
-                                 "0362617a"   // with literal value "baz"
-                                 "23626172"   // literal name "bar"
-                                 "0362617a",  // with literal value "baz"
-                                 &expected2));
-    }
+  if (HuffmanEnabled()) {
+    ASSERT_TRUE(
+        absl::HexStringToBytes("0200"       // prefix
+                               "80"         // dynamic entry 0
+                               "2a94e7"     // literal name "foo"
+                               "0362617a"   // with literal value "baz"
+                               "55"         // name of static entry 5
+                               "0362617a"   // with literal value "baz"
+                               "23626172"   // literal name "bar"
+                               "0362617a",  // with literal value "baz"
+                               &expected2));
   } else {
-    if (HuffmanEnabled()) {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0200"        // prefix
-                                 "80"          // dynamic entry 0
-                                 "2a94e7"      // literal name "foo"
-                                 "0362617a"    // with literal value "baz"
-                                 "2c21cfd4c5"  // literal name "cookie"
-                                 "0362617a"    // with literal value "baz"
-                                 "23626172"    // literal name "bar"
-                                 "0362617a",   // with literal value "baz"
-                                 &expected2));
-    } else {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0200"            // prefix
-                                 "80"              // dynamic entry 0
-                                 "23666f6f"        // literal name "foo"
-                                 "0362617a"        // with literal value "baz"
-                                 "26636f6f6b6965"  // literal name "cookie"
-                                 "0362617a"        // with literal value "baz"
-                                 "23626172"        // literal name "bar"
-                                 "0362617a",       // with literal value "baz"
-                                 &expected2));
-    }
+    ASSERT_TRUE(
+        absl::HexStringToBytes("0200"       // prefix
+                               "80"         // dynamic entry 0
+                               "23666f6f"   // literal name "foo"
+                               "0362617a"   // with literal value "baz"
+                               "55"         // name of static entry 5
+                               "0362617a"   // with literal value "baz"
+                               "23626172"   // literal name "bar"
+                               "0362617a",  // with literal value "baz"
+                               &expected2));
   }
   EXPECT_EQ(expected2,
             encoder_.EncodeHeaderList(/* stream_id = */ 4, header_list2,
@@ -999,27 +973,11 @@ TEST_P(QpackEncoderTest, UseStaticTableNameOnlyMatch) {
   // Streams 1 and 2 are blocked, therefore stream 3 is not allowed to refer to
   // the existing dynamic table entry, nor to add a new entry to the dynamic
   // table.
-  if (GetQuicReloadableFlag(quic_better_qpack_compression)) {
-    ASSERT_TRUE(absl::HexStringToBytes(
-        "0000"       // prefix
-        "5f00"       // name reference to static table entry 15
-        "03626172",  // literal value "bar"
-        &expected_output));
-  } else {
-    if (HuffmanEnabled()) {
-      ASSERT_TRUE(absl::HexStringToBytes(
-          "0000"          // prefix
-          "2db9495339e4"  // Huffman-encoded literal name ":method"
-          "03626172",     // literal value "bar"
-          &expected_output));
-    } else {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0000"                // prefix
-                                 "27003a6d6574686f64"  // literal name ":method"
-                                 "03626172",           // literal value "bar"
-                                 &expected_output));
-    }
-  }
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0000"  // prefix
+                             "5f00"  // name reference to static table entry 15
+                             "03626172",  // literal value "bar"
+                             &expected_output));
   EXPECT_EQ(expected_output,
             encoder_.EncodeHeaderList(/* stream_id = */ 3, header_list,
                                       &encoder_stream_sent_byte_count_));
@@ -1088,39 +1046,21 @@ TEST_P(QpackEncoderTest, UseDynamicTableNameOnlyMatch) {
   spdy::Http2HeaderBlock header_list3;
   header_list3["one"] = "foo";
 
-  if (GetQuicReloadableFlag(quic_better_qpack_compression)) {
-    // Entry matches name and value of oldest dynamic table entry, which cannot
-    // be used. Use the name of the most recent dynamic table entry instead, and
-    // encode value as string literal.
-    if (HuffmanEnabled()) {
-      ASSERT_TRUE(absl::HexStringToBytes(
-          "0c00"     // prefix
-          "40"       // name as dynamic table entry 0
-          "8294e7",  // Huffman-encoded literal value "foo"
-          &expected_output));
-    } else {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0c00"       // prefix
-                                 "40"         // name as dynamic table entry 0
-                                 "03666f6f",  // literal value "foo"
-                                 &expected_output));
-    }
+  // Entry matches name and value of oldest dynamic table entry, which cannot be
+  // used. Use the name of the most recent dynamic table entry instead, and
+  // encode value as string literal.
+  if (HuffmanEnabled()) {
+    ASSERT_TRUE(
+        absl::HexStringToBytes("0c00"     // prefix
+                               "40"       // name as dynamic table entry 0
+                               "8294e7",  // Huffman-encoded literal value "foo"
+                               &expected_output));
   } else {
-    // Entry matches name and value of oldest dynamic table entry, which cannot
-    // be used. Encode both name and value as string literal instead.
-    if (HuffmanEnabled()) {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0000"     // prefix
-                                 "2a3d45"   // literal name "one"
-                                 "8294e7",  // literal value "foo"
-                                 &expected_output));
-    } else {
-      ASSERT_TRUE(
-          absl::HexStringToBytes("0000"       // prefix
-                                 "236f6e65"   // literal name "one"
-                                 "03666f6f",  // literal value "foo"
-                                 &expected_output));
-    }
+    ASSERT_TRUE(
+        absl::HexStringToBytes("0c00"       // prefix
+                               "40"         // name as dynamic table entry 0
+                               "03666f6f",  // literal value "foo"
+                               &expected_output));
   }
   EXPECT_EQ(expected_output, Encode(header_list3));
 }
