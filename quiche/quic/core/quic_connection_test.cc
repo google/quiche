@@ -62,6 +62,7 @@ using testing::_;
 using testing::AnyNumber;
 using testing::AtLeast;
 using testing::DoAll;
+using testing::DoDefault;
 using testing::ElementsAre;
 using testing::Ge;
 using testing::IgnoreResult;
@@ -2611,7 +2612,8 @@ TEST_P(QuicConnectionTest, ReceivePathProbingFromNewPeerAddressAtServer) {
           EXPECT_EQ(1u, writer_->path_challenge_frames().size());
           EXPECT_EQ(1u, writer_->path_response_frames().size());
           payload = writer_->path_challenge_frames().front().data_buffer;
-        }));
+        }))
+        .WillRepeatedly(DoDefault());
   }
   // Process a probing packet from a new peer address on server side
   // is effectively receiving a connectivity probing.
@@ -8770,7 +8772,9 @@ TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnAlternativeSocket) {
         EXPECT_EQ(1u, new_writer.padding_frames().size());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }));
+      }))
+      .WillRepeatedly(DoDefault());
+  ;
   std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
   std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
       QuicEncryptedPacket(probing_packet->encrypted_buffer,
@@ -11365,7 +11369,9 @@ TEST_P(QuicConnectionTest, DuplicateAckCausesLostPackets) {
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .Times(AnyNumber())
       .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
-                      Return(LossDetectionInterface::DetectionStats())));
+                      Return(LossDetectionInterface::DetectionStats())))
+      .WillRepeatedly(DoDefault());
+  ;
   ProcessAckPacket(1, &frame);
   EXPECT_TRUE(connection_.BlackholeDetectionInProgress());
   QuicAlarm* retransmission_alarm = connection_.GetRetransmissionAlarm();
@@ -11489,7 +11495,9 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
         EXPECT_EQ(1u, new_writer.padding_frames().size());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }));
+      }))
+      .WillRepeatedly(DoDefault());
+  ;
   bool success = false;
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
@@ -11660,7 +11668,9 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
         EXPECT_EQ(1u, new_writer.padding_frames().size());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }));
+      }))
+      .WillRepeatedly(DoDefault());
+  ;
   bool success = true;
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
@@ -11705,7 +11715,9 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
         EXPECT_EQ(1u, new_writer.padding_frames().size());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }));
+      }))
+      .WillRepeatedly(DoDefault());
+  ;
   bool success = false;
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
@@ -14010,7 +14022,9 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
         EXPECT_FALSE(writer_->path_response_frames().empty());
         EXPECT_FALSE(writer_->path_challenge_frames().empty());
         payload = writer_->path_challenge_frames().front().data_buffer;
-      }));
+      }))
+      .WillRepeatedly(DoDefault());
+  ;
   ProcessFramesPacketWithAddresses(frames1, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
@@ -14277,7 +14291,6 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
   QuicFrames frames1;
   frames1.push_back(
       QuicFrame(QuicPathChallengeFrame(0, path_challenge_payload)));
-  QuicPathFrameBuffer payload;
   EXPECT_CALL(*send_algorithm_,
               OnPacketSent(_, _, _, _, NO_RETRANSMITTABLE_DATA))
       .Times(AtLeast(1))
@@ -14287,8 +14300,8 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
         EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
         EXPECT_FALSE(writer_->path_response_frames().empty());
         EXPECT_FALSE(writer_->path_challenge_frames().empty());
-        payload = writer_->path_challenge_frames().front().data_buffer;
-      }));
+      }))
+      .WillRepeatedly(DoDefault());
   ProcessFramesPacketWithAddresses(frames1, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
@@ -17256,7 +17269,8 @@ TEST_P(QuicConnectionTest,
         EXPECT_EQ(kServerPreferredAddress.host(),
                   writer_->last_write_source_address());
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
-      }));
+      }))
+      .WillRepeatedly(DoDefault());
   ProcessReceivedPacket(kServerPreferredAddress, kNewPeerAddress, *received);
   EXPECT_EQ(num_probing_received + 1,
             connection_.GetStats().num_connectivity_probing_received);
