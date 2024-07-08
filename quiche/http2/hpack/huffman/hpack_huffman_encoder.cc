@@ -19,53 +19,6 @@ size_t HuffmanSize(absl::string_view plain) {
   return (bits + 7) / 8;
 }
 
-void HuffmanEncode(absl::string_view plain, size_t encoded_size,
-                   std::string* huffman) {
-  QUICHE_DCHECK(huffman != nullptr);
-  huffman->reserve(huffman->size() + encoded_size);
-  uint64_t bit_buffer = 0;  // High-bit is next bit to output. Not clear if that
-                            // is more performant than having the low-bit be the
-                            // last to be output.
-  size_t bits_unused = 64;  // Number of bits available for the next code.
-  for (uint8_t c : plain) {
-    size_t code_length = HuffmanSpecTables::kCodeLengths[c];
-    if (bits_unused < code_length) {
-      // There isn't enough room in bit_buffer for the code of c.
-      // Flush until bits_unused > 56 (i.e. 64 - 8).
-      do {
-        char h = static_cast<char>(bit_buffer >> 56);
-        bit_buffer <<= 8;
-        bits_unused += 8;
-        // Perhaps would be more efficient if we populated an array of chars,
-        // so we don't have to call push_back each time. Reconsider if used
-        // for production.
-        huffman->push_back(h);
-      } while (bits_unused <= 56);
-    }
-    uint64_t code = HuffmanSpecTables::kRightCodes[c];
-    size_t shift_by = bits_unused - code_length;
-    bit_buffer |= (code << shift_by);
-    bits_unused -= code_length;
-  }
-  // bit_buffer contains (64-bits_unused) bits that still need to be flushed.
-  // Output whole bytes until we don't have any whole bytes left.
-  size_t bits_used = 64 - bits_unused;
-  while (bits_used >= 8) {
-    char h = static_cast<char>(bit_buffer >> 56);
-    bit_buffer <<= 8;
-    bits_used -= 8;
-    huffman->push_back(h);
-  }
-  if (bits_used > 0) {
-    // We have less than a byte left to output. The spec calls for padding out
-    // the final byte with the leading bits of the EOS symbol (30 1-bits).
-    constexpr uint64_t leading_eos_bits = 0b11111111;
-    bit_buffer |= (leading_eos_bits << (56 - bits_used));
-    char h = static_cast<char>(bit_buffer >> 56);
-    huffman->push_back(h);
-  }
-}
-
 void HuffmanEncodeFast(absl::string_view input, size_t encoded_size,
                        std::string* output) {
   const size_t original_size = output->size();
