@@ -20,7 +20,7 @@ TEST(HuffmanEncoderTest, Empty) {
   EXPECT_EQ(0u, encoded_size);
 
   std::string buffer;
-  HuffmanEncodeFast(empty, encoded_size, &buffer);
+  HuffmanEncode(empty, encoded_size, &buffer);
   EXPECT_EQ("", buffer);
 }
 
@@ -46,7 +46,7 @@ TEST(HuffmanEncoderTest, SpecRequestExamples) {
     EXPECT_EQ(huffman_encoded.size(), encoded_size);
     std::string buffer;
     buffer.reserve(huffman_encoded.size());
-    HuffmanEncodeFast(plain_string, encoded_size, &buffer);
+    HuffmanEncode(plain_string, encoded_size, &buffer);
     EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
   }
 }
@@ -76,7 +76,7 @@ TEST(HuffmanEncoderTest, SpecResponseExamples) {
     size_t encoded_size = HuffmanSize(plain_string);
     EXPECT_EQ(huffman_encoded.size(), encoded_size);
     std::string buffer;
-    HuffmanEncodeFast(plain_string, encoded_size, &buffer);
+    HuffmanEncode(plain_string, encoded_size, &buffer);
     EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
   }
 }
@@ -100,7 +100,7 @@ TEST(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
     const std::string& plain_string = test_table[i];
     size_t encoded_size = HuffmanSize(plain_string);
     std::string huffman_encoded;
-    HuffmanEncodeFast(plain_string, encoded_size, &huffman_encoded);
+    HuffmanEncode(plain_string, encoded_size, &huffman_encoded);
     EXPECT_EQ(encoded_size, huffman_encoded.size());
   }
 }
@@ -109,13 +109,13 @@ TEST(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
 TEST(HuffmanEncoderTest, AppendToOutput) {
   size_t encoded_size = HuffmanSize("foo");
   std::string buffer;
-  HuffmanEncodeFast("foo", encoded_size, &buffer);
+  HuffmanEncode("foo", encoded_size, &buffer);
   std::string expected_encoding;
   ASSERT_TRUE(absl::HexStringToBytes("94e7", &expected_encoding));
   EXPECT_EQ(expected_encoding, buffer);
 
   encoded_size = HuffmanSize("bar");
-  HuffmanEncodeFast("bar", encoded_size, &buffer);
+  HuffmanEncode("bar", encoded_size, &buffer);
   ASSERT_TRUE(absl::HexStringToBytes("94e78c767f", &expected_encoding));
   EXPECT_EQ(expected_encoding, buffer);
 }

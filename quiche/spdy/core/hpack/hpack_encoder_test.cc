@@ -209,7 +209,7 @@ class HpackEncoderTest
     if (encoded_size < str.size()) {
       expected_.AppendPrefix(kStringLiteralHuffmanEncoded);
       expected_.AppendUint32(encoded_size);
-      http2::HuffmanEncodeFast(str, encoded_size, stream->MutableString());
+      http2::HuffmanEncode(str, encoded_size, stream->MutableString());
     } else {
       expected_.AppendPrefix(kStringLiteralIdentityEncoded);
       expected_.AppendUint32(str.size());

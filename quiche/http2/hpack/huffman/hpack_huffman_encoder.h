@@ -23,8 +23,8 @@ QUICHE_EXPORT size_t HuffmanSize(absl::string_view plain);
 // Encode |input| with the Huffman encoding defined RFC7541, used in HPACK and
 // QPACK.  |encoded_size| must be the value returned by HuffmanSize().
 // Appends the result to the end of |*output|.
-QUICHE_EXPORT void HuffmanEncodeFast(absl::string_view input,
-                                     size_t encoded_size, std::string* output);
+QUICHE_EXPORT void HuffmanEncode(absl::string_view input, size_t encoded_size,
+                                 std::string* output);
 
 }  // namespace http2
 

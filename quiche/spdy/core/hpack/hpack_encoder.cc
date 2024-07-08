@@ -203,7 +203,7 @@ void HpackEncoder::EmitString(absl::string_view str) {
                     << encoded_size;
     output_stream_.AppendPrefix(kStringLiteralHuffmanEncoded);
     output_stream_.AppendUint32(encoded_size);
-    http2::HuffmanEncodeFast(str, encoded_size, output_stream_.MutableString());
+    http2::HuffmanEncode(str, encoded_size, output_stream_.MutableString());
   } else {
     QUICHE_DVLOG(2) << "Emitted literal string of length " << str.size();
     output_stream_.AppendPrefix(kStringLiteralIdentityEncoded);

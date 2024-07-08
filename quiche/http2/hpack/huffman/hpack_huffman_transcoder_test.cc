@@ -78,7 +78,7 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
       absl::string_view plain, absl::string_view expected_huffman) {
     size_t encoded_size = HuffmanSize(plain);
     std::string encoded;
-    HuffmanEncodeFast(plain, encoded_size, &encoded);
+    HuffmanEncode(plain, encoded_size, &encoded);
     HTTP2_VERIFY_EQ(encoded_size, encoded.size());
     if (!expected_huffman.empty() || plain.empty()) {
       HTTP2_VERIFY_EQ(encoded, expected_huffman);
