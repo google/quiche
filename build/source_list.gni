@@ -779,9 +779,11 @@ quiche_test_support_hdrs = [
     "src/quiche/http2/test_tools/http2_structure_decoder_test_util.h",
     "src/quiche/http2/test_tools/http2_structures_test_util.h",
     "src/quiche/http2/test_tools/http2_trace_printer.h",
+    "src/quiche/http2/test_tools/mock_spdy_framer_visitor.h",
     "src/quiche/http2/test_tools/payload_decoder_base_test_util.h",
     "src/quiche/http2/test_tools/random_decoder_test_base.h",
     "src/quiche/http2/test_tools/random_util.h",
+    "src/quiche/http2/test_tools/spdy_test_utils.h",
     "src/quiche/http2/test_tools/verify_macros.h",
     "src/quiche/quic/platform/api/quic_expect_bug.h",
     "src/quiche/quic/platform/api/quic_test.h",
@@ -860,8 +862,6 @@ quiche_test_support_hdrs = [
     "src/quiche/quic/test_tools/test_ticket_crypter.h",
     "src/quiche/quic/test_tools/web_transport_resets_backend.h",
     "src/quiche/quic/test_tools/web_transport_test_tools.h",
-    "src/quiche/spdy/test_tools/mock_spdy_framer_visitor.h",
-    "src/quiche/spdy/test_tools/spdy_test_utils.h",
     "src/quiche/web_transport/test_tools/mock_web_transport.h",
 ]
 quiche_test_support_srcs = [
@@ -886,9 +886,11 @@ quiche_test_support_srcs = [
     "src/quiche/http2/test_tools/http2_structure_decoder_test_util.cc",
     "src/quiche/http2/test_tools/http2_structures_test_util.cc",
     "src/quiche/http2/test_tools/http2_trace_printer.cc",
+    "src/quiche/http2/test_tools/mock_spdy_framer_visitor.cc",
     "src/quiche/http2/test_tools/payload_decoder_base_test_util.cc",
     "src/quiche/http2/test_tools/random_decoder_test_base.cc",
     "src/quiche/http2/test_tools/random_util.cc",
+    "src/quiche/http2/test_tools/spdy_test_utils.cc",
     "src/quiche/quic/test_tools/bad_packet_writer.cc",
     "src/quiche/quic/test_tools/crypto_test_utils.cc",
     "src/quiche/quic/test_tools/failing_proof_source.cc",
@@ -954,8 +956,6 @@ quiche_test_support_srcs = [
     "src/quiche/quic/test_tools/test_ip_packets.cc",
     "src/quiche/quic/test_tools/test_ticket_crypter.cc",
     "src/quiche/quic/test_tools/web_transport_resets_backend.cc",
-    "src/quiche/spdy/test_tools/mock_spdy_framer_visitor.cc",
-    "src/quiche/spdy/test_tools/spdy_test_utils.cc",
 ]
 balsa_hdrs = [
     "src/quiche/balsa/balsa_enums.h",

@@ -779,9 +779,11 @@ quiche_test_support_hdrs = [
     "http2/test_tools/http2_structure_decoder_test_util.h",
     "http2/test_tools/http2_structures_test_util.h",
     "http2/test_tools/http2_trace_printer.h",
+    "http2/test_tools/mock_spdy_framer_visitor.h",
     "http2/test_tools/payload_decoder_base_test_util.h",
     "http2/test_tools/random_decoder_test_base.h",
     "http2/test_tools/random_util.h",
+    "http2/test_tools/spdy_test_utils.h",
     "http2/test_tools/verify_macros.h",
     "quic/platform/api/quic_expect_bug.h",
     "quic/platform/api/quic_test.h",
@@ -860,8 +862,6 @@ quiche_test_support_hdrs = [
     "quic/test_tools/test_ticket_crypter.h",
     "quic/test_tools/web_transport_resets_backend.h",
     "quic/test_tools/web_transport_test_tools.h",
-    "spdy/test_tools/mock_spdy_framer_visitor.h",
-    "spdy/test_tools/spdy_test_utils.h",
     "web_transport/test_tools/mock_web_transport.h",
 ]
 quiche_test_support_srcs = [
@@ -886,9 +886,11 @@ quiche_test_support_srcs = [
     "http2/test_tools/http2_structure_decoder_test_util.cc",
     "http2/test_tools/http2_structures_test_util.cc",
     "http2/test_tools/http2_trace_printer.cc",
+    "http2/test_tools/mock_spdy_framer_visitor.cc",
     "http2/test_tools/payload_decoder_base_test_util.cc",
     "http2/test_tools/random_decoder_test_base.cc",
     "http2/test_tools/random_util.cc",
+    "http2/test_tools/spdy_test_utils.cc",
     "quic/test_tools/bad_packet_writer.cc",
     "quic/test_tools/crypto_test_utils.cc",
     "quic/test_tools/failing_proof_source.cc",
@@ -954,8 +956,6 @@ quiche_test_support_srcs = [
     "quic/test_tools/test_ip_packets.cc",
     "quic/test_tools/test_ticket_crypter.cc",
     "quic/test_tools/web_transport_resets_backend.cc",
-    "spdy/test_tools/mock_spdy_framer_visitor.cc",
-    "spdy/test_tools/spdy_test_utils.cc",
 ]
 balsa_hdrs = [
     "balsa/balsa_enums.h",

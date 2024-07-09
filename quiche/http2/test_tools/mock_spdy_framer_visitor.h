@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_
-#define QUICHE_SPDY_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_
+#ifndef QUICHE_HTTP2_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_
+#define QUICHE_HTTP2_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_
 
 #include <cstddef>
 #include <cstdint>
@@ -19,6 +19,7 @@
 #include "quiche/spdy/core/spdy_headers_handler_interface.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
+// TODO(b/318698478): fix namespace and class name
 namespace spdy {
 
 namespace test {
@@ -126,4 +127,4 @@ class QUICHE_NO_EXPORT MockSpdyFramerVisitor
 
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_
+#endif  // QUICHE_HTTP2_TEST_TOOLS_MOCK_SPDY_FRAMER_VISITOR_H_

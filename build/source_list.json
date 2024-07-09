@@ -778,9 +778,11 @@
     "quiche/http2/test_tools/http2_structure_decoder_test_util.h",
     "quiche/http2/test_tools/http2_structures_test_util.h",
     "quiche/http2/test_tools/http2_trace_printer.h",
+    "quiche/http2/test_tools/mock_spdy_framer_visitor.h",
     "quiche/http2/test_tools/payload_decoder_base_test_util.h",
     "quiche/http2/test_tools/random_decoder_test_base.h",
     "quiche/http2/test_tools/random_util.h",
+    "quiche/http2/test_tools/spdy_test_utils.h",
     "quiche/http2/test_tools/verify_macros.h",
     "quiche/quic/platform/api/quic_expect_bug.h",
     "quiche/quic/platform/api/quic_test.h",
@@ -859,8 +861,6 @@
     "quiche/quic/test_tools/test_ticket_crypter.h",
     "quiche/quic/test_tools/web_transport_resets_backend.h",
     "quiche/quic/test_tools/web_transport_test_tools.h",
-    "quiche/spdy/test_tools/mock_spdy_framer_visitor.h",
-    "quiche/spdy/test_tools/spdy_test_utils.h",
     "quiche/web_transport/test_tools/mock_web_transport.h"
   ],
   "quiche_test_support_srcs": [
@@ -885,9 +885,11 @@
     "quiche/http2/test_tools/http2_structure_decoder_test_util.cc",
     "quiche/http2/test_tools/http2_structures_test_util.cc",
     "quiche/http2/test_tools/http2_trace_printer.cc",
+    "quiche/http2/test_tools/mock_spdy_framer_visitor.cc",
     "quiche/http2/test_tools/payload_decoder_base_test_util.cc",
     "quiche/http2/test_tools/random_decoder_test_base.cc",
     "quiche/http2/test_tools/random_util.cc",
+    "quiche/http2/test_tools/spdy_test_utils.cc",
     "quiche/quic/test_tools/bad_packet_writer.cc",
     "quiche/quic/test_tools/crypto_test_utils.cc",
     "quiche/quic/test_tools/failing_proof_source.cc",
@@ -952,9 +954,7 @@
     "quiche/quic/test_tools/test_certificates.cc",
     "quiche/quic/test_tools/test_ip_packets.cc",
     "quiche/quic/test_tools/test_ticket_crypter.cc",
-    "quiche/quic/test_tools/web_transport_resets_backend.cc",
-    "quiche/spdy/test_tools/mock_spdy_framer_visitor.cc",
-    "quiche/spdy/test_tools/spdy_test_utils.cc"
+    "quiche/quic/test_tools/web_transport_resets_backend.cc"
   ],
   "balsa_hdrs": [
     "quiche/balsa/balsa_enums.h",

@@ -14,6 +14,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/test_tools/spdy_test_utils.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -33,7 +34,6 @@
 #include "quiche/spdy/core/recording_headers_handler.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 #include "quiche/spdy/core/spdy_protocol.h"
-#include "quiche/spdy/test_tools/spdy_test_utils.h"
 
 using spdy::ERROR_CODE_PROTOCOL_ERROR;
 using spdy::Http2HeaderBlock;

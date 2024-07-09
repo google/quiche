@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_TEST_TOOLS_SPDY_TEST_UTILS_H_
-#define QUICHE_SPDY_TEST_TOOLS_SPDY_TEST_UTILS_H_
+#ifndef QUICHE_HTTP2_TEST_TOOLS_SPDY_TEST_UTILS_H_
+#define QUICHE_HTTP2_TEST_TOOLS_SPDY_TEST_UTILS_H_
 
 #include <cstddef>
 #include <cstdint>
@@ -13,6 +13,7 @@
 #include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
+// TODO(b/318698478): update the namespace and file name
 namespace spdy {
 
 inline bool operator==(absl::string_view x,
@@ -42,4 +43,4 @@ SpdySerializedFrame MakeSerializedFrame(const char* data, size_t length);
 }  // namespace test
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_TEST_TOOLS_SPDY_TEST_UTILS_H_
+#endif  // QUICHE_HTTP2_TEST_TOOLS_SPDY_TEST_UTILS_H_
