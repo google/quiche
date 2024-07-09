@@ -12,8 +12,8 @@
 #include <string>
 #include <utility>
 
+#include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/spdy/core/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 #include "quiche/spdy/core/zero_copy_output_buffer.h"
 

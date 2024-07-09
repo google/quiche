@@ -18,11 +18,11 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/spdy/core/array_output_buffer.h"
-#include "quiche/spdy/core/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/recording_headers_handler.h"

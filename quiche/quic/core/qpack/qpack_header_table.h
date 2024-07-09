@@ -9,10 +9,10 @@
 #include <deque>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/hpack/hpack_entry.h"
+#include "quiche/http2/hpack/hpack_header_table.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/common/quiche_circular_deque.h"
-#include "quiche/spdy/core/hpack/hpack_entry.h"
-#include "quiche/spdy/core/hpack/hpack_header_table.h"
 
 namespace quic {
 

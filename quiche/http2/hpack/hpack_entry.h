@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_CORE_HPACK_HPACK_ENTRY_H_
-#define QUICHE_SPDY_CORE_HPACK_HPACK_ENTRY_H_
+#ifndef QUICHE_HTTP2_HPACK_HPACK_ENTRY_H_
+#define QUICHE_HTTP2_HPACK_HPACK_ENTRY_H_
 
 #include <cstddef>
 #include <string>
@@ -77,4 +77,4 @@ class QUICHE_EXPORT HpackEntry {
 
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_CORE_HPACK_HPACK_ENTRY_H_
+#endif  // QUICHE_HTTP2_HPACK_HPACK_ENTRY_H_

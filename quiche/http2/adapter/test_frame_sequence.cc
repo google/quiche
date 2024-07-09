@@ -8,7 +8,7 @@
 
 #include "quiche/http2/adapter/http2_util.h"
 #include "quiche/http2/adapter/oghttp2_util.h"
-#include "quiche/spdy/core/hpack/hpack_encoder.h"
+#include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/spdy_framer.h"
 
 namespace http2 {

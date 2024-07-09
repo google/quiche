@@ -13,10 +13,10 @@
 
 #include "absl/base/attributes.h"
 #include "absl/memory/memory.h"
+#include "quiche/http2/hpack/hpack_constants.h"
+#include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/hpack/hpack_constants.h"
-#include "quiche/spdy/core/hpack/hpack_encoder.h"
 #include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 #include "quiche/spdy/core/spdy_frame_builder.h"

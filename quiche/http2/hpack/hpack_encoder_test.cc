@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/hpack/hpack_encoder.h"
+#include "quiche/http2/hpack/hpack_encoder.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -12,16 +12,16 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/hpack/hpack_constants.h"
+#include "quiche/http2/hpack/hpack_entry.h"
+#include "quiche/http2/hpack/hpack_header_table.h"
+#include "quiche/http2/hpack/hpack_output_stream.h"
+#include "quiche/http2/hpack/hpack_static_table.h"
 #include "quiche/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_simple_arena.h"
-#include "quiche/spdy/core/hpack/hpack_constants.h"
-#include "quiche/spdy/core/hpack/hpack_entry.h"
-#include "quiche/spdy/core/hpack/hpack_header_table.h"
-#include "quiche/spdy/core/hpack/hpack_output_stream.h"
-#include "quiche/spdy/core/hpack/hpack_static_table.h"
 #include "quiche/spdy/core/http2_header_block.h"
 
 namespace spdy {

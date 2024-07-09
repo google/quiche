@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/hpack/hpack_entry.h"
+#include "quiche/http2/hpack/hpack_entry.h"
 
 #include "absl/hash/hash.h"
 #include "quiche/common/platform/api/quiche_test.h"

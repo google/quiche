@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/hpack/hpack_constants.h"
+#include "quiche/http2/hpack/hpack_constants.h"
 
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "quiche/http2/hpack/hpack_static_table.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/hpack/hpack_static_table.h"
 
 namespace spdy {
 

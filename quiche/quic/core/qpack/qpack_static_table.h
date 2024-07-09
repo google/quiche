@@ -7,9 +7,9 @@
 
 #include <vector>
 
+#include "quiche/http2/hpack/hpack_constants.h"
+#include "quiche/http2/hpack/hpack_static_table.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/spdy/core/hpack/hpack_constants.h"
-#include "quiche/spdy/core/hpack/hpack_static_table.h"
 
 namespace quic {
 

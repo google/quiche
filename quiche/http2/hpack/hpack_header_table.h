@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_CORE_HPACK_HPACK_HEADER_TABLE_H_
-#define QUICHE_SPDY_CORE_HPACK_HPACK_HEADER_TABLE_H_
+#ifndef QUICHE_HTTP2_HPACK_HPACK_HEADER_TABLE_H_
+#define QUICHE_HTTP2_HPACK_HPACK_HEADER_TABLE_H_
 
 #include <cstddef>
 #include <memory>
@@ -11,9 +11,9 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/hpack/hpack_entry.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_circular_deque.h"
-#include "quiche/spdy/core/hpack/hpack_entry.h"
 
 // All section references below are to http://tools.ietf.org/html/rfc7541.
 
@@ -146,4 +146,4 @@ class QUICHE_EXPORT HpackHeaderTable {
 
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_CORE_HPACK_HPACK_HEADER_TABLE_H_
+#endif  // QUICHE_HTTP2_HPACK_HPACK_HEADER_TABLE_H_

@@ -10,9 +10,9 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/hpack/hpack_entry.h"
 #include "quiche/quic/core/qpack/qpack_static_table.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/spdy/core/hpack/hpack_entry.h"
 
 namespace quic {
 namespace test {
