@@ -919,6 +919,29 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
   }
 
+  // TODO(b/154162689) Remove this method once PSK support is added for
+  // QUIC+TLS.
+  void InitializeAndCheckForTlsPskFailure(bool expect_client_failure = true) {
+    connect_to_server_on_initialize_ = false;
+    EXPECT_TRUE(Initialize());
+
+    EXPECT_QUIC_BUG(
+        CreateClientWithWriter(),
+        expect_client_failure
+            ? "QUIC client pre-shared keys not yet supported with TLS"
+            : "QUIC server pre-shared keys not yet supported with TLS");
+
+    // Reset the client and server state so that `TearDown()` can complete
+    // successfully.
+    pre_shared_key_client_ = "";
+    pre_shared_key_server_ = "";
+    StopServer();
+    server_writer_ = new PacketDroppingTestWriter();
+    StartServer();
+    client_writer_ = new PacketDroppingTestWriter();
+    CreateClientWithWriter();
+  }
+
   quiche::test::ScopedEnvironmentForThreads environment_;
   bool initialized_;
   // If true, the Initialize() function will create |client_| and starts to
@@ -5010,8 +5033,7 @@ TEST_P(EndToEndTest, PreSharedKey) {
 
   if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
-    EXPECT_QUIC_BUG(EXPECT_FALSE(Initialize()),
-                    "QUIC client pre-shared keys not yet supported with TLS");
+    InitializeAndCheckForTlsPskFailure();
     return;
   }
 
@@ -5031,8 +5053,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
 
   if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
-    EXPECT_QUIC_BUG(EXPECT_FALSE(Initialize()),
-                    "QUIC client pre-shared keys not yet supported with TLS");
+    InitializeAndCheckForTlsPskFailure();
     return;
   }
 
@@ -5056,8 +5077,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
 
   if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
-    EXPECT_QUIC_BUG(EXPECT_FALSE(Initialize()),
-                    "QUIC server pre-shared keys not yet supported with TLS");
+    InitializeAndCheckForTlsPskFailure(/*expect_client_failure=*/false);
     return;
   }
 
@@ -5075,8 +5095,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
 
   if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
-    EXPECT_QUIC_BUG(EXPECT_FALSE(Initialize()),
-                    "QUIC client pre-shared keys not yet supported with TLS");
+    InitializeAndCheckForTlsPskFailure();
     return;
   }
 
