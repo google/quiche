@@ -58,6 +58,7 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
         term_chars_(0),
         parse_state_(BalsaFrameEnums::READING_HEADER_AND_FIRSTLINE),
         last_error_(BalsaFrameEnums::BALSA_NO_ERROR),
+        is_valid_target_uri_(true),
         continue_headers_(nullptr),
         headers_(nullptr),
         start_of_trailer_line_(0),
@@ -191,6 +192,8 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
     parse_truncated_headers_even_when_headers_too_long_ = set;
   }
 
+  bool is_valid_target_uri() const { return is_valid_target_uri_; }
+
  protected:
   inline BalsaHeadersEnums::ContentLengthStatus ProcessContentLengthLine(
       size_t line_idx, size_t* length);
@@ -280,6 +283,7 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   uint32_t term_chars_;
   BalsaFrameEnums::ParseState parse_state_;
   BalsaFrameEnums::ErrorCode last_error_;
+  bool is_valid_target_uri_;  // False if the target URI was invalid.
 
   Lines lines_;
 

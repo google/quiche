@@ -87,6 +87,7 @@ void BalsaFrame::Reset() {
   if (trailers_ != nullptr) {
     trailers_->Clear();
   }
+  is_valid_target_uri_ = true;
 }
 
 namespace {
@@ -370,9 +371,9 @@ void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
       headers_->whitespace_4_idx_ - headers_->non_whitespace_3_idx_);
 
   if (is_request_) {
-    const bool is_valid_target_uri = IsValidTargetUri(part1, part2);
+    is_valid_target_uri_ = IsValidTargetUri(part1, part2);
     if (http_validation_policy().disallow_invalid_target_uris &&
-        !is_valid_target_uri) {
+        !is_valid_target_uri_) {
       parse_state_ = BalsaFrameEnums::ERROR;
       last_error_ = BalsaFrameEnums::INVALID_TARGET_URI;
       HandleError(last_error_);

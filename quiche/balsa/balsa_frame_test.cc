@@ -2136,6 +2136,7 @@ TEST_F(HTTPBalsaFrameTest, InvalidAbsoluteFormTargetUri) {
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.is_valid_target_uri());
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   EXPECT_EQ("-pwn/index.html", balsa_frame_.headers()->request_uri());
