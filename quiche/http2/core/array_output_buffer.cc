@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/array_output_buffer.h"
+#include "quiche/http2/core/array_output_buffer.h"
 
 #include <cstdint>
 

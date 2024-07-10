@@ -13,6 +13,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_headers_handler_interface.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/decoder/http2_frame_decoder.h"
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
@@ -21,7 +22,6 @@
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/hpack/hpack_decoder_adapter.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
-#include "quiche/spdy/core/spdy_headers_handler_interface.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {

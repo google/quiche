@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/recording_headers_handler.h"
+#include "quiche/http2/core/recording_headers_handler.h"
 
 #include <cstddef>
 
 #include "absl/strings/string_view.h"
-#include "quiche/spdy/core/spdy_headers_handler_interface.h"
+#include "quiche/http2/core/spdy_headers_handler_interface.h"
 
 namespace spdy {
 

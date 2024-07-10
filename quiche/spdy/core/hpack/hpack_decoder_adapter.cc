@@ -8,11 +8,11 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_headers_handler_interface.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/hpack/decoder/hpack_decoding_error.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_headers_handler_interface.h"
 
 namespace spdy {
 namespace {

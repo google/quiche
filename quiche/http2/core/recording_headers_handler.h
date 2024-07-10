@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_CORE_RECORDING_HEADERS_HANDLER_H_
-#define QUICHE_SPDY_CORE_RECORDING_HEADERS_HANDLER_H_
+#ifndef QUICHE_HTTP2_CORE_RECORDING_HEADERS_HANDLER_H_
+#define QUICHE_HTTP2_CORE_RECORDING_HEADERS_HANDLER_H_
 
 #include <cstddef>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_headers_handler_interface.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_headers_handler_interface.h"
 
 namespace spdy {
 
@@ -46,4 +46,4 @@ class QUICHE_EXPORT RecordingHeadersHandler
 
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_CORE_RECORDING_HEADERS_HANDLER_H_
+#endif  // QUICHE_HTTP2_CORE_RECORDING_HEADERS_HANDLER_H_

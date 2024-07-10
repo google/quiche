@@ -17,6 +17,7 @@
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/recording_headers_handler.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_state.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_tables.h"
@@ -30,7 +31,6 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/recording_headers_handler.h"
 
 using ::http2::HpackEntryType;
 using ::http2::HpackStringPair;

@@ -14,6 +14,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/recording_headers_handler.h"
 #include "quiche/http2/test_tools/spdy_test_utils.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/http/spdy_utils.h"
@@ -31,7 +32,6 @@
 #include "quiche/common/quiche_endian.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/recording_headers_handler.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 

@@ -9,10 +9,10 @@
 #include <cstring>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/array_output_buffer.h"
 #include "quiche/http2/test_tools/spdy_test_utils.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/array_output_buffer.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {

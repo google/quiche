@@ -5,9 +5,9 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/core/http2_trace_logging.h"
+#include "quiche/http2/core/spdy_no_op_visitor.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
-#include "quiche/spdy/core/spdy_no_op_visitor.h"
 
 namespace http2 {
 namespace test {

@@ -18,20 +18,20 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/array_output_buffer.h"
+#include "quiche/http2/core/recording_headers_handler.h"
+#include "quiche/http2/core/spdy_headers_handler_interface.h"
 #include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/http2/test_tools/mock_spdy_framer_visitor.h"
 #include "quiche/http2/test_tools/spdy_test_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/spdy/core/array_output_buffer.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/recording_headers_handler.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 #include "quiche/spdy/core/spdy_bitmasks.h"
 #include "quiche/spdy/core/spdy_frame_builder.h"
-#include "quiche/spdy/core/spdy_headers_handler_interface.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 using ::http2::Http2DecoderAdapter;

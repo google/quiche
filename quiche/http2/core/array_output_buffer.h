@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_CORE_ARRAY_OUTPUT_BUFFER_H_
-#define QUICHE_SPDY_CORE_ARRAY_OUTPUT_BUFFER_H_
+#ifndef QUICHE_HTTP2_CORE_ARRAY_OUTPUT_BUFFER_H_
+#define QUICHE_HTTP2_CORE_ARRAY_OUTPUT_BUFFER_H_
 
 #include <cstddef>
 #include <cstdint>
 
+#include "quiche/http2/core/zero_copy_output_buffer.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/spdy/core/zero_copy_output_buffer.h"
 
 namespace spdy {
 
@@ -45,4 +45,4 @@ class QUICHE_EXPORT ArrayOutputBuffer : public ZeroCopyOutputBuffer {
 
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_CORE_ARRAY_OUTPUT_BUFFER_H_
+#endif  // QUICHE_HTTP2_CORE_ARRAY_OUTPUT_BUFFER_H_

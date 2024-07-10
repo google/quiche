@@ -11,10 +11,10 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_headers_handler_interface.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/common/quiche_circular_deque.h"
-#include "quiche/spdy/core/spdy_headers_handler_interface.h"
 
 namespace quic {
 

@@ -6,18 +6,18 @@
 // to make it easier to write tests that need to provide instances. Other
 // interfaces can be added as needed.
 
-#ifndef QUICHE_SPDY_CORE_SPDY_NO_OP_VISITOR_H_
-#define QUICHE_SPDY_CORE_SPDY_NO_OP_VISITOR_H_
+#ifndef QUICHE_HTTP2_CORE_SPDY_NO_OP_VISITOR_H_
+#define QUICHE_HTTP2_CORE_SPDY_NO_OP_VISITOR_H_
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_headers_handler_interface.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
-#include "quiche/spdy/core/spdy_headers_handler_interface.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {
@@ -92,4 +92,4 @@ class QUICHE_EXPORT SpdyNoOpVisitor : public SpdyFramerVisitorInterface,
 
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_CORE_SPDY_NO_OP_VISITOR_H_
+#endif  // QUICHE_HTTP2_CORE_SPDY_NO_OP_VISITOR_H_
