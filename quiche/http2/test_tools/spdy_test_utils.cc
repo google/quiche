@@ -10,10 +10,10 @@
 #include <memory>
 #include <string>
 
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_endian.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {
 namespace test {

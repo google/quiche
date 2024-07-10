@@ -5,14 +5,6 @@
 #ifndef QUICHE_SPDY_CORE_SPDY_BITMASKS_H_
 #define QUICHE_SPDY_CORE_SPDY_BITMASKS_H_
 
-namespace spdy {
-
-// StreamId mask from the SpdyHeader
-inline constexpr unsigned int kStreamIdMask = 0x7fffffff;
-
-// Mask the lower 24 bits.
-inline constexpr unsigned int kLengthMask = 0xffffff;
-
-}  // namespace spdy
+#include "quiche/http2/core/spdy_bitmasks.h"
 
 #endif  // QUICHE_SPDY_CORE_SPDY_BITMASKS_H_

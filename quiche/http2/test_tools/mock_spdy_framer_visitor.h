@@ -11,13 +11,13 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/http2_frame_decoder_adapter.h"
 #include "quiche/http2/core/recording_headers_handler.h"
+#include "quiche/http2/core/spdy_alt_svc_wire_format.h"
 #include "quiche/http2/core/spdy_headers_handler_interface.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/http2_frame_decoder_adapter.h"
-#include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 // TODO(b/318698478): fix namespace and class name
 namespace spdy {

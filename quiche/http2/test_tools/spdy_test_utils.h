@@ -10,8 +10,8 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 // TODO(b/318698478): update the namespace and file name
 namespace spdy {

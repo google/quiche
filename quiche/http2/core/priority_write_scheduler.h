@@ -18,11 +18,11 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_circular_deque.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
 

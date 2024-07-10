@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/spdy_protocol.h"
+#include "quiche/http2/core/spdy_protocol.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -14,11 +14,11 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_alt_svc_wire_format.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 
 namespace spdy {
 

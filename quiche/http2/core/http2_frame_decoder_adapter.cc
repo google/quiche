@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/http2_frame_decoder_adapter.h"
+#include "quiche/http2/core/http2_frame_decoder_adapter.h"
 
 // Logging policy: If an error in the input is detected, QUICHE_VLOG(n) is used
 // so that the option exists to debug the situation. Otherwise, this code mostly
@@ -17,7 +17,9 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_alt_svc_wire_format.h"
 #include "quiche/http2/core/spdy_headers_handler_interface.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/decoder/http2_frame_decoder.h"
@@ -29,8 +31,6 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
 #include "quiche/spdy/core/hpack/hpack_decoder_adapter.h"
-#include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 using ::spdy::ExtensionVisitorInterface;
 using ::spdy::HpackDecoderAdapter;
@@ -69,7 +69,7 @@ uint64_t ToSpdyPingId(const Http2PingFields& ping) {
 
 // Overwrites the fields of the header with invalid values, for the purpose
 // of identifying reading of unset fields. Only takes effect for debug builds.
-// In Address Sanatizer builds, it also marks the fields as un-readable.
+// In Address Sanitizer builds, it also marks the fields as un-readable.
 #ifndef NDEBUG
 void CorruptFrameHeader(Http2FrameHeader* header) {
   // Beyond a valid payload length, which is 2^24 - 1.

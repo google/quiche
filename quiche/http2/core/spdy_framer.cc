@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/spdy/core/spdy_framer.h"
+#include "quiche/http2/core/spdy_framer.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -13,15 +13,15 @@
 
 #include "absl/base/attributes.h"
 #include "absl/memory/memory.h"
+#include "quiche/http2/core/spdy_alt_svc_wire_format.h"
+#include "quiche/http2/core/spdy_frame_builder.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/http2/core/zero_copy_output_buffer.h"
 #include "quiche/http2/hpack/hpack_constants.h"
 #include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
-#include "quiche/spdy/core/spdy_frame_builder.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace spdy {
 

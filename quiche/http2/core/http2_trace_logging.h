@@ -8,13 +8,13 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/http2_frame_decoder_adapter.h"
 #include "quiche/http2/core/recording_headers_handler.h"
 #include "quiche/http2/core/spdy_headers_handler_interface.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/spdy/core/http2_frame_decoder_adapter.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 // Logging macro to use for all HTTP/2 trace logging. Iff trace logging is
 // enabled, logs at level INFO with a common prefix prepended (to facilitate

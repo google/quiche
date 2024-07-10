@@ -8,11 +8,11 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 // Convenience macros for printing function arguments in log lines in the
 // format arg_name=value.

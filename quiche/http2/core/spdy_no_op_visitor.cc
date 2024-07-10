@@ -8,7 +8,7 @@
 #include <type_traits>
 
 #include "quiche/http2/core/spdy_headers_handler_interface.h"
-#include "quiche/spdy/core/spdy_protocol.h"
+#include "quiche/http2/core/spdy_protocol.h"
 
 namespace spdy {
 
