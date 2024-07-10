@@ -185,7 +185,6 @@ class TestDispatcher : public QuicDispatcher {
 
   using QuicDispatcher::ConnectionIdGenerator;
   using QuicDispatcher::MaybeDispatchPacket;
-  using QuicDispatcher::SetAllowShortInitialServerConnectionIds;
   using QuicDispatcher::writer;
 
   QuicRandom* random_;
@@ -1156,38 +1155,6 @@ TEST_P(QuicDispatcherTestAllVersions, LongConnectionIdLengthReplaced) {
   QuicConnectionId bad_connection_id = TestConnectionIdNineBytesLong(2);
   generated_connection_id_ = kReturnConnectionId;
 
-  EXPECT_CALL(*dispatcher_,
-              CreateQuicSession(*generated_connection_id_, _, client_address,
-                                Eq(ExpectedAlpn()), _, _, _))
-      .WillOnce(Return(ByMove(CreateSession(
-          dispatcher_.get(), config_, *generated_connection_id_, client_address,
-          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
-          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
-  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
-              ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>(
-          Invoke([this, bad_connection_id](const QuicEncryptedPacket& packet) {
-            ValidatePacket(bad_connection_id, packet);
-          })));
-  ProcessFirstFlight(client_address, bad_connection_id);
-}
-
-// Makes sure zero-byte connection IDs are replaced by 8-byte ones.
-TEST_P(QuicDispatcherTestAllVersions, InvalidShortConnectionIdLengthReplaced) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
-    // When variable length connection IDs are not supported, the connection
-    // fails. See StrayPacketTruncatedConnectionId.
-    return;
-  }
-  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
-
-  QuicConnectionId bad_connection_id = EmptyQuicConnectionId();
-  generated_connection_id_ = kReturnConnectionId;
-
-  // Disable validation of invalid short connection IDs.
-  dispatcher_->SetAllowShortInitialServerConnectionIds(true);
-  // Note that StrayPacketTruncatedConnectionId covers the case where the
-  // validation is still enabled.
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(*generated_connection_id_, _, client_address,
                                 Eq(ExpectedAlpn()), _, _, _))

@@ -234,7 +234,6 @@ QuicDispatcher::QuicDispatcher(
       last_error_(QUIC_NO_ERROR),
       new_sessions_allowed_per_event_loop_(0u),
       accept_new_connections_(true),
-      allow_short_initial_server_connection_ids_(false),
       expected_server_connection_id_length_(
           expected_server_connection_id_length),
       clear_stateless_reset_addresses_alarm_(alarm_factory_->CreateAlarm(
@@ -1171,8 +1170,7 @@ bool QuicDispatcher::IsSupportedVersion(const ParsedQuicVersion version) {
 bool QuicDispatcher::IsServerConnectionIdTooShort(
     QuicConnectionId connection_id) const {
   if (connection_id.length() >= kQuicMinimumInitialConnectionIdLength ||
-      connection_id.length() >= expected_server_connection_id_length_ ||
-      allow_short_initial_server_connection_ids_) {
+      connection_id.length() >= expected_server_connection_id_length_) {
     return false;
   }
   uint8_t generator_output =

@@ -322,14 +322,6 @@ class QUICHE_EXPORT QuicDispatcher
         should_update_expected_server_connection_id_length;
   }
 
-  // If true, the dispatcher will allow incoming initial packets that have
-  // destination connection IDs shorter than 64 bits.
-  void SetAllowShortInitialServerConnectionIds(
-      bool allow_short_initial_server_connection_ids) {
-    allow_short_initial_server_connection_ids_ =
-        allow_short_initial_server_connection_ids;
-  }
-
   // Called if a packet from an unseen connection is reset or rejected.
   virtual void OnNewConnectionRejected() {}
 
@@ -465,11 +457,6 @@ class QUICHE_EXPORT QuicDispatcher
   // True if this dispatcher is accepting new ConnectionIds (new client
   // connections), false otherwise.
   bool accept_new_connections_;
-
-  // If false, the dispatcher follows the IETF spec and rejects packets with
-  // invalid destination connection IDs lengths below 64 bits.
-  // If true they are allowed.
-  bool allow_short_initial_server_connection_ids_;
 
   // IETF short headers contain a destination connection ID but do not
   // encode its length. This variable contains the length we expect to read.
