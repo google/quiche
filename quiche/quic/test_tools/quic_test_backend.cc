@@ -73,7 +73,7 @@ class SessionCloseVisitor : public WebTransportVisitor {
 
 QuicSimpleServerBackend::WebTransportResponse
 QuicTestBackend::ProcessWebTransportRequest(
-    const spdy::Http2HeaderBlock& request_headers,
+    const quiche::HttpHeaderBlock& request_headers,
     WebTransportSession* session) {
   if (!SupportsWebTransport()) {
     return QuicSimpleServerBackend::ProcessWebTransportRequest(request_headers,

@@ -47,8 +47,8 @@
 #include "quiche/quic/test_tools/quic_framer_peer.h"
 #include "quiche/quic/test_tools/simple_quic_framer.h"
 #include "quiche/common/capsule.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/simple_buffer_allocator.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -1047,7 +1047,7 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
 
   MOCK_METHOD(void, OnDataFrameSent, (QuicStreamId, QuicByteCount), (override));
   MOCK_METHOD(void, OnHeadersFrameSent,
-              (QuicStreamId, const spdy::Http2HeaderBlock&), (override));
+              (QuicStreamId, const quiche::HttpHeaderBlock&), (override));
   MOCK_METHOD(void, OnSettingsFrameResumed, (const SettingsFrame&), (override));
 };
 

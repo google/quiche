@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_TEST_BACKEND_H_
 
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 namespace test {
@@ -18,7 +18,7 @@ namespace test {
 class QuicTestBackend : public QuicMemoryCacheBackend {
  public:
   WebTransportResponse ProcessWebTransportRequest(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       WebTransportSession* session) override;
   bool SupportsWebTransport() override { return enable_webtransport_; }
 

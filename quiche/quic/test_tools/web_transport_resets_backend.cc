@@ -103,7 +103,7 @@ void BidirectionalEchoVisitorWithLogging::OnStopSendingReceived(
 }  // namespace
 
 QuicSimpleServerBackend::WebTransportResponse WebTransportResetsBackend(
-    const spdy::Http2HeaderBlock& /*request_headers*/,
+    const quiche::HttpHeaderBlock& /*request_headers*/,
     WebTransportSession* session) {
   QuicSimpleServerBackend::WebTransportResponse response;
   response.response_headers[":status"] = "200";
