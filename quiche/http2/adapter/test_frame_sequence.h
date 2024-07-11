@@ -7,8 +7,8 @@
 #include <vector>
 
 #include "quiche/http2/adapter/http2_protocol.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
@@ -48,7 +48,7 @@ class QUICHE_NO_EXPORT TestFrameSequence {
       absl::Span<const std::pair<absl::string_view, absl::string_view>> headers,
       bool fin = false, bool add_continuation = false);
   TestFrameSequence& Headers(Http2StreamId stream_id,
-                             spdy::Http2HeaderBlock block, bool fin = false,
+                             quiche::HttpHeaderBlock block, bool fin = false,
                              bool add_continuation = false);
   TestFrameSequence& Headers(Http2StreamId stream_id,
                              absl::Span<const Header> headers, bool fin = false,

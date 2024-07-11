@@ -23,6 +23,7 @@
 #include "quiche/http2/core/http2_trace_logging.h"
 #include "quiche/http2/core/no_op_headers_handler.h"
 #include "quiche/http2/core/priority_write_scheduler.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_flags.h"
@@ -30,7 +31,6 @@
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
-#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_framer.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
@@ -245,7 +245,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
 
     WindowManager window_manager;
     std::unique_ptr<DataFrameSource> outbound_body;
-    std::unique_ptr<spdy::Http2HeaderBlock> trailers;
+    std::unique_ptr<quiche::HttpHeaderBlock> trailers;
     void* user_data = nullptr;
     int32_t send_window;
     std::optional<HeaderType> received_header_type;
@@ -261,7 +261,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   using StreamStateMap = absl::flat_hash_map<Http2StreamId, StreamState>;
 
   struct QUICHE_EXPORT PendingStreamState {
-    spdy::Http2HeaderBlock headers;
+    quiche::HttpHeaderBlock headers;
     std::unique_ptr<DataFrameSource> data_source;
     void* user_data = nullptr;
     bool end_stream;
@@ -396,10 +396,10 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
                          std::unique_ptr<MetadataSource> source);
   void SerializeMetadata(Http2StreamId stream_id);
 
-  void SendHeaders(Http2StreamId stream_id, spdy::Http2HeaderBlock headers,
+  void SendHeaders(Http2StreamId stream_id, quiche::HttpHeaderBlock headers,
                    bool end_stream);
 
-  void SendTrailers(Http2StreamId stream_id, spdy::Http2HeaderBlock trailers);
+  void SendTrailers(Http2StreamId stream_id, quiche::HttpHeaderBlock trailers);
 
   // Encapsulates the RST_STREAM NO_ERROR behavior described in RFC 7540
   // Section 8.1.
@@ -414,7 +414,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
 
   // Creates a stream for `stream_id`, stores the `data_source` and `user_data`
   // in the stream state, and sends the `headers`.
-  void StartRequest(Http2StreamId stream_id, spdy::Http2HeaderBlock headers,
+  void StartRequest(Http2StreamId stream_id, quiche::HttpHeaderBlock headers,
                     std::unique_ptr<DataFrameSource> data_source,
                     void* user_data, bool end_stream);
 

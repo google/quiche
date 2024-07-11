@@ -12,9 +12,9 @@
 #include "quiche/http2/adapter/oghttp2_util.h"
 #include "quiche/http2/adapter/test_frame_sequence.h"
 #include "quiche/http2/adapter/test_utils.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace http2 {
 namespace adapter {
@@ -392,7 +392,7 @@ TEST_P(MetadataApiTest, ClientSendsMetadataAfterFlowControlBlock) {
   EXPECT_FALSE(adapter->want_write());
   EXPECT_EQ(0, adapter->GetSendWindowSize());
 
-  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+  const quiche::HttpHeaderBlock block = ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(stream_id1, block);
@@ -477,7 +477,7 @@ TEST_P(MetadataApiTest, SubmitMetadata) {
   options.perspective = Perspective::kServer;
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
-  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+  const quiche::HttpHeaderBlock block = ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(1, block);
@@ -512,7 +512,7 @@ TEST_P(MetadataApiTest, SubmitMetadataMultipleFrames) {
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
   const auto kLargeValue = std::string(63 * 1024, 'a');
-  const spdy::Http2HeaderBlock block =
+  const quiche::HttpHeaderBlock block =
       ToHeaderBlock(ToHeaders({{"large-value", kLargeValue}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(1, block);
@@ -553,7 +553,7 @@ TEST_P(MetadataApiTest, SubmitConnectionMetadata) {
   options.perspective = Perspective::kServer;
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
-  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+  const quiche::HttpHeaderBlock block = ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(0, block);
@@ -639,7 +639,7 @@ TEST_P(MetadataApiTest, ServerQueuesMetadataThenTrailers) {
   visitor.Clear();
   EXPECT_FALSE(adapter->want_write());
 
-  const spdy::Http2HeaderBlock block =
+  const quiche::HttpHeaderBlock block =
       ToHeaderBlock(ToHeaders({{"key", "wild value!"}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(1, block);

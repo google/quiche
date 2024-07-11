@@ -12,7 +12,7 @@
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
 #include "quiche/http2/adapter/nghttp2.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace http2 {
 namespace adapter {
@@ -49,7 +49,7 @@ std::vector<nghttp2_nv> GetNghttp2Nvs(absl::Span<const Header> headers);
 // the :status pseudoheader first based on the given |response_code|. The
 // |response_code| is passed in separately from |headers| for lifetime reasons.
 std::vector<nghttp2_nv> GetResponseNghttp2Nvs(
-    const spdy::Http2HeaderBlock& headers, absl::string_view response_code);
+    const quiche::HttpHeaderBlock& headers, absl::string_view response_code);
 
 // Returns the HTTP/2 error code corresponding to the raw wire value, as defined
 // in RFC 7540 Section 7. Unrecognized error codes are treated as INTERNAL_ERROR

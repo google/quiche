@@ -18,7 +18,7 @@ namespace {
 
 using ConnectionError = Http2VisitorInterface::ConnectionError;
 
-std::string EncodeHeaders(const spdy::Http2HeaderBlock& entries) {
+std::string EncodeHeaders(const quiche::HttpHeaderBlock& entries) {
   spdy::HpackEncoder encoder;
   encoder.DisableCompression();
   return encoder.EncodeHeaderBlock(entries);
@@ -120,7 +120,7 @@ std::pair<int64_t, bool> TestVisitor::PackMetadataForStream(
 }
 
 void TestVisitor::AppendMetadataForStream(
-    Http2StreamId stream_id, const spdy::Http2HeaderBlock& payload) {
+    Http2StreamId stream_id, const quiche::HttpHeaderBlock& payload) {
   outbound_metadata_map_.insert({stream_id, EncodeHeaders(payload)});
 }
 
@@ -143,7 +143,7 @@ bool VisitorDataSource::Send(absl::string_view frame_header,
   return visitor_.SendDataFrame(stream_id_, frame_header, payload_length);
 }
 
-TestMetadataSource::TestMetadataSource(const spdy::Http2HeaderBlock& entries)
+TestMetadataSource::TestMetadataSource(const quiche::HttpHeaderBlock& entries)
     : encoded_entries_(EncodeHeaders(entries)) {
   remaining_ = encoded_entries_;
 }

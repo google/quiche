@@ -2610,7 +2610,7 @@ TEST_P(MetadataApiTest, SubmitMetadata) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
-  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+  const quiche::HttpHeaderBlock block = ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(1, block);
@@ -2644,7 +2644,7 @@ TEST_P(MetadataApiTest, SubmitMetadataMultipleFrames) {
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
   const auto kLargeValue = std::string(63 * 1024, 'a');
-  const spdy::Http2HeaderBlock block =
+  const quiche::HttpHeaderBlock block =
       ToHeaderBlock(ToHeaders({{"large-value", kLargeValue}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(1, block);
@@ -2683,7 +2683,7 @@ TEST_P(MetadataApiTest, SubmitConnectionMetadata) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
 
-  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+  const quiche::HttpHeaderBlock block = ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(0, block);
@@ -2726,7 +2726,7 @@ TEST_P(MetadataApiTest, ClientSubmitMetadataWithGoaway) {
   const int32_t stream_id =
       adapter->SubmitRequest(headers, nullptr, true, nullptr);
 
-  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+  const quiche::HttpHeaderBlock block = ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(stream_id, block);
@@ -2793,7 +2793,7 @@ TEST_P(MetadataApiTest, ClientSubmitMetadataWithFailureBefore) {
   const int32_t stream_id =
       adapter->SubmitRequest(headers, nullptr, true, nullptr);
 
-  const spdy::Http2HeaderBlock block = ToHeaderBlock(ToHeaders(
+  const quiche::HttpHeaderBlock block = ToHeaderBlock(ToHeaders(
       {{"query-cost", "is too darn high"}, {"secret-sauce", "hollandaise"}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(stream_id, block);
@@ -2851,7 +2851,7 @@ TEST_P(MetadataApiTest, ClientSubmitMetadataWithFailureDuring) {
   const int32_t stream_id =
       adapter->SubmitRequest(headers, nullptr, true, nullptr);
 
-  const spdy::Http2HeaderBlock block = ToHeaderBlock(
+  const quiche::HttpHeaderBlock block = ToHeaderBlock(
       ToHeaders({{"more-than-one-frame", std::string(20000, 'a')}}));
   if (GetParam()) {
     visitor.AppendMetadataForStream(stream_id, block);

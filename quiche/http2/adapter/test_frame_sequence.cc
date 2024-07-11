@@ -107,7 +107,7 @@ TestFrameSequence& TestFrameSequence::Headers(
 }
 
 TestFrameSequence& TestFrameSequence::Headers(Http2StreamId stream_id,
-                                              spdy::Http2HeaderBlock block,
+                                              quiche::HttpHeaderBlock block,
                                               bool fin, bool add_continuation) {
   if (add_continuation) {
     // The normal intermediate representations don't allow you to represent a

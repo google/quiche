@@ -1058,7 +1058,7 @@ int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
   } else {
     // Save trailers so they can be written once data is done.
     state.trailers =
-        std::make_unique<spdy::Http2HeaderBlock>(ToHeaderBlock(trailers));
+        std::make_unique<quiche::HttpHeaderBlock>(ToHeaderBlock(trailers));
     trailers_ready_.insert(stream_id);
   }
   return 0;
@@ -1794,7 +1794,7 @@ void OgHttp2Session::SendWindowUpdate(Http2StreamId stream_id,
 }
 
 void OgHttp2Session::SendHeaders(Http2StreamId stream_id,
-                                 spdy::Http2HeaderBlock headers,
+                                 quiche::HttpHeaderBlock headers,
                                  bool end_stream) {
   auto frame =
       std::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(headers));
@@ -1803,7 +1803,7 @@ void OgHttp2Session::SendHeaders(Http2StreamId stream_id,
 }
 
 void OgHttp2Session::SendTrailers(Http2StreamId stream_id,
-                                  spdy::Http2HeaderBlock trailers) {
+                                  quiche::HttpHeaderBlock trailers) {
   auto frame =
       std::make_unique<spdy::SpdyHeadersIR>(stream_id, std::move(trailers));
   frame->set_fin(true);
@@ -1853,7 +1853,7 @@ OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
 }
 
 void OgHttp2Session::StartRequest(Http2StreamId stream_id,
-                                  spdy::Http2HeaderBlock headers,
+                                  quiche::HttpHeaderBlock headers,
                                   std::unique_ptr<DataFrameSource> data_source,
                                   void* user_data, bool end_stream) {
   if (received_goaway_) {

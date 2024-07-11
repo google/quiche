@@ -11,9 +11,9 @@
 #include "quiche/http2/adapter/data_source.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/mock_http2_visitor.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/http2_header_block.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
@@ -76,7 +76,7 @@ class QUICHE_NO_EXPORT TestVisitor
 
   // Test methods to manipulate the metadata payload to send for a stream.
   void AppendMetadataForStream(Http2StreamId stream_id,
-                               const spdy::Http2HeaderBlock& payload);
+                               const quiche::HttpHeaderBlock& payload);
 
   const std::string& data() { return data_; }
   void Clear() { data_.clear(); }
@@ -122,7 +122,7 @@ class QUICHE_NO_EXPORT VisitorDataSource : public DataFrameSource {
 
 class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
  public:
-  explicit TestMetadataSource(const spdy::Http2HeaderBlock& entries);
+  explicit TestMetadataSource(const quiche::HttpHeaderBlock& entries);
 
   size_t NumFrames(size_t max_frame_size) const override {
     // Round up to the next frame.

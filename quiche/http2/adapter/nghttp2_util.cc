@@ -91,7 +91,7 @@ std::vector<nghttp2_nv> GetNghttp2Nvs(absl::Span<const Header> headers) {
 }
 
 std::vector<nghttp2_nv> GetResponseNghttp2Nvs(
-    const spdy::Http2HeaderBlock& headers, absl::string_view response_code) {
+    const quiche::HttpHeaderBlock& headers, absl::string_view response_code) {
   // Allocate enough for all headers and also the :status pseudoheader.
   const int num_headers = headers.size();
   std::vector<nghttp2_nv> nghttp2_nvs;

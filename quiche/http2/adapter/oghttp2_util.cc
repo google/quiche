@@ -3,8 +3,8 @@
 namespace http2 {
 namespace adapter {
 
-spdy::Http2HeaderBlock ToHeaderBlock(absl::Span<const Header> headers) {
-  spdy::Http2HeaderBlock block;
+quiche::HttpHeaderBlock ToHeaderBlock(absl::Span<const Header> headers) {
+  quiche::HttpHeaderBlock block;
   for (const Header& header : headers) {
     absl::string_view name = GetStringView(header.first).first;
     absl::string_view value = GetStringView(header.second).first;
