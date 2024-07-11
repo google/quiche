@@ -15,15 +15,28 @@
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/first_flight.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_session_cache.h"
+#include "quiche/common/print_elements.h"
 
 namespace quic {
 namespace test {
 namespace {
+
+static int DummyCompressFunc(SSL* /*ssl*/, CBB* /*out*/, const uint8_t* /*in*/,
+                             size_t /*in_len*/) {
+  return 1;
+}
+
+static int DummyDecompressFunc(SSL* /*ssl*/, CRYPTO_BUFFER** /*out*/,
+                               size_t /*uncompressed_len*/,
+                               const uint8_t* /*in*/, size_t /*in_len*/) {
+  return 1;
+}
 
 using testing::_;
 using testing::AnyNumber;
@@ -231,6 +244,43 @@ TEST_P(TlsChloExtractorTest, TlsExtensionInfo_SupportedGroups) {
     IngestPackets();
     ValidateChloDetails();
     EXPECT_EQ(tls_chlo_extractor_->supported_groups(), preferred_groups);
+  }
+}
+
+TEST_P(TlsChloExtractorTest, TlsExtensionInfo_CertCompressionAlgos) {
+  const std::vector<std::vector<uint16_t>> supported_groups_to_test = {
+      // No cert compression algos
+      {},
+      // One cert compression algo
+      {1},
+      // Two cert compression algos
+      {1, 2},
+      // Three cert compression algos
+      {1, 2, 3},
+      // Four cert compression algos
+      {1, 2, 3, 65535},
+  };
+  for (const std::vector<uint16_t>& supported_cert_compression_algos :
+       supported_groups_to_test) {
+    auto crypto_client_config = std::make_unique<QuicCryptoClientConfig>(
+        crypto_test_utils::ProofVerifierForTesting());
+    for (uint16_t cert_compression_algo : supported_cert_compression_algos) {
+      ASSERT_TRUE(SSL_CTX_add_cert_compression_alg(
+          crypto_client_config->ssl_ctx(), cert_compression_algo,
+          DummyCompressFunc, DummyDecompressFunc));
+    }
+
+    Initialize(std::move(crypto_client_config));
+    IngestPackets();
+    ValidateChloDetails();
+    if (GetQuicReloadableFlag(quic_parse_cert_compression_algos_from_chlo)) {
+      EXPECT_EQ(tls_chlo_extractor_->cert_compression_algos(),
+                supported_cert_compression_algos)
+          << quiche::PrintElements(
+                 tls_chlo_extractor_->cert_compression_algos());
+    } else {
+      EXPECT_TRUE(tls_chlo_extractor_->cert_compression_algos().empty());
+    }
   }
 }
 

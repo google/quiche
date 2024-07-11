@@ -576,6 +576,7 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
   QuicConnectionId connection_id = TestConnectionId(1);
   std::vector<std::string> alpns;
   std::vector<uint16_t> supported_groups;
+  std::vector<uint16_t> cert_compression_algos;
   std::string sni;
   bool resumption_attempted = false;
   bool early_data_attempted = false;
@@ -590,8 +591,9 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
 
   // The packet in 'packet_' is not a TLS CHLO packet.
   EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
-      connection_id, valid_version_, packet_, &supported_groups, &alpns, &sni,
-      &resumption_attempted, &early_data_attempted, &tls_alert));
+      connection_id, valid_version_, packet_, &supported_groups,
+      &cert_compression_algos, &alpns, &sni, &resumption_attempted,
+      &early_data_attempted, &tls_alert));
 
   store_.DiscardPackets(connection_id);
 
@@ -613,11 +615,13 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
 
   EXPECT_TRUE(store_.HasBufferedPackets(connection_id));
   EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
-      connection_id, valid_version_, *packets[0], &supported_groups, &alpns,
-      &sni, &resumption_attempted, &early_data_attempted, &tls_alert));
+      connection_id, valid_version_, *packets[0], &supported_groups,
+      &cert_compression_algos, &alpns, &sni, &resumption_attempted,
+      &early_data_attempted, &tls_alert));
   EXPECT_TRUE(store_.IngestPacketForTlsChloExtraction(
-      connection_id, valid_version_, *packets[1], &supported_groups, &alpns,
-      &sni, &resumption_attempted, &early_data_attempted, &tls_alert));
+      connection_id, valid_version_, *packets[1], &supported_groups,
+      &cert_compression_algos, &alpns, &sni, &resumption_attempted,
+      &early_data_attempted, &tls_alert));
 
   EXPECT_THAT(alpns, ElementsAre(AlpnForVersion(valid_version_)));
   EXPECT_FALSE(supported_groups.empty());

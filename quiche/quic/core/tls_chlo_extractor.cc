@@ -23,6 +23,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
@@ -71,6 +72,42 @@ std::vector<uint16_t> GetSupportedGroups(const SSL_CLIENT_HELLO* client_hello) {
   return named_groups;
 }
 
+std::vector<uint16_t> GetCertCompressionAlgos(
+    const SSL_CLIENT_HELLO* client_hello) {
+  const uint8_t* extension_data;
+  size_t extension_len;
+  int rv = SSL_early_callback_ctx_extension_get(
+      client_hello, TLSEXT_TYPE_cert_compression, &extension_data,
+      &extension_len);
+  if (rv != 1) {
+    return {};
+  }
+  // See https://datatracker.ietf.org/doc/html/rfc8879#section-3 for the format
+  // of this extension.
+  QuicDataReader cert_compression_algos_reader(
+      reinterpret_cast<const char*>(extension_data), extension_len);
+  uint8_t algos_len;
+  if (!cert_compression_algos_reader.ReadUInt8(&algos_len) || algos_len == 0 ||
+      algos_len % sizeof(uint16_t) != 0 ||
+      algos_len + sizeof(uint8_t) != extension_len) {
+    QUIC_CODE_COUNT(quic_chlo_cert_compression_algos_invalid_length);
+    return {};
+  }
+
+  size_t num_algos = algos_len / sizeof(uint16_t);
+  std::vector<uint16_t> cert_compression_algos;
+  cert_compression_algos.reserve(num_algos);
+  for (size_t i = 0; i < num_algos; ++i) {
+    uint16_t cert_compression_algo;
+    if (!cert_compression_algos_reader.ReadUInt16(&cert_compression_algo)) {
+      QUIC_CODE_COUNT(quic_chlo_fail_to_read_cert_compression_algo);
+      return {};
+    }
+    cert_compression_algos.push_back(cert_compression_algo);
+  }
+  return cert_compression_algos;
+}
+
 }  // namespace
 
 TlsChloExtractor::TlsChloExtractor()
@@ -102,6 +139,7 @@ TlsChloExtractor& TlsChloExtractor::operator=(TlsChloExtractor&& other) {
   parsed_crypto_frame_in_this_packet_ =
       other.parsed_crypto_frame_in_this_packet_;
   supported_groups_ = std::move(other.supported_groups_);
+  cert_compression_algos_ = std::move(other.cert_compression_algos_);
   alpns_ = std::move(other.alpns_);
   server_name_ = std::move(other.server_name_);
   client_hello_bytes_ = std::move(other.client_hello_bytes_);
@@ -366,6 +404,16 @@ void TlsChloExtractor::HandleParsedChlo(const SSL_CLIENT_HELLO* client_hello) {
   }
 
   supported_groups_ = GetSupportedGroups(client_hello);
+  if (GetQuicReloadableFlag(quic_parse_cert_compression_algos_from_chlo)) {
+    cert_compression_algos_ = GetCertCompressionAlgos(client_hello);
+    if (cert_compression_algos_.empty()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_parse_cert_compression_algos_from_chlo,
+                                   1, 2);
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_parse_cert_compression_algos_from_chlo,
+                                   2, 2);
+    }
+  }
 
   // Update our state now that we've parsed a full CHLO.
   if (state_ == State::kInitial) {

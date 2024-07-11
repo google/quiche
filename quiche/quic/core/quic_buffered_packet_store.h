@@ -146,6 +146,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
       const QuicConnectionId& connection_id, const ParsedQuicVersion& version,
       const QuicReceivedPacket& packet,
       std::vector<uint16_t>* out_supported_groups,
+      std::vector<uint16_t>* out_cert_compression_algos,
       std::vector<std::string>* out_alpns, std::string* out_sni,
       bool* out_resumption_attempted, bool* out_early_data_attempted,
       std::optional<uint8_t>* tls_alert);

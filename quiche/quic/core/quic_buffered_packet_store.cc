@@ -317,6 +317,7 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
     const QuicConnectionId& connection_id, const ParsedQuicVersion& version,
     const QuicReceivedPacket& packet,
     std::vector<uint16_t>* out_supported_groups,
+    std::vector<uint16_t>* out_cert_compression_algos,
     std::vector<std::string>* out_alpns, std::string* out_sni,
     bool* out_resumption_attempted, bool* out_early_data_attempted,
     std::optional<uint8_t>* tls_alert) {
@@ -337,6 +338,7 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
   }
   const TlsChloExtractor& tls_chlo_extractor = it->second.tls_chlo_extractor;
   *out_supported_groups = tls_chlo_extractor.supported_groups();
+  *out_cert_compression_algos = tls_chlo_extractor.cert_compression_algos();
   *out_alpns = tls_chlo_extractor.alpns();
   *out_sni = tls_chlo_extractor.server_name();
   *out_resumption_attempted = tls_chlo_extractor.resumption_attempted();

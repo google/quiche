@@ -601,6 +601,7 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
     bool has_full_tls_chlo = false;
     std::string sni;
     std::vector<uint16_t> supported_groups;
+    std::vector<uint16_t> cert_compression_algos;
     std::vector<std::string> alpns;
     bool resumption_attempted = false, early_data_attempted = false;
     if (buffered_packets_.HasBufferedPackets(
@@ -609,8 +610,9 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
       // use the associated TlsChloExtractor to parse this packet.
       has_full_tls_chlo = buffered_packets_.IngestPacketForTlsChloExtraction(
           packet_info.destination_connection_id, packet_info.version,
-          packet_info.packet, &supported_groups, &alpns, &sni,
-          &resumption_attempted, &early_data_attempted, &result.tls_alert);
+          packet_info.packet, &supported_groups, &cert_compression_algos,
+          &alpns, &sni, &resumption_attempted, &early_data_attempted,
+          &result.tls_alert);
     } else {
       // If we do not have a BufferedPacketList for this connection ID,
       // create a single-use one to check whether this packet contains a
@@ -621,6 +623,7 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
         // This packet contains a full single-packet CHLO.
         has_full_tls_chlo = true;
         supported_groups = tls_chlo_extractor.supported_groups();
+        cert_compression_algos = tls_chlo_extractor.cert_compression_algos();
         alpns = tls_chlo_extractor.alpns();
         sni = tls_chlo_extractor.server_name();
         resumption_attempted = tls_chlo_extractor.resumption_attempted();
@@ -648,6 +651,7 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
     ParsedClientHello& parsed_chlo = result.parsed_chlo.emplace();
     parsed_chlo.sni = std::move(sni);
     parsed_chlo.supported_groups = std::move(supported_groups);
+    parsed_chlo.cert_compression_algos = std::move(cert_compression_algos);
     parsed_chlo.alpns = std::move(alpns);
     if (packet_info.retry_token.has_value()) {
       parsed_chlo.retry_token = std::string(*packet_info.retry_token);

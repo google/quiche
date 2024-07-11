@@ -54,6 +54,9 @@ class QUICHE_EXPORT TlsChloExtractor
   const std::vector<uint16_t>& supported_groups() const {
     return supported_groups_;
   }
+  const std::vector<uint16_t>& cert_compression_algos() const {
+    return cert_compression_algos_;
+  }
   absl::Span<const uint8_t> client_hello_bytes() const {
     return client_hello_bytes_;
   }
@@ -263,6 +266,9 @@ class QUICHE_EXPORT TlsChloExtractor
   bool parsed_crypto_frame_in_this_packet_;
   // Array of NamedGroups parsed from the CHLO's supported_groups extension.
   std::vector<uint16_t> supported_groups_;
+  // Array of cert compression algos parsed from the CHLO's
+  // compress_certificate extension.
+  std::vector<uint16_t> cert_compression_algos_;
   // Array of ALPNs parsed from the CHLO.
   std::vector<std::string> alpns_;
   // SNI parsed from the CHLO.
