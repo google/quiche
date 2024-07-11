@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "absl/status/status.h"
+#include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/bonnet/mock_packet_exchanger_stats_interface.h"
 #include "quiche/quic/qbone/mock_qbone_client.h"
@@ -27,6 +29,7 @@ class MockVisitor : public QbonePacketExchanger::Visitor {
  public:
   MOCK_METHOD(void, OnReadError, (const std::string&), (override));
   MOCK_METHOD(void, OnWriteError, (const std::string&), (override));
+  MOCK_METHOD(absl::Status, OnWrite, (absl::string_view), (override));
 };
 
 class TunDevicePacketExchangerTest : public QuicTest {
@@ -56,6 +59,7 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketReturnsFalseOnError) {
       }));
 
   EXPECT_CALL(mock_visitor_, OnWriteError(_));
+  EXPECT_CALL(mock_visitor_, OnWrite(StrEq(packet))).Times(1);
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
 }
 
@@ -69,6 +73,7 @@ TEST_F(TunDevicePacketExchangerTest,
       }));
 
   EXPECT_CALL(mock_stats_, OnWriteError(_)).Times(1);
+  EXPECT_CALL(mock_visitor_, OnWrite(StrEq(packet))).Times(1);
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
 }
 
@@ -81,6 +86,7 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketReturnsTrueOnSuccessfulWrite) {
       }));
 
   EXPECT_CALL(mock_stats_, OnPacketWritten(_)).Times(1);
+  EXPECT_CALL(mock_visitor_, OnWrite(StrEq(packet))).Times(1);
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
 }
 

@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_PACKET_EXCHANGER_H_
 #define QUICHE_QUIC_QBONE_QBONE_PACKET_EXCHANGER_H_
 
+#include "absl/status/status.h"
+#include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/qbone/qbone_client_interface.h"
 #include "quiche/quic/qbone/qbone_packet_writer.h"
@@ -21,6 +23,9 @@ class QbonePacketExchanger : public QbonePacketWriter {
     virtual ~Visitor() {}
     virtual void OnReadError(const std::string& error) {}
     virtual void OnWriteError(const std::string& error) {}
+    virtual absl::Status OnWrite(absl::string_view packet) {
+      return absl::OkStatus();
+    }
   };
   // Does not take ownership of visitor.
   QbonePacketExchanger(Visitor* visitor, size_t max_pending_packets)
