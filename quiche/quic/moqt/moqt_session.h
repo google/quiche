@@ -149,19 +149,14 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
  private:
   friend class test::MoqtSessionPeer;
-  class QUICHE_EXPORT Stream : public webtransport::StreamVisitor,
-                               public MoqtParserVisitor {
+
+  class QUICHE_EXPORT ControlStream : public webtransport::StreamVisitor,
+                                      public MoqtParserVisitor {
    public:
-    Stream(MoqtSession* session, webtransport::Stream* stream)
+    ControlStream(MoqtSession* session, webtransport::Stream* stream)
         : session_(session),
           stream_(stream),
           parser_(session->parameters_.using_webtrans, *this) {}
-    Stream(MoqtSession* session, webtransport::Stream* stream,
-           bool is_control_stream)
-        : session_(session),
-          stream_(stream),
-          parser_(session->parameters_.using_webtrans, *this),
-          is_control_stream_(is_control_stream) {}
 
     // webtransport::StreamVisitor implementation.
     void OnCanRead() override;
@@ -212,22 +207,123 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                             SubscribeErrorCode error_code,
                             absl::string_view reason_phrase,
                             uint64_t track_alias);
-    bool CheckIfIsControlStream();
 
     MoqtSession* session_;
     webtransport::Stream* stream_;
     MoqtParser parser_;
-    // nullopt means "incoming stream, and we don't know if it's the control
-    // stream or a data stream yet".
-    std::optional<bool> is_control_stream_;
+  };
+  class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
+                                           public MoqtParserVisitor {
+   public:
+    IncomingDataStream(MoqtSession* session, webtransport::Stream* stream)
+        : session_(session),
+          stream_(stream),
+          parser_(session->parameters_.using_webtrans, *this) {}
+
+    // webtransport::StreamVisitor implementation.
+    void OnCanRead() override;
+    void OnCanWrite() override {}
+    void OnResetStreamReceived(webtransport::StreamErrorCode error) override {}
+    void OnStopSendingReceived(webtransport::StreamErrorCode error) override {}
+    void OnWriteSideInDataRecvdState() override {}
+
+    // MoqtParserVisitor implementation.
+    // TODO: Handle a stream FIN.
+    void OnObjectMessage(const MoqtObject& message, absl::string_view payload,
+                         bool end_of_message) override;
+    void OnClientSetupMessage(const MoqtClientSetup&) override {
+      OnControlMessageReceived();
+    }
+    void OnServerSetupMessage(const MoqtServerSetup&) override {
+      OnControlMessageReceived();
+    }
+    void OnSubscribeMessage(const MoqtSubscribe&) override {
+      OnControlMessageReceived();
+    }
+    void OnSubscribeOkMessage(const MoqtSubscribeOk&) override {
+      OnControlMessageReceived();
+    }
+    void OnSubscribeErrorMessage(const MoqtSubscribeError&) override {
+      OnControlMessageReceived();
+    }
+    void OnUnsubscribeMessage(const MoqtUnsubscribe&) override {
+      OnControlMessageReceived();
+    }
+    void OnSubscribeDoneMessage(const MoqtSubscribeDone&) override {
+      OnControlMessageReceived();
+    }
+    void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate&) override {
+      OnControlMessageReceived();
+    }
+    void OnAnnounceMessage(const MoqtAnnounce&) override {
+      OnControlMessageReceived();
+    }
+    void OnAnnounceOkMessage(const MoqtAnnounceOk&) override {
+      OnControlMessageReceived();
+    }
+    void OnAnnounceErrorMessage(const MoqtAnnounceError&) override {
+      OnControlMessageReceived();
+    }
+    void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override {
+      OnControlMessageReceived();
+    }
+    void OnTrackStatusRequestMessage(
+        const MoqtTrackStatusRequest& message) override {
+      OnControlMessageReceived();
+    }
+    void OnUnannounceMessage(const MoqtUnannounce&) override {
+      OnControlMessageReceived();
+    }
+    void OnTrackStatusMessage(const MoqtTrackStatus&) override {
+      OnControlMessageReceived();
+    }
+    void OnGoAwayMessage(const MoqtGoAway&) override {
+      OnControlMessageReceived();
+    }
+    void OnParsingError(MoqtError error_code,
+                        absl::string_view reason) override;
+
+    quic::Perspective perspective() const {
+      return session_->parameters_.perspective;
+    }
+
+    webtransport::Stream* stream() const { return stream_; }
+
+   private:
+    friend class test::MoqtSessionPeer;
+    void OnControlMessageReceived();
+
+    MoqtSession* session_;
+    webtransport::Stream* stream_;
+    MoqtParser parser_;
     std::string partial_object_;
+  };
+  class QUICHE_EXPORT OutgoingDataStream : public webtransport::StreamVisitor {
+   public:
+    OutgoingDataStream(MoqtSession* session, webtransport::Stream* stream)
+        : session_(session), stream_(stream) {}
+
+    // webtransport::StreamVisitor implementation.
+    void OnCanRead() override {}
+    void OnCanWrite() override;
+    void OnResetStreamReceived(webtransport::StreamErrorCode error) override {}
+    void OnStopSendingReceived(webtransport::StreamErrorCode error) override {}
+    void OnWriteSideInDataRecvdState() override {}
+
+    webtransport::Stream* stream() const { return stream_; }
+
+   private:
+    friend class test::MoqtSessionPeer;
+
+    MoqtSession* session_;
+    webtransport::Stream* stream_;
   };
 
   // Returns true if SUBSCRIBE_DONE was sent.
   bool SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
                        absl::string_view reason_phrase);
   // Returns the pointer to the control stream, or nullptr if none is present.
-  Stream* GetControlStream();
+  ControlStream* GetControlStream();
   // Sends a message on the control stream; QUICHE_DCHECKs if no control stream
   // is present.
   void SendControlMessage(quiche::QuicheBuffer message);

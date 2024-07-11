@@ -41,7 +41,7 @@ namespace moqt {
 
 using ::quic::Perspective;
 
-MoqtSession::Stream* MoqtSession::GetControlStream() {
+MoqtSession::ControlStream* MoqtSession::GetControlStream() {
   if (!control_stream_.has_value()) {
     return nullptr;
   }
@@ -49,11 +49,11 @@ MoqtSession::Stream* MoqtSession::GetControlStream() {
   if (raw_stream == nullptr) {
     return nullptr;
   }
-  return static_cast<Stream*>(raw_stream->visitor());
+  return static_cast<ControlStream*>(raw_stream->visitor());
 }
 
 void MoqtSession::SendControlMessage(quiche::QuicheBuffer message) {
-  Stream* control_stream = GetControlStream();
+  ControlStream* control_stream = GetControlStream();
   if (control_stream == nullptr) {
     QUICHE_LOG(DFATAL) << "Trying to send a message on the control stream "
                           "while it does not exist";
@@ -74,8 +74,8 @@ void MoqtSession::OnSessionReady() {
     Error(MoqtError::kInternalError, "Unable to open a control stream");
     return;
   }
-  control_stream->SetVisitor(std::make_unique<Stream>(
-      this, control_stream, /*is_control_stream=*/true));
+  control_stream->SetVisitor(
+      std::make_unique<ControlStream>(this, control_stream));
   control_stream_ = control_stream->GetStreamId();
   MoqtClientSetup setup = MoqtClientSetup{
       .supported_versions = std::vector<MoqtVersion>{parameters_.version},
@@ -107,14 +107,14 @@ void MoqtSession::OnIncomingBidirectionalStreamAvailable() {
       Error(MoqtError::kProtocolViolation, "Bidirectional stream already open");
       return;
     }
-    stream->SetVisitor(std::make_unique<Stream>(this, stream));
+    stream->SetVisitor(std::make_unique<ControlStream>(this, stream));
     stream->visitor()->OnCanRead();
   }
 }
 void MoqtSession::OnIncomingUnidirectionalStreamAvailable() {
   while (webtransport::Stream* stream =
              session_->AcceptIncomingUnidirectionalStream()) {
-    stream->SetVisitor(std::make_unique<Stream>(this, stream));
+    stream->SetVisitor(std::make_unique<IncomingDataStream>(this, stream));
     stream->visitor()->OnCanRead();
   }
 }
@@ -376,7 +376,8 @@ std::optional<webtransport::StreamId> MoqtSession::OpenUnidirectionalStream() {
   if (new_stream == nullptr) {
     return std::nullopt;
   }
-  new_stream->SetVisitor(std::make_unique<Stream>(this, new_stream, false));
+  new_stream->SetVisitor(
+      std::make_unique<OutgoingDataStream>(this, new_stream));
   return new_stream->GetStreamId();
 }
 
@@ -572,82 +573,45 @@ void MoqtSession::CloseObjectStream(const FullTrackName& full_track_name,
   }
 }
 
-void MoqtSession::Stream::OnCanRead() {
+static void ForwardStreamDataToParser(webtransport::Stream& stream,
+                                      MoqtParser& parser) {
   bool fin =
-      quiche::ProcessAllReadableRegions(*stream_, [&](absl::string_view chunk) {
-        parser_.ProcessData(chunk, /*end_of_stream=*/false);
+      quiche::ProcessAllReadableRegions(stream, [&](absl::string_view chunk) {
+        parser.ProcessData(chunk, /*end_of_stream=*/false);
       });
   if (fin) {
-    parser_.ProcessData("", /*end_of_stream=*/true);
-  }
-}
-void MoqtSession::Stream::OnCanWrite() {}
-void MoqtSession::Stream::OnResetStreamReceived(
-    webtransport::StreamErrorCode error) {
-  if (is_control_stream_.has_value() && *is_control_stream_) {
-    session_->Error(
-        MoqtError::kProtocolViolation,
-        absl::StrCat("Control stream reset with error code ", error));
-  }
-}
-void MoqtSession::Stream::OnStopSendingReceived(
-    webtransport::StreamErrorCode error) {
-  if (is_control_stream_.has_value() && *is_control_stream_) {
-    session_->Error(
-        MoqtError::kProtocolViolation,
-        absl::StrCat("Control stream reset with error code ", error));
+    parser.ProcessData("", /*end_of_stream=*/true);
   }
 }
 
-void MoqtSession::Stream::OnObjectMessage(const MoqtObject& message,
-                                          absl::string_view payload,
-                                          bool end_of_message) {
-  if (is_control_stream_ == true) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received OBJECT message on control stream");
-    return;
-  }
-  QUICHE_DVLOG(1)
-      << ENDPOINT << "Received OBJECT message on stream "
-      << stream_->GetStreamId() << " for subscribe_id " << message.subscribe_id
-      << " for track alias " << message.track_alias << " with sequence "
-      << message.group_id << ":" << message.object_id << " send_order "
-      << message.object_send_order << " forwarding_preference "
-      << MoqtForwardingPreferenceToString(message.forwarding_preference)
-      << " length " << payload.size() << " explicit length "
-      << (message.payload_length.has_value() ? (int)*message.payload_length
-                                             : -1)
-      << (end_of_message ? "F" : "");
-  if (!session_->parameters_.deliver_partial_objects) {
-    if (!end_of_message) {  // Buffer partial object.
-      absl::StrAppend(&partial_object_, payload);
-      return;
-    }
-    if (!partial_object_.empty()) {  // Completes the object
-      absl::StrAppend(&partial_object_, payload);
-      payload = absl::string_view(partial_object_);
-    }
-  }
-  auto [full_track_name, visitor] = session_->TrackPropertiesFromAlias(message);
-  if (visitor != nullptr) {
-    visitor->OnObjectFragment(
-        full_track_name, message.group_id, message.object_id,
-        message.object_send_order, message.object_status,
-        message.forwarding_preference, payload, end_of_message);
-  }
-  partial_object_.clear();
+void MoqtSession::ControlStream::OnCanRead() {
+  ForwardStreamDataToParser(*stream_, parser_);
+}
+void MoqtSession::ControlStream::OnCanWrite() {
+  // We buffer serialized control frames unconditionally, thus OnCanWrite()
+  // requires no handling for control streams.
 }
 
-void MoqtSession::Stream::OnClientSetupMessage(const MoqtClientSetup& message) {
-  if (is_control_stream_.has_value()) {
-    if (!*is_control_stream_) {
-      session_->Error(MoqtError::kProtocolViolation,
-                      "Received SETUP on non-control stream");
-      return;
-    }
-  } else {
-    is_control_stream_ = true;
-  }
+void MoqtSession::ControlStream::OnResetStreamReceived(
+    webtransport::StreamErrorCode error) {
+  session_->Error(MoqtError::kProtocolViolation,
+                  absl::StrCat("Control stream reset with error code ", error));
+}
+void MoqtSession::ControlStream::OnStopSendingReceived(
+    webtransport::StreamErrorCode error) {
+  session_->Error(MoqtError::kProtocolViolation,
+                  absl::StrCat("Control stream reset with error code ", error));
+}
+
+void MoqtSession::ControlStream::OnObjectMessage(const MoqtObject& message,
+                                                 absl::string_view payload,
+                                                 bool end_of_message) {
+  session_->Error(MoqtError::kProtocolViolation,
+                  "Received OBJECT message on control stream");
+}
+
+void MoqtSession::ControlStream::OnClientSetupMessage(
+    const MoqtClientSetup& message) {
   session_->control_stream_ = stream_->GetStreamId();
   if (perspective() == Perspective::IS_CLIENT) {
     session_->Error(MoqtError::kProtocolViolation,
@@ -675,16 +639,8 @@ void MoqtSession::Stream::OnClientSetupMessage(const MoqtClientSetup& message) {
   session_->peer_role_ = *message.role;
 }
 
-void MoqtSession::Stream::OnServerSetupMessage(const MoqtServerSetup& message) {
-  if (is_control_stream_.has_value()) {
-    if (!*is_control_stream_) {
-      session_->Error(MoqtError::kProtocolViolation,
-                      "Received SETUP on non-control stream");
-      return;
-    }
-  } else {
-    is_control_stream_ = true;
-  }
+void MoqtSession::ControlStream::OnServerSetupMessage(
+    const MoqtServerSetup& message) {
   if (perspective() == Perspective::IS_SERVER) {
     session_->Error(MoqtError::kProtocolViolation,
                     "Received SERVER_SETUP from client");
@@ -703,10 +659,9 @@ void MoqtSession::Stream::OnServerSetupMessage(const MoqtServerSetup& message) {
   session_->peer_role_ = *message.role;
 }
 
-void MoqtSession::Stream::SendSubscribeError(const MoqtSubscribe& message,
-                                             SubscribeErrorCode error_code,
-                                             absl::string_view reason_phrase,
-                                             uint64_t track_alias) {
+void MoqtSession::ControlStream::SendSubscribeError(
+    const MoqtSubscribe& message, SubscribeErrorCode error_code,
+    absl::string_view reason_phrase, uint64_t track_alias) {
   MoqtSubscribeError subscribe_error;
   subscribe_error.subscribe_id = message.subscribe_id;
   subscribe_error.error_code = error_code;
@@ -716,11 +671,9 @@ void MoqtSession::Stream::SendSubscribeError(const MoqtSubscribe& message,
       session_->framer_.SerializeSubscribeError(subscribe_error));
 }
 
-void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
+void MoqtSession::ControlStream::OnSubscribeMessage(
+    const MoqtSubscribe& message) {
   std::string reason_phrase = "";
-  if (!CheckIfIsControlStream()) {
-    return;
-  }
   if (session_->peer_role_ == MoqtRole::kPublisher) {
     QUIC_DLOG(INFO) << ENDPOINT << "Publisher peer sent SUBSCRIBE";
     session_->Error(MoqtError::kProtocolViolation,
@@ -825,10 +778,8 @@ void MoqtSession::Stream::OnSubscribeMessage(const MoqtSubscribe& message) {
   }
 }
 
-void MoqtSession::Stream::OnSubscribeOkMessage(const MoqtSubscribeOk& message) {
-  if (!CheckIfIsControlStream()) {
-    return;
-  }
+void MoqtSession::ControlStream::OnSubscribeOkMessage(
+    const MoqtSubscribeOk& message) {
   auto it = session_->active_subscribes_.find(message.subscribe_id);
   if (it == session_->active_subscribes_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
@@ -860,11 +811,8 @@ void MoqtSession::Stream::OnSubscribeOkMessage(const MoqtSubscribeOk& message) {
   session_->active_subscribes_.erase(it);
 }
 
-void MoqtSession::Stream::OnSubscribeErrorMessage(
+void MoqtSession::ControlStream::OnSubscribeErrorMessage(
     const MoqtSubscribeError& message) {
-  if (!CheckIfIsControlStream()) {
-    return;
-  }
   auto it = session_->active_subscribes_.find(message.subscribe_id);
   if (it == session_->active_subscribes_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
@@ -894,12 +842,13 @@ void MoqtSession::Stream::OnSubscribeErrorMessage(
   session_->active_subscribes_.erase(it);
 }
 
-void MoqtSession::Stream::OnUnsubscribeMessage(const MoqtUnsubscribe& message) {
+void MoqtSession::ControlStream::OnUnsubscribeMessage(
+    const MoqtUnsubscribe& message) {
   session_->SubscribeIsDone(message.subscribe_id,
                             SubscribeDoneCode::kUnsubscribed, "");
 }
 
-void MoqtSession::Stream::OnSubscribeUpdateMessage(
+void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
     const MoqtSubscribeUpdate& message) {
   // Search all the tracks to find the subscribe ID.
   auto name_it =
@@ -934,14 +883,12 @@ void MoqtSession::Stream::OnSubscribeUpdateMessage(
   }
 }
 
-void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {
+void MoqtSession::ControlStream::OnAnnounceMessage(
+    const MoqtAnnounce& message) {
   if (session_->peer_role_ == MoqtRole::kSubscriber) {
     QUIC_DLOG(INFO) << ENDPOINT << "Subscriber peer sent SUBSCRIBE";
     session_->Error(MoqtError::kProtocolViolation,
                     "Received ANNOUNCE from Subscriber");
-    return;
-  }
-  if (!CheckIfIsControlStream()) {
     return;
   }
   std::optional<MoqtAnnounceErrorReason> error =
@@ -959,10 +906,8 @@ void MoqtSession::Stream::OnAnnounceMessage(const MoqtAnnounce& message) {
   SendOrBufferMessage(session_->framer_.SerializeAnnounceOk(ok));
 }
 
-void MoqtSession::Stream::OnAnnounceOkMessage(const MoqtAnnounceOk& message) {
-  if (!CheckIfIsControlStream()) {
-    return;
-  }
+void MoqtSession::ControlStream::OnAnnounceOkMessage(
+    const MoqtAnnounceOk& message) {
   auto it = session_->pending_outgoing_announces_.find(message.track_namespace);
   if (it == session_->pending_outgoing_announces_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
@@ -973,11 +918,8 @@ void MoqtSession::Stream::OnAnnounceOkMessage(const MoqtAnnounceOk& message) {
   session_->pending_outgoing_announces_.erase(it);
 }
 
-void MoqtSession::Stream::OnAnnounceErrorMessage(
+void MoqtSession::ControlStream::OnAnnounceErrorMessage(
     const MoqtAnnounceError& message) {
-  if (!CheckIfIsControlStream()) {
-    return;
-  }
   auto it = session_->pending_outgoing_announces_.find(message.track_namespace);
   if (it == session_->pending_outgoing_announces_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
@@ -991,34 +933,23 @@ void MoqtSession::Stream::OnAnnounceErrorMessage(
   session_->pending_outgoing_announces_.erase(it);
 }
 
-void MoqtSession::Stream::OnAnnounceCancelMessage(
+void MoqtSession::ControlStream::OnAnnounceCancelMessage(
     const MoqtAnnounceCancel& message) {
   session_->CancelAnnounce(message.track_namespace);
 }
 
-void MoqtSession::Stream::OnParsingError(MoqtError error_code,
-                                         absl::string_view reason) {
+void MoqtSession::ControlStream::OnParsingError(MoqtError error_code,
+                                                absl::string_view reason) {
   session_->Error(error_code, absl::StrCat("Parse error: ", reason));
 }
 
-bool MoqtSession::Stream::CheckIfIsControlStream() {
-  if (!is_control_stream_.has_value()) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received SUBSCRIBE_REQUEST as first message");
-    return false;
-  }
-  if (!*is_control_stream_) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received SUBSCRIBE_REQUEST on non-control stream");
-    return false;
-  }
-  return true;
-}
-
-void MoqtSession::Stream::SendOrBufferMessage(quiche::QuicheBuffer message,
-                                              bool fin) {
+void MoqtSession::ControlStream::SendOrBufferMessage(
+    quiche::QuicheBuffer message, bool fin) {
   quiche::StreamWriteOptions options;
   options.set_send_fin(fin);
+  // TODO: while we buffer unconditionally, we should still at some point tear
+  // down the connection if we've buffered too many control messages; otherwise,
+  // there is potential for memory exhaustion attacks.
   options.set_buffer_unconditionally(true);
   std::array<absl::string_view, 1> write_vector = {message.AsStringView()};
   absl::Status success = stream_->Writev(absl::MakeSpan(write_vector), options);
@@ -1026,6 +957,58 @@ void MoqtSession::Stream::SendOrBufferMessage(quiche::QuicheBuffer message,
     session_->Error(MoqtError::kInternalError,
                     "Failed to write a control message");
   }
+}
+
+void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
+                                                      absl::string_view payload,
+                                                      bool end_of_message) {
+  QUICHE_DVLOG(1)
+      << ENDPOINT << "Received OBJECT message on stream "
+      << stream_->GetStreamId() << " for subscribe_id " << message.subscribe_id
+      << " for track alias " << message.track_alias << " with sequence "
+      << message.group_id << ":" << message.object_id << " send_order "
+      << message.object_send_order << " forwarding_preference "
+      << MoqtForwardingPreferenceToString(message.forwarding_preference)
+      << " length " << payload.size() << " explicit length "
+      << (message.payload_length.has_value() ? (int)*message.payload_length
+                                             : -1)
+      << (end_of_message ? "F" : "");
+  if (!session_->parameters_.deliver_partial_objects) {
+    if (!end_of_message) {  // Buffer partial object.
+      absl::StrAppend(&partial_object_, payload);
+      return;
+    }
+    if (!partial_object_.empty()) {  // Completes the object
+      absl::StrAppend(&partial_object_, payload);
+      payload = absl::string_view(partial_object_);
+    }
+  }
+  auto [full_track_name, visitor] = session_->TrackPropertiesFromAlias(message);
+  if (visitor != nullptr) {
+    visitor->OnObjectFragment(
+        full_track_name, message.group_id, message.object_id,
+        message.object_send_order, message.object_status,
+        message.forwarding_preference, payload, end_of_message);
+  }
+  partial_object_.clear();
+}
+
+void MoqtSession::IncomingDataStream::OnCanRead() {
+  ForwardStreamDataToParser(*stream_, parser_);
+}
+
+void MoqtSession::IncomingDataStream::OnControlMessageReceived() {
+  session_->Error(MoqtError::kProtocolViolation,
+                  "Received a control message on a data stream");
+}
+
+void MoqtSession::IncomingDataStream::OnParsingError(MoqtError error_code,
+                                                     absl::string_view reason) {
+  session_->Error(error_code, absl::StrCat("Parse error: ", reason));
+}
+
+void MoqtSession::OutgoingDataStream::OnCanWrite() {
+  // TODO: handle backpressure on data streams.
 }
 
 }  // namespace moqt
