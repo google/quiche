@@ -238,7 +238,6 @@ QuicDispatcher::QuicDispatcher(
           expected_server_connection_id_length),
       clear_stateless_reset_addresses_alarm_(alarm_factory_->CreateAlarm(
           new ClearStatelessResetAddressesAlarm(this))),
-      should_update_expected_server_connection_id_length_(false),
       connection_id_generator_(connection_id_generator) {
   QUIC_BUG_IF(quic_bug_12724_1, GetSupportedVersions().empty())
       << "Trying to create dispatcher without any supported versions";
@@ -290,7 +289,6 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   }
   if (packet_info.destination_connection_id.length() !=
           expected_server_connection_id_length_ &&
-      !should_update_expected_server_connection_id_length_ &&
       packet_info.version.IsKnown() &&
       !packet_info.version.AllowsVariableLengthConnectionIds()) {
     SetLastError(QUIC_INVALID_PACKET_HEADER);
@@ -315,14 +313,6 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
       QUIC_DLOG(ERROR) << "Invalid source connection ID length for version";
       return;
     }
-  }
-
-  // Before introducing the flag, it was impossible for a short header to
-  // update |expected_server_connection_id_length_|.
-  if (should_update_expected_server_connection_id_length_ &&
-      packet_info.version_flag) {
-    expected_server_connection_id_length_ =
-        packet_info.destination_connection_id.length();
   }
 
   if (MaybeDispatchPacket(packet_info)) {

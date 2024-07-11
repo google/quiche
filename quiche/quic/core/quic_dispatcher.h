@@ -314,14 +314,6 @@ class QUICHE_EXPORT QuicDispatcher
   virtual void RestorePerPacketContext(
       std::unique_ptr<QuicPerPacketContext> /*context*/) {}
 
-  // If true, our framer will change its expected connection ID length
-  // to the received destination connection ID length of all IETF long headers.
-  void SetShouldUpdateExpectedServerConnectionIdLength(
-      bool should_update_expected_server_connection_id_length) {
-    should_update_expected_server_connection_id_length_ =
-        should_update_expected_server_connection_id_length;
-  }
-
   // Called if a packet from an unseen connection is reset or rejected.
   virtual void OnNewConnectionRejected() {}
 
@@ -461,10 +453,9 @@ class QUICHE_EXPORT QuicDispatcher
   // IETF short headers contain a destination connection ID but do not
   // encode its length. This variable contains the length we expect to read.
   // This is also used to signal an error when a long header packet with
-  // different destination connection ID length is received when
-  // should_update_expected_server_connection_id_length_ is false and packet's
+  // different destination connection ID length is received when packet's
   // version does not allow variable length connection ID.
-  uint8_t expected_server_connection_id_length_;
+  const uint8_t expected_server_connection_id_length_;
 
   // Records client addresses that have been recently reset.
   absl::flat_hash_set<QuicSocketAddress, QuicSocketAddressHash>
@@ -472,10 +463,6 @@ class QUICHE_EXPORT QuicDispatcher
 
   // An alarm which clear recent_stateless_reset_addresses_.
   std::unique_ptr<QuicAlarm> clear_stateless_reset_addresses_alarm_;
-
-  // If true, change expected_server_connection_id_length_ to be the received
-  // destination connection ID length of all IETF long headers.
-  bool should_update_expected_server_connection_id_length_;
 
   ConnectionIdGeneratorInterface& connection_id_generator_;
 };
