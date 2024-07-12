@@ -935,10 +935,17 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     // successfully.
     pre_shared_key_client_ = "";
     pre_shared_key_server_ = "";
+
     StopServer();
     server_writer_ = new PacketDroppingTestWriter();
     StartServer();
-    client_writer_ = new PacketDroppingTestWriter();
+
+    if (client_) {
+      // If `client_` is populated it means that the `CreateClientWithWriter()`
+      // call above ran in-process, in which case `client_` owns
+      // `client_writer_` and we need to create a new one.
+      client_writer_ = new PacketDroppingTestWriter();
+    }
     CreateClientWithWriter();
   }
 
