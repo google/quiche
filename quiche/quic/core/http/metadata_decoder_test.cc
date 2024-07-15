@@ -17,7 +17,7 @@ namespace {
 
 class MetadataDecoderTest : public QuicTest {
  protected:
-  std::string EncodeHeaders(spdy::Http2HeaderBlock& headers) {
+  std::string EncodeHeaders(quiche::HttpHeaderBlock& headers) {
     quic::NoopDecoderStreamErrorDelegate delegate;
     quic::QpackEncoder encoder(&delegate, quic::HuffmanEncoding::kDisabled);
     return encoder.EncodeHeaderList(id_, headers,
@@ -39,7 +39,7 @@ TEST_F(MetadataDecoderTest, Initialize) {
 }
 
 TEST_F(MetadataDecoderTest, Decode) {
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   headers["key1"] = "val1";
   headers["key2"] = "val2";
   headers["key3"] = "val3";
@@ -65,7 +65,7 @@ TEST_F(MetadataDecoderTest, DecodeInvalidHeaders) {
 }
 
 TEST_F(MetadataDecoderTest, TooLarge) {
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   for (int i = 0; i < 1024; ++i) {
     headers.AppendValueOrAddHeader(absl::StrCat(i), std::string(1024, 'a'));
   }

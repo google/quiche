@@ -39,7 +39,7 @@
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 
 using http2::Http2DecoderAdapter;
-using spdy::Http2HeaderBlock;
+using quiche::HttpHeaderBlock;
 using spdy::Http2WeightToSpdy3Priority;
 using spdy::Spdy3PriorityToHttp2Weight;
 using spdy::SpdyErrorCode;
@@ -729,7 +729,7 @@ size_t QuicSpdySession::ProcessHeaderData(const struct iovec& iov) {
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStream(
-    QuicStreamId id, Http2HeaderBlock headers, bool fin,
+    QuicStreamId id, HttpHeaderBlock headers, bool fin,
     const spdy::SpdyStreamPrecedence& precedence,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
@@ -957,7 +957,7 @@ bool QuicSpdySession::UsesPendingStreamForFrame(QuicFrameType type,
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
-    QuicStreamId id, spdy::Http2HeaderBlock headers, bool fin,
+    QuicStreamId id, quiche::HttpHeaderBlock headers, bool fin,
     QuicStreamId parent_stream_id, int weight, bool exclusive,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {

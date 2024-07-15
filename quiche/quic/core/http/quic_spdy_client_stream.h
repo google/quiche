@@ -12,7 +12,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/quic_packets.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -46,16 +46,18 @@ class QUICHE_EXPORT QuicSpdyClientStream : public QuicSpdyStream {
 
   // Serializes the headers and body, sends it to the server, and
   // returns the number of bytes sent.
-  size_t SendRequest(spdy::Http2HeaderBlock headers, absl::string_view body,
+  size_t SendRequest(quiche::HttpHeaderBlock headers, absl::string_view body,
                      bool fin);
 
   // Returns the response data.
   absl::string_view data() const { return data_; }
 
   // Returns whatever headers have been received for this stream.
-  const spdy::Http2HeaderBlock& response_headers() { return response_headers_; }
+  const quiche::HttpHeaderBlock& response_headers() {
+    return response_headers_;
+  }
 
-  const std::list<spdy::Http2HeaderBlock>& preliminary_headers() {
+  const std::list<quiche::HttpHeaderBlock>& preliminary_headers() {
     return preliminary_headers_;
   }
 
@@ -84,7 +86,7 @@ class QUICHE_EXPORT QuicSpdyClientStream : public QuicSpdyStream {
   // on error.
   virtual bool CopyAndValidateHeaders(const QuicHeaderList& header_list,
                                       int64_t& content_length,
-                                      spdy::Http2HeaderBlock& headers);
+                                      quiche::HttpHeaderBlock& headers);
 
   // Called by OnInitialHeadersComplete to set response_code_ based on
   // response_header_. Returns false on error.
@@ -96,7 +98,7 @@ class QUICHE_EXPORT QuicSpdyClientStream : public QuicSpdyStream {
 
  private:
   // The parsed headers received from the server.
-  spdy::Http2HeaderBlock response_headers_;
+  quiche::HttpHeaderBlock response_headers_;
 
   // The parsed content-length, or -1 if none is specified.
   int64_t content_length_;
@@ -110,7 +112,7 @@ class QUICHE_EXPORT QuicSpdyClientStream : public QuicSpdyStream {
 
   // These preliminary headers are used for interim response headers that may
   // arrive before the final response headers.
-  std::list<spdy::Http2HeaderBlock> preliminary_headers_;
+  std::list<quiche::HttpHeaderBlock> preliminary_headers_;
 
   QuicTime::Delta time_to_response_headers_received_ =
       QuicTime::Delta::Infinite();

@@ -39,9 +39,9 @@
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_session_cache.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
-using spdy::Http2HeaderBlock;
+using quiche::HttpHeaderBlock;
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;

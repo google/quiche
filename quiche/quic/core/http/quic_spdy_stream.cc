@@ -45,7 +45,7 @@
 
 using ::quiche::Capsule;
 using ::quiche::CapsuleType;
-using ::spdy::Http2HeaderBlock;
+using ::quiche::HttpHeaderBlock;
 
 namespace quic {
 
@@ -267,7 +267,7 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
 QuicSpdyStream::~QuicSpdyStream() {}
 
 size_t QuicSpdyStream::WriteHeaders(
-    Http2HeaderBlock header_block, bool fin,
+    HttpHeaderBlock header_block, bool fin,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
   if (!AssertNotWebTransportDataStream("writing headers")) {
@@ -344,7 +344,7 @@ void QuicSpdyStream::WriteOrBufferBody(absl::string_view data, bool fin) {
 }
 
 size_t QuicSpdyStream::WriteTrailers(
-    Http2HeaderBlock trailer_block,
+    HttpHeaderBlock trailer_block,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
   if (fin_sent()) {
@@ -681,10 +681,9 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   }
 }
 
-bool QuicSpdyStream::CopyAndValidateTrailers(const QuicHeaderList& header_list,
-                                             bool expect_final_byte_offset,
-                                             size_t* final_byte_offset,
-                                             spdy::Http2HeaderBlock* trailers) {
+bool QuicSpdyStream::CopyAndValidateTrailers(
+    const QuicHeaderList& header_list, bool expect_final_byte_offset,
+    size_t* final_byte_offset, quiche::HttpHeaderBlock* trailers) {
   return SpdyUtils::CopyAndValidateTrailers(
       header_list, expect_final_byte_offset, final_byte_offset, trailers);
 }
@@ -933,9 +932,9 @@ bool QuicSpdyStream::FinishedReadingHeaders() const {
   return headers_decompressed_ && header_list_.empty();
 }
 
-bool QuicSpdyStream::ParseHeaderStatusCode(const Http2HeaderBlock& header,
+bool QuicSpdyStream::ParseHeaderStatusCode(const HttpHeaderBlock& header,
                                            int* status_code) {
-  Http2HeaderBlock::const_iterator it = header.find(spdy::kHttp2StatusHeader);
+  HttpHeaderBlock::const_iterator it = header.find(spdy::kHttp2StatusHeader);
   if (it == header.end()) {
     return false;
   }
@@ -1287,7 +1286,7 @@ bool QuicSpdyStream::OnUnknownFramePayload(absl::string_view payload) {
 bool QuicSpdyStream::OnUnknownFrameEnd() { return true; }
 
 size_t QuicSpdyStream::WriteHeadersImpl(
-    spdy::Http2HeaderBlock header_block, bool fin,
+    quiche::HttpHeaderBlock header_block, bool fin,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
   if (!VersionUsesHttp3(transport_version())) {
@@ -1381,7 +1380,7 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
 }
 
 void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
-    spdy::Http2HeaderBlock& headers) {
+    quiche::HttpHeaderBlock& headers) {
   if (!spdy_session_->SupportsWebTransport()) {
     return;
   }

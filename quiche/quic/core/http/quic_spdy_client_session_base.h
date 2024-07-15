@@ -11,7 +11,7 @@
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/quic_crypto_client_stream.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 

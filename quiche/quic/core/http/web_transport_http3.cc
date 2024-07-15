@@ -164,7 +164,8 @@ void WebTransportHttp3::CloseSessionWithFinOnlyForTests() {
   connect_stream_->WriteOrBufferBody("", /*fin=*/true);
 }
 
-void WebTransportHttp3::HeadersReceived(const spdy::Http2HeaderBlock& headers) {
+void WebTransportHttp3::HeadersReceived(
+    const quiche::HttpHeaderBlock& headers) {
   if (session_->perspective() == Perspective::IS_CLIENT) {
     int status_code;
     if (!QuicSpdyStream::ParseHeaderStatusCode(headers, &status_code)) {

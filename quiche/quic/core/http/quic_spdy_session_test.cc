@@ -53,7 +53,7 @@
 #include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/spdy/core/spdy_framer.h"
 
-using spdy::Http2HeaderBlock;
+using quiche::HttpHeaderBlock;
 using spdy::kV3HighestPriority;
 using spdy::Spdy3PriorityToHttp2Weight;
 using spdy::SpdyFramer;
@@ -597,7 +597,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     WebTransportHttp3* web_transport =
         session_->GetWebTransportSession(session_id);
     ASSERT_TRUE(web_transport != nullptr);
-    spdy::Http2HeaderBlock header_block;
+    quiche::HttpHeaderBlock header_block;
     web_transport->HeadersReceived(header_block);
   }
 
@@ -1549,7 +1549,7 @@ TEST_P(QuicSpdySessionTestServer,
   // Write until the header stream is flow control blocked.
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(&ClearControlFrame));
-  Http2HeaderBlock headers;
+  HttpHeaderBlock headers;
   SimpleRandom random;
   while (!headers_stream->IsFlowControlBlocked() && stream_id < 2000) {
     EXPECT_FALSE(session_->IsConnectionFlowControlBlocked());
@@ -1904,7 +1904,7 @@ TEST_P(QuicSpdySessionTestClient, TooLargeHeadersMustNotCauseWriteAfterReset) {
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   // Write headers with FIN set to close write side of stream.
   // Header block does not matter.
-  stream->WriteHeaders(Http2HeaderBlock(), /* fin = */ true, nullptr);
+  stream->WriteHeaders(HttpHeaderBlock(), /* fin = */ true, nullptr);
 
   // Receive headers that are too large or empty, with FIN set.
   // This causes the stream to be reset.  No frames must be written after this.
@@ -4160,7 +4160,7 @@ TEST_P(QuicSpdySessionTestClient, LimitEncoderDynamicTableSize) {
 
   TestStream* stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_CALL(*writer_, IsWriteBlocked()).WillRepeatedly(Return(true));
-  Http2HeaderBlock headers;
+  HttpHeaderBlock headers;
   headers[":method"] = "GET";  // entry with index 2 in HPACK static table
   stream->WriteHeaders(std::move(headers), /* fin = */ true, nullptr);
 

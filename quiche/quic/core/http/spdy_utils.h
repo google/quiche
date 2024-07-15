@@ -14,7 +14,7 @@
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 
 namespace quic {
@@ -27,12 +27,12 @@ class QUICHE_EXPORT SpdyUtils {
   // Returns true on success, false if parsing fails or content-length header is
   // missing.
   static bool ExtractContentLengthFromHeaders(int64_t* content_length,
-                                              spdy::Http2HeaderBlock* headers);
+                                              quiche::HttpHeaderBlock* headers);
 
   // Copies a list of headers to a Http2HeaderBlock.
   static bool CopyAndValidateHeaders(const QuicHeaderList& header_list,
                                      int64_t* content_length,
-                                     spdy::Http2HeaderBlock* headers);
+                                     quiche::HttpHeaderBlock* headers);
 
   // Copies a list of headers to a Http2HeaderBlock.
   // If |expect_final_byte_offset| is true, requires exactly one header field
@@ -47,12 +47,12 @@ class QUICHE_EXPORT SpdyUtils {
   static bool CopyAndValidateTrailers(const QuicHeaderList& header_list,
                                       bool expect_final_byte_offset,
                                       size_t* final_byte_offset,
-                                      spdy::Http2HeaderBlock* trailers);
+                                      quiche::HttpHeaderBlock* trailers);
 
   // Populates the fields of |headers| to make a GET request of |url|,
   // which must be fully-qualified.
   static bool PopulateHeaderBlockFromUrl(const std::string url,
-                                         spdy::Http2HeaderBlock* headers);
+                                         quiche::HttpHeaderBlock* headers);
 
   // Returns the advertised QUIC version from the specified alternative service
   // advertisement, or ParsedQuicVersion::Unsupported() if no supported version

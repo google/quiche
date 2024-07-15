@@ -32,8 +32,8 @@
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/spdy/core/http2_frame_decoder_adapter.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -109,7 +109,7 @@ class QUICHE_EXPORT Http3DebugVisitor {
                                QuicByteCount /*payload_length*/) = 0;
   virtual void OnHeadersFrameSent(
       QuicStreamId /*stream_id*/,
-      const spdy::Http2HeaderBlock& /*header_block*/) = 0;
+      const quiche::HttpHeaderBlock& /*header_block*/) = 0;
 
   // 0-RTT related events.
   virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) = 0;
@@ -217,7 +217,7 @@ class QUICHE_EXPORT QuicSpdySession
   // If provided, |ack_notifier_delegate| will be registered to be notified when
   // we have seen ACKs for all packets resulting from this call.
   virtual size_t WriteHeadersOnHeadersStream(
-      QuicStreamId id, spdy::Http2HeaderBlock headers, bool fin,
+      QuicStreamId id, quiche::HttpHeaderBlock headers, bool fin,
       const spdy::SpdyStreamPrecedence& precedence,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
@@ -515,7 +515,7 @@ class QUICHE_EXPORT QuicSpdySession
       PendingStream* pending) override;
 
   size_t WriteHeadersOnHeadersStreamImpl(
-      QuicStreamId id, spdy::Http2HeaderBlock headers, bool fin,
+      QuicStreamId id, quiche::HttpHeaderBlock headers, bool fin,
       QuicStreamId parent_stream_id, int weight, bool exclusive,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);

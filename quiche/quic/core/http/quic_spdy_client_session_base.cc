@@ -13,7 +13,7 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 
-using spdy::Http2HeaderBlock;
+using quiche::HttpHeaderBlock;
 
 namespace quic {
 

@@ -20,13 +20,13 @@
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 
-using spdy::Http2HeaderBlock;
+using quiche::HttpHeaderBlock;
 
 namespace quic {
 
 // static
 bool SpdyUtils::ExtractContentLengthFromHeaders(int64_t* content_length,
-                                                Http2HeaderBlock* headers) {
+                                                HttpHeaderBlock* headers) {
   auto it = headers->find("content-length");
   if (it == headers->end()) {
     return false;
@@ -61,7 +61,7 @@ bool SpdyUtils::ExtractContentLengthFromHeaders(int64_t* content_length,
 
 bool SpdyUtils::CopyAndValidateHeaders(const QuicHeaderList& header_list,
                                        int64_t* content_length,
-                                       Http2HeaderBlock* headers) {
+                                       HttpHeaderBlock* headers) {
   for (const auto& p : header_list) {
     const std::string& name = p.first;
     if (name.empty()) {
@@ -90,7 +90,7 @@ bool SpdyUtils::CopyAndValidateHeaders(const QuicHeaderList& header_list,
 bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
                                         bool expect_final_byte_offset,
                                         size_t* final_byte_offset,
-                                        Http2HeaderBlock* trailers) {
+                                        HttpHeaderBlock* trailers) {
   bool found_final_byte_offset = false;
   for (const auto& p : header_list) {
     const std::string& name = p.first;
@@ -135,7 +135,7 @@ bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
 // static
 // TODO(danzh): Move it to quic/tools/ and switch to use GURL.
 bool SpdyUtils::PopulateHeaderBlockFromUrl(const std::string url,
-                                           Http2HeaderBlock* headers) {
+                                           HttpHeaderBlock* headers) {
   (*headers)[":method"] = "GET";
   size_t pos = url.find("://");
   if (pos == std::string::npos) {

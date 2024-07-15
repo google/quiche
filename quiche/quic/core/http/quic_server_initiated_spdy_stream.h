@@ -6,7 +6,7 @@
 #define QUICHE_QUIC_CORE_HTTP_QUIC_SERVER_INITIATED_SPDY_STREAM_H_
 
 #include "quiche/quic/core/http/quic_spdy_stream.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
@@ -19,7 +19,7 @@ class QUICHE_EXPORT QuicServerInitiatedSpdyStream : public QuicSpdyStream {
 
   void OnBodyAvailable() override;
   size_t WriteHeaders(
-      spdy::Http2HeaderBlock header_block, bool fin,
+      quiche::HttpHeaderBlock header_block, bool fin,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener) override;
   void OnInitialHeadersComplete(bool fin, size_t frame_len,
