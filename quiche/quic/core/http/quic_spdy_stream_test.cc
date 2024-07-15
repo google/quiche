@@ -2409,6 +2409,68 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   stream_->MarkTrailersConsumed();
 }
 
+TEST_P(QuicSpdyStreamTest, BlockedHeaderDecodingAndStopReading) {
+  if (!UsesHttp3()) {
+    return;
+  }
+  Initialize(kShouldProcessData);
+  testing::InSequence s;
+  session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+
+  // HEADERS frame referencing first dynamic table entry.
+  std::string encoded_headers;
+  ASSERT_TRUE(absl::HexStringToBytes("020080", &encoded_headers));
+  std::string headers = HeadersFrame(encoded_headers);
+  EXPECT_CALL(debug_visitor,
+              OnHeadersFrameReceived(stream_->id(), encoded_headers.length()));
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
+
+  // Decoding is blocked because dynamic table entry has not been received yet.
+  EXPECT_FALSE(stream_->headers_decompressed());
+
+  auto decoder_send_stream =
+      QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+  if (GetQuicReloadableFlag(
+          quic_stop_reading_also_stops_header_decompression)) {
+    if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
+      // Stream type.
+      EXPECT_CALL(*session_,
+                  WritevData(decoder_send_stream->id(), /* write_length = */ 1,
+                             /* offset = */ 0, _, _, _));
+      // Send stream cancellation.
+      EXPECT_CALL(*session_,
+                  WritevData(decoder_send_stream->id(), /* write_length = */ 1,
+                             /* offset = */ 1, _, _, _));
+    }
+    EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _)).Times(0);
+  }
+  // Stop reading from now on. Any buffered compressed headers shouldn't be
+  // decompressed and delivered up.
+  stream_->StopReading();
+
+  if (!GetQuicReloadableFlag(
+          quic_stop_reading_also_stops_header_decompression)) {
+    if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
+      // Stream type.
+      EXPECT_CALL(*session_,
+                  WritevData(decoder_send_stream->id(), /* write_length = */ 1,
+                             /* offset = */ 0, _, _, _));
+      // Header acknowledgement.
+      EXPECT_CALL(*session_,
+                  WritevData(decoder_send_stream->id(), /* write_length = */ 1,
+                             /* offset = */ 1, _, _, _));
+    }
+    EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _));
+  }
+  // Deliver dynamic table entry to decoder.
+  session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
+  EXPECT_NE(
+      GetQuicReloadableFlag(quic_stop_reading_also_stops_header_decompression),
+      stream_->headers_decompressed());
+}
+
 TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
   if (!UsesHttp3()) {
     return;

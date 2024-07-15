@@ -119,6 +119,7 @@ class QUICHE_EXPORT QuicSpdyStream
 
   // QuicStream implementation
   void OnClose() override;
+  void StopReading() override;
 
   // Override to maybe close the write side after writing.
   void OnCanWrite() override;
