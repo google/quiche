@@ -13,9 +13,9 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/web_transport/web_transport.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -33,13 +33,13 @@ class WebTransportOnlyBackend : public QuicSimpleServerBackend {
   // QuicSimpleServerBackend implementation.
   bool InitializeBackend(const std::string&) override { return true; }
   bool IsBackendInitialized() const override { return true; }
-  void FetchResponseFromBackend(const spdy::Http2HeaderBlock&,
+  void FetchResponseFromBackend(const quiche::HttpHeaderBlock&,
                                 const std::string&,
                                 RequestHandler* request_handler) override;
   void CloseBackendResponseStream(RequestHandler*) override {}
   bool SupportsWebTransport() override { return true; }
   WebTransportResponse ProcessWebTransportRequest(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       WebTransportSession* session) override;
 
  private:

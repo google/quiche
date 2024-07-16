@@ -15,7 +15,7 @@
 #include "quiche/quic/core/socket_factory.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/tools/quic_backend_response.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
@@ -50,7 +50,7 @@ class QuicSimpleServerBackend {
   };
 
   struct WebTransportResponse {
-    spdy::Http2HeaderBlock response_headers;
+    quiche::HttpHeaderBlock response_headers;
     std::unique_ptr<WebTransportVisitor> visitor;
   };
 
@@ -73,7 +73,7 @@ class QuicSimpleServerBackend {
   //
   // Not called for requests using the CONNECT method.
   virtual void FetchResponseFromBackend(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       const std::string& request_body, RequestHandler* request_handler) = 0;
 
   // Handles headers for requests using the CONNECT method. Called immediately
@@ -84,9 +84,9 @@ class QuicSimpleServerBackend {
   // If not overridden by backend, sends an error appropriate for a server that
   // does not handle CONNECT requests.
   virtual void HandleConnectHeaders(
-      const spdy::Http2HeaderBlock& /*request_headers*/,
+      const quiche::HttpHeaderBlock& /*request_headers*/,
       RequestHandler* request_handler) {
-    spdy::Http2HeaderBlock headers;
+    quiche::HttpHeaderBlock headers;
     headers[":status"] = "405";
     QuicBackendResponse response;
     response.set_headers(std::move(headers));
@@ -108,7 +108,7 @@ class QuicSimpleServerBackend {
   virtual void CloseBackendResponseStream(RequestHandler* request_handler) = 0;
 
   virtual WebTransportResponse ProcessWebTransportRequest(
-      const spdy::Http2HeaderBlock& /*request_headers*/,
+      const quiche::HttpHeaderBlock& /*request_headers*/,
       WebTransportSession* /*session*/) {
     WebTransportResponse response;
     response.response_headers[":status"] = "400";

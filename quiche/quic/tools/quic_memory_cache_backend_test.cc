@@ -25,7 +25,7 @@ using Response = QuicBackendResponse;
 class QuicMemoryCacheBackendTest : public QuicTest {
  protected:
   void CreateRequest(std::string host, std::string path,
-                     spdy::Http2HeaderBlock* headers) {
+                     quiche::HttpHeaderBlock* headers) {
     (*headers)[":method"] = "GET";
     (*headers)[":path"] = path;
     (*headers)[":authority"] = host;
@@ -49,7 +49,7 @@ TEST_F(QuicMemoryCacheBackendTest, AddSimpleResponseGetResponse) {
   std::string response_body("hello response");
   cache_.AddSimpleResponse("www.google.com", "/", 200, response_body);
 
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   CreateRequest("www.google.com", "/", &request_headers);
   const Response* response = cache_.GetResponse("www.google.com", "/");
   ASSERT_TRUE(response);
@@ -63,11 +63,11 @@ TEST_F(QuicMemoryCacheBackendTest, AddResponse) {
   const std::string kRequestPath = "/";
   const std::string kResponseBody("hello response");
 
-  spdy::Http2HeaderBlock response_headers;
+  quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
   response_headers["content-length"] = absl::StrCat(kResponseBody.size());
 
-  spdy::Http2HeaderBlock response_trailers;
+  quiche::HttpHeaderBlock response_trailers;
   response_trailers["key-1"] = "value-1";
   response_trailers["key-2"] = "value-2";
   response_trailers["key-3"] = "value-3";
@@ -157,7 +157,7 @@ TEST_F(QuicMemoryCacheBackendTest, DefaultResponse) {
   ASSERT_FALSE(response);
 
   // Add a default response.
-  spdy::Http2HeaderBlock response_headers;
+  quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
   response_headers["content-length"] = "0";
   Response* default_response = new Response;

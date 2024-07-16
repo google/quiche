@@ -23,9 +23,9 @@
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -35,7 +35,7 @@ namespace {
 constexpr size_t kReadSize = 4 * 1024;
 
 std::optional<QuicServerId> ValidateHeadersAndGetAuthority(
-    const spdy::Http2HeaderBlock& request_headers) {
+    const quiche::HttpHeaderBlock& request_headers) {
   QUICHE_DCHECK(request_headers.contains(":method"));
   QUICHE_DCHECK(request_headers.find(":method")->second == "CONNECT");
   QUICHE_DCHECK(!request_headers.contains(":protocol"));
@@ -108,7 +108,7 @@ ConnectTunnel::~ConnectTunnel() {
   QUICHE_DCHECK(!receive_started_);
 }
 
-void ConnectTunnel::OpenTunnel(const spdy::Http2HeaderBlock& request_headers) {
+void ConnectTunnel::OpenTunnel(const quiche::HttpHeaderBlock& request_headers) {
   QUICHE_DCHECK(!IsConnectedToDestination());
 
   std::optional<QuicServerId> authority =
@@ -266,7 +266,7 @@ void ConnectTunnel::SendConnectResponse() {
   QUICHE_DCHECK(IsConnectedToDestination());
   QUICHE_DCHECK(client_stream_request_handler_);
 
-  spdy::Http2HeaderBlock response_headers;
+  quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
 
   QuicBackendResponse response;

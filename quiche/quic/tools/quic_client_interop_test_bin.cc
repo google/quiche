@@ -22,9 +22,9 @@
 #include "quiche/quic/tools/quic_default_client.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_url.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_system_event_loop.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, host, "",
                                 "The IP or hostname to connect to.");
@@ -121,11 +121,11 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
 
   // Constructs a Http2HeaderBlock containing the pseudo-headers needed to make
   // a GET request to "/" on the hostname |authority|.
-  spdy::Http2HeaderBlock ConstructHeaderBlock(const std::string& authority);
+  quiche::HttpHeaderBlock ConstructHeaderBlock(const std::string& authority);
 
   // Sends an HTTP request represented by |header_block| using |client|.
   void SendRequest(QuicDefaultClient* client,
-                   const spdy::Http2HeaderBlock& header_block);
+                   const quiche::HttpHeaderBlock& header_block);
 
   void OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override {
     switch (frame.close_type) {
@@ -175,7 +175,7 @@ void QuicClientInteropRunner::AttemptResumption(QuicDefaultClient* client,
 
   bool zero_rtt_attempt = !client->session()->OneRttKeysAvailable();
 
-  spdy::Http2HeaderBlock header_block = ConstructHeaderBlock(authority);
+  quiche::HttpHeaderBlock header_block = ConstructHeaderBlock(authority);
   SendRequest(client, header_block);
 
   if (!client->session()->OneRttKeysAvailable()) {
@@ -264,7 +264,7 @@ void QuicClientInteropRunner::AttemptRequest(
     InsertFeature(Feature::kQuantum);
   }
 
-  spdy::Http2HeaderBlock header_block = ConstructHeaderBlock(authority);
+  quiche::HttpHeaderBlock header_block = ConstructHeaderBlock(authority);
   SendRequest(client.get(), header_block);
 
   if (!client->connected()) {
@@ -332,10 +332,10 @@ void QuicClientInteropRunner::AttemptRequest(
   AttemptResumption(client.get(), authority);
 }
 
-spdy::Http2HeaderBlock QuicClientInteropRunner::ConstructHeaderBlock(
+quiche::HttpHeaderBlock QuicClientInteropRunner::ConstructHeaderBlock(
     const std::string& authority) {
   // Construct and send a request.
-  spdy::Http2HeaderBlock header_block;
+  quiche::HttpHeaderBlock header_block;
   header_block[":method"] = "GET";
   header_block[":scheme"] = "https";
   header_block[":authority"] = authority;
@@ -344,7 +344,7 @@ spdy::Http2HeaderBlock QuicClientInteropRunner::ConstructHeaderBlock(
 }
 
 void QuicClientInteropRunner::SendRequest(
-    QuicDefaultClient* client, const spdy::Http2HeaderBlock& header_block) {
+    QuicDefaultClient* client, const quiche::HttpHeaderBlock& header_block) {
   client->set_store_response(true);
   client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
 

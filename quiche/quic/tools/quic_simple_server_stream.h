@@ -14,7 +14,7 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -79,16 +79,16 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   // Sends the response header (if not `std::nullopt`) and body, but not the
   // fin.
   void SendIncompleteResponse(
-      std::optional<spdy::Http2HeaderBlock> response_headers,
+      std::optional<quiche::HttpHeaderBlock> response_headers,
       absl::string_view body);
 
-  void SendHeadersAndBody(spdy::Http2HeaderBlock response_headers,
+  void SendHeadersAndBody(quiche::HttpHeaderBlock response_headers,
                           absl::string_view body);
   void SendHeadersAndBodyAndTrailers(
-      std::optional<spdy::Http2HeaderBlock> response_headers,
-      absl::string_view body, spdy::Http2HeaderBlock response_trailers);
+      std::optional<quiche::HttpHeaderBlock> response_headers,
+      absl::string_view body, quiche::HttpHeaderBlock response_trailers);
 
-  spdy::Http2HeaderBlock* request_headers() { return &request_headers_; }
+  quiche::HttpHeaderBlock* request_headers() { return &request_headers_; }
 
   // Returns true iff the request (per saved `request_headers_`) is a CONNECT or
   // Extended CONNECT request.
@@ -107,7 +107,7 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   bool response_sent() const { return response_sent_; }
   void set_response_sent() { response_sent_ = true; }
   // The parsed headers received from the client.
-  spdy::Http2HeaderBlock request_headers_;
+  quiche::HttpHeaderBlock request_headers_;
   int64_t content_length_;
   std::string body_;
 

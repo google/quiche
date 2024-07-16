@@ -15,9 +15,9 @@
 #include "quiche/quic/tools/connect_tunnel.h"
 #include "quiche/quic/tools/connect_udp_tunnel.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -25,7 +25,7 @@ namespace {
 
 void SendErrorResponse(QuicSimpleServerBackend::RequestHandler* request_handler,
                        absl::string_view error_code) {
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   headers[":status"] = error_code;
   QuicBackendResponse response;
   response.set_headers(std::move(headers));
@@ -69,7 +69,7 @@ void ConnectServerBackend::SetSocketFactory(SocketFactory* socket_factory) {
 }
 
 void ConnectServerBackend::FetchResponseFromBackend(
-    const spdy::Http2HeaderBlock& request_headers,
+    const quiche::HttpHeaderBlock& request_headers,
     const std::string& request_body, RequestHandler* request_handler) {
   // Not a CONNECT request, so send to `non_connect_backend_`.
   non_connect_backend_->FetchResponseFromBackend(request_headers, request_body,
@@ -77,7 +77,7 @@ void ConnectServerBackend::FetchResponseFromBackend(
 }
 
 void ConnectServerBackend::HandleConnectHeaders(
-    const spdy::Http2HeaderBlock& request_headers,
+    const quiche::HttpHeaderBlock& request_headers,
     RequestHandler* request_handler) {
   QUICHE_DCHECK(request_headers.contains(":method") &&
                 request_headers.find(":method")->second == "CONNECT");

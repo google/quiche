@@ -62,10 +62,10 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_url.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace {
 
@@ -437,7 +437,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   }
 
   // Construct a GET or POST request for supplied URL.
-  spdy::Http2HeaderBlock header_block;
+  quiche::HttpHeaderBlock header_block;
   header_block[":method"] = body.empty() ? "GET" : "POST";
   header_block[":scheme"] = url.scheme();
   header_block[":authority"] = url.HostPort();

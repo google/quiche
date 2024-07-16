@@ -19,8 +19,8 @@
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/socket_factory.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -41,7 +41,7 @@ class ConnectTunnel : public ConnectingClientSocket::AsyncVisitor {
   // appropriate success/error response to the request stream. `request_headers`
   // must represent headers from a CONNECT request, that is ":method"="CONNECT"
   // and no ":protocol".
-  void OpenTunnel(const spdy::Http2HeaderBlock& request_headers);
+  void OpenTunnel(const quiche::HttpHeaderBlock& request_headers);
 
   // Returns true iff the connection to the destination server is currently open
   bool IsConnectedToDestination() const;

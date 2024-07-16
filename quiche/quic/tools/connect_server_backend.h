@@ -42,10 +42,10 @@ class ConnectServerBackend : public QuicSimpleServerBackend {
   bool InitializeBackend(const std::string& backend_url) override;
   bool IsBackendInitialized() const override;
   void SetSocketFactory(SocketFactory* socket_factory) override;
-  void FetchResponseFromBackend(const spdy::Http2HeaderBlock& request_headers,
+  void FetchResponseFromBackend(const quiche::HttpHeaderBlock& request_headers,
                                 const std::string& request_body,
                                 RequestHandler* request_handler) override;
-  void HandleConnectHeaders(const spdy::Http2HeaderBlock& request_headers,
+  void HandleConnectHeaders(const quiche::HttpHeaderBlock& request_headers,
                             RequestHandler* request_handler) override;
   void HandleConnectData(absl::string_view data, bool data_complete,
                          RequestHandler* request_handler) override;

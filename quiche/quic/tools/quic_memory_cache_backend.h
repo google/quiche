@@ -16,7 +16,7 @@
 #include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -48,7 +48,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
     absl::string_view path() { return path_; }
 
-    const spdy::Http2HeaderBlock& spdy_headers() { return spdy_headers_; }
+    const quiche::HttpHeaderBlock& spdy_headers() { return spdy_headers_; }
 
     absl::string_view body() { return body_; }
 
@@ -61,7 +61,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
     std::string file_name_;
     std::string file_contents_;
     absl::string_view body_;
-    spdy::Http2HeaderBlock spdy_headers_;
+    quiche::HttpHeaderBlock spdy_headers_;
     absl::string_view x_original_url_;
     std::vector<absl::string_view> push_urls_;
     std::string host_;
@@ -85,20 +85,20 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   // Add a response to the cache.
   void AddResponse(absl::string_view host, absl::string_view path,
-                   spdy::Http2HeaderBlock response_headers,
+                   quiche::HttpHeaderBlock response_headers,
                    absl::string_view response_body);
 
   // Add a response, with trailers, to the cache.
   void AddResponse(absl::string_view host, absl::string_view path,
-                   spdy::Http2HeaderBlock response_headers,
+                   quiche::HttpHeaderBlock response_headers,
                    absl::string_view response_body,
-                   spdy::Http2HeaderBlock response_trailers);
+                   quiche::HttpHeaderBlock response_trailers);
 
   // Add a response, with 103 Early Hints, to the cache.
   void AddResponseWithEarlyHints(
       absl::string_view host, absl::string_view path,
-      spdy::Http2HeaderBlock response_headers, absl::string_view response_body,
-      const std::vector<spdy::Http2HeaderBlock>& early_hints);
+      quiche::HttpHeaderBlock response_headers, absl::string_view response_body,
+      const std::vector<quiche::HttpHeaderBlock>& early_hints);
 
   // Simulate a special behavior at a particular path.
   void AddSpecialResponse(
@@ -107,7 +107,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   void AddSpecialResponse(
       absl::string_view host, absl::string_view path,
-      spdy::Http2HeaderBlock response_headers, absl::string_view response_body,
+      quiche::HttpHeaderBlock response_headers, absl::string_view response_body,
       QuicBackendResponse::SpecialResponseType response_type);
 
   // Finds a response with the given host and path, and assign it a simulated
@@ -131,23 +131,23 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   bool InitializeBackend(const std::string& cache_directory) override;
   bool IsBackendInitialized() const override;
   void FetchResponseFromBackend(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       const std::string& request_body,
       QuicSimpleServerBackend::RequestHandler* quic_stream) override;
   void CloseBackendResponseStream(
       QuicSimpleServerBackend::RequestHandler* quic_stream) override;
   WebTransportResponse ProcessWebTransportRequest(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       WebTransportSession* session) override;
   bool SupportsWebTransport() override { return enable_webtransport_; }
 
  private:
   void AddResponseImpl(absl::string_view host, absl::string_view path,
                        QuicBackendResponse::SpecialResponseType response_type,
-                       spdy::Http2HeaderBlock response_headers,
+                       quiche::HttpHeaderBlock response_headers,
                        absl::string_view response_body,
-                       spdy::Http2HeaderBlock response_trailers,
-                       const std::vector<spdy::Http2HeaderBlock>& early_hints);
+                       quiche::HttpHeaderBlock response_trailers,
+                       const std::vector<quiche::HttpHeaderBlock>& early_hints);
 
   std::string GetKey(absl::string_view host, absl::string_view path) const;
 

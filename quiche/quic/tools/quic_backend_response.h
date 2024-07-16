@@ -7,7 +7,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
@@ -35,16 +35,16 @@ class QuicBackendResponse {
 
   ~QuicBackendResponse();
 
-  const std::vector<spdy::Http2HeaderBlock>& early_hints() const {
+  const std::vector<quiche::HttpHeaderBlock>& early_hints() const {
     return early_hints_;
   }
   SpecialResponseType response_type() const { return response_type_; }
-  const spdy::Http2HeaderBlock& headers() const { return headers_; }
-  const spdy::Http2HeaderBlock& trailers() const { return trailers_; }
+  const quiche::HttpHeaderBlock& headers() const { return headers_; }
+  const quiche::HttpHeaderBlock& trailers() const { return trailers_; }
   const absl::string_view body() const { return absl::string_view(body_); }
 
-  void AddEarlyHints(const spdy::Http2HeaderBlock& headers) {
-    spdy::Http2HeaderBlock hints = headers.Clone();
+  void AddEarlyHints(const quiche::HttpHeaderBlock& headers) {
+    quiche::HttpHeaderBlock hints = headers.Clone();
     hints[":status"] = "103";
     early_hints_.push_back(std::move(hints));
   }
@@ -53,10 +53,10 @@ class QuicBackendResponse {
     response_type_ = response_type;
   }
 
-  void set_headers(spdy::Http2HeaderBlock headers) {
+  void set_headers(quiche::HttpHeaderBlock headers) {
     headers_ = std::move(headers);
   }
-  void set_trailers(spdy::Http2HeaderBlock trailers) {
+  void set_trailers(quiche::HttpHeaderBlock trailers) {
     trailers_ = std::move(trailers);
   }
   void set_body(absl::string_view body) {
@@ -69,10 +69,10 @@ class QuicBackendResponse {
   QuicTime::Delta delay() const { return delay_; }
 
  private:
-  std::vector<spdy::Http2HeaderBlock> early_hints_;
+  std::vector<quiche::HttpHeaderBlock> early_hints_;
   SpecialResponseType response_type_;
-  spdy::Http2HeaderBlock headers_;
-  spdy::Http2HeaderBlock trailers_;
+  quiche::HttpHeaderBlock headers_;
+  quiche::HttpHeaderBlock trailers_;
   std::string body_;
   QuicTime::Delta delay_;
 };

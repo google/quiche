@@ -26,13 +26,13 @@
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/masque/connect_udp_datagram_payload.h"
 #include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/platform/api/quiche_url_utils.h"
 #include "quiche/common/structured_headers.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -113,7 +113,7 @@ std::optional<QuicServerId> ValidateAndParseTargetFromPath(
 
 // Validate header expectations from RFC 9298, section 3.4.
 std::optional<QuicServerId> ValidateHeadersAndGetTarget(
-    const spdy::Http2HeaderBlock& request_headers) {
+    const quiche::HttpHeaderBlock& request_headers) {
   QUICHE_DCHECK(request_headers.contains(":method"));
   QUICHE_DCHECK(request_headers.find(":method")->second == "CONNECT");
   QUICHE_DCHECK(request_headers.contains(":protocol"));
@@ -185,7 +185,7 @@ ConnectUdpTunnel::~ConnectUdpTunnel() {
 }
 
 void ConnectUdpTunnel::OpenTunnel(
-    const spdy::Http2HeaderBlock& request_headers) {
+    const quiche::HttpHeaderBlock& request_headers) {
   QUICHE_DCHECK(!IsTunnelOpenToTarget());
 
   std::optional<QuicServerId> target =
@@ -345,7 +345,7 @@ void ConnectUdpTunnel::SendConnectResponse() {
   QUICHE_DCHECK(IsTunnelOpenToTarget());
   QUICHE_DCHECK(client_stream_request_handler_);
 
-  spdy::Http2HeaderBlock response_headers;
+  quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
 
   std::optional<std::string> capsule_protocol_value =
@@ -380,7 +380,7 @@ void ConnectUdpTunnel::SendErrorResponse(absl::string_view status,
   QUICHE_DCHECK(status_num < 200 || status_num >= 300);
 #endif  // !NDEBUG
 
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   headers[":status"] = status;
 
   structured_headers::Item proxy_status_item(server_label_);

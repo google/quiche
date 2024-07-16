@@ -22,7 +22,7 @@ class QuicSimpleClientStream : public QuicSpdyClientStream {
   void OnBodyAvailable() override;
 
   void set_on_interim_headers(
-      quiche::MultiUseCallback<void(const spdy::Http2HeaderBlock&)>
+      quiche::MultiUseCallback<void(const quiche::HttpHeaderBlock&)>
           on_interim_headers) {
     on_interim_headers_ = std::move(on_interim_headers);
   }
@@ -31,7 +31,7 @@ class QuicSimpleClientStream : public QuicSpdyClientStream {
   bool ParseAndValidateStatusCode() override;
 
  private:
-  quiche::MultiUseCallback<void(const spdy::Http2HeaderBlock&)>
+  quiche::MultiUseCallback<void(const quiche::HttpHeaderBlock&)>
       on_interim_headers_;
   const bool drop_response_body_;
 };
