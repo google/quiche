@@ -245,7 +245,7 @@ size_t MoqtParser::ProcessObject(quic::QuicDataReader& reader,
       return processed_data;
     }
     visitor_.OnObjectMessage(*object_metadata_, "", true);
-    return processed_data;
+    return reader.PreviouslyReadPayload().length();
   }
   bool has_length = object_metadata_->payload_length.has_value();
   bool received_complete_message = false;
