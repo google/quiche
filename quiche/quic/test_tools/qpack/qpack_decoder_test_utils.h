@@ -13,7 +13,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 namespace test {
@@ -46,14 +46,14 @@ class TestHeadersHandler
 
   // Release decoded header list.  Must only be called if decoding is complete
   // and no errors have been detected.
-  spdy::Http2HeaderBlock ReleaseHeaderList();
+  quiche::HttpHeaderBlock ReleaseHeaderList();
 
   bool decoding_completed() const;
   bool decoding_error_detected() const;
   const std::string& error_message() const;
 
  private:
-  spdy::Http2HeaderBlock header_list_;
+  quiche::HttpHeaderBlock header_list_;
   bool decoding_completed_;
   bool decoding_error_detected_;
   std::string error_message_;

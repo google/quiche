@@ -42,7 +42,7 @@ void TestHeadersHandler::OnDecodingErrorDetected(
   error_message_.assign(error_message.data(), error_message.size());
 }
 
-spdy::Http2HeaderBlock TestHeadersHandler::ReleaseHeaderList() {
+quiche::HttpHeaderBlock TestHeadersHandler::ReleaseHeaderList() {
   QUICHE_DCHECK(decoding_completed_);
   QUICHE_DCHECK(!decoding_error_detected_);
 

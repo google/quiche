@@ -9,10 +9,10 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/core/spdy_protocol.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 // Convenience macros for printing function arguments in log lines in the
 // format arg_name=value.
@@ -64,7 +64,7 @@ auto LogContainer(const T& container, ItemLogger item_logger)
 
 namespace http2 {
 
-using spdy::Http2HeaderBlock;
+using quiche::HttpHeaderBlock;
 using spdy::SettingsMap;
 using spdy::SpdyAltSvcIR;
 using spdy::SpdyContinuationIR;
@@ -82,10 +82,10 @@ using spdy::SpdyWindowUpdateIR;
 
 namespace {
 
-// Defines how elements of Http2HeaderBlocks are logged.
+// Defines how elements of HttpHeaderBlocks are logged.
 struct LogHeaderBlockEntry {
   void Log(std::ostream& out,
-           const Http2HeaderBlock::value_type& entry) const {  // NOLINT
+           const HttpHeaderBlock::value_type& entry) const {  // NOLINT
     out << "\"" << entry.first << "\": \"" << entry.second << "\"";
   }
 };

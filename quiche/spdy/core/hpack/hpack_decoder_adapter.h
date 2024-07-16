@@ -18,8 +18,8 @@
 #include "quiche/http2/hpack/decoder/hpack_decoder.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_listener.h"
 #include "quiche/http2/hpack/decoder/hpack_decoding_error.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace spdy {
 namespace test {

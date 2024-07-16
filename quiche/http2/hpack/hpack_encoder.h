@@ -15,9 +15,9 @@
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/hpack_header_table.h"
 #include "quiche/http2/hpack/hpack_output_stream.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 // An HpackEncoder encodes header sets as outlined in
 // http://tools.ietf.org/html/rfc7541.
@@ -49,7 +49,7 @@ class QUICHE_EXPORT HpackEncoder {
   ~HpackEncoder();
 
   // Encodes and returns the given header set as a string.
-  std::string EncodeHeaderBlock(const Http2HeaderBlock& header_set);
+  std::string EncodeHeaderBlock(const quiche::HttpHeaderBlock& header_set);
 
   class QUICHE_EXPORT ProgressiveEncoder {
    public:
@@ -63,9 +63,9 @@ class QUICHE_EXPORT HpackEncoder {
   };
 
   // Returns a ProgressiveEncoder which must be outlived by both the given
-  // Http2HeaderBlock and this object.
+  // quiche::HttpHeaderBlock and this object.
   std::unique_ptr<ProgressiveEncoder> EncodeHeaderSet(
-      const Http2HeaderBlock& header_set);
+      const quiche::HttpHeaderBlock& header_set);
   // Returns a ProgressiveEncoder which must be outlived by this HpackEncoder.
   // The encoder will not attempt to split any \0-delimited values in
   // |representations|. If such splitting is desired, it must be performed by

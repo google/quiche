@@ -9,8 +9,8 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/core/spdy_headers_handler_interface.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace spdy {
 
@@ -31,7 +31,7 @@ class QUICHE_EXPORT RecordingHeadersHandler
   void OnHeaderBlockEnd(size_t uncompressed_header_bytes,
                         size_t compressed_header_bytes) override;
 
-  const Http2HeaderBlock& decoded_block() const { return block_; }
+  const quiche::HttpHeaderBlock& decoded_block() const { return block_; }
   size_t uncompressed_header_bytes() const {
     return uncompressed_header_bytes_;
   }
@@ -39,7 +39,7 @@ class QUICHE_EXPORT RecordingHeadersHandler
 
  private:
   SpdyHeadersHandlerInterface* wrapped_ = nullptr;
-  Http2HeaderBlock block_;
+  quiche::HttpHeaderBlock block_;
   size_t uncompressed_header_bytes_ = 0;
   size_t compressed_header_bytes_ = 0;
 };

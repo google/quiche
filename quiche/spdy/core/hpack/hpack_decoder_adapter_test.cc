@@ -27,10 +27,10 @@
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/http2/test_tools/hpack_block_builder.h"
 #include "quiche/http2/test_tools/http2_random.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 using ::http2::HpackEntryType;
 using ::http2::HpackStringPair;
@@ -179,11 +179,11 @@ class HpackDecoderAdapterTest : public quiche::test::QuicheTestWithParam<bool> {
     return DecodeHeaderBlock(hbb.buffer());
   }
 
-  const Http2HeaderBlock& decoded_block() const {
+  const quiche::HttpHeaderBlock& decoded_block() const {
     return handler_.decoded_block();
   }
 
-  static size_t SizeOfHeaders(const Http2HeaderBlock& headers) {
+  static size_t SizeOfHeaders(const quiche::HttpHeaderBlock& headers) {
     size_t size = 0;
     for (const auto& kv : headers) {
       if (kv.first == kCookieKey) {
@@ -199,7 +199,8 @@ class HpackDecoderAdapterTest : public quiche::test::QuicheTestWithParam<bool> {
     return size;
   }
 
-  const Http2HeaderBlock& DecodeBlockExpectingSuccess(absl::string_view str) {
+  const quiche::HttpHeaderBlock& DecodeBlockExpectingSuccess(
+      absl::string_view str) {
     EXPECT_TRUE(DecodeHeaderBlock(str));
     return decoded_block();
   }
@@ -212,9 +213,9 @@ class HpackDecoderAdapterTest : public quiche::test::QuicheTestWithParam<bool> {
     EXPECT_EQ(size, entry->size());
   }
 
-  Http2HeaderBlock MakeHeaderBlock(
+  quiche::HttpHeaderBlock MakeHeaderBlock(
       const std::vector<std::pair<std::string, std::string>>& headers) {
-    Http2HeaderBlock result;
+    quiche::HttpHeaderBlock result;
     for (const auto& kv : headers) {
       result.AppendValueOrAddHeader(kv.first, kv.second);
     }
@@ -225,7 +226,7 @@ class HpackDecoderAdapterTest : public quiche::test::QuicheTestWithParam<bool> {
   HpackDecoderAdapter decoder_;
   test::HpackDecoderAdapterPeer decoder_peer_;
   RecordingHeadersHandler handler_;
-  const Http2HeaderBlock dummy_block_;
+  const quiche::HttpHeaderBlock dummy_block_;
   bool randomly_split_input_buffer_;
   bool decode_has_failed_ = false;
   size_t bytes_passed_in_;
@@ -262,7 +263,7 @@ TEST_P(HpackDecoderAdapterTest,
   EXPECT_TRUE(HandleControlFrameHeadersData(s.substr(s.size() / 2)));
 
   EXPECT_FALSE(HandleControlFrameHeadersData(s));
-  Http2HeaderBlock expected_block = MakeHeaderBlock({{"a", a_value}});
+  quiche::HttpHeaderBlock expected_block = MakeHeaderBlock({{"a", a_value}});
   EXPECT_EQ(expected_block, decoded_block());
 }
 
@@ -338,7 +339,7 @@ TEST_P(HpackDecoderAdapterTest, DecodeWithIncompleteData) {
   std::vector<std::pair<std::string, std::string>> expected_headers = {
       {":method", "GET"}, {":path", "/index.html"}, {":method", "GET"}};
 
-  Http2HeaderBlock expected_block1 = MakeHeaderBlock(expected_headers);
+  quiche::HttpHeaderBlock expected_block1 = MakeHeaderBlock(expected_headers);
   EXPECT_EQ(expected_block1, decoded_block());
 
   // Full and partial headers, won't add partial to the headers.
@@ -348,7 +349,7 @@ TEST_P(HpackDecoderAdapterTest, DecodeWithIncompleteData) {
   expected_headers.push_back({"goo", "gar"});
   expected_headers.push_back({"goo", "gar"});
 
-  Http2HeaderBlock expected_block2 = MakeHeaderBlock(expected_headers);
+  quiche::HttpHeaderBlock expected_block2 = MakeHeaderBlock(expected_headers);
   EXPECT_EQ(expected_block2, decoded_block());
 
   // Add the needed data.
@@ -358,7 +359,7 @@ TEST_P(HpackDecoderAdapterTest, DecodeWithIncompleteData) {
 
   expected_headers.push_back({"spam", "gggs"});
 
-  Http2HeaderBlock expected_block3 = MakeHeaderBlock(expected_headers);
+  quiche::HttpHeaderBlock expected_block3 = MakeHeaderBlock(expected_headers);
   EXPECT_EQ(expected_block3, decoded_block());
 }
 
@@ -410,44 +411,47 @@ TEST_P(HpackDecoderAdapterTest, HandleHeaderRepresentation) {
 // Decoding indexed static table field should work.
 TEST_P(HpackDecoderAdapterTest, IndexedHeaderStatic) {
   // Reference static table entries #2 and #5.
-  const Http2HeaderBlock& header_set1 = DecodeBlockExpectingSuccess("\x82\x85");
-  Http2HeaderBlock expected_header_set1;
+  const quiche::HttpHeaderBlock& header_set1 =
+      DecodeBlockExpectingSuccess("\x82\x85");
+  quiche::HttpHeaderBlock expected_header_set1;
   expected_header_set1[":method"] = "GET";
   expected_header_set1[":path"] = "/index.html";
   EXPECT_EQ(expected_header_set1, header_set1);
 
   // Reference static table entry #2.
-  const Http2HeaderBlock& header_set2 = DecodeBlockExpectingSuccess("\x82");
-  Http2HeaderBlock expected_header_set2;
+  const quiche::HttpHeaderBlock& header_set2 =
+      DecodeBlockExpectingSuccess("\x82");
+  quiche::HttpHeaderBlock expected_header_set2;
   expected_header_set2[":method"] = "GET";
   EXPECT_EQ(expected_header_set2, header_set2);
 }
 
 TEST_P(HpackDecoderAdapterTest, IndexedHeaderDynamic) {
   // First header block: add an entry to header table.
-  const Http2HeaderBlock& header_set1 = DecodeBlockExpectingSuccess(
+  const quiche::HttpHeaderBlock& header_set1 = DecodeBlockExpectingSuccess(
       "\x40\x03"
       "foo"
       "\x03"
       "bar");
-  Http2HeaderBlock expected_header_set1;
+  quiche::HttpHeaderBlock expected_header_set1;
   expected_header_set1["foo"] = "bar";
   EXPECT_EQ(expected_header_set1, header_set1);
 
   // Second header block: add another entry to header table.
-  const Http2HeaderBlock& header_set2 = DecodeBlockExpectingSuccess(
+  const quiche::HttpHeaderBlock& header_set2 = DecodeBlockExpectingSuccess(
       "\xbe\x40\x04"
       "spam"
       "\x04"
       "eggs");
-  Http2HeaderBlock expected_header_set2;
+  quiche::HttpHeaderBlock expected_header_set2;
   expected_header_set2["foo"] = "bar";
   expected_header_set2["spam"] = "eggs";
   EXPECT_EQ(expected_header_set2, header_set2);
 
   // Third header block: refer to most recently added entry.
-  const Http2HeaderBlock& header_set3 = DecodeBlockExpectingSuccess("\xbe");
-  Http2HeaderBlock expected_header_set3;
+  const quiche::HttpHeaderBlock& header_set3 =
+      DecodeBlockExpectingSuccess("\xbe");
+  quiche::HttpHeaderBlock expected_header_set3;
   expected_header_set3["spam"] = "eggs";
   EXPECT_EQ(expected_header_set3, header_set3);
 }
@@ -581,10 +585,10 @@ TEST_P(HpackDecoderAdapterTest, LiteralHeaderNoIndexing) {
   // First header with indexed name, second header with string literal
   // name.
   const char input[] = "\x04\x0c/sample/path\x00\x06:path2\x0e/sample/path/2";
-  const Http2HeaderBlock& header_set = DecodeBlockExpectingSuccess(
+  const quiche::HttpHeaderBlock& header_set = DecodeBlockExpectingSuccess(
       absl::string_view(input, ABSL_ARRAYSIZE(input) - 1));
 
-  Http2HeaderBlock expected_header_set;
+  quiche::HttpHeaderBlock expected_header_set;
   expected_header_set[":path"] = "/sample/path";
   expected_header_set[":path2"] = "/sample/path/2";
   EXPECT_EQ(expected_header_set, header_set);
@@ -594,10 +598,10 @@ TEST_P(HpackDecoderAdapterTest, LiteralHeaderNoIndexing) {
 // indexing and string literal names should work.
 TEST_P(HpackDecoderAdapterTest, LiteralHeaderIncrementalIndexing) {
   const char input[] = "\x44\x0c/sample/path\x40\x06:path2\x0e/sample/path/2";
-  const Http2HeaderBlock& header_set = DecodeBlockExpectingSuccess(
+  const quiche::HttpHeaderBlock& header_set = DecodeBlockExpectingSuccess(
       absl::string_view(input, ABSL_ARRAYSIZE(input) - 1));
 
-  Http2HeaderBlock expected_header_set;
+  quiche::HttpHeaderBlock expected_header_set;
   expected_header_set[":path"] = "/sample/path";
   expected_header_set[":path2"] = "/sample/path/2";
   EXPECT_EQ(expected_header_set, header_set);
@@ -680,7 +684,7 @@ TEST_P(HpackDecoderAdapterTest, HuffmanEOSError) {
 TEST_P(HpackDecoderAdapterTest, BasicC31) {
   HpackEncoder encoder;
 
-  Http2HeaderBlock expected_header_set;
+  quiche::HttpHeaderBlock expected_header_set;
   expected_header_set[":method"] = "GET";
   expected_header_set[":scheme"] = "http";
   expected_header_set[":path"] = "/";
@@ -720,7 +724,8 @@ TEST_P(HpackDecoderAdapterTest, SectionC4RequestHuffmanExamples) {
   std::string first;
   ASSERT_TRUE(
       absl::HexStringToBytes("828684418cf1e3c2e5f23a6ba0ab90f4ff", &first));
-  const Http2HeaderBlock& first_header_set = DecodeBlockExpectingSuccess(first);
+  const quiche::HttpHeaderBlock& first_header_set =
+      DecodeBlockExpectingSuccess(first);
 
   EXPECT_THAT(first_header_set,
               ElementsAre(
@@ -758,7 +763,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC4RequestHuffmanExamples) {
 
   std::string second;
   ASSERT_TRUE(absl::HexStringToBytes("828684be5886a8eb10649cbf", &second));
-  const Http2HeaderBlock& second_header_set =
+  const quiche::HttpHeaderBlock& second_header_set =
       DecodeBlockExpectingSuccess(second);
 
   EXPECT_THAT(second_header_set,
@@ -802,7 +807,8 @@ TEST_P(HpackDecoderAdapterTest, SectionC4RequestHuffmanExamples) {
   std::string third;
   ASSERT_TRUE(absl::HexStringToBytes(
       "828785bf408825a849e95ba97d7f8925a849e95bb8e8b4bf", &third));
-  const Http2HeaderBlock& third_header_set = DecodeBlockExpectingSuccess(third);
+  const quiche::HttpHeaderBlock& third_header_set =
+      DecodeBlockExpectingSuccess(third);
 
   EXPECT_THAT(
       third_header_set,
@@ -875,7 +881,8 @@ TEST_P(HpackDecoderAdapterTest, SectionC6ResponseHuffmanExamples) {
       "488264025885aec3771a4b6196d07abe941054d444a8200595040b8166e082a62d1bff6e"
       "919d29ad171863c78f0b97c8e9ae82ae43d3",
       &first));
-  const Http2HeaderBlock& first_header_set = DecodeBlockExpectingSuccess(first);
+  const quiche::HttpHeaderBlock& first_header_set =
+      DecodeBlockExpectingSuccess(first);
 
   EXPECT_THAT(first_header_set,
               ElementsAre(
@@ -915,7 +922,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC6ResponseHuffmanExamples) {
   //                                         |   https://www.example.com
   std::string second;
   ASSERT_TRUE(absl::HexStringToBytes("4883640effc1c0bf", &second));
-  const Http2HeaderBlock& second_header_set =
+  const quiche::HttpHeaderBlock& second_header_set =
       DecodeBlockExpectingSuccess(second);
 
   EXPECT_THAT(second_header_set,
@@ -992,7 +999,8 @@ TEST_P(HpackDecoderAdapterTest, SectionC6ResponseHuffmanExamples) {
       "821dd7f2e6c7b335dfdfcd5b3960d5af27087f3672c1ab270fb5291f9587316065c003ed"
       "4ee5b1063d5007",
       &third));
-  const Http2HeaderBlock& third_header_set = DecodeBlockExpectingSuccess(third);
+  const quiche::HttpHeaderBlock& third_header_set =
+      DecodeBlockExpectingSuccess(third);
 
   EXPECT_THAT(third_header_set,
               ElementsAre(
@@ -1056,12 +1064,12 @@ TEST_P(HpackDecoderAdapterTest, ReuseNameOfEvictedEntry) {
   hbb.AppendIndexedHeader(62);
 
   // Can't have DecodeHeaderBlock do the default check for size of the decoded
-  // data because Http2HeaderBlock will join multiple headers with the same
-  // name into a single entry, thus we won't see repeated occurrences of the
-  // name, instead seeing separators between values.
+  // data because quiche::HttpHeaderBlock will join multiple headers with the
+  // same name into a single entry, thus we won't see repeated occurrences of
+  // the name, instead seeing separators between values.
   EXPECT_TRUE(DecodeHeaderBlock(hbb.buffer(), kNoCheckDecodedSize));
 
-  Http2HeaderBlock expected_header_set;
+  quiche::HttpHeaderBlock expected_header_set;
   expected_header_set.AppendValueOrAddHeader(name, value1);
   expected_header_set.AppendValueOrAddHeader(name, value1);
   expected_header_set.AppendValueOrAddHeader(name, value2);
@@ -1069,7 +1077,7 @@ TEST_P(HpackDecoderAdapterTest, ReuseNameOfEvictedEntry) {
   expected_header_set.AppendValueOrAddHeader(name, value3);
   expected_header_set.AppendValueOrAddHeader(name, value3);
 
-  // Http2HeaderBlock stores these 6 strings as '\0' separated values.
+  // quiche::HttpHeaderBlock stores these 6 strings as '\0' separated values.
   // Make sure that is what happened.
   std::string joined_values = expected_header_set[name].as_string();
   EXPECT_EQ(joined_values.size(),
@@ -1084,7 +1092,7 @@ TEST_P(HpackDecoderAdapterTest, ReuseNameOfEvictedEntry) {
 
 // Regression test for https://crbug.com/747395.
 TEST_P(HpackDecoderAdapterTest, Cookies) {
-  Http2HeaderBlock expected_header_set;
+  quiche::HttpHeaderBlock expected_header_set;
   expected_header_set["cookie"] = "foo; bar";
 
   std::string encoded_block;

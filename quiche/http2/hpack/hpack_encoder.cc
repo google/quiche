@@ -18,9 +18,9 @@
 #include "quiche/http2/hpack/hpack_header_table.h"
 #include "quiche/http2/hpack/hpack_output_stream.h"
 #include "quiche/http2/hpack/huffman/hpack_huffman_encoder.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace spdy {
 
@@ -93,7 +93,7 @@ HpackEncoder::HpackEncoder()
 HpackEncoder::~HpackEncoder() = default;
 
 std::string HpackEncoder::EncodeHeaderBlock(
-    const Http2HeaderBlock& header_set) {
+    const quiche::HttpHeaderBlock& header_set) {
   // Separate header set into pseudo-headers and regular headers.
   Representations pseudo_headers;
   Representations regular_headers;
@@ -274,10 +274,10 @@ void HpackEncoder::DecomposeRepresentation(const Representation& header_field,
   }
 }
 
-// Iteratively encodes a Http2HeaderBlock.
+// Iteratively encodes a quiche::HttpHeaderBlock.
 class HpackEncoder::Encoderator : public ProgressiveEncoder {
  public:
-  Encoderator(const Http2HeaderBlock& header_set, HpackEncoder* encoder);
+  Encoderator(const quiche::HttpHeaderBlock& header_set, HpackEncoder* encoder);
   Encoderator(const Representations& representations, HpackEncoder* encoder);
 
   // Encoderator is neither copyable nor movable.
@@ -298,8 +298,8 @@ class HpackEncoder::Encoderator : public ProgressiveEncoder {
   bool has_next_;
 };
 
-HpackEncoder::Encoderator::Encoderator(const Http2HeaderBlock& header_set,
-                                       HpackEncoder* encoder)
+HpackEncoder::Encoderator::Encoderator(
+    const quiche::HttpHeaderBlock& header_set, HpackEncoder* encoder)
     : encoder_(encoder), has_next_(true) {
   // Separate header set into pseudo-headers and regular headers.
   bool found_cookie = false;
@@ -379,7 +379,7 @@ std::string HpackEncoder::Encoderator::Next(size_t max_encoded_bytes) {
 }
 
 std::unique_ptr<HpackEncoder::ProgressiveEncoder> HpackEncoder::EncodeHeaderSet(
-    const Http2HeaderBlock& header_set) {
+    const quiche::HttpHeaderBlock& header_set) {
   return std::make_unique<Encoderator>(header_set, this);
 }
 

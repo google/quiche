@@ -11,9 +11,9 @@
 #include "quiche/http2/core/recording_headers_handler.h"
 #include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/http2/test_tools/http2_random.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/spdy/core/hpack/hpack_decoder_adapter.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace spdy {
 namespace test {
@@ -32,7 +32,7 @@ class HpackRoundTripTest
     decoder_.ApplyHeaderTableSizeSetting(256);
   }
 
-  bool RoundTrip(const Http2HeaderBlock& header_set) {
+  bool RoundTrip(const quiche::HttpHeaderBlock& header_set) {
     std::string encoded = encoder_.EncodeHeaderBlock(header_set);
 
     bool success = true;
@@ -84,7 +84,7 @@ INSTANTIATE_TEST_SUITE_P(Tests, HpackRoundTripTest,
 
 TEST_P(HpackRoundTripTest, ResponseFixtures) {
   {
-    Http2HeaderBlock headers;
+    quiche::HttpHeaderBlock headers;
     headers[":status"] = "302";
     headers["cache-control"] = "private";
     headers["date"] = "Mon, 21 Oct 2013 20:13:21 GMT";
@@ -92,7 +92,7 @@ TEST_P(HpackRoundTripTest, ResponseFixtures) {
     EXPECT_TRUE(RoundTrip(headers));
   }
   {
-    Http2HeaderBlock headers;
+    quiche::HttpHeaderBlock headers;
     headers[":status"] = "200";
     headers["cache-control"] = "private";
     headers["date"] = "Mon, 21 Oct 2013 20:13:21 GMT";
@@ -100,7 +100,7 @@ TEST_P(HpackRoundTripTest, ResponseFixtures) {
     EXPECT_TRUE(RoundTrip(headers));
   }
   {
-    Http2HeaderBlock headers;
+    quiche::HttpHeaderBlock headers;
     headers[":status"] = "200";
     headers["cache-control"] = "private";
     headers["content-encoding"] = "gzip";
@@ -116,7 +116,7 @@ TEST_P(HpackRoundTripTest, ResponseFixtures) {
 
 TEST_P(HpackRoundTripTest, RequestFixtures) {
   {
-    Http2HeaderBlock headers;
+    quiche::HttpHeaderBlock headers;
     headers[":authority"] = "www.example.com";
     headers[":method"] = "GET";
     headers[":path"] = "/";
@@ -125,7 +125,7 @@ TEST_P(HpackRoundTripTest, RequestFixtures) {
     EXPECT_TRUE(RoundTrip(headers));
   }
   {
-    Http2HeaderBlock headers;
+    quiche::HttpHeaderBlock headers;
     headers[":authority"] = "www.example.com";
     headers[":method"] = "GET";
     headers[":path"] = "/";
@@ -135,7 +135,7 @@ TEST_P(HpackRoundTripTest, RequestFixtures) {
     EXPECT_TRUE(RoundTrip(headers));
   }
   {
-    Http2HeaderBlock headers;
+    quiche::HttpHeaderBlock headers;
     headers[":authority"] = "www.example.com";
     headers[":method"] = "GET";
     headers[":path"] = "/index.html";
@@ -169,7 +169,7 @@ TEST_P(HpackRoundTripTest, RandomizedExamples) {
   values.push_back("baz=bing; fizzle=fazzle; garbage");
 
   for (size_t i = 0; i != 2000; ++i) {
-    Http2HeaderBlock headers;
+    quiche::HttpHeaderBlock headers;
 
     // Choose a random number of headers to add, and of these a random subset
     // will be HTTP/2 pseudo headers.
