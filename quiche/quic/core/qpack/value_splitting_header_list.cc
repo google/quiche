@@ -20,8 +20,8 @@ const char kNonCookieSeparator = '\0';
 }  // namespace
 
 ValueSplittingHeaderList::const_iterator::const_iterator(
-    const spdy::Http2HeaderBlock* header_list,
-    spdy::Http2HeaderBlock::const_iterator header_list_iterator)
+    const quiche::HttpHeaderBlock* header_list,
+    quiche::HttpHeaderBlock::const_iterator header_list_iterator)
     : header_list_(header_list),
       header_list_iterator_(header_list_iterator),
       value_start_(0) {
@@ -93,7 +93,7 @@ void ValueSplittingHeaderList::const_iterator::UpdateHeaderField() {
 }
 
 ValueSplittingHeaderList::ValueSplittingHeaderList(
-    const spdy::Http2HeaderBlock* header_list)
+    const quiche::HttpHeaderBlock* header_list)
     : header_list_(header_list) {
   QUICHE_DCHECK(header_list_);
 }

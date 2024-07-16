@@ -78,7 +78,7 @@ QpackEncoder::Representation QpackEncoder::EncodeLiteralHeaderField(
 }
 
 QpackEncoder::Representations QpackEncoder::FirstPassEncode(
-    QuicStreamId stream_id, const spdy::Http2HeaderBlock& header_list,
+    QuicStreamId stream_id, const quiche::HttpHeaderBlock& header_list,
     QpackBlockingManager::IndexSet* referred_indices,
     QuicByteCount* encoder_stream_sent_byte_count) {
   // If previous instructions are buffered in |encoder_stream_sender_|,
@@ -389,7 +389,7 @@ std::string QpackEncoder::SecondPassEncode(
 }
 
 std::string QpackEncoder::EncodeHeaderList(
-    QuicStreamId stream_id, const spdy::Http2HeaderBlock& header_list,
+    QuicStreamId stream_id, const quiche::HttpHeaderBlock& header_list,
     QuicByteCount* encoder_stream_sent_byte_count) {
   // Keep track of all dynamic table indices that this header block refers to so
   // that it can be passed to QpackBlockingManager.

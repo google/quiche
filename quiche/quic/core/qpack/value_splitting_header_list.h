@@ -7,7 +7,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
@@ -16,13 +16,14 @@ namespace quic {
 // cookies and along '\0' separators for other header fields.
 class QUICHE_EXPORT ValueSplittingHeaderList {
  public:
-  using value_type = spdy::Http2HeaderBlock::value_type;
+  using value_type = quiche::HttpHeaderBlock::value_type;
 
   class QUICHE_EXPORT const_iterator {
    public:
     // |header_list| must outlive this object.
-    const_iterator(const spdy::Http2HeaderBlock* header_list,
-                   spdy::Http2HeaderBlock::const_iterator header_list_iterator);
+    const_iterator(
+        const quiche::HttpHeaderBlock* header_list,
+        quiche::HttpHeaderBlock::const_iterator header_list_iterator);
     const_iterator(const const_iterator&) = default;
     const_iterator& operator=(const const_iterator&) = delete;
 
@@ -38,15 +39,15 @@ class QUICHE_EXPORT ValueSplittingHeaderList {
     // Find next separator; update |value_end_| and |header_field_|.
     void UpdateHeaderField();
 
-    const spdy::Http2HeaderBlock* const header_list_;
-    spdy::Http2HeaderBlock::const_iterator header_list_iterator_;
+    const quiche::HttpHeaderBlock* const header_list_;
+    quiche::HttpHeaderBlock::const_iterator header_list_iterator_;
     absl::string_view::size_type value_start_;
     absl::string_view::size_type value_end_;
     value_type header_field_;
   };
 
   // |header_list| must outlive this object.
-  explicit ValueSplittingHeaderList(const spdy::Http2HeaderBlock* header_list);
+  explicit ValueSplittingHeaderList(const quiche::HttpHeaderBlock* header_list);
   ValueSplittingHeaderList(const ValueSplittingHeaderList&) = delete;
   ValueSplittingHeaderList& operator=(const ValueSplittingHeaderList&) = delete;
 
@@ -54,7 +55,7 @@ class QUICHE_EXPORT ValueSplittingHeaderList {
   const_iterator end() const;
 
  private:
-  const spdy::Http2HeaderBlock* const header_list_;
+  const quiche::HttpHeaderBlock* const header_list_;
 };
 
 }  // namespace quic

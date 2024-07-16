@@ -54,11 +54,11 @@
 #include "quiche/quic/tools/quic_simple_server_session.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/capsule.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_url_utils.h"
 #include "quiche/common/quiche_ip_address.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -113,7 +113,7 @@ class FdWrapper {
 
 std::unique_ptr<QuicBackendResponse> CreateBackendErrorResponse(
     absl::string_view status, absl::string_view error_details) {
-  spdy::Http2HeaderBlock response_headers;
+  quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = status;
   response_headers["masque-debug-info"] = error_details;
   auto response = std::make_unique<QuicBackendResponse>();
@@ -189,7 +189,7 @@ void MasqueServerSession::OnStreamClosed(QuicStreamId stream_id) {
 
 std::unique_ptr<QuicBackendResponse>
 MasqueServerSession::MaybeCheckConcealedAuth(
-    const spdy::Http2HeaderBlock& request_headers, absl::string_view authority,
+    const quiche::HttpHeaderBlock& request_headers, absl::string_view authority,
     absl::string_view scheme,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
   // TODO(dschinazi) Add command-line flag that makes this implementation
@@ -392,7 +392,7 @@ MasqueServerSession::MaybeCheckConcealedAuth(
 }
 
 std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
-    const spdy::Http2HeaderBlock& request_headers,
+    const quiche::HttpHeaderBlock& request_headers,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
   // Authority.
   auto authority_pair = request_headers.find(":authority");
@@ -493,7 +493,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     connect_ip_server_states_.push_back(
         ConnectIpServerState(client_ip, stream, fd, this));
 
-    spdy::Http2HeaderBlock response_headers;
+    quiche::HttpHeaderBlock response_headers;
     response_headers[":status"] = "200";
     auto response = std::make_unique<QuicBackendResponse>();
     response->set_response_type(QuicBackendResponse::INCOMPLETE_RESPONSE);
@@ -526,7 +526,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     connect_ethernet_server_states_.push_back(
         ConnectEthernetServerState(stream, fd, this));
 
-    spdy::Http2HeaderBlock response_headers;
+    quiche::HttpHeaderBlock response_headers;
     response_headers[":status"] = "200";
     auto response = std::make_unique<QuicBackendResponse>();
     response->set_response_type(QuicBackendResponse::INCOMPLETE_RESPONSE);
@@ -606,7 +606,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   connect_udp_server_states_.push_back(ConnectUdpServerState(
       stream, target_server_address, fd_wrapper.extract_fd(), this));
 
-  spdy::Http2HeaderBlock response_headers;
+  quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
   auto response = std::make_unique<QuicBackendResponse>();
   response->set_response_type(QuicBackendResponse::INCOMPLETE_RESPONSE);

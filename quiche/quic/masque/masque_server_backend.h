@@ -21,7 +21,7 @@
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
@@ -34,7 +34,7 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
   class QUIC_NO_EXPORT BackendClient {
    public:
     virtual std::unique_ptr<QuicBackendResponse> HandleMasqueRequest(
-        const spdy::Http2HeaderBlock& request_headers,
+        const quiche::HttpHeaderBlock& request_headers,
         QuicSimpleServerBackend::RequestHandler* request_handler) = 0;
     virtual ~BackendClient() = default;
   };
@@ -49,10 +49,10 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
 
   // From QuicMemoryCacheBackend.
   void FetchResponseFromBackend(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       const std::string& request_body,
       QuicSimpleServerBackend::RequestHandler* request_handler) override;
-  void HandleConnectHeaders(const spdy::Http2HeaderBlock& request_headers,
+  void HandleConnectHeaders(const quiche::HttpHeaderBlock& request_headers,
                             RequestHandler* request_handler) override;
 
   void CloseBackendResponseStream(
@@ -96,7 +96,7 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
  private:
   // Handle MASQUE request.
   bool MaybeHandleMasqueRequest(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       QuicSimpleServerBackend::RequestHandler* request_handler);
 
   MasqueMode masque_mode_;

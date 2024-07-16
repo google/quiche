@@ -24,9 +24,9 @@
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_url.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_ip_address.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 namespace tools {
@@ -133,7 +133,7 @@ bool SendRequestOnMasqueEncapsulatedClient(MasqueEncapsulatedClient& client,
   const std::string body = "";
 
   // Construct a GET request for supplied URL.
-  spdy::Http2HeaderBlock header_block;
+  quiche::HttpHeaderBlock header_block;
   header_block[":method"] = "GET";
   header_block[":scheme"] = url.scheme();
   header_block[":authority"] = url.HostPort();

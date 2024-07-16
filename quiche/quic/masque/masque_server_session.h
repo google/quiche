@@ -33,7 +33,7 @@
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/quic/tools/quic_simple_server_session.h"
 #include "quiche/common/capsule.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
@@ -66,7 +66,7 @@ class QUIC_NO_EXPORT MasqueServerSession
 
   // From MasqueServerBackend::BackendClient.
   std::unique_ptr<QuicBackendResponse> HandleMasqueRequest(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       QuicSimpleServerBackend::RequestHandler* request_handler) override;
 
   // From QuicSocketEventListener.
@@ -83,7 +83,7 @@ class QUIC_NO_EXPORT MasqueServerSession
   bool HandleConnectEthernetSocketEvent(QuicUdpSocketFd fd,
                                         QuicSocketEventMask events);
   std::unique_ptr<QuicBackendResponse> MaybeCheckConcealedAuth(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       absl::string_view authority, absl::string_view scheme,
       QuicSimpleServerBackend::RequestHandler* request_handler);
 

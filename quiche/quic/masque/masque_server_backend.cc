@@ -23,8 +23,8 @@
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -49,7 +49,7 @@ MasqueServerBackend::MasqueServerBackend(MasqueMode /*masque_mode*/,
 }
 
 bool MasqueServerBackend::MaybeHandleMasqueRequest(
-    const spdy::Http2HeaderBlock& request_headers,
+    const quiche::HttpHeaderBlock& request_headers,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
   auto method_pair = request_headers.find(":method");
   if (method_pair == request_headers.end()) {
@@ -109,7 +109,7 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
 }
 
 void MasqueServerBackend::FetchResponseFromBackend(
-    const spdy::Http2HeaderBlock& request_headers,
+    const quiche::HttpHeaderBlock& request_headers,
     const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
   if (MaybeHandleMasqueRequest(request_headers, request_handler)) {
@@ -123,7 +123,7 @@ void MasqueServerBackend::FetchResponseFromBackend(
 }
 
 void MasqueServerBackend::HandleConnectHeaders(
-    const spdy::Http2HeaderBlock& request_headers,
+    const quiche::HttpHeaderBlock& request_headers,
     RequestHandler* request_handler) {
   if (MaybeHandleMasqueRequest(request_headers, request_handler)) {
     // Request was handled as a MASQUE request.

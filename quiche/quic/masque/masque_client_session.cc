@@ -39,13 +39,13 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/capsule.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_url_utils.h"
 #include "quiche/common/quiche_ip_address.h"
 #include "quiche/common/quiche_random.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -177,7 +177,7 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
                   << authority << "\" path=\"" << canonicalized_path << "\"";
 
   // Send the request.
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   headers[":method"] = "CONNECT";
   headers[":protocol"] = "connect-udp";
   headers[":scheme"] = scheme;
@@ -224,7 +224,7 @@ MasqueClientSession::GetOrCreateConnectIpClientState(
                   << "\" path=\"" << path << "\"";
 
   // Send the request.
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   headers[":method"] = "CONNECT";
   headers[":protocol"] = "connect-ip";
   headers[":scheme"] = scheme;
@@ -275,7 +275,7 @@ MasqueClientSession::GetOrCreateConnectEthernetClientState(
                   << authority << "\" path=\"" << path << "\"";
 
   // Send the request.
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   headers[":method"] = "CONNECT";
   headers[":protocol"] = "connect-ethernet";
   headers[":scheme"] = scheme;
@@ -752,7 +752,7 @@ QuicSpdyClientStream* MasqueClientSession::SendGetRequest(
                   << "\" path=\"" << path << "\"";
 
   // Send the request.
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   headers[":method"] = "GET";
   headers[":scheme"] = scheme;
   headers[":authority"] = authority;
@@ -827,7 +827,7 @@ std::optional<std::string> MasqueClientSession::ComputeConcealedAuthHeader(
       ", v=", absl::WebSafeBase64Escape(verification));
 }
 
-void MasqueClientSession::AddAdditionalHeaders(spdy::Http2HeaderBlock& headers,
+void MasqueClientSession::AddAdditionalHeaders(quiche::HttpHeaderBlock& headers,
                                                const QuicUrl& url) {
   std::optional<std::string> concealed_auth_header =
       ComputeConcealedAuthHeader(url);

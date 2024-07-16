@@ -28,8 +28,8 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/capsule.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/quiche_ip_address.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -329,7 +329,7 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
       EncapsulatedEthernetSession* encapsulated_ethernet_session);
 
   std::optional<std::string> ComputeConcealedAuthHeader(const QuicUrl& url);
-  void AddAdditionalHeaders(spdy::Http2HeaderBlock& headers,
+  void AddAdditionalHeaders(quiche::HttpHeaderBlock& headers,
                             const QuicUrl& url);
 
   MasqueMode masque_mode_;
