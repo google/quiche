@@ -1360,13 +1360,6 @@ TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0), _));
   }
 
-  // In HTTP/3, Qpack stream will send data on stream reset and cause packet to
-  // be flushed.
-  if (VersionUsesHttp3(transport_version()) &&
-      !GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
-    EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _, _))
-        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  }
   EXPECT_CALL(*connection_, SendControlFrame(_));
   QuicRstStreamFrame rst1(kInvalidControlFrameId,
                           GetNthClientInitiatedBidirectionalId(0),
@@ -1608,9 +1601,6 @@ TEST_P(QuicSpdySessionTestServer,
     // the STOP_SENDING, so set up the EXPECT there.
     EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
     EXPECT_CALL(*connection_, SendControlFrame(_));
-  } else if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
-    EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _, _))
-        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   }
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream->id(),
                                QUIC_STREAM_CANCELLED, kByteOffset);

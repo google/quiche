@@ -2508,7 +2508,6 @@ HandshakeState QuicSession::GetHandshakeState() const {
 }
 
 QuicByteCount QuicSession::GetFlowControlSendWindowSize(QuicStreamId id) {
-  QUICHE_DCHECK(GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5));
   auto it = stream_map_.find(id);
   if (it == stream_map_.end()) {
     // No flow control for invalid or inactive stream ids. Returning uint64max

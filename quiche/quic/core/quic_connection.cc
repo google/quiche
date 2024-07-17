@@ -3066,35 +3066,21 @@ bool QuicConnection::ShouldGeneratePacket(
 
 void QuicConnection::MaybeBundleOpportunistically(
     TransmissionType transmission_type) {
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data5, 1, 4);
+  const bool should_bundle_ack_frequency =
+      !ack_frequency_sent_ && sent_packet_manager_.CanSendAckFrequency() &&
+      transmission_type == NOT_RETRANSMISSION &&
+      packet_creator_.NextSendingPacketNumber() >=
+          FirstSendingPacketNumber() + kMinReceivedBeforeAckDecimation;
 
-    const bool should_bundle_ack_frequency =
-        !ack_frequency_sent_ && sent_packet_manager_.CanSendAckFrequency() &&
-        transmission_type == NOT_RETRANSMISSION &&
-        packet_creator_.NextSendingPacketNumber() >=
-            FirstSendingPacketNumber() + kMinReceivedBeforeAckDecimation;
+  if (should_bundle_ack_frequency) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 3, 3);
+    ack_frequency_sent_ = true;
+    auto frame = sent_packet_manager_.GetUpdatedAckFrequencyFrame();
+    visitor_->SendAckFrequency(frame);
+  }
 
-    if (should_bundle_ack_frequency) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 3, 3);
-      ack_frequency_sent_ = true;
-      auto frame = sent_packet_manager_.GetUpdatedAckFrequencyFrame();
-      visitor_->SendAckFrequency(frame);
-    }
-
-    if (transmission_type == NOT_RETRANSMISSION) {
-      visitor_->MaybeBundleOpportunistically();
-    }
-  } else {
-    if (!ack_frequency_sent_ && sent_packet_manager_.CanSendAckFrequency()) {
-      if (packet_creator_.NextSendingPacketNumber() >=
-          FirstSendingPacketNumber() + kMinReceivedBeforeAckDecimation) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 3, 3);
-        ack_frequency_sent_ = true;
-        auto frame = sent_packet_manager_.GetUpdatedAckFrequencyFrame();
-        visitor_->SendAckFrequency(frame);
-      }
-    }
+  if (transmission_type == NOT_RETRANSMISSION) {
+    visitor_->MaybeBundleOpportunistically();
   }
 
   if (packet_creator_.has_ack() || !CanWrite(NO_RETRANSMITTABLE_DATA)) {
@@ -5745,10 +5731,7 @@ void QuicConnection::SendAllPendingAcks() {
       uber_received_packet_manager_.GetEarliestAckTimeout();
   QUIC_BUG_IF(quic_bug_12714_32, !earliest_ack_timeout.IsInitialized());
   MaybeBundleCryptoDataWithAcks();
-  if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_opport_bundle_qpack_decoder_data5, 2, 4);
-    visitor_->MaybeBundleOpportunistically();
-  }
+  visitor_->MaybeBundleOpportunistically();
   earliest_ack_timeout = uber_received_packet_manager_.GetEarliestAckTimeout();
   if (!earliest_ack_timeout.IsInitialized()) {
     return;

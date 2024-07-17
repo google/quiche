@@ -133,7 +133,6 @@ TEST_P(QpackSendStreamTest, ReceiveDataOnSendStream) {
 }
 
 TEST_P(QpackSendStreamTest, GetSendWindowSizeFromSession) {
-  SetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5, true);
   EXPECT_NE(session_.GetFlowControlSendWindowSize(qpack_send_stream_->id()),
             std::numeric_limits<QuicByteCount>::max());
 }

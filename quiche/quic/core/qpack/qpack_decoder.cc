@@ -32,9 +32,6 @@ QpackDecoder::~QpackDecoder() {}
 void QpackDecoder::OnStreamReset(QuicStreamId stream_id) {
   if (header_table_.maximum_dynamic_table_capacity() > 0) {
     decoder_stream_sender_.SendStreamCancellation(stream_id);
-    if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
-      decoder_stream_sender_.Flush();
-    }
   }
 }
 
@@ -67,10 +64,6 @@ void QpackDecoder::OnDecodingCompleted(QuicStreamId stream_id,
     decoder_stream_sender_.SendInsertCountIncrement(
         header_table_.inserted_entry_count() - known_received_count_);
     known_received_count_ = header_table_.inserted_entry_count();
-  }
-
-  if (!GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
-    decoder_stream_sender_.Flush();
   }
 }
 

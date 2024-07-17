@@ -165,8 +165,8 @@ std::vector<TestParams> GetTestParams() {
                                       connection_id_length));
         }
       }  // End of outer version loop.
-    }    // End of congestion_control_tag loop.
-  }      // End of connection_id_length loop.
+    }  // End of congestion_control_tag loop.
+  }  // End of connection_id_length loop.
 
   // Only run every event loop implementation for one fixed configuration.
   for (QuicEventLoopFactory* event_loop : GetAllSupportedEventLoops()) {
@@ -2879,15 +2879,9 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
       client_connection->GetStats().packets_sent;
 
   if (version_.UsesHttp3()) {
-    if (GetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5)) {
-      // QPACK decoder instructions and RESET_STREAM and STOP_SENDING frames are
-      // sent in a single packet.
-      EXPECT_EQ(packets_sent_before + 1, packets_sent_now);
-    } else {
-      // Make sure 2 packets were sent, one for QPACK instructions, another for
-      // RESET_STREAM and STOP_SENDING.
-      EXPECT_EQ(packets_sent_before + 2, packets_sent_now);
-    }
+    // QPACK decoder instructions and RESET_STREAM and STOP_SENDING frames are
+    // sent in a single packet.
+    EXPECT_EQ(packets_sent_before + 1, packets_sent_now);
   }
 
   // WaitForEvents waits 50ms and returns true if there are outstanding
@@ -3062,7 +3056,6 @@ TEST_P(EndToEndTest,
     return;
   }
   override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
-  SetQuicRestartFlag(quic_opport_bundle_qpack_decoder_data5, false);
   ASSERT_TRUE(Initialize());
   SendSynchronousFooRequestAndCheckResponse();
 
@@ -3071,6 +3064,15 @@ TEST_P(EndToEndTest,
       client_->client()->network_helper()->GetLatestClientAddress().host();
   QuicConnection* client_connection = GetClientConnection();
   ASSERT_TRUE(client_connection != nullptr);
+
+  {
+    QuicConnection::ScopedPacketFlusher flusher(client_connection);
+    if (client_connection->SupportsMultiplePacketNumberSpaces()) {
+      client_connection->SendAllPendingAcks();
+    } else {
+      client_connection->SendAck();
+    }
+  }
 
   // Migrate socket to a new IP address.
   QuicIpAddress host1 = TestLoopback(2);
