@@ -4146,7 +4146,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 
   QuicSocketAddress peer_addr1(QuicIpAddress::Any4(), 12346);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([=](SerializedPacket packet) {
+      .WillOnce(Invoke([=, this](SerializedPacket packet) {
         EXPECT_EQ(peer_addr, packet.peer_address);
         ASSERT_EQ(1u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);

@@ -1771,9 +1771,10 @@ TEST_P(QuicConnectionTest, PeerPortChangeAtServer) {
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
       .WillOnce(Invoke(
-          [=]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
-      .WillOnce(Invoke(
-          [=]() { EXPECT_EQ(kNewPeerAddress, connection_.peer_address()); }));
+          [=, this]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
+      .WillOnce(Invoke([=, this]() {
+        EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
+      }));
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
@@ -1844,9 +1845,10 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
       QuicSocketAddress(QuicIpAddress::Loopback4(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
       .WillOnce(Invoke(
-          [=]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
-      .WillOnce(Invoke(
-          [=]() { EXPECT_EQ(kNewPeerAddress, connection_.peer_address()); }));
+          [=, this]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
+      .WillOnce(Invoke([=, this]() {
+        EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
+      }));
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
@@ -2325,9 +2327,10 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
       QuicSocketAddress(QuicIpAddress::Loopback4(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
       .WillOnce(Invoke(
-          [=]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
-      .WillOnce(Invoke(
-          [=]() { EXPECT_EQ(kNewPeerAddress, connection_.peer_address()); }));
+          [=, this]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
+      .WillOnce(Invoke([=, this]() {
+        EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
+      }));
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
@@ -11951,7 +11954,7 @@ TEST_P(QuicConnectionTest, ReceiveMultiplePathChallenge) {
   // peer address.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(2)
-      .WillOnce(Invoke([=]() {
+      .WillOnce(Invoke([=, this]() {
         EXPECT_EQ(1u, writer_->path_response_frames().size());
         // The final check is to ensure that the random data in the response
         // matches the random data from the challenge.
@@ -11962,7 +11965,7 @@ TEST_P(QuicConnectionTest, ReceiveMultiplePathChallenge) {
         EXPECT_EQ(1u, writer_->padding_frames().size());
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
       }))
-      .WillOnce(Invoke([=]() {
+      .WillOnce(Invoke([=, this]() {
         // The last write of ACK-only packet should still use the old peer
         // address.
         EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
@@ -11988,7 +11991,7 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameBeforePathChallenge) {
   EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE));
   EXPECT_CALL(*send_algorithm_, OnConnectionMigration()).Times(0u);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
-      .WillOnce(Invoke([=](const QuicStreamFrame& frame) {
+      .WillOnce(Invoke([=, this](const QuicStreamFrame& frame) {
         // Send some data on the stream. The STREAM_FRAME should be built into
         // one packet together with the latter PATH_RESPONSE and PATH_CHALLENGE.
         const std::string data{"response body"};
@@ -12032,7 +12035,7 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameFollowingPathChallenge) {
   QuicByteCount received_packet_size;
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([=, &received_packet_size]() {
+      .WillOnce(Invoke([=, this, &received_packet_size]() {
         // Verify that this packet contains a PATH_RESPONSE_FRAME.
         EXPECT_EQ(0u, writer_->stream_frames().size());
         EXPECT_EQ(1u, writer_->path_response_frames().size());
@@ -12051,7 +12054,7 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameFollowingPathChallenge) {
   EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE));
   EXPECT_CALL(*send_algorithm_, OnConnectionMigration()).Times(0u);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
-      .WillOnce(Invoke([=](const QuicStreamFrame& frame) {
+      .WillOnce(Invoke([=, this](const QuicStreamFrame& frame) {
         // Send some data on the stream. The STREAM_FRAME should be built into a
         // new packet but throttled by anti-amplifciation limit.
         const std::string data{"response body"};
@@ -12089,7 +12092,7 @@ TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0u);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
       .Times(2)
-      .WillRepeatedly(Invoke([=](const QuicStreamFrame& frame) {
+      .WillRepeatedly(Invoke([=, this](const QuicStreamFrame& frame) {
         // Send some data on the stream. The STREAM_FRAME should be built into
         // one packet together with the latter PATH_RESPONSE.
         const std::string data{"response body"};
@@ -12098,7 +12101,7 @@ TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
                                            NO_FIN);
       }));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-      .WillOnce(Invoke([=]() {
+      .WillOnce(Invoke([=, this]() {
         // Verify that this packet contains a STREAM_FRAME and is sent to the
         // original peer address.
         EXPECT_EQ(1u, writer_->stream_frames().size());
@@ -12106,7 +12109,7 @@ TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
         // out of order.
         EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
       }))
-      .WillOnce(Invoke([=]() {
+      .WillOnce(Invoke([=, this]() {
         EXPECT_EQ(1u, writer_->path_response_frames().size());
         // The final check is to ensure that the random data in the response
         // matches the random data from the challenge.
@@ -12119,7 +12122,7 @@ TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
         // address.
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
       }))
-      .WillOnce(Invoke([=]() {
+      .WillOnce(Invoke([=, this]() {
         // Verify that this packet contains a STREAM_FRAME and is sent to the
         // original peer address.
         EXPECT_EQ(1u, writer_->stream_frames().size());
@@ -12257,7 +12260,7 @@ TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
     connection_.NeuterUnencryptedPackets();
   }));
   EXPECT_CALL(visitor_, OnCryptoFrame(_))
-      .WillRepeatedly(Invoke([=](const QuicCryptoFrame& frame) {
+      .WillRepeatedly(Invoke([=, this](const QuicCryptoFrame& frame) {
         if (frame.level == ENCRYPTION_HANDSHAKE) {
           // 0-RTT gets rejected.
           connection_.MarkZeroRttPacketsForRetransmission(0);
@@ -13020,7 +13023,7 @@ TEST_P(QuicConnectionTest, ServerHelloGetsReordered) {
   QuicConfig config;
   connection_.SetFromConfig(config);
   EXPECT_CALL(visitor_, OnCryptoFrame(_))
-      .WillRepeatedly(Invoke([=](const QuicCryptoFrame& frame) {
+      .WillRepeatedly(Invoke([=, this](const QuicCryptoFrame& frame) {
         if (frame.level == ENCRYPTION_INITIAL) {
           // Install handshake read keys.
           SetDecrypter(
@@ -13716,7 +13719,7 @@ TEST_P(QuicConnectionTest, SingleAckInPacket) {
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
 
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=, this]() {
     connection_.SendStreamData3();
     connection_.CloseConnection(
         QUIC_INTERNAL_ERROR, "error",
@@ -14041,7 +14044,7 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   // Process another packet with a different peer address on server side will
   // start connection migration.
   EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE)).Times(1);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=, this]() {
     EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   }));
   // IETF QUIC send algorithm should be changed to a different object, so no
@@ -14199,7 +14202,7 @@ TEST_P(QuicConnectionTest,
       .Times(0);
   const QuicSocketAddress kNewerPeerAddress(QuicIpAddress::Loopback4(),
                                             /*port=*/34567);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=, this]() {
     EXPECT_EQ(kNewerPeerAddress, connection_.peer_address());
   }));
   EXPECT_CALL(visitor_, MaybeSendAddressToken());
@@ -14317,7 +14320,7 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
 
   // Process non-probing packets on the default path.
   peer_creator_.SetServerConnectionId(server_cid0);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillRepeatedly(Invoke([=]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillRepeatedly(Invoke([=, this]() {
     EXPECT_EQ(kPeerAddress, connection_.peer_address());
   }));
   // Receives packets 3 - 39 to send 19 ACK-only packets, which will force the
@@ -14398,7 +14401,7 @@ TEST_P(QuicConnectionTest,
   EXPECT_CALL(*send_algorithm_,
               OnPacketSent(_, _, _, _, NO_RETRANSMITTABLE_DATA))
       .Times(0);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=, this]() {
     EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   }));
   QuicFrames frames2;
