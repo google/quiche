@@ -5531,9 +5531,10 @@ TEST_P(EndToEndTest, ClientLimitPortMigrationOnPathDegrading) {
     WaitForNewConnectionIds();
     client_connection->OnPathDegradingDetected();
     client_->SendData("bbbb", true);
-    // By the time the response is received, path validation should have been
-    // finished.
     client_->WaitForResponse();
+    while (client_->client()->HasPendingPathValidation()) {
+      client_->client()->WaitForEvents();
+    }
     QuicSocketAddress new_self_addr = client_connection->self_address();
     EXPECT_NE(original_self_addr, new_self_addr);
   }
