@@ -3068,7 +3068,11 @@ TEST_P(EndToEndTest,
   {
     QuicConnection::ScopedPacketFlusher flusher(client_connection);
     if (client_connection->SupportsMultiplePacketNumberSpaces()) {
-      client_connection->SendAllPendingAcks();
+      if (client_connection->received_packet_manager()
+              .GetEarliestAckTimeout()
+              .IsInitialized()) {
+        client_connection->SendAllPendingAcks();
+      }
     } else {
       client_connection->SendAck();
     }
