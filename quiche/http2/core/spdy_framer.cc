@@ -289,8 +289,8 @@ SpdyFramer::SpdyFrameIterator::SpdyFrameIterator(SpdyFramer* framer)
 SpdyFramer::SpdyFrameIterator::~SpdyFrameIterator() = default;
 
 size_t SpdyFramer::SpdyFrameIterator::NextFrame(ZeroCopyOutputBuffer* output) {
-  const SpdyFrameIR& frame_ir = GetIR();
-  if (!has_next_frame_) {
+  const SpdyFrameIR* frame_ir = GetIR();
+  if (!has_next_frame_ || frame_ir == nullptr) {
     QUICHE_BUG(spdy_bug_75_1)
         << "SpdyFramer::SpdyFrameIterator::NextFrame called without "
         << "a next frame.";
@@ -304,13 +304,13 @@ size_t SpdyFramer::SpdyFrameIterator::NextFrame(ZeroCopyOutputBuffer* output) {
   has_next_frame_ = encoder_->HasNext();
 
   if (framer_->debug_visitor_ != nullptr) {
-    const auto& header_block_frame_ir =
-        static_cast<const SpdyFrameWithHeaderBlockIR&>(frame_ir);
+    const auto& frame_ref =
+        static_cast<const SpdyFrameWithHeaderBlockIR&>(*frame_ir);
     const size_t header_list_size =
-        GetUncompressedSerializedLength(header_block_frame_ir.header_block());
+        GetUncompressedSerializedLength(frame_ref.header_block());
     framer_->debug_visitor_->OnSendCompressedFrame(
-        frame_ir.stream_id(),
-        is_first_frame_ ? frame_ir.frame_type() : SpdyFrameType::CONTINUATION,
+        frame_ref.stream_id(),
+        is_first_frame_ ? frame_ref.frame_type() : SpdyFrameType::CONTINUATION,
         header_list_size, size_without_block + encoding.size());
   }
 
@@ -320,7 +320,7 @@ size_t SpdyFramer::SpdyFrameIterator::NextFrame(ZeroCopyOutputBuffer* output) {
     is_first_frame_ = false;
     ok = SerializeGivenEncoding(encoding, output);
   } else {
-    SpdyContinuationIR continuation_ir(frame_ir.stream_id());
+    SpdyContinuationIR continuation_ir(frame_ir->stream_id());
     continuation_ir.take_encoding(std::move(encoding));
     continuation_ir.set_end_headers(!has_next_frame_);
     ok = framer_->SerializeContinuation(continuation_ir, output);
@@ -340,8 +340,8 @@ SpdyFramer::SpdyHeaderFrameIterator::SpdyHeaderFrameIterator(
 
 SpdyFramer::SpdyHeaderFrameIterator::~SpdyHeaderFrameIterator() = default;
 
-const SpdyFrameIR& SpdyFramer::SpdyHeaderFrameIterator::GetIR() const {
-  return *headers_ir_;
+const SpdyFrameIR* SpdyFramer::SpdyHeaderFrameIterator::GetIR() const {
+  return headers_ir_.get();
 }
 
 size_t SpdyFramer::SpdyHeaderFrameIterator::GetFrameSizeSansBlock() const {
@@ -364,8 +364,8 @@ SpdyFramer::SpdyPushPromiseFrameIterator::SpdyPushPromiseFrameIterator(
 SpdyFramer::SpdyPushPromiseFrameIterator::~SpdyPushPromiseFrameIterator() =
     default;
 
-const SpdyFrameIR& SpdyFramer::SpdyPushPromiseFrameIterator::GetIR() const {
-  return *push_promise_ir_;
+const SpdyFrameIR* SpdyFramer::SpdyPushPromiseFrameIterator::GetIR() const {
+  return push_promise_ir_.get();
 }
 
 size_t SpdyFramer::SpdyPushPromiseFrameIterator::GetFrameSizeSansBlock() const {
@@ -395,8 +395,8 @@ bool SpdyFramer::SpdyControlFrameIterator::HasNextFrame() const {
   return has_next_frame_;
 }
 
-const SpdyFrameIR& SpdyFramer::SpdyControlFrameIterator::GetIR() const {
-  return *frame_ir_;
+const SpdyFrameIR* SpdyFramer::SpdyControlFrameIterator::GetIR() const {
+  return frame_ir_.get();
 }
 
 std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(

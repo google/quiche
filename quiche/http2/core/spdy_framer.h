@@ -39,7 +39,7 @@ class QUICHE_EXPORT SpdyFrameSequence {
   virtual bool HasNextFrame() const = 0;
 
   // Get SpdyFrameIR of the frame to be serialized.
-  virtual const SpdyFrameIR& GetIR() const = 0;
+  virtual const SpdyFrameIR* GetIR() const = 0;
 };
 
 class QUICHE_EXPORT SpdyFramer {
@@ -299,7 +299,7 @@ class QUICHE_EXPORT SpdyFramer {
     ~SpdyHeaderFrameIterator() override;
 
    private:
-    const SpdyFrameIR& GetIR() const override;
+    const SpdyFrameIR* GetIR() const override;
     size_t GetFrameSizeSansBlock() const override;
     bool SerializeGivenEncoding(const std::string& encoding,
                                 ZeroCopyOutputBuffer* output) const override;
@@ -320,7 +320,7 @@ class QUICHE_EXPORT SpdyFramer {
     ~SpdyPushPromiseFrameIterator() override;
 
    private:
-    const SpdyFrameIR& GetIR() const override;
+    const SpdyFrameIR* GetIR() const override;
     size_t GetFrameSizeSansBlock() const override;
     bool SerializeGivenEncoding(const std::string& encoding,
                                 ZeroCopyOutputBuffer* output) const override;
@@ -340,7 +340,7 @@ class QUICHE_EXPORT SpdyFramer {
 
     bool HasNextFrame() const override;
 
-    const SpdyFrameIR& GetIR() const override;
+    const SpdyFrameIR* GetIR() const override;
 
    private:
     SpdyFramer* const framer_;
