@@ -620,6 +620,23 @@ TEST_P(QuicConfigTest, SupportsServerPreferredAddress) {
   EXPECT_TRUE(config_.SupportsServerPreferredAddress(Perspective::IS_SERVER));
 }
 
+TEST_P(QuicConfigTest, AddConnectionOptionsToSend) {
+  QuicTagVector copt;
+  copt.push_back(kNOIP);
+  config_.AddConnectionOptionsToSend(copt);
+  ASSERT_TRUE(config_.HasSendConnectionOptions());
+  EXPECT_TRUE(quic::ContainsQuicTag(config_.SendConnectionOptions(), kNOIP));
+
+  copt.clear();
+  copt.push_back(kSPAD);
+  copt.push_back(kSPA2);
+  config_.AddConnectionOptionsToSend(copt);
+  ASSERT_EQ(3, config_.SendConnectionOptions().size());
+  EXPECT_TRUE(quic::ContainsQuicTag(config_.SendConnectionOptions(), kNOIP));
+  EXPECT_TRUE(quic::ContainsQuicTag(config_.SendConnectionOptions(), kSPAD));
+  EXPECT_TRUE(quic::ContainsQuicTag(config_.SendConnectionOptions(), kSPA2));
+}
+
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   if (!version_.UsesTls()) {
     // TransportParameters are only used for QUIC+TLS.

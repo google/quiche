@@ -474,6 +474,24 @@ void QuicConfig::SetConnectionOptionsToSend(
   connection_options_.SetSendValues(connection_options);
 }
 
+void QuicConfig::AddConnectionOptionsToSend(
+    const QuicTagVector& connection_options) {
+  if (!connection_options_.HasSendValues()) {
+    SetConnectionOptionsToSend(connection_options);
+    return;
+  }
+  const QuicTagVector& existing_connection_options = SendConnectionOptions();
+  QuicTagVector connection_options_to_send;
+  connection_options_to_send.reserve(existing_connection_options.size() +
+                                     connection_options.size());
+  connection_options_to_send.assign(existing_connection_options.begin(),
+                                    existing_connection_options.end());
+  connection_options_to_send.insert(connection_options_to_send.end(),
+                                    connection_options.begin(),
+                                    connection_options.end());
+  SetConnectionOptionsToSend(connection_options_to_send);
+}
+
 void QuicConfig::SetGoogleHandshakeMessageToSend(std::string message) {
   google_handshake_message_to_send_ = std::move(message);
 }

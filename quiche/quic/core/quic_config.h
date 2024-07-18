@@ -246,6 +246,8 @@ class QUICHE_EXPORT QuicConfig {
 
   void SetConnectionOptionsToSend(const QuicTagVector& connection_options);
 
+  void AddConnectionOptionsToSend(const QuicTagVector& connection_options);
+
   bool HasReceivedConnectionOptions() const;
 
   void SetGoogleHandshakeMessageToSend(std::string message);
