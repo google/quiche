@@ -389,7 +389,11 @@ bool QuicStreamSequencerBuffer::PeekRegion(QuicStreamOffset offset,
 
   // Determine if entire block has been received.
   size_t end_block_idx = GetBlockIndex(FirstMissingByte());
-  if (block_idx == end_block_idx) {
+  if (block_idx == end_block_idx &&
+      block_offset < GetInBlockOffset(FirstMissingByte())) {
+    // If these 2 indexes point to the same block and the fist missing byte
+    // offset is larger than the starting offset, this means data available
+    // hasn't expanded to the next block yet.
     // Only read part of block before FirstMissingByte().
     iov->iov_len = GetInBlockOffset(FirstMissingByte()) - block_offset;
   } else {
@@ -397,6 +401,9 @@ bool QuicStreamSequencerBuffer::PeekRegion(QuicStreamOffset offset,
     iov->iov_len = GetBlockCapacity(block_idx) - block_offset;
   }
 
+  QUIC_BUG_IF(quic_invalid_peek_region, iov->iov_len > kBlockSizeBytes)
+      << "PeekRegion() at " << offset << " gets bad iov with length "
+      << iov->iov_len;
   return true;
 }
 
