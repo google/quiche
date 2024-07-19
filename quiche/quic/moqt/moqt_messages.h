@@ -243,6 +243,8 @@ struct QUICHE_EXPORT MoqtSubscribe {
   uint64_t track_alias;
   std::string track_namespace;
   std::string track_name;
+  MoqtPriority subscriber_priority;
+  std::optional<MoqtDeliveryOrder> group_order;
   // The combinations of these that have values indicate the filter type.
   // SG: Start Group; SO: Start Object; EG: End Group; EO: End Object;
   // (none): KLatestObject
@@ -312,6 +314,7 @@ struct QUICHE_EXPORT MoqtSubscribeUpdate {
   uint64_t start_object;
   std::optional<uint64_t> end_group;
   std::optional<uint64_t> end_object;
+  MoqtPriority subscriber_priority;
   std::optional<std::string> authorization_info;
 };
 

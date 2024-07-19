@@ -48,6 +48,8 @@ namespace {
 
 using ::quic::Perspective;
 
+constexpr MoqtPriority kDefaultSubscriberPriority = 0x80;
+
 bool PublisherHasData(const MoqtTrackPublisher& publisher) {
   absl::StatusOr<MoqtTrackStatusCode> status = publisher.GetTrackStatus();
   return status.ok() && DoesTrackStatusImplyHavingData(*status);
@@ -246,6 +248,8 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
+  message.subscriber_priority = kDefaultSubscriberPriority;
+  message.group_order = std::nullopt;
   message.start_group = start_group;
   message.start_object = start_object;
   message.end_group = std::nullopt;
@@ -269,6 +273,8 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
+  message.subscriber_priority = kDefaultSubscriberPriority;
+  message.group_order = std::nullopt;
   message.start_group = start_group;
   message.start_object = start_object;
   message.end_group = end_group;
@@ -296,6 +302,8 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
+  message.subscriber_priority = kDefaultSubscriberPriority;
+  message.group_order = std::nullopt;
   message.start_group = start_group;
   message.start_object = start_object;
   message.end_group = end_group;
@@ -313,6 +321,8 @@ bool MoqtSession::SubscribeCurrentObject(absl::string_view track_namespace,
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
+  message.subscriber_priority = kDefaultSubscriberPriority;
+  message.group_order = std::nullopt;
   message.start_group = std::nullopt;
   message.start_object = std::nullopt;
   message.end_group = std::nullopt;
@@ -330,6 +340,8 @@ bool MoqtSession::SubscribeCurrentGroup(absl::string_view track_namespace,
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
+  message.subscriber_priority = kDefaultSubscriberPriority;
+  message.group_order = std::nullopt;
   // First object of current group.
   message.start_group = std::nullopt;
   message.start_object = 0;
@@ -716,7 +728,7 @@ void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
                                                ? *message.end_object
                                                : UINT64_MAX);
   }
-  it->second->Update(start, end);
+  it->second->Update(start, end, message.subscriber_priority);
 }
 
 void MoqtSession::ControlStream::OnAnnounceMessage(
@@ -850,7 +862,9 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
       session_(session),
       track_publisher_(track_publisher),
       track_alias_(subscribe.track_alias),
-      window_(SubscribeMessageToWindow(subscribe, *track_publisher)) {
+      window_(SubscribeMessageToWindow(subscribe, *track_publisher)),
+      subscriber_priority_(subscribe.subscriber_priority),
+      subscriber_delivery_order_(subscribe.group_order) {
   track_publisher->AddObjectListener(this);
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << subscribe.track_namespace << ":" << subscribe.track_name;
@@ -874,8 +888,10 @@ SendStreamMap& MoqtSession::PublishedSubscription::stream_map() {
 }
 
 void MoqtSession::PublishedSubscription::Update(
-    FullSequence start, std::optional<FullSequence> end) {
+    FullSequence start, std::optional<FullSequence> end,
+    MoqtPriority subscriber_priority) {
   window_.UpdateStartEnd(start, end);
+  subscriber_priority_ = subscriber_priority;
   // TODO: reset streams that are no longer in-window.
   // TODO: send SUBSCRIBE_DONE if required.
   // TODO: send an error for invalid updates now that it's a part of draft-05.

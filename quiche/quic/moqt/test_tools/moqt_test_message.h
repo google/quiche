@@ -422,6 +422,14 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE track name mismatch";
       return false;
     }
+    if (cast.subscriber_priority != subscribe_.subscriber_priority) {
+      QUIC_LOG(INFO) << "SUBSCRIBE subscriber priority mismatch";
+      return false;
+    }
+    if (cast.group_order != subscribe_.group_order) {
+      QUIC_LOG(INFO) << "SUBSCRIBE group order mismatch";
+      return false;
+    }
     if (cast.start_group != subscribe_.start_group) {
       QUIC_LOG(INFO) << "SUBSCRIBE start group mismatch";
       return false;
@@ -445,20 +453,24 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv---v----vvvvvv---"); }
+  void ExpandVarints() override {
+    ExpandVarintsImpl("vvvv---v------vvvvvv---");
+  }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_);
   }
 
  private:
-  uint8_t raw_packet_[21] = {
+  uint8_t raw_packet_[23] = {
       0x03, 0x01,
       0x02,  // id and alias
       0x03, 0x66, 0x6f,
       0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63,
       0x64,  // track_name = "abcd"
+      0x20,  // subscriber priority = 0x20
+      0x02,  // group order = descending
       0x03,  // Filter type: Absolute Start
       0x04,  // start_group = 4 (relative previous)
       0x01,  // start_object = 1 (absolute)
@@ -473,6 +485,8 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       /*track_alias=*/2,
       /*track_namespace=*/"foo",
       /*track_name=*/"abcd",
+      /*subscriber_priority=*/0x20,
+      /*group_order=*/MoqtDeliveryOrder::kDescending,
       /*start_group=*/4,
       /*start_object=*/1,
       /*end_group=*/std::nullopt,
@@ -701,6 +715,10 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE end group mismatch";
       return false;
     }
+    if (cast.subscriber_priority != subscribe_update_.subscriber_priority) {
+      QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE subscriber priority mismatch";
+      return false;
+    }
     if (cast.authorization_info != subscribe_update_.authorization_info) {
       QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE authorization info mismatch";
       return false;
@@ -708,15 +726,16 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvvvv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvv-vvv---"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_update_);
   }
 
  private:
-  uint8_t raw_packet_[12] = {
+  uint8_t raw_packet_[13] = {
       0x02, 0x02, 0x03, 0x01, 0x05, 0x06,  // start and end sequences
+      0xaa,                                // subscriber_priority
       0x01,                                // 1 parameter
       0x02, 0x03, 0x62, 0x61, 0x72,        // authorization_info = "bar"
   };
@@ -727,6 +746,7 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
       /*start_object=*/1,
       /*end_group=*/4,
       /*end_object=*/5,
+      /*subscriber_priority=*/0xaa,
       /*authorization_info=*/"bar",
   };
 };

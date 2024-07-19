@@ -21,6 +21,27 @@
 
 namespace moqt {
 
+namespace {
+
+bool ParseDeliveryOrder(uint8_t raw_value,
+                        std::optional<MoqtDeliveryOrder>& output) {
+  switch (raw_value) {
+    case 0x00:
+      output = std::nullopt;
+      return true;
+    case 0x01:
+      output = MoqtDeliveryOrder::kAscending;
+      return true;
+    case 0x02:
+      output = MoqtDeliveryOrder::kDescending;
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
 // The buffering philosophy is complicated, to minimize copying. Here is an
 // overview:
 // If the entire message body is present (except for OBJECT payload), it is
@@ -402,11 +423,17 @@ size_t MoqtParser::ProcessServerSetup(quic::QuicDataReader& reader) {
 size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
   MoqtSubscribe subscribe_request;
   uint64_t filter, group, object;
+  uint8_t group_order;
   if (!reader.ReadVarInt62(&subscribe_request.subscribe_id) ||
       !reader.ReadVarInt62(&subscribe_request.track_alias) ||
       !reader.ReadStringVarInt62(subscribe_request.track_namespace) ||
       !reader.ReadStringVarInt62(subscribe_request.track_name) ||
-      !reader.ReadVarInt62(&filter)) {
+      !reader.ReadUInt8(&subscribe_request.subscriber_priority) ||
+      !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&filter)) {
+    return 0;
+  }
+  if (!ParseDeliveryOrder(group_order, subscribe_request.group_order)) {
+    ParseError("Invalid group order value in SUBSCRIBE message");
     return 0;
   }
   MoqtFilterType filter_type = static_cast<MoqtFilterType>(filter);
@@ -566,6 +593,7 @@ size_t MoqtParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
       !reader.ReadVarInt62(&subscribe_update.start_group) ||
       !reader.ReadVarInt62(&subscribe_update.start_object) ||
       !reader.ReadVarInt62(&end_group) || !reader.ReadVarInt62(&end_object) ||
+      !reader.ReadUInt8(&subscribe_update.subscriber_priority) ||
       !reader.ReadVarInt62(&num_params)) {
     return 0;
   }

@@ -303,7 +303,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
           WireVarInt62(message.subscribe_id), WireVarInt62(message.track_alias),
           WireStringWithVarInt62Length(message.track_namespace),
           WireStringWithVarInt62Length(message.track_name),
-          WireVarInt62(filter_type), WireVarInt62(string_params.size()),
+          WireUint8(message.subscriber_priority),
+          WireDeliveryOrder(message.group_order), WireVarInt62(filter_type),
+          WireVarInt62(string_params.size()),
           WireSpan<WireStringParameter>(string_params));
     case MoqtFilterType::kAbsoluteStart:
       return Serialize(
@@ -311,7 +313,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
           WireVarInt62(message.subscribe_id), WireVarInt62(message.track_alias),
           WireStringWithVarInt62Length(message.track_namespace),
           WireStringWithVarInt62Length(message.track_name),
-          WireVarInt62(filter_type), WireVarInt62(*message.start_group),
+          WireUint8(message.subscriber_priority),
+          WireDeliveryOrder(message.group_order), WireVarInt62(filter_type),
+          WireVarInt62(*message.start_group),
           WireVarInt62(*message.start_object),
           WireVarInt62(string_params.size()),
           WireSpan<WireStringParameter>(string_params));
@@ -321,7 +325,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
           WireVarInt62(message.subscribe_id), WireVarInt62(message.track_alias),
           WireStringWithVarInt62Length(message.track_namespace),
           WireStringWithVarInt62Length(message.track_name),
-          WireVarInt62(filter_type), WireVarInt62(*message.start_group),
+          WireUint8(message.subscriber_priority),
+          WireDeliveryOrder(message.group_order), WireVarInt62(filter_type),
+          WireVarInt62(*message.start_group),
           WireVarInt62(*message.start_object), WireVarInt62(*message.end_group),
           WireVarInt62(message.end_object.has_value() ? *message.end_object + 1
                                                       : 0),
@@ -400,7 +406,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(
       WireVarInt62(MoqtMessageType::kSubscribeUpdate),
       WireVarInt62(message.subscribe_id), WireVarInt62(message.start_group),
       WireVarInt62(message.start_object), WireVarInt62(end_group),
-      WireVarInt62(end_object), WireSpan<WireStringParameter>(string_params));
+      WireVarInt62(end_object), WireUint8(message.subscriber_priority),
+      WireSpan<WireStringParameter>(string_params));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeAnnounce(

@@ -294,6 +294,8 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
               /*track_alias=*/4,
               /*track_namespace=*/"foo",
               /*track_name=*/"abcd",
+              /*subscriber_priority=*/0x20,
+              /*group_order=*/std::nullopt,
               start_group,
               start_object,
               end_group,
@@ -324,7 +326,7 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
           }
           buffer = framer_.SerializeSubscribe(subscribe);
           // Go to the filter type.
-          const uint8_t* read = BufferAtOffset(buffer, 12);
+          const uint8_t* read = BufferAtOffset(buffer, 14);
           EXPECT_EQ(static_cast<MoqtFilterType>(*read), expected_filter_type);
           EXPECT_GT(buffer.size(), 0);
           if (expected_filter_type == MoqtFilterType::kAbsoluteRange &&
@@ -344,6 +346,8 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
       /*track_alias=*/4,
       /*track_namespace=*/"foo",
       /*track_name=*/"abcd",
+      /*subscriber_priority=*/0x20,
+      /*group_order=*/std::nullopt,
       /*start_group=*/std::optional<uint64_t>(4),
       /*start_object=*/std::optional<uint64_t>(3),
       /*end_group=*/std::optional<uint64_t>(3),
@@ -367,6 +371,8 @@ TEST_F(MoqtFramerSimpleTest, SubscribeLatestGroupNonzeroObject) {
       /*track_alias=*/4,
       /*track_namespace=*/"foo",
       /*track_name=*/"abcd",
+      /*subscriber_priority=*/0x20,
+      /*group_order=*/std::nullopt,
       /*start_group=*/std::nullopt,
       /*start_object=*/std::optional<uint64_t>(3),
       /*end_group=*/std::nullopt,
@@ -386,6 +392,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
       /*start_object=*/3,
       /*end_group=*/4,
       /*end_object=*/std::nullopt,
+      /*subscriber_priority=*/0xaa,
       /*authorization_info=*/"bar",
   };
   quiche::QuicheBuffer buffer;
@@ -404,6 +411,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
       /*start_object=*/3,
       /*end_group=*/4,
       /*end_object=*/6,
+      /*subscriber_priority=*/0xaa,
       /*authorization_info=*/"bar",
   };
   quiche::QuicheBuffer buffer;
@@ -422,6 +430,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateInvalidRange) {
       /*start_object=*/3,
       /*end_group=*/std::nullopt,
       /*end_object=*/6,
+      /*subscriber_priority=*/0xaa,
       /*authorization_info=*/"bar",
   };
   quiche::QuicheBuffer buffer;

@@ -19,6 +19,7 @@
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
@@ -301,8 +302,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // conceptually simpler, as backpressure is less of a concern.
     void Backfill();
 
-    // Updates the window of the subscription in question.
-    void Update(FullSequence start, std::optional<FullSequence> end);
+    // Updates the window and other properties of the subscription in question.
+    void Update(FullSequence start, std::optional<FullSequence> end,
+                MoqtPriority subscriber_priority);
     // Checks if the specified sequence is within the window of this
     // subscription.
     bool InWindow(FullSequence sequence) { return window_.InWindow(sequence); }
@@ -328,6 +330,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     std::shared_ptr<MoqtTrackPublisher> track_publisher_;
     uint64_t track_alias_;
     SubscribeWindow window_;
+    MoqtPriority subscriber_priority_;
+    std::optional<MoqtDeliveryOrder> subscriber_delivery_order_;
     // Largest sequence number ever sent via this subscription.
     std::optional<FullSequence> largest_sent_;
     // Should be almost always accessed via `stream_map()`.
