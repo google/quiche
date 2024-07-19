@@ -45,7 +45,10 @@ struct MockSessionCallbacks {
 class MockTrackPublisher : public MoqtTrackPublisher {
  public:
   explicit MockTrackPublisher(FullTrackName name)
-      : track_name_(std::move(name)) {}
+      : track_name_(std::move(name)) {
+    ON_CALL(*this, GetDeliveryOrder())
+        .WillByDefault(testing::Return(MoqtDeliveryOrder::kAscending));
+  }
   const FullTrackName& GetTrackName() const override { return track_name_; }
 
   MOCK_METHOD(std::optional<PublishedObject>, GetCachedObject,
@@ -62,6 +65,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   MOCK_METHOD(MoqtForwardingPreference, GetForwardingPreference, (),
               (const, override));
   MOCK_METHOD(MoqtPriority, GetPublisherPriority, (), (const, override));
+  MOCK_METHOD(MoqtDeliveryOrder, GetDeliveryOrder, (), (const, override));
 
  private:
   FullTrackName track_name_;

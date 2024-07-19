@@ -267,6 +267,7 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
   uint64_t subscribe_id;
   // The message uses ms, but expires is in us.
   quic::QuicTimeDelta expires = quic::QuicTimeDelta::FromMilliseconds(0);
+  MoqtDeliveryOrder group_order;
   // If ContextExists on the wire is zero, largest_id has no value.
   std::optional<FullSequence> largest_id;
 };

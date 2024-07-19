@@ -19,8 +19,8 @@ using MoqtPriority = uint8_t;
 // Indicates the desired order of delivering groups associated with a given
 // track.
 enum class MoqtDeliveryOrder : uint8_t {
-  kAscending,
-  kDescending,
+  kAscending = 0x01,
+  kDescending = 0x02,
 };
 
 // Computes WebTransport send order for an MoQT data stream with the specified

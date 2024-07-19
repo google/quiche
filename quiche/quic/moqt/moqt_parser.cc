@@ -16,6 +16,7 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace moqt {
@@ -481,9 +482,10 @@ size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
 size_t MoqtParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   MoqtSubscribeOk subscribe_ok;
   uint64_t milliseconds;
+  uint8_t group_order;
   uint8_t content_exists;
   if (!reader.ReadVarInt62(&subscribe_ok.subscribe_id) ||
-      !reader.ReadVarInt62(&milliseconds) ||
+      !reader.ReadVarInt62(&milliseconds) || !reader.ReadUInt8(&group_order) ||
       !reader.ReadUInt8(&content_exists)) {
     return 0;
   }
@@ -491,7 +493,12 @@ size_t MoqtParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
     ParseError("SUBSCRIBE_OK ContentExists has invalid value");
     return 0;
   }
+  if (group_order != 0x01 && group_order != 0x02) {
+    ParseError("Invalid group order value in SUBSCRIBE_OK");
+    return 0;
+  }
   subscribe_ok.expires = quic::QuicTimeDelta::FromMilliseconds(milliseconds);
+  subscribe_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
   if (content_exists) {
     subscribe_ok.largest_id = FullSequence();
     if (!reader.ReadVarInt62(&subscribe_ok.largest_id->group) ||

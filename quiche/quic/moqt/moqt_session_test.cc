@@ -679,6 +679,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/1,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*largest_id=*/std::nullopt,
   };
   StrictMock<webtransport::test::MockStream> mock_control_stream;
@@ -851,6 +852,7 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/1,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*largest_id=*/std::nullopt,
   };
   StrictMock<webtransport::test::MockStream> mock_control_stream;

@@ -67,6 +67,9 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   MoqtPriority GetPublisherPriority() const override {
     return publisher_priority_;
   }
+  MoqtDeliveryOrder GetDeliveryOrder() const override {
+    return delivery_order_;
+  }
 
   bool HasSubscribers() const { return !listeners_.empty(); }
 
@@ -87,6 +90,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   FullTrackName track_;
   MoqtForwardingPreference forwarding_preference_;
   MoqtPriority publisher_priority_ = 128;
+  MoqtDeliveryOrder delivery_order_ = MoqtDeliveryOrder::kAscending;
   absl::InlinedVector<Group, kMaxQueuedGroups> queue_;
   uint64_t current_group_id_ = -1;
   absl::flat_hash_set<MoqtObjectListener*> listeners_;

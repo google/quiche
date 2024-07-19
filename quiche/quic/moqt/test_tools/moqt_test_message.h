@@ -18,6 +18,7 @@
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_endian.h"
@@ -496,6 +497,10 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE OK expiration mismatch";
       return false;
     }
+    if (cast.group_order != subscribe_ok_.group_order) {
+      QUIC_LOG(INFO) << "SUBSCRIBE OK group order mismatch";
+      return false;
+    }
     if (cast.largest_id != subscribe_ok_.largest_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE OK largest ID mismatch";
       return false;
@@ -503,26 +508,33 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv-vv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv--vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_ok_);
   }
 
   void SetInvalidContentExists() {
-    raw_packet_[3] = 0x02;
+    raw_packet_[4] = 0x02;
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+
+  void SetInvalidDeliveryOrder() {
+    raw_packet_[3] = 0x10;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
  private:
-  uint8_t raw_packet_[6] = {
+  uint8_t raw_packet_[7] = {
       0x04, 0x01, 0x03,  // subscribe_id = 1, expires = 3
+      0x02,              // delivery_order = 2,
       0x01, 0x0c, 0x14,  // largest_group_id = 12, largest_object_id = 20,
   };
 
   MoqtSubscribeOk subscribe_ok_ = {
       /*subscribe_id=*/1,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(3),
+      /*group_order=*/MoqtDeliveryOrder::kDescending,
       /*largest_id=*/FullSequence(12, 20),
   };
 };

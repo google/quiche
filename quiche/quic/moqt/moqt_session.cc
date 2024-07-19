@@ -27,6 +27,7 @@
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
@@ -610,6 +611,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   if (PublisherHasData(**track_publisher)) {
     largest_id = (*track_publisher)->GetLargestSequence();
   }
+  MoqtDeliveryOrder delivery_order = (*track_publisher)->GetDeliveryOrder();
 
   auto subscription = std::make_unique<MoqtSession::PublishedSubscription>(
       session_, *std::move(track_publisher), message);
@@ -622,6 +624,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
 
   MoqtSubscribeOk subscribe_ok;
   subscribe_ok.subscribe_id = message.subscribe_id;
+  subscribe_ok.group_order = delivery_order;
   subscribe_ok.largest_id = largest_id;
   SendOrBufferMessage(session_->framer_.SerializeSubscribeOk(subscribe_ok));
 

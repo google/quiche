@@ -94,6 +94,9 @@ class MoqtTrackPublisher {
 
   // Returns the current forwarding priority of the track.
   virtual MoqtPriority GetPublisherPriority() const = 0;
+
+  // Returns the publisher-preferred delivery order for the track.
+  virtual MoqtDeliveryOrder GetDeliveryOrder() const = 0;
 };
 
 // MoqtPublisher is an interface to a publisher that allows it to publish

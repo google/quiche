@@ -18,8 +18,10 @@
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_data_writer.h"
 #include "quiche/common/simple_buffer_allocator.h"
@@ -122,6 +124,20 @@ QuicheBuffer Serialize(Ts... data) {
     return QuicheBuffer();
   }
   return *std::move(buffer);
+}
+
+WireUint8 WireDeliveryOrder(std::optional<MoqtDeliveryOrder> delivery_order) {
+  if (!delivery_order.has_value()) {
+    return WireUint8(0x00);
+  }
+  switch (*delivery_order) {
+    case MoqtDeliveryOrder::kAscending:
+      return WireUint8(0x01);
+    case MoqtDeliveryOrder::kDescending:
+      return WireUint8(0x02);
+  }
+  QUICHE_NOTREACHED();
+  return WireUint8(0xff);
 }
 
 }  // namespace
@@ -323,13 +339,14 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
     return Serialize(WireVarInt62(MoqtMessageType::kSubscribeOk),
                      WireVarInt62(message.subscribe_id),
                      WireVarInt62(message.expires.ToMilliseconds()),
-                     WireUint8(1), WireVarInt62(message.largest_id->group),
+                     WireDeliveryOrder(message.group_order), WireUint8(1),
+                     WireVarInt62(message.largest_id->group),
                      WireVarInt62(message.largest_id->object));
   }
   return Serialize(WireVarInt62(MoqtMessageType::kSubscribeOk),
                    WireVarInt62(message.subscribe_id),
                    WireVarInt62(message.expires.ToMilliseconds()),
-                   WireUint8(0));
+                   WireDeliveryOrder(message.group_order), WireUint8(0));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeError(
