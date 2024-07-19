@@ -80,6 +80,13 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
   kGoawayTimeout = 0x10,
 };
 
+// Error codes used by MoQT to reset streams.
+// TODO: update with spec-defined error codes once those are available, see
+// <https://github.com/moq-wg/moq-transport/issues/481>.
+inline constexpr uint64_t kResetCodeUnknown = 0x00;
+inline constexpr uint64_t kResetCodeSubscriptionGone = 0x01;
+inline constexpr uint64_t kResetCodeTimedOut = 0x02;
+
 enum class QUICHE_EXPORT MoqtRole : uint64_t {
   kPublisher = 0x1,
   kSubscriber = 0x2,
@@ -129,6 +136,12 @@ struct FullTrackName {
   }
   template <typename H>
   friend H AbslHashValue(H h, const FullTrackName& m);
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const FullTrackName& track_name) {
+    absl::Format(&sink, "(%s; %s)", track_name.track_namespace,
+                 track_name.track_name);
+  }
 };
 
 template <typename H>
@@ -151,6 +164,7 @@ struct FullSequence {
     return (group < other.group ||
             (group == other.group && object <= other.object));
   }
+  bool operator>(const FullSequence& other) const { return !(*this <= other); }
   FullSequence& operator=(FullSequence other) {
     group = other.group;
     object = other.object;
@@ -325,6 +339,19 @@ enum class QUICHE_EXPORT MoqtTrackStatusCode : uint64_t {
   kFinished = 0x3,
   kStatusNotAvailable = 0x4,
 };
+
+inline bool DoesTrackStatusImplyHavingData(MoqtTrackStatusCode code) {
+  switch (code) {
+    case MoqtTrackStatusCode::kInProgress:
+    case MoqtTrackStatusCode::kFinished:
+      return true;
+    case MoqtTrackStatusCode::kDoesNotExist:
+    case MoqtTrackStatusCode::kNotYetBegun:
+    case MoqtTrackStatusCode::kStatusNotAvailable:
+      return false;
+  }
+  return false;
+}
 
 struct QUICHE_EXPORT MoqtTrackStatus {
   std::string track_namespace;

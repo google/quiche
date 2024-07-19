@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -22,6 +23,7 @@
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_session.h"
@@ -95,7 +97,8 @@ class ObjectGenerator : public quic::simulator::Actor {
                   int keyframe_interval, int fps, float i_to_p_ratio,
                   QuicBandwidth bitrate)
       : Actor(simulator, actor_name),
-        queue_(session, track_name),
+        queue_(std::make_shared<MoqtOutgoingQueue>(
+            session, track_name, MoqtForwardingPreference::kGroup)),
         keyframe_interval_(keyframe_interval),
         time_between_frames_(QuicTimeDelta::FromMicroseconds(1.0e6 / fps)) {
     int p_frame_count = keyframe_interval - 1;
@@ -123,18 +126,18 @@ class ObjectGenerator : public quic::simulator::Actor {
     bool success = writer.WriteUInt64(clock_->Now().ToDebuggingValue());
     QUICHE_CHECK(success);
 
-    queue_.AddObject(QuicheMemSlice(std::move(buffer)), i_frame);
+    queue_->AddObject(QuicheMemSlice(std::move(buffer)), i_frame);
     Schedule(clock_->Now() + time_between_frames_);
   }
 
   void Start() { Schedule(clock_->Now()); }
   void Stop() { Unschedule(); }
 
-  MoqtOutgoingQueue& queue() { return queue_; }
+  std::shared_ptr<MoqtOutgoingQueue> queue() { return queue_; }
   size_t total_objects_sent() const { return frame_number_ + 1; }
 
  private:
-  MoqtOutgoingQueue queue_;
+  std::shared_ptr<MoqtOutgoingQueue> queue_;
   int keyframe_interval_;
   QuicTimeDelta time_between_frames_;
   QuicByteCount i_frame_size_;
@@ -270,8 +273,8 @@ class MoqtSimulator {
     //   (2) The client starts immediately generating data.  At this point, the
     //       server does not yet have an active subscription, so the client has
     //       some catching up to do.
-    client_session()->AddLocalTrack(
-        TrackName(), MoqtForwardingPreference::kGroup, &generator_.queue());
+    client_session()->set_publisher(&publisher_);
+    publisher_.Add(generator_.queue());
     generator_.Start();
     server_session()->SubscribeCurrentGroup(TrackName().track_namespace,
                                             TrackName().track_name, &receiver_);
@@ -298,6 +301,7 @@ class MoqtSimulator {
   quic::simulator::Switch switch_;
   quic::simulator::SymmetricLink client_link_;
   quic::simulator::SymmetricLink server_link_;
+  MoqtKnownTrackPublisher publisher_;
   ObjectGenerator generator_;
   ObjectReceiver receiver_;
   SimulationParameters parameters_;

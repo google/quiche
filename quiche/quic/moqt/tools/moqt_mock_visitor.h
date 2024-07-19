@@ -7,14 +7,16 @@
 
 #include <cstdint>
 #include <optional>
+#include <utility>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
-#include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
-#include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/platform/api/quiche_test.h"
 
 namespace moqt::test {
 
@@ -39,10 +41,28 @@ struct MockSessionCallbacks {
   }
 };
 
-class MockLocalTrackVisitor : public LocalTrack::Visitor {
+class MockTrackPublisher : public MoqtTrackPublisher {
  public:
-  MOCK_METHOD(absl::StatusOr<PublishPastObjectsCallback>, OnSubscribeForPast,
-              (const SubscribeWindow& window), (override));
+  explicit MockTrackPublisher(FullTrackName name)
+      : track_name_(std::move(name)) {}
+  const FullTrackName& GetTrackName() const override { return track_name_; }
+
+  MOCK_METHOD(std::optional<PublishedObject>, GetCachedObject,
+              (FullSequence sequence), (const, override));
+  MOCK_METHOD(std::vector<FullSequence>, GetCachedObjectsInRange,
+              (FullSequence start, FullSequence end), (const, override));
+  MOCK_METHOD(void, AddObjectListener, (MoqtObjectListener * listener),
+              (override));
+  MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),
+              (override));
+  MOCK_METHOD(absl::StatusOr<MoqtTrackStatusCode>, GetTrackStatus, (),
+              (const, override));
+  MOCK_METHOD(FullSequence, GetLargestSequence, (), (const, override));
+  MOCK_METHOD(MoqtForwardingPreference, GetForwardingPreference, (),
+              (const, override));
+
+ private:
+  FullTrackName track_name_;
 };
 
 class MockRemoteTrackVisitor : public RemoteTrack::Visitor {

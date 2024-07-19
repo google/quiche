@@ -4,15 +4,15 @@
 
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 
-#include <cstddef>
-#include <cstdint>
+#include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/string_view.h"
+#include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
@@ -29,7 +29,7 @@ void MoqtOutgoingQueue::AddObject(quiche::QuicheMemSlice payload, bool key) {
 
   if (key) {
     if (!queue_.empty()) {
-      CloseStreamForGroup(current_group_id_);
+      AddRawObject(MoqtObjectStatus::kEndOfGroup, quiche::QuicheMemSlice());
     }
 
     if (queue_.size() == kMaxQueuedGroups) {
@@ -39,53 +39,72 @@ void MoqtOutgoingQueue::AddObject(quiche::QuicheMemSlice payload, bool key) {
     ++current_group_id_;
   }
 
-  absl::string_view payload_view = payload.AsStringView();
-  uint64_t object_id = queue_.back().size();
-  queue_.back().push_back(std::move(payload));
-  PublishObject(current_group_id_, object_id, payload_view);
+  AddRawObject(MoqtObjectStatus::kNormal, std::move(payload));
 }
 
-absl::StatusOr<MoqtOutgoingQueue::PublishPastObjectsCallback>
-MoqtOutgoingQueue::OnSubscribeForPast(const SubscribeWindow& window) {
-  QUICHE_BUG_IF(
-      MoqtOutgoingQueue_requires_kGroup,
-      window.forwarding_preference() != MoqtForwardingPreference::kGroup)
-      << "MoqtOutgoingQueue currently only supports kGroup.";
-  return [this, &window]() {
-    for (size_t i = 0; i < queue_.size(); ++i) {
-      const uint64_t group_id = first_group_in_queue() + i;
-      const Group& group = queue_[i];
-      const bool is_last_group =
-          ((i == queue_.size() - 1) ||
-           !window.InWindow(FullSequence{group_id + 1, 0}));
-      for (size_t j = 0; j < group.size(); ++j) {
-        const FullSequence sequence{group_id, j};
-        if (!window.InWindow(sequence)) {
-          continue;
-        }
-        const bool is_last_object = (j == group.size() - 1);
-        PublishObject(group_id, j, group[j].AsStringView());
-        if (!is_last_group && is_last_object) {
-          // Close the group
-          CloseStreamForGroup(group_id);
-        }
+void MoqtOutgoingQueue::AddRawObject(MoqtObjectStatus status,
+                                     quiche::QuicheMemSlice payload) {
+  FullSequence sequence{current_group_id_, queue_.back().size()};
+  queue_.back().push_back(CachedObject{
+      sequence, status,
+      std::make_shared<quiche::QuicheMemSlice>(std::move(payload))});
+  for (MoqtObjectListener* listener : listeners_) {
+    listener->OnNewObjectAvailable(sequence);
+  }
+}
+
+std::optional<PublishedObject> MoqtOutgoingQueue::GetCachedObject(
+    FullSequence sequence) const {
+  if (sequence.group < first_group_in_queue()) {
+    return PublishedObject{FullSequence{sequence.group, sequence.object},
+                           MoqtObjectStatus::kGroupDoesNotExist,
+                           quiche::QuicheMemSlice()};
+  }
+  if (sequence.group > current_group_id_) {
+    return std::nullopt;
+  }
+  const std::vector<CachedObject>& group =
+      queue_[sequence.group - first_group_in_queue()];
+  if (sequence.object >= group.size()) {
+    if (sequence.group == current_group_id_) {
+      return std::nullopt;
+    }
+    return PublishedObject{FullSequence{sequence.group, sequence.object},
+                           MoqtObjectStatus::kObjectDoesNotExist,
+                           quiche::QuicheMemSlice()};
+  }
+  QUICHE_DCHECK(sequence == group[sequence.object].sequence);
+  return CachedObjectToPublishedObject(group[sequence.object]);
+}
+
+std::vector<FullSequence> MoqtOutgoingQueue::GetCachedObjectsInRange(
+    FullSequence start, FullSequence end) const {
+  std::vector<FullSequence> sequences;
+  SubscribeWindow window(start, end);
+  for (const Group& group : queue_) {
+    for (const CachedObject& object : group) {
+      if (window.InWindow(object.sequence)) {
+        sequences.push_back(object.sequence);
       }
     }
-  };
+  }
+  return sequences;
 }
 
-void MoqtOutgoingQueue::CloseStreamForGroup(uint64_t group_id) {
-  session_->PublishObject(track_, group_id, queue_[group_id].size(),
-                          /*object_send_order=*/group_id,
-                          MoqtObjectStatus::kEndOfGroup, "");
-  session_->CloseObjectStream(track_, group_id);
+absl::StatusOr<MoqtTrackStatusCode> MoqtOutgoingQueue::GetTrackStatus() const {
+  if (queue_.empty()) {
+    return MoqtTrackStatusCode::kNotYetBegun;
+  }
+  return MoqtTrackStatusCode::kInProgress;
 }
 
-void MoqtOutgoingQueue::PublishObject(uint64_t group_id, uint64_t object_id,
-                                      absl::string_view payload) {
-  session_->PublishObject(track_, group_id, object_id,
-                          /*object_send_order=*/group_id,
-                          MoqtObjectStatus::kNormal, payload);
+FullSequence MoqtOutgoingQueue::GetLargestSequence() const {
+  if (queue_.empty()) {
+    QUICHE_BUG(MoqtOutgoingQueue_GetLargestSequence_not_begun)
+        << "Calling GetLargestSequence() on a track that hasn't begun";
+    return FullSequence{0, 0};
+  }
+  return FullSequence{current_group_id_, queue_.back().size() - 1};
 }
 
 }  // namespace moqt

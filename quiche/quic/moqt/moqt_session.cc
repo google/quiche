@@ -16,6 +16,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -23,15 +24,18 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
-#include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_stream.h"
+#include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/web_transport.h"
 
 #define ENDPOINT \
@@ -39,7 +43,59 @@
 
 namespace moqt {
 
+namespace {
+
 using ::quic::Perspective;
+
+bool PublisherHasData(const MoqtTrackPublisher& publisher) {
+  absl::StatusOr<MoqtTrackStatusCode> status = publisher.GetTrackStatus();
+  return status.ok() && DoesTrackStatusImplyHavingData(*status);
+}
+
+SubscribeWindow SubscribeMessageToWindow(const MoqtSubscribe& subscribe,
+                                         MoqtTrackPublisher& publisher) {
+  const FullSequence sequence = PublisherHasData(publisher)
+                                    ? publisher.GetLargestSequence()
+                                    : FullSequence{0, 0};
+  switch (GetFilterType(subscribe)) {
+    case MoqtFilterType::kLatestGroup:
+      return SubscribeWindow(sequence.group, 0);
+    case MoqtFilterType::kLatestObject:
+      return SubscribeWindow(sequence.group, sequence.object);
+    case MoqtFilterType::kAbsoluteStart:
+      return SubscribeWindow(*subscribe.start_group, *subscribe.start_object);
+    case MoqtFilterType::kAbsoluteRange:
+      return SubscribeWindow(*subscribe.start_group, *subscribe.start_object,
+                             *subscribe.end_group, *subscribe.end_object);
+    case MoqtFilterType::kNone:
+      QUICHE_BUG(MoqtSession_Subscription_invalid_filter_passed);
+      return SubscribeWindow(0, 0);
+  }
+}
+
+class DefaultPublisher : public MoqtPublisher {
+ public:
+  static DefaultPublisher* GetInstance() {
+    static DefaultPublisher* instance = new DefaultPublisher();
+    return instance;
+  }
+
+  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> GetTrack(
+      const FullTrackName& track_name) override {
+    return absl::NotFoundError("No tracks published");
+  }
+};
+}  // namespace
+
+MoqtSession::MoqtSession(webtransport::Session* session,
+                         MoqtSessionParameters parameters,
+                         MoqtSessionCallbacks callbacks)
+    : session_(session),
+      parameters_(parameters),
+      callbacks_(std::move(callbacks)),
+      framer_(quiche::SimpleBufferAllocator::Get(), parameters.using_webtrans),
+      publisher_(DefaultPublisher::GetInstance()),
+      liveness_token_(std::make_shared<Empty>()) {}
 
 MoqtSession::ControlStream* MoqtSession::GetControlStream() {
   if (!control_stream_.has_value()) {
@@ -154,13 +210,6 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
   std::move(callbacks_.session_terminated_callback)(error);
 }
 
-void MoqtSession::AddLocalTrack(const FullTrackName& full_track_name,
-                                MoqtForwardingPreference forwarding_preference,
-                                LocalTrack::Visitor* visitor) {
-  local_tracks_.try_emplace(full_track_name, full_track_name,
-                            forwarding_preference, visitor);
-}
-
 // TODO: Create state that allows ANNOUNCE_OK/ERROR on spurious namespaces to
 // trigger session errors.
 void MoqtSession::Announce(absl::string_view track_namespace,
@@ -186,23 +235,6 @@ void MoqtSession::Announce(absl::string_view track_namespace,
   QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE message for "
                   << message.track_namespace;
   pending_outgoing_announces_[track_namespace] = std::move(announce_callback);
-}
-
-bool MoqtSession::HasSubscribers(const FullTrackName& full_track_name) const {
-  auto it = local_tracks_.find(full_track_name);
-  return (it != local_tracks_.end() && it->second.HasSubscriber());
-}
-
-void MoqtSession::CancelAnnounce(absl::string_view track_namespace) {
-  for (auto it = local_tracks_.begin(); it != local_tracks_.end(); ++it) {
-    if (it->first.track_namespace == track_namespace) {
-      it->second.set_announce_cancel();
-    }
-  }
-  absl::erase_if(local_tracks_, [&](const auto& it) {
-    return it.first.track_namespace == track_namespace &&
-           !it.second.HasSubscriber();
-  });
 }
 
 bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
@@ -310,33 +342,31 @@ bool MoqtSession::SubscribeCurrentGroup(absl::string_view track_namespace,
 
 bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
                                   absl::string_view reason_phrase) {
-  // Search all the tracks to find the subscribe ID.
-  auto name_it = local_track_by_subscribe_id_.find(subscribe_id);
-  if (name_it == local_track_by_subscribe_id_.end()) {
+  auto it = published_subscriptions_.find(subscribe_id);
+  if (it == published_subscriptions_.end()) {
     return false;
   }
-  auto track_it = local_tracks_.find(name_it->second);
-  if (track_it == local_tracks_.end()) {
-    return false;
-  }
-  LocalTrack& track = track_it->second;
+
+  PublishedSubscription& subscription = *it->second;
+  std::vector<webtransport::StreamId> streams_to_reset =
+      subscription.GetAllStreams();
+
   MoqtSubscribeDone subscribe_done;
   subscribe_done.subscribe_id = subscribe_id;
   subscribe_done.status_code = code;
   subscribe_done.reason_phrase = reason_phrase;
-  SubscribeWindow* window = track.GetWindow(subscribe_id);
-  if (window == nullptr) {
-    return false;
-  }
-  subscribe_done.final_id = window->largest_delivered();
+  subscribe_done.final_id = subscription.largest_sent();
   SendControlMessage(framer_.SerializeSubscribeDone(subscribe_done));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_DONE message for "
                   << subscribe_id;
   // Clean up the subscription
-  track.DeleteWindow(subscribe_id);
-  local_track_by_subscribe_id_.erase(name_it);
-  if (track.canceled() && !track.HasSubscriber()) {
-    local_tracks_.erase(track_it);
+  published_subscriptions_.erase(it);
+  for (webtransport::StreamId stream_id : streams_to_reset) {
+    webtransport::Stream* stream = session_->GetStreamById(stream_id);
+    if (stream == nullptr) {
+      continue;
+    }
+    stream->ResetWithUserCode(kResetCodeSubscriptionGone);
   }
   return true;
 }
@@ -367,18 +397,51 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
   return true;
 }
 
-std::optional<webtransport::StreamId> MoqtSession::OpenUnidirectionalStream() {
+webtransport::Stream* MoqtSession::OpenOrQueueDataStream(
+    uint64_t subscription_id, FullSequence first_object) {
   if (!session_->CanOpenNextOutgoingUnidirectionalStream()) {
-    return std::nullopt;
+    queued_outgoing_data_streams_.push_back(
+        QueuedOutgoingDataStream{subscription_id, first_object});
+    // TODO: limit the number of streams in the queue.
+    return nullptr;
   }
+  return OpenDataStream(subscription_id, first_object);
+}
+
+webtransport::Stream* MoqtSession::OpenDataStream(uint64_t subscription_id,
+                                                  FullSequence first_object) {
+  auto it = published_subscriptions_.find(subscription_id);
+  if (it == published_subscriptions_.end()) {
+    // It is possible that the subscription has been discarded while the stream
+    // was in the queue; discard those streams.
+    return nullptr;
+  }
+  PublishedSubscription& subscription = *it->second;
+
   webtransport::Stream* new_stream =
       session_->OpenOutgoingUnidirectionalStream();
   if (new_stream == nullptr) {
-    return std::nullopt;
+    QUICHE_BUG(MoqtSession_OpenDataStream_blocked)
+        << "OpenDataStream called when creation of new streams is blocked.";
+    return nullptr;
   }
-  new_stream->SetVisitor(
-      std::make_unique<OutgoingDataStream>(this, new_stream));
-  return new_stream->GetStreamId();
+  new_stream->SetVisitor(std::make_unique<OutgoingDataStream>(
+      this, new_stream, subscription_id, first_object));
+  subscription.OnDataStreamCreated(new_stream->GetStreamId(), first_object);
+  return new_stream;
+}
+
+void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
+  while (!queued_outgoing_data_streams_.empty() &&
+         session_->CanOpenNextOutgoingUnidirectionalStream()) {
+    QueuedOutgoingDataStream next = queued_outgoing_data_streams_.front();
+    queued_outgoing_data_streams_.pop_front();
+    webtransport::Stream* stream =
+        OpenDataStream(next.subscription_id, next.first_object);
+    if (stream != nullptr) {
+      stream->visitor()->OnCanWrite();
+    }
+  }
 }
 
 std::pair<FullTrackName, RemoteTrack::Visitor*>
@@ -420,157 +483,6 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
       {{track.full_track_name().track_namespace,
         track.full_track_name().track_name},
        track.visitor()});
-}
-
-// TODO(martinduke): Throw errors if the object status is inconsistent with
-// sequence numbers we have already observed on the track.
-bool MoqtSession::PublishObject(const FullTrackName& full_track_name,
-                                uint64_t group_id, uint64_t object_id,
-                                uint64_t object_send_order,
-                                MoqtObjectStatus status,
-                                absl::string_view payload) {
-  auto track_it = local_tracks_.find(full_track_name);
-  if (track_it == local_tracks_.end()) {
-    QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT for nonexistent track";
-    return false;
-  }
-  // TODO(martinduke): Write a test for this QUIC_BUG.
-  QUIC_BUG_IF(moqt_publish_abnormal_with_payload,
-              status != MoqtObjectStatus::kNormal && !payload.empty());
-  LocalTrack& track = track_it->second;
-  bool end_of_stream = false;
-  MoqtForwardingPreference forwarding_preference =
-      track.forwarding_preference();
-  switch (forwarding_preference) {
-    case MoqtForwardingPreference::kTrack:
-      end_of_stream = (status == MoqtObjectStatus::kEndOfTrack);
-      break;
-    case MoqtForwardingPreference::kObject:
-    case MoqtForwardingPreference::kDatagram:
-      end_of_stream = true;
-      break;
-    case MoqtForwardingPreference::kGroup:
-      end_of_stream = (status == MoqtObjectStatus::kEndOfGroup ||
-                       status == MoqtObjectStatus::kGroupDoesNotExist ||
-                       status == MoqtObjectStatus::kEndOfTrack);
-      break;
-  }
-  FullSequence sequence{group_id, object_id};
-  track.SentSequence(sequence, status);
-  std::vector<SubscribeWindow*> subscriptions =
-      track.ShouldSend({group_id, object_id});
-  if (subscriptions.empty()) {
-    return true;
-  }
-  MoqtObject object;
-  QUICHE_DCHECK(track.track_alias().has_value());
-  object.track_alias = *track.track_alias();
-  object.group_id = group_id;
-  object.object_id = object_id;
-  object.object_send_order = object_send_order;
-  object.object_status = status;
-  object.forwarding_preference = forwarding_preference;
-  object.payload_length = payload.size();
-  int failures = 0;
-  quiche::StreamWriteOptions write_options;
-  write_options.set_send_fin(end_of_stream);
-  absl::flat_hash_set<uint64_t> subscribes_to_close;
-  for (auto subscription : subscriptions) {
-    if (subscription->OnObjectSent(sequence, status)) {
-      subscribes_to_close.insert(subscription->subscribe_id());
-    }
-    if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
-      object.subscribe_id = subscription->subscribe_id();
-      quiche::QuicheBuffer datagram =
-          framer_.SerializeObjectDatagram(object, payload);
-      // TODO(martinduke): It's OK to just silently fail, but better to notify
-      // the app on errors.
-      session_->SendOrQueueDatagram(datagram.AsStringView());
-      continue;
-    }
-    bool new_stream = false;
-    std::optional<webtransport::StreamId> stream_id =
-        subscription->GetStreamForSequence(sequence);
-    if (!stream_id.has_value()) {
-      new_stream = true;
-      stream_id = OpenUnidirectionalStream();
-      if (!stream_id.has_value()) {
-        QUICHE_DLOG(ERROR) << ENDPOINT
-                           << "Sending OBJECT to nonexistent stream";
-        ++failures;
-        continue;
-      }
-      if (!end_of_stream) {
-        subscription->AddStream(group_id, object_id, *stream_id);
-      }
-    }
-    webtransport::Stream* stream = session_->GetStreamById(*stream_id);
-    if (stream == nullptr) {
-      QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT to nonexistent stream "
-                         << *stream_id;
-      ++failures;
-      continue;
-    }
-    object.subscribe_id = subscription->subscribe_id();
-    quiche::QuicheBuffer header =
-        framer_.SerializeObjectHeader(object, new_stream);
-    std::array<absl::string_view, 2> views = {header.AsStringView(), payload};
-    if (!stream->Writev(views, write_options).ok()) {
-      QUICHE_DLOG(ERROR) << ENDPOINT << "Failed to write OBJECT message";
-      ++failures;
-      continue;
-    }
-    QUICHE_DVLOG(1) << ENDPOINT << "Sending object length " << payload.length()
-                    << " for " << full_track_name.track_namespace << ":"
-                    << full_track_name.track_name << " with sequence "
-                    << object.group_id << ":" << object.object_id
-                    << " on stream " << *stream_id;
-    if (end_of_stream && !new_stream) {
-      subscription->RemoveStream(group_id, object_id);
-    }
-  }
-  for (uint64_t subscribe_id : subscribes_to_close) {
-    SubscribeIsDone(subscribe_id, SubscribeDoneCode::kSubscriptionEnded, "");
-  }
-  return (failures == 0);
-}
-
-void MoqtSession::CloseObjectStream(const FullTrackName& full_track_name,
-                                    uint64_t group_id) {
-  auto track_it = local_tracks_.find(full_track_name);
-  if (track_it == local_tracks_.end()) {
-    QUICHE_DLOG(ERROR) << ENDPOINT << "Sending OBJECT for nonexistent track";
-    return;
-  }
-  LocalTrack& track = track_it->second;
-
-  MoqtForwardingPreference forwarding_preference =
-      track.forwarding_preference();
-  if (forwarding_preference == MoqtForwardingPreference::kObject ||
-      forwarding_preference == MoqtForwardingPreference::kDatagram) {
-    QUIC_BUG(MoqtSession_CloseStreamObject_wrong_type)
-        << "Forwarding preferences of Object or Datagram require stream to be "
-           "immediately closed, and thus are not valid CloseObjectStream() "
-           "targets";
-    return;
-  }
-
-  std::vector<SubscribeWindow*> subscriptions =
-      track.ShouldSend({group_id, /*object=*/0});
-  for (SubscribeWindow* subscription : subscriptions) {
-    std::optional<webtransport::StreamId> stream_id =
-        subscription->GetStreamForSequence(
-            FullSequence(group_id, /*object=*/0));
-    if (!stream_id.has_value()) {
-      continue;
-    }
-    webtransport::Stream* stream = session_->GetStreamById(*stream_id);
-    if (stream == nullptr) {
-      continue;
-    }
-    bool success = stream->SendFin();
-    QUICHE_BUG_IF(MoqtSession_CloseObjectStream_fin_failed, !success);
-  }
 }
 
 static void ForwardStreamDataToParser(webtransport::Stream& stream,
@@ -673,7 +585,6 @@ void MoqtSession::ControlStream::SendSubscribeError(
 
 void MoqtSession::ControlStream::OnSubscribeMessage(
     const MoqtSubscribe& message) {
-  std::string reason_phrase = "";
   if (session_->peer_role_ == MoqtRole::kPublisher) {
     QUIC_DLOG(INFO) << ENDPOINT << "Publisher peer sent SUBSCRIBE";
     session_->Error(MoqtError::kProtocolViolation,
@@ -682,99 +593,40 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE for "
                   << message.track_namespace << ":" << message.track_name;
-  auto it = session_->local_tracks_.find(FullTrackName(
-      std::string(message.track_namespace), std::string(message.track_name)));
-  if (it == session_->local_tracks_.end()) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Rejected because "
-                    << message.track_namespace << ":" << message.track_name
-                    << " does not exist";
+
+  FullTrackName track_name =
+      FullTrackName{message.track_namespace, message.track_name};
+  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
+      session_->publisher_->GetTrack(track_name);
+  if (!track_publisher.ok()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "SUBSCRIBE for " << track_name
+                    << " rejected by the application: "
+                    << track_publisher.status();
     SendSubscribeError(message, SubscribeErrorCode::kInternalError,
-                       "Track does not exist", message.track_alias);
+                       track_publisher.status().message(), message.track_alias);
     return;
   }
-  LocalTrack& track = it->second;
-  if (it->second.canceled()) {
-    // Note that if the track has already been deleted, there will not be a
-    // protocol violation, which the spec says there SHOULD be. It's not worth
-    // keeping state on deleted tracks.
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received SUBSCRIBE for canceled track");
-    return;
+  std::optional<FullSequence> largest_id;
+  if (PublisherHasData(**track_publisher)) {
+    largest_id = (*track_publisher)->GetLargestSequence();
   }
-  if ((track.track_alias().has_value() &&
-       message.track_alias != *track.track_alias()) ||
-      session_->used_track_aliases_.contains(message.track_alias)) {
-    // Propose a different track_alias.
-    SendSubscribeError(message, SubscribeErrorCode::kRetryTrackAlias,
-                       "Track alias already exists",
-                       session_->next_local_track_alias_++);
-    return;
-  } else {  // Use client-provided alias.
-    track.set_track_alias(message.track_alias);
-    if (message.track_alias >= session_->next_local_track_alias_) {
-      session_->next_local_track_alias_ = message.track_alias + 1;
-    }
-    session_->used_track_aliases_.insert(message.track_alias);
+
+  auto subscription = std::make_unique<MoqtSession::PublishedSubscription>(
+      session_, *std::move(track_publisher), message);
+  auto [it, success] = session_->published_subscriptions_.emplace(
+      message.subscribe_id, std::move(subscription));
+  if (!success) {
+    SendSubscribeError(message, SubscribeErrorCode::kInternalError,
+                       "Duplicate subscribe ID", message.track_alias);
   }
-  FullSequence start;
-  if (message.start_group.has_value()) {
-    // The filter is AbsoluteStart or AbsoluteRange.
-    QUIC_BUG_IF(quic_bug_invalid_subscribe, !message.start_object.has_value())
-        << "Start group without start object";
-    start = FullSequence(*message.start_group, *message.start_object);
-  } else {
-    // The filter is LatestObject or LatestGroup.
-    start = track.next_sequence();
-    if (message.start_object.has_value()) {
-      // The filter is LatestGroup.
-      QUIC_BUG_IF(quic_bug_invalid_subscribe, *message.start_object != 0)
-          << "LatestGroup does not start with zero";
-      start.object = 0;
-    } else {
-      --start.object;
-    }
-  }
-  LocalTrack::Visitor::PublishPastObjectsCallback publish_past_objects;
-  std::optional<SubscribeWindow> past_window;
-  if (start < track.next_sequence() && track.visitor() != nullptr) {
-    // Pull a copy of objects that have already been published.
-    FullSequence end_of_past_subscription{
-        message.end_group.has_value() ? *message.end_group : UINT64_MAX,
-        message.end_object.has_value() ? *message.end_object : UINT64_MAX};
-    end_of_past_subscription =
-        std::min(end_of_past_subscription, track.next_sequence());
-    past_window.emplace(message.subscribe_id, track.forwarding_preference(),
-                        track.next_sequence(), start, end_of_past_subscription);
-    absl::StatusOr<LocalTrack::Visitor::PublishPastObjectsCallback>
-        past_objects_available =
-            track.visitor()->OnSubscribeForPast(*past_window);
-    if (!past_objects_available.ok()) {
-      SendSubscribeError(message, SubscribeErrorCode::kInternalError,
-                         past_objects_available.status().message(),
-                         message.track_alias);
-      return;
-    }
-    publish_past_objects = *std::move(past_objects_available);
-  }
+
   MoqtSubscribeOk subscribe_ok;
   subscribe_ok.subscribe_id = message.subscribe_id;
+  subscribe_ok.largest_id = largest_id;
   SendOrBufferMessage(session_->framer_.SerializeSubscribeOk(subscribe_ok));
-  QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
-                  << message.track_namespace << ":" << message.track_name;
-  if (!message.end_group.has_value()) {
-    track.AddWindow(message.subscribe_id, start.group, start.object);
-  } else if (message.end_object.has_value()) {
-    track.AddWindow(message.subscribe_id, start.group, start.object,
-                    *message.end_group, *message.end_object);
-  } else {
-    track.AddWindow(message.subscribe_id, start.group, start.object,
-                    *message.end_group);
-  }
-  session_->local_track_by_subscribe_id_.emplace(message.subscribe_id,
-                                                 track.full_track_name());
-  if (publish_past_objects) {
-    QUICHE_DCHECK(past_window.has_value());
-    std::move(publish_past_objects)();
+
+  if (largest_id.has_value()) {
+    it->second->Backfill();
   }
 }
 
@@ -850,19 +702,8 @@ void MoqtSession::ControlStream::OnUnsubscribeMessage(
 
 void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
     const MoqtSubscribeUpdate& message) {
-  // Search all the tracks to find the subscribe ID.
-  auto name_it =
-      session_->local_track_by_subscribe_id_.find(message.subscribe_id);
-  if (name_it == session_->local_track_by_subscribe_id_.end()) {
-    return;
-  }
-  auto track_it = session_->local_tracks_.find(name_it->second);
-  if (track_it == session_->local_tracks_.end()) {
-    return;
-  }
-  LocalTrack& track = track_it->second;
-  SubscribeWindow* window = track.GetWindow(message.subscribe_id);
-  if (window == nullptr) {
+  auto it = session_->published_subscriptions_.find(message.subscribe_id);
+  if (it == session_->published_subscriptions_.end()) {
     return;
   }
   FullSequence start(message.start_group, message.start_object);
@@ -872,15 +713,7 @@ void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
                                                ? *message.end_object
                                                : UINT64_MAX);
   }
-  // TODO(martinduke): Handle the case where the update range is invalid.
-  if (window->UpdateStartEnd(start, end)) {
-    std::optional<FullSequence> largest_delivered = window->largest_delivered();
-    if (largest_delivered.has_value() && end <= *largest_delivered) {
-      session_->SubscribeIsDone(message.subscribe_id,
-                                SubscribeDoneCode::kSubscriptionEnded,
-                                "SUBSCRIBE_UPDATE moved subscription end");
-    }
-  }
+  it->second->Update(start, end);
 }
 
 void MoqtSession::ControlStream::OnAnnounceMessage(
@@ -935,7 +768,7 @@ void MoqtSession::ControlStream::OnAnnounceErrorMessage(
 
 void MoqtSession::ControlStream::OnAnnounceCancelMessage(
     const MoqtAnnounceCancel& message) {
-  session_->CancelAnnounce(message.track_namespace);
+  // TODO: notify the application about this.
 }
 
 void MoqtSession::ControlStream::OnParsingError(MoqtError error_code,
@@ -1007,8 +840,309 @@ void MoqtSession::IncomingDataStream::OnParsingError(MoqtError error_code,
   session_->Error(error_code, absl::StrCat("Parse error: ", reason));
 }
 
+MoqtSession::PublishedSubscription::PublishedSubscription(
+    MoqtSession* session, std::shared_ptr<MoqtTrackPublisher> track_publisher,
+    const MoqtSubscribe& subscribe)
+    : subscription_id_(subscribe.subscribe_id),
+      session_(session),
+      track_publisher_(track_publisher),
+      track_alias_(subscribe.track_alias),
+      window_(SubscribeMessageToWindow(subscribe, *track_publisher)) {
+  track_publisher->AddObjectListener(this);
+  QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
+                  << subscribe.track_namespace << ":" << subscribe.track_name;
+}
+
+MoqtSession::PublishedSubscription::~PublishedSubscription() {
+  track_publisher_->RemoveObjectListener(this);
+}
+
+SendStreamMap& MoqtSession::PublishedSubscription::stream_map() {
+  // The stream map is lazily initialized, since initializing it requires
+  // knowing the forwarding preference in advance, and it might not be known
+  // when the subscription is first created.
+  if (!lazily_initialized_stream_map_.has_value()) {
+    QUICHE_DCHECK(
+        DoesTrackStatusImplyHavingData(*track_publisher_->GetTrackStatus()));
+    lazily_initialized_stream_map_.emplace(
+        track_publisher_->GetForwardingPreference());
+  }
+  return *lazily_initialized_stream_map_;
+}
+
+void MoqtSession::PublishedSubscription::Update(
+    FullSequence start, std::optional<FullSequence> end) {
+  window_.UpdateStartEnd(start, end);
+  // TODO: reset streams that are no longer in-window.
+  // TODO: send SUBSCRIBE_DONE if required.
+  // TODO: send an error for invalid updates now that it's a part of draft-05.
+}
+
+void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
+    FullSequence sequence) {
+  if (!window_.InWindow(sequence)) {
+    return;
+  }
+
+  MoqtForwardingPreference forwarding_preference =
+      track_publisher_->GetForwardingPreference();
+  if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
+    SendDatagram(sequence);
+    return;
+  }
+
+  std::optional<webtransport::StreamId> stream_id =
+      stream_map().GetStreamForSequence(sequence);
+  webtransport::Stream* raw_stream = nullptr;
+  if (stream_id.has_value()) {
+    raw_stream = session_->session_->GetStreamById(*stream_id);
+  } else {
+    if (!window_.IsStreamProvokingObject(sequence, forwarding_preference)) {
+      QUIC_DLOG(INFO) << ENDPOINT << "Received object " << sequence
+                      << ", but there is no stream that it can be mapped to";
+      // It is possible that the we are getting notified of objects out of
+      // order, but we still have to send objects in a manner consistent with
+      // the forwarding preference used.
+      return;
+    }
+    raw_stream = session_->OpenOrQueueDataStream(subscription_id_, sequence);
+  }
+  if (raw_stream == nullptr) {
+    return;
+  }
+
+  OutgoingDataStream* stream =
+      static_cast<OutgoingDataStream*>(raw_stream->visitor());
+  stream->SendObjects(*this);
+}
+
+void MoqtSession::PublishedSubscription::Backfill() {
+  const FullSequence start = window_.start();
+  const FullSequence end = track_publisher_->GetLargestSequence();
+  const MoqtForwardingPreference preference =
+      track_publisher_->GetForwardingPreference();
+
+  absl::flat_hash_set<ReducedSequenceIndex> already_opened;
+  std::vector<FullSequence> objects =
+      track_publisher_->GetCachedObjectsInRange(start, end);
+  QUICHE_DCHECK(absl::c_is_sorted(objects));
+  for (FullSequence sequence : objects) {
+    auto [it, was_missing] =
+        already_opened.insert(ReducedSequenceIndex(sequence, preference));
+    if (!was_missing) {
+      // For every stream mapping unit present, we only need to notify of the
+      // earliest object on it, since the stream itself will pull the rest.
+      continue;
+    }
+    OnNewObjectAvailable(sequence);
+  }
+}
+
+std::vector<webtransport::StreamId>
+MoqtSession::PublishedSubscription::GetAllStreams() const {
+  if (!lazily_initialized_stream_map_.has_value()) {
+    return {};
+  }
+  return lazily_initialized_stream_map_->GetAllStreams();
+}
+
+void MoqtSession::PublishedSubscription::OnDataStreamCreated(
+    webtransport::StreamId id, FullSequence start_sequence) {
+  stream_map().AddStream(start_sequence, id);
+}
+void MoqtSession::PublishedSubscription::OnDataStreamDestroyed(
+    webtransport::StreamId id, FullSequence end_sequence) {
+  stream_map().RemoveStream(end_sequence, id);
+}
+
+void MoqtSession::PublishedSubscription::OnObjectSent(FullSequence sequence) {
+  if (largest_sent_.has_value()) {
+    largest_sent_ = std::max(*largest_sent_, sequence);
+  } else {
+    largest_sent_ = sequence;
+  }
+  // TODO: send SUBSCRIBE_DONE if the subscription is done.
+}
+
+MoqtSession::OutgoingDataStream::OutgoingDataStream(
+    MoqtSession* session, webtransport::Stream* stream,
+    uint64_t subscription_id, FullSequence first_object)
+    : session_(session),
+      stream_(stream),
+      subscription_id_(subscription_id),
+      next_object_(first_object),
+      session_liveness_(session->liveness_token_) {}
+
+MoqtSession::OutgoingDataStream::~OutgoingDataStream() {
+  // Though it might seem intuitive that the session object has to outlive the
+  // connection object (and this is indeed how something like QuicSession and
+  // QuicStream works), this is not the true for WebTransport visitors: the
+  // session getting destroyed will inevitably lead to all related streams being
+  // destroyed, but the actual order of destruction is not guaranteed.  Thus, we
+  // need to check if the session still exists while accessing it in a stream
+  // destructor.
+  if (session_liveness_.expired()) {
+    return;
+  }
+  auto it = session_->published_subscriptions_.find(subscription_id_);
+  if (it != session_->published_subscriptions_.end()) {
+    it->second->OnDataStreamDestroyed(stream_->GetStreamId(), next_object_);
+  }
+}
+
 void MoqtSession::OutgoingDataStream::OnCanWrite() {
-  // TODO: handle backpressure on data streams.
+  PublishedSubscription* subscription = GetSubscriptionIfValid();
+  if (subscription == nullptr) {
+    return;
+  }
+  SendObjects(*subscription);
+}
+
+MoqtSession::PublishedSubscription*
+MoqtSession::OutgoingDataStream::GetSubscriptionIfValid() {
+  auto it = session_->published_subscriptions_.find(subscription_id_);
+  if (it == session_->published_subscriptions_.end()) {
+    stream_->ResetWithUserCode(kResetCodeSubscriptionGone);
+    return nullptr;
+  }
+
+  PublishedSubscription* subscription = it->second.get();
+  MoqtTrackPublisher& publisher = subscription->publisher();
+  absl::StatusOr<MoqtTrackStatusCode> status = publisher.GetTrackStatus();
+  if (!status.ok()) {
+    // TODO: clean up the subscription.
+    return nullptr;
+  }
+  if (!DoesTrackStatusImplyHavingData(*status)) {
+    QUICHE_BUG(GetSubscriptionIfValid_InvalidTrackStatus)
+        << "The track publisher returned a status indicating that no objects "
+           "are available, but a stream for those objects exists.";
+    session_->Error(MoqtError::kInternalError,
+                    "Invalid track state provided by application");
+    return nullptr;
+  }
+  return subscription;
+}
+
+void MoqtSession::OutgoingDataStream::SendObjects(
+    PublishedSubscription& subscription) {
+  while (stream_->CanWrite()) {
+    std::optional<PublishedObject> object =
+        subscription.publisher().GetCachedObject(next_object_);
+    if (!object.has_value()) {
+      break;
+    }
+    if (!subscription.InWindow(next_object_)) {
+      // It is possible that the next object became irrelevant due to a
+      // SUBSCRIBE_UPDATE.  Close the stream if so.
+      bool success = stream_->SendFin();
+      QUICHE_BUG_IF(OutgoingDataStream_fin_due_to_update, !success)
+          << "Writing FIN failed despite CanWrite() being true.";
+      return;
+    }
+    SendNextObject(subscription, *std::move(object));
+  }
+}
+
+void MoqtSession::OutgoingDataStream::SendNextObject(
+    PublishedSubscription& subscription, PublishedObject object) {
+  QUICHE_DCHECK(object.sequence == next_object_);
+  QUICHE_DCHECK(stream_->CanWrite());
+
+  MoqtTrackPublisher& publisher = subscription.publisher();
+  QUICHE_DCHECK(DoesTrackStatusImplyHavingData(*publisher.GetTrackStatus()));
+  MoqtForwardingPreference forwarding_preference =
+      publisher.GetForwardingPreference();
+
+  MoqtObject header;
+  header.subscribe_id = subscription_id_;
+  header.track_alias = subscription.track_alias();
+  header.group_id = object.sequence.group;
+  header.object_id = object.sequence.object;
+  header.object_send_order = 0;  // TODO: remove in draft-05
+  header.object_status = object.status;
+  header.forwarding_preference = forwarding_preference;
+  header.payload_length = object.payload.length();
+
+  quiche::QuicheBuffer serialized_header =
+      session_->framer_.SerializeObjectHeader(header, !stream_header_written_);
+  bool fin = false;
+  switch (forwarding_preference) {
+    case MoqtForwardingPreference::kTrack:
+      if (object.status == MoqtObjectStatus::kEndOfGroup ||
+          object.status == MoqtObjectStatus::kGroupDoesNotExist) {
+        ++next_object_.group;
+        next_object_.object = 0;
+      } else {
+        ++next_object_.object;
+      }
+      fin = object.status == MoqtObjectStatus::kEndOfTrack ||
+            !subscription.InWindow(next_object_);
+      break;
+
+    case MoqtForwardingPreference::kGroup:
+      ++next_object_.object;
+      fin = object.status == MoqtObjectStatus::kEndOfTrack ||
+            object.status == MoqtObjectStatus::kEndOfGroup ||
+            object.status == MoqtObjectStatus::kGroupDoesNotExist ||
+            !subscription.InWindow(next_object_);
+      break;
+
+    case MoqtForwardingPreference::kObject:
+      QUICHE_DCHECK(!stream_header_written_);
+      fin = true;
+      break;
+
+    case MoqtForwardingPreference::kDatagram:
+      QUICHE_NOTREACHED();
+      break;
+  }
+
+  // TODO(vasilvv): add a version of WebTransport write API that accepts
+  // memslices so that we can avoid a copy here.
+  std::array<absl::string_view, 2> write_vector = {
+      serialized_header.AsStringView(), object.payload.AsStringView()};
+  quiche::StreamWriteOptions options;
+  options.set_send_fin(fin);
+  absl::Status write_status = stream_->Writev(write_vector, options);
+  if (!write_status.ok()) {
+    QUICHE_BUG(MoqtSession_SendNextObject_write_failed)
+        << "Writing into MoQT stream failed despite CanWrite() being true "
+           "before; status: "
+        << write_status;
+    session_->Error(MoqtError::kInternalError, "Data stream write error");
+    return;
+  }
+
+  QUIC_DVLOG(1) << "Stream " << stream_->GetStreamId() << " successfully wrote "
+                << object.sequence << ", fin = " << fin
+                << ", next: " << next_object_;
+
+  stream_header_written_ = true;
+  subscription.OnObjectSent(object.sequence);
+}
+
+void MoqtSession::PublishedSubscription::SendDatagram(FullSequence sequence) {
+  std::optional<PublishedObject> object =
+      track_publisher_->GetCachedObject(sequence);
+  if (!object.has_value()) {
+    QUICHE_BUG(PublishedSubscription_SendDatagram_object_not_in_cache)
+        << "Got notification about an object that is not in the cache";
+    return;
+  }
+
+  MoqtObject header;
+  header.subscribe_id = subscription_id_;
+  header.track_alias = track_alias();
+  header.group_id = object->sequence.group;
+  header.object_id = object->sequence.object;
+  header.object_send_order = 0;  // TODO: remove in draft-05
+  header.object_status = object->status;
+  header.forwarding_preference = MoqtForwardingPreference::kDatagram;
+  quiche::QuicheBuffer datagram = session_->framer_.SerializeObjectDatagram(
+      header, object->payload.AsStringView());
+  session_->session_->SendOrQueueDatagram(datagram.AsStringView());
+  OnObjectSent(object->sequence);
 }
 
 }  // namespace moqt

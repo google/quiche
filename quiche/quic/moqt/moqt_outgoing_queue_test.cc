@@ -5,11 +5,12 @@
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 
 #include <cstdint>
-#include <utility>
+#include <optional>
+#include <vector>
 
-#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
@@ -20,24 +21,45 @@ namespace moqt {
 namespace {
 
 using ::quic::test::MemSliceFromString;
+using ::testing::AnyOf;
 
-class TestMoqtOutgoingQueue : public MoqtOutgoingQueue {
+class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
+                              public MoqtObjectListener {
  public:
   TestMoqtOutgoingQueue()
-      : MoqtOutgoingQueue(nullptr, FullTrackName{"test", "track"}) {}
-
-  void CallSubscribeForPast(const SubscribeWindow& window) {
-    absl::StatusOr<PublishPastObjectsCallback> callback =
-        OnSubscribeForPast(window);
-    QUICHE_CHECK_OK(callback.status());
-    (*std::move(callback))();
+      : MoqtOutgoingQueue(nullptr, FullTrackName{"test", "track"},
+                          MoqtForwardingPreference::kGroup) {
+    AddObjectListener(this);
   }
 
-  MOCK_METHOD(void, CloseStreamForGroup, (uint64_t group_id), (override));
+  void OnNewObjectAvailable(FullSequence sequence) override {
+    std::optional<PublishedObject> object = GetCachedObject(sequence);
+    QUICHE_CHECK(object.has_value());
+    ASSERT_THAT(object->status, AnyOf(MoqtObjectStatus::kNormal,
+                                      MoqtObjectStatus::kEndOfGroup));
+    if (object->status == MoqtObjectStatus::kNormal) {
+      PublishObject(object->sequence.group, object->sequence.object,
+                    object->payload.AsStringView());
+    } else {
+      CloseStreamForGroup(object->sequence.group);
+    }
+  }
+
+  void CallSubscribeForPast(const SubscribeWindow& window) {
+    std::vector<FullSequence> objects =
+        GetCachedObjectsInRange(FullSequence(0, 0), GetLargestSequence());
+    for (FullSequence object : objects) {
+      if (window.InWindow(object)) {
+        OnNewObjectAvailable(object);
+      }
+    }
+  }
+
+  MOCK_METHOD(void, CloseStreamForGroup, (uint64_t group_id), ());
   MOCK_METHOD(void, PublishObject,
               (uint64_t group_id, uint64_t object_id,
                absl::string_view payload),
-              (override));
+              ());
 };
 
 TEST(MoqtOutgoingQueue, FirstObjectNotKeyframe) {
@@ -74,8 +96,7 @@ TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromZero) {
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
   queue.AddObject(MemSliceFromString("c"), false);
-  queue.CallSubscribeForPast(SubscribeWindow(
-      0, MoqtForwardingPreference::kGroup, FullSequence(0, 3), 0, 0));
+  queue.CallSubscribeForPast(SubscribeWindow(0, 0));
 }
 
 TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromMidGroup) {
@@ -92,8 +113,7 @@ TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromMidGroup) {
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
   queue.AddObject(MemSliceFromString("c"), false);
-  queue.CallSubscribeForPast(SubscribeWindow(
-      0, MoqtForwardingPreference::kGroup, FullSequence(0, 3), 0, 1));
+  queue.CallSubscribeForPast(SubscribeWindow(0, 1));
 }
 
 TEST(MoqtOutgoingQueue, TwoGroups) {
@@ -141,8 +161,7 @@ TEST(MoqtOutgoingQueue, TwoGroupsPastSubscribe) {
   queue.AddObject(MemSliceFromString("d"), true);
   queue.AddObject(MemSliceFromString("e"), false);
   queue.AddObject(MemSliceFromString("f"), false);
-  queue.CallSubscribeForPast(SubscribeWindow(
-      0, MoqtForwardingPreference::kGroup, FullSequence(1, 3), 0, 1));
+  queue.CallSubscribeForPast(SubscribeWindow(0, 1));
 }
 
 TEST(MoqtOutgoingQueue, FiveGroups) {
@@ -215,8 +234,7 @@ TEST(MoqtOutgoingQueue, FiveGroupsPastSubscribe) {
   queue.AddObject(MemSliceFromString("h"), false);
   queue.AddObject(MemSliceFromString("i"), true);
   queue.AddObject(MemSliceFromString("j"), false);
-  queue.CallSubscribeForPast(SubscribeWindow(
-      0, MoqtForwardingPreference::kGroup, FullSequence(4, 2), 0, 0));
+  queue.CallSubscribeForPast(SubscribeWindow(0, 0));
 }
 
 }  // namespace

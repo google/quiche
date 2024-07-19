@@ -11,13 +11,13 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/string_view.h"
+#include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
-#include "quiche/quic/moqt/moqt_subscribe_windows.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 
 namespace moqt {
@@ -27,15 +27,15 @@ namespace moqt {
 // groups, and maintain a buffer of three most recent groups that will be
 // provided to subscribers automatically.
 //
-// This class is primarily meant to be used by publishers to buffer the frames
-// that they produce. Limitations of this class:
-// - It currently only works with the forwarding preference of kGroup.
-// - It only supports a single session.
-// - Everything is sent in order that it is queued.
-class MoqtOutgoingQueue : public LocalTrack::Visitor {
+// This class is primarily meant to be used by original publishers to buffer the
+// frames that they produce.
+class MoqtOutgoingQueue : public MoqtTrackPublisher {
  public:
-  explicit MoqtOutgoingQueue(MoqtSession* session, FullTrackName track)
-      : session_(session), track_(std::move(track)) {}
+  explicit MoqtOutgoingQueue(MoqtSession* session, FullTrackName track,
+                             MoqtForwardingPreference forwarding_preference)
+      : session_(session),
+        track_(std::move(track)),
+        forwarding_preference_(forwarding_preference) {}
 
   MoqtOutgoingQueue(const MoqtOutgoingQueue&) = delete;
   MoqtOutgoingQueue(MoqtOutgoingQueue&&) = default;
@@ -46,32 +46,45 @@ class MoqtOutgoingQueue : public LocalTrack::Visitor {
   // group is closed. The first object ever sent MUST have `key` set to true.
   void AddObject(quiche::QuicheMemSlice payload, bool key);
 
-  // LocalTrack::Visitor implementation.
-  absl::StatusOr<PublishPastObjectsCallback> OnSubscribeForPast(
-      const SubscribeWindow& window) override;
+  // MoqtTrackPublisher implementation.
+  const FullTrackName& GetTrackName() const override { return track_; }
+  std::optional<PublishedObject> GetCachedObject(
+      FullSequence sequence) const override;
+  std::vector<FullSequence> GetCachedObjectsInRange(
+      FullSequence start, FullSequence end) const override;
+  void AddObjectListener(MoqtObjectListener* listener) override {
+    listeners_.insert(listener);
+  }
+  void RemoveObjectListener(MoqtObjectListener* listener) override {
+    listeners_.erase(listener);
+  }
+  absl::StatusOr<MoqtTrackStatusCode> GetTrackStatus() const override;
+  FullSequence GetLargestSequence() const override;
+  MoqtForwardingPreference GetForwardingPreference() const override {
+    return forwarding_preference_;
+  }
 
- protected:
-  // Interface to MoqtSession; can be mocked out for tests.
-  virtual void CloseStreamForGroup(uint64_t group_id);
-  virtual void PublishObject(uint64_t group_id, uint64_t object_id,
-                             absl::string_view payload);
+  bool HasSubscribers() const { return !listeners_.empty(); }
 
  private:
   // The number of recent groups to keep around for newly joined subscribers.
   static constexpr size_t kMaxQueuedGroups = 3;
 
-  using Object = quiche::QuicheMemSlice;
-  using Group = std::vector<Object>;
+  using Group = std::vector<CachedObject>;
+
+  void AddRawObject(MoqtObjectStatus status, quiche::QuicheMemSlice payload);
 
   // The number of the oldest group available.
-  uint64_t first_group_in_queue() {
+  uint64_t first_group_in_queue() const {
     return current_group_id_ - queue_.size() + 1;
   }
 
   MoqtSession* session_;  // Not owned.
   FullTrackName track_;
+  MoqtForwardingPreference forwarding_preference_;
   absl::InlinedVector<Group, kMaxQueuedGroups> queue_;
   uint64_t current_group_id_ = -1;
+  absl::flat_hash_set<MoqtObjectListener*> listeners_;
 };
 
 }  // namespace moqt

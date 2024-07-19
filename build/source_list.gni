@@ -1512,11 +1512,14 @@ load_balancer_srcs = [
     "src/quiche/quic/load_balancer/load_balancer_server_id_test.cc",
 ]
 moqt_hdrs = [
+    "src/quiche/quic/moqt/moqt_cached_object.h",
     "src/quiche/quic/moqt/moqt_framer.h",
+    "src/quiche/quic/moqt/moqt_known_track_publisher.h",
     "src/quiche/quic/moqt/moqt_messages.h",
     "src/quiche/quic/moqt/moqt_outgoing_queue.h",
     "src/quiche/quic/moqt/moqt_parser.h",
     "src/quiche/quic/moqt/moqt_priority.h",
+    "src/quiche/quic/moqt/moqt_publisher.h",
     "src/quiche/quic/moqt/moqt_session.h",
     "src/quiche/quic/moqt/moqt_subscribe_windows.h",
     "src/quiche/quic/moqt/moqt_track.h",
@@ -1527,9 +1530,11 @@ moqt_hdrs = [
     "src/quiche/quic/moqt/tools/moqt_server.h",
 ]
 moqt_srcs = [
+    "src/quiche/quic/moqt/moqt_cached_object.cc",
     "src/quiche/quic/moqt/moqt_framer.cc",
     "src/quiche/quic/moqt/moqt_framer_test.cc",
     "src/quiche/quic/moqt/moqt_integration_test.cc",
+    "src/quiche/quic/moqt/moqt_known_track_publisher.cc",
     "src/quiche/quic/moqt/moqt_messages.cc",
     "src/quiche/quic/moqt/moqt_outgoing_queue.cc",
     "src/quiche/quic/moqt/moqt_outgoing_queue_test.cc",
