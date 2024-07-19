@@ -135,8 +135,8 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "OBJECT Object Sequence mismatch";
       return false;
     }
-    if (cast.object_send_order != object_.object_send_order) {
-      QUIC_LOG(INFO) << "OBJECT Object Send Order mismatch";
+    if (cast.publisher_priority != object_.publisher_priority) {
+      QUIC_LOG(INFO) << "OBJECT Publisher Priority mismatch";
       return false;
     }
     if (cast.object_status != object_.object_status) {
@@ -164,7 +164,7 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       /*track_alias=*/4,
       /*group_id*/ 5,
       /*object_id=*/6,
-      /*object_send_order=*/7,
+      /*publisher_priority=*/7,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kTrack,
       /*payload_length=*/std::nullopt,
@@ -178,9 +178,7 @@ class QUICHE_NO_EXPORT ObjectStreamMessage : public ObjectMessage {
     object_.forwarding_preference = MoqtForwardingPreference::kObject;
   }
 
-  void ExpandVarints() override {
-    ExpandVarintsImpl("vvvvvvv---");  // first six fields are varints
-  }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvv-v---"); }
 
  private:
   uint8_t raw_packet_[10] = {
@@ -196,9 +194,7 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     object_.forwarding_preference = MoqtForwardingPreference::kDatagram;
   }
 
-  void ExpandVarints() override {
-    ExpandVarintsImpl("vvvvvvv---");  // first six fields are varints
-  }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvv-v---"); }
 
  private:
   uint8_t raw_packet_[10] = {
@@ -218,9 +214,7 @@ class QUICHE_NO_EXPORT StreamHeaderTrackMessage : public ObjectMessage {
     object_.payload_length = 3;
   }
 
-  void ExpandVarints() override {
-    ExpandVarintsImpl("--vvvvvv");  // six one-byte varints
-  }
+  void ExpandVarints() override { ExpandVarintsImpl("--vv-vvv"); }
 
  private:
   // Some tests check that a FIN sent at the halfway point of a message results
@@ -265,9 +259,7 @@ class QUICHE_NO_EXPORT StreamHeaderGroupMessage : public ObjectMessage {
     object_.payload_length = 3;
   }
 
-  void ExpandVarints() override {
-    ExpandVarintsImpl("--vvvvvv");  // six one-byte varints
-  }
+  void ExpandVarints() override { ExpandVarintsImpl("--vvv-vv"); }
 
  private:
   uint8_t raw_packet_[11] = {

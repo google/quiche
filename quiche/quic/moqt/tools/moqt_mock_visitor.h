@@ -13,6 +13,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
@@ -60,6 +61,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   MOCK_METHOD(FullSequence, GetLargestSequence, (), (const, override));
   MOCK_METHOD(MoqtForwardingPreference, GetForwardingPreference, (),
               (const, override));
+  MOCK_METHOD(MoqtPriority, GetPublisherPriority, (), (const, override));
 
  private:
   FullTrackName track_name_;
@@ -73,7 +75,7 @@ class MockRemoteTrackVisitor : public RemoteTrack::Visitor {
               (override));
   MOCK_METHOD(void, OnObjectFragment,
               (const FullTrackName& full_track_name, uint64_t group_sequence,
-               uint64_t object_sequence, uint64_t object_send_order,
+               uint64_t object_sequence, MoqtPriority publisher_priority,
                MoqtObjectStatus status,
                MoqtForwardingPreference forwarding_preference,
                absl::string_view object, bool end_of_message),

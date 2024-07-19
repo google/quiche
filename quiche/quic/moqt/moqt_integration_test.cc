@@ -195,7 +195,8 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
   EXPECT_CALL(server_visitor, OnObjectFragment(_, _, _, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name,
                     uint64_t group_sequence, uint64_t object_sequence,
-                    uint64_t /*object_send_order*/, MoqtObjectStatus status,
+                    MoqtPriority /*publisher_priority*/,
+                    MoqtObjectStatus status,
                     MoqtForwardingPreference forwarding_preference,
                     absl::string_view object, bool end_of_message) {
         EXPECT_EQ(full_track_name.track_namespace, "test");

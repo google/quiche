@@ -10,6 +10,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 
 namespace moqt {
 
@@ -27,7 +28,7 @@ class RemoteTrack {
         std::optional<absl::string_view> error_reason_phrase) = 0;
     virtual void OnObjectFragment(
         const FullTrackName& full_track_name, uint64_t group_sequence,
-        uint64_t object_sequence, uint64_t object_send_order,
+        uint64_t object_sequence, MoqtPriority publisher_priority,
         MoqtObjectStatus object_status,
         MoqtForwardingPreference forwarding_preference,
         absl::string_view object, bool end_of_message) = 0;

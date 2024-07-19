@@ -19,6 +19,7 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace moqt {
@@ -223,7 +224,7 @@ struct QUICHE_EXPORT MoqtObject {
   uint64_t track_alias;
   uint64_t group_id;
   uint64_t object_id;
-  uint64_t object_send_order;
+  MoqtPriority publisher_priority;
   MoqtObjectStatus object_status;
   MoqtForwardingPreference forwarding_preference;
   std::optional<uint64_t> payload_length;

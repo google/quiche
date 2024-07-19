@@ -11,6 +11,7 @@
 
 #include "absl/status/statusor.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 
 namespace moqt {
@@ -90,6 +91,9 @@ class MoqtTrackPublisher {
   // This method may only be called if
   // DoesTrackStatusImplyHavingData(GetTrackStatus()) is true.
   virtual MoqtForwardingPreference GetForwardingPreference() const = 0;
+
+  // Returns the current forwarding priority of the track.
+  virtual MoqtPriority GetPublisherPriority() const = 0;
 };
 
 // MoqtPublisher is an interface to a publisher that allows it to publish

@@ -741,7 +741,7 @@ size_t MoqtParser::ParseObjectHeader(quic::QuicDataReader& reader,
       !reader.ReadVarInt62(&object.object_id)) {
     return 0;
   }
-  if (!reader.ReadVarInt62(&object.object_send_order)) {
+  if (!reader.ReadUInt8(&object.publisher_priority)) {
     return 0;
   }
   uint64_t status = 0;  // Defaults to kNormal.

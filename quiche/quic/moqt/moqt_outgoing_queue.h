@@ -16,6 +16,7 @@
 #include "absl/status/statusor.h"
 #include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
@@ -63,6 +64,9 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   MoqtForwardingPreference GetForwardingPreference() const override {
     return forwarding_preference_;
   }
+  MoqtPriority GetPublisherPriority() const override {
+    return publisher_priority_;
+  }
 
   bool HasSubscribers() const { return !listeners_.empty(); }
 
@@ -82,6 +86,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   MoqtSession* session_;  // Not owned.
   FullTrackName track_;
   MoqtForwardingPreference forwarding_preference_;
+  MoqtPriority publisher_priority_ = 128;
   absl::InlinedVector<Group, kMaxQueuedGroups> queue_;
   uint64_t current_group_id_ = -1;
   absl::flat_hash_set<MoqtObjectListener*> listeners_;

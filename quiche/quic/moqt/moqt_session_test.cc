@@ -21,6 +21,7 @@
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
@@ -555,7 +556,7 @@ TEST_F(MoqtSessionTest, IncomingObject) {
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
-      /*object_send_order=*/0,
+      /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
@@ -580,7 +581,7 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
-      /*object_send_order=*/0,
+      /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/16,
@@ -615,7 +616,7 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
-      /*object_send_order=*/0,
+      /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/16,
@@ -651,7 +652,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
-      /*object_send_order=*/0,
+      /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
@@ -663,7 +664,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
   EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name,
                     uint64_t group_sequence, uint64_t object_sequence,
-                    uint64_t object_send_order, MoqtObjectStatus status,
+                    MoqtPriority publisher_priority, MoqtObjectStatus status,
                     MoqtForwardingPreference forwarding_preference,
                     absl::string_view payload, bool end_of_message) {
         EXPECT_EQ(full_track_name, ftn);
@@ -707,7 +708,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
-      /*object_send_order=*/0,
+      /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
@@ -719,7 +720,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
   EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name,
                     uint64_t group_sequence, uint64_t object_sequence,
-                    uint64_t object_send_order, MoqtObjectStatus status,
+                    MoqtPriority publisher_priority, MoqtObjectStatus status,
                     MoqtForwardingPreference forwarding_preference,
                     absl::string_view payload, bool end_of_message) {
         EXPECT_EQ(full_track_name, ftn);
@@ -767,7 +768,7 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
-      /*object_send_order=*/0,
+      /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
@@ -779,7 +780,7 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
   EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name,
                     uint64_t group_sequence, uint64_t object_sequence,
-                    uint64_t object_send_order, MoqtObjectStatus status,
+                    MoqtPriority publisher_priority, MoqtObjectStatus status,
                     MoqtForwardingPreference forwarding_preference,
                     absl::string_view payload, bool end_of_message) {
         EXPECT_EQ(full_track_name, ftn);
@@ -818,7 +819,7 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
-      /*object_send_order=*/0,
+      /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,
@@ -830,7 +831,7 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
   EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name,
                     uint64_t group_sequence, uint64_t object_sequence,
-                    uint64_t object_send_order, MoqtObjectStatus status,
+                    MoqtPriority publisher_priority, MoqtObjectStatus status,
                     MoqtForwardingPreference forwarding_preference,
                     absl::string_view payload, bool end_of_message) {
         EXPECT_EQ(full_track_name, ftn);
@@ -1153,7 +1154,7 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
-      /*object_send_order=*/0,
+      /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kDatagram,
       /*payload_length=*/8,
@@ -1162,7 +1163,7 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(visitor_,
               OnObjectFragment(ftn, object.group_id, object.object_id,
-                               object.object_send_order, object.object_status,
+                               object.publisher_priority, object.object_status,
                                object.forwarding_preference, payload, true))
       .Times(1);
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
@@ -1178,7 +1179,7 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
-      /*object_send_order=*/0,
+      /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
       /*payload_length=*/8,

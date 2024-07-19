@@ -29,6 +29,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
@@ -166,7 +167,7 @@ class MoqtIngestionHandler {
 
     void OnObjectFragment(const FullTrackName& full_track_name,
                           uint64_t group_sequence, uint64_t object_sequence,
-                          uint64_t /*object_send_order*/,
+                          MoqtPriority /*publisher_priority*/,
                           MoqtObjectStatus /*status*/,
                           MoqtForwardingPreference /*forwarding_preference*/,
                           absl::string_view object,

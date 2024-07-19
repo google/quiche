@@ -27,6 +27,7 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
@@ -155,7 +156,7 @@ class ChatClient {
 
     void OnObjectFragment(
         const moqt::FullTrackName& full_track_name, uint64_t group_sequence,
-        uint64_t object_sequence, uint64_t /*object_send_order*/,
+        uint64_t object_sequence, moqt::MoqtPriority /*publisher_priority*/,
         moqt::MoqtObjectStatus /*status*/,
         moqt::MoqtForwardingPreference /*forwarding_preference*/,
         absl::string_view object, bool end_of_message) override {

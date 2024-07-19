@@ -187,12 +187,12 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
                     << message.subscribe_id << " for track alias "
                     << message.track_alias << " with sequence "
                     << message.group_id << ":" << message.object_id
-                    << " send_order " << message.object_send_order << " length "
+                    << " priority " << message.publisher_priority << " length "
                     << payload.size();
   auto [full_track_name, visitor] = TrackPropertiesFromAlias(message);
   if (visitor != nullptr) {
     visitor->OnObjectFragment(full_track_name, message.group_id,
-                              message.object_id, message.object_send_order,
+                              message.object_id, message.publisher_priority,
                               message.object_status,
                               message.forwarding_preference, payload, true);
   }
@@ -799,8 +799,8 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       << ENDPOINT << "Received OBJECT message on stream "
       << stream_->GetStreamId() << " for subscribe_id " << message.subscribe_id
       << " for track alias " << message.track_alias << " with sequence "
-      << message.group_id << ":" << message.object_id << " send_order "
-      << message.object_send_order << " forwarding_preference "
+      << message.group_id << ":" << message.object_id << " priority "
+      << message.publisher_priority << " forwarding_preference "
       << MoqtForwardingPreferenceToString(message.forwarding_preference)
       << " length " << payload.size() << " explicit length "
       << (message.payload_length.has_value() ? (int)*message.payload_length
@@ -820,7 +820,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   if (visitor != nullptr) {
     visitor->OnObjectFragment(
         full_track_name, message.group_id, message.object_id,
-        message.object_send_order, message.object_status,
+        message.publisher_priority, message.object_status,
         message.forwarding_preference, payload, end_of_message);
   }
   partial_object_.clear();
@@ -1059,7 +1059,7 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
   header.track_alias = subscription.track_alias();
   header.group_id = object.sequence.group;
   header.object_id = object.sequence.object;
-  header.object_send_order = 0;  // TODO: remove in draft-05
+  header.publisher_priority = publisher.GetPublisherPriority();
   header.object_status = object.status;
   header.forwarding_preference = forwarding_preference;
   header.payload_length = object.payload.length();
@@ -1136,7 +1136,7 @@ void MoqtSession::PublishedSubscription::SendDatagram(FullSequence sequence) {
   header.track_alias = track_alias();
   header.group_id = object->sequence.group;
   header.object_id = object->sequence.object;
-  header.object_send_order = 0;  // TODO: remove in draft-05
+  header.publisher_priority = track_publisher_->GetPublisherPriority();
   header.object_status = object->status;
   header.forwarding_preference = MoqtForwardingPreference::kDatagram;
   quiche::QuicheBuffer datagram = session_->framer_.SerializeObjectDatagram(
