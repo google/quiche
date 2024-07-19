@@ -29,7 +29,7 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft04 = 0xff000004,
+  kDraft05 = 0xff000005,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 

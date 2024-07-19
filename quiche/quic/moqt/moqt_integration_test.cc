@@ -35,9 +35,9 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
  public:
   void CreateDefaultEndpoints() {
     client_ = std::make_unique<MoqtClientEndpoint>(
-        &test_harness_.simulator(), "Client", "Server", MoqtVersion::kDraft04);
+        &test_harness_.simulator(), "Client", "Server", MoqtVersion::kDraft05);
     server_ = std::make_unique<MoqtServerEndpoint>(
-        &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft04);
+        &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft05);
     SetupCallbacks();
     test_harness_.set_client(client_.get());
     test_harness_.set_server(server_.get());
@@ -95,7 +95,7 @@ TEST_F(MoqtIntegrationTest, VersionMismatch) {
       &test_harness_.simulator(), "Client", "Server",
       MoqtVersion::kUnrecognizedVersionForTests);
   server_ = std::make_unique<MoqtServerEndpoint>(
-      &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft04);
+      &test_harness_.simulator(), "Server", "Client", MoqtVersion::kDraft05);
   SetupCallbacks();
   test_harness_.set_client(client_.get());
   test_harness_.set_server(server_.get());

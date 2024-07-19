@@ -60,7 +60,7 @@ using ::quic::simulator::Simulator;
 // value just has to be sufficiently larger than the server link bandwidth.
 constexpr QuicBandwidth kClientLinkBandwidth =
     QuicBandwidth::FromBitsPerSecond(10.0e6);
-constexpr MoqtVersion kMoqtVersion = MoqtVersion::kDraft04;
+constexpr MoqtVersion kMoqtVersion = MoqtVersion::kDraft05;
 
 // Track name used by the simulator.
 FullTrackName TrackName() { return FullTrackName("test", "track"); }
