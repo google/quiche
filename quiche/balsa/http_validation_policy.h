@@ -49,6 +49,7 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // the character '"'.
   bool disallow_double_quote_in_header_name = false;
 
+  // TODO(b/314138604): remove this field once upstream Envoy stops using it
   // If true, then signal an INVALID_HEADER_CHARACTER warning or error, or
   // neither, depending on InvalidCharsLevel, if a response header contains an
   // invalid character. Invalid characters are always disallowed according to

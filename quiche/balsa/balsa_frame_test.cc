@@ -3999,7 +3999,7 @@ TEST_F(HTTPBalsaFrameTest, InvalidCharsInRequestHeaderError) {
 
 TEST_F(HTTPBalsaFrameTest, InvalidCharsInResponseHeaderAllowed) {
   balsa_frame_.set_is_request(false);
-  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kOff);
 
   const absl::string_view headers =
       "HTTP/1.1 200 OK\r\n"
@@ -4016,10 +4016,6 @@ TEST_F(HTTPBalsaFrameTest, InvalidCharsInResponseHeaderAllowed) {
 TEST_F(HTTPBalsaFrameTest, InvalidCharsInResponseHeaderError) {
   balsa_frame_.set_is_request(false);
   balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
-
-  HttpValidationPolicy http_validation_policy;
-  http_validation_policy.disallow_invalid_header_characters_in_response = true;
-  balsa_frame_.set_http_validation_policy(http_validation_policy);
 
   const absl::string_view headers =
       "HTTP/1.1 200 OK\r\n"
