@@ -231,9 +231,6 @@ class QUICHE_EXPORT QuicDispatcher
   // will be owned by the dispatcher as time_wait_list_manager_
   virtual QuicTimeWaitListManager* CreateQuicTimeWaitListManager();
 
-  // Buffers packet until it can be delivered to a connection.
-  void BufferEarlyPacket(const ReceivedPacketInfo& packet_info);
-
   // Called when |packet_info| is the last received packet of the client hello.
   // |parsed_chlo| is the parsed version of the client hello. Creates a new
   // connection and delivers any buffered packets for that connection id.
@@ -282,7 +279,7 @@ class QUICHE_EXPORT QuicDispatcher
 
   bool HasBufferedPackets(QuicConnectionId server_connection_id);
 
-  // Called when BufferEarlyPacket() fail to buffer the packet.
+  // Called when failed to enqueue the packet into the buffered packet store.
   virtual void OnBufferPacketFailure(
       QuicBufferedPacketStore::EnqueuePacketResult result,
       QuicConnectionId server_connection_id);

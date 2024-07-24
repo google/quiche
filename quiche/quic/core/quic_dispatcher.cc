@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/container/flat_hash_set.h"
@@ -444,7 +445,18 @@ bool QuicDispatcher::MaybeDispatchPacket(
   }
 
   if (buffered_packets_.HasChloForConnection(server_connection_id)) {
-    BufferEarlyPacket(packet_info);
+    EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
+        packet_info,
+        /*parsed_chlo=*/std::nullopt, /*connection_id_generator=*/nullptr);
+    switch (rs) {
+      case EnqueuePacketResult::SUCCESS:
+        break;
+      case EnqueuePacketResult::TOO_MANY_PACKETS:
+        ABSL_FALLTHROUGH_INTENDED;
+      case EnqueuePacketResult::TOO_MANY_CONNECTIONS:
+        OnBufferPacketFailure(rs, packet_info.destination_connection_id);
+        break;
+    }
     return true;
   }
 
@@ -644,7 +656,18 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
       // This packet does not contain a full CHLO. It could be a 0-RTT
       // packet that arrived before the CHLO (due to loss or reordering),
       // or it could be a fragment of a multi-packet CHLO.
-      BufferEarlyPacket(packet_info);
+      EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
+          packet_info,
+          /*parsed_chlo=*/std::nullopt, /*connection_id_generator=*/nullptr);
+      switch (rs) {
+        case EnqueuePacketResult::SUCCESS:
+          break;
+        case EnqueuePacketResult::TOO_MANY_PACKETS:
+          ABSL_FALLTHROUGH_INTENDED;
+        case EnqueuePacketResult::TOO_MANY_CONNECTIONS:
+          OnBufferPacketFailure(rs, packet_info.destination_connection_id);
+          break;
+      }
       return result;
     }
 
@@ -668,7 +691,18 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
                               &alpn_extractor,
                               packet_info.destination_connection_id.length())) {
     // Buffer non-CHLO packets.
-    BufferEarlyPacket(packet_info);
+    EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
+        packet_info,
+        /*parsed_chlo=*/std::nullopt, /*connection_id_generator=*/nullptr);
+    switch (rs) {
+      case EnqueuePacketResult::SUCCESS:
+        break;
+      case EnqueuePacketResult::TOO_MANY_PACKETS:
+        ABSL_FALLTHROUGH_INTENDED;
+      case EnqueuePacketResult::TOO_MANY_CONNECTIONS:
+        OnBufferPacketFailure(rs, packet_info.destination_connection_id);
+        break;
+    }
     return result;
   }
 
@@ -1078,17 +1112,6 @@ QuicTimeWaitListManager* QuicDispatcher::CreateQuicTimeWaitListManager() {
                                      alarm_factory_.get());
 }
 
-void QuicDispatcher::BufferEarlyPacket(const ReceivedPacketInfo& packet_info) {
-  // The connection ID generator will only be set for CHLOs, not for early
-  // packets.
-  EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
-      packet_info,
-      /*parsed_chlo=*/std::nullopt, /*connection_id_generator=*/nullptr);
-  if (rs != EnqueuePacketResult::SUCCESS) {
-    OnBufferPacketFailure(rs, packet_info.destination_connection_id);
-  }
-}
-
 void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
                                  ReceivedPacketInfo* packet_info) {
   if (GetQuicFlag(quic_allow_chlo_buffering) &&
@@ -1098,8 +1121,14 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
                                       packet_info->destination_connection_id));
     EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
         *packet_info, std::move(parsed_chlo), &ConnectionIdGenerator());
-    if (rs != EnqueuePacketResult::SUCCESS) {
-      OnBufferPacketFailure(rs, packet_info->destination_connection_id);
+    switch (rs) {
+      case EnqueuePacketResult::SUCCESS:
+        break;
+      case EnqueuePacketResult::TOO_MANY_PACKETS:
+        ABSL_FALLTHROUGH_INTENDED;
+      case EnqueuePacketResult::TOO_MANY_CONNECTIONS:
+        OnBufferPacketFailure(rs, packet_info->destination_connection_id);
+        break;
     }
     return;
   }
