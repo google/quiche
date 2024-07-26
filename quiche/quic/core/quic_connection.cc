@@ -7342,6 +7342,18 @@ void QuicConnection::OnNetworkBlackholeDetectorAlarm() {
   blackhole_detector_.OnAlarm();
 }
 
+std::unique_ptr<SerializedPacket>
+QuicConnection::SerializeLargePacketNumberConnectionClosePacket(
+    QuicErrorCode error, const std::string& error_details) {
+  QUICHE_DCHECK(IsHandshakeConfirmed());
+  QUICHE_DCHECK(!error_details.empty());
+  if (!IsHandshakeConfirmed()) {
+    return nullptr;
+  }
+  return packet_creator_.SerializeLargePacketNumberConnectionClosePacket(
+      GetLargestAckedPacket(), error, error_details);
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 
 }  // namespace quic

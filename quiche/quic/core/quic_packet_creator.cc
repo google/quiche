@@ -1038,6 +1038,64 @@ QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
   return serialize_packet;
 }
 
+std::unique_ptr<SerializedPacket>
+QuicPacketCreator::SerializeLargePacketNumberConnectionClosePacket(
+    QuicPacketNumber largest_acked_packet, QuicErrorCode error,
+    const std::string& error_details) {
+  QUICHE_DCHECK_EQ(packet_.encryption_level, ENCRYPTION_FORWARD_SECURE)
+      << ENDPOINT;
+  // Largest packet number is 2^62 - 1 but the packet number is encoded to 1 to
+  // 4 bytes.
+  // Receiver decodes packet number assuming the packet number is less than or
+  // equal to (largest packet number that has been successfully processed) + 1
+  // + (1 << (packet_number_length - 1)).
+  // So, generate a packet with the largest packet number in this range.
+  // Note that FillPacketHeader increments before fills the header.
+  const QuicPacketNumber largest_packet_number(
+      (largest_acked_packet.IsInitialized()
+           ? largest_acked_packet
+           : framer_->first_sending_packet_number()) +
+      (1L << 31));
+  ScopedPacketContextSwitcher switcher(largest_packet_number,
+                                       PACKET_4BYTE_PACKET_NUMBER,
+                                       ENCRYPTION_FORWARD_SECURE, &packet_);
+
+  QuicPacketHeader header;
+  FillPacketHeader(&header);
+
+  QUIC_DVLOG(2) << ENDPOINT << "Serializing connection close packet " << header;
+
+  QuicFrames frames;
+  QuicConnectionCloseFrame close_frame(transport_version(), error,
+                                       NO_IETF_QUIC_ERROR, error_details, 0);
+  frames.push_back(QuicFrame(&close_frame));
+
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
+  const size_t length =
+      framer_->BuildDataPacket(header, frames, buffer.get(),
+                               max_plaintext_size_, packet_.encryption_level);
+  QUICHE_DCHECK(length) << ENDPOINT;
+
+  const size_t encrypted_length = framer_->EncryptInPlace(
+      packet_.encryption_level, packet_.packet_number,
+      GetStartOfEncryptedData(framer_->transport_version(), header), length,
+      kMaxOutgoingPacketSize, buffer.get());
+  QUICHE_DCHECK(encrypted_length) << ENDPOINT;
+
+  std::unique_ptr<SerializedPacket> serialize_packet(
+      new SerializedPacket(header.packet_number, header.packet_number_length,
+                           buffer.release(), encrypted_length,
+                           /*has_ack=*/false, /*has_stop_waiting=*/false));
+
+  serialize_packet->release_encrypted_buffer = [](const char* p) {
+    delete[] p;
+  };
+  serialize_packet->encryption_level = packet_.encryption_level;
+  serialize_packet->transmission_type = NOT_RETRANSMISSION;
+
+  return serialize_packet;
+}
+
 size_t QuicPacketCreator::BuildPaddedPathChallengePacket(
     const QuicPacketHeader& header, char* buffer, size_t packet_length,
     const QuicPathFrameBuffer& payload, EncryptionLevel level) {

@@ -7704,6 +7704,45 @@ TEST_P(EndToEndTest, RequestsBurstMitigation) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, SerializeConnectionClosePacketWithLargestPacketNumber) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.UsesTls()) {
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+
+  std::unique_ptr<SerializedPacket> connection_close_packet =
+      GetClientConnection()->SerializeLargePacketNumberConnectionClosePacket(
+          QUIC_CLIENT_LOST_NETWORK_ACCESS, "EndToEndTest");
+  ASSERT_NE(connection_close_packet, nullptr);
+
+  // Send 50 requests to increase the packet number.
+  for (int i = 0; i < 50; ++i) {
+    EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  }
+
+  server_thread_->Pause();
+  QuicDispatcher* dispatcher =
+      QuicServerPeer::GetDispatcher(server_thread_->server());
+  EXPECT_EQ(dispatcher->NumSessions(), 1);
+  server_thread_->Resume();
+
+  // Send the connection close packet to the server.
+  QUIC_LOG(INFO) << "Sending close connection packet";
+  client_writer_->WritePacket(
+      connection_close_packet->encrypted_buffer,
+      connection_close_packet->encrypted_length,
+      client_->client()->network_helper()->GetLatestClientAddress().host(),
+      server_address_, nullptr, packet_writer_params_);
+
+  // Wait for the server to close the connection.
+  EXPECT_TRUE(
+      server_thread_->WaitUntil([&] { return dispatcher->NumSessions() == 0; },
+                                QuicTime::Delta::FromSeconds(5)));
+
+  EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_PUBLIC_RESET));
+}
 }  // namespace
 }  // namespace test
 }  // namespace quic

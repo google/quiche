@@ -622,8 +622,11 @@ enum QuicErrorCode : uint32_t {
   // Error code related to backend health-check.
   QUIC_SERVER_UNHEALTHY = 213,
 
+  // Client application lost network access.
+  QUIC_CLIENT_LOST_NETWORK_ACCESS = 215,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 215,
+  QUIC_LAST_ERROR = 216,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

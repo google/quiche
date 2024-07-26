@@ -1377,6 +1377,22 @@ class QUICHE_EXPORT QuicConnection
   void OnNetworkBlackholeDetectorAlarm() override;
   void OnPingAlarm() override;
 
+  // Create a CONNECTION_CLOSE packet with a large packet number.
+  // If this method is called before handshake is confirmed, this method returns
+  // nullptr.
+  // This packet can be pre-generated and other processes can send it later to
+  // close the connection.
+  // For example, on Android, the system server stores this packet and sends it
+  // to the server when the app is frozen, loses network access due to the
+  // firewall, or crashes. This will stop servers sending packets to the
+  // device and wasting the device battery.
+  // Note that the generated packet uses the packet number larger than the
+  // current largest acked packet number by (1 << 31) + 1 but the server will
+  // ignore this packet after the connection uses this packet number.
+  std::unique_ptr<SerializedPacket>
+  SerializeLargePacketNumberConnectionClosePacket(
+      QuicErrorCode error, const std::string& error_details);
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();

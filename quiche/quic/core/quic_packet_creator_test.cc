@@ -1202,6 +1202,26 @@ TEST_P(QuicPacketCreatorTest,
       encrypted->encrypted_buffer, encrypted->encrypted_length));
 }
 
+TEST_P(QuicPacketCreatorTest, SerializeLargePacketNumberConnectionClosePacket) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  std::unique_ptr<SerializedPacket> encrypted(
+      creator_.SerializeLargePacketNumberConnectionClosePacket(
+          QuicPacketNumber(1), QUIC_CLIENT_LOST_NETWORK_ACCESS,
+          "QuicPacketCreatorTest"));
+
+  InSequence s;
+  EXPECT_CALL(framer_visitor_, OnPacket());
+  EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
+  EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
+  EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
+  EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
+  EXPECT_CALL(framer_visitor_, OnConnectionCloseFrame(_));
+  EXPECT_CALL(framer_visitor_, OnPacketComplete());
+
+  server_framer_.ProcessPacket(QuicEncryptedPacket(
+      encrypted->encrypted_buffer, encrypted->encrypted_length));
+}
+
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
   if (!GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
