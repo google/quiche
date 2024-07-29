@@ -455,6 +455,51 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveAcceptChFrame) {
       QuicStreamFrame(id, /* fin = */ false, offset, accept_ch_frame));
 }
 
+TEST_P(QuicReceiveControlStreamTest, ReceiveOriginFrame) {
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  const QuicStreamId id = receive_control_stream_->id();
+  QuicStreamOffset offset = 1;
+
+  // Receive SETTINGS frame.
+  SettingsFrame settings;
+  std::string settings_frame = HttpEncoder::SerializeSettingsFrame(settings);
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(id, /* fin = */ false, offset, settings_frame));
+  offset += settings_frame.length();
+
+  // Receive ORIGIN frame.
+  std::string origin_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0C"   // type (ORIGIN)
+                             "00",  // length
+                             &origin_frame));
+
+  if (GetQuicReloadableFlag(enable_h3_origin_frame)) {
+    if (perspective() == Perspective::IS_CLIENT) {
+      EXPECT_CALL(debug_visitor, OnOriginFrameReceived(_));
+    } else {
+      EXPECT_CALL(*connection_,
+                  CloseConnection(
+                      QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
+                      "Invalid frame type 12 received on control stream.", _))
+          .WillOnce(
+              Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+      EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
+      EXPECT_CALL(session_, OnConnectionClosed(_, _));
+    }
+  } else {
+    EXPECT_CALL(debug_visitor,
+                OnUnknownFrameReceived(id, /* frame_type = */ 0x0c,
+                                       /* payload_length = */ 0));
+  }
+
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(id, /* fin = */ false, offset, origin_frame));
+}
+
 TEST_P(QuicReceiveControlStreamTest, UnknownFrameBeforeSettings) {
   std::string unknown_frame;
   ASSERT_TRUE(

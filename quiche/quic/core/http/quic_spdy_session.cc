@@ -143,6 +143,11 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
     session_->OnAcceptChFrameReceivedViaAlps(frame);
     return true;
   }
+  bool OnOriginFrameStart(QuicByteCount /*header_length*/) override {
+    QUICHE_NOTREACHED();
+    return true;
+  }
+  bool OnOriginFrame(const OriginFrame& /*frame*/) override { return true; }
   void OnWebTransportStreamFrameType(
       QuicByteCount /*header_length*/,
       WebTransportSessionId /*session_id*/) override {

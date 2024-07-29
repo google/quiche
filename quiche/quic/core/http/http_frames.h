@@ -23,10 +23,12 @@ namespace quic {
 enum class HttpFrameType {
   DATA = 0x0,
   HEADERS = 0x1,
-  CANCEL_PUSH = 0X3,
+  CANCEL_PUSH = 0x3,
   SETTINGS = 0x4,
   PUSH_PROMISE = 0x5,
   GOAWAY = 0x7,
+  // https://www.rfc-editor.org/rfc/rfc9412.html
+  ORIGIN = 0xC,
   MAX_PUSH_ID = 0xD,
   // https://tools.ietf.org/html/draft-davidben-http-client-hint-reliability-02
   ACCEPT_CH = 0x89,
@@ -97,6 +99,19 @@ struct QUICHE_EXPORT GoAwayFrame {
   uint64_t id;
 
   bool operator==(const GoAwayFrame& rhs) const { return id == rhs.id; }
+};
+
+// https://www.rfc-editor.org/rfc/rfc9412.html
+// The ORIGIN HTTP/3 frame allows a server to indicate what origin or origins
+// [RFC6454] the server would like the client to consider as one or more
+// members of the Origin Set (Section 2.3 of [ORIGIN]) for the connection
+// within which it occurs
+struct QUICHE_EXPORT OriginFrame {
+  std::vector<std::string> origins;
+
+  bool operator==(const OriginFrame& rhs) const {
+    return origins == rhs.origins;
+  }
 };
 
 // https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html

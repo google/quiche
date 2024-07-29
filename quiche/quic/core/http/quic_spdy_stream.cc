@@ -129,6 +129,16 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return false;
   }
 
+  bool OnOriginFrameStart(QuicByteCount /*header_length*/) override {
+    CloseConnectionOnWrongFrame("ORIGIN");
+    return false;
+  }
+
+  bool OnOriginFrame(const OriginFrame& /*frame*/) override {
+    CloseConnectionOnWrongFrame("ORIGIN");
+    return false;
+  }
+
   bool OnAcceptChFrameStart(QuicByteCount /*header_length*/) override {
     CloseConnectionOnWrongFrame("ACCEPT_CH");
     return false;

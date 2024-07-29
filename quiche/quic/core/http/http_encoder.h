@@ -47,6 +47,9 @@ class QUICHE_EXPORT HttpEncoder {
   // Serializes an ACCEPT_CH frame.
   static std::string SerializeAcceptChFrame(const AcceptChFrame& accept_ch);
 
+  // Serializes an ORIGIN frame.
+  static std::string SerializeOriginFrame(const OriginFrame& origin);
+
   // Serializes a frame with reserved frame type specified in
   // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.9.
   static std::string SerializeGreasingFrame();

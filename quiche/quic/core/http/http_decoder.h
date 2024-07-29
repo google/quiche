@@ -83,6 +83,13 @@ class QUICHE_EXPORT HttpDecoder {
     // Called when a PRIORITY_UPDATE frame has been successfully parsed.
     virtual bool OnPriorityUpdateFrame(const PriorityUpdateFrame& frame) = 0;
 
+    // Called when an ORIGIN frame has been received.
+    // |header_length| contains ORIGIN frame length and payload length.
+    virtual bool OnOriginFrameStart(QuicByteCount header_length) = 0;
+
+    // Called when an ORIGIN frame has been successfully parsed.
+    virtual bool OnOriginFrame(const OriginFrame& frame) = 0;
+
     // Called when an ACCEPT_CH frame has been received.
     // |header_length| contains ACCEPT_CH frame length and payload length.
     virtual bool OnAcceptChFrameStart(QuicByteCount header_length) = 0;
@@ -247,6 +254,9 @@ class QUICHE_EXPORT HttpDecoder {
   bool ParsePriorityUpdateFrame(QuicDataReader& reader,
                                 PriorityUpdateFrame& frame);
 
+  // Parses the payload of an ORIGIN frame from |reader| into |frame|.
+  bool ParseOriginFrame(QuicDataReader& reader, OriginFrame& frame);
+
   // Parses the payload of an ACCEPT_CH frame from |reader| into |frame|.
   bool ParseAcceptChFrame(QuicDataReader& reader, AcceptChFrame& frame);
 
@@ -283,6 +293,8 @@ class QUICHE_EXPORT HttpDecoder {
   std::array<char, sizeof(uint64_t)> length_buffer_;
   // Remaining unparsed type field data.
   std::array<char, sizeof(uint64_t)> type_buffer_;
+  // Latched value of reloadable flag enable_h3_origin_frame.
+  bool enable_origin_frame_;
 };
 
 }  // namespace quic

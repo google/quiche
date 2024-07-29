@@ -196,6 +196,36 @@ std::string HttpEncoder::SerializeAcceptChFrame(
   return frame;
 }
 
+std::string HttpEncoder::SerializeOriginFrame(const OriginFrame& origin) {
+  QuicByteCount payload_length = 0;
+  for (const std::string& entry : origin.origins) {
+    constexpr QuicByteCount kLengthFieldOverhead = 2;
+    payload_length += kLengthFieldOverhead + entry.size();
+  }
+
+  QuicByteCount total_length =
+      GetTotalLength(payload_length, HttpFrameType::ORIGIN);
+
+  std::string frame;
+  frame.resize(total_length);
+  QuicDataWriter writer(total_length, frame.data());
+
+  if (!WriteFrameHeader(payload_length, HttpFrameType::ORIGIN, &writer)) {
+    QUIC_DLOG(ERROR) << "Http encoder failed to serialize ORIGIN frame header.";
+    return {};
+  }
+
+  for (const std::string& entry : origin.origins) {
+    if (!writer.WriteStringPiece16(entry)) {
+      QUIC_DLOG(ERROR)
+          << "Http encoder failed to serialize ACCEPT_CH frame payload.";
+      return {};
+    }
+  }
+
+  return frame;
+}
+
 std::string HttpEncoder::SerializeGreasingFrame() {
   uint64_t frame_type;
   QuicByteCount payload_length;

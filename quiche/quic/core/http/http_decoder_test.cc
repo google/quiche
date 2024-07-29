@@ -57,6 +57,8 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnPriorityUpdateFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnAcceptChFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnAcceptChFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnOriginFrameStart(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnOriginFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnMetadataFrameStart(_, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnMetadataFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnMetadataFrameEnd()).WillByDefault(Return(true));
@@ -1093,6 +1095,119 @@ TEST_F(HttpDecoderTest, AcceptChFrame) {
   ProcessInputCharByChar(input2);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, OriginFrame) {
+  if (!GetQuicReloadableFlag(enable_h3_origin_frame)) {
+    return;
+  }
+  InSequence s;
+  std::string input1;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0C"   // type (ORIGIN)
+                             "00",  // length
+                             &input1));
+
+  OriginFrame origin1;
+
+  // Visitor pauses processing.
+  EXPECT_CALL(visitor_, OnOriginFrameStart(2)).WillOnce(Return(false));
+  absl::string_view remaining_input(input1);
+  QuicByteCount processed_bytes =
+      ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(2u, processed_bytes);
+  remaining_input = remaining_input.substr(processed_bytes);
+
+  EXPECT_CALL(visitor_, OnOriginFrame(origin1)).WillOnce(Return(false));
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(remaining_input.size(), processed_bytes);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the full frame.
+  EXPECT_CALL(visitor_, OnOriginFrameStart(2));
+  EXPECT_CALL(visitor_, OnOriginFrame(origin1));
+  EXPECT_EQ(input1.size(), ProcessInput(input1));
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the frame incrementally.
+  EXPECT_CALL(visitor_, OnOriginFrameStart(2));
+  EXPECT_CALL(visitor_, OnOriginFrame(origin1));
+  ProcessInputCharByChar(input1);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  std::string input2;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0C"       // type (ORIGIN)
+                             "0A"       // length
+                             "0003"     // length of origin
+                             "666f6f"   // origin "foo"
+                             "0003"     // length of origin
+                             "626172",  // origin "bar"
+                             &input2));
+  ASSERT_EQ(12, input2.length());
+
+  OriginFrame origin2;
+  origin2.origins = {"foo", "bar"};
+
+  // Visitor pauses processing.
+  EXPECT_CALL(visitor_, OnOriginFrameStart(2)).WillOnce(Return(false));
+  remaining_input = input2;
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(2u, processed_bytes);
+  remaining_input = remaining_input.substr(processed_bytes);
+
+  EXPECT_CALL(visitor_, OnOriginFrame(origin2)).WillOnce(Return(false));
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(remaining_input.size(), processed_bytes);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the full frame.
+  EXPECT_CALL(visitor_, OnOriginFrameStart(2));
+  EXPECT_CALL(visitor_, OnOriginFrame(origin2));
+  EXPECT_EQ(input2.size(), ProcessInput(input2));
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the frame incrementally.
+  EXPECT_CALL(visitor_, OnOriginFrameStart(2));
+  EXPECT_CALL(visitor_, OnOriginFrame(origin2));
+  ProcessInputCharByChar(input2);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, OriginFrameDisabled) {
+  if (GetQuicReloadableFlag(enable_h3_origin_frame)) {
+    return;
+  }
+  InSequence s;
+
+  std::string input1;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0C"   // type (ORIGIN)
+                             "00",  // length
+                             &input1));
+  EXPECT_CALL(visitor_, OnUnknownFrameStart(0x0C, 2, 0));
+  EXPECT_CALL(visitor_, OnUnknownFrameEnd());
+  EXPECT_EQ(ProcessInput(input1), input1.size());
+
+  std::string input2;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0C"       // type (ORIGIN)
+                             "0A"       // length
+                             "0003"     // length of origin
+                             "666f6f"   // origin "foo"
+                             "0003"     // length of origin
+                             "626172",  // origin "bar"
+                             &input2));
+  EXPECT_CALL(visitor_, OnUnknownFrameStart(0x0C, 2, input2.size() - 2));
+  EXPECT_CALL(visitor_, OnUnknownFramePayload(input2.substr(2)));
+  EXPECT_CALL(visitor_, OnUnknownFrameEnd());
+  EXPECT_EQ(ProcessInput(input2), input2.size());
 }
 
 TEST_F(HttpDecoderTest, WebTransportStreamDisabled) {

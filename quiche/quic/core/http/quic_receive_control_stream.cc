@@ -150,6 +150,22 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
   return spdy_session_->OnPriorityUpdateForRequestStream(stream_id, *priority);
 }
 
+bool QuicReceiveControlStream::OnOriginFrameStart(
+    QuicByteCount /* header_length */) {
+  return ValidateFrameType(HttpFrameType::ORIGIN);
+}
+
+bool QuicReceiveControlStream::OnOriginFrame(const OriginFrame& frame) {
+  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, spdy_session()->perspective());
+
+  if (spdy_session()->debug_visitor()) {
+    spdy_session()->debug_visitor()->OnOriginFrameReceived(frame);
+  }
+
+  spdy_session()->OnOriginFrame(frame);
+  return false;
+}
+
 bool QuicReceiveControlStream::OnAcceptChFrameStart(
     QuicByteCount /* header_length */) {
   return ValidateFrameType(HttpFrameType::ACCEPT_CH);
@@ -217,7 +233,9 @@ bool QuicReceiveControlStream::ValidateFrameType(HttpFrameType frame_type) {
       (spdy_session()->perspective() == Perspective::IS_CLIENT &&
        frame_type == HttpFrameType::MAX_PUSH_ID) ||
       (spdy_session()->perspective() == Perspective::IS_SERVER &&
-       frame_type == HttpFrameType::ACCEPT_CH)) {
+       ((GetQuicReloadableFlag(enable_h3_origin_frame) &&
+         frame_type == HttpFrameType::ORIGIN) ||
+        frame_type == HttpFrameType::ACCEPT_CH))) {
     stream_delegate()->OnStreamError(
         QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
         absl::StrCat("Invalid frame type ", static_cast<int>(frame_type),

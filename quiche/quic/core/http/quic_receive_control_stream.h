@@ -48,6 +48,8 @@ class QUICHE_EXPORT QuicReceiveControlStream : public QuicStream,
   bool OnHeadersFrameEnd() override;
   bool OnPriorityUpdateFrameStart(QuicByteCount header_length) override;
   bool OnPriorityUpdateFrame(const PriorityUpdateFrame& frame) override;
+  bool OnOriginFrameStart(QuicByteCount header_length) override;
+  bool OnOriginFrame(const OriginFrame& frame) override;
   bool OnAcceptChFrameStart(QuicByteCount header_length) override;
   bool OnAcceptChFrame(const AcceptChFrame& frame) override;
   void OnWebTransportStreamFrameType(QuicByteCount header_length,

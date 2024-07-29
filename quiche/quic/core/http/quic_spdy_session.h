@@ -82,6 +82,7 @@ class QUICHE_EXPORT Http3DebugVisitor {
   virtual void OnGoAwayFrameReceived(const GoAwayFrame& /*frame*/) = 0;
   virtual void OnPriorityUpdateFrameReceived(
       const PriorityUpdateFrame& /*frame*/) = 0;
+  virtual void OnOriginFrameReceived(const OriginFrame& /*frame*/) {}
   virtual void OnAcceptChFrameReceived(const AcceptChFrame& /*frame*/) {}
 
   // Incoming HTTP/3 frames on request or push streams.
@@ -196,6 +197,10 @@ class QUICHE_EXPORT QuicSpdySession
   // stream.  Returns false and closes connection if |stream_id| is invalid.
   bool OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
                                         HttpStreamPriority priority);
+
+  // Called when an HTTP/3 ORIGIN frame has been received.
+  // This method will only be called for client sessions.
+  virtual void OnOriginFrame(const OriginFrame& /*frame*/) {}
 
   // Called when an HTTP/3 ACCEPT_CH frame has been received.
   // This method will only be called for client sessions.

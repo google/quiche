@@ -1028,6 +1028,7 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
   MOCK_METHOD(void, OnGoAwayFrameReceived, (const GoAwayFrame&), (override));
   MOCK_METHOD(void, OnPriorityUpdateFrameReceived, (const PriorityUpdateFrame&),
               (override));
+  MOCK_METHOD(void, OnOriginFrameReceived, (const OriginFrame&), (override));
   MOCK_METHOD(void, OnAcceptChFrameReceived, (const AcceptChFrame&),
               (override));
 
@@ -1500,6 +1501,9 @@ class MockHttpDecoderVisitor : public HttpDecoder::Visitor {
   MOCK_METHOD(bool, OnPriorityUpdateFrame, (const PriorityUpdateFrame& frame),
               (override));
 
+  MOCK_METHOD(bool, OnOriginFrameStart, (QuicByteCount header_length),
+              (override));
+  MOCK_METHOD(bool, OnOriginFrame, (const OriginFrame& frame), (override));
   MOCK_METHOD(bool, OnAcceptChFrameStart, (QuicByteCount header_length),
               (override));
   MOCK_METHOD(bool, OnAcceptChFrame, (const AcceptChFrame& frame), (override));

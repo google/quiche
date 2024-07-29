@@ -46,7 +46,8 @@ HttpDecoder::HttpDecoder(Visitor* visitor)
       current_type_field_length_(0),
       remaining_type_field_length_(0),
       error_(QUIC_NO_ERROR),
-      error_detail_("") {
+      error_detail_(""),
+      enable_origin_frame_(GetQuicReloadableFlag(enable_h3_origin_frame)) {
   QUICHE_DCHECK(visitor_);
 }
 
@@ -289,6 +290,12 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader& reader) {
           visitor_->OnMetadataFrameStart(header_length, current_frame_length_);
       break;
     default:
+      if (enable_origin_frame_ &&
+          current_frame_type_ == static_cast<uint64_t>(HttpFrameType::ORIGIN)) {
+        QUIC_CODE_COUNT_N(enable_h3_origin_frame, 1, 2);
+        continue_processing = visitor_->OnOriginFrameStart(header_length);
+        break;
+      }
       continue_processing = visitor_->OnUnknownFrameStart(
           current_frame_type_, header_length, current_frame_length_);
       break;
@@ -316,6 +323,12 @@ bool HttpDecoder::IsFrameBuffered() {
       return true;
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM):
       return true;
+    case static_cast<uint64_t>(HttpFrameType::ORIGIN):
+      if (enable_origin_frame_) {
+        QUIC_CODE_COUNT_N(enable_h3_origin_frame, 2, 2);
+        return true;
+      }
+      return false;
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH):
       return true;
   }
@@ -394,6 +407,11 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader& reader) {
       break;
     }
     default: {
+      if (enable_origin_frame_ &&
+          current_frame_type_ == static_cast<uint64_t>(HttpFrameType::ORIGIN)) {
+        QUICHE_NOTREACHED();
+        break;
+      }
       continue_processing = HandleUnknownFramePayload(reader);
       break;
     }
@@ -454,6 +472,11 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     default:
+      if (enable_origin_frame_ &&
+          current_frame_type_ == static_cast<uint64_t>(HttpFrameType::ORIGIN)) {
+        QUICHE_NOTREACHED();
+        break;
+      }
       continue_processing = visitor_->OnUnknownFrameEnd();
   }
 
@@ -569,6 +592,13 @@ bool HttpDecoder::ParseEntirePayload(QuicDataReader& reader) {
       }
       return visitor_->OnPriorityUpdateFrame(frame);
     }
+    case static_cast<uint64_t>(HttpFrameType::ORIGIN): {
+      OriginFrame frame;
+      if (!ParseOriginFrame(reader, frame)) {
+        return false;
+      }
+      return visitor_->OnOriginFrame(frame);
+    }
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {
       AcceptChFrame frame;
       if (!ParseAcceptChFrame(reader, frame)) {
@@ -649,6 +679,19 @@ bool HttpDecoder::ParsePriorityUpdateFrame(QuicDataReader& reader,
   return true;
 }
 
+bool HttpDecoder::ParseOriginFrame(QuicDataReader& reader, OriginFrame& frame) {
+  QUICHE_DCHECK(enable_origin_frame_);
+  while (!reader.IsDoneReading()) {
+    absl::string_view origin;
+    if (!reader.ReadStringPiece16(&origin)) {
+      RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read ORIGIN origin.");
+      return false;
+    }
+    frame.origins.push_back(std::string(origin));
+  }
+  return true;
+}
+
 bool HttpDecoder::ParseAcceptChFrame(QuicDataReader& reader,
                                      AcceptChFrame& frame) {
   absl::string_view origin;
@@ -682,6 +725,8 @@ QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM):
       return kPayloadLengthLimit;
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH):
+      return kPayloadLengthLimit;
+    case static_cast<uint64_t>(HttpFrameType::ORIGIN):
       return kPayloadLengthLimit;
     default:
       QUICHE_NOTREACHED();
