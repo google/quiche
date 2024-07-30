@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <list>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -25,6 +26,7 @@
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -118,7 +120,7 @@ class ChatClient {
   bool session_is_open() const { return session_is_open_; }
   bool is_syncing() const {
     return !catalog_group_.has_value() || subscribes_to_make_ > 0 ||
-           (queue_ != nullptr && queue_->HasSubscribers());
+           (queue_ == nullptr || !queue_->HasSubscribers());
   }
 
   void RunEventLoop() {
@@ -205,6 +207,8 @@ class ChatClient {
     queue_ = std::make_shared<moqt::MoqtOutgoingQueue>(
         client_->session(), my_track_name_,
         moqt::MoqtForwardingPreference::kObject);
+    publisher_.Add(queue_);
+    session_->set_publisher(&publisher_);
     moqt::MoqtOutgoingAnnounceCallback announce_callback =
         [&](absl::string_view track_namespace,
             std::optional<moqt::MoqtAnnounceErrorReason> reason) {
@@ -314,11 +318,9 @@ class ChatClient {
       }
     }
     if (object_sequence == 0) {  // Eliminate users that are no longer present
-      for (const auto& it : other_users_) {
-        if (it.second.from_group != group_sequence) {
-          other_users_.erase(it.first);
-        }
-      }
+      absl::erase_if(other_users_, [&](const auto& kv) {
+        return kv.second.from_group != group_sequence;
+      });
     }
     catalog_group_ = group_sequence;
   }
@@ -339,6 +341,7 @@ class ChatClient {
   std::unique_ptr<quic::QuicEventLoop> event_loop_;
   bool session_is_open_ = false;
   moqt::MoqtSession* session_ = nullptr;
+  moqt::MoqtKnownTrackPublisher publisher_;
   std::unique_ptr<moqt::MoqtClient> client_;
   moqt::MoqtSessionCallbacks session_callbacks_;
 
