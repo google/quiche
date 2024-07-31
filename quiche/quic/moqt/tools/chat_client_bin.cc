@@ -205,8 +205,7 @@ class ChatClient {
       return false;
     }
     queue_ = std::make_shared<moqt::MoqtOutgoingQueue>(
-        client_->session(), my_track_name_,
-        moqt::MoqtForwardingPreference::kObject);
+        my_track_name_, moqt::MoqtForwardingPreference::kObject);
     publisher_.Add(queue_);
     session_->set_publisher(&publisher_);
     moqt::MoqtOutgoingAnnounceCallback announce_callback =

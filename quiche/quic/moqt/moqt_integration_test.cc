@@ -179,8 +179,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
       });
 
   auto queue = std::make_shared<MoqtOutgoingQueue>(
-      client_->session(), FullTrackName{"test", "data"},
-      MoqtForwardingPreference::kGroup);
+      FullTrackName{"test", "data"}, MoqtForwardingPreference::kGroup);
   MoqtKnownTrackPublisher known_track_publisher;
   known_track_publisher.Add(queue);
   client_->session()->set_publisher(&known_track_publisher);
@@ -230,8 +229,7 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     std::string name =
         absl::StrCat("pref_", static_cast<int>(forwarding_preference));
     auto queue = std::make_shared<MoqtOutgoingQueue>(
-        client_->session(), FullTrackName{"test", name},
-        MoqtForwardingPreference::kObject);
+        FullTrackName{"test", name}, MoqtForwardingPreference::kObject);
     publisher.Add(queue);
     queue->AddObject(MemSliceFromString("object 1"), /*key=*/true);
     queue->AddObject(MemSliceFromString("object 2"), /*key=*/false);
@@ -292,8 +290,7 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
     std::string name =
         absl::StrCat("pref_", static_cast<int>(forwarding_preference));
     auto queue = std::make_shared<MoqtOutgoingQueue>(
-        client_->session(), FullTrackName{"test", name},
-        MoqtForwardingPreference::kObject);
+        FullTrackName{"test", name}, MoqtForwardingPreference::kObject);
     publisher.Add(queue);
     for (int i = 0; i < 100; ++i) {
       queue->AddObject(MemSliceFromString("object"), /*key=*/true);

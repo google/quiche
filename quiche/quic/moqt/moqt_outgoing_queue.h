@@ -18,7 +18,6 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
-#include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 
 namespace moqt {
@@ -32,10 +31,9 @@ namespace moqt {
 // frames that they produce.
 class MoqtOutgoingQueue : public MoqtTrackPublisher {
  public:
-  explicit MoqtOutgoingQueue(MoqtSession* session, FullTrackName track,
+  explicit MoqtOutgoingQueue(FullTrackName track,
                              MoqtForwardingPreference forwarding_preference)
-      : session_(session),
-        track_(std::move(track)),
+      : track_(std::move(track)),
         forwarding_preference_(forwarding_preference) {}
 
   MoqtOutgoingQueue(const MoqtOutgoingQueue&) = delete;
@@ -86,7 +84,6 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
     return current_group_id_ - queue_.size() + 1;
   }
 
-  MoqtSession* session_;  // Not owned.
   FullTrackName track_;
   MoqtForwardingPreference forwarding_preference_;
   MoqtPriority publisher_priority_ = 128;

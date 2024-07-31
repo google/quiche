@@ -99,7 +99,7 @@ class ObjectGenerator : public quic::simulator::Actor {
                   QuicBandwidth bitrate)
       : Actor(simulator, actor_name),
         queue_(std::make_shared<MoqtOutgoingQueue>(
-            session, track_name, MoqtForwardingPreference::kGroup)),
+            track_name, MoqtForwardingPreference::kGroup)),
         keyframe_interval_(keyframe_interval),
         time_between_frames_(QuicTimeDelta::FromMicroseconds(1.0e6 / fps)) {
     int p_frame_count = keyframe_interval - 1;
