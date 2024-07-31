@@ -28,6 +28,7 @@
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -3970,7 +3971,8 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     QpackEncoder qpack_encoder(&decoder_stream_error_delegate,
-                               HuffmanEncoding::kEnabled);
+                               HuffmanEncoding::kEnabled,
+                               CookieCrumbling::kEnabled);
     qpack_encoder.set_qpack_stream_sender_delegate(
         &encoder_stream_sender_delegate);
 

@@ -9,6 +9,7 @@
 
 #include "absl/memory/memory.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
@@ -305,7 +306,8 @@ TEST_F(QuicSpdyServerStreamBaseTest, EmptyHeaders) {
   quic::test::NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
   NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
   auto qpack_encoder = std::make_unique<quic::QpackEncoder>(
-      &decoder_stream_error_delegate, HuffmanEncoding::kEnabled);
+      &decoder_stream_error_delegate, HuffmanEncoding::kEnabled,
+      CookieCrumbling::kEnabled);
   qpack_encoder->set_qpack_stream_sender_delegate(
       &encoder_stream_sender_delegate);
   std::string payload =

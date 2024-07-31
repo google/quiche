@@ -35,8 +35,9 @@ const float kDrainingFraction = 0.25;
 
 QpackEncoder::QpackEncoder(
     DecoderStreamErrorDelegate* decoder_stream_error_delegate,
-    HuffmanEncoding huffman_encoding)
+    HuffmanEncoding huffman_encoding, CookieCrumbling cookie_crumbling)
     : huffman_encoding_(huffman_encoding),
+      cookie_crumbling_(cookie_crumbling),
       decoder_stream_error_delegate_(decoder_stream_error_delegate),
       decoder_stream_receiver_(this),
       encoder_stream_sender_(huffman_encoding),

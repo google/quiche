@@ -8,6 +8,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_decoder.h"
 #include "quiche/quic/core/qpack/qpack_encoder.h"
+#include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
@@ -29,7 +30,7 @@ class QpackRoundTripTest : public QuicTestWithParam<FragmentMode> {
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     QpackEncoder encoder(&decoder_stream_error_delegate,
-                         HuffmanEncoding::kEnabled);
+                         HuffmanEncoding::kEnabled, CookieCrumbling::kEnabled);
     encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate);
     std::string encoded_header_block =
         encoder.EncodeHeaderList(/* stream_id = */ 1, header_list, nullptr);

@@ -25,6 +25,7 @@
 #include "quiche/quic/core/qpack/qpack_encoder.h"
 #include "quiche/quic/core/qpack/qpack_receive_stream.h"
 #include "quiche/quic/core/qpack/qpack_send_stream.h"
+#include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_time.h"
@@ -569,6 +570,11 @@ class QUICHE_EXPORT QuicSpdySession
     huffman_encoding_ = HuffmanEncoding::kDisabled;
   }
 
+  // Disables cookie crumbling for QPACK headers.
+  void DisableCookieCrumbling() {
+    cookie_crumbling_ = CookieCrumbling::kDisabled;
+  }
+
  private:
   friend class test::QuicSpdySessionPeer;
 
@@ -617,6 +623,7 @@ class QUICHE_EXPORT QuicSpdySession
   bool ValidateWebTransportSettingsConsistency();
 
   HuffmanEncoding huffman_encoding_ = HuffmanEncoding::kEnabled;
+  CookieCrumbling cookie_crumbling_ = CookieCrumbling::kEnabled;
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
 

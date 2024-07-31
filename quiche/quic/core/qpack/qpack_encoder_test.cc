@@ -11,6 +11,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_instruction_encoder.h"
+#include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_encoder_peer.h"
@@ -58,7 +59,8 @@ class QpackEncoderTest : public QuicTestWithParam<HuffmanEncoding> {
  protected:
   QpackEncoderTest()
       : huffman_encoding_(GetParam()),
-        encoder_(&decoder_stream_error_delegate_, huffman_encoding_),
+        encoder_(&decoder_stream_error_delegate_, huffman_encoding_,
+                 CookieCrumbling::kEnabled),
         encoder_stream_sent_byte_count_(0) {
     encoder_.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate_);
     encoder_.SetMaximumBlockedStreams(1);
@@ -241,7 +243,8 @@ TEST_P(QpackEncoderTest, DecoderStreamError) {
               OnDecoderStreamError(QUIC_QPACK_DECODER_STREAM_INTEGER_TOO_LARGE,
                                    Eq("Encoded integer too large.")));
 
-  QpackEncoder encoder(&decoder_stream_error_delegate_, huffman_encoding_);
+  QpackEncoder encoder(&decoder_stream_error_delegate_, huffman_encoding_,
+                       CookieCrumbling::kEnabled);
   encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate_);
   std::string input;
   ASSERT_TRUE(absl::HexStringToBytes("ffffffffffffffffffffff", &input));
@@ -1063,6 +1066,82 @@ TEST_P(QpackEncoderTest, UseDynamicTableNameOnlyMatch) {
                                &expected_output));
   }
   EXPECT_EQ(expected_output, Encode(header_list3));
+}
+
+TEST_P(QpackEncoderTest, CookieCrumblingEnabledNoDynamicTable) {
+  EXPECT_CALL(encoder_stream_sender_delegate_, NumBytesBuffered())
+      .WillRepeatedly(Return(0));
+
+  quiche::HttpHeaderBlock header_list;
+  header_list["cookie"] = "foo; bar";
+
+  std::string expected_output;
+  if (HuffmanEnabled()) {
+    ASSERT_TRUE(
+        absl::HexStringToBytes("0000"       // prefix
+                               "55"         // name of static entry 5
+                               "8294e7"     // with literal value "bar"
+                               "55"         // name of static entry 5
+                               "03626172",  // with literal value "bar"
+                               &expected_output));
+  } else {
+    ASSERT_TRUE(
+        absl::HexStringToBytes("0000"       // prefix
+                               "55"         // name of static entry 5
+                               "03666f6f"   // with literal value "foo"
+                               "55"         // name of static entry 5
+                               "03626172",  // with literal value "bar"
+                               &expected_output));
+  }
+  EXPECT_EQ(expected_output, Encode(header_list));
+
+  EXPECT_EQ(0u, encoder_stream_sent_byte_count_);
+}
+
+TEST_P(QpackEncoderTest, CookieCrumblingEnabledDynamicTable) {
+  EXPECT_CALL(encoder_stream_sender_delegate_, NumBytesBuffered())
+      .WillRepeatedly(Return(0));
+  encoder_.SetMaximumBlockedStreams(1);
+  encoder_.SetMaximumDynamicTableCapacity(4096);
+  encoder_.SetDynamicTableCapacity(4096);
+
+  quiche::HttpHeaderBlock header_list;
+  header_list["cookie"] = "foo; bar";
+
+  // Set Dynamic Table Capacity instruction.
+  std::string set_dyanamic_table_capacity;
+  ASSERT_TRUE(absl::HexStringToBytes("3fe11f", &set_dyanamic_table_capacity));
+
+  // Insert entries into the dynamic table.
+  std::string insert_entries;
+  if (HuffmanEnabled()) {
+    ASSERT_TRUE(absl::HexStringToBytes(
+        "c5"         // insert with name reference, static index 5
+        "8294e7"     // with literal value "foo"
+        "c5"         // insert with name reference, static index 5
+        "03626172",  // with literal value "bar"
+        &insert_entries));
+  } else {
+    ASSERT_TRUE(absl::HexStringToBytes(
+        "c5"         // insert with name reference, static index 5
+        "03666f6f"   // with literal value "foo"
+        "c5"         // insert with name reference, static index 5
+        "03626172",  // with literal value "bar"
+        &insert_entries));
+  }
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(
+                  absl::StrCat(set_dyanamic_table_capacity, insert_entries))));
+
+  std::string expected_output;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0300"  // prefix
+                             "81"    // dynamic entry with relative index 0
+                             "80",   // dynamic entry with relative index 1
+                             &expected_output));
+  EXPECT_EQ(expected_output, Encode(header_list));
+
+  EXPECT_EQ(insert_entries.size(), encoder_stream_sent_byte_count_);
 }
 
 }  // namespace

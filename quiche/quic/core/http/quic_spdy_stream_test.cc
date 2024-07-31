@@ -24,6 +24,7 @@
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
+#include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_stream_sequencer_buffer.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -398,7 +399,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::string EncodeQpackHeaders(const HttpHeaderBlock& header) {
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     auto qpack_encoder = std::make_unique<QpackEncoder>(
-        session_.get(), HuffmanEncoding::kEnabled);
+        session_.get(), HuffmanEncoding::kEnabled, CookieCrumbling::kEnabled);
     qpack_encoder->set_qpack_stream_sender_delegate(
         &encoder_stream_sender_delegate);
     // QpackEncoder does not use the dynamic table by default,
@@ -2737,14 +2738,14 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest,
   quiche::HttpHeaderBlock headers;
   headers.AppendValueOrAddHeader("key1", "val1");
   headers.AppendValueOrAddHeader("key2", "val2");
-  quic::NoopDecoderStreamErrorDelegate delegate;
-  QpackEncoder qpack_encoder(&delegate, quic::HuffmanEncoding::kDisabled);
+  NoopDecoderStreamErrorDelegate delegate;
+  QpackEncoder qpack_encoder(&delegate, HuffmanEncoding::kDisabled,
+                             CookieCrumbling::kEnabled);
   std::string metadata_frame_payload = qpack_encoder.EncodeHeaderList(
       stream_->id(), headers,
       /* encoder_stream_sent_byte_count = */ nullptr);
   std::string metadata_frame_header =
-      quic::HttpEncoder::SerializeMetadataFrameHeader(
-          metadata_frame_payload.size());
+      HttpEncoder::SerializeMetadataFrameHeader(metadata_frame_payload.size());
   std::string metadata_frame = metadata_frame_header + metadata_frame_payload;
 
   EXPECT_CALL(debug_visitor,
@@ -2775,14 +2776,14 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, ReceiveMetadataFrame) {
   quiche::HttpHeaderBlock headers;
   headers.AppendValueOrAddHeader("key1", "val1");
   headers.AppendValueOrAddHeader("key2", "val2");
-  quic::NoopDecoderStreamErrorDelegate delegate;
-  QpackEncoder qpack_encoder(&delegate, quic::HuffmanEncoding::kDisabled);
+  NoopDecoderStreamErrorDelegate delegate;
+  QpackEncoder qpack_encoder(&delegate, HuffmanEncoding::kDisabled,
+                             CookieCrumbling::kEnabled);
   std::string metadata_frame_payload = qpack_encoder.EncodeHeaderList(
       stream_->id(), headers,
       /* encoder_stream_sent_byte_count = */ nullptr);
   std::string metadata_frame_header =
-      quic::HttpEncoder::SerializeMetadataFrameHeader(
-          metadata_frame_payload.size());
+      HttpEncoder::SerializeMetadataFrameHeader(metadata_frame_payload.size());
   std::string metadata_frame = metadata_frame_header + metadata_frame_payload;
 
   EXPECT_CALL(metadata_visitor, OnMetadataComplete(metadata_frame.size(), _))
@@ -2812,14 +2813,14 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest,
   quiche::HttpHeaderBlock headers;
   headers.AppendValueOrAddHeader("key1", "val1");
   headers.AppendValueOrAddHeader("key2", "val2");
-  quic::NoopDecoderStreamErrorDelegate delegate;
-  QpackEncoder qpack_encoder(&delegate, quic::HuffmanEncoding::kDisabled);
+  NoopDecoderStreamErrorDelegate delegate;
+  QpackEncoder qpack_encoder(&delegate, HuffmanEncoding::kDisabled,
+                             CookieCrumbling::kEnabled);
   std::string metadata_frame_payload = qpack_encoder.EncodeHeaderList(
       stream_->id(), headers,
       /* encoder_stream_sent_byte_count = */ nullptr);
   std::string metadata_frame_header =
-      quic::HttpEncoder::SerializeMetadataFrameHeader(
-          metadata_frame_payload.size());
+      HttpEncoder::SerializeMetadataFrameHeader(metadata_frame_payload.size());
   std::string metadata_frame = metadata_frame_header + metadata_frame_payload;
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AnyNumber());

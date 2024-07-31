@@ -16,6 +16,7 @@
 #include "quiche/quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "quiche/quic/core/qpack/qpack_header_table.h"
 #include "quiche/quic/core/qpack/qpack_instructions.h"
+#include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -46,7 +47,8 @@ class QUICHE_EXPORT QpackEncoder : public QpackDecoderStreamReceiver::Delegate {
   };
 
   QpackEncoder(DecoderStreamErrorDelegate* decoder_stream_error_delegate,
-               HuffmanEncoding huffman_encoding);
+               HuffmanEncoding huffman_encoding,
+               CookieCrumbling cookie_crumbling);
   ~QpackEncoder() override;
 
   // Encode a header list.  If |encoder_stream_sent_byte_count| is not null,
@@ -148,6 +150,7 @@ class QUICHE_EXPORT QpackEncoder : public QpackDecoderStreamReceiver::Delegate {
                                uint64_t required_insert_count) const;
 
   const HuffmanEncoding huffman_encoding_;
+  const CookieCrumbling cookie_crumbling_;
   DecoderStreamErrorDelegate* const decoder_stream_error_delegate_;
   QpackDecoderStreamReceiver decoder_stream_receiver_;
   QpackEncoderStreamSender encoder_stream_sender_;

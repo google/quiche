@@ -50,8 +50,10 @@ class EncodingEndpoint {
  public:
   EncodingEndpoint(uint64_t maximum_dynamic_table_capacity,
                    uint64_t maximum_blocked_streams,
-                   HuffmanEncoding huffman_encoding)
-      : encoder_(&decoder_stream_error_delegate, huffman_encoding) {
+                   HuffmanEncoding huffman_encoding,
+                   CookieCrumbling cookie_crumbling)
+      : encoder_(&decoder_stream_error_delegate, huffman_encoding,
+                 cookie_crumbling) {
     encoder_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
     encoder_.SetMaximumBlockedStreams(maximum_blocked_streams);
   }
@@ -571,7 +573,8 @@ quiche::HttpHeaderBlock GenerateHeaderList(FuzzedDataProvider* provider) {
   return header_list;
 }
 
-// Splits |*header_list| header values along '\0' or ';' separators.
+// Splits |*header_list| header values. Cookie header is split along ';'
+// separator if crumbling is enabled. Other headers are split along '\0'.
 QuicHeaderList SplitHeaderList(const quiche::HttpHeaderBlock& header_list,
                                CookieCrumbling cookie_crumbling) {
   QuicHeaderList split_header_list;
@@ -607,10 +610,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   const uint64_t maximum_blocked_streams = provider.ConsumeIntegral<uint8_t>();
 
   // Set up encoder.
+  const CookieCrumbling cookie_crumbling = provider.ConsumeBool()
+                                               ? CookieCrumbling::kEnabled
+                                               : CookieCrumbling::kDisabled;
   EncodingEndpoint encoder(maximum_dynamic_table_capacity,
                            maximum_blocked_streams,
                            provider.ConsumeBool() ? HuffmanEncoding::kEnabled
-                                                  : HuffmanEncoding::kDisabled);
+                                                  : HuffmanEncoding::kDisabled,
+                           cookie_crumbling);
 
   // Set up decoder.
   DecodingEndpoint decoder(maximum_dynamic_table_capacity,
@@ -647,10 +654,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     // TODO(bnc): Randomly cancel the stream.
 
-    // Encoder splits |header_list| header values along '\0' or ';' separators.
+    // Encoder splits |header_list| header values along '\0' or ';' separators
+    // (unless cookie crumbling is disabled).
     // Do the same here so that we get matching results.
     QuicHeaderList expected_header_list =
-        SplitHeaderList(header_list, CookieCrumbling::kEnabled);
+        SplitHeaderList(header_list, cookie_crumbling);
     decoder.AddExpectedHeaderList(stream_id, std::move(expected_header_list));
 
     header_block_transmitter.SendEncodedHeaderBlock(

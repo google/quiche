@@ -19,7 +19,8 @@ class MetadataDecoderTest : public QuicTest {
  protected:
   std::string EncodeHeaders(quiche::HttpHeaderBlock& headers) {
     quic::NoopDecoderStreamErrorDelegate delegate;
-    quic::QpackEncoder encoder(&delegate, quic::HuffmanEncoding::kDisabled);
+    quic::QpackEncoder encoder(&delegate, quic::HuffmanEncoding::kDisabled,
+                               quic::CookieCrumbling::kDisabled);
     return encoder.EncodeHeaderList(id_, headers,
                                     /*encoder_stream_sent_byte_count=*/nullptr);
   }
