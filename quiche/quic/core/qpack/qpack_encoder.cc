@@ -116,7 +116,8 @@ QpackEncoder::Representations QpackEncoder::FirstPassEncode(
   bool dynamic_table_insertion_blocked = false;
   bool blocked_stream_limit_exhausted = false;
 
-  for (const auto& header : ValueSplittingHeaderList(&header_list)) {
+  for (const auto& header :
+       ValueSplittingHeaderList(&header_list, CookieCrumbling::kEnabled)) {
     // These strings are owned by |header_list|.
     absl::string_view name = header.first;
     absl::string_view value = header.second;

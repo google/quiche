@@ -572,12 +572,14 @@ quiche::HttpHeaderBlock GenerateHeaderList(FuzzedDataProvider* provider) {
 }
 
 // Splits |*header_list| header values along '\0' or ';' separators.
-QuicHeaderList SplitHeaderList(const quiche::HttpHeaderBlock& header_list) {
+QuicHeaderList SplitHeaderList(const quiche::HttpHeaderBlock& header_list,
+                               CookieCrumbling cookie_crumbling) {
   QuicHeaderList split_header_list;
   split_header_list.OnHeaderBlockStart();
 
   size_t total_size = 0;
-  ValueSplittingHeaderList splitting_header_list(&header_list);
+  ValueSplittingHeaderList splitting_header_list(&header_list,
+                                                 cookie_crumbling);
   for (const auto& header : splitting_header_list) {
     split_header_list.OnHeader(header.first, header.second);
     total_size += header.first.size() + header.second.size();
@@ -647,7 +649,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     // Encoder splits |header_list| header values along '\0' or ';' separators.
     // Do the same here so that we get matching results.
-    QuicHeaderList expected_header_list = SplitHeaderList(header_list);
+    QuicHeaderList expected_header_list =
+        SplitHeaderList(header_list, CookieCrumbling::kEnabled);
     decoder.AddExpectedHeaderList(stream_id, std::move(expected_header_list));
 
     header_block_transmitter.SendEncodedHeaderBlock(

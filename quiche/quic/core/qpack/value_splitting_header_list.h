@@ -11,6 +11,10 @@
 
 namespace quic {
 
+// Enumeration that specifies whether cookie crumbling should be used when
+// sending QPACK headers.
+enum class CookieCrumbling { kEnabled, kDisabled };
+
 // A wrapper class around Http2HeaderBlock that splits header values along ';'
 // separators (while also removing optional space following separator) for
 // cookies and along '\0' separators for other header fields.
@@ -21,9 +25,9 @@ class QUICHE_EXPORT ValueSplittingHeaderList {
   class QUICHE_EXPORT const_iterator {
    public:
     // |header_list| must outlive this object.
-    const_iterator(
-        const quiche::HttpHeaderBlock* header_list,
-        quiche::HttpHeaderBlock::const_iterator header_list_iterator);
+    const_iterator(const quiche::HttpHeaderBlock* header_list,
+                   quiche::HttpHeaderBlock::const_iterator header_list_iterator,
+                   CookieCrumbling cookie_crumbling);
     const_iterator(const const_iterator&) = default;
     const_iterator& operator=(const const_iterator&) = delete;
 
@@ -41,13 +45,15 @@ class QUICHE_EXPORT ValueSplittingHeaderList {
 
     const quiche::HttpHeaderBlock* const header_list_;
     quiche::HttpHeaderBlock::const_iterator header_list_iterator_;
+    const CookieCrumbling cookie_crumbling_;
     absl::string_view::size_type value_start_;
     absl::string_view::size_type value_end_;
     value_type header_field_;
   };
 
   // |header_list| must outlive this object.
-  explicit ValueSplittingHeaderList(const quiche::HttpHeaderBlock* header_list);
+  explicit ValueSplittingHeaderList(const quiche::HttpHeaderBlock* header_list,
+                                    CookieCrumbling cookie_crumbling);
   ValueSplittingHeaderList(const ValueSplittingHeaderList&) = delete;
   ValueSplittingHeaderList& operator=(const ValueSplittingHeaderList&) = delete;
 
@@ -56,6 +62,7 @@ class QUICHE_EXPORT ValueSplittingHeaderList {
 
  private:
   const quiche::HttpHeaderBlock* const header_list_;
+  const CookieCrumbling cookie_crumbling_;
 };
 
 }  // namespace quic
