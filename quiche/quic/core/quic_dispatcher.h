@@ -157,6 +157,12 @@ class QUICHE_EXPORT QuicDispatcher
   void OnExpiredPackets(QuicConnectionId server_connection_id,
                         QuicBufferedPacketStore::BufferedPacketList
                             early_arrived_packets) override;
+  HandleCidCollisionResult HandleConnectionIdCollision(
+      const QuicConnectionId& original_connection_id,
+      const QuicConnectionId& replaced_connection_id,
+      const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address, ParsedQuicVersion version,
+      const ParsedClientHello* parsed_chlo) override;
   void OnPathDegrading() override {}
 
   // Create connections for previously buffered CHLOs as many as allowed.
@@ -383,8 +389,19 @@ class QUICHE_EXPORT QuicDispatcher
   bool IsServerConnectionIdTooShort(QuicConnectionId connection_id) const;
 
   // Core CHLO processing logic.
+  //
+  // |connection_id_generator| != nullptr indicates we have attempted to
+  // call connection_id_generator->MaybeReplaceConnectionId() and the result is
+  // in |replaced_connection_id|.
+  //
+  // |connection_id_generator| == nullptr indicates we have not attempted to
+  // generate a replacement connection ID, in that case
+  // - |replaced_connection_id| should be std::nullopt.
+  // - CreateSessionFromChlo will generate a replacement connection ID using
+  //   ConnectionIdGenerator().MaybeReplaceConnectionId().
   std::shared_ptr<QuicSession> CreateSessionFromChlo(
       QuicConnectionId original_connection_id,
+      const std::optional<QuicConnectionId>& replaced_connection_id,
       const ParsedClientHello& parsed_chlo, ParsedQuicVersion version,
       QuicSocketAddress self_address, QuicSocketAddress peer_address,
       ConnectionIdGeneratorInterface* connection_id_generator);

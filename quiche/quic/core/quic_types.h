@@ -882,6 +882,8 @@ struct QUICHE_EXPORT ParsedClientHello {
   std::string retry_token;
   bool resumption_attempted = false;  // TLS only.
   bool early_data_attempted = false;  // TLS only.
+
+  std::string ToString() const;
 };
 
 QUICHE_EXPORT bool operator==(const ParsedClientHello& a,

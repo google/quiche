@@ -8,7 +8,9 @@
 #include <memory>
 
 #include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_buffered_packet_store.h"
 #include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_connection_id.h"
 
 namespace quic {
 
@@ -23,6 +25,9 @@ class QuicBufferedPacketStorePeer {
   static QuicAlarm* expiration_alarm(QuicBufferedPacketStore* store);
 
   static void set_clock(QuicBufferedPacketStore* store, const QuicClock* clock);
+
+  static const QuicBufferedPacketStore::BufferedPacketList* FindBufferedPackets(
+      const QuicBufferedPacketStore* store, QuicConnectionId connection_id);
 };
 
 }  // namespace test

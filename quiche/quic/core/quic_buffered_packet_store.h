@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_BUFFERED_PACKET_STORE_H_
 #define QUICHE_QUIC_CORE_QUIC_BUFFERED_PACKET_STORE_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <list>
 #include <memory>
@@ -12,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
@@ -30,6 +32,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_intrusive_list.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 
 namespace quic {
@@ -51,14 +54,18 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
  public:
   enum EnqueuePacketResult {
     SUCCESS = 0,
-    TOO_MANY_PACKETS,  // Too many packets stored up for a certain connection.
-    TOO_MANY_CONNECTIONS  // Too many connections stored up in the store.
+    // Too many packets stored up for a certain connection.
+    TOO_MANY_PACKETS,
+    // Too many connections stored up in the store.
+    TOO_MANY_CONNECTIONS,
+    // Replaced CID collide with a buffered or active session.
+    CID_COLLISION,
   };
 
   struct QUICHE_EXPORT BufferedPacket {
     BufferedPacket(std::unique_ptr<QuicReceivedPacket> packet,
                    QuicSocketAddress self_address,
-                   QuicSocketAddress peer_address);
+                   QuicSocketAddress peer_address, bool is_ietf_initial_packet);
     BufferedPacket(BufferedPacket&& other);
 
     BufferedPacket& operator=(BufferedPacket&& other);
@@ -68,6 +75,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
     std::unique_ptr<QuicReceivedPacket> packet;
     QuicSocketAddress self_address;
     QuicSocketAddress peer_address;
+    bool is_ietf_initial_packet;
   };
 
   // A queue of BufferedPackets for a connection.
@@ -78,6 +86,20 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
     BufferedPacketList& operator=(BufferedPacketList&& other);
 
     ~BufferedPacketList();
+
+    bool HasReplacedConnectionId() const {
+      return replaced_connection_id.has_value() &&
+             !replaced_connection_id->IsEmpty();
+    }
+
+    bool HasAttemptedToReplaceConnectionId() const {
+      return connection_id_generator != nullptr;
+    }
+
+    void SetAttemptedToReplaceConnectionId(
+        ConnectionIdGeneratorInterface* generator) {
+      connection_id_generator = generator;
+    }
 
     std::list<BufferedPacket> buffered_packets;
     QuicTime creation_time;
@@ -90,15 +112,35 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
     ParsedQuicVersion version;
     TlsChloExtractor tls_chlo_extractor;
     // Only one reference to the generator is stored per connection, and this is
-    // stored when the CHLO is buffered. The connection needs a stable,
-    // consistent way to generate IDs. Fixing it on the CHLO is a
-    // straightforward way to enforce that.
+    // stored when the replaced CID is generated.
     ConnectionIdGeneratorInterface* connection_id_generator = nullptr;
+    // The original connection ID of the connection.
+    // Only used when replace_cid_on_first_packet_ is true.
+    QuicConnectionId original_connection_id;
+    // Set to the result of ConnectionIdGenerator::MaybeReplaceConnectionId,
+    // when the first IETF INITIAL packet is enqueued.
+    // Note that std::nullopt indicates one the following cases, you can use
+    // HasAttemptedToReplaceConnectionId() to distinguish them:
+    // 1. No attempt to replace CID has been made.
+    // 2. One attempt to replace CID has been made, but the CID generator does
+    //    not want to replace it.
+    std::optional<QuicConnectionId> replaced_connection_id;
   };
 
   using BufferedPacketMap =
       quiche::QuicheLinkedHashMap<QuicConnectionId, BufferedPacketList,
                                   QuicConnectionIdHash>;
+
+  // Tag type for the list of sessions with full CHLO buffered.
+  struct QUICHE_EXPORT BufferedSessionsWithChloList {};
+
+  // The internal data structure for a buffered session.
+  struct QUICHE_EXPORT BufferedPacketListNode
+      : public quiche::QuicheIntrusiveLink<BufferedPacketListNode>,
+        public quiche::QuicheIntrusiveLink<BufferedPacketListNode,
+                                           BufferedSessionsWithChloList>,
+        public std::enable_shared_from_this<BufferedPacketListNode>,
+        public BufferedPacketList {};
 
   class QUICHE_EXPORT VisitorInterface {
    public:
@@ -107,6 +149,25 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
     // Called for each expired connection when alarm fires.
     virtual void OnExpiredPackets(QuicConnectionId connection_id,
                                   BufferedPacketList early_arrived_packets) = 0;
+
+    enum class HandleCidCollisionResult {
+      kOk,
+      kCollision,
+    };
+    // Check and handle CID collision for |replaced_connection_id|.
+    // This method is called immediately after |replaced_connection_id| is
+    // generated by the connection ID generator, at which time the mapping from
+    // |replaced_connection_id| to the connection is not yet established, which
+    // means if the implementation calls
+    //   store.HasBufferedPackets(replaced_connection_id);
+    // and it returns true, then |replaced_connection_id| has already been
+    // mapped to another connection, i.e. a CID collision.
+    virtual HandleCidCollisionResult HandleConnectionIdCollision(
+        const QuicConnectionId& original_connection_id,
+        const QuicConnectionId& replaced_connection_id,
+        const QuicSocketAddress& self_address,
+        const QuicSocketAddress& peer_address, ParsedQuicVersion version,
+        const ParsedClientHello* parsed_chlo) = 0;
   };
 
   QuicBufferedPacketStore(VisitorInterface* visitor, const QuicClock* clock,
@@ -126,9 +187,10 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
   EnqueuePacketResult EnqueuePacket(
       const ReceivedPacketInfo& packet_info,
       std::optional<ParsedClientHello> parsed_chlo,
-      ConnectionIdGeneratorInterface* connection_id_generator);
+      ConnectionIdGeneratorInterface& connection_id_generator);
 
   // Returns true if there are any packets buffered for |connection_id|.
+  // |connection_id| can be either original or replaced connection ID.
   bool HasBufferedPackets(QuicConnectionId connection_id) const;
 
   // Ingests this packet into the corresponding TlsChloExtractor. This should
@@ -154,9 +216,11 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
   // Returns the list of buffered packets for |connection_id| and removes them
   // from the store. Returns an empty list if no early arrived packets for this
   // connection are present.
+  // |connection_id| can be either original or replaced connection ID.
   BufferedPacketList DeliverPackets(QuicConnectionId connection_id);
 
   // Discards packets buffered for |connection_id|, if any.
+  // |connection_id| can be either original or replaced connection ID.
   void DiscardPackets(QuicConnectionId connection_id);
 
   // Discards all the packets.
@@ -177,11 +241,16 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
   BufferedPacketList DeliverPacketsForNextConnection(
       QuicConnectionId* connection_id);
 
-  // Is given connection already buffered in the store?
+  // Is the given connection in the store and contains the full CHLO?
+  // |connection_id| can be either original or replaced connection ID.
   bool HasChloForConnection(QuicConnectionId connection_id);
 
-  // Is there any CHLO buffered in the store?
+  // Is there any connection in the store that contains a full CHLO?
   bool HasChlosBuffered() const;
+
+  bool replace_cid_on_first_packet() const {
+    return replace_cid_on_first_packet_;
+  }
 
  private:
   friend class test::QuicBufferedPacketStorePeer;
@@ -191,10 +260,45 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
 
   // Return true if add an extra packet will go beyond allowed max connection
   // limit. The limit for non-CHLO packet and CHLO packet is different.
-  bool ShouldNotBufferPacket(bool is_chlo);
+  bool ShouldNotBufferPacket(bool is_chlo) const;
+
+  // Remove |node| from the buffered store. If caller wants to access |node|
+  // after this call, it should use a shared_ptr<BufferedPacketListNode> to keep
+  // |node| alive:
+  //
+  //   BufferedPacketListNode& node = ...;
+  //   auto node_ref = node.shared_from_this();
+  //   RemoveFromStore(node);
+  //   |node| can still be used here.
+  //
+  void RemoveFromStore(BufferedPacketListNode& node);
+
+  const bool replace_cid_on_first_packet_ =
+      GetQuicRestartFlag(quic_dispatcher_replace_cid_on_first_packet);
 
   // A map to store packet queues with creation time for each connection.
+  // Only used when !replace_cid_on_first_packet_.
   BufferedPacketMap undecryptable_packets_;
+
+  // Map from connection ID to the list of buffered packets for that connection.
+  // The key can be either the original or the replaced connection ID.
+  // The value is never nullptr.
+  // Only used when replace_cid_on_first_packet_ is true.
+  absl::flat_hash_map<QuicConnectionId, std::shared_ptr<BufferedPacketListNode>,
+                      QuicConnectionIdHash>
+      buffered_session_map_;
+
+  // Main list of all buffered sessions, in insertion order.
+  // Only used when replace_cid_on_first_packet_ is true.
+  quiche::QuicheIntrusiveList<BufferedPacketListNode> buffered_sessions_;
+  size_t num_buffered_sessions_ = 0;
+
+  // Secondary list of all buffered sessions with full CHLO.
+  // Only used when replace_cid_on_first_packet_ is true.
+  quiche::QuicheIntrusiveList<BufferedPacketListNode,
+                              BufferedSessionsWithChloList>
+      buffered_sessions_with_chlo_;
+  size_t num_buffered_sessions_with_chlo_ = 0;
 
   // The max time the packets of a connection can be buffer in the store.
   const QuicTime::Delta connection_life_span_;
@@ -209,6 +313,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
 
   // Keeps track of connection with CHLO buffered up already and the order they
   // arrive.
+  // Only used when !replace_cid_on_first_packet_.
   quiche::QuicheLinkedHashMap<QuicConnectionId, bool, QuicConnectionIdHash>
       connections_with_chlo_;
 };

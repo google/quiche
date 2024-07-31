@@ -420,6 +420,12 @@ std::ostream& operator<<(std::ostream& os, const KeyUpdateReason reason) {
   return os;
 }
 
+std::string ParsedClientHello::ToString() const {
+  std::ostringstream oss;
+  oss << *this;
+  return oss.str();
+}
+
 bool operator==(const ParsedClientHello& a, const ParsedClientHello& b) {
   return a.sni == b.sni && a.uaid == b.uaid &&
          a.supported_groups == b.supported_groups &&

@@ -2752,10 +2752,23 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
   const size_t kNumCHLOs =
       kMaxNumSessionsToCreate + kDefaultMaxConnectionsInStore + 1;
   for (uint64_t conn_id = 1; conn_id <= kNumCHLOs; ++conn_id) {
-    if (conn_id <= kMaxNumSessionsToCreate) {
+    const bool should_drop =
+        (conn_id > kMaxNumSessionsToCreate + kDefaultMaxConnectionsInStore);
+    if (store->replace_cid_on_first_packet() && !should_drop) {
+      // MaybeReplaceConnectionId will be called once per connection, whether it
+      // is buffered or not.
       EXPECT_CALL(connection_id_generator_,
                   MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
           .WillOnce(Return(std::nullopt));
+    }
+
+    if (conn_id <= kMaxNumSessionsToCreate) {
+      if (!store->replace_cid_on_first_packet()) {
+        EXPECT_CALL(
+            connection_id_generator_,
+            MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
+            .WillOnce(Return(std::nullopt));
+      }
       EXPECT_CALL(
           *dispatcher_,
           CreateQuicSession(TestConnectionId(conn_id), _, client_addr_,
@@ -2793,9 +2806,13 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
   for (uint64_t conn_id = kMaxNumSessionsToCreate + 1;
        conn_id <= kMaxNumSessionsToCreate + kDefaultMaxConnectionsInStore;
        ++conn_id) {
-    EXPECT_CALL(connection_id_generator_,
-                MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
-        .WillOnce(Return(std::nullopt));
+    // MaybeReplaceConnectionId should have been called once per buffered
+    // session.
+    if (!store->replace_cid_on_first_packet()) {
+      EXPECT_CALL(connection_id_generator_,
+                  MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
+          .WillOnce(Return(std::nullopt));
+    }
     EXPECT_CALL(
         *dispatcher_,
         CreateQuicSession(TestConnectionId(conn_id), _, client_addr_,
@@ -2862,6 +2879,13 @@ TEST_P(BufferedPacketStoreTest,
   expect_generator_is_called_ = false;
   EXPECT_CALL(*dispatcher_, ConnectionIdGenerator())
       .WillRepeatedly(ReturnRef(generator2));
+  if (store->replace_cid_on_first_packet()) {
+    // generator2 should be used to replace the connection ID when the first
+    // IETF INITIAL is enqueued.
+    EXPECT_CALL(generator2,
+                MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
+        .WillOnce(Return(std::nullopt));
+  }
   ProcessFirstFlight(TestConnectionId(conn_id));
   EXPECT_TRUE(store->HasChloForConnection(TestConnectionId(conn_id)));
   // Change the generator back so that the session can only access generator2
@@ -2869,11 +2893,13 @@ TEST_P(BufferedPacketStoreTest,
   EXPECT_CALL(*dispatcher_, ConnectionIdGenerator())
       .WillRepeatedly(ReturnRef(connection_id_generator_));
 
-  // Consume the buffered CHLO. The buffered connection should be
-  // created using generator2.
-  EXPECT_CALL(generator2,
-              MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
-      .WillOnce(Return(std::nullopt));
+  if (!store->replace_cid_on_first_packet()) {
+    // Consume the buffered CHLO. The buffered connection should be
+    // created using generator2.
+    EXPECT_CALL(generator2,
+                MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
+        .WillOnce(Return(std::nullopt));
+  }
   EXPECT_CALL(*dispatcher_, CreateQuicSession(TestConnectionId(conn_id), _,
                                               client_addr_, Eq(ExpectedAlpn()),
                                               _, MatchParsedClientHello(), _))
@@ -2975,11 +3001,11 @@ TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
     ProcessFirstFlight(TestConnectionId(conn_id));
   }
 
-  // Process another |kDefaultMaxUndecryptablePackets| + 1 data packets. The
-  // last one should be dropped.
-  for (uint64_t packet_number = 2;
-       packet_number <= kDefaultMaxUndecryptablePackets + 2; ++packet_number) {
-    ProcessPacket(client_addr_, last_connection_id, true, "data packet");
+  // |last_connection_id| has 1 packet buffered now. Process another
+  // |kDefaultMaxUndecryptablePackets| + 1 data packets to reach max number of
+  // buffered packets per connection.
+  for (uint64_t i = 0; i <= kDefaultMaxUndecryptablePackets; ++i) {
+    ProcessPacket(client_addr_, last_connection_id, false, "data packet");
   }
 
   // Reset counter and process buffered CHLO.
@@ -2990,11 +3016,25 @@ TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
           dispatcher_.get(), config_, last_connection_id, client_addr_,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
-  // Only CHLO and following |kDefaultMaxUndecryptablePackets| data packets
-  // should be process.
+
+  const QuicBufferedPacketStore* store =
+      QuicDispatcherPeer::GetBufferedPackets(dispatcher_.get());
+  const QuicBufferedPacketStore::BufferedPacketList*
+      last_connection_buffered_packets =
+          QuicBufferedPacketStorePeer::FindBufferedPackets(store,
+                                                           last_connection_id);
+  ASSERT_NE(last_connection_buffered_packets, nullptr);
+  if (store->replace_cid_on_first_packet()) {
+    ASSERT_EQ(last_connection_buffered_packets->buffered_packets.size(),
+              kDefaultMaxUndecryptablePackets);
+  } else {
+    ASSERT_EQ(last_connection_buffered_packets->buffered_packets.size(),
+              kDefaultMaxUndecryptablePackets + 1);
+  }
+  // All buffered packets should be delivered to the session.
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .Times(kDefaultMaxUndecryptablePackets + 1)
+      .Times(last_connection_buffered_packets->buffered_packets.size())
       .WillRepeatedly(WithArg<2>(
           Invoke([this, last_connection_id](const QuicEncryptedPacket& packet) {
             if (version_.UsesQuicCrypto()) {
@@ -3036,7 +3076,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
                 }
               })));
-    } else {
+    } else if (!store->replace_cid_on_first_packet()) {
       expect_generator_is_called_ = false;
     }
     ProcessFirstFlight(TestConnectionId(conn_id));
@@ -3166,6 +3206,189 @@ TEST_P(BufferedPacketStoreTest, BufferedChloWithEcn) {
   }
   EXPECT_TRUE(got_ect1);
   EXPECT_TRUE(got_ce);
+}
+
+class DualCIDBufferedPacketStoreTest : public BufferedPacketStoreTest {
+ protected:
+  void SetUp() override {
+    if (!GetQuicRestartFlag(quic_dispatcher_replace_cid_on_first_packet)) {
+      GTEST_SKIP();
+    }
+
+    BufferedPacketStoreTest::SetUp();
+    QuicDispatcherPeer::set_new_sessions_allowed_per_event_loop(
+        dispatcher_.get(), 0);
+
+    // Prevent |ProcessFirstFlight| from setting up expectations for
+    // MaybeReplaceConnectionId.
+    expect_generator_is_called_ = false;
+    EXPECT_CALL(connection_id_generator_, MaybeReplaceConnectionId(_, _))
+        .WillRepeatedly(Invoke(
+            this, &DualCIDBufferedPacketStoreTest::ReplaceConnectionIdInTest));
+  }
+
+  std::optional<QuicConnectionId> ReplaceConnectionIdInTest(
+      const QuicConnectionId& original, const ParsedQuicVersion& version) {
+    auto it = replaced_cid_map_.find(original);
+    if (it == replaced_cid_map_.end()) {
+      ADD_FAILURE() << "Bad test setup: no replacement CID for " << original
+                    << ", version " << version;
+      return std::nullopt;
+    }
+    return it->second;
+  }
+
+  QuicBufferedPacketStore& store() {
+    return *QuicDispatcherPeer::GetBufferedPackets(dispatcher_.get());
+  }
+
+  using BufferedPacketList = QuicBufferedPacketStore::BufferedPacketList;
+  const BufferedPacketList* FindBufferedPackets(
+      QuicConnectionId connection_id) {
+    return QuicBufferedPacketStorePeer::FindBufferedPackets(&store(),
+                                                            connection_id);
+  }
+
+  absl::flat_hash_map<QuicConnectionId, std::optional<QuicConnectionId>>
+      replaced_cid_map_;
+
+ private:
+  using BufferedPacketStoreTest::expect_generator_is_called_;
+};
+
+INSTANTIATE_TEST_SUITE_P(DualCIDBufferedPacketStoreTests,
+                         DualCIDBufferedPacketStoreTest,
+                         ::testing::ValuesIn(CurrentSupportedVersionsWithTls()),
+                         ::testing::PrintToStringParamName());
+
+TEST_P(DualCIDBufferedPacketStoreTest, CanLookUpByBothCIDs) {
+  replaced_cid_map_[TestConnectionId(1)] = TestConnectionId(2);
+  ProcessFirstFlight(TestConnectionId(1));
+
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(1)));
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(2)));
+
+  const BufferedPacketList* packets1 = FindBufferedPackets(TestConnectionId(1));
+  const BufferedPacketList* packets2 = FindBufferedPackets(TestConnectionId(2));
+  EXPECT_EQ(packets1, packets2);
+  EXPECT_EQ(packets1->original_connection_id, TestConnectionId(1));
+  EXPECT_EQ(packets1->replaced_connection_id, TestConnectionId(2));
+}
+
+TEST_P(DualCIDBufferedPacketStoreTest, DeliverPacketsByOriginalCID) {
+  replaced_cid_map_[TestConnectionId(1)] = TestConnectionId(2);
+  ProcessFirstFlight(TestConnectionId(1));
+
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(1)));
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(2)));
+  ASSERT_TRUE(store().HasChloForConnection(TestConnectionId(1)));
+  ASSERT_TRUE(store().HasChloForConnection(TestConnectionId(2)));
+  ASSERT_TRUE(store().HasChlosBuffered());
+
+  BufferedPacketList packets = store().DeliverPackets(TestConnectionId(1));
+  EXPECT_EQ(packets.original_connection_id, TestConnectionId(1));
+  EXPECT_EQ(packets.replaced_connection_id, TestConnectionId(2));
+
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(1)));
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(2)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(1)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(2)));
+  EXPECT_FALSE(store().HasChlosBuffered());
+}
+
+TEST_P(DualCIDBufferedPacketStoreTest, DeliverPacketsByReplacedCID) {
+  replaced_cid_map_[TestConnectionId(1)] = TestConnectionId(2);
+  replaced_cid_map_[TestConnectionId(3)] = TestConnectionId(4);
+  ProcessFirstFlight(TestConnectionId(1));
+  ProcessFirstFlight(TestConnectionId(3));
+
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(1)));
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(3)));
+  ASSERT_TRUE(store().HasChloForConnection(TestConnectionId(1)));
+  ASSERT_TRUE(store().HasChloForConnection(TestConnectionId(3)));
+  ASSERT_TRUE(store().HasChlosBuffered());
+
+  BufferedPacketList packets2 = store().DeliverPackets(TestConnectionId(2));
+  EXPECT_EQ(packets2.original_connection_id, TestConnectionId(1));
+  EXPECT_EQ(packets2.replaced_connection_id, TestConnectionId(2));
+
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(1)));
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(2)));
+  EXPECT_TRUE(store().HasBufferedPackets(TestConnectionId(3)));
+  EXPECT_TRUE(store().HasBufferedPackets(TestConnectionId(4)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(1)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(2)));
+  EXPECT_TRUE(store().HasChloForConnection(TestConnectionId(3)));
+  EXPECT_TRUE(store().HasChloForConnection(TestConnectionId(4)));
+  EXPECT_TRUE(store().HasChlosBuffered());
+
+  BufferedPacketList packets4 = store().DeliverPackets(TestConnectionId(4));
+  EXPECT_EQ(packets4.original_connection_id, TestConnectionId(3));
+  EXPECT_EQ(packets4.replaced_connection_id, TestConnectionId(4));
+
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(3)));
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(4)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(3)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(4)));
+  EXPECT_FALSE(store().HasChlosBuffered());
+}
+
+TEST_P(DualCIDBufferedPacketStoreTest, DiscardPacketsByOriginalCID) {
+  replaced_cid_map_[TestConnectionId(1)] = TestConnectionId(2);
+  ProcessFirstFlight(TestConnectionId(1));
+
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(1)));
+
+  store().DiscardPackets(TestConnectionId(1));
+
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(1)));
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(2)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(1)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(2)));
+  EXPECT_FALSE(store().HasChlosBuffered());
+}
+
+TEST_P(DualCIDBufferedPacketStoreTest, DiscardPacketsByReplacedCID) {
+  replaced_cid_map_[TestConnectionId(1)] = TestConnectionId(2);
+  replaced_cid_map_[TestConnectionId(3)] = TestConnectionId(4);
+  ProcessFirstFlight(TestConnectionId(1));
+  ProcessFirstFlight(TestConnectionId(3));
+
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(2)));
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(4)));
+
+  store().DiscardPackets(TestConnectionId(2));
+
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(1)));
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(2)));
+  EXPECT_TRUE(store().HasBufferedPackets(TestConnectionId(3)));
+  EXPECT_TRUE(store().HasBufferedPackets(TestConnectionId(4)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(1)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(2)));
+  EXPECT_TRUE(store().HasChloForConnection(TestConnectionId(3)));
+  EXPECT_TRUE(store().HasChloForConnection(TestConnectionId(4)));
+  EXPECT_TRUE(store().HasChlosBuffered());
+
+  store().DiscardPackets(TestConnectionId(4));
+
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(3)));
+  EXPECT_FALSE(store().HasBufferedPackets(TestConnectionId(4)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(3)));
+  EXPECT_FALSE(store().HasChloForConnection(TestConnectionId(4)));
+  EXPECT_FALSE(store().HasChlosBuffered());
+}
+
+TEST_P(DualCIDBufferedPacketStoreTest, CIDCollision) {
+  replaced_cid_map_[TestConnectionId(1)] = TestConnectionId(2);
+  replaced_cid_map_[TestConnectionId(3)] = TestConnectionId(2);
+  ProcessFirstFlight(TestConnectionId(1));
+  ProcessFirstFlight(TestConnectionId(3));
+
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(1)));
+  ASSERT_TRUE(store().HasBufferedPackets(TestConnectionId(2)));
+
+  // QuicDispatcher should discard connection 3 after CID collision.
+  ASSERT_FALSE(store().HasBufferedPackets(TestConnectionId(3)));
 }
 
 }  // namespace
