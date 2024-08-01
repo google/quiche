@@ -525,7 +525,7 @@ void TlsClientHandshaker::FinishHandshake() {
 
   QUICHE_CHECK(!SSL_in_early_data(ssl()));
 
-  QUIC_LOG(INFO) << "Client: handshake finished";
+  QUIC_DLOG(INFO) << "Client: handshake finished";
 
   std::string error_details;
   if (!ProcessTransportParameters(&error_details)) {
@@ -622,7 +622,7 @@ bool TlsClientHandshaker::ShouldCloseConnectionOnUnexpectedError(
 }
 
 void TlsClientHandshaker::HandleZeroRttReject() {
-  QUIC_LOG(INFO) << "0-RTT handshake attempted but was rejected by the server";
+  QUIC_DLOG(INFO) << "0-RTT handshake attempted but was rejected by the server";
   QUICHE_DCHECK(session_cache_);
   // Disable encrytion to block outgoing data until 1-RTT keys are available.
   encryption_established_ = false;
