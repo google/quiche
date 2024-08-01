@@ -2855,7 +2855,6 @@ TEST_P(BufferedPacketStoreTest,
   QuicBufferedPacketStore* store =
       QuicDispatcherPeer::GetBufferedPackets(dispatcher_.get());
   const size_t kNumCHLOs = kMaxNumSessionsToCreate + 1;
-  MockConnectionIdGenerator generator2;
   for (uint64_t conn_id = 1; conn_id < kNumCHLOs; ++conn_id) {
     EXPECT_CALL(
         *dispatcher_,
@@ -2877,9 +2876,12 @@ TEST_P(BufferedPacketStoreTest,
   }
   uint64_t conn_id = kNumCHLOs;
   expect_generator_is_called_ = false;
+  MockConnectionIdGenerator generator2;
   EXPECT_CALL(*dispatcher_, ConnectionIdGenerator())
       .WillRepeatedly(ReturnRef(generator2));
-  if (store->replace_cid_on_first_packet()) {
+  const bool buffered_store_replace_cid =
+      store->replace_cid_on_first_packet() && version_.UsesTls();
+  if (buffered_store_replace_cid) {
     // generator2 should be used to replace the connection ID when the first
     // IETF INITIAL is enqueued.
     EXPECT_CALL(generator2,
@@ -2893,10 +2895,14 @@ TEST_P(BufferedPacketStoreTest,
   EXPECT_CALL(*dispatcher_, ConnectionIdGenerator())
       .WillRepeatedly(ReturnRef(connection_id_generator_));
 
-  if (!store->replace_cid_on_first_packet()) {
-    // Consume the buffered CHLO. The buffered connection should be
-    // created using generator2.
-    EXPECT_CALL(generator2,
+  if (!buffered_store_replace_cid) {
+    // QuicDispatcher should attempt to replace the CID when creating the
+    // QuicSession. If flag is false, it should use the latched |generator2|,
+    // otherwise it should use |connection_id_generator_|.
+    MockConnectionIdGenerator& generator = store->replace_cid_on_first_packet()
+                                               ? connection_id_generator_
+                                               : generator2;
+    EXPECT_CALL(generator,
                 MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
         .WillOnce(Return(std::nullopt));
   }
@@ -3076,7 +3082,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
                 }
               })));
-    } else if (!store->replace_cid_on_first_packet()) {
+    } else if (!(store->replace_cid_on_first_packet() && version_.UsesTls())) {
       expect_generator_is_called_ = false;
     }
     ProcessFirstFlight(TestConnectionId(conn_id));
