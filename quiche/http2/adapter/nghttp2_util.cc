@@ -99,8 +99,8 @@ std::vector<nghttp2_nv> GetResponseNghttp2Nvs(
 
   // Add the :status pseudoheader first.
   nghttp2_nv status;
-  status.name = ToUint8Ptr(kHttp2StatusPseudoHeader);
-  status.namelen = strlen(kHttp2StatusPseudoHeader);
+  status.name = ToUint8Ptr(kHttp2StatusPseudoHeader.data());
+  status.namelen = kHttp2StatusPseudoHeader.size();
   status.value = ToUint8Ptr(response_code.data());
   status.valuelen = response_code.size();
   status.flags = NGHTTP2_FLAG_NONE;

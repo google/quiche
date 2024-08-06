@@ -42,35 +42,35 @@ struct QUICHE_EXPORT Http2Setting {
 QUICHE_EXPORT bool operator==(const Http2Setting& a, const Http2Setting& b);
 
 // The maximum possible stream ID.
-const Http2StreamId kMaxStreamId = 0x7FFFFFFF;
+inline constexpr Http2StreamId kMaxStreamId = 0x7FFFFFFF;
 
 // The stream ID that represents the connection (e.g., for connection-level flow
 // control updates).
-const Http2StreamId kConnectionStreamId = 0;
+inline constexpr Http2StreamId kConnectionStreamId = 0;
 
 // The default value for the size of the largest frame payload, according to RFC
 // 7540 Section 6.5.2 (SETTINGS_MAX_FRAME_SIZE).
-const uint32_t kDefaultFramePayloadSizeLimit = 16u * 1024u;
+inline constexpr uint32_t kDefaultFramePayloadSizeLimit = 16u * 1024u;
 
 // The maximum value for the size of the largest frame payload, according to RFC
 // 7540 Section 6.5.2 (SETTINGS_MAX_FRAME_SIZE).
-const uint32_t kMaximumFramePayloadSizeLimit = 16777215u;
+inline constexpr uint32_t kMaximumFramePayloadSizeLimit = 16777215u;
 
 // The default value for the initial stream and connection flow control window
 // size, according to RFC 7540 Section 6.9.2.
-const int kInitialFlowControlWindowSize = 64 * 1024 - 1;
+inline constexpr int kInitialFlowControlWindowSize = 64 * 1024 - 1;
 
 // The pseudo-header fields as specified in RFC 7540 Section 8.1.2.3 (request)
 // and Section 8.1.2.4 (response).
-ABSL_CONST_INIT QUICHE_EXPORT extern const char kHttp2MethodPseudoHeader[];
-ABSL_CONST_INIT QUICHE_EXPORT extern const char kHttp2SchemePseudoHeader[];
-ABSL_CONST_INIT QUICHE_EXPORT extern const char kHttp2AuthorityPseudoHeader[];
-ABSL_CONST_INIT QUICHE_EXPORT extern const char kHttp2PathPseudoHeader[];
-ABSL_CONST_INIT QUICHE_EXPORT extern const char kHttp2StatusPseudoHeader[];
+inline constexpr absl::string_view kHttp2MethodPseudoHeader = ":method";
+inline constexpr absl::string_view kHttp2SchemePseudoHeader = ":scheme";
+inline constexpr absl::string_view kHttp2AuthorityPseudoHeader = ":authority";
+inline constexpr absl::string_view kHttp2PathPseudoHeader = ":path";
+inline constexpr absl::string_view kHttp2StatusPseudoHeader = ":status";
 
-ABSL_CONST_INIT QUICHE_EXPORT extern const uint8_t kMetadataFrameType;
-ABSL_CONST_INIT QUICHE_EXPORT extern const uint8_t kMetadataEndFlag;
-ABSL_CONST_INIT QUICHE_EXPORT extern const uint16_t kMetadataExtensionId;
+inline constexpr uint8_t kMetadataFrameType = 0x4d;
+inline constexpr uint8_t kMetadataEndFlag = 0x04;
+inline constexpr uint16_t kMetadataExtensionId = 0x4d44;
 
 enum class FrameType : uint8_t {
   DATA = 0x0,
