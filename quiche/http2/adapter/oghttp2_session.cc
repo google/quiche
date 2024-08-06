@@ -1369,13 +1369,11 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
       }
       peer_enables_connect_protocol_ = (value == 1u);
       break;
+    case kMetadataExtensionId:
+      peer_supports_metadata_ = (value != 0);
+      break;
     default:
-      // TODO(bnc): See if C++17 inline constants are allowed in QUICHE.
-      if (id == kMetadataExtensionId) {
-        peer_supports_metadata_ = (value != 0);
-      } else {
-        QUICHE_VLOG(1) << "Unimplemented SETTING id: " << id;
-      }
+      QUICHE_VLOG(1) << "Unimplemented SETTING id: " << id;
   }
   visitor_.OnSetting({id, value});
 }
