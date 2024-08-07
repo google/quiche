@@ -782,7 +782,6 @@ void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
   last_received_http3_goaway_id_ = id;
 
   if (perspective() == Perspective::IS_SERVER) {
-    // TODO(b/151749109): Cancel server pushes with push ID larger than |id|.
     return;
   }
 
