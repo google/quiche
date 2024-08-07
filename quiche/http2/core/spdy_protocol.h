@@ -338,15 +338,7 @@ QUICHE_EXPORT extern const char* const kHttp2Npn;
 //   - 1 byte for the opcode.
 //   - 2 bytes for the name length (assuming new name).
 //   - 3 bytes for the value length.
-// TODO(b/322146543): Remove the `New` suffix with deprecation of
-// --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes2.
-inline constexpr size_t kPerHeaderHpackOverheadNew = 6;
-// An estimate size of the HPACK overhead for each header field. 1 bytes for
-// indexed literal, 1 bytes for key literal and length encoding, and 2 bytes for
-// value literal and length encoding.
-// TODO(b/322146543): Remove with deprecation of
-// --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes2.
-inline constexpr size_t kPerHeaderHpackOverheadOld = 4;
+inline constexpr size_t kPerHeaderHpackOverhead = 6;
 
 // Names of pseudo-headers defined for HTTP/2 requests.
 QUICHE_EXPORT extern const char* const kHttp2AuthorityHeader;
@@ -757,8 +749,6 @@ class QUICHE_EXPORT SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
   bool exclusive_ = false;
   bool padded_ = false;
   int padding_payload_len_ = 0;
-  const bool add_hpack_overhead_bytes_ =
-      GetQuicheReloadableFlag(http2_add_hpack_overhead_bytes2);
 };
 
 class QUICHE_EXPORT SpdyWindowUpdateIR : public SpdyFrameIR {

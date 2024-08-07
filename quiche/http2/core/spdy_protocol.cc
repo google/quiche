@@ -474,16 +474,9 @@ size_t SpdyHeadersIR::size() const {
     size += 5;
   }
 
-  // TODO(b/322146543): Remove `hpack_overhead` with deprecation of
-  // --gfe2_reloadable_flag_http2_add_hpack_overhead_bytes2.
-  size_t hpack_overhead = kPerHeaderHpackOverheadOld;
-  if (add_hpack_overhead_bytes_) {
-    QUICHE_RELOADABLE_FLAG_COUNT(http2_add_hpack_overhead_bytes2);
-    hpack_overhead = kPerHeaderHpackOverheadNew;
-  }
   // Assume no hpack encoding is applied.
-  size +=
-      header_block().TotalBytesUsed() + header_block().size() * hpack_overhead;
+  size += header_block().TotalBytesUsed() +
+          header_block().size() * kPerHeaderHpackOverhead;
   if (size > kHttp2MaxControlFrameSendSize) {
     size += GetNumberRequiredContinuationFrames(size) *
             kContinuationFrameMinimumSize;
