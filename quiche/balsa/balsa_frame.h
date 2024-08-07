@@ -36,35 +36,36 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   typedef BalsaHeaders::HeaderLines HeaderLines;
   typedef BalsaHeaders::HeaderTokenList HeaderTokenList;
 
-  enum class InvalidCharsLevel { kOff, kError };
+  enum class InvalidCharsLevel : uint8_t { kOff, kError };
 
   static constexpr int32_t kValidTerm1 = '\n' << 16 | '\r' << 8 | '\n';
   static constexpr int32_t kValidTerm1Mask = 0xFF << 16 | 0xFF << 8 | 0xFF;
   static constexpr int32_t kValidTerm2 = '\n' << 8 | '\n';
   static constexpr int32_t kValidTerm2Mask = 0xFF << 8 | 0xFF;
   BalsaFrame()
-      : last_char_was_slash_r_(false),
-        saw_non_newline_char_(false),
-        start_was_space_(true),
-        chunk_length_character_extracted_(false),
-        is_request_(true),
-        allow_reading_until_close_for_request_(false),
-        request_was_head_(false),
+      : visitor_(&do_nothing_visitor_),
+        continue_headers_(nullptr),
+        headers_(nullptr),
         max_header_length_(16 * 1024),
-        visitor_(&do_nothing_visitor_),
+        start_of_trailer_line_(0),
+        trailer_length_(0),
         chunk_length_remaining_(0),
         content_length_remaining_(0),
         last_slash_n_idx_(0),
         term_chars_(0),
         parse_state_(BalsaFrameEnums::READING_HEADER_AND_FIRSTLINE),
         last_error_(BalsaFrameEnums::BALSA_NO_ERROR),
-        is_valid_target_uri_(true),
-        continue_headers_(nullptr),
-        headers_(nullptr),
-        start_of_trailer_line_(0),
-        trailer_length_(0),
         invalid_chars_level_(InvalidCharsLevel::kOff),
-        use_interim_headers_callback_(false) {}
+        last_char_was_slash_r_(false),
+        saw_non_newline_char_(false),
+        start_was_space_(true),
+        chunk_length_character_extracted_(false),
+        is_request_(true),
+        allow_reading_until_close_for_request_(false),
+        request_was_head_(false),
+        is_valid_target_uri_(true),
+        use_interim_headers_callback_(false),
+        parse_truncated_headers_even_when_headers_too_long_(false) {}
 
   ~BalsaFrame() override {}
 
@@ -265,50 +266,50 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   void HandleHeadersTooLongError();
 
-  bool last_char_was_slash_r_;
-  bool saw_non_newline_char_;
-  bool start_was_space_;
-  bool chunk_length_character_extracted_;
-  bool is_request_;  // This is not reset in Reset()
-  // Generally, requests are not allowed to frame with connection: close.  For
-  // protocols which do their own protocol-specific chunking, such as streamed
-  // stubby, we allow connection close semantics for requests.
-  bool allow_reading_until_close_for_request_;
-  bool request_was_head_;     // This is not reset in Reset()
-  size_t max_header_length_;  // This is not reset in Reset()
   BalsaVisitorInterface* visitor_;
+  BalsaHeaders* continue_headers_;  // This is not reset to nullptr in Reset().
+  BalsaHeaders* headers_;           // This is not reset to nullptr in Reset().
+  NoOpBalsaVisitor do_nothing_visitor_;
+  // Cleared but not reset to nullptr in Reset().
+  std::unique_ptr<BalsaHeaders> trailers_;
+
+  Lines lines_;
+  Lines trailer_lines_;
+
+  size_t max_header_length_;  // This is not reset in Reset()
+
+  size_t start_of_trailer_line_;
+  size_t trailer_length_;
+
   size_t chunk_length_remaining_;
   size_t content_length_remaining_;
   size_t last_slash_n_idx_;
   uint32_t term_chars_;
   BalsaFrameEnums::ParseState parse_state_;
   BalsaFrameEnums::ErrorCode last_error_;
-  bool is_valid_target_uri_;  // False if the target URI was invalid.
-
-  Lines lines_;
-
-  BalsaHeaders* continue_headers_;  // This is not reset to nullptr in Reset().
-  BalsaHeaders* headers_;           // This is not reset to nullptr in Reset().
-  NoOpBalsaVisitor do_nothing_visitor_;
-
-  Lines trailer_lines_;
-  size_t start_of_trailer_line_;
-  size_t trailer_length_;
-
-  // Cleared but not reset to nullptr in Reset().
-  std::unique_ptr<BalsaHeaders> trailers_;
 
   InvalidCharsLevel invalid_chars_level_;  // This is not reset in Reset().
 
   HttpValidationPolicy http_validation_policy_;
 
+  bool last_char_was_slash_r_ : 1;
+  bool saw_non_newline_char_ : 1;
+  bool start_was_space_ : 1;
+  bool chunk_length_character_extracted_ : 1;
+  bool is_request_ : 1;  // This is not reset in Reset()
+  // Generally, requests are not allowed to frame with connection: close.  For
+  // protocols which do their own protocol-specific chunking, such as streamed
+  // stubby, we allow connection close semantics for requests.
+  bool allow_reading_until_close_for_request_ : 1;
+  bool request_was_head_ : 1;     // This is not reset in Reset()
+  bool is_valid_target_uri_ : 1;  // False if the target URI was invalid.
   // This is not reset in Reset().
   // TODO(b/68801833): Default-enable and then deprecate this field, along with
   // set_continue_headers().
-  bool use_interim_headers_callback_;
+  bool use_interim_headers_callback_ : 1;
 
   // This is not reset in Reset().
-  bool parse_truncated_headers_even_when_headers_too_long_ = false;
+  bool parse_truncated_headers_even_when_headers_too_long_ : 1;
 };
 
 }  // namespace quiche
