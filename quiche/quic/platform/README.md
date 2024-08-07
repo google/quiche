@@ -1,12 +1,5 @@
 # QUIC platform
 
-This platform/ directory exists in order to allow QUIC code to be built on
-numerous platforms. It contains two subdirectories:
-
--   api/ contains platform independent class definitions for fundamental data
-    structures (e.g., IPAddress, SocketAddress, etc.).
--   impl/ contains platform specific implementations of these data structures.
-    The content of files in impl/ will vary depending on the platform.
-
-Code in the parent quic/ directory should not depend on any platform specific
-code, other than that found in impl/.
+The QUICHE mechanism for defining embedder-specific implementations for common
+APIs resides in `quiche/common/platform`. This directory is vestigial, and only
+provides includes and aliases to `quiche/common/platform`.
