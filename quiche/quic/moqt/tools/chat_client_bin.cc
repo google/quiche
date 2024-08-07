@@ -8,7 +8,6 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
-#include <list>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -295,7 +294,7 @@ class ChatClient {
       if (object_sequence == 0) {
         std::cout << user << "\n";
       } else {
-        std::cout << user << "joined the chat\n";
+        std::cout << user << " joined the chat\n";
       }
       auto it = other_users_.find(user);
       if (it == other_users_.end()) {
@@ -379,8 +378,8 @@ int main(int argc, char* argv[]) {
   quic::QuicUrl url(args[0], "https");
   quic::QuicServerId server_id(url.host(), url.port());
   std::string path = url.PathParamsQuery();
-  std::string username = args[1];
-  std::string chat_id = args[2];
+  const std::string& username = args[1];
+  const std::string& chat_id = args[2];
   ChatClient client(server_id, path, username, chat_id);
 
   while (!client.session_is_open()) {
