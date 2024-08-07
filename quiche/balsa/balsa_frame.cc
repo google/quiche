@@ -56,6 +56,10 @@ bool IsInterimResponse(size_t response_code) {
   return response_code >= 100 && response_code < 200;
 }
 
+// Returns true if `c` is in the set of `obs-text` characters defined in RFC
+// 9110 Section 5.5.
+bool IsObsTextChar(char c) { return static_cast<uint8_t>(c) >= 0x80; }
+
 }  // namespace
 
 void BalsaFrame::Reset() {
@@ -519,20 +523,28 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       current = line_begin;
     }
     for (; current < line_end; ++current) {
-      if (*current == ':') {
+      const char c = *current;
+      if (c == ':') {
         break;
       }
 
       // Generally invalid characters were found earlier.
       if (http_validation_policy().disallow_double_quote_in_header_name) {
-        if (header_properties::IsInvalidHeaderKeyChar(*current)) {
+        if (header_properties::IsInvalidHeaderKeyChar(c)) {
           HandleError(is_trailer
                           ? BalsaFrameEnums::INVALID_TRAILER_NAME_CHARACTER
                           : BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
           return false;
         }
-      } else if (header_properties::IsInvalidHeaderKeyCharAllowDoubleQuote(
-                     *current)) {
+      } else if (header_properties::IsInvalidHeaderKeyCharAllowDoubleQuote(c)) {
+        HandleError(is_trailer
+                        ? BalsaFrameEnums::INVALID_TRAILER_NAME_CHARACTER
+                        : BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
+        return false;
+      }
+
+      if (http_validation_policy().disallow_obs_text_in_field_names &&
+          IsObsTextChar(c)) {
         HandleError(is_trailer
                         ? BalsaFrameEnums::INVALID_TRAILER_NAME_CHARACTER
                         : BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);

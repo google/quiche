@@ -71,13 +71,17 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // If SANITIZE, a request-line containing tab or carriage return will have
   // those characters replaced with space. If REJECT, a request-line containing
   // tab or carriage return will be rejected.
-  enum class FirstLineValidationOption {
+  enum class FirstLineValidationOption : uint8_t {
     NONE,
     SANITIZE,
     REJECT,
   };
   FirstLineValidationOption sanitize_cr_tab_in_first_line =
       FirstLineValidationOption::NONE;
+
+  // If true, rejects messages with `obs-text` in header field names. RFC 9110
+  // allows obs-text in header field values, but not names.
+  bool disallow_obs_text_in_field_names = false;
 };
 
 }  // namespace quiche

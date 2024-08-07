@@ -4657,5 +4657,130 @@ TEST_F(HTTPBalsaFrameTest, NullInMiddleOfValue) {
   EXPECT_TRUE(balsa_frame_.Error());
 }
 
+TEST_F(HTTPBalsaFrameTest, ObsTextNotFoundIfNotPresent) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_obs_text_in_field_names = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  const std::string message =
+      absl::StrCat("GET / HTTP/1.1\r\n",                       //
+                   "key1: key does not contain obs-text\r\n",  //
+                   "\r\n");
+
+  FakeHeaders fake_headers;
+  fake_headers.AddKeyValue("key1", "key does not contain obs-text");
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_FALSE(balsa_frame_.Error());
+}
+
+TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextButPolicyDisabled) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_obs_text_in_field_names = false;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  // The InvalidCharsLevel does not affect whether obs-text is rejected.
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
+
+  const std::string message =
+      absl::StrCat("GET / HTTP/1.1\r\n",                      //
+                   "\x80key1: key starts with obs-text\r\n",  //
+                   "\r\n");
+
+  FakeHeaders fake_headers;
+  fake_headers.AddKeyValue("\x80key1", "key starts with obs-text");
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_FALSE(balsa_frame_.Error());
+}
+
+TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextAndPolicyEnabled) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_obs_text_in_field_names = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  // The InvalidCharsLevel does not affect whether obs-text is rejected.
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kOff);
+
+  const std::string message =
+      absl::StrCat("GET / HTTP/1.1\r\n",                      //
+                   "\x80key1: key starts with obs-text\r\n",  //
+                   "\r\n");
+
+  EXPECT_CALL(visitor_mock_,
+              HandleError(BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_TRUE(balsa_frame_.Error());
+}
+
+TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextAtEndRejected) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_obs_text_in_field_names = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  const std::string message =
+      absl::StrCat("GET / HTTP/1.1\r\n",                    //
+                   "key1\x93: key ends with obs-text\r\n",  //
+                   "\r\n");
+
+  EXPECT_CALL(visitor_mock_,
+              HandleError(BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_TRUE(balsa_frame_.Error());
+}
+
+TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextInMiddleRejected) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_obs_text_in_field_names = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  const std::string message =
+      absl::StrCat("GET / HTTP/1.1\r\n",                             //
+                   "ke\xffy1: key contains obs-text in middle\r\n",  //
+                   "\r\n");
+
+  EXPECT_CALL(visitor_mock_,
+              HandleError(BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_TRUE(balsa_frame_.Error());
+}
+
+// This case is specifically allowed by RFC 9112 Section 4.
+TEST_F(HTTPBalsaFrameTest, ObsTextInReasonPhraseAllowed) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_obs_text_in_field_names = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  balsa_frame_.set_invalid_chars_level(BalsaFrame::InvalidCharsLevel::kError);
+
+  balsa_frame_.set_is_request(false);
+
+  const std::string message =
+      absl::StrCat("HTTP/1.1 200 O\x90K\r\n",                            //
+                   "surprising: obs-text allowed in reason phrase\r\n",  //
+                   "content-length: 0\r\n"                               //
+                   "\r\n");
+
+  FakeHeaders fake_headers;
+  fake_headers.AddKeyValue("surprising", "obs-text allowed in reason phrase");
+  fake_headers.AddKeyValue("content-length", "0");
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+}
+
 }  // namespace
 }  // namespace quiche::test
