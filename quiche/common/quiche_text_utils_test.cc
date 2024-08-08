@@ -12,6 +12,25 @@
 namespace quiche {
 namespace test {
 
+TEST(QuicheTestUtilsTest, StringPieceCaseHash) {
+  const auto hasher = StringPieceCaseHash();
+  EXPECT_EQ(hasher("content-length"), hasher("Content-Length"));
+  EXPECT_EQ(hasher("Content-Length"), hasher("CONTENT-LENGTH"));
+  EXPECT_EQ(hasher("CoNteNT-lEngTH"), hasher("content-length"));
+  EXPECT_NE(hasher("content-length"), hasher("content_length"));
+  // Case insensitivity is ASCII-only.
+  EXPECT_NE(hasher("Türkiye"), hasher("TÜRKİYE"));
+  EXPECT_EQ(
+      hasher("This is a string that is too long for inlining and requires a "
+             "heap allocation. Apparently PowerPC has 128 byte cache lines. "
+             "Since our inline array is sized according to a cache line, we "
+             "need this string to be longer than 128 bytes."),
+      hasher("This Is A String That Is Too Long For Inlining And Requires A "
+             "Heap Allocation. Apparently PowerPC Has 128 Byte Cache Lines. "
+             "Since Our Inline Array Is Sized According To A Cache Line, We "
+             "Need This String To Be Longer Than 128 Bytes."));
+}
+
 TEST(QuicheTextUtilsTest, ToLower) {
   EXPECT_EQ("lower", quiche::QuicheTextUtils::ToLower("LOWER"));
   EXPECT_EQ("lower", quiche::QuicheTextUtils::ToLower("lower"));

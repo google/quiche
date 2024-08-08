@@ -5,9 +5,14 @@
 #ifndef QUICHE_COMMON_QUICHE_TEXT_UTILS_H_
 #define QUICHE_COMMON_QUICHE_TEXT_UTILS_H_
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 
+#include "absl/base/optimization.h"
+#include "absl/container/fixed_array.h"
 #include "absl/hash/hash.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
@@ -19,9 +24,24 @@ namespace quiche {
 
 struct QUICHE_EXPORT StringPieceCaseHash {
   size_t operator()(absl::string_view data) const {
-    std::string lower = absl::AsciiStrToLower(data);
-    absl::Hash<absl::string_view> hasher;
-    return hasher(lower);
+    // The longest request header name currently in Chromium source is 37
+    // characters. The longest response header is 35 characters. We'd like to
+    // size our inline storage to be a multiple of a cache line but not less
+    // than 37.
+    constexpr size_t kLongestExpectedHeaderName = 37;
+    constexpr size_t kCacheLineSize = ABSL_CACHELINE_SIZE;
+    constexpr size_t kInlineStorage =
+        ((kLongestExpectedHeaderName + kCacheLineSize - 1) / kCacheLineSize) *
+        kCacheLineSize;
+    // This implementation of ascii_tolower is functionally equivalent to
+    // absl::ascii_tolower but is easier for the compiler to vectorize.
+    constexpr auto ascii_tolower = [](char c) {
+      return (c >= 'A' && c <= 'Z') ? c | 32 : c;
+    };
+    ABSL_CACHELINE_ALIGNED absl::FixedArray<char, kInlineStorage> lower(
+        data.size());
+    std::transform(data.begin(), data.end(), lower.begin(), ascii_tolower);
+    return absl::HashOf(lower);
   }
 };
 
