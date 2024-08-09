@@ -41,7 +41,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_path_degrading_before_handshake
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_write_control_frame_upon_connection_close, false, true, "If trrue, early return before write control frame in OnCanWrite() if the connection is already closed.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_write_control_frame_upon_connection_close2, false, false, "If true, QuicSession will block outgoing control frames when the connection is closed.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_pacing_remove_non_initial_burst, false, false, "If true, remove the non-initial burst in QUIC PacingSender.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_parse_cert_compression_algos_from_chlo, false, false, "If true, parse offered cert compression algorithms from received CHLOs.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_parse_cert_compression_algos_from_chlo, false, true, "If true, parse offered cert compression algorithms from received CHLOs.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_priority_respect_incremental, false, false, "If true, respect the incremental parameter of each stream in QuicWriteBlockedList.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_require_handshake_confirmation, true, true, "If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_send_placeholder_ticket_when_encrypt_ticket_fails, false, true, "If true, when TicketCrypter fails to encrypt a session ticket, quic::TlsServerHandshaker will send a placeholder ticket, instead of an empty one, to the client.")
