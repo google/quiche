@@ -869,6 +869,7 @@ void QuicSpdySession::SendInitialData() {
   }
   QuicConnection::ScopedPacketFlusher flusher(connection());
   send_control_stream_->MaybeSendSettingsFrame();
+  SendInitialDataAfterSettings();
 }
 
 bool QuicSpdySession::CheckStreamWriteBlocked(QuicStream* stream) const {

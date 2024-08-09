@@ -112,6 +112,21 @@ struct QUICHE_EXPORT OriginFrame {
   bool operator==(const OriginFrame& rhs) const {
     return origins == rhs.origins;
   }
+
+  std::string ToString() const {
+    std::string result = "Origin Frame: {origins: ";
+    for (const std::string& origin : origins) {
+      absl::StrAppend(&result, "\n", origin);
+    }
+    result += "}";
+    return result;
+  }
+
+  friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                const OriginFrame& s) {
+    os << s.ToString();
+    return os;
+  }
 };
 
 // https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html

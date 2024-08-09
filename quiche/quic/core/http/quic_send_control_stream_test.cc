@@ -245,6 +245,16 @@ TEST_P(QuicSendControlStreamTest, WriteSettingsOnlyOnce) {
   send_control_stream_->MaybeSendSettingsFrame();
 }
 
+TEST_P(QuicSendControlStreamTest, SendOriginFrameOnce) {
+  Initialize();
+  std::vector<std::string> origins = {"a", "b", "c"};
+
+  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _, _))
+      .Times(1);
+  send_control_stream_->MaybeSendOriginFrame(origins);
+  send_control_stream_->MaybeSendOriginFrame(origins);
+}
+
 // Send stream type and SETTINGS frame if WritePriorityUpdate() is called first.
 TEST_P(QuicSendControlStreamTest, WritePriorityBeforeSettings) {
   Initialize();

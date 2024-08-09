@@ -561,6 +561,9 @@ class QUICHE_EXPORT QuicSpdySession
   // available.
   void SendInitialData();
 
+  // Sends any data which should be sent after the initial SETTINGS frame.
+  virtual void SendInitialDataAfterSettings() {}
+
   // Override to skip checking for qpack_decoder_send_stream_ given decoder data
   // is always bundled opportunistically.
   bool CheckStreamWriteBlocked(QuicStream* stream) const override;
@@ -574,6 +577,8 @@ class QUICHE_EXPORT QuicSpdySession
   void DisableCookieCrumbling() {
     cookie_crumbling_ = CookieCrumbling::kDisabled;
   }
+
+  QuicSendControlStream* send_control_stream() { return send_control_stream_; }
 
  private:
   friend class test::QuicSpdySessionPeer;

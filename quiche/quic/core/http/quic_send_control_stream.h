@@ -38,6 +38,9 @@ class QUICHE_EXPORT QuicSendControlStream : public QuicStream {
   // first frame sent on this stream.
   void MaybeSendSettingsFrame();
 
+  // Send ORIGIN frame if |origins| is not empty.
+  void MaybeSendOriginFrame(std::vector<std::string> origins);
+
   // Send a PRIORITY_UPDATE frame on this stream, and a SETTINGS frame
   // beforehand if one has not been already sent.
   void WritePriorityUpdate(QuicStreamId stream_id, HttpStreamPriority priority);
@@ -53,6 +56,9 @@ class QUICHE_EXPORT QuicSendControlStream : public QuicStream {
  private:
   // Track if a settings frame is already sent.
   bool settings_sent_;
+
+  // Track if an origin frame is already sent.
+  bool origin_frame_sent_;
 
   // SETTINGS values to send.
   const SettingsFrame settings_;

@@ -28,6 +28,7 @@ QuicSendControlStream::QuicSendControlStream(QuicStreamId id,
                                              const SettingsFrame& settings)
     : QuicStream(id, spdy_session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
       settings_sent_(false),
+      origin_frame_sent_(false),
       settings_(settings),
       spdy_session_(spdy_session) {}
 
@@ -84,6 +85,20 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   // discarded. A greasing frame is added here.
   WriteOrBufferData(HttpEncoder::SerializeGreasingFrame(), /*fin = */ false,
                     nullptr);
+}
+
+void QuicSendControlStream::MaybeSendOriginFrame(
+    std::vector<std::string> origins) {
+  if (origins.empty() || origin_frame_sent_) {
+    return;
+  }
+  OriginFrame frame;
+  frame.origins = std::move(origins);
+  QUIC_DVLOG(1) << "Control stream " << id() << " is writing origin frame "
+                << frame;
+  WriteOrBufferData(HttpEncoder::SerializeOriginFrame(frame), /*fin =*/false,
+                    nullptr);
+  origin_frame_sent_ = true;
 }
 
 void QuicSendControlStream::WritePriorityUpdate(QuicStreamId stream_id,
