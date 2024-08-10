@@ -1144,6 +1144,85 @@ TEST_P(QpackEncoderTest, CookieCrumblingEnabledDynamicTable) {
   EXPECT_EQ(insert_entries.size(), encoder_stream_sent_byte_count_);
 }
 
+TEST_P(QpackEncoderTest, CookieCrumblingDisabledNoDynamicTable) {
+  QpackEncoder encoder(&decoder_stream_error_delegate_, huffman_encoding_,
+                       CookieCrumbling::kDisabled);
+
+  EXPECT_CALL(encoder_stream_sender_delegate_, NumBytesBuffered())
+      .WillRepeatedly(Return(0));
+
+  quiche::HttpHeaderBlock header_list;
+  header_list["cookie"] = "foo; bar";
+
+  std::string expected_output;
+  if (HuffmanEnabled()) {
+    ASSERT_TRUE(absl::HexStringToBytes(
+        "0000"             // prefix
+        "55"               // name of static entry 5
+        "8694e7fb5231d9",  // with literal value "foo; bar"
+        &expected_output));
+  } else {
+    ASSERT_TRUE(absl::HexStringToBytes(
+        "0000"                 // prefix
+        "55"                   // name of static entry 5
+        "08666f6f3b20626172",  // with literal value "foo; bar"
+        &expected_output));
+  }
+  EXPECT_EQ(expected_output,
+            encoder.EncodeHeaderList(/* stream_id = */ 1, header_list,
+                                     &encoder_stream_sent_byte_count_));
+
+  EXPECT_EQ(0u, encoder_stream_sent_byte_count_);
+}
+
+TEST_P(QpackEncoderTest, CookieCrumblingDisabledDynamicTable) {
+  QpackEncoder encoder(&decoder_stream_error_delegate_, huffman_encoding_,
+                       CookieCrumbling::kDisabled);
+  encoder.SetMaximumBlockedStreams(1);
+  encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate_);
+
+  EXPECT_CALL(encoder_stream_sender_delegate_, NumBytesBuffered())
+      .WillRepeatedly(Return(0));
+  encoder.SetMaximumBlockedStreams(1);
+  encoder.SetMaximumDynamicTableCapacity(4096);
+  encoder.SetDynamicTableCapacity(4096);
+
+  quiche::HttpHeaderBlock header_list;
+  header_list["cookie"] = "foo; bar";
+
+  // Set Dynamic Table Capacity instruction.
+  std::string set_dyanamic_table_capacity;
+  ASSERT_TRUE(absl::HexStringToBytes("3fe11f", &set_dyanamic_table_capacity));
+
+  // Insert entries into the dynamic table.
+  std::string insert_entries;
+  if (HuffmanEnabled()) {
+    ASSERT_TRUE(absl::HexStringToBytes(
+        "c5"               // insert with name reference, static index 5
+        "8694e7fb5231d9",  // with literal value "foo; bar"
+        &insert_entries));
+  } else {
+    ASSERT_TRUE(absl::HexStringToBytes(
+        "c5"                   // insert with name reference, static index 5
+        "08666f6f3b20626172",  // with literal value "foo; bar"
+        &insert_entries));
+  }
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(
+                  absl::StrCat(set_dyanamic_table_capacity, insert_entries))));
+
+  std::string expected_output;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0200"  // prefix
+                             "80",   // dynamic entry with relative index 0
+                             &expected_output));
+  EXPECT_EQ(expected_output,
+            encoder.EncodeHeaderList(/* stream_id = */ 1, header_list,
+                                     &encoder_stream_sent_byte_count_));
+
+  EXPECT_EQ(insert_entries.size(), encoder_stream_sent_byte_count_);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
