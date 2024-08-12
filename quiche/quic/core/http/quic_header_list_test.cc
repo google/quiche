@@ -36,37 +36,6 @@ TEST_F(QuicHeaderListTest, DebugString) {
   EXPECT_EQ("{ foo=bar, april=fools, beep=, }", headers.DebugString());
 }
 
-TEST_F(QuicHeaderListTest, TooLarge) {
-  const size_t kMaxHeaderListSize = 256;
-
-  QuicHeaderList headers;
-  headers.set_max_header_list_size(kMaxHeaderListSize);
-  std::string key = "key";
-  std::string value(kMaxHeaderListSize, '1');
-  // Send a header that exceeds max_header_list_size.
-  headers.OnHeader(key, value);
-  // Send a second header exceeding max_header_list_size.
-  headers.OnHeader(key + "2", value);
-  // We should not allocate more memory after exceeding max_header_list_size.
-  EXPECT_LT(headers.DebugString().size(), 2 * value.size());
-  size_t total_bytes = 2 * (key.size() + value.size()) + 1;
-  headers.OnHeaderBlockEnd(total_bytes, total_bytes);
-
-  EXPECT_TRUE(headers.empty());
-  EXPECT_EQ("{ }", headers.DebugString());
-}
-
-TEST_F(QuicHeaderListTest, NotTooLarge) {
-  QuicHeaderList headers;
-  headers.set_max_header_list_size(1 << 20);
-  std::string key = "key";
-  std::string value(1 << 18, '1');
-  headers.OnHeader(key, value);
-  size_t total_bytes = key.size() + value.size();
-  headers.OnHeaderBlockEnd(total_bytes, total_bytes);
-  EXPECT_FALSE(headers.empty());
-}
-
 // This test verifies that QuicHeaderList is copyable and assignable.
 TEST_F(QuicHeaderListTest, IsCopyableAndAssignable) {
   QuicHeaderList headers;
