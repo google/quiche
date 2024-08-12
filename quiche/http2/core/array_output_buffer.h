@@ -30,6 +30,7 @@ class QUICHE_EXPORT ArrayOutputBuffer : public ZeroCopyOutputBuffer {
 
   size_t Size() const { return current_ - begin_; }
   char* Begin() const { return begin_; }
+  char* Current() const { return current_; }
 
   // Resets the buffer to its original state.
   void Reset() {
