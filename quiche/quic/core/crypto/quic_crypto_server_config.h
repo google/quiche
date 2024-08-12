@@ -27,8 +27,8 @@
 #include "quiche/quic/core/proto/source_address_token_proto.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_mutex.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
@@ -539,7 +539,7 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
   // Get a ref to the config with a given server config id.
   quiche::QuicheReferenceCountedPointer<Config> GetConfigWithScid(
       absl::string_view requested_scid) const
-      QUIC_SHARED_LOCKS_REQUIRED(configs_lock_);
+      QUICHE_SHARED_LOCKS_REQUIRED(configs_lock_);
 
   // A snapshot of the configs associated with an in-progress handshake.
   struct QUICHE_EXPORT Configs {
@@ -568,7 +568,7 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
   // SelectNewPrimaryConfig reevaluates the primary config based on the
   // "primary_time" deadlines contained in each.
   void SelectNewPrimaryConfig(QuicWallTime now) const
-      QUIC_EXCLUSIVE_LOCKS_REQUIRED(configs_lock_);
+      QUICHE_EXCLUSIVE_LOCKS_REQUIRED(configs_lock_);
 
   // EvaluateClientHello checks |client_hello_state->client_hello| for gross
   // errors and determines whether it is fresh (i.e. not a replay). The results
@@ -843,7 +843,7 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
 
   // Returns true if the next config promotion should happen now.
   bool IsNextConfigReady(QuicWallTime now) const
-      QUIC_SHARED_LOCKS_REQUIRED(configs_lock_);
+      QUICHE_SHARED_LOCKS_REQUIRED(configs_lock_);
 
   // replay_protection_ controls whether the server enforces that handshakes
   // aren't replays.
@@ -858,16 +858,16 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
   //   1) configs_.empty() <-> primary_config_ == nullptr
   //   2) primary_config_ != nullptr -> primary_config_->is_primary
   //   3) ∀ c∈configs_, c->is_primary <-> c == primary_config_
-  mutable QuicMutex configs_lock_;
+  mutable quiche::QuicheMutex configs_lock_;
 
   // configs_ contains all active server configs. It's expected that there are
   // about half-a-dozen configs active at any one time.
-  ConfigMap configs_ QUIC_GUARDED_BY(configs_lock_);
+  ConfigMap configs_ QUICHE_GUARDED_BY(configs_lock_);
 
   // primary_config_ points to a Config (which is also in |configs_|) which is
   // the primary config - i.e. the one that we'll give out to new clients.
   mutable quiche::QuicheReferenceCountedPointer<Config> primary_config_
-      QUIC_GUARDED_BY(configs_lock_);
+      QUICHE_GUARDED_BY(configs_lock_);
 
   // fallback_config_ points to a Config (which is also in |configs_|) which is
   // the fallback config, which will be used if the other configs are unuseable
@@ -875,16 +875,16 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
   //
   // TODO(b/112548056): This is currently always nullptr.
   quiche::QuicheReferenceCountedPointer<Config> fallback_config_
-      QUIC_GUARDED_BY(configs_lock_);
+      QUICHE_GUARDED_BY(configs_lock_);
 
   // next_config_promotion_time_ contains the nearest, future time when an
   // active config will be promoted to primary.
   mutable QuicWallTime next_config_promotion_time_
-      QUIC_GUARDED_BY(configs_lock_);
+      QUICHE_GUARDED_BY(configs_lock_);
 
   // Callback to invoke when the primary config changes.
   std::unique_ptr<PrimaryConfigChangedCallback> primary_config_changed_cb_
-      QUIC_GUARDED_BY(configs_lock_);
+      QUICHE_GUARDED_BY(configs_lock_);
 
   // Used to protect the source-address tokens that are given to clients.
   CryptoSecretBoxer source_address_token_boxer_;

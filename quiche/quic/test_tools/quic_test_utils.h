@@ -38,7 +38,6 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/mock_connection_id_generator.h"
@@ -2078,7 +2077,7 @@ class DroppingPacketsWithSpecificDestinationWriter
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options,
                           const QuicPacketWriterParams& params) override {
-    QuicReaderMutexLock lock(&mutex_);
+    quiche::QuicheReaderMutexLock lock(&mutex_);
     QUIC_LOG(ERROR) << "DroppingPacketsWithSpecificDestinationWriter::"
                        "WritePacket with peer address "
                     << peer_address.ToString() << " and peer_address_to_drop_ "
@@ -2094,12 +2093,12 @@ class DroppingPacketsWithSpecificDestinationWriter
   }
 
   void set_peer_address_to_drop(const QuicSocketAddress& peer_address) {
-    QuicWriterMutexLock lock(&mutex_);
+    quiche::QuicheWriterMutexLock lock(&mutex_);
     peer_address_to_drop_ = peer_address;
   }
 
  private:
-  QuicMutex mutex_;
+  quiche::QuicheMutex mutex_;
   QuicSocketAddress peer_address_to_drop_ ABSL_GUARDED_BY(mutex_);
 };
 

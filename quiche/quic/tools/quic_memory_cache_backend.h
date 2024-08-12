@@ -13,10 +13,10 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/spdy_utils.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/common/http/http_header_block.h"
+#include "quiche/common/platform/api/quiche_mutex.h"
 #include "quiche/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -153,19 +153,19 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   // Cached responses.
   absl::flat_hash_map<std::string, std::unique_ptr<QuicBackendResponse>>
-      responses_ QUIC_GUARDED_BY(response_mutex_);
+      responses_ QUICHE_GUARDED_BY(response_mutex_);
 
   // The default response for cache misses, if set.
   std::unique_ptr<QuicBackendResponse> default_response_
-      QUIC_GUARDED_BY(response_mutex_);
+      QUICHE_GUARDED_BY(response_mutex_);
 
   // The generate bytes response, if set.
   std::unique_ptr<QuicBackendResponse> generate_bytes_response_
-      QUIC_GUARDED_BY(response_mutex_);
+      QUICHE_GUARDED_BY(response_mutex_);
 
   // Protects against concurrent access from test threads setting responses, and
   // server threads accessing those responses.
-  mutable QuicMutex response_mutex_;
+  mutable quiche::QuicheMutex response_mutex_;
   bool cache_initialized_;
 
   bool enable_webtransport_ = false;

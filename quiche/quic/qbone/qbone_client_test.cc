@@ -21,7 +21,6 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
@@ -58,17 +57,17 @@ std::string TestPacketOut(const std::string& body) {
 class DataSavingQbonePacketWriter : public QbonePacketWriter {
  public:
   void WritePacketToNetwork(const char* packet, size_t size) override {
-    QuicWriterMutexLock lock(&mu_);
+    quiche::QuicheWriterMutexLock lock(&mu_);
     data_.push_back(std::string(packet, size));
   }
 
   std::vector<std::string> data() {
-    QuicWriterMutexLock lock(&mu_);
+    quiche::QuicheWriterMutexLock lock(&mu_);
     return data_;
   }
 
  private:
-  QuicMutex mu_;
+  quiche::QuicheMutex mu_;
   std::vector<std::string> data_;
 };
 

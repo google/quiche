@@ -130,7 +130,7 @@ void QuicMemoryCacheBackend::ResourceFile::HandleXOriginalUrl() {
 
 const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
     absl::string_view host, absl::string_view path) const {
-  QuicWriterMutexLock lock(&response_mutex_);
+  quiche::QuicheWriterMutexLock lock(&response_mutex_);
 
   auto it = responses_.find(GetKey(host, path));
   if (it == responses_.end()) {
@@ -166,7 +166,7 @@ void QuicMemoryCacheBackend::AddSimpleResponse(absl::string_view host,
 }
 
 void QuicMemoryCacheBackend::AddDefaultResponse(QuicBackendResponse* response) {
-  QuicWriterMutexLock lock(&response_mutex_);
+  quiche::QuicheWriterMutexLock lock(&response_mutex_);
   default_response_.reset(response);
 }
 
@@ -193,7 +193,7 @@ void QuicMemoryCacheBackend::AddResponse(absl::string_view host,
 bool QuicMemoryCacheBackend::SetResponseDelay(absl::string_view host,
                                               absl::string_view path,
                                               QuicTime::Delta delay) {
-  QuicWriterMutexLock lock(&response_mutex_);
+  quiche::QuicheWriterMutexLock lock(&response_mutex_);
   auto it = responses_.find(GetKey(host, path));
   if (it == responses_.end()) return false;
 
@@ -271,7 +271,7 @@ bool QuicMemoryCacheBackend::InitializeBackend(
 }
 
 void QuicMemoryCacheBackend::GenerateDynamicResponses() {
-  QuicWriterMutexLock lock(&response_mutex_);
+  quiche::QuicheWriterMutexLock lock(&response_mutex_);
   // Add a generate bytes response.
   quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
@@ -348,7 +348,7 @@ QuicMemoryCacheBackend::ProcessWebTransportRequest(
 
 QuicMemoryCacheBackend::~QuicMemoryCacheBackend() {
   {
-    QuicWriterMutexLock lock(&response_mutex_);
+    quiche::QuicheWriterMutexLock lock(&response_mutex_);
     responses_.clear();
   }
 }
@@ -358,7 +358,7 @@ void QuicMemoryCacheBackend::AddResponseImpl(
     SpecialResponseType response_type, HttpHeaderBlock response_headers,
     absl::string_view response_body, HttpHeaderBlock response_trailers,
     const std::vector<quiche::HttpHeaderBlock>& early_hints) {
-  QuicWriterMutexLock lock(&response_mutex_);
+  quiche::QuicheWriterMutexLock lock(&response_mutex_);
 
   QUICHE_DCHECK(!host.empty())
       << "Host must be populated, e.g. \"www.google.com\"";

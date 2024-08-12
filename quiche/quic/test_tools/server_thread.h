@@ -8,10 +8,10 @@
 #include <memory>
 
 #include "quiche/quic/core/quic_config.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_thread.h"
 #include "quiche/quic/tools/quic_server.h"
+#include "quiche/common/platform/api/quiche_mutex.h"
 #include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
@@ -74,24 +74,25 @@ class ServerThread : public QuicThread {
   void MaybeNotifyOfHandshakeConfirmation();
   void ExecuteScheduledActions();
 
-  QuicNotification
-      confirmed_;            // Notified when the first handshake is confirmed.
-  QuicNotification pause_;   // Notified when the server should pause.
-  QuicNotification paused_;  // Notitied when the server has paused
-  QuicNotification resume_;  // Notified when the server should resume.
-  QuicNotification quit_;    // Notified when the server should quit.
+  quiche::QuicheNotification
+      confirmed_;  // Notified when the first handshake is confirmed.
+  quiche::QuicheNotification pause_;   // Notified when the server should pause.
+  quiche::QuicheNotification paused_;  // Notitied when the server has paused
+  quiche::QuicheNotification
+      resume_;                       // Notified when the server should resume.
+  quiche::QuicheNotification quit_;  // Notified when the server should quit.
 
   std::unique_ptr<QuicServer> server_;
   QuicClock* clock_;
   QuicSocketAddress address_;
-  mutable QuicMutex port_lock_;
-  int port_ QUIC_GUARDED_BY(port_lock_);
+  mutable quiche::QuicheMutex port_lock_;
+  int port_ QUICHE_GUARDED_BY(port_lock_);
 
   bool initialized_;
 
-  QuicMutex scheduled_actions_lock_;
+  quiche::QuicheMutex scheduled_actions_lock_;
   quiche::QuicheCircularDeque<quiche::SingleUseCallback<void()>>
-      scheduled_actions_ QUIC_GUARDED_BY(scheduled_actions_lock_);
+      scheduled_actions_ QUICHE_GUARDED_BY(scheduled_actions_lock_);
 };
 
 }  // namespace test

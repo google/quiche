@@ -12,7 +12,6 @@
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/platform/api/quic_logging.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
@@ -104,7 +103,7 @@ bool IcmpReachable::Init() {
   }
   alarm_->Set(clock_->Now());
 
-  QuicWriterMutexLock mu(&header_lock_);
+  quiche::QuicheWriterMutexLock mu(&header_lock_);
   icmp_header_.icmp6_type = ICMP6_ECHO_REQUEST;
   icmp_header_.icmp6_code = 0;
 
@@ -135,7 +134,7 @@ bool IcmpReachable::OnEvent(int fd) {
       absl::string_view(buffer, size));
 
   auto* header = reinterpret_cast<const icmp6_hdr*>(&buffer);
-  QuicWriterMutexLock mu(&header_lock_);
+  quiche::QuicheWriterMutexLock mu(&header_lock_);
   if (header->icmp6_data32[0] != icmp_header_.icmp6_data32[0]) {
     QUIC_VLOG(2) << "Unexpected response. id: " << header->icmp6_id
                  << " seq: " << header->icmp6_seq
@@ -160,7 +159,7 @@ bool IcmpReachable::OnEvent(int fd) {
 }
 
 void IcmpReachable::OnAlarm() {
-  QuicWriterMutexLock mu(&header_lock_);
+  quiche::QuicheWriterMutexLock mu(&header_lock_);
 
   if (end_ < start_) {
     QUIC_VLOG(1) << "Timed out on sequence: " << icmp_header_.icmp6_seq;
