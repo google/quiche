@@ -442,10 +442,10 @@ const QuicTag kGWCH = TAG('G', 'W', 'C', 'H');
 const QuicTag kYTCH = TAG('Y', 'T', 'C', 'H');
 const QuicTag kACH0 = TAG('A', 'C', 'H', '0');
 
-// Client sends this connection option to express the intention of skipping IP
-// matching when trying to send a request on active sessions. If server echos
-// back this connection option, client can actually skip IP matching.
+// Client sends these connection options to express the intention of skipping IP
+// matching when trying to send a request on active sessions.
 const QuicTag kNOIP = TAG('N', 'O', 'I', 'P');
+const QuicTag kNIPA = TAG('N', 'I', 'P', 'A');  // Aggressively skip IP matching
 
 // Rejection tags
 const QuicTag kRREJ = TAG('R', 'R', 'E', 'J');   // Reasons for server sending
