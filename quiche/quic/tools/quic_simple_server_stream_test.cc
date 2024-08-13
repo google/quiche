@@ -225,7 +225,6 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         quic_response_(new QuicBackendResponse),
         body_("hello world") {
     connection_->set_visitor(&session_);
-    header_list_.OnHeaderBlockStart();
     header_list_.OnHeader(":authority", "www.google.com");
     header_list_.OnHeader(":path", "/");
     header_list_.OnHeader(":method", "POST");
@@ -807,7 +806,6 @@ TEST_P(QuicSimpleServerStreamTest, ConnectSendsIntermediateResponses) {
   EXPECT_CALL(*stream_, WriteOrBufferBody(kBody2, true));
 
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "CONNECT");
   header_list.OnHeaderBlockEnd(128, 128);
@@ -835,7 +833,6 @@ TEST_P(QuicSimpleServerStreamTest, ErrorOnUnhandledConnect) {
   EXPECT_CALL(session_, MaybeSendRstStreamFrame(stream_->id(), _, _));
 
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "CONNECT");
   header_list.OnHeaderBlockEnd(128, 128);
@@ -860,7 +857,6 @@ TEST_P(QuicSimpleServerStreamTest, ConnectWithInvalidHeader) {
       .WillRepeatedly(
           Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "CONNECT");
   // QUIC requires lower-case header names.
@@ -902,7 +898,6 @@ TEST_P(QuicSimpleServerStreamTest, BackendCanTerminateStream) {
               MaybeSendRstStreamFrame(stream_->id(), expected_error, _));
 
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "CONNECT");
   header_list.OnHeaderBlockEnd(128, 128);

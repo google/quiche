@@ -578,7 +578,6 @@ quiche::HttpHeaderBlock GenerateHeaderList(FuzzedDataProvider* provider) {
 QuicHeaderList SplitHeaderList(const quiche::HttpHeaderBlock& header_list,
                                CookieCrumbling cookie_crumbling) {
   QuicHeaderList split_header_list;
-  split_header_list.OnHeaderBlockStart();
 
   size_t total_size = 0;
   ValueSplittingHeaderList splitting_header_list(&header_list,

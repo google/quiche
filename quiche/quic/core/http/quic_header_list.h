@@ -32,7 +32,6 @@ class QUICHE_EXPORT QuicHeaderList {
   QuicHeaderList& operator=(QuicHeaderList&& other) = default;
   QuicHeaderList& operator=(const QuicHeaderList& other) = default;
 
-  void OnHeaderBlockStart() {}
   void OnHeader(absl::string_view name, absl::string_view value);
   void OnHeaderBlockEnd(size_t uncompressed_header_bytes,
                         size_t compressed_header_bytes);

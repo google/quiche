@@ -106,7 +106,6 @@ TEST_F(QuicSpdyServerStreamBaseTest,
 
 TEST_F(QuicSpdyServerStreamBaseTest, AllowExtendedConnect) {
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "CONNECT");
   header_list.OnHeader(":protocol", "webtransport");
@@ -121,7 +120,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, AllowExtendedConnect) {
 
 TEST_F(QuicSpdyServerStreamBaseTest, AllowExtendedConnectProtocolFirst) {
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":protocol", "webtransport");
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "CONNECT");
@@ -140,7 +138,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidExtendedConnect) {
   }
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "CONNECT");
   header_list.OnHeader(":protocol", "webtransport");
@@ -158,7 +155,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidExtendedConnect) {
 
 TEST_F(QuicSpdyServerStreamBaseTest, VanillaConnectAllowed) {
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "CONNECT");
   header_list.OnHeaderBlockEnd(128, 128);
@@ -169,7 +165,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, VanillaConnectAllowed) {
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidVanillaConnect) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "CONNECT");
   header_list.OnHeader(":scheme", "http");
@@ -187,7 +182,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidVanillaConnect) {
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidNonConnectWithProtocol) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "GET");
   header_list.OnHeader(":scheme", "http");
@@ -208,7 +202,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutScheme) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // A request without :scheme should be rejected.
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":method", "GET");
   header_list.OnHeader(":path", "/path");
@@ -227,7 +220,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutAuthority) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // A request without :authority should be rejected.
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":scheme", "http");
   header_list.OnHeader(":method", "GET");
   header_list.OnHeader(":path", "/path");
@@ -246,7 +238,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutMethod) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // A request without :method should be rejected.
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":scheme", "http");
   header_list.OnHeader(":path", "/path");
@@ -265,7 +256,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestWithoutPath) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // A request without :path should be rejected.
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":scheme", "http");
   header_list.OnHeader(":method", "POST");
@@ -284,7 +274,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestHeader) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   // A request without :path should be rejected.
   QuicHeaderList header_list;
-  header_list.OnHeaderBlockStart();
   header_list.OnHeader(":authority", "www.google.com:4433");
   header_list.OnHeader(":scheme", "http");
   header_list.OnHeader(":method", "POST");

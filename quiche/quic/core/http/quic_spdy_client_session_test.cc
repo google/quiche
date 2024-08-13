@@ -356,7 +356,6 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   // ways that a peer can signal the end of a stream (the others being RST,
   // stream data + FIN).
   QuicHeaderList trailers;
-  trailers.OnHeaderBlockStart();
   trailers.OnHeader(kFinalOffsetHeaderKey, "0");
   trailers.OnHeaderBlockEnd(0, 0);
   session_->OnStreamHeaderList(stream_id, /*fin=*/false, 0, trailers);
@@ -401,7 +400,6 @@ TEST_P(QuicSpdyClientSessionTest, ReceivedMalformedTrailersAfterSendingRst) {
   // The stream receives trailers with final byte offset, but the header value
   // is non-numeric and should be treated as malformed.
   QuicHeaderList trailers;
-  trailers.OnHeaderBlockStart();
   trailers.OnHeader(kFinalOffsetHeaderKey, "invalid non-numeric value");
   trailers.OnHeaderBlockEnd(0, 0);
 
@@ -414,7 +412,6 @@ TEST_P(QuicSpdyClientSessionTest, OnStreamHeaderListWithStaticStream) {
   CompleteCryptoHandshake();
 
   QuicHeaderList trailers;
-  trailers.OnHeaderBlockStart();
   trailers.OnHeader(kFinalOffsetHeaderKey, "0");
   trailers.OnHeaderBlockEnd(0, 0);
 

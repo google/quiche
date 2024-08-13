@@ -590,7 +590,6 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     QuicSpdyStream* stream =
         static_cast<QuicSpdyStream*>(session_->GetOrCreateStream(session_id));
     QuicHeaderList headers;
-    headers.OnHeaderBlockStart();
     headers.OnHeader(":method", "CONNECT");
     headers.OnHeader(":protocol", "webtransport");
     stream->OnStreamHeaderList(/*fin=*/true, 0, headers);

@@ -1606,7 +1606,6 @@ void ExpectApproxEq(T expected, T actual, float relative_margin) {
 template <typename T>
 QuicHeaderList AsHeaderList(const T& container) {
   QuicHeaderList l;
-  l.OnHeaderBlockStart();
   size_t total_size = 0;
   for (auto p : container) {
     total_size += p.first.size() + p.second.size();

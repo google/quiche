@@ -25,8 +25,7 @@ const bool kDoNotExpectFinalByteOffset = false;
 
 static std::unique_ptr<QuicHeaderList> FromList(
     const QuicHeaderList::ListType& src) {
-  std::unique_ptr<QuicHeaderList> headers(new QuicHeaderList);
-  headers->OnHeaderBlockStart();
+  auto headers = std::make_unique<QuicHeaderList>();
   for (const auto& p : src) {
     headers->OnHeader(p.first, p.second);
   }
