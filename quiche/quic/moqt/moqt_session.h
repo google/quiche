@@ -130,10 +130,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   class QUICHE_EXPORT ControlStream : public webtransport::StreamVisitor,
                                       public MoqtParserVisitor {
    public:
-    ControlStream(MoqtSession* session, webtransport::Stream* stream)
-        : session_(session),
-          stream_(stream),
-          parser_(session->parameters_.using_webtrans, *this) {}
+    ControlStream(MoqtSession* session, webtransport::Stream* stream);
 
     // webtransport::StreamVisitor implementation.
     void OnCanRead() override;
@@ -293,6 +290,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     MoqtTrackPublisher& publisher() { return *track_publisher_; }
     uint64_t track_alias() const { return track_alias_; }
     std::optional<FullSequence> largest_sent() const { return largest_sent_; }
+    MoqtPriority subscriber_priority() const { return subscriber_priority_; }
+    std::optional<MoqtDeliveryOrder> subscriber_delivery_order() const {
+      return subscriber_delivery_order_;
+    }
 
     void OnNewObjectAvailable(FullSequence sequence) override;
 
@@ -340,7 +341,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   class QUICHE_EXPORT OutgoingDataStream : public webtransport::StreamVisitor {
    public:
     OutgoingDataStream(MoqtSession* session, webtransport::Stream* stream,
-                       uint64_t subscription_id, FullSequence first_object);
+                       uint64_t subscription_id,
+                       PublishedSubscription& subscription,
+                       FullSequence first_object);
     ~OutgoingDataStream();
 
     // webtransport::StreamVisitor implementation.
@@ -355,6 +358,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // Sends objects on the stream, starting with `next_object_`, until the
     // stream becomes write-blocked or closed.
     void SendObjects(PublishedSubscription& subscription);
+
+    // Recomputes the send order and updates it for the associated stream.
+    void UpdateSendOrder(PublishedSubscription& subscription);
 
    private:
     friend class test::MoqtSessionPeer;

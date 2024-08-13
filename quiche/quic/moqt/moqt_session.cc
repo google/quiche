@@ -50,6 +50,11 @@ using ::quic::Perspective;
 
 constexpr MoqtPriority kDefaultSubscriberPriority = 0x80;
 
+// WebTransport lets applications split a session into multiple send groups
+// that have equal weight for scheduling. We don't have a use for that, so the
+// send group is always the same.
+constexpr webtransport::SendGroupId kMoqtSendGroupId = 0;
+
 bool PublisherHasData(const MoqtTrackPublisher& publisher) {
   absl::StatusOr<MoqtTrackStatusCode> status = publisher.GetTrackStatus();
   return status.ok() && DoesTrackStatusImplyHavingData(*status);
@@ -439,7 +444,7 @@ webtransport::Stream* MoqtSession::OpenDataStream(uint64_t subscription_id,
     return nullptr;
   }
   new_stream->SetVisitor(std::make_unique<OutgoingDataStream>(
-      this, new_stream, subscription_id, first_object));
+      this, new_stream, subscription_id, subscription, first_object));
   subscription.OnDataStreamCreated(new_stream->GetStreamId(), first_object);
   return new_stream;
 }
@@ -507,6 +512,16 @@ static void ForwardStreamDataToParser(webtransport::Stream& stream,
   if (fin) {
     parser.ProcessData("", /*end_of_stream=*/true);
   }
+}
+
+MoqtSession::ControlStream::ControlStream(MoqtSession* session,
+                                          webtransport::Stream* stream)
+    : session_(session),
+      stream_(stream),
+      parser_(session->parameters_.using_webtrans, *this) {
+  stream_->SetPriority(
+      webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
+                                   /*send_order=*/kMoqtControlStreamSendOrder});
 }
 
 void MoqtSession::ControlStream::OnCanRead() {
@@ -892,6 +907,8 @@ void MoqtSession::PublishedSubscription::Update(
     MoqtPriority subscriber_priority) {
   window_.UpdateStartEnd(start, end);
   subscriber_priority_ = subscriber_priority;
+  // TODO: update priority of all data streams that are currently open.
+
   // TODO: reset streams that are no longer in-window.
   // TODO: send SUBSCRIBE_DONE if required.
   // TODO: send an error for invalid updates now that it's a part of draft-05.
@@ -985,12 +1002,15 @@ void MoqtSession::PublishedSubscription::OnObjectSent(FullSequence sequence) {
 
 MoqtSession::OutgoingDataStream::OutgoingDataStream(
     MoqtSession* session, webtransport::Stream* stream,
-    uint64_t subscription_id, FullSequence first_object)
+    uint64_t subscription_id, PublishedSubscription& subscription,
+    FullSequence first_object)
     : session_(session),
       stream_(stream),
       subscription_id_(subscription_id),
       next_object_(first_object),
-      session_liveness_(session->liveness_token_) {}
+      session_liveness_(session->liveness_token_) {
+  UpdateSendOrder(subscription);
+}
 
 MoqtSession::OutgoingDataStream::~OutgoingDataStream() {
   // Though it might seem intuitive that the session object has to outlive the
@@ -1072,6 +1092,8 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
   QUICHE_DCHECK(DoesTrackStatusImplyHavingData(*publisher.GetTrackStatus()));
   MoqtForwardingPreference forwarding_preference =
       publisher.GetForwardingPreference();
+
+  UpdateSendOrder(subscription);
 
   MoqtObject header;
   header.subscribe_id = subscription_id_;
@@ -1162,6 +1184,45 @@ void MoqtSession::PublishedSubscription::SendDatagram(FullSequence sequence) {
       header, object->payload.AsStringView());
   session_->session_->SendOrQueueDatagram(datagram.AsStringView());
   OnObjectSent(object->sequence);
+}
+
+void MoqtSession::OutgoingDataStream::UpdateSendOrder(
+    PublishedSubscription& subscription) {
+  MoqtTrackPublisher& publisher = subscription.publisher();
+  MoqtForwardingPreference forwarding_preference =
+      publisher.GetForwardingPreference();
+
+  // Use `next_object_` here since the priority-relevant sequence numbers never
+  // change for a given stream.
+  FullSequence sequence = next_object_;
+
+  MoqtPriority subscriber_priority = subscription.subscriber_priority();
+  MoqtPriority publisher_priority = publisher.GetPublisherPriority();
+  MoqtDeliveryOrder delivery_order =
+      subscription.subscriber_delivery_order().value_or(
+          publisher.GetDeliveryOrder());
+  webtransport::SendOrder send_order;
+  switch (forwarding_preference) {
+    case MoqtForwardingPreference::kTrack:
+      send_order = SendOrderForStream(subscriber_priority, publisher_priority,
+                                      /*group_id=*/0, delivery_order);
+      break;
+    case MoqtForwardingPreference::kGroup:
+      send_order = SendOrderForStream(subscriber_priority, publisher_priority,
+                                      sequence.group, delivery_order);
+      break;
+    case MoqtForwardingPreference::kObject:
+      send_order =
+          SendOrderForStream(subscriber_priority, publisher_priority,
+                             sequence.group, sequence.object, delivery_order);
+      break;
+    case MoqtForwardingPreference::kDatagram:
+      QUICHE_NOTREACHED();
+      return;
+  }
+  stream_->SetPriority(
+      webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
+                                   /*send_order=*/send_order});
 }
 
 }  // namespace moqt

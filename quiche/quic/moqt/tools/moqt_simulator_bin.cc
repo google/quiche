@@ -159,11 +159,15 @@ class ObjectReceiver : public RemoteTrack::Visitor {
   void OnObjectFragment(const FullTrackName& full_track_name,
                         uint64_t group_sequence, uint64_t object_sequence,
                         MoqtPriority /*publisher_priority*/,
-                        MoqtObjectStatus /*status*/,
+                        MoqtObjectStatus status,
                         MoqtForwardingPreference /*forwarding_preference*/,
                         absl::string_view object,
                         bool end_of_message) override {
     QUICHE_DCHECK(full_track_name == TrackName());
+    if (status != MoqtObjectStatus::kNormal) {
+      QUICHE_DCHECK(end_of_message);
+      return;
+    }
 
     // Buffer and assemble partially available objects.
     // TODO: this logic should be factored out. Also, this should take advantage

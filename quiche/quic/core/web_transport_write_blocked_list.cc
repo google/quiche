@@ -147,8 +147,17 @@ void WebTransportWriteBlockedList::UnregisterStream(QuicStreamId stream_id) {
 
 void WebTransportWriteBlockedList::UpdateStreamPriority(
     QuicStreamId stream_id, const QuicStreamPriority& new_priority) {
+  QuicStreamPriority old_priority = GetPriorityOfStream(stream_id);
+  if (old_priority == new_priority) {
+    return;
+  }
+
+  bool was_blocked = IsStreamBlocked(stream_id);
   UnregisterStream(stream_id);
   RegisterStream(stream_id, /*is_static_stream=*/false, new_priority);
+  if (was_blocked) {
+    AddStream(stream_id);
+  }
 
   if (new_priority.type() == QuicPriorityType::kHttp) {
     for (auto& [key, subscheduler] : web_transport_session_schedulers_) {
