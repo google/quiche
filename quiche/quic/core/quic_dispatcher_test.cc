@@ -258,8 +258,19 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       : QuicDispatcherTestBase(crypto_test_utils::ProofSourceForTesting()) {}
 
   explicit QuicDispatcherTestBase(std::unique_ptr<ProofSource> proof_source)
+      : QuicDispatcherTestBase(std::move(proof_source),
+                               AllSupportedVersions()) {}
+
+  explicit QuicDispatcherTestBase(
+      const ParsedQuicVersionVector& supported_versions)
+      : QuicDispatcherTestBase(crypto_test_utils::ProofSourceForTesting(),
+                               supported_versions) {}
+
+  explicit QuicDispatcherTestBase(
+      std::unique_ptr<ProofSource> proof_source,
+      const ParsedQuicVersionVector& supported_versions)
       : version_(GetParam()),
-        version_manager_(AllSupportedVersions()),
+        version_manager_(supported_versions),
         crypto_config_(QuicCryptoServerConfig::TESTING,
                        QuicRandom::GetInstance(), std::move(proof_source),
                        KeyExchangeSource::Default()),
@@ -606,6 +617,12 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 class QuicDispatcherTestAllVersions : public QuicDispatcherTestBase {};
 class QuicDispatcherTestOneVersion : public QuicDispatcherTestBase {};
 
+class QuicDispatcherTestNoVersions : public QuicDispatcherTestBase {
+ public:
+  QuicDispatcherTestNoVersions()
+      : QuicDispatcherTestBase(ParsedQuicVersionVector{}) {}
+};
+
 INSTANTIATE_TEST_SUITE_P(QuicDispatcherTestsAllVersions,
                          QuicDispatcherTestAllVersions,
                          ::testing::ValuesIn(CurrentSupportedVersions()),
@@ -614,6 +631,11 @@ INSTANTIATE_TEST_SUITE_P(QuicDispatcherTestsAllVersions,
 INSTANTIATE_TEST_SUITE_P(QuicDispatcherTestsOneVersion,
                          QuicDispatcherTestOneVersion,
                          ::testing::Values(CurrentSupportedVersions().front()),
+                         ::testing::PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(QuicDispatcherTestsNoVersion,
+                         QuicDispatcherTestNoVersions,
+                         ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
 TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
@@ -1899,6 +1921,33 @@ TEST_P(QuicDispatcherTestOneVersion, SelectAlpn) {
   EXPECT_EQ(
       QuicDispatcherPeer::SelectAlpn(dispatcher_.get(), {"h3-Q033", "h3-Q046"}),
       "h3-Q046");
+}
+
+TEST_P(QuicDispatcherTestNoVersions, VersionNegotiationFromReservedVersion) {
+  CreateTimeWaitListManager();
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(
+      *time_wait_list_manager_,
+      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _, _))
+      .Times(1);
+  expect_generator_is_called_ = false;
+  ProcessFirstFlight(QuicVersionReservedForNegotiation(), client_address,
+                     TestConnectionId(1));
+}
+
+TEST_P(QuicDispatcherTestNoVersions, VersionNegotiationFromRealVersion) {
+  CreateTimeWaitListManager();
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(
+      *time_wait_list_manager_,
+      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _, _))
+      .Times(1);
+  expect_generator_is_called_ = false;
+  ProcessFirstFlight(version_, client_address, TestConnectionId(1));
 }
 
 // Verify the stopgap test: Packets with truncated connection IDs should be

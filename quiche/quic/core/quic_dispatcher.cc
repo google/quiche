@@ -240,8 +240,6 @@ QuicDispatcher::QuicDispatcher(
       clear_stateless_reset_addresses_alarm_(alarm_factory_->CreateAlarm(
           new ClearStatelessResetAddressesAlarm(this))),
       connection_id_generator_(connection_id_generator) {
-  QUIC_BUG_IF(quic_bug_12724_1, GetSupportedVersions().empty())
-      << "Trying to create dispatcher without any supported versions";
   QUIC_DLOG(INFO) << "Created QuicDispatcher with versions: "
                   << ParsedQuicVersionVectorToString(GetSupportedVersions());
 }
