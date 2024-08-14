@@ -12,8 +12,11 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/connection_id_generator.h"
+#include "quiche/quic/core/crypto/crypto_handshake.h"
+#include "quiche/quic/core/crypto/crypto_utils.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
@@ -21,16 +24,21 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
+#include "quiche/quic/core/quic_packet_creator.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_exported_stats.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/print_elements.h"
+#include "quiche/common/simple_buffer_allocator.h"
 
 namespace quic {
 
@@ -92,8 +100,9 @@ BufferedPacketList::~BufferedPacketList() {}
 
 QuicBufferedPacketStore::QuicBufferedPacketStore(
     VisitorInterface* visitor, const QuicClock* clock,
-    QuicAlarmFactory* alarm_factory)
-    : connection_life_span_(
+    QuicAlarmFactory* alarm_factory, QuicDispatcherStats& stats)
+    : stats_(stats),
+      connection_life_span_(
           QuicTime::Delta::FromSeconds(kInitialIdleTimeoutSecs)),
       visitor_(visitor),
       clock_(clock),
@@ -280,7 +289,141 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     }
   }
 
+  MaybeAckInitialPacket(packet_info, queue);
+  if (is_chlo) {
+    ++stats_.packets_enqueued_chlo;
+  } else {
+    ++stats_.packets_enqueued_early;
+  }
   return SUCCESS;
+}
+
+void QuicBufferedPacketStore::MaybeAckInitialPacket(
+    const ReceivedPacketInfo& packet_info, BufferedPacketList& packet_list) {
+  if (!ack_buffered_initial_packets_) {
+    return;
+  }
+
+  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_ack_buffered_initial_packets, 1, 8);
+  if (writer_ == nullptr || writer_->IsWriteBlocked() ||
+      !packet_info.version.IsKnown() ||
+      !packet_list.HasAttemptedToReplaceConnectionId() ||
+      // Do not ack initial packet if entire CHLO is buffered.
+      packet_list.parsed_chlo.has_value() ||
+      packet_list.dispatcher_sent_packets.size() >=
+          GetQuicFlag(quic_dispatcher_max_ack_sent_per_connection)) {
+    return;
+  }
+
+  absl::InlinedVector<DispatcherSentPacket, 2>& dispatcher_sent_packets =
+      packet_list.dispatcher_sent_packets;
+  const QuicConnectionId& original_connection_id =
+      packet_list.original_connection_id;
+
+  CrypterPair crypters;
+  CryptoUtils::CreateInitialObfuscators(Perspective::IS_SERVER,
+                                        packet_info.version,
+                                        original_connection_id, &crypters);
+  QuicPacketNumber prior_largest_acked;
+  if (!dispatcher_sent_packets.empty()) {
+    prior_largest_acked = dispatcher_sent_packets.back().largest_acked;
+  }
+
+  std::optional<uint64_t> packet_number;
+  if (!(QUIC_NO_ERROR == QuicFramer::TryDecryptInitialPacketDispatcher(
+                             packet_info.packet, packet_info.version,
+                             packet_info.form, packet_info.long_packet_type,
+                             packet_info.destination_connection_id,
+                             packet_info.source_connection_id,
+                             packet_info.retry_token, prior_largest_acked,
+                             *crypters.decrypter, &packet_number) &&
+        packet_number.has_value())) {
+    QUIC_CODE_COUNT(quic_store_failed_to_decrypt_initial_packet);
+    QUIC_DVLOG(1) << "Failed to decrypt initial packet. "
+                     "packet_info.destination_connection_id:"
+                  << packet_info.destination_connection_id
+                  << ", original_connection_id: " << original_connection_id
+                  << ", replaced_connection_id: "
+                  << (packet_list.HasReplacedConnectionId()
+                          ? packet_list.replaced_connection_id->ToString()
+                          : "n/a");
+    return;
+  }
+
+  const QuicConnectionId& server_connection_id =
+      packet_list.HasReplacedConnectionId()
+          ? *packet_list.replaced_connection_id
+          : original_connection_id;
+  QuicFramer framer(ParsedQuicVersionVector{packet_info.version},
+                    /*unused*/ QuicTime::Zero(), Perspective::IS_SERVER,
+                    /*unused*/ server_connection_id.length());
+  framer.SetInitialObfuscators(original_connection_id);
+
+  quiche::SimpleBufferAllocator send_buffer_allocator;
+  PacketCollector collector(&send_buffer_allocator);
+  QuicPacketCreator creator(server_connection_id, &framer, &collector);
+
+  if (!dispatcher_sent_packets.empty()) {
+    // Sets the *last sent* packet number, creator will derive the next sending
+    // packet number accordingly.
+    creator.set_packet_number(dispatcher_sent_packets.back().packet_number);
+  }
+
+  QuicAckFrame initial_ack_frame;
+  initial_ack_frame.ack_delay_time = QuicTimeDelta::Zero();
+  initial_ack_frame.packets.Add(QuicPacketNumber(*packet_number));
+  for (const DispatcherSentPacket& sent_packet : dispatcher_sent_packets) {
+    initial_ack_frame.packets.Add(sent_packet.received_packet_number);
+  }
+  initial_ack_frame.largest_acked = initial_ack_frame.packets.Max();
+
+  if (!creator.AddFrame(QuicFrame(&initial_ack_frame), NOT_RETRANSMISSION)) {
+    QUIC_BUG(quic_dispatcher_add_ack_frame_failed)
+        << "Unable to add ack frame to an empty packet while acking packet "
+        << *packet_number;
+    return;
+  }
+  creator.FlushCurrentPacket();
+  if (collector.packets()->size() != 1) {
+    QUIC_BUG(quic_dispatcher_ack_unexpected_packet_count)
+        << "Expect 1 ack packet created, got " << collector.packets()->size();
+    return;
+  }
+
+  std::unique_ptr<QuicEncryptedPacket>& packet = collector.packets()->front();
+
+  // For easy grep'ing, use a similar logging format as the log in
+  // QuicConnection::WritePacket.
+  QUIC_DVLOG(1) << "Server: Sending packet " << creator.packet_number()
+                << " : ack only from dispatcher, encryption_level: "
+                   "ENCRYPTION_INITIAL, encrypted length: "
+                << packet->length() << " to peer " << packet_info.peer_address
+                << ". packet_info.destination_connection_id: "
+                << packet_info.destination_connection_id
+                << ", original_connection_id: " << original_connection_id
+                << ", replaced_connection_id: "
+                << (packet_list.HasReplacedConnectionId()
+                        ? packet_list.replaced_connection_id->ToString()
+                        : "n/a");
+
+  WriteResult result = writer_->WritePacket(
+      packet->data(), packet->length(), packet_info.self_address.host(),
+      packet_info.peer_address, nullptr, QuicPacketWriterParams());
+  writer_->Flush();
+  QUIC_HISTOGRAM_ENUM("QuicBufferedPacketStore.WritePacketStatus",
+                      result.status, WRITE_STATUS_NUM_VALUES,
+                      "Status code returned by writer_->WritePacket() in "
+                      "QuicBufferedPacketStore.");
+
+  DispatcherSentPacket sent_packet;
+  sent_packet.packet_number = creator.packet_number();
+  sent_packet.received_packet_number = QuicPacketNumber(*packet_number);
+  sent_packet.largest_acked = initial_ack_frame.largest_acked;
+  sent_packet.sent_time = clock_->ApproximateNow();
+  sent_packet.bytes_sent = static_cast<QuicPacketLength>(packet->length());
+
+  dispatcher_sent_packets.push_back(sent_packet);
+  ++stats_.packets_sent;
 }
 
 bool QuicBufferedPacketStore::HasBufferedPackets(
@@ -296,6 +439,49 @@ bool QuicBufferedPacketStore::HasChlosBuffered() const {
     return num_buffered_sessions_with_chlo_ != 0;
   }
   return !connections_with_chlo_.empty();
+}
+
+const BufferedPacketList* QuicBufferedPacketStore::GetPacketList(
+    const QuicConnectionId& connection_id) const {
+  if (!ack_buffered_initial_packets_) {
+    return nullptr;
+  }
+
+  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_ack_buffered_initial_packets, 2, 8);
+  auto it = buffered_session_map_.find(connection_id);
+  if (it == buffered_session_map_.end()) {
+    return nullptr;
+  }
+  QUICHE_DCHECK(CheckInvariants(*it->second));
+  return it->second.get();
+}
+
+bool QuicBufferedPacketStore::CheckInvariants(
+    const BufferedPacketList& packet_list) const {
+  auto original_cid_it =
+      buffered_session_map_.find(packet_list.original_connection_id);
+  if (original_cid_it == buffered_session_map_.end()) {
+    return false;
+  }
+  if (original_cid_it->second.get() != &packet_list) {
+    return false;
+  }
+  if (buffered_sessions_with_chlo_.is_linked(original_cid_it->second.get()) !=
+      original_cid_it->second->parsed_chlo.has_value()) {
+    return false;
+  }
+  if (packet_list.replaced_connection_id.has_value()) {
+    auto replaced_cid_it =
+        buffered_session_map_.find(*packet_list.replaced_connection_id);
+    if (replaced_cid_it == buffered_session_map_.end()) {
+      return false;
+    }
+    if (replaced_cid_it->second.get() != &packet_list) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 BufferedPacketList QuicBufferedPacketStore::DeliverPackets(

@@ -33,6 +33,7 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_default_clock.h"
+#include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packet_creator.h"
@@ -42,6 +43,7 @@
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -93,6 +95,14 @@ using ::testing::Assign;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::UnorderedElementsAreArray;
+
+#ifndef NDEBUG
+// Debug build.
+#define EXPECT_DEBUG_EQ(val1, val2) EXPECT_EQ(val1, val2)
+#else
+// Release build.
+#define EXPECT_DEBUG_EQ(val1, val2)
+#endif
 
 namespace quic {
 namespace test {
@@ -264,6 +274,11 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   QuicTestClient* CreateQuicClient(QuicPacketWriterWrapper* writer) {
+    return CreateQuicClient(writer, /*connect=*/true);
+  }
+
+  QuicTestClient* CreateQuicClient(QuicPacketWriterWrapper* writer,
+                                   bool connect) {
     QuicTestClient* client = new QuicTestClient(
         server_address_, server_hostname_, client_config_,
         client_supported_versions_,
@@ -284,8 +299,15 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
     client->client()->set_connection_debug_visitor(connection_debug_visitor_);
     client->client()->set_enable_web_transport(enable_web_transport_);
-    client->Connect();
+    if (connect) {
+      client->Connect();
+    }
     return client;
+  }
+
+  bool DispatcherAckEnabled() const {
+    return GetQuicRestartFlag(quic_dispatcher_ack_buffered_initial_packets) &&
+           GetQuicRestartFlag(quic_dispatcher_replace_cid_on_first_packet);
   }
 
   void set_smaller_flow_control_receive_window() {
@@ -396,16 +418,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   QuicSpdySession* GetServerSession() {
-    if (!server_thread_) {
-      ADD_FAILURE() << "Missing server thread";
-      return nullptr;
-    }
-    QuicServer* quic_server = server_thread_->server();
-    if (quic_server == nullptr) {
-      ADD_FAILURE() << "Missing server";
-      return nullptr;
-    }
-    QuicDispatcher* dispatcher = QuicServerPeer::GetDispatcher(quic_server);
+    QuicDispatcher* dispatcher = GetDispatcher();
     if (dispatcher == nullptr) {
       ADD_FAILURE() << "Missing dispatcher";
       return nullptr;
@@ -417,6 +430,32 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     EXPECT_EQ(1u, dispatcher->NumSessions());
     return static_cast<QuicSpdySession*>(
         QuicDispatcherPeer::GetFirstSessionIfAny(dispatcher));
+  }
+
+  // Must be called while server_thread_ is paused.
+  QuicDispatcher* GetDispatcher() {
+    if (!server_thread_) {
+      ADD_FAILURE() << "Missing server thread";
+      return nullptr;
+    }
+    QuicServer* quic_server = server_thread_->server();
+    if (quic_server == nullptr) {
+      ADD_FAILURE() << "Missing server";
+      return nullptr;
+    }
+    return QuicServerPeer::GetDispatcher(quic_server);
+  }
+
+  // Must be called while server_thread_ is paused.
+  const QuicDispatcherStats& GetDispatcherStats() {
+    return GetDispatcher()->stats();
+  }
+
+  QuicDispatcherStats GetDispatcherStatsThreadSafe() {
+    QuicDispatcherStats stats;
+    server_thread_->ScheduleAndWaitForCompletion(
+        [&] { stats = GetDispatcherStats(); });
+    return stats;
   }
 
   bool Initialize() {
@@ -516,11 +555,13 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   void TearDown() override {
     EXPECT_TRUE(initialized_) << "You must call Initialize() in every test "
                               << "case. Otherwise, your test will leak memory.";
-    QuicConnection* client_connection = GetClientConnection();
-    if (client_connection != nullptr) {
-      client_connection->set_debug_visitor(nullptr);
-    } else {
-      ADD_FAILURE() << "Missing client connection";
+    if (connect_to_server_on_initialize_) {
+      QuicConnection* client_connection = GetClientConnection();
+      if (client_connection != nullptr) {
+        client_connection->set_debug_visitor(nullptr);
+      } else {
+        ADD_FAILURE() << "Missing client connection";
+      }
     }
     StopServer(/*will_restart=*/false);
     if (fd_ != kQuicInvalidSocketFd) {
@@ -1139,6 +1180,298 @@ TEST_P(EndToEndTest, HandshakeConfirmed) {
   }
   server_thread_->Resume();
   client_->Disconnect();
+}
+
+// Two packet CHLO. The first one is buffered and acked by dispatcher, the
+// second one causes session to be created.
+TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO) {
+  SetQuicFlag(quic_allow_chlo_buffering, true);
+  SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 1);
+  std::string google_handshake_message(kEthernetMTU, 'a');
+  client_config_.SetGoogleHandshakeMessageToSend(google_handshake_message);
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+
+  SendSynchronousFooRequestAndCheckResponse();
+  if (!version_.UsesHttp3()) {
+    QuicConnectionStats client_stats = GetClientConnection()->GetStats();
+    EXPECT_TRUE(client_stats.handshake_completion_time.IsInitialized());
+    return;
+  }
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  ASSERT_NE(server_connection, nullptr);
+  const QuicConnectionStats& server_stats = server_connection->GetStats();
+
+  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 1u);
+  } else {
+    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 0u);
+  }
+
+  const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
+  // The first CHLO packet is enqueued, the second causes session to be created.
+  EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 2u);
+  EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 1u);
+  EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
+
+  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+    EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
+  } else {
+    EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
+  }
+  server_thread_->Resume();
+}
+
+// Two packet CHLO. The first one is buffered (CHLO incomplete) and acked, the
+// second one is lost and retransmitted with a new server-chosen connection ID.
+TEST_P(EndToEndTest,
+       TestDispatcherAckWithTwoPacketCHLO_SecondPacketRetransmitted) {
+  if (!version_.HasIetfQuicFrames() ||
+      override_server_connection_id_length_ > -1) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+
+  SetQuicFlag(quic_allow_chlo_buffering, true);
+  SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 2);
+  std::string google_handshake_message(kEthernetMTU, 'a');
+  client_config_.SetGoogleHandshakeMessageToSend(google_handshake_message);
+  connect_to_server_on_initialize_ = false;
+  override_server_connection_id_length_ = 16;
+  ASSERT_TRUE(Initialize());
+
+  // Instruct the client to drop the second CHLO packet, but not the first.
+  client_writer_->set_passthrough_for_next_n_packets(1);
+  client_writer_->set_fake_drop_first_n_packets(2);
+
+  client_.reset(CreateQuicClient(client_writer_, /*connect=*/false));
+  client_->client()->Initialize();
+
+  SendSynchronousFooRequestAndCheckResponse();
+
+  server_thread_->ScheduleAndWaitForCompletion([&] {
+    const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
+    EXPECT_EQ(dispatcher_stats.sessions_created, 1u);
+
+    if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+      // 2 CHLO packets are enqueued, but only the 1st caused a dispatcher ACK.
+      EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
+      EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 2u);
+      EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 1u);
+      EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
+      EXPECT_DEBUG_EQ(
+          dispatcher_stats.packets_processed_with_replaced_cid_in_store, 1u);
+    } else {
+      EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
+      // 4 CHLO packets are sent by client, 1 of them is lost in client_writer_.
+      EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 3u);
+      // Packet 1 and its retransmission are enqueued early.
+      EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
+      EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
+      EXPECT_DEBUG_EQ(
+          dispatcher_stats.packets_processed_with_replaced_cid_in_store, 0u);
+    }
+  });
+}
+
+// Two packet CHLO. The first one is buffered (CHLO incomplete) and acked, the
+// second one is buffered (session creation rate limited) but not acked.
+TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO_BothBuffered) {
+  SetQuicFlag(quic_allow_chlo_buffering, true);
+  SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 1);
+  std::string google_handshake_message(kEthernetMTU, 'a');
+  client_config_.SetGoogleHandshakeMessageToSend(google_handshake_message);
+  connect_to_server_on_initialize_ = false;
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    delete client_writer_;
+    return;
+  }
+
+  // This will cause all CHLO packets to be buffered and no sessions created.
+  server_thread_->ScheduleAndWaitForCompletion([&] {
+    server_thread_->server()->set_max_sessions_to_create_per_socket_event(0);
+    QuicDispatcherPeer::set_new_sessions_allowed_per_event_loop(GetDispatcher(),
+                                                                0);
+  });
+
+  client_.reset(CreateQuicClient(client_writer_, /*connect=*/false));
+  client_->client()->Initialize();
+  client_->client()->StartConnect();
+  ASSERT_TRUE(client_->connected());
+
+  while (GetDispatcherStatsThreadSafe().packets_enqueued_chlo == 0) {
+    ASSERT_TRUE(client_->connected());
+    client_->client()->WaitForEvents();
+  }
+
+  server_thread_->ScheduleAndWaitForCompletion([&] {
+    const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
+    EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 1u);
+    EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 1u);
+    EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 2u);
+
+    if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+      // 2 CHLO packets are enqueued, but only the 1st caused a dispatcher ACK.
+      EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
+    } else {
+      EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
+    }
+    EXPECT_EQ(dispatcher_stats.sessions_created, 0u);
+
+    GetDispatcher()->ProcessBufferedChlos(1);
+    EXPECT_EQ(dispatcher_stats.sessions_created, 1u);
+  });
+
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+}
+
+// Three packet CHLO. The first two are buffered and acked by dispatcher, the
+// third one causes session to be created.
+TEST_P(EndToEndTest, TestDispatcherAckWithThreePacketCHLO) {
+  SetQuicFlag(quic_allow_chlo_buffering, true);
+  SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 2);
+  std::string google_handshake_message(2 * kEthernetMTU, 'a');
+  client_config_.SetGoogleHandshakeMessageToSend(google_handshake_message);
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+
+  SendSynchronousFooRequestAndCheckResponse();
+  if (!version_.UsesHttp3()) {
+    QuicConnectionStats client_stats = GetClientConnection()->GetStats();
+    EXPECT_TRUE(client_stats.handshake_completion_time.IsInitialized());
+    return;
+  }
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  ASSERT_NE(server_connection, nullptr);
+  const QuicConnectionStats& server_stats = server_connection->GetStats();
+
+  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 2u);
+  } else {
+    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 0u);
+  }
+
+  const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
+  // The first and second CHLO packets are enqueued, the third causes session to
+  // be created.
+  EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 3u);
+  EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
+  EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
+
+  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+    EXPECT_EQ(dispatcher_stats.packets_sent, 2u);
+  } else {
+    EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
+  }
+  server_thread_->Resume();
+}
+
+// Three packet CHLO. The first one is buffered and acked by dispatcher, the
+// second one is buffered but not acked due to --max_ack_sent_per_connection,
+// the third one causes session to be created.
+TEST_P(EndToEndTest,
+       TestDispatcherAckWithThreePacketCHLO_AckCountLimitedByFlag) {
+  SetQuicFlag(quic_allow_chlo_buffering, true);
+  SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 1);
+  std::string google_handshake_message(2 * kEthernetMTU, 'a');
+  client_config_.SetGoogleHandshakeMessageToSend(google_handshake_message);
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+
+  SendSynchronousFooRequestAndCheckResponse();
+  if (!version_.UsesHttp3()) {
+    QuicConnectionStats client_stats = GetClientConnection()->GetStats();
+    EXPECT_TRUE(client_stats.handshake_completion_time.IsInitialized());
+    return;
+  }
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  ASSERT_NE(server_connection, nullptr);
+  const QuicConnectionStats& server_stats = server_connection->GetStats();
+
+  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 1u);
+  } else {
+    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 0u);
+  }
+
+  const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
+  // The first and second CHLO packets are enqueued, the third causes session to
+  // be created.
+  EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 3u);
+  EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
+  EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
+
+  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+    EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
+  } else {
+    EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
+  }
+  server_thread_->Resume();
+}
+
+// Three packet CHLO. The first one is buffered (CHLO incomplete) and acked, the
+// other two are lost and retransmitted with a new server-chosen connection ID.
+TEST_P(EndToEndTest,
+       TestDispatcherAckWithThreePacketCHLO_SecondAndThirdRetransmitted) {
+  if (!version_.HasIetfQuicFrames() ||
+      override_server_connection_id_length_ > -1) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+
+  SetQuicFlag(quic_allow_chlo_buffering, true);
+  SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 2);
+  std::string google_handshake_message(2 * kEthernetMTU, 'a');
+  client_config_.SetGoogleHandshakeMessageToSend(google_handshake_message);
+  connect_to_server_on_initialize_ = false;
+  override_server_connection_id_length_ = 16;
+  ASSERT_TRUE(Initialize());
+
+  // Instruct the client to drop the second CHLO packet, but not the first.
+  client_writer_->set_passthrough_for_next_n_packets(1);
+  client_writer_->set_fake_drop_first_n_packets(3);
+
+  client_.reset(CreateQuicClient(client_writer_, /*connect=*/false));
+  client_->client()->Initialize();
+
+  SendSynchronousFooRequestAndCheckResponse();
+
+  server_thread_->ScheduleAndWaitForCompletion([&] {
+    const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
+    EXPECT_EQ(dispatcher_stats.sessions_created, 1u);
+
+    if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+      // Packet 1 and Packet 2's retransmission caused dispatcher ACKs.
+      EXPECT_EQ(dispatcher_stats.packets_sent, 2u);
+      EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 3u);
+      EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
+      EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
+      EXPECT_DEBUG_EQ(
+          dispatcher_stats.packets_processed_with_replaced_cid_in_store, 2u);
+    } else {
+      EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
+      // 6 CHLO packets are sent by client, 2 of them are lost in client_writer.
+      EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 4u);
+      // Packet 1 and packet 1 & 2's retransmissions are enqueued early.
+      EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 3u);
+      EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
+      EXPECT_DEBUG_EQ(
+          dispatcher_stats.packets_processed_with_replaced_cid_in_store, 0u);
+    }
+  });
 }
 
 TEST_P(EndToEndTest, SendAndReceiveCoalescedPackets) {

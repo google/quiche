@@ -11,6 +11,7 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SERVER_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SERVER_H_
 
+#include <cstddef>
 #include <memory>
 
 #include "absl/strings/string_view.h"
@@ -85,6 +86,10 @@ class QuicServer : public QuicSpdyServerBase, public QuicSocketEventListener {
 
   QuicEventLoop* event_loop() { return event_loop_.get(); }
 
+  void set_max_sessions_to_create_per_socket_event(size_t value) {
+    max_sessions_to_create_per_socket_event_ = value;
+  }
+
  protected:
   virtual QuicPacketWriter* CreateWriter(int fd);
 
@@ -156,6 +161,10 @@ class QuicServer : public QuicSpdyServerBase, public QuicSocketEventListener {
 
   // Used to generate current supported versions.
   QuicVersionManager version_manager_;
+
+  // The maximum number of sessions to create per socket event. Default to
+  // |kNumSessionsToCreatePerSocketEvent|.
+  size_t max_sessions_to_create_per_socket_event_;
 
   // Point to a QuicPacketReader object on the heap. The reader allocates more
   // space than allowed on the stack.

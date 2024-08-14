@@ -15,6 +15,10 @@ QUICHE_PROTOCOL_FLAG(
     "future CHLO, and allow CHLO packets to be buffered until next "
     "iteration of the event loop.")
 
+QUICHE_PROTOCOL_FLAG(uint64_t, quic_dispatcher_max_ack_sent_per_connection, 2,
+                     "Number of INITIAL ack packets the dispatcher is allowed "
+                     "to send for each connection.")
+
 QUICHE_PROTOCOL_FLAG(bool, quic_disable_pacing_for_perf_tests, false,
                      "If true, disable pacing in QUIC")
 

@@ -11,6 +11,7 @@ namespace quic {
 std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
   os << "{ bytes_sent: " << s.bytes_sent;
   os << " packets_sent: " << s.packets_sent;
+  os << " packets_sent_by_dispatcher: " << s.packets_sent_by_dispatcher;
   os << " stream_bytes_sent: " << s.stream_bytes_sent;
   os << " packets_discarded: " << s.packets_discarded;
   os << " bytes_received: " << s.bytes_received;

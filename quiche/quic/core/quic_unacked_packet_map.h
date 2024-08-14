@@ -45,6 +45,9 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
                      bool set_in_flight, bool measure_rtt,
                      QuicEcnCodepoint ecn_codepoint);
 
+  const QuicTransmissionInfo& AddDispatcherSentPacket(
+      const DispatcherSentPacket& packet);
+
   // Returns true if the packet |packet_number| is unacked.
   bool IsUnacked(QuicPacketNumber packet_number) const;
 

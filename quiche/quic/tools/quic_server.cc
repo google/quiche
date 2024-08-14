@@ -67,6 +67,8 @@ QuicServer::QuicServer(
                      std::move(proof_source), KeyExchangeSource::Default()),
       crypto_config_options_(crypto_config_options),
       version_manager_(supported_versions),
+      max_sessions_to_create_per_socket_event_(
+          kNumSessionsToCreatePerSocketEvent),
       packet_reader_(new QuicPacketReader()),
       quic_simple_server_backend_(quic_simple_server_backend),
       expected_server_connection_id_length_(
@@ -204,7 +206,7 @@ void QuicServer::OnSocketEvent(QuicEventLoop* /*event_loop*/,
   if (events & kSocketEventReadable) {
     QUIC_DVLOG(1) << "EPOLLIN";
 
-    dispatcher_->ProcessBufferedChlos(kNumSessionsToCreatePerSocketEvent);
+    dispatcher_->ProcessBufferedChlos(max_sessions_to_create_per_socket_event_);
 
     bool more_to_read = true;
     while (more_to_read) {

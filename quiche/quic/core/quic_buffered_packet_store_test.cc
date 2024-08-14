@@ -19,6 +19,7 @@
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_dispatcher.h"
+#include "quiche/quic/core/quic_dispatcher_stats.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -101,7 +102,7 @@ class QuicBufferedPacketStoreVisitor
 class QuicBufferedPacketStoreTest : public QuicTest {
  public:
   QuicBufferedPacketStoreTest()
-      : store_(&visitor_, &clock_, &alarm_factory_),
+      : store_(&visitor_, &clock_, &alarm_factory_, stats_),
         self_address_(QuicIpAddress::Any6(), 65535),
         peer_address_(QuicIpAddress::Any6(), 65535),
         packet_content_("some encrypted content"),
@@ -111,6 +112,7 @@ class QuicBufferedPacketStoreTest : public QuicTest {
         valid_version_(CurrentSupportedVersions().front()) {}
 
  protected:
+  QuicDispatcherStats stats_;
   QuicBufferedPacketStoreVisitor visitor_;
   MockClock clock_;
   MockAlarmFactory alarm_factory_;

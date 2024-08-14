@@ -18,6 +18,7 @@
 #include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/quic_ack_listener_interface.h"
 #include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_time.h"
@@ -449,6 +450,19 @@ struct QUICHE_EXPORT ReceivedPacketInfo {
   QuicConnectionId destination_connection_id;
   QuicConnectionId source_connection_id;
   std::optional<absl::string_view> retry_token;
+};
+
+// Information about a packet sent by the dispatcher.
+struct QUICHE_EXPORT DispatcherSentPacket {
+  // The packet number sent, in response to |received_packet_number|.
+  QuicPacketNumber packet_number;
+  // The packet number received.
+  QuicPacketNumber received_packet_number;
+  // The largest acked packet number in all received packets, including
+  // |received_packet_number|.
+  QuicPacketNumber largest_acked;
+  QuicTime sent_time = QuicTime::Zero();
+  QuicPacketLength bytes_sent = 0;
 };
 
 }  // namespace quic

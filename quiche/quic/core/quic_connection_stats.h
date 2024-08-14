@@ -23,6 +23,9 @@ struct QUICHE_EXPORT QuicConnectionStats {
 
   QuicByteCount bytes_sent = 0;  // Includes retransmissions.
   QuicPacketCount packets_sent = 0;
+  // Number of ACK packets sent by the dispatcher on behalf of this connection,
+  // prior to the construction of QuicConnection.
+  QuicPacketCount packets_sent_by_dispatcher = 0;
   // Non-retransmitted bytes sent in a stream frame.
   QuicByteCount stream_bytes_sent = 0;
   // Packets serialized and discarded before sending.

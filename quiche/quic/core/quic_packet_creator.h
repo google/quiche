@@ -328,6 +328,14 @@ class QUICHE_EXPORT QuicPacketCreator {
   // created.
   QuicPacketNumber packet_number() const { return packet_.packet_number; }
 
+  // Sets the packet number of the last sent packet on this connection prior to
+  // the birth of this creator.
+  // Must be called before any packet is created by this creator.
+  void set_packet_number(QuicPacketNumber packet_number) {
+    QUICHE_DCHECK(!packet_.packet_number.IsInitialized());
+    packet_.packet_number = packet_number;
+  }
+
   QuicByteCount max_packet_length() const { return max_packet_length_; }
 
   bool has_ack() const { return packet_.has_ack; }

@@ -730,6 +730,24 @@ bool QuicSentPacketManager::OnPacketSent(
   return in_flight;
 }
 
+const QuicTransmissionInfo& QuicSentPacketManager::AddDispatcherSentPacket(
+    const DispatcherSentPacket& packet) {
+  QUIC_DVLOG(1) << "QuicSPM: Adding dispatcher sent packet "
+                << packet.packet_number << ", size: " << packet.bytes_sent
+                << ", sent_time: " << packet.sent_time
+                << ", largest_acked: " << packet.largest_acked;
+  if (using_pacing_) {
+    pacing_sender_.OnPacketSent(
+        packet.sent_time, unacked_packets_.bytes_in_flight(),
+        packet.packet_number, packet.bytes_sent, NO_RETRANSMITTABLE_DATA);
+  } else {
+    send_algorithm_->OnPacketSent(
+        packet.sent_time, unacked_packets_.bytes_in_flight(),
+        packet.packet_number, packet.bytes_sent, NO_RETRANSMITTABLE_DATA);
+  }
+  return unacked_packets_.AddDispatcherSentPacket(packet);
+}
+
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::OnRetransmissionTimeout() {
   QUICHE_DCHECK(unacked_packets_.HasInFlightPackets() ||

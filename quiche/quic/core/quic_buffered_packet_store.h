@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <list>
 #include <memory>
 #include <optional>
@@ -14,13 +15,17 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/inlined_vector.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_dispatcher_stats.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packet_creator.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
 #include "quiche/quic/core/quic_stream_send_buffer.h"
@@ -31,6 +36,7 @@
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_intrusive_list.h"
 #include "quiche/common/quiche_linked_hash_map.h"
@@ -101,6 +107,13 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
       connection_id_generator = generator;
     }
 
+    QuicPacketNumber GetLastSentPacketNumber() const {
+      if (dispatcher_sent_packets.empty()) {
+        return QuicPacketNumber();
+      }
+      return dispatcher_sent_packets.back().packet_number;
+    }
+
     std::list<BufferedPacket> buffered_packets;
     QuicTime creation_time;
     // |parsed_chlo| is set iff the entire CHLO has been received.
@@ -125,6 +138,8 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
     // 2. One attempt to replace CID has been made, but the CID generator does
     //    not want to replace it.
     std::optional<QuicConnectionId> replaced_connection_id;
+    // All ACK packets sent by the dispatcher, ordered by sending packet number.
+    absl::InlinedVector<DispatcherSentPacket, 2> dispatcher_sent_packets;
   };
 
   using BufferedPacketMap =
@@ -171,7 +186,8 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
   };
 
   QuicBufferedPacketStore(VisitorInterface* visitor, const QuicClock* clock,
-                          QuicAlarmFactory* alarm_factory);
+                          QuicAlarmFactory* alarm_factory,
+                          QuicDispatcherStats& stats);
 
   QuicBufferedPacketStore(const QuicBufferedPacketStore&) = delete;
 
@@ -179,11 +195,15 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
 
   QuicBufferedPacketStore& operator=(const QuicBufferedPacketStore&) = delete;
 
+  void set_writer(QuicPacketWriter* writer) { writer_ = writer; }
+
   // Adds a copy of packet into the packet queue for given connection. If the
   // packet is the last one of the CHLO, |parsed_chlo| will contain a parsed
   // version of the CHLO. |connection_id_generator| is the Connection ID
-  // Generator to use with the connection. It is ignored if |parsed_chlo| is
-  // absent.
+  // Generator to use with the connection.
+  // Returns SUCCESS iff the packet is successfully enqueued, in that case the
+  // function may attempt to send an ACK if the enqueued packet is an IETF
+  // Initial packet.
   EnqueuePacketResult EnqueuePacket(
       const ReceivedPacketInfo& packet_info,
       std::optional<ParsedClientHello> parsed_chlo,
@@ -252,6 +272,15 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
     return replace_cid_on_first_packet_;
   }
 
+  // Returns the BufferedPacketList for |connection_id|, returns
+  // nullptr if not found.
+  const BufferedPacketList* GetPacketList(
+      const QuicConnectionId& connection_id) const;
+
+  bool ack_buffered_initial_packets() const {
+    return ack_buffered_initial_packets_;
+  }
+
  private:
   friend class test::QuicBufferedPacketStorePeer;
 
@@ -275,6 +304,26 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
 
   const bool replace_cid_on_first_packet_ =
       GetQuicRestartFlag(quic_dispatcher_replace_cid_on_first_packet);
+
+  // Debug helper to check invariants that need to be true for |packet_list|,
+  // assuming |packet_list| is in |buffer_session_map_|. Returns true if all
+  // invariants are true, and false otherwise.
+  // The checked invariants are:
+  // - |packet_list| is correctly mapped with original and replaced connection
+  //   IDs.
+  // - |packet_list| contains a |parsed_chlo| iff it is in the
+  //   |buffered_sessions_with_chlo_| list.
+  bool CheckInvariants(const BufferedPacketList& packet_list) const;
+
+  // If |packet_info.packet| is a valid IETF INITIAL packet, reply with an
+  // INITIAL, ack-only packet. |packet_list| will be used to
+  // - Provide information needed to create the ack-only packet, and
+  // - Store the information of the sent ack-only packet into
+  //   |packet_list.dispatcher_sent_packets|.
+  void MaybeAckInitialPacket(const ReceivedPacketInfo& packet_info,
+                             BufferedPacketList& packet_list);
+
+  QuicDispatcherStats& stats_;
 
   // A map to store packet queues with creation time for each connection.
   // Only used when !replace_cid_on_first_packet_.
@@ -307,6 +356,8 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
 
   const QuicClock* clock_;  // Unowned.
 
+  QuicPacketWriter* writer_ = nullptr;  // Unowned.
+
   // This alarm fires every |connection_life_span_| to clean up
   // packets staying in the store for too long.
   std::unique_ptr<QuicAlarm> expiration_alarm_;
@@ -316,6 +367,10 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
   // Only used when !replace_cid_on_first_packet_.
   quiche::QuicheLinkedHashMap<QuicConnectionId, bool, QuicConnectionIdHash>
       connections_with_chlo_;
+
+  const bool ack_buffered_initial_packets_ =
+      replace_cid_on_first_packet_ &&
+      GetQuicRestartFlag(quic_dispatcher_ack_buffered_initial_packets);
 };
 
 // Collects packets serialized by a QuicPacketCreator.

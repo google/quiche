@@ -223,6 +223,11 @@ class QUICHE_EXPORT QuicSentPacketManager {
                     HasRetransmittableData has_retransmittable_data,
                     bool measure_rtt, QuicEcnCodepoint ecn_codepoint);
 
+  // Informs the sent packet manager of a |packet| sent by the dispatcher. This
+  // should only be called before any packet is sent by the QuicConnection.
+  const QuicTransmissionInfo& AddDispatcherSentPacket(
+      const DispatcherSentPacket& packet);
+
   bool CanSendAckFrequency() const;
 
   QuicAckFrequencyFrame GetUpdatedAckFrequencyFrame() const;
