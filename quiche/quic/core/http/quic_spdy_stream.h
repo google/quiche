@@ -351,6 +351,10 @@ class QUICHE_EXPORT QuicSpdyStream
     return header_decoding_delay_;
   }
 
+  const std::vector<uint64_t>& decoded_frame_types() const {
+    return decoder_.decoded_frame_types();
+  }
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.

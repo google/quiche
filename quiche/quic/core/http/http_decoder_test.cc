@@ -23,6 +23,7 @@
 
 using ::testing::_;
 using ::testing::AnyNumber;
+using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Return;
@@ -244,6 +245,7 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   EXPECT_EQ(remaining_input.size(), processed_bytes);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
+  EXPECT_THAT(decoder_.decoded_frame_types(), ElementsAre(4));
 
   // Process the full frame.
   EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
@@ -251,6 +253,7 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
+  EXPECT_THAT(decoder_.decoded_frame_types(), ElementsAre(4, 4));
 
   // Process the frame incrementally.
   EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
@@ -258,6 +261,7 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
+  EXPECT_THAT(decoder_.decoded_frame_types(), ElementsAre(4, 4, 4));
 }
 
 TEST_F(HttpDecoderTest, CorruptSettingsFrame) {

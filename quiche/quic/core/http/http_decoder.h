@@ -165,6 +165,10 @@ class QUICHE_EXPORT HttpDecoder {
   // Indicates that WEBTRANSPORT_STREAM should be parsed.
   void EnableWebTransportStreamParsing() { allow_web_transport_stream_ = true; }
 
+  const std::vector<uint64_t>& decoded_frame_types() const {
+    return decoded_frame_types_;
+  }
+
   std::string DebugString() const;
 
  private:
@@ -295,6 +299,10 @@ class QUICHE_EXPORT HttpDecoder {
   std::array<char, sizeof(uint64_t)> type_buffer_;
   // Latched value of reloadable flag enable_h3_origin_frame.
   bool enable_origin_frame_;
+
+  // Stores the frame types of the first 10 decoded frames.
+  // TODO(b/355662721): Remove this when debugging is complete.
+  std::vector<uint64_t> decoded_frame_types_;
 };
 
 }  // namespace quic

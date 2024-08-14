@@ -172,6 +172,9 @@ bool HttpDecoder::ReadFrameType(QuicDataReader& reader) {
     bool success = type_reader.ReadVarInt62(&current_frame_type_);
     QUICHE_DCHECK(success);
   }
+  if (decoded_frame_types_.size() < 10) {
+    decoded_frame_types_.push_back(current_frame_type_);
+  }
 
   // https://tools.ietf.org/html/draft-ietf-quic-http-31#section-7.2.8
   // specifies that the following frames are treated as errors.
