@@ -711,12 +711,12 @@ BufferedPacketList QuicBufferedPacketStore::DeliverPacketsForNextConnection(
     return packets;
   }
 
-  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 7, 13);
   if (buffered_sessions_with_chlo_.empty()) {
     // Returns empty list if no CHLO has been buffered.
     return BufferedPacketList();
   }
 
+  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 7, 13);
   *connection_id = buffered_sessions_with_chlo_.front().original_connection_id;
   BufferedPacketList packet_list = DeliverPackets(*connection_id);
   QUICHE_DCHECK(!packet_list.buffered_packets.empty() &&
