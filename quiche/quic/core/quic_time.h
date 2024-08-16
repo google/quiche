@@ -79,6 +79,11 @@ class QUICHE_EXPORT QuicTimeDelta {
 
   std::string ToDebuggingValue() const;
 
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, QuicTimeDelta delta) {
+    sink.Append(delta.ToDebuggingValue());
+  }
+
  private:
   friend inline bool operator==(QuicTimeDelta lhs, QuicTimeDelta rhs);
   friend inline bool operator<(QuicTimeDelta lhs, QuicTimeDelta rhs);
