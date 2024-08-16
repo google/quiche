@@ -16,6 +16,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
@@ -82,6 +83,8 @@ struct SimulationParameters {
   // Count frames as useful only if they were received `deadline` after which
   // they were generated.
   QuicTimeDelta deadline = QuicTimeDelta::FromSeconds(2);
+  // Delivery order used by the publisher.
+  MoqtDeliveryOrder delivery_order = MoqtDeliveryOrder::kDescending;
 
   // Number of frames in an individual group.
   int keyframe_interval = 30 * 2;
@@ -300,13 +303,15 @@ class MoqtSimulator {
     QUICHE_CHECK(client_established_) << "Client failed to establish session";
     QUICHE_CHECK(server_established_) << "Server failed to establish session";
 
+    generator_.queue()->SetDeliveryOrder(parameters_.delivery_order);
+    client_session()->set_publisher(&publisher_);
+    publisher_.Add(generator_.queue());
+
     // The simulation is started as follows.  At t=0:
     //   (1) The server issues a subscribe request.
     //   (2) The client starts immediately generating data.  At this point, the
     //       server does not yet have an active subscription, so the client has
     //       some catching up to do.
-    client_session()->set_publisher(&publisher_);
-    publisher_.Add(generator_.queue());
     generator_.Start();
     server_session()->SubscribeCurrentGroup(TrackName().track_namespace,
                                             TrackName().track_name, &receiver_);
@@ -368,6 +373,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     moqt::test::SimulationParameters().deadline.ToAbsl(),
     "Frame delivery deadline (used for measurement only).");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, delivery_order, "desc",
+    "Delivery order used for the MoQT track simulated ('asc' or 'desc').");
+
 int main(int argc, char** argv) {
   moqt::test::SimulationParameters parameters;
   quiche::QuicheParseCommandLineFlags("moqt_simulator", argc, argv);
@@ -375,6 +384,17 @@ int main(int argc, char** argv) {
       quiche::GetQuicheCommandLineFlag(FLAGS_bandwidth));
   parameters.deadline =
       quic::QuicTimeDelta(quiche::GetQuicheCommandLineFlag(FLAGS_deadline));
+
+  std::string raw_delivery_order = absl::AsciiStrToLower(
+      quiche::GetQuicheCommandLineFlag(FLAGS_delivery_order));
+  if (raw_delivery_order == "asc") {
+    parameters.delivery_order = moqt::MoqtDeliveryOrder::kAscending;
+  } else if (raw_delivery_order == "desc") {
+    parameters.delivery_order = moqt::MoqtDeliveryOrder::kDescending;
+  } else {
+    std::cerr << "--delivery_order must be 'asc' or 'desc'." << std::endl;
+    return 1;
+  }
 
   moqt::test::MoqtSimulator simulator(parameters);
   simulator.Run();

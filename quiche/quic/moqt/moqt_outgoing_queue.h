@@ -70,6 +70,10 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   }
 
   bool HasSubscribers() const { return !listeners_.empty(); }
+  void SetDeliveryOrder(MoqtDeliveryOrder order) {
+    // TODO: add test coverage.
+    delivery_order_ = order;
+  }
 
  private:
   // The number of recent groups to keep around for newly joined subscribers.
