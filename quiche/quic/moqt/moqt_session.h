@@ -383,6 +383,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // session does not get called after being destroyed.
     std::weak_ptr<void> session_liveness_;
   };
+
+  // Private members of MoqtSession.
+
   // QueuedOutgoingDataStream records an information necessary to create a
   // stream that was attempted to be created before but was blocked due to flow
   // control.

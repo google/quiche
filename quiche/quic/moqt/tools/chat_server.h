@@ -34,6 +34,7 @@ class ChatServer {
  public:
   ChatServer(std::unique_ptr<quic::ProofSource> proof_source,
              absl::string_view chat_id, absl::string_view output_file);
+  ~ChatServer();
 
   class RemoteTrackVisitor : public RemoteTrack::Visitor {
    public:
@@ -104,6 +105,7 @@ class ChatServer {
       [&](absl::string_view path) { return IncomingSessionHandler(path); };
 
   MoqtServer server_;
+  std::list<ChatServerSessionHandler> sessions_;
   MoqChatStrings strings_;
   MoqtKnownTrackPublisher publisher_;
   // Allocator for QuicheBuffer that contains catalog objects.
@@ -111,7 +113,6 @@ class ChatServer {
   std::shared_ptr<MoqtOutgoingQueue> catalog_;
   RemoteTrackVisitor remote_track_visitor_;
   // indexed by username
-  std::list<ChatServerSessionHandler> sessions_;
   absl::flat_hash_map<std::string, std::shared_ptr<MoqtLiveRelayQueue>>
       user_queues_;
   std::string output_filename_;

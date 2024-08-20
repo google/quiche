@@ -1560,6 +1560,7 @@ moqt_srcs = [
     "src/quiche/quic/moqt/tools/chat_client_bin.cc",
     "src/quiche/quic/moqt/tools/chat_server.cc",
     "src/quiche/quic/moqt/tools/chat_server_bin.cc",
+    "src/quiche/quic/moqt/tools/moq_chat_end_to_end_test.cc",
     "src/quiche/quic/moqt/tools/moq_chat_test.cc",
     "src/quiche/quic/moqt/tools/moqt_client.cc",
     "src/quiche/quic/moqt/tools/moqt_end_to_end_test.cc",

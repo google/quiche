@@ -137,6 +137,12 @@ ChatServer::ChatServer(std::unique_ptr<quic::ProofSource> proof_source,
   }
 }
 
+ChatServer::~ChatServer() {
+  // Kill all sessions so that the callback doesn't fire when the server is
+  // destroyed.
+  server_.quic_server().Shutdown();
+}
+
 void ChatServer::AddUser(absl::string_view username) {
   std::string catalog_data = absl::StrCat("+", username);
   catalog_->AddObject(quiche::QuicheMemSlice(quiche::QuicheBuffer::Copy(

@@ -8,7 +8,6 @@
 #include <unistd.h>
 
 #include <cstdint>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -18,8 +17,6 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
-#include "absl/functional/bind_front.h"
-#include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
@@ -33,64 +30,71 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
-#include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
-#include "quiche/quic/tools/interactive_cli.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
-moqt::ChatClient::ChatClient(const quic::QuicServerId& server_id,
-                             absl::string_view path, absl::string_view username,
-                             absl::string_view chat_id, bool ignore_certificate,
-                             absl::string_view output_file)
-    : username_(username), chat_strings_(chat_id) {
-  quic::QuicDefaultClock* clock = quic::QuicDefaultClock::Get();
-  std::cout << "Connecting to host " << server_id.host() << " port "
-            << server_id.port() << " path " << path << "\n";
-  event_loop_ = quic::GetDefaultEventLoop()->Create(clock);
+namespace moqt {
+
+ChatClient::ChatClient(const quic::QuicServerId& server_id,
+                       bool ignore_certificate,
+                       std::unique_ptr<ChatUserInterface> interface,
+                       quic::QuicEventLoop* event_loop)
+    : event_loop_(event_loop), interface_(std::move(interface)) {
+  if (event_loop_ == nullptr) {
+    quic::QuicDefaultClock* clock = quic::QuicDefaultClock::Get();
+    local_event_loop_ = quic::GetDefaultEventLoop()->Create(clock);
+    event_loop_ = local_event_loop_.get();
+  }
+
   quic::QuicSocketAddress peer_address =
       quic::tools::LookupAddress(AF_UNSPEC, server_id);
   std::unique_ptr<quic::ProofVerifier> verifier;
-  output_filename_ = output_file;
-  if (!output_filename_.empty()) {
-    output_file_.open(output_filename_);
-    output_file_ << "Chat transcript:\n";
-    output_file_.flush();
-  }
   if (ignore_certificate) {
     verifier = std::make_unique<quic::FakeProofVerifier>();
   } else {
     verifier = quic::CreateDefaultProofVerifier(server_id.host());
   }
-  client_ = std::make_unique<moqt::MoqtClient>(
-      peer_address, server_id, std::move(verifier), event_loop_.get());
+
+  client_ = std::make_unique<MoqtClient>(peer_address, server_id,
+                                         std::move(verifier), event_loop_);
   session_callbacks_.session_established_callback = [this]() {
     std::cout << "Session established\n";
     session_is_open_ = true;
-    if (output_filename_.empty()) {  // Use the CLI.
-      cli_ = std::make_unique<quic::InteractiveCli>(
-          event_loop_.get(),
-          absl::bind_front(&ChatClient::OnTerminalLineInput, this));
-      cli_->PrintLine("Fully connected. Enter '/exit' to exit the chat.\n");
-    }
   };
   session_callbacks_.session_terminated_callback =
       [this](absl::string_view error_message) {
         std::cerr << "Closed session, reason = " << error_message << "\n";
         session_is_open_ = false;
+        connect_failed_ = true;
       };
   session_callbacks_.session_deleted_callback = [this]() {
     session_ = nullptr;
   };
-  client_->Connect(std::string(path), std::move(session_callbacks_));
+  interface_->Initialize(
+      [this](absl::string_view input_message) {
+        OnTerminalLineInput(input_message);
+      },
+      event_loop_);
 }
 
-void moqt::ChatClient::OnTerminalLineInput(absl::string_view input_message) {
+bool ChatClient::Connect(absl::string_view path, absl::string_view username,
+                         absl::string_view chat_id) {
+  username_ = username;
+  chat_strings_.emplace(chat_id);
+  client_->Connect(std::string(path), std::move(session_callbacks_));
+  while (!session_is_open_ && !connect_failed_) {
+    RunEventLoop();
+  }
+  return (!connect_failed_);
+}
+
+void ChatClient::OnTerminalLineInput(absl::string_view input_message) {
   if (input_message.empty()) {
     return;
   }
@@ -103,11 +107,11 @@ void moqt::ChatClient::OnTerminalLineInput(absl::string_view input_message) {
   queue_->AddObject(std::move(message_slice), /*key=*/true);
 }
 
-void moqt::ChatClient::RemoteTrackVisitor::OnReply(
-    const moqt::FullTrackName& full_track_name,
+void ChatClient::RemoteTrackVisitor::OnReply(
+    const FullTrackName& full_track_name,
     std::optional<absl::string_view> reason_phrase) {
   client_->subscribes_to_make_--;
-  if (full_track_name == client_->chat_strings_.GetCatalogName()) {
+  if (full_track_name == client_->chat_strings_->GetCatalogName()) {
     std::cout << "Subscription to catalog ";
   } else {
     std::cout << "Subscription to user " << full_track_name.track_namespace
@@ -120,17 +124,17 @@ void moqt::ChatClient::RemoteTrackVisitor::OnReply(
   }
 }
 
-void moqt::ChatClient::RemoteTrackVisitor::OnObjectFragment(
-    const moqt::FullTrackName& full_track_name, uint64_t group_sequence,
-    uint64_t object_sequence, moqt::MoqtPriority /*publisher_priority*/,
-    moqt::MoqtObjectStatus /*status*/,
-    moqt::MoqtForwardingPreference /*forwarding_preference*/,
+void ChatClient::RemoteTrackVisitor::OnObjectFragment(
+    const FullTrackName& full_track_name, uint64_t group_sequence,
+    uint64_t object_sequence, MoqtPriority /*publisher_priority*/,
+    MoqtObjectStatus /*status*/,
+    MoqtForwardingPreference /*forwarding_preference*/,
     absl::string_view object, bool end_of_message) {
   if (!end_of_message) {
     std::cerr << "Error: received partial message despite requesting "
                  "buffering\n";
   }
-  if (full_track_name == client_->chat_strings_.GetCatalogName()) {
+  if (full_track_name == client_->chat_strings_->GetCatalogName()) {
     if (group_sequence < client_->catalog_group_) {
       std::cout << "Ignoring old catalog";
       return;
@@ -144,58 +148,61 @@ void moqt::ChatClient::RemoteTrackVisitor::OnObjectFragment(
     std::cout << "Username " << username << "doesn't exist\n";
     return;
   }
-  if (client_->has_output_file()) {
-    client_->WriteToFile(username, object);
+  if (object.empty()) {
     return;
   }
-  if (cli_ != nullptr) {
-    std::string full_output = absl::StrCat(username, ": ", object);
-    cli_->PrintLine(full_output);
-  }
+  client_->WriteToOutput(username, object);
 }
 
-bool moqt::ChatClient::AnnounceAndSubscribe() {
+bool ChatClient::AnnounceAndSubscribe() {
   session_ = client_->session();
   if (session_ == nullptr) {
     std::cout << "Failed to connect.\n";
     return false;
   }
-  FullTrackName my_track_name =
-      chat_strings_.GetFullTrackNameFromUsername(username_);
-  queue_ = std::make_shared<moqt::MoqtOutgoingQueue>(
-      my_track_name, moqt::MoqtForwardingPreference::kObject);
-  publisher_.Add(queue_);
-  session_->set_publisher(&publisher_);
-  moqt::MoqtOutgoingAnnounceCallback announce_callback =
-      [this](absl::string_view track_namespace,
-             std::optional<moqt::MoqtAnnounceErrorReason> reason) {
-        if (reason.has_value()) {
-          std::cout << "ANNOUNCE rejected, " << reason->reason_phrase << "\n";
-          session_->Error(moqt::MoqtError::kInternalError,
-                          "Local ANNOUNCE rejected");
+  if (!username_.empty()) {
+    // A server log might choose to not provide a username, thus getting all
+    // the messages without adding itself to the catalog.
+    FullTrackName my_track_name =
+        chat_strings_->GetFullTrackNameFromUsername(username_);
+    queue_ = std::make_shared<MoqtOutgoingQueue>(
+        my_track_name, MoqtForwardingPreference::kObject);
+    publisher_.Add(queue_);
+    session_->set_publisher(&publisher_);
+    MoqtOutgoingAnnounceCallback announce_callback =
+        [this](absl::string_view track_namespace,
+               std::optional<MoqtAnnounceErrorReason> reason) {
+          if (reason.has_value()) {
+            std::cout << "ANNOUNCE rejected, " << reason->reason_phrase << "\n";
+            session_->Error(MoqtError::kInternalError,
+                            "Local ANNOUNCE rejected");
+            return;
+          }
+          std::cout << "ANNOUNCE for " << track_namespace << " accepted\n";
           return;
-        }
-        std::cout << "ANNOUNCE for " << track_namespace << " accepted\n";
-        return;
-      };
-  std::cout << "Announcing " << my_track_name.track_namespace << "\n";
-  session_->Announce(my_track_name.track_namespace,
-                     std::move(announce_callback));
+        };
+    std::cout << "Announcing " << my_track_name.track_namespace << "\n";
+    session_->Announce(my_track_name.track_namespace,
+                       std::move(announce_callback));
+  }
   remote_track_visitor_ = std::make_unique<RemoteTrackVisitor>(this);
-  FullTrackName catalog_name = chat_strings_.GetCatalogName();
+  FullTrackName catalog_name = chat_strings_->GetCatalogName();
   if (!session_->SubscribeCurrentGroup(
           catalog_name.track_namespace, catalog_name.track_name,
           remote_track_visitor_.get(), username_)) {
     std::cout << "Failed to get catalog\n";
     return false;
   }
-  return true;
+  while (session_is_open_ && is_syncing()) {
+    RunEventLoop();
+  }
+  return session_is_open_;
 }
 
-void moqt::ChatClient::ProcessCatalog(absl::string_view object,
-                                      moqt::RemoteTrack::Visitor* visitor,
-                                      uint64_t group_sequence,
-                                      uint64_t object_sequence) {
+void ChatClient::ProcessCatalog(absl::string_view object,
+                                RemoteTrack::Visitor* visitor,
+                                uint64_t group_sequence,
+                                uint64_t object_sequence) {
   std::string message(object);
   std::istringstream f(message);
   // std::string line;
@@ -209,7 +216,7 @@ void moqt::ChatClient::ProcessCatalog(absl::string_view object,
   for (absl::string_view line : lines) {
     if (!got_version) {
       if (line != "version=1") {
-        session_->Error(moqt::MoqtError::kProtocolViolation,
+        session_->Error(MoqtError::kProtocolViolation,
                         "Catalog does not begin with version");
         return;
       }
@@ -250,8 +257,8 @@ void moqt::ChatClient::ProcessCatalog(absl::string_view object,
     }
     auto it = other_users_.find(user);
     if (it == other_users_.end()) {
-      moqt::FullTrackName to_subscribe =
-          chat_strings_.GetFullTrackNameFromUsername(user);
+      FullTrackName to_subscribe =
+          chat_strings_->GetFullTrackNameFromUsername(user);
       auto new_user = other_users_.emplace(
           std::make_pair(user, ChatUser(to_subscribe, group_sequence)));
       ChatUser& user_record = new_user.first->second;
@@ -261,7 +268,7 @@ void moqt::ChatClient::ProcessCatalog(absl::string_view object,
       subscribes_to_make_++;
     } else {
       if (it->second.from_group == group_sequence) {
-        session_->Error(moqt::MoqtError::kProtocolViolation,
+        session_->Error(MoqtError::kProtocolViolation,
                         "User listed twice in Catalog");
         return;
       }
@@ -275,3 +282,5 @@ void moqt::ChatClient::ProcessCatalog(absl::string_view object,
   }
   catalog_group_ = group_sequence;
 }
+
+}  // namespace moqt

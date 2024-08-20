@@ -45,8 +45,6 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   MoqtLiveRelayQueue& operator=(const MoqtLiveRelayQueue&) = delete;
   MoqtLiveRelayQueue& operator=(MoqtLiveRelayQueue&&) = default;
 
-  // TODO: Add destructor that terminates all subscriptions.
-
   // Publish a received object. Returns false if the object is invalid, given
   // other non-normal objects indicate that the sequence number should not
   // occur. A false return value might result in a session error on the

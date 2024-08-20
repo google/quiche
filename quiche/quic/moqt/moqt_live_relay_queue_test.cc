@@ -15,7 +15,8 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
-namespace moqt {
+namespace moqt::test {
+
 namespace {
 
 class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
@@ -346,4 +347,4 @@ TEST(MoqtLiveRelayQueue, OverwriteObject) {
 
 }  // namespace
 
-}  // namespace moqt
+}  // namespace moqt::test
