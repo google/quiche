@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-edition = "2023";
+syntax = "proto3";
 
 package privacy.ppn;
 
@@ -42,11 +42,10 @@ message ValidateDeviceRequest {
   // Attestation data that is returned by the client.
   oneof attestation_data {
     AndroidAttestationData android_attestation_data = 1;
-
     IosAttestationData ios_attestation_data = 2;
   }
-
   AttestationData attestation = 3;
+
   string package_name = 4;
 
   // If attestation is AndroidAttestationData device models should be listed in:
