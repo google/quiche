@@ -125,6 +125,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   MoqtPublisher* publisher() { return publisher_; }
   void set_publisher(MoqtPublisher* publisher) { publisher_ = publisher; }
 
+  void Close() { session_->CloseSession(0, "Application closed"); }
+
  private:
   friend class test::MoqtSessionPeer;
 

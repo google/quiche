@@ -27,6 +27,7 @@ class MoqtKnownTrackPublisher : public MoqtPublisher {
   absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> GetTrack(
       const FullTrackName& track_name) override;
   void Add(std::shared_ptr<MoqtTrackPublisher> track_publisher);
+  void Delete(const FullTrackName& track_name);
 
  private:
   absl::flat_hash_map<FullTrackName, std::shared_ptr<MoqtTrackPublisher>>

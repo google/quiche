@@ -162,6 +162,7 @@ void ChatServer::DeleteUser(absl::string_view username) {
                           &allocator_, catalog_data)),
                       /*key=*/false);
   user_queues_.erase(username);
+  publisher_.Delete(strings_.GetFullTrackNameFromUsername(username));
 }
 
 bool ChatServer::WriteToFile(absl::string_view username,

@@ -71,6 +71,20 @@ class MoqChatEndToEndTest : public quiche::test::QuicheTest {
         server_.moqt_server().quic_server().event_loop());
   }
 
+  void SendAndWaitForOutput(MockChatUserInterface* sender,
+                            MockChatUserInterface* receiver,
+                            absl::string_view sender_name,
+                            absl::string_view message) {
+    bool message_to_output = false;
+    EXPECT_CALL(*receiver, WriteToOutput(sender_name, message)).WillOnce([&] {
+      message_to_output = true;
+    });
+    sender->SendMessage(message);
+    while (!message_to_output) {
+      server_.moqt_server().quic_server().WaitForEvents();
+    }
+  }
+
   ChatServer server_;
   MockChatUserInterface *interface1_, *interface2_;
   std::unique_ptr<ChatClient> client1_, client2_;
@@ -81,31 +95,47 @@ TEST_F(MoqChatEndToEndTest, EndToEndTest) {
   EXPECT_TRUE(client2_->Connect("/moq-chat", "client2", "test_chat"));
   EXPECT_TRUE(client1_->AnnounceAndSubscribe());
   EXPECT_TRUE(client2_->AnnounceAndSubscribe());
-  EXPECT_CALL(*interface2_, WriteToOutput("client1", "Hello")).Times(1);
-  interface1_->SendMessage("Hello");
-  server_.moqt_server().quic_server().WaitForEvents();
-  EXPECT_CALL(*interface1_, WriteToOutput("client2", "Hi")).Times(1);
-  interface2_->SendMessage("Hi");
-  server_.moqt_server().quic_server().WaitForEvents();
-  EXPECT_CALL(*interface2_, WriteToOutput("client1", "How are you?")).Times(1);
-  interface1_->SendMessage("How are you?");
-  server_.moqt_server().quic_server().WaitForEvents();
-  EXPECT_CALL(*interface1_, WriteToOutput("client2", "Good, and you?"))
-      .Times(1);
-  interface2_->SendMessage("Good, and you?");
-  server_.moqt_server().quic_server().WaitForEvents();
-  EXPECT_CALL(*interface2_, WriteToOutput("client1", "I'm fine")).Times(1);
-  interface1_->SendMessage("I'm fine");
-  server_.moqt_server().quic_server().WaitForEvents();
-  EXPECT_CALL(*interface1_, WriteToOutput("client2", "Goodbye")).Times(1);
-  interface2_->SendMessage("Goodbye");
-  server_.moqt_server().quic_server().WaitForEvents();
+  SendAndWaitForOutput(interface1_, interface2_, "client1", "Hello");
+  SendAndWaitForOutput(interface2_, interface1_, "client2", "Hi");
+  SendAndWaitForOutput(interface1_, interface2_, "client1", "How are you?");
+  SendAndWaitForOutput(interface2_, interface1_, "client2", "Good, and you?");
+  SendAndWaitForOutput(interface1_, interface2_, "client1", "I'm fine");
+  SendAndWaitForOutput(interface2_, interface1_, "client2", "Goodbye");
+
   interface1_->SendMessage("/exit");
   EXPECT_CALL(*interface2_, WriteToOutput(_, _)).Times(0);
   server_.moqt_server().quic_server().WaitForEvents();
 }
 
-// TODO(martinduke): Add tests for users leaving the chat
+TEST_F(MoqChatEndToEndTest, LeaveAndRejoin) {
+  EXPECT_TRUE(client1_->Connect("/moq-chat", "client1", "test_chat"));
+  EXPECT_TRUE(client2_->Connect("/moq-chat", "client2", "test_chat"));
+  EXPECT_TRUE(client1_->AnnounceAndSubscribe());
+  EXPECT_TRUE(client2_->AnnounceAndSubscribe());
+  SendAndWaitForOutput(interface1_, interface2_, "client1", "Hello");
+  SendAndWaitForOutput(interface2_, interface1_, "client2", "Hi");
+
+  interface1_->SendMessage("/exit");
+  while (client1_->session_is_open()) {
+    server_.moqt_server().quic_server().WaitForEvents();
+  }
+  client1_.reset();
+  while (server_.num_users() > 1) {
+    server_.moqt_server().quic_server().WaitForEvents();
+  }
+
+  // Create a new client with the same username and Reconnect.
+  auto if1bptr = std::make_unique<MockChatUserInterface>();
+  MockChatUserInterface* interface1b_ = if1bptr.get();
+  uint16_t port = server_.moqt_server().quic_server().port();
+  client1_ = std::make_unique<ChatClient>(
+      quic::QuicServerId(kChatHostname, port), true, std::move(if1bptr),
+      server_.moqt_server().quic_server().event_loop());
+  EXPECT_TRUE(client1_->Connect("/moq-chat", "client1", "test_chat"));
+  EXPECT_TRUE(client1_->AnnounceAndSubscribe());
+  SendAndWaitForOutput(interface1b_, interface2_, "client1", "Hello");
+  SendAndWaitForOutput(interface2_, interface1b_, "client2", "Hi");
+}
 
 }  // namespace test
 

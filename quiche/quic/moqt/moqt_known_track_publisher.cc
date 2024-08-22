@@ -31,4 +31,8 @@ void MoqtKnownTrackPublisher::Add(
       << "Trying to add a duplicate track into a KnownTrackPublisher";
 }
 
+void MoqtKnownTrackPublisher::Delete(const FullTrackName& track_name) {
+  tracks_.erase(track_name);
+}
+
 }  // namespace moqt

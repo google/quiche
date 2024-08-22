@@ -97,6 +97,8 @@ class ChatServer {
 
   MoqChatStrings& strings() { return strings_; }
 
+  int num_users() const { return user_queues_.size(); }
+
  private:
   absl::StatusOr<MoqtConfigureSessionCallback> IncomingSessionHandler(
       absl::string_view path);

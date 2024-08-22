@@ -59,6 +59,12 @@ class ChatClient {
   ChatClient(const quic::QuicServerId& server_id, bool ignore_certificate,
              std::unique_ptr<ChatUserInterface> interface,
              quic::QuicEventLoop* event_loop = nullptr);
+  ~ChatClient() {
+    if (session_ != nullptr) {
+      session_->Close();
+      session_ = nullptr;
+    }
+  }
 
   // Establish the MoQT session. Returns false if it fails.
   bool Connect(absl::string_view path, absl::string_view username,
