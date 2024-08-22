@@ -311,7 +311,7 @@ TEST_F(MoqtSessionTest, AddLocalTrack) {
       /*start_object=*/0,
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-      /*authorization_info=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
   };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =
@@ -447,7 +447,7 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
       /*start_object=*/0,
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-      /*authorization_info=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
   };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =
@@ -478,7 +478,7 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
         EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribe);
         return absl::OkStatus();
       });
-  session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor, "");
+  session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor);
 
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/0,
@@ -510,7 +510,7 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
         EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribe);
         return absl::OkStatus();
       });
-  session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor, "");
+  session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor);
 
   MoqtSubscribeError error = {
       /*subscribe_id=*/0,
@@ -1239,7 +1239,7 @@ TEST_F(MoqtSessionTest, SubscribeFromPublisher) {
       /*start_object=*/0,
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-      /*authorization_info=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
   };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =

@@ -238,6 +238,10 @@ enum class QUICHE_EXPORT MoqtFilterType : uint64_t {
   kAbsoluteRange = 0x4,
 };
 
+struct QUICHE_EXPORT MoqtSubscribeParameters {
+  std::optional<std::string> authorization_info;
+};
+
 struct QUICHE_EXPORT MoqtSubscribe {
   uint64_t subscribe_id;
   uint64_t track_alias;
@@ -245,6 +249,7 @@ struct QUICHE_EXPORT MoqtSubscribe {
   std::string track_name;
   MoqtPriority subscriber_priority;
   std::optional<MoqtDeliveryOrder> group_order;
+
   // The combinations of these that have values indicate the filter type.
   // SG: Start Group; SO: Start Object; EG: End Group; EO: End Object;
   // (none): KLatestObject
@@ -258,7 +263,8 @@ struct QUICHE_EXPORT MoqtSubscribe {
   std::optional<uint64_t> end_group;
   std::optional<uint64_t> end_object;
   // If the mode is kNone, the these are std::nullopt.
-  std::optional<std::string> authorization_info;
+
+  MoqtSubscribeParameters parameters;
 };
 
 // Deduce the filter type from the combination of group and object IDs. Returns

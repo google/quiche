@@ -95,30 +95,31 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // the track, the message will still be sent. However, the visitor will be
   // ignored.
   // Subscribe from (start_group, start_object) to the end of the track.
-  bool SubscribeAbsolute(absl::string_view track_namespace,
-                         absl::string_view name, uint64_t start_group,
-                         uint64_t start_object, RemoteTrack::Visitor* visitor,
-                         absl::string_view auth_info = "");
+  bool SubscribeAbsolute(
+      absl::string_view track_namespace, absl::string_view name,
+      uint64_t start_group, uint64_t start_object,
+      RemoteTrack::Visitor* visitor,
+      MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
   // Subscribe from (start_group, start_object) to the end of end_group.
-  bool SubscribeAbsolute(absl::string_view track_namespace,
-                         absl::string_view name, uint64_t start_group,
-                         uint64_t start_object, uint64_t end_group,
-                         RemoteTrack::Visitor* visitor,
-                         absl::string_view auth_info = "");
+  bool SubscribeAbsolute(
+      absl::string_view track_namespace, absl::string_view name,
+      uint64_t start_group, uint64_t start_object, uint64_t end_group,
+      RemoteTrack::Visitor* visitor,
+      MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
   // Subscribe from (start_group, start_object) to (end_group, end_object).
-  bool SubscribeAbsolute(absl::string_view track_namespace,
-                         absl::string_view name, uint64_t start_group,
-                         uint64_t start_object, uint64_t end_group,
-                         uint64_t end_object, RemoteTrack::Visitor* visitor,
-                         absl::string_view auth_info = "");
-  bool SubscribeCurrentObject(absl::string_view track_namespace,
-                              absl::string_view name,
-                              RemoteTrack::Visitor* visitor,
-                              absl::string_view auth_info = "");
-  bool SubscribeCurrentGroup(absl::string_view track_namespace,
-                             absl::string_view name,
-                             RemoteTrack::Visitor* visitor,
-                             absl::string_view auth_info = "");
+  bool SubscribeAbsolute(
+      absl::string_view track_namespace, absl::string_view name,
+      uint64_t start_group, uint64_t start_object, uint64_t end_group,
+      uint64_t end_object, RemoteTrack::Visitor* visitor,
+      MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
+  bool SubscribeCurrentObject(
+      absl::string_view track_namespace, absl::string_view name,
+      RemoteTrack::Visitor* visitor,
+      MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
+  bool SubscribeCurrentGroup(
+      absl::string_view track_namespace, absl::string_view name,
+      RemoteTrack::Visitor* visitor,
+      MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
 
   MoqtSessionCallbacks& callbacks() { return callbacks_; }
   MoqtPublisher* publisher() { return publisher_; }

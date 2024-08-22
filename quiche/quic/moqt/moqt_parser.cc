@@ -489,13 +489,13 @@ size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
     auto key = static_cast<MoqtTrackRequestParameter>(type);
     switch (key) {
       case MoqtTrackRequestParameter::kAuthorizationInfo:
-        if (subscribe_request.authorization_info.has_value()) {
+        if (subscribe_request.parameters.authorization_info.has_value()) {
           ParseError(
               "AUTHORIZATION_INFO parameter appears twice in "
               "SUBSCRIBE");
           return 0;
         }
-        subscribe_request.authorization_info = value;
+        subscribe_request.parameters.authorization_info = value;
         break;
       default:
         // Skip over the parameter.

@@ -300,7 +300,7 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
               start_object,
               end_group,
               end_object,
-              /*authorization_info=*/"bar",
+              MoqtSubscribeParameters{"bar"},
           };
           quiche::QuicheBuffer buffer;
           MoqtFilterType expected_filter_type = MoqtFilterType::kNone;
@@ -352,7 +352,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
       /*start_object=*/std::optional<uint64_t>(3),
       /*end_group=*/std::optional<uint64_t>(3),
       /*end_object=*/std::nullopt,
-      /*authorization_info=*/"bar",
+      MoqtSubscribeParameters{"bar"},
   };
   quiche::QuicheBuffer buffer;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
@@ -377,7 +377,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeLatestGroupNonzeroObject) {
       /*start_object=*/std::optional<uint64_t>(3),
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-      /*authorization_info=*/"bar",
+      MoqtSubscribeParameters{"bar"},
   };
   quiche::QuicheBuffer buffer;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),

@@ -290,10 +290,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
     return quiche::QuicheBuffer();
   }
   absl::InlinedVector<StringParameter, 1> string_params;
-  if (message.authorization_info.has_value()) {
+  if (message.parameters.authorization_info.has_value()) {
     string_params.push_back(
         StringParameter(MoqtTrackRequestParameter::kAuthorizationInfo,
-                        *message.authorization_info));
+                        *message.parameters.authorization_info));
   }
   switch (filter_type) {
     case MoqtFilterType::kLatestGroup:

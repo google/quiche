@@ -189,7 +189,7 @@ bool ChatClient::AnnounceAndSubscribe() {
   FullTrackName catalog_name = chat_strings_->GetCatalogName();
   if (!session_->SubscribeCurrentGroup(
           catalog_name.track_namespace, catalog_name.track_name,
-          remote_track_visitor_.get(), username_)) {
+          remote_track_visitor_.get(), MoqtSubscribeParameters{username_})) {
     std::cout << "Failed to get catalog\n";
     return false;
   }

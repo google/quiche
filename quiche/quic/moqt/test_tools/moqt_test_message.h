@@ -446,7 +446,8 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE end object mismatch";
       return false;
     }
-    if (cast.authorization_info != subscribe_.authorization_info) {
+    if (cast.parameters.authorization_info !=
+        subscribe_.parameters.authorization_info) {
       QUIC_LOG(INFO) << "SUBSCRIBE authorization info mismatch";
       return false;
     }
@@ -491,7 +492,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       /*start_object=*/1,
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-      /*authorization_info=*/"bar",
+      /*authorization_info=*/MoqtSubscribeParameters{"bar"},
   };
 };
 

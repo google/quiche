@@ -249,7 +249,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
                                     absl::string_view name,
                                     uint64_t start_group, uint64_t start_object,
                                     RemoteTrack::Visitor* visitor,
-                                    absl::string_view auth_info) {
+                                    MoqtSubscribeParameters parameters) {
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
@@ -259,9 +259,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   message.start_object = start_object;
   message.end_group = std::nullopt;
   message.end_object = std::nullopt;
-  if (!auth_info.empty()) {
-    message.authorization_info = std::move(auth_info);
-  }
+  message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
 }
 
@@ -270,7 +268,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
                                     uint64_t start_group, uint64_t start_object,
                                     uint64_t end_group,
                                     RemoteTrack::Visitor* visitor,
-                                    absl::string_view auth_info) {
+                                    MoqtSubscribeParameters parameters) {
   if (end_group < start_group) {
     QUIC_DLOG(ERROR) << "Subscription end is before beginning";
     return false;
@@ -284,9 +282,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   message.start_object = start_object;
   message.end_group = end_group;
   message.end_object = std::nullopt;
-  if (!auth_info.empty()) {
-    message.authorization_info = std::move(auth_info);
-  }
+  message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
 }
 
@@ -295,7 +291,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
                                     uint64_t start_group, uint64_t start_object,
                                     uint64_t end_group, uint64_t end_object,
                                     RemoteTrack::Visitor* visitor,
-                                    absl::string_view auth_info) {
+                                    MoqtSubscribeParameters parameters) {
   if (end_group < start_group) {
     QUIC_DLOG(ERROR) << "Subscription end is before beginning";
     return false;
@@ -313,16 +309,14 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   message.start_object = start_object;
   message.end_group = end_group;
   message.end_object = end_object;
-  if (!auth_info.empty()) {
-    message.authorization_info = std::move(auth_info);
-  }
+  message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
 }
 
 bool MoqtSession::SubscribeCurrentObject(absl::string_view track_namespace,
                                          absl::string_view name,
                                          RemoteTrack::Visitor* visitor,
-                                         absl::string_view auth_info) {
+                                         MoqtSubscribeParameters parameters) {
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
@@ -332,16 +326,14 @@ bool MoqtSession::SubscribeCurrentObject(absl::string_view track_namespace,
   message.start_object = std::nullopt;
   message.end_group = std::nullopt;
   message.end_object = std::nullopt;
-  if (!auth_info.empty()) {
-    message.authorization_info = std::move(auth_info);
-  }
+  message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
 }
 
 bool MoqtSession::SubscribeCurrentGroup(absl::string_view track_namespace,
                                         absl::string_view name,
                                         RemoteTrack::Visitor* visitor,
-                                        absl::string_view auth_info) {
+                                        MoqtSubscribeParameters parameters) {
   MoqtSubscribe message;
   message.track_namespace = track_namespace;
   message.track_name = name;
@@ -352,9 +344,7 @@ bool MoqtSession::SubscribeCurrentGroup(absl::string_view track_namespace,
   message.start_object = 0;
   message.end_group = std::nullopt;
   message.end_object = std::nullopt;
-  if (!auth_info.empty()) {
-    message.authorization_info = std::move(auth_info);
-  }
+  message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
 }
 
