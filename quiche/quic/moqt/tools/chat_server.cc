@@ -25,6 +25,7 @@
 #include "quiche/quic/moqt/tools/moqt_server.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/simple_buffer_allocator.h"
 
 namespace moqt {
 
@@ -124,7 +125,8 @@ ChatServer::ChatServer(std::unique_ptr<quic::ProofSource> proof_source,
           strings_.GetCatalogName(), MoqtForwardingPreference::kGroup)),
       remote_track_visitor_(this) {
   catalog_->AddObject(quiche::QuicheMemSlice(quiche::QuicheBuffer::Copy(
-                          &allocator_, MoqChatStrings::kCatalogHeader)),
+                          quiche::SimpleBufferAllocator::Get(),
+                          MoqChatStrings::kCatalogHeader)),
                       /*key=*/true);
   publisher_.Add(catalog_);
   if (!output_file.empty()) {
@@ -146,7 +148,7 @@ ChatServer::~ChatServer() {
 void ChatServer::AddUser(absl::string_view username) {
   std::string catalog_data = absl::StrCat("+", username);
   catalog_->AddObject(quiche::QuicheMemSlice(quiche::QuicheBuffer::Copy(
-                          &allocator_, catalog_data)),
+                          quiche::SimpleBufferAllocator::Get(), catalog_data)),
                       /*key=*/false);
   // Add a local track.
   user_queues_[username] = std::make_shared<MoqtLiveRelayQueue>(
@@ -159,7 +161,7 @@ void ChatServer::DeleteUser(absl::string_view username) {
   // Delete from Catalog.
   std::string catalog_data = absl::StrCat("-", username);
   catalog_->AddObject(quiche::QuicheMemSlice(quiche::QuicheBuffer::Copy(
-                          &allocator_, catalog_data)),
+                          quiche::SimpleBufferAllocator::Get(), catalog_data)),
                       /*key=*/false);
   user_queues_.erase(username);
   publisher_.Delete(strings_.GetFullTrackNameFromUsername(username));

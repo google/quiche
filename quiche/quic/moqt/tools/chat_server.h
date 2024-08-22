@@ -26,7 +26,6 @@
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
-#include "quiche/common/simple_buffer_allocator.h"
 
 namespace moqt {
 
@@ -78,8 +77,6 @@ class ChatServer {
 
   RemoteTrackVisitor* remote_track_visitor() { return &remote_track_visitor_; }
 
-  quiche::SimpleBufferAllocator* allocator() { return &allocator_; }
-
   MoqtOutgoingQueue* catalog() { return catalog_.get(); }
 
   void AddUser(absl::string_view username);
@@ -110,8 +107,6 @@ class ChatServer {
   std::list<ChatServerSessionHandler> sessions_;
   MoqChatStrings strings_;
   MoqtKnownTrackPublisher publisher_;
-  // Allocator for QuicheBuffer that contains catalog objects.
-  quiche::SimpleBufferAllocator allocator_;
   std::shared_ptr<MoqtOutgoingQueue> catalog_;
   RemoteTrackVisitor remote_track_visitor_;
   // indexed by username
