@@ -20,6 +20,33 @@ namespace test {
 
 namespace {
 using Response = QuicBackendResponse;
+
+class TestRequestHandler : public QuicSimpleServerBackend::RequestHandler {
+ public:
+  ~TestRequestHandler() override = default;
+
+  QuicConnectionId connection_id() const override { return QuicConnectionId(); }
+  QuicStreamId stream_id() const override { return QuicStreamId(0); }
+  std::string peer_host() const override { return "test.example.com"; }
+  QuicSpdyStream* GetStream() override { return nullptr; }
+  virtual void OnResponseBackendComplete(
+      const QuicBackendResponse* response) override {
+    response_headers_ = response->headers().Clone();
+    response_body_ = response->body();
+  }
+  void SendStreamData(absl::string_view, bool) override {}
+  void TerminateStreamWithError(QuicResetStreamError) override {}
+
+  const quiche::HttpHeaderBlock& ResponseHeaders() const {
+    return response_headers_;
+  }
+  const std::string& ResponseBody() const { return response_body_; }
+
+ private:
+  quiche::HttpHeaderBlock response_headers_;
+  std::string response_body_;
+};
+
 }  // namespace
 
 class QuicMemoryCacheBackendTest : public QuicTest {
@@ -182,6 +209,17 @@ TEST_F(QuicMemoryCacheBackendTest, DefaultResponse) {
   ASSERT_TRUE(response);
   ASSERT_TRUE(response->headers().contains(":status"));
   EXPECT_EQ("200", response->headers().find(":status")->second);
+}
+
+TEST_F(QuicMemoryCacheBackendTest, Echo) {
+  quiche::HttpHeaderBlock request_headers;
+  request_headers[":method"] = "POST";
+  request_headers[":path"] = "/echo";
+  const std::string request_body("hello request");
+  TestRequestHandler handler;
+  cache_.FetchResponseFromBackend(request_headers, request_body, &handler);
+  EXPECT_EQ("200", handler.ResponseHeaders().find(":status")->second);
+  EXPECT_EQ(request_body, handler.ResponseBody());  // Echoed back.
 }
 
 }  // namespace test

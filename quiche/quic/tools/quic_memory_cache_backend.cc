@@ -290,22 +290,36 @@ bool QuicMemoryCacheBackend::IsBackendInitialized() const {
 }
 
 void QuicMemoryCacheBackend::FetchResponseFromBackend(
-    const HttpHeaderBlock& request_headers, const std::string& /*request_body*/,
+    const HttpHeaderBlock& request_headers, const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* quic_stream) {
   const QuicBackendResponse* quic_response = nullptr;
   // Find response in cache. If not found, send error response.
   auto authority = request_headers.find(":authority");
-  auto path = request_headers.find(":path");
-  if (authority != request_headers.end() && path != request_headers.end()) {
-    quic_response = GetResponse(authority->second, path->second);
+  auto path_it = request_headers.find(":path");
+  const absl::string_view* path = nullptr;
+  if (path_it != request_headers.end()) {
+    path = &path_it->second;
+  }
+  auto method = request_headers.find(":method");
+  std::unique_ptr<QuicBackendResponse> echo_response;
+  if (path && *path == "/echo" && method != request_headers.end() &&
+      method->second == "POST") {
+    echo_response = std::make_unique<QuicBackendResponse>();
+    quiche::HttpHeaderBlock response_headers;
+    response_headers[":status"] = "200";
+    echo_response->set_headers(std::move(response_headers));
+    echo_response->set_body(request_body);
+    quic_response = echo_response.get();
+  } else if (authority != request_headers.end() && path) {
+    quic_response = GetResponse(authority->second, *path);
   }
 
   std::string request_url;
   if (authority != request_headers.end()) {
     request_url = std::string(authority->second);
   }
-  if (path != request_headers.end()) {
-    request_url += std::string(path->second);
+  if (path) {
+    request_url += std::string(*path);
   }
   QUIC_DVLOG(1)
       << "Fetching QUIC response from backend in-memory cache for url "
