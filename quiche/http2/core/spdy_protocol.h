@@ -1011,6 +1011,9 @@ class QUICHE_EXPORT SpdySerializedFrame {
   // Returns the actual size of the underlying buffer.
   size_t size() const { return size_; }
 
+  char* begin() { return data(); }
+  char* end() { return data() + size(); }
+
   operator absl::string_view() const {
     return absl::string_view{frame_.get(), size_};
   }

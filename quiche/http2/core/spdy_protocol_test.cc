@@ -270,5 +270,17 @@ TEST(SpdyDataIRTest, Construct) {
   EXPECT_EQ(28, d8.flow_control_window_consumed());
 }
 
+TEST(SpdySerializedFrameTest, Basic) {
+  const std::string data = "0123456789";
+  auto buffer = std::make_unique<char[]>(data.length());
+  memcpy(buffer.get(), &data[0], data.length());
+
+  SpdySerializedFrame frame(std::move(buffer), data.length());
+  EXPECT_EQ(data.length(), frame.size());
+  EXPECT_EQ(data, std::string(frame.data(), frame.size()));
+  EXPECT_EQ(frame.begin(), frame.data());
+  EXPECT_EQ(frame.end(), frame.data() + frame.size());
+}
+
 }  // namespace test
 }  // namespace spdy
