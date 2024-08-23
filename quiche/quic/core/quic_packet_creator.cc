@@ -432,7 +432,7 @@ bool QuicPacketCreator::CreateCryptoFrame(EncryptionLevel level,
                                           QuicStreamOffset offset,
                                           QuicFrame* frame) {
   const size_t min_frame_size =
-      QuicFramer::GetMinCryptoFrameSize(write_length, offset);
+      QuicFramer::GetMinCryptoFrameSize(offset, write_length);
   if (BytesFree() <= min_frame_size &&
       (!RemoveSoftMaxPacketLength() || BytesFree() <= min_frame_size)) {
     return false;
