@@ -9,10 +9,16 @@
 #include <optional>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace moqt {
+
+using MoqtObjectAckFunction =
+    quiche::MultiUseCallback<void(uint64_t group_id, uint64_t object_id,
+                                  quic::QuicTimeDelta delta_from_deadline)>;
 
 // A track on the peer to which the session has subscribed.
 class RemoteTrack {
@@ -26,6 +32,11 @@ class RemoteTrack {
     virtual void OnReply(
         const FullTrackName& full_track_name,
         std::optional<absl::string_view> error_reason_phrase) = 0;
+    // Called when the subscription process is far enough that it is possible to
+    // send OBJECT_ACK messages; provides a callback to do so. The callback is
+    // valid for as long as the session is valid.
+    virtual void OnCanAckObjects(MoqtObjectAckFunction ack_function) = 0;
+    // Called when an object fragment (or an entire object) is received.
     virtual void OnObjectFragment(
         const FullTrackName& full_track_name, uint64_t group_sequence,
         uint64_t object_sequence, MoqtPriority publisher_priority,

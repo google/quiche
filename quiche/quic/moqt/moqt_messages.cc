@@ -95,6 +95,8 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "STREAM_HEADER_TRACK";
     case MoqtMessageType::kStreamHeaderGroup:
       return "STREAM_HEADER_GROUP";
+    case MoqtMessageType::kObjectAck:
+      return "OBJECT_ACK";
   }
   return "Unknown message " + std::to_string(static_cast<int>(message_type));
 }

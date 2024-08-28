@@ -40,6 +40,13 @@ bool ParseDeliveryOrder(uint8_t raw_value,
   }
 }
 
+uint64_t SignedVarintUnserializedForm(uint64_t value) {
+  if (value & 0x01) {
+    return -(value >> 1);
+  }
+  return value >> 1;
+}
+
 }  // namespace
 
 // The buffering philosophy is complicated, to minimize copying. Here is an
@@ -208,6 +215,8 @@ size_t MoqtParser::ProcessMessage(absl::string_view data, bool fin) {
       return ProcessTrackStatus(reader);
     case MoqtMessageType::kGoAway:
       return ProcessGoAway(reader);
+    case moqt::MoqtMessageType::kObjectAck:
+      return ProcessObjectAck(reader);
     default:
       ParseError("Unknown message type");
       return 0;
@@ -352,6 +361,14 @@ size_t MoqtParser::ProcessClientSetup(quic::QuicDataReader& reader) {
         }
         setup.path = value;
         break;
+      case MoqtSetupParameter::kSupportObjectAcks:
+        uint64_t flag;
+        if (!StringViewToVarInt(value, flag) || flag > 1) {
+          ParseError("Invalid kSupportObjectAcks value");
+          return 0;
+        }
+        setup.supports_object_ack = static_cast<bool>(flag);
+        break;
       default:
         // Skip over the parameter.
         break;
@@ -407,6 +424,14 @@ size_t MoqtParser::ProcessServerSetup(quic::QuicDataReader& reader) {
       case MoqtSetupParameter::kPath:
         ParseError("PATH parameter in SERVER_SETUP");
         return 0;
+      case MoqtSetupParameter::kSupportObjectAcks:
+        uint64_t flag;
+        if (!StringViewToVarInt(value, flag) || flag > 1) {
+          ParseError("Invalid kSupportObjectAcks value");
+          return 0;
+        }
+        setup.supports_object_ack = static_cast<bool>(flag);
+        break;
       default:
         // Skip over the parameter.
         break;
@@ -497,6 +522,20 @@ size_t MoqtParser::ProcessSubscribe(quic::QuicDataReader& reader) {
         }
         subscribe_request.parameters.authorization_info = value;
         break;
+      case MoqtTrackRequestParameter::kOackWindowSize: {
+        if (subscribe_request.parameters.object_ack_window.has_value()) {
+          ParseError("OACK_WINDOW_SIZE parameter appears twice in SUBSCRIBE");
+          return 0;
+        }
+        uint64_t raw_value;
+        if (!StringViewToVarInt(value, raw_value)) {
+          ParseError("OACK_WINDOW_SIZE parameter is not a valid varint");
+          return 0;
+        }
+        subscribe_request.parameters.object_ack_window =
+            quic::QuicTimeDelta::FromMicroseconds(raw_value);
+        break;
+      }
       default:
         // Skip over the parameter.
         break;
@@ -757,6 +796,21 @@ size_t MoqtParser::ProcessGoAway(quic::QuicDataReader& reader) {
     return 0;
   }
   visitor_.OnGoAwayMessage(goaway);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtParser::ProcessObjectAck(quic::QuicDataReader& reader) {
+  MoqtObjectAck object_ack;
+  uint64_t raw_delta;
+  if (!reader.ReadVarInt62(&object_ack.subscribe_id) ||
+      !reader.ReadVarInt62(&object_ack.group_id) ||
+      !reader.ReadVarInt62(&object_ack.object_id) ||
+      !reader.ReadVarInt62(&raw_delta)) {
+    return 0;
+  }
+  object_ack.delta_from_deadline = quic::QuicTimeDelta::FromMicroseconds(
+      SignedVarintUnserializedForm(raw_delta));
+  visitor_.OnObjectAckMessage(object_ack);
   return reader.PreviouslyReadPayload().length();
 }
 

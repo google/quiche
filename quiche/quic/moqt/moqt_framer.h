@@ -55,6 +55,7 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeUnannounce(const MoqtUnannounce& message);
   quiche::QuicheBuffer SerializeTrackStatus(const MoqtTrackStatus& message);
   quiche::QuicheBuffer SerializeGoAway(const MoqtGoAway& message);
+  quiche::QuicheBuffer SerializeObjectAck(const MoqtObjectAck& message);
 
  private:
   quiche::QuicheBufferAllocator* allocator_;

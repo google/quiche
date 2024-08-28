@@ -165,6 +165,8 @@ class MoqtIngestionHandler {
       }
     }
 
+    void OnCanAckObjects(MoqtObjectAckFunction) override {}
+
     void OnObjectFragment(const FullTrackName& full_track_name,
                           uint64_t group_sequence, uint64_t object_sequence,
                           MoqtPriority /*publisher_priority*/,

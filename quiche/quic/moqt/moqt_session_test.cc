@@ -47,14 +47,6 @@ constexpr webtransport::StreamId kControlStreamId = 4;
 constexpr webtransport::StreamId kIncomingUniStreamId = 15;
 constexpr webtransport::StreamId kOutgoingUniStreamId = 14;
 
-constexpr MoqtSessionParameters default_parameters = {
-    /*version=*/MoqtVersion::kDraft05,
-    /*perspective=*/quic::Perspective::IS_CLIENT,
-    /*using_webtrans=*/true,
-    /*path=*/std::string(),
-    /*deliver_partial_objects=*/false,
-};
-
 // Returns nullopt if there is not enough in |message| to extract a type
 static std::optional<MoqtMessageType> ExtractMessageType(
     const absl::string_view message) {
@@ -141,7 +133,8 @@ class MoqtSessionPeer {
     subscribe.subscriber_priority = 0x80;
     session->published_subscriptions_.emplace(
         subscribe_id, std::make_unique<MoqtSession::PublishedSubscription>(
-                          session, std::move(publisher), subscribe));
+                          session, std::move(publisher), subscribe,
+                          /*monitoring_interface=*/nullptr));
     return session->published_subscriptions_[subscribe_id].get();
   }
 
@@ -157,7 +150,8 @@ class MoqtSessionPeer {
 class MoqtSessionTest : public quic::test::QuicTest {
  public:
   MoqtSessionTest()
-      : session_(&mock_session_, default_parameters,
+      : session_(&mock_session_,
+                 MoqtSessionParameters(quic::Perspective::IS_CLIENT),
                  session_callbacks_.AsSessionCallbacks()) {
     session_.set_publisher(&publisher_);
   }
@@ -215,15 +209,9 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
 }
 
 TEST_F(MoqtSessionTest, OnClientSetup) {
-  MoqtSessionParameters server_parameters = {
-      /*version=*/MoqtVersion::kDraft05,
-      /*perspective=*/quic::Perspective::IS_SERVER,
-      /*using_webtrans=*/true,
-      /*path=*/"",
-      /*deliver_partial_objects=*/false,
-  };
-  MoqtSession server_session(&mock_session_, server_parameters,
-                             session_callbacks_.AsSessionCallbacks());
+  MoqtSession server_session(
+      &mock_session_, MoqtSessionParameters(quic::Perspective::IS_SERVER),
+      session_callbacks_.AsSessionCallbacks());
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);
@@ -603,13 +591,8 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
 }
 
 TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
-  MoqtSessionParameters parameters = {
-      /*version=*/MoqtVersion::kDraft05,
-      /*perspective=*/quic::Perspective::IS_CLIENT,
-      /*using_webtrans=*/true,
-      /*path=*/"",
-      /*deliver_partial_objects=*/true,
-  };
+  MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
+  parameters.deliver_partial_objects = true;
   MoqtSession session(&mock_session_, parameters,
                       session_callbacks_.AsSessionCallbacks());
   MockRemoteTrackVisitor visitor_;
@@ -1058,15 +1041,9 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamClient) {
 }
 
 TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
-  MoqtSessionParameters server_parameters = {
-      /*version=*/MoqtVersion::kDraft05,
-      /*perspective=*/quic::Perspective::IS_SERVER,
-      /*using_webtrans=*/true,
-      /*path=*/"",
-      /*deliver_partial_objects=*/false,
-  };
-  MoqtSession server_session(&mock_session_, server_parameters,
-                             session_callbacks_.AsSessionCallbacks());
+  MoqtSession server_session(
+      &mock_session_, MoqtSessionParameters(quic::Perspective::IS_SERVER),
+      session_callbacks_.AsSessionCallbacks());
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);

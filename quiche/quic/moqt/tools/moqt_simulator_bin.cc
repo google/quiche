@@ -171,6 +171,8 @@ class ObjectReceiver : public RemoteTrack::Visitor {
     QUICHE_CHECK(!error_reason_phrase.has_value()) << *error_reason_phrase;
   }
 
+  void OnCanAckObjects(MoqtObjectAckFunction) override {}
+
   void OnObjectFragment(const FullTrackName& full_track_name,
                         uint64_t group_sequence, uint64_t object_sequence,
                         MoqtPriority /*publisher_priority*/,

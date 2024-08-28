@@ -34,12 +34,12 @@ class QUICHE_NO_EXPORT TestMessageBase {
   virtual ~TestMessageBase() = default;
   MoqtMessageType message_type() const { return message_type_; }
 
-  typedef absl::variant<MoqtClientSetup, MoqtServerSetup, MoqtObject,
-                        MoqtSubscribe, MoqtSubscribeOk, MoqtSubscribeError,
-                        MoqtUnsubscribe, MoqtSubscribeDone, MoqtSubscribeUpdate,
-                        MoqtAnnounce, MoqtAnnounceOk, MoqtAnnounceError,
-                        MoqtAnnounceCancel, MoqtTrackStatusRequest,
-                        MoqtUnannounce, MoqtTrackStatus, MoqtGoAway>
+  typedef absl::variant<
+      MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtSubscribe,
+      MoqtSubscribeOk, MoqtSubscribeError, MoqtUnsubscribe, MoqtSubscribeDone,
+      MoqtSubscribeUpdate, MoqtAnnounce, MoqtAnnounceOk, MoqtAnnounceError,
+      MoqtAnnounceCancel, MoqtTrackStatusRequest, MoqtUnannounce,
+      MoqtTrackStatus, MoqtGoAway, MoqtObjectAck>
       MessageStructuredData;
 
   // The total actual size of the message.
@@ -492,7 +492,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       /*start_object=*/1,
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-      /*authorization_info=*/MoqtSubscribeParameters{"bar"},
+      /*authorization_info=*/MoqtSubscribeParameters{"bar", std::nullopt},
   };
 };
 
@@ -1048,6 +1048,54 @@ class QUICHE_NO_EXPORT GoAwayMessage : public TestMessageBase {
   };
 };
 
+class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
+ public:
+  ObjectAckMessage() : TestMessageBase(MoqtMessageType::kObjectAck) {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+
+  bool EqualFieldValues(MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtObjectAck>(values);
+    if (cast.subscribe_id != object_ack_.subscribe_id) {
+      QUIC_LOG(INFO) << "OBJECT_ACK subscribe ID mismatch";
+      return false;
+    }
+    if (cast.group_id != object_ack_.group_id) {
+      QUIC_LOG(INFO) << "OBJECT_ACK group ID mismatch";
+      return false;
+    }
+    if (cast.object_id != object_ack_.object_id) {
+      QUIC_LOG(INFO) << "OBJECT_ACK object ID mismatch";
+      return false;
+    }
+    if (cast.delta_from_deadline != object_ack_.delta_from_deadline) {
+      QUIC_LOG(INFO) << "OBJECT_ACK delta from deadline mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvv"); }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(object_ack_);
+  }
+
+ private:
+  uint8_t raw_packet_[6] = {
+      0x71, 0x84,        // type
+      0x01, 0x10, 0x20,  // subscribe ID, group, object
+      0x20,              // 0x10 time delta
+  };
+
+  MoqtObjectAck object_ack_ = {
+      /*subscribe_id=*/0x01,
+      /*group_id=*/0x10,
+      /*object_id=*/0x20,
+      /*delta_from_deadline=*/quic::QuicTimeDelta::FromMicroseconds(0x10),
+  };
+};
+
 // Factory function for test messages.
 static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
     MoqtMessageType message_type, bool is_webtrans) {
@@ -1084,6 +1132,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<TrackStatusMessage>();
     case MoqtMessageType::kGoAway:
       return std::make_unique<GoAwayMessage>();
+    case MoqtMessageType::kObjectAck:
+      return std::make_unique<ObjectAckMessage>();
     case MoqtMessageType::kClientSetup:
       return std::make_unique<ClientSetupMessage>(is_webtrans);
     case MoqtMessageType::kServerSetup:

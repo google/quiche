@@ -33,14 +33,25 @@ enum class MoqtVersion : uint64_t {
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
+inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft05;
+
 struct QUICHE_EXPORT MoqtSessionParameters {
   // TODO: support multiple versions.
   // TODO: support roles other than PubSub.
-  MoqtVersion version;
+
+  explicit MoqtSessionParameters(quic::Perspective perspective)
+      : perspective(perspective), using_webtrans(true) {}
+  MoqtSessionParameters(quic::Perspective perspective, std::string path)
+      : perspective(perspective),
+        using_webtrans(false),
+        path(std::move(path)) {}
+
+  MoqtVersion version = kDefaultMoqtVersion;
   quic::Perspective perspective;
   bool using_webtrans;
   std::string path;
-  bool deliver_partial_objects;
+  bool deliver_partial_objects = false;
+  bool support_object_acks = false;
 };
 
 // The maximum length of a message, excluding any OBJECT payload. This prevents
@@ -69,6 +80,12 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kServerSetup = 0x41,
   kStreamHeaderTrack = 0x50,
   kStreamHeaderGroup = 0x51,
+
+  // QUICHE-specific extensions.
+
+  // kObjectAck (OACK for short) is a frame used by the receiver indicating that
+  // it has received and processed the specified object.
+  kObjectAck = 0x3184,
 };
 
 enum class QUICHE_EXPORT MoqtError : uint64_t {
@@ -98,10 +115,17 @@ enum class QUICHE_EXPORT MoqtRole : uint64_t {
 enum class QUICHE_EXPORT MoqtSetupParameter : uint64_t {
   kRole = 0x0,
   kPath = 0x1,
+
+  // QUICHE-specific extensions.
+  // Indicates support for OACK messages.
+  kSupportObjectAcks = 0xbbf1439,
 };
 
 enum class QUICHE_EXPORT MoqtTrackRequestParameter : uint64_t {
   kAuthorizationInfo = 0x2,
+
+  // QUICHE-specific extensions.
+  kOackWindowSize = 0xbbf1439,
 };
 
 // TODO: those are non-standard; add standard error codes once those exist, see
@@ -190,11 +214,13 @@ struct QUICHE_EXPORT MoqtClientSetup {
   std::vector<MoqtVersion> supported_versions;
   std::optional<MoqtRole> role;
   std::optional<std::string> path;
+  bool supports_object_ack = false;
 };
 
 struct QUICHE_EXPORT MoqtServerSetup {
   MoqtVersion selected_version;
   std::optional<MoqtRole> role;
+  bool supports_object_ack = false;
 };
 
 // These codes do not appear on the wire.
@@ -240,6 +266,12 @@ enum class QUICHE_EXPORT MoqtFilterType : uint64_t {
 
 struct QUICHE_EXPORT MoqtSubscribeParameters {
   std::optional<std::string> authorization_info;
+
+  // If present, indicates that OBJECT_ACK messages will be sent in response to
+  // the objects on the stream. The actual value is informational, and it
+  // communicates how many frames the subscriber is willing to buffer, in
+  // microseconds.
+  std::optional<quic::QuicTimeDelta> object_ack_window;
 };
 
 struct QUICHE_EXPORT MoqtSubscribe {
@@ -383,6 +415,17 @@ struct QUICHE_EXPORT MoqtTrackStatusRequest {
 
 struct QUICHE_EXPORT MoqtGoAway {
   std::string new_session_uri;
+};
+
+// All of the four values in this message are encoded as varints.
+// `delta_from_deadline` is encoded as an absolute value, with the lowest bit
+// indicating the sign (0 if positive).
+struct QUICHE_EXPORT MoqtObjectAck {
+  uint64_t subscribe_id;
+  uint64_t group_id;
+  uint64_t object_id;
+  // Positive if the object has been received before the deadline.
+  quic::QuicTimeDelta delta_from_deadline = quic::QuicTimeDelta::Zero();
 };
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);

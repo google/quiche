@@ -95,6 +95,8 @@ class ChatClient {
     void OnReply(const moqt::FullTrackName& full_track_name,
                  std::optional<absl::string_view> reason_phrase) override;
 
+    void OnCanAckObjects(MoqtObjectAckFunction) override {}
+
     void OnObjectFragment(const moqt::FullTrackName& full_track_name,
                           uint64_t group_sequence, uint64_t object_sequence,
                           moqt::MoqtPriority publisher_priority,

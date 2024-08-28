@@ -18,6 +18,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/node_hash_map.h"
+#include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -144,6 +145,7 @@ void MoqtSession::OnSessionReady() {
   MoqtClientSetup setup = MoqtClientSetup{
       .supported_versions = std::vector<MoqtVersion>{parameters_.version},
       .role = MoqtRole::kPubSub,
+      .supports_object_ack = parameters_.support_object_acks,
   };
   if (!parameters_.using_webtrans) {
     setup.path = parameters_.path;
@@ -398,6 +400,17 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
   } else {
     message.track_alias = next_remote_track_alias_++;
   }
+  if (SupportsObjectAck() && visitor != nullptr) {
+    // Since we do not expose subscribe IDs directly in the API, instead wrap
+    // the session and subscribe ID in a callback.
+    visitor->OnCanAckObjects(absl::bind_front(&MoqtSession::SendObjectAck, this,
+                                              message.subscribe_id));
+  } else {
+    QUICHE_DLOG_IF(WARNING, message.parameters.object_ack_window.has_value())
+        << "Attempting to set object_ack_window on a connection that does not "
+           "support it.";
+    message.parameters.object_ack_window = std::nullopt;
+  }
   SendControlMessage(framer_.SerializeSubscribe(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE message for "
                   << message.track_namespace << ":" << message.track_name;
@@ -556,11 +569,13 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
                                  absl::Hex(session_->parameters_.version)));
     return;
   }
+  session_->peer_supports_object_ack_ = message.supports_object_ack;
   QUICHE_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   if (session_->parameters_.perspective == Perspective::IS_SERVER) {
     MoqtServerSetup response;
     response.selected_version = session_->parameters_.version;
     response.role = MoqtRole::kPubSub;
+    response.supports_object_ack = session_->parameters_.support_object_acks;
     SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
@@ -583,6 +598,7 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
                                  absl::Hex(session_->parameters_.version)));
     return;
   }
+  session_->peer_supports_object_ack_ = message.supports_object_ack;
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle role and path.
   std::move(session_->callbacks_.session_established_callback)();
@@ -630,8 +646,17 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   }
   MoqtDeliveryOrder delivery_order = (*track_publisher)->GetDeliveryOrder();
 
+  MoqtPublishingMonitorInterface* monitoring = nullptr;
+  auto monitoring_it =
+      session_->monitoring_interfaces_for_published_tracks_.find(track_name);
+  if (monitoring_it !=
+      session_->monitoring_interfaces_for_published_tracks_.end()) {
+    monitoring = monitoring_it->second;
+    session_->monitoring_interfaces_for_published_tracks_.erase(monitoring_it);
+  }
+
   auto subscription = std::make_unique<MoqtSession::PublishedSubscription>(
-      session_, *std::move(track_publisher), message);
+      session_, *std::move(track_publisher), message, monitoring);
   auto [it, success] = session_->published_subscriptions_.emplace(
       message.subscribe_id, std::move(subscription));
   if (!success) {
@@ -862,15 +887,21 @@ void MoqtSession::IncomingDataStream::OnParsingError(MoqtError error_code,
 
 MoqtSession::PublishedSubscription::PublishedSubscription(
     MoqtSession* session, std::shared_ptr<MoqtTrackPublisher> track_publisher,
-    const MoqtSubscribe& subscribe)
+    const MoqtSubscribe& subscribe,
+    MoqtPublishingMonitorInterface* monitoring_interface)
     : subscription_id_(subscribe.subscribe_id),
       session_(session),
       track_publisher_(track_publisher),
       track_alias_(subscribe.track_alias),
       window_(SubscribeMessageToWindow(subscribe, *track_publisher)),
       subscriber_priority_(subscribe.subscriber_priority),
-      subscriber_delivery_order_(subscribe.group_order) {
+      subscriber_delivery_order_(subscribe.group_order),
+      monitoring_interface_(monitoring_interface) {
   track_publisher->AddObjectListener(this);
+  if (monitoring_interface_ != nullptr) {
+    monitoring_interface_->OnObjectAckSupportKnown(
+        subscribe.parameters.object_ack_window.has_value());
+  }
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << subscribe.track_namespace << ":" << subscribe.track_name;
 }

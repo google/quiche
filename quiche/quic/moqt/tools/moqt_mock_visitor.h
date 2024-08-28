@@ -12,6 +12,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -77,12 +78,23 @@ class MockRemoteTrackVisitor : public RemoteTrack::Visitor {
               (const FullTrackName& full_track_name,
                std::optional<absl::string_view> error_reason_phrase),
               (override));
+  MOCK_METHOD(void, OnCanAckObjects, (MoqtObjectAckFunction ack_function),
+              (override));
   MOCK_METHOD(void, OnObjectFragment,
               (const FullTrackName& full_track_name, uint64_t group_sequence,
                uint64_t object_sequence, MoqtPriority publisher_priority,
                MoqtObjectStatus status,
                MoqtForwardingPreference forwarding_preference,
                absl::string_view object, bool end_of_message),
+              (override));
+};
+
+class MockPublishingMonitorInterface : public MoqtPublishingMonitorInterface {
+ public:
+  MOCK_METHOD(void, OnObjectAckSupportKnown, (bool supported), (override));
+  MOCK_METHOD(void, OnObjectAckReceived,
+              (uint64_t group_id, uint64_t object_id,
+               quic::QuicTimeDelta delta_from_deadline),
               (override));
 };
 

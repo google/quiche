@@ -88,12 +88,7 @@ absl::Status MoqtClient::ConnectInner(std::string path,
     return absl::InternalError("Failed to initialize WebTransport session");
   }
 
-  MoqtSessionParameters parameters;
-  parameters.version = MoqtVersion::kDraft05;
-  parameters.perspective = quic::Perspective::IS_CLIENT,
-  parameters.using_webtrans = true;
-  parameters.path = "";
-  parameters.deliver_partial_objects = false;
+  MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
 
   // Ensure that we never have a dangling pointer to the session.
   MoqtSessionDeletedCallback deleted_callback =

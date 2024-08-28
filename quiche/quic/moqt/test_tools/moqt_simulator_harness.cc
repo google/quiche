@@ -5,7 +5,6 @@
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 
 #include <string>
-#include <utility>
 
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
@@ -20,6 +19,15 @@
 
 namespace moqt::test {
 
+namespace {
+MoqtSessionParameters CreateParameters(quic::Perspective perspective,
+                                       MoqtVersion version) {
+  MoqtSessionParameters parameters(perspective, "");
+  parameters.version = version;
+  return parameters;
+}
+}  // namespace
+
 MoqtClientEndpoint::MoqtClientEndpoint(quic::simulator::Simulator* simulator,
                                        const std::string& name,
                                        const std::string& peer_name,
@@ -31,14 +39,9 @@ MoqtClientEndpoint::MoqtClientEndpoint(quic::simulator::Simulator* simulator,
       quic_session_(connection_.get(), false, nullptr, quic::QuicConfig(),
                     "test.example.com", 443, "moqt", &session_,
                     /*visitor_owned=*/false, nullptr, &crypto_config_),
-      session_(
-          &quic_session_,
-          MoqtSessionParameters{.version = version,
-                                .perspective = quic::Perspective::IS_CLIENT,
-                                .using_webtrans = false,
-                                .path = "",
-                                .deliver_partial_objects = false},
-          MoqtSessionCallbacks()) {
+      session_(&quic_session_,
+               CreateParameters(quic::Perspective::IS_CLIENT, version),
+               MoqtSessionCallbacks()) {
   quic_session_.Initialize();
 }
 
@@ -59,14 +62,9 @@ MoqtServerEndpoint::MoqtServerEndpoint(quic::simulator::Simulator* simulator,
                     "moqt", &session_,
                     /*visitor_owned=*/false, nullptr, &crypto_config_,
                     &compressed_certs_cache_),
-      session_(
-          &quic_session_,
-          MoqtSessionParameters{.version = version,
-                                .perspective = quic::Perspective::IS_SERVER,
-                                .using_webtrans = false,
-                                .path = "",
-                                .deliver_partial_objects = false},
-          MoqtSessionCallbacks()) {
+      session_(&quic_session_,
+               CreateParameters(quic::Perspective::IS_SERVER, version),
+               MoqtSessionCallbacks()) {
   quic_session_.Initialize();
 }
 

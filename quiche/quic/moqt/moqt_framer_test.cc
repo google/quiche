@@ -19,7 +19,9 @@
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_text_utils.h"
 #include "quiche/common/simple_buffer_allocator.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace moqt::test {
 
@@ -40,8 +42,9 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kTrackStatus,       MoqtMessageType::kAnnounce,
       MoqtMessageType::kAnnounceOk,        MoqtMessageType::kAnnounceError,
       MoqtMessageType::kUnannounce,        MoqtMessageType::kGoAway,
-      MoqtMessageType::kClientSetup,       MoqtMessageType::kServerSetup,
-      MoqtMessageType::kStreamHeaderTrack, MoqtMessageType::kStreamHeaderGroup,
+      MoqtMessageType::kObjectAck,         MoqtMessageType::kClientSetup,
+      MoqtMessageType::kServerSetup,       MoqtMessageType::kStreamHeaderTrack,
+      MoqtMessageType::kStreamHeaderGroup,
   };
   std::vector<bool> uses_web_transport_bool = {
       false,
@@ -158,6 +161,10 @@ class MoqtFramerTest
         auto data = std::get<MoqtGoAway>(structured_data);
         return framer_.SerializeGoAway(data);
       }
+      case moqt::MoqtMessageType::kObjectAck: {
+        auto data = std::get<MoqtObjectAck>(structured_data);
+        return framer_.SerializeObjectAck(data);
+      }
       case MoqtMessageType::kClientSetup: {
         auto data = std::get<MoqtClientSetup>(structured_data);
         return framer_.SerializeClientSetup(data);
@@ -187,7 +194,9 @@ TEST_P(MoqtFramerTest, OneMessage) {
   auto structured_data = message->structured_data();
   auto buffer = SerializeMessage(structured_data);
   EXPECT_EQ(buffer.size(), message->total_message_size());
-  EXPECT_EQ(buffer.AsStringView(), message->PacketSample());
+  quiche::test::CompareCharArraysWithHexError(
+      "frame encoding", buffer.data(), buffer.size(),
+      message->PacketSample().data(), message->PacketSample().size());
 }
 
 class MoqtFramerSimpleTest : public quic::test::QuicTest {

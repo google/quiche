@@ -15,6 +15,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_writer.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -59,6 +60,7 @@ std::vector<MoqtMessageType> message_types = {
     MoqtMessageType::kStreamHeaderTrack,
     MoqtMessageType::kStreamHeaderGroup,
     MoqtMessageType::kGoAway,
+    MoqtMessageType::kObjectAck,
 };
 
 }  // namespace
@@ -164,6 +166,9 @@ class MoqtParserTestVisitor : public MoqtParserVisitor {
     OnControlMessage(message);
   }
   void OnGoAwayMessage(const MoqtGoAway& message) override {
+    OnControlMessage(message);
+  }
+  void OnObjectAckMessage(const MoqtObjectAck& message) override {
     OnControlMessage(message);
   }
   void OnParsingError(MoqtError code, absl::string_view reason) override {
@@ -1017,6 +1022,25 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateNoEndGroup) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "SUBSCRIBE_UPDATE has end_object but no end_group");
+}
+
+TEST_F(MoqtMessageSpecificTest, ObjectAckNegativeDelta) {
+  MoqtParser parser(kRawQuic, visitor_);
+  char object_ack[] = {
+      0x71, 0x84,        // type
+      0x01, 0x10, 0x20,  // subscribe ID, group, object
+      0x40, 0x81,        // -0x40 time delta
+  };
+  parser.ProcessData(absl::string_view(object_ack, sizeof(object_ack)), false);
+  EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
+  ASSERT_EQ(visitor_.messages_received_, 1);
+  MoqtObjectAck message =
+      std::get<MoqtObjectAck>(visitor_.last_message_.value());
+  EXPECT_EQ(message.subscribe_id, 0x01);
+  EXPECT_EQ(message.group_id, 0x10);
+  EXPECT_EQ(message.object_id, 0x20);
+  EXPECT_EQ(message.delta_from_deadline,
+            quic::QuicTimeDelta::FromMicroseconds(-0x40));
 }
 
 TEST_F(MoqtMessageSpecificTest, AllMessagesTogether) {

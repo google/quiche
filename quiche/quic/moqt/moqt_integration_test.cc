@@ -6,15 +6,18 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_generic_session.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -48,11 +51,7 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
   }
 
   void WireUpEndpoints() { test_harness_.WireUpEndpoints(); }
-
-  void EstablishSession() {
-    CreateDefaultEndpoints();
-    WireUpEndpoints();
-
+  void ConnectEndpoints() {
     client_->quic_session()->CryptoConnect();
     bool client_established = false;
     bool server_established = false;
@@ -63,6 +62,12 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
     bool success = test_harness_.RunUntilWithDefaultTimeout(
         [&]() { return client_established && server_established; });
     QUICHE_CHECK(success);
+  }
+
+  void EstablishSession() {
+    CreateDefaultEndpoints();
+    WireUpEndpoints();
+    ConnectEndpoints();
   }
 
  protected:
@@ -427,6 +432,54 @@ TEST_F(MoqtIntegrationTest, SubscribeError) {
                                              &client_visitor);
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
+  EXPECT_TRUE(success);
+}
+
+TEST_F(MoqtIntegrationTest, ObjectAcks) {
+  CreateDefaultEndpoints();
+  WireUpEndpoints();
+  client_->session()->set_support_object_acks(true);
+  server_->session()->set_support_object_acks(true);
+  ConnectEndpoints();
+
+  FullTrackName full_track_name("foo", "bar");
+  MockRemoteTrackVisitor client_visitor;
+
+  MoqtKnownTrackPublisher publisher;
+  server_->session()->set_publisher(&publisher);
+  auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
+  publisher.Add(track_publisher);
+
+  MockPublishingMonitorInterface monitoring;
+  server_->session()->SetMonitoringInterfaceForTrack(full_track_name,
+                                                     &monitoring);
+
+  MoqtObjectAckFunction ack_function = nullptr;
+  EXPECT_CALL(client_visitor, OnCanAckObjects(_))
+      .WillOnce([&](MoqtObjectAckFunction new_ack_function) {
+        ack_function = std::move(new_ack_function);
+      });
+  EXPECT_CALL(client_visitor, OnReply(_, _))
+      .WillOnce([&](const FullTrackName&, std::optional<absl::string_view>) {
+        ack_function(10, 20, quic::QuicTimeDelta::FromMicroseconds(-123));
+        ack_function(100, 200, quic::QuicTimeDelta::FromMicroseconds(456));
+      });
+
+  MoqtSubscribeParameters parameters;
+  parameters.object_ack_window = quic::QuicTimeDelta::FromMilliseconds(100);
+  client_->session()->SubscribeCurrentObject(full_track_name.track_namespace,
+                                             full_track_name.track_name,
+                                             &client_visitor, parameters);
+  EXPECT_CALL(monitoring, OnObjectAckSupportKnown(true));
+  EXPECT_CALL(
+      monitoring,
+      OnObjectAckReceived(10, 20, quic::QuicTimeDelta::FromMicroseconds(-123)));
+  bool done = false;
+  EXPECT_CALL(
+      monitoring,
+      OnObjectAckReceived(100, 200, quic::QuicTimeDelta::FromMicroseconds(456)))
+      .WillOnce([&] { done = true; });
+  bool success = test_harness_.RunUntilWithDefaultTimeout([&] { return done; });
   EXPECT_TRUE(success);
 }
 

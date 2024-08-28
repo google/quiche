@@ -49,6 +49,7 @@ class QUICHE_EXPORT MoqtParserVisitor {
   virtual void OnUnannounceMessage(const MoqtUnannounce& message) = 0;
   virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
   virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
+  virtual void OnObjectAckMessage(const MoqtObjectAck& message) = 0;
 
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
 };
@@ -104,6 +105,7 @@ class QUICHE_EXPORT MoqtParser {
   size_t ProcessUnannounce(quic::QuicDataReader& reader);
   size_t ProcessTrackStatus(quic::QuicDataReader& reader);
   size_t ProcessGoAway(quic::QuicDataReader& reader);
+  size_t ProcessObjectAck(quic::QuicDataReader& reader);
 
   static size_t ParseObjectHeader(quic::QuicDataReader& reader,
                                   MoqtObject& object, MoqtMessageType type);
