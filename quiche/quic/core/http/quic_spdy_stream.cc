@@ -1787,18 +1787,11 @@ bool QuicSpdyStream::ValidateReceivedHeaders(
       return false;
     }
     if (name == ":status") {
-      // Note: remove this when deprecating quic_allow_host_in_request.
       is_response = !pair.second.empty();
     }
-    if (name == "host") {
-      if (GetQuicReloadableFlag(quic_allow_host_in_request)) {
-        QUICHE_RELOADABLE_FLAG_COUNT_N(quic_allow_host_in_request, 1, 3);
-        continue;
-      }
-      if (is_response) {
-        // Host header is allowed in response.
-        continue;
-      }
+    if (is_response && name == "host") {
+      // Host header is allowed in response.
+      continue;
     }
     if (http2::GetInvalidHttp2HeaderSet().contains(name)) {
       invalid_request_details_ = absl::StrCat(name, " header is not allowed");
