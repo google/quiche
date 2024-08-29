@@ -68,11 +68,21 @@ bool SubscribeWindow::UpdateStartEnd(FullSequence start,
 
 bool SubscribeWindow::IsStreamProvokingObject(
     FullSequence sequence, MoqtForwardingPreference preference) const {
-  if (preference == MoqtForwardingPreference::kGroup) {
-    return sequence.object == 0 || sequence == start_;
+  if (sequence == start_) {
+    return true;
   }
-  QUICHE_DCHECK(preference != MoqtForwardingPreference::kDatagram);
-  return true;
+  switch (preference) {
+    case MoqtForwardingPreference::kTrack:
+      return false;
+    case MoqtForwardingPreference::kGroup:
+      // Note: this assumes that the group starts with object 0.
+      return sequence.object == 0;
+    case MoqtForwardingPreference::kObject:
+      return true;
+    case MoqtForwardingPreference::kDatagram:
+      QUICHE_DCHECK(false);
+      return true;
+  }
 }
 
 ReducedSequenceIndex::ReducedSequenceIndex(
