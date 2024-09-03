@@ -39,6 +39,7 @@ inline webtransport::DatagramStatus MessageStatusToWebTransportStatus(
     case MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED:
     case MESSAGE_STATUS_INTERNAL_ERROR:
     case MESSAGE_STATUS_UNSUPPORTED:
+    case MESSAGE_STATUS_SETTINGS_NOT_RECEIVED:
       return webtransport::DatagramStatus(
           webtransport::DatagramStatusCode::kInternalError,
           absl::StrCat("Internal error: ", MessageStatusToString(status)));

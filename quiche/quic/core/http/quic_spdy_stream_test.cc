@@ -3377,6 +3377,44 @@ TEST_P(QuicSpdyStreamTest, SendHttpDatagram) {
             MESSAGE_STATUS_SUCCESS);
 }
 
+TEST_P(QuicSpdyStreamTest, SendHttpDatagramWithoutLocalSupport) {
+  if (!UsesHttp3()) {
+    return;
+  }
+  Initialize(kShouldProcessData);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kNone);
+  std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
+  EXPECT_QUIC_BUG(stream_->SendHttp3Datagram(http_datagram_payload),
+                  "Cannot send HTTP Datagram when disabled locally");
+}
+
+TEST_P(QuicSpdyStreamTest, SendHttpDatagramBeforeReceivingSettings) {
+  if (!UsesHttp3()) {
+    return;
+  }
+  Initialize(kShouldProcessData);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
+  EXPECT_EQ(stream_->SendHttp3Datagram(http_datagram_payload),
+            MESSAGE_STATUS_SETTINGS_NOT_RECEIVED);
+}
+
+TEST_P(QuicSpdyStreamTest, SendHttpDatagramWithoutPeerSupport) {
+  if (!UsesHttp3()) {
+    return;
+  }
+  Initialize(kShouldProcessData);
+  // Support HTTP Datagrams locally, but not by the peer.
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  SettingsFrame settings;
+  settings.values[SETTINGS_H3_DATAGRAM] = 0;
+  session_->OnSettingsFrame(settings);
+
+  std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
+  EXPECT_EQ(stream_->SendHttp3Datagram(http_datagram_payload),
+            MESSAGE_STATUS_UNSUPPORTED);
+}
+
 TEST_P(QuicSpdyStreamTest, GetMaxDatagramSize) {
   if (!UsesHttp3()) {
     return;

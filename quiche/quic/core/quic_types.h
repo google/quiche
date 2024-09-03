@@ -645,6 +645,9 @@ enum MessageStatus {
                            // write blocked.
   MESSAGE_STATUS_TOO_LARGE,  // Failed to send message because the message is
                              // too large to fit into a single packet.
+  MESSAGE_STATUS_SETTINGS_NOT_RECEIVED,  // Failed to send message because
+                                         // SETTINGS frame has not been received
+                                         // yet.
   MESSAGE_STATUS_INTERNAL_ERROR,  // Failed to send message because connection
                                   // reaches an invalid state.
 };
@@ -872,11 +875,11 @@ struct QUICHE_EXPORT QuicDelayedSSLConfig {
 // ParsedClientHello contains client hello information extracted from a fully
 // received client hello.
 struct QUICHE_EXPORT ParsedClientHello {
-  std::string sni;                         // QUIC crypto and TLS.
-  std::string uaid;                        // QUIC crypto only.
-  std::vector<uint16_t> supported_groups;  // TLS only.
+  std::string sni;                               // QUIC crypto and TLS.
+  std::string uaid;                              // QUIC crypto only.
+  std::vector<uint16_t> supported_groups;        // TLS only.
   std::vector<uint16_t> cert_compression_algos;  // TLS only.
-  std::vector<std::string> alpns;          // QUIC crypto and TLS.
+  std::vector<std::string> alpns;                // QUIC crypto and TLS.
   // The unvalidated retry token from the last received packet of a potentially
   // multi-packet client hello. TLS only.
   std::string retry_token;

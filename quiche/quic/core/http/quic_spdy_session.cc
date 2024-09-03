@@ -1761,9 +1761,18 @@ void QuicSpdySession::LogHeaderCompressionRatioHistogram(
 MessageStatus QuicSpdySession::SendHttp3Datagram(QuicStreamId stream_id,
                                                  absl::string_view payload) {
   if (!SupportsH3Datagram()) {
-    QUIC_BUG(send http datagram too early)
-        << "Refusing to send HTTP Datagram before SETTINGS received";
-    return MESSAGE_STATUS_INTERNAL_ERROR;
+    if (LocalHttpDatagramSupport() == HttpDatagramSupport::kNone) {
+      QUIC_BUG(http datagram disabled locally)
+          << "Cannot send HTTP Datagram when disabled locally";
+      return MESSAGE_STATUS_UNSUPPORTED;
+    } else if (!settings_received_) {
+      QUIC_DLOG(INFO)
+          << "Refusing to send HTTP Datagram before SETTINGS received";
+      return MESSAGE_STATUS_SETTINGS_NOT_RECEIVED;
+    } else {
+      QUIC_DLOG(INFO) << "Refusing to send HTTP Datagram without peer support";
+      return MESSAGE_STATUS_UNSUPPORTED;
+    }
   }
   // Stream ID is sent divided by four as per the specification.
   uint64_t stream_id_to_write = stream_id / kHttpDatagramStreamIdDivisor;
