@@ -65,26 +65,26 @@ IcmpReachable::~IcmpReachable() {
 bool IcmpReachable::Init() {
   send_fd_ = kernel_->socket(PF_INET6, SOCK_RAW | SOCK_NONBLOCK, IPPROTO_RAW);
   if (send_fd_ < 0) {
-    QUIC_LOG(ERROR) << "Unable to open socket: " << errno;
+    QUIC_PLOG(ERROR) << "Unable to open socket.";
     return false;
   }
 
   if (kernel_->bind(send_fd_, reinterpret_cast<struct sockaddr*>(&src_),
                     sizeof(sockaddr_in6)) < 0) {
-    QUIC_LOG(ERROR) << "Unable to bind socket: " << errno;
+    QUIC_PLOG(ERROR) << "Unable to bind socket.";
     return false;
   }
 
   recv_fd_ =
       kernel_->socket(PF_INET6, SOCK_RAW | SOCK_NONBLOCK, IPPROTO_ICMPV6);
   if (recv_fd_ < 0) {
-    QUIC_LOG(ERROR) << "Unable to open socket: " << errno;
+    QUIC_PLOG(ERROR) << "Unable to open socket.";
     return false;
   }
 
   if (kernel_->bind(recv_fd_, reinterpret_cast<struct sockaddr*>(&src_),
                     sizeof(sockaddr_in6)) < 0) {
-    QUIC_LOG(ERROR) << "Unable to bind socket: " << errno;
+    QUIC_PLOG(ERROR) << "Unable to bind socket.";
     return false;
   }
 
