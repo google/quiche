@@ -52,8 +52,10 @@ bool TunDevicePacketExchanger::WritePacket(const char* packet, size_t size,
     if (errno == EWOULDBLOCK || errno == EAGAIN) {
       // The tunnel is blocked. Note that this does not mean the receive buffer
       // of a TCP connection is filled. This simply means the TUN device itself
-      // is blocked on handing packets to the rest part of the kernel.
-      *error = absl::StrCat("Write to the TUN device was blocked: ", errno);
+      // is blocked on handing packets to the rest of the kernel.
+      *error =
+          absl::ErrnoToStatus(errno, "Write to the TUN device was blocked.")
+              .message();
       *blocked = true;
       stats_->OnWriteError(error);
     }
@@ -80,7 +82,9 @@ std::unique_ptr<QuicData> TunDevicePacketExchanger::ReadPacket(
   // is no end of file. Therefore 0 also indicates error.
   if (result <= 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      *error = absl::StrCat("Read from the TUN device was blocked: ", errno);
+      *error =
+          absl::ErrnoToStatus(errno, "Read from the TUN device was blocked.")
+              .message();
       *blocked = true;
       stats_->OnReadError(error);
     }
