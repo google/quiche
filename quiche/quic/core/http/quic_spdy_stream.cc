@@ -1789,9 +1789,15 @@ bool QuicSpdyStream::ValidateReceivedHeaders(
     if (name == ":status") {
       is_response = !pair.second.empty();
     }
-    if (is_response && name == "host") {
-      // Host header is allowed in response.
-      continue;
+    if (name == "host") {
+      if (GetQuicReloadableFlag(quic_allow_host_in_request2)) {
+        QUICHE_RELOADABLE_FLAG_COUNT_N(quic_allow_host_in_request2, 1, 3);
+        continue;
+      }
+      if (is_response) {
+        // Host header is allowed in response.
+        continue;
+      }
     }
     if (http2::GetInvalidHttp2HeaderSet().contains(name)) {
       invalid_request_details_ = absl::StrCat(name, " header is not allowed");

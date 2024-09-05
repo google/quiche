@@ -289,6 +289,63 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestHeader) {
   EXPECT_TRUE(stream_->rst_sent());
 }
 
+TEST_F(QuicSpdyServerStreamBaseTest, HostHeaderWithoutAuthority) {
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
+  SetQuicReloadableFlag(quic_allow_host_in_request2, true);
+  // A request with host but without authority should be rejected.
+  QuicHeaderList header_list;
+  header_list.OnHeader("host", "www.google.com:4433");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeader(":method", "POST");
+  header_list.OnHeader(":path", "/path");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_TRUE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, HostHeaderWitDifferentAuthority) {
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
+  SetQuicReloadableFlag(quic_allow_host_in_request2, true);
+  // A request with host that does not match authority should be rejected.
+  QuicHeaderList header_list;
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeader(":method", "POST");
+  header_list.OnHeader(":path", "/path");
+  header_list.OnHeader("host", "mail.google.com:4433");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  EXPECT_CALL(
+      session_,
+      MaybeSendRstStreamFrame(
+          _, QuicResetStreamError::FromInternal(QUIC_BAD_APPLICATION_PAYLOAD),
+          _));
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_TRUE(stream_->rst_sent());
+}
+
+TEST_F(QuicSpdyServerStreamBaseTest, ValidHostHeader) {
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
+  SetQuicReloadableFlag(quic_allow_host_in_request2, true);
+  // A request with host that matches authority should be accepted.
+  QuicHeaderList header_list;
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":scheme", "http");
+  header_list.OnHeader(":method", "POST");
+  header_list.OnHeader(":path", "/path");
+  header_list.OnHeader("host", "www.google.com:4433");
+  header_list.OnHeaderBlockEnd(128, 128);
+
+  stream_->OnStreamHeaderList(/*fin=*/false, 0, header_list);
+  EXPECT_FALSE(stream_->rst_sent());
+}
+
 TEST_F(QuicSpdyServerStreamBaseTest, EmptyHeaders) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   quiche::HttpHeaderBlock empty_header;

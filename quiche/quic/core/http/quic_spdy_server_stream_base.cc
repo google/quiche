@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/http/quic_spdy_server_stream_base.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -14,6 +15,7 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -63,7 +65,8 @@ bool QuicSpdyServerStreamBase::ValidateReceivedHeaders(
   bool saw_path = false;
   bool saw_scheme = false;
   bool saw_method = false;
-  bool saw_authority = false;
+  std::optional<std::string> authority;
+  std::optional<std::string> host;
   bool is_extended_connect = false;
   // Check if it is missing any required headers and if there is any disallowed
   // ones.
@@ -86,12 +89,14 @@ bool QuicSpdyServerStreamBase::ValidateReceivedHeaders(
     } else if (pair.first == ":path") {
       saw_path = true;
     } else if (pair.first == ":authority") {
-      saw_authority = true;
+      authority = pair.second;
     } else if (absl::StrContains(pair.first, ":")) {
       set_invalid_request_details(
           absl::StrCat("Unexpected ':' in header ", pair.first, "."));
       QUIC_DLOG(ERROR) << invalid_request_details();
       return false;
+    } else if (pair.first == "host") {
+      host = pair.second;
     }
     if (is_extended_connect) {
       if (!spdy_session()->allow_extended_connect()) {
@@ -110,8 +115,27 @@ bool QuicSpdyServerStreamBase::ValidateReceivedHeaders(
     }
   }
 
+  if (GetQuicReloadableFlag(quic_allow_host_in_request2)) {
+    // If the :scheme pseudo-header field identifies a scheme that has a
+    // mandatory authority component (including "http" and "https"), the
+    // request MUST contain either an :authority pseudo-header field or a
+    // Host header field. If these fields are present, they MUST NOT be
+    // empty. If both fields are present, they MUST contain the same value.
+    // If the scheme does not have a mandatory authority component and none
+    // is provided in the request target, the request MUST NOT contain the
+    // :authority pseudo-header or Host header fields.
+    //
+    // https://datatracker.ietf.org/doc/html/rfc9114#section-4.3.1
+    QUICHE_RELOADABLE_FLAG_COUNT_N(quic_allow_host_in_request2, 2, 3);
+    if (host && (!authority || *authority != *host)) {
+      QUIC_CODE_COUNT(http3_host_header_does_not_match_authority);
+      set_invalid_request_details("Host header does not match authority");
+      return false;
+    }
+  }
+
   if (is_extended_connect) {
-    if (saw_scheme && saw_path && saw_authority) {
+    if (saw_scheme && saw_path && authority) {
       // Saw all the required pseudo headers.
       return true;
     }
@@ -132,7 +156,7 @@ bool QuicSpdyServerStreamBase::ValidateReceivedHeaders(
     return true;
   }
   // Check non-CONNECT request.
-  if (saw_method && saw_authority && saw_path && saw_scheme) {
+  if (saw_method && authority && saw_path && saw_scheme) {
     return true;
   }
   set_invalid_request_details("Missing required pseudo headers.");

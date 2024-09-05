@@ -3558,6 +3558,22 @@ TEST_P(QuicSpdyStreamTest, ColonDisallowedInHeaderName) {
             stream_->invalid_request_details());
 }
 
+TEST_P(QuicSpdyStreamTest, HostHeaderInRequest) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  headers_["host"] = "foo";
+  if (GetQuicReloadableFlag(quic_allow_host_in_request2)) {
+    EXPECT_TRUE(stream_->ValidateReceivedHeaders(AsHeaderList(headers_)));
+  } else {
+    EXPECT_FALSE(stream_->ValidateReceivedHeaders(AsHeaderList(headers_)));
+    EXPECT_EQ("host header is not allowed", stream_->invalid_request_details());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
