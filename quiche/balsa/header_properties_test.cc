@@ -106,10 +106,12 @@ TEST(HeaderPropertiesTest, HasInvalidPathChar) {
   EXPECT_FALSE(HasInvalidPathChar("invalid_path/but/valid/chars"));
   EXPECT_FALSE(HasInvalidPathChar("/path/with?query;fragment"));
   EXPECT_FALSE(HasInvalidPathChar("/path2.fun/my_site-root/!&$=,+*()/wow"));
+  // Surprise! [] and {} are seen in requests on the internet.
+  EXPECT_FALSE(HasInvalidPathChar("/square[brackets]surprisingly/allowed"));
+  EXPECT_FALSE(HasInvalidPathChar("/curly{braces}surprisingly/allowed"));
 
   EXPECT_TRUE(HasInvalidPathChar("/path with spaces"));
   EXPECT_TRUE(HasInvalidPathChar("/path\rwith\tother\nwhitespace"));
-  EXPECT_TRUE(HasInvalidPathChar("/square[brackets]not/allowed"));
   EXPECT_TRUE(HasInvalidPathChar("/backtick`"));
   EXPECT_TRUE(HasInvalidPathChar("/angle<brackets>also/bad"));
 }
