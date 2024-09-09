@@ -286,6 +286,8 @@ const QuicTag kSPA2 = TAG('S', 'P', 'A', '2');   // Start validating server
                                                  // packets to both addresses.
 const QuicTag kEVMB = TAG('E', 'V', 'M', 'B');
 
+const QuicTag kCRNT = TAG('C', 'R', 'N', 'T');
+
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the
 // peer.
