@@ -32,6 +32,10 @@ QUICHE_EXPORT webtransport::SendOrder SendOrderForStream(
     MoqtPriority subscriber_priority, MoqtPriority publisher_priority,
     uint64_t group_id, uint64_t object_id, MoqtDeliveryOrder delivery_order);
 
+// Returns |send_order| updated with the new |subscriber_priority|.
+QUICHE_EXPORT webtransport::SendOrder UpdateSendOrderForSubscriberPriority(
+    webtransport::SendOrder send_order, MoqtPriority subscriber_priority);
+
 // WebTransport send order set on the MoQT control stream.
 QUICHE_EXPORT extern const webtransport::SendOrder kMoqtControlStreamSendOrder;
 

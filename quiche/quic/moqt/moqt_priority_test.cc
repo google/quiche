@@ -55,5 +55,13 @@ TEST(MoqtPriorityTest, StreamPerObject) {
       SendOrderForStream(0x80, 0x80, 0, 0, MoqtDeliveryOrder::kDescending));
 }
 
+TEST(MoqtPriorityTest, UpdateSendOrderForSubscriberPriority) {
+  EXPECT_EQ(
+      UpdateSendOrderForSubscriberPriority(
+          SendOrderForStream(0x80, 0x80, 0, MoqtDeliveryOrder::kAscending),
+          0x10),
+      SendOrderForStream(0x10, 0x80, 0, MoqtDeliveryOrder::kAscending));
+}
+
 }  // namespace
 }  // namespace moqt

@@ -12,6 +12,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/btree_map.h"
+#include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
@@ -27,7 +29,6 @@
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/common/quiche_circular_deque.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -64,6 +65,13 @@ struct MoqtSessionCallbacks {
 
   MoqtIncomingAnnounceCallback incoming_announce_callback =
       DefaultIncomingAnnounceCallback;
+};
+
+struct SubscriptionWithQueuedStream {
+  webtransport::SendOrder send_order;
+  uint64_t subscription_id;
+
+  auto operator<=>(const SubscriptionWithQueuedStream& other) const = default;
 };
 
 // MoqtPublishingMonitorInterface allows a publisher monitor the delivery
@@ -153,6 +161,15 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   }
 
   void Close() { session_->CloseSession(0, "Application closed"); }
+
+  // Tells the session that the highest send order for pending streams in a
+  // subscription has changed. If |old_send_order| is nullopt, this is the
+  // first pending stream. If |new_send_order| is nullopt, the subscription
+  // has no pending streams anymore.
+  void UpdateQueuedSendOrder(
+      uint64_t subscribe_id,
+      std::optional<webtransport::SendOrder> old_send_order,
+      std::optional<webtransport::SendOrder> new_send_order);
 
  private:
   friend class test::MoqtSessionPeer;
@@ -329,6 +346,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     PublishedSubscription& operator=(const PublishedSubscription&) = delete;
     PublishedSubscription& operator=(PublishedSubscription&&) = delete;
 
+    uint64_t subscription_id() const { return subscription_id_; }
     MoqtTrackPublisher& publisher() { return *track_publisher_; }
     uint64_t track_alias() const { return track_alias_; }
     std::optional<FullSequence> largest_sent() const { return largest_sent_; }
@@ -336,6 +354,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     std::optional<MoqtDeliveryOrder> subscriber_delivery_order() const {
       return subscriber_delivery_order_;
     }
+    void set_subscriber_priority(MoqtPriority priority);
 
     void OnNewObjectAvailable(FullSequence sequence) override;
     void ProcessObjectAck(const MoqtObjectAck& message) {
@@ -367,6 +386,15 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
     std::vector<webtransport::StreamId> GetAllStreams() const;
 
+    webtransport::SendOrder GetSendOrder(FullSequence sequence) const;
+
+    void AddQueuedOutgoingDataStream(FullSequence first_object);
+    // Pops the pending outgoing data stream, with the highest send order.
+    // The session keeps track of which subscribes have pending streams. This
+    // function will trigger a QUICHE_DCHECK if called when there are no pending
+    // streams.
+    FullSequence NextQueuedOutgoingDataStream();
+
    private:
     SendStreamMap& stream_map();
     quic::Perspective perspective() const {
@@ -374,6 +402,11 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     }
 
     void SendDatagram(FullSequence sequence);
+    webtransport::SendOrder FinalizeSendOrder(
+        webtransport::SendOrder send_order) {
+      return UpdateSendOrderForSubscriberPriority(send_order,
+                                                  subscriber_priority_);
+    }
 
     uint64_t subscription_id_;
     MoqtSession* session_;
@@ -387,11 +420,15 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     std::optional<FullSequence> largest_sent_;
     // Should be almost always accessed via `stream_map()`.
     std::optional<SendStreamMap> lazily_initialized_stream_map_;
+    // Store the send order of queued outgoing data streams. Use a
+    // subscriber_priority_ of zero to avoid having to update it, and call
+    // FinalizeSendOrder() whenever delivering it to the MoqtSession.d
+    absl::btree_multimap<webtransport::SendOrder, FullSequence>
+        queued_outgoing_data_streams_;
   };
   class QUICHE_EXPORT OutgoingDataStream : public webtransport::StreamVisitor {
    public:
     OutgoingDataStream(MoqtSession* session, webtransport::Stream* stream,
-                       uint64_t subscription_id,
                        PublishedSubscription& subscription,
                        FullSequence first_object);
     ~OutgoingDataStream();
@@ -436,14 +473,6 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
   // Private members of MoqtSession.
 
-  // QueuedOutgoingDataStream records an information necessary to create a
-  // stream that was attempted to be created before but was blocked due to flow
-  // control.
-  struct QueuedOutgoingDataStream {
-    uint64_t subscription_id;
-    FullSequence first_object;
-  };
-
   // Returns true if SUBSCRIBE_DONE was sent.
   bool SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
                        absl::string_view reason_phrase);
@@ -462,7 +491,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                                               FullSequence first_object);
   // Same as above, except the session is required to be not flow control
   // blocked.
-  webtransport::Stream* OpenDataStream(uint64_t subscription_id,
+  webtransport::Stream* OpenDataStream(PublishedSubscription& subscription,
                                        FullSequence first_object);
 
   // Get FullTrackName and visitor for a subscribe_id and track_alias. Returns
@@ -513,10 +542,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // Subscriptions for local tracks by the remote peer, indexed by subscribe ID.
   absl::flat_hash_map<uint64_t, std::unique_ptr<PublishedSubscription>>
       published_subscriptions_;
-  // Keeps track of all the data streams that were supposed to be open, but were
-  // blocked by the flow control.
-  quiche::QuicheCircularDeque<QueuedOutgoingDataStream>
-      queued_outgoing_data_streams_;
+  // Keeps track of all subscribe IDs that have queued outgoing data streams.
+  absl::btree_set<SubscriptionWithQueuedStream>
+      subscribes_with_queued_outgoing_data_streams_;
   // This is only used to check for track_alias collisions.
   absl::flat_hash_set<uint64_t> used_track_aliases_;
   uint64_t next_local_track_alias_ = 0;

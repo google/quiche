@@ -64,6 +64,15 @@ webtransport::SendOrder SendOrderForStream(MoqtPriority subscriber_priority,
   return track_bits | (group_id << 20) | object_id;
 }
 
+webtransport::SendOrder UpdateSendOrderForSubscriberPriority(
+    const webtransport::SendOrder send_order,
+    MoqtPriority subscriber_priority) {
+  webtransport::SendOrder new_send_order = OnlyLowestNBits<54>(send_order);
+  const int64_t sub_bits = Flip<8>(subscriber_priority) << 54;
+  new_send_order |= sub_bits;
+  return new_send_order;
+}
+
 const webtransport::SendOrder kMoqtControlStreamSendOrder =
     std::numeric_limits<webtransport::SendOrder>::max();
 

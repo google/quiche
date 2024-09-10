@@ -138,6 +138,17 @@ class MoqtSessionPeer {
     return session->published_subscriptions_[subscribe_id].get();
   }
 
+  static void DeleteSubscription(MoqtSession* session, uint64_t subscribe_id) {
+    session->published_subscriptions_.erase(subscribe_id);
+  }
+
+  static void UpdateSubscriberPriority(MoqtSession* session,
+                                       uint64_t subscribe_id,
+                                       MoqtPriority priority) {
+    session->published_subscriptions_[subscribe_id]->set_subscriber_priority(
+        priority);
+  }
+
   static void set_peer_role(MoqtSession* session, MoqtRole role) {
     session->peer_role_ = role;
   }
@@ -1244,6 +1255,221 @@ TEST_F(MoqtSessionTest, AnnounceFromSubscriber) {
       .Times(1);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_)).Times(1);
   stream_input->OnAnnounceMessage(announce);
+}
+
+TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
+  FullTrackName ftn("foo", "bar");
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kGroup, FullSequence(0, 0));
+  EXPECT_CALL(*track, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
+  MoqtObjectListener* subscription =
+      MoqtSessionPeer::AddSubscription(&session_, track, 0, 14, 0, 0);
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(false))
+      .WillOnce(Return(false))
+      .WillOnce(Return(false));
+  EXPECT_CALL(*track, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
+  subscription->OnNewObjectAvailable(FullSequence(1, 0));
+  subscription->OnNewObjectAvailable(FullSequence(0, 0));
+  subscription->OnNewObjectAvailable(FullSequence(2, 0));
+  // These should be opened in the sequence (0, 0), (1, 0), (2, 0).
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillRepeatedly(Return(true));
+  webtransport::test::MockStream mock_stream0, mock_stream1, mock_stream2;
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(&mock_stream0))
+      .WillOnce(Return(&mock_stream1))
+      .WillOnce(Return(&mock_stream2));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor[3];
+  EXPECT_CALL(mock_stream0, SetVisitor(_))
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor[0] = std::move(visitor);
+      });
+  EXPECT_CALL(mock_stream1, SetVisitor(_))
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor[1] = std::move(visitor);
+      });
+  EXPECT_CALL(mock_stream2, SetVisitor(_))
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor[2] = std::move(visitor);
+      });
+  EXPECT_CALL(mock_stream0, GetStreamId()).WillRepeatedly(Return(0));
+  EXPECT_CALL(mock_stream1, GetStreamId()).WillRepeatedly(Return(1));
+  EXPECT_CALL(mock_stream2, GetStreamId()).WillRepeatedly(Return(2));
+  EXPECT_CALL(mock_stream0, visitor()).WillOnce([&]() {
+    return stream_visitor[0].get();
+  });
+  EXPECT_CALL(mock_stream1, visitor()).WillOnce([&]() {
+    return stream_visitor[1].get();
+  });
+  EXPECT_CALL(mock_stream2, visitor()).WillOnce([&]() {
+    return stream_visitor[2].get();
+  });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 0)))
+      .WillOnce(
+          Return(PublishedObject{FullSequence(0, 0), MoqtObjectStatus::kNormal,
+                                 MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 1)))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(1, 0)))
+      .WillOnce(
+          Return(PublishedObject{FullSequence(1, 0), MoqtObjectStatus::kNormal,
+                                 MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(1, 1)))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(2, 0)))
+      .WillOnce(
+          Return(PublishedObject{FullSequence(2, 0), MoqtObjectStatus::kNormal,
+                                 MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(2, 1)))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(mock_stream0, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_stream1, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_stream2, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_stream0, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        // The Group ID is the 5th byte of the stream.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 0);
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(mock_stream1, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        // The Group ID is the 5th byte of the stream.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 1);
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(mock_stream2, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        // The Group ID is the 5th byte of the stream.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 2);
+        return absl::OkStatus();
+      });
+  session_.OnCanCreateNewOutgoingUnidirectionalStream();
+}
+
+TEST_F(MoqtSessionTest, StreamQueuedForSubscriptionThatDoesntExist) {
+  FullTrackName ftn("foo", "bar");
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kGroup, FullSequence(0, 0));
+  EXPECT_CALL(*track, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
+  MoqtObjectListener* subscription =
+      MoqtSessionPeer::AddSubscription(&session_, track, 0, 14, 0, 0);
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(false));
+  EXPECT_CALL(*track, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
+  subscription->OnNewObjectAvailable(FullSequence(0, 0));
+
+  // Delete the subscription, then grant stream credit.
+  MoqtSessionPeer::DeleteSubscription(&session_, 0);
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream()).Times(0);
+  session_.OnCanCreateNewOutgoingUnidirectionalStream();
+}
+
+TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
+  FullTrackName ftn("foo", "bar");
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kGroup, FullSequence(0, 0));
+  EXPECT_CALL(*track, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
+  // Create two identical subscriptions with different priorities.
+  MoqtObjectListener* subscription0 =
+      MoqtSessionPeer::AddSubscription(&session_, track, 0, 14, 0, 0);
+  MoqtObjectListener* subscription1 =
+      MoqtSessionPeer::AddSubscription(&session_, track, 1, 14, 0, 0);
+  MoqtSessionPeer::UpdateSubscriberPriority(&session_, 0, 1);
+  MoqtSessionPeer::UpdateSubscriberPriority(&session_, 1, 2);
+
+  // Two arriving objects will queue four streams.
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(false))
+      .WillOnce(Return(false))
+      .WillOnce(Return(false))
+      .WillOnce(Return(false));
+  EXPECT_CALL(*track, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
+  subscription0->OnNewObjectAvailable(FullSequence(0, 0));
+  subscription1->OnNewObjectAvailable(FullSequence(0, 0));
+  subscription0->OnNewObjectAvailable(FullSequence(1, 0));
+  subscription1->OnNewObjectAvailable(FullSequence(1, 0));
+
+  // Allow one stream to be opened. It will be group 0, subscription 0.
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  webtransport::test::MockStream mock_stream0;
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(&mock_stream0));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor0;
+  EXPECT_CALL(mock_stream0, SetVisitor(_))
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor0 = std::move(visitor);
+      });
+  EXPECT_CALL(mock_stream0, GetStreamId()).WillRepeatedly(Return(0));
+  EXPECT_CALL(mock_stream0, visitor()).WillOnce([&]() {
+    return stream_visitor0.get();
+  });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 0)))
+      .WillOnce(
+          Return(PublishedObject{FullSequence(0, 0), MoqtObjectStatus::kNormal,
+                                 MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 1)))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(mock_stream0, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_stream0, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        // Check subscribe ID is 0.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 0);
+        // Check Group ID is 0
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 0);
+        return absl::OkStatus();
+      });
+  session_.OnCanCreateNewOutgoingUnidirectionalStream();
+
+  // Raise the priority of subscription 1 and allow another stream. It will be
+  // group 0, subscription 1.
+  MoqtSessionPeer::UpdateSubscriberPriority(&session_, 1, 0);
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true))
+      .WillRepeatedly(Return(false));
+  webtransport::test::MockStream mock_stream1;
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(&mock_stream1));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor1;
+  EXPECT_CALL(mock_stream1, SetVisitor(_))
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor1 = std::move(visitor);
+      });
+  EXPECT_CALL(mock_stream1, GetStreamId()).WillRepeatedly(Return(1));
+  EXPECT_CALL(mock_stream1, visitor()).WillOnce([&]() {
+    return stream_visitor1.get();
+  });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 0)))
+      .WillOnce(
+          Return(PublishedObject{FullSequence(0, 0), MoqtObjectStatus::kNormal,
+                                 MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 1)))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(mock_stream1, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_stream1, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        // Check subscribe ID is 0.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 1);
+        // Check Group ID is 0
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 0);
+        return absl::OkStatus();
+      });
+  session_.OnCanCreateNewOutgoingUnidirectionalStream();
 }
 
 // TODO: re-enable this test once this behavior is re-implemented.
