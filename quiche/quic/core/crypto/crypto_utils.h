@@ -252,6 +252,10 @@ class QUICHE_EXPORT CryptoUtils {
   // protocol using the certificate key.
   static std::optional<std::string> GenerateProofPayloadToBeSigned(
       absl::string_view chlo_hash, absl::string_view server_config);
+
+  // Returns the SSL error queue in a human-readable string. The error queue is
+  // cleared by the function.
+  static std::string GetSSLErrorStack();
 };
 
 }  // namespace quic

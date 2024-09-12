@@ -5,6 +5,7 @@
 #include "quiche/quic/core/crypto/crypto_utils.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -15,6 +16,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/bytestring.h"
+#include "openssl/err.h"
 #include "openssl/hkdf.h"
 #include "openssl/mem.h"
 #include "openssl/sha.h"
@@ -803,6 +805,31 @@ std::optional<std::string> CryptoUtils::GenerateProofPayloadToBeSigned(
     return std::nullopt;
   }
   return payload;
+}
+
+std::string CryptoUtils::GetSSLErrorStack() {
+  std::string result;
+  const char* file;
+  const char* data;
+  int line;
+  int flags;
+  int packed_error = ERR_get_error_line_data(&file, &line, &data, &flags);
+  if (packed_error != 0) {
+    char buffer[ERR_ERROR_STRING_BUF_LEN];
+    while (packed_error != 0) {
+      ERR_error_string_n(packed_error, buffer, sizeof(buffer));
+      absl::StrAppendFormat(&result, "[%s:%d] %s", PosixBasename(file), line,
+                            buffer);
+      if (data && (flags & ERR_TXT_STRING)) {
+        absl::StrAppendFormat(&result, "(%s)", data);
+      }
+      packed_error = ERR_get_error_line_data(&file, &line, &data, &flags);
+      if (packed_error != 0) {
+        absl::StrAppend(&result, ", ");
+      }
+    }
+  }
+  return result;
 }
 
 }  // namespace quic

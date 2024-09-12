@@ -42,6 +42,7 @@ class QuicStream;
 }  // namespace quic
 
 using testing::_;
+using testing::HasSubstr;
 using testing::NiceMock;
 using testing::Return;
 
@@ -698,13 +699,14 @@ TEST_P(TlsServerHandshakerTest, ClientSendingBadALPN) {
   EXPECT_CALL(*client_session_, GetAlpnsToOffer())
       .WillOnce(Return(std::vector<std::string>({kTestBadClientAlpn})));
 
-  EXPECT_CALL(*server_connection_,
-              CloseConnection(QUIC_HANDSHAKE_FAILED,
-                              static_cast<QuicIetfTransportErrorCodes>(
-                                  CRYPTO_ERROR_FIRST + 120),
-                              "TLS handshake failure (ENCRYPTION_INITIAL) 120: "
-                              "no application protocol",
-                              _));
+  EXPECT_CALL(
+      *server_connection_,
+      CloseConnection(
+          QUIC_HANDSHAKE_FAILED,
+          static_cast<QuicIetfTransportErrorCodes>(CRYPTO_ERROR_FIRST + 120),
+          HasSubstr("TLS handshake failure (ENCRYPTION_INITIAL) 120: "
+                    "no application protocol"),
+          _));
 
   AdvanceHandshakeWithFakeClient();
 

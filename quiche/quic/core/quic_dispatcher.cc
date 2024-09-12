@@ -584,7 +584,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
       uint8_t tls_alert = *extract_chlo_result.tls_alert;
       connection_close_error_code = TlsAlertToQuicErrorCode(tls_alert);
       tls_alert_error_detail =
-          absl::StrCat("TLS handshake failure (",
+          absl::StrCat("TLS handshake failure from dispatcher (",
                        EncryptionLevelToString(ENCRYPTION_INITIAL), ") ",
                        static_cast<int>(tls_alert), ": ",
                        SSL_alert_desc_string_long(tls_alert));

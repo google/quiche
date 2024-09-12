@@ -618,6 +618,23 @@ QuicByteCount MemSliceSpanTotalSize(absl::Span<quiche::QuicheMemSlice> span) {
   return total;
 }
 
+absl::string_view PosixBasename(absl::string_view path) {
+  constexpr char kPathSeparator = '/';
+  size_t pos = path.find_last_of(kPathSeparator);
+
+  // Handle the case with no `kPathSeparator` in `path`.
+  if (pos == absl::string_view::npos) {
+    return path;
+  }
+
+  // Handle the case with a single leading `kPathSeparator` in `path`.
+  if (pos == 0) {
+    return absl::ClippedSubstr(path, 1);
+  }
+
+  return absl::ClippedSubstr(path, pos + 1);
+}
+
 std::string RawSha256(absl::string_view input) {
   std::string raw_hash;
   raw_hash.resize(SHA256_DIGEST_LENGTH);

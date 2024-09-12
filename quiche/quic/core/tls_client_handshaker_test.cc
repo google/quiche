@@ -33,6 +33,7 @@
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
+using testing::HasSubstr;
 
 namespace quic {
 namespace test {
@@ -647,13 +648,14 @@ TEST_P(TlsClientHandshakerTest, ServerRequiresCustomALPN) {
         return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
       });
 
-  EXPECT_CALL(*server_connection_,
-              CloseConnection(QUIC_HANDSHAKE_FAILED,
-                              static_cast<QuicIetfTransportErrorCodes>(
-                                  CRYPTO_ERROR_FIRST + 120),
-                              "TLS handshake failure (ENCRYPTION_INITIAL) 120: "
-                              "no application protocol",
-                              _));
+  EXPECT_CALL(
+      *server_connection_,
+      CloseConnection(
+          QUIC_HANDSHAKE_FAILED,
+          static_cast<QuicIetfTransportErrorCodes>(CRYPTO_ERROR_FIRST + 120),
+          HasSubstr("TLS handshake failure (ENCRYPTION_INITIAL) 120: "
+                    "no application protocol"),
+          _));
 
   stream()->CryptoConnect();
   crypto_test_utils::AdvanceHandshake(connection_, stream(), 0,

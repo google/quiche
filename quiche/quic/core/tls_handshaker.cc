@@ -154,22 +154,31 @@ void TlsHandshaker::AdvanceHandshake() {
   }
   if (ShouldCloseConnectionOnUnexpectedError(ssl_error) &&
       !is_connection_closed()) {
+    std::string ssl_error_stack;
+    if (GetQuicReloadableFlag(quic_add_ssl_error_stack_to_error_detail)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_add_ssl_error_stack_to_error_detail);
+      ssl_error_stack = CryptoUtils::GetSSLErrorStack();
+    } else {
+      ERR_print_errors_fp(stderr);
+    }
     QUIC_VLOG(1) << "SSL_do_handshake failed; SSL_get_error returns "
-                 << ssl_error;
-    ERR_print_errors_fp(stderr);
+                 << ssl_error << ", SSLErrorStack: " << ssl_error_stack;
     if (last_tls_alert_.has_value()) {
       std::string error_details =
           absl::StrCat("TLS handshake failure (",
                        EncryptionLevelToString(last_tls_alert_->level), ") ",
                        static_cast<int>(last_tls_alert_->desc), ": ",
-                       SSL_alert_desc_string_long(last_tls_alert_->desc));
+                       SSL_alert_desc_string_long(last_tls_alert_->desc),
+                       ". SSLErrorStack:", ssl_error_stack);
       QUIC_DLOG(ERROR) << error_details;
       CloseConnection(TlsAlertToQuicErrorCode(last_tls_alert_->desc),
                       static_cast<QuicIetfTransportErrorCodes>(
                           CRYPTO_ERROR_FIRST + last_tls_alert_->desc),
                       error_details);
     } else {
-      CloseConnection(QUIC_HANDSHAKE_FAILED, "TLS handshake failed");
+      CloseConnection(QUIC_HANDSHAKE_FAILED,
+                      absl::StrCat("TLS handshake failed. SSLErrorStack:",
+                                   ssl_error_stack));
     }
   }
 }

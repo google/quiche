@@ -236,6 +236,19 @@ TEST_F(QuicUtilsTest, EcnCodepointToString) {
   EXPECT_EQ(EcnCodepointToString(ECN_CE), "CE");
 }
 
+TEST_F(QuicUtilsTest, PosixBasename) {
+  EXPECT_EQ("", PosixBasename("/hello/"));
+  EXPECT_EQ("hello", PosixBasename("/hello"));
+  EXPECT_EQ("world", PosixBasename("hello/world"));
+  EXPECT_EQ("", PosixBasename("hello/"));
+  EXPECT_EQ("world", PosixBasename("world"));
+  EXPECT_EQ("", PosixBasename("/"));
+  EXPECT_EQ("", PosixBasename(""));
+  // "\\" is not treated as a path separator.
+  EXPECT_EQ("C:\\hello", PosixBasename("C:\\hello"));
+  EXPECT_EQ("world", PosixBasename("C:\\hello/world"));
+}
+
 enum class TestEnumClassBit : uint8_t {
   BIT_ZERO = 0,
   BIT_ONE,

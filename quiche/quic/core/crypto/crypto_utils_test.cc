@@ -9,7 +9,10 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "openssl/err.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -18,6 +21,9 @@
 namespace quic {
 namespace test {
 namespace {
+
+using ::testing::AllOf;
+using ::testing::HasSubstr;
 
 class CryptoUtilsTest : public QuicTest {};
 
@@ -256,6 +262,16 @@ TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
                                           &crypters);
     EXPECT_EQ(crypters.encrypter->GetKey(), expected_key);
   }
+}
+
+TEST_F(CryptoUtilsTest, GetSSLErrorStack) {
+  ERR_clear_error();
+  const int line = (OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_SSL_VERSION), __LINE__);
+  std::string error_location = absl::StrCat("crypto_utils_test.cc:", line);
+  EXPECT_THAT(CryptoUtils::GetSSLErrorStack(),
+              AllOf(HasSubstr(error_location), HasSubstr("WRONG_SSL_VERSION")));
+  EXPECT_TRUE(CryptoUtils::GetSSLErrorStack().empty());
+  ERR_clear_error();
 }
 
 }  // namespace
