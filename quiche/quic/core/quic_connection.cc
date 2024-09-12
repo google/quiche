@@ -2166,6 +2166,7 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
           << "STATELESS_RESET received on alternate path after it's "
              "validated.";
       path_validator_.CancelPathValidation();
+      ++stats_.num_stateless_resets_on_alternate_path;
     } else {
       QUIC_BUG(quic_bug_10511_17)
           << "Received Stateless Reset on unknown socket.";
@@ -6651,6 +6652,10 @@ void QuicConnection::ValidatePath(
       reason == PathValidationReason::kMultiPort) {
     multi_port_stats_->num_client_probing_attempts++;
   }
+  if (perspective_ == Perspective::IS_CLIENT) {
+    stats_.num_client_probing_attempts++;
+  }
+
   path_validator_.StartPathValidation(std::move(context),
                                       std::move(result_delegate), reason);
   if (perspective_ == Perspective::IS_CLIENT &&

@@ -490,6 +490,9 @@ constexpr QuicTag kBSUS = TAG('B', 'S', 'U', 'S');  // Blocks server connection
                                                     // until the SETTINGS frame
                                                     // is received.
 
+// Enable Failed Path Probe experiment
+const QuicTag kFPPE = TAG('F', 'P', 'P', 'E');
+
 // clang-format on
 
 // These tags have a special form so that they appear either at the beginning

@@ -256,6 +256,10 @@ struct QUICHE_EXPORT QuicConnectionStats {
 
   // The total number of streams which were pending from some time.
   size_t num_total_pending_streams = 0;
+
+  // Statistics to measure how many client path probes are reset.
+  uint32_t num_client_probing_attempts = 0;
+  uint32_t num_stateless_resets_on_alternate_path = 0;
 };
 
 }  // namespace quic
