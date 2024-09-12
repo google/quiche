@@ -141,6 +141,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
       RemoteTrack::Visitor* visitor,
       MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
 
+  webtransport::Session* session() { return session_; }
   MoqtSessionCallbacks& callbacks() { return callbacks_; }
   MoqtPublisher* publisher() { return publisher_; }
   void set_publisher(MoqtPublisher* publisher) { publisher_ = publisher; }

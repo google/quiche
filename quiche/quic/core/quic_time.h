@@ -66,7 +66,7 @@ class QUICHE_EXPORT QuicTimeDelta {
   constexpr int64_t ToMicroseconds() const { return time_offset_; }
 
   // Converts the time offset to an Abseil duration.
-  constexpr absl::Duration ToAbsl() {
+  constexpr absl::Duration ToAbsl() const {
     if (ABSL_PREDICT_FALSE(IsInfinite())) {
       return absl::InfiniteDuration();
     }

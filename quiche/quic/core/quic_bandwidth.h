@@ -101,6 +101,11 @@ class QUICHE_EXPORT QuicBandwidth {
 
   std::string ToDebuggingValue() const;
 
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, QuicBandwidth bandwidth) {
+    sink.Append(bandwidth.ToDebuggingValue());
+  }
+
  private:
   explicit constexpr QuicBandwidth(int64_t bits_per_second)
       : bits_per_second_(bits_per_second >= 0 ? bits_per_second : 0) {}

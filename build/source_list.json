@@ -1512,6 +1512,7 @@
     "quiche/quic/load_balancer/load_balancer_server_id_test.cc"
   ],
   "moqt_hdrs": [
+    "quiche/quic/moqt/moqt_bitrate_adjuster.h",
     "quiche/quic/moqt/moqt_cached_object.h",
     "quiche/quic/moqt/moqt_framer.h",
     "quiche/quic/moqt/moqt_known_track_publisher.h",
@@ -1534,6 +1535,8 @@
     "quiche/quic/moqt/tools/moqt_server.h"
   ],
   "moqt_srcs": [
+    "quiche/quic/moqt/moqt_bitrate_adjuster.cc",
+    "quiche/quic/moqt/moqt_bitrate_adjuster_test.cc",
     "quiche/quic/moqt/moqt_cached_object.cc",
     "quiche/quic/moqt/moqt_framer.cc",
     "quiche/quic/moqt/moqt_framer_test.cc",
