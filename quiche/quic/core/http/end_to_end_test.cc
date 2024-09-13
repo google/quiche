@@ -44,6 +44,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/tls_client_handshaker.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -92,6 +93,7 @@ using spdy::SpdySerializedFrame;
 using spdy::SpdySettingsIR;
 using ::testing::_;
 using ::testing::Assign;
+using ::testing::HasSubstr;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::UnorderedElementsAreArray;
@@ -1180,6 +1182,23 @@ TEST_P(EndToEndTest, HandshakeConfirmed) {
   }
   server_thread_->Resume();
   client_->Disconnect();
+}
+
+TEST_P(EndToEndTest, InvalidSNI) {
+  if (!version_.UsesTls()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+
+  SetQuicFlag(quic_client_allow_invalid_sni_for_test, true);
+  server_hostname_ = "invalid!.example.com";
+  ASSERT_FALSE(Initialize());
+
+  QuicSpdySession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_THAT(client_session->error(), IsError(QUIC_HANDSHAKE_FAILED));
+  EXPECT_THAT(client_session->error_details(),
+              HasSubstr("select_cert_error: invalid hostname"));
 }
 
 // Two packet CHLO. The first one is buffered and acked by dispatcher, the

@@ -510,6 +510,8 @@ TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertFailure) {
   // Check that the server didn't send any handshake messages, because it failed
   // to handshake.
   EXPECT_EQ(moved_messages_counts_.second, 0u);
+  EXPECT_EQ(server_handshaker_->extra_error_details(),
+            "select_cert_error: proof_source_handle async failure");
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertAndSignature) {
@@ -739,11 +741,9 @@ TEST_P(TlsServerHandshakerTest, CustomALPNNegotiation) {
 }
 
 TEST_P(TlsServerHandshakerTest, RejectInvalidSNI) {
+  SetQuicFlag(quic_client_allow_invalid_sni_for_test, true);
   server_id_ = QuicServerId("invalid!.example.com", kServerPort, false);
   InitializeFakeClient();
-  static_cast<TlsClientHandshaker*>(
-      QuicCryptoClientStreamPeer::GetHandshaker(client_stream()))
-      ->AllowInvalidSNIForTests();
 
   // Run the handshake and expect it to fail.
   AdvanceHandshakeWithFakeClient();

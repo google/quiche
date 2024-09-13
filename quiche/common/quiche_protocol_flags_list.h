@@ -271,4 +271,8 @@ QUICHE_PROTOCOL_FLAG(
     uint32_t, quic_max_num_path_degrading_to_mitigate, 5,
     "The maximum number of path degrading to mitigate with port migration. Any "
     "further path degrading will not kick off port migration.")
+
+QUICHE_PROTOCOL_FLAG(bool, quic_client_allow_invalid_sni_for_test, false,
+                     "If true, QUIC client will allow sending invalid SNI to "
+                     "the server. TLS only.")
 #endif

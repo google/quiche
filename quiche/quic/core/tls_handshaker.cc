@@ -186,7 +186,13 @@ void TlsHandshaker::AdvanceHandshake() {
 void TlsHandshaker::CloseConnection(QuicErrorCode error,
                                     const std::string& reason_phrase) {
   QUICHE_DCHECK(!reason_phrase.empty());
-  stream()->OnUnrecoverableError(error, reason_phrase);
+  if (extra_error_details_.empty()) {
+    stream()->OnUnrecoverableError(error, reason_phrase);
+  } else {
+    stream()->OnUnrecoverableError(
+        error,
+        absl::StrCat(reason_phrase, ". ExtraDetail:", extra_error_details_));
+  }
   is_connection_closed_ = true;
 }
 
@@ -194,7 +200,13 @@ void TlsHandshaker::CloseConnection(QuicErrorCode error,
                                     QuicIetfTransportErrorCodes ietf_error,
                                     const std::string& reason_phrase) {
   QUICHE_DCHECK(!reason_phrase.empty());
-  stream()->OnUnrecoverableError(error, ietf_error, reason_phrase);
+  if (extra_error_details_.empty()) {
+    stream()->OnUnrecoverableError(error, ietf_error, reason_phrase);
+  } else {
+    stream()->OnUnrecoverableError(
+        error, ietf_error,
+        absl::StrCat(reason_phrase, ". ExtraDetail:", extra_error_details_));
+  }
   is_connection_closed_ = true;
 }
 

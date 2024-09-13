@@ -914,6 +914,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     QUIC_BUG(quic_bug_10341_6)
         << "QUIC server pre-shared keys not yet supported with TLS";
+    set_extra_error_details("select_cert_error: pre-shared keys not supported");
     return ssl_select_cert_error;
   }
 
@@ -959,6 +960,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     crypto_negotiated_params_->sni =
         QuicHostnameUtils::NormalizeHostname(hostname);
     if (!ValidateHostname(hostname)) {
+      set_extra_error_details("select_cert_error: invalid hostname");
       return ssl_select_cert_error;
     }
     if (hostname != crypto_negotiated_params_->sni) {
@@ -976,6 +978,9 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 
   std::string error_details;
   if (!ProcessTransportParameters(client_hello, &error_details)) {
+    // No need to set_extra_error_details() - error_details already contains
+    // enough information to indicate this is an error from
+    // ProcessTransportParameters.
     CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
     return ssl_select_cert_error;
   }
@@ -984,7 +989,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 
   auto set_transport_params_result = SetTransportParameters();
   if (!set_transport_params_result.success) {
-    QUIC_LOG(ERROR) << "Failed to set transport parameters";
+    set_extra_error_details("select_cert_error: set tp failure");
     return ssl_select_cert_error;
   }
 
@@ -1003,6 +1008,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
   SetApplicationSettingsResult alps_result =
       SetApplicationSettings(AlpnForVersion(session()->version()));
   if (!alps_result.success) {
+    set_extra_error_details("select_cert_error: set alps failure");
     return ssl_select_cert_error;
   }
 
@@ -1038,6 +1044,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
   }
 
   if (status == QUIC_FAILURE) {
+    set_extra_error_details("select_cert_error: proof_source_handle failure");
     return ssl_select_cert_error;
   }
 
@@ -1123,6 +1130,11 @@ void TlsServerHandshaker::OnSelectCertificateDone(
 
   QuicConnectionStats::TlsServerOperationStats select_cert_stats;
   select_cert_stats.success = (select_cert_status_ == QUIC_SUCCESS);
+  if (!select_cert_stats.success) {
+    set_extra_error_details(
+        "select_cert_error: proof_source_handle async failure");
+  }
+
   QUICHE_DCHECK_NE(is_sync, async_op_timer_.has_value());
   if (async_op_timer_.has_value()) {
     async_op_timer_->Stop(now());

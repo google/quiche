@@ -99,14 +99,19 @@ bool TlsClientHandshaker::CryptoConnect() {
 
   // Set the SNI to send, if any.
   SSL_set_connect_state(ssl());
+  const bool allow_invalid_sni_for_test =
+      GetQuicFlag(quic_client_allow_invalid_sni_for_test);
   if (QUIC_DLOG_INFO_IS_ON() &&
       !QuicHostnameUtils::IsValidSNI(server_id_.host())) {
     QUIC_DLOG(INFO) << "Client configured with invalid hostname \""
-                    << server_id_.host() << "\", not sending as SNI";
+                    << server_id_.host() << "\", "
+                    << (allow_invalid_sni_for_test
+                            ? "sending it anyway for test."
+                            : "not sending as SNI.");
   }
   if (!server_id_.host().empty() &&
       (QuicHostnameUtils::IsValidSNI(server_id_.host()) ||
-       allow_invalid_sni_for_tests_) &&
+       allow_invalid_sni_for_test) &&
       SSL_set_tlsext_host_name(ssl(), server_id_.host().c_str()) != 1) {
     return false;
   }

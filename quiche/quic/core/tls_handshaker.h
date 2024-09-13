@@ -44,6 +44,7 @@ class QUICHE_EXPORT TlsHandshaker : public TlsConnection::Delegate,
   const std::string& error_detail() const override {
     return parser_error_detail_;
   }
+  absl::string_view extra_error_details() const { return extra_error_details_; }
 
   // The following methods provide implementations to subclasses of
   // TlsHandshaker which use them to implement methods of QuicCryptoStream.
@@ -172,6 +173,10 @@ class QUICHE_EXPORT TlsHandshaker : public TlsConnection::Delegate,
   void MessageCallback(bool is_write, int version, int content_type,
                        absl::string_view data) override;
 
+  void set_extra_error_details(std::string extra_error_details) {
+    extra_error_details_ = std::move(extra_error_details);
+  }
+
  private:
   // ProofVerifierCallbackImpl handles the result of an asynchronous certificate
   // verification operation.
@@ -210,6 +215,10 @@ class QUICHE_EXPORT TlsHandshaker : public TlsConnection::Delegate,
 
   QuicErrorCode parser_error_ = QUIC_NO_ERROR;
   std::string parser_error_detail_;
+
+  // Arbitrary error string that will be added to the connection close error
+  // details when TlsHandshaker::CloseConnection is called.
+  std::string extra_error_details_;
 
   // The most recently derived 1-RTT read and write secrets, which are updated
   // on each key update.
