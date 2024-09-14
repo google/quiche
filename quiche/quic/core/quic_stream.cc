@@ -891,6 +891,9 @@ void QuicStream::MaybeSendRstStream(QuicResetStreamError error) {
   session()->MaybeSendRstStreamFrame(id(), error, stream_bytes_written());
   rst_sent_ = true;
   CloseWriteSide();
+  if (read_side_closed_ && write_side_closed_ && !IsWaitingForAcks()) {
+    session_->MaybeCloseZombieStream(id_);
+  }
 }
 
 bool QuicStream::HasBufferedData() const {
