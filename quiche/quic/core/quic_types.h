@@ -453,6 +453,7 @@ enum CongestionControlType {
   kGoogCC,
   kBBRv2,  // TODO(rch): This is effectively BBRv3. We should finish the
            // implementation and rename this enum.
+  kPragueCubic,
 };
 
 QUICHE_EXPORT std::string CongestionControlTypeToString(

@@ -325,6 +325,8 @@ std::string CongestionControlTypeToString(CongestionControlType cc_type) {
       return "PCC";
     case kGoogCC:
       return "GoogCC";
+    case kPragueCubic:
+      return "PRAGUE_CUBIC";
   }
   return absl::StrCat("Unknown(", static_cast<int>(cc_type), ")");
 }

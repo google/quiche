@@ -86,7 +86,6 @@ class QUICHE_EXPORT TcpCubicSenderBytes : public SendAlgorithmInterface {
 
   bool IsCwndLimited(QuicByteCount bytes_in_flight) const;
 
-  // TODO(ianswett): Remove these and migrate to OnCongestionEvent.
   void OnPacketAcked(QuicPacketNumber acked_packet_number,
                      QuicByteCount acked_bytes, QuicByteCount prior_in_flight,
                      QuicTime event_time);
@@ -100,6 +99,13 @@ class QUICHE_EXPORT TcpCubicSenderBytes : public SendAlgorithmInterface {
                          QuicByteCount acked_bytes,
                          QuicByteCount prior_in_flight, QuicTime event_time);
   void HandleRetransmissionTimeout();
+  const RttStats* rtt_stats() const { return rtt_stats_; }
+
+  void set_congestion_window(QuicByteCount cwnd) { congestion_window_ = cwnd; }
+  void set_slowstart_threshold(QuicByteCount ssthresh) {
+    slowstart_threshold_ = ssthresh;
+  }
+  void ExitRecovery() { largest_sent_at_last_cutback_.Clear(); }
 
  private:
   friend class test::TcpCubicSenderBytesPeer;
