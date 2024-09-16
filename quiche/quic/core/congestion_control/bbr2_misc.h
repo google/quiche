@@ -139,7 +139,7 @@ struct QUICHE_EXPORT Bbr2Params {
 
   // Pacing gains.
   float probe_bw_probe_up_pacing_gain = 1.25;
-  float probe_bw_probe_down_pacing_gain = 0.75;
+  float probe_bw_probe_down_pacing_gain = 0.91;
   float probe_bw_default_pacing_gain = 1.0;
 
   float probe_bw_cwnd_gain = 2.0;
