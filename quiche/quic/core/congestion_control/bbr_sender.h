@@ -108,6 +108,8 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
   void AdjustNetworkParameters(const NetworkParams& params) override;
   void SetInitialCongestionWindowInPackets(
       QuicPacketCount congestion_window) override;
+  void SetApplicationDrivenPacingRate(
+      QuicBandwidth /*application_bandwidth_target*/) override {}
   void OnCongestionEvent(bool rtt_updated, QuicByteCount prior_in_flight,
                          QuicTime event_time,
                          const AckedPacketVector& acked_packets,

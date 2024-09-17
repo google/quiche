@@ -226,6 +226,16 @@ void Bbr2NetworkModel::AdaptLowerBounds(
           std::max(bandwidth_latest_, bandwidth_lo_ * (1.0 - Params().beta));
       QUIC_DVLOG(3) << "bandwidth_lo_ updated to " << bandwidth_lo_
                     << ", bandwidth_latest_ is " << bandwidth_latest_;
+      if (enable_app_driven_pacing_) {
+        // In this mode, we forcibly cap bandwidth_lo_ at the application driven
+        // pacing rate when congestion_event.bytes_lost > 0. The idea is to
+        // avoid going over what the application needs at the earliest signs of
+        // network congestion.
+        bandwidth_lo_ = std::min(application_bandwidth_target_, bandwidth_lo_);
+        QUIC_DVLOG(3) << "bandwidth_lo_ updated to " << bandwidth_lo_
+                      << "after applying application_driven_pacing at "
+                      << application_bandwidth_target_;
+      }
 
       if (Params().ignore_inflight_lo) {
         return;

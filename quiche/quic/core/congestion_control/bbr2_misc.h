@@ -438,6 +438,14 @@ class QUICHE_EXPORT Bbr2NetworkModel {
 
   bool MaybeExpireMinRtt(const Bbr2CongestionEvent& congestion_event);
 
+  void SetEnableAppDrivenPacing(bool value) {
+    enable_app_driven_pacing_ = value;
+  }
+
+  void SetApplicationBandwidthTarget(QuicBandwidth bandwidth) {
+    application_bandwidth_target_ = bandwidth;
+  }
+
   QuicBandwidth BandwidthEstimate() const {
     return std::min(MaxBandwidth(), bandwidth_lo_);
   }
@@ -576,6 +584,9 @@ class QUICHE_EXPORT Bbr2NetworkModel {
   QuicBandwidth bandwidth_latest_ = QuicBandwidth::Zero();
   // Max bandwidth of recent rounds. Updated once per round.
   QuicBandwidth bandwidth_lo_ = bandwidth_lo_default();
+  // Target bandwidth from applications for app-driven pacing. Only used when
+  // enable_app_driven_pacing_ is true.
+  QuicBandwidth application_bandwidth_target_ = QuicBandwidth::Infinite();
   // bandwidth_lo_ at the beginning of a round with loss. Only used when the
   // bw_lo_mode is non-default.
   QuicBandwidth prior_bandwidth_lo_ = QuicBandwidth::Zero();
@@ -592,6 +603,9 @@ class QUICHE_EXPORT Bbr2NetworkModel {
   // Whether we are cwnd limited prior to the start of the current aggregation
   // epoch.
   bool cwnd_limited_before_aggregation_epoch_ = false;
+
+  // Enable application-driven pacing.
+  bool enable_app_driven_pacing_ = false;
 
   // STARTUP-centric fields which experimentally used by PROBE_UP.
   bool full_bandwidth_reached_ = false;

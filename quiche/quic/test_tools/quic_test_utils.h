@@ -1216,6 +1216,8 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
               (const QuicTagVector& connection_options), (override));
   MOCK_METHOD(void, SetInitialCongestionWindowInPackets,
               (QuicPacketCount packets), (override));
+  MOCK_METHOD(void, SetApplicationDrivenPacingRate,
+              (QuicBandwidth application_bandwidth_target), (override));
   MOCK_METHOD(void, OnCongestionEvent,
               (bool rtt_updated, QuicByteCount bytes_in_flight,
                QuicTime event_time, const AckedPacketVector& acked_packets,

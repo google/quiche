@@ -364,6 +364,9 @@ const QuicTag kMTUL = TAG('M', 'T', 'U', 'L');  // Low-target MTU discovery.
 const QuicTag kNSLC = TAG('N', 'S', 'L', 'C');  // Always send connection close
                                                 // for idle timeout.
 
+// Enable application-driven pacing experiment.
+const QuicTag kADP0 = TAG('A', 'D', 'P', '0');  // Enable App-Driven Pacing.
+
 // Proof types (i.e. certificate types)
 // NOTE: although it would be silly to do so, specifying both kX509 and kX59R
 // is allowed and is equivalent to specifying only kX509.

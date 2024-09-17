@@ -74,6 +74,11 @@ class QUICHE_EXPORT SendAlgorithmInterface {
   // if called after the initial congestion window is no longer relevant.
   virtual void SetInitialCongestionWindowInPackets(QuicPacketCount packets) = 0;
 
+  // [Experimental] Sets the application driven pacing rate. This is only used
+  // by an experimental feature for bbr2_sender.
+  virtual void SetApplicationDrivenPacingRate(
+      QuicBandwidth application_bandwidth_target) = 0;
+
   // Indicates an update to the congestion state, caused either by an incoming
   // ack or loss event timeout.  |rtt_updated| indicates whether a new
   // latest_rtt sample has been taken, |prior_in_flight| the bytes in flight
