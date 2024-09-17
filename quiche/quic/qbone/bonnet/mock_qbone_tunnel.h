@@ -33,9 +33,9 @@ class MockQboneTunnel : public QboneTunnelInterface {
 
   MOCK_METHOD(quic::QboneClient*, client, (), (override));
 
-  MOCK_METHOD(bool, use_quarantine_mode, (), (const override));
+  MOCK_METHOD(bool, use_quarantine_mode, (), (const, override));
 
-  MOCK_METHOD(bool, routes_set, (), (const override));
+  MOCK_METHOD(bool, routes_set, (), (const, override));
 
   MOCK_METHOD(State, state, ());
 
