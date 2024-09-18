@@ -8,7 +8,9 @@
 #include <cstdint>
 #include <ostream>
 
+#include "quiche/quic/core/frames/quic_rst_stream_frame.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
@@ -42,6 +44,14 @@ struct QUICHE_EXPORT QuicResetStreamAtFrame {
   // The RESET_STREAM is active only after the application reads up to
   // `reliable_offset` bytes.
   QuicStreamOffset reliable_offset = 0;
+
+  // Reverts this to a RST_STREAM frame. If the reliable_offset is not zero,
+  // that information is lost.
+  QuicRstStreamFrame ToRstStream() const {
+    return QuicRstStreamFrame(control_frame_id, stream_id,
+                              static_cast<QuicRstStreamErrorCode>(error),
+                              final_offset);
+  }
 };
 
 }  // namespace quic

@@ -75,6 +75,10 @@ class QUICHE_EXPORT QuicStreamSequencer final {
   // will be buffered.
   void OnCryptoFrame(const QuicCryptoFrame& frame);
 
+  // Notify the sequencer of a RESET_STREAM_AT so it can verify that any FIN is
+  // consistent.
+  void OnReliableReset(QuicStreamOffset reliable_size);
+
   // Once data is buffered, it's up to the stream to read it when the stream
   // can handle more data.  The following three functions make that possible.
 
@@ -196,6 +200,9 @@ class QUICHE_EXPORT QuicStreamSequencer final {
   // The offset, if any, we got a stream termination for.  When this many bytes
   // have been processed, the sequencer will be closed.
   QuicStreamOffset close_offset_;
+
+  // The offset at which the stream can be reset.
+  QuicStreamOffset reliable_offset_;
 
   // If true, the sequencer is blocked from passing data to the stream and will
   // buffer all new incoming data until FlushBufferedFrames is called.

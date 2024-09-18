@@ -32,6 +32,7 @@ QuicStreamSequencer::QuicStreamSequencer(StreamInterface* quic_stream)
       buffered_frames_(kStreamReceiveWindowLimit),
       highest_offset_(0),
       close_offset_(std::numeric_limits<QuicStreamOffset>::max()),
+      reliable_offset_(0),
       blocked_(false),
       num_frames_received_(0),
       num_duplicate_frames_received_(0),
@@ -71,6 +72,10 @@ void QuicStreamSequencer::OnCryptoFrame(const QuicCryptoFrame& frame) {
     return;
   }
   OnFrameData(frame.offset, frame.data_length, frame.data_buffer);
+}
+
+void QuicStreamSequencer::OnReliableReset(QuicStreamOffset reliable_size) {
+  reliable_offset_ = reliable_size;
 }
 
 void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
@@ -148,6 +153,15 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
         absl::StrCat(
             "Stream ", stream_->id(), " received fin with offset: ", offset,
             ", which reduces current highest offset: ", highest_offset_));
+    return false;
+  }
+
+  if (offset < reliable_offset_) {
+    stream_->OnUnrecoverableError(
+        QUIC_STREAM_MULTIPLE_OFFSET,
+        absl::StrCat(
+            "Stream ", stream_->id(), " received fin with offset: ", offset,
+            ", which reduces current reliable offset: ", reliable_offset_));
     return false;
   }
 
