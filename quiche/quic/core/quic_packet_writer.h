@@ -43,6 +43,8 @@ struct QUICHE_EXPORT QuicPacketWriterParams {
   bool allow_burst = false;
   // ECN codepoint to use when sending this packet.
   QuicEcnCodepoint ecn_codepoint = ECN_NOT_ECT;
+  // IPv6 flow label in host byte order. Only the low 20 bits will be used.
+  uint32_t flow_label = 0;
 };
 
 // An interface between writers and the entity managing the
