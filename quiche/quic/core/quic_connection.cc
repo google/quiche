@@ -663,6 +663,12 @@ void QuicConnection::SetMaxPacingRate(QuicBandwidth max_pacing_rate) {
   sent_packet_manager_.SetMaxPacingRate(max_pacing_rate);
 }
 
+void QuicConnection::SetApplicationDrivenPacingRate(
+    QuicBandwidth application_driven_pacing_rate) {
+  sent_packet_manager_.SetApplicationDrivenPacingRate(
+      application_driven_pacing_rate);
+}
+
 void QuicConnection::AdjustNetworkParameters(
     const SendAlgorithmInterface::NetworkParams& params) {
   sent_packet_manager_.AdjustNetworkParameters(params);
@@ -685,6 +691,10 @@ void QuicConnection::OnConfigNegotiated() {
 
 QuicBandwidth QuicConnection::MaxPacingRate() const {
   return sent_packet_manager_.MaxPacingRate();
+}
+
+QuicBandwidth QuicConnection::ApplicationDrivenPacingRate() const {
+  return sent_packet_manager_.ApplicationDrivenPacingRate();
 }
 
 bool QuicConnection::SelectMutualVersion(

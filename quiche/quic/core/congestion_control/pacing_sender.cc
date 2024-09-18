@@ -23,6 +23,7 @@ static const uint32_t kInitialUnpacedBurst = 10;
 PacingSender::PacingSender()
     : sender_(nullptr),
       max_pacing_rate_(QuicBandwidth::Zero()),
+      application_driven_pacing_rate_(QuicBandwidth::Infinite()),
       burst_tokens_(kInitialUnpacedBurst),
       ideal_next_packet_send_time_(QuicTime::Zero()),
       initial_burst_size_(kInitialUnpacedBurst),

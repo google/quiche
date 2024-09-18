@@ -561,6 +561,15 @@ class QUICHE_EXPORT QuicConnection
   // Called by the Session when a max pacing rate for the connection is needed.
   virtual void SetMaxPacingRate(QuicBandwidth max_pacing_rate);
 
+  // Called by the Session when an application driven pacing rate for the
+  // connection is needed.  Experimental, see b/364614652 for more context.
+  // This is only used by an experimental feature for bbr2_sender to support
+  // soft pacing based on application layer hints when there are signs of
+  // congestion.  application_driven_pacing_rat| is the bandwidth that is
+  // considered sufficient for the application's need.
+  virtual void SetApplicationDrivenPacingRate(
+      QuicBandwidth application_driven_pacing_rate);
+
   // Allows the client to adjust network parameters based on external
   // information.
   void AdjustNetworkParameters(
@@ -576,6 +585,9 @@ class QUICHE_EXPORT QuicConnection
 
   // Returns the max pacing rate for the connection.
   virtual QuicBandwidth MaxPacingRate() const;
+
+  // Returns the application driven pacing rate for the connection.
+  virtual QuicBandwidth ApplicationDrivenPacingRate() const;
 
   // Sends crypto handshake messages of length |write_length| to the peer in as
   // few packets as possible. Returns the number of bytes consumed from the

@@ -655,6 +655,11 @@ class MockQuicConnection : public QuicConnection {
               (const CachedNetworkParameters&, bool), (override));
   MOCK_METHOD(void, SetMaxPacingRate, (QuicBandwidth), (override));
 
+  MOCK_METHOD(void, SetApplicationDrivenPacingRate, (quic::QuicBandwidth),
+              (override));
+  MOCK_METHOD(quic::QuicBandwidth, ApplicationDrivenPacingRate, (),
+              (const, override));
+
   MOCK_METHOD(void, OnStreamReset, (QuicStreamId, QuicRstStreamErrorCode),
               (override));
   MOCK_METHOD(bool, SendControlFrame, (const QuicFrame& frame), (override));
