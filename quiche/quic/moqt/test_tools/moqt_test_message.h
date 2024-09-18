@@ -30,17 +30,15 @@ namespace moqt::test {
 // tests to iterate through all message types without much specialized code.
 class QUICHE_NO_EXPORT TestMessageBase {
  public:
-  TestMessageBase(MoqtMessageType message_type) : message_type_(message_type) {}
   virtual ~TestMessageBase() = default;
-  MoqtMessageType message_type() const { return message_type_; }
 
-  typedef absl::variant<
-      MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtSubscribe,
-      MoqtSubscribeOk, MoqtSubscribeError, MoqtUnsubscribe, MoqtSubscribeDone,
-      MoqtSubscribeUpdate, MoqtAnnounce, MoqtAnnounceOk, MoqtAnnounceError,
-      MoqtAnnounceCancel, MoqtTrackStatusRequest, MoqtUnannounce,
-      MoqtTrackStatus, MoqtGoAway, MoqtObjectAck>
-      MessageStructuredData;
+  using MessageStructuredData =
+      absl::variant<MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtSubscribe,
+                    MoqtSubscribeOk, MoqtSubscribeError, MoqtUnsubscribe,
+                    MoqtSubscribeDone, MoqtSubscribeUpdate, MoqtAnnounce,
+                    MoqtAnnounceOk, MoqtAnnounceError, MoqtAnnounceCancel,
+                    MoqtTrackStatusRequest, MoqtUnannounce, MoqtTrackStatus,
+                    MoqtGoAway, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -103,9 +101,6 @@ class QUICHE_NO_EXPORT TestMessageBase {
     wire_image_size_ = writer.length();
   }
 
- protected:
-  MoqtMessageType message_type_;
-
  private:
   char wire_image_[kMaxMessageHeaderSize + 20];
   size_t wire_image_size_;
@@ -114,10 +109,6 @@ class QUICHE_NO_EXPORT TestMessageBase {
 // Base class for the two subtypes of Object Message.
 class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
  public:
-  ObjectMessage(MoqtMessageType type) : TestMessageBase(type) {
-    object_.forwarding_preference = GetForwardingPreference(type);
-  }
-
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtObject>(values);
     if (cast.subscribe_id != object_.subscribe_id) {
@@ -174,7 +165,7 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT ObjectStreamMessage : public ObjectMessage {
  public:
-  ObjectStreamMessage() : ObjectMessage(MoqtMessageType::kObjectStream) {
+  ObjectStreamMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     object_.forwarding_preference = MoqtForwardingPreference::kObject;
   }
@@ -190,7 +181,7 @@ class QUICHE_NO_EXPORT ObjectStreamMessage : public ObjectMessage {
 
 class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
  public:
-  ObjectDatagramMessage() : ObjectMessage(MoqtMessageType::kObjectDatagram) {
+  ObjectDatagramMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     object_.forwarding_preference = MoqtForwardingPreference::kDatagram;
   }
@@ -208,8 +199,7 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
 // object headers are handled in a different class.
 class QUICHE_NO_EXPORT StreamHeaderTrackMessage : public ObjectMessage {
  public:
-  StreamHeaderTrackMessage()
-      : ObjectMessage(MoqtMessageType::kStreamHeaderTrack) {
+  StreamHeaderTrackMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     object_.forwarding_preference = MoqtForwardingPreference::kTrack;
     object_.payload_length = 3;
@@ -233,8 +223,7 @@ class QUICHE_NO_EXPORT StreamHeaderTrackMessage : public ObjectMessage {
 // Used only for tests that process multiple objects on one stream.
 class QUICHE_NO_EXPORT StreamMiddlerTrackMessage : public ObjectMessage {
  public:
-  StreamMiddlerTrackMessage()
-      : ObjectMessage(MoqtMessageType::kStreamHeaderTrack) {
+  StreamMiddlerTrackMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     object_.forwarding_preference = MoqtForwardingPreference::kTrack;
     object_.payload_length = 3;
@@ -253,8 +242,7 @@ class QUICHE_NO_EXPORT StreamMiddlerTrackMessage : public ObjectMessage {
 
 class QUICHE_NO_EXPORT StreamHeaderGroupMessage : public ObjectMessage {
  public:
-  StreamHeaderGroupMessage()
-      : ObjectMessage(MoqtMessageType::kStreamHeaderGroup) {
+  StreamHeaderGroupMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     object_.forwarding_preference = MoqtForwardingPreference::kGroup;
     object_.payload_length = 3;
@@ -273,8 +261,7 @@ class QUICHE_NO_EXPORT StreamHeaderGroupMessage : public ObjectMessage {
 // Used only for tests that process multiple objects on one stream.
 class QUICHE_NO_EXPORT StreamMiddlerGroupMessage : public ObjectMessage {
  public:
-  StreamMiddlerGroupMessage()
-      : ObjectMessage(MoqtMessageType::kStreamHeaderGroup) {
+  StreamMiddlerGroupMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     object_.forwarding_preference = MoqtForwardingPreference::kGroup;
     object_.payload_length = 3;
@@ -291,8 +278,7 @@ class QUICHE_NO_EXPORT StreamMiddlerGroupMessage : public ObjectMessage {
 
 class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
  public:
-  explicit ClientSetupMessage(bool webtrans)
-      : TestMessageBase(MoqtMessageType::kClientSetup) {
+  explicit ClientSetupMessage(bool webtrans) : TestMessageBase() {
     if (webtrans) {
       // Should not send PATH.
       client_setup_.path = std::nullopt;
@@ -360,8 +346,7 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
  public:
-  explicit ServerSetupMessage()
-      : TestMessageBase(MoqtMessageType::kServerSetup) {
+  explicit ServerSetupMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -400,7 +385,7 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
  public:
-  SubscribeMessage() : TestMessageBase(MoqtMessageType::kSubscribe) {
+  SubscribeMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -498,7 +483,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
  public:
-  SubscribeOkMessage() : TestMessageBase(MoqtMessageType::kSubscribeOk) {
+  SubscribeOkMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -556,7 +541,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT SubscribeErrorMessage : public TestMessageBase {
  public:
-  SubscribeErrorMessage() : TestMessageBase(MoqtMessageType::kSubscribeError) {
+  SubscribeErrorMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -605,7 +590,7 @@ class QUICHE_NO_EXPORT SubscribeErrorMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
  public:
-  UnsubscribeMessage() : TestMessageBase(MoqtMessageType::kUnsubscribe) {
+  UnsubscribeMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -636,7 +621,7 @@ class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
  public:
-  SubscribeDoneMessage() : TestMessageBase(MoqtMessageType::kSubscribeDone) {
+  SubscribeDoneMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -689,8 +674,7 @@ class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
  public:
-  SubscribeUpdateMessage()
-      : TestMessageBase(MoqtMessageType::kSubscribeUpdate) {
+  SubscribeUpdateMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -754,7 +738,7 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT AnnounceMessage : public TestMessageBase {
  public:
-  AnnounceMessage() : TestMessageBase(MoqtMessageType::kAnnounce) {
+  AnnounceMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -792,7 +776,7 @@ class QUICHE_NO_EXPORT AnnounceMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT AnnounceOkMessage : public TestMessageBase {
  public:
-  AnnounceOkMessage() : TestMessageBase(MoqtMessageType::kAnnounceOk) {
+  AnnounceOkMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -823,7 +807,7 @@ class QUICHE_NO_EXPORT AnnounceOkMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT AnnounceErrorMessage : public TestMessageBase {
  public:
-  AnnounceErrorMessage() : TestMessageBase(MoqtMessageType::kAnnounceError) {
+  AnnounceErrorMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -866,7 +850,7 @@ class QUICHE_NO_EXPORT AnnounceErrorMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT AnnounceCancelMessage : public TestMessageBase {
  public:
-  AnnounceCancelMessage() : TestMessageBase(MoqtMessageType::kAnnounceCancel) {
+  AnnounceCancelMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -897,8 +881,7 @@ class QUICHE_NO_EXPORT AnnounceCancelMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT TrackStatusRequestMessage : public TestMessageBase {
  public:
-  TrackStatusRequestMessage()
-      : TestMessageBase(MoqtMessageType::kTrackStatusRequest) {
+  TrackStatusRequestMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -935,14 +918,14 @@ class QUICHE_NO_EXPORT TrackStatusRequestMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT UnannounceMessage : public TestMessageBase {
  public:
-  UnannounceMessage() : TestMessageBase(MoqtMessageType::kUnannounce) {
+  UnannounceMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtUnannounce>(values);
     if (cast.track_namespace != unannounce_.track_namespace) {
-      QUIC_LOG(INFO) << "UNSUBSCRIBE full track name mismatch";
+      QUIC_LOG(INFO) << "UNANNOUNCE track namespace mismatch";
       return false;
     }
     return true;
@@ -966,7 +949,7 @@ class QUICHE_NO_EXPORT UnannounceMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT TrackStatusMessage : public TestMessageBase {
  public:
-  TrackStatusMessage() : TestMessageBase(MoqtMessageType::kTrackStatus) {
+  TrackStatusMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -1019,14 +1002,14 @@ class QUICHE_NO_EXPORT TrackStatusMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT GoAwayMessage : public TestMessageBase {
  public:
-  GoAwayMessage() : TestMessageBase(MoqtMessageType::kGoAway) {
+  GoAwayMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtGoAway>(values);
     if (cast.new_session_uri != goaway_.new_session_uri) {
-      QUIC_LOG(INFO) << "UNSUBSCRIBE full track name mismatch";
+      QUIC_LOG(INFO) << "GOAWAY full track name mismatch";
       return false;
     }
     return true;
@@ -1050,7 +1033,7 @@ class QUICHE_NO_EXPORT GoAwayMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
  public:
-  ObjectAckMessage() : TestMessageBase(MoqtMessageType::kObjectAck) {
+  ObjectAckMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
