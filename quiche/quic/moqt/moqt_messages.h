@@ -59,9 +59,14 @@ struct QUICHE_EXPORT MoqtSessionParameters {
 // are not buffered by the parser).
 inline constexpr size_t kMaxMessageHeaderSize = 2048;
 
-enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
+enum class QUICHE_EXPORT MoqtDataStreamType : uint64_t {
   kObjectStream = 0x00,
   kObjectDatagram = 0x01,
+  kStreamHeaderTrack = 0x50,
+  kStreamHeaderGroup = 0x51,
+};
+
+enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kSubscribeUpdate = 0x02,
   kSubscribe = 0x03,
   kSubscribeOk = 0x04,
@@ -78,8 +83,6 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kGoAway = 0x10,
   kClientSetup = 0x40,
   kServerSetup = 0x41,
-  kStreamHeaderTrack = 0x50,
-  kStreamHeaderGroup = 0x51,
 
   // QUICHE-specific extensions.
 
@@ -429,13 +432,14 @@ struct QUICHE_EXPORT MoqtObjectAck {
 };
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);
+std::string MoqtDataStreamTypeToString(MoqtDataStreamType type);
 
 std::string MoqtForwardingPreferenceToString(
     MoqtForwardingPreference preference);
 
-MoqtForwardingPreference GetForwardingPreference(MoqtMessageType type);
+MoqtForwardingPreference GetForwardingPreference(MoqtDataStreamType type);
 
-MoqtMessageType GetMessageTypeForForwardingPreference(
+MoqtDataStreamType GetMessageTypeForForwardingPreference(
     MoqtForwardingPreference preference);
 
 }  // namespace moqt

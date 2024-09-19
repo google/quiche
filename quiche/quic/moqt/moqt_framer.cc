@@ -191,7 +191,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
         return quiche::QuicheBuffer();
     }
   }
-  MoqtMessageType message_type =
+  MoqtDataStreamType message_type =
       GetMessageTypeForForwardingPreference(message.forwarding_preference);
   switch (message.forwarding_preference) {
     case MoqtForwardingPreference::kTrack:
@@ -247,7 +247,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
     return quiche::QuicheBuffer();
   }
   return Serialize(
-      WireVarInt62(MoqtMessageType::kObjectDatagram),
+      WireVarInt62(MoqtDataStreamType::kObjectDatagram),
       WireVarInt62(message.subscribe_id), WireVarInt62(message.track_alias),
       WireVarInt62(message.group_id), WireVarInt62(message.object_id),
       WireUint8(message.publisher_priority),

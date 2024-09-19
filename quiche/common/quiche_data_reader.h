@@ -82,6 +82,9 @@ class QUICHE_EXPORT QuicheDataReader {
   // Returns true on success, false otherwise.
   bool ReadStringPiece(absl::string_view* result, size_t size);
 
+  // Reads at most a given number of bytes into the provided view.
+  absl::string_view ReadAtMost(size_t size);
+
   // Reads tag represented as 32-bit unsigned integer into given output
   // parameter. Tags are in big endian on the wire (e.g., CHLO is
   // 'C','H','L','O') and are read in byte order, so tags in memory are in big

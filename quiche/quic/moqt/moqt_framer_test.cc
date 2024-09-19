@@ -35,24 +35,26 @@ struct MoqtFramerTestParams {
 std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
   std::vector<MoqtFramerTestParams> params;
   std::vector<MoqtMessageType> message_types = {
-      MoqtMessageType::kObjectStream,      MoqtMessageType::kSubscribe,
-      MoqtMessageType::kSubscribeOk,       MoqtMessageType::kSubscribeError,
-      MoqtMessageType::kUnsubscribe,       MoqtMessageType::kSubscribeDone,
-      MoqtMessageType::kAnnounceCancel,    MoqtMessageType::kTrackStatusRequest,
-      MoqtMessageType::kTrackStatus,       MoqtMessageType::kAnnounce,
-      MoqtMessageType::kAnnounceOk,        MoqtMessageType::kAnnounceError,
-      MoqtMessageType::kUnannounce,        MoqtMessageType::kGoAway,
-      MoqtMessageType::kObjectAck,         MoqtMessageType::kClientSetup,
-      MoqtMessageType::kServerSetup,       MoqtMessageType::kStreamHeaderTrack,
-      MoqtMessageType::kStreamHeaderGroup,
-  };
-  std::vector<bool> uses_web_transport_bool = {
-      false,
-      true,
+      MoqtMessageType::kSubscribe,
+      MoqtMessageType::kSubscribeOk,
+      MoqtMessageType::kSubscribeError,
+      MoqtMessageType::kUnsubscribe,
+      MoqtMessageType::kSubscribeDone,
+      MoqtMessageType::kAnnounceCancel,
+      MoqtMessageType::kTrackStatusRequest,
+      MoqtMessageType::kTrackStatus,
+      MoqtMessageType::kAnnounce,
+      MoqtMessageType::kAnnounceOk,
+      MoqtMessageType::kAnnounceError,
+      MoqtMessageType::kUnannounce,
+      MoqtMessageType::kGoAway,
+      MoqtMessageType::kObjectAck,
+      MoqtMessageType::kClientSetup,
+      MoqtMessageType::kServerSetup,
   };
   for (const MoqtMessageType message_type : message_types) {
     if (message_type == MoqtMessageType::kClientSetup) {
-      for (const bool uses_web_transport : uses_web_transport_bool) {
+      for (const bool uses_web_transport : {false, true}) {
         params.push_back(
             MoqtFramerTestParams(message_type, uses_web_transport));
       }
@@ -103,12 +105,6 @@ class MoqtFramerTest
   quiche::QuicheBuffer SerializeMessage(
       TestMessageBase::MessageStructuredData& structured_data) {
     switch (message_type_) {
-      case MoqtMessageType::kObjectStream:
-      case MoqtMessageType::kStreamHeaderTrack:
-      case MoqtMessageType::kStreamHeaderGroup: {
-        MoqtObject data = std::get<MoqtObject>(structured_data);
-        return SerializeObject(framer_, data, "foo", true);
-      }
       case MoqtMessageType::kSubscribe: {
         auto data = std::get<MoqtSubscribe>(structured_data);
         return framer_.SerializeSubscribe(data);

@@ -1083,10 +1083,6 @@ class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
 static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
     MoqtMessageType message_type, bool is_webtrans) {
   switch (message_type) {
-    case MoqtMessageType::kObjectStream:
-      return std::make_unique<ObjectStreamMessage>();
-    case MoqtMessageType::kObjectDatagram:
-      return std::make_unique<ObjectDatagramMessage>();
     case MoqtMessageType::kSubscribe:
       return std::make_unique<SubscribeMessage>();
     case MoqtMessageType::kSubscribeOk:
@@ -1121,13 +1117,24 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<ClientSetupMessage>(is_webtrans);
     case MoqtMessageType::kServerSetup:
       return std::make_unique<ServerSetupMessage>();
-    case MoqtMessageType::kStreamHeaderTrack:
-      return std::make_unique<StreamHeaderTrackMessage>();
-    case MoqtMessageType::kStreamHeaderGroup:
-      return std::make_unique<StreamHeaderGroupMessage>();
     default:
       return nullptr;
   }
+}
+
+static inline std::unique_ptr<TestMessageBase> CreateTestDataStream(
+    MoqtDataStreamType type) {
+  switch (type) {
+    case MoqtDataStreamType::kObjectStream:
+      return std::make_unique<ObjectStreamMessage>();
+    case MoqtDataStreamType::kObjectDatagram:
+      return std::make_unique<ObjectDatagramMessage>();
+    case MoqtDataStreamType::kStreamHeaderTrack:
+      return std::make_unique<StreamHeaderTrackMessage>();
+    case MoqtDataStreamType::kStreamHeaderGroup:
+      return std::make_unique<StreamHeaderGroupMessage>();
+  }
+  return nullptr;
 }
 
 }  // namespace moqt::test

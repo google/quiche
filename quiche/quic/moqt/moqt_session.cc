@@ -188,7 +188,7 @@ void MoqtSession::OnIncomingUnidirectionalStreamAvailable() {
 
 void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   MoqtObject message;
-  absl::string_view payload = MoqtParser::ProcessDatagram(datagram, message);
+  absl::string_view payload = ParseDatagram(datagram, message);
   if (payload.empty()) {
     Error(MoqtError::kProtocolViolation, "Malformed datagram");
     return;
@@ -533,8 +533,9 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
        track.visitor()});
 }
 
+template <class Parser>
 static void ForwardStreamDataToParser(webtransport::Stream& stream,
-                                      MoqtParser& parser) {
+                                      Parser& parser) {
   bool fin =
       quiche::ProcessAllReadableRegions(stream, [&](absl::string_view chunk) {
         parser.ProcessData(chunk, /*end_of_stream=*/false);
@@ -571,13 +572,6 @@ void MoqtSession::ControlStream::OnStopSendingReceived(
     webtransport::StreamErrorCode error) {
   session_->Error(MoqtError::kProtocolViolation,
                   absl::StrCat("Control stream reset with error code ", error));
-}
-
-void MoqtSession::ControlStream::OnObjectMessage(const MoqtObject& message,
-                                                 absl::string_view payload,
-                                                 bool end_of_message) {
-  session_->Error(MoqtError::kProtocolViolation,
-                  "Received OBJECT message on control stream");
 }
 
 void MoqtSession::ControlStream::OnClientSetupMessage(
@@ -880,6 +874,11 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       << (end_of_message ? "F" : "");
   if (!session_->parameters_.deliver_partial_objects) {
     if (!end_of_message) {  // Buffer partial object.
+      if (partial_object_.empty() && message.payload_length.has_value()) {
+        // Avoid redundant allocations by reserving the appropriate amount of
+        // memory if known.
+        partial_object_.reserve(*message.payload_length);
+      }
       absl::StrAppend(&partial_object_, payload);
       return;
     }

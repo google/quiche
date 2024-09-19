@@ -4,6 +4,7 @@
 
 #include "quiche/common/quiche_data_reader.h"
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 
@@ -129,6 +130,13 @@ bool QuicheDataReader::ReadStringPiece(absl::string_view* result, size_t size) {
   pos_ += size;
 
   return true;
+}
+
+absl::string_view QuicheDataReader::ReadAtMost(size_t size) {
+  size_t actual_size = std::min(size, BytesRemaining());
+  absl::string_view result = absl::string_view(data_ + pos_, actual_size);
+  AdvancePos(actual_size);
+  return result;
 }
 
 bool QuicheDataReader::ReadTag(uint32_t* tag) {

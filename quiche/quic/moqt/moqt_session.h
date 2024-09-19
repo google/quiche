@@ -176,7 +176,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   friend class test::MoqtSessionPeer;
 
   class QUICHE_EXPORT ControlStream : public webtransport::StreamVisitor,
-                                      public MoqtParserVisitor {
+                                      public MoqtControlParserVisitor {
    public:
     ControlStream(MoqtSession* session, webtransport::Stream* stream);
 
@@ -187,10 +187,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnStopSendingReceived(webtransport::StreamErrorCode error) override;
     void OnWriteSideInDataRecvdState() override {}
 
-    // MoqtParserVisitor implementation.
-    // TODO: Handle a stream FIN.
-    void OnObjectMessage(const MoqtObject& message, absl::string_view payload,
-                         bool end_of_message) override;
+    // MoqtControlParserVisitor implementation.
     void OnClientSetupMessage(const MoqtClientSetup& message) override;
     void OnServerSetupMessage(const MoqtServerSetup& message) override;
     void OnSubscribeMessage(const MoqtSubscribe& message) override;
@@ -240,15 +237,13 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
     MoqtSession* session_;
     webtransport::Stream* stream_;
-    MoqtParser parser_;
+    MoqtControlParser parser_;
   };
   class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
-                                           public MoqtParserVisitor {
+                                           public MoqtDataParserVisitor {
    public:
     IncomingDataStream(MoqtSession* session, webtransport::Stream* stream)
-        : session_(session),
-          stream_(stream),
-          parser_(session->parameters_.using_webtrans, *this) {}
+        : session_(session), stream_(stream), parser_(this) {}
 
     // webtransport::StreamVisitor implementation.
     void OnCanRead() override;
@@ -261,58 +256,6 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // TODO: Handle a stream FIN.
     void OnObjectMessage(const MoqtObject& message, absl::string_view payload,
                          bool end_of_message) override;
-    void OnClientSetupMessage(const MoqtClientSetup&) override {
-      OnControlMessageReceived();
-    }
-    void OnServerSetupMessage(const MoqtServerSetup&) override {
-      OnControlMessageReceived();
-    }
-    void OnSubscribeMessage(const MoqtSubscribe&) override {
-      OnControlMessageReceived();
-    }
-    void OnSubscribeOkMessage(const MoqtSubscribeOk&) override {
-      OnControlMessageReceived();
-    }
-    void OnSubscribeErrorMessage(const MoqtSubscribeError&) override {
-      OnControlMessageReceived();
-    }
-    void OnUnsubscribeMessage(const MoqtUnsubscribe&) override {
-      OnControlMessageReceived();
-    }
-    void OnSubscribeDoneMessage(const MoqtSubscribeDone&) override {
-      OnControlMessageReceived();
-    }
-    void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate&) override {
-      OnControlMessageReceived();
-    }
-    void OnAnnounceMessage(const MoqtAnnounce&) override {
-      OnControlMessageReceived();
-    }
-    void OnAnnounceOkMessage(const MoqtAnnounceOk&) override {
-      OnControlMessageReceived();
-    }
-    void OnAnnounceErrorMessage(const MoqtAnnounceError&) override {
-      OnControlMessageReceived();
-    }
-    void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override {
-      OnControlMessageReceived();
-    }
-    void OnTrackStatusRequestMessage(
-        const MoqtTrackStatusRequest& message) override {
-      OnControlMessageReceived();
-    }
-    void OnUnannounceMessage(const MoqtUnannounce&) override {
-      OnControlMessageReceived();
-    }
-    void OnTrackStatusMessage(const MoqtTrackStatus&) override {
-      OnControlMessageReceived();
-    }
-    void OnGoAwayMessage(const MoqtGoAway&) override {
-      OnControlMessageReceived();
-    }
-    void OnObjectAckMessage(const MoqtObjectAck&) override {
-      OnControlMessageReceived();
-    }
     void OnParsingError(MoqtError error_code,
                         absl::string_view reason) override;
 
@@ -328,7 +271,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
     MoqtSession* session_;
     webtransport::Stream* stream_;
-    MoqtParser parser_;
+    MoqtDataParser parser_;
     std::string partial_object_;
   };
   // Represents a record for a single subscription to a local track that is

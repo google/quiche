@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace moqt {
@@ -55,10 +56,6 @@ MoqtFilterType GetFilterType(const MoqtSubscribe& message) {
 
 std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
   switch (message_type) {
-    case MoqtMessageType::kObjectStream:
-      return "OBJECT_STREAM";
-    case MoqtMessageType::kObjectDatagram:
-      return "OBJECT_PREFER_DATAGRAM";
     case MoqtMessageType::kClientSetup:
       return "CLIENT_SETUP";
     case MoqtMessageType::kServerSetup:
@@ -91,14 +88,24 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNANNOUNCE";
     case MoqtMessageType::kGoAway:
       return "GOAWAY";
-    case MoqtMessageType::kStreamHeaderTrack:
-      return "STREAM_HEADER_TRACK";
-    case MoqtMessageType::kStreamHeaderGroup:
-      return "STREAM_HEADER_GROUP";
     case MoqtMessageType::kObjectAck:
       return "OBJECT_ACK";
   }
   return "Unknown message " + std::to_string(static_cast<int>(message_type));
+}
+
+std::string MoqtDataStreamTypeToString(MoqtDataStreamType type) {
+  switch (type) {
+    case MoqtDataStreamType::kObjectStream:
+      return "OBJECT_STREAM";
+    case MoqtDataStreamType::kObjectDatagram:
+      return "OBJECT_PREFER_DATAGRAM";
+    case MoqtDataStreamType::kStreamHeaderTrack:
+      return "STREAM_HEADER_TRACK";
+    case MoqtDataStreamType::kStreamHeaderGroup:
+      return "STREAM_HEADER_GROUP";
+  }
+  return "Unknown stream type " + absl::StrCat(static_cast<int>(type));
 }
 
 std::string MoqtForwardingPreferenceToString(
@@ -118,15 +125,15 @@ std::string MoqtForwardingPreferenceToString(
   return "Unknown preference " + std::to_string(static_cast<int>(preference));
 }
 
-MoqtForwardingPreference GetForwardingPreference(MoqtMessageType type) {
+MoqtForwardingPreference GetForwardingPreference(MoqtDataStreamType type) {
   switch (type) {
-    case MoqtMessageType::kObjectStream:
+    case MoqtDataStreamType::kObjectStream:
       return MoqtForwardingPreference::kObject;
-    case MoqtMessageType::kObjectDatagram:
+    case MoqtDataStreamType::kObjectDatagram:
       return MoqtForwardingPreference::kDatagram;
-    case MoqtMessageType::kStreamHeaderTrack:
+    case MoqtDataStreamType::kStreamHeaderTrack:
       return MoqtForwardingPreference::kTrack;
-    case MoqtMessageType::kStreamHeaderGroup:
+    case MoqtDataStreamType::kStreamHeaderGroup:
       return MoqtForwardingPreference::kGroup;
     default:
       break;
@@ -136,21 +143,21 @@ MoqtForwardingPreference GetForwardingPreference(MoqtMessageType type) {
   return MoqtForwardingPreference::kObject;
 };
 
-MoqtMessageType GetMessageTypeForForwardingPreference(
+MoqtDataStreamType GetMessageTypeForForwardingPreference(
     MoqtForwardingPreference preference) {
   switch (preference) {
     case MoqtForwardingPreference::kObject:
-      return MoqtMessageType::kObjectStream;
+      return MoqtDataStreamType::kObjectStream;
     case MoqtForwardingPreference::kDatagram:
-      return MoqtMessageType::kObjectDatagram;
+      return MoqtDataStreamType::kObjectDatagram;
     case MoqtForwardingPreference::kTrack:
-      return MoqtMessageType::kStreamHeaderTrack;
+      return MoqtDataStreamType::kStreamHeaderTrack;
     case MoqtForwardingPreference::kGroup:
-      return MoqtMessageType::kStreamHeaderGroup;
+      return MoqtDataStreamType::kStreamHeaderGroup;
   }
   QUIC_BUG(quic_bug_bad_moqt_message_type_03)
       << "Forwarding preference does not indicate message type";
-  return MoqtMessageType::kObjectStream;
+  return MoqtDataStreamType::kObjectStream;
 }
 
 }  // namespace moqt

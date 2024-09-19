@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_endian.h"
 
@@ -182,6 +183,15 @@ TEST(QuicheDataReaderTest, ReadBytesWithBufferTooSmall) {
   char dest[ABSL_ARRAYSIZE(kData) + 2] = {};
   EXPECT_FALSE(reader.ReadBytes(&dest, ABSL_ARRAYSIZE(kData) + 1));
   EXPECT_STREQ("", dest);
+}
+
+TEST(QuicheDataReaderTest, ReadAtMost) {
+  constexpr absl::string_view kData = "foobar";
+  QuicheDataReader reader(kData);
+  EXPECT_EQ(reader.ReadAtMost(0), "");
+  EXPECT_EQ(reader.ReadAtMost(3), "foo");
+  EXPECT_EQ(reader.ReadAtMost(6), "bar");
+  EXPECT_EQ(reader.ReadAtMost(1000), "");
 }
 
 }  // namespace quiche
