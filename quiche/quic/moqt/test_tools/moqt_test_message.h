@@ -1133,6 +1133,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestDataStream(
       return std::make_unique<StreamHeaderTrackMessage>();
     case MoqtDataStreamType::kStreamHeaderGroup:
       return std::make_unique<StreamHeaderGroupMessage>();
+    case MoqtDataStreamType::kPadding:
+      return nullptr;
   }
   return nullptr;
 }

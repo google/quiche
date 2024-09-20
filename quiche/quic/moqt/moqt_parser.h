@@ -176,12 +176,17 @@ class QUICHE_EXPORT MoqtDataParser {
     kSubheader,
     // The next thing to be read is the object payload.
     kData,
+    // The next thing to be read (and ignored) is padding.
+    kPadding,
   };
 
   // Infers the current state of the parser.
   NextInput GetNextInput() const {
     if (!type_.has_value()) {
       return kStreamType;
+    }
+    if (type_ == MoqtDataStreamType::kPadding) {
+      return kPadding;
     }
     if (!metadata_.has_value()) {
       return kHeader;

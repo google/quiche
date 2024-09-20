@@ -64,6 +64,9 @@ enum class QUICHE_EXPORT MoqtDataStreamType : uint64_t {
   kObjectDatagram = 0x01,
   kStreamHeaderTrack = 0x50,
   kStreamHeaderGroup = 0x51,
+
+  // Currently QUICHE-specific.  All data on a kPadding stream is ignored.
+  kPadding = 0x26d3,
 };
 
 enum class QUICHE_EXPORT MoqtMessageType : uint64_t {

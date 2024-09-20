@@ -104,6 +104,8 @@ std::string MoqtDataStreamTypeToString(MoqtDataStreamType type) {
       return "STREAM_HEADER_TRACK";
     case MoqtDataStreamType::kStreamHeaderGroup:
       return "STREAM_HEADER_GROUP";
+    case MoqtDataStreamType::kPadding:
+      return "PADDING";
   }
   return "Unknown stream type " + absl::StrCat(static_cast<int>(type));
 }

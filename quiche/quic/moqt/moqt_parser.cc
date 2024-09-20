@@ -52,7 +52,7 @@ uint64_t SignedVarintUnserializedForm(uint64_t value) {
 bool IsAllowedStreamType(uint64_t value) {
   constexpr std::array kAllowedStreamTypes = {
       MoqtDataStreamType::kObjectStream, MoqtDataStreamType::kStreamHeaderGroup,
-      MoqtDataStreamType::kStreamHeaderTrack};
+      MoqtDataStreamType::kStreamHeaderTrack, MoqtDataStreamType::kPadding};
   for (MoqtDataStreamType type : kAllowedStreamTypes) {
     if (static_cast<uint64_t>(type) == value) {
       return true;
@@ -914,7 +914,7 @@ absl::string_view MoqtDataParser::ProcessDataInner(absl::string_view data,
         continue;
       }
 
-      case kData:
+      case kData: {
         if (payload_length_remaining_ == 0) {
           // Special case: kObject, which does not have explicit length.
           if (metadata_->object_status != MoqtObjectStatus::kNormal) {
@@ -933,6 +933,10 @@ absl::string_view MoqtDataParser::ProcessDataInner(absl::string_view data,
         payload_length_remaining_ -= payload.size();
 
         continue;
+      }
+
+      case kPadding:
+        return "";
     }
   }
   return "";

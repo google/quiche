@@ -175,7 +175,7 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
 
   std::vector<std::string> object_payloads_;
   bool end_of_message_ = false;
-  std::optional<absl::string_view> parsing_error_;
+  std::optional<std::string> parsing_error_;
   MoqtError parsing_error_code_;
   uint64_t messages_received_ = 0;
   std::optional<TestMessageBase::MessageStructuredData> last_message_;
@@ -1143,6 +1143,19 @@ TEST_F(MoqtMessageSpecificTest, SubscribeDoneInvalidContentExists) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "SUBSCRIBE_DONE ContentExists has invalid value");
+}
+
+TEST_F(MoqtMessageSpecificTest, PaddingStream) {
+  MoqtDataParser parser(&visitor_);
+  std::string buffer(32, '\0');
+  quic::QuicDataWriter writer(buffer.size(), buffer.data());
+  ASSERT_TRUE(writer.WriteVarInt62(
+      static_cast<uint64_t>(MoqtDataStreamType::kPadding)));
+  for (int i = 0; i < 100; ++i) {
+    parser.ProcessData(buffer, false);
+    ASSERT_EQ(visitor_.messages_received_, 0);
+    ASSERT_EQ(visitor_.parsing_error_, std::nullopt);
+  }
 }
 
 }  // namespace moqt::test
