@@ -845,14 +845,19 @@ void MoqtDataParser::ProcessData(absl::string_view data, bool fin) {
   while (!buffered_message_.empty() && !data.empty()) {
     absl::string_view chunk = data.substr(0, chunk_size_);
     absl::StrAppend(&buffered_message_, chunk);
-    data.remove_prefix(chunk.size());
-
-    buffered_message_.assign(
-        ProcessDataInner(buffered_message_, fin && data.empty()));
+    absl::string_view unprocessed =
+        ProcessDataInner(buffered_message_, fin && data.size() == chunk.size());
+    if (unprocessed.size() >= chunk.size()) {
+      // chunk didn't allow any processing at all.
+      data.remove_prefix(chunk.size());
+    } else {
+      buffered_message_.clear();
+      data.remove_prefix(chunk.size() - unprocessed.size());
+    }
   }
 
   // Happy path: there is no buffered data.
-  if (buffered_message_.empty()) {
+  if (buffered_message_.empty() && !data.empty()) {
     buffered_message_.assign(ProcessDataInner(data, fin));
   }
 
