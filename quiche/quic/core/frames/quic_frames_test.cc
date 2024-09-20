@@ -42,8 +42,50 @@ TEST_F(QuicFramesTest, AckFrameToString) {
   std::ostringstream stream;
   stream << frame;
   EXPECT_EQ(
-      "{ largest_acked: 5, ack_delay_time: 3, packets: [ 4 5  ], "
+      "{ largest_acked: 5, ack_delay_time: 3, packets: [ 4...5  ], "
       "received_packets: [ 6 at 7  ], ecn_counters_populated: 0 }\n",
+      stream.str());
+  QuicFrame quic_frame(&frame);
+  EXPECT_FALSE(IsControlFrame(quic_frame.type));
+}
+
+TEST_F(QuicFramesTest, AckFrameToStringMultipleIntervals) {
+  QuicAckFrame frame;
+  frame.largest_acked = QuicPacketNumber(6);
+  frame.ack_delay_time = QuicTime::Delta::FromMicroseconds(3);
+  frame.packets.Add(QuicPacketNumber(1));
+  frame.packets.Add(QuicPacketNumber(2));
+  frame.packets.Add(QuicPacketNumber(3));
+  frame.packets.Add(QuicPacketNumber(5));
+  frame.packets.Add(QuicPacketNumber(6));
+  frame.received_packet_times = {
+      {QuicPacketNumber(7),
+       QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(7)}};
+  std::ostringstream stream;
+  stream << frame;
+  EXPECT_EQ(
+      "{ largest_acked: 6, ack_delay_time: 3, packets: [ 1...3 5...6  ], "
+      "received_packets: [ 7 at 7  ], ecn_counters_populated: 0 }\n",
+      stream.str());
+  QuicFrame quic_frame(&frame);
+  EXPECT_FALSE(IsControlFrame(quic_frame.type));
+}
+
+TEST_F(QuicFramesTest, AckFrameToStringMultipleIntervalsSinglePacketRange) {
+  QuicAckFrame frame;
+  frame.largest_acked = QuicPacketNumber(6);
+  frame.ack_delay_time = QuicTime::Delta::FromMicroseconds(3);
+  frame.packets.Add(QuicPacketNumber(1));
+  frame.packets.Add(QuicPacketNumber(5));
+  frame.packets.Add(QuicPacketNumber(6));
+  frame.received_packet_times = {
+      {QuicPacketNumber(7),
+       QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(7)}};
+  std::ostringstream stream;
+  stream << frame;
+  EXPECT_EQ(
+      "{ largest_acked: 6, ack_delay_time: 3, packets: [ 1 5...6  ], "
+      "received_packets: [ 7 at 7  ], ecn_counters_populated: 0 }\n",
       stream.str());
   QuicFrame quic_frame(&frame);
   EXPECT_FALSE(IsControlFrame(quic_frame.type));
