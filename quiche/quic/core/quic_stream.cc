@@ -532,6 +532,12 @@ bool QuicStream::OnStopSending(QuicResetStreamError error) {
 
   stream_error_ = error;
   MaybeSendRstStream(error);
+  if (session()->enable_stop_sending_for_zombie_streams() &&
+      read_side_closed_ && write_side_closed_ && !IsWaitingForAcks()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_deliver_stop_sending_to_zombie_streams, 3,
+                                 3);
+    session()->MaybeCloseZombieStream(id_);
+  }
   return true;
 }
 

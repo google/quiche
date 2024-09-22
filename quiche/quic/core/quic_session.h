@@ -690,6 +690,10 @@ class QUICHE_EXPORT QuicSession
   // Returns the priority type used by the streams in the session.
   QuicPriorityType priority_type() const { return priority_type_; }
 
+  bool enable_stop_sending_for_zombie_streams() const {
+    return enable_stop_sending_for_zombie_streams_;
+  }
+
  protected:
   using StreamMap =
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
@@ -1094,6 +1098,9 @@ class QUICHE_EXPORT QuicSession
   std::unique_ptr<QuicAlarm> stream_count_reset_alarm_;
 
   QuicPriorityType priority_type_;
+
+  const bool enable_stop_sending_for_zombie_streams_ =
+      GetQuicReloadableFlag(quic_deliver_stop_sending_to_zombie_streams);
 };
 
 }  // namespace quic

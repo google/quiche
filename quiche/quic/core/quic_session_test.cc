@@ -3047,6 +3047,44 @@ TEST_P(QuicSessionTestServer, OnStopSendingForWriteClosedStream) {
   session_.OnStopSendingFrame(frame);
 }
 
+// Regression test for b/368421586.
+TEST_P(QuicSessionTestServer, OnStopSendingForZombieStreams) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  CompleteHandshake();
+  session_.set_writev_consumes_all_data(true);
+
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  std::string body(100, '.');
+  QuicStreamPeer::CloseReadSide(stream);
+  stream->WriteOrBufferData(body, true, nullptr);
+  EXPECT_TRUE(stream->IsWaitingForAcks());
+  // Verify that the stream is a zombie.
+  EXPECT_TRUE(stream->IsZombie());
+  ASSERT_EQ(0u, session_.closed_streams()->size());
+
+  QuicStopSendingFrame frame(1, stream->id(), QUIC_STREAM_CANCELLED);
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+  if (GetQuicReloadableFlag(quic_deliver_stop_sending_to_zombie_streams)) {
+    EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+    EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(1);
+  } else {
+    EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+    EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(0);
+  }
+  session_.OnStopSendingFrame(frame);
+  if (GetQuicReloadableFlag(quic_deliver_stop_sending_to_zombie_streams)) {
+    // STOP_SENDING should cause the stream to be closed.
+    EXPECT_FALSE(stream->IsZombie());
+    EXPECT_EQ(1u, session_.closed_streams()->size());
+  } else {
+    // STOP_SENDING is not delivered to zombie streams.
+    EXPECT_TRUE(stream->IsZombie());
+    EXPECT_EQ(0u, session_.closed_streams()->size());
+  }
+}
+
 // If stream is closed, return true and do not close the connection.
 TEST_P(QuicSessionTestServer, OnStopSendingClosedStream) {
   if (!VersionHasIetfQuicFrames(transport_version())) {

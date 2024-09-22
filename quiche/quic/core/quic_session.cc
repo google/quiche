@@ -371,7 +371,22 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return;
   }
 
-  QuicStream* stream = GetOrCreateStream(stream_id);
+  QuicStream* stream = nullptr;
+  if (enable_stop_sending_for_zombie_streams_) {
+    stream = GetStream(stream_id);
+    if (stream != nullptr) {
+      if (stream->IsZombie()) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(
+            quic_deliver_stop_sending_to_zombie_streams, 1, 3);
+      } else {
+        QUIC_RELOADABLE_FLAG_COUNT_N(
+            quic_deliver_stop_sending_to_zombie_streams, 2, 3);
+      }
+      stream->OnStopSending(frame.error());
+      return;
+    }
+  }
+  stream = GetOrCreateStream(stream_id);
   if (!stream) {
     // Errors are handled by GetOrCreateStream.
     return;
