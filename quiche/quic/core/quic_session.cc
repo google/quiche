@@ -1796,6 +1796,12 @@ void QuicSession::OnTlsHandshakeComplete() {
       << ENDPOINT << "Handshake completes without parameter negotiation.";
   connection()->mutable_stats().handshake_completion_time =
       connection()->clock()->ApproximateNow();
+  if (connection()->ShouldFixTimeouts(config_)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_timeouts, 2, 2);
+    // Handshake complete, set handshake timeout to Infinite.
+    connection()->SetNetworkTimeouts(QuicTime::Delta::Infinite(),
+                                     config_.IdleNetworkTimeout());
+  }
   if (connection()->version().UsesTls() &&
       perspective_ == Perspective::IS_SERVER) {
     // Server sends HANDSHAKE_DONE to signal confirmation of the handshake

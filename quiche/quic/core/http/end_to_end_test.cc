@@ -7863,6 +7863,26 @@ TEST_P(EndToEndTest, ClientReportsEct1) {
   client_->Disconnect();
 }
 
+TEST_P(EndToEndTest, FixTimeouts) {
+  client_extra_copts_.push_back(kFTOE);
+  ASSERT_TRUE(Initialize());
+  if (!version_.UsesTls()) {
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  // Verify handshake timeout has been removed on both endpoints.
+  QuicConnection* client_connection = GetClientConnection();
+  EXPECT_EQ(QuicConnectionPeer::GetIdleNetworkDetector(client_connection)
+                .handshake_timeout(),
+            QuicTime::Delta::Infinite());
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  EXPECT_EQ(QuicConnectionPeer::GetIdleNetworkDetector(server_connection)
+                .handshake_timeout(),
+            QuicTime::Delta::Infinite());
+  server_thread_->Resume();
+}
+
 TEST_P(EndToEndTest, ClientMigrationAfterHalfwayServerMigration) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());

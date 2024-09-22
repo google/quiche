@@ -1412,6 +1412,8 @@ class QUICHE_EXPORT QuicConnection
   SerializeLargePacketNumberConnectionClosePacket(
       QuicErrorCode error, const std::string& error_details);
 
+  bool ShouldFixTimeouts(const QuicConfig& config) const;
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -2512,6 +2514,8 @@ class QUICHE_EXPORT QuicConnection
 
   const bool quic_test_peer_addr_change_after_normalize_ =
       GetQuicReloadableFlag(quic_test_peer_addr_change_after_normalize);
+
+  const bool quic_fix_timeouts_ = GetQuicReloadableFlag(quic_fix_timeouts);
 };
 
 }  // namespace quic
