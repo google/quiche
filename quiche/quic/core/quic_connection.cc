@@ -854,6 +854,12 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
   sent_packet_manager_.MarkInitialPacketsForRetransmission();
 }
 
+void QuicConnection::SetMultiPacketClientHello() {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->SetMultiPacketClientHello();
+  }
+}
+
 void QuicConnection::SetOriginalDestinationConnectionId(
     const QuicConnectionId& original_destination_connection_id) {
   QUIC_DLOG(INFO) << "Setting original_destination_connection_id to "

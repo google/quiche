@@ -1213,6 +1213,7 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
         server_connection_id, packet_list.replaced_connection_id,
         *packet_list.parsed_chlo, packet_list.version,
         packets.front().self_address, packets.front().peer_address,
+        packet_list.tls_chlo_extractor.state(),
         packet_list.connection_id_generator,
         packet_list.dispatcher_sent_packets);
     if (session_ptr != nullptr) {
@@ -1282,10 +1283,16 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
             ? packet_info->destination_connection_id
             : packet_list.original_connection_id;
 
+    TlsChloExtractor::State chlo_extractor_state =
+        packet_list.buffered_packets.empty()
+            ? TlsChloExtractor::State::kParsedFullSinglePacketChlo
+            : packet_list.tls_chlo_extractor.state();
+
     auto session_ptr = CreateSessionFromChlo(
         original_connection_id, packet_list.replaced_connection_id, parsed_chlo,
         packet_info->version, packet_info->self_address,
-        packet_info->peer_address, packet_list.connection_id_generator,
+        packet_info->peer_address, chlo_extractor_state,
+        packet_list.connection_id_generator,
         packet_list.dispatcher_sent_packets);
     if (session_ptr == nullptr) {
       // The only reason that CreateSessionFromChlo returns nullptr is because
@@ -1309,7 +1316,9 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
   auto session_ptr = CreateSessionFromChlo(
       packet_info->destination_connection_id, std::nullopt, parsed_chlo,
       packet_info->version, packet_info->self_address,
-      packet_info->peer_address, &ConnectionIdGenerator(),
+      packet_info->peer_address,
+      TlsChloExtractor::State::kParsedFullSinglePacketChlo,
+      &ConnectionIdGenerator(),
       /*dispatcher_sent_packets=*/{});
   if (session_ptr == nullptr) {
     return;
@@ -1383,6 +1392,7 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
     const std::optional<QuicConnectionId>& replaced_connection_id,
     const ParsedClientHello& parsed_chlo, const ParsedQuicVersion version,
     const QuicSocketAddress self_address, const QuicSocketAddress peer_address,
+    TlsChloExtractor::State chlo_extractor_state,
     ConnectionIdGeneratorInterface* connection_id_generator,
     absl::Span<const DispatcherSentPacket> dispatcher_sent_packets) {
   bool should_generate_cid = false;
@@ -1483,6 +1493,13 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
   }
 
   ++stats_.sessions_created;
+  if (chlo_extractor_state ==
+      TlsChloExtractor::State::kParsedFullMultiPacketChlo) {
+    QUIC_CODE_COUNT(quic_connection_created_multi_packet_chlo);
+    session->connection()->SetMultiPacketClientHello();
+  } else {
+    QUIC_CODE_COUNT(quic_connection_created_single_packet_chlo);
+  }
   if (ack_buffered_initial_packets() && !dispatcher_sent_packets.empty()) {
     QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_ack_buffered_initial_packets, 8,
                               8);

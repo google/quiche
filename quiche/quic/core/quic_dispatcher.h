@@ -43,6 +43,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_version_manager.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/tls_chlo_extractor.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -405,6 +406,9 @@ class QUICHE_EXPORT QuicDispatcher
 
   // Core CHLO processing logic.
   //
+  // |chlo_extractor_state| state of the TLS CHLO extractor used to extract
+  // the CHLO.
+  //
   // |connection_id_generator| != nullptr indicates we have attempted to
   // call connection_id_generator->MaybeReplaceConnectionId() and the result is
   // in |replaced_connection_id|.
@@ -419,6 +423,7 @@ class QUICHE_EXPORT QuicDispatcher
       const std::optional<QuicConnectionId>& replaced_connection_id,
       const ParsedClientHello& parsed_chlo, ParsedQuicVersion version,
       QuicSocketAddress self_address, QuicSocketAddress peer_address,
+      TlsChloExtractor::State chlo_extractor_state,
       ConnectionIdGeneratorInterface* connection_id_generator,
       absl::Span<const DispatcherSentPacket> dispatcher_sent_packets);
 

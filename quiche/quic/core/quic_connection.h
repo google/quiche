@@ -469,6 +469,9 @@ class QUICHE_EXPORT QuicConnectionDebugVisitor
   // Called after an ClientHelloInner is received and decrypted as a server.
   virtual void OnEncryptedClientHelloReceived(
       absl::string_view /*client_hello*/) {}
+
+  // Called by QuicConnection::SetMultiPacketClientHello.
+  virtual void SetMultiPacketClientHello() {}
 };
 
 class QUICHE_EXPORT QuicConnectionHelperInterface {
@@ -1168,6 +1171,11 @@ class QUICHE_EXPORT QuicConnection
 
   // Returns the largest received packet number sent by peer.
   QuicPacketNumber GetLargestReceivedPacket() const;
+
+  // Called if the ClientHello of the connection spans multiple packets. Should
+  // only be called at the beginning of the connection, but after
+  // |debug_visitor_| is set. For debugging purpose only.
+  void SetMultiPacketClientHello();
 
   // Sets the original destination connection ID on the connection.
   // This is called by QuicDispatcher when it has replaced the connection ID.
