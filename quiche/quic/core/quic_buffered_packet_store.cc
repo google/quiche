@@ -131,87 +131,36 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
        packet_info.long_packet_type == INITIAL);
   QUIC_BUG_IF(quic_bug_12410_1, !GetQuicFlag(quic_allow_chlo_buffering))
       << "Shouldn't buffer packets if disabled via flag.";
-  QUIC_BUG_IF(quic_bug_12410_2,
-              is_chlo && connections_with_chlo_.contains(connection_id))
-      << "Shouldn't buffer duplicated CHLO on connection " << connection_id;
   QUIC_BUG_IF(quic_bug_12410_4, is_chlo && !version.IsKnown())
       << "Should have version for CHLO packet.";
 
-  bool is_first_packet;
-  BufferedPacketListNode* node = nullptr;
-
-  if (replace_cid_on_first_packet_) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 1,
-                              13);
-    auto iter = buffered_session_map_.find(connection_id);
-    is_first_packet = (iter == buffered_session_map_.end());
-    if (is_first_packet) {
-      if (ShouldNotBufferPacket(is_chlo)) {
-        // Drop the packet if the upper limit of undecryptable packets has been
-        // reached or the whole capacity of the store has been reached.
-        return TOO_MANY_CONNECTIONS;
-      }
-      iter = buffered_session_map_.emplace_hint(
-          iter, connection_id, std::make_shared<BufferedPacketListNode>());
-      iter->second->ietf_quic = ietf_quic;
-      iter->second->version = version;
-      iter->second->original_connection_id = connection_id;
-      iter->second->creation_time = clock_->ApproximateNow();
-      buffered_sessions_.push_back(iter->second.get());
-      ++num_buffered_sessions_;
+  auto iter = buffered_session_map_.find(connection_id);
+  const bool is_first_packet = (iter == buffered_session_map_.end());
+  if (is_first_packet) {
+    if (ShouldNotBufferPacket(is_chlo)) {
+      // Drop the packet if the upper limit of undecryptable packets has been
+      // reached or the whole capacity of the store has been reached.
+      return TOO_MANY_CONNECTIONS;
     }
-    node = iter->second.get();
-    QUICHE_DCHECK(buffered_session_map_.contains(connection_id));
-  } else {
-    is_first_packet = !undecryptable_packets_.contains(connection_id);
-    if (is_first_packet) {
-      if (ShouldNotBufferPacket(is_chlo)) {
-        // Drop the packet if the upper limit of undecryptable packets has been
-        // reached or the whole capacity of the store has been reached.
-        return TOO_MANY_CONNECTIONS;
-      }
-      undecryptable_packets_.emplace(
-          std::make_pair(connection_id, BufferedPacketList()));
-      undecryptable_packets_.back().second.ietf_quic = ietf_quic;
-      undecryptable_packets_.back().second.version = version;
-    }
-    QUICHE_DCHECK(undecryptable_packets_.contains(connection_id));
+    iter = buffered_session_map_.emplace_hint(
+        iter, connection_id, std::make_shared<BufferedPacketListNode>());
+    iter->second->ietf_quic = ietf_quic;
+    iter->second->version = version;
+    iter->second->original_connection_id = connection_id;
+    iter->second->creation_time = clock_->ApproximateNow();
+    buffered_sessions_.push_back(iter->second.get());
+    ++num_buffered_sessions_;
   }
+  QUICHE_DCHECK(buffered_session_map_.contains(connection_id));
 
-  BufferedPacketList& queue =
-      replace_cid_on_first_packet_
-          ? *node
-          : undecryptable_packets_.find(connection_id)->second;
+  BufferedPacketListNode& queue = *iter->second;
 
-  if (replace_cid_on_first_packet_) {
-    // TODO(wub): Rename kDefaultMaxUndecryptablePackets when deprecating
-    //  --quic_dispatcher_replace_cid_on_first_packet.
-    if (!is_chlo &&
-        queue.buffered_packets.size() >= kDefaultMaxUndecryptablePackets) {
-      // If there are kMaxBufferedPacketsPerConnection packets buffered up for
-      // this connection, drop the current packet.
-      return TOO_MANY_PACKETS;
-    }
-  } else {
-    if (!is_chlo) {
-      // If current packet is not CHLO, it might not be buffered because store
-      // only buffers certain number of undecryptable packets per connection.
-      size_t num_non_chlo_packets =
-          connections_with_chlo_.contains(connection_id)
-              ? (queue.buffered_packets.size() - 1)
-              : queue.buffered_packets.size();
-      if (num_non_chlo_packets >= kDefaultMaxUndecryptablePackets) {
-        // If there are kMaxBufferedPacketsPerConnection packets buffered up for
-        // this connection, drop the current packet.
-        return TOO_MANY_PACKETS;
-      }
-    }
-
-    if (queue.buffered_packets.empty()) {
-      // If this is the first packet arrived on a new connection, initialize the
-      // creation time.
-      queue.creation_time = clock_->ApproximateNow();
-    }
+  // TODO(wub): Rename kDefaultMaxUndecryptablePackets to kMaxBufferedPackets.
+  if (!is_chlo &&
+      queue.buffered_packets.size() >= kDefaultMaxUndecryptablePackets) {
+    // If there are kMaxBufferedPacketsPerConnection packets buffered up for
+    // this connection, drop the current packet.
+    return TOO_MANY_PACKETS;
   }
 
   BufferedPacket new_entry(std::unique_ptr<QuicReceivedPacket>(packet.Clone()),
@@ -223,17 +172,12 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     queue.parsed_chlo = std::move(parsed_chlo);
     // Set the version of buffered packets of this connection on CHLO.
     queue.version = version;
-    if (replace_cid_on_first_packet_) {
-      if (!buffered_sessions_with_chlo_.is_linked(node)) {
-        buffered_sessions_with_chlo_.push_back(node);
-        ++num_buffered_sessions_with_chlo_;
-      } else {
-        QUIC_BUG(quic_store_session_already_has_chlo)
-            << "Buffered session already has CHLO";
-      }
+    if (!buffered_sessions_with_chlo_.is_linked(&queue)) {
+      buffered_sessions_with_chlo_.push_back(&queue);
+      ++num_buffered_sessions_with_chlo_;
     } else {
-      queue.connection_id_generator = &connection_id_generator;
-      connections_with_chlo_[connection_id] = false;  // Dummy value.
+      QUIC_BUG(quic_store_session_already_has_chlo)
+          << "Buffered session already has CHLO";
     }
   } else {
     // Buffer non-CHLO packets in arrival order.
@@ -253,10 +197,8 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
 
   MaybeSetExpirationAlarm();
 
-  if (replace_cid_on_first_packet_ && is_ietf_initial_packet &&
-      version.UsesTls() && !queue.HasAttemptedToReplaceConnectionId()) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 2,
-                              13);
+  if (is_ietf_initial_packet && version.UsesTls() &&
+      !queue.HasAttemptedToReplaceConnectionId()) {
     queue.SetAttemptedToReplaceConnectionId(&connection_id_generator);
     std::optional<QuicConnectionId> replaced_connection_id =
         connection_id_generator.MaybeReplaceConnectionId(connection_id,
@@ -281,7 +223,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
         case VisitorInterface::HandleCidCollisionResult::kOk:
           queue.replaced_connection_id = *replaced_connection_id;
           buffered_session_map_.insert(
-              {*replaced_connection_id, node->shared_from_this()});
+              {*replaced_connection_id, queue.shared_from_this()});
           break;
         case VisitorInterface::HandleCidCollisionResult::kCollision:
           return CID_COLLISION;
@@ -428,17 +370,11 @@ void QuicBufferedPacketStore::MaybeAckInitialPacket(
 
 bool QuicBufferedPacketStore::HasBufferedPackets(
     QuicConnectionId connection_id) const {
-  if (replace_cid_on_first_packet_) {
-    return buffered_session_map_.contains(connection_id);
-  }
-  return undecryptable_packets_.contains(connection_id);
+  return buffered_session_map_.contains(connection_id);
 }
 
 bool QuicBufferedPacketStore::HasChlosBuffered() const {
-  if (replace_cid_on_first_packet_) {
-    return num_buffered_sessions_with_chlo_ != 0;
-  }
-  return !connections_with_chlo_.empty();
+  return num_buffered_sessions_with_chlo_ != 0;
 }
 
 const BufferedPacketList* QuicBufferedPacketStore::GetPacketList(
@@ -486,54 +422,11 @@ bool QuicBufferedPacketStore::CheckInvariants(
 
 BufferedPacketList QuicBufferedPacketStore::DeliverPackets(
     QuicConnectionId connection_id) {
-  if (!replace_cid_on_first_packet_) {
-    BufferedPacketList packets_to_deliver;
-    auto it = undecryptable_packets_.find(connection_id);
-    if (it != undecryptable_packets_.end()) {
-      packets_to_deliver = std::move(it->second);
-      undecryptable_packets_.erase(connection_id);
-      std::list<BufferedPacket> initial_packets;
-      std::list<BufferedPacket> other_packets;
-      for (auto& packet : packets_to_deliver.buffered_packets) {
-        QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
-        PacketHeaderFormat unused_format;
-        bool unused_version_flag;
-        bool unused_use_length_prefix;
-        QuicVersionLabel unused_version_label;
-        ParsedQuicVersion unused_parsed_version = UnsupportedQuicVersion();
-        QuicConnectionId unused_destination_connection_id;
-        QuicConnectionId unused_source_connection_id;
-        std::optional<absl::string_view> unused_retry_token;
-        std::string unused_detailed_error;
-
-        // We don't need to pass |generator| because we already got the correct
-        // connection ID length when we buffered the packet and indexed by
-        // connection ID.
-        QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
-            *packet.packet, connection_id.length(), &unused_format,
-            &long_packet_type, &unused_version_flag, &unused_use_length_prefix,
-            &unused_version_label, &unused_parsed_version,
-            &unused_destination_connection_id, &unused_source_connection_id,
-            &unused_retry_token, &unused_detailed_error);
-
-        if (error_code == QUIC_NO_ERROR && long_packet_type == INITIAL) {
-          initial_packets.push_back(std::move(packet));
-        } else {
-          other_packets.push_back(std::move(packet));
-        }
-      }
-
-      initial_packets.splice(initial_packets.end(), other_packets);
-      packets_to_deliver.buffered_packets = std::move(initial_packets);
-    }
-    return packets_to_deliver;
-  }
-
   auto it = buffered_session_map_.find(connection_id);
   if (it == buffered_session_map_.end()) {
     return BufferedPacketList();
   }
-  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 3, 13);
+
   std::shared_ptr<BufferedPacketListNode> node = it->second->shared_from_this();
   RemoveFromStore(*node);
   std::list<BufferedPacket> initial_packets;
@@ -552,13 +445,6 @@ BufferedPacketList QuicBufferedPacketStore::DeliverPackets(
 }
 
 void QuicBufferedPacketStore::DiscardPackets(QuicConnectionId connection_id) {
-  if (!replace_cid_on_first_packet_) {
-    undecryptable_packets_.erase(connection_id);
-    connections_with_chlo_.erase(connection_id);
-    return;
-  }
-
-  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 4, 13);
   auto it = buffered_session_map_.find(connection_id);
   if (it == buffered_session_map_.end()) {
     return;
@@ -568,7 +454,6 @@ void QuicBufferedPacketStore::DiscardPackets(QuicConnectionId connection_id) {
 }
 
 void QuicBufferedPacketStore::RemoveFromStore(BufferedPacketListNode& node) {
-  QUICHE_DCHECK(replace_cid_on_first_packet_);
   QUICHE_DCHECK_EQ(buffered_sessions_with_chlo_.size(),
                    num_buffered_sessions_with_chlo_);
   QUICHE_DCHECK_EQ(buffered_sessions_.size(), num_buffered_sessions_);
@@ -610,40 +495,16 @@ void QuicBufferedPacketStore::RemoveFromStore(BufferedPacketListNode& node) {
 }
 
 void QuicBufferedPacketStore::DiscardAllPackets() {
-  if (!replace_cid_on_first_packet_) {
-    undecryptable_packets_.clear();
-    connections_with_chlo_.clear();
-  } else {
-    QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 5,
-                              13);
-    buffered_sessions_with_chlo_.clear();
-    num_buffered_sessions_with_chlo_ = 0;
-    buffered_sessions_.clear();
-    num_buffered_sessions_ = 0;
-    buffered_session_map_.clear();
-  }
+  buffered_sessions_with_chlo_.clear();
+  num_buffered_sessions_with_chlo_ = 0;
+  buffered_sessions_.clear();
+  num_buffered_sessions_ = 0;
+  buffered_session_map_.clear();
   expiration_alarm_->Cancel();
 }
 
 void QuicBufferedPacketStore::OnExpirationTimeout() {
   QuicTime expiration_time = clock_->ApproximateNow() - connection_life_span_;
-  if (!replace_cid_on_first_packet_) {
-    while (!undecryptable_packets_.empty()) {
-      auto& entry = undecryptable_packets_.front();
-      if (entry.second.creation_time > expiration_time) {
-        break;
-      }
-      QuicConnectionId connection_id = entry.first;
-      visitor_->OnExpiredPackets(connection_id, std::move(entry.second));
-      undecryptable_packets_.pop_front();
-      connections_with_chlo_.erase(connection_id);
-    }
-    if (!undecryptable_packets_.empty()) {
-      MaybeSetExpirationAlarm();
-    }
-    return;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 6, 13);
   while (!buffered_sessions_.empty()) {
     BufferedPacketListNode& node = buffered_sessions_.front();
     if (node.creation_time > expiration_time) {
@@ -666,26 +527,19 @@ void QuicBufferedPacketStore::MaybeSetExpirationAlarm() {
 }
 
 bool QuicBufferedPacketStore::ShouldNotBufferPacket(bool is_chlo) const {
-  size_t num_connections = replace_cid_on_first_packet_
-                               ? num_buffered_sessions_
-                               : undecryptable_packets_.size();
-
-  bool is_store_full = num_connections >= kDefaultMaxConnectionsInStore;
+  const bool is_store_full =
+      num_buffered_sessions_ >= kDefaultMaxConnectionsInStore;
 
   if (is_chlo) {
     return is_store_full;
   }
 
-  size_t num_connections_with_chlo = replace_cid_on_first_packet_
-                                         ? num_buffered_sessions_with_chlo_
-                                         : connections_with_chlo_.size();
-
   QUIC_BUG_IF(quic_store_too_many_connections_with_chlo,
-              num_connections < num_connections_with_chlo)
-      << "num_connections: " << num_connections
-      << ", num_connections_with_chlo: " << num_connections_with_chlo;
+              num_buffered_sessions_ < num_buffered_sessions_with_chlo_)
+      << "num_connections: " << num_buffered_sessions_
+      << ", num_connections_with_chlo: " << num_buffered_sessions_with_chlo_;
   size_t num_connections_without_chlo =
-      num_connections - num_connections_with_chlo;
+      num_buffered_sessions_ - num_buffered_sessions_with_chlo_;
   bool reach_non_chlo_limit =
       num_connections_without_chlo >= kMaxConnectionsWithoutCHLO;
 
@@ -694,29 +548,11 @@ bool QuicBufferedPacketStore::ShouldNotBufferPacket(bool is_chlo) const {
 
 BufferedPacketList QuicBufferedPacketStore::DeliverPacketsForNextConnection(
     QuicConnectionId* connection_id) {
-  if (!replace_cid_on_first_packet_) {
-    if (connections_with_chlo_.empty()) {
-      // Returns empty list if no CHLO has been buffered.
-      return BufferedPacketList();
-    }
-    *connection_id = connections_with_chlo_.front().first;
-    connections_with_chlo_.pop_front();
-
-    BufferedPacketList packets = DeliverPackets(*connection_id);
-    QUICHE_DCHECK(!packets.buffered_packets.empty() &&
-                  packets.parsed_chlo.has_value())
-        << "Try to deliver connectons without CHLO. # packets:"
-        << packets.buffered_packets.size()
-        << ", has_parsed_chlo:" << packets.parsed_chlo.has_value();
-    return packets;
-  }
-
   if (buffered_sessions_with_chlo_.empty()) {
     // Returns empty list if no CHLO has been buffered.
     return BufferedPacketList();
   }
 
-  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 7, 13);
   *connection_id = buffered_sessions_with_chlo_.front().original_connection_id;
   BufferedPacketList packet_list = DeliverPackets(*connection_id);
   QUICHE_DCHECK(!packet_list.buffered_packets.empty() &&
@@ -729,14 +565,11 @@ BufferedPacketList QuicBufferedPacketStore::DeliverPacketsForNextConnection(
 
 bool QuicBufferedPacketStore::HasChloForConnection(
     QuicConnectionId connection_id) {
-  if (replace_cid_on_first_packet_) {
-    auto it = buffered_session_map_.find(connection_id);
-    if (it == buffered_session_map_.end()) {
-      return false;
-    }
-    return it->second->parsed_chlo.has_value();
+  auto it = buffered_session_map_.find(connection_id);
+  if (it == buffered_session_map_.end()) {
+    return false;
   }
-  return connections_with_chlo_.contains(connection_id);
+  return it->second->parsed_chlo.has_value();
 }
 
 bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
@@ -752,28 +585,6 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
   QUICHE_DCHECK_NE(tls_alert, nullptr);
   QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
 
-  if (!replace_cid_on_first_packet_) {
-    auto it = undecryptable_packets_.find(connection_id);
-    if (it == undecryptable_packets_.end()) {
-      QUIC_BUG(quic_bug_10838_1)
-          << "Cannot ingest packet for unknown connection ID " << connection_id;
-      return false;
-    }
-    it->second.tls_chlo_extractor.IngestPacket(version, packet);
-    if (!it->second.tls_chlo_extractor.HasParsedFullChlo()) {
-      *tls_alert = it->second.tls_chlo_extractor.tls_alert();
-      return false;
-    }
-    const TlsChloExtractor& tls_chlo_extractor = it->second.tls_chlo_extractor;
-    *out_supported_groups = tls_chlo_extractor.supported_groups();
-    *out_alpns = tls_chlo_extractor.alpns();
-    *out_sni = tls_chlo_extractor.server_name();
-    *out_resumption_attempted = tls_chlo_extractor.resumption_attempted();
-    *out_early_data_attempted = tls_chlo_extractor.early_data_attempted();
-    return true;
-  }
-
-  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 8, 13);
   auto it = buffered_session_map_.find(connection_id);
   if (it == buffered_session_map_.end()) {
     QUIC_BUG(quic_bug_10838_1)

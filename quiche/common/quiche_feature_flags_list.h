@@ -54,7 +54,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_false, false, fal
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_true, true, true, "A testonly reloadable flag that will always default to true.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_received_client_addresses_cache, true, true, "If true, use a LRU cache to record client addresses of packets received on server's original address.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_dispatcher_ack_buffered_initial_packets, true, true, "If both this flag and --quic_dispatcher_replace_cid_on_first_packet are true, QUIC dispatcher will ack INITIAL packets once it is saved into buffered packet store.")
-QUICHE_FLAG(bool, quiche_restart_flag_quic_dispatcher_replace_cid_on_first_packet, true, true, "If true, QuicDispatcher will always generate the replaced connection ID when the first INITIAL packet is received, even if it's buffered in the packet store.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_ect1, false, false, "When true, allows sending of QUIC packets marked ECT(1). A different flag (TBD) will actually utilize this capability to send ECT(1).")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_release_time_for_gso, false, false, "If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_false, false, false, "A testonly restart flag that will always default to false.")

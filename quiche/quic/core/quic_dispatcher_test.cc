@@ -2803,7 +2803,7 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
   for (uint64_t conn_id = 1; conn_id <= kNumCHLOs; ++conn_id) {
     const bool should_drop =
         (conn_id > kMaxNumSessionsToCreate + kDefaultMaxConnectionsInStore);
-    if (store->replace_cid_on_first_packet() && !should_drop) {
+    if (!should_drop) {
       // MaybeReplaceConnectionId will be called once per connection, whether it
       // is buffered or not.
       EXPECT_CALL(connection_id_generator_,
@@ -2812,12 +2812,6 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
     }
 
     if (conn_id <= kMaxNumSessionsToCreate) {
-      if (!store->replace_cid_on_first_packet()) {
-        EXPECT_CALL(
-            connection_id_generator_,
-            MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
-            .WillOnce(Return(std::nullopt));
-      }
       EXPECT_CALL(
           *dispatcher_,
           CreateQuicSession(TestConnectionId(conn_id), _, client_addr_,
@@ -2857,11 +2851,6 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
        ++conn_id) {
     // MaybeReplaceConnectionId should have been called once per buffered
     // session.
-    if (!store->replace_cid_on_first_packet()) {
-      EXPECT_CALL(connection_id_generator_,
-                  MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
-          .WillOnce(Return(std::nullopt));
-    }
     EXPECT_CALL(
         *dispatcher_,
         CreateQuicSession(TestConnectionId(conn_id), _, client_addr_,
@@ -2928,8 +2917,7 @@ TEST_P(BufferedPacketStoreTest,
   MockConnectionIdGenerator generator2;
   EXPECT_CALL(*dispatcher_, ConnectionIdGenerator())
       .WillRepeatedly(ReturnRef(generator2));
-  const bool buffered_store_replace_cid =
-      store->replace_cid_on_first_packet() && version_.UsesTls();
+  const bool buffered_store_replace_cid = version_.UsesTls();
   if (buffered_store_replace_cid) {
     // generator2 should be used to replace the connection ID when the first
     // IETF INITIAL is enqueued.
@@ -2946,12 +2934,8 @@ TEST_P(BufferedPacketStoreTest,
 
   if (!buffered_store_replace_cid) {
     // QuicDispatcher should attempt to replace the CID when creating the
-    // QuicSession. If flag is false, it should use the latched |generator2|,
-    // otherwise it should use |connection_id_generator_|.
-    MockConnectionIdGenerator& generator = store->replace_cid_on_first_packet()
-                                               ? connection_id_generator_
-                                               : generator2;
-    EXPECT_CALL(generator,
+    // QuicSession.
+    EXPECT_CALL(connection_id_generator_,
                 MaybeReplaceConnectionId(TestConnectionId(conn_id), version_))
         .WillOnce(Return(std::nullopt));
   }
@@ -3079,13 +3063,8 @@ TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
           QuicBufferedPacketStorePeer::FindBufferedPackets(store,
                                                            last_connection_id);
   ASSERT_NE(last_connection_buffered_packets, nullptr);
-  if (store->replace_cid_on_first_packet()) {
-    ASSERT_EQ(last_connection_buffered_packets->buffered_packets.size(),
-              kDefaultMaxUndecryptablePackets);
-  } else {
-    ASSERT_EQ(last_connection_buffered_packets->buffered_packets.size(),
-              kDefaultMaxUndecryptablePackets + 1);
-  }
+  ASSERT_EQ(last_connection_buffered_packets->buffered_packets.size(),
+            kDefaultMaxUndecryptablePackets);
   // All buffered packets should be delivered to the session.
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
@@ -3131,7 +3110,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
                 }
               })));
-    } else if (!(store->replace_cid_on_first_packet() && version_.UsesTls())) {
+    } else if (!version_.UsesTls()) {
       expect_generator_is_called_ = false;
     }
     ProcessFirstFlight(TestConnectionId(conn_id));
@@ -3266,10 +3245,6 @@ TEST_P(BufferedPacketStoreTest, BufferedChloWithEcn) {
 class DualCIDBufferedPacketStoreTest : public BufferedPacketStoreTest {
  protected:
   void SetUp() override {
-    if (!GetQuicRestartFlag(quic_dispatcher_replace_cid_on_first_packet)) {
-      GTEST_SKIP();
-    }
-
     BufferedPacketStoreTest::SetUp();
     QuicDispatcherPeer::set_new_sessions_allowed_per_event_loop(
         dispatcher_.get(), 0);

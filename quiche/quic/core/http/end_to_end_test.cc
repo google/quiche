@@ -308,8 +308,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   bool DispatcherAckEnabled() const {
-    return GetQuicRestartFlag(quic_dispatcher_ack_buffered_initial_packets) &&
-           GetQuicRestartFlag(quic_dispatcher_replace_cid_on_first_packet);
+    return GetQuicRestartFlag(quic_dispatcher_ack_buffered_initial_packets);
   }
 
   void set_smaller_flow_control_receive_window() {

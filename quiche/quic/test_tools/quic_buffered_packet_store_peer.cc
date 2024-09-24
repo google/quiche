@@ -22,19 +22,11 @@ void QuicBufferedPacketStorePeer::set_clock(QuicBufferedPacketStore* store,
 const QuicBufferedPacketStore::BufferedPacketList*
 QuicBufferedPacketStorePeer::FindBufferedPackets(
     const QuicBufferedPacketStore* store, QuicConnectionId connection_id) {
-  if (store->replace_cid_on_first_packet()) {
-    auto it = store->buffered_session_map_.find(connection_id);
-    if (it == store->buffered_session_map_.end()) {
-      return nullptr;
-    }
-    return it->second.get();
-  }
-
-  auto it = store->undecryptable_packets_.find(connection_id);
-  if (it == store->undecryptable_packets_.end()) {
+  auto it = store->buffered_session_map_.find(connection_id);
+  if (it == store->buffered_session_map_.end()) {
     return nullptr;
   }
-  return &it->second;
+  return it->second.get();
 }
 
 }  // namespace test

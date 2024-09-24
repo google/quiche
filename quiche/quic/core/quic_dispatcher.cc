@@ -695,9 +695,6 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
         case EnqueuePacketResult::SUCCESS:
           break;
         case EnqueuePacketResult::CID_COLLISION:
-          QUICHE_DCHECK(buffered_packets_.replace_cid_on_first_packet());
-          QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet,
-                                    9, 13);
           buffered_packets_.DiscardPackets(
               packet_info.destination_connection_id);
           ABSL_FALLTHROUGH_INTENDED;
@@ -1142,9 +1139,8 @@ bool QuicDispatcher::ShouldCreateSessionForUnknownVersion(
   return false;
 }
 
-// TODO(wub): After deprecating --quic_dispatcher_replace_cid_on_first_packet,
-// remove |server_connection_id| because |early_arrived_packets| already
-// contains the original and replaced connection ID.
+// TODO(wub): Remove |server_connection_id| because |early_arrived_packets|
+// already contains the original and replaced connection ID.
 void QuicDispatcher::OnExpiredPackets(
     QuicConnectionId server_connection_id,
     BufferedPacketList early_arrived_packets) {
@@ -1255,9 +1251,6 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
       case EnqueuePacketResult::SUCCESS:
         break;
       case EnqueuePacketResult::CID_COLLISION:
-        QUICHE_DCHECK(buffered_packets_.replace_cid_on_first_packet());
-        QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet,
-                                  10, 13);
         buffered_packets_.DiscardPackets(
             packet_info->destination_connection_id);
         ABSL_FALLTHROUGH_INTENDED;
@@ -1270,77 +1263,40 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
     return;
   }
 
-  if (buffered_packets_.replace_cid_on_first_packet()) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 11,
-                              13);
-    BufferedPacketList packet_list = buffered_packets_.DeliverPackets(
-        packet_info->destination_connection_id);
-    // Get original_connection_id from buffered packets because
-    // destination_connection_id may be replaced connection_id if any packets
-    // have been sent by packet store.
-    QuicConnectionId original_connection_id =
-        packet_list.buffered_packets.empty()
-            ? packet_info->destination_connection_id
-            : packet_list.original_connection_id;
+  BufferedPacketList packet_list =
+      buffered_packets_.DeliverPackets(packet_info->destination_connection_id);
+  // Get original_connection_id from buffered packets because
+  // destination_connection_id may be replaced connection_id if any packets
+  // have been sent by packet store.
+  QuicConnectionId original_connection_id =
+      packet_list.buffered_packets.empty()
+          ? packet_info->destination_connection_id
+          : packet_list.original_connection_id;
 
-    TlsChloExtractor::State chlo_extractor_state =
-        packet_list.buffered_packets.empty()
-            ? TlsChloExtractor::State::kParsedFullSinglePacketChlo
-            : packet_list.tls_chlo_extractor.state();
-
-    auto session_ptr = CreateSessionFromChlo(
-        original_connection_id, packet_list.replaced_connection_id, parsed_chlo,
-        packet_info->version, packet_info->self_address,
-        packet_info->peer_address, chlo_extractor_state,
-        packet_list.connection_id_generator,
-        packet_list.dispatcher_sent_packets);
-    if (session_ptr == nullptr) {
-      // The only reason that CreateSessionFromChlo returns nullptr is because
-      // of CID collision, which can only happen if CreateSessionFromChlo
-      // attempted to replace the CID, CreateSessionFromChlo only replaces the
-      // CID when connection_id_generator is nullptr.
-      QUICHE_DCHECK_EQ(packet_list.connection_id_generator, nullptr);
-      return;
-    }
-    // Process the current packet first, then deliver queued-up packets.
-    // Note that multi-packet CHLOs, if received in packet number order, will
-    // not be delivered in the same order. This needs to be fixed.
-    session_ptr->ProcessUdpPacket(packet_info->self_address,
-                                  packet_info->peer_address,
-                                  packet_info->packet);
-    DeliverPacketsToSession(packet_list.buffered_packets, session_ptr.get());
-    --new_sessions_allowed_per_event_loop_;
-    return;
-  }
+  TlsChloExtractor::State chlo_extractor_state =
+      packet_list.buffered_packets.empty()
+          ? TlsChloExtractor::State::kParsedFullSinglePacketChlo
+          : packet_list.tls_chlo_extractor.state();
 
   auto session_ptr = CreateSessionFromChlo(
-      packet_info->destination_connection_id, std::nullopt, parsed_chlo,
+      original_connection_id, packet_list.replaced_connection_id, parsed_chlo,
       packet_info->version, packet_info->self_address,
-      packet_info->peer_address,
-      TlsChloExtractor::State::kParsedFullSinglePacketChlo,
-      &ConnectionIdGenerator(),
-      /*dispatcher_sent_packets=*/{});
+      packet_info->peer_address, chlo_extractor_state,
+      packet_list.connection_id_generator, packet_list.dispatcher_sent_packets);
   if (session_ptr == nullptr) {
+    // The only reason that CreateSessionFromChlo returns nullptr is because
+    // of CID collision, which can only happen if CreateSessionFromChlo
+    // attempted to replace the CID, CreateSessionFromChlo only replaces the
+    // CID when connection_id_generator is nullptr.
+    QUICHE_DCHECK_EQ(packet_list.connection_id_generator, nullptr);
     return;
   }
-  std::list<BufferedPacket> packets =
-      buffered_packets_.DeliverPackets(packet_info->destination_connection_id)
-          .buffered_packets;
-  if (packet_info->destination_connection_id != session_ptr->connection_id()) {
-    // Provide the calling function with access to the new connection ID.
-    packet_info->destination_connection_id = session_ptr->connection_id();
-    if (!packets.empty()) {
-      QUIC_CODE_COUNT(
-          quic_delivered_buffered_packets_to_connection_with_replaced_id);
-    }
-  }
-  // Process CHLO at first.
+  // Process the current packet first, then deliver queued-up packets.
+  // Note that multi-packet CHLOs, if received in packet number order, will
+  // not be delivered in the same order. This needs to be fixed.
   session_ptr->ProcessUdpPacket(packet_info->self_address,
                                 packet_info->peer_address, packet_info->packet);
-  // Deliver queued-up packets in the same order as they arrived.
-  // Do this even when flag is off because there might be still some packets
-  // buffered in the store before flag is turned off.
-  DeliverPacketsToSession(packets, session_ptr.get());
+  DeliverPacketsToSession(packet_list.buffered_packets, session_ptr.get());
   --new_sessions_allowed_per_event_loop_;
 }
 
@@ -1401,84 +1357,41 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
     connection_id_generator = &ConnectionIdGenerator();
   }
   std::optional<QuicConnectionId> server_connection_id;
-  if (buffered_packets_.replace_cid_on_first_packet()) {
-    if (should_generate_cid) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 12,
-                                13);
-      server_connection_id = connection_id_generator->MaybeReplaceConnectionId(
-          original_connection_id, version);
-      // Normalize the output of MaybeReplaceConnectionId.
-      if (server_connection_id.has_value() &&
-          (server_connection_id->IsEmpty() ||
-           *server_connection_id == original_connection_id)) {
-        server_connection_id.reset();
-      }
-      QUIC_DVLOG(1) << "MaybeReplaceConnectionId(" << original_connection_id
-                    << ") = "
-                    << (server_connection_id.has_value()
-                            ? server_connection_id->ToString()
-                            : "nullopt");
 
-      if (server_connection_id.has_value()) {
-        switch (HandleConnectionIdCollision(
-            original_connection_id, *server_connection_id, self_address,
-            peer_address, version, &parsed_chlo)) {
-          case VisitorInterface::HandleCidCollisionResult::kOk:
-            break;
-          case VisitorInterface::HandleCidCollisionResult::kCollision:
-            return nullptr;
-        }
-      }
-    } else {
-      QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_replace_cid_on_first_packet, 13,
-                                13);
-      server_connection_id = replaced_connection_id;
-    }
-  } else {
+  if (should_generate_cid) {
     server_connection_id = connection_id_generator->MaybeReplaceConnectionId(
         original_connection_id, version);
+    // Normalize the output of MaybeReplaceConnectionId.
+    if (server_connection_id.has_value() &&
+        (server_connection_id->IsEmpty() ||
+         *server_connection_id == original_connection_id)) {
+      server_connection_id.reset();
+    }
+    QUIC_DVLOG(1) << "MaybeReplaceConnectionId(" << original_connection_id
+                  << ") = "
+                  << (server_connection_id.has_value()
+                          ? server_connection_id->ToString()
+                          : "nullopt");
+
+    if (server_connection_id.has_value()) {
+      switch (HandleConnectionIdCollision(
+          original_connection_id, *server_connection_id, self_address,
+          peer_address, version, &parsed_chlo)) {
+        case VisitorInterface::HandleCidCollisionResult::kOk:
+          break;
+        case VisitorInterface::HandleCidCollisionResult::kCollision:
+          return nullptr;
+      }
+    }
+  } else {
+    server_connection_id = replaced_connection_id;
   }
+
   const bool connection_id_replaced = server_connection_id.has_value();
   if (!connection_id_replaced) {
     server_connection_id = original_connection_id;
   }
-  if (!buffered_packets_.replace_cid_on_first_packet()) {
-    QUIC_CODE_COUNT(quic_connection_id_chosen);
-    if (reference_counted_session_map_.count(*server_connection_id) > 0) {
-      // The new connection ID is owned by another session. Avoid creating one
-      // altogether, as this connection attempt cannot possibly succeed.
-      QUIC_CODE_COUNT(quic_connection_id_collision);
-      QuicConnection* other_connection =
-          reference_counted_session_map_[*server_connection_id]->connection();
-      if (other_connection != nullptr) {  // Just make sure there is no crash.
-        QUIC_LOG_EVERY_N_SEC(ERROR, 10)
-            << "QUIC Connection ID collision. original_connection_id:"
-            << original_connection_id.ToString()
-            << " server_connection_id:" << server_connection_id->ToString()
-            << ", version:" << version << ", self_address:" << self_address
-            << ", peer_address:" << peer_address
-            << ", parsed_chlo:" << parsed_chlo
-            << ", other peer address: " << other_connection->peer_address()
-            << ", other CIDs: "
-            << quiche::PrintElements(
-                   other_connection->GetActiveServerConnectionIds())
-            << ", other stats: " << other_connection->GetStats();
-      }
-      if (connection_id_replaced) {
-        QUIC_CODE_COUNT(quic_replaced_connection_id_collision);
-        // The original connection ID does not correspond to an existing
-        // session. It is safe to send CONNECTION_CLOSE and add to TIME_WAIT.
-        StatelesslyTerminateConnection(
-            self_address, peer_address, original_connection_id,
-            IETF_QUIC_LONG_HEADER_PACKET,
-            /*version_flag=*/true, version.HasLengthPrefixedConnectionIds(),
-            version, QUIC_HANDSHAKE_FAILED,
-            "Connection ID collision, please retry",
-            QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS);
-      }
-      return nullptr;
-    }
-  }
+
   // Creates a new session and process all buffered packets for this connection.
   std::string alpn = SelectAlpn(parsed_chlo.alpns);
   std::unique_ptr<QuicSession> session =
@@ -1543,7 +1456,6 @@ QuicDispatcher::HandleConnectionIdCollision(
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address, ParsedQuicVersion version,
     const ParsedClientHello* parsed_chlo) {
-  QUICHE_DCHECK(buffered_packets_.replace_cid_on_first_packet());
   HandleCidCollisionResult result = HandleCidCollisionResult::kOk;
   auto existing_session_iter =
       reference_counted_session_map_.find(replaced_connection_id);

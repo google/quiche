@@ -198,10 +198,7 @@ TEST_F(QuicBufferedPacketStoreTest,
 TEST_F(QuicBufferedPacketStoreTest,
        FailToBufferTooManyPacketsOnExistingConnection) {
   // Max number of packets that can be buffered per connection.
-  const size_t kMaxPacketsPerConnection =
-      store_.replace_cid_on_first_packet()
-          ? kDefaultMaxUndecryptablePackets
-          : kDefaultMaxUndecryptablePackets + 1;
+  const size_t kMaxPacketsPerConnection = kDefaultMaxUndecryptablePackets;
   QuicConnectionId connection_id = TestConnectionId(1);
   EXPECT_EQ(QuicBufferedPacketStore::SUCCESS,
             EnqueuePacketToStore(store_, connection_id,
@@ -298,11 +295,7 @@ TEST_F(QuicBufferedPacketStoreTest, BasicGeneratorBuffering) {
       store_.DeliverPacketsForNextConnection(&delivered_conn_id);
   EXPECT_EQ(1u, packet_list.buffered_packets.size());
   EXPECT_EQ(delivered_conn_id, TestConnectionId(1));
-  if (GetQuicRestartFlag(quic_dispatcher_replace_cid_on_first_packet)) {
-    EXPECT_EQ(packet_list.connection_id_generator, nullptr);
-  } else {
-    EXPECT_EQ(packet_list.connection_id_generator, &connection_id_generator_);
-  }
+  EXPECT_EQ(packet_list.connection_id_generator, nullptr);
 }
 
 TEST_F(QuicBufferedPacketStoreTest, GeneratorIgnoredForNonChlo) {
@@ -322,11 +315,7 @@ TEST_F(QuicBufferedPacketStoreTest, GeneratorIgnoredForNonChlo) {
       store_.DeliverPacketsForNextConnection(&delivered_conn_id);
   EXPECT_EQ(2u, packet_list.buffered_packets.size());
   EXPECT_EQ(delivered_conn_id, TestConnectionId(1));
-  if (GetQuicRestartFlag(quic_dispatcher_replace_cid_on_first_packet)) {
-    EXPECT_EQ(packet_list.connection_id_generator, nullptr);
-  } else {
-    EXPECT_EQ(packet_list.connection_id_generator, &connection_id_generator_);
-  }
+  EXPECT_EQ(packet_list.connection_id_generator, nullptr);
 }
 
 TEST_F(QuicBufferedPacketStoreTest, EnqueueChloOnTooManyDifferentConnections) {
@@ -385,11 +374,7 @@ TEST_F(QuicBufferedPacketStoreTest, EnqueueChloOnTooManyDifferentConnections) {
       EXPECT_EQ(2u, packet_list.buffered_packets.size());
       EXPECT_EQ(TestConnectionId(1u), delivered_conn_id);
     }
-    if (GetQuicRestartFlag(quic_dispatcher_replace_cid_on_first_packet)) {
-      EXPECT_EQ(packet_list.connection_id_generator, nullptr);
-    } else {
-      EXPECT_EQ(packet_list.connection_id_generator, &connection_id_generator_);
-    }
+    EXPECT_EQ(packet_list.connection_id_generator, nullptr);
   }
   EXPECT_FALSE(store_.HasChlosBuffered());
 }
@@ -448,11 +433,7 @@ TEST_F(QuicBufferedPacketStoreTest, PacketQueueExpiredBeforeDelivery) {
 
   // Connection 3 is the next to be delivered as connection 1 already expired.
   EXPECT_EQ(connection_id3, delivered_conn_id);
-  if (GetQuicRestartFlag(quic_dispatcher_replace_cid_on_first_packet)) {
-    EXPECT_EQ(packet_list.connection_id_generator, nullptr);
-  } else {
-    EXPECT_EQ(packet_list.connection_id_generator, &connection_id_generator_);
-  }
+  EXPECT_EQ(packet_list.connection_id_generator, nullptr);
   ASSERT_EQ(1u, packet_list.buffered_packets.size());
   // Packets in connection 3 should use another peer address.
   EXPECT_EQ(another_client_address,
@@ -584,11 +565,7 @@ TEST_F(QuicBufferedPacketStoreTest, MultipleDiscardPackets) {
   // Since connection_id_2's chlo arrives, verify version is set.
   EXPECT_EQ(valid_version_, packets.version);
 
-  if (store_.replace_cid_on_first_packet()) {
-    EXPECT_FALSE(store_.HasChlosBuffered());
-  } else {
-    EXPECT_TRUE(store_.HasChlosBuffered());
-  }
+  EXPECT_FALSE(store_.HasChlosBuffered());
   // Discard the packets for connection 2
   store_.DiscardPackets(connection_id_2);
   EXPECT_FALSE(store_.HasChlosBuffered());
