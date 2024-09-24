@@ -224,6 +224,8 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data) {
       return ProcessTrackStatus(reader);
     case MoqtMessageType::kGoAway:
       return ProcessGoAway(reader);
+    case MoqtMessageType::kMaxSubscribeId:
+      return ProcessMaxSubscribeId(reader);
     case moqt::MoqtMessageType::kObjectAck:
       return ProcessObjectAck(reader);
   }
@@ -283,6 +285,18 @@ size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
           return 0;
         }
         setup.path = value;
+        break;
+      case MoqtSetupParameter::kMaxSubscribeId:
+        if (setup.max_subscribe_id.has_value()) {
+          ParseError("MAX_SUBSCRIBE_ID parameter appears twice in SETUP");
+          return 0;
+        }
+        uint64_t max_id;
+        if (!StringViewToVarInt(value, max_id)) {
+          ParseError("MAX_SUBSCRIBE_ID parameter is not a valid varint");
+          return 0;
+        }
+        setup.max_subscribe_id = max_id;
         break;
       case MoqtSetupParameter::kSupportObjectAcks:
         uint64_t flag;
@@ -347,6 +361,18 @@ size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
       case MoqtSetupParameter::kPath:
         ParseError("PATH parameter in SERVER_SETUP");
         return 0;
+      case MoqtSetupParameter::kMaxSubscribeId:
+        if (setup.max_subscribe_id.has_value()) {
+          ParseError("MAX_SUBSCRIBE_ID parameter appears twice in SETUP");
+          return 0;
+        }
+        uint64_t max_id;
+        if (!StringViewToVarInt(value, max_id)) {
+          ParseError("MAX_SUBSCRIBE_ID parameter is not a valid varint");
+          return 0;
+        }
+        setup.max_subscribe_id = max_id;
+        break;
       case MoqtSetupParameter::kSupportObjectAcks:
         uint64_t flag;
         if (!StringViewToVarInt(value, flag) || flag > 1) {
@@ -720,6 +746,15 @@ size_t MoqtControlParser::ProcessGoAway(quic::QuicDataReader& reader) {
     return 0;
   }
   visitor_.OnGoAwayMessage(goaway);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessMaxSubscribeId(quic::QuicDataReader& reader) {
+  MoqtMaxSubscribeId max_subscribe_id;
+  if (!reader.ReadVarInt62(&max_subscribe_id.max_subscribe_id)) {
+    return 0;
+  }
+  visitor_.OnMaxSubscribeIdMessage(max_subscribe_id);
   return reader.PreviouslyReadPayload().length();
 }
 

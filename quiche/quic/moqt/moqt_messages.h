@@ -34,6 +34,7 @@ enum class MoqtVersion : uint64_t {
 };
 
 inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft05;
+inline constexpr uint64_t kDefaultInitialMaxSubscribeId = 100;
 
 struct QUICHE_EXPORT MoqtSessionParameters {
   // TODO: support multiple versions.
@@ -50,6 +51,7 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   quic::Perspective perspective;
   bool using_webtrans;
   std::string path;
+  uint64_t max_subscribe_id = kDefaultInitialMaxSubscribeId;
   bool deliver_partial_objects = false;
   bool support_object_acks = false;
 };
@@ -84,6 +86,7 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kTrackStatusRequest = 0x0d,
   kTrackStatus = 0x0e,
   kGoAway = 0x10,
+  kMaxSubscribeId = 0x15,
   kClientSetup = 0x40,
   kServerSetup = 0x41,
 
@@ -101,6 +104,7 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
   kProtocolViolation = 0x3,
   kDuplicateTrackAlias = 0x4,
   kParameterLengthMismatch = 0x5,
+  kTooManySubscribes = 0x6,
   kGoawayTimeout = 0x10,
 };
 
@@ -121,6 +125,7 @@ enum class QUICHE_EXPORT MoqtRole : uint64_t {
 enum class QUICHE_EXPORT MoqtSetupParameter : uint64_t {
   kRole = 0x0,
   kPath = 0x1,
+  kMaxSubscribeId = 0x2,
 
   // QUICHE-specific extensions.
   // Indicates support for OACK messages.
@@ -220,12 +225,14 @@ struct QUICHE_EXPORT MoqtClientSetup {
   std::vector<MoqtVersion> supported_versions;
   std::optional<MoqtRole> role;
   std::optional<std::string> path;
+  std::optional<uint64_t> max_subscribe_id;
   bool supports_object_ack = false;
 };
 
 struct QUICHE_EXPORT MoqtServerSetup {
   MoqtVersion selected_version;
   std::optional<MoqtRole> role;
+  std::optional<uint64_t> max_subscribe_id;
   bool supports_object_ack = false;
 };
 
@@ -421,6 +428,10 @@ struct QUICHE_EXPORT MoqtTrackStatusRequest {
 
 struct QUICHE_EXPORT MoqtGoAway {
   std::string new_session_uri;
+};
+
+struct QUICHE_EXPORT MoqtMaxSubscribeId {
+  uint64_t max_subscribe_id;
 };
 
 // All of the four values in this message are encoded as varints.

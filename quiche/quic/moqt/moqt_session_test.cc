@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
@@ -157,15 +158,25 @@ class MoqtSessionPeer {
   static RemoteTrack& remote_track(MoqtSession* session, uint64_t track_alias) {
     return session->remote_tracks_.find(track_alias)->second;
   }
+
+  static void set_next_subscribe_id(MoqtSession* session, uint64_t id) {
+    session->next_subscribe_id_ = id;
+  }
+
+  static void set_peer_max_subscribe_id(MoqtSession* session, uint64_t id) {
+    session->peer_max_subscribe_id_ = id;
+  }
 };
 
 class MoqtSessionTest : public quic::test::QuicTest {
  public:
   MoqtSessionTest()
       : session_(&mock_session_,
-                 MoqtSessionParameters(quic::Perspective::IS_CLIENT),
+                 MoqtSessionParameters(quic::Perspective::IS_CLIENT, ""),
                  session_callbacks_.AsSessionCallbacks()) {
     session_.set_publisher(&publisher_);
+    MoqtSessionPeer::set_peer_max_subscribe_id(&session_,
+                                               kDefaultInitialMaxSubscribeId);
   }
   ~MoqtSessionTest() {
     EXPECT_CALL(session_callbacks_.session_deleted_callback, Call());
@@ -464,6 +475,53 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
   EXPECT_TRUE(correct_message);
 }
 
+TEST_F(MoqtSessionTest, SubscribeIdTooHigh) {
+  // Peer subscribes to (0, 0)
+  MoqtSubscribe request = {
+      /*subscribe_id=*/kDefaultInitialMaxSubscribeId + 1,
+      /*track_alias=*/2,
+      /*track_namespace=*/"foo",
+      /*track_name=*/"bar",
+      /*subscriber_priority=*/0x80,
+      /*group_order=*/std::nullopt,
+      /*start_group=*/0,
+      /*start_object=*/0,
+      /*end_group=*/std::nullopt,
+      /*end_object=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kTooManySubscribes),
+                           "Received SUBSCRIBE with too large ID"))
+      .Times(1);
+  stream_input->OnSubscribeMessage(request);
+}
+
+TEST_F(MoqtSessionTest, TooManySubscribes) {
+  MoqtSessionPeer::set_next_subscribe_id(&session_,
+                                         kDefaultInitialMaxSubscribeId);
+  MockRemoteTrackVisitor remote_track_visitor;
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream));
+  bool correct_message = true;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribe);
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(
+      session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor));
+  EXPECT_FALSE(
+      session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor));
+}
+
 TEST_F(MoqtSessionTest, SubscribeWithOk) {
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -493,6 +551,102 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
         EXPECT_FALSE(error_message.has_value());
       });
   stream_input->OnSubscribeOkMessage(ok);
+  EXPECT_TRUE(correct_message);
+}
+
+TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
+  MoqtSessionPeer::set_next_subscribe_id(&session_,
+                                         kDefaultInitialMaxSubscribeId + 1);
+  MockRemoteTrackVisitor remote_track_visitor;
+  EXPECT_FALSE(
+      session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor));
+  MoqtMaxSubscribeId max_subscribe_id = {
+      /*max_subscribe_id=*/kDefaultInitialMaxSubscribeId + 1,
+  };
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  stream_input->OnMaxSubscribeIdMessage(max_subscribe_id);
+  EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream));
+  bool correct_message = true;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribe);
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(
+      session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor));
+  EXPECT_TRUE(correct_message);
+}
+
+TEST_F(MoqtSessionTest, LowerMaxSubscribeIdIsAnError) {
+  MoqtMaxSubscribeId max_subscribe_id = {
+      /*max_subscribe_id=*/kDefaultInitialMaxSubscribeId - 1,
+  };
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  EXPECT_CALL(
+      mock_session_,
+      CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                   "MAX_SUBSCRIBE_ID message has lower value than previous"))
+      .Times(1);
+  stream_input->OnMaxSubscribeIdMessage(max_subscribe_id);
+}
+
+TEST_F(MoqtSessionTest, GrantMoreSubscribes) {
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream));
+  bool correct_message = true;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]),
+                  MoqtMessageType::kMaxSubscribeId);
+        return absl::OkStatus();
+      });
+  session_.GrantMoreSubscribes(1);
+  EXPECT_TRUE(correct_message);
+  // Peer subscribes to (0, 0)
+  MoqtSubscribe request = {
+      /*subscribe_id=*/kDefaultInitialMaxSubscribeId + 1,
+      /*track_alias=*/2,
+      /*track_namespace=*/"foo",
+      /*track_name=*/"bar",
+      /*subscriber_priority=*/0x80,
+      /*group_order=*/std::nullopt,
+      /*start_group=*/0,
+      /*start_object=*/0,
+      /*end_group=*/std::nullopt,
+      /*end_object=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  correct_message = false;
+  FullTrackName ftn("foo", "bar");
+  auto track = std::make_shared<MockTrackPublisher>(ftn);
+  EXPECT_CALL(*track, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
+  EXPECT_CALL(*track, GetCachedObject(_)).WillRepeatedly([] {
+    return std::optional<PublishedObject>();
+  });
+  EXPECT_CALL(*track, GetCachedObjectsInRange(_, _))
+      .WillRepeatedly(Return(std::vector<FullSequence>()));
+  EXPECT_CALL(*track, GetLargestSequence())
+      .WillRepeatedly(Return(FullSequence(10, 20)));
+  publisher_.Add(track);
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribeOk);
+        return absl::OkStatus();
+      });
+  stream_input->OnSubscribeMessage(request);
   EXPECT_TRUE(correct_message);
 }
 

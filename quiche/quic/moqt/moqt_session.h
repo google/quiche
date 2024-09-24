@@ -172,6 +172,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
       std::optional<webtransport::SendOrder> old_send_order,
       std::optional<webtransport::SendOrder> new_send_order);
 
+  void GrantMoreSubscribes(uint64_t num_subscribes);
+
  private:
   friend class test::MoqtSessionPeer;
 
@@ -207,6 +209,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override {}
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override {}
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override {}
+    void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override;
     void OnObjectAckMessage(const MoqtObjectAck& message) override {
       auto subscription_it =
           session_->published_subscriptions_.find(message.subscribe_id);
@@ -520,6 +523,11 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // an uninitialized value if no SETUP arrives or it arrives with no Role
   // parameter, and other checks have changed/been disabled.
   MoqtRole peer_role_ = MoqtRole::kPubSub;
+
+  // The maximum subscribe ID that the local endpoint can send.
+  uint64_t peer_max_subscribe_id_ = 0;
+  // The maximum subscribe ID sent to the peer.
+  uint64_t local_max_subscribe_id_ = 0;
 
   // Must be last.  Token used to make sure that the streams do not call into
   // the session when the session has already been destroyed.

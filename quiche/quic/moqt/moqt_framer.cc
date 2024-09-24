@@ -263,6 +263,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
     int_parameters.push_back(
         IntParameter(MoqtSetupParameter::kRole, *message.role));
   }
+  if (message.max_subscribe_id.has_value()) {
+    int_parameters.push_back(IntParameter(MoqtSetupParameter::kMaxSubscribeId,
+                                          *message.max_subscribe_id));
+  }
   if (message.supports_object_ack) {
     int_parameters.push_back(
         IntParameter(MoqtSetupParameter::kSupportObjectAcks, 1u));
@@ -286,6 +290,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
   if (message.role.has_value()) {
     int_parameters.push_back(
         IntParameter(MoqtSetupParameter::kRole, *message.role));
+  }
+  if (message.max_subscribe_id.has_value()) {
+    int_parameters.push_back(IntParameter(MoqtSetupParameter::kMaxSubscribeId,
+                                          *message.max_subscribe_id));
   }
   if (message.supports_object_ack) {
     int_parameters.push_back(
@@ -497,6 +505,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
 quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
   return Serialize(WireVarInt62(MoqtMessageType::kGoAway),
                    WireStringWithVarInt62Length(message.new_session_uri));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeMaxSubscribeId(
+    const MoqtMaxSubscribeId& message) {
+  return Serialize(WireVarInt62(MoqtMessageType::kMaxSubscribeId),
+                   WireVarInt62(message.max_subscribe_id));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(

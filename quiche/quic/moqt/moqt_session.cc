@@ -105,6 +105,7 @@ MoqtSession::MoqtSession(webtransport::Session* session,
       callbacks_(std::move(callbacks)),
       framer_(quiche::SimpleBufferAllocator::Get(), parameters.using_webtrans),
       publisher_(DefaultPublisher::GetInstance()),
+      local_max_subscribe_id_(parameters.max_subscribe_id),
       liveness_token_(std::make_shared<Empty>()) {}
 
 MoqtSession::ControlStream* MoqtSession::GetControlStream() {
@@ -146,6 +147,7 @@ void MoqtSession::OnSessionReady() {
   MoqtClientSetup setup = MoqtClientSetup{
       .supported_versions = std::vector<MoqtVersion>{parameters_.version},
       .role = MoqtRole::kPubSub,
+      .max_subscribe_id = parameters_.max_subscribe_id,
       .supports_object_ack = parameters_.support_object_acks,
   };
   if (!parameters_.using_webtrans) {
@@ -389,6 +391,13 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
     return false;
   }
   // TODO(martinduke): support authorization info
+  if (next_subscribe_id_ > peer_max_subscribe_id_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE with ID "
+                    << message.subscribe_id
+                    << " which is greater than the maximum ID "
+                    << peer_max_subscribe_id_;
+    return false;
+  }
   message.subscribe_id = next_subscribe_id_++;
   FullTrackName ftn(std::string(message.track_namespace),
                     std::string(message.track_name));
@@ -490,6 +499,13 @@ void MoqtSession::UpdateQueuedSendOrder(
     subscribes_with_queued_outgoing_data_streams_.emplace(*new_send_order,
                                                           subscribe_id);
   }
+}
+
+void MoqtSession::GrantMoreSubscribes(uint64_t num_subscribes) {
+  local_max_subscribe_id_ += num_subscribes;
+  MoqtMaxSubscribeId message;
+  message.max_subscribe_id = local_max_subscribe_id_;
+  SendControlMessage(framer_.SerializeMaxSubscribeId(message));
 }
 
 std::pair<FullTrackName, RemoteTrack::Visitor*>
@@ -596,11 +612,18 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
     MoqtServerSetup response;
     response.selected_version = session_->parameters_.version;
     response.role = MoqtRole::kPubSub;
+    response.max_subscribe_id = session_->parameters_.max_subscribe_id;
     response.supports_object_ack = session_->parameters_.support_object_acks;
     SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
   // TODO: handle role and path.
+  if (message.max_subscribe_id.has_value()) {
+    session_->peer_max_subscribe_id_ = *message.max_subscribe_id;
+  } else if (session_->parameters_.version == MoqtVersion::kDraft05) {
+    // TODO (martinduke): Delete this when we roll the version number.
+    session_->peer_max_subscribe_id_ = UINT64_MAX >> 2;
+  }
   std::move(session_->callbacks_.session_established_callback)();
   session_->peer_role_ = *message.role;
 }
@@ -622,6 +645,12 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
   session_->peer_supports_object_ack_ = message.supports_object_ack;
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle role and path.
+  if (message.max_subscribe_id.has_value()) {
+    session_->peer_max_subscribe_id_ = *message.max_subscribe_id;
+  } else if (session_->parameters_.version == MoqtVersion::kDraft05) {
+    // TODO (martinduke): Delete this when we roll the version number.
+    session_->peer_max_subscribe_id_ = UINT64_MAX >> 2;
+  }
   std::move(session_->callbacks_.session_established_callback)();
   session_->peer_role_ = *message.role;
 }
@@ -644,6 +673,12 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     QUIC_DLOG(INFO) << ENDPOINT << "Publisher peer sent SUBSCRIBE";
     session_->Error(MoqtError::kProtocolViolation,
                     "Received SUBSCRIBE from publisher");
+    return;
+  }
+  if (message.subscribe_id > session_->local_max_subscribe_id_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received SUBSCRIBE with too large ID";
+    session_->Error(MoqtError::kTooManySubscribes,
+                    "Received SUBSCRIBE with too large ID");
     return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE for "
@@ -835,6 +870,25 @@ void MoqtSession::ControlStream::OnAnnounceErrorMessage(
 void MoqtSession::ControlStream::OnAnnounceCancelMessage(
     const MoqtAnnounceCancel& message) {
   // TODO: notify the application about this.
+}
+
+void MoqtSession::ControlStream::OnMaxSubscribeIdMessage(
+    const MoqtMaxSubscribeId& message) {
+  if (session_->peer_role_ == MoqtRole::kSubscriber) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Subscriber peer sent MAX_SUBSCRIBE_ID";
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received MAX_SUBSCRIBE_ID from Subscriber");
+    return;
+  }
+  if (message.max_subscribe_id < session_->peer_max_subscribe_id_) {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Peer sent MAX_SUBSCRIBE_ID message with "
+                       "lower value than previous";
+    session_->Error(MoqtError::kProtocolViolation,
+                    "MAX_SUBSCRIBE_ID message has lower value than previous");
+    return;
+  }
+  session_->peer_max_subscribe_id_ = message.max_subscribe_id;
 }
 
 void MoqtSession::ControlStream::OnParsingError(MoqtError error_code,

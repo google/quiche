@@ -39,7 +39,7 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kAnnounceOk,     MoqtMessageType::kAnnounceError,
     MoqtMessageType::kUnannounce,     MoqtMessageType::kClientSetup,
     MoqtMessageType::kServerSetup,    MoqtMessageType::kGoAway,
-    MoqtMessageType::kObjectAck,
+    MoqtMessageType::kMaxSubscribeId, MoqtMessageType::kObjectAck,
 };
 constexpr std::array kDataStreamTypes{MoqtDataStreamType::kObjectStream,
                                       MoqtDataStreamType::kStreamHeaderTrack,
@@ -160,6 +160,9 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
     OnControlMessage(message);
   }
   void OnGoAwayMessage(const MoqtGoAway& message) override {
+    OnControlMessage(message);
+  }
+  void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override {
     OnControlMessage(message);
   }
   void OnObjectAckMessage(const MoqtObjectAck& message) override {
@@ -541,6 +544,24 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupRoleIsMissing) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
+TEST_F(MoqtMessageSpecificTest, ClientSetupMaxSubscribeIdAppearsTwice) {
+  MoqtControlParser parser(kRawQuic, visitor_);
+  char setup[] = {
+      0x40, 0x40, 0x02, 0x01, 0x02,  // versions
+      0x04,                          // 4 params
+      0x00, 0x01, 0x03,              // role = PubSub
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
+      0x02, 0x01, 0x32,              // max_subscribe_id = 50
+      0x02, 0x01, 0x32,              // max_subscribe_id = 50
+  };
+  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_,
+            "MAX_SUBSCRIBE_ID parameter appears twice in SETUP");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
 TEST_F(MoqtMessageSpecificTest, ServerSetupRoleIsMissing) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
@@ -632,6 +653,24 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "PATH SETUP parameter missing from Client message over QUIC");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtMessageSpecificTest, ServerSetupMaxSubscribeIdAppearsTwice) {
+  MoqtControlParser parser(kRawQuic, visitor_);
+  char setup[] = {
+      0x40, 0x40, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x04,                          // 4 params
+      0x00, 0x01, 0x03,              // role = PubSub
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
+      0x02, 0x01, 0x32,              // max_subscribe_id = 50
+      0x02, 0x01, 0x32,              // max_subscribe_id = 50
+  };
+  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_,
+            "MAX_SUBSCRIBE_ID parameter appears twice in SETUP");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 

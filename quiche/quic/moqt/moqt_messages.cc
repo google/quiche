@@ -88,6 +88,8 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNANNOUNCE";
     case MoqtMessageType::kGoAway:
       return "GOAWAY";
+    case MoqtMessageType::kMaxSubscribeId:
+      return "MAX_SUBSCRIBE_ID";
     case MoqtMessageType::kObjectAck:
       return "OBJECT_ACK";
   }

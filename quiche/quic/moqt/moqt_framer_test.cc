@@ -48,6 +48,7 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kAnnounceError,
       MoqtMessageType::kUnannounce,
       MoqtMessageType::kGoAway,
+      MoqtMessageType::kMaxSubscribeId,
       MoqtMessageType::kObjectAck,
       MoqtMessageType::kClientSetup,
       MoqtMessageType::kServerSetup,
@@ -156,6 +157,10 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kGoAway: {
         auto data = std::get<MoqtGoAway>(structured_data);
         return framer_.SerializeGoAway(data);
+      }
+      case moqt::MoqtMessageType::kMaxSubscribeId: {
+        auto data = std::get<MoqtMaxSubscribeId>(structured_data);
+        return framer_.SerializeMaxSubscribeId(data);
       }
       case moqt::MoqtMessageType::kObjectAck: {
         auto data = std::get<MoqtObjectAck>(structured_data);
