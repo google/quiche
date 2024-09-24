@@ -233,7 +233,7 @@ QuicByteCount MemSliceSpanTotalSize(absl::Span<quiche::QuicheMemSlice> span);
 // empty string.
 // This function returns path as-is, if it's windows path with backslash
 // separators.
-absl::string_view PosixBasename(absl::string_view path);
+QUICHE_EXPORT absl::string_view PosixBasename(absl::string_view path);
 
 // Computes a SHA-256 hash and returns the raw bytes of the hash.
 QUICHE_EXPORT std::string RawSha256(absl::string_view input);
