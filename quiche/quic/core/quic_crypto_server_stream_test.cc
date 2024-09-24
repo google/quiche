@@ -64,7 +64,7 @@ class QuicCryptoServerStreamTest : public QuicTest {
             std::move(proof_source), KeyExchangeSource::Default()),
         server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
-        server_id_(kServerHostname, kServerPort, false),
+        server_id_(kServerHostname, kServerPort),
         client_crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {}
 
   void Initialize() { InitializeServer(); }

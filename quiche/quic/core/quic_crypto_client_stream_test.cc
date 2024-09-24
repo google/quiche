@@ -41,7 +41,7 @@ class QuicCryptoClientStreamTest : public QuicTest {
  public:
   QuicCryptoClientStreamTest()
       : supported_versions_(AllSupportedVersionsWithQuicCrypto()),
-        server_id_(kServerHostname, kServerPort, false),
+        server_id_(kServerHostname, kServerPort),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting(),
                        std::make_unique<test::SimpleSessionCache>()),
         server_crypto_config_(

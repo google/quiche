@@ -57,27 +57,19 @@ std::optional<QuicServerId> QuicServerId::ParseFromHostPortString(
                       static_cast<uint16_t>(parsed_port_number));
 }
 
-QuicServerId::QuicServerId() : QuicServerId("", 0, false) {}
+QuicServerId::QuicServerId() : QuicServerId("", 0) {}
 
 QuicServerId::QuicServerId(std::string host, uint16_t port)
-    : QuicServerId(std::move(host), port, false) {}
-
-QuicServerId::QuicServerId(std::string host, uint16_t port,
-                           bool privacy_mode_enabled)
-    : host_(std::move(host)),
-      port_(port),
-      privacy_mode_enabled_(privacy_mode_enabled) {}
+    : host_(std::move(host)), port_(port) {}
 
 QuicServerId::~QuicServerId() {}
 
 bool QuicServerId::operator<(const QuicServerId& other) const {
-  return std::tie(port_, host_, privacy_mode_enabled_) <
-         std::tie(other.port_, other.host_, other.privacy_mode_enabled_);
+  return std::tie(port_, host_) < std::tie(other.port_, other.host_);
 }
 
 bool QuicServerId::operator==(const QuicServerId& other) const {
-  return privacy_mode_enabled_ == other.privacy_mode_enabled_ &&
-         host_ == other.host_ && port_ == other.port_;
+  return host_ == other.host_ && port_ == other.port_;
 }
 
 bool QuicServerId::operator!=(const QuicServerId& other) const {

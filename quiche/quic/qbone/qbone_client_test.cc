@@ -215,8 +215,7 @@ TEST_P(QboneClientTest, SendDataFromClient) {
   std::unique_ptr<QuicEventLoop> event_loop =
       GetDefaultEventLoop()->Create(quic::QuicDefaultClock::Get());
   QboneTestClient client(
-      server_address,
-      QuicServerId("test.example.com", server_address.port(), false),
+      server_address, QuicServerId("test.example.com", server_address.port()),
       ParsedQuicVersionVector{GetParam()}, event_loop.get(),
       crypto_test_utils::ProofVerifierForTesting());
   ASSERT_TRUE(client.Initialize());

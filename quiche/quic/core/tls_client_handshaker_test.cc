@@ -170,7 +170,7 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   TlsClientHandshakerTest()
       : supported_versions_({GetParam()}),
-        server_id_(kServerHostname, kServerPort, false),
+        server_id_(kServerHostname, kServerPort),
         server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
     crypto_config_ = std::make_unique<QuicCryptoClientConfig>(

@@ -82,7 +82,7 @@ class QuicDefaultClientTest : public QuicTest {
   // Caller is responsible for deletion.
   std::unique_ptr<QuicDefaultClient> CreateAndInitializeQuicClient() {
     QuicSocketAddress server_address(QuicSocketAddress(TestLoopback(), 0));
-    QuicServerId server_id("hostname", server_address.port(), false);
+    QuicServerId server_id("hostname", server_address.port());
     ParsedQuicVersionVector versions = AllSupportedVersions();
     auto client = std::make_unique<QuicDefaultClient>(
         server_address, server_id, versions, event_loop_.get(),

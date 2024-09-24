@@ -27,7 +27,6 @@ class QUICHE_EXPORT QuicServerId {
 
   QuicServerId();
   QuicServerId(std::string host, uint16_t port);
-  QuicServerId(std::string host, uint16_t port, bool privacy_mode_enabled);
   ~QuicServerId();
 
   // Needed to be an element of an ordered container.
@@ -39,8 +38,6 @@ class QUICHE_EXPORT QuicServerId {
   const std::string& host() const { return host_; }
 
   uint16_t port() const { return port_; }
-
-  bool privacy_mode_enabled() const { return privacy_mode_enabled_; }
 
   // Returns a "host:port" representation. IPv6 literal hosts will always be
   // bracketed in result.
@@ -56,14 +53,12 @@ class QUICHE_EXPORT QuicServerId {
 
   template <typename H>
   friend H AbslHashValue(H h, const QuicServerId& server_id) {
-    return H::combine(std::move(h), server_id.host(), server_id.port(),
-                      server_id.privacy_mode_enabled());
+    return H::combine(std::move(h), server_id.host(), server_id.port());
   }
 
  private:
   std::string host_;
   uint16_t port_;
-  bool privacy_mode_enabled_;
 };
 
 using QuicServerIdHash = absl::Hash<QuicServerId>;

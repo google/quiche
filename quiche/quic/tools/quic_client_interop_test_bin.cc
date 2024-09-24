@@ -375,7 +375,7 @@ std::set<Feature> ServerSupport(std::string dns_host, std::string url_host,
     QUIC_LOG(ERROR) << "Failed to resolve " << dns_host;
     return std::set<Feature>();
   }
-  QuicServerId server_id(url_host, port, false);
+  QuicServerId server_id(url_host, port);
   std::string authority = absl::StrCat(url_host, ":", port);
 
   QuicClientInteropRunner runner;

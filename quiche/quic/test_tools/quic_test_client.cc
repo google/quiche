@@ -306,9 +306,8 @@ QuicTestClient::QuicTestClient(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions)
     : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
       client_(std::make_unique<MockableQuicClient>(
-          server_address,
-          QuicServerId(server_hostname, server_address.port(), false), config,
-          supported_versions, event_loop_.get())) {
+          server_address, QuicServerId(server_hostname, server_address.port()),
+          config, supported_versions, event_loop_.get())) {
   Initialize();
 }
 
@@ -318,9 +317,9 @@ QuicTestClient::QuicTestClient(
     std::unique_ptr<ProofVerifier> proof_verifier)
     : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
       client_(std::make_unique<MockableQuicClient>(
-          server_address,
-          QuicServerId(server_hostname, server_address.port(), false), config,
-          supported_versions, event_loop_.get(), std::move(proof_verifier))) {
+          server_address, QuicServerId(server_hostname, server_address.port()),
+          config, supported_versions, event_loop_.get(),
+          std::move(proof_verifier))) {
   Initialize();
 }
 
@@ -331,10 +330,9 @@ QuicTestClient::QuicTestClient(
     std::unique_ptr<SessionCache> session_cache)
     : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
       client_(std::make_unique<MockableQuicClient>(
-          server_address,
-          QuicServerId(server_hostname, server_address.port(), false), config,
-          supported_versions, event_loop_.get(), std::move(proof_verifier),
-          std::move(session_cache))) {
+          server_address, QuicServerId(server_hostname, server_address.port()),
+          config, supported_versions, event_loop_.get(),
+          std::move(proof_verifier), std::move(session_cache))) {
   Initialize();
 }
 
@@ -346,10 +344,9 @@ QuicTestClient::QuicTestClient(
     std::unique_ptr<QuicEventLoop> event_loop)
     : event_loop_(std::move(event_loop)),
       client_(std::make_unique<MockableQuicClient>(
-          server_address,
-          QuicServerId(server_hostname, server_address.port(), false), config,
-          supported_versions, event_loop_.get(), std::move(proof_verifier),
-          std::move(session_cache))) {
+          server_address, QuicServerId(server_hostname, server_address.port()),
+          config, supported_versions, event_loop_.get(),
+          std::move(proof_verifier), std::move(session_cache))) {
   Initialize();
 }
 
@@ -586,8 +583,7 @@ void QuicTestClient::Connect() {
 
   // If we've been asked to override SNI, set it now
   if (override_sni_set_) {
-    client_->set_server_id(
-        QuicServerId(override_sni_, address().port(), false));
+    client_->set_server_id(QuicServerId(override_sni_, address().port()));
   }
 
   client_->Connect();

@@ -107,8 +107,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         SupportedVersions(GetParam()));
     session_ = std::make_unique<TestQuicSpdyClientSession>(
         DefaultQuicConfig(), SupportedVersions(GetParam()), connection_,
-        QuicServerId(kServerHostname, kPort, false),
-        client_crypto_config_.get());
+        QuicServerId(kServerHostname, kPort), client_crypto_config_.get());
     session_->Initialize();
     connection_->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
@@ -172,8 +171,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     session_ = std::make_unique<TestQuicSpdyClientSession>(
         DefaultQuicConfig(), SupportedVersions(GetParam()), connection_,
-        QuicServerId(kServerHostname, kPort, false),
-        client_crypto_config_.get());
+        QuicServerId(kServerHostname, kPort), client_crypto_config_.get());
     session_->Initialize();
     crypto_stream_ = static_cast<QuicCryptoClientStream*>(
         session_->GetMutableCryptoStream());
@@ -582,7 +580,7 @@ TEST_P(QuicSpdyClientSessionTest, OnSettingsFrame) {
                             std::end(application_state));
   session_->OnSettingsFrame(settings);
   EXPECT_EQ(expected, *client_session_cache_
-                           ->Lookup(QuicServerId(kServerHostname, kPort, false),
+                           ->Lookup(QuicServerId(kServerHostname, kPort),
                                     session_->GetClock()->WallNow(), nullptr)
                            ->application_state);
 }

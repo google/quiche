@@ -37,9 +37,9 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
   explicit MockQuicSpdyClientSession(
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection)
-      : QuicSpdyClientSession(
-            DefaultQuicConfig(), supported_versions, connection,
-            QuicServerId("example.com", 443, false), &crypto_config_),
+      : QuicSpdyClientSession(DefaultQuicConfig(), supported_versions,
+                              connection, QuicServerId("example.com", 443),
+                              &crypto_config_),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {}
   MockQuicSpdyClientSession(const MockQuicSpdyClientSession&) = delete;
   MockQuicSpdyClientSession& operator=(const MockQuicSpdyClientSession&) =

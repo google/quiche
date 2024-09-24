@@ -179,7 +179,7 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
   TlsServerHandshakerTest()
       : server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
-        server_id_(kServerHostname, kServerPort, false),
+        server_id_(kServerHostname, kServerPort),
         supported_versions_({GetParam().version}) {
     SetQuicFlag(quic_disable_server_tls_resumption,
                 GetParam().disable_resumption);
@@ -635,7 +635,7 @@ TEST_P(TlsServerHandshakerTest, HostnameForCertSelectionAndComputeSignature) {
   // Client uses upper case letters in hostname. It is considered valid by
   // QuicHostnameUtils::IsValidSNI, but it should be normalized for cert
   // selection.
-  server_id_ = QuicServerId("tEsT.EXAMPLE.CoM", kServerPort, false);
+  server_id_ = QuicServerId("tEsT.EXAMPLE.CoM", kServerPort);
   InitializeServerWithFakeProofSourceHandle();
   server_handshaker_->SetupProofSourceHandle(
       /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
@@ -742,7 +742,7 @@ TEST_P(TlsServerHandshakerTest, CustomALPNNegotiation) {
 
 TEST_P(TlsServerHandshakerTest, RejectInvalidSNI) {
   SetQuicFlag(quic_client_allow_invalid_sni_for_test, true);
-  server_id_ = QuicServerId("invalid!.example.com", kServerPort, false);
+  server_id_ = QuicServerId("invalid!.example.com", kServerPort);
   InitializeFakeClient();
 
   // Run the handshake and expect it to fail.

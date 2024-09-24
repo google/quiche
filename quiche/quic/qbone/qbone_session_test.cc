@@ -327,7 +327,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
       client_peer_ = std::make_unique<QboneClientSession>(
           client_connection_, client_crypto_config_.get(),
           /*owner=*/nullptr, config, supported_versions_,
-          QuicServerId("test.example.com", 1234, false), client_writer_.get(),
+          QuicServerId("test.example.com", 1234), client_writer_.get(),
           client_handler_.get());
     }
 
