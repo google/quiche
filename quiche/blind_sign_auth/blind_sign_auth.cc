@@ -78,7 +78,8 @@ void BlindSignAuth::GetInitialDataCallback(
   if (!response.ok()) {
     QUICHE_LOG(WARNING) << "GetInitialDataRequest failed: "
                         << response.status();
-    std::move(callback)(response.status());
+    std::move(callback)(absl::InvalidArgumentError(
+        "GetInitialDataRequest failed: invalid response"));
     return;
   }
   absl::StatusCode code = response->status_code();
@@ -86,7 +87,8 @@ void BlindSignAuth::GetInitialDataCallback(
     std::string message =
         absl::StrCat("GetInitialDataRequest failed with code: ", code);
     QUICHE_LOG(WARNING) << message;
-    std::move(callback)(absl::Status(code, message));
+    std::move(callback)(
+        absl::InvalidArgumentError("GetInitialDataRequest failed"));
     return;
   }
   // Parse GetInitialDataResponse.
@@ -133,7 +135,9 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
       anonymous_tokens::CreatePublicKeyRSA(
           public_key_proto.n(), public_key_proto.e());
   if (!bssl_rsa_key.ok()) {
-    std::move(callback)(bssl_rsa_key.status());
+    QUICHE_LOG(ERROR) << "Failed to create RSA public key: "
+                      << bssl_rsa_key.status();
+    std::move(callback)(absl::InternalError("Failed to create RSA public key"));
     return;
   }
   absl::StatusOr<anonymous_tokens::Extensions> extensions =
@@ -143,7 +147,8 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
   if (!extensions.ok()) {
     QUICHE_LOG(WARNING) << "Failed to decode extensions: "
                         << extensions.status();
-    std::move(callback)(extensions.status());
+    std::move(callback)(
+        absl::InvalidArgumentError("Failed to decode extensions"));
     return;
   }
   std::vector<uint16_t> kExpectedExtensionTypes = {
@@ -157,7 +162,8 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
           *extensions, absl::MakeSpan(kExpectedExtensionTypes), absl::Now());
   if (!result.ok()) {
     QUICHE_LOG(WARNING) << "Failed to validate extensions: " << result;
-    std::move(callback)(result);
+    std::move(callback)(
+        absl::InvalidArgumentError("Failed to validate extensions"));
     return;
   }
   absl::StatusOr<anonymous_tokens::ExpirationTimestamp>
@@ -166,7 +172,8 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
   if (!expiration_timestamp.ok()) {
     QUICHE_LOG(WARNING) << "Failed to parse expiration timestamp: "
                         << expiration_timestamp.status();
-    std::move(callback)(expiration_timestamp.status());
+    std::move(callback)(
+        absl::InvalidArgumentError("Failed to parse expiration timestamp"));
     return;
   }
   absl::Time public_metadata_expiry_time =
@@ -185,7 +192,8 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
   if (!token_challenge.ok()) {
     QUICHE_LOG(WARNING) << "Failed to marshal token challenge: "
                         << token_challenge.status();
-    std::move(callback)(token_challenge.status());
+    std::move(callback)(
+        absl::InvalidArgumentError("Failed to marshal token challenge"));
     return;
   }
 
@@ -205,7 +213,8 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
     if (!client.ok()) {
       QUICHE_LOG(WARNING) << "Failed to create Privacy Pass client: "
                           << client.status();
-      std::move(callback)(client.status());
+      std::move(callback)(
+          absl::InternalError("Failed to create Privacy Pass client"));
       return;
     }
 
@@ -222,7 +231,8 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
     if (!extended_token_request.ok()) {
       QUICHE_LOG(WARNING) << "Failed to create ExtendedTokenRequest: "
                           << extended_token_request.status();
-      std::move(callback)(extended_token_request.status());
+      std::move(callback)(
+          absl::InternalError("Failed to create ExtendedTokenRequest"));
       return;
     }
     privacy_pass_clients.push_back(*std::move(client));
@@ -249,7 +259,7 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
           initial_data_response.at_public_metadata_public_key().use_case());
   if (!use_case.ok()) {
     QUICHE_LOG(WARNING) << "Failed to parse use case: " << use_case.status();
-    std::move(callback)(use_case.status());
+    std::move(callback)(absl::InvalidArgumentError("Failed to parse use case"));
     return;
   }
 
@@ -277,14 +287,15 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
   // Validate response.
   if (!response.ok()) {
     QUICHE_LOG(WARNING) << "AuthAndSign failed: " << response.status();
-    std::move(callback)(response.status());
+    std::move(callback)(
+        absl::InvalidArgumentError("AuthAndSign failed: invalid response"));
     return;
   }
   absl::StatusCode code = response->status_code();
   if (code != absl::StatusCode::kOk) {
     std::string message = absl::StrCat("AuthAndSign failed with code: ", code);
     QUICHE_LOG(WARNING) << message;
-    std::move(callback)(absl::Status(code, message));
+    std::move(callback)(absl::InvalidArgumentError("AuthAndSign failed"));
     return;
   }
 
@@ -322,7 +333,7 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
         privacy_pass_clients[i]->FinalizeToken(unescaped_blinded_sig);
     if (!token.ok()) {
       QUICHE_LOG(WARNING) << "Failed to finalize token: " << token.status();
-      std::move(callback)(token.status());
+      std::move(callback)(absl::InternalError("Failed to finalize token"));
       return;
     }
 
@@ -331,7 +342,7 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
     if (!marshaled_token.ok()) {
       QUICHE_LOG(WARNING) << "Failed to marshal token: "
                           << marshaled_token.status();
-      std::move(callback)(marshaled_token.status());
+      std::move(callback)(absl::InternalError("Failed to marshal token"));
       return;
     }
 

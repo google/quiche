@@ -269,7 +269,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
   QuicheNotification done;
   SignedTokenCallback callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
-        EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
+        EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);
         done.Notify();
       };
   blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
