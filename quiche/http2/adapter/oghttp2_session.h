@@ -20,6 +20,7 @@
 #include "quiche/http2/adapter/http2_util.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
 #include "quiche/http2/adapter/window_manager.h"
+#include "quiche/http2/core/http2_frame_decoder_adapter.h"
 #include "quiche/http2/core/http2_trace_logging.h"
 #include "quiche/http2/core/no_op_headers_handler.h"
 #include "quiche/http2/core/priority_write_scheduler.h"
@@ -30,7 +31,6 @@
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_linked_hash_map.h"
-#include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 #include "quiche/spdy/core/spdy_framer.h"
 #include "quiche/spdy/core/spdy_protocol.h"
 

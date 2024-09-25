@@ -15,6 +15,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/http2_frame_decoder_adapter.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/http/quic_headers_stream.h"
@@ -34,7 +35,6 @@
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/common/http/http_header_block.h"
-#include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 
 namespace quic {
 

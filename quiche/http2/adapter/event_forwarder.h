@@ -3,9 +3,9 @@
 
 #include <functional>
 
+#include "quiche/http2/core/http2_frame_decoder_adapter.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/spdy/core/http2_frame_decoder_adapter.h"
 
 namespace http2 {
 namespace adapter {
