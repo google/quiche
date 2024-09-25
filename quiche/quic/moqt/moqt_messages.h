@@ -32,11 +32,11 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft05 = 0xff000005,
+  kDraft06 = 0xff000006,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft05;
+inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft06;
 inline constexpr uint64_t kDefaultInitialMaxSubscribeId = 100;
 
 struct QUICHE_EXPORT MoqtSessionParameters {

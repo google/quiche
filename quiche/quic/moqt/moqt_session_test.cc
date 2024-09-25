@@ -223,7 +223,7 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
           &session_, visitor.get());
   // Handle the server setup
   MoqtServerSetup setup = {
-      MoqtVersion::kDraft05,
+      kDefaultMoqtVersion,
       MoqtRole::kPubSub,
   };
   EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
@@ -238,7 +238,7 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);
   MoqtClientSetup setup = {
-      /*supported_versions=*/{MoqtVersion::kDraft05},
+      /*supported_versions=*/{kDefaultMoqtVersion},
       /*role=*/MoqtRole::kPubSub,
       /*path=*/std::nullopt,
   };
@@ -1207,7 +1207,7 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);
   MoqtClientSetup setup = {
-      /*supported_versions*/ {MoqtVersion::kDraft05},
+      /*supported_versions*/ {kDefaultMoqtVersion},
       /*role=*/MoqtRole::kPubSub,
       /*path=*/std::nullopt,
   };

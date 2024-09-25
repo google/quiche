@@ -604,9 +604,6 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
   // TODO: handle role and path.
   if (message.max_subscribe_id.has_value()) {
     session_->peer_max_subscribe_id_ = *message.max_subscribe_id;
-  } else if (session_->parameters_.version == MoqtVersion::kDraft05) {
-    // TODO (martinduke): Delete this when we roll the version number.
-    session_->peer_max_subscribe_id_ = UINT64_MAX >> 2;
   }
   std::move(session_->callbacks_.session_established_callback)();
   session_->peer_role_ = *message.role;
@@ -631,9 +628,6 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
   // TODO: handle role and path.
   if (message.max_subscribe_id.has_value()) {
     session_->peer_max_subscribe_id_ = *message.max_subscribe_id;
-  } else if (session_->parameters_.version == MoqtVersion::kDraft05) {
-    // TODO (martinduke): Delete this when we roll the version number.
-    session_->peer_max_subscribe_id_ = UINT64_MAX >> 2;
   }
   std::move(session_->callbacks_.session_established_callback)();
   session_->peer_role_ = *message.role;
