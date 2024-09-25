@@ -357,8 +357,7 @@ class MoqtSimulator {
     //       server does not yet have an active subscription, so the client has
     //       some catching up to do.
     generator_.Start();
-    server_session()->SubscribeCurrentGroup(TrackName().track_namespace,
-                                            TrackName().track_name, &receiver_);
+    server_session()->SubscribeCurrentGroup(TrackName(), &receiver_);
     simulator_.RunFor(parameters_.duration);
 
     // At the end, we wait for eight RTTs until the connection settles down.

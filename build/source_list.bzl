@@ -1545,6 +1545,7 @@ moqt_srcs = [
     "quic/moqt/moqt_live_relay_queue.cc",
     "quic/moqt/moqt_live_relay_queue_test.cc",
     "quic/moqt/moqt_messages.cc",
+    "quic/moqt/moqt_messages_test.cc",
     "quic/moqt/moqt_outgoing_queue.cc",
     "quic/moqt/moqt_outgoing_queue_test.cc",
     "quic/moqt/moqt_parser.cc",

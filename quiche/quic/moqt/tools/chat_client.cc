@@ -114,7 +114,7 @@ void ChatClient::RemoteTrackVisitor::OnReply(
   if (full_track_name == client_->chat_strings_->GetCatalogName()) {
     std::cout << "Subscription to catalog ";
   } else {
-    std::cout << "Subscription to user " << full_track_name.track_namespace
+    std::cout << "Subscription to user " << full_track_name.track_namespace()
               << " ";
   }
   if (reason_phrase.has_value()) {
@@ -142,7 +142,7 @@ void ChatClient::RemoteTrackVisitor::OnObjectFragment(
     client_->ProcessCatalog(object, this, group_sequence, object_sequence);
     return;
   }
-  std::string username = full_track_name.track_namespace;
+  std::string username(full_track_name.track_namespace());
   username = username.substr(username.find_last_of('/') + 1);
   if (!client_->other_users_.contains(username)) {
     std::cout << "Username " << username << "doesn't exist\n";
@@ -181,15 +181,14 @@ bool ChatClient::AnnounceAndSubscribe() {
           std::cout << "ANNOUNCE for " << track_namespace << " accepted\n";
           return;
         };
-    std::cout << "Announcing " << my_track_name.track_namespace << "\n";
-    session_->Announce(my_track_name.track_namespace,
+    std::cout << "Announcing " << my_track_name.track_namespace() << "\n";
+    session_->Announce(my_track_name.track_namespace(),
                        std::move(announce_callback));
   }
   remote_track_visitor_ = std::make_unique<RemoteTrackVisitor>(this);
   FullTrackName catalog_name = chat_strings_->GetCatalogName();
   if (!session_->SubscribeCurrentGroup(
-          catalog_name.track_namespace, catalog_name.track_name,
-          remote_track_visitor_.get(),
+          catalog_name, remote_track_visitor_.get(),
           MoqtSubscribeParameters{username_, std::nullopt})) {
     std::cout << "Failed to get catalog\n";
     return false;
@@ -263,9 +262,7 @@ void ChatClient::ProcessCatalog(absl::string_view object,
       auto new_user = other_users_.emplace(
           std::make_pair(user, ChatUser(to_subscribe, group_sequence)));
       ChatUser& user_record = new_user.first->second;
-      session_->SubscribeCurrentGroup(
-          user_record.full_track_name.track_namespace,
-          user_record.full_track_name.track_name, visitor);
+      session_->SubscribeCurrentGroup(user_record.full_track_name, visitor);
       subscribes_to_make_++;
     } else {
       if (it->second.from_group == group_sequence) {

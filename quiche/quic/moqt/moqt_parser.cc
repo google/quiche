@@ -25,6 +25,16 @@ namespace moqt {
 
 namespace {
 
+bool ReadFullTrackName(quic::QuicDataReader& reader, FullTrackName& out) {
+  absl::string_view track_namespace, track_name;
+  if (!reader.ReadStringPieceVarInt62(&track_namespace) ||
+      !reader.ReadStringPieceVarInt62(&track_name)) {
+    return false;
+  }
+  out = FullTrackName({track_namespace, track_name});
+  return true;
+}
+
 bool ParseDeliveryOrder(uint8_t raw_value,
                         std::optional<MoqtDeliveryOrder>& output) {
   switch (raw_value) {
@@ -400,8 +410,7 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
   uint8_t group_order;
   if (!reader.ReadVarInt62(&subscribe_request.subscribe_id) ||
       !reader.ReadVarInt62(&subscribe_request.track_alias) ||
-      !reader.ReadStringVarInt62(subscribe_request.track_namespace) ||
-      !reader.ReadStringVarInt62(subscribe_request.track_name) ||
+      !ReadFullTrackName(reader, subscribe_request.full_track_name) ||
       !reader.ReadUInt8(&subscribe_request.subscriber_priority) ||
       !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&filter)) {
     return 0;
@@ -706,10 +715,7 @@ size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessTrackStatusRequest(
     quic::QuicDataReader& reader) {
   MoqtTrackStatusRequest track_status_request;
-  if (!reader.ReadStringVarInt62(track_status_request.track_namespace)) {
-    return 0;
-  }
-  if (!reader.ReadStringVarInt62(track_status_request.track_name)) {
+  if (!ReadFullTrackName(reader, track_status_request.full_track_name)) {
     return 0;
   }
   visitor_.OnTrackStatusRequestMessage(track_status_request);
@@ -728,8 +734,7 @@ size_t MoqtControlParser::ProcessUnannounce(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessTrackStatus(quic::QuicDataReader& reader) {
   MoqtTrackStatus track_status;
   uint64_t value;
-  if (!reader.ReadStringVarInt62(track_status.track_namespace) ||
-      !reader.ReadStringVarInt62(track_status.track_name) ||
+  if (!ReadFullTrackName(reader, track_status.full_track_name) ||
       !reader.ReadVarInt62(&value) ||
       !reader.ReadVarInt62(&track_status.last_group) ||
       !reader.ReadVarInt62(&track_status.last_object)) {

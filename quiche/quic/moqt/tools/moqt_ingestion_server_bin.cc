@@ -142,7 +142,8 @@ class MoqtIngestionHandler {
     std::vector<absl::string_view> tracks_to_subscribe =
         absl::StrSplit(track_list, ',', absl::AllowEmpty());
     for (absl::string_view track : tracks_to_subscribe) {
-      session_->SubscribeCurrentGroup(track_namespace, track, &it->second);
+      session_->SubscribeCurrentGroup(FullTrackName({track_namespace, track}),
+                                      &it->second);
     }
 
     return std::nullopt;
@@ -159,9 +160,7 @@ class MoqtIngestionHandler {
         std::optional<absl::string_view> error_reason_phrase) override {
       if (error_reason_phrase.has_value()) {
         QUICHE_LOG(ERROR) << "Failed to subscribe to the peer track "
-                          << full_track_name.track_namespace << " "
-                          << full_track_name.track_name << ": "
-                          << *error_reason_phrase;
+                          << full_track_name << ": " << *error_reason_phrase;
       }
     }
 
@@ -175,7 +174,7 @@ class MoqtIngestionHandler {
                           absl::string_view object,
                           bool /*end_of_message*/) override {
       std::string file_name = absl::StrCat(group_sequence, "-", object_sequence,
-                                           ".", full_track_name.track_name);
+                                           ".", full_track_name.track_name());
       std::string file_path = quiche::JoinPath(directory_, file_name);
       std::ofstream output(file_path, std::ios::binary | std::ios::ate);
       output.write(object.data(), object.size());

@@ -1548,6 +1548,7 @@
     "quiche/quic/moqt/moqt_live_relay_queue.cc",
     "quiche/quic/moqt/moqt_live_relay_queue_test.cc",
     "quiche/quic/moqt/moqt_messages.cc",
+    "quiche/quic/moqt/moqt_messages_test.cc",
     "quiche/quic/moqt/moqt_outgoing_queue.cc",
     "quiche/quic/moqt/moqt_outgoing_queue_test.cc",
     "quiche/quic/moqt/moqt_parser.cc",

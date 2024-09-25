@@ -9,13 +9,16 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -151,39 +154,45 @@ struct MoqtAnnounceErrorReason {
   std::string reason_phrase;
 };
 
-struct FullTrackName {
-  std::string track_namespace;
-  std::string track_name;
-  FullTrackName(absl::string_view ns, absl::string_view name)
-      : track_namespace(ns), track_name(name) {}
-  bool operator==(const FullTrackName& other) const {
-    return track_namespace == other.track_namespace &&
-           track_name == other.track_name;
+// Full track name represents a tuple of the track namespace and the the track
+// name.  (TODO) After draft-06, multiple elements in track namespace will be
+// supported; if https://github.com/moq-wg/moq-transport/issues/508 goes
+// through, the distinction between different parts will disappear.
+class FullTrackName {
+ public:
+  explicit FullTrackName(absl::Span<const absl::string_view> elements);
+  explicit FullTrackName(
+      std::initializer_list<const absl::string_view> elements)
+      : FullTrackName(absl::Span<const absl::string_view>(
+            std::data(elements), std::size(elements))) {}
+  explicit FullTrackName(absl::string_view ns, absl::string_view name)
+      : FullTrackName({ns, name}) {}
+  FullTrackName() : FullTrackName({"", ""}) {}
+
+  std::string ToString() const;
+
+  absl::string_view track_namespace() const {
+    // TODO: turn into a tuple for draft-06.
+    return tuple_[0];
   }
-  bool operator<(const FullTrackName& other) const {
-    return track_namespace < other.track_namespace ||
-           (track_namespace == other.track_namespace &&
-            track_name < other.track_name);
-  }
-  FullTrackName& operator=(const FullTrackName& other) {
-    track_namespace = other.track_namespace;
-    track_name = other.track_name;
-    return *this;
-  }
+  absl::string_view track_name() const { return tuple_[tuple_.size() - 1]; }
+
+  bool operator==(const FullTrackName& other) const;
+  bool operator<(const FullTrackName& other) const;
+
   template <typename H>
-  friend H AbslHashValue(H h, const FullTrackName& m);
+  friend H AbslHashValue(H h, const FullTrackName& m) {
+    return H::combine(std::move(h), m.tuple_);
+  }
 
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const FullTrackName& track_name) {
-    absl::Format(&sink, "(%s; %s)", track_name.track_namespace,
-                 track_name.track_name);
+    sink.Append(track_name.ToString());
   }
-};
 
-template <typename H>
-H AbslHashValue(H h, const FullTrackName& m) {
-  return H::combine(std::move(h), m.track_namespace, m.track_name);
-}
+ private:
+  absl::InlinedVector<std::string, 2> tuple_;
+};
 
 // These are absolute sequence numbers.
 struct FullSequence {
@@ -290,8 +299,7 @@ struct QUICHE_EXPORT MoqtSubscribeParameters {
 struct QUICHE_EXPORT MoqtSubscribe {
   uint64_t subscribe_id;
   uint64_t track_alias;
-  std::string track_namespace;
-  std::string track_name;
+  FullTrackName full_track_name;
   MoqtPriority subscriber_priority;
   std::optional<MoqtDeliveryOrder> group_order;
 
@@ -410,8 +418,7 @@ inline bool DoesTrackStatusImplyHavingData(MoqtTrackStatusCode code) {
 }
 
 struct QUICHE_EXPORT MoqtTrackStatus {
-  std::string track_namespace;
-  std::string track_name;
+  FullTrackName full_track_name;
   MoqtTrackStatusCode status_code;
   uint64_t last_group;
   uint64_t last_object;
@@ -422,8 +429,7 @@ struct QUICHE_EXPORT MoqtAnnounceCancel {
 };
 
 struct QUICHE_EXPORT MoqtTrackStatusRequest {
-  std::string track_namespace;
-  std::string track_name;
+  FullTrackName full_track_name;
 };
 
 struct QUICHE_EXPORT MoqtGoAway {

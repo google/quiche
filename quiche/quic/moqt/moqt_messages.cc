@@ -5,9 +5,16 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 
 #include <string>
+#include <vector>
 
+#include "absl/algorithm/container.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace moqt {
 
@@ -162,6 +169,37 @@ MoqtDataStreamType GetMessageTypeForForwardingPreference(
   QUIC_BUG(quic_bug_bad_moqt_message_type_03)
       << "Forwarding preference does not indicate message type";
   return MoqtDataStreamType::kObjectStream;
+}
+
+std::string FullTrackName::ToString() const {
+  std::vector<std::string> bits;
+  bits.reserve(tuple_.size());
+  for (absl::string_view raw_bit : tuple_) {
+    bits.push_back(absl::StrCat("\"", absl::CHexEscape(raw_bit), "\""));
+  }
+  return absl::StrCat("{", absl::StrJoin(bits, ", "), "}");
+}
+
+bool FullTrackName::operator==(const FullTrackName& other) const {
+  if (tuple_.size() != other.tuple_.size()) {
+    return false;
+  }
+  return absl::c_equal(tuple_, other.tuple_);
+}
+bool FullTrackName::operator<(const FullTrackName& other) const {
+  return absl::c_lexicographical_compare(tuple_, other.tuple_);
+}
+FullTrackName::FullTrackName(absl::Span<const absl::string_view> elements)
+    : tuple_(elements.begin(), elements.end()) {
+  if (tuple_.size() < 2) {
+    QUICHE_BUG(FullTrackName_too_short)
+        << "Full track name should be at least two elements long";
+    // Failsafe.
+    while (tuple_.size() < 2) {
+      tuple_.push_back("");
+    }
+    return;
+  }
 }
 
 }  // namespace moqt

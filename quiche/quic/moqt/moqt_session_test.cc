@@ -126,8 +126,7 @@ class MoqtSessionPeer {
       uint64_t subscribe_id, uint64_t track_alias, uint64_t start_group,
       uint64_t start_object) {
     MoqtSubscribe subscribe;
-    subscribe.track_namespace = publisher->GetTrackName().track_namespace;
-    subscribe.track_name = publisher->GetTrackName().track_name;
+    subscribe.full_track_name = publisher->GetTrackName();
     subscribe.track_alias = track_alias;
     subscribe.subscribe_id = subscribe_id;
     subscribe.start_group = start_group;
@@ -314,8 +313,7 @@ TEST_F(MoqtSessionTest, AddLocalTrack) {
   MoqtSubscribe request = {
       /*subscribe_id=*/1,
       /*track_alias=*/2,
-      /*track_namespace=*/"foo",
-      /*track_name=*/"bar",
+      /*full_track_name=*/FullTrackName({"foo", "bar"}),
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*start_group=*/0,
@@ -450,8 +448,7 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
   MoqtSubscribe request = {
       /*subscribe_id=*/1,
       /*track_alias=*/2,
-      /*track_namespace=*/"foo",
-      /*track_name=*/"bar",
+      /*full_track_name=*/FullTrackName({"foo", "bar"}),
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*start_group=*/0,
@@ -480,8 +477,7 @@ TEST_F(MoqtSessionTest, SubscribeIdTooHigh) {
   MoqtSubscribe request = {
       /*subscribe_id=*/kDefaultInitialMaxSubscribeId + 1,
       /*track_alias=*/2,
-      /*track_namespace=*/"foo",
-      /*track_name=*/"bar",
+      /*full_track_name=*/FullTrackName({"foo", "bar"}),
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*start_group=*/0,
@@ -516,10 +512,10 @@ TEST_F(MoqtSessionTest, TooManySubscribes) {
         EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribe);
         return absl::OkStatus();
       });
-  EXPECT_TRUE(
-      session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor));
-  EXPECT_FALSE(
-      session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor));
+  EXPECT_TRUE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+                                             &remote_track_visitor));
+  EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+                                              &remote_track_visitor));
 }
 
 TEST_F(MoqtSessionTest, SubscribeWithOk) {
@@ -536,7 +532,8 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
         EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribe);
         return absl::OkStatus();
       });
-  session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor);
+  session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+                                 &remote_track_visitor);
 
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/0,
@@ -558,8 +555,8 @@ TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
   MoqtSessionPeer::set_next_subscribe_id(&session_,
                                          kDefaultInitialMaxSubscribeId + 1);
   MockRemoteTrackVisitor remote_track_visitor;
-  EXPECT_FALSE(
-      session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor));
+  EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+                                              &remote_track_visitor));
   MoqtMaxSubscribeId max_subscribe_id = {
       /*max_subscribe_id=*/kDefaultInitialMaxSubscribeId + 1,
   };
@@ -576,8 +573,8 @@ TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
         EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribe);
         return absl::OkStatus();
       });
-  EXPECT_TRUE(
-      session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor));
+  EXPECT_TRUE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+                                             &remote_track_visitor));
   EXPECT_TRUE(correct_message);
 }
 
@@ -616,8 +613,7 @@ TEST_F(MoqtSessionTest, GrantMoreSubscribes) {
   MoqtSubscribe request = {
       /*subscribe_id=*/kDefaultInitialMaxSubscribeId + 1,
       /*track_alias=*/2,
-      /*track_namespace=*/"foo",
-      /*track_name=*/"bar",
+      /*full_track_name=*/FullTrackName({"foo", "bar"}),
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*start_group=*/0,
@@ -664,7 +660,8 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
         EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribe);
         return absl::OkStatus();
       });
-  session_.SubscribeCurrentGroup("foo", "bar", &remote_track_visitor);
+  session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+                                 &remote_track_visitor);
 
   MoqtSubscribeError error = {
       /*subscribe_id=*/0,
@@ -793,8 +790,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
   MoqtSubscribe subscribe = {
       /*subscribe_id=*/1,
       /*track_alias=*/2,
-      /*track_namespace=*/ftn.track_namespace,
-      /*track_name=*/ftn.track_name,
+      /*full_track_name=*/ftn,
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*start_group=*/0,
@@ -852,8 +848,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
   MoqtSubscribe subscribe = {
       /*subscribe_id=*/1,
       /*track_alias=*/2,
-      /*track_namespace=*/ftn.track_namespace,
-      /*track_name=*/ftn.track_name,
+      /*full_track_name=*/ftn,
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*start_group=*/0,
@@ -914,8 +909,7 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
   MoqtSubscribe subscribe = {
       /*subscribe_id=*/1,
       /*track_alias=*/2,
-      /*track_namespace=*/ftn.track_namespace,
-      /*track_name=*/ftn.track_name,
+      /*full_track_name=*/ftn,
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*start_group=*/0,
@@ -967,8 +961,7 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
   MoqtSubscribe subscribe = {
       /*subscribe_id=*/1,
       /*track_alias=*/2,
-      /*track_namespace=*/ftn.track_namespace,
-      /*track_name=*/ftn.track_name,
+      /*full_track_name=*/ftn,
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*start_group=*/0,
@@ -1374,8 +1367,7 @@ TEST_F(MoqtSessionTest, SubscribeFromPublisher) {
   MoqtSubscribe request = {
       /*subscribe_id=*/1,
       /*track_alias=*/2,
-      /*track_namespace=*/"foo",
-      /*track_name=*/"bar",
+      /*full_track_name=*/FullTrackName({"foo", "bar"}),
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*start_group=*/0,

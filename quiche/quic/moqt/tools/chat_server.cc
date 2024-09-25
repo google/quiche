@@ -41,7 +41,7 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
           std::cout << "Malformed ANNOUNCE namespace\n";
           return std::nullopt;
         }
-        session_->SubscribeCurrentGroup(track_namespace, "",
+        session_->SubscribeCurrentGroup(FullTrackName({track_namespace, ""}),
                                         server_->remote_track_visitor());
         server_->AddUser(*username_);
         return std::nullopt;
@@ -69,7 +69,7 @@ ChatServer::RemoteTrackVisitor::RemoteTrackVisitor(ChatServer* server)
 void ChatServer::RemoteTrackVisitor::OnReply(
     const moqt::FullTrackName& full_track_name,
     std::optional<absl::string_view> reason_phrase) {
-  std::cout << "Subscription to user " << full_track_name.track_namespace
+  std::cout << "Subscription to user " << full_track_name.track_namespace()
             << " ";
   if (reason_phrase.has_value()) {
     std::cout << "REJECTED, reason = " << *reason_phrase << "\n";

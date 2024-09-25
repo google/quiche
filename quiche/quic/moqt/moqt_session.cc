@@ -250,14 +250,12 @@ void MoqtSession::Announce(absl::string_view track_namespace,
   pending_outgoing_announces_[track_namespace] = std::move(announce_callback);
 }
 
-bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
-                                    absl::string_view name,
+bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     RemoteTrack::Visitor* visitor,
                                     MoqtSubscribeParameters parameters) {
   MoqtSubscribe message;
-  message.track_namespace = track_namespace;
-  message.track_name = name;
+  message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
   message.group_order = std::nullopt;
   message.start_group = start_group;
@@ -268,8 +266,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   return Subscribe(message, visitor);
 }
 
-bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
-                                    absl::string_view name,
+bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     uint64_t end_group,
                                     RemoteTrack::Visitor* visitor,
@@ -279,8 +276,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
     return false;
   }
   MoqtSubscribe message;
-  message.track_namespace = track_namespace;
-  message.track_name = name;
+  message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
   message.group_order = std::nullopt;
   message.start_group = start_group;
@@ -291,8 +287,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   return Subscribe(message, visitor);
 }
 
-bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
-                                    absl::string_view name,
+bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     uint64_t end_group, uint64_t end_object,
                                     RemoteTrack::Visitor* visitor,
@@ -306,8 +301,7 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
     return false;
   }
   MoqtSubscribe message;
-  message.track_namespace = track_namespace;
-  message.track_name = name;
+  message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
   message.group_order = std::nullopt;
   message.start_group = start_group;
@@ -318,13 +312,11 @@ bool MoqtSession::SubscribeAbsolute(absl::string_view track_namespace,
   return Subscribe(message, visitor);
 }
 
-bool MoqtSession::SubscribeCurrentObject(absl::string_view track_namespace,
-                                         absl::string_view name,
+bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
                                          RemoteTrack::Visitor* visitor,
                                          MoqtSubscribeParameters parameters) {
   MoqtSubscribe message;
-  message.track_namespace = track_namespace;
-  message.track_name = name;
+  message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
   message.group_order = std::nullopt;
   message.start_group = std::nullopt;
@@ -335,13 +327,11 @@ bool MoqtSession::SubscribeCurrentObject(absl::string_view track_namespace,
   return Subscribe(message, visitor);
 }
 
-bool MoqtSession::SubscribeCurrentGroup(absl::string_view track_namespace,
-                                        absl::string_view name,
+bool MoqtSession::SubscribeCurrentGroup(const FullTrackName& name,
                                         RemoteTrack::Visitor* visitor,
                                         MoqtSubscribeParameters parameters) {
   MoqtSubscribe message;
-  message.track_namespace = track_namespace;
-  message.track_name = name;
+  message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
   message.group_order = std::nullopt;
   // First object of current group.
@@ -399,9 +389,7 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
     return false;
   }
   message.subscribe_id = next_subscribe_id_++;
-  FullTrackName ftn(std::string(message.track_namespace),
-                    std::string(message.track_name));
-  auto it = remote_track_aliases_.find(ftn);
+  auto it = remote_track_aliases_.find(message.full_track_name);
   if (it != remote_track_aliases_.end()) {
     message.track_alias = it->second;
     if (message.track_alias >= next_remote_track_alias_) {
@@ -423,7 +411,7 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
   }
   SendControlMessage(framer_.SerializeSubscribe(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE message for "
-                  << message.track_namespace << ":" << message.track_name;
+                  << message.full_track_name;
   active_subscribes_.try_emplace(message.subscribe_id, message, visitor);
   return true;
 }
@@ -517,7 +505,7 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
     auto subscribe_it = active_subscribes_.find(message.subscribe_id);
     if (subscribe_it == active_subscribes_.end()) {
       return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-          {{"", ""}, nullptr});
+          {FullTrackName{"", ""}, nullptr});
     }
     ActiveSubscribe& subscribe = subscribe_it->second;
     visitor = subscribe.visitor;
@@ -527,26 +515,22 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
         Error(MoqtError::kProtocolViolation,
               "Forwarding preference changes mid-track");
         return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-            {{"", ""}, nullptr});
+            {FullTrackName{"", ""}, nullptr});
       }
     } else {
       subscribe.forwarding_preference = message.forwarding_preference;
     }
-    return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-        {{subscribe.message.track_namespace, subscribe.message.track_name},
-         subscribe.visitor});
+    return std::make_pair(subscribe.message.full_track_name, subscribe.visitor);
   }
   RemoteTrack& track = it->second;
   if (!track.CheckForwardingPreference(message.forwarding_preference)) {
     // Incorrect forwarding preference.
     Error(MoqtError::kProtocolViolation,
           "Forwarding preference changes mid-track");
-    return std::pair<FullTrackName, RemoteTrack::Visitor*>({{"", ""}, nullptr});
+    return std::pair<FullTrackName, RemoteTrack::Visitor*>(
+        {FullTrackName{"", ""}, nullptr});
   }
-  return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-      {{track.full_track_name().track_namespace,
-        track.full_track_name().track_name},
-       track.visitor()});
+  return std::make_pair(track.full_track_name(), track.visitor());
 }
 
 template <class Parser>
@@ -682,10 +666,9 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE for "
-                  << message.track_namespace << ":" << message.track_name;
+                  << message.full_track_name;
 
-  FullTrackName track_name =
-      FullTrackName{message.track_namespace, message.track_name};
+  const FullTrackName& track_name = message.full_track_name;
   absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
       session_->publisher_->GetTrack(track_name);
   if (!track_publisher.ok()) {
@@ -742,13 +725,13 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
   MoqtSubscribe& subscribe = it->second.message;
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
                   << "subscribe_id = " << message.subscribe_id << " "
-                  << subscribe.track_namespace << ":" << subscribe.track_name;
+                  << subscribe.full_track_name;
   // Copy the Remote Track from session_->active_subscribes_ to
   // session_->remote_tracks_.
-  FullTrackName ftn(subscribe.track_namespace, subscribe.track_name);
   RemoteTrack::Visitor* visitor = it->second.visitor;
   auto [track_iter, new_entry] = session_->remote_tracks_.try_emplace(
-      subscribe.track_alias, ftn, subscribe.track_alias, visitor);
+      subscribe.track_alias, subscribe.full_track_name, subscribe.track_alias,
+      visitor);
   if (it->second.forwarding_preference.has_value()) {
     if (!track_iter->second.CheckForwardingPreference(
             *it->second.forwarding_preference)) {
@@ -759,7 +742,7 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
   }
   // TODO: handle expires.
   if (visitor != nullptr) {
-    visitor->OnReply(ftn, std::nullopt);
+    visitor->OnReply(subscribe.full_track_name, std::nullopt);
   }
   session_->active_subscribes_.erase(it);
 }
@@ -780,17 +763,17 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
   MoqtSubscribe& subscribe = it->second.message;
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_ERROR for "
                   << "subscribe_id = " << message.subscribe_id << " ("
-                  << subscribe.track_namespace << ":" << subscribe.track_name
-                  << ")" << ", error = " << static_cast<int>(message.error_code)
+                  << subscribe.full_track_name << ")"
+                  << ", error = " << static_cast<int>(message.error_code)
                   << " (" << message.reason_phrase << ")";
   RemoteTrack::Visitor* visitor = it->second.visitor;
-  FullTrackName ftn(subscribe.track_namespace, subscribe.track_name);
   if (message.error_code == SubscribeErrorCode::kRetryTrackAlias) {
     // Automatically resubscribe with new alias.
-    session_->remote_track_aliases_[ftn] = message.track_alias;
+    session_->remote_track_aliases_[subscribe.full_track_name] =
+        message.track_alias;
     session_->Subscribe(subscribe, visitor);
   } else if (visitor != nullptr) {
-    visitor->OnReply(ftn, message.reason_phrase);
+    visitor->OnReply(subscribe.full_track_name, message.reason_phrase);
   }
   session_->active_subscribes_.erase(it);
 }
@@ -983,7 +966,7 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
         subscribe.parameters.object_ack_window.has_value());
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
-                  << subscribe.track_namespace << ":" << subscribe.track_name;
+                  << subscribe.full_track_name;
 }
 
 MoqtSession::PublishedSubscription::~PublishedSubscription() {

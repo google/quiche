@@ -411,11 +411,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE track alias mismatch";
       return false;
     }
-    if (cast.track_namespace != subscribe_.track_namespace) {
-      QUIC_LOG(INFO) << "SUBSCRIBE track namespace mismatch";
-      return false;
-    }
-    if (cast.track_name != subscribe_.track_name) {
+    if (cast.full_track_name != subscribe_.full_track_name) {
       QUIC_LOG(INFO) << "SUBSCRIBE track name mismatch";
       return false;
     }
@@ -481,8 +477,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   MoqtSubscribe subscribe_ = {
       /*subscribe_id=*/1,
       /*track_alias=*/2,
-      /*track_namespace=*/"foo",
-      /*track_name=*/"abcd",
+      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*subscriber_priority=*/0x20,
       /*group_order=*/MoqtDeliveryOrder::kDescending,
       /*start_group=*/4,
@@ -899,11 +894,7 @@ class QUICHE_NO_EXPORT TrackStatusRequestMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtTrackStatusRequest>(values);
-    if (cast.track_namespace != track_status_request_.track_namespace) {
-      QUIC_LOG(INFO) << "TRACK STATUS REQUEST track namespace mismatch";
-      return false;
-    }
-    if (cast.track_name != track_status_request_.track_name) {
+    if (cast.full_track_name != track_status_request_.full_track_name) {
       QUIC_LOG(INFO) << "TRACK STATUS REQUEST track name mismatch";
       return false;
     }
@@ -923,8 +914,7 @@ class QUICHE_NO_EXPORT TrackStatusRequestMessage : public TestMessageBase {
   };
 
   MoqtTrackStatusRequest track_status_request_ = {
-      /*track_namespace=*/"foo",
-      /*track_name=*/"abcd",
+      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
   };
 };
 
@@ -967,11 +957,7 @@ class QUICHE_NO_EXPORT TrackStatusMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtTrackStatus>(values);
-    if (cast.track_namespace != track_status_.track_namespace) {
-      QUIC_LOG(INFO) << "TRACK STATUS track namespace mismatch";
-      return false;
-    }
-    if (cast.track_name != track_status_.track_name) {
+    if (cast.full_track_name != track_status_.full_track_name) {
       QUIC_LOG(INFO) << "TRACK STATUS track name mismatch";
       return false;
     }
@@ -1004,8 +990,7 @@ class QUICHE_NO_EXPORT TrackStatusMessage : public TestMessageBase {
   };
 
   MoqtTrackStatus track_status_ = {
-      /*track_namespace=*/"foo",
-      /*track_name=*/"abcd",
+      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*status_code=*/MoqtTrackStatusCode::kInProgress,
       /*last_group=*/12,
       /*last_object=*/20,

@@ -47,10 +47,10 @@ class MoqChatStrings {
   std::string GetUsernameFromFullTrackName(
       FullTrackName full_track_name) const {
     // Check the full path
-    if (!full_track_name.track_name.empty()) {
+    if (!full_track_name.track_name().empty()) {
       return "";
     }
-    return GetUsernameFromTrackNamespace(full_track_name.track_namespace);
+    return GetUsernameFromTrackNamespace(full_track_name.track_namespace());
   }
 
   FullTrackName GetFullTrackNameFromUsername(absl::string_view username) const {

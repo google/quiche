@@ -302,8 +302,7 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
           MoqtSubscribe subscribe = {
               /*subscribe_id=*/3,
               /*track_alias=*/4,
-              /*track_namespace=*/"foo",
-              /*track_name=*/"abcd",
+              /*full_track_name=*/FullTrackName({"foo", "abcd"}),
               /*subscriber_priority=*/0x20,
               /*group_order=*/std::nullopt,
               start_group,
@@ -354,8 +353,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
   MoqtSubscribe subscribe = {
       /*subscribe_id=*/3,
       /*track_alias=*/4,
-      /*track_namespace=*/"foo",
-      /*track_name=*/"abcd",
+      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*subscriber_priority=*/0x20,
       /*group_order=*/std::nullopt,
       /*start_group=*/std::optional<uint64_t>(4),
@@ -379,8 +377,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeLatestGroupNonzeroObject) {
   MoqtSubscribe subscribe = {
       /*subscribe_id=*/3,
       /*track_alias=*/4,
-      /*track_namespace=*/"foo",
-      /*track_name=*/"abcd",
+      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*subscriber_priority=*/0x20,
       /*group_order=*/std::nullopt,
       /*start_group=*/std::nullopt,
