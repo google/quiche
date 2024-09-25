@@ -10,12 +10,12 @@
 #include <optional>
 #include <string>
 
+#include "quiche/http2/core/spdy_alt_svc_wire_format.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/common/http/http_header_block.h"
-#include "quiche/spdy/core/spdy_alt_svc_wire_format.h"
 
 namespace quic {
 

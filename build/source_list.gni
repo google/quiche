@@ -399,7 +399,6 @@ quiche_core_hdrs = [
     "src/quiche/spdy/core/hpack/hpack_decoder_adapter.h",
     "src/quiche/spdy/core/hpack/hpack_encoder.h",
     "src/quiche/spdy/core/http2_header_block.h",
-    "src/quiche/spdy/core/spdy_alt_svc_wire_format.h",
     "src/quiche/spdy/core/spdy_bitmasks.h",
     "src/quiche/spdy/core/spdy_frame_builder.h",
     "src/quiche/spdy/core/spdy_framer.h",
