@@ -15,10 +15,10 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/core/spdy_alt_svc_wire_format.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace spdy {
 
@@ -309,7 +309,7 @@ int SpdyFrameIR::flow_control_window_consumed() const { return 0; }
 bool SpdyFrameWithFinIR::fin() const { return fin_; }
 
 SpdyFrameWithHeaderBlockIR::SpdyFrameWithHeaderBlockIR(
-    SpdyStreamId stream_id, Http2HeaderBlock header_block)
+    SpdyStreamId stream_id, quiche::HttpHeaderBlock header_block)
     : SpdyFrameWithFinIR(stream_id), header_block_(std::move(header_block)) {}
 
 SpdyFrameWithHeaderBlockIR::~SpdyFrameWithHeaderBlockIR() = default;

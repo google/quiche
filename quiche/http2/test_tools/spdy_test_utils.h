@@ -17,7 +17,7 @@
 namespace spdy {
 
 inline bool operator==(absl::string_view x,
-                       const Http2HeaderBlock::ValueProxy& y) {
+                       const quiche::HttpHeaderBlock::ValueProxy& y) {
   return y.operator==(x);
 }
 

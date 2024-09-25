@@ -29,10 +29,10 @@
 #include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/http2/test_tools/mock_spdy_framer_visitor.h"
 #include "quiche/http2/test_tools/spdy_test_utils.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 using ::http2::Http2DecoderAdapter;
 using ::testing::_;
@@ -554,7 +554,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   SpdyFrameType header_control_type_;
   bool header_buffer_valid_;
   std::unique_ptr<RecordingHeadersHandler> headers_handler_;
-  Http2HeaderBlock headers_;
+  quiche::HttpHeaderBlock headers_;
   bool header_has_priority_;
   SpdyStreamId header_parent_stream_id_;
   bool header_exclusive_;
@@ -638,7 +638,8 @@ class SpdyFramerTest : public quiche::test::QuicheTestWithParam<Output> {
 INSTANTIATE_TEST_SUITE_P(SpdyFramerTests, SpdyFramerTest,
                          ::testing::Values(USE, NOT_USE));
 
-// Test that we can encode and decode a Http2HeaderBlock in serialized form.
+// Test that we can encode and decode a quiche::HttpHeaderBlock in serialized
+// form.
 TEST_P(SpdyFramerTest, HeaderBlockInBuffer) {
   SpdyFramer framer(SpdyFramer::DISABLE_COMPRESSION);
 
@@ -1167,7 +1168,7 @@ TEST_P(SpdyFramerTest, MultiValueHeader) {
   SpdyFramer framer(SpdyFramer::DISABLE_COMPRESSION);
   std::string value("value1\0value2", 13);
   // TODO(jgraettinger): If this pattern appears again, move to test class.
-  Http2HeaderBlock header_set;
+  quiche::HttpHeaderBlock header_set;
   header_set["name"] = value;
   HpackEncoder encoder;
   encoder.DisableCompression();
@@ -2458,7 +2459,7 @@ TEST_P(SpdyFramerTest, CreateContinuationUncompressed) {
   };
   // frame-format on
 
-  Http2HeaderBlock header_block;
+  quiche::HttpHeaderBlock header_block;
   header_block["bar"] = "foo";
   header_block["foo"] = "bar";
   HpackEncoder encoder;

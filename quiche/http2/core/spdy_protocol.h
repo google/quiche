@@ -23,10 +23,10 @@
 #include "absl/types/variant.h"
 #include "quiche/http2/core/spdy_alt_svc_wire_format.h"
 #include "quiche/http2/core/spdy_bitmasks.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace spdy {
 
@@ -501,8 +501,8 @@ class QUICHE_EXPORT SpdyFrameWithHeaderBlockIR : public SpdyFrameWithFinIR {
  public:
   ~SpdyFrameWithHeaderBlockIR() override;
 
-  const Http2HeaderBlock& header_block() const { return header_block_; }
-  void set_header_block(Http2HeaderBlock header_block) {
+  const quiche::HttpHeaderBlock& header_block() const { return header_block_; }
+  void set_header_block(quiche::HttpHeaderBlock header_block) {
     // Deep copy.
     header_block_ = std::move(header_block);
   }
@@ -512,13 +512,13 @@ class QUICHE_EXPORT SpdyFrameWithHeaderBlockIR : public SpdyFrameWithFinIR {
 
  protected:
   SpdyFrameWithHeaderBlockIR(SpdyStreamId stream_id,
-                             Http2HeaderBlock header_block);
+                             quiche::HttpHeaderBlock header_block);
   SpdyFrameWithHeaderBlockIR(const SpdyFrameWithHeaderBlockIR&) = delete;
   SpdyFrameWithHeaderBlockIR& operator=(const SpdyFrameWithHeaderBlockIR&) =
       delete;
 
  private:
-  Http2HeaderBlock header_block_;
+  quiche::HttpHeaderBlock header_block_;
 };
 
 class QUICHE_EXPORT SpdyDataIR : public SpdyFrameWithFinIR {
@@ -712,8 +712,8 @@ class QUICHE_EXPORT SpdyGoAwayIR : public SpdyFrameIR {
 class QUICHE_EXPORT SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
  public:
   explicit SpdyHeadersIR(SpdyStreamId stream_id)
-      : SpdyHeadersIR(stream_id, Http2HeaderBlock()) {}
-  SpdyHeadersIR(SpdyStreamId stream_id, Http2HeaderBlock header_block)
+      : SpdyHeadersIR(stream_id, quiche::HttpHeaderBlock()) {}
+  SpdyHeadersIR(SpdyStreamId stream_id, quiche::HttpHeaderBlock header_block)
       : SpdyFrameWithHeaderBlockIR(stream_id, std::move(header_block)) {}
   SpdyHeadersIR(const SpdyHeadersIR&) = delete;
   SpdyHeadersIR& operator=(const SpdyHeadersIR&) = delete;
@@ -780,9 +780,10 @@ class QUICHE_EXPORT SpdyWindowUpdateIR : public SpdyFrameIR {
 class QUICHE_EXPORT SpdyPushPromiseIR : public SpdyFrameWithHeaderBlockIR {
  public:
   SpdyPushPromiseIR(SpdyStreamId stream_id, SpdyStreamId promised_stream_id)
-      : SpdyPushPromiseIR(stream_id, promised_stream_id, Http2HeaderBlock()) {}
+      : SpdyPushPromiseIR(stream_id, promised_stream_id,
+                          quiche::HttpHeaderBlock()) {}
   SpdyPushPromiseIR(SpdyStreamId stream_id, SpdyStreamId promised_stream_id,
-                    Http2HeaderBlock header_block)
+                    quiche::HttpHeaderBlock header_block)
       : SpdyFrameWithHeaderBlockIR(stream_id, std::move(header_block)),
         promised_stream_id_(promised_stream_id),
         padded_(false),

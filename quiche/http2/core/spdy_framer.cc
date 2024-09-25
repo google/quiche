@@ -19,9 +19,9 @@
 #include "quiche/http2/core/zero_copy_output_buffer.h"
 #include "quiche/http2/hpack/hpack_constants.h"
 #include "quiche/http2/hpack/hpack_encoder.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace spdy {
 
@@ -47,7 +47,7 @@ const size_t kPadLengthFieldSize = 1;
 // The size of one parameter in SETTINGS frame.
 const size_t kOneSettingParameterSize = 6;
 
-size_t GetUncompressedSerializedLength(const Http2HeaderBlock& headers) {
+size_t GetUncompressedSerializedLength(const quiche::HttpHeaderBlock& headers) {
   const size_t num_name_value_pairs_size = sizeof(uint32_t);
   const size_t length_of_name_size = num_name_value_pairs_size;
   const size_t length_of_value_size = num_name_value_pairs_size;
@@ -95,7 +95,7 @@ uint8_t SerializePushPromiseFrameFlags(const SpdyPushPromiseIR& push_promise_ir,
 }
 
 // Serializes a HEADERS frame from the given SpdyHeadersIR and encoded header
-// block. Does not need or use the Http2HeaderBlock inside SpdyHeadersIR.
+// block. Does not need or use the quiche::HttpHeaderBlock inside SpdyHeadersIR.
 // Return false if the serialization fails. |encoding| should not be empty.
 bool SerializeHeadersGivenEncoding(const SpdyHeadersIR& headers,
                                    const std::string& encoding,
@@ -138,7 +138,7 @@ bool SerializeHeadersGivenEncoding(const SpdyHeadersIR& headers,
 }
 
 // Serializes a PUSH_PROMISE frame from the given SpdyPushPromiseIR and
-// encoded header block. Does not need or use the Http2HeaderBlock inside
+// encoded header block. Does not need or use the quiche::HttpHeaderBlock inside
 // SpdyPushPromiseIR.
 bool SerializePushPromiseGivenEncoding(const SpdyPushPromiseIR& push_promise,
                                        const std::string& encoding,
