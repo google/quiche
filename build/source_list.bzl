@@ -397,8 +397,6 @@ quiche_core_hdrs = [
     "quic/platform/api/quic_stack_trace.h",
     "quic/platform/api/quic_testvalue.h",
     "quic/platform/api/quic_thread.h",
-    "spdy/core/hpack/hpack_encoder.h",
-    "spdy/core/spdy_bitmasks.h",
     "spdy/core/spdy_protocol.h",
     "web_transport/complete_buffer_visitor.h",
     "web_transport/encapsulated/encapsulated_web_transport.h",

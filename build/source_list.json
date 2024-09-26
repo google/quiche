@@ -396,8 +396,6 @@
     "quiche/quic/platform/api/quic_stack_trace.h",
     "quiche/quic/platform/api/quic_testvalue.h",
     "quiche/quic/platform/api/quic_thread.h",
-    "quiche/spdy/core/hpack/hpack_encoder.h",
-    "quiche/spdy/core/spdy_bitmasks.h",
     "quiche/spdy/core/spdy_protocol.h",
     "quiche/web_transport/complete_buffer_visitor.h",
     "quiche/web_transport/encapsulated/encapsulated_web_transport.h",
