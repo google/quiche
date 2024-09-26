@@ -476,6 +476,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   config_.SetRetrySourceConnectionIdToSend(TestConnectionId(0x3333));
   config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
   config_.SetGoogleHandshakeMessageToSend(kFakeGoogleHandshakeMessage);
+  config_.SetReliableStreamReset(true);
 
   QuicIpAddress host;
   host.FromString("127.0.3.1");
@@ -536,6 +537,8 @@ TEST_P(QuicConfigTest, FillTransportParams) {
                 &params.preferred_address->stateless_reset_token.front()),
             new_stateless_reset_token);
   EXPECT_EQ(kFakeGoogleHandshakeMessage, params.google_handshake_message);
+
+  EXPECT_TRUE(params.reliable_stream_reset);
 }
 
 TEST_P(QuicConfigTest, DNATPreferredAddress) {

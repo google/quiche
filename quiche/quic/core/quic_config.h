@@ -441,6 +441,10 @@ class QUICHE_EXPORT QuicConfig {
   // quic_always_support_server_preferred_address.
   bool SupportsServerPreferredAddress(Perspective perspective) const;
 
+  // Returns true if this config supports reliable stream reset.
+  void SetReliableStreamReset(bool reliable_stream_reset);
+  bool SupportsReliableStreamReset() const;
+
   // Original destination connection ID.
   void SetOriginalConnectionIdToSend(
       const QuicConnectionId& original_destination_connection_id);
@@ -706,6 +710,9 @@ class QUICHE_EXPORT QuicConfig {
   // Google internal handshake message.
   std::optional<std::string> google_handshake_message_to_send_;
   std::optional<std::string> received_google_handshake_message_;
+
+  // Support for RESET_STREAM_AT frame.
+  bool reliable_stream_reset_;
 };
 
 }  // namespace quic

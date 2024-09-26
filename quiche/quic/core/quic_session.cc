@@ -19,11 +19,13 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_window_update_frame.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_context.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_flow_controller.h"
+#include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -439,6 +441,21 @@ void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
   ClosePendingStream(stream_id);
 }
 
+void QuicSession::PendingStreamOnResetStreamAt(
+    const QuicResetStreamAtFrame& frame) {
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QuicStreamId stream_id = frame.stream_id;
+
+  PendingStream* pending = GetOrCreatePendingStream(stream_id);
+
+  if (!pending) {
+    HandleRstOnValidNonexistentStream(frame.ToRstStream());
+    return;
+  }
+
+  pending->OnResetStreamAtFrame(frame);
+}
+
 void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
   QuicStreamId stream_id = frame.stream_id;
   if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
@@ -474,6 +491,40 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
     return;  // Errors are handled by GetOrCreateStream.
   }
   stream->OnStreamReset(frame);
+}
+
+void QuicSession::OnResetStreamAt(const QuicResetStreamAtFrame& frame) {
+  QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version()));
+  QuicStreamId stream_id = frame.stream_id;
+  if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID, "Received data for an invalid stream",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+
+  if (VersionHasIetfQuicFrames(transport_version()) &&
+      QuicUtils::GetStreamType(stream_id, perspective(),
+                               IsIncomingStream(stream_id),
+                               version()) == WRITE_UNIDIRECTIONAL) {
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID, "Received RESET_STREAM for a write-only stream",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+
+  if (ShouldProcessFrameByPendingStream(RESET_STREAM_AT_FRAME, stream_id)) {
+    PendingStreamOnResetStreamAt(frame);
+    return;
+  }
+
+  QuicStream* stream = GetOrCreateStream(stream_id);
+
+  if (!stream) {
+    HandleRstOnValidNonexistentStream(frame.ToRstStream());
+    return;  // Errors are handled by GetOrCreateStream.
+  }
+  stream->OnResetStreamAtFrame(frame);
 }
 
 void QuicSession::OnGoAway(const QuicGoAwayFrame& /*frame*/) {

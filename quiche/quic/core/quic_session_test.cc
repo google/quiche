@@ -21,8 +21,11 @@
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/frames/quic_max_streams_frame.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
 #include "quiche/quic/core/quic_data_writer.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_types.h"
@@ -1607,6 +1610,23 @@ TEST_P(QuicSessionTestServer, OnRstStreamInvalidStreamId) {
                   QUIC_INVALID_STREAM_ID, "Received data for an invalid stream",
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
   session_.OnRstStream(rst1);
+}
+
+TEST_P(QuicSessionTestServer, OnResetStreamAtInvalidStreamId) {
+  if (connection_->version().handshake_protocol != PROTOCOL_TLS1_3) {
+    // This test requires IETF QUIC.
+    return;
+  }
+  // Send two bytes of payload.
+  QuicResetStreamAtFrame rst1(
+      kInvalidControlFrameId,
+      QuicUtils::GetInvalidStreamId(connection_->transport_version()),
+      QUIC_ERROR_PROCESSING_STREAM, 10, 0);
+  EXPECT_CALL(*connection_,
+              CloseConnection(
+                  QUIC_INVALID_STREAM_ID, "Received data for an invalid stream",
+                  ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  session_.OnResetStreamAt(rst1);
 }
 
 TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {

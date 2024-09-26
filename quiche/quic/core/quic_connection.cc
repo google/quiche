@@ -32,6 +32,7 @@
 #include "quiche/quic/core/crypto/crypto_utils.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -578,6 +579,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       multi_port_migration_enabled_ = true;
     }
   }
+
+  reliable_stream_reset_ = config.SupportsReliableStreamReset();
+  framer_.set_process_reset_stream_at(reliable_stream_reset_);
 }
 
 void QuicConnection::AddDispatcherSentPackets(
@@ -2066,10 +2070,15 @@ bool QuicConnection::OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) {
   if (!UpdatePacketContent(RESET_STREAM_AT_FRAME)) {
     return false;
   }
-
-  // TODO(b/278878322): implement.
+  if (!reliable_stream_reset_) {
+    CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
+                    "Received RESET_STREAM_AT while not negotiated.",
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
 
   MaybeUpdateAckTimeout();
+  visitor_->OnResetStreamAt(frame);
   return true;
 }
 

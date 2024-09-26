@@ -71,6 +71,8 @@ enum TransportParameters::TransportParameterId : uint64_t {
 
   kMinAckDelay = 0xDE1A,           // draft-iyengar-quic-delayed-ack.
   kVersionInformation = 0xFF73DB,  // draft-ietf-quic-version-negotiation.
+  kReliableStreamReset = 0x17F7586D2CB571,
+  // draft-ietf-quic-reliable-stream-reset.
 };
 
 namespace {
@@ -140,6 +142,8 @@ std::string TransportParameterIdToString(
       return "min_ack_delay_us";
     case TransportParameters::kVersionInformation:
       return "version_information";
+    case TransportParameters::kReliableStreamReset:
+      return "reliable_stream_reset";
   }
   return absl::StrCat("Unknown(", param_id, ")");
 }
@@ -171,6 +175,7 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kGoogleQuicVersion:
     case TransportParameters::kMinAckDelay:
     case TransportParameters::kVersionInformation:
+    case TransportParameters::kReliableStreamReset:
       return true;
   }
   return false;
@@ -417,6 +422,9 @@ std::string TransportParameters::ToString() const {
   if (disable_active_migration) {
     rv += " " + TransportParameterIdToString(kDisableActiveMigration);
   }
+  if (reliable_stream_reset) {
+    rv += " " + TransportParameterIdToString(kReliableStreamReset);
+  }
   if (preferred_address) {
     rv += " " + TransportParameterIdToString(kPreferredAddress) + " " +
           preferred_address->ToString();
@@ -489,6 +497,7 @@ TransportParameters::TransportParameters()
                                  kMinActiveConnectionIdLimitTransportParam,
                                  quiche::kVarInt62MaxValue),
       max_datagram_frame_size(kMaxDatagramFrameSize),
+      reliable_stream_reset(false),
       initial_round_trip_time_us(kInitialRoundTripTime)
 // Important note: any new transport parameters must be added
 // to TransportParameters::AreValid, SerializeTransportParameters and
@@ -521,6 +530,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       initial_source_connection_id(other.initial_source_connection_id),
       retry_source_connection_id(other.retry_source_connection_id),
       max_datagram_frame_size(other.max_datagram_frame_size),
+      reliable_stream_reset(other.reliable_stream_reset),
       initial_round_trip_time_us(other.initial_round_trip_time_us),
       google_handshake_message(other.google_handshake_message),
       google_connection_options(other.google_connection_options),
@@ -561,6 +571,7 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
         retry_source_connection_id == rhs.retry_source_connection_id &&
         max_datagram_frame_size.value() ==
             rhs.max_datagram_frame_size.value() &&
+        reliable_stream_reset == rhs.reliable_stream_reset &&
         initial_round_trip_time_us.value() ==
             rhs.initial_round_trip_time_us.value() &&
         google_handshake_message == rhs.google_handshake_message &&
@@ -749,6 +760,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       kConnectionIdParameterLength +      // initial_source_connection_id
       kConnectionIdParameterLength +      // retry_source_connection_id
       kIntegerParameterLength +           // max_datagram_frame_size
+      kTypeAndValueLength +               // reliable_stream_reset
       kIntegerParameterLength +           // initial_round_trip_time_us
       kTypeAndValueLength +               // google_handshake_message
       kTypeAndValueLength +               // google_connection_options
@@ -770,6 +782,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       TransportParameters::kMinAckDelay,
       TransportParameters::kActiveConnectionIdLimit,
       TransportParameters::kMaxDatagramFrameSize,
+      TransportParameters::kReliableStreamReset,
       TransportParameters::kGoogleHandshakeMessage,
       TransportParameters::kInitialRoundTripTime,
       TransportParameters::kDisableActiveMigration,
@@ -1017,6 +1030,18 @@ bool SerializeTransportParameters(const TransportParameters& in,
               !writer.WriteVarInt62(/* transport parameter length */ 0)) {
             QUIC_BUG(Failed to write disable_active_migration)
                 << "Failed to write disable_active_migration for " << in;
+            return false;
+          }
+        }
+      } break;
+      // reliable_stream_reset
+      case TransportParameters::kReliableStreamReset: {
+        if (in.reliable_stream_reset) {
+          if (!writer.WriteVarInt62(
+                  TransportParameters::kReliableStreamReset) ||
+              !writer.WriteVarInt62(/* transport parameter length */ 0)) {
+            QUIC_BUG(Failed to write reliable_stream_reset)
+                << "Failed to write reliable_stream_reset for " << in;
             return false;
           }
         }
@@ -1438,6 +1463,13 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         parse_success =
             out->initial_round_trip_time_us.Read(&value_reader, error_details);
         break;
+      case TransportParameters::kReliableStreamReset:
+        if (out->reliable_stream_reset) {
+          *error_details = "Received a second reliable_stream_reset";
+          return false;
+        }
+        out->reliable_stream_reset = true;
+        break;
       case TransportParameters::kGoogleConnectionOptions: {
         if (out->google_connection_options.has_value()) {
           *error_details = "Received a second google_connection_options";
@@ -1612,8 +1644,11 @@ bool SerializeTransportParametersForTicket(
     return false;
   }
   uint8_t disable_active_migration = in.disable_active_migration ? 1 : 0;
+  uint8_t reliable_stream_reset = in.reliable_stream_reset ? 1 : 0;
   if (!EVP_DigestUpdate(hash_ctx.get(), &disable_active_migration,
                         sizeof(disable_active_migration)) ||
+      (reliable_stream_reset &&
+       !EVP_DigestUpdate(hash_ctx.get(), "ResetStreamAt", 13)) ||
       !EVP_DigestFinal(hash_ctx.get(), out->data() + 1, nullptr)) {
     QUIC_BUG(quic_bug_10743_29)
         << "Unexpected failure of EVP_Digest functions when hashing "

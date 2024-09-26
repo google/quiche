@@ -8,6 +8,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/null_decrypter.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -53,6 +54,7 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& /*frame*/) override {}
   void OnBlockedFrame(const QuicBlockedFrame& /*frame*/) override {}
   void OnRstStream(const QuicRstStreamFrame& /*frame*/) override {}
+  void OnResetStreamAt(const QuicResetStreamAtFrame& /*frame*/) override {}
   void OnGoAway(const QuicGoAwayFrame& /*frame*/) override {}
   void OnMessageReceived(absl::string_view /*message*/) override {}
   void OnHandshakeDoneReceived() override {}

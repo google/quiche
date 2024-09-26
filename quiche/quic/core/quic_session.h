@@ -20,6 +20,7 @@
 #include "absl/types/span.h"
 #include "quiche/quic/core/crypto/tls_connection.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_stop_sending_frame.h"
 #include "quiche/quic/core/frames/quic_window_update_frame.h"
 #include "quiche/quic/core/handshaker_delegate_interface.h"
@@ -136,6 +137,7 @@ class QUICHE_EXPORT QuicSession
   void OnStreamFrame(const QuicStreamFrame& frame) override;
   void OnCryptoFrame(const QuicCryptoFrame& frame) override;
   void OnRstStream(const QuicRstStreamFrame& frame) override;
+  void OnResetStreamAt(const QuicResetStreamAtFrame& frame) override;
   void OnGoAway(const QuicGoAwayFrame& frame) override;
   void OnMessageReceived(absl::string_view message) override;
   void OnHandshakeDoneReceived() override;
@@ -957,6 +959,7 @@ class QUICHE_EXPORT QuicSession
   // Creates or gets pending strea, feed it with |frame|, and closes the pending
   // stream.
   void PendingStreamOnRstStream(const QuicRstStreamFrame& frame);
+  void PendingStreamOnResetStreamAt(const QuicResetStreamAtFrame& frame);
 
   // Creates or gets pending stream, feeds it with |frame|, and records the
   // max_data in the pending stream.
