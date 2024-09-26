@@ -397,7 +397,6 @@
     "quiche/quic/platform/api/quic_thread.h",
     "quiche/spdy/core/hpack/hpack_decoder_adapter.h",
     "quiche/spdy/core/hpack/hpack_encoder.h",
-    "quiche/spdy/core/http2_header_block.h",
     "quiche/spdy/core/spdy_bitmasks.h",
     "quiche/spdy/core/spdy_frame_builder.h",
     "quiche/spdy/core/spdy_framer.h",
