@@ -9,11 +9,11 @@
 #include <vector>
 
 #include "quiche/http2/core/recording_headers_handler.h"
+#include "quiche/http2/hpack/hpack_decoder_adapter.h"
 #include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/hpack/hpack_decoder_adapter.h"
 
 namespace spdy {
 namespace test {

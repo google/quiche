@@ -24,13 +24,13 @@
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/decoder/http2_frame_decoder.h"
 #include "quiche/http2/hpack/decoder/hpack_decoding_error.h"
+#include "quiche/http2/hpack/hpack_decoder_adapter.h"
 #include "quiche/http2/hpack/hpack_header_table.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
-#include "quiche/spdy/core/hpack/hpack_decoder_adapter.h"
 
 using ::spdy::ExtensionVisitorInterface;
 using ::spdy::HpackDecoderAdapter;

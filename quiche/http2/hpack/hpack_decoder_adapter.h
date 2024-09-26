@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_SPDY_CORE_HPACK_HPACK_DECODER_ADAPTER_H_
-#define QUICHE_SPDY_CORE_HPACK_HPACK_DECODER_ADAPTER_H_
+#ifndef QUICHE_HTTP2_HPACK_HPACK_DECODER_ADAPTER_H_
+#define QUICHE_HTTP2_HPACK_HPACK_DECODER_ADAPTER_H_
 
 // HpackDecoderAdapter uses http2::HpackDecoder to decode HPACK blocks into
 // HTTP/2 header lists as outlined in http://tools.ietf.org/html/rfc7541.
@@ -139,4 +139,4 @@ class QUICHE_EXPORT HpackDecoderAdapter {
 
 }  // namespace spdy
 
-#endif  // QUICHE_SPDY_CORE_HPACK_HPACK_DECODER_ADAPTER_H_
+#endif  // QUICHE_HTTP2_HPACK_HPACK_DECODER_ADAPTER_H_
