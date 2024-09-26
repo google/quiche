@@ -383,7 +383,7 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
   // TODO(martinduke): support authorization info
   if (next_subscribe_id_ > peer_max_subscribe_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE with ID "
-                    << message.subscribe_id
+                    << next_subscribe_id_
                     << " which is greater than the maximum ID "
                     << peer_max_subscribe_id_;
     return false;
