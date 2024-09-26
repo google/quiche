@@ -7,9 +7,9 @@
 
 #include "absl/strings/str_format.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/http2/hpack/hpack_encoder.h"
 #include "quiche/common/quiche_data_reader.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {

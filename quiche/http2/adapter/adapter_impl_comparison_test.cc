@@ -7,8 +7,8 @@
 #include "quiche/http2/adapter/oghttp2_adapter.h"
 #include "quiche/http2/adapter/recording_http2_visitor.h"
 #include "quiche/http2/adapter/test_frame_sequence.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {

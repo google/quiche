@@ -1,6 +1,6 @@
 #include "quiche/http2/adapter/http2_util.h"
 
-#include "quiche/spdy/core/spdy_protocol.h"
+#include "quiche/http2/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {

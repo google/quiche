@@ -25,6 +25,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
@@ -40,7 +41,6 @@
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace quic {
 

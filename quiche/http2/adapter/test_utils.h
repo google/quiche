@@ -11,10 +11,10 @@
 #include "quiche/http2/adapter/data_source.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/mock_http2_visitor.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {

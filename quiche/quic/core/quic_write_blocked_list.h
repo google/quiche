@@ -11,13 +11,13 @@
 
 #include "absl/container/inlined_vector.h"
 #include "quiche/http2/core/priority_write_scheduler.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace quic {
 

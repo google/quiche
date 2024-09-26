@@ -14,9 +14,9 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace quic {
 

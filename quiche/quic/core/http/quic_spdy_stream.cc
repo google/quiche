@@ -15,6 +15,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/adapter/header_validator.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/http2/http2_constants.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_decoder.h"
@@ -41,7 +42,6 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_mem_slice_storage.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 using ::quiche::Capsule;
 using ::quiche::CapsuleType;

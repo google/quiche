@@ -7,9 +7,9 @@
 #include <vector>
 
 #include "quiche/http2/adapter/http2_protocol.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {
