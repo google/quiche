@@ -1363,6 +1363,7 @@ fuzzers_hdrs = [
 ]
 fuzzers_srcs = [
     "common/structured_headers_fuzzer.cc",
+    "http2/core/http2_frame_decoder_adapter_fuzzer.cc",
     "http2/decoder/http2_frame_decoder_fuzzer.cc",
     "quic/core/crypto/certificate_view_der_fuzzer.cc",
     "quic/core/crypto/certificate_view_pem_fuzzer.cc",
@@ -1374,7 +1375,6 @@ fuzzers_srcs = [
     "quic/core/qpack/fuzzer/qpack_round_trip_fuzzer.cc",
     "quic/test_tools/fuzzing/quic_framer_fuzzer.cc",
     "quic/test_tools/fuzzing/quic_framer_process_data_packet_fuzzer.cc",
-    "spdy/core/http2_frame_decoder_adapter_fuzzer.cc",
 ]
 cli_tools_hdrs = [
     "quic/tools/quic_server_factory.h",

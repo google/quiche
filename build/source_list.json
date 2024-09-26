@@ -1365,6 +1365,7 @@
   ],
   "fuzzers_srcs": [
     "quiche/common/structured_headers_fuzzer.cc",
+    "quiche/http2/core/http2_frame_decoder_adapter_fuzzer.cc",
     "quiche/http2/decoder/http2_frame_decoder_fuzzer.cc",
     "quiche/quic/core/crypto/certificate_view_der_fuzzer.cc",
     "quiche/quic/core/crypto/certificate_view_pem_fuzzer.cc",
@@ -1375,8 +1376,7 @@
     "quiche/quic/core/qpack/fuzzer/qpack_encoder_stream_sender_fuzzer.cc",
     "quiche/quic/core/qpack/fuzzer/qpack_round_trip_fuzzer.cc",
     "quiche/quic/test_tools/fuzzing/quic_framer_fuzzer.cc",
-    "quiche/quic/test_tools/fuzzing/quic_framer_process_data_packet_fuzzer.cc",
-    "quiche/spdy/core/http2_frame_decoder_adapter_fuzzer.cc"
+    "quiche/quic/test_tools/fuzzing/quic_framer_process_data_packet_fuzzer.cc"
   ],
   "cli_tools_hdrs": [
     "quiche/quic/tools/quic_server_factory.h",
