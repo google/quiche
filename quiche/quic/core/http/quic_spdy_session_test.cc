@@ -17,6 +17,7 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_framer.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/frames/quic_streams_blocked_frame.h"
@@ -51,7 +52,6 @@
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_endian.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
-#include "quiche/spdy/core/spdy_framer.h"
 
 using quiche::HttpHeaderBlock;
 using spdy::kV3HighestPriority;

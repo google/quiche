@@ -10,10 +10,10 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_framer.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/common/http/http_header_block.h"
-#include "quiche/spdy/core/spdy_framer.h"
 
 namespace quic {
 

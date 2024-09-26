@@ -43,7 +43,6 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_endian.h"
 #include "quiche/common/simple_buffer_allocator.h"
-#include "quiche/spdy/core/spdy_frame_builder.h"
 
 using testing::_;
 using testing::Invoke;

@@ -12,12 +12,12 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_framer.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_mutex.h"
-#include "quiche/spdy/core/spdy_framer.h"
 
 namespace quic {
 

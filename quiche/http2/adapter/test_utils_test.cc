@@ -4,8 +4,8 @@
 #include <string>
 #include <utility>
 
+#include "quiche/http2/core/spdy_framer.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/spdy_framer.h"
 
 namespace http2 {
 namespace adapter {

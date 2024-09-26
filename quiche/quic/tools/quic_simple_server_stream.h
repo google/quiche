@@ -9,13 +9,13 @@
 #include <optional>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_framer.h"
 #include "quiche/quic/core/http/quic_spdy_server_stream_base.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/common/http/http_header_block.h"
-#include "quiche/spdy/core/spdy_framer.h"
 
 namespace quic {
 

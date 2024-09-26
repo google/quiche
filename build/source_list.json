@@ -398,8 +398,6 @@
     "quiche/spdy/core/hpack/hpack_decoder_adapter.h",
     "quiche/spdy/core/hpack/hpack_encoder.h",
     "quiche/spdy/core/spdy_bitmasks.h",
-    "quiche/spdy/core/spdy_frame_builder.h",
-    "quiche/spdy/core/spdy_framer.h",
     "quiche/spdy/core/spdy_protocol.h",
     "quiche/web_transport/complete_buffer_visitor.h",
     "quiche/web_transport/encapsulated/encapsulated_web_transport.h",
