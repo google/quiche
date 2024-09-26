@@ -1195,9 +1195,15 @@ TEST_P(EndToEndTest, InvalidSNI) {
 
   QuicSpdySession* client_session = GetClientSession();
   ASSERT_TRUE(client_session);
-  EXPECT_THAT(client_session->error(), IsError(QUIC_HANDSHAKE_FAILED));
-  EXPECT_THAT(client_session->error_details(),
-              HasSubstr("select_cert_error: invalid hostname"));
+  if (GetQuicReloadableFlag(quic_new_error_code_for_invalid_hostname)) {
+    EXPECT_THAT(client_session->error(),
+                IsError(QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME));
+    EXPECT_THAT(client_session->error_details(), HasSubstr("invalid hostname"));
+  } else {
+    EXPECT_THAT(client_session->error(), IsError(QUIC_HANDSHAKE_FAILED));
+    EXPECT_THAT(client_session->error_details(),
+                HasSubstr("select_cert_error: invalid hostname"));
+  }
 }
 
 // Two packet CHLO. The first one is buffered and acked by dispatcher, the

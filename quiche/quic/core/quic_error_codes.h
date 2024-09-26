@@ -252,6 +252,9 @@ enum QuicErrorCode : uint32_t {
   // Split from QUIC_HANDSHAKE_FAILED and specially indicates handshake failure
   // due to packets buffered for too long.
   QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG = 214,
+  // Handshake failed due to invalid hostname in ClientHello. Only sent from
+  // server.
+  QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME = 216,
   // Handshake message contained out of order tags.
   QUIC_CRYPTO_TAGS_OUT_OF_ORDER = 29,
   // Handshake message contained too many entries.
@@ -626,7 +629,7 @@ enum QuicErrorCode : uint32_t {
   QUIC_CLIENT_LOST_NETWORK_ACCESS = 215,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 216,
+  QUIC_LAST_ERROR = 217,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
