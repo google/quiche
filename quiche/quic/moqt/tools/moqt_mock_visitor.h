@@ -26,8 +26,7 @@ struct MockSessionCallbacks {
   testing::MockFunction<void()> session_established_callback;
   testing::MockFunction<void(absl::string_view)> session_terminated_callback;
   testing::MockFunction<void()> session_deleted_callback;
-  testing::MockFunction<std::optional<MoqtAnnounceErrorReason>(
-      absl::string_view)>
+  testing::MockFunction<std::optional<MoqtAnnounceErrorReason>(FullTrackName)>
       incoming_announce_callback;
 
   MockSessionCallbacks() {

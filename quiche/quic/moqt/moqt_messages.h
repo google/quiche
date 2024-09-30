@@ -89,6 +89,10 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kTrackStatusRequest = 0x0d,
   kTrackStatus = 0x0e,
   kGoAway = 0x10,
+  kSubscribeNamespace = 0x11,
+  kSubscribeNamespaceOk = 0x12,
+  kSubscribeNamespaceError = 0x13,
+  kUnsubscribeNamespace = 0x14,
   kMaxSubscribeId = 0x15,
   kClientSetup = 0x40,
   kServerSetup = 0x41,
@@ -137,6 +141,8 @@ enum class QUICHE_EXPORT MoqtSetupParameter : uint64_t {
 
 enum class QUICHE_EXPORT MoqtTrackRequestParameter : uint64_t {
   kAuthorizationInfo = 0x2,
+  kDeliveryTimeout = 0x3,
+  kMaxCacheDuration = 0x4,
 
   // QUICHE-specific extensions.
   kOackWindowSize = 0xbbf1439,
@@ -154,10 +160,9 @@ struct MoqtAnnounceErrorReason {
   std::string reason_phrase;
 };
 
-// Full track name represents a tuple of the track namespace and the the track
-// name.  (TODO) After draft-06, multiple elements in track namespace will be
-// supported; if https://github.com/moq-wg/moq-transport/issues/508 goes
-// through, the distinction between different parts will disappear.
+// Full track name represents a tuple of name elements. All higher order
+// elements MUST be present, but lower-order ones (like the name) can be
+// omitted.
 class FullTrackName {
  public:
   explicit FullTrackName(absl::Span<const absl::string_view> elements);
@@ -167,15 +172,30 @@ class FullTrackName {
             std::data(elements), std::size(elements))) {}
   explicit FullTrackName(absl::string_view ns, absl::string_view name)
       : FullTrackName({ns, name}) {}
-  FullTrackName() : FullTrackName({"", ""}) {}
+  FullTrackName() : FullTrackName({}) {}
 
   std::string ToString() const;
 
-  absl::string_view track_namespace() const {
-    // TODO: turn into a tuple for draft-06.
-    return tuple_[0];
+  void AddElement(absl::string_view element) {
+    tuple_.push_back(std::string(element));
   }
-  absl::string_view track_name() const { return tuple_[tuple_.size() - 1]; }
+  // Remove the last element to convert a name to a namespace.
+  void NameToNamespace() { tuple_.pop_back(); }
+  // returns true is |this| is a subdomain of |other|.
+  bool InNamespace(const FullTrackName& other) const {
+    if (tuple_.size() < other.tuple_.size()) {
+      return false;
+    }
+    for (int i = 0; i < other.tuple_.size(); ++i) {
+      if (tuple_[i] != other.tuple_[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+  absl::Span<const std::string> tuple() const {
+    return absl::MakeConstSpan(tuple_);
+  }
 
   bool operator==(const FullTrackName& other) const;
   bool operator<(const FullTrackName& other) const;
@@ -189,6 +209,8 @@ class FullTrackName {
   friend void AbslStringify(Sink& sink, const FullTrackName& track_name) {
     sink.Append(track_name.ToString());
   }
+
+  bool empty() const { return tuple_.empty(); }
 
  private:
   absl::InlinedVector<std::string, 2> tuple_;
@@ -288,12 +310,21 @@ enum class QUICHE_EXPORT MoqtFilterType : uint64_t {
 
 struct QUICHE_EXPORT MoqtSubscribeParameters {
   std::optional<std::string> authorization_info;
+  std::optional<quic::QuicTimeDelta> delivery_timeout;
+  std::optional<quic::QuicTimeDelta> max_cache_duration;
 
   // If present, indicates that OBJECT_ACK messages will be sent in response to
   // the objects on the stream. The actual value is informational, and it
   // communicates how many frames the subscriber is willing to buffer, in
   // microseconds.
   std::optional<quic::QuicTimeDelta> object_ack_window;
+
+  bool operator==(const MoqtSubscribeParameters& other) const {
+    return authorization_info == other.authorization_info &&
+           delivery_timeout == other.delivery_timeout &&
+           max_cache_duration == other.max_cache_duration &&
+           object_ack_window == other.object_ack_window;
+  }
 };
 
 struct QUICHE_EXPORT MoqtSubscribe {
@@ -331,12 +362,16 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
   MoqtDeliveryOrder group_order;
   // If ContextExists on the wire is zero, largest_id has no value.
   std::optional<FullSequence> largest_id;
+  MoqtSubscribeParameters parameters;
 };
 
 enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
   kInternalError = 0x0,
   kInvalidRange = 0x1,
   kRetryTrackAlias = 0x2,
+  kTrackDoesNotExist = 0x3,
+  kUnauthorized = 0x4,
+  kTimeout = 0x5,
 };
 
 struct QUICHE_EXPORT MoqtSubscribeError {
@@ -374,26 +409,26 @@ struct QUICHE_EXPORT MoqtSubscribeUpdate {
   std::optional<uint64_t> end_group;
   std::optional<uint64_t> end_object;
   MoqtPriority subscriber_priority;
-  std::optional<std::string> authorization_info;
+  MoqtSubscribeParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtAnnounce {
-  std::string track_namespace;
-  std::optional<std::string> authorization_info;
+  FullTrackName track_namespace;
+  MoqtSubscribeParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceOk {
-  std::string track_namespace;
+  FullTrackName track_namespace;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceError {
-  std::string track_namespace;
+  FullTrackName track_namespace;
   MoqtAnnounceErrorCode error_code;
   std::string reason_phrase;
 };
 
 struct QUICHE_EXPORT MoqtUnannounce {
-  std::string track_namespace;
+  FullTrackName track_namespace;
 };
 
 enum class QUICHE_EXPORT MoqtTrackStatusCode : uint64_t {
@@ -425,7 +460,10 @@ struct QUICHE_EXPORT MoqtTrackStatus {
 };
 
 struct QUICHE_EXPORT MoqtAnnounceCancel {
-  std::string track_namespace;
+  FullTrackName track_namespace;
+  // TODO: What namespace is this error code in?
+  uint64_t error_code;
+  std::string reason_phrase;
 };
 
 struct QUICHE_EXPORT MoqtTrackStatusRequest {

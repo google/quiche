@@ -32,25 +32,21 @@ class MoqChatStrings {
   }
 
   // Returns "" if the track namespace is not a participant track.
-  std::string GetUsernameFromTrackNamespace(
-      absl::string_view track_namespace) const {
+  std::string GetUsernameFromFullTrackName(
+      FullTrackName full_track_name) const {
+    if (full_track_name.tuple().size() != 2) {
+      return "";
+    }
+    if (!full_track_name.tuple()[1].empty()) {
+      return "";
+    }
     std::vector<absl::string_view> elements =
-        absl::StrSplit(track_namespace, '/');
+        absl::StrSplit(full_track_name.tuple()[0], '/');
     if (elements.size() != 4 || elements[0] != kBasePath ||
         elements[1] != chat_id_ || elements[2] != kParticipantPath) {
       return "";
     }
     return std::string(elements[3]);
-  }
-
-  // Returns "" if the full track name is not a participant track.
-  std::string GetUsernameFromFullTrackName(
-      FullTrackName full_track_name) const {
-    // Check the full path
-    if (!full_track_name.track_name().empty()) {
-      return "";
-    }
-    return GetUsernameFromTrackNamespace(full_track_name.track_namespace());
   }
 
   FullTrackName GetFullTrackNameFromUsername(absl::string_view username) const {

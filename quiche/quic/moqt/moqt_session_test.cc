@@ -358,7 +358,7 @@ TEST_F(MoqtSessionTest, AddLocalTrack) {
 
 TEST_F(MoqtSessionTest, AnnounceWithOk) {
   testing::MockFunction<void(
-      absl::string_view track_namespace,
+      FullTrackName track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_resolved_callback;
   webtransport::test::MockStream mock_stream;
@@ -373,18 +373,19 @@ TEST_F(MoqtSessionTest, AnnounceWithOk) {
         EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kAnnounce);
         return absl::OkStatus();
       });
-  session_.Announce("foo", announce_resolved_callback.AsStdFunction());
+  session_.Announce(FullTrackName{"foo"},
+                    announce_resolved_callback.AsStdFunction());
   EXPECT_TRUE(correct_message);
 
   MoqtAnnounceOk ok = {
-      /*track_namespace=*/"foo",
+      /*track_namespace=*/FullTrackName{"foo"},
   };
   correct_message = false;
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
-      .WillOnce([&](absl::string_view track_namespace,
+      .WillOnce([&](FullTrackName track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
         correct_message = true;
-        EXPECT_EQ(track_namespace, "foo");
+        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
         EXPECT_FALSE(error.has_value());
       });
   stream_input->OnAnnounceOkMessage(ok);
@@ -393,7 +394,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOk) {
 
 TEST_F(MoqtSessionTest, AnnounceWithError) {
   testing::MockFunction<void(
-      absl::string_view track_namespace,
+      FullTrackName track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_resolved_callback;
   webtransport::test::MockStream mock_stream;
@@ -408,20 +409,21 @@ TEST_F(MoqtSessionTest, AnnounceWithError) {
         EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kAnnounce);
         return absl::OkStatus();
       });
-  session_.Announce("foo", announce_resolved_callback.AsStdFunction());
+  session_.Announce(FullTrackName{"foo"},
+                    announce_resolved_callback.AsStdFunction());
   EXPECT_TRUE(correct_message);
 
   MoqtAnnounceError error = {
-      /*track_namespace=*/"foo",
+      /*track_namespace=*/FullTrackName{"foo"},
       /*error_code=*/MoqtAnnounceErrorCode::kInternalError,
       /*reason_phrase=*/"Test error",
   };
   correct_message = false;
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
-      .WillOnce([&](absl::string_view track_namespace,
+      .WillOnce([&](FullTrackName track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
         correct_message = true;
-        EXPECT_EQ(track_namespace, "foo");
+        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
         ASSERT_TRUE(error.has_value());
         EXPECT_EQ(error->error_code, MoqtAnnounceErrorCode::kInternalError);
         EXPECT_EQ(error->reason_phrase, "Test error");
@@ -686,10 +688,11 @@ TEST_F(MoqtSessionTest, ReplyToAnnounce) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
   MoqtAnnounce announce = {
-      /*track_namespace=*/"foo",
+      /*track_namespace=*/FullTrackName{"foo"},
   };
   bool correct_message = false;
-  EXPECT_CALL(session_callbacks_.incoming_announce_callback, Call("foo"))
+  EXPECT_CALL(session_callbacks_.incoming_announce_callback,
+              Call(FullTrackName{"foo"}))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
@@ -1355,11 +1358,12 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
 TEST_F(MoqtSessionTest, AnnounceToPublisher) {
   MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kPublisher);
   testing::MockFunction<void(
-      absl::string_view track_namespace,
+      FullTrackName track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_resolved_callback;
   EXPECT_CALL(announce_resolved_callback, Call(_, _)).Times(1);
-  session_.Announce("foo", announce_resolved_callback.AsStdFunction());
+  session_.Announce(FullTrackName{"foo"},
+                    announce_resolved_callback.AsStdFunction());
 }
 
 TEST_F(MoqtSessionTest, SubscribeFromPublisher) {
@@ -1394,7 +1398,7 @@ TEST_F(MoqtSessionTest, AnnounceFromSubscriber) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
   MoqtAnnounce announce = {
-      /*track_namespace=*/"foo",
+      /*track_namespace=*/FullTrackName{"foo"},
   };
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),

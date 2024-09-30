@@ -82,16 +82,25 @@ bool IsValidTrackNamespaceChar(char c) {
   return absl::ascii_isalnum(c) || c == '-' || c == '_';
 }
 
-bool IsValidTrackNamespace(absl::string_view track_namespace) {
-  return absl::c_all_of(track_namespace, IsValidTrackNamespaceChar);
+bool IsValidTrackNamespace(FullTrackName track_namespace) {
+  for (const auto& element : track_namespace.tuple()) {
+    if (!absl::c_all_of(element, IsValidTrackNamespaceChar)) {
+      return false;
+    }
+  }
+  return true;
 }
 
-std::string CleanUpTrackNamespace(absl::string_view track_namespace) {
-  std::string output(track_namespace);
-  for (char& c : output) {
-    if (!IsValidTrackNamespaceChar(c)) {
-      c = '_';
+FullTrackName CleanUpTrackNamespace(FullTrackName track_namespace) {
+  FullTrackName output;
+  for (auto& it : track_namespace.tuple()) {
+    std::string element = it;
+    for (char& c : element) {
+      if (!IsValidTrackNamespaceChar(c)) {
+        c = '_';
+      }
     }
+    output.AddElement(element);
   }
   return output;
 }
@@ -107,7 +116,7 @@ class MoqtIngestionHandler {
   }
 
   std::optional<MoqtAnnounceErrorReason> OnAnnounceReceived(
-      absl::string_view track_namespace) {
+      FullTrackName track_namespace) {
     if (!IsValidTrackNamespace(track_namespace) &&
         !quiche::GetQuicheCommandLineFlag(
             FLAGS_allow_invalid_track_namespaces)) {
@@ -142,8 +151,9 @@ class MoqtIngestionHandler {
     std::vector<absl::string_view> tracks_to_subscribe =
         absl::StrSplit(track_list, ',', absl::AllowEmpty());
     for (absl::string_view track : tracks_to_subscribe) {
-      session_->SubscribeCurrentGroup(FullTrackName({track_namespace, track}),
-                                      &it->second);
+      FullTrackName full_track_name = track_namespace;
+      full_track_name.AddElement(track);
+      session_->SubscribeCurrentGroup(full_track_name, &it->second);
     }
 
     return std::nullopt;
@@ -174,7 +184,7 @@ class MoqtIngestionHandler {
                           absl::string_view object,
                           bool /*end_of_message*/) override {
       std::string file_name = absl::StrCat(group_sequence, "-", object_sequence,
-                                           ".", full_track_name.track_name());
+                                           ".", full_track_name.tuple().back());
       std::string file_path = quiche::JoinPath(directory_, file_name);
       std::ofstream output(file_path, std::ios::binary | std::ios::ate);
       output.write(object.data(), object.size());
@@ -187,7 +197,7 @@ class MoqtIngestionHandler {
 
   MoqtSession* session_;  // Not owned.
   std::string output_root_;
-  absl::node_hash_map<std::string, NamespaceHandler> subscribed_namespaces_;
+  absl::node_hash_map<FullTrackName, NamespaceHandler> subscribed_namespaces_;
 };
 
 absl::StatusOr<MoqtConfigureSessionCallback> IncomingSessionHandler(

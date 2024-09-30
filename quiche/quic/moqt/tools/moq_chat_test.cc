@@ -23,38 +23,42 @@ TEST_F(MoqChatStringsTest, IsValidPath) {
   EXPECT_FALSE(strings_.IsValidPath("/moq-chat/"));
 }
 
-TEST_F(MoqChatStringsTest, GetUsernameFromTrackNamespace) {
-  EXPECT_EQ(strings_.GetUsernameFromTrackNamespace(
-                "moq-chat/chat-id/participant/user"),
-            "user");
-  EXPECT_EQ(strings_.GetUsernameFromTrackNamespace(
-                "/moq-chat/chat-id/participant/user"),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromTrackNamespace(
-                "moq-chat/chat-id/participant/user/"),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromTrackNamespace(
-                "moq-cha/chat-id/participant/user"),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromTrackNamespace(
-                "moq-chat/chat-i/participant/user"),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromTrackNamespace(
-                "moq-chat/chat-id/participan/user"),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromTrackNamespace("moq-chat/chat-id/user"),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromTrackNamespace(
-                "moq-chat/chat-id/participant/foo/user"),
-            "");
-}
-
 TEST_F(MoqChatStringsTest, GetUsernameFromFullTrackName) {
   EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName("moq-chat/chat-id/participant/user", "")),
+                FullTrackName{"moq-chat/chat-id/participant/user", ""}),
             "user");
+}
+
+TEST_F(MoqChatStringsTest, GetUsernameFromFullTrackNameInvalidInput) {
   EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName("moq-chat/chat-id/participant/user", "foo")),
+                FullTrackName{"/moq-chat/chat-id/participant/user", ""}),
+            "");
+  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
+                FullTrackName{"moq-chat/chat-id/participant/user/", ""}),
+            "");
+  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
+                FullTrackName{"moq-cha/chat-id/participant/user", ""}),
+            "");
+  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
+                FullTrackName{"moq-chat/chat-i/participant/user", ""}),
+            "");
+  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
+                FullTrackName{"moq-chat/chat-id/participan/user", ""}),
+            "");
+  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
+                FullTrackName{"moq-chat/chat-id/user", ""}),
+            "");
+  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
+                FullTrackName{"moq-chat/chat-id/participant/foo/user", ""}),
+            "");
+  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
+                FullTrackName{"moq-chat/chat-id/participant/user", "foo"}),
+            "");
+  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
+                FullTrackName{"moq-chat/chat-id/participant/user"}),
+            "");
+  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
+                FullTrackName{"foo", "moq-chat/chat-id/participant/user", ""}),
             "");
 }
 

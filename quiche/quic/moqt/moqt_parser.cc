@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 #include <optional>
 #include <string>
 
@@ -24,16 +25,6 @@
 namespace moqt {
 
 namespace {
-
-bool ReadFullTrackName(quic::QuicDataReader& reader, FullTrackName& out) {
-  absl::string_view track_namespace, track_name;
-  if (!reader.ReadStringPieceVarInt62(&track_namespace) ||
-      !reader.ReadStringPieceVarInt62(&track_name)) {
-    return false;
-  }
-  out = FullTrackName({track_namespace, track_name});
-  return true;
-}
 
 bool ParseDeliveryOrder(uint8_t raw_value,
                         std::optional<MoqtDeliveryOrder>& output) {
@@ -238,8 +229,9 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data) {
       return ProcessMaxSubscribeId(reader);
     case moqt::MoqtMessageType::kObjectAck:
       return ProcessObjectAck(reader);
+    default:
+      ParseError("Unknown message type");
   }
-  ParseError("Unknown message type");
   return 0;
 }
 
@@ -408,13 +400,16 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
   MoqtSubscribe subscribe_request;
   uint64_t filter, group, object;
   uint8_t group_order;
+  absl::string_view track_name;
   if (!reader.ReadVarInt62(&subscribe_request.subscribe_id) ||
       !reader.ReadVarInt62(&subscribe_request.track_alias) ||
-      !ReadFullTrackName(reader, subscribe_request.full_track_name) ||
+      !ReadTrackNamespace(reader, subscribe_request.full_track_name) ||
+      !reader.ReadStringPieceVarInt62(&track_name) ||
       !reader.ReadUInt8(&subscribe_request.subscriber_priority) ||
       !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&filter)) {
     return 0;
   }
+  subscribe_request.full_track_name.AddElement(track_name);
   if (!ParseDeliveryOrder(group_order, subscribe_request.group_order)) {
     ParseError("Invalid group order value in SUBSCRIBE message");
     return 0;
@@ -459,45 +454,8 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
       ParseError("Invalid filter type");
       return 0;
   }
-  uint64_t num_params;
-  if (!reader.ReadVarInt62(&num_params)) {
+  if (!ReadSubscribeParameters(reader, subscribe_request.parameters)) {
     return 0;
-  }
-  for (uint64_t i = 0; i < num_params; ++i) {
-    uint64_t type;
-    absl::string_view value;
-    if (!ReadParameter(reader, type, value)) {
-      return 0;
-    }
-    auto key = static_cast<MoqtTrackRequestParameter>(type);
-    switch (key) {
-      case MoqtTrackRequestParameter::kAuthorizationInfo:
-        if (subscribe_request.parameters.authorization_info.has_value()) {
-          ParseError(
-              "AUTHORIZATION_INFO parameter appears twice in "
-              "SUBSCRIBE");
-          return 0;
-        }
-        subscribe_request.parameters.authorization_info = value;
-        break;
-      case MoqtTrackRequestParameter::kOackWindowSize: {
-        if (subscribe_request.parameters.object_ack_window.has_value()) {
-          ParseError("OACK_WINDOW_SIZE parameter appears twice in SUBSCRIBE");
-          return 0;
-        }
-        uint64_t raw_value;
-        if (!StringViewToVarInt(value, raw_value)) {
-          ParseError("OACK_WINDOW_SIZE parameter is not a valid varint");
-          return 0;
-        }
-        subscribe_request.parameters.object_ack_window =
-            quic::QuicTimeDelta::FromMicroseconds(raw_value);
-        break;
-      }
-      default:
-        // Skip over the parameter.
-        break;
-    }
   }
   visitor_.OnSubscribeMessage(subscribe_request);
   return reader.PreviouslyReadPayload().length();
@@ -529,6 +487,13 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
         !reader.ReadVarInt62(&subscribe_ok.largest_id->object)) {
       return 0;
     }
+  }
+  if (!ReadSubscribeParameters(reader, subscribe_ok.parameters)) {
+    return 0;
+  }
+  if (subscribe_ok.parameters.authorization_info.has_value()) {
+    ParseError("SUBSCRIBE_OK has authorization info");
+    return 0;
   }
   visitor_.OnSubscribeOkMessage(subscribe_ok);
   return reader.PreviouslyReadPayload().length();
@@ -585,13 +550,15 @@ size_t MoqtControlParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
   MoqtSubscribeUpdate subscribe_update;
-  uint64_t end_group, end_object, num_params;
+  uint64_t end_group, end_object;
   if (!reader.ReadVarInt62(&subscribe_update.subscribe_id) ||
       !reader.ReadVarInt62(&subscribe_update.start_group) ||
       !reader.ReadVarInt62(&subscribe_update.start_object) ||
       !reader.ReadVarInt62(&end_group) || !reader.ReadVarInt62(&end_object) ||
-      !reader.ReadUInt8(&subscribe_update.subscriber_priority) ||
-      !reader.ReadVarInt62(&num_params)) {
+      !reader.ReadUInt8(&subscribe_update.subscriber_priority)) {
+    return 0;
+  }
+  if (!ReadSubscribeParameters(reader, subscribe_update.parameters)) {
     return 0;
   }
   if (end_group == 0) {
@@ -618,27 +585,9 @@ size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
   } else {
     subscribe_update.end_object = std::nullopt;
   }
-  for (uint64_t i = 0; i < num_params; ++i) {
-    uint64_t type;
-    absl::string_view value;
-    if (!ReadParameter(reader, type, value)) {
-      return 0;
-    }
-    auto key = static_cast<MoqtTrackRequestParameter>(type);
-    switch (key) {
-      case MoqtTrackRequestParameter::kAuthorizationInfo:
-        if (subscribe_update.authorization_info.has_value()) {
-          ParseError(
-              "AUTHORIZATION_INFO parameter appears twice in "
-              "SUBSCRIBE_UPDATE");
-          return 0;
-        }
-        subscribe_update.authorization_info = value;
-        break;
-      default:
-        // Skip over the parameter.
-        break;
-    }
+  if (subscribe_update.parameters.authorization_info.has_value()) {
+    ParseError("SUBSCRIBE_UPDATE has authorization info");
+    return 0;
   }
   visitor_.OnSubscribeUpdateMessage(subscribe_update);
   return reader.PreviouslyReadPayload().length();
@@ -646,32 +595,15 @@ size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessAnnounce(quic::QuicDataReader& reader) {
   MoqtAnnounce announce;
-  if (!reader.ReadStringVarInt62(announce.track_namespace)) {
+  if (!ReadTrackNamespace(reader, announce.track_namespace)) {
     return 0;
   }
-  uint64_t num_params;
-  if (!reader.ReadVarInt62(&num_params)) {
+  if (!ReadSubscribeParameters(reader, announce.parameters)) {
     return 0;
   }
-  for (uint64_t i = 0; i < num_params; ++i) {
-    uint64_t type;
-    absl::string_view value;
-    if (!ReadParameter(reader, type, value)) {
-      return 0;
-    }
-    auto key = static_cast<MoqtTrackRequestParameter>(type);
-    switch (key) {
-      case MoqtTrackRequestParameter::kAuthorizationInfo:
-        if (announce.authorization_info.has_value()) {
-          ParseError("AUTHORIZATION_INFO parameter appears twice in ANNOUNCE");
-          return 0;
-        }
-        announce.authorization_info = value;
-        break;
-      default:
-        // Skip over the parameter.
-        break;
-    }
+  if (announce.parameters.delivery_timeout.has_value()) {
+    ParseError("ANNOUNCE has delivery timeout");
+    return 0;
   }
   visitor_.OnAnnounceMessage(announce);
   return reader.PreviouslyReadPayload().length();
@@ -679,7 +611,7 @@ size_t MoqtControlParser::ProcessAnnounce(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessAnnounceOk(quic::QuicDataReader& reader) {
   MoqtAnnounceOk announce_ok;
-  if (!reader.ReadStringVarInt62(announce_ok.track_namespace)) {
+  if (!ReadTrackNamespace(reader, announce_ok.track_namespace)) {
     return 0;
   }
   visitor_.OnAnnounceOkMessage(announce_ok);
@@ -688,7 +620,7 @@ size_t MoqtControlParser::ProcessAnnounceOk(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
   MoqtAnnounceError announce_error;
-  if (!reader.ReadStringVarInt62(announce_error.track_namespace)) {
+  if (!ReadTrackNamespace(reader, announce_error.track_namespace)) {
     return 0;
   }
   uint64_t error_code;
@@ -705,7 +637,11 @@ size_t MoqtControlParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
   MoqtAnnounceCancel announce_cancel;
-  if (!reader.ReadStringVarInt62(announce_cancel.track_namespace)) {
+  if (!ReadTrackNamespace(reader, announce_cancel.track_namespace)) {
+    return 0;
+  }
+  if (!reader.ReadVarInt62(&announce_cancel.error_code) ||
+      !reader.ReadStringVarInt62(announce_cancel.reason_phrase)) {
     return 0;
   }
   visitor_.OnAnnounceCancelMessage(announce_cancel);
@@ -715,16 +651,21 @@ size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessTrackStatusRequest(
     quic::QuicDataReader& reader) {
   MoqtTrackStatusRequest track_status_request;
-  if (!ReadFullTrackName(reader, track_status_request.full_track_name)) {
+  if (!ReadTrackNamespace(reader, track_status_request.full_track_name)) {
     return 0;
   }
+  absl::string_view name;
+  if (!reader.ReadStringPieceVarInt62(&name)) {
+    return 0;
+  }
+  track_status_request.full_track_name.AddElement(name);
   visitor_.OnTrackStatusRequestMessage(track_status_request);
   return reader.PreviouslyReadPayload().length();
 }
 
 size_t MoqtControlParser::ProcessUnannounce(quic::QuicDataReader& reader) {
   MoqtUnannounce unannounce;
-  if (!reader.ReadStringVarInt62(unannounce.track_namespace)) {
+  if (!ReadTrackNamespace(reader, unannounce.track_namespace)) {
     return 0;
   }
   visitor_.OnUnannounceMessage(unannounce);
@@ -733,9 +674,16 @@ size_t MoqtControlParser::ProcessUnannounce(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessTrackStatus(quic::QuicDataReader& reader) {
   MoqtTrackStatus track_status;
+  if (!ReadTrackNamespace(reader, track_status.full_track_name)) {
+    return 0;
+  }
+  absl::string_view name;
+  if (!reader.ReadStringPieceVarInt62(&name)) {
+    return 0;
+  }
+  track_status.full_track_name.AddElement(name);
   uint64_t value;
-  if (!ReadFullTrackName(reader, track_status.full_track_name) ||
-      !reader.ReadVarInt62(&value) ||
+  if (!reader.ReadVarInt62(&value) ||
       !reader.ReadVarInt62(&track_status.last_group) ||
       !reader.ReadVarInt62(&track_status.last_object)) {
     return 0;
@@ -818,6 +766,71 @@ bool MoqtControlParser::ReadParameter(quic::QuicDataReader& reader,
   return reader.ReadStringPieceVarInt62(&value);
 }
 
+bool MoqtControlParser::ReadSubscribeParameters(
+    quic::QuicDataReader& reader, MoqtSubscribeParameters& params) {
+  uint64_t num_params;
+  if (!reader.ReadVarInt62(&num_params)) {
+    return false;
+  }
+  for (uint64_t i = 0; i < num_params; ++i) {
+    uint64_t type;
+    absl::string_view value;
+    if (!ReadParameter(reader, type, value)) {
+      return false;
+    }
+    uint64_t raw_value;
+    auto key = static_cast<MoqtTrackRequestParameter>(type);
+    switch (key) {
+      case MoqtTrackRequestParameter::kAuthorizationInfo:
+        if (params.authorization_info.has_value()) {
+          ParseError("AUTHORIZATION_INFO parameter appears twice");
+          return false;
+        }
+        params.authorization_info = value;
+        break;
+      case moqt::MoqtTrackRequestParameter::kDeliveryTimeout:
+        if (params.delivery_timeout.has_value()) {
+          ParseError("DELIVERY_TIMEOUT parameter appears twice");
+          return false;
+        }
+        if (!StringViewToVarInt(value, raw_value)) {
+          return false;
+        }
+        params.delivery_timeout =
+            quic::QuicTimeDelta::FromMilliseconds(raw_value);
+        break;
+      case moqt::MoqtTrackRequestParameter::kMaxCacheDuration:
+        if (params.max_cache_duration.has_value()) {
+          ParseError("MAX_CACHE_DURATION parameter appears twice");
+          return false;
+        }
+        if (!StringViewToVarInt(value, raw_value)) {
+          return false;
+        }
+        params.max_cache_duration =
+            quic::QuicTimeDelta::FromMilliseconds(raw_value);
+        break;
+      case MoqtTrackRequestParameter::kOackWindowSize: {
+        if (params.object_ack_window.has_value()) {
+          ParseError("OACK_WINDOW_SIZE parameter appears twice in SUBSCRIBE");
+          return false;
+        }
+        if (!StringViewToVarInt(value, raw_value)) {
+          ParseError("OACK_WINDOW_SIZE parameter is not a valid varint");
+          return false;
+        }
+        params.object_ack_window =
+            quic::QuicTimeDelta::FromMicroseconds(raw_value);
+        break;
+      }
+      default:
+        // Skip over the parameter.
+        break;
+    }
+  }
+  return true;
+}
+
 bool MoqtControlParser::StringViewToVarInt(absl::string_view& sv,
                                            uint64_t& vi) {
   quic::QuicDataReader reader(sv);
@@ -827,6 +840,23 @@ bool MoqtControlParser::StringViewToVarInt(absl::string_view& sv,
     return false;
   }
   reader.ReadVarInt62(&vi);
+  return true;
+}
+
+bool MoqtControlParser::ReadTrackNamespace(quic::QuicDataReader& reader,
+                                           FullTrackName& full_track_name) {
+  QUICHE_DCHECK(full_track_name.empty());
+  uint64_t num_elements;
+  if (!reader.ReadVarInt62(&num_elements)) {
+    return 0;
+  }
+  for (uint64_t i = 0; i < num_elements; ++i) {
+    absl::string_view element;
+    if (!reader.ReadStringPieceVarInt62(&element)) {
+      return false;
+    }
+    full_track_name.AddElement(element);
+  }
   return true;
 }
 

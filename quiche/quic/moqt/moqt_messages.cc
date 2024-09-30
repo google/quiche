@@ -95,6 +95,14 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNANNOUNCE";
     case MoqtMessageType::kGoAway:
       return "GOAWAY";
+    case MoqtMessageType::kSubscribeNamespace:
+      return "SUBSCRIBE_NAMESPACE";
+    case MoqtMessageType::kSubscribeNamespaceOk:
+      return "SUBSCRIBE_NAMESPACE_OK";
+    case MoqtMessageType::kSubscribeNamespaceError:
+      return "SUBSCRIBE_NAMESPACE_ERROR";
+    case MoqtMessageType::kUnsubscribeNamespace:
+      return "UNSUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kMaxSubscribeId:
       return "MAX_SUBSCRIBE_ID";
     case MoqtMessageType::kObjectAck:
@@ -190,16 +198,6 @@ bool FullTrackName::operator<(const FullTrackName& other) const {
   return absl::c_lexicographical_compare(tuple_, other.tuple_);
 }
 FullTrackName::FullTrackName(absl::Span<const absl::string_view> elements)
-    : tuple_(elements.begin(), elements.end()) {
-  if (tuple_.size() < 2) {
-    QUICHE_BUG(FullTrackName_too_short)
-        << "Full track name should be at least two elements long";
-    // Failsafe.
-    while (tuple_.size() < 2) {
-      tuple_.push_back("");
-    }
-    return;
-  }
-}
+    : tuple_(elements.begin(), elements.end()) {}
 
 }  // namespace moqt

@@ -30,6 +30,16 @@ TEST(MoqtMessagesTest, FullTrackNameOrder) {
   EXPECT_LT(name1, name3);
 }
 
+TEST(MoqtMessagesTest, FullTrackNameInNamespace) {
+  FullTrackName name1({"a", "b"});
+  FullTrackName name2({"a", "b", "c"});
+  FullTrackName name3({"d", "b"});
+  EXPECT_TRUE(name2.InNamespace(name1));
+  EXPECT_FALSE(name1.InNamespace(name2));
+  EXPECT_TRUE(name1.InNamespace(name1));
+  EXPECT_FALSE(name2.InNamespace(name3));
+}
+
 TEST(MoqtMessagesTest, FullTrackNameToString) {
   FullTrackName name1({"a", "b"});
   EXPECT_EQ(name1.ToString(), R"({"a", "b"})");

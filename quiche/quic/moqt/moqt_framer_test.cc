@@ -309,7 +309,8 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
               start_object,
               end_group,
               end_object,
-              MoqtSubscribeParameters{"bar"},
+              MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt,
+                                      std::nullopt},
           };
           quiche::QuicheBuffer buffer;
           MoqtFilterType expected_filter_type = MoqtFilterType::kNone;
@@ -335,7 +336,7 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
           }
           buffer = framer_.SerializeSubscribe(subscribe);
           // Go to the filter type.
-          const uint8_t* read = BufferAtOffset(buffer, 14);
+          const uint8_t* read = BufferAtOffset(buffer, 15);
           EXPECT_EQ(static_cast<MoqtFilterType>(*read), expected_filter_type);
           EXPECT_GT(buffer.size(), 0);
           if (expected_filter_type == MoqtFilterType::kAbsoluteRange &&
@@ -360,7 +361,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
       /*start_object=*/std::optional<uint64_t>(3),
       /*end_group=*/std::optional<uint64_t>(3),
       /*end_object=*/std::nullopt,
-      MoqtSubscribeParameters{"bar"},
+      MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt, std::nullopt},
   };
   quiche::QuicheBuffer buffer;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
@@ -384,7 +385,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeLatestGroupNonzeroObject) {
       /*start_object=*/std::optional<uint64_t>(3),
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,
-      MoqtSubscribeParameters{"bar"},
+      MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt, std::nullopt},
   };
   quiche::QuicheBuffer buffer;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
@@ -400,7 +401,8 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
       /*end_group=*/4,
       /*end_object=*/std::nullopt,
       /*subscriber_priority=*/0xaa,
-      /*authorization_info=*/"bar",
+      MoqtSubscribeParameters{std::nullopt, std::nullopt, std::nullopt,
+                              std::nullopt},
   };
   quiche::QuicheBuffer buffer;
   buffer = framer_.SerializeSubscribeUpdate(subscribe_update);
@@ -419,7 +421,8 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
       /*end_group=*/4,
       /*end_object=*/6,
       /*subscriber_priority=*/0xaa,
-      /*authorization_info=*/"bar",
+      MoqtSubscribeParameters{std::nullopt, std::nullopt, std::nullopt,
+                              std::nullopt},
   };
   quiche::QuicheBuffer buffer;
   buffer = framer_.SerializeSubscribeUpdate(subscribe_update);
@@ -438,7 +441,8 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateInvalidRange) {
       /*end_group=*/std::nullopt,
       /*end_object=*/6,
       /*subscriber_priority=*/0xaa,
-      /*authorization_info=*/"bar",
+      MoqtSubscribeParameters{std::nullopt, std::nullopt, std::nullopt,
+                              std::nullopt},
   };
   quiche::QuicheBuffer buffer;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribeUpdate(subscribe_update),

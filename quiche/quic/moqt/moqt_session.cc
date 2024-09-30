@@ -225,7 +225,7 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
 
 // TODO: Create state that allows ANNOUNCE_OK/ERROR on spurious namespaces to
 // trigger session errors.
-void MoqtSession::Announce(absl::string_view track_namespace,
+void MoqtSession::Announce(FullTrackName track_namespace,
                            MoqtOutgoingAnnounceCallback announce_callback) {
   if (peer_role_ == MoqtRole::kPublisher) {
     std::move(announce_callback)(
@@ -505,7 +505,7 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
     auto subscribe_it = active_subscribes_.find(message.subscribe_id);
     if (subscribe_it == active_subscribes_.end()) {
       return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-          {FullTrackName{"", ""}, nullptr});
+          {FullTrackName{}, nullptr});
     }
     ActiveSubscribe& subscribe = subscribe_it->second;
     visitor = subscribe.visitor;
@@ -515,7 +515,7 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
         Error(MoqtError::kProtocolViolation,
               "Forwarding preference changes mid-track");
         return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-            {FullTrackName{"", ""}, nullptr});
+            {FullTrackName{}, nullptr});
       }
     } else {
       subscribe.forwarding_preference = message.forwarding_preference;
@@ -528,7 +528,7 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
     Error(MoqtError::kProtocolViolation,
           "Forwarding preference changes mid-track");
     return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-        {FullTrackName{"", ""}, nullptr});
+        {FullTrackName{}, nullptr});
   }
   return std::make_pair(track.full_track_name(), track.visitor());
 }
@@ -669,7 +669,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     QUIC_DLOG(INFO) << ENDPOINT << "SUBSCRIBE for " << track_name
                     << " rejected by the application: "
                     << track_publisher.status();
-    SendSubscribeError(message, SubscribeErrorCode::kInternalError,
+    SendSubscribeError(message, SubscribeErrorCode::kTrackDoesNotExist,
                        track_publisher.status().message(), message.track_alias);
     return;
   }

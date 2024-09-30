@@ -122,19 +122,21 @@ TEST_F(MoqtIntegrationTest, VersionMismatch) {
 
 TEST_F(MoqtIntegrationTest, AnnounceSuccess) {
   EstablishSession();
-  EXPECT_CALL(server_callbacks_.incoming_announce_callback, Call("foo"))
+  EXPECT_CALL(server_callbacks_.incoming_announce_callback,
+              Call(FullTrackName{"foo"}))
       .WillOnce(Return(std::nullopt));
   testing::MockFunction<void(
-      absl::string_view track_namespace,
+      FullTrackName track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
-  client_->session()->Announce("foo", announce_callback.AsStdFunction());
+  client_->session()->Announce(FullTrackName{"foo"},
+                               announce_callback.AsStdFunction());
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
-      .WillOnce([&](absl::string_view track_namespace,
+      .WillOnce([&](FullTrackName track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
         matches = true;
-        EXPECT_EQ(track_namespace, "foo");
+        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
         EXPECT_FALSE(error.has_value());
       });
   bool success =
@@ -144,22 +146,25 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccess) {
 
 TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
   EstablishSession();
-  EXPECT_CALL(server_callbacks_.incoming_announce_callback, Call("foo"))
+  EXPECT_CALL(server_callbacks_.incoming_announce_callback,
+              Call(FullTrackName{"foo"}))
       .WillOnce(Return(std::nullopt));
   MockRemoteTrackVisitor server_visitor;
   testing::MockFunction<void(
-      absl::string_view track_namespace,
+      FullTrackName track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
-  client_->session()->Announce("foo", announce_callback.AsStdFunction());
+  client_->session()->Announce(FullTrackName{"foo"},
+                               announce_callback.AsStdFunction());
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
-      .WillOnce([&](absl::string_view track_namespace,
+      .WillOnce([&](FullTrackName track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
-        EXPECT_EQ(track_namespace, "foo");
+        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        FullTrackName track_name = track_namespace;
+        track_name.AddElement("/catalog");
         EXPECT_FALSE(error.has_value());
-        server_->session()->SubscribeCurrentGroup(
-            FullTrackName(track_namespace, "/catalog"), &server_visitor);
+        server_->session()->SubscribeCurrentGroup(track_name, &server_visitor);
       });
   EXPECT_CALL(server_visitor, OnReply(_, _)).WillOnce([&]() {
     matches = true;
@@ -176,10 +181,11 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
   // it receives.
   MockRemoteTrackVisitor server_visitor;
   EXPECT_CALL(server_callbacks_.incoming_announce_callback, Call(_))
-      .WillOnce([&](absl::string_view track_namespace) {
+      .WillOnce([&](FullTrackName track_namespace) {
+        FullTrackName track_name = track_namespace;
+        track_name.AddElement("data");
         server_->session()->SubscribeAbsolute(
-            FullTrackName(track_namespace, "data"), /*start_group=*/0,
-            /*start_object=*/0, &server_visitor);
+            track_name, /*start_group=*/0, /*start_object=*/0, &server_visitor);
         return std::optional<MoqtAnnounceErrorReason>();
       });
 
@@ -194,7 +200,8 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
     received_subscribe_ok = true;
   });
   client_->session()->Announce(
-      "test", [](absl::string_view, std::optional<MoqtAnnounceErrorReason>) {});
+      FullTrackName{"test"},
+      [](FullTrackName, std::optional<MoqtAnnounceErrorReason>) {});
 
   bool received_object = false;
   EXPECT_CALL(server_visitor, OnObjectFragment(_, _, _, _, _, _, _, _))
@@ -335,16 +342,17 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
 TEST_F(MoqtIntegrationTest, AnnounceFailure) {
   EstablishSession();
   testing::MockFunction<void(
-      absl::string_view track_namespace,
+      FullTrackName track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
-  client_->session()->Announce("foo", announce_callback.AsStdFunction());
+  client_->session()->Announce(FullTrackName{"foo"},
+                               announce_callback.AsStdFunction());
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
-      .WillOnce([&](absl::string_view track_namespace,
+      .WillOnce([&](FullTrackName track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
         matches = true;
-        EXPECT_EQ(track_namespace, "foo");
+        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
         ASSERT_TRUE(error.has_value());
         EXPECT_EQ(error->error_code,
                   MoqtAnnounceErrorCode::kAnnounceNotSupported);

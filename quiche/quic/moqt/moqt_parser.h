@@ -122,9 +122,22 @@ class QUICHE_EXPORT MoqtControlParser {
   // |reader| does not have enough data.
   bool ReadParameter(quic::QuicDataReader& reader, uint64_t& type,
                      absl::string_view& value);
+  // Reads MoqtSubscribeParameter from one of the message types that supports
+  // it. The cursor in |reader| should point to the "number of parameters"
+  // field in the message. The cursor will move to the end of the parameters.
+  // Returns false if it could not parse the full message, in which case the
+  // cursor in |reader| should not be used.
+  bool ReadSubscribeParameters(quic::QuicDataReader& reader,
+                               MoqtSubscribeParameters& params);
   // Convert a string view to a varint. Throws an error and returns false if the
   // string_view is not exactly the right length.
   bool StringViewToVarInt(absl::string_view& sv, uint64_t& vi);
+
+  // Parses a message that a track namespace but not name. The last element of
+  // |full_track_name| will be set to the empty string. Returns false if it
+  // could not parse the full namespace field.
+  bool ReadTrackNamespace(quic::QuicDataReader& reader,
+                          FullTrackName& full_track_name);
 
   MoqtControlParserVisitor& visitor_;
   bool uses_web_transport_;

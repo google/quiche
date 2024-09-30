@@ -43,14 +43,14 @@ using MoqtSessionTerminatedCallback =
 using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
 // If |error_message| is nullopt, the ANNOUNCE was successful.
 using MoqtOutgoingAnnounceCallback = quiche::SingleUseCallback<void(
-    absl::string_view track_namespace,
+    FullTrackName track_namespace,
     std::optional<MoqtAnnounceErrorReason> error)>;
 using MoqtIncomingAnnounceCallback =
     quiche::MultiUseCallback<std::optional<MoqtAnnounceErrorReason>(
-        absl::string_view track_namespace)>;
+        FullTrackName track_namespace)>;
 
 inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
-    absl::string_view /*track_namespace*/) {
+    FullTrackName /*track_namespace*/) {
   return std::optional(MoqtAnnounceErrorReason{
       MoqtAnnounceErrorCode::kAnnounceNotSupported,
       "This endpoint does not accept incoming ANNOUNCE messages"});
@@ -108,7 +108,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // Send an ANNOUNCE message for |track_namespace|, and call
   // |announce_callback| when the response arrives. Will fail immediately if
   // there is already an unresolved ANNOUNCE for that namespace.
-  void Announce(absl::string_view track_namespace,
+  void Announce(FullTrackName track_namespace,
                 MoqtOutgoingAnnounceCallback announce_callback);
 
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
@@ -437,7 +437,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                                        FullSequence first_object);
 
   // Get FullTrackName and visitor for a subscribe_id and track_alias. Returns
-  // nullptr if not present.
+  // an empty FullTrackName tuple and nullptr if not present.
   std::pair<FullTrackName, RemoteTrack::Visitor*> TrackPropertiesFromAlias(
       const MoqtObject& message);
 
@@ -511,7 +511,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
       monitoring_interfaces_for_published_tracks_;
 
   // Indexed by track namespace.
-  absl::flat_hash_map<std::string, MoqtOutgoingAnnounceCallback>
+  absl::flat_hash_map<FullTrackName, MoqtOutgoingAnnounceCallback>
       pending_outgoing_announces_;
 
   // The role the peer advertised in its SETUP message. Initialize it to avoid

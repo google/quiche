@@ -33,15 +33,17 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
     MoqtSession* session, ChatServer* server)
     : session_(session), server_(server) {
   session_->callbacks().incoming_announce_callback =
-      [&](absl::string_view track_namespace) {
-        std::cout << "Received ANNOUNCE for " << track_namespace << "\n";
-        username_ =
-            server_->strings().GetUsernameFromTrackNamespace(track_namespace);
+      [&](FullTrackName track_namespace) {
+        FullTrackName track_name = track_namespace;
+        track_name.AddElement("");
+        std::cout << "Received ANNOUNCE for " << track_namespace.ToString()
+                  << "\n";
+        username_ = server_->strings().GetUsernameFromFullTrackName(track_name);
         if (username_->empty()) {
           std::cout << "Malformed ANNOUNCE namespace\n";
           return std::nullopt;
         }
-        session_->SubscribeCurrentGroup(FullTrackName({track_namespace, ""}),
+        session_->SubscribeCurrentGroup(track_name,
                                         server_->remote_track_visitor());
         server_->AddUser(*username_);
         return std::nullopt;
@@ -69,7 +71,8 @@ ChatServer::RemoteTrackVisitor::RemoteTrackVisitor(ChatServer* server)
 void ChatServer::RemoteTrackVisitor::OnReply(
     const moqt::FullTrackName& full_track_name,
     std::optional<absl::string_view> reason_phrase) {
-  std::cout << "Subscription to user " << full_track_name.track_namespace()
+  std::cout << "Subscription to user "
+            << server_->strings().GetUsernameFromFullTrackName(full_track_name)
             << " ";
   if (reason_phrase.has_value()) {
     std::cout << "REJECTED, reason = " << *reason_phrase << "\n";
