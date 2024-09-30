@@ -43,11 +43,6 @@ class QUICHE_EXPORT SubscribeWindow {
   // MoQT, subscription windows are only allowed to shrink, not to expand).
   bool UpdateStartEnd(FullSequence start, std::optional<FullSequence> end);
 
-  // Returns true if for a given forwarding preference, the specified sequence
-  // number might be the first object on a stream.
-  bool IsStreamProvokingObject(FullSequence sequence,
-                               MoqtForwardingPreference preference) const;
-
  private:
   FullSequence start_;
   std::optional<FullSequence> end_;

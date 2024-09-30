@@ -206,8 +206,7 @@ class QUICHE_EXPORT MoqtDataParser {
     if (!metadata_.has_value()) {
       return kHeader;
     }
-    if (payload_length_remaining_ > 0 ||
-        *type_ == MoqtDataStreamType::kObjectStream) {
+    if (payload_length_remaining_ > 0) {
       return kData;
     }
     return kSubheader;
@@ -215,8 +214,7 @@ class QUICHE_EXPORT MoqtDataParser {
 
   // Processes all that can be entirely processed, and returns the view for the
   // data that needs to be buffered.
-  // TODO: remove the `fin` argument once kObjectStream is gone.
-  absl::string_view ProcessDataInner(absl::string_view data, bool fin);
+  absl::string_view ProcessDataInner(absl::string_view data);
 
   void ParseError(absl::string_view reason);
 

@@ -38,7 +38,8 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   explicit MoqtLiveRelayQueue(FullTrackName track,
                               MoqtForwardingPreference forwarding_preference)
       : track_(std::move(track)),
-        forwarding_preference_(forwarding_preference) {}
+        forwarding_preference_(forwarding_preference),
+        next_sequence_(0, 0) {}
 
   MoqtLiveRelayQueue(const MoqtLiveRelayQueue&) = delete;
   MoqtLiveRelayQueue(MoqtLiveRelayQueue&&) = default;

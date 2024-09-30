@@ -103,6 +103,7 @@ class ChatServer {
   MoqtIncomingSessionCallback incoming_session_callback_ =
       [&](absl::string_view path) { return IncomingSessionHandler(path); };
 
+  bool is_running_ = true;
   MoqtServer server_;
   std::list<ChatServerSessionHandler> sessions_;
   MoqChatStrings strings_;

@@ -24,7 +24,7 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
  public:
   TestMoqtLiveRelayQueue()
       : MoqtLiveRelayQueue(FullTrackName{"test", "track"},
-                           MoqtForwardingPreference::kGroup) {
+                           MoqtForwardingPreference::kSubgroup) {
     AddObjectListener(this);
   }
 

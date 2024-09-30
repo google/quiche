@@ -44,8 +44,8 @@ TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdTrack) {
   EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(4, 0)), std::nullopt);
 }
 
-TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdGroup) {
-  SendStreamMap stream_map(MoqtForwardingPreference::kGroup);
+TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdSubgroup) {
+  SendStreamMap stream_map(MoqtForwardingPreference::kSubgroup);
   stream_map.AddStream(FullSequence{4, 0}, 2);
   EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(5, 0)), std::nullopt);
   stream_map.AddStream(FullSequence{5, 2}, 6);
@@ -55,21 +55,6 @@ TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdGroup) {
   EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(5, 0)), 6);
   stream_map.RemoveStream(FullSequence{5, 1}, 6);
   EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(5, 2)), std::nullopt);
-}
-
-TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdObject) {
-  SendStreamMap stream_map(MoqtForwardingPreference::kObject);
-  stream_map.AddStream(FullSequence{4, 0}, 2);
-  stream_map.AddStream(FullSequence{4, 1}, 6);
-  stream_map.AddStream(FullSequence{4, 2}, 10);
-  EXPECT_QUIC_BUG(stream_map.AddStream(FullSequence{4, 2}, 14),
-                  "Stream already added");
-  EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(4, 0)), 2);
-  EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(4, 2)), 10);
-  EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(4, 4)), std::nullopt);
-  EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(5, 0)), std::nullopt);
-  stream_map.RemoveStream(FullSequence(4, 2), 10);
-  EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(4, 2)), std::nullopt);
 }
 
 TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdDatagram) {

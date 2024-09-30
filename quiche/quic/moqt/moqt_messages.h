@@ -65,10 +65,9 @@ struct QUICHE_EXPORT MoqtSessionParameters {
 inline constexpr size_t kMaxMessageHeaderSize = 2048;
 
 enum class QUICHE_EXPORT MoqtDataStreamType : uint64_t {
-  kObjectStream = 0x00,
   kObjectDatagram = 0x01,
-  kStreamHeaderTrack = 0x50,
-  kStreamHeaderGroup = 0x51,
+  kStreamHeaderTrack = 0x02,
+  kStreamHeaderSubgroup = 0x04,
 
   // Currently QUICHE-specific.  All data on a kPadding stream is ignored.
   kPadding = 0x26d3,
@@ -218,11 +217,20 @@ class FullTrackName {
 
 // These are absolute sequence numbers.
 struct FullSequence {
-  uint64_t group = 0;
-  uint64_t object = 0;
+  uint64_t group;
+  uint64_t subgroup;
+  uint64_t object;
+  FullSequence() : FullSequence(0, 0) {}
+  // There is a lot of code from before subgroups. Assume there's one subgroup
+  // with ID 0 per group.
+  FullSequence(uint64_t group, uint64_t object)
+      : FullSequence(group, 0, object) {}
+  FullSequence(uint64_t group, uint64_t subgroup, uint64_t object)
+      : group(group), subgroup(subgroup), object(object) {}
   bool operator==(const FullSequence& other) const {
     return group == other.group && object == other.object;
   }
+  // These are temporal ordering comparisons, so subgroup ID doesn't matter.
   bool operator<(const FullSequence& other) const {
     return group < other.group ||
            (group == other.group && object < other.object);
@@ -237,7 +245,9 @@ struct FullSequence {
     object = other.object;
     return *this;
   }
-  FullSequence next() const { return FullSequence{group, object + 1}; }
+  FullSequence next() const {
+    return FullSequence{group, subgroup, object + 1};
+  }
   template <typename H>
   friend H AbslHashValue(H h, const FullSequence& m);
 
@@ -245,6 +255,11 @@ struct FullSequence {
   friend void AbslStringify(Sink& sink, const FullSequence& sequence) {
     absl::Format(&sink, "(%d; %d)", sequence.group, sequence.object);
   }
+};
+
+struct SubgroupPriority {
+  uint8_t publisher_priority = 0xf0;
+  uint64_t subgroup_id = 0;
 };
 
 template <typename H>
@@ -268,11 +283,10 @@ struct QUICHE_EXPORT MoqtServerSetup {
 };
 
 // These codes do not appear on the wire.
-enum class QUICHE_EXPORT MoqtForwardingPreference : uint8_t {
-  kTrack = 0x0,
-  kGroup = 0x1,
-  kObject = 0x2,
-  kDatagram = 0x3,
+enum class QUICHE_EXPORT MoqtForwardingPreference {
+  kTrack,
+  kSubgroup,
+  kDatagram,
 };
 
 enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
@@ -281,14 +295,14 @@ enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
   kGroupDoesNotExist = 0x2,
   kEndOfGroup = 0x3,
   kEndOfTrack = 0x4,
-  kInvalidObjectStatus = 0x5,
+  kEndOfSubgroup = 0x5,
+  kInvalidObjectStatus = 0x6,
 };
 
 MoqtObjectStatus IntegerToObjectStatus(uint64_t integer);
 
 // The data contained in every Object message, although the message type
-// implies some of the values. |payload_length| has no value if the length
-// is unknown (because it runs to the end of the stream.)
+// implies some of the values.
 struct QUICHE_EXPORT MoqtObject {
   uint64_t subscribe_id;
   uint64_t track_alias;
@@ -297,7 +311,8 @@ struct QUICHE_EXPORT MoqtObject {
   MoqtPriority publisher_priority;
   MoqtObjectStatus object_status;
   MoqtForwardingPreference forwarding_preference;
-  std::optional<uint64_t> payload_length;
+  std::optional<uint64_t> subgroup_id;
+  uint64_t payload_length;
 };
 
 enum class QUICHE_EXPORT MoqtFilterType : uint64_t {

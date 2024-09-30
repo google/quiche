@@ -27,9 +27,9 @@ TEST_F(RemoteTrackTest, Queries) {
 
 TEST_F(RemoteTrackTest, UpdateForwardingPreference) {
   EXPECT_TRUE(
-      track_.CheckForwardingPreference(MoqtForwardingPreference::kObject));
+      track_.CheckForwardingPreference(MoqtForwardingPreference::kSubgroup));
   EXPECT_TRUE(
-      track_.CheckForwardingPreference(MoqtForwardingPreference::kObject));
+      track_.CheckForwardingPreference(MoqtForwardingPreference::kSubgroup));
   EXPECT_FALSE(
       track_.CheckForwardingPreference(MoqtForwardingPreference::kDatagram));
 }

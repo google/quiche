@@ -51,17 +51,17 @@ webtransport::SendOrder SendOrderForStream(MoqtPriority subscriber_priority,
 webtransport::SendOrder SendOrderForStream(MoqtPriority subscriber_priority,
                                            MoqtPriority publisher_priority,
                                            uint64_t group_id,
-                                           uint64_t object_id,
+                                           uint64_t subgroup_id,
                                            MoqtDeliveryOrder delivery_order) {
   const int64_t track_bits = (Flip<8>(subscriber_priority) << 54) |
                              (Flip<8>(publisher_priority) << 46);
   group_id = OnlyLowestNBits<26>(group_id);
-  object_id = OnlyLowestNBits<20>(object_id);
+  subgroup_id = OnlyLowestNBits<20>(subgroup_id);
   if (delivery_order == MoqtDeliveryOrder::kAscending) {
     group_id = Flip<26>(group_id);
   }
-  object_id = Flip<20>(object_id);  // Object ID is always ascending.
-  return track_bits | (group_id << 20) | object_id;
+  subgroup_id = Flip<20>(subgroup_id);
+  return track_bits | (group_id << 20) | subgroup_id;
 }
 
 webtransport::SendOrder UpdateSendOrderForSubscriberPriority(

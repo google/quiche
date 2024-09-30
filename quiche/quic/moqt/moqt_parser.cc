@@ -52,7 +52,7 @@ uint64_t SignedVarintUnserializedForm(uint64_t value) {
 
 bool IsAllowedStreamType(uint64_t value) {
   constexpr std::array kAllowedStreamTypes = {
-      MoqtDataStreamType::kObjectStream, MoqtDataStreamType::kStreamHeaderGroup,
+      MoqtDataStreamType::kStreamHeaderSubgroup,
       MoqtDataStreamType::kStreamHeaderTrack, MoqtDataStreamType::kPadding};
   for (MoqtDataStreamType type : kAllowedStreamTypes) {
     if (static_cast<uint64_t>(type) == value) {
@@ -72,18 +72,24 @@ size_t ParseObjectHeader(quic::QuicDataReader& reader, MoqtObject& object,
       !reader.ReadVarInt62(&object.group_id)) {
     return 0;
   }
-  if (type != MoqtDataStreamType::kStreamHeaderTrack &&
-      type != MoqtDataStreamType::kStreamHeaderGroup &&
+  if (type == MoqtDataStreamType::kStreamHeaderSubgroup) {
+    uint64_t subgroup_id;
+    if (!reader.ReadVarInt62(&subgroup_id)) {
+      return 0;
+    }
+    object.subgroup_id = subgroup_id;
+  }
+  if (type == MoqtDataStreamType::kObjectDatagram &&
       !reader.ReadVarInt62(&object.object_id)) {
     return 0;
   }
   if (!reader.ReadUInt8(&object.publisher_priority)) {
     return 0;
   }
-  uint64_t status = 0;
-  if ((type == MoqtDataStreamType::kObjectStream ||
-       type == MoqtDataStreamType::kObjectDatagram) &&
-      !reader.ReadVarInt62(&status)) {
+  uint64_t status = static_cast<uint64_t>(MoqtObjectStatus::kNormal);
+  if (type == MoqtDataStreamType::kObjectDatagram &&
+      (!reader.ReadVarInt62(&object.payload_length) ||
+       (object.payload_length == 0 && !reader.ReadVarInt62(&status)))) {
     return 0;
   }
   object.object_status = IntegerToObjectStatus(status);
@@ -100,15 +106,13 @@ size_t ParseObjectSubheader(quic::QuicDataReader& reader, MoqtObject& object,
       }
       [[fallthrough]];
 
-    case MoqtDataStreamType::kStreamHeaderGroup: {
-      uint64_t length;
+    case MoqtDataStreamType::kStreamHeaderSubgroup: {
       if (!reader.ReadVarInt62(&object.object_id) ||
-          !reader.ReadVarInt62(&length)) {
+          !reader.ReadVarInt62(&object.payload_length)) {
         return 0;
       }
-      object.payload_length = length;
-      uint64_t status = 0;
-      if (length == 0 && !reader.ReadVarInt62(&status)) {
+      uint64_t status = static_cast<uint64_t>(MoqtObjectStatus::kNormal);
+      if (object.payload_length == 0 && !reader.ReadVarInt62(&status)) {
         return 0;
       }
       object.object_status = IntegerToObjectStatus(status);
@@ -902,11 +906,6 @@ void MoqtDataParser::ProcessData(absl::string_view data, bool fin) {
     return;
   }
 
-  // Annoying path (going away soon): handle kObjectStream receiving a FIN.
-  if (data.empty() && fin && type_ == MoqtDataStreamType::kObjectStream) {
-    visitor_.OnObjectMessage(*metadata_, "", true);
-  }
-
   // Sad path: there is already data buffered.  Attempt to transfer a small
   // chunk from `data` into the buffer, in hope that it will make the contents
   // of the buffer parsable without any leftover data.  This is a reasonable
@@ -915,8 +914,7 @@ void MoqtDataParser::ProcessData(absl::string_view data, bool fin) {
   while (!buffered_message_.empty() && !data.empty()) {
     absl::string_view chunk = data.substr(0, chunk_size_);
     absl::StrAppend(&buffered_message_, chunk);
-    absl::string_view unprocessed =
-        ProcessDataInner(buffered_message_, fin && data.size() == chunk.size());
+    absl::string_view unprocessed = ProcessDataInner(buffered_message_);
     if (unprocessed.size() >= chunk.size()) {
       // chunk didn't allow any processing at all.
       data.remove_prefix(chunk.size());
@@ -928,7 +926,7 @@ void MoqtDataParser::ProcessData(absl::string_view data, bool fin) {
 
   // Happy path: there is no buffered data.
   if (buffered_message_.empty() && !data.empty()) {
-    buffered_message_.assign(ProcessDataInner(data, fin));
+    buffered_message_.assign(ProcessDataInner(data));
   }
 
   if (fin) {
@@ -941,8 +939,7 @@ void MoqtDataParser::ProcessData(absl::string_view data, bool fin) {
   }
 }
 
-absl::string_view MoqtDataParser::ProcessDataInner(absl::string_view data,
-                                                   bool fin) {
+absl::string_view MoqtDataParser::ProcessDataInner(absl::string_view data) {
   quic::QuicDataReader reader(data);
   while (!reader.IsDoneReading()) {
     absl::string_view remainder = reader.PeekRemainingPayload();
@@ -966,11 +963,6 @@ absl::string_view MoqtDataParser::ProcessDataInner(absl::string_view data,
         if (bytes_read == 0) {
           return remainder;
         }
-        if (type_ == MoqtDataStreamType::kObjectStream &&
-            header.object_status == MoqtObjectStatus::kInvalidObjectStatus) {
-          ParseError("Invalid object status");
-          return "";
-        }
         metadata_ = header;
         continue;
       }
@@ -985,22 +977,14 @@ absl::string_view MoqtDataParser::ProcessDataInner(absl::string_view data,
           ParseError("Invalid object status provided");
           return "";
         }
-        payload_length_remaining_ = *metadata_->payload_length;
+        payload_length_remaining_ = metadata_->payload_length;
+        if (payload_length_remaining_ == 0) {
+          visitor_.OnObjectMessage(*metadata_, "", true);
+        }
         continue;
       }
 
       case kData: {
-        if (payload_length_remaining_ == 0) {
-          // Special case: kObject, which does not have explicit length.
-          if (metadata_->object_status != MoqtObjectStatus::kNormal) {
-            ParseError("Object with non-normal status has payload");
-            return "";
-          }
-          visitor_.OnObjectMessage(*metadata_, reader.PeekRemainingPayload(),
-                                   fin);
-          return "";
-        }
-
         absl::string_view payload =
             reader.ReadAtMost(payload_length_remaining_);
         visitor_.OnObjectMessage(*metadata_, payload,

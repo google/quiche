@@ -139,6 +139,10 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "OBJECT Object Send Order mismatch";
       return false;
     }
+    if (cast.subgroup_id != object_.subgroup_id) {
+      QUIC_LOG(INFO) << "OBJECT Subgroup ID mismatch";
+      return false;
+    }
     if (cast.payload_length != object_.payload_length) {
       QUIC_LOG(INFO) << "OBJECT Payload Length mismatch";
       return false;
@@ -159,23 +163,8 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       /*publisher_priority=*/7,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kTrack,
-      /*payload_length=*/std::nullopt,
-  };
-};
-
-class QUICHE_NO_EXPORT ObjectStreamMessage : public ObjectMessage {
- public:
-  ObjectStreamMessage() : ObjectMessage() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-    object_.forwarding_preference = MoqtForwardingPreference::kObject;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvv-v---"); }
-
- private:
-  uint8_t raw_packet_[10] = {
-      0x00, 0x03, 0x04, 0x05, 0x06, 0x07, 0x00,  // varints
-      0x66, 0x6f, 0x6f,                          // payload = "foo"
+      /*subgroup_id=*/std::nullopt,
+      /*payload_length=*/3,
   };
 };
 
@@ -190,8 +179,9 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
 
  private:
   uint8_t raw_packet_[10] = {
-      0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x00,  // varints
-      0x66, 0x6f, 0x6f,                          // payload = "foo"
+      0x01, 0x03, 0x04, 0x05, 0x06,  // varints
+      0x07,                          // publisher priority
+      0x03, 0x66, 0x6f, 0x6f,        // payload = "foo"
   };
 };
 
@@ -205,16 +195,17 @@ class QUICHE_NO_EXPORT StreamHeaderTrackMessage : public ObjectMessage {
     object_.payload_length = 3;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("--vv-vvv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv-vvv"); }
 
  private:
   // Some tests check that a FIN sent at the halfway point of a message results
   // in an error. Without the unnecessary expanded varint 0x0405, the halfway
   // point falls at the end of the Stream Header, which is legal. Expand the
   // varint so that the FIN would be illegal.
-  uint8_t raw_packet_[11] = {
-      0x40, 0x50,              // two byte type field
-      0x03, 0x04, 0x07,        // varints
+  uint8_t raw_packet_[10] = {
+      0x02,                    // type field
+      0x03, 0x04,              // varints
+      0x07,                    // publisher priority
       0x05, 0x06,              // object middler
       0x03, 0x66, 0x6f, 0x6f,  // payload = "foo"
   };
@@ -226,7 +217,6 @@ class QUICHE_NO_EXPORT StreamMiddlerTrackMessage : public ObjectMessage {
   StreamMiddlerTrackMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     object_.forwarding_preference = MoqtForwardingPreference::kTrack;
-    object_.payload_length = 3;
     object_.group_id = 9;
     object_.object_id = 10;
   }
@@ -240,35 +230,47 @@ class QUICHE_NO_EXPORT StreamMiddlerTrackMessage : public ObjectMessage {
   };
 };
 
-class QUICHE_NO_EXPORT StreamHeaderGroupMessage : public ObjectMessage {
+class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
  public:
-  StreamHeaderGroupMessage() : ObjectMessage() {
+  StreamHeaderSubgroupMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
-    object_.forwarding_preference = MoqtForwardingPreference::kGroup;
-    object_.payload_length = 3;
+    object_.forwarding_preference = MoqtForwardingPreference::kSubgroup;
+    object_.subgroup_id = 8;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("--vvv-vv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvv-vv"); }
+
+  bool SetPayloadLength(uint8_t payload_length) {
+    if (payload_length > 63) {
+      // This only supports one-byte varints.
+      return false;
+    }
+    object_.payload_length = payload_length;
+    raw_packet_[7] = payload_length;
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+    return true;
+  }
 
  private:
   uint8_t raw_packet_[11] = {
-      0x40, 0x51,                    // two-byte type field
-      0x03, 0x04, 0x05, 0x07,        // varints
+      0x04,                          // type field
+      0x03, 0x04, 0x05, 0x08,        // varints
+      0x07,                          // publisher priority
       0x06, 0x03, 0x66, 0x6f, 0x6f,  // object middler; payload = "foo"
   };
 };
 
 // Used only for tests that process multiple objects on one stream.
-class QUICHE_NO_EXPORT StreamMiddlerGroupMessage : public ObjectMessage {
+class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
  public:
-  StreamMiddlerGroupMessage() : ObjectMessage() {
+  StreamMiddlerSubgroupMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
-    object_.forwarding_preference = MoqtForwardingPreference::kGroup;
-    object_.payload_length = 3;
+    object_.forwarding_preference = MoqtForwardingPreference::kSubgroup;
+    object_.subgroup_id = 8;
     object_.object_id = 9;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vv"); }
 
  private:
   uint8_t raw_packet_[5] = {
@@ -1187,14 +1189,12 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
 static inline std::unique_ptr<TestMessageBase> CreateTestDataStream(
     MoqtDataStreamType type) {
   switch (type) {
-    case MoqtDataStreamType::kObjectStream:
-      return std::make_unique<ObjectStreamMessage>();
     case MoqtDataStreamType::kObjectDatagram:
       return std::make_unique<ObjectDatagramMessage>();
     case MoqtDataStreamType::kStreamHeaderTrack:
       return std::make_unique<StreamHeaderTrackMessage>();
-    case MoqtDataStreamType::kStreamHeaderGroup:
-      return std::make_unique<StreamHeaderGroupMessage>();
+    case MoqtDataStreamType::kStreamHeaderSubgroup:
+      return std::make_unique<StreamHeaderSubgroupMessage>();
     case MoqtDataStreamType::kPadding:
       return nullptr;
   }

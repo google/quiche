@@ -28,7 +28,7 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
  public:
   TestMoqtOutgoingQueue()
       : MoqtOutgoingQueue(FullTrackName{"test", "track"},
-                          MoqtForwardingPreference::kGroup) {
+                          MoqtForwardingPreference::kSubgroup) {
     AddObjectListener(this);
   }
 

@@ -118,7 +118,7 @@ class ObjectGenerator : public quic::simulator::Actor,
                   QuicBandwidth bitrate)
       : Actor(simulator, actor_name),
         queue_(std::make_shared<MoqtOutgoingQueue>(
-            track_name, MoqtForwardingPreference::kGroup)),
+            track_name, MoqtForwardingPreference::kSubgroup)),
         keyframe_interval_(keyframe_interval),
         time_between_frames_(QuicTimeDelta::FromMicroseconds(1.0e6 / fps)),
         i_to_p_ratio_(i_to_p_ratio),

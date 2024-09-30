@@ -190,7 +190,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
       });
 
   auto queue = std::make_shared<MoqtOutgoingQueue>(
-      FullTrackName{"test", "data"}, MoqtForwardingPreference::kGroup);
+      FullTrackName{"test", "data"}, MoqtForwardingPreference::kSubgroup);
   MoqtKnownTrackPublisher known_track_publisher;
   known_track_publisher.Add(queue);
   client_->session()->set_publisher(&known_track_publisher);
@@ -215,7 +215,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
         EXPECT_EQ(group_sequence, 0u);
         EXPECT_EQ(object_sequence, 0u);
         EXPECT_EQ(status, MoqtObjectStatus::kNormal);
-        EXPECT_EQ(forwarding_preference, MoqtForwardingPreference::kGroup);
+        EXPECT_EQ(forwarding_preference, MoqtForwardingPreference::kSubgroup);
         EXPECT_EQ(object, "object data");
         EXPECT_TRUE(end_of_message);
         received_object = true;
@@ -232,15 +232,14 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
   server_->session()->set_publisher(&publisher);
 
   for (MoqtForwardingPreference forwarding_preference :
-       {MoqtForwardingPreference::kTrack, MoqtForwardingPreference::kGroup,
-        MoqtForwardingPreference::kObject,
+       {MoqtForwardingPreference::kTrack, MoqtForwardingPreference::kSubgroup,
         MoqtForwardingPreference::kDatagram}) {
     SCOPED_TRACE(MoqtForwardingPreferenceToString(forwarding_preference));
     MockRemoteTrackVisitor client_visitor;
     std::string name =
         absl::StrCat("pref_", static_cast<int>(forwarding_preference));
     auto queue = std::make_shared<MoqtOutgoingQueue>(
-        FullTrackName{"test", name}, MoqtForwardingPreference::kObject);
+        FullTrackName{"test", name}, MoqtForwardingPreference::kSubgroup);
     publisher.Add(queue);
     queue->AddObject(MemSliceFromString("object 1"), /*key=*/true);
     queue->AddObject(MemSliceFromString("object 2"), /*key=*/false);
@@ -294,15 +293,14 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
   server_->session()->set_publisher(&publisher);
 
   for (MoqtForwardingPreference forwarding_preference :
-       {MoqtForwardingPreference::kTrack, MoqtForwardingPreference::kGroup,
-        MoqtForwardingPreference::kObject,
+       {MoqtForwardingPreference::kTrack, MoqtForwardingPreference::kSubgroup,
         MoqtForwardingPreference::kDatagram}) {
     SCOPED_TRACE(MoqtForwardingPreferenceToString(forwarding_preference));
     MockRemoteTrackVisitor client_visitor;
     std::string name =
         absl::StrCat("pref_", static_cast<int>(forwarding_preference));
     auto queue = std::make_shared<MoqtOutgoingQueue>(
-        FullTrackName{"test", name}, MoqtForwardingPreference::kObject);
+        FullTrackName{"test", name}, forwarding_preference);
     publisher.Add(queue);
     for (int i = 0; i < 100; ++i) {
       queue->AddObject(MemSliceFromString("object"), /*key=*/true);

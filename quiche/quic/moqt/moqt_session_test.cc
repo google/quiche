@@ -717,7 +717,8 @@ TEST_F(MoqtSessionTest, IncomingObject) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
+      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
+      /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
   webtransport::test::MockStream mock_stream;
@@ -742,7 +743,8 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
+      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
+      /*subgroup_id=*/0,
       /*payload_length=*/16,
   };
   webtransport::test::MockStream mock_stream;
@@ -772,7 +774,8 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
+      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
+      /*subgroup_id=*/0,
       /*payload_length=*/16,
   };
   webtransport::test::MockStream mock_stream;
@@ -809,7 +812,8 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
+      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
+      /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
   webtransport::test::MockStream mock_stream;
@@ -867,7 +871,8 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
+      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
+      /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
   webtransport::test::MockStream mock_stream;
@@ -928,7 +933,8 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
+      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
+      /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
   webtransport::test::MockStream mock_stream;
@@ -948,7 +954,7 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
   EXPECT_CALL(mock_stream, GetStreamId())
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, true);
-  object.forwarding_preference = MoqtForwardingPreference::kObject;
+  object.forwarding_preference = MoqtForwardingPreference::kTrack;
   ++object.object_id;
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
@@ -980,7 +986,8 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
+      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
+      /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
   webtransport::test::MockStream mock_stream;
@@ -1004,7 +1011,7 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
   MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor, 2);
   // The track already exists, and has a different forwarding preference.
   MoqtSessionPeer::remote_track(&session_, 2)
-      .CheckForwardingPreference(MoqtForwardingPreference::kObject);
+      .CheckForwardingPreference(MoqtForwardingPreference::kTrack);
 
   // SUBSCRIBE_OK arrives
   MoqtSubscribeOk ok = {
@@ -1025,7 +1032,7 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
 
 TEST_F(MoqtSessionTest, CreateIncomingDataStreamAndSend) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kObject,
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
                               FullSequence(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
@@ -1052,7 +1059,7 @@ TEST_F(MoqtSessionTest, CreateIncomingDataStreamAndSend) {
 
   // Verify first six message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x00, 0x00, 0x02, 0x05, 0x00, 0x00};
+  const std::string kExpectedMessage = {0x04, 0x00, 0x02, 0x05, 0x00, 0x00};
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1075,8 +1082,8 @@ TEST_F(MoqtSessionTest, CreateIncomingDataStreamAndSend) {
 
 TEST_F(MoqtSessionTest, UnidirectionalStreamCannotBeOpened) {
   FullTrackName ftn("foo", "bar");
-  auto track =
-      SetupPublisher(ftn, MoqtForwardingPreference::kGroup, FullSequence(4, 2));
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
+                              FullSequence(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1118,8 +1125,8 @@ TEST_F(MoqtSessionTest, UnidirectionalStreamCannotBeOpened) {
 
 TEST_F(MoqtSessionTest, OutgoingStreamDisappears) {
   FullTrackName ftn("foo", "bar");
-  auto track =
-      SetupPublisher(ftn, MoqtForwardingPreference::kGroup, FullSequence(4, 2));
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
+                              FullSequence(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1277,7 +1284,7 @@ TEST_F(MoqtSessionTest, SendDatagram) {
   // Publish in window.
   bool correct_message = false;
   uint8_t kExpectedMessage[] = {
-      0x01, 0x00, 0x02, 0x05, 0x00, 0x00, 0x00, 0x64,
+      0x01, 0x00, 0x02, 0x05, 0x00, 0x00, 0x08, 0x64,
       0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66,
   };
   EXPECT_CALL(mock_session_, SendOrQueueDatagram(_))
@@ -1311,9 +1318,10 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*forwarding_preference=*/MoqtForwardingPreference::kDatagram,
+      /*subgroup_id=*/std::nullopt,
       /*payload_length=*/8,
   };
-  char datagram[] = {0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x64,
+  char datagram[] = {0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x08, 0x64,
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(visitor_,
               OnObjectFragment(ftn, object.group_id, object.object_id,
@@ -1335,7 +1343,8 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kGroup,
+      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
+      /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
   webtransport::test::MockStream mock_stream;
@@ -1410,8 +1419,8 @@ TEST_F(MoqtSessionTest, AnnounceFromSubscriber) {
 
 TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
   FullTrackName ftn("foo", "bar");
-  auto track =
-      SetupPublisher(ftn, MoqtForwardingPreference::kGroup, FullSequence(0, 0));
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
+                              FullSequence(0, 0));
   EXPECT_CALL(*track, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
   MoqtObjectListener* subscription =
@@ -1482,22 +1491,22 @@ TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
   EXPECT_CALL(mock_stream0, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
-        // The Group ID is the 5th byte of the stream.
+        // The Group ID is the 4th byte of the stream.
         EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 0);
         return absl::OkStatus();
       });
   EXPECT_CALL(mock_stream1, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
-        // The Group ID is the 5th byte of the stream.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 1);
+        // The Group ID is the 4th byte of the stream.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][3]), 1);
         return absl::OkStatus();
       });
   EXPECT_CALL(mock_stream2, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
-        // The Group ID is the 5th byte of the stream.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 2);
+        // The Group ID is the 4th byte of the stream.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][3]), 2);
         return absl::OkStatus();
       });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
@@ -1505,8 +1514,8 @@ TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
 
 TEST_F(MoqtSessionTest, StreamQueuedForSubscriptionThatDoesntExist) {
   FullTrackName ftn("foo", "bar");
-  auto track =
-      SetupPublisher(ftn, MoqtForwardingPreference::kGroup, FullSequence(0, 0));
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
+                              FullSequence(0, 0));
   EXPECT_CALL(*track, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
   MoqtObjectListener* subscription =
@@ -1527,8 +1536,8 @@ TEST_F(MoqtSessionTest, StreamQueuedForSubscriptionThatDoesntExist) {
 
 TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   FullTrackName ftn("foo", "bar");
-  auto track =
-      SetupPublisher(ftn, MoqtForwardingPreference::kGroup, FullSequence(0, 0));
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
+                              FullSequence(0, 0));
   EXPECT_CALL(*track, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
   // Create two identical subscriptions with different priorities.
@@ -1579,9 +1588,9 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
         // Check subscribe ID is 0.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 0);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][1]), 0);
         // Check Group ID is 0
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 0);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][3]), 0);
         return absl::OkStatus();
       });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
@@ -1615,9 +1624,9 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
         // Check subscribe ID is 0.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 1);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][1]), 1);
         // Check Group ID is 0
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 0);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][3]), 0);
         return absl::OkStatus();
       });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();

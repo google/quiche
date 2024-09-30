@@ -30,7 +30,7 @@ QUICHE_EXPORT webtransport::SendOrder SendOrderForStream(
     uint64_t group_id, MoqtDeliveryOrder delivery_order);
 QUICHE_EXPORT webtransport::SendOrder SendOrderForStream(
     MoqtPriority subscriber_priority, MoqtPriority publisher_priority,
-    uint64_t group_id, uint64_t object_id, MoqtDeliveryOrder delivery_order);
+    uint64_t group_id, uint64_t subgroup_id, MoqtDeliveryOrder delivery_order);
 
 // Returns |send_order| updated with the new |subscriber_priority|.
 QUICHE_EXPORT webtransport::SendOrder UpdateSendOrderForSubscriberPriority(

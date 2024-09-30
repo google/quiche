@@ -60,6 +60,9 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
 }
 
 ChatServer::ChatServerSessionHandler::~ChatServerSessionHandler() {
+  if (!server_->is_running_) {
+    return;
+  }
   if (username_.has_value()) {
     server_->DeleteUser(*username_);
   }
@@ -125,7 +128,7 @@ ChatServer::ChatServer(std::unique_ptr<quic::ProofSource> proof_source,
     : server_(std::move(proof_source), std::move(incoming_session_callback_)),
       strings_(chat_id),
       catalog_(std::make_shared<MoqtOutgoingQueue>(
-          strings_.GetCatalogName(), MoqtForwardingPreference::kGroup)),
+          strings_.GetCatalogName(), MoqtForwardingPreference::kSubgroup)),
       remote_track_visitor_(this) {
   catalog_->AddObject(quiche::QuicheMemSlice(quiche::QuicheBuffer::Copy(
                           quiche::SimpleBufferAllocator::Get(),
@@ -145,6 +148,7 @@ ChatServer::ChatServer(std::unique_ptr<quic::ProofSource> proof_source,
 ChatServer::~ChatServer() {
   // Kill all sessions so that the callback doesn't fire when the server is
   // destroyed.
+  is_running_ = false;
   server_.quic_server().Shutdown();
 }
 
@@ -156,7 +160,7 @@ void ChatServer::AddUser(absl::string_view username) {
   // Add a local track.
   user_queues_[username] = std::make_shared<MoqtLiveRelayQueue>(
       strings_.GetFullTrackNameFromUsername(username),
-      MoqtForwardingPreference::kObject);
+      MoqtForwardingPreference::kSubgroup);
   publisher_.Add(user_queues_[username]);
 }
 

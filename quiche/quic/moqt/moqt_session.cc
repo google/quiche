@@ -191,10 +191,6 @@ void MoqtSession::OnIncomingUnidirectionalStreamAvailable() {
 void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   MoqtObject message;
   absl::string_view payload = ParseDatagram(datagram, message);
-  if (payload.empty()) {
-    Error(MoqtError::kProtocolViolation, "Malformed datagram");
-    return;
-  }
   QUICHE_DLOG(INFO) << ENDPOINT
                     << "Received OBJECT message in datagram for subscribe_id "
                     << message.subscribe_id << " for track alias "
@@ -892,23 +888,23 @@ void MoqtSession::ControlStream::SendOrBufferMessage(
 void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                                                       absl::string_view payload,
                                                       bool end_of_message) {
-  QUICHE_DVLOG(1)
-      << ENDPOINT << "Received OBJECT message on stream "
-      << stream_->GetStreamId() << " for subscribe_id " << message.subscribe_id
-      << " for track alias " << message.track_alias << " with sequence "
-      << message.group_id << ":" << message.object_id << " priority "
-      << message.publisher_priority << " forwarding_preference "
-      << MoqtForwardingPreferenceToString(message.forwarding_preference)
-      << " length " << payload.size() << " explicit length "
-      << (message.payload_length.has_value() ? (int)*message.payload_length
-                                             : -1)
-      << (end_of_message ? "F" : "");
+  QUICHE_DVLOG(1) << ENDPOINT << "Received OBJECT message on stream "
+                  << stream_->GetStreamId() << " for subscribe_id "
+                  << message.subscribe_id << " for track alias "
+                  << message.track_alias << " with sequence "
+                  << message.group_id << ":" << message.object_id
+                  << " priority " << message.publisher_priority
+                  << " forwarding_preference "
+                  << MoqtForwardingPreferenceToString(
+                         message.forwarding_preference)
+                  << " length " << payload.size() << " length "
+                  << message.payload_length << (end_of_message ? "F" : "");
   if (!session_->parameters_.deliver_partial_objects) {
     if (!end_of_message) {  // Buffer partial object.
-      if (partial_object_.empty() && message.payload_length.has_value()) {
+      if (partial_object_.empty()) {
         // Avoid redundant allocations by reserving the appropriate amount of
         // memory if known.
-        partial_object_.reserve(*message.payload_length);
+        partial_object_.reserve(message.payload_length);
       }
       absl::StrAppend(&partial_object_, payload);
       return;
@@ -1027,14 +1023,6 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
   if (stream_id.has_value()) {
     raw_stream = session_->session_->GetStreamById(*stream_id);
   } else {
-    if (!window_.IsStreamProvokingObject(sequence, forwarding_preference)) {
-      QUIC_DLOG(INFO) << ENDPOINT << "Received object " << sequence
-                      << ", but there is no stream that it can be mapped to";
-      // It is possible that the we are getting notified of objects out of
-      // order, but we still have to send objects in a manner consistent with
-      // the forwarding preference used.
-      return;
-    }
     raw_stream = session_->OpenOrQueueDataStream(subscription_id_, sequence);
   }
   if (raw_stream == nullptr) {
@@ -1089,13 +1077,9 @@ webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
       return SendOrderForStream(subscriber_priority_, publisher_priority,
                                 /*group_id=*/0, delivery_order);
       break;
-    case MoqtForwardingPreference::kGroup:
+    case MoqtForwardingPreference::kSubgroup:
       return SendOrderForStream(subscriber_priority_, publisher_priority,
-                                sequence.group, delivery_order);
-      break;
-    case MoqtForwardingPreference::kObject:
-      return SendOrderForStream(subscriber_priority_, publisher_priority,
-                                sequence.group, sequence.object,
+                                sequence.group, sequence.subgroup,
                                 delivery_order);
       break;
     case MoqtForwardingPreference::kDatagram:
@@ -1270,6 +1254,11 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
   header.publisher_priority = publisher.GetPublisherPriority();
   header.object_status = object.status;
   header.forwarding_preference = forwarding_preference;
+  // TODO(martinduke): send values other than 0.
+  header.subgroup_id =
+      (forwarding_preference == MoqtForwardingPreference::kSubgroup)
+          ? 0
+          : std::optional<uint64_t>();
   header.payload_length = object.payload.length();
 
   quiche::QuicheBuffer serialized_header =
@@ -1288,17 +1277,13 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
             !subscription.InWindow(next_object_);
       break;
 
-    case MoqtForwardingPreference::kGroup:
+    case MoqtForwardingPreference::kSubgroup:
       ++next_object_.object;
       fin = object.status == MoqtObjectStatus::kEndOfTrack ||
             object.status == MoqtObjectStatus::kEndOfGroup ||
+            object.status == MoqtObjectStatus::kEndOfSubgroup ||
             object.status == MoqtObjectStatus::kGroupDoesNotExist ||
             !subscription.InWindow(next_object_);
-      break;
-
-    case MoqtForwardingPreference::kObject:
-      QUICHE_DCHECK(!stream_header_written_);
-      fin = true;
       break;
 
     case MoqtForwardingPreference::kDatagram:
@@ -1347,6 +1332,8 @@ void MoqtSession::PublishedSubscription::SendDatagram(FullSequence sequence) {
   header.publisher_priority = track_publisher_->GetPublisherPriority();
   header.object_status = object->status;
   header.forwarding_preference = MoqtForwardingPreference::kDatagram;
+  header.subgroup_id = std::nullopt;
+  header.payload_length = object->payload.length();
   quiche::QuicheBuffer datagram = session_->framer_.SerializeObjectDatagram(
       header, object->payload.AsStringView());
   session_->session_->SendOrQueueDatagram(datagram.AsStringView());

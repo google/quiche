@@ -23,6 +23,9 @@
 
 namespace moqt {
 
+// TODO(martinduke): Accept subgroup ID.
+// TODO(martinduke): Accept publisher priority.
+// TODO(martinduke): Unless Track Forwarding preference goes away, support it.
 bool MoqtLiveRelayQueue::AddObject(uint64_t group_id, uint64_t object_id,
                                    MoqtObjectStatus status,
                                    absl::string_view object) {

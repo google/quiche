@@ -165,7 +165,7 @@ bool ChatClient::AnnounceAndSubscribe() {
     FullTrackName my_track_name =
         chat_strings_->GetFullTrackNameFromUsername(username_);
     queue_ = std::make_shared<MoqtOutgoingQueue>(
-        my_track_name, MoqtForwardingPreference::kObject);
+        my_track_name, MoqtForwardingPreference::kSubgroup);
     publisher_.Add(queue_);
     session_->set_publisher(&publisher_);
     MoqtOutgoingAnnounceCallback announce_callback =
