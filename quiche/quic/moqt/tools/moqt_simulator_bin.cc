@@ -311,7 +311,9 @@ class MoqtSimulator {
         receiver_(simulator_.GetClock(), parameters.deadline),
         adjuster_(simulator_.GetClock(), client_endpoint_.session()->session(),
                   &generator_),
-        parameters_(parameters) {}
+        parameters_(parameters) {
+    client_endpoint_.RecordTrace();
+  }
 
   MoqtSession* client_session() { return client_endpoint_.session(); }
   MoqtSession* server_session() { return server_endpoint_.session(); }
