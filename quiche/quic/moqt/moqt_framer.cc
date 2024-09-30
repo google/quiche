@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -118,88 +119,55 @@ class WireSubscribeParameterList {
       : list_(list) {}
 
   size_t GetLengthOnWire() {
-    uint64_t num_params = 0;
-    size_t length = 0;
-    if (list_.authorization_info.has_value()) {
-      ++num_params;
-      length +=
-          WireStringParameter(
-              StringParameter(MoqtTrackRequestParameter::kAuthorizationInfo,
-                              *list_.authorization_info))
-              .GetLengthOnWire();
-    }
-    if (list_.delivery_timeout.has_value()) {
-      ++num_params;
-      length += WireIntParameter(
-                    IntParameter(MoqtTrackRequestParameter::kDeliveryTimeout,
-                                 static_cast<uint64_t>(
-                                     list_.delivery_timeout->ToMilliseconds())))
-                    .GetLengthOnWire();
-    }
-    if (list_.max_cache_duration.has_value()) {
-      ++num_params;
-      length +=
-          WireIntParameter(
-              IntParameter(MoqtTrackRequestParameter::kMaxCacheDuration,
-                           static_cast<uint64_t>(
-                               list_.max_cache_duration->ToMilliseconds())))
-              .GetLengthOnWire();
-    }
-    if (list_.object_ack_window.has_value()) {
-      ++num_params;
-      length +=
-          WireIntParameter(
-              IntParameter(MoqtTrackRequestParameter::kOackWindowSize,
-                           static_cast<uint64_t>(
-                               list_.object_ack_window->ToMicroseconds())))
-              .GetLengthOnWire();
-    }
-    length += WireVarInt62(num_params).GetLengthOnWire();
-    return length;
+    auto string_parameters = StringParameters();
+    auto int_parameters = IntParameters();
+    return quiche::ComputeLengthOnWire(
+        WireVarInt62(string_parameters.size() + int_parameters.size()),
+        WireSpan<WireStringParameter>(string_parameters),
+        WireSpan<WireIntParameter>(int_parameters));
   }
   absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
-    uint64_t num_params = (list_.authorization_info.has_value() ? 1 : 0) +
-                          (list_.delivery_timeout.has_value() ? 1 : 0) +
-                          (list_.max_cache_duration.has_value() ? 1 : 0) +
-                          (list_.object_ack_window.has_value() ? 1 : 0);
-    if (!writer.WriteVarInt62(num_params)) {
-      return absl::InternalError("Failed to serialize the length prefix");
-    }
-    if (list_.authorization_info.has_value() &&
-        WireStringParameter(
-            StringParameter(MoqtTrackRequestParameter::kAuthorizationInfo,
-                            *list_.authorization_info))
-                .SerializeIntoWriter(writer) != absl::OkStatus()) {
-      return absl::InternalError("Failed to serialize the authorization info");
-    }
-    if (list_.delivery_timeout.has_value() &&
-        WireIntParameter(
-            IntParameter(MoqtTrackRequestParameter::kDeliveryTimeout,
-                         static_cast<uint64_t>(
-                             list_.delivery_timeout->ToMilliseconds())))
-                .SerializeIntoWriter(writer) != absl::OkStatus()) {
-      return absl::InternalError("Failed to serialize the delivery timeout");
-    }
-    if (list_.max_cache_duration.has_value() &&
-        WireIntParameter(
-            IntParameter(MoqtTrackRequestParameter::kMaxCacheDuration,
-                         static_cast<uint64_t>(
-                             list_.max_cache_duration->ToMilliseconds())))
-                .SerializeIntoWriter(writer) != absl::OkStatus()) {
-      return absl::InternalError("Failed to serialize the max cache duration");
-    }
-    if (list_.object_ack_window.has_value() &&
-        WireIntParameter(
-            IntParameter(MoqtTrackRequestParameter::kOackWindowSize,
-                         static_cast<uint64_t>(
-                             list_.object_ack_window->ToMicroseconds())))
-                .SerializeIntoWriter(writer) != absl::OkStatus()) {
-      return absl::InternalError("Failed to serialize the oack window size");
-    }
-    return absl::OkStatus();
+    auto string_parameters = StringParameters();
+    auto int_parameters = IntParameters();
+    return quiche::SerializeIntoWriter(
+        writer, WireVarInt62(string_parameters.size() + int_parameters.size()),
+        WireSpan<WireStringParameter>(string_parameters),
+        WireSpan<WireIntParameter>(int_parameters));
   }
 
  private:
+  absl::InlinedVector<StringParameter, 1> StringParameters() const {
+    absl::InlinedVector<StringParameter, 1> result;
+    if (list_.authorization_info.has_value()) {
+      result.push_back(
+          StringParameter(MoqtTrackRequestParameter::kAuthorizationInfo,
+                          *list_.authorization_info));
+    }
+    return result;
+  }
+  absl::InlinedVector<IntParameter, 3> IntParameters() const {
+    absl::InlinedVector<IntParameter, 3> result;
+    if (list_.delivery_timeout.has_value()) {
+      QUICHE_DCHECK_GE(*list_.delivery_timeout, quic::QuicTimeDelta::Zero());
+      result.push_back(IntParameter(
+          MoqtTrackRequestParameter::kDeliveryTimeout,
+          static_cast<uint64_t>(list_.delivery_timeout->ToMilliseconds())));
+    }
+    if (list_.max_cache_duration.has_value()) {
+      QUICHE_DCHECK_GE(*list_.max_cache_duration, quic::QuicTimeDelta::Zero());
+      result.push_back(IntParameter(
+          MoqtTrackRequestParameter::kMaxCacheDuration,
+          static_cast<uint64_t>(list_.max_cache_duration->ToMilliseconds())));
+    }
+    if (list_.object_ack_window.has_value()) {
+      QUICHE_DCHECK_GE(*list_.object_ack_window, quic::QuicTimeDelta::Zero());
+      result.push_back(IntParameter(
+          MoqtTrackRequestParameter::kOackWindowSize,
+          static_cast<uint64_t>(list_.object_ack_window->ToMicroseconds())));
+    }
+    return result;
+  }
+
   const MoqtSubscribeParameters& list_;
 };
 
@@ -213,30 +181,21 @@ class WireFullTrackName {
       : name_(name), includes_name_(includes_name) {}
 
   size_t GetLengthOnWire() {
-    const auto tuple = name_.tuple();
-    size_t num_elements = includes_name_ ? (tuple.size() - 1) : tuple.size();
-    size_t length = WireVarInt62(num_elements).GetLengthOnWire();
-    for (const auto& element : tuple) {
-      length += WireStringWithVarInt62Length(element).GetLengthOnWire();
-    }
-    return length;
+    return quiche::ComputeLengthOnWire(
+        WireVarInt62(num_elements()),
+        WireSpan<WireStringWithVarInt62Length, std::string>(name_.tuple()));
   }
   absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
-    const auto tuple = name_.tuple();
-    size_t num_elements = includes_name_ ? (tuple.size() - 1) : tuple.size();
-    if (!writer.WriteVarInt62(num_elements)) {
-      return absl::InternalError("Failed to serialize the length prefix");
-    }
-    for (const auto& element : tuple) {
-      if (WireStringWithVarInt62Length(element).SerializeIntoWriter(writer) !=
-          absl::OkStatus()) {
-        return absl::InternalError("Failed to serialize the element");
-      }
-    }
-    return absl::OkStatus();
+    return quiche::SerializeIntoWriter(
+        writer, WireVarInt62(num_elements()),
+        WireSpan<WireStringWithVarInt62Length, std::string>(name_.tuple()));
   }
 
  private:
+  size_t num_elements() const {
+    return includes_name_ ? (name_.tuple().size() - 1) : name_.tuple().size();
+  }
+
   const FullTrackName& name_;
   const bool includes_name_;
 };
