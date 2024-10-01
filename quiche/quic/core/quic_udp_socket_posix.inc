@@ -205,30 +205,22 @@ bool QuicUdpSocketApi::SetupSocket(QuicUdpSocketFd fd, int address_family,
     return false;
   }
 
-  if (!(address_family == AF_INET6 && ipv6_only)) {
+  unsigned int set = 1;
+  if (address_family == AF_INET) {
+    if (setsockopt(fd, IPPROTO_IP, IP_RECVTOS, &set, sizeof(set)) != 0) {
+      QUIC_LOG_FIRST_N(ERROR, 100)
+          << "Failed to request to receive ECN on IPv4 socket";
+      return false;
+    }
     if (!EnableReceiveSelfIpAddressForV4(fd)) {
       QUIC_LOG_FIRST_N(ERROR, 100)
           << "Failed to enable receiving of self v4 ip";
       return false;
     }
-  }
-  unsigned int set = 1;
-  if (address_family == AF_INET &&
-      setsockopt(fd, IPPROTO_IP, IP_RECVTOS, &set, sizeof(set)) != 0) {
-    QUIC_LOG_FIRST_N(ERROR, 100) << "Failed to request to receive ECN on "
-                                 << "IPv4 socket";
-    return false;
-  }
-  if (address_family == AF_INET6) {
+  } else if (address_family == AF_INET6) {
     if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVTCLASS, &set, sizeof(set)) != 0) {
       QUIC_LOG_FIRST_N(ERROR, 100) << "Failed to request to receive ECN on "
                                    << "IPv6 socket";
-      return false;
-    }
-    if (!ipv6_only &&
-        setsockopt(fd, IPPROTO_IP, IP_RECVTOS, &set, sizeof(set)) != 0) {
-      QUIC_LOG_FIRST_N(ERROR, 100) << "Could not receive IPv4 ECN on "
-                                   << "dual-stack socket";
       return false;
     }
     if (!EnableReceiveSelfIpAddressForV6(fd)) {
@@ -236,6 +228,24 @@ bool QuicUdpSocketApi::SetupSocket(QuicUdpSocketFd fd, int address_family,
           << "Failed to enable receiving of self v6 ip";
       return false;
     }
+
+#if !defined(__APPLE__)
+    // On macOS, the IPv6 socket options take care of this for us, and these
+    // fail with EINVAL. On linux, we need to set the IPv4 socket options for
+    // dual-stack sockets.
+    if (!ipv6_only) {
+      if (setsockopt(fd, IPPROTO_IP, IP_RECVTOS, &set, sizeof(set)) != 0) {
+        QUIC_LOG_FIRST_N(ERROR, 100)
+            << "Could not receive IPv4 ECN on dual-stack socket";
+        return false;
+      }
+      if (!EnableReceiveSelfIpAddressForV4(fd)) {
+        QUIC_LOG_FIRST_N(ERROR, 100)
+            << "Failed to enable receiving of self v4 ip on dual-stack socket";
+        return false;
+      }
+    }
+#endif
   }
 
   return true;
