@@ -472,6 +472,10 @@ const QuicTag kRSEQ = TAG('R', 'S', 'E', 'Q');   // Rejected packet number
 // Universal tags
 const QuicTag kPAD  = TAG('P', 'A', 'D', '\0');  // Padding
 
+// Client Hello Padding tags, for experiments.
+const QuicTag kCHP1 = TAG('C', 'H', 'P', '1');   // 1-packet padding to CHLO.
+const QuicTag kCHP2 = TAG('C', 'H', 'P', '2');   // 2-packet padding to CHLO.
+
 // Stats collection tags
 const QuicTag kEPID = TAG('E', 'P', 'I', 'D');  // Endpoint identifier.
 

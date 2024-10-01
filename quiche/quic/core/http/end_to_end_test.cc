@@ -1211,8 +1211,7 @@ TEST_P(EndToEndTest, InvalidSNI) {
 TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO) {
   SetQuicFlag(quic_allow_chlo_buffering, true);
   SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 1);
-  std::string google_handshake_message(kEthernetMTU, 'a');
-  client_config_.SetGoogleHandshakeMessageToSend(google_handshake_message);
+  client_extra_copts_.push_back(kCHP1);
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
     return;
@@ -1359,8 +1358,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO_BothBuffered) {
 TEST_P(EndToEndTest, TestDispatcherAckWithThreePacketCHLO) {
   SetQuicFlag(quic_allow_chlo_buffering, true);
   SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 2);
-  std::string google_handshake_message(2 * kEthernetMTU, 'a');
-  client_config_.SetGoogleHandshakeMessageToSend(google_handshake_message);
+  client_extra_copts_.push_back(kCHP2);
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
     return;

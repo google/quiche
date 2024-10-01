@@ -172,6 +172,15 @@ void QuicSession::Initialize() {
   connection_->SetSessionNotifier(this);
   connection_->SetDataProducer(this);
   connection_->SetUnackedMapInitialCapacity();
+  if (perspective_ == Perspective::IS_CLIENT) {
+    if (config_.HasClientSentConnectionOption(kCHP1, perspective_)) {
+      config_.SetGoogleHandshakeMessageToSend(
+          std::string(kDefaultMaxPacketSize, '0'));
+    } else if (config_.HasClientSentConnectionOption(kCHP2, perspective_)) {
+      config_.SetGoogleHandshakeMessageToSend(
+          std::string(kDefaultMaxPacketSize * 2, '0'));
+    }
+  }
   connection_->SetFromConfig(config_);
   if (perspective_ == Perspective::IS_CLIENT) {
     if (config_.HasClientRequestedIndependentOption(kAFFE, perspective_) &&
@@ -1861,6 +1870,11 @@ void QuicSession::OnTlsHandshakeComplete() {
     if (connection()->version().HasIetfQuicFrames()) {
       MaybeSendAddressToken();
     }
+  }
+  if (perspective_ == Perspective::IS_CLIENT &&
+      (config_.HasClientSentConnectionOption(kCHP1, perspective_) ||
+       config_.HasClientSentConnectionOption(kCHP2, perspective_))) {
+    config_.ClearGoogleHandshakeMessage();
   }
 }
 
