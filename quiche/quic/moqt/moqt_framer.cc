@@ -581,6 +581,33 @@ quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
                    WireStringWithVarInt62Length(message.new_session_uri));
 }
 
+quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespace(
+    const MoqtSubscribeNamespace& message) {
+  return Serialize(WireVarInt62(MoqtMessageType::kSubscribeNamespace),
+                   WireFullTrackName(message.track_namespace, false),
+                   WireSubscribeParameterList(message.parameters));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespaceOk(
+    const MoqtSubscribeNamespaceOk& message) {
+  return Serialize(WireVarInt62(MoqtMessageType::kSubscribeNamespaceOk),
+                   WireFullTrackName(message.track_namespace, false));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespaceError(
+    const MoqtSubscribeNamespaceError& message) {
+  return Serialize(WireVarInt62(MoqtMessageType::kSubscribeNamespaceError),
+                   WireFullTrackName(message.track_namespace, false),
+                   WireVarInt62(message.error_code),
+                   WireStringWithVarInt62Length(message.reason_phrase));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribeNamespace(
+    const MoqtUnsubscribeNamespace& message) {
+  return Serialize(WireVarInt62(MoqtMessageType::kUnsubscribeNamespace),
+                   WireFullTrackName(message.track_namespace, false));
+}
+
 quiche::QuicheBuffer MoqtFramer::SerializeMaxSubscribeId(
     const MoqtMaxSubscribeId& message) {
   return Serialize(WireVarInt62(MoqtMessageType::kMaxSubscribeId),

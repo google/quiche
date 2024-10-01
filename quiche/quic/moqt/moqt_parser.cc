@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <initializer_list>
 #include <optional>
 #include <string>
 
@@ -229,6 +228,14 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data) {
       return ProcessTrackStatus(reader);
     case MoqtMessageType::kGoAway:
       return ProcessGoAway(reader);
+    case MoqtMessageType::kSubscribeNamespace:
+      return ProcessSubscribeNamespace(reader);
+    case MoqtMessageType::kSubscribeNamespaceOk:
+      return ProcessSubscribeNamespaceOk(reader);
+    case MoqtMessageType::kSubscribeNamespaceError:
+      return ProcessSubscribeNamespaceError(reader);
+    case MoqtMessageType::kUnsubscribeNamespace:
+      return ProcessUnsubscribeNamespace(reader);
     case MoqtMessageType::kMaxSubscribeId:
       return ProcessMaxSubscribeId(reader);
     case moqt::MoqtMessageType::kObjectAck:
@@ -703,6 +710,54 @@ size_t MoqtControlParser::ProcessGoAway(quic::QuicDataReader& reader) {
     return 0;
   }
   visitor_.OnGoAwayMessage(goaway);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessSubscribeNamespace(
+    quic::QuicDataReader& reader) {
+  MoqtSubscribeNamespace subscribe_namespace;
+  if (!ReadTrackNamespace(reader, subscribe_namespace.track_namespace)) {
+    return 0;
+  }
+  if (!ReadSubscribeParameters(reader, subscribe_namespace.parameters)) {
+    return 0;
+  }
+  visitor_.OnSubscribeNamespaceMessage(subscribe_namespace);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessSubscribeNamespaceOk(
+    quic::QuicDataReader& reader) {
+  MoqtSubscribeNamespaceOk subscribe_namespace_ok;
+  if (!ReadTrackNamespace(reader, subscribe_namespace_ok.track_namespace)) {
+    return 0;
+  }
+  visitor_.OnSubscribeNamespaceOkMessage(subscribe_namespace_ok);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessSubscribeNamespaceError(
+    quic::QuicDataReader& reader) {
+  MoqtSubscribeNamespaceError subscribe_namespace_error;
+  uint64_t error_code;
+  if (!ReadTrackNamespace(reader, subscribe_namespace_error.track_namespace) ||
+      !reader.ReadVarInt62(&error_code) ||
+      !reader.ReadStringVarInt62(subscribe_namespace_error.reason_phrase)) {
+    return 0;
+  }
+  subscribe_namespace_error.error_code =
+      static_cast<MoqtAnnounceErrorCode>(error_code);
+  visitor_.OnSubscribeNamespaceErrorMessage(subscribe_namespace_error);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessUnsubscribeNamespace(
+    quic::QuicDataReader& reader) {
+  MoqtUnsubscribeNamespace unsubscribe_namespace;
+  if (!ReadTrackNamespace(reader, unsubscribe_namespace.track_namespace)) {
+    return 0;
+  }
+  visitor_.OnUnsubscribeNamespaceMessage(unsubscribe_namespace);
   return reader.PreviouslyReadPayload().length();
 }
 

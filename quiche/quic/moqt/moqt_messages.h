@@ -489,6 +489,25 @@ struct QUICHE_EXPORT MoqtGoAway {
   std::string new_session_uri;
 };
 
+struct QUICHE_EXPORT MoqtSubscribeNamespace {
+  FullTrackName track_namespace;
+  MoqtSubscribeParameters parameters;
+};
+
+struct QUICHE_EXPORT MoqtSubscribeNamespaceOk {
+  FullTrackName track_namespace;
+};
+
+struct QUICHE_EXPORT MoqtSubscribeNamespaceError {
+  FullTrackName track_namespace;
+  MoqtAnnounceErrorCode error_code;
+  std::string reason_phrase;
+};
+
+struct QUICHE_EXPORT MoqtUnsubscribeNamespace {
+  FullTrackName track_namespace;
+};
+
 struct QUICHE_EXPORT MoqtMaxSubscribeId {
   uint64_t max_subscribe_id;
 };

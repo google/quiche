@@ -43,6 +43,14 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnUnannounceMessage(const MoqtUnannounce& message) = 0;
   virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
   virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
+  virtual void OnSubscribeNamespaceMessage(
+      const MoqtSubscribeNamespace& message) = 0;
+  virtual void OnSubscribeNamespaceOkMessage(
+      const MoqtSubscribeNamespaceOk& message) = 0;
+  virtual void OnSubscribeNamespaceErrorMessage(
+      const MoqtSubscribeNamespaceError& message) = 0;
+  virtual void OnUnsubscribeNamespaceMessage(
+      const MoqtUnsubscribeNamespace& message) = 0;
   virtual void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) = 0;
   virtual void OnObjectAckMessage(const MoqtObjectAck& message) = 0;
 
@@ -108,6 +116,10 @@ class QUICHE_EXPORT MoqtControlParser {
   size_t ProcessUnannounce(quic::QuicDataReader& reader);
   size_t ProcessTrackStatus(quic::QuicDataReader& reader);
   size_t ProcessGoAway(quic::QuicDataReader& reader);
+  size_t ProcessSubscribeNamespace(quic::QuicDataReader& reader);
+  size_t ProcessSubscribeNamespaceOk(quic::QuicDataReader& reader);
+  size_t ProcessSubscribeNamespaceError(quic::QuicDataReader& reader);
+  size_t ProcessUnsubscribeNamespace(quic::QuicDataReader& reader);
   size_t ProcessMaxSubscribeId(quic::QuicDataReader& reader);
   size_t ProcessObjectAck(quic::QuicDataReader& reader);
 

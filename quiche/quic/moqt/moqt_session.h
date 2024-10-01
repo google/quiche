@@ -204,6 +204,14 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override {}
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override {}
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override {}
+    void OnSubscribeNamespaceMessage(
+        const MoqtSubscribeNamespace& message) override {}
+    void OnSubscribeNamespaceOkMessage(
+        const MoqtSubscribeNamespaceOk& message) override {}
+    void OnSubscribeNamespaceErrorMessage(
+        const MoqtSubscribeNamespaceError& message) override {}
+    void OnUnsubscribeNamespaceMessage(
+        const MoqtUnsubscribeNamespace& message) override {}
     void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override;
     void OnObjectAckMessage(const MoqtObjectAck& message) override {
       auto subscription_it =

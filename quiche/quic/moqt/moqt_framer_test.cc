@@ -46,6 +46,10 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kAnnounceError,
       MoqtMessageType::kUnannounce,
       MoqtMessageType::kGoAway,
+      MoqtMessageType::kSubscribeNamespace,
+      MoqtMessageType::kSubscribeNamespaceOk,
+      MoqtMessageType::kSubscribeNamespaceError,
+      MoqtMessageType::kUnsubscribeNamespace,
       MoqtMessageType::kMaxSubscribeId,
       MoqtMessageType::kObjectAck,
       MoqtMessageType::kClientSetup,
@@ -157,6 +161,22 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kGoAway: {
         auto data = std::get<MoqtGoAway>(structured_data);
         return framer_.SerializeGoAway(data);
+      }
+      case moqt::MoqtMessageType::kSubscribeNamespace: {
+        auto data = std::get<MoqtSubscribeNamespace>(structured_data);
+        return framer_.SerializeSubscribeNamespace(data);
+      }
+      case moqt::MoqtMessageType::kSubscribeNamespaceOk: {
+        auto data = std::get<MoqtSubscribeNamespaceOk>(structured_data);
+        return framer_.SerializeSubscribeNamespaceOk(data);
+      }
+      case moqt::MoqtMessageType::kSubscribeNamespaceError: {
+        auto data = std::get<MoqtSubscribeNamespaceError>(structured_data);
+        return framer_.SerializeSubscribeNamespaceError(data);
+      }
+      case moqt::MoqtMessageType::kUnsubscribeNamespace: {
+        auto data = std::get<MoqtUnsubscribeNamespace>(structured_data);
+        return framer_.SerializeUnsubscribeNamespace(data);
       }
       case moqt::MoqtMessageType::kMaxSubscribeId: {
         auto data = std::get<MoqtMaxSubscribeId>(structured_data);
