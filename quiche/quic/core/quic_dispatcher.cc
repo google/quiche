@@ -1145,13 +1145,7 @@ void QuicDispatcher::OnExpiredPackets(
     QuicConnectionId server_connection_id,
     BufferedPacketList early_arrived_packets) {
   QUIC_CODE_COUNT(quic_reject_buffered_packets_expired);
-  QuicErrorCode error_code = QUIC_HANDSHAKE_FAILED;
-  if (GetQuicReloadableFlag(
-          quic_new_error_code_when_packets_buffered_too_long)) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_new_error_code_when_packets_buffered_too_long);
-    error_code = QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG;
-  }
+  QuicErrorCode error_code = QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG;
   QuicSocketAddress self_address, peer_address;
   if (!early_arrived_packets.buffered_packets.empty()) {
     self_address = early_arrived_packets.buffered_packets.front().self_address;
