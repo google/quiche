@@ -472,6 +472,10 @@ class QUICHE_EXPORT QuicConnectionDebugVisitor
   virtual void OnEncryptedClientHelloReceived(
       absl::string_view /*client_hello*/) {}
 
+  // Called after the QuicSession is created.
+  virtual void OnParsedClientHelloInfo(
+      const ParsedClientHello& /*client_hello*/) {}
+
   // Called by QuicConnection::SetMultiPacketClientHello.
   virtual void SetMultiPacketClientHello() {}
 };
@@ -1231,6 +1235,9 @@ class QUICHE_EXPORT QuicConnection
 
   // Called after an ClientHelloInner is received and decrypted as a server.
   void OnEncryptedClientHelloReceived(absl::string_view client_hello) const;
+
+  // Called after the QuicSession is created.
+  virtual void OnParsedClientHelloInfo(const ParsedClientHello& client_hello);
 
   // Returns true if ack_alarm_ is set.
   bool HasPendingAcks() const;

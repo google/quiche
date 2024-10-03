@@ -1417,6 +1417,9 @@ std::shared_ptr<QuicSession> QuicDispatcher::CreateSessionFromChlo(
     session->connection()->SetOriginalDestinationConnectionId(
         original_connection_id);
   }
+
+  session->connection()->OnParsedClientHelloInfo(parsed_chlo);
+
   QUIC_DLOG(INFO) << "Created new session for " << *server_connection_id;
 
   auto insertion_result = reference_counted_session_map_.insert(std::make_pair(

@@ -659,6 +659,9 @@ TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
       .WillOnce(WithArg<2>(Invoke([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(1), packet);
       })));
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              OnParsedClientHelloInfo(MatchParsedClientHello()))
+      .Times(1);
 
   ProcessFirstFlight(client_address, TestConnectionId(1));
 }

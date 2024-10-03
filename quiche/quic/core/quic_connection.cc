@@ -1095,6 +1095,13 @@ void QuicConnection::OnEncryptedClientHelloReceived(
   }
 }
 
+void QuicConnection::OnParsedClientHelloInfo(
+    const ParsedClientHello& client_hello) {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnParsedClientHelloInfo(client_hello);
+  }
+}
+
 bool QuicConnection::HasPendingAcks() const { return ack_alarm().IsSet(); }
 
 void QuicConnection::OnUserAgentIdKnown(const std::string& /*user_agent_id*/) {
