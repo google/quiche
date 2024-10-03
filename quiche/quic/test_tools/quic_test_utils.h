@@ -673,7 +673,8 @@ class MockQuicConnection : public QuicConnection {
                const QuicSocketAddress&, const QuicSocketAddress&,
                QuicPacketWriter*),
               (override));
-  MOCK_METHOD(void, OnParsedClientHelloInfo, (const ParsedClientHello&), ());
+  MOCK_METHOD(void, OnParsedClientHelloInfo, (const ParsedClientHello&),
+              (override));
 
   MOCK_METHOD(void, OnError, (QuicFramer*), (override));
   void QuicConnection_OnError(QuicFramer* framer) {
@@ -1394,7 +1395,8 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
 
   MOCK_METHOD(void, OnZeroRttRejected, (int), (override));
   MOCK_METHOD(void, OnZeroRttPacketAcked, (), (override));
-  MOCK_METHOD(void, OnParsedClientHelloInfo, (const ParsedClientHello&), ());
+  MOCK_METHOD(void, OnParsedClientHelloInfo, (const ParsedClientHello&),
+              (override));
 };
 
 class MockReceivedPacketManager : public QuicReceivedPacketManager {
