@@ -19,7 +19,8 @@ Http2Random::Http2Random() {
 }
 
 Http2Random::Http2Random(absl::string_view key) {
-  std::string decoded_key = absl::HexStringToBytes(key);
+  std::string decoded_key;
+  QUICHE_CHECK(absl::HexStringToBytes(key, &decoded_key));
   QUICHE_CHECK_EQ(sizeof(key_), decoded_key.size());
   memcpy(key_, decoded_key.data(), sizeof(key_));
 }
