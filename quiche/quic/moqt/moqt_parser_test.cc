@@ -375,6 +375,31 @@ TEST_P(MoqtParserTest, SeparateEarlyFin) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
+TEST_P(MoqtParserTest, PayloadLengthTooLong) {
+  if (IsDataStream()) {
+    return;
+  }
+  std::unique_ptr<TestMessageBase> message = MakeMessage();
+  message->IncreasePayloadLengthByOne();
+  ProcessData(message->PacketSample(), false);
+  // The parser will actually report a message, because it's all there.
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  EXPECT_EQ(visitor_.parsing_error_,
+            "Message length does not match payload length");
+}
+
+TEST_P(MoqtParserTest, PayloadLengthTooShort) {
+  if (IsDataStream()) {
+    return;
+  }
+  std::unique_ptr<TestMessageBase> message = MakeMessage();
+  message->DecreasePayloadLengthByOne();
+  ProcessData(message->PacketSample(), false);
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  EXPECT_EQ(visitor_.parsing_error_,
+            "Message length does not match payload length");
+}
+
 // Tests for message-specific error cases, and behaviors for a single message
 // type.
 class MoqtMessageSpecificTest : public quic::test::QuicTest {
@@ -491,10 +516,10 @@ TEST_F(MoqtMessageSpecificTest, StreamHeaderTrackFollowOn) {
 TEST_F(MoqtMessageSpecificTest, ClientSetupRoleIsInvalid) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x02, 0x01, 0x02,  // versions
-      0x03,                          // 3 params
-      0x00, 0x01, 0x04,              // role = invalid
-      0x01, 0x03, 0x66, 0x6f, 0x6f   // path = "foo"
+      0x40, 0x40, 0x0c, 0x02, 0x01, 0x02,  // versions
+      0x03,                                // 3 params
+      0x00, 0x01, 0x04,                    // role = invalid
+      0x01, 0x03, 0x66, 0x6f, 0x6f         // path = "foo"
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -506,7 +531,7 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupRoleIsInvalid) {
 TEST_F(MoqtMessageSpecificTest, ServerSetupRoleIsInvalid) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x41, 0x01,
+      0x40, 0x41, 0x0a, 0x01,
       0x01,                         // 1 param
       0x00, 0x01, 0x04,             // role = invalid
       0x01, 0x03, 0x66, 0x6f, 0x6f  // path = "foo"
@@ -521,11 +546,11 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupRoleIsInvalid) {
 TEST_F(MoqtMessageSpecificTest, SetupRoleAppearsTwice) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x02, 0x01, 0x02,  // versions
-      0x03,                          // 3 params
-      0x00, 0x01, 0x03,              // role = PubSub
-      0x00, 0x01, 0x03,              // role = PubSub
-      0x01, 0x03, 0x66, 0x6f, 0x6f   // path = "foo"
+      0x40, 0x40, 0x0f, 0x02, 0x01, 0x02,  // versions
+      0x03,                                // 3 params
+      0x00, 0x01, 0x03,                    // role = PubSub
+      0x00, 0x01, 0x03,                    // role = PubSub
+      0x01, 0x03, 0x66, 0x6f, 0x6f         // path = "foo"
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -537,9 +562,9 @@ TEST_F(MoqtMessageSpecificTest, SetupRoleAppearsTwice) {
 TEST_F(MoqtMessageSpecificTest, ClientSetupRoleIsMissing) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x01,                          // 1 param
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
+      0x40, 0x40, 0x09, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x01,                                // 1 param
+      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -552,12 +577,12 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupRoleIsMissing) {
 TEST_F(MoqtMessageSpecificTest, ClientSetupMaxSubscribeIdAppearsTwice) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x02, 0x01, 0x02,  // versions
-      0x04,                          // 4 params
-      0x00, 0x01, 0x03,              // role = PubSub
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
-      0x02, 0x01, 0x32,              // max_subscribe_id = 50
-      0x02, 0x01, 0x32,              // max_subscribe_id = 50
+      0x40, 0x40, 0x12, 0x02, 0x01, 0x02,  // versions
+      0x04,                                // 4 params
+      0x00, 0x01, 0x03,                    // role = PubSub
+      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
+      0x02, 0x01, 0x32,                    // max_subscribe_id = 50
+      0x02, 0x01, 0x32,                    // max_subscribe_id = 50
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -570,7 +595,7 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMaxSubscribeIdAppearsTwice) {
 TEST_F(MoqtMessageSpecificTest, ServerSetupRoleIsMissing) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x41, 0x01, 0x00,  // 1 param
+      0x40, 0x41, 0x02, 0x01, 0x00,  // 1 param
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -583,7 +608,7 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupRoleIsMissing) {
 TEST_F(MoqtMessageSpecificTest, SetupRoleVarintLengthIsWrong) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40,                   // type
+      0x40, 0x40, 0x0c,             // type
       0x02, 0x01, 0x02,             // versions
       0x02,                         // 2 parameters
       0x00, 0x02, 0x03,             // role = PubSub, but length is 2
@@ -601,7 +626,7 @@ TEST_F(MoqtMessageSpecificTest, SetupRoleVarintLengthIsWrong) {
 TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x41,
+      0x40, 0x41, 0x07,
       0x01,                          // version = 1
       0x01,                          // 1 param
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
@@ -616,11 +641,11 @@ TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
 TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x03,                          // 3 params
-      0x00, 0x01, 0x03,              // role = PubSub
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
+      0x40, 0x40, 0x11, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x03,                                // 3 params
+      0x00, 0x01, 0x03,                    // role = PubSub
+      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
+      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -633,10 +658,10 @@ TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
 TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
   MoqtControlParser parser(kWebTrans, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x02,                          // 2 params
-      0x00, 0x01, 0x03,              // role = PubSub
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
+      0x40, 0x40, 0x0b, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x02,                                // 2 params
+      0x00, 0x01, 0x03,                    // role = PubSub
+      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -649,9 +674,9 @@ TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
 TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x01,                          // 1 param
-      0x00, 0x01, 0x03,              // role = PubSub
+      0x40, 0x40, 0x07, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x01,                                // 1 param
+      0x00, 0x01, 0x03,                    // role = PubSub
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -664,12 +689,12 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
 TEST_F(MoqtMessageSpecificTest, ServerSetupMaxSubscribeIdAppearsTwice) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x04,                          // 4 params
-      0x00, 0x01, 0x03,              // role = PubSub
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
-      0x02, 0x01, 0x32,              // max_subscribe_id = 50
-      0x02, 0x01, 0x32,              // max_subscribe_id = 50
+      0x40, 0x40, 0x12, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x04,                                // 4 params
+      0x00, 0x01, 0x03,                    // role = PubSub
+      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
+      0x02, 0x01, 0x32,                    // max_subscribe_id = 50
+      0x02, 0x01, 0x32,                    // max_subscribe_id = 50
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -682,8 +707,8 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMaxSubscribeIdAppearsTwice) {
 TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationInfoTwice) {
   MoqtControlParser parser(kWebTrans, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02, 0x01, 0x03,
-      0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x03, 0x1a, 0x01, 0x02, 0x01,
+      0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
       0x02,                          // filter_type = kLatestObject
@@ -701,8 +726,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationInfoTwice) {
 TEST_F(MoqtMessageSpecificTest, SubscribeDeliveryTimeoutTwice) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02, 0x01, 0x03,
-      0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x03, 0x18, 0x01, 0x02, 0x01,
+      0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
       0x02,                          // filter_type = kLatestObject
@@ -720,8 +745,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeDeliveryTimeoutTwice) {
 TEST_F(MoqtMessageSpecificTest, SubscribeDeliveryTimeoutMalformed) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02, 0x01, 0x03,
-      0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x03, 0x14, 0x01, 0x02, 0x01,
+      0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
       0x02,                          // filter_type = kLatestObject
@@ -738,8 +763,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeDeliveryTimeoutMalformed) {
 TEST_F(MoqtMessageSpecificTest, SubscribeMaxCacheDurationTwice) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02, 0x01, 0x03,
-      0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x03, 0x18, 0x01, 0x02, 0x01,
+      0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
       0x02,                          // filter_type = kLatestObject
@@ -757,8 +782,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeMaxCacheDurationTwice) {
 TEST_F(MoqtMessageSpecificTest, SubscribeMaxCacheDurationMalformed) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02, 0x01, 0x03,
-      0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x03, 0x14, 0x01, 0x02, 0x01,
+      0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
       0x02,                          // filter_type = kLatestObject
@@ -775,7 +800,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeMaxCacheDurationMalformed) {
 TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationInfo) {
   MoqtControlParser parser(kWebTrans, visitor_);
   char subscribe_ok[] = {
-      0x04, 0x01, 0x03,        // subscribe_id = 1, expires = 3
+      0x04, 0x10, 0x01, 0x03,  // subscribe_id = 1, expires = 3
       0x02, 0x01,              // group_order = 2, content exists
       0x0c, 0x14,              // largest_group_id = 12, largest_object_id = 20,
       0x02,                    // 2 parameters
@@ -792,10 +817,10 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationInfo) {
 TEST_F(MoqtMessageSpecificTest, SubscribeUpdateHasAuthorizationInfo) {
   MoqtControlParser parser(kWebTrans, visitor_);
   char subscribe_update[] = {
-      0x02, 0x02, 0x03, 0x01, 0x05, 0x06,  // start and end sequences
-      0xaa,                                // priority = 0xaa
-      0x01,                                // 1 parameter
-      0x02, 0x03, 0x62, 0x61, 0x72,        // authorization_info = "bar"
+      0x02, 0x0c, 0x02, 0x03, 0x01, 0x05, 0x06,  // start and end sequences
+      0xaa,                                      // priority = 0xaa
+      0x01,                                      // 1 parameter
+      0x02, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
   };
   parser.ProcessData(
       absl::string_view(subscribe_update, sizeof(subscribe_update)), false);
@@ -807,10 +832,10 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateHasAuthorizationInfo) {
 TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationInfoTwice) {
   MoqtControlParser parser(kWebTrans, visitor_);
   char announce[] = {
-      0x06, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x02,                                // 2 params
-      0x02, 0x03, 0x62, 0x61, 0x72,        // authorization_info = "bar"
-      0x02, 0x03, 0x62, 0x61, 0x72,        // authorization_info = "bar"
+      0x06, 0x10, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x02,                                      // 2 params
+      0x02, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
+      0x02, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
   };
   parser.ProcessData(absl::string_view(announce, sizeof(announce)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -823,10 +848,10 @@ TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationInfoTwice) {
 TEST_F(MoqtMessageSpecificTest, AnnounceHasDeliveryTimeout) {
   MoqtControlParser parser(kWebTrans, visitor_);
   char announce[] = {
-      0x06, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x02,                                // 2 params
-      0x02, 0x03, 0x62, 0x61, 0x72,        // authorization_info = "bar"
-      0x03, 0x02, 0x67, 0x10,              // delivery_timeout = 10000
+      0x06, 0x0f, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x02,                                      // 2 params
+      0x02, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
+      0x03, 0x02, 0x67, 0x10,                    // delivery_timeout = 10000
   };
   parser.ProcessData(absl::string_view(announce, sizeof(announce)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -888,6 +913,7 @@ TEST_F(MoqtMessageSpecificTest, Setup2KB) {
   char big_message[2 * kMaxMessageHeaderSize];
   quic::QuicDataWriter writer(sizeof(big_message), big_message);
   writer.WriteVarInt62(static_cast<uint64_t>(MoqtMessageType::kServerSetup));
+  writer.WriteVarInt62(8 + kMaxMessageHeaderSize);
   writer.WriteVarInt62(0x1);                    // version
   writer.WriteVarInt62(0x1);                    // num_params
   writer.WriteVarInt62(0xbeef);                 // unknown param
@@ -904,9 +930,11 @@ TEST_F(MoqtMessageSpecificTest, Setup2KB) {
 
 TEST_F(MoqtMessageSpecificTest, UnknownMessageType) {
   MoqtControlParser parser(kRawQuic, visitor_);
-  char message[4];
+  char message[6];
   quic::QuicDataWriter writer(sizeof(message), message);
   writer.WriteVarInt62(0xbeef);  // unknown message type
+  writer.WriteVarInt62(0x1);     // length
+  writer.WriteVarInt62(0x1);     // payload
   parser.ProcessData(absl::string_view(message, writer.length()), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
@@ -916,7 +944,7 @@ TEST_F(MoqtMessageSpecificTest, UnknownMessageType) {
 TEST_F(MoqtMessageSpecificTest, LatestGroup) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02,              // id and alias
+      0x03, 0x15, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
@@ -938,10 +966,10 @@ TEST_F(MoqtMessageSpecificTest, LatestGroup) {
 TEST_F(MoqtMessageSpecificTest, LatestObject) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02,              // id and alias
+      0x03, 0x15, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x20, 0x02,                    // priority = 0x20 descending
+      0x20, 0x02,                    // priority = 0x20, group order descending
       0x02,                          // filter_type = kLatestObject
       0x01,                          // 1 parameter
       0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
@@ -960,7 +988,7 @@ TEST_F(MoqtMessageSpecificTest, LatestObject) {
 TEST_F(MoqtMessageSpecificTest, InvalidDeliveryOrder) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02,              // id and alias
+      0x03, 0x15, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x08,                    // priority = 0x20 ???
@@ -976,7 +1004,7 @@ TEST_F(MoqtMessageSpecificTest, InvalidDeliveryOrder) {
 TEST_F(MoqtMessageSpecificTest, AbsoluteStart) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02,              // id and alias
+      0x03, 0x17, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
@@ -1000,7 +1028,7 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteStart) {
 TEST_F(MoqtMessageSpecificTest, AbsoluteRangeExplicitEndObject) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02,              // id and alias
+      0x03, 0x19, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
@@ -1026,7 +1054,7 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeExplicitEndObject) {
 TEST_F(MoqtMessageSpecificTest, AbsoluteRangeWholeEndGroup) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02,              // id and alias
+      0x03, 0x19, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
@@ -1052,7 +1080,7 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeWholeEndGroup) {
 TEST_F(MoqtMessageSpecificTest, AbsoluteRangeEndGroupTooLow) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02,              // id and alias
+      0x03, 0x19, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
@@ -1073,7 +1101,7 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeEndGroupTooLow) {
 TEST_F(MoqtMessageSpecificTest, AbsoluteRangeExactlyOneObject) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02,              // id and alias
+      0x03, 0x14, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
@@ -1091,9 +1119,9 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeExactlyOneObject) {
 TEST_F(MoqtMessageSpecificTest, SubscribeUpdateExactlyOneObject) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe_update[] = {
-      0x02, 0x02, 0x03, 0x01, 0x04, 0x07,  // start and end sequences
-      0x20,                                // priority
-      0x00,                                // No parameters
+      0x02, 0x07, 0x02, 0x03, 0x01, 0x04, 0x07,  // start and end sequences
+      0x20,                                      // priority
+      0x00,                                      // No parameters
   };
   parser.ProcessData(
       absl::string_view(subscribe_update, sizeof(subscribe_update)), false);
@@ -1103,10 +1131,10 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateExactlyOneObject) {
 TEST_F(MoqtMessageSpecificTest, SubscribeUpdateEndGroupTooLow) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe_update[] = {
-      0x02, 0x02, 0x03, 0x01, 0x03, 0x06,  // start and end sequences
-      0x20,                                // priority
-      0x01,                                // 1 parameter
-      0x02, 0x03, 0x62, 0x61, 0x72,        // authorization_info = "bar"
+      0x02, 0x0c, 0x02, 0x03, 0x01, 0x03, 0x06,  // start and end sequences
+      0x20,                                      // priority
+      0x01,                                      // 1 parameter
+      0x02, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
   };
   parser.ProcessData(
       absl::string_view(subscribe_update, sizeof(subscribe_update)), false);
@@ -1118,7 +1146,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateEndGroupTooLow) {
 TEST_F(MoqtMessageSpecificTest, AbsoluteRangeEndObjectTooLow) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x01, 0x02,              // id and alias
+      0x03, 0x19, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
@@ -1139,8 +1167,8 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeEndObjectTooLow) {
 TEST_F(MoqtMessageSpecificTest, SubscribeUpdateEndObjectTooLow) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe_update[] = {
-      0x02, 0x02, 0x03, 0x02, 0x04, 0x01,  // start and end sequences
-      0xf0, 0x00,                          // priority, no parameter
+      0x02, 0x07, 0x02, 0x03, 0x02, 0x04, 0x01,  // start and end sequences
+      0xf0, 0x00,                                // priority, no parameter
   };
   parser.ProcessData(
       absl::string_view(subscribe_update, sizeof(subscribe_update)), false);
@@ -1152,9 +1180,9 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateEndObjectTooLow) {
 TEST_F(MoqtMessageSpecificTest, SubscribeUpdateNoEndGroup) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe_update[] = {
-      0x02, 0x02, 0x03, 0x02, 0x00, 0x01,  // start and end sequences
-      0x20,                                // priority
-      0x00,                                // No parameter
+      0x02, 0x07, 0x02, 0x03, 0x02, 0x00, 0x01,  // start and end sequences
+      0x20,                                      // priority
+      0x00,                                      // No parameter
   };
   parser.ProcessData(
       absl::string_view(subscribe_update, sizeof(subscribe_update)), false);
@@ -1167,7 +1195,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateNoEndGroup) {
 TEST_F(MoqtMessageSpecificTest, ObjectAckNegativeDelta) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char object_ack[] = {
-      0x71, 0x84,        // type
+      0x71, 0x84, 0x05,  // type
       0x01, 0x10, 0x20,  // subscribe ID, group, object
       0x40, 0x81,        // -0x40 time delta
   };

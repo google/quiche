@@ -189,61 +189,94 @@ void MoqtControlParser::ProcessData(absl::string_view data, bool fin) {
 }
 
 size_t MoqtControlParser::ProcessMessage(absl::string_view data) {
-  uint64_t value;
+  uint64_t value, length;
   quic::QuicDataReader reader(data);
-  if (!reader.ReadVarInt62(&value)) {
+  if (!reader.ReadVarInt62(&value) || !reader.ReadVarInt62(&length)) {
+    return 0;
+  }
+  if (length > reader.BytesRemaining()) {
     return 0;
   }
   auto type = static_cast<MoqtMessageType>(value);
+  size_t message_header_length = reader.PreviouslyReadPayload().length();
+  size_t bytes_read;
   switch (type) {
     case MoqtMessageType::kClientSetup:
-      return ProcessClientSetup(reader);
+      bytes_read = ProcessClientSetup(reader);
+      break;
     case MoqtMessageType::kServerSetup:
-      return ProcessServerSetup(reader);
+      bytes_read = ProcessServerSetup(reader);
+      break;
     case MoqtMessageType::kSubscribe:
-      return ProcessSubscribe(reader);
+      bytes_read = ProcessSubscribe(reader);
+      break;
     case MoqtMessageType::kSubscribeOk:
-      return ProcessSubscribeOk(reader);
+      bytes_read = ProcessSubscribeOk(reader);
+      break;
     case MoqtMessageType::kSubscribeError:
-      return ProcessSubscribeError(reader);
+      bytes_read = ProcessSubscribeError(reader);
+      break;
     case MoqtMessageType::kUnsubscribe:
-      return ProcessUnsubscribe(reader);
+      bytes_read = ProcessUnsubscribe(reader);
+      break;
     case MoqtMessageType::kSubscribeDone:
-      return ProcessSubscribeDone(reader);
+      bytes_read = ProcessSubscribeDone(reader);
+      break;
     case MoqtMessageType::kSubscribeUpdate:
-      return ProcessSubscribeUpdate(reader);
+      bytes_read = ProcessSubscribeUpdate(reader);
+      break;
     case MoqtMessageType::kAnnounce:
-      return ProcessAnnounce(reader);
+      bytes_read = ProcessAnnounce(reader);
+      break;
     case MoqtMessageType::kAnnounceOk:
-      return ProcessAnnounceOk(reader);
+      bytes_read = ProcessAnnounceOk(reader);
+      break;
     case MoqtMessageType::kAnnounceError:
-      return ProcessAnnounceError(reader);
+      bytes_read = ProcessAnnounceError(reader);
+      break;
     case MoqtMessageType::kAnnounceCancel:
-      return ProcessAnnounceCancel(reader);
+      bytes_read = ProcessAnnounceCancel(reader);
+      break;
     case MoqtMessageType::kTrackStatusRequest:
-      return ProcessTrackStatusRequest(reader);
+      bytes_read = ProcessTrackStatusRequest(reader);
+      break;
     case MoqtMessageType::kUnannounce:
-      return ProcessUnannounce(reader);
+      bytes_read = ProcessUnannounce(reader);
+      break;
     case MoqtMessageType::kTrackStatus:
-      return ProcessTrackStatus(reader);
+      bytes_read = ProcessTrackStatus(reader);
+      break;
     case MoqtMessageType::kGoAway:
-      return ProcessGoAway(reader);
+      bytes_read = ProcessGoAway(reader);
+      break;
     case MoqtMessageType::kSubscribeNamespace:
-      return ProcessSubscribeNamespace(reader);
+      bytes_read = ProcessSubscribeNamespace(reader);
+      break;
     case MoqtMessageType::kSubscribeNamespaceOk:
-      return ProcessSubscribeNamespaceOk(reader);
+      bytes_read = ProcessSubscribeNamespaceOk(reader);
+      break;
     case MoqtMessageType::kSubscribeNamespaceError:
-      return ProcessSubscribeNamespaceError(reader);
+      bytes_read = ProcessSubscribeNamespaceError(reader);
+      break;
     case MoqtMessageType::kUnsubscribeNamespace:
-      return ProcessUnsubscribeNamespace(reader);
+      bytes_read = ProcessUnsubscribeNamespace(reader);
+      break;
     case MoqtMessageType::kMaxSubscribeId:
-      return ProcessMaxSubscribeId(reader);
+      bytes_read = ProcessMaxSubscribeId(reader);
+      break;
     case moqt::MoqtMessageType::kObjectAck:
-      return ProcessObjectAck(reader);
+      bytes_read = ProcessObjectAck(reader);
+      break;
     default:
       ParseError("Unknown message type");
+      bytes_read = 0;
+      break;
   }
-  return 0;
+  if ((bytes_read - message_header_length) != length) {
+    ParseError("Message length does not match payload length");
+    return 0;
+  }
+  return bytes_read;
 }
 
 size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
