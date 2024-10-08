@@ -27,13 +27,13 @@
 #include "quiche/quic/core/crypto/tls_connection.h"
 #include "quiche/quic/core/crypto/tls_server_connection.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
+#include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection_context.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
-#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_time_accumulator.h"
 #include "quiche/quic/core/quic_types.h"
@@ -402,6 +402,9 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
 
   bool cert_matched_sni_ = false;
   TransportParameters server_params_;
+
+  // Functor for performing ALPN.  Unset if not using handshake hints.
+  ALPNSelectFunc select_alpn_;
 };
 
 }  // namespace quic

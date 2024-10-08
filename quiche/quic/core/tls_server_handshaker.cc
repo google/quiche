@@ -31,6 +31,7 @@
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
+#include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/http/http_encoder.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/quic_config.h"
@@ -1120,6 +1121,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
       }
     } else if (auto* hints_config = absl::get_if<HintsSSLConfig>(&ssl_config);
                hints_config != nullptr) {
+      select_alpn_ = std::move(hints_config->select_alpn);
       if (hints_config->configure_ssl) {
         if (const absl::Status status = tls_connection_.ConfigureSSL(
                 std::move(hints_config->configure_ssl));
@@ -1183,6 +1185,17 @@ int TlsServerHandshaker::TlsExtServernameCallback(int* /*out_alert*/) {
 
 int TlsServerHandshaker::SelectAlpn(const uint8_t** out, uint8_t* out_len,
                                     const uint8_t* in, unsigned in_len) {
+  if (select_alpn_) {
+    const int result =
+        std::move(select_alpn_)(*ssl(), out, out_len, in, in_len);
+    if (result == SSL_TLSEXT_ERR_OK) {
+      valid_alpn_received_ = true;
+      session()->OnAlpnSelected(
+          absl::string_view(reinterpret_cast<const char*>(*out), *out_len));
+    }
+    return result;
+  }
+
   // |in| contains a sequence of 1-byte-length-prefixed values.
   *out_len = 0;
   *out = nullptr;

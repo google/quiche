@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -266,10 +267,17 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
   using ConfigureSSLFunc =
       std::function<absl::Status(SSL& ssl, const SSL_PRIVATE_KEY_METHOD& key)>;
 
+  // Functor to call to select ALPN and configure ALPS.  This functor must not
+  // be called more than once.
+  using ALPNSelectFunc =
+      std::function<int(SSL& ssl, const uint8_t** out, uint8_t* out_len,
+                        const uint8_t* in, unsigned in_len)>;
+
   // Configuration to use for configuring the SSL object when using a
   // handshake-hints server.
   struct HintsSSLConfig {
     ConfigureSSLFunc configure_ssl;
+    ALPNSelectFunc select_alpn;
     QuicDelayedSSLConfig delayed_ssl_config;
   };
 
