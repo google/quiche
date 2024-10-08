@@ -98,6 +98,10 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_HANDSHAKE_FAILED);
     RETURN_STRING_LITERAL(QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG);
     RETURN_STRING_LITERAL(QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME);
+    RETURN_STRING_LITERAL(QUIC_HANDSHAKE_FAILED_REJECTING_ALL_CONNECTIONS);
+    RETURN_STRING_LITERAL(QUIC_HANDSHAKE_FAILED_INVALID_CONNECTION);
+    RETURN_STRING_LITERAL(QUIC_HANDSHAKE_FAILED_SYNTHETIC_CONNECTION_CLOSE);
+    RETURN_STRING_LITERAL(QUIC_HANDSHAKE_FAILED_CID_COLLISION);
     RETURN_STRING_LITERAL(QUIC_CRYPTO_TAGS_OUT_OF_ORDER);
     RETURN_STRING_LITERAL(QUIC_CRYPTO_TOO_MANY_ENTRIES);
     RETURN_STRING_LITERAL(QUIC_CRYPTO_TOO_MANY_REJECTS);
@@ -805,6 +809,14 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {true, static_cast<uint64_t>(NO_IETF_QUIC_ERROR)};
     case QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME:
       return {true, static_cast<uint64_t>(NO_IETF_QUIC_ERROR)};
+    case QUIC_HANDSHAKE_FAILED_REJECTING_ALL_CONNECTIONS:
+      return {true, static_cast<uint64_t>(NO_IETF_QUIC_ERROR)};
+    case QUIC_HANDSHAKE_FAILED_INVALID_CONNECTION:
+      return {true, static_cast<uint64_t>(NO_IETF_QUIC_ERROR)};
+    case QUIC_HANDSHAKE_FAILED_SYNTHETIC_CONNECTION_CLOSE:
+      return {true, static_cast<uint64_t>(NO_IETF_QUIC_ERROR)};
+    case QUIC_HANDSHAKE_FAILED_CID_COLLISION:
+      return {true, static_cast<uint64_t>(NO_IETF_QUIC_ERROR)};
     case QUIC_LAST_ERROR:
       return {false, static_cast<uint64_t>(QUIC_LAST_ERROR)};
   }
@@ -812,7 +824,7 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
   return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
 }
 
-QuicErrorCode TlsAlertToQuicErrorCode(uint8_t desc) {
+std::optional<QuicErrorCode> TlsAlertToQuicErrorCode(uint8_t desc) {
   switch (desc) {
     case SSL_AD_BAD_CERTIFICATE:
       return QUIC_TLS_BAD_CERTIFICATE;
@@ -831,7 +843,7 @@ QuicErrorCode TlsAlertToQuicErrorCode(uint8_t desc) {
     case SSL_AD_CERTIFICATE_REQUIRED:
       return QUIC_TLS_CERTIFICATE_REQUIRED;
     default:
-      return QUIC_HANDSHAKE_FAILED;
+      return std::nullopt;
   }
 }
 

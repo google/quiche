@@ -5306,7 +5306,8 @@ TEST_P(EndToEndTest,
 
   client_.reset(CreateQuicClient(client_writer_));
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
-  EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_FAILED));
+  EXPECT_THAT(client_->connection_error(),
+              IsError(QUIC_HANDSHAKE_FAILED_SYNTHETIC_CONNECTION_CLOSE));
 }
 
 // Regression test for b/116200989.

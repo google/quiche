@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 
 #include "quiche/quic/platform/api/quic_export.h"
@@ -255,6 +256,20 @@ enum QuicErrorCode : uint32_t {
   // Handshake failed due to invalid hostname in ClientHello. Only sent from
   // server.
   QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME = 216,
+  // Handshake failed because server is rejecting all connections. Only sent
+  // from server.
+  QUIC_HANDSHAKE_FAILED_REJECTING_ALL_CONNECTIONS = 217,
+  // Handshake failed because the connection failed validity checks in
+  // QuicDispatcher. Only sent from server.
+  QUIC_HANDSHAKE_FAILED_INVALID_CONNECTION = 218,
+  // Handshake failed because
+  // 1) There used to be a QuicConnection created for the connection ID. And
+  // 2) When the QuicConnection was destroyed, it did not have a termination
+  //    packet so the QuicDispatcher synthesized one using this error code.
+  // Only sent from server.
+  QUIC_HANDSHAKE_FAILED_SYNTHETIC_CONNECTION_CLOSE = 219,
+  // Handshake failed because there is a CID collision. Only sent from server.
+  QUIC_HANDSHAKE_FAILED_CID_COLLISION = 220,
   // Handshake message contained out of order tags.
   QUIC_CRYPTO_TAGS_OUT_OF_ORDER = 29,
   // Handshake message contained too many entries.
@@ -629,7 +644,7 @@ enum QuicErrorCode : uint32_t {
   QUIC_CLIENT_LOST_NETWORK_ACCESS = 215,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 217,
+  QUIC_LAST_ERROR = 221,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
@@ -710,8 +725,10 @@ class QUICHE_EXPORT QuicResetStreamError {
   uint64_t ietf_application_code_;
 };
 
-// Convert TLS alert code to QuicErrorCode.
-QUICHE_EXPORT QuicErrorCode TlsAlertToQuicErrorCode(uint8_t desc);
+// Convert TLS alert code to QuicErrorCode. Returns nullopt if the alert code
+// is not recognized.
+QUICHE_EXPORT std::optional<QuicErrorCode> TlsAlertToQuicErrorCode(
+    uint8_t desc);
 
 // Returns the name of the QuicRstStreamErrorCode as a char*
 QUICHE_EXPORT const char* QuicRstStreamErrorCodeToString(

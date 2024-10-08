@@ -515,7 +515,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
         packet_info.self_address, packet_info.peer_address,
         packet_info.destination_connection_id, packet_info.form,
         packet_info.version_flag, packet_info.use_length_prefix,
-        packet_info.version, QUIC_HANDSHAKE_FAILED,
+        packet_info.version, QUIC_HANDSHAKE_FAILED_REJECTING_ALL_CONNECTIONS,
         "Stop accepting new connections",
         quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
     // Time wait list will reject the packet correspondingly..
@@ -563,7 +563,8 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
 
   // |connection_close_error_code| is used if the final packet fate is
   // kFateTimeWait.
-  QuicErrorCode connection_close_error_code = QUIC_HANDSHAKE_FAILED;
+  QuicErrorCode connection_close_error_code =
+      QUIC_HANDSHAKE_FAILED_INVALID_CONNECTION;
 
   // If a fatal TLS alert was received when extracting Client Hello,
   // |tls_alert_error_detail| will be set and will be used as the error_details
@@ -582,7 +583,8 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
       // Fatal TLS alert when parsing Client Hello.
       fate = kFateTimeWait;
       uint8_t tls_alert = *extract_chlo_result.tls_alert;
-      connection_close_error_code = TlsAlertToQuicErrorCode(tls_alert);
+      connection_close_error_code = TlsAlertToQuicErrorCode(tls_alert).value_or(
+          connection_close_error_code);
       tls_alert_error_detail =
           absl::StrCat("TLS handshake failure from dispatcher (",
                        EncryptionLevelToString(ENCRYPTION_INITIAL), ") ",
@@ -810,7 +812,7 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
           connection->version(), /*last_sent_packet_number=*/QuicPacketNumber(),
           helper_.get(), time_wait_list_manager_.get());
       terminator.CloseConnection(
-          QUIC_HANDSHAKE_FAILED,
+          QUIC_HANDSHAKE_FAILED_SYNTHETIC_CONNECTION_CLOSE,
           "Connection is closed by server before handshake confirmed",
           /*ietf_quic=*/true, connection->GetActiveServerConnectionIds());
       return;
@@ -1500,7 +1502,8 @@ QuicDispatcher::HandleConnectionIdCollision(
       self_address, peer_address, original_connection_id,
       IETF_QUIC_LONG_HEADER_PACKET,
       /*version_flag=*/true, version.HasLengthPrefixedConnectionIds(), version,
-      QUIC_HANDSHAKE_FAILED, "Connection ID collision, please retry",
+      QUIC_HANDSHAKE_FAILED_CID_COLLISION,
+      "Connection ID collision, please retry",
       QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS);
 
   // Caller is responsible for erasing the connection from the buffered store,

@@ -171,7 +171,8 @@ void TlsHandshaker::AdvanceHandshake() {
                        SSL_alert_desc_string_long(last_tls_alert_->desc),
                        ". SSLErrorStack:", ssl_error_stack);
       QUIC_DLOG(ERROR) << error_details;
-      CloseConnection(TlsAlertToQuicErrorCode(last_tls_alert_->desc),
+      CloseConnection(TlsAlertToQuicErrorCode(last_tls_alert_->desc)
+                          .value_or(QUIC_HANDSHAKE_FAILED),
                       static_cast<QuicIetfTransportErrorCodes>(
                           CRYPTO_ERROR_FIRST + last_tls_alert_->desc),
                       error_details);
