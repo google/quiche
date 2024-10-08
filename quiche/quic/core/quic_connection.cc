@@ -3306,14 +3306,19 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   // Termination packets are eventually owned by TimeWaitListManager.
   // Others are deleted at the end of this call.
   if (is_termination_packet) {
-    if (termination_packets_ == nullptr) {
-      termination_packets_.reset(
-          new std::vector<std::unique_ptr<QuicEncryptedPacket>>);
+    if (termination_info_ == nullptr) {
+      termination_info_ = std::make_unique<TerminationInfo>(error_code);
+    } else {
+      QUIC_BUG_IF(quic_multiple_termination_packets_with_different_error_code,
+                  error_code != termination_info_->error_code)
+          << "Initial error code: " << termination_info_->error_code
+          << ", new error code: " << error_code;
     }
     // Copy the buffer so it's owned in the future.
     char* buffer_copy = CopyBuffer(*packet);
-    termination_packets_->emplace_back(
-        new QuicEncryptedPacket(buffer_copy, encrypted_length, true));
+    termination_info_->termination_packets.push_back(
+        std::make_unique<QuicEncryptedPacket>(buffer_copy, encrypted_length,
+                                              true));
     if (error_code == QUIC_SILENT_IDLE_TIMEOUT) {
       QUICHE_DCHECK_EQ(Perspective::IS_SERVER, perspective_);
       // TODO(fayang): populate histogram indicating the time elapsed from this
@@ -3321,7 +3326,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       QUIC_DVLOG(1) << ENDPOINT
                     << "Added silent connection close to termination packets, "
                        "num of termination packets: "
-                    << termination_packets_->size();
+                    << termination_info_->termination_packets.size();
       return true;
     }
   }

@@ -99,8 +99,8 @@ class QuicConnectionPeer {
   static void SetWriter(QuicConnection* connection, QuicPacketWriter* writer,
                         bool owns_writer);
   static void TearDownLocalConnectionState(QuicConnection* connection);
-  static QuicEncryptedPacket* GetConnectionClosePacket(
-      QuicConnection* connection);
+  static const QuicEncryptedPacket* GetConnectionClosePacket(
+      const QuicConnection* connection);
 
   static QuicPacketHeader* GetLastHeader(QuicConnection* connection);
 

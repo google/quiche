@@ -795,8 +795,9 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
   write_blocked_list_.Remove(*connection);
   QuicTimeWaitListManager::TimeWaitAction action =
       QuicTimeWaitListManager::SEND_STATELESS_RESET;
-  if (connection->termination_packets() != nullptr &&
-      !connection->termination_packets()->empty()) {
+  std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
+  if (connection->HasTerminationPackets()) {
+    termination_packets = connection->ConsumeTerminationPackets();
     action = QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS;
   } else {
     if (!connection->IsHandshakeComplete()) {
@@ -822,7 +823,8 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
   time_wait_list_manager_->AddConnectionIdToTimeWait(
       action,
       TimeWaitConnectionInfo(
-          /*ietf_quic=*/true, connection->termination_packets(),
+          /*ietf_quic=*/true,
+          termination_packets.empty() ? nullptr : &termination_packets,
           connection->GetActiveServerConnectionIds(),
           connection->sent_packet_manager().GetRttStats()->smoothed_rtt()));
 }

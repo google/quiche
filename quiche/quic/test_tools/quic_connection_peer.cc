@@ -205,13 +205,12 @@ void QuicConnectionPeer::TearDownLocalConnectionState(
 }
 
 // static
-QuicEncryptedPacket* QuicConnectionPeer::GetConnectionClosePacket(
-    QuicConnection* connection) {
-  if (connection->termination_packets_ == nullptr ||
-      connection->termination_packets_->empty()) {
+const QuicEncryptedPacket* QuicConnectionPeer::GetConnectionClosePacket(
+    const QuicConnection* connection) {
+  if (!connection->HasTerminationPackets()) {
     return nullptr;
   }
-  return (*connection->termination_packets_)[0].get();
+  return connection->termination_info()->termination_packets[0].get();
 }
 
 // static

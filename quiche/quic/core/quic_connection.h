@@ -45,6 +45,7 @@
 #include "quiche/quic/core/quic_connection_id_manager.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_idle_network_detector.h"
 #include "quiche/quic/core/quic_lru_cache.h"
@@ -1090,8 +1091,35 @@ class QUICHE_EXPORT QuicConnection
   // Returns the id of the cipher last used for decrypting packets.
   uint32_t cipher_id() const;
 
-  std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets() {
-    return termination_packets_.get();
+  // Information about the connection close sent by this connection.
+  struct TerminationInfo {
+    explicit TerminationInfo(QuicErrorCode error_code)
+        : error_code(error_code) {}
+
+    const QuicErrorCode error_code;  // The connection close error code.
+    std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
+  };
+
+  const TerminationInfo* termination_info() const {
+    return termination_info_.get();
+  }
+
+  // Whether the connection has termination packets _and_ they have not been
+  // consumed by ConsumeTerminationPackets.
+  bool HasTerminationPackets() const {
+    return termination_info_ != nullptr &&
+           !termination_info_->termination_packets.empty();
+  }
+
+  // Returns the termination packets and clears them from the connection.
+  // Postcondition: HasTerminationPackets() == false
+  std::vector<std::unique_ptr<QuicEncryptedPacket>>
+  ConsumeTerminationPackets() {
+    std::vector<std::unique_ptr<QuicEncryptedPacket>> packets;
+    if (termination_info_ != nullptr) {
+      packets.swap(termination_info_->termination_packets);
+    }
+    return packets;
   }
 
   bool ack_frame_updated() const;
@@ -2236,8 +2264,7 @@ class QUICHE_EXPORT QuicConnection
   QuicPacketCount max_tracked_packets_;
 
   // Contains the connection close packets if the connection has been closed.
-  std::unique_ptr<std::vector<std::unique_ptr<QuicEncryptedPacket>>>
-      termination_packets_;
+  std::unique_ptr<TerminationInfo> termination_info_;
 
   // Determines whether or not a connection close packet is sent to the peer
   // after idle timeout due to lack of network activity. During the handshake,

@@ -16094,6 +16094,10 @@ TEST_P(QuicConnectionTest, CoalesceOneRTTPacketWithInitialAndHandshakePackets) {
 
 // Regression test for b/180103273
 TEST_P(QuicConnectionTest, SendMultipleConnectionCloses) {
+  // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
+  if (!IsDefaultTestConfiguration()) {
+    return;
+  }
   if (!version().HasIetfQuicFrames() ||
       !GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     return;
@@ -16121,7 +16125,9 @@ TEST_P(QuicConnectionTest, SendMultipleConnectionCloses) {
       &connection_, INTERNAL_ERROR, QUIC_INTERNAL_ERROR, "internal error");
   // Fire blackhole detection alarm.  This will invoke
   // SendConnectionClosePacket() a second time.
-  connection_.GetBlackholeDetectorAlarm()->Fire();
+  EXPECT_QUIC_BUG(connection_.GetBlackholeDetectorAlarm()->Fire(),
+                  // 1=QUIC_INTERNAL_ERROR, 85=QUIC_TOO_MANY_RTOS.
+                  "Initial error code: 1, new error code: 85");
 }
 
 // Regression test for b/157895910.
