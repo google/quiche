@@ -309,6 +309,10 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
   // Return true iff ProofSourceHandle::ComputeSignature won't be called later.
   // The handle can use this function to release resources promptly.
   virtual bool WillNotCallComputeSignature() const = 0;
+
+  // Get the TLS ciphersuite negotiated during the handshake, or nullopt if the
+  // handshake has not selected one yet.
+  virtual std::optional<uint16_t> GetCiphersuite() const = 0;
 };
 
 // ProofSourceHandle is an interface by which a TlsServerHandshaker can obtain

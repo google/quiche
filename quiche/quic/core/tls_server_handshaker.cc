@@ -1167,6 +1167,14 @@ bool TlsServerHandshaker::WillNotCallComputeSignature() const {
   return SSL_can_release_private_key(ssl());
 }
 
+std::optional<uint16_t> TlsServerHandshaker::GetCiphersuite() const {
+  const SSL_CIPHER* cipher = SSL_get_pending_cipher(ssl());
+  if (cipher == nullptr) {
+    return std::nullopt;
+  }
+  return SSL_CIPHER_get_protocol_id(cipher);
+}
+
 bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {
   if (!QuicHostnameUtils::IsValidSNI(hostname)) {
     // TODO(b/151676147): Include this error string in the CONNECTION_CLOSE

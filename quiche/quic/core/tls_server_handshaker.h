@@ -213,6 +213,8 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
 
   bool WillNotCallComputeSignature() const override;
 
+  std::optional<uint16_t> GetCiphersuite() const override;
+
   void SetIgnoreTicketOpen(bool value) { ignore_ticket_open_ = value; }
 
  private:
