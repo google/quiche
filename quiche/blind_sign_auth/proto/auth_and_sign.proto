@@ -48,12 +48,12 @@ message AuthAndSignRequest {
 
   oneof attestation_data {
     AndroidAttestationData android_attestation_data = 6;
+
     IosAttestationData ios_attestation_data = 7;
   }
+
   privacy.ppn.AttestationData attestation = 8;
-
   privacy.ppn.KeyType key_type = 10;
-
   privacy.ppn.PublicMetadataInfo public_metadata_info = 11;
 
   // Indicates which key to use for signing. Only set if key type is
