@@ -3602,6 +3602,64 @@ TEST(OgHttp2AdapterTest, ClientForbidsPushStream) {
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
 }
 
+// This test verifies how oghttp2 behaves when a connection becomes
+// write-blocked while sending HEADERS.
+TEST(OgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndWriteBlock) {
+  TestVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kClient;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  // Flushes the connection preface.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
+  visitor.Clear();
+
+  const absl::string_view kBody = "This is an example request body.";
+
+  std::unique_ptr<DataFrameSource> frame_source =
+      std::make_unique<VisitorDataSource>(visitor, 1);
+  visitor.AppendPayloadForStream(1, kBody);
+  visitor.SetEndData(1, true);
+  int stream_id =
+      adapter->SubmitRequest(ToHeaders({{":method", "POST"},
+                                        {":scheme", "http"},
+                                        {":authority", "example.com"},
+                                        {":path", "/this/is/request/one"}}),
+                             std::move(frame_source), false, nullptr);
+  EXPECT_GT(stream_id, 0);
+  EXPECT_TRUE(adapter->want_write());
+
+  visitor.set_is_write_blocked(true);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  result = adapter->Send();
+
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), testing::IsEmpty());
+  EXPECT_TRUE(adapter->want_write());
+
+  // BUG: OnBeforeFrameSent() called twice.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
+
+  visitor.set_is_write_blocked(false);
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+
+  EXPECT_THAT(visitor.data(),
+              EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
+  EXPECT_FALSE(adapter->want_write());
+}
+
 TEST(OgHttp2AdapterTest, ClientReceivesDataOnClosedStream) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;

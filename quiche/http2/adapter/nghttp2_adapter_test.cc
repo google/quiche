@@ -2463,10 +2463,17 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestEmptyDataWithFin) {
 }
 
 // This test verifies how nghttp2 behaves when a connection becomes
-// write-blocked.
+// write-blocked while sending HEADERS.
 TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndWriteBlock) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  // Flushes the connection preface.
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  // Client preface does not appear to include the mandatory SETTINGS frame.
+  EXPECT_EQ(visitor.data(), spdy::kHttp2ConnectionHeaderPrefix);
+  visitor.Clear();
 
   const absl::string_view kBody = "This is an example request body.";
   // This test will use TestDataSource as the source of the body payload data.
@@ -2489,12 +2496,13 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndWriteBlock) {
   EXPECT_TRUE(adapter->want_write());
 
   visitor.set_is_write_blocked(true);
-  int result = adapter->Send();
-  EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(), testing::IsEmpty());
-  EXPECT_TRUE(adapter->want_write());
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x4));
+  result = adapter->Send();
+
+  EXPECT_EQ(0, result);
+  EXPECT_TRUE(adapter->want_write());
+
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x4, 0));
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, _, 0x1, 0));
 
@@ -2502,11 +2510,7 @@ TEST(NgHttp2AdapterTest, ClientSubmitRequestWithDataProviderAndWriteBlock) {
   result = adapter->Send();
   EXPECT_EQ(0, result);
 
-  // Client preface does not appear to include the mandatory SETTINGS frame.
   absl::string_view serialized = visitor.data();
-  EXPECT_THAT(serialized,
-              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
-  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
   EXPECT_THAT(serialized,
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
   EXPECT_FALSE(adapter->want_write());
