@@ -10,6 +10,15 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#if defined(__linux__)
+#include <linux/in6.h>
+#ifndef IPV6_FLOWLABEL
+#define IPV6_FLOWINFO 11
+#define IPV6_FLOWINFO_SEND 33
+#define IPV6_FLOWINFO_FLOWLABEL 0x000fffff
+#endif
+#endif
+
 #include "absl/base/optimization.h"
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_udp_socket.h"
@@ -145,6 +154,17 @@ void PopulatePacketInfoFromControlMessage(
     }
   }
 
+#if defined(__linux__)
+  if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_FLOWINFO) {
+    if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::V6_FLOW_LABEL)) {
+      uint32_t flow_label = 0;
+      memcpy(&flow_label, CMSG_DATA(cmsg), sizeof(flow_label));
+      flow_label = IPV6_FLOWINFO_FLOWLABEL & ntohl(flow_label);
+      packet_info->SetFlowLabel(flow_label);
+    }
+  }
+#endif
+
   if (packet_info_interested.IsSet(
           QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER)) {
     BufferSpan google_packet_headers;
@@ -223,6 +243,23 @@ bool QuicUdpSocketApi::SetupSocket(QuicUdpSocketFd fd, int address_family,
                                    << "IPv6 socket";
       return false;
     }
+#if defined(__linux__)
+    if (GetQuicReloadableFlag(quic_support_flow_label)) {
+      if (setsockopt(fd, SOL_IPV6, IPV6_FLOWINFO, &set, sizeof(set)) != 0) {
+        QUIC_LOG_FIRST_N(ERROR, 100)
+            << "Failed to request to receive flow label on "
+            << "IPv6 socket";
+        return false;
+      }
+      if (setsockopt(fd, SOL_IPV6, IPV6_FLOWINFO_SEND, &set, sizeof(set)) !=
+          0) {
+        QUIC_LOG_FIRST_N(ERROR, 100)
+            << "Failed to request to send flow label on "
+            << "IPv6 socket";
+        return false;
+      }
+    }
+#endif
     if (!EnableReceiveSelfIpAddressForV6(fd)) {
       QUIC_LOG_FIRST_N(ERROR, 100)
           << "Failed to enable receiving of self v6 ip";
@@ -488,6 +525,20 @@ WriteResult QuicUdpSocketApi::WritePacket(
 
   cmsghdr* cmsg = nullptr;
 
+  // Set IPv6 flow label.
+#if defined(__linux__)
+  if (packet_info.HasValue(QuicUdpPacketInfoBit::V6_FLOW_LABEL) &&
+      packet_info.flow_label() != 0) {
+    uint32_t flowlabel = packet_info.flow_label();
+    if (!NextCmsg(&hdr, control_buffer, sizeof(control_buffer), SOL_IPV6,
+                  IPV6_FLOWINFO, sizeof(flowlabel), &cmsg)) {
+      QUIC_LOG_FIRST_N(ERROR, 100) << "Not enough buffer to set flow label.";
+      return WriteResult(WRITE_STATUS_ERROR, EINVAL);
+    }
+    *reinterpret_cast<uint32_t*>(CMSG_DATA(cmsg)) =
+        htonl(flowlabel & IPV6_FLOWINFO_FLOWLABEL);
+  }
+#endif
   // Set self IP.
   if (packet_info.HasValue(QuicUdpPacketInfoBit::V4_SELF_IP) &&
       packet_info.self_v4_ip().IsInitialized()) {

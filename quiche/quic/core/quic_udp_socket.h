@@ -36,6 +36,7 @@ enum class QuicUdpPacketInfoBit : uint8_t {
   ECN,                   // Read
   GOOGLE_PACKET_HEADER,  // Read
   IS_GRO,                // Read
+  V6_FLOW_LABEL,         // Read & Write
 
   // Must be the last value.
   NUM_BITS
@@ -154,11 +155,24 @@ class QUICHE_EXPORT QuicUdpPacketInfo {
     bitmask_.Set(QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER);
   }
 
-  QuicEcnCodepoint ecn_codepoint() const { return ecn_codepoint_; }
+  QuicEcnCodepoint ecn_codepoint() const {
+    QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::ECN));
+    return ecn_codepoint_;
+  }
 
   void SetEcnCodepoint(const QuicEcnCodepoint ecn_codepoint) {
     ecn_codepoint_ = ecn_codepoint;
     bitmask_.Set(QuicUdpPacketInfoBit::ECN);
+  }
+
+  uint32_t flow_label() const {
+    QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::V6_FLOW_LABEL));
+    return ipv6_flow_label_;
+  }
+
+  void SetFlowLabel(uint32_t ipv6_flow_label) {
+    ipv6_flow_label_ = ipv6_flow_label;
+    bitmask_.Set(QuicUdpPacketInfoBit::V6_FLOW_LABEL);
   }
 
  private:
@@ -172,6 +186,7 @@ class QUICHE_EXPORT QuicUdpPacketInfo {
   BufferSpan google_packet_headers_;
   size_t gso_size_ = 0;
   QuicEcnCodepoint ecn_codepoint_ = ECN_NOT_ECT;
+  uint32_t ipv6_flow_label_ = 0;
 };
 
 // QuicUdpSocketApi provides a minimal set of apis for sending and receiving

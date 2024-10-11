@@ -49,6 +49,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_priority_respect_incremental, fals
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_require_handshake_confirmation, true, true, "If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_send_placeholder_ticket_when_encrypt_ticket_fails, false, true, "If true, when TicketCrypter fails to encrypt a session ticket, quic::TlsServerHandshaker will send a placeholder ticket, instead of an empty one, to the client.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_stop_reading_also_stops_header_decompression, true, true, "If true, QUIC stream will not continue decompressing buffer headers after StopReading() called.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_support_flow_label, false, false, "If true, QUIC will support reading and writing IPv6 flow labels.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_test_peer_addr_change_after_normalize, false, false, "If true, QuicConnection::ProcessValidatedPacket will use normalized address to test peer address changes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_false, false, false, "A testonly reloadable flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_true, true, true, "A testonly reloadable flag that will always default to true.")
