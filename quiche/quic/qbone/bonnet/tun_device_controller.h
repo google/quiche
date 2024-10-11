@@ -52,7 +52,7 @@ class TunDeviceController {
       int retries);
 
   virtual void RegisterAddressUpdateCallback(
-      quiche::MultiUseCallback<void(QuicIpAddress)> cb);
+      quiche::MultiUseCallback<void(const QuicIpAddress&)> cb);
 
   virtual QuicIpAddress current_address();
 
@@ -67,7 +67,7 @@ class TunDeviceController {
 
   QuicIpAddress current_address_;
 
-  std::vector<quiche::MultiUseCallback<void(QuicIpAddress)>>
+  std::vector<quiche::MultiUseCallback<void(const QuicIpAddress&)>>
       address_update_cbs_;
 };
 
