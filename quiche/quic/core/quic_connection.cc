@@ -681,6 +681,7 @@ void QuicConnection::SetMaxPacingRate(QuicBandwidth max_pacing_rate) {
 
 void QuicConnection::SetApplicationDrivenPacingRate(
     QuicBandwidth application_driven_pacing_rate) {
+  QUIC_CODE_COUNT(quic_connection_set_app_driven_pacing_rate);
   sent_packet_manager_.SetApplicationDrivenPacingRate(
       application_driven_pacing_rate);
 }

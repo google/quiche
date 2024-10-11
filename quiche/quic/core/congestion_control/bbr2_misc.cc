@@ -231,6 +231,11 @@ void Bbr2NetworkModel::AdaptLowerBounds(
         // pacing rate when congestion_event.bytes_lost > 0. The idea is to
         // avoid going over what the application needs at the earliest signs of
         // network congestion.
+        if (application_bandwidth_target_ < bandwidth_lo_) {
+          QUIC_CODE_COUNT(quic_bbr2_app_driven_pacing_in_effect);
+        } else {
+          QUIC_CODE_COUNT(quic_bbr2_app_driven_pacing_no_effect);
+        }
         bandwidth_lo_ = std::min(application_bandwidth_target_, bandwidth_lo_);
         QUIC_DVLOG(3) << "bandwidth_lo_ updated to " << bandwidth_lo_
                       << "after applying application_driven_pacing at "

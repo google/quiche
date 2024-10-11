@@ -278,6 +278,7 @@ void Bbr2Sender::SetInitialCongestionWindowInPackets(
 
 void Bbr2Sender::SetApplicationDrivenPacingRate(
     QuicBandwidth application_bandwidth_target) {
+  QUIC_CODE_COUNT(quic_bbr2_set_app_driven_pacing_rate);
   model_.SetApplicationBandwidthTarget(application_bandwidth_target);
 }
 
