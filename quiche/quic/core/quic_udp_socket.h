@@ -156,7 +156,6 @@ class QUICHE_EXPORT QuicUdpPacketInfo {
   }
 
   QuicEcnCodepoint ecn_codepoint() const {
-    QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::ECN));
     return ecn_codepoint_;
   }
 
