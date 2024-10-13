@@ -171,7 +171,7 @@ QuicIpAddress TunDeviceController::current_address() {
 }
 
 void TunDeviceController::RegisterAddressUpdateCallback(
-    quiche::MultiUseCallback<void(const QuicIpAddress&)> cb) {
+    quiche::MultiUseCallback<void(QuicIpAddress)> cb) {
   address_update_cbs_.push_back(std::move(cb));
 }
 
