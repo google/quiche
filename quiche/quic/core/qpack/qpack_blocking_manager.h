@@ -9,6 +9,8 @@
 #include <map>
 #include <set>
 
+#include "absl/container/btree_map.h"
+#include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -26,7 +28,7 @@ class QpackBlockingManagerPeer;
 // https://rfc-editor.org/rfc/rfc9204.html#section-2.1.2
 class QUICHE_EXPORT QpackBlockingManager {
  public:
-  using IndexSet = std::multiset<uint64_t>;
+  using IndexSet = absl::btree_multiset<uint64_t>;
 
   QpackBlockingManager();
 
@@ -88,7 +90,7 @@ class QUICHE_EXPORT QpackBlockingManager {
   HeaderBlocks header_blocks_;
 
   // Number of references in |header_blocks_| for each entry index.
-  std::map<uint64_t, uint64_t> entry_reference_counts_;
+  absl::btree_map<uint64_t, uint64_t> entry_reference_counts_;
 
   uint64_t known_received_count_;
 };
