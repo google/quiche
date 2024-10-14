@@ -609,7 +609,7 @@ TEST_P(QuicConfigTest, SupportsServerPreferredAddress) {
   EXPECT_TRUE(config_.SupportsServerPreferredAddress(Perspective::IS_SERVER));
 
   SetQuicFlag(quic_always_support_server_preferred_address, false);
-  EXPECT_FALSE(config_.SupportsServerPreferredAddress(Perspective::IS_CLIENT));
+  EXPECT_TRUE(config_.SupportsServerPreferredAddress(Perspective::IS_CLIENT));
   EXPECT_FALSE(config_.SupportsServerPreferredAddress(Perspective::IS_SERVER));
 
   QuicTagVector copt;
