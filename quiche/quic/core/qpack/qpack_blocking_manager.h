@@ -82,11 +82,11 @@ class QUICHE_EXPORT QpackBlockingManager {
   // std::list instead of quiche::QuicheCircularDeque because it has lower
   // memory footprint when holding few elements.
   struct HeaderBlock {
-    IndexSet indices;
-    uint64_t required_insert_count = 0;
+    const IndexSet indices;
+    const uint64_t required_insert_count = 0;
   };
   using HeaderBlocks =
-      absl::flat_hash_map<QuicStreamId, std::list<const HeaderBlock>>;
+      absl::flat_hash_map<QuicStreamId, std::list<HeaderBlock>>;
 
   // Increase or decrease the reference count for each index in |indices|.
   void IncreaseReferenceCounts(const IndexSet& indices);
