@@ -47,7 +47,7 @@ http_archive(
 http_archive(
     name = "com_google_googleurl",
     sha256 = "3db90606ea9ca123d11f85c6fa3627a1e1e403d38c7fd1854a628cf1da3be5e2",  # Last updated 2024-10-09
-    urls = ["https://storage.googleapis.com/quiche-envoy-integration/googleurl_9cdb1f4d1a365ebdbcbf179dadf7f8aa5ee802e7.tar.gz"],
+    urls = ["https://storage.googleapis.com/quiche-envoy-integration/googleurl-9cdb1f4d1a365ebdbcbf179dadf7f8aa5ee802e7.tar.gz"],
 )
 
 http_archive(
