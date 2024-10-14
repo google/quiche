@@ -7,6 +7,9 @@
 #include <limits>
 #include <utility>
 
+#include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_flags.h"
+
 namespace quic {
 
 QpackBlockingManager::QpackBlockingManager() : known_received_count_(0) {}
@@ -19,15 +22,17 @@ bool QpackBlockingManager::OnHeaderAcknowledgement(QuicStreamId stream_id) {
 
   QUICHE_DCHECK(!it->second.empty());
 
-  const IndexSet& indices = it->second.front();
-  QUICHE_DCHECK(!indices.empty());
+  const HeaderBlock& header_block = it->second.front();
+  QUICHE_DCHECK(!header_block.indices.empty());
 
-  const uint64_t required_index_count = RequiredInsertCount(indices);
-  if (known_received_count_ < required_index_count) {
-    known_received_count_ = required_index_count;
+  if (known_received_count_ < header_block.required_insert_count) {
+    known_received_count_ = header_block.required_insert_count;
+    if (optimize_qpack_blocking_manager_) {
+      OnKnownReceivedCountIncreased();
+    }
   }
 
-  DecreaseReferenceCounts(indices);
+  DecreaseReferenceCounts(header_block.indices);
 
   it->second.pop_front();
   if (it->second.empty()) {
@@ -43,11 +48,15 @@ void QpackBlockingManager::OnStreamCancellation(QuicStreamId stream_id) {
     return;
   }
 
-  for (const IndexSet& indices : it->second) {
-    DecreaseReferenceCounts(indices);
+  for (const HeaderBlock& header_block : it->second) {
+    DecreaseReferenceCounts(header_block.indices);
   }
 
   header_blocks_.erase(it);
+  if (optimize_qpack_blocking_manager_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_optimize_qpack_blocking_manager, 1, 5);
+    blocked_streams_.erase(stream_id);
+  }
 }
 
 bool QpackBlockingManager::OnInsertCountIncrement(uint64_t increment) {
@@ -57,19 +66,43 @@ bool QpackBlockingManager::OnInsertCountIncrement(uint64_t increment) {
   }
 
   known_received_count_ += increment;
+  if (optimize_qpack_blocking_manager_) {
+    OnKnownReceivedCountIncreased();
+  }
   return true;
 }
 
 void QpackBlockingManager::OnHeaderBlockSent(QuicStreamId stream_id,
-                                             IndexSet indices) {
+                                             IndexSet indices,
+                                             uint64_t required_insert_count) {
   QUICHE_DCHECK(!indices.empty());
 
   IncreaseReferenceCounts(indices);
-  header_blocks_[stream_id].push_back(std::move(indices));
+  header_blocks_[stream_id].push_back(
+      {std::move(indices), required_insert_count});
+  if (optimize_qpack_blocking_manager_ &&
+      required_insert_count > known_received_count_) {
+    auto it = blocked_streams_.find(stream_id);
+    if (it != blocked_streams_.end()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_optimize_qpack_blocking_manager, 2, 5);
+      it->second = std::max(it->second, required_insert_count);
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_optimize_qpack_blocking_manager, 3, 5);
+      blocked_streams_[stream_id] = required_insert_count;
+    }
+  }
 }
 
 bool QpackBlockingManager::blocking_allowed_on_stream(
     QuicStreamId stream_id, uint64_t maximum_blocked_streams) const {
+  if (optimize_qpack_blocking_manager_) {
+    // Sending blocked reference is allowed if:
+    // 1) Stream |stream_id| is already blocked, or
+    // 2) The number of blocked streams is less than the limit.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_optimize_qpack_blocking_manager, 4, 5);
+    return blocked_streams_.contains(stream_id) ||
+           blocked_streams_.size() < maximum_blocked_streams;
+  }
   // This should be the most common case: the limit is larger than the number of
   // streams that have unacknowledged header blocks (regardless of whether they
   // are blocked or not) plus one for stream |stream_id|.
@@ -84,8 +117,8 @@ bool QpackBlockingManager::blocking_allowed_on_stream(
 
   uint64_t blocked_stream_count = 0;
   for (const auto& header_blocks_for_stream : header_blocks_) {
-    for (const IndexSet& indices : header_blocks_for_stream.second) {
-      if (RequiredInsertCount(indices) > known_received_count_) {
+    for (const HeaderBlock& header_block : header_blocks_for_stream.second) {
+      if (header_block.required_insert_count > known_received_count_) {
         if (header_blocks_for_stream.first == stream_id) {
           // Sending blocking references is allowed if stream |stream_id| is
           // already blocked.
@@ -152,6 +185,19 @@ void QpackBlockingManager::DecreaseReferenceCounts(const IndexSet& indices) {
     } else {
       --it->second;
     }
+  }
+}
+
+void QpackBlockingManager::OnKnownReceivedCountIncreased() {
+  QUICHE_DCHECK(optimize_qpack_blocking_manager_);
+  for (auto blocked_it = blocked_streams_.begin();
+       blocked_it != blocked_streams_.end();) {
+    if (blocked_it->second > known_received_count_) {
+      ++blocked_it;
+      continue;
+    }
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_optimize_qpack_blocking_manager, 5, 5);
+    blocked_streams_.erase(blocked_it++);
   }
 }
 

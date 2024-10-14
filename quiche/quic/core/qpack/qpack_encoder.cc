@@ -407,7 +407,8 @@ std::string QpackEncoder::EncodeHeaderList(
           ? 0
           : QpackBlockingManager::RequiredInsertCount(referred_indices);
   if (!referred_indices.empty()) {
-    blocking_manager_.OnHeaderBlockSent(stream_id, std::move(referred_indices));
+    blocking_manager_.OnHeaderBlockSent(stream_id, std::move(referred_indices),
+                                        required_insert_count);
   }
 
   // Second pass.

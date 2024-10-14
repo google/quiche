@@ -19,14 +19,22 @@ class QpackBlockingManagerPeer {
       if (header_blocks_for_stream.first != stream_id) {
         continue;
       }
-      for (const auto& indices : header_blocks_for_stream.second) {
-        if (QpackBlockingManager::RequiredInsertCount(indices) >
+      for (const auto& header_block : header_blocks_for_stream.second) {
+        QUICHE_DCHECK_EQ(
+            header_block.required_insert_count,
+            QpackBlockingManager::RequiredInsertCount(header_block.indices));
+        if (header_block.required_insert_count >
             manager->known_received_count_) {
+          if (GetQuicReloadableFlag(quic_optimize_qpack_blocking_manager)) {
+            QUICHE_DCHECK(manager->blocked_streams_.contains(stream_id));
+          }
           return true;
         }
       }
     }
-
+    if (GetQuicReloadableFlag(quic_optimize_qpack_blocking_manager)) {
+      QUICHE_DCHECK(!manager->blocked_streams_.contains(stream_id));
+    }
     return false;
   }
 };
@@ -59,12 +67,12 @@ TEST_F(QpackBlockingManagerTest, NotBlockedByInsertCountIncrement) {
 
   // Stream 0 is not blocked, because it only references entries that are
   // already acknowledged by an Insert Count Increment instruction.
-  manager_.OnHeaderBlockSent(0, {1, 0});
+  manager_.OnHeaderBlockSent(0, {1, 0}, 2);
   EXPECT_FALSE(stream_is_blocked(0));
 }
 
 TEST_F(QpackBlockingManagerTest, UnblockedByInsertCountIncrement) {
-  manager_.OnHeaderBlockSent(0, {1, 0});
+  manager_.OnHeaderBlockSent(0, {1, 0}, 2);
   EXPECT_TRUE(stream_is_blocked(0));
 
   EXPECT_TRUE(manager_.OnInsertCountIncrement(2));
@@ -72,7 +80,7 @@ TEST_F(QpackBlockingManagerTest, UnblockedByInsertCountIncrement) {
 }
 
 TEST_F(QpackBlockingManagerTest, NotBlockedByHeaderAcknowledgement) {
-  manager_.OnHeaderBlockSent(0, {2, 1, 1});
+  manager_.OnHeaderBlockSent(0, {2, 1, 1}, 3);
   EXPECT_TRUE(stream_is_blocked(0));
 
   EXPECT_TRUE(manager_.OnHeaderAcknowledgement(0));
@@ -80,13 +88,13 @@ TEST_F(QpackBlockingManagerTest, NotBlockedByHeaderAcknowledgement) {
 
   // Stream 1 is not blocked, because it only references entries that are
   // already acknowledged by a Header Acknowledgement instruction.
-  manager_.OnHeaderBlockSent(1, {2, 2});
+  manager_.OnHeaderBlockSent(1, {2, 2}, 3);
   EXPECT_FALSE(stream_is_blocked(1));
 }
 
 TEST_F(QpackBlockingManagerTest, UnblockedByHeaderAcknowledgement) {
-  manager_.OnHeaderBlockSent(0, {2, 1, 1});
-  manager_.OnHeaderBlockSent(1, {2, 2});
+  manager_.OnHeaderBlockSent(0, {2, 1, 1}, 3);
+  manager_.OnHeaderBlockSent(1, {2, 2}, 3);
   EXPECT_TRUE(stream_is_blocked(0));
   EXPECT_TRUE(stream_is_blocked(1));
 
@@ -99,17 +107,17 @@ TEST_F(QpackBlockingManagerTest, KnownReceivedCount) {
   EXPECT_EQ(0u, manager_.known_received_count());
 
   // Sending a header block does not change Known Received Count.
-  manager_.OnHeaderBlockSent(0, {0});
+  manager_.OnHeaderBlockSent(0, {0}, 1);
   EXPECT_EQ(0u, manager_.known_received_count());
 
-  manager_.OnHeaderBlockSent(1, {1});
+  manager_.OnHeaderBlockSent(1, {1}, 2);
   EXPECT_EQ(0u, manager_.known_received_count());
 
   // Header Acknowledgement might increase Known Received Count.
   EXPECT_TRUE(manager_.OnHeaderAcknowledgement(0));
   EXPECT_EQ(1u, manager_.known_received_count());
 
-  manager_.OnHeaderBlockSent(2, {5});
+  manager_.OnHeaderBlockSent(2, {5}, 6);
   EXPECT_EQ(1u, manager_.known_received_count());
 
   EXPECT_TRUE(manager_.OnHeaderAcknowledgement(1));
@@ -128,7 +136,7 @@ TEST_F(QpackBlockingManagerTest, KnownReceivedCount) {
 
   // Header Acknowledgement of a block with smaller Required Insert Count does
   // not increase Known Received Count.
-  manager_.OnHeaderBlockSent(0, {3});
+  manager_.OnHeaderBlockSent(0, {3}, 4);
   EXPECT_EQ(6u, manager_.known_received_count());
 
   EXPECT_TRUE(manager_.OnHeaderAcknowledgement(0));
@@ -136,7 +144,7 @@ TEST_F(QpackBlockingManagerTest, KnownReceivedCount) {
 
   // Header Acknowledgement of a block with equal Required Insert Count does not
   // increase Known Received Count.
-  manager_.OnHeaderBlockSent(1, {5});
+  manager_.OnHeaderBlockSent(1, {5}, 6);
   EXPECT_EQ(6u, manager_.known_received_count());
 
   EXPECT_TRUE(manager_.OnHeaderAcknowledgement(1));
@@ -147,16 +155,16 @@ TEST_F(QpackBlockingManagerTest, SmallestBlockingIndex) {
   EXPECT_EQ(std::numeric_limits<uint64_t>::max(),
             manager_.smallest_blocking_index());
 
-  manager_.OnHeaderBlockSent(0, {0});
+  manager_.OnHeaderBlockSent(0, {0}, 1);
   EXPECT_EQ(0u, manager_.smallest_blocking_index());
 
-  manager_.OnHeaderBlockSent(1, {2});
+  manager_.OnHeaderBlockSent(1, {2}, 3);
   EXPECT_EQ(0u, manager_.smallest_blocking_index());
 
   EXPECT_TRUE(manager_.OnHeaderAcknowledgement(0));
   EXPECT_EQ(2u, manager_.smallest_blocking_index());
 
-  manager_.OnHeaderBlockSent(1, {1});
+  manager_.OnHeaderBlockSent(1, {1}, 2);
   EXPECT_EQ(1u, manager_.smallest_blocking_index());
 
   EXPECT_TRUE(manager_.OnHeaderAcknowledgement(1));
@@ -176,12 +184,12 @@ TEST_F(QpackBlockingManagerTest, HeaderAcknowledgementsOnSingleStream) {
   EXPECT_EQ(std::numeric_limits<uint64_t>::max(),
             manager_.smallest_blocking_index());
 
-  manager_.OnHeaderBlockSent(0, {2, 1, 1});
+  manager_.OnHeaderBlockSent(0, {2, 1, 1}, 3);
   EXPECT_EQ(0u, manager_.known_received_count());
   EXPECT_TRUE(stream_is_blocked(0));
   EXPECT_EQ(1u, manager_.smallest_blocking_index());
 
-  manager_.OnHeaderBlockSent(0, {1, 0});
+  manager_.OnHeaderBlockSent(0, {1, 0}, 2);
   EXPECT_EQ(0u, manager_.known_received_count());
   EXPECT_TRUE(stream_is_blocked(0));
   EXPECT_EQ(0u, manager_.smallest_blocking_index());
@@ -191,7 +199,7 @@ TEST_F(QpackBlockingManagerTest, HeaderAcknowledgementsOnSingleStream) {
   EXPECT_FALSE(stream_is_blocked(0));
   EXPECT_EQ(0u, manager_.smallest_blocking_index());
 
-  manager_.OnHeaderBlockSent(0, {3});
+  manager_.OnHeaderBlockSent(0, {3}, 4);
   EXPECT_EQ(3u, manager_.known_received_count());
   EXPECT_TRUE(stream_is_blocked(0));
   EXPECT_EQ(0u, manager_.smallest_blocking_index());
@@ -211,15 +219,15 @@ TEST_F(QpackBlockingManagerTest, HeaderAcknowledgementsOnSingleStream) {
 }
 
 TEST_F(QpackBlockingManagerTest, CancelStream) {
-  manager_.OnHeaderBlockSent(0, {3});
+  manager_.OnHeaderBlockSent(0, {3}, 4);
   EXPECT_TRUE(stream_is_blocked(0));
   EXPECT_EQ(3u, manager_.smallest_blocking_index());
 
-  manager_.OnHeaderBlockSent(0, {2});
+  manager_.OnHeaderBlockSent(0, {2}, 3);
   EXPECT_TRUE(stream_is_blocked(0));
   EXPECT_EQ(2u, manager_.smallest_blocking_index());
 
-  manager_.OnHeaderBlockSent(1, {4});
+  manager_.OnHeaderBlockSent(1, {4}, 5);
   EXPECT_TRUE(stream_is_blocked(0));
   EXPECT_TRUE(stream_is_blocked(1));
   EXPECT_EQ(2u, manager_.smallest_blocking_index());
@@ -250,8 +258,8 @@ TEST_F(QpackBlockingManagerTest, BlockingAllowedOnStream) {
   EXPECT_TRUE(manager_.blocking_allowed_on_stream(kStreamId2, 1));
 
   // Doubly block first stream.
-  manager_.OnHeaderBlockSent(kStreamId1, {0});
-  manager_.OnHeaderBlockSent(kStreamId1, {1});
+  manager_.OnHeaderBlockSent(kStreamId1, {0}, 1);
+  manager_.OnHeaderBlockSent(kStreamId1, {1}, 2);
 
   // First stream is already blocked so it can carry more blocking references.
   EXPECT_TRUE(manager_.blocking_allowed_on_stream(kStreamId1, 1));
@@ -263,7 +271,7 @@ TEST_F(QpackBlockingManagerTest, BlockingAllowedOnStream) {
   EXPECT_TRUE(manager_.blocking_allowed_on_stream(kStreamId2, 2));
 
   // Block second stream.
-  manager_.OnHeaderBlockSent(kStreamId2, {2});
+  manager_.OnHeaderBlockSent(kStreamId2, {2}, 3);
 
   // Streams are already blocked so either can carry more blocking references.
   EXPECT_TRUE(manager_.blocking_allowed_on_stream(kStreamId1, 2));
