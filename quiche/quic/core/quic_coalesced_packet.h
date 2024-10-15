@@ -27,7 +27,7 @@ class QUICHE_EXPORT QuicCoalescedPacket {
                            const QuicSocketAddress& peer_address,
                            quiche::QuicheBufferAllocator* allocator,
                            QuicPacketLength current_max_packet_length,
-                           QuicEcnCodepoint ecn_codepoint);
+                           QuicEcnCodepoint ecn_codepoint, uint32_t flow_label);
 
   // Clears this coalesced packet.
   void Clear();
@@ -69,6 +69,8 @@ class QUICHE_EXPORT QuicCoalescedPacket {
 
   QuicEcnCodepoint ecn_codepoint() const { return ecn_codepoint_; }
 
+  uint32_t flow_label() const { return flow_label_; }
+
  private:
   friend class test::QuicCoalescedPacketPeer;
 
@@ -95,6 +97,9 @@ class QUICHE_EXPORT QuicCoalescedPacket {
 
   // A coalesced packet shares an ECN codepoint.
   QuicEcnCodepoint ecn_codepoint_;
+
+  // A coalesced packet shares an single flow label.
+  uint32_t flow_label_;
 };
 
 }  // namespace quic

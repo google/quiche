@@ -33,7 +33,7 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
   packet1.retransmittable_frames.push_back(
       QuicFrame(QuicStreamFrame(1, true, 0, 100)));
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
-                                            &allocator, 1500, ECN_NOT_ECT));
+                                            &allocator, 1500, ECN_NOT_ECT, 0));
   EXPECT_EQ(PTO_RETRANSMISSION,
             coalesced.TransmissionTypeOfPacket(ENCRYPTION_INITIAL));
   EXPECT_EQ(1500u, coalesced.max_packet_length());
@@ -48,7 +48,7 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
   SerializedPacket packet2(QuicPacketNumber(2), PACKET_4BYTE_PACKET_NUMBER,
                            buffer, 500, false, false);
   EXPECT_FALSE(coalesced.MaybeCoalescePacket(
-      packet2, self_address, peer_address, &allocator, 1500, ECN_NOT_ECT));
+      packet2, self_address, peer_address, &allocator, 1500, ECN_NOT_ECT, 0));
   EXPECT_EQ(coalesced.ecn_codepoint(), ECN_NOT_ECT);
 
   SerializedPacket packet3(QuicPacketNumber(3), PACKET_4BYTE_PACKET_NUMBER,
@@ -57,7 +57,7 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
   packet3.encryption_level = ENCRYPTION_ZERO_RTT;
   packet3.transmission_type = LOSS_RETRANSMISSION;
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet3, self_address, peer_address,
-                                            &allocator, 1500, ECN_NOT_ECT));
+                                            &allocator, 1500, ECN_NOT_ECT, 0));
   EXPECT_EQ(1500u, coalesced.max_packet_length());
   EXPECT_EQ(1000u, coalesced.length());
   EXPECT_EQ(2u, coalesced.NumberOfPackets());
@@ -75,14 +75,14 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
   // Cannot coalesce packet of changed self/peer address.
   EXPECT_FALSE(coalesced.MaybeCoalescePacket(
       packet4, QuicSocketAddress(QuicIpAddress::Loopback4(), 3), peer_address,
-      &allocator, 1500, ECN_NOT_ECT));
+      &allocator, 1500, ECN_NOT_ECT, 0));
 
   // Packet does not fit.
   SerializedPacket packet5(QuicPacketNumber(5), PACKET_4BYTE_PACKET_NUMBER,
                            buffer, 501, false, false);
   packet5.encryption_level = ENCRYPTION_FORWARD_SECURE;
   EXPECT_FALSE(coalesced.MaybeCoalescePacket(
-      packet5, self_address, peer_address, &allocator, 1500, ECN_NOT_ECT));
+      packet5, self_address, peer_address, &allocator, 1500, ECN_NOT_ECT, 0));
   EXPECT_EQ(1500u, coalesced.max_packet_length());
   EXPECT_EQ(1000u, coalesced.length());
   EXPECT_EQ(2u, coalesced.NumberOfPackets());
@@ -94,7 +94,7 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
   packet6.encryption_level = ENCRYPTION_FORWARD_SECURE;
   EXPECT_QUIC_BUG(
       coalesced.MaybeCoalescePacket(packet6, self_address, peer_address,
-                                    &allocator, 1000, ECN_NOT_ECT),
+                                    &allocator, 1000, ECN_NOT_ECT, 0),
       "Max packet length changes in the middle of the write path");
   EXPECT_EQ(1500u, coalesced.max_packet_length());
   EXPECT_EQ(1000u, coalesced.length());
@@ -119,9 +119,9 @@ TEST(QuicCoalescedPacketTest, CopyEncryptedBuffers) {
   packet2.encryption_level = ENCRYPTION_FORWARD_SECURE;
 
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
-                                            &allocator, 1500, ECN_NOT_ECT));
+                                            &allocator, 1500, ECN_NOT_ECT, 0));
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet2, self_address, peer_address,
-                                            &allocator, 1500, ECN_NOT_ECT));
+                                            &allocator, 1500, ECN_NOT_ECT, 0));
   EXPECT_EQ(1000u, coalesced.length());
   EXPECT_EQ(coalesced.ecn_codepoint(), ECN_NOT_ECT);
 
@@ -161,7 +161,7 @@ TEST(QuicCoalescedPacketTest, NeuterInitialPacket) {
   packet1.retransmittable_frames.push_back(
       QuicFrame(QuicStreamFrame(1, true, 0, 100)));
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
-                                            &allocator, 1500, ECN_NOT_ECT));
+                                            &allocator, 1500, ECN_NOT_ECT, 0));
   EXPECT_EQ(PTO_RETRANSMISSION,
             coalesced.TransmissionTypeOfPacket(ENCRYPTION_INITIAL));
   EXPECT_EQ(1500u, coalesced.max_packet_length());
@@ -179,7 +179,7 @@ TEST(QuicCoalescedPacketTest, NeuterInitialPacket) {
 
   // Coalesce initial packet again.
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
-                                            &allocator, 1500, ECN_NOT_ECT));
+                                            &allocator, 1500, ECN_NOT_ECT, 0));
 
   SerializedPacket packet2(QuicPacketNumber(3), PACKET_4BYTE_PACKET_NUMBER,
                            buffer, 500, false, false);
@@ -187,7 +187,7 @@ TEST(QuicCoalescedPacketTest, NeuterInitialPacket) {
   packet2.encryption_level = ENCRYPTION_ZERO_RTT;
   packet2.transmission_type = LOSS_RETRANSMISSION;
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet2, self_address, peer_address,
-                                            &allocator, 1500, ECN_NOT_ECT));
+                                            &allocator, 1500, ECN_NOT_ECT, 0));
   EXPECT_EQ(1500u, coalesced.max_packet_length());
   EXPECT_EQ(1000u, coalesced.length());
   EXPECT_EQ(LOSS_RETRANSMISSION,
@@ -211,7 +211,7 @@ TEST(QuicCoalescedPacketTest, NeuterInitialPacket) {
                            buffer, 501, false, false);
   packet3.encryption_level = ENCRYPTION_FORWARD_SECURE;
   EXPECT_TRUE(coalesced.MaybeCoalescePacket(packet3, self_address, peer_address,
-                                            &allocator, 1500, ECN_NOT_ECT));
+                                            &allocator, 1500, ECN_NOT_ECT, 0));
   EXPECT_EQ(1500u, coalesced.max_packet_length());
   EXPECT_EQ(1001u, coalesced.length());
   EXPECT_EQ(coalesced.ecn_codepoint(), ECN_NOT_ECT);
@@ -240,7 +240,7 @@ TEST(QuicCoalescedPacketTest, DoNotCoalesceDifferentEcn) {
   packet1.retransmittable_frames.push_back(
       QuicFrame(QuicStreamFrame(1, true, 0, 100)));
   ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
-                                            &allocator, 1500, ECN_ECT1));
+                                            &allocator, 1500, ECN_ECT1, 0));
   EXPECT_EQ(coalesced.ecn_codepoint(), ECN_ECT1);
 
   SerializedPacket packet2(QuicPacketNumber(2), PACKET_4BYTE_PACKET_NUMBER,
@@ -249,7 +249,7 @@ TEST(QuicCoalescedPacketTest, DoNotCoalesceDifferentEcn) {
   packet2.encryption_level = ENCRYPTION_ZERO_RTT;
   packet2.transmission_type = LOSS_RETRANSMISSION;
   EXPECT_FALSE(coalesced.MaybeCoalescePacket(
-      packet2, self_address, peer_address, &allocator, 1500, ECN_NOT_ECT));
+      packet2, self_address, peer_address, &allocator, 1500, ECN_NOT_ECT, 0));
   EXPECT_EQ(coalesced.ecn_codepoint(), ECN_ECT1);
 }
 

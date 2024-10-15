@@ -2324,7 +2324,7 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
     frames_.clear();
     ASSERT_TRUE(coalesced.MaybeCoalescePacket(
         serialized, self_address, peer_address, &allocator,
-        creator_.max_packet_length(), ECN_NOT_ECT));
+        creator_.max_packet_length(), ECN_NOT_ECT, 0));
   }
   char buffer[kMaxOutgoingPacketSize];
   size_t coalesced_length = creator_.SerializeCoalescedPacket(

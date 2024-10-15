@@ -2623,9 +2623,9 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPacketReceived(self_address, peer_address, packet);
   }
-  last_received_packet_info_ =
-      ReceivedPacketInfo(self_address, peer_address, packet.receipt_time(),
-                         packet.length(), packet.ecn_codepoint());
+  last_received_packet_info_ = ReceivedPacketInfo(
+      self_address, peer_address, packet.receipt_time(), packet.length(),
+      packet.ecn_codepoint(), packet.ipv6_flow_label());
   current_packet_data_ = packet.data();
 
   if (!default_path_.self_address.IsInitialized()) {
@@ -3053,7 +3053,7 @@ void QuicConnection::WriteQueuedPackets() {
     const BufferedPacket& packet = buffered_packets_.front();
     WriteResult result = SendPacketToWriter(
         packet.data.get(), packet.length, packet.self_address.host(),
-        packet.peer_address, writer_, packet.ecn_codepoint);
+        packet.peer_address, writer_, packet.ecn_codepoint, packet.flow_label);
     QUIC_DVLOG(1) << ENDPOINT << "Sending buffered packet, result: " << result;
     if (IsMsgTooBig(writer_, result) && packet.length > long_term_mtu_) {
       // When MSG_TOO_BIG is returned, the system typically knows what the
@@ -3396,7 +3396,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
               *packet, send_from_address, send_to_address,
               helper_->GetStreamSendBufferAllocator(),
               packet_creator_.max_packet_length(),
-              GetEcnCodepointToSend(send_to_address))) {
+              GetEcnCodepointToSend(send_to_address), outgoing_flow_label())) {
         // Failed to coalesce packet, flush current coalesced packet.
         if (!FlushCoalescedPacket()) {
           QUIC_BUG_IF(quic_connection_connected_after_flush_coalesced_failure,
@@ -3410,7 +3410,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                 *packet, send_from_address, send_to_address,
                 helper_->GetStreamSendBufferAllocator(),
                 packet_creator_.max_packet_length(),
-                GetEcnCodepointToSend(send_to_address))) {
+                GetEcnCodepointToSend(send_to_address),
+                outgoing_flow_label())) {
           // Failed to coalesce packet even it is the only packet, raise a write
           // error.
           QUIC_DLOG(ERROR) << ENDPOINT << "Failed to coalesce packet";
@@ -3432,7 +3433,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                     << " to buffered packets";
       last_ecn_codepoint_sent_ = GetEcnCodepointToSend(send_to_address);
       buffered_packets_.emplace_back(*packet, send_from_address,
-                                     send_to_address, last_ecn_codepoint_sent_);
+                                     send_to_address, last_ecn_codepoint_sent_,
+                                     last_flow_label_sent_);
       break;
     case SEND_TO_WRITER:
       // Stop using coalescer from now on.
@@ -3447,7 +3449,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       packet->release_encrypted_buffer = nullptr;
       result = SendPacketToWriter(
           packet->encrypted_buffer, encrypted_length, send_from_address.host(),
-          send_to_address, writer_, GetEcnCodepointToSend(send_to_address));
+          send_to_address, writer_, GetEcnCodepointToSend(send_to_address),
+          outgoing_flow_label());
       // This is a work around for an issue with linux UDP GSO batch writers.
       // When sending a GSO packet with 2 segments, if the first segment is
       // larger than the path MTU, instead of EMSGSIZE, the linux kernel returns
@@ -3482,7 +3485,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
                     << " to buffered packets";
       buffered_packets_.emplace_back(*packet, send_from_address,
-                                     send_to_address, last_ecn_codepoint_sent_);
+                                     send_to_address, last_ecn_codepoint_sent_,
+                                     last_flow_label_sent_);
     }
   }
 
@@ -3898,7 +3902,7 @@ void QuicConnection::OnSerializedPacket(SerializedPacket serialized_packet) {
       serialized_packet.encryption_level == ENCRYPTION_FORWARD_SECURE) {
     first_serialized_one_rtt_packet_ = std::make_unique<BufferedPacket>(
         serialized_packet, self_address(), peer_address(),
-        GetEcnCodepointToSend(peer_address()));
+        GetEcnCodepointToSend(peer_address()), outgoing_flow_label());
   }
   SendOrQueuePacket(std::move(serialized_packet));
 }
@@ -4132,10 +4136,12 @@ QuicEcnCodepoint QuicConnection::GetEcnCodepointToSend(
 WriteResult QuicConnection::SendPacketToWriter(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
     const QuicSocketAddress& destination_address, QuicPacketWriter* writer,
-    const QuicEcnCodepoint ecn_codepoint) {
+    const QuicEcnCodepoint ecn_codepoint, uint32_t flow_label) {
   QuicPacketWriterParams params = packet_writer_params_;
   params.ecn_codepoint = ecn_codepoint;
   last_ecn_codepoint_sent_ = ecn_codepoint;
+  last_flow_label_sent_ = flow_label;
+  params.flow_label = flow_label;
   WriteResult result =
       writer->WritePacket(buffer, buf_len, self_address, destination_address,
                           per_packet_options_, params);
@@ -4898,18 +4904,21 @@ QuicConnection::ScopedEncryptionLevelContext::~ScopedEncryptionLevelContext() {
 
 QuicConnection::BufferedPacket::BufferedPacket(
     const SerializedPacket& packet, const QuicSocketAddress& self_address,
-    const QuicSocketAddress& peer_address, const QuicEcnCodepoint ecn_codepoint)
+    const QuicSocketAddress& peer_address, const QuicEcnCodepoint ecn_codepoint,
+    uint32_t flow_label)
     : BufferedPacket(packet.encrypted_buffer, packet.encrypted_length,
-                     self_address, peer_address, ecn_codepoint) {}
+                     self_address, peer_address, ecn_codepoint, flow_label) {}
 
 QuicConnection::BufferedPacket::BufferedPacket(
     const char* encrypted_buffer, QuicPacketLength encrypted_length,
     const QuicSocketAddress& self_address,
-    const QuicSocketAddress& peer_address, const QuicEcnCodepoint ecn_codepoint)
+    const QuicSocketAddress& peer_address, const QuicEcnCodepoint ecn_codepoint,
+    uint32_t flow_label)
     : length(encrypted_length),
       self_address(self_address),
       peer_address(peer_address),
-      ecn_codepoint(ecn_codepoint) {
+      ecn_codepoint(ecn_codepoint),
+      flow_label(flow_label) {
   data = std::make_unique<char[]>(encrypted_length);
   memcpy(data.get(), encrypted_buffer, encrypted_length);
 }
@@ -4927,15 +4936,17 @@ QuicConnection::BufferedPacket::BufferedPacket(
 
 QuicConnection::ReceivedPacketInfo::ReceivedPacketInfo(QuicTime receipt_time)
     : receipt_time(receipt_time) {}
+
 QuicConnection::ReceivedPacketInfo::ReceivedPacketInfo(
     const QuicSocketAddress& destination_address,
     const QuicSocketAddress& source_address, QuicTime receipt_time,
-    QuicByteCount length, QuicEcnCodepoint ecn_codepoint)
+    QuicByteCount length, QuicEcnCodepoint ecn_codepoint, uint32_t flow_label)
     : destination_address(destination_address),
       source_address(source_address),
       receipt_time(receipt_time),
       length(length),
-      ecn_codepoint(ecn_codepoint) {}
+      ecn_codepoint(ecn_codepoint),
+      flow_label(flow_label) {}
 
 std::ostream& operator<<(std::ostream& os,
                          const QuicConnection::ReceivedPacketInfo& info) {
@@ -5089,7 +5100,8 @@ bool QuicConnection::WritePacketUsingWriter(
                        packet->encrypted_buffer, packet->encrypted_length));
   WriteResult result = SendPacketToWriter(
       packet->encrypted_buffer, packet->encrypted_length, self_address.host(),
-      peer_address, writer, GetEcnCodepointToSend(peer_address));
+      peer_address, writer, GetEcnCodepointToSend(peer_address),
+      outgoing_flow_label());
 
   const uint32_t writer_batch_id = result.batch_id;
 
@@ -5986,12 +5998,12 @@ bool QuicConnection::FlushCoalescedPacket() {
     buffered_packets_.emplace_back(
         buffer, static_cast<QuicPacketLength>(length),
         coalesced_packet_.self_address(), coalesced_packet_.peer_address(),
-        coalesced_packet_.ecn_codepoint());
+        coalesced_packet_.ecn_codepoint(), coalesced_packet_.flow_label());
   } else {
     WriteResult result = SendPacketToWriter(
         buffer, length, coalesced_packet_.self_address().host(),
         coalesced_packet_.peer_address(), writer_,
-        coalesced_packet_.ecn_codepoint());
+        coalesced_packet_.ecn_codepoint(), coalesced_packet_.flow_label());
     if (IsWriteError(result.status)) {
       OnWriteError(result.error_code);
       return false;
@@ -6004,7 +6016,7 @@ bool QuicConnection::FlushCoalescedPacket() {
         buffered_packets_.emplace_back(
             buffer, static_cast<QuicPacketLength>(length),
             coalesced_packet_.self_address(), coalesced_packet_.peer_address(),
-            coalesced_packet_.ecn_codepoint());
+            coalesced_packet_.ecn_codepoint(), coalesced_packet_.flow_label());
       }
     }
   }
@@ -6363,7 +6375,8 @@ void QuicConnection::OnRetransmittableOnWireTimeout() {
         buffered_packets_.emplace_back(
             first_serialized_one_rtt_packet_->data.get(),
             first_serialized_one_rtt_packet_->length, self_address(),
-            peer_address(), first_serialized_one_rtt_packet_->ecn_codepoint);
+            peer_address(), first_serialized_one_rtt_packet_->ecn_codepoint,
+            first_serialized_one_rtt_packet_->flow_label);
         packet_buffered = true;
       }
       break;
@@ -7389,6 +7402,11 @@ void QuicConnection::OnServerPreferredAddressValidated(
   QUIC_BUG_IF(failed to migrate to server preferred address, !success)
       << "Failed to migrate to server preferred address: "
       << context.peer_address() << " after successful validation";
+}
+
+void QuicConnection::set_outgoing_flow_label(uint32_t flow_label) {
+  QUICHE_DCHECK(!packet_creator_.HasPendingFrames());
+  outgoing_flow_label_ = flow_label;
 }
 
 bool QuicConnection::set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint) {

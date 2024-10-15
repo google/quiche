@@ -1436,6 +1436,18 @@ class QUICHE_EXPORT QuicConnection
     return quic_limit_new_streams_per_loop_2_;
   }
 
+  void set_outgoing_flow_label(uint32_t flow_label);
+
+  // Returns the flow label used for outgoing IPv6 packets, or 0 if no
+  // flow label will be sent.
+  uint32_t outgoing_flow_label() const { return outgoing_flow_label_; }
+
+  // Returns the flow label received on the most recent packet, or 0 if no
+  // flow label was received.
+  uint32_t last_received_flow_label() const {
+    return last_received_packet_info_.flow_label;
+  }
+
   void OnDiscardZeroRttDecryptionKeysAlarm() override;
   void OnIdleDetectorAlarm() override;
   void OnNetworkBlackholeDetectorAlarm() override;
@@ -1631,12 +1643,12 @@ class QUICHE_EXPORT QuicConnection
     BufferedPacket(const SerializedPacket& packet,
                    const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address,
-                   QuicEcnCodepoint ecn_codepoint);
+                   QuicEcnCodepoint ecn_codepoint, uint32_t flow_label);
     BufferedPacket(const char* encrypted_buffer,
                    QuicPacketLength encrypted_length,
                    const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address,
-                   QuicEcnCodepoint ecn_codepoint);
+                   QuicEcnCodepoint ecn_codepoint, uint32_t flow_label);
     // Please note, this buffered packet contains random bytes (and is not
     // *actually* a QUIC packet).
     BufferedPacket(QuicRandom& random, QuicPacketLength encrypted_length,
@@ -1653,6 +1665,7 @@ class QUICHE_EXPORT QuicConnection
     const QuicSocketAddress self_address;
     const QuicSocketAddress peer_address;
     QuicEcnCodepoint ecn_codepoint = ECN_NOT_ECT;
+    uint32_t flow_label = 0;
   };
 
   // ReceivedPacketInfo comprises the received packet information.
@@ -1662,7 +1675,7 @@ class QUICHE_EXPORT QuicConnection
     ReceivedPacketInfo(const QuicSocketAddress& destination_address,
                        const QuicSocketAddress& source_address,
                        QuicTime receipt_time, QuicByteCount length,
-                       QuicEcnCodepoint ecn_codepoint);
+                       QuicEcnCodepoint ecn_codepoint, uint32_t flow_label);
 
     QuicSocketAddress destination_address;
     QuicSocketAddress source_address;
@@ -1677,6 +1690,7 @@ class QUICHE_EXPORT QuicConnection
     QuicPacketHeader header;
     absl::InlinedVector<QuicFrameType, 1> frames;
     QuicEcnCodepoint ecn_codepoint = ECN_NOT_ECT;
+    uint32_t flow_label = 0;
     // Stores the actual address this packet is received on when it is received
     // on the preferred address. In this case, |destination_address| will
     // be overridden to the current default self address.
@@ -2122,7 +2136,8 @@ class QUICHE_EXPORT QuicConnection
                                  const QuicIpAddress& self_address,
                                  const QuicSocketAddress& destination_address,
                                  QuicPacketWriter* writer,
-                                 const QuicEcnCodepoint ecn_codepoint);
+                                 const QuicEcnCodepoint ecn_codepoint,
+                                 uint32_t flow_label);
 
   bool PeerAddressChanged() const;
 
@@ -2552,6 +2567,11 @@ class QUICHE_EXPORT QuicConnection
   // The ECN codepoint of the last packet to be sent to the writer, which
   // might be different from the next codepoint in per_packet_options_.
   QuicEcnCodepoint last_ecn_codepoint_sent_ = ECN_NOT_ECT;
+  // The flow label of the last packet to be sent to the writer, which
+  // might be different from the next flow label in per_packet_options_.
+  uint32_t last_flow_label_sent_ = 0;
+  // The flow label to be sent for outgoing packets.
+  uint32_t outgoing_flow_label_ = 0;
 
   // If true, the peer has indicated that it supports the RESET_STREAM_AT frame.
   bool reliable_stream_reset_ = false;

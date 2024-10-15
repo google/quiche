@@ -7747,6 +7747,38 @@ TEST_P(EndToEndTest, OriginalConnectionIdClearedFromMap) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, FlowLabelSend) {
+  SetQuicReloadableFlag(quic_support_flow_label, true);
+  ASSERT_TRUE(Initialize());
+
+  const uint32_t server_flow_label = 2;
+  quiche::QuicheNotification set;
+  server_thread_->Schedule([this, &set]() {
+    QuicConnection* server_connection = GetServerConnection();
+    if (server_connection != nullptr) {
+      server_connection->set_outgoing_flow_label(server_flow_label);
+    } else {
+      ADD_FAILURE() << "Missing server connection";
+    }
+    set.Notify();
+  });
+  set.WaitForNotification();
+
+  const uint32_t client_flow_label = 1;
+  QuicConnection* client_connection = GetClientConnection();
+  client_connection->set_outgoing_flow_label(client_flow_label);
+
+  client_->SendSynchronousRequest("/foo");
+
+  EXPECT_EQ(client_flow_label, client_connection->outgoing_flow_label());
+  EXPECT_EQ(server_flow_label, client_connection->last_received_flow_label());
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  EXPECT_EQ(server_flow_label, server_connection->outgoing_flow_label());
+  EXPECT_EQ(client_flow_label, server_connection->last_received_flow_label());
+}
+
 TEST_P(EndToEndTest, ServerReportsNotEct) {
   // Client connects using not-ECT.
   SetQuicRestartFlag(quic_support_ect1, true);

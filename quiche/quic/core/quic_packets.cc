@@ -355,13 +355,24 @@ QuicReceivedPacket::QuicReceivedPacket(
     const char* buffer, size_t length, QuicTime receipt_time, bool owns_buffer,
     int ttl, bool ttl_valid, char* packet_headers, size_t headers_length,
     bool owns_header_buffer, QuicEcnCodepoint ecn_codepoint)
+    : quic::QuicReceivedPacket(buffer, length, receipt_time, owns_buffer, ttl,
+                               ttl_valid, packet_headers, headers_length,
+                               owns_header_buffer, ecn_codepoint,
+                               /*ipv6_flow_label=*/0) {}
+
+QuicReceivedPacket::QuicReceivedPacket(
+    const char* buffer, size_t length, QuicTime receipt_time, bool owns_buffer,
+    int ttl, bool ttl_valid, char* packet_headers, size_t headers_length,
+    bool owns_header_buffer, QuicEcnCodepoint ecn_codepoint,
+    uint32_t ipv6_flow_label)
     : QuicEncryptedPacket(buffer, length, owns_buffer),
       receipt_time_(receipt_time),
       ttl_(ttl_valid ? ttl : -1),
       packet_headers_(packet_headers),
       headers_length_(headers_length),
       owns_header_buffer_(owns_header_buffer),
-      ecn_codepoint_(ecn_codepoint) {}
+      ecn_codepoint_(ecn_codepoint),
+      ipv6_flow_label_(ipv6_flow_label) {}
 
 QuicReceivedPacket::~QuicReceivedPacket() {
   if (owns_header_buffer_) {
