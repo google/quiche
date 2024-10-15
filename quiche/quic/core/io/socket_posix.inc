@@ -79,11 +79,22 @@ ssize_t SyscallRecv(int sockfd, void* buf, size_t len, int flags) {
                                                           len, flags);
 }
 ssize_t SyscallSend(int sockfd, const void* buf, size_t len, int flags) {
-  return SyscallWrapper(&::send, sockfd, buf, len, flags);
+  // When compiled with _FORTIFY_SOURCE, there are two overloads of recv()
+  // available, which prevents SyscallWrapper from being able to infer its
+  // template arguments. This currently happens Android ARCore builds.
+  // Specify the template arguments explicitly as a workaround.
+  return SyscallWrapper<ssize_t, int, const void*, size_t, int>(
+      &::send, sockfd, buf, len, flags);
 }
 ssize_t SyscallSendTo(int sockfd, const void* buf, size_t len, int flags,
                       const sockaddr* addr, socklen_t addrlen) {
-  return SyscallWrapper(&::sendto, sockfd, buf, len, flags, addr, addrlen);
+  // When compiled with _FORTIFY_SOURCE, there are two overloads of recv()
+  // available, which prevents SyscallWrapper from being able to infer its
+  // template arguments. This currently happens Android ARCore builds.
+  // Specify the template arguments explicitly as a workaround.
+  return SyscallWrapper<ssize_t, int, const void*, size_t, int,
+                        const sockaddr*, socklen_t>(
+      &::sendto, sockfd, buf, len, flags, addr, addrlen);
 }
 
 // Wrapper of absl::ErrnoToStatus that ensures the `unavailable_error_numbers`
