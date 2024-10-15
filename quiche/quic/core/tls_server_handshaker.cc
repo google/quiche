@@ -961,13 +961,8 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     crypto_negotiated_params_->sni =
         QuicHostnameUtils::NormalizeHostname(hostname);
     if (!ValidateHostname(hostname)) {
-      if (GetQuicReloadableFlag(quic_new_error_code_for_invalid_hostname)) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_new_error_code_for_invalid_hostname);
-        CloseConnection(QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME,
-                        "invalid hostname");
-      } else {
-        set_extra_error_details("select_cert_error: invalid hostname");
-      }
+      CloseConnection(QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME,
+                      "invalid hostname");
       return ssl_select_cert_error;
     }
     if (hostname != crypto_negotiated_params_->sni) {
