@@ -1448,6 +1448,14 @@ class QUICHE_EXPORT QuicConnection
     return last_received_packet_info_.flow_label;
   }
 
+  void EnableBlackholeAvoidanceViaFlowLabel() {
+    enable_black_hole_avoidance_via_flow_label_ = true;
+  }
+
+  bool enable_black_hole_avoidance_via_flow_label() const {
+    return enable_black_hole_avoidance_via_flow_label_;
+  }
+
   void OnDiscardZeroRttDecryptionKeysAlarm() override;
   void OnIdleDetectorAlarm() override;
   void OnNetworkBlackholeDetectorAlarm() override;
@@ -2572,6 +2580,15 @@ class QUICHE_EXPORT QuicConnection
   uint32_t last_flow_label_sent_ = 0;
   // The flow label to be sent for outgoing packets.
   uint32_t outgoing_flow_label_ = 0;
+  // The flow label of the packet with the largest packet number received
+  // from the peer.
+  uint32_t last_flow_label_received_ = 0;
+  // True if the peer is expected to change their flow label in response to
+  // a flow label change made by this connection.
+  bool expect_peer_flow_label_change_ = false;
+  // If true then flow labels will be changed when a PTO fires, or when
+  // a PTO'd packet from a peer is detected.
+  bool enable_black_hole_avoidance_via_flow_label_ = false;
 
   // If true, the peer has indicated that it supports the RESET_STREAM_AT frame.
   bool reliable_stream_reset_ = false;

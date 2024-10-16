@@ -1166,6 +1166,26 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   has_path_challenge_in_current_packet_ = false;
   current_effective_peer_migration_type_ = NO_CHANGE;
 
+  if (enable_black_hole_avoidance_via_flow_label_) {
+    if (!GetLargestReceivedPacket().IsInitialized()) {
+      last_flow_label_received_ = last_received_packet_info_.flow_label;
+    } else if (header.packet_number > GetLargestReceivedPacket() &&
+               last_received_packet_info_.flow_label !=
+                   last_flow_label_received_) {
+      if (expect_peer_flow_label_change_) {
+        expect_peer_flow_label_change_ = false;
+      } else if (header.packet_number > GetLargestReceivedPacket() + 1) {
+        // This packet introduced a packet number gap and came with a new flow
+        // label so the peer is RTO'ing. In response, send a different flow
+        // label.
+        uint32_t flow_label;
+        random_generator_->RandBytes(&flow_label, sizeof(flow_label));
+        set_outgoing_flow_label(flow_label);
+      }
+      last_flow_label_received_ = last_received_packet_info_.flow_label;
+    }
+  }
+
   if (perspective_ == Perspective::IS_CLIENT) {
     if (!GetLargestReceivedPacket().IsInitialized() ||
         header.packet_number > GetLargestReceivedPacket()) {
@@ -4176,6 +4196,12 @@ void QuicConnection::OnRetransmissionAlarm() {
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnNPacketNumbersSkipped(num_packet_numbers_to_skip,
                                               clock_->Now());
+    }
+    if (enable_black_hole_avoidance_via_flow_label_) {
+      uint32_t flow_label;
+      random_generator_->RandBytes(&flow_label, sizeof(flow_label));
+      set_outgoing_flow_label(flow_label);
+      expect_peer_flow_label_change_ = true;
     }
   }
   if (default_enable_5rto_blackhole_detection_ &&
