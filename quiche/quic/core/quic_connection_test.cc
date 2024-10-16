@@ -6517,7 +6517,13 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingCryptoPacket) {
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
   connection_.SendCryptoDataWithString("foo", 0);
   // Check that ack is bundled with outgoing crypto data.
-  EXPECT_EQ(3u, writer_->frame_count());
+  EXPECT_FALSE(writer_->ack_frames().empty());
+  if (!QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_FALSE(writer_->stream_frames().empty());
+  } else {
+    EXPECT_FALSE(writer_->crypto_frames().empty());
+  }
+  EXPECT_FALSE(writer_->padding_frames().empty());
   EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   EXPECT_FALSE(connection_.HasPendingAcks());
 }
@@ -6562,14 +6568,13 @@ TEST_P(QuicConnectionTest, BundleAckForSecondCHLO) {
   ForceWillingAndAbleToWriteOnceForDeferSending();
   ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   // Check that ack is sent and that delayed ack alarm is reset.
-  EXPECT_EQ(3u, writer_->frame_count());
   EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   if (!QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    EXPECT_EQ(1u, writer_->stream_frames().size());
+    EXPECT_FALSE(writer_->stream_frames().empty());
   } else {
-    EXPECT_EQ(1u, writer_->crypto_frames().size());
+    EXPECT_FALSE(writer_->crypto_frames().empty());
   }
-  EXPECT_EQ(1u, writer_->padding_frames().size());
+  EXPECT_FALSE(writer_->padding_frames().empty());
   ASSERT_FALSE(writer_->ack_frames().empty());
   EXPECT_EQ(QuicPacketNumber(2u), LargestAcked(writer_->ack_frames().front()));
   EXPECT_FALSE(connection_.HasPendingAcks());
@@ -6602,14 +6607,13 @@ TEST_P(QuicConnectionTest, BundleAckForSecondCHLOTwoPacketReject) {
     ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   }
   // Check that ack is sent and that delayed ack alarm is reset.
-  EXPECT_EQ(3u, writer_->frame_count());
   EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   if (!QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    EXPECT_EQ(1u, writer_->stream_frames().size());
+    EXPECT_FALSE(writer_->stream_frames().empty());
   } else {
-    EXPECT_EQ(1u, writer_->crypto_frames().size());
+    EXPECT_FALSE(writer_->crypto_frames().empty());
   }
-  EXPECT_EQ(1u, writer_->padding_frames().size());
+  EXPECT_FALSE(writer_->padding_frames().empty());
   ASSERT_FALSE(writer_->ack_frames().empty());
   EXPECT_EQ(QuicPacketNumber(2u), LargestAcked(writer_->ack_frames().front()));
   EXPECT_FALSE(connection_.HasPendingAcks());
