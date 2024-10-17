@@ -7764,13 +7764,15 @@ TEST_P(EndToEndTest, FlowLabelSend) {
 
   client_->SendSynchronousRequest("/foo");
 
-  EXPECT_EQ(client_flow_label, client_connection->outgoing_flow_label());
-  EXPECT_EQ(server_flow_label, client_connection->last_received_flow_label());
+  if (server_address_.host().IsIPv6()) {
+    EXPECT_EQ(client_flow_label, client_connection->outgoing_flow_label());
+    EXPECT_EQ(server_flow_label, client_connection->last_received_flow_label());
 
-  server_thread_->Pause();
-  QuicConnection* server_connection = GetServerConnection();
-  EXPECT_EQ(server_flow_label, server_connection->outgoing_flow_label());
-  EXPECT_EQ(client_flow_label, server_connection->last_received_flow_label());
+    server_thread_->Pause();
+    QuicConnection* server_connection = GetServerConnection();
+    EXPECT_EQ(server_flow_label, server_connection->outgoing_flow_label());
+    EXPECT_EQ(client_flow_label, server_connection->last_received_flow_label());
+  }
 }
 
 TEST_P(EndToEndTest, ServerReportsNotEct) {
