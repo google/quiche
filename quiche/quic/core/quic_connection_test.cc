@@ -9996,8 +9996,11 @@ TEST_P(QuicConnectionTest, PtoChangesFlowLabel) {
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
-  connection_.set_outgoing_flow_label(1);
+  EXPECT_EQ(0, connection_.outgoing_flow_label());
   connection_.EnableBlackholeAvoidanceViaFlowLabel();
+  static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
+  const uint32_t flow_label = connection_.outgoing_flow_label();
+  EXPECT_NE(0, flow_label);
 
   QuicStreamId stream_id = 2;
   QuicPacketNumber last_packet;
@@ -10009,7 +10012,7 @@ TEST_P(QuicConnectionTest, PtoChangesFlowLabel) {
   // Fire PTO and verify the flow label has changed.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.GetRetransmissionAlarm()->Fire();
-  EXPECT_NE(1, connection_.outgoing_flow_label());
+  EXPECT_NE(flow_label, connection_.outgoing_flow_label());
 }
 
 TEST_P(QuicConnectionTest, NewReceiveNewFlowLabelWithGapChangesFlowLabel) {
@@ -10020,21 +10023,24 @@ TEST_P(QuicConnectionTest, NewReceiveNewFlowLabelWithGapChangesFlowLabel) {
   config.SetConnectionOptionsToSend(connection_options);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
+  EXPECT_EQ(0, connection_.outgoing_flow_label());
   connection_.EnableBlackholeAvoidanceViaFlowLabel();
-  const uint32_t flow_label = 1;
-  connection_.set_outgoing_flow_label(flow_label);
+  static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
+  const uint32_t flow_label = connection_.outgoing_flow_label();
+  EXPECT_NE(0, flow_label);
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
 
   // Receive the first packet to initialize the flow label.
   ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_INITIAL, 0);
-  EXPECT_EQ(1, connection_.outgoing_flow_label());
+  EXPECT_EQ(flow_label, connection_.outgoing_flow_label());
 
   // Receive the second packet with the same flow label
   ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_INITIAL, flow_label);
-  EXPECT_EQ(1, connection_.outgoing_flow_label());
+  EXPECT_EQ(flow_label, connection_.outgoing_flow_label());
 
   // Receive a packet with gap and a new flow label and verify the outgoing
   // flow label has changed.
+  static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
   ProcessDataPacketAtLevel(4, !kHasStopWaiting, ENCRYPTION_INITIAL,
                            flow_label + 1);
   EXPECT_NE(flow_label, connection_.outgoing_flow_label());
@@ -10049,18 +10055,20 @@ TEST_P(QuicConnectionTest,
   config.SetConnectionOptionsToSend(connection_options);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
+  EXPECT_EQ(0, connection_.outgoing_flow_label());
   connection_.EnableBlackholeAvoidanceViaFlowLabel();
-  const uint32_t flow_label = 1;
-  connection_.set_outgoing_flow_label(flow_label);
+  static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
+  const uint32_t flow_label = connection_.outgoing_flow_label();
+  EXPECT_NE(0, flow_label);
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
 
   // Receive the first packet to initialize the flow label.
   ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_INITIAL, 0);
-  EXPECT_EQ(1, connection_.outgoing_flow_label());
+  EXPECT_EQ(flow_label, connection_.outgoing_flow_label());
 
   // Receive the second packet with the same flow label
   ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_INITIAL, flow_label);
-  EXPECT_EQ(1, connection_.outgoing_flow_label());
+  EXPECT_EQ(flow_label, connection_.outgoing_flow_label());
 
   // Receive a packet with no gap and a new flow label and verify the outgoing
   // flow label has not changed.

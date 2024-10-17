@@ -1174,13 +1174,13 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
                    last_flow_label_received_) {
       if (expect_peer_flow_label_change_) {
         expect_peer_flow_label_change_ = false;
+        QUIC_CODE_COUNT(quic_detected_expected_flow_label_change);
       } else if (header.packet_number > GetLargestReceivedPacket() + 1) {
         // This packet introduced a packet number gap and came with a new flow
         // label so the peer is RTO'ing. In response, send a different flow
         // label.
-        uint32_t flow_label;
-        random_generator_->RandBytes(&flow_label, sizeof(flow_label));
-        set_outgoing_flow_label(flow_label);
+        GenerateNewOutgoingFlowLabel();
+        QUIC_CODE_COUNT(quic_generated_new_flow_label_on_flow_label_change);
       }
       last_flow_label_received_ = last_received_packet_info_.flow_label;
     }
@@ -2926,6 +2926,12 @@ bool QuicConnection::PeerAddressChanged() const {
   return direct_peer_address_ != last_received_packet_info_.source_address;
 }
 
+void QuicConnection::GenerateNewOutgoingFlowLabel() {
+  uint32_t flow_label;
+  random_generator_->RandBytes(&flow_label, sizeof(flow_label));
+  set_outgoing_flow_label(flow_label);
+}
+
 bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   if (perspective_ == Perspective::IS_CLIENT && version().HasIetfQuicFrames() &&
       direct_peer_address_.IsInitialized() &&
@@ -4198,10 +4204,9 @@ void QuicConnection::OnRetransmissionAlarm() {
                                               clock_->Now());
     }
     if (enable_black_hole_avoidance_via_flow_label_) {
-      uint32_t flow_label;
-      random_generator_->RandBytes(&flow_label, sizeof(flow_label));
-      set_outgoing_flow_label(flow_label);
+      GenerateNewOutgoingFlowLabel();
       expect_peer_flow_label_change_ = true;
+      QUIC_CODE_COUNT(quic_generated_new_flow_label_on_pto);
     }
   }
   if (default_enable_5rto_blackhole_detection_ &&

@@ -1449,7 +1449,9 @@ class QUICHE_EXPORT QuicConnection
   }
 
   void EnableBlackholeAvoidanceViaFlowLabel() {
+    GenerateNewOutgoingFlowLabel();
     enable_black_hole_avoidance_via_flow_label_ = true;
+    QUIC_CODE_COUNT(quic_black_hole_avoidance_via_flow_label_enabled);
   }
 
   bool enable_black_hole_avoidance_via_flow_label() const {
@@ -2148,6 +2150,8 @@ class QUICHE_EXPORT QuicConnection
                                  uint32_t flow_label);
 
   bool PeerAddressChanged() const;
+
+  void GenerateNewOutgoingFlowLabel();
 
   QuicAlarm& ack_alarm() { return alarms_.ack_alarm(); }
   const QuicAlarm& ack_alarm() const { return alarms_.ack_alarm(); }
