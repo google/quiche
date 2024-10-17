@@ -4,6 +4,10 @@
 
 #include "quiche/quic/test_tools/simple_session_notifier.h"
 
+#include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -102,6 +106,25 @@ void SimpleSessionNotifier::WriteOrBufferRstStream(
       HasBufferedStreamData() || HasBufferedControlFrames();
   control_frames_.emplace_back((QuicFrame(new QuicRstStreamFrame(
       ++last_control_frame_id_, id, error, bytes_written))));
+  if (error != QUIC_STREAM_NO_ERROR) {
+    // Delete stream to avoid retransmissions.
+    stream_map_.erase(id);
+  }
+  if (had_buffered_data) {
+    QUIC_DLOG(WARNING) << "Connection is write blocked";
+    return;
+  }
+  WriteBufferedControlFrames();
+}
+
+void SimpleSessionNotifier::WriteOrBufferResetStreamAt(
+    QuicStreamId id, QuicRstStreamErrorCode error,
+    QuicStreamOffset bytes_written, QuicStreamOffset reliable_size) {
+  QUIC_DVLOG(1) << "Writing RESET_STREAM_AT_FRAME";
+  const bool had_buffered_data =
+      HasBufferedStreamData() || HasBufferedControlFrames();
+  control_frames_.emplace_back(QuicFrame(new QuicResetStreamAtFrame(
+      ++last_control_frame_id_, id, error, bytes_written, reliable_size)));
   if (error != QUIC_STREAM_NO_ERROR) {
     // Delete stream to avoid retransmissions.
     stream_map_.erase(id);
