@@ -251,13 +251,6 @@ bool QuicUdpSocketApi::SetupSocket(QuicUdpSocketFd fd, int address_family,
             << "IPv6 socket";
         return false;
       }
-      if (setsockopt(fd, SOL_IPV6, IPV6_FLOWINFO_SEND, &set, sizeof(set)) !=
-          0) {
-        QUIC_LOG_FIRST_N(ERROR, 100)
-            << "Failed to request to send flow label on "
-            << "IPv6 socket";
-        return false;
-      }
     }
 #endif
     if (!EnableReceiveSelfIpAddressForV6(fd)) {
