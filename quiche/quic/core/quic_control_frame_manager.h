@@ -57,6 +57,12 @@ class QUICHE_EXPORT QuicControlFrameManager {
   void WriteOrBufferRstStream(QuicControlFrameId id, QuicResetStreamError error,
                               QuicStreamOffset bytes_written);
 
+  // Tries to send a RESET_STREAM_AT frame. Buffers the frame if it cannot be
+  // sent immediately.
+  void WriteOrBufferResetStreamAt(QuicStreamId id, QuicResetStreamError error,
+                                  QuicStreamOffset bytes_written,
+                                  QuicStreamOffset reliable_size);
+
   // Tries to send a GOAWAY_FRAME. Buffers the frame if it cannot be sent
   // immediately.
   void WriteOrBufferGoAway(QuicErrorCode error,

@@ -10,8 +10,10 @@
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -66,6 +68,15 @@ void QuicControlFrameManager::WriteOrBufferRstStream(
   QUIC_DVLOG(1) << "Writing RST_STREAM_FRAME";
   WriteOrBufferQuicFrame((QuicFrame(new QuicRstStreamFrame(
       ++last_control_frame_id_, id, error, bytes_written))));
+}
+
+void QuicControlFrameManager::WriteOrBufferResetStreamAt(
+    QuicStreamId id, QuicResetStreamError error, QuicStreamOffset bytes_written,
+    QuicStreamOffset reliable_size) {
+  QUIC_DVLOG(1) << "Writing RST_STREAM_AT_FRAME";
+  WriteOrBufferQuicFrame((QuicFrame(new QuicResetStreamAtFrame(
+      ++last_control_frame_id_, id, error.ietf_application_code(),
+      bytes_written, reliable_size))));
 }
 
 void QuicControlFrameManager::WriteOrBufferGoAway(
