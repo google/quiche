@@ -328,6 +328,8 @@ class QUICHE_EXPORT QuicFramer {
     receive_timestamps_exponent_ = exponent;
   }
 
+  bool process_reset_stream_at() const { return process_reset_stream_at_; }
+
   // Allows enabling RESET_STREAM_AT frame processing.
   void set_process_reset_stream_at(bool process_reset_stream_at) {
     process_reset_stream_at_ = process_reset_stream_at;

@@ -580,8 +580,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     }
   }
 
-  reliable_stream_reset_ = config.SupportsReliableStreamReset();
-  framer_.set_process_reset_stream_at(reliable_stream_reset_);
+  framer_.set_process_reset_stream_at(config.SupportsReliableStreamReset());
 }
 
 void QuicConnection::AddDispatcherSentPackets(
@@ -2098,7 +2097,7 @@ bool QuicConnection::OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) {
   if (!UpdatePacketContent(RESET_STREAM_AT_FRAME)) {
     return false;
   }
-  if (!reliable_stream_reset_) {
+  if (!framer_.process_reset_stream_at()) {
     CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
                     "Received RESET_STREAM_AT while not negotiated.",
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);

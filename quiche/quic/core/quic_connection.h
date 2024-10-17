@@ -1481,6 +1481,10 @@ class QUICHE_EXPORT QuicConnection
 
   bool ShouldFixTimeouts(const QuicConfig& config) const;
 
+  bool reliable_stream_reset_enabled() const {
+    return framer_.process_reset_stream_at();
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -2594,8 +2598,6 @@ class QUICHE_EXPORT QuicConnection
   // a PTO'd packet from a peer is detected.
   bool enable_black_hole_avoidance_via_flow_label_ = false;
 
-  // If true, the peer has indicated that it supports the RESET_STREAM_AT frame.
-  bool reliable_stream_reset_ = false;
 
   const bool quic_limit_new_streams_per_loop_2_ =
       GetQuicReloadableFlag(quic_limit_new_streams_per_loop_2);
