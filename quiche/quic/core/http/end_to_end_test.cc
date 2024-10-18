@@ -7742,7 +7742,7 @@ TEST_P(EndToEndTest, OriginalConnectionIdClearedFromMap) {
 }
 
 TEST_P(EndToEndTest, FlowLabelSend) {
-  SetQuicReloadableFlag(quic_support_flow_label, true);
+  SetQuicRestartFlag(quic_support_flow_label, true);
   ASSERT_TRUE(Initialize());
 
   const uint32_t server_flow_label = 2;
