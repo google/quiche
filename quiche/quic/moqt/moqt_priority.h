@@ -39,6 +39,9 @@ QUICHE_EXPORT webtransport::SendOrder UpdateSendOrderForSubscriberPriority(
 // WebTransport send order set on the MoQT control stream.
 QUICHE_EXPORT extern const webtransport::SendOrder kMoqtControlStreamSendOrder;
 
+// WebTransport send order set on MoQT bandwidth probe streams.
+QUICHE_EXPORT extern const webtransport::SendOrder kMoqtProbeStreamSendOrder;
+
 }  // namespace moqt
 
 #endif  // QUICHE_QUIC_MOQT_MOQT_PRIORITY_H_

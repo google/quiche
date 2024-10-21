@@ -75,5 +75,7 @@ webtransport::SendOrder UpdateSendOrderForSubscriberPriority(
 
 const webtransport::SendOrder kMoqtControlStreamSendOrder =
     std::numeric_limits<webtransport::SendOrder>::max();
+const webtransport::SendOrder kMoqtProbeStreamSendOrder =
+    std::numeric_limits<webtransport::SendOrder>::min();
 
 }  // namespace moqt
