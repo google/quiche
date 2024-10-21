@@ -38,9 +38,8 @@ class RemoteTrack {
     virtual void OnCanAckObjects(MoqtObjectAckFunction ack_function) = 0;
     // Called when an object fragment (or an entire object) is received.
     virtual void OnObjectFragment(
-        const FullTrackName& full_track_name, uint64_t group_sequence,
-        uint64_t object_sequence, MoqtPriority publisher_priority,
-        MoqtObjectStatus object_status,
+        const FullTrackName& full_track_name, FullSequence sequence,
+        MoqtPriority publisher_priority, MoqtObjectStatus object_status,
         MoqtForwardingPreference forwarding_preference,
         absl::string_view object, bool end_of_message) = 0;
     // TODO(martinduke): Add final sequence numbers

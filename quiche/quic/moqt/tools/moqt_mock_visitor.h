@@ -80,9 +80,8 @@ class MockRemoteTrackVisitor : public RemoteTrack::Visitor {
   MOCK_METHOD(void, OnCanAckObjects, (MoqtObjectAckFunction ack_function),
               (override));
   MOCK_METHOD(void, OnObjectFragment,
-              (const FullTrackName& full_track_name, uint64_t group_sequence,
-               uint64_t object_sequence, MoqtPriority publisher_priority,
-               MoqtObjectStatus status,
+              (const FullTrackName& full_track_name, FullSequence sequence,
+               MoqtPriority publisher_priority, MoqtObjectStatus status,
                MoqtForwardingPreference forwarding_preference,
                absl::string_view object, bool end_of_message),
               (override));

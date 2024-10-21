@@ -177,13 +177,13 @@ class MoqtIngestionHandler {
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
 
     void OnObjectFragment(const FullTrackName& full_track_name,
-                          uint64_t group_sequence, uint64_t object_sequence,
+                          FullSequence sequence,
                           MoqtPriority /*publisher_priority*/,
                           MoqtObjectStatus /*status*/,
                           MoqtForwardingPreference /*forwarding_preference*/,
                           absl::string_view object,
                           bool /*end_of_message*/) override {
-      std::string file_name = absl::StrCat(group_sequence, "-", object_sequence,
+      std::string file_name = absl::StrCat(sequence.group, "-", sequence.object,
                                            ".", full_track_name.tuple().back());
       std::string file_path = quiche::JoinPath(directory_, file_name);
       std::ofstream output(file_path, std::ios::binary | std::ios::ate);

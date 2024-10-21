@@ -21,6 +21,7 @@ namespace moqt {
 struct PublishedObject {
   FullSequence sequence;
   MoqtObjectStatus status;
+  MoqtPriority publisher_priority;
   quiche::QuicheMemSlice payload;
 };
 
@@ -46,7 +47,8 @@ class MoqtTrackPublisher {
   virtual const FullTrackName& GetTrackName() const = 0;
 
   // GetCachedObject lets the MoQT stack access the objects that are available
-  // in the track's built-in local cache.
+  // in the track's built-in local cache. Retrieves the first object ID >=
+  // sequence.object that matches (sequence.group, sequence.subgroup).
   //
   // This implementation of MoQT does not store any objects within the MoQT
   // stack itself, at least until the object is fully serialized and passed to
@@ -64,7 +66,7 @@ class MoqtTrackPublisher {
       FullSequence sequence) const = 0;
 
   // Returns a full list of objects available in the cache, to be used for
-  // SUBSCRIBEs with a backfill.
+  // SUBSCRIBEs with a backfill. Returned in order of worsening priority.
   virtual std::vector<FullSequence> GetCachedObjectsInRange(
       FullSequence start, FullSequence end) const = 0;
 

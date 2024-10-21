@@ -306,6 +306,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     }
     void set_subscriber_priority(MoqtPriority priority);
 
+    // This is only called for objects that have just arrived.
     void OnNewObjectAvailable(FullSequence sequence) override;
     void ProcessObjectAck(const MoqtObjectAck& message) {
       if (monitoring_interface_ == nullptr) {
@@ -414,6 +415,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     MoqtSession* session_;
     webtransport::Stream* stream_;
     uint64_t subscription_id_;
+    // A FullSequence with the minimum object ID that should go out next. The
+    // session doesn't know what the next object ID in the stream is because
+    // the next object could be in a different subgroup or simply be skipped.
     FullSequence next_object_;
     bool stream_header_written_ = false;
     // A weak pointer to an object owned by the session.  Used to make sure the

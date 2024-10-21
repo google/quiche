@@ -4,16 +4,15 @@
 
 #include "quiche/quic/moqt/moqt_live_relay_queue.h"
 
-#include <cstdint>
 #include <memory>
 #include <optional>
-#include <tuple>
 #include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -23,42 +22,22 @@
 
 namespace moqt {
 
-// TODO(martinduke): Accept subgroup ID.
-// TODO(martinduke): Accept publisher priority.
 // TODO(martinduke): Unless Track Forwarding preference goes away, support it.
-bool MoqtLiveRelayQueue::AddObject(uint64_t group_id, uint64_t object_id,
-                                   MoqtObjectStatus status,
-                                   absl::string_view object) {
+bool MoqtLiveRelayQueue::AddRawObject(FullSequence sequence,
+                                      MoqtObjectStatus status,
+                                      MoqtPriority priority,
+                                      absl::string_view payload) {
   if (queue_.size() == kMaxQueuedGroups) {
-    if (queue_.begin()->first > group_id) {
-      QUICHE_DLOG(INFO) << "Skipping object from group " << group_id
+    if (queue_.begin()->first > sequence.group) {
+      QUICHE_DLOG(INFO) << "Skipping object from group " << sequence.group
                         << " because it is too old.";
       return true;
     }
-    if (queue_.find(group_id) == queue_.end()) {
+    if (queue_.find(sequence.group) == queue_.end()) {
       // Erase the oldest group.
       queue_.erase(queue_.begin());
     }
   }
-  QUICHE_CHECK(status == MoqtObjectStatus::kNormal || object.empty());
-  return AddRawObject(FullSequence{group_id, object_id}, status, object);
-}
-
-std::tuple<uint64_t, bool> MoqtLiveRelayQueue::NextObject(Group& group) const {
-  auto it = group.rbegin();
-  if (it == group.rend()) {
-    return std::tuple<uint64_t, bool>(0, false);
-  }
-  return std::tuple<uint64_t, bool>(
-      it->second.sequence.object + 1,
-      (it->second.status == MoqtObjectStatus::kEndOfGroup ||
-       it->second.status == MoqtObjectStatus::kGroupDoesNotExist ||
-       it->second.status == MoqtObjectStatus::kEndOfTrack));
-}
-
-bool MoqtLiveRelayQueue::AddRawObject(FullSequence sequence,
-                                      MoqtObjectStatus status,
-                                      absl::string_view payload) {
   // Validate the input given previously received markers.
   if (end_of_track_.has_value() && sequence > *end_of_track_) {
     QUICHE_DLOG(INFO) << "Skipping object because it is after the end of the "
@@ -79,34 +58,61 @@ bool MoqtLiveRelayQueue::AddRawObject(FullSequence sequence,
     return false;
   }
   auto group_it = queue_.try_emplace(sequence.group);
+  Group& group = group_it.first->second;
   if (!group_it.second) {  // Group already exists.
-    auto [next_object_id, is_the_end] = NextObject(group_it.first->second);
-    if (next_object_id <= sequence.object && is_the_end) {
+    if (group.complete && sequence.object >= group.next_object) {
       QUICHE_DLOG(INFO) << "Skipping object because it is after the end of the "
                         << "group";
       return false;
     }
     if (status == MoqtObjectStatus::kEndOfGroup &&
-        sequence.object < next_object_id) {
+        sequence.object < group.next_object) {
       QUICHE_DLOG(INFO) << "Skipping EndOfGroup because it is not the last "
                         << "object in the group.";
       return false;
     }
   }
+  auto subgroup_it = group.subgroups.try_emplace(
+      SubgroupPriority{priority, sequence.subgroup});
+  auto& object_queue = subgroup_it.first->second;
+  if (!object_queue.empty()) {  // Check if the new object is valid
+    auto last_object = object_queue.rbegin();
+    if (last_object->first >= sequence.object) {
+      QUICHE_DLOG(INFO) << "Skipping object because it does not increase the "
+                        << "object ID monotonically in the subgroup.";
+      return false;
+    }
+    if (last_object->second.status == MoqtObjectStatus::kEndOfSubgroup) {
+      QUICHE_DLOG(INFO) << "Skipping object because it is after the end of the "
+                        << "subgroup.";
+      return false;
+    }
+  }
+  // Object is valid. Update state.
   if (next_sequence_ <= sequence) {
     next_sequence_ = FullSequence{sequence.group, sequence.object + 1};
+  }
+  if (sequence.object >= group.next_object) {
+    group.next_object = sequence.object + 1;
+  }
+  switch (status) {
+    case MoqtObjectStatus::kEndOfTrack:
+      end_of_track_ = sequence;
+      break;
+    case MoqtObjectStatus::kEndOfGroup:
+    case MoqtObjectStatus::kGroupDoesNotExist:
+      group.complete = true;
+      break;
+    default:
+      break;
   }
   std::shared_ptr<quiche::QuicheMemSlice> slice =
       payload.empty()
           ? nullptr
           : std::make_shared<quiche::QuicheMemSlice>(quiche::QuicheBuffer::Copy(
                 quiche::SimpleBufferAllocator::Get(), payload));
-  auto object_it = group_it.first->second.try_emplace(sequence.object, sequence,
-                                                      status, slice);
-  if (!object_it.second) {
-    QUICHE_DLOG(ERROR) << "Sender is overwriting an existing object.";
-    return false;
-  }
+  object_queue.emplace(sequence.object,
+                       CachedObject{sequence, status, priority, slice});
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnNewObjectAvailable(sequence);
   }
@@ -117,10 +123,24 @@ std::optional<PublishedObject> MoqtLiveRelayQueue::GetCachedObject(
     FullSequence sequence) const {
   auto group_it = queue_.find(sequence.group);
   if (group_it == queue_.end()) {
+    // Group does not exist.
     return std::nullopt;
   }
-  auto object_it = group_it->second.find(sequence.object);
-  if (object_it == group_it->second.end()) {
+  const Group& group = group_it->second;
+  auto subgroup_it = group.subgroups.find(
+      SubgroupPriority{publisher_priority_, sequence.subgroup});
+  if (subgroup_it == group.subgroups.end()) {
+    // Subgroup does not exist.
+    return std::nullopt;
+  }
+  const Subgroup& subgroup = subgroup_it->second;
+  if (subgroup.empty()) {
+    return std::nullopt;  // There are no objects.
+  }
+  // Find an object with ID of at least sequence.object.
+  auto object_it = subgroup.lower_bound(sequence.object);
+  if (object_it == subgroup_it->second.end()) {
+    // No object after the last one received.
     return std::nullopt;
   }
   return CachedObjectToPublishedObject(object_it->second);
@@ -131,9 +151,21 @@ std::vector<FullSequence> MoqtLiveRelayQueue::GetCachedObjectsInRange(
   std::vector<FullSequence> sequences;
   SubscribeWindow window(start, end);
   for (auto& group_it : queue_) {
-    for (auto& object_it : group_it.second) {
-      if (window.InWindow(object_it.second.sequence)) {
-        sequences.push_back(object_it.second.sequence);
+    if (group_it.first < start.group) {
+      continue;
+    }
+    if (group_it.first > end.group) {
+      return sequences;
+    }
+    for (auto& subgroup_it : group_it.second.subgroups) {
+      for (auto& object_it : subgroup_it.second) {
+        if (window.InWindow(object_it.second.sequence)) {
+          sequences.push_back(object_it.second.sequence);
+        }
+        if (group_it.first == end.group &&
+            object_it.second.sequence.object >= end.object) {
+          break;
+        }
       }
     }
   }

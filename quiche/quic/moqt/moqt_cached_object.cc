@@ -14,6 +14,7 @@ moqt::PublishedObject CachedObjectToPublishedObject(
   PublishedObject result;
   result.sequence = object.sequence;
   result.status = object.status;
+  result.publisher_priority = object.publisher_priority;
   if (object.payload != nullptr && !object.payload->empty()) {
     result.payload = quiche::QuicheMemSlice(
         object.payload->data(), object.payload->length(),

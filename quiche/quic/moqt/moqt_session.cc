@@ -200,10 +200,10 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
                     << payload.size();
   auto [full_track_name, visitor] = TrackPropertiesFromAlias(message);
   if (visitor != nullptr) {
-    visitor->OnObjectFragment(full_track_name, message.group_id,
-                              message.object_id, message.publisher_priority,
-                              message.object_status,
-                              message.forwarding_preference, payload, true);
+    visitor->OnObjectFragment(
+        full_track_name, FullSequence{message.group_id, 0, message.object_id},
+        message.publisher_priority, message.object_status,
+        message.forwarding_preference, payload, true);
   }
 }
 
@@ -917,7 +917,9 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   auto [full_track_name, visitor] = session_->TrackPropertiesFromAlias(message);
   if (visitor != nullptr) {
     visitor->OnObjectFragment(
-        full_track_name, message.group_id, message.object_id,
+        full_track_name,
+        FullSequence{message.group_id, message.subgroup_id.value_or(0),
+                     message.object_id},
         message.publisher_priority, message.object_status,
         message.forwarding_preference, payload, end_of_message);
   }
@@ -1236,7 +1238,7 @@ void MoqtSession::OutgoingDataStream::SendObjects(
 
 void MoqtSession::OutgoingDataStream::SendNextObject(
     PublishedSubscription& subscription, PublishedObject object) {
-  QUICHE_DCHECK(object.sequence == next_object_);
+  QUICHE_DCHECK(next_object_ <= object.sequence);
   QUICHE_DCHECK(stream_->CanWrite());
 
   MoqtTrackPublisher& publisher = subscription.publisher();
@@ -1271,14 +1273,17 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
         ++next_object_.group;
         next_object_.object = 0;
       } else {
-        ++next_object_.object;
+        next_object_.object = header.object_id + 1;
       }
       fin = object.status == MoqtObjectStatus::kEndOfTrack ||
             !subscription.InWindow(next_object_);
       break;
 
     case MoqtForwardingPreference::kSubgroup:
-      ++next_object_.object;
+      // TODO(martinduke): EndOfGroup and EndOfTrack implies the ability to
+      // close other streams/subgroups. PublishedObject should contain a boolean
+      // if the stream is safe to close.
+      next_object_.object = header.object_id + 1;
       fin = object.status == MoqtObjectStatus::kEndOfTrack ||
             object.status == MoqtObjectStatus::kEndOfGroup ||
             object.status == MoqtObjectStatus::kEndOfSubgroup ||

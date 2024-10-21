@@ -42,8 +42,8 @@ class ChatServer {
                  std::optional<absl::string_view> reason_phrase) override;
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
     void OnObjectFragment(
-        const moqt::FullTrackName& full_track_name, uint64_t group_sequence,
-        uint64_t object_sequence, moqt::MoqtPriority /*publisher_priority*/,
+        const moqt::FullTrackName& full_track_name, FullSequence sequence,
+        moqt::MoqtPriority /*publisher_priority*/,
         moqt::MoqtObjectStatus /*status*/,
         moqt::MoqtForwardingPreference /*forwarding_preference*/,
         absl::string_view object, bool end_of_message) override;

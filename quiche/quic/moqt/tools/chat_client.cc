@@ -124,9 +124,8 @@ void ChatClient::RemoteTrackVisitor::OnReply(
 }
 
 void ChatClient::RemoteTrackVisitor::OnObjectFragment(
-    const FullTrackName& full_track_name, uint64_t group_sequence,
-    uint64_t object_sequence, MoqtPriority /*publisher_priority*/,
-    MoqtObjectStatus /*status*/,
+    const FullTrackName& full_track_name, FullSequence sequence,
+    MoqtPriority /*publisher_priority*/, MoqtObjectStatus /*status*/,
     MoqtForwardingPreference /*forwarding_preference*/,
     absl::string_view object, bool end_of_message) {
   if (!end_of_message) {
@@ -134,11 +133,11 @@ void ChatClient::RemoteTrackVisitor::OnObjectFragment(
                  "buffering\n";
   }
   if (full_track_name == client_->chat_strings_->GetCatalogName()) {
-    if (group_sequence < client_->catalog_group_) {
+    if (sequence.group < client_->catalog_group_) {
       std::cout << "Ignoring old catalog";
       return;
     }
-    client_->ProcessCatalog(object, this, group_sequence, object_sequence);
+    client_->ProcessCatalog(object, this, sequence.group, sequence.object);
     return;
   }
   std::string username(

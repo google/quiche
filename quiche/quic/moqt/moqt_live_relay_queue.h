@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -51,8 +50,13 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   // occur. A false return value might result in a session error on the
   // inbound session, but this queue is the only place that retains enough state
   // to check.
-  bool AddObject(uint64_t group_id, uint64_t object_id, MoqtObjectStatus status,
-                 absl::string_view object);
+  bool AddObject(FullSequence sequence, MoqtObjectStatus status) {
+    return AddRawObject(sequence, status, publisher_priority_, "");
+  }
+  bool AddObject(FullSequence sequence, absl::string_view object) {
+    return AddRawObject(sequence, MoqtObjectStatus::kNormal,
+                        publisher_priority_, object);
+  }
 
   // MoqtTrackPublisher implementation.
   const FullTrackName& GetTrackName() const override { return track_; }
@@ -85,14 +89,16 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   static constexpr size_t kMaxQueuedGroups = 3;
 
   // Ordered by object id.
-  using Group = absl::btree_map<uint64_t, CachedObject>;
+  using Subgroup = absl::btree_map<uint64_t, CachedObject>;
 
-  // Returns the next expected object ID in |group|, and also |true| if the last
-  // object ends the group.
-  std::tuple<uint64_t, bool> NextObject(Group& group) const;
+  struct Group {
+    uint64_t next_object = 0;
+    bool complete = false;
+    absl::btree_map<SubgroupPriority, Subgroup> subgroups;
+  };
 
   bool AddRawObject(FullSequence sequence, MoqtObjectStatus status,
-                    absl::string_view payload);
+                    MoqtPriority priority, absl::string_view payload);
 
   FullTrackName track_;
   MoqtForwardingPreference forwarding_preference_;

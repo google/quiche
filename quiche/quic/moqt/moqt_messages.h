@@ -242,6 +242,7 @@ struct FullSequence {
   bool operator>(const FullSequence& other) const { return !(*this <= other); }
   FullSequence& operator=(FullSequence other) {
     group = other.group;
+    subgroup = other.subgroup;
     object = other.object;
     return *this;
   }
@@ -260,6 +261,21 @@ struct FullSequence {
 struct SubgroupPriority {
   uint8_t publisher_priority = 0xf0;
   uint64_t subgroup_id = 0;
+
+  bool operator==(const SubgroupPriority& other) const {
+    return publisher_priority == other.publisher_priority &&
+           subgroup_id == other.subgroup_id;
+  }
+  bool operator<(const SubgroupPriority& other) const {
+    return publisher_priority < other.publisher_priority ||
+           (publisher_priority == other.publisher_priority &&
+            subgroup_id < other.subgroup_id);
+  }
+  bool operator<=(const SubgroupPriority& other) const {
+    return (publisher_priority < other.publisher_priority ||
+            (publisher_priority == other.publisher_priority &&
+             subgroup_id <= other.subgroup_id));
+  }
 };
 
 template <typename H>

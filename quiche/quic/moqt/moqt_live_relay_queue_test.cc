@@ -48,6 +48,10 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
       case MoqtObjectStatus::kEndOfTrack:
         CloseTrack();
         break;
+      case moqt::MoqtObjectStatus::kEndOfSubgroup:
+        CloseStreamForSubgroup(object->sequence.group,
+                               object->sequence.subgroup);
+        break;
       default:
         EXPECT_TRUE(false);
     }
@@ -64,6 +68,8 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
   }
 
   MOCK_METHOD(void, CloseStreamForGroup, (uint64_t group_id), ());
+  MOCK_METHOD(void, CloseStreamForSubgroup,
+              (uint64_t group_id, uint64_t subgroup_id), ());
   MOCK_METHOD(void, PublishObject,
               (uint64_t group_id, uint64_t object_id,
                absl::string_view payload),
@@ -83,10 +89,11 @@ TEST(MoqtLiveRelayQueue, SingleGroup) {
     EXPECT_CALL(queue, PublishObject(0, 2, "c"));
     EXPECT_CALL(queue, CloseStreamForGroup(0));
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 1, MoqtObjectStatus::kNormal, "b"));
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kNormal, "c"));
-  EXPECT_TRUE(queue.AddObject(0, 3, MoqtObjectStatus::kEndOfGroup, ""));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 2}, "c"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 3}, MoqtObjectStatus::kEndOfGroup));
 }
 
 TEST(MoqtLiveRelayQueue, SingleGroupPastSubscribeFromZero) {
@@ -101,9 +108,9 @@ TEST(MoqtLiveRelayQueue, SingleGroupPastSubscribeFromZero) {
     EXPECT_CALL(queue, PublishObject(0, 1, "b"));
     EXPECT_CALL(queue, PublishObject(0, 2, "c"));
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 1, MoqtObjectStatus::kNormal, "b"));
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kNormal, "c"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 2}, "c"));
   queue.CallSubscribeForPast(SubscribeWindow(0, 0));
 }
 
@@ -118,9 +125,9 @@ TEST(MoqtLiveRelayQueue, SingleGroupPastSubscribeFromMidGroup) {
     EXPECT_CALL(queue, PublishObject(0, 1, "b"));
     EXPECT_CALL(queue, PublishObject(0, 2, "c"));
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 1, MoqtObjectStatus::kNormal, "b"));
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kNormal, "c"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 2}, "c"));
   queue.CallSubscribeForPast(SubscribeWindow(0, 1));
 }
 
@@ -136,13 +143,14 @@ TEST(MoqtLiveRelayQueue, TwoGroups) {
     EXPECT_CALL(queue, PublishObject(1, 1, "e"));
     EXPECT_CALL(queue, PublishObject(1, 2, "f"));
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 1, MoqtObjectStatus::kNormal, "b"));
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kNormal, "c"));
-  EXPECT_TRUE(queue.AddObject(0, 3, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(1, 0, MoqtObjectStatus::kNormal, "d"));
-  EXPECT_TRUE(queue.AddObject(1, 1, MoqtObjectStatus::kNormal, "e"));
-  EXPECT_TRUE(queue.AddObject(1, 2, MoqtObjectStatus::kNormal, "f"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 2}, "c"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 3}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 0}, "d"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 1}, "e"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 2}, "f"));
 }
 
 TEST(MoqtLiveRelayQueue, TwoGroupsPastSubscribe) {
@@ -164,13 +172,14 @@ TEST(MoqtLiveRelayQueue, TwoGroupsPastSubscribe) {
     EXPECT_CALL(queue, PublishObject(1, 1, "e"));
     EXPECT_CALL(queue, PublishObject(1, 2, "f"));
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 1, MoqtObjectStatus::kNormal, "b"));
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kNormal, "c"));
-  EXPECT_TRUE(queue.AddObject(0, 3, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(1, 0, MoqtObjectStatus::kNormal, "d"));
-  EXPECT_TRUE(queue.AddObject(1, 1, MoqtObjectStatus::kNormal, "e"));
-  EXPECT_TRUE(queue.AddObject(1, 2, MoqtObjectStatus::kNormal, "f"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 2}, "c"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 3}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 0}, "d"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 1}, "e"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 2}, "f"));
   queue.CallSubscribeForPast(SubscribeWindow(0, 1));
 }
 
@@ -194,20 +203,24 @@ TEST(MoqtLiveRelayQueue, FiveGroups) {
     EXPECT_CALL(queue, PublishObject(4, 0, "i"));
     EXPECT_CALL(queue, PublishObject(4, 1, "j"));
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 1, MoqtObjectStatus::kNormal, "b"));
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(1, 0, MoqtObjectStatus::kNormal, "c"));
-  EXPECT_TRUE(queue.AddObject(1, 1, MoqtObjectStatus::kNormal, "d"));
-  EXPECT_TRUE(queue.AddObject(1, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(2, 0, MoqtObjectStatus::kNormal, "e"));
-  EXPECT_TRUE(queue.AddObject(2, 1, MoqtObjectStatus::kNormal, "f"));
-  EXPECT_TRUE(queue.AddObject(2, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(3, 0, MoqtObjectStatus::kNormal, "g"));
-  EXPECT_TRUE(queue.AddObject(3, 1, MoqtObjectStatus::kNormal, "h"));
-  EXPECT_TRUE(queue.AddObject(3, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(4, 0, MoqtObjectStatus::kNormal, "i"));
-  EXPECT_TRUE(queue.AddObject(4, 1, MoqtObjectStatus::kNormal, "j"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 0}, "c"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 1}, "d"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{1, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{2, 0}, "e"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{2, 1}, "f"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{2, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{3, 0}, "g"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{3, 1}, "h"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{3, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{4, 0}, "i"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{4, 1}, "j"));
 }
 
 TEST(MoqtLiveRelayQueue, FiveGroupsPastSubscribe) {
@@ -239,20 +252,24 @@ TEST(MoqtLiveRelayQueue, FiveGroupsPastSubscribe) {
     EXPECT_CALL(queue, PublishObject(4, 0, "i"));
     EXPECT_CALL(queue, PublishObject(4, 1, "j"));
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 1, MoqtObjectStatus::kNormal, "b"));
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(1, 0, MoqtObjectStatus::kNormal, "c"));
-  EXPECT_TRUE(queue.AddObject(1, 1, MoqtObjectStatus::kNormal, "d"));
-  EXPECT_TRUE(queue.AddObject(1, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(2, 0, MoqtObjectStatus::kNormal, "e"));
-  EXPECT_TRUE(queue.AddObject(2, 1, MoqtObjectStatus::kNormal, "f"));
-  EXPECT_TRUE(queue.AddObject(2, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(3, 0, MoqtObjectStatus::kNormal, "g"));
-  EXPECT_TRUE(queue.AddObject(3, 1, MoqtObjectStatus::kNormal, "h"));
-  EXPECT_TRUE(queue.AddObject(3, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(4, 0, MoqtObjectStatus::kNormal, "i"));
-  EXPECT_TRUE(queue.AddObject(4, 1, MoqtObjectStatus::kNormal, "j"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 0}, "c"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 1}, "d"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{1, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{2, 0}, "e"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{2, 1}, "f"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{2, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{3, 0}, "g"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{3, 1}, "h"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{3, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{4, 0}, "i"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{4, 1}, "j"));
   queue.CallSubscribeForPast(SubscribeWindow(0, 0));
 }
 
@@ -274,21 +291,25 @@ TEST(MoqtLiveRelayQueue, FiveGroupsPastSubscribeFromMidGroup) {
     EXPECT_CALL(queue, PublishObject(4, 0, "i"));
     EXPECT_CALL(queue, PublishObject(4, 1, "j"));
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 1, MoqtObjectStatus::kNormal, "b"));
-  EXPECT_TRUE(queue.AddObject(1, 0, MoqtObjectStatus::kNormal, "c"));
-  EXPECT_TRUE(queue.AddObject(1, 1, MoqtObjectStatus::kNormal, "d"));
-  EXPECT_TRUE(queue.AddObject(1, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(2, 0, MoqtObjectStatus::kNormal, "e"));
-  EXPECT_TRUE(queue.AddObject(2, 1, MoqtObjectStatus::kNormal, "f"));
-  EXPECT_TRUE(queue.AddObject(2, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(3, 0, MoqtObjectStatus::kNormal, "g"));
-  EXPECT_TRUE(queue.AddObject(3, 1, MoqtObjectStatus::kNormal, "h"));
-  EXPECT_TRUE(queue.AddObject(3, 2, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(4, 0, MoqtObjectStatus::kNormal, "i"));
-  EXPECT_TRUE(queue.AddObject(4, 1, MoqtObjectStatus::kNormal, "j"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 0}, "c"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{1, 1}, "d"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{1, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{2, 0}, "e"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{2, 1}, "f"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{2, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{3, 0}, "g"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{3, 1}, "h"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{3, 2}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{4, 0}, "i"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{4, 1}, "j"));
   // This object will be ignored, but this is not an error.
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kEndOfGroup, ""));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 2}, MoqtObjectStatus::kEndOfGroup));
 }
 
 TEST(MoqtLiveRelayQueue, EndOfTrack) {
@@ -299,10 +320,12 @@ TEST(MoqtLiveRelayQueue, EndOfTrack) {
     EXPECT_CALL(queue, PublishObject(0, 2, "c"));
     EXPECT_CALL(queue, CloseTrack());
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kNormal, "c"));
-  EXPECT_FALSE(queue.AddObject(0, 1, MoqtObjectStatus::kEndOfTrack, ""));
-  EXPECT_TRUE(queue.AddObject(0, 3, MoqtObjectStatus::kEndOfTrack, ""));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 2}, "c"));
+  EXPECT_FALSE(
+      queue.AddObject(FullSequence{0, 1}, MoqtObjectStatus::kEndOfTrack));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 3}, MoqtObjectStatus::kEndOfTrack));
 }
 
 TEST(MoqtLiveRelayQueue, EndOfGroup) {
@@ -313,11 +336,13 @@ TEST(MoqtLiveRelayQueue, EndOfGroup) {
     EXPECT_CALL(queue, PublishObject(0, 2, "c"));
     EXPECT_CALL(queue, CloseStreamForGroup(0));
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kNormal, "c"));
-  EXPECT_FALSE(queue.AddObject(0, 1, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_TRUE(queue.AddObject(0, 3, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_FALSE(queue.AddObject(0, 4, MoqtObjectStatus::kNormal, "e"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 2}, "c"));
+  EXPECT_FALSE(
+      queue.AddObject(FullSequence{0, 1}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 3}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_FALSE(queue.AddObject(FullSequence{0, 4}, "e"));
 }
 
 TEST(MoqtLiveRelayQueue, GroupDoesNotExist) {
@@ -326,8 +351,10 @@ TEST(MoqtLiveRelayQueue, GroupDoesNotExist) {
     testing::InSequence seq;
     EXPECT_CALL(queue, SkipGroup(0));
   }
-  EXPECT_FALSE(queue.AddObject(0, 1, MoqtObjectStatus::kGroupDoesNotExist, ""));
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kGroupDoesNotExist, ""));
+  EXPECT_FALSE(queue.AddObject(FullSequence{0, 1},
+                               MoqtObjectStatus::kGroupDoesNotExist));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0},
+                              MoqtObjectStatus::kGroupDoesNotExist));
 }
 
 TEST(MoqtLiveRelayQueue, OverwriteObject) {
@@ -338,11 +365,66 @@ TEST(MoqtLiveRelayQueue, OverwriteObject) {
     EXPECT_CALL(queue, PublishObject(0, 1, "b"));
     EXPECT_CALL(queue, PublishObject(0, 2, "c"));
   }
-  EXPECT_TRUE(queue.AddObject(0, 0, MoqtObjectStatus::kNormal, "a"));
-  EXPECT_TRUE(queue.AddObject(0, 1, MoqtObjectStatus::kNormal, "b"));
-  EXPECT_TRUE(queue.AddObject(0, 2, MoqtObjectStatus::kNormal, "c"));
-  EXPECT_TRUE(queue.AddObject(0, 3, MoqtObjectStatus::kEndOfGroup, ""));
-  EXPECT_FALSE(queue.AddObject(0, 1, MoqtObjectStatus::kNormal, "invalid"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 2}, "c"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 3}, MoqtObjectStatus::kEndOfGroup));
+  EXPECT_FALSE(queue.AddObject(FullSequence{0, 1}, "invalid"));
+}
+
+TEST(MoqtLiveRelayQueue, DifferentSubgroups) {
+  TestMoqtLiveRelayQueue queue;
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+    EXPECT_CALL(queue, PublishObject(0, 3, "d"));
+    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
+    EXPECT_CALL(queue, CloseStreamForSubgroup(0, 0));
+    EXPECT_CALL(queue, PublishObject(0, 5, "e"));
+    EXPECT_CALL(queue, PublishObject(0, 7, "f"));
+    EXPECT_CALL(queue, CloseStreamForSubgroup(0, 1));
+    EXPECT_CALL(queue, CloseStreamForSubgroup(0, 2));
+
+    // Serve them back in strict subgroup order.
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 3, "d"));
+    EXPECT_CALL(queue, CloseStreamForSubgroup(0, 0));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+    EXPECT_CALL(queue, PublishObject(0, 5, "e"));
+    EXPECT_CALL(queue, CloseStreamForSubgroup(0, 1));
+    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
+    EXPECT_CALL(queue, PublishObject(0, 7, "f"));
+    EXPECT_CALL(queue, CloseStreamForSubgroup(0, 2));
+  }
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0, 0}, "a"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1, 1}, "b"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0, 3}, "d"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 2, 2}, "c"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 0, 4}, MoqtObjectStatus::kEndOfSubgroup));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 1, 5}, "e"));
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 2, 7}, "f"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 1, 6}, MoqtObjectStatus::kEndOfSubgroup));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 2, 8}, MoqtObjectStatus::kEndOfSubgroup));
+  queue.CallSubscribeForPast(SubscribeWindow(0, 0));
+}
+
+TEST(MoqtLiveRelayQueue, EndOfSubgroup) {
+  TestMoqtLiveRelayQueue queue;
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, CloseStreamForSubgroup(0, 0));
+    EXPECT_CALL(queue, PublishObject(0, 2, "b")).Times(0);
+  }
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0, 0}, "a"));
+  EXPECT_TRUE(
+      queue.AddObject(FullSequence{0, 0, 1}, MoqtObjectStatus::kEndOfSubgroup));
+  EXPECT_FALSE(queue.AddObject(FullSequence{0, 0, 2}, "b"));
 }
 
 }  // namespace

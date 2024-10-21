@@ -202,7 +202,7 @@ class ObjectReceiver : public RemoteTrack::Visitor {
   }
 
   void OnObjectFragment(const FullTrackName& full_track_name,
-                        uint64_t group_sequence, uint64_t object_sequence,
+                        FullSequence sequence,
                         MoqtPriority /*publisher_priority*/,
                         MoqtObjectStatus status,
                         MoqtForwardingPreference /*forwarding_preference*/,
@@ -218,7 +218,6 @@ class ObjectReceiver : public RemoteTrack::Visitor {
     // TODO: this logic should be factored out. Also, this should take advantage
     // of the fact that in the current MoQT, the object size is known in
     // advance.
-    FullSequence sequence{group_sequence, object_sequence};
     if (!end_of_message) {
       auto [it, unused] = partial_objects_.try_emplace(sequence);
       it->second.append(object);

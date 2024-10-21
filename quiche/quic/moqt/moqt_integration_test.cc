@@ -204,16 +204,15 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
       [](FullTrackName, std::optional<MoqtAnnounceErrorReason>) {});
 
   bool received_object = false;
-  EXPECT_CALL(server_visitor, OnObjectFragment(_, _, _, _, _, _, _, _))
-      .WillOnce([&](const FullTrackName& full_track_name,
-                    uint64_t group_sequence, uint64_t object_sequence,
+  EXPECT_CALL(server_visitor, OnObjectFragment(_, _, _, _, _, _, _))
+      .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
                     MoqtPriority /*publisher_priority*/,
                     MoqtObjectStatus status,
                     MoqtForwardingPreference forwarding_preference,
                     absl::string_view object, bool end_of_message) {
         EXPECT_EQ(full_track_name, FullTrackName("test", "data"));
-        EXPECT_EQ(group_sequence, 0u);
-        EXPECT_EQ(object_sequence, 0u);
+        EXPECT_EQ(sequence.group, 0u);
+        EXPECT_EQ(sequence.object, 0u);
         EXPECT_EQ(status, MoqtObjectStatus::kNormal);
         EXPECT_EQ(forwarding_preference, MoqtForwardingPreference::kSubgroup);
         EXPECT_EQ(object, "object data");
@@ -250,13 +249,13 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     client_->session()->SubscribeCurrentGroup(FullTrackName("test", name),
                                               &client_visitor);
     int received = 0;
-    EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, 1, 0, _, MoqtObjectStatus::kNormal, _,
-                                 "object 4", true))
+    EXPECT_CALL(client_visitor, OnObjectFragment(_, FullSequence{1, 0}, _,
+                                                 MoqtObjectStatus::kNormal, _,
+                                                 "object 4", true))
         .WillOnce([&] { ++received; });
-    EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, 1, 1, _, MoqtObjectStatus::kNormal, _,
-                                 "object 5", true))
+    EXPECT_CALL(client_visitor, OnObjectFragment(_, FullSequence{1, 1}, _,
+                                                 MoqtObjectStatus::kNormal, _,
+                                                 "object 5", true))
         .WillOnce([&] { ++received; });
     bool success = test_harness_.RunUntilWithDefaultTimeout(
         [&]() { return received >= 2; });
@@ -265,21 +264,21 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     queue->AddObject(MemSliceFromString("object 6"), /*key=*/false);
     queue->AddObject(MemSliceFromString("object 7"), /*key=*/true);
     queue->AddObject(MemSliceFromString("object 8"), /*key=*/false);
-    EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, 1, 2, _, MoqtObjectStatus::kNormal, _,
-                                 "object 6", true))
+    EXPECT_CALL(client_visitor, OnObjectFragment(_, FullSequence{1, 2}, _,
+                                                 MoqtObjectStatus::kNormal, _,
+                                                 "object 6", true))
         .WillOnce([&] { ++received; });
     EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, 1, 3, _, MoqtObjectStatus::kEndOfGroup, _,
-                                 "", true))
+                OnObjectFragment(_, FullSequence{1, 3}, _,
+                                 MoqtObjectStatus::kEndOfGroup, _, "", true))
         .WillOnce([&] { ++received; });
-    EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, 2, 0, _, MoqtObjectStatus::kNormal, _,
-                                 "object 7", true))
+    EXPECT_CALL(client_visitor, OnObjectFragment(_, FullSequence{2, 0}, _,
+                                                 MoqtObjectStatus::kNormal, _,
+                                                 "object 7", true))
         .WillOnce([&] { ++received; });
-    EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, 2, 1, _, MoqtObjectStatus::kNormal, _,
-                                 "object 8", true))
+    EXPECT_CALL(client_visitor, OnObjectFragment(_, FullSequence{2, 1}, _,
+                                                 MoqtObjectStatus::kNormal, _,
+                                                 "object 8", true))
         .WillOnce([&] { ++received; });
     success = test_harness_.RunUntilWithDefaultTimeout(
         [&]() { return received >= 6; });
@@ -310,26 +309,36 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
                                           &client_visitor);
     int received = 0;
     // Those won't arrive since they have expired.
-    EXPECT_CALL(client_visitor, OnObjectFragment(_, 0, 0, _, _, _, _, true))
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{0, 0}, _, _, _, _, true))
         .Times(0);
-    EXPECT_CALL(client_visitor, OnObjectFragment(_, 0, 0, _, _, _, _, true))
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{0, 0}, _, _, _, _, true))
         .Times(0);
-    EXPECT_CALL(client_visitor, OnObjectFragment(_, 96, 0, _, _, _, _, true))
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{96, 0}, _, _, _, _, true))
         .Times(0);
-    EXPECT_CALL(client_visitor, OnObjectFragment(_, 96, 0, _, _, _, _, true))
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{96, 0}, _, _, _, _, true))
         .Times(0);
     // Those are within the "last three groups" window.
-    EXPECT_CALL(client_visitor, OnObjectFragment(_, 97, 0, _, _, _, _, true))
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{97, 0}, _, _, _, _, true))
         .WillOnce([&] { ++received; });
-    EXPECT_CALL(client_visitor, OnObjectFragment(_, 97, 1, _, _, _, _, true))
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{97, 1}, _, _, _, _, true))
         .WillOnce([&] { ++received; });
-    EXPECT_CALL(client_visitor, OnObjectFragment(_, 98, 0, _, _, _, _, true))
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{98, 0}, _, _, _, _, true))
         .WillOnce([&] { ++received; });
-    EXPECT_CALL(client_visitor, OnObjectFragment(_, 98, 1, _, _, _, _, true))
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{98, 1}, _, _, _, _, true))
         .WillOnce([&] { ++received; });
-    EXPECT_CALL(client_visitor, OnObjectFragment(_, 99, 0, _, _, _, _, true))
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{99, 0}, _, _, _, _, true))
         .WillOnce([&] { ++received; });
-    EXPECT_CALL(client_visitor, OnObjectFragment(_, 99, 1, _, _, _, _, true))
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{99, 1}, _, _, _, _, true))
         .Times(0);  // The current group should not be closed yet.
     bool success = test_harness_.RunUntilWithDefaultTimeout(
         [&]() { return received >= 5; });

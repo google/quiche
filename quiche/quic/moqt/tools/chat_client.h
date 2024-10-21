@@ -98,7 +98,7 @@ class ChatClient {
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
 
     void OnObjectFragment(const moqt::FullTrackName& full_track_name,
-                          uint64_t group_sequence, uint64_t object_sequence,
+                          FullSequence sequence,
                           moqt::MoqtPriority publisher_priority,
                           moqt::MoqtObjectStatus status,
                           moqt::MoqtForwardingPreference forwarding_preference,
