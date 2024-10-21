@@ -249,17 +249,17 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data) {
     case MoqtMessageType::kGoAway:
       bytes_read = ProcessGoAway(reader);
       break;
-    case MoqtMessageType::kSubscribeNamespace:
-      bytes_read = ProcessSubscribeNamespace(reader);
+    case MoqtMessageType::kSubscribeAnnounces:
+      bytes_read = ProcessSubscribeAnnounces(reader);
       break;
-    case MoqtMessageType::kSubscribeNamespaceOk:
-      bytes_read = ProcessSubscribeNamespaceOk(reader);
+    case MoqtMessageType::kSubscribeAnnouncesOk:
+      bytes_read = ProcessSubscribeAnnouncesOk(reader);
       break;
-    case MoqtMessageType::kSubscribeNamespaceError:
-      bytes_read = ProcessSubscribeNamespaceError(reader);
+    case MoqtMessageType::kSubscribeAnnouncesError:
+      bytes_read = ProcessSubscribeAnnouncesError(reader);
       break;
-    case MoqtMessageType::kUnsubscribeNamespace:
-      bytes_read = ProcessUnsubscribeNamespace(reader);
+    case MoqtMessageType::kUnsubscribeAnnounces:
+      bytes_read = ProcessUnsubscribeAnnounces(reader);
       break;
     case MoqtMessageType::kMaxSubscribeId:
       bytes_read = ProcessMaxSubscribeId(reader);
@@ -746,32 +746,32 @@ size_t MoqtControlParser::ProcessGoAway(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeNamespace(
+size_t MoqtControlParser::ProcessSubscribeAnnounces(
     quic::QuicDataReader& reader) {
-  MoqtSubscribeNamespace subscribe_namespace;
+  MoqtSubscribeAnnounces subscribe_namespace;
   if (!ReadTrackNamespace(reader, subscribe_namespace.track_namespace)) {
     return 0;
   }
   if (!ReadSubscribeParameters(reader, subscribe_namespace.parameters)) {
     return 0;
   }
-  visitor_.OnSubscribeNamespaceMessage(subscribe_namespace);
+  visitor_.OnSubscribeAnnouncesMessage(subscribe_namespace);
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeNamespaceOk(
+size_t MoqtControlParser::ProcessSubscribeAnnouncesOk(
     quic::QuicDataReader& reader) {
-  MoqtSubscribeNamespaceOk subscribe_namespace_ok;
+  MoqtSubscribeAnnouncesOk subscribe_namespace_ok;
   if (!ReadTrackNamespace(reader, subscribe_namespace_ok.track_namespace)) {
     return 0;
   }
-  visitor_.OnSubscribeNamespaceOkMessage(subscribe_namespace_ok);
+  visitor_.OnSubscribeAnnouncesOkMessage(subscribe_namespace_ok);
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeNamespaceError(
+size_t MoqtControlParser::ProcessSubscribeAnnouncesError(
     quic::QuicDataReader& reader) {
-  MoqtSubscribeNamespaceError subscribe_namespace_error;
+  MoqtSubscribeAnnouncesError subscribe_namespace_error;
   uint64_t error_code;
   if (!ReadTrackNamespace(reader, subscribe_namespace_error.track_namespace) ||
       !reader.ReadVarInt62(&error_code) ||
@@ -780,17 +780,17 @@ size_t MoqtControlParser::ProcessSubscribeNamespaceError(
   }
   subscribe_namespace_error.error_code =
       static_cast<MoqtAnnounceErrorCode>(error_code);
-  visitor_.OnSubscribeNamespaceErrorMessage(subscribe_namespace_error);
+  visitor_.OnSubscribeAnnouncesErrorMessage(subscribe_namespace_error);
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessUnsubscribeNamespace(
+size_t MoqtControlParser::ProcessUnsubscribeAnnounces(
     quic::QuicDataReader& reader) {
-  MoqtUnsubscribeNamespace unsubscribe_namespace;
+  MoqtUnsubscribeAnnounces unsubscribe_namespace;
   if (!ReadTrackNamespace(reader, unsubscribe_namespace.track_namespace)) {
     return 0;
   }
-  visitor_.OnUnsubscribeNamespaceMessage(unsubscribe_namespace);
+  visitor_.OnUnsubscribeAnnouncesMessage(unsubscribe_namespace);
   return reader.PreviouslyReadPayload().length();
 }
 

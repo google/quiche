@@ -88,10 +88,10 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kTrackStatusRequest = 0x0d,
   kTrackStatus = 0x0e,
   kGoAway = 0x10,
-  kSubscribeNamespace = 0x11,
-  kSubscribeNamespaceOk = 0x12,
-  kSubscribeNamespaceError = 0x13,
-  kUnsubscribeNamespace = 0x14,
+  kSubscribeAnnounces = 0x11,
+  kSubscribeAnnouncesOk = 0x12,
+  kSubscribeAnnouncesError = 0x13,
+  kUnsubscribeAnnounces = 0x14,
   kMaxSubscribeId = 0x15,
   kClientSetup = 0x40,
   kServerSetup = 0x41,
@@ -489,22 +489,22 @@ struct QUICHE_EXPORT MoqtGoAway {
   std::string new_session_uri;
 };
 
-struct QUICHE_EXPORT MoqtSubscribeNamespace {
+struct QUICHE_EXPORT MoqtSubscribeAnnounces {
   FullTrackName track_namespace;
   MoqtSubscribeParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtSubscribeNamespaceOk {
+struct QUICHE_EXPORT MoqtSubscribeAnnouncesOk {
   FullTrackName track_namespace;
 };
 
-struct QUICHE_EXPORT MoqtSubscribeNamespaceError {
+struct QUICHE_EXPORT MoqtSubscribeAnnouncesError {
   FullTrackName track_namespace;
   MoqtAnnounceErrorCode error_code;
   std::string reason_phrase;
 };
 
-struct QUICHE_EXPORT MoqtUnsubscribeNamespace {
+struct QUICHE_EXPORT MoqtUnsubscribeAnnounces {
   FullTrackName track_namespace;
 };
 

@@ -47,10 +47,10 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kClientSetup,
     MoqtMessageType::kServerSetup,
     MoqtMessageType::kGoAway,
-    MoqtMessageType::kSubscribeNamespace,
-    MoqtMessageType::kSubscribeNamespaceOk,
-    MoqtMessageType::kSubscribeNamespaceError,
-    MoqtMessageType::kUnsubscribeNamespace,
+    MoqtMessageType::kSubscribeAnnounces,
+    MoqtMessageType::kSubscribeAnnouncesOk,
+    MoqtMessageType::kSubscribeAnnouncesError,
+    MoqtMessageType::kUnsubscribeAnnounces,
     MoqtMessageType::kMaxSubscribeId,
     MoqtMessageType::kObjectAck,
 };
@@ -175,20 +175,20 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnGoAwayMessage(const MoqtGoAway& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeNamespaceMessage(
-      const MoqtSubscribeNamespace& message) override {
+  void OnSubscribeAnnouncesMessage(
+      const MoqtSubscribeAnnounces& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeNamespaceOkMessage(
-      const MoqtSubscribeNamespaceOk& message) override {
+  void OnSubscribeAnnouncesOkMessage(
+      const MoqtSubscribeAnnouncesOk& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeNamespaceErrorMessage(
-      const MoqtSubscribeNamespaceError& message) override {
+  void OnSubscribeAnnouncesErrorMessage(
+      const MoqtSubscribeAnnouncesError& message) override {
     OnControlMessage(message);
   }
-  void OnUnsubscribeNamespaceMessage(
-      const MoqtUnsubscribeNamespace& message) override {
+  void OnUnsubscribeAnnouncesMessage(
+      const MoqtUnsubscribeAnnounces& message) override {
     OnControlMessage(message);
   }
   void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override {

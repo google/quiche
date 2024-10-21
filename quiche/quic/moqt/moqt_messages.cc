@@ -97,13 +97,13 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNANNOUNCE";
     case MoqtMessageType::kGoAway:
       return "GOAWAY";
-    case MoqtMessageType::kSubscribeNamespace:
+    case MoqtMessageType::kSubscribeAnnounces:
       return "SUBSCRIBE_NAMESPACE";
-    case MoqtMessageType::kSubscribeNamespaceOk:
+    case MoqtMessageType::kSubscribeAnnouncesOk:
       return "SUBSCRIBE_NAMESPACE_OK";
-    case MoqtMessageType::kSubscribeNamespaceError:
+    case MoqtMessageType::kSubscribeAnnouncesError:
       return "SUBSCRIBE_NAMESPACE_ERROR";
-    case MoqtMessageType::kUnsubscribeNamespace:
+    case MoqtMessageType::kUnsubscribeAnnounces:
       return "UNSUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kMaxSubscribeId:
       return "MAX_SUBSCRIBE_ID";

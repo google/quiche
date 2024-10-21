@@ -46,10 +46,10 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kAnnounceError,
       MoqtMessageType::kUnannounce,
       MoqtMessageType::kGoAway,
-      MoqtMessageType::kSubscribeNamespace,
-      MoqtMessageType::kSubscribeNamespaceOk,
-      MoqtMessageType::kSubscribeNamespaceError,
-      MoqtMessageType::kUnsubscribeNamespace,
+      MoqtMessageType::kSubscribeAnnounces,
+      MoqtMessageType::kSubscribeAnnouncesOk,
+      MoqtMessageType::kSubscribeAnnouncesError,
+      MoqtMessageType::kUnsubscribeAnnounces,
       MoqtMessageType::kMaxSubscribeId,
       MoqtMessageType::kObjectAck,
       MoqtMessageType::kClientSetup,
@@ -162,21 +162,21 @@ class MoqtFramerTest
         auto data = std::get<MoqtGoAway>(structured_data);
         return framer_.SerializeGoAway(data);
       }
-      case moqt::MoqtMessageType::kSubscribeNamespace: {
-        auto data = std::get<MoqtSubscribeNamespace>(structured_data);
-        return framer_.SerializeSubscribeNamespace(data);
+      case moqt::MoqtMessageType::kSubscribeAnnounces: {
+        auto data = std::get<MoqtSubscribeAnnounces>(structured_data);
+        return framer_.SerializeSubscribeAnnounces(data);
       }
-      case moqt::MoqtMessageType::kSubscribeNamespaceOk: {
-        auto data = std::get<MoqtSubscribeNamespaceOk>(structured_data);
-        return framer_.SerializeSubscribeNamespaceOk(data);
+      case moqt::MoqtMessageType::kSubscribeAnnouncesOk: {
+        auto data = std::get<MoqtSubscribeAnnouncesOk>(structured_data);
+        return framer_.SerializeSubscribeAnnouncesOk(data);
       }
-      case moqt::MoqtMessageType::kSubscribeNamespaceError: {
-        auto data = std::get<MoqtSubscribeNamespaceError>(structured_data);
-        return framer_.SerializeSubscribeNamespaceError(data);
+      case moqt::MoqtMessageType::kSubscribeAnnouncesError: {
+        auto data = std::get<MoqtSubscribeAnnouncesError>(structured_data);
+        return framer_.SerializeSubscribeAnnouncesError(data);
       }
-      case moqt::MoqtMessageType::kUnsubscribeNamespace: {
-        auto data = std::get<MoqtUnsubscribeNamespace>(structured_data);
-        return framer_.SerializeUnsubscribeNamespace(data);
+      case moqt::MoqtMessageType::kUnsubscribeAnnounces: {
+        auto data = std::get<MoqtUnsubscribeAnnounces>(structured_data);
+        return framer_.SerializeUnsubscribeAnnounces(data);
       }
       case moqt::MoqtMessageType::kMaxSubscribeId: {
         auto data = std::get<MoqtMaxSubscribeId>(structured_data);
