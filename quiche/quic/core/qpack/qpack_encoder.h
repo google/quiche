@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/qpack/qpack_blocking_manager.h"
+#include "quiche/quic/core/qpack/qpack_blocking_manager_shim.h"
 #include "quiche/quic/core/qpack/qpack_decoder_stream_receiver.h"
 #include "quiche/quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "quiche/quic/core/qpack/qpack_header_table.h"
@@ -115,13 +115,13 @@ class QUICHE_EXPORT QpackEncoder : public QpackDecoderStreamReceiver::Delegate {
   // and optionally update |*referred_indices|.
   static Representation EncodeIndexedHeaderField(
       bool is_static, uint64_t index,
-      QpackBlockingManager::IndexSet* referred_indices);
+      QpackBlockingManagerShim::IndexSet* referred_indices);
 
   // Generate literal header field with name reference representation
   // and optionally update |*referred_indices|.
   static Representation EncodeLiteralHeaderFieldWithNameReference(
       bool is_static, uint64_t index, absl::string_view value,
-      QpackBlockingManager::IndexSet* referred_indices);
+      QpackBlockingManagerShim::IndexSet* referred_indices);
 
   // Generate literal header field representation.
   static Representation EncodeLiteralHeaderField(absl::string_view name,
@@ -140,7 +140,7 @@ class QUICHE_EXPORT QpackEncoder : public QpackDecoderStreamReceiver::Delegate {
   // absl::string_views pointing to strings owned by |*header_list|.
   Representations FirstPassEncode(
       QuicStreamId stream_id, const quiche::HttpHeaderBlock& header_list,
-      QpackBlockingManager::IndexSet* referred_indices,
+      QpackBlockingManagerShim::IndexSet* referred_indices,
       QuicByteCount* encoder_stream_sent_byte_count);
 
   // Performs second pass of two-pass encoding: serializes representations
@@ -156,7 +156,7 @@ class QUICHE_EXPORT QpackEncoder : public QpackDecoderStreamReceiver::Delegate {
   QpackEncoderStreamSender encoder_stream_sender_;
   QpackEncoderHeaderTable header_table_;
   uint64_t maximum_blocked_streams_;
-  QpackBlockingManager blocking_manager_;
+  QpackBlockingManagerShim blocking_manager_;
   int header_list_count_;
 };
 
