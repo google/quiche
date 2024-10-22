@@ -21,6 +21,7 @@
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_transmission_info.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -136,6 +137,10 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   }
 
   // Configure congestion control.
+  if (perspective == Perspective::IS_CLIENT &&
+      config.HasClientRequestedIndependentOption(kPRGC, perspective)) {
+    SetSendAlgorithm(kPragueCubic);
+  }
   if (config.HasClientRequestedIndependentOption(kTBBR, perspective)) {
     SetSendAlgorithm(kBBR);
   }
@@ -240,7 +245,9 @@ void QuicSentPacketManager::ApplyConnectionOptions(
   } else if (ContainsQuicTag(connection_options, kQBIC)) {
     cc_type = kCubicBytes;
   }
-
+  // This function is only used in server experiments, so do not apply the
+  // client-only PRGC tag.
+  QUICHE_DCHECK(unacked_packets_.perspective() == Perspective::IS_SERVER);
   if (cc_type.has_value()) {
     SetSendAlgorithm(*cc_type);
   }
