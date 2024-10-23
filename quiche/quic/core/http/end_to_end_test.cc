@@ -307,10 +307,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     return client;
   }
 
-  bool DispatcherAckEnabled() const {
-    return GetQuicRestartFlag(quic_dispatcher_ack_buffered_initial_packets);
-  }
-
   void set_smaller_flow_control_receive_window() {
     const uint32_t kClientIFCW = 64 * 1024;
     const uint32_t kServerIFCW = 1024 * 1024;
@@ -1223,7 +1219,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO) {
   ASSERT_NE(server_connection, nullptr);
   const QuicConnectionStats& server_stats = server_connection->GetStats();
 
-  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+  if (version_ != ParsedQuicVersion::RFCv2()) {
     EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 1u);
   } else {
     EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 0u);
@@ -1235,7 +1231,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO) {
   EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 1u);
   EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
 
-  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+  if (version_ != ParsedQuicVersion::RFCv2()) {
     EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
   } else {
     EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
@@ -1274,7 +1270,7 @@ TEST_P(EndToEndTest,
     const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
     EXPECT_EQ(dispatcher_stats.sessions_created, 1u);
 
-    if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+    if (version_ != ParsedQuicVersion::RFCv2()) {
       // 2 CHLO packets are enqueued, but only the 1st caused a dispatcher ACK.
       EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
       EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 2u);
@@ -1332,7 +1328,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO_BothBuffered) {
     EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 1u);
     EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 2u);
 
-    if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+    if (version_ != ParsedQuicVersion::RFCv2()) {
       // 2 CHLO packets are enqueued, but only the 1st caused a dispatcher ACK.
       EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
     } else {
@@ -1370,7 +1366,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithThreePacketCHLO) {
   ASSERT_NE(server_connection, nullptr);
   const QuicConnectionStats& server_stats = server_connection->GetStats();
 
-  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+  if (version_ != ParsedQuicVersion::RFCv2()) {
     EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 2u);
   } else {
     EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 0u);
@@ -1383,7 +1379,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithThreePacketCHLO) {
   EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
   EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
 
-  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+  if (version_ != ParsedQuicVersion::RFCv2()) {
     EXPECT_EQ(dispatcher_stats.packets_sent, 2u);
   } else {
     EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
@@ -1417,7 +1413,7 @@ TEST_P(EndToEndTest,
   ASSERT_NE(server_connection, nullptr);
   const QuicConnectionStats& server_stats = server_connection->GetStats();
 
-  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+  if (version_ != ParsedQuicVersion::RFCv2()) {
     EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 1u);
   } else {
     EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 0u);
@@ -1430,7 +1426,7 @@ TEST_P(EndToEndTest,
   EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
   EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
 
-  if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+  if (version_ != ParsedQuicVersion::RFCv2()) {
     EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
   } else {
     EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
@@ -1469,7 +1465,7 @@ TEST_P(EndToEndTest,
     const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
     EXPECT_EQ(dispatcher_stats.sessions_created, 1u);
 
-    if (DispatcherAckEnabled() && version_ != ParsedQuicVersion::RFCv2()) {
+    if (version_ != ParsedQuicVersion::RFCv2()) {
       // Packet 1 and Packet 2's retransmission caused dispatcher ACKs.
       EXPECT_EQ(dispatcher_stats.packets_sent, 2u);
       EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 3u);

@@ -242,11 +242,6 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
 
 void QuicBufferedPacketStore::MaybeAckInitialPacket(
     const ReceivedPacketInfo& packet_info, BufferedPacketList& packet_list) {
-  if (!ack_buffered_initial_packets_) {
-    return;
-  }
-
-  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_ack_buffered_initial_packets, 1, 8);
   if (writer_ == nullptr || writer_->IsWriteBlocked() ||
       !packet_info.version.IsKnown() ||
       !packet_list.HasAttemptedToReplaceConnectionId() ||
@@ -379,11 +374,6 @@ bool QuicBufferedPacketStore::HasChlosBuffered() const {
 
 const BufferedPacketList* QuicBufferedPacketStore::GetPacketList(
     const QuicConnectionId& connection_id) const {
-  if (!ack_buffered_initial_packets_) {
-    return nullptr;
-  }
-
-  QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_ack_buffered_initial_packets, 2, 8);
   auto it = buffered_session_map_.find(connection_id);
   if (it == buffered_session_map_.end()) {
     return nullptr;

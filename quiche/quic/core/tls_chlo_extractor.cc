@@ -212,15 +212,13 @@ bool TlsChloExtractor::OnUnauthenticatedPublicHeader(
   }
   // QuicFramer is constructed without knowledge of the server's connection ID
   // so it needs to be set up here in order to decrypt the packet.
-  if (GetQuicRestartFlag(quic_dispatcher_ack_buffered_initial_packets)) {
-    // Only call SetInitialObfuscators once for the first ingested packet, whose
-    // |header.destination_connection_id| is the original connection ID.
-    if (framer_->GetDecrypter(ENCRYPTION_INITIAL) == nullptr) {
-      framer_->SetInitialObfuscators(header.destination_connection_id);
-    }
-  } else {
+  //
+  // Only call SetInitialObfuscators once for the first ingested packet, whose
+  // |header.destination_connection_id| is the original connection ID.
+  if (framer_->GetDecrypter(ENCRYPTION_INITIAL) == nullptr) {
     framer_->SetInitialObfuscators(header.destination_connection_id);
   }
+
   return true;
 }
 

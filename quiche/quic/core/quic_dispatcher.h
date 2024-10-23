@@ -427,10 +427,6 @@ class QUICHE_EXPORT QuicDispatcher
       ConnectionIdGeneratorInterface* connection_id_generator,
       absl::Span<const DispatcherSentPacket> dispatcher_sent_packets);
 
-  bool ack_buffered_initial_packets() const {
-    return buffered_packets_.ack_buffered_initial_packets();
-  }
-
   QuicDispatcherStats stats_;
 
   const QuicConfig* config_;
