@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -4558,6 +4559,17 @@ void QuicConnection::CloseConnection(
     QUIC_DLOG(INFO) << "Connection is already closed.";
     return;
   }
+
+  if (in_close_connection_) {
+    QUIC_DLOG(INFO) << "Connection is being closed.";
+    return;
+  }
+
+  if (GetQuicReloadableFlag(quic_avoid_nested_close_connection)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_avoid_nested_close_connection);
+    in_close_connection_ = true;
+  }
+  absl::Cleanup cleanup = [this]() { in_close_connection_ = false; };
 
   if (ietf_error != NO_IETF_QUIC_ERROR) {
     QUIC_DLOG(INFO) << ENDPOINT << "Closing connection: " << connection_id()

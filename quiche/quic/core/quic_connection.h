@@ -2349,6 +2349,9 @@ class QUICHE_EXPORT QuicConnection
   // close.
   bool connected_;
 
+  // True if the connection is in the CloseConnection stack.
+  bool in_close_connection_ = false;
+
   // Set to false if the connection should not send truncated connection IDs to
   // the peer, even if the peer supports it.
   bool can_truncate_connection_ids_;

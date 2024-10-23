@@ -1596,6 +1596,41 @@ INSTANTIATE_TEST_SUITE_P(QuicConnectionTests, QuicConnectionTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
+// Regression test for b/372756997.
+TEST_P(QuicConnectionTest, NoNestedCloseConnection) {
+  if (!GetQuicReloadableFlag(quic_avoid_nested_close_connection)) {
+    // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
+    if (!IsDefaultTestConfiguration()) {
+      return;
+    }
+  }
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .WillRepeatedly(
+          Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+  EXPECT_CALL(connection_, OnSerializedPacket(_)).Times(AnyNumber());
+
+  // Prepare the writer to fail to send the first connection close packet due
+  // to the packet being too large.
+  writer_->SetShouldWriteFail();
+  writer_->SetWriteError(*writer_->MessageTooBigErrorCode());
+
+  if (GetQuicReloadableFlag(quic_avoid_nested_close_connection)) {
+    connection_.CloseConnection(
+        QUIC_CRYPTO_TOO_MANY_ENTRIES, "Closed by test",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+                IsError(QUIC_CRYPTO_TOO_MANY_ENTRIES));
+  } else {
+    EXPECT_QUIC_BUG(
+        connection_.CloseConnection(
+            QUIC_CRYPTO_TOO_MANY_ENTRIES, "Closed by test",
+            ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET),
+        // 30=QUIC_CRYPTO_TOO_MANY_ENTRIES, 27=QUIC_PACKET_WRITE_ERROR.
+        "Initial error code: 30, new error code: 27");
+  }
+}
+
 // These two tests ensure that the QuicErrorCode mapping works correctly.
 // Both tests expect to see a Google QUIC close if not running IETF QUIC.
 // If running IETF QUIC, the first will generate a transport connection
