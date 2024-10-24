@@ -81,6 +81,15 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
     delivery_order_ = order;
   }
 
+  // Since MoqtTrackPublisher is generally held in a shared_ptr, an explicit
+  // call allows all the listeners to delete their reference and actually
+  // destroy the object.
+  void RemoveAllSubscriptions() {
+    for (MoqtObjectListener* listener : listeners_) {
+      listener->OnTrackPublisherGone();
+    }
+  }
+
  private:
   // The number of recent groups to keep around for newly joined subscribers.
   static constexpr size_t kMaxQueuedGroups = 3;

@@ -77,6 +77,7 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
   MOCK_METHOD(void, SkipObject, (uint64_t group_id, uint64_t object_id), ());
   MOCK_METHOD(void, SkipGroup, (uint64_t group_id), ());
   MOCK_METHOD(void, CloseTrack, (), ());
+  MOCK_METHOD(void, OnTrackPublisherGone, (), (override));
 };
 
 // Duplicates of MoqtOutgoingQueue test cases.

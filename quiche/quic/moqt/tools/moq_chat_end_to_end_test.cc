@@ -24,7 +24,7 @@ namespace test {
 
 using ::testing::_;
 
-constexpr std::string kChatHostname = "127.0.0.1";
+constexpr absl::string_view kChatHostname = "127.0.0.1";
 
 class MockChatUserInterface : public ChatUserInterface {
  public:
@@ -55,7 +55,8 @@ class MoqChatEndToEndTest : public quiche::test::QuicheTest {
       : server_(quic::test::crypto_test_utils::ProofSourceForTesting(),
                 "test_chat", "") {
     quiche::QuicheIpAddress bind_address;
-    bind_address.FromString(kChatHostname);
+    std::string hostname(kChatHostname);
+    bind_address.FromString(hostname);
     EXPECT_TRUE(server_.moqt_server().quic_server().CreateUDPSocketAndListen(
         quic::QuicSocketAddress(bind_address, 0)));
     auto if1ptr = std::make_unique<MockChatUserInterface>();
@@ -64,10 +65,10 @@ class MoqChatEndToEndTest : public quiche::test::QuicheTest {
     interface2_ = if2ptr.get();
     uint16_t port = server_.moqt_server().quic_server().port();
     client1_ = std::make_unique<ChatClient>(
-        quic::QuicServerId(kChatHostname, port), true, std::move(if1ptr),
+        quic::QuicServerId(hostname, port), true, std::move(if1ptr),
         server_.moqt_server().quic_server().event_loop());
     client2_ = std::make_unique<ChatClient>(
-        quic::QuicServerId(kChatHostname, port), true, std::move(if2ptr),
+        quic::QuicServerId(hostname, port), true, std::move(if2ptr),
         server_.moqt_server().quic_server().event_loop());
   }
 
@@ -129,12 +130,12 @@ TEST_F(MoqChatEndToEndTest, LeaveAndRejoin) {
   MockChatUserInterface* interface1b_ = if1bptr.get();
   uint16_t port = server_.moqt_server().quic_server().port();
   client1_ = std::make_unique<ChatClient>(
-      quic::QuicServerId(kChatHostname, port), true, std::move(if1bptr),
-      server_.moqt_server().quic_server().event_loop());
+      quic::QuicServerId(std::string(kChatHostname), port), true,
+      std::move(if1bptr), server_.moqt_server().quic_server().event_loop());
   EXPECT_TRUE(client1_->Connect("/moq-chat", "client1", "test_chat"));
   EXPECT_TRUE(client1_->AnnounceAndSubscribe());
-  SendAndWaitForOutput(interface1b_, interface2_, "client1", "Hello");
-  SendAndWaitForOutput(interface2_, interface1b_, "client2", "Hi");
+  SendAndWaitForOutput(interface1b_, interface2_, "client1", "Hello again");
+  SendAndWaitForOutput(interface2_, interface1b_, "client2", "Hi again");
 }
 
 }  // namespace test

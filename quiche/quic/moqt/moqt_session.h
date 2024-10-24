@@ -312,6 +312,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
     // This is only called for objects that have just arrived.
     void OnNewObjectAvailable(FullSequence sequence) override;
+    void OnTrackPublisherGone() override;
     void ProcessObjectAck(const MoqtObjectAck& message) {
       if (monitoring_interface_ == nullptr) {
         return;
@@ -494,6 +495,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   absl::flat_hash_map<FullTrackName, uint64_t> remote_track_aliases_;
   uint64_t next_remote_track_alias_ = 0;
 
+  // All open incoming subscriptions, indexed by track name, used to check for
+  // duplicates.
+  absl::flat_hash_set<FullTrackName> subscribed_track_names_;
   // Application object representing the publisher for all of the tracks that
   // can be subscribed to via this connection.  Must outlive this object.
   MoqtPublisher* publisher_;

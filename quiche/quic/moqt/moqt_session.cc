@@ -691,6 +691,11 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     session_->monitoring_interfaces_for_published_tracks_.erase(monitoring_it);
   }
 
+  if (session_->subscribed_track_names_.contains(track_name)) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Duplicate subscribe for track");
+    return;
+  }
   auto subscription = std::make_unique<MoqtSession::PublishedSubscription>(
       session_, *std::move(track_publisher), message, monitoring);
   auto [it, success] = session_->published_subscriptions_.emplace(
@@ -698,6 +703,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   if (!success) {
     SendSubscribeError(message, SubscribeErrorCode::kInternalError,
                        "Duplicate subscribe ID", message.track_alias);
+    return;
   }
 
   MoqtSubscribeOk subscribe_ok;
@@ -966,10 +972,12 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << subscribe.full_track_name;
+  session_->subscribed_track_names_.insert(subscribe.full_track_name);
 }
 
 MoqtSession::PublishedSubscription::~PublishedSubscription() {
   track_publisher_->RemoveObjectListener(this);
+  session_->subscribed_track_names_.erase(track_publisher_->GetTrackName());
 }
 
 SendStreamMap& MoqtSession::PublishedSubscription::stream_map() {
@@ -1041,6 +1049,11 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
   OutgoingDataStream* stream =
       static_cast<OutgoingDataStream*>(raw_stream->visitor());
   stream->SendObjects(*this);
+}
+
+void MoqtSession::PublishedSubscription::OnTrackPublisherGone() {
+  session_->SubscribeIsDone(subscription_id_, SubscribeDoneCode::kGoingAway,
+                            "Publisher is gone");
 }
 
 void MoqtSession::PublishedSubscription::Backfill() {

@@ -71,6 +71,7 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
               (uint64_t group_id, uint64_t object_id,
                absl::string_view payload),
               ());
+  MOCK_METHOD(void, OnTrackPublisherGone, (), (override));
 };
 
 absl::StatusOr<std::vector<std::string>> FetchToVector(

@@ -4,7 +4,6 @@
 
 #include "quiche/quic/moqt/tools/chat_server.h"
 
-#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -169,6 +168,7 @@ void ChatServer::DeleteUser(absl::string_view username) {
   catalog_->AddObject(quiche::QuicheMemSlice(quiche::QuicheBuffer::Copy(
                           quiche::SimpleBufferAllocator::Get(), catalog_data)),
                       /*key=*/false);
+  user_queues_[username]->RemoveAllSubscriptions();
   user_queues_.erase(username);
   publisher_.Delete(strings_.GetFullTrackNameFromUsername(username));
 }

@@ -37,6 +37,10 @@ class MoqtObjectListener {
   // available.  The object payload itself may be retrieved via GetCachedObject
   // method of the associated track publisher.
   virtual void OnNewObjectAvailable(FullSequence sequence) = 0;
+
+  // Notifies that the Publisher is being destroyed, so no more objects are
+  // coming.
+  virtual void OnTrackPublisherGone() = 0;
 };
 
 // A handle representing a fetch in progress.  The fetch in question can be

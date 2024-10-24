@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
@@ -81,9 +82,12 @@ class MoqtSessionPeer {
     auto new_stream =
         std::make_unique<MoqtSession::ControlStream>(session, stream);
     session->control_stream_ = kControlStreamId;
-    EXPECT_CALL(*stream, visitor())
+    ON_CALL(*stream, visitor()).WillByDefault(Return(new_stream.get()));
+    webtransport::test::MockSession* mock_session =
+        static_cast<webtransport::test::MockSession*>(session->session());
+    EXPECT_CALL(*mock_session, GetStreamById(kControlStreamId))
         .Times(AnyNumber())
-        .WillRepeatedly(Return(new_stream.get()));
+        .WillRepeatedly(Return(stream));
     return new_stream;
   }
 
@@ -469,6 +473,129 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
         correct_message = true;
         EXPECT_EQ(*ExtractMessageType(data[0]),
                   MoqtMessageType::kSubscribeError);
+        return absl::OkStatus();
+      });
+  stream_input->OnSubscribeMessage(request);
+  EXPECT_TRUE(correct_message);
+}
+
+TEST_F(MoqtSessionTest, TwoSubscribesForTrack) {
+  FullTrackName ftn("foo", "bar");
+  auto track = std::make_shared<MockTrackPublisher>(ftn);
+  EXPECT_CALL(*track, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
+  EXPECT_CALL(*track, GetCachedObject(_)).WillRepeatedly([] {
+    return std::optional<PublishedObject>();
+  });
+  EXPECT_CALL(*track, GetCachedObjectsInRange(_, _))
+      .WillRepeatedly(Return(std::vector<FullSequence>()));
+  EXPECT_CALL(*track, GetLargestSequence())
+      .WillRepeatedly(Return(FullSequence(10, 20)));
+  publisher_.Add(track);
+
+  // Peer subscribes to (11, 0)
+  MoqtSubscribe request = {
+      /*subscribe_id=*/1,
+      /*track_alias=*/2,
+      /*full_track_name=*/FullTrackName({"foo", "bar"}),
+      /*subscriber_priority=*/0x80,
+      /*group_order=*/std::nullopt,
+      /*start_group=*/11,
+      /*start_object=*/0,
+      /*end_group=*/std::nullopt,
+      /*end_object=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  bool correct_message = false;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribeOk);
+        return absl::OkStatus();
+      });
+  stream_input->OnSubscribeMessage(request);
+  EXPECT_TRUE(correct_message);
+
+  request.subscribe_id = 2;
+  request.start_group = 12;
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Duplicate subscribe for track"))
+      .Times(1);
+  stream_input->OnSubscribeMessage(request);
+  ;
+}
+
+TEST_F(MoqtSessionTest, UnsubscribeAllowsSecondSubscribe) {
+  FullTrackName ftn("foo", "bar");
+  auto track = std::make_shared<MockTrackPublisher>(ftn);
+  EXPECT_CALL(*track, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
+  EXPECT_CALL(*track, GetCachedObject(_)).WillRepeatedly([] {
+    return std::optional<PublishedObject>();
+  });
+  EXPECT_CALL(*track, GetCachedObjectsInRange(_, _))
+      .WillRepeatedly(Return(std::vector<FullSequence>()));
+  EXPECT_CALL(*track, GetLargestSequence())
+      .WillRepeatedly(Return(FullSequence(10, 20)));
+  publisher_.Add(track);
+
+  // Peer subscribes to (11, 0)
+  MoqtSubscribe request = {
+      /*subscribe_id=*/1,
+      /*track_alias=*/2,
+      /*full_track_name=*/FullTrackName({"foo", "bar"}),
+      /*subscriber_priority=*/0x80,
+      /*group_order=*/std::nullopt,
+      /*start_group=*/11,
+      /*start_object=*/0,
+      /*end_group=*/std::nullopt,
+      /*end_object=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  bool correct_message = false;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribeOk);
+        return absl::OkStatus();
+      });
+  stream_input->OnSubscribeMessage(request);
+  EXPECT_TRUE(correct_message);
+
+  // Peer unsubscribes.
+  MoqtUnsubscribe unsubscribe = {
+      /*subscribe_id=*/1,
+  };
+  correct_message = false;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]),
+                  MoqtMessageType::kSubscribeDone);
+        return absl::OkStatus();
+      });
+  stream_input->OnUnsubscribeMessage(unsubscribe);
+  EXPECT_TRUE(correct_message);
+
+  // Subscribe again, succeeds.
+  request.subscribe_id = 2;
+  request.start_group = 12;
+  correct_message = false;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = true;
+        EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribeOk);
         return absl::OkStatus();
       });
   stream_input->OnSubscribeMessage(request);
