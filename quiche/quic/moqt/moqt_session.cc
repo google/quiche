@@ -673,6 +673,13 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   if (PublisherHasData(**track_publisher)) {
     largest_id = (*track_publisher)->GetLargestSequence();
   }
+  if (message.start_group.has_value() && largest_id.has_value() &&
+      *message.start_group < largest_id->group) {
+    SendSubscribeError(message, SubscribeErrorCode::kInvalidRange,
+                       "SUBSCRIBE starts in previous group",
+                       message.track_alias);
+    return;
+  }
   MoqtDeliveryOrder delivery_order = (*track_publisher)->GetDeliveryOrder();
 
   MoqtPublishingMonitorInterface* monitoring = nullptr;

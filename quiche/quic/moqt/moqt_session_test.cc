@@ -462,12 +462,13 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
-  bool correct_message = true;
+  bool correct_message = false;
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
         correct_message = true;
-        EXPECT_EQ(*ExtractMessageType(data[0]), MoqtMessageType::kSubscribeOk);
+        EXPECT_EQ(*ExtractMessageType(data[0]),
+                  MoqtMessageType::kSubscribeError);
         return absl::OkStatus();
       });
   stream_input->OnSubscribeMessage(request);
@@ -506,7 +507,7 @@ TEST_F(MoqtSessionTest, TooManySubscribes) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
   EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream));
-  bool correct_message = true;
+  bool correct_message = false;
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
@@ -518,6 +519,7 @@ TEST_F(MoqtSessionTest, TooManySubscribes) {
                                              &remote_track_visitor));
   EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
                                               &remote_track_visitor));
+  EXPECT_TRUE(correct_message);
 }
 
 TEST_F(MoqtSessionTest, SubscribeWithOk) {
@@ -618,7 +620,7 @@ TEST_F(MoqtSessionTest, GrantMoreSubscribes) {
       /*full_track_name=*/FullTrackName({"foo", "bar"}),
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
-      /*start_group=*/0,
+      /*start_group=*/10,
       /*start_object=*/0,
       /*end_group=*/std::nullopt,
       /*end_object=*/std::nullopt,

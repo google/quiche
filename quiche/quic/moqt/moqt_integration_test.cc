@@ -286,6 +286,8 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
   }
 }
 
+// TODO(martinduke): Restore this test when FETCH is implemented.
+#if 0
 TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
   EstablishSession();
   MoqtKnownTrackPublisher publisher;
@@ -345,6 +347,7 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
     EXPECT_TRUE(success);
   }
 }
+#endif
 
 TEST_F(MoqtIntegrationTest, AnnounceFailure) {
   EstablishSession();
