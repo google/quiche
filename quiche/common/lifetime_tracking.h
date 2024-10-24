@@ -23,6 +23,12 @@
 //     ptr = new MyClass().
 //     tracker = ptr->trackable.NewTracker();
 //
+// (2a) Optionally, annotate the LifetimeTrackable with information that could
+//      be useful in the event of an unexpected dead object. NOTE: each
+//      annotation results in a std::string allocation.
+//
+//     ptr->trackable.Annotate(absl::StrCat(connection_id, " socket closed"));
+//
 // (3) Before the potentially dangerous dereference, check whether *ptr is dead:
 //
 //     if (tracker.IsTrackedObjectDead()) {
@@ -42,6 +48,7 @@
 #include <vector>
 
 #include "absl/strings/str_format.h"
+#include "absl/strings/str_join.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_stack_trace.h"
@@ -57,6 +64,9 @@ struct QUICHE_EXPORT LifetimeInfo {
 
   // If IsDead(), the stack when the LifetimeTrackable object is destructed.
   std::optional<std::vector<void*>> destructor_stack;
+
+  // Annotations to the LifetimeTrackable during its lifetime.
+  std::vector<std::string> annotations;
 };
 
 // LifetimeTracker tracks the lifetime of a LifetimeTrackable object, by holding
@@ -85,8 +95,12 @@ class QUICHE_EXPORT LifetimeTracker {
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const LifetimeTracker& tracker) {
     if (tracker.info_->IsDead()) {
-      absl::Format(&sink, "Tracked object has died with %v",
-                   SymbolizeStackTrace(*tracker.info_->destructor_stack));
+      absl::Format(&sink, "Tracked object has died with %v%s%s",
+                   SymbolizeStackTrace(*tracker.info_->destructor_stack),
+                   tracker.info_->annotations.empty() ? "" : "\nannotations:\n",
+                   tracker.info_->annotations.empty()
+                       ? ""
+                       : absl::StrJoin(tracker.info_->annotations, "\n"));
     } else {
       absl::Format(&sink, "Tracked object is alive.");
     }
@@ -127,6 +141,12 @@ class QUICHE_EXPORT LifetimeTrackable {
       info_ = std::make_shared<LifetimeInfo>();
     }
     return LifetimeTracker(info_);
+  }
+
+  void Annotate(std::string annotation) {
+    if (info_ != nullptr) {
+      info_->annotations.push_back(std::move(annotation));
+    }
   }
 
  private:

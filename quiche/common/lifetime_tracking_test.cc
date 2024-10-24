@@ -122,6 +122,20 @@ TEST_P(LifetimeTrackingTest, MultiTrackersQueryLiveness) {
   EXPECT_TRUE(tracker7.IsTrackedObjectDead());
 }
 
+TEST_P(LifetimeTrackingTest, SingleTrackerAnnotations) {
+  LifetimeTracker tracker = GetTrackable().NewTracker();
+  GetTrackable().Annotate("for what shall it profit a man");
+  GetTrackable().Annotate("if he shall gain a stack trace");
+  GetTrackable().Annotate("but lose all of the context");
+  FreeTrackable();
+  EXPECT_TRUE(tracker.IsTrackedObjectDead());
+  const std::string serialized = absl::StrCat(tracker);
+  EXPECT_THAT(serialized, testing::HasSubstr("Tracked object has died"));
+  EXPECT_THAT(serialized, testing::HasSubstr("for what shall"));
+  EXPECT_THAT(serialized, testing::HasSubstr("gain a stack trace"));
+  EXPECT_THAT(serialized, testing::HasSubstr("lose all of the context"));
+}
+
 TEST_P(LifetimeTrackingTest, CopyTrackableIsNoop) {
   LifetimeTracker tracker = GetTrackable().NewTracker();
   const LifetimeInfo* info = GetLifetimeInfoFromTrackable().get();
