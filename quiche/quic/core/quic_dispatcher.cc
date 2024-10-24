@@ -1120,10 +1120,7 @@ bool QuicDispatcher::ShouldCreateSessionForUnknownVersion(
   return false;
 }
 
-// TODO(wub): Remove |server_connection_id| because |early_arrived_packets|
-// already contains the original and replaced connection ID.
 void QuicDispatcher::OnExpiredPackets(
-    QuicConnectionId /*server_connection_id*/,
     BufferedPacketList early_arrived_packets) {
   QUIC_CODE_COUNT(quic_reject_buffered_packets_expired);
   QuicErrorCode error_code = QUIC_HANDSHAKE_FAILED_PACKETS_BUFFERED_TOO_LONG;

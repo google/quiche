@@ -157,8 +157,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
     virtual ~VisitorInterface() {}
 
     // Called for each expired connection when alarm fires.
-    virtual void OnExpiredPackets(QuicConnectionId connection_id,
-                                  BufferedPacketList early_arrived_packets) = 0;
+    virtual void OnExpiredPackets(BufferedPacketList early_arrived_packets) = 0;
 
     enum class HandleCidCollisionResult {
       kOk,

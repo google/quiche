@@ -159,8 +159,7 @@ class QUICHE_EXPORT QuicDispatcher
                           QuicConnectionIdHash>;
 
   // QuicBufferedPacketStore::VisitorInterface implementation.
-  void OnExpiredPackets(QuicConnectionId server_connection_id,
-                        QuicBufferedPacketStore::BufferedPacketList
+  void OnExpiredPackets(QuicBufferedPacketStore::BufferedPacketList
                             early_arrived_packets) override;
   HandleCidCollisionResult HandleConnectionIdCollision(
       const QuicConnectionId& original_connection_id,

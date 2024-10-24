@@ -501,9 +501,8 @@ void QuicBufferedPacketStore::OnExpirationTimeout() {
       break;
     }
     std::shared_ptr<BufferedPacketListNode> node_ref = node.shared_from_this();
-    QuicConnectionId connection_id = node.original_connection_id;
     RemoveFromStore(node);
-    visitor_->OnExpiredPackets(connection_id, std::move(node));
+    visitor_->OnExpiredPackets(std::move(node));
   }
   if (!buffered_sessions_.empty()) {
     MaybeSetExpirationAlarm();
