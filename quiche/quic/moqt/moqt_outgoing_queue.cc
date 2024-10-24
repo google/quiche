@@ -4,14 +4,21 @@
 
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "quiche/quic/moqt/moqt_cached_object.h"
+#include "quiche/quic/moqt/moqt_failed_fetch.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -105,6 +112,83 @@ FullSequence MoqtOutgoingQueue::GetLargestSequence() const {
     return FullSequence{0, 0};
   }
   return FullSequence{current_group_id_, queue_.back().size() - 1};
+}
+
+std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::Fetch(
+    FullSequence start, uint64_t end_group, std::optional<uint64_t> end_object,
+    MoqtDeliveryOrder order) {
+  if (queue_.empty()) {
+    return std::make_unique<MoqtFailedFetch>(
+        absl::NotFoundError("No objects available on the track"));
+  }
+
+  FullSequence end = FullSequence(
+      end_group, end_object.value_or(std::numeric_limits<uint64_t>::max()));
+  FullSequence first_available_object = FullSequence(first_group_in_queue(), 0);
+  FullSequence last_available_object =
+      FullSequence(current_group_id_, queue_.back().size() - 1);
+
+  if (end < first_available_object) {
+    return std::make_unique<MoqtFailedFetch>(
+        absl::NotFoundError("All of the requested objects have expired"));
+  }
+  if (start > last_available_object) {
+    return std::make_unique<MoqtFailedFetch>(
+        absl::NotFoundError("All of the requested objects are in the future"));
+  }
+
+  FullSequence adjusted_start = std::max(start, first_available_object);
+  FullSequence adjusted_end = std::min(end, last_available_object);
+  std::vector<FullSequence> objects =
+      GetCachedObjectsInRange(adjusted_start, adjusted_end);
+  if (order == MoqtDeliveryOrder::kDescending) {
+    absl::c_reverse(objects);
+    for (auto it = objects.begin(); it != objects.end();) {
+      auto start_it = it;
+      while (it != objects.end() && it->group == start_it->group) {
+        ++it;
+      }
+      std::reverse(start_it, it);
+    }
+  }
+  return std::make_unique<FetchTask>(this, std::move(objects));
+}
+
+MoqtFetchTask::GetNextObjectResult MoqtOutgoingQueue::FetchTask::GetNextObject(
+    PublishedObject& object) {
+  for (;;) {
+    // The specification for FETCH requires that all missing objects are simply
+    // skipped.
+    MoqtFetchTask::GetNextObjectResult result = GetNextObjectInner(object);
+    bool missing_object =
+        result == kSuccess &&
+        (object.status == MoqtObjectStatus::kObjectDoesNotExist ||
+         object.status == MoqtObjectStatus::kGroupDoesNotExist);
+    if (!missing_object) {
+      return result;
+    }
+  }
+}
+
+MoqtFetchTask::GetNextObjectResult
+MoqtOutgoingQueue::FetchTask::GetNextObjectInner(PublishedObject& object) {
+  if (!status_.ok()) {
+    return kError;
+  }
+  if (objects_.empty()) {
+    return kEof;
+  }
+
+  std::optional<PublishedObject> result =
+      queue_->GetCachedObject(objects_.front());
+  if (!result.has_value()) {
+    status_ = absl::InternalError("Previously known object became unknown.");
+    return kError;
+  }
+
+  object = *std::move(result);
+  objects_.pop_front();
+  return kSuccess;
 }
 
 }  // namespace moqt

@@ -1514,6 +1514,7 @@
   "moqt_hdrs": [
     "quiche/quic/moqt/moqt_bitrate_adjuster.h",
     "quiche/quic/moqt/moqt_cached_object.h",
+    "quiche/quic/moqt/moqt_failed_fetch.h",
     "quiche/quic/moqt/moqt_framer.h",
     "quiche/quic/moqt/moqt_known_track_publisher.h",
     "quiche/quic/moqt/moqt_live_relay_queue.h",

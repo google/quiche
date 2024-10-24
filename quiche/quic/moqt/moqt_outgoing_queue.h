@@ -7,18 +7,21 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_circular_deque.h"
 
 namespace moqt {
 
@@ -68,6 +71,9 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   MoqtDeliveryOrder GetDeliveryOrder() const override {
     return delivery_order_;
   }
+  std::unique_ptr<MoqtFetchTask> Fetch(FullSequence start, uint64_t end_group,
+                                       std::optional<uint64_t> end_object,
+                                       MoqtDeliveryOrder order) override;
 
   bool HasSubscribers() const { return !listeners_.empty(); }
   void SetDeliveryOrder(MoqtDeliveryOrder order) {
@@ -78,6 +84,23 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
  private:
   // The number of recent groups to keep around for newly joined subscribers.
   static constexpr size_t kMaxQueuedGroups = 3;
+
+  // Fetch task for a fetch from the cache.
+  class FetchTask : public MoqtFetchTask {
+   public:
+    FetchTask(MoqtOutgoingQueue* queue, std::vector<FullSequence> objects)
+        : queue_(queue), objects_(objects.begin(), objects.end()) {}
+
+    GetNextObjectResult GetNextObject(PublishedObject&) override;
+    absl::Status GetStatus() override { return status_; }
+
+   private:
+    GetNextObjectResult GetNextObjectInner(PublishedObject&);
+
+    MoqtOutgoingQueue* queue_;
+    quiche::QuicheCircularDeque<FullSequence> objects_;
+    absl::Status status_ = absl::OkStatus();
+  };
 
   using Group = std::vector<CachedObject>;
 

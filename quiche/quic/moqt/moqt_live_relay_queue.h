@@ -7,15 +7,18 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
 
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_cached_object.h"
+#include "quiche/quic/moqt/moqt_failed_fetch.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -80,6 +83,13 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   }
   MoqtDeliveryOrder GetDeliveryOrder() const override {
     return delivery_order_;
+  }
+  std::unique_ptr<MoqtFetchTask> Fetch(FullSequence /*start*/,
+                                       uint64_t /*end_group*/,
+                                       std::optional<uint64_t> /*end_object*/,
+                                       MoqtDeliveryOrder /*order*/) override {
+    return std::make_unique<MoqtFailedFetch>(
+        absl::UnimplementedError("Fetch not implemented"));
   }
 
   bool HasSubscribers() const { return !listeners_.empty(); }

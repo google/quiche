@@ -1511,6 +1511,7 @@ load_balancer_srcs = [
 moqt_hdrs = [
     "quic/moqt/moqt_bitrate_adjuster.h",
     "quic/moqt/moqt_cached_object.h",
+    "quic/moqt/moqt_failed_fetch.h",
     "quic/moqt/moqt_framer.h",
     "quic/moqt/moqt_known_track_publisher.h",
     "quic/moqt/moqt_live_relay_queue.h",

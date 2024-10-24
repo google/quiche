@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_MOQT_TOOLS_MOQT_MOCK_VISITOR_H_
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -66,6 +67,10 @@ class MockTrackPublisher : public MoqtTrackPublisher {
               (const, override));
   MOCK_METHOD(MoqtPriority, GetPublisherPriority, (), (const, override));
   MOCK_METHOD(MoqtDeliveryOrder, GetDeliveryOrder, (), (const, override));
+  MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, Fetch,
+              (FullSequence, uint64_t, std::optional<uint64_t>,
+               MoqtDeliveryOrder),
+              (override));
 
  private:
   FullTrackName track_name_;
