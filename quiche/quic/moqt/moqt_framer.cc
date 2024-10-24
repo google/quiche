@@ -649,6 +649,50 @@ quiche::QuicheBuffer MoqtFramer::SerializeMaxSubscribeId(
                                  WireVarInt62(message.max_subscribe_id));
 }
 
+quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
+  if (message.end_group < message.start_object.group ||
+      (message.end_group == message.start_object.group &&
+       message.end_object.has_value() &&
+       *message.end_object < message.start_object.object)) {
+    QUICHE_BUG(MoqtFramer_invalid_fetch) << "Invalid FETCH object range";
+    return quiche::QuicheBuffer();
+  }
+  return SerializeControlMessage(
+      MoqtMessageType::kFetch, WireVarInt62(message.subscribe_id),
+      WireFullTrackName(message.full_track_name, true),
+      WireUint8(message.subscriber_priority),
+      WireDeliveryOrder(message.group_order),
+      WireVarInt62(message.start_object.group),
+      WireVarInt62(message.start_object.object),
+      WireVarInt62(message.end_group),
+      WireVarInt62(message.end_object.has_value() ? *message.end_object + 1
+                                                  : 0),
+      WireSubscribeParameterList(message.parameters));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeFetchCancel(
+    const MoqtFetchCancel& message) {
+  return SerializeControlMessage(MoqtMessageType::kFetchCancel,
+                                 WireVarInt62(message.subscribe_id));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeFetchOk(const MoqtFetchOk& message) {
+  return SerializeControlMessage(
+      MoqtMessageType::kFetchOk, WireVarInt62(message.subscribe_id),
+      WireDeliveryOrder(message.group_order),
+      WireVarInt62(message.largest_id.group),
+      WireVarInt62(message.largest_id.object),
+      WireSubscribeParameterList(message.parameters));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeFetchError(
+    const MoqtFetchError& message) {
+  return SerializeControlMessage(
+      MoqtMessageType::kFetchError, WireVarInt62(message.subscribe_id),
+      WireVarInt62(message.error_code),
+      WireStringWithVarInt62Length(message.reason_phrase));
+}
+
 quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
     const MoqtObjectAck& message) {
   return SerializeControlMessage(

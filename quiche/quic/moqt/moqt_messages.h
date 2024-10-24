@@ -93,6 +93,10 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kSubscribeAnnouncesError = 0x13,
   kUnsubscribeAnnounces = 0x14,
   kMaxSubscribeId = 0x15,
+  kFetch = 0x16,
+  kFetchCancel = 0x17,
+  kFetchOk = 0x18,
+  kFetchError = 0x19,
   kClientSetup = 0x40,
   kServerSetup = 0x41,
 
@@ -526,6 +530,34 @@ struct QUICHE_EXPORT MoqtUnsubscribeAnnounces {
 
 struct QUICHE_EXPORT MoqtMaxSubscribeId {
   uint64_t max_subscribe_id;
+};
+
+struct QUICHE_EXPORT MoqtFetch {
+  uint64_t subscribe_id;
+  FullTrackName full_track_name;
+  MoqtPriority subscriber_priority;
+  std::optional<MoqtDeliveryOrder> group_order;
+  FullSequence start_object;  // subgroup is ignored
+  uint64_t end_group;
+  std::optional<uint64_t> end_object;
+  MoqtSubscribeParameters parameters;
+};
+
+struct QUICHE_EXPORT MoqtFetchCancel {
+  uint64_t subscribe_id;
+};
+
+struct QUICHE_EXPORT MoqtFetchOk {
+  uint64_t subscribe_id;
+  MoqtDeliveryOrder group_order;
+  FullSequence largest_id;  // subgroup is ignored
+  MoqtSubscribeParameters parameters;
+};
+
+struct QUICHE_EXPORT MoqtFetchError {
+  uint64_t subscribe_id;
+  SubscribeErrorCode error_code;
+  std::string reason_phrase;
 };
 
 // All of the four values in this message are encoded as varints.

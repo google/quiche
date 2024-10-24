@@ -213,6 +213,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnUnsubscribeAnnouncesMessage(
         const MoqtUnsubscribeAnnounces& message) override {}
     void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override;
+    void OnFetchMessage(const MoqtFetch& message) override {}
+    void OnFetchCancelMessage(const MoqtFetchCancel& message) override {}
+    void OnFetchOkMessage(const MoqtFetchOk& message) override {}
+    void OnFetchErrorMessage(const MoqtFetchError& message) override {}
     void OnObjectAckMessage(const MoqtObjectAck& message) override {
       auto subscription_it =
           session_->published_subscriptions_.find(message.subscribe_id);

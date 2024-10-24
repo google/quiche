@@ -264,6 +264,18 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data) {
     case MoqtMessageType::kMaxSubscribeId:
       bytes_read = ProcessMaxSubscribeId(reader);
       break;
+    case MoqtMessageType::kFetch:
+      bytes_read = ProcessFetch(reader);
+      break;
+    case MoqtMessageType::kFetchCancel:
+      bytes_read = ProcessFetchCancel(reader);
+      break;
+    case MoqtMessageType::kFetchOk:
+      bytes_read = ProcessFetchOk(reader);
+      break;
+    case MoqtMessageType::kFetchError:
+      bytes_read = ProcessFetchError(reader);
+      break;
     case moqt::MoqtMessageType::kObjectAck:
       bytes_read = ProcessObjectAck(reader);
       break;
@@ -800,6 +812,83 @@ size_t MoqtControlParser::ProcessMaxSubscribeId(quic::QuicDataReader& reader) {
     return 0;
   }
   visitor_.OnMaxSubscribeIdMessage(max_subscribe_id);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
+  MoqtFetch fetch;
+  absl::string_view track_name;
+  uint8_t group_order;
+  uint64_t end_object;
+  if (!reader.ReadVarInt62(&fetch.subscribe_id) ||
+      !ReadTrackNamespace(reader, fetch.full_track_name) ||
+      !reader.ReadStringPieceVarInt62(&track_name) ||
+      !reader.ReadUInt8(&fetch.subscriber_priority) ||
+      !reader.ReadUInt8(&group_order) ||
+      !reader.ReadVarInt62(&fetch.start_object.group) ||
+      !reader.ReadVarInt62(&fetch.start_object.object) ||
+      !reader.ReadVarInt62(&fetch.end_group) ||
+      !reader.ReadVarInt62(&end_object) ||
+      !ReadSubscribeParameters(reader, fetch.parameters)) {
+    return 0;
+  }
+  // Elements that have to be translated from the literal value.
+  fetch.full_track_name.AddElement(track_name);
+  if (!ParseDeliveryOrder(group_order, fetch.group_order)) {
+    ParseError("Invalid group order value in FETCH message");
+    return 0;
+  }
+  fetch.end_object =
+      end_object == 0 ? std::optional<uint64_t>() : (end_object - 1);
+  if (fetch.end_group < fetch.start_object.group ||
+      (fetch.end_group == fetch.start_object.group &&
+       fetch.end_object.has_value() &&
+       *fetch.end_object < fetch.start_object.object)) {
+    ParseError("End object comes before start object in FETCH");
+    return 0;
+  }
+  visitor_.OnFetchMessage(fetch);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessFetchCancel(quic::QuicDataReader& reader) {
+  MoqtFetchCancel fetch_cancel;
+  if (!reader.ReadVarInt62(&fetch_cancel.subscribe_id)) {
+    return 0;
+  }
+  visitor_.OnFetchCancelMessage(fetch_cancel);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
+  MoqtFetchOk fetch_ok;
+  uint8_t group_order;
+  if (!reader.ReadVarInt62(&fetch_ok.subscribe_id) ||
+      !reader.ReadUInt8(&group_order) ||
+      !reader.ReadVarInt62(&fetch_ok.largest_id.group) ||
+      !reader.ReadVarInt62(&fetch_ok.largest_id.object) ||
+      !ReadSubscribeParameters(reader, fetch_ok.parameters)) {
+    return 0;
+  }
+  if (group_order != 0x01 && group_order != 0x02) {
+    ParseError("Invalid group order value in FETCH_OK");
+    return 0;
+  }
+  fetch_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
+  visitor_.OnFetchOkMessage(fetch_ok);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessFetchError(quic::QuicDataReader& reader) {
+  MoqtFetchError fetch_error;
+  uint64_t error_code;
+  if (!reader.ReadVarInt62(&fetch_error.subscribe_id) ||
+      !reader.ReadVarInt62(&error_code) ||
+      !reader.ReadStringVarInt62(fetch_error.reason_phrase)) {
+    return 0;
+  }
+  fetch_error.error_code = static_cast<SubscribeErrorCode>(error_code);
+  visitor_.OnFetchErrorMessage(fetch_error);
   return reader.PreviouslyReadPayload().length();
 }
 

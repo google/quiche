@@ -52,6 +52,10 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kSubscribeAnnouncesError,
     MoqtMessageType::kUnsubscribeAnnounces,
     MoqtMessageType::kMaxSubscribeId,
+    MoqtMessageType::kFetch,
+    MoqtMessageType::kFetchCancel,
+    MoqtMessageType::kFetchOk,
+    MoqtMessageType::kFetchError,
     MoqtMessageType::kObjectAck,
 };
 constexpr std::array kDataStreamTypes{
@@ -192,6 +196,18 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
     OnControlMessage(message);
   }
   void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override {
+    OnControlMessage(message);
+  }
+  void OnFetchMessage(const MoqtFetch& message) override {
+    OnControlMessage(message);
+  }
+  void OnFetchCancelMessage(const MoqtFetchCancel& message) override {
+    OnControlMessage(message);
+  }
+  void OnFetchOkMessage(const MoqtFetchOk& message) override {
+    OnControlMessage(message);
+  }
+  void OnFetchErrorMessage(const MoqtFetchError& message) override {
     OnControlMessage(message);
   }
   void OnObjectAckMessage(const MoqtObjectAck& message) override {
@@ -1308,6 +1324,39 @@ TEST_F(MoqtMessageSpecificTest, SubscribeDoneInvalidContentExists) {
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_,
             "SUBSCRIBE_DONE ContentExists has invalid value");
+}
+
+TEST_F(MoqtMessageSpecificTest, FetchInvalidRange) {
+  MoqtControlParser parser(kRawQuic, visitor_);
+  FetchMessage fetch;
+  fetch.SetEndObject(1, 1);
+  parser.ProcessData(fetch.PacketSample(), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_,
+            "End object comes before start object in FETCH");
+}
+
+TEST_F(MoqtMessageSpecificTest, FetchInvalidRange2) {
+  MoqtControlParser parser(kRawQuic, visitor_);
+  FetchMessage fetch;
+  fetch.SetEndObject(0, std::nullopt);
+  parser.ProcessData(fetch.PacketSample(), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_,
+            "End object comes before start object in FETCH");
+}
+
+TEST_F(MoqtMessageSpecificTest, FetchInvalidGroupOrder) {
+  MoqtControlParser parser(kRawQuic, visitor_);
+  FetchMessage fetch;
+  fetch.SetGroupOrder(3);
+  parser.ProcessData(fetch.PacketSample(), false);
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
+  EXPECT_EQ(*visitor_.parsing_error_,
+            "Invalid group order value in FETCH message");
 }
 
 TEST_F(MoqtMessageSpecificTest, PaddingStream) {

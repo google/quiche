@@ -14,6 +14,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -51,6 +52,10 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kSubscribeAnnouncesError,
       MoqtMessageType::kUnsubscribeAnnounces,
       MoqtMessageType::kMaxSubscribeId,
+      MoqtMessageType::kFetch,
+      MoqtMessageType::kFetchCancel,
+      MoqtMessageType::kFetchOk,
+      MoqtMessageType::kFetchError,
       MoqtMessageType::kObjectAck,
       MoqtMessageType::kClientSetup,
       MoqtMessageType::kServerSetup,
@@ -181,6 +186,22 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kMaxSubscribeId: {
         auto data = std::get<MoqtMaxSubscribeId>(structured_data);
         return framer_.SerializeMaxSubscribeId(data);
+      }
+      case moqt::MoqtMessageType::kFetch: {
+        auto data = std::get<MoqtFetch>(structured_data);
+        return framer_.SerializeFetch(data);
+      }
+      case moqt::MoqtMessageType::kFetchCancel: {
+        auto data = std::get<MoqtFetchCancel>(structured_data);
+        return framer_.SerializeFetchCancel(data);
+      }
+      case moqt::MoqtMessageType::kFetchOk: {
+        auto data = std::get<MoqtFetchOk>(structured_data);
+        return framer_.SerializeFetchOk(data);
+      }
+      case moqt::MoqtMessageType::kFetchError: {
+        auto data = std::get<MoqtFetchError>(structured_data);
+        return framer_.SerializeFetchError(data);
       }
       case moqt::MoqtMessageType::kObjectAck: {
         auto data = std::get<MoqtObjectAck>(structured_data);
@@ -444,6 +465,29 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
   subscribe.end_object = 1;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
                   "Invalid object range");
+  EXPECT_EQ(buffer.size(), 0);
+}
+
+TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
+  MoqtFetch fetch = {
+      /*subscribe_id =*/1,
+      /*full_track_name=*/FullTrackName{"foo", "bar"},
+      /*subscriber_priority=*/2,
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*start_object=*/FullSequence{1, 2},
+      /*end_group=*/1,
+      /*end_object=*/1,
+      /*parameters=*/
+      MoqtSubscribeParameters{"baz", std::nullopt, std::nullopt, std::nullopt},
+  };
+  quiche::QuicheBuffer buffer;
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeFetch(fetch),
+                  "Invalid FETCH object range");
+  EXPECT_EQ(buffer.size(), 0);
+  fetch.end_group = 0;
+  fetch.end_object = std::nullopt;
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeFetch(fetch),
+                  "Invalid FETCH object range");
   EXPECT_EQ(buffer.size(), 0);
 }
 

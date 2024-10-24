@@ -52,6 +52,10 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnUnsubscribeAnnouncesMessage(
       const MoqtUnsubscribeAnnounces& message) = 0;
   virtual void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) = 0;
+  virtual void OnFetchMessage(const MoqtFetch& message) = 0;
+  virtual void OnFetchCancelMessage(const MoqtFetchCancel& message) = 0;
+  virtual void OnFetchOkMessage(const MoqtFetchOk& message) = 0;
+  virtual void OnFetchErrorMessage(const MoqtFetchError& message) = 0;
   virtual void OnObjectAckMessage(const MoqtObjectAck& message) = 0;
 
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
@@ -121,6 +125,10 @@ class QUICHE_EXPORT MoqtControlParser {
   size_t ProcessSubscribeAnnouncesError(quic::QuicDataReader& reader);
   size_t ProcessUnsubscribeAnnounces(quic::QuicDataReader& reader);
   size_t ProcessMaxSubscribeId(quic::QuicDataReader& reader);
+  size_t ProcessFetch(quic::QuicDataReader& reader);
+  size_t ProcessFetchCancel(quic::QuicDataReader& reader);
+  size_t ProcessFetchOk(quic::QuicDataReader& reader);
+  size_t ProcessFetchError(quic::QuicDataReader& reader);
   size_t ProcessObjectAck(quic::QuicDataReader& reader);
 
   // If |error| is not provided, assumes kProtocolViolation.

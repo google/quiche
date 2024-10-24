@@ -107,6 +107,14 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNSUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kMaxSubscribeId:
       return "MAX_SUBSCRIBE_ID";
+    case MoqtMessageType::kFetch:
+      return "FETCH";
+    case MoqtMessageType::kFetchCancel:
+      return "FETCH_CANCEL";
+    case MoqtMessageType::kFetchOk:
+      return "FETCH_OK";
+    case MoqtMessageType::kFetchError:
+      return "FETCH_ERROR";
     case MoqtMessageType::kObjectAck:
       return "OBJECT_ACK";
   }
