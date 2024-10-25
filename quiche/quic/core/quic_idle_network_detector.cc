@@ -19,14 +19,15 @@ namespace {
 }  // namespace
 
 QuicIdleNetworkDetector::QuicIdleNetworkDetector(Delegate* delegate,
-                                                 QuicTime now, QuicAlarm* alarm)
+                                                 QuicTime now,
+                                                 QuicAlarmProxy alarm)
     : delegate_(delegate),
       start_time_(now),
       handshake_timeout_(QuicTime::Delta::Infinite()),
       time_of_last_received_packet_(now),
       time_of_first_packet_sent_after_receiving_(QuicTime::Zero()),
       idle_network_timeout_(QuicTime::Delta::Infinite()),
-      alarm_(*alarm) {}
+      alarm_(alarm) {}
 
 void QuicIdleNetworkDetector::OnAlarm() {
   if (handshake_timeout_.IsInfinite()) {

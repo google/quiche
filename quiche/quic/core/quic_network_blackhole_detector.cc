@@ -6,13 +6,14 @@
 
 #include <algorithm>
 
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_constants.h"
 
 namespace quic {
 
 QuicNetworkBlackholeDetector::QuicNetworkBlackholeDetector(Delegate* delegate,
-                                                           QuicAlarm* alarm)
-    : delegate_(delegate), alarm_(*alarm) {}
+                                                           QuicAlarmProxy alarm)
+    : delegate_(delegate), alarm_(alarm) {}
 
 void QuicNetworkBlackholeDetector::OnAlarm() {
   QuicTime next_deadline = GetEarliestDeadline();
@@ -91,7 +92,7 @@ QuicTime QuicNetworkBlackholeDetector::GetLastDeadline() const {
                    path_mtu_reduction_deadline_});
 }
 
-void QuicNetworkBlackholeDetector::UpdateAlarm() const {
+void QuicNetworkBlackholeDetector::UpdateAlarm() {
   // If called after OnBlackholeDetected(), the alarm may have been permanently
   // cancelled and is not safe to be armed again.
   if (alarm_.IsPermanentlyCancelled()) {

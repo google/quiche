@@ -2157,40 +2157,43 @@ class QUICHE_EXPORT QuicConnection
 
   void GenerateNewOutgoingFlowLabel();
 
-  QuicAlarm& ack_alarm() { return alarms_.ack_alarm(); }
-  const QuicAlarm& ack_alarm() const { return alarms_.ack_alarm(); }
-  QuicAlarm& retransmission_alarm() { return alarms_.retransmission_alarm(); }
-  const QuicAlarm& retransmission_alarm() const {
+  QuicAlarmProxy ack_alarm() { return alarms_.ack_alarm(); }
+  QuicAlarmProxy retransmission_alarm() {
     return alarms_.retransmission_alarm();
   }
-  QuicAlarm& send_alarm() { return alarms_.send_alarm(); }
-  const QuicAlarm& send_alarm() const { return alarms_.send_alarm(); }
-  QuicAlarm& mtu_discovery_alarm() { return alarms_.mtu_discovery_alarm(); }
-  const QuicAlarm& mtu_discovery_alarm() const {
-    return alarms_.mtu_discovery_alarm();
-  }
-  QuicAlarm& process_undecryptable_packets_alarm() {
+  QuicAlarmProxy send_alarm() { return alarms_.send_alarm(); }
+  QuicAlarmProxy mtu_discovery_alarm() { return alarms_.mtu_discovery_alarm(); }
+  QuicAlarmProxy process_undecryptable_packets_alarm() {
     return alarms_.process_undecryptable_packets_alarm();
   }
-  const QuicAlarm& process_undecryptable_packets_alarm() const {
-    return alarms_.process_undecryptable_packets_alarm();
-  }
-  QuicAlarm& discard_previous_one_rtt_keys_alarm() {
+  QuicAlarmProxy discard_previous_one_rtt_keys_alarm() {
     return alarms_.discard_previous_one_rtt_keys_alarm();
   }
-  const QuicAlarm& discard_previous_one_rtt_keys_alarm() const {
-    return alarms_.discard_previous_one_rtt_keys_alarm();
-  }
-  QuicAlarm& discard_zero_rtt_decryption_keys_alarm() {
+  QuicAlarmProxy discard_zero_rtt_decryption_keys_alarm() {
     return alarms_.discard_zero_rtt_decryption_keys_alarm();
   }
-  const QuicAlarm& discard_zero_rtt_decryption_keys_alarm() const {
-    return alarms_.discard_zero_rtt_decryption_keys_alarm();
-  }
-  QuicAlarm& multi_port_probing_alarm() {
+  QuicAlarmProxy multi_port_probing_alarm() {
     return alarms_.multi_port_probing_alarm();
   }
-  const QuicAlarm& multi_port_probing_alarm() const {
+
+  QuicConstAlarmProxy ack_alarm() const { return alarms_.ack_alarm(); }
+  QuicConstAlarmProxy retransmission_alarm() const {
+    return alarms_.retransmission_alarm();
+  }
+  QuicConstAlarmProxy send_alarm() const { return alarms_.send_alarm(); }
+  QuicConstAlarmProxy mtu_discovery_alarm() const {
+    return alarms_.mtu_discovery_alarm();
+  }
+  QuicConstAlarmProxy process_undecryptable_packets_alarm() const {
+    return alarms_.process_undecryptable_packets_alarm();
+  }
+  QuicConstAlarmProxy discard_previous_one_rtt_keys_alarm() const {
+    return alarms_.discard_previous_one_rtt_keys_alarm();
+  }
+  QuicConstAlarmProxy discard_zero_rtt_decryption_keys_alarm() const {
+    return alarms_.discard_zero_rtt_decryption_keys_alarm();
+  }
+  QuicConstAlarmProxy multi_port_probing_alarm() const {
     return alarms_.multi_port_probing_alarm();
   }
 

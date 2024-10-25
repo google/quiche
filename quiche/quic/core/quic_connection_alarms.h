@@ -5,11 +5,13 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CONNECTION_ALARMS_H_
 #define QUICHE_QUIC_CORE_QUIC_CONNECTION_ALARMS_H_
 
+#include "absl/base/nullability.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_arena_scoped_ptr.h"
 #include "quiche/quic/core/quic_connection_context.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
@@ -33,59 +35,117 @@ class QUICHE_EXPORT QuicConnectionAlarmsDelegate {
   virtual QuicConnectionContext* context() = 0;
 };
 
+namespace test {
+class QuicConnectionAlarmsPeer;
+}
+
 class QUICHE_EXPORT QuicConnectionAlarms {
  public:
+  // Provides a QuicAlarm-like interface to an alarm contained within
+  // QuicConnectionAlarms.
+  class AlarmProxy {
+   public:
+    explicit AlarmProxy(absl::Nonnull<QuicAlarm*> alarm) : alarm_(alarm) {}
+
+    bool IsSet() const { return alarm_->IsSet(); }
+    QuicTime deadline() const { return alarm_->deadline(); }
+    bool IsPermanentlyCancelled() const {
+      return alarm_->IsPermanentlyCancelled();
+    }
+
+    void Set(QuicTime new_deadline) { alarm_->Set(new_deadline); }
+    void Update(QuicTime new_deadline, QuicTime::Delta granularity) {
+      alarm_->Update(new_deadline, granularity);
+    }
+    void Cancel() { alarm_->Cancel(); }
+    void PermanentCancel() { alarm_->PermanentCancel(); }
+
+   private:
+    friend class ::quic::test::QuicConnectionAlarmsPeer;
+
+    absl::Nonnull<QuicAlarm*> alarm_;
+  };
+  class ConstAlarmProxy {
+   public:
+    explicit ConstAlarmProxy(const QuicAlarm* alarm) : alarm_(alarm) {}
+
+    bool IsSet() const { return alarm_->IsSet(); }
+    QuicTime deadline() const { return alarm_->deadline(); }
+    bool IsPermanentlyCancelled() const {
+      return alarm_->IsPermanentlyCancelled();
+    }
+
+   private:
+    friend class ::quic::test::QuicConnectionAlarmsPeer;
+
+    const QuicAlarm* alarm_;
+  };
+
   QuicConnectionAlarms(QuicConnectionAlarmsDelegate* delegate,
                        QuicAlarmFactory& alarm_factory,
                        QuicConnectionArena& arena);
 
-  QuicAlarm& ack_alarm() { return *ack_alarm_; }
-  QuicAlarm& retransmission_alarm() { return *retransmission_alarm_; }
-  QuicAlarm& send_alarm() { return *send_alarm_; }
-  QuicAlarm& mtu_discovery_alarm() { return *mtu_discovery_alarm_; }
-  QuicAlarm& process_undecryptable_packets_alarm() {
-    return *process_undecryptable_packets_alarm_;
+  AlarmProxy ack_alarm() { return AlarmProxy(ack_alarm_.get()); }
+  AlarmProxy retransmission_alarm() {
+    return AlarmProxy(retransmission_alarm_.get());
   }
-  QuicAlarm& discard_previous_one_rtt_keys_alarm() {
-    return *discard_previous_one_rtt_keys_alarm_;
+  AlarmProxy send_alarm() { return AlarmProxy(send_alarm_.get()); }
+  AlarmProxy mtu_discovery_alarm() {
+    return AlarmProxy(mtu_discovery_alarm_.get());
   }
-  QuicAlarm& discard_zero_rtt_decryption_keys_alarm() {
-    return *discard_zero_rtt_decryption_keys_alarm_;
+  AlarmProxy process_undecryptable_packets_alarm() {
+    return AlarmProxy(process_undecryptable_packets_alarm_.get());
   }
-  QuicAlarm& multi_port_probing_alarm() { return *multi_port_probing_alarm_; }
-  QuicAlarm& idle_network_detector_alarm() {
-    return *idle_network_detector_alarm_;
+  AlarmProxy discard_previous_one_rtt_keys_alarm() {
+    return AlarmProxy(discard_previous_one_rtt_keys_alarm_.get());
   }
-  QuicAlarm& network_blackhole_detector_alarm() {
-    return *network_blackhole_detector_alarm_;
+  AlarmProxy discard_zero_rtt_decryption_keys_alarm() {
+    return AlarmProxy(discard_zero_rtt_decryption_keys_alarm_.get());
   }
-  QuicAlarm& ping_alarm() { return *ping_alarm_; }
+  AlarmProxy multi_port_probing_alarm() {
+    return AlarmProxy(multi_port_probing_alarm_.get());
+  }
+  AlarmProxy idle_network_detector_alarm() {
+    return AlarmProxy(idle_network_detector_alarm_.get());
+  }
+  AlarmProxy network_blackhole_detector_alarm() {
+    return AlarmProxy(network_blackhole_detector_alarm_.get());
+  }
+  AlarmProxy ping_alarm() { return AlarmProxy(ping_alarm_.get()); }
 
-  const QuicAlarm& ack_alarm() const { return *ack_alarm_; }
-  const QuicAlarm& retransmission_alarm() const {
-    return *retransmission_alarm_;
+  ConstAlarmProxy ack_alarm() const {
+    return ConstAlarmProxy(ack_alarm_.get());
   }
-  const QuicAlarm& send_alarm() const { return *send_alarm_; }
-  const QuicAlarm& mtu_discovery_alarm() const { return *mtu_discovery_alarm_; }
-  const QuicAlarm& process_undecryptable_packets_alarm() const {
-    return *process_undecryptable_packets_alarm_;
+  ConstAlarmProxy retransmission_alarm() const {
+    return ConstAlarmProxy(retransmission_alarm_.get());
   }
-  const QuicAlarm& discard_previous_one_rtt_keys_alarm() const {
-    return *discard_previous_one_rtt_keys_alarm_;
+  ConstAlarmProxy send_alarm() const {
+    return ConstAlarmProxy(send_alarm_.get());
   }
-  const QuicAlarm& discard_zero_rtt_decryption_keys_alarm() const {
-    return *discard_zero_rtt_decryption_keys_alarm_;
+  ConstAlarmProxy mtu_discovery_alarm() const {
+    return ConstAlarmProxy(mtu_discovery_alarm_.get());
   }
-  const QuicAlarm& multi_port_probing_alarm() const {
-    return *multi_port_probing_alarm_;
+  ConstAlarmProxy process_undecryptable_packets_alarm() const {
+    return ConstAlarmProxy(process_undecryptable_packets_alarm_.get());
   }
-  const QuicAlarm& idle_network_detector_alarm() const {
-    return *idle_network_detector_alarm_;
+  ConstAlarmProxy discard_previous_one_rtt_keys_alarm() const {
+    return ConstAlarmProxy(discard_previous_one_rtt_keys_alarm_.get());
   }
-  const QuicAlarm& network_blackhole_detector_alarm() const {
-    return *network_blackhole_detector_alarm_;
+  ConstAlarmProxy discard_zero_rtt_decryption_keys_alarm() const {
+    return ConstAlarmProxy(discard_zero_rtt_decryption_keys_alarm_.get());
   }
-  const QuicAlarm& ping_alarm() const { return *ping_alarm_; }
+  ConstAlarmProxy multi_port_probing_alarm() const {
+    return ConstAlarmProxy(multi_port_probing_alarm_.get());
+  }
+  ConstAlarmProxy idle_network_detector_alarm() const {
+    return ConstAlarmProxy(idle_network_detector_alarm_.get());
+  }
+  ConstAlarmProxy network_blackhole_detector_alarm() const {
+    return ConstAlarmProxy(network_blackhole_detector_alarm_.get());
+  }
+  ConstAlarmProxy ping_alarm() const {
+    return ConstAlarmProxy(ping_alarm_.get());
+  }
 
  private:
   // An alarm that fires when an ACK should be sent to the peer.
@@ -116,6 +176,9 @@ class QUICHE_EXPORT QuicConnectionAlarms {
   // An alarm for QuicPingManager.
   QuicArenaScopedPtr<QuicAlarm> ping_alarm_;
 };
+
+using QuicAlarmProxy = QuicConnectionAlarms::AlarmProxy;
+using QuicConstAlarmProxy = QuicConnectionAlarms::ConstAlarmProxy;
 
 }  // namespace quic
 

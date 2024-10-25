@@ -7,6 +7,7 @@
 
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -36,7 +37,8 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
     virtual void OnIdleNetworkDetected() = 0;
   };
 
-  QuicIdleNetworkDetector(Delegate* delegate, QuicTime now, QuicAlarm* alarm);
+  QuicIdleNetworkDetector(Delegate* delegate, QuicTime now,
+                          QuicAlarmProxy alarm);
 
   void OnAlarm();
 
@@ -104,7 +106,7 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
   // Idle network timeout. Infinite means no idle network timeout.
   QuicTime::Delta idle_network_timeout_;
 
-  QuicAlarm& alarm_;
+  QuicAlarmProxy alarm_;
 
   bool shorter_idle_timeout_on_sent_packet_ = false;
 

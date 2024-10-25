@@ -8,6 +8,7 @@
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_quic_connection_alarms.h"
+#include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -15,8 +16,8 @@ namespace test {
 
 class QuicNetworkBlackholeDetectorPeer {
  public:
-  static QuicAlarm* GetAlarm(QuicNetworkBlackholeDetector* detector) {
-    return &detector->alarm_;
+  static QuicAlarmProxy GetAlarm(QuicNetworkBlackholeDetector* detector) {
+    return detector->alarm_;
   }
 };
 
@@ -36,9 +37,8 @@ class QuicNetworkBlackholeDetectorTest : public QuicTest {
  public:
   QuicNetworkBlackholeDetectorTest()
       : alarms_(&connection_alarms_delegate_, alarm_factory_, arena_),
-        detector_(&delegate_, &alarms_.network_blackhole_detector_alarm()),
-        alarm_(static_cast<MockAlarmFactory::TestAlarm*>(
-            QuicNetworkBlackholeDetectorPeer::GetAlarm(&detector_))),
+        detector_(&delegate_, alarms_.network_blackhole_detector_alarm()),
+        alarm_(QuicNetworkBlackholeDetectorPeer::GetAlarm(&detector_)),
         path_degrading_delay_(
             QuicTime::Delta::FromSeconds(kPathDegradingDelayInSeconds)),
         path_mtu_reduction_delay_(
@@ -65,7 +65,7 @@ class QuicNetworkBlackholeDetectorTest : public QuicTest {
 
   QuicNetworkBlackholeDetector detector_;
 
-  MockAlarmFactory::TestAlarm* alarm_;
+  QuicTestAlarmProxy alarm_;
   MockClock clock_;
   const QuicTime::Delta path_degrading_delay_;
   const QuicTime::Delta path_mtu_reduction_delay_;

@@ -427,54 +427,49 @@ class TestConnection : public QuicConnection {
         .WillRepeatedly(Return(QuicBandwidth::Infinite()));
   }
 
-  TestAlarmFactory::TestAlarm* GetAckAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetAckAlarm(this));
+  QuicTestAlarmProxy GetAckAlarm() {
+    return QuicTestAlarmProxy(QuicConnectionPeer::GetAckAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetPingAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetPingAlarm(this));
+  QuicTestAlarmProxy GetPingAlarm() {
+    return QuicTestAlarmProxy(QuicConnectionPeer::GetPingAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetRetransmissionAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetRetransmissionAlarm(this));
+  QuicTestAlarmProxy GetRetransmissionAlarm() {
+    return QuicTestAlarmProxy(QuicConnectionPeer::GetRetransmissionAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetSendAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetSendAlarm(this));
+  QuicTestAlarmProxy GetSendAlarm() {
+    return QuicTestAlarmProxy(QuicConnectionPeer::GetSendAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetTimeoutAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetIdleNetworkDetectorAlarm(this));
+  QuicTestAlarmProxy GetTimeoutAlarm() {
+    return QuicTestAlarmProxy(
+        QuicConnectionPeer::GetIdleNetworkDetectorAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetMtuDiscoveryAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetMtuDiscoveryAlarm(this));
+  QuicTestAlarmProxy GetMtuDiscoveryAlarm() {
+    return QuicTestAlarmProxy(QuicConnectionPeer::GetMtuDiscoveryAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetProcessUndecryptablePacketsAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(this));
+  QuicTestAlarmProxy GetProcessUndecryptablePacketsAlarm() {
+    return QuicTestAlarmProxy(
+        QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetDiscardPreviousOneRttKeysAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(this));
+  QuicTestAlarmProxy GetDiscardPreviousOneRttKeysAlarm() {
+    return QuicTestAlarmProxy(
+        QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetDiscardZeroRttDecryptionKeysAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetDiscardZeroRttDecryptionKeysAlarm(this));
+  QuicTestAlarmProxy GetDiscardZeroRttDecryptionKeysAlarm() {
+    return QuicTestAlarmProxy(
+        QuicConnectionPeer::GetDiscardZeroRttDecryptionKeysAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetBlackholeDetectorAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetBlackholeDetectorAlarm(this));
+  QuicTestAlarmProxy GetBlackholeDetectorAlarm() {
+    return QuicTestAlarmProxy(
+        QuicConnectionPeer::GetBlackholeDetectorAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetRetirePeerIssuedConnectionIdAlarm() {
@@ -487,9 +482,9 @@ class TestConnection : public QuicConnection {
         QuicConnectionPeer::GetRetireSelfIssuedConnectionIdAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetMultiPortProbingAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        &QuicConnectionPeer::GetMultiPortProbingAlarm(this));
+  QuicTestAlarmProxy GetMultiPortProbingAlarm() {
+    return QuicTestAlarmProxy(
+        QuicConnectionPeer::GetMultiPortProbingAlarm(this));
   }
 
   void PathDegradingTimeout() {
@@ -11581,8 +11576,7 @@ TEST_P(QuicConnectionTest, DuplicateAckCausesLostPackets) {
   ;
   ProcessAckPacket(1, &frame);
   EXPECT_TRUE(connection_.BlackholeDetectionInProgress());
-  QuicAlarm* retransmission_alarm = connection_.GetRetransmissionAlarm();
-  EXPECT_TRUE(retransmission_alarm->IsSet());
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // ACK packet 1 - 5 and 7.
   QuicAckFrame frame2 =

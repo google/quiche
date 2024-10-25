@@ -5,9 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_NETWORK_BLACKHOLE_DETECTOR_H_
 #define QUICHE_QUIC_CORE_QUIC_NETWORK_BLACKHOLE_DETECTOR_H_
 
-#include "quiche/quic/core/quic_alarm.h"
-#include "quiche/quic/core/quic_alarm_factory.h"
-#include "quiche/quic/core/quic_one_block_arena.h"
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -40,7 +38,7 @@ class QUICHE_EXPORT QuicNetworkBlackholeDetector {
     virtual void OnPathMtuReductionDetected() = 0;
   };
 
-  QuicNetworkBlackholeDetector(Delegate* delegate, QuicAlarm* alarm);
+  QuicNetworkBlackholeDetector(Delegate* delegate, QuicAlarmProxy alarm);
 
   // Called to stop all detections. If |permanent|, the alarm will be cancelled
   // permanently and future calls to RestartDetection will be no-op.
@@ -67,7 +65,7 @@ class QUICHE_EXPORT QuicNetworkBlackholeDetector {
   QuicTime GetLastDeadline() const;
 
   // Update alarm to the next deadline.
-  void UpdateAlarm() const;
+  void UpdateAlarm();
 
   Delegate* delegate_;  // Not owned.
 
@@ -81,7 +79,7 @@ class QUICHE_EXPORT QuicNetworkBlackholeDetector {
   // path mtu reduction detection is in progress.
   QuicTime path_mtu_reduction_deadline_ = QuicTime::Zero();
 
-  QuicAlarm& alarm_;
+  QuicAlarmProxy alarm_;
 };
 
 }  // namespace quic

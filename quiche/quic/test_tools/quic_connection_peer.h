@@ -9,6 +9,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -30,6 +31,21 @@ class QuicSentPacketManager;
 class SendAlgorithmInterface;
 
 namespace test {
+
+class QuicConnectionAlarmsPeer {
+ public:
+  static void Fire(QuicAlarmProxy alarm);
+};
+
+class QuicTestAlarmProxy : public QuicAlarmProxy {
+ public:
+  explicit QuicTestAlarmProxy(QuicAlarmProxy proxy) : QuicAlarmProxy(proxy) {}
+
+  void Fire() { QuicConnectionAlarmsPeer::Fire(*this); }
+
+  // TODO: b/375591469 - fix all references to this method, and remove it.
+  QuicTestAlarmProxy* operator->() { return this; }
+};
 
 // Peer to make public a number of otherwise private QuicConnection methods.
 class QuicConnectionPeer {
@@ -78,16 +94,16 @@ class QuicConnectionPeer {
 
   static QuicFramer* GetFramer(QuicConnection* connection);
 
-  static QuicAlarm& GetAckAlarm(QuicConnection* connection);
-  static QuicAlarm& GetPingAlarm(QuicConnection* connection);
-  static QuicAlarm& GetRetransmissionAlarm(QuicConnection* connection);
-  static QuicAlarm& GetSendAlarm(QuicConnection* connection);
-  static QuicAlarm& GetMtuDiscoveryAlarm(QuicConnection* connection);
-  static QuicAlarm& GetProcessUndecryptablePacketsAlarm(
+  static QuicAlarmProxy GetAckAlarm(QuicConnection* connection);
+  static QuicAlarmProxy GetPingAlarm(QuicConnection* connection);
+  static QuicAlarmProxy GetRetransmissionAlarm(QuicConnection* connection);
+  static QuicAlarmProxy GetSendAlarm(QuicConnection* connection);
+  static QuicAlarmProxy GetMtuDiscoveryAlarm(QuicConnection* connection);
+  static QuicAlarmProxy GetProcessUndecryptablePacketsAlarm(
       QuicConnection* connection);
-  static QuicAlarm& GetDiscardPreviousOneRttKeysAlarm(
+  static QuicAlarmProxy GetDiscardPreviousOneRttKeysAlarm(
       QuicConnection* connection);
-  static QuicAlarm& GetDiscardZeroRttDecryptionKeysAlarm(
+  static QuicAlarmProxy GetDiscardZeroRttDecryptionKeysAlarm(
       QuicConnection* connection);
   static QuicAlarm* GetRetirePeerIssuedConnectionIdAlarm(
       QuicConnection* connection);
@@ -136,7 +152,7 @@ class QuicConnectionPeer {
   static QuicNetworkBlackholeDetector& GetBlackholeDetector(
       QuicConnection* connection);
 
-  static QuicAlarm& GetBlackholeDetectorAlarm(QuicConnection* connection);
+  static QuicAlarmProxy GetBlackholeDetectorAlarm(QuicConnection* connection);
 
   static QuicTime GetPathDegradingDeadline(QuicConnection* connection);
 
@@ -145,7 +161,7 @@ class QuicConnectionPeer {
   static QuicTime GetPathMtuReductionDetectionDeadline(
       QuicConnection* connection);
 
-  static QuicAlarm& GetIdleNetworkDetectorAlarm(QuicConnection* connection);
+  static QuicAlarmProxy GetIdleNetworkDetectorAlarm(QuicConnection* connection);
 
   static QuicTime GetIdleNetworkDeadline(QuicConnection* connection);
 
@@ -220,7 +236,7 @@ class QuicConnectionPeer {
 
   static void FlushCoalescedPacket(QuicConnection* connection);
 
-  static QuicAlarm& GetMultiPortProbingAlarm(QuicConnection* connection);
+  static QuicAlarmProxy GetMultiPortProbingAlarm(QuicConnection* connection);
 
   static void SetInProbeTimeOut(QuicConnection* connection, bool value);
 

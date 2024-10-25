@@ -11,6 +11,7 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_quic_connection_alarms.h"
+#include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -18,7 +19,7 @@ namespace test {
 
 class QuicIdleNetworkDetectorTestPeer {
  public:
-  static QuicAlarm& GetAlarm(QuicIdleNetworkDetector* detector) {
+  static QuicAlarmProxy GetAlarm(QuicIdleNetworkDetector* detector) {
     return detector->alarm_;
   }
 };
@@ -36,10 +37,9 @@ class QuicIdleNetworkDetectorTest : public QuicTest {
   QuicIdleNetworkDetectorTest()
       : alarms_(&connection_alarms_delegate_, alarm_factory_, arena_),
         detector_(&delegate_, clock_.Now() + QuicTimeDelta::FromSeconds(1),
-                  &alarms_.idle_network_detector_alarm()) {
+                  alarms_.idle_network_detector_alarm()),
+        alarm_(alarms_.idle_network_detector_alarm()) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
-    alarm_ = static_cast<MockAlarmFactory::TestAlarm*>(
-        &alarms_.idle_network_detector_alarm());
     ON_CALL(connection_alarms_delegate_, OnIdleDetectorAlarm())
         .WillByDefault([&] { detector_.OnAlarm(); });
   }
@@ -52,7 +52,7 @@ class QuicIdleNetworkDetectorTest : public QuicTest {
   QuicConnectionAlarms alarms_;
   MockClock clock_;
   QuicIdleNetworkDetector detector_;
-  MockAlarmFactory::TestAlarm* alarm_;
+  QuicTestAlarmProxy alarm_;
 };
 
 TEST_F(QuicIdleNetworkDetectorTest,

@@ -7,6 +7,7 @@
 
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/core/quic_time.h"
@@ -38,7 +39,7 @@ class QUICHE_EXPORT QuicPingManager {
   };
 
   QuicPingManager(Perspective perspective, Delegate* delegate,
-                  QuicAlarm* alarm);
+                  QuicAlarmProxy alarm);
 
   // Called to set |alarm_|.
   void SetAlarm(QuicTime now, bool should_keep_alive,
@@ -99,7 +100,7 @@ class QUICHE_EXPORT QuicPingManager {
 
   QuicTime keep_alive_deadline_ = QuicTime::Zero();
 
-  QuicAlarm& alarm_;
+  QuicAlarmProxy alarm_;
 };
 
 }  // namespace quic

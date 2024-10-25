@@ -568,15 +568,7 @@ class MockAlarmFactory : public QuicAlarmFactory {
 
 class TestAlarmFactory : public QuicAlarmFactory {
  public:
-  class TestAlarm : public QuicAlarm {
-   public:
-    explicit TestAlarm(QuicArenaScopedPtr<QuicAlarm::Delegate> delegate)
-        : QuicAlarm(std::move(delegate)) {}
-
-    void SetImpl() override {}
-    void CancelImpl() override {}
-    using QuicAlarm::Fire;
-  };
+  using TestAlarm = MockAlarmFactory::TestAlarm;
 
   TestAlarmFactory() {}
   TestAlarmFactory(const TestAlarmFactory&) = delete;

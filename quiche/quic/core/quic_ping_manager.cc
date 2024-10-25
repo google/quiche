@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 
 namespace quic {
@@ -20,8 +21,8 @@ const int kMaxRetransmittableOnWireDelayShift = 10;
 }  // namespace
 
 QuicPingManager::QuicPingManager(Perspective perspective, Delegate* delegate,
-                                 QuicAlarm* alarm)
-    : perspective_(perspective), delegate_(delegate), alarm_(*alarm) {}
+                                 QuicAlarmProxy alarm)
+    : perspective_(perspective), delegate_(delegate), alarm_(alarm) {}
 
 void QuicPingManager::SetAlarm(QuicTime now, bool should_keep_alive,
                                bool has_in_flight_packets) {
