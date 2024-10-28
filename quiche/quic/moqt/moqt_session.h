@@ -488,8 +488,6 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   std::string error_;
 
   // All the tracks the session is subscribed to, indexed by track_alias.
-  // Multiple subscribes to the same track are recorded in a single
-  // subscription.
   absl::flat_hash_map<uint64_t, RemoteTrack> remote_tracks_;
   // Look up aliases for remote tracks by name
   absl::flat_hash_map<FullTrackName, uint64_t> remote_track_aliases_;

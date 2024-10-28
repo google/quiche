@@ -63,8 +63,7 @@ bool IsAllowedStreamType(uint64_t value) {
 
 size_t ParseObjectHeader(quic::QuicDataReader& reader, MoqtObject& object,
                          MoqtDataStreamType type) {
-  if (!reader.ReadVarInt62(&object.subscribe_id) ||
-      !reader.ReadVarInt62(&object.track_alias)) {
+  if (!reader.ReadVarInt62(&object.track_alias)) {
     return 0;
   }
   if (type != MoqtDataStreamType::kStreamHeaderTrack &&

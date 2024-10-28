@@ -288,7 +288,6 @@ TEST_F(MoqtFramerSimpleTest, TrackMiddler) {
 TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
   MoqtObject object = {
       // This is a valid object.
-      /*subscribe_id=*/3,
       /*track_alias=*/4,
       /*group_id=*/5,
       /*object_id=*/6,
@@ -330,7 +329,6 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
 TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
   MoqtObject object = {
       // This is a valid datagram.
-      /*subscribe_id=*/3,
       /*track_alias=*/4,
       /*group_id=*/5,
       /*object_id=*/6,
@@ -367,7 +365,6 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
 TEST_F(MoqtFramerSimpleTest, Datagram) {
   auto datagram = std::make_unique<ObjectDatagramMessage>();
   MoqtObject object = {
-      /*subscribe_id=*/3,
       /*track_alias=*/4,
       /*group_id=*/5,
       /*object_id=*/6,

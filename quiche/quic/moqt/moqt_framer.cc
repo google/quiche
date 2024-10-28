@@ -304,7 +304,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     case MoqtForwardingPreference::kTrack:
       return (message.payload_length == 0)
                  ? Serialize(WireVarInt62(message_type),
-                             WireVarInt62(message.subscribe_id),
                              WireVarInt62(message.track_alias),
                              WireUint8(message.publisher_priority),
                              WireVarInt62(message.group_id),
@@ -312,7 +311,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
                              WireVarInt62(message.payload_length),
                              WireVarInt62(message.object_status))
                  : Serialize(WireVarInt62(message_type),
-                             WireVarInt62(message.subscribe_id),
                              WireVarInt62(message.track_alias),
                              WireUint8(message.publisher_priority),
                              WireVarInt62(message.group_id),
@@ -321,7 +319,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     case MoqtForwardingPreference::kSubgroup:
       return (message.payload_length == 0)
                  ? Serialize(WireVarInt62(message_type),
-                             WireVarInt62(message.subscribe_id),
                              WireVarInt62(message.track_alias),
                              WireVarInt62(message.group_id),
                              WireVarInt62(*message.subgroup_id),
@@ -330,7 +327,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
                              WireVarInt62(message.payload_length),
                              WireVarInt62(message.object_status))
                  : Serialize(WireVarInt62(message_type),
-                             WireVarInt62(message.subscribe_id),
                              WireVarInt62(message.track_alias),
                              WireVarInt62(message.group_id),
                              WireVarInt62(*message.subgroup_id),
@@ -363,17 +359,15 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
   if (message.payload_length == 0) {
     return Serialize(
         WireVarInt62(MoqtDataStreamType::kObjectDatagram),
-        WireVarInt62(message.subscribe_id), WireVarInt62(message.track_alias),
-        WireVarInt62(message.group_id), WireVarInt62(message.object_id),
-        WireUint8(message.publisher_priority),
+        WireVarInt62(message.track_alias), WireVarInt62(message.group_id),
+        WireVarInt62(message.object_id), WireUint8(message.publisher_priority),
         WireVarInt62(message.payload_length),
         WireVarInt62(message.object_status));
   }
   return Serialize(
       WireVarInt62(MoqtDataStreamType::kObjectDatagram),
-      WireVarInt62(message.subscribe_id), WireVarInt62(message.track_alias),
-      WireVarInt62(message.group_id), WireVarInt62(message.object_id),
-      WireUint8(message.publisher_priority),
+      WireVarInt62(message.track_alias), WireVarInt62(message.group_id),
+      WireVarInt62(message.object_id), WireUint8(message.publisher_priority),
       WireVarInt62(message.payload_length), WireBytes(payload));
 }
 

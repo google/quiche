@@ -193,10 +193,10 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   absl::string_view payload = ParseDatagram(datagram, message);
   QUICHE_DLOG(INFO) << ENDPOINT
                     << "Received OBJECT message in datagram for subscribe_id "
-                    << message.subscribe_id << " for track alias "
-                    << message.track_alias << " with sequence "
-                    << message.group_id << ":" << message.object_id
-                    << " priority " << message.publisher_priority << " length "
+                    << " for track alias " << message.track_alias
+                    << " with sequence " << message.group_id << ":"
+                    << message.object_id << " priority "
+                    << message.publisher_priority << " length "
                     << payload.size();
   auto [full_track_name, visitor] = TrackPropertiesFromAlias(message);
   if (visitor != nullptr) {
@@ -495,28 +495,34 @@ void MoqtSession::GrantMoreSubscribes(uint64_t num_subscribes) {
 std::pair<FullTrackName, RemoteTrack::Visitor*>
 MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
   auto it = remote_tracks_.find(message.track_alias);
-  RemoteTrack::Visitor* visitor = nullptr;
   if (it == remote_tracks_.end()) {
-    // SUBSCRIBE_OK has not arrived yet, but deliver it.
-    auto subscribe_it = active_subscribes_.find(message.subscribe_id);
-    if (subscribe_it == active_subscribes_.end()) {
+    ActiveSubscribe* subscribe = nullptr;
+    // SUBSCRIBE_OK has not arrived yet, but deliver the object. Indexing
+    // active_subscribes_ by track alias would make this faster if the
+    // subscriber has tons of incomplete subscribes.
+    for (auto& open_subscribe : active_subscribes_) {
+      if (open_subscribe.second.message.track_alias == message.track_alias) {
+        subscribe = &open_subscribe.second;
+        break;
+      }
+    }
+    if (subscribe == nullptr) {
       return std::pair<FullTrackName, RemoteTrack::Visitor*>(
           {FullTrackName{}, nullptr});
     }
-    ActiveSubscribe& subscribe = subscribe_it->second;
-    visitor = subscribe.visitor;
-    subscribe.received_object = true;
-    if (subscribe.forwarding_preference.has_value()) {
-      if (message.forwarding_preference != *subscribe.forwarding_preference) {
+    subscribe->received_object = true;
+    if (subscribe->forwarding_preference.has_value()) {
+      if (message.forwarding_preference != *subscribe->forwarding_preference) {
         Error(MoqtError::kProtocolViolation,
               "Forwarding preference changes mid-track");
         return std::pair<FullTrackName, RemoteTrack::Visitor*>(
             {FullTrackName{}, nullptr});
       }
     } else {
-      subscribe.forwarding_preference = message.forwarding_preference;
+      subscribe->forwarding_preference = message.forwarding_preference;
     }
-    return std::make_pair(subscribe.message.full_track_name, subscribe.visitor);
+    return std::make_pair(subscribe->message.full_track_name,
+                          subscribe->visitor);
   }
   RemoteTrack& track = it->second;
   if (!track.CheckForwardingPreference(message.forwarding_preference)) {
@@ -902,8 +908,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                                                       absl::string_view payload,
                                                       bool end_of_message) {
   QUICHE_DVLOG(1) << ENDPOINT << "Received OBJECT message on stream "
-                  << stream_->GetStreamId() << " for subscribe_id "
-                  << message.subscribe_id << " for track alias "
+                  << stream_->GetStreamId() << " for track alias "
                   << message.track_alias << " with sequence "
                   << message.group_id << ":" << message.object_id
                   << " priority " << message.publisher_priority
@@ -1269,7 +1274,6 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
   UpdateSendOrder(subscription);
 
   MoqtObject header;
-  header.subscribe_id = subscription_id_;
   header.track_alias = subscription.track_alias();
   header.group_id = object.sequence.group;
   header.object_id = object.sequence.object;
@@ -1350,7 +1354,6 @@ void MoqtSession::PublishedSubscription::SendDatagram(FullSequence sequence) {
   }
 
   MoqtObject header;
-  header.subscribe_id = subscription_id_;
   header.track_alias = track_alias();
   header.group_id = object->sequence.group;
   header.object_id = object->sequence.object;

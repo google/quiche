@@ -840,7 +840,6 @@ TEST_F(MoqtSessionTest, IncomingObject) {
   std::string payload = "deadbeef";
   MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor_, 2);
   MoqtObject object = {
-      /*subscribe_id=*/1,
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
@@ -866,7 +865,6 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
   std::string payload = "deadbeef";
   MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor_, 2);
   MoqtObject object = {
-      /*subscribe_id=*/1,
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
@@ -897,7 +895,6 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
   std::string payload = "deadbeef";
   MoqtSessionPeer::CreateRemoteTrack(&session, ftn, &visitor_, 2);
   MoqtObject object = {
-      /*subscribe_id=*/1,
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
@@ -935,7 +932,6 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
   };
   MoqtSessionPeer::AddActiveSubscribe(&session_, 1, subscribe, &visitor_);
   MoqtObject object = {
-      /*subscribe_id=*/1,
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
@@ -993,7 +989,6 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
   };
   MoqtSessionPeer::AddActiveSubscribe(&session_, 1, subscribe, &visitor);
   MoqtObject object = {
-      /*subscribe_id=*/1,
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
@@ -1054,7 +1049,6 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
   };
   MoqtSessionPeer::AddActiveSubscribe(&session_, 1, subscribe, &visitor);
   MoqtObject object = {
-      /*subscribe_id=*/1,
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
@@ -1106,7 +1100,6 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
   };
   MoqtSessionPeer::AddActiveSubscribe(&session_, 1, subscribe, &visitor);
   MoqtObject object = {
-      /*subscribe_id=*/1,
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
@@ -1184,7 +1177,7 @@ TEST_F(MoqtSessionTest, CreateIncomingDataStreamAndSend) {
 
   // Verify first six message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x04, 0x00, 0x02, 0x05, 0x00, 0x00};
+  const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x00};
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1409,7 +1402,7 @@ TEST_F(MoqtSessionTest, SendDatagram) {
   // Publish in window.
   bool correct_message = false;
   uint8_t kExpectedMessage[] = {
-      0x01, 0x00, 0x02, 0x05, 0x00, 0x00, 0x08, 0x64,
+      0x01, 0x02, 0x05, 0x00, 0x00, 0x08, 0x64,
       0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66,
   };
   EXPECT_CALL(mock_session_, SendOrQueueDatagram(_))
@@ -1436,7 +1429,6 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
   std::string payload = "deadbeef";
   MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor_, 2);
   MoqtObject object = {
-      /*subscribe_id=*/1,
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
@@ -1446,7 +1438,7 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/8,
   };
-  char datagram[] = {0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x08, 0x64,
+  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x08, 0x64,
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(
       visitor_,
@@ -1463,7 +1455,6 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
   std::string payload = "deadbeef";
   MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor_, 2);
   MoqtObject object = {
-      /*subscribe_id=*/1,
       /*track_alias=*/2,
       /*group_sequence=*/0,
       /*object_sequence=*/0,
@@ -1617,22 +1608,22 @@ TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
   EXPECT_CALL(mock_stream0, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
-        // The Group ID is the 4th byte of the stream.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][4]), 0);
+        // The Group ID is the 3rd byte of the stream.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 0);
         return absl::OkStatus();
       });
   EXPECT_CALL(mock_stream1, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
-        // The Group ID is the 4th byte of the stream.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][3]), 1);
+        // The Group ID is the 3rd byte of the stream.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 1);
         return absl::OkStatus();
       });
   EXPECT_CALL(mock_stream2, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
-        // The Group ID is the 4th byte of the stream.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][3]), 2);
+        // The Group ID is the 3rd byte of the stream.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 2);
         return absl::OkStatus();
       });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
@@ -1661,26 +1652,32 @@ TEST_F(MoqtSessionTest, StreamQueuedForSubscriptionThatDoesntExist) {
 }
 
 TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
-  FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(0, 0));
-  EXPECT_CALL(*track, GetTrackStatus())
+  FullTrackName ftn1("foo", "bar");
+  auto track1 = SetupPublisher(ftn1, MoqtForwardingPreference::kSubgroup,
+                               FullSequence(0, 0));
+  FullTrackName ftn2("dead", "beef");
+  auto track2 = SetupPublisher(ftn2, MoqtForwardingPreference::kSubgroup,
+                               FullSequence(0, 0));
+  EXPECT_CALL(*track1, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
-  // Create two identical subscriptions with different priorities.
+  EXPECT_CALL(*track2, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
   MoqtObjectListener* subscription0 =
-      MoqtSessionPeer::AddSubscription(&session_, track, 0, 14, 0, 0);
+      MoqtSessionPeer::AddSubscription(&session_, track1, 0, 14, 0, 0);
   MoqtObjectListener* subscription1 =
-      MoqtSessionPeer::AddSubscription(&session_, track, 1, 14, 0, 0);
+      MoqtSessionPeer::AddSubscription(&session_, track2, 1, 15, 0, 0);
   MoqtSessionPeer::UpdateSubscriberPriority(&session_, 0, 1);
   MoqtSessionPeer::UpdateSubscriberPriority(&session_, 1, 2);
 
-  // Two arriving objects will queue four streams.
+  // Two published objects will queue four streams.
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .WillOnce(Return(false))
       .WillOnce(Return(false))
       .WillOnce(Return(false))
       .WillOnce(Return(false));
-  EXPECT_CALL(*track, GetTrackStatus())
+  EXPECT_CALL(*track1, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
+  EXPECT_CALL(*track2, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
   subscription0->OnNewObjectAvailable(FullSequence(0, 0));
   subscription1->OnNewObjectAvailable(FullSequence(0, 0));
@@ -1703,20 +1700,20 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   EXPECT_CALL(mock_stream0, visitor()).WillOnce([&]() {
     return stream_visitor0.get();
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 0)))
+  EXPECT_CALL(*track1, GetCachedObject(FullSequence(0, 0)))
       .WillOnce(
           Return(PublishedObject{FullSequence(0, 0), MoqtObjectStatus::kNormal,
-                                 127, MemSliceFromString("deadbeef")}));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 1)))
+                                 127, MemSliceFromString("foobar")}));
+  EXPECT_CALL(*track1, GetCachedObject(FullSequence(0, 1)))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream0, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream0, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
-        // Check subscribe ID is 0.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][1]), 0);
+        // Check track alias is 14.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][1]), 14);
         // Check Group ID is 0
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][3]), 0);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 0);
         return absl::OkStatus();
       });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
@@ -1739,20 +1736,20 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   EXPECT_CALL(mock_stream1, visitor()).WillOnce([&]() {
     return stream_visitor1.get();
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 0)))
+  EXPECT_CALL(*track2, GetCachedObject(FullSequence(0, 0)))
       .WillOnce(
           Return(PublishedObject{FullSequence(0, 0), MoqtObjectStatus::kNormal,
                                  127, MemSliceFromString("deadbeef")}));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 1)))
+  EXPECT_CALL(*track2, GetCachedObject(FullSequence(0, 1)))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream1, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream1, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
-        // Check subscribe ID is 0.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][1]), 1);
+        // Check track alias is 15.
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][1]), 15);
         // Check Group ID is 0
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][3]), 0);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 0);
         return absl::OkStatus();
       });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();

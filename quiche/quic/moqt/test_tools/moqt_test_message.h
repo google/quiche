@@ -164,10 +164,6 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
  public:
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtObject>(values);
-    if (cast.subscribe_id != object_.subscribe_id) {
-      QUIC_LOG(INFO) << "OBJECT Track ID mismatch";
-      return false;
-    }
     if (cast.track_alias != object_.track_alias) {
       QUIC_LOG(INFO) << "OBJECT Track ID mismatch";
       return false;
@@ -209,7 +205,6 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
 
  protected:
   MoqtObject object_ = {
-      /*subscribe_id=*/3,
       /*track_alias=*/4,
       /*group_id*/ 5,
       /*object_id=*/6,
@@ -228,13 +223,13 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     object_.forwarding_preference = MoqtForwardingPreference::kDatagram;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvv-v---", false); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv-v---", false); }
 
  private:
-  uint8_t raw_packet_[10] = {
-      0x01, 0x03, 0x04, 0x05, 0x06,  // varints
-      0x07,                          // publisher priority
-      0x03, 0x66, 0x6f, 0x6f,        // payload = "foo"
+  uint8_t raw_packet_[9] = {
+      0x01, 0x04, 0x05, 0x06,  // varints
+      0x07,                    // publisher priority
+      0x03, 0x66, 0x6f, 0x6f,  // payload = "foo"
   };
 };
 
@@ -248,16 +243,16 @@ class QUICHE_NO_EXPORT StreamHeaderTrackMessage : public ObjectMessage {
     object_.payload_length = 3;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv-vvv", false); }
+  void ExpandVarints() override { ExpandVarintsImpl("vv-vvv", false); }
 
  private:
   // Some tests check that a FIN sent at the halfway point of a message results
   // in an error. Without the unnecessary expanded varint 0x0405, the halfway
   // point falls at the end of the Stream Header, which is legal. Expand the
   // varint so that the FIN would be illegal.
-  uint8_t raw_packet_[10] = {
+  uint8_t raw_packet_[9] = {
       0x02,                    // type field
-      0x03, 0x04,              // varints
+      0x04,                    // varints
       0x07,                    // publisher priority
       0x05, 0x06,              // object middler
       0x03, 0x66, 0x6f, 0x6f,  // payload = "foo"
@@ -291,7 +286,7 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
     object_.subgroup_id = 8;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvv-vv", false); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv-vv", false); }
 
   bool SetPayloadLength(uint8_t payload_length) {
     if (payload_length > 63) {
@@ -299,15 +294,15 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
       return false;
     }
     object_.payload_length = payload_length;
-    raw_packet_[7] = payload_length;
+    raw_packet_[6] = payload_length;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     return true;
   }
 
  private:
-  uint8_t raw_packet_[11] = {
+  uint8_t raw_packet_[10] = {
       0x04,                          // type field
-      0x03, 0x04, 0x05, 0x08,        // varints
+      0x04, 0x05, 0x08,              // varints
       0x07,                          // publisher priority
       0x06, 0x03, 0x66, 0x6f, 0x6f,  // object middler; payload = "foo"
   };

@@ -324,7 +324,6 @@ MoqtObjectStatus IntegerToObjectStatus(uint64_t integer);
 // The data contained in every Object message, although the message type
 // implies some of the values.
 struct QUICHE_EXPORT MoqtObject {
-  uint64_t subscribe_id;
   uint64_t track_alias;
   uint64_t group_id;
   uint64_t object_id;
