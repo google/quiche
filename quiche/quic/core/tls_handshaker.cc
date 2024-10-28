@@ -154,13 +154,7 @@ void TlsHandshaker::AdvanceHandshake() {
   }
   if (ShouldCloseConnectionOnUnexpectedError(ssl_error) &&
       !is_connection_closed()) {
-    std::string ssl_error_stack;
-    if (GetQuicReloadableFlag(quic_add_ssl_error_stack_to_error_detail)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_add_ssl_error_stack_to_error_detail);
-      ssl_error_stack = CryptoUtils::GetSSLErrorStack();
-    } else {
-      ERR_print_errors_fp(stderr);
-    }
+    std::string ssl_error_stack = CryptoUtils::GetSSLErrorStack();
     QUIC_VLOG(1) << "SSL_do_handshake failed; SSL_get_error returns "
                  << ssl_error << ", SSLErrorStack: " << ssl_error_stack;
     if (last_tls_alert_.has_value()) {
