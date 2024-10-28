@@ -31,6 +31,7 @@ class QUICHE_EXPORT MoqtFramer {
   // Serializes the header for an object, including the appropriate stream
   // header if `is_first_in_stream` is set to true.
   quiche::QuicheBuffer SerializeObjectHeader(const MoqtObject& message,
+                                             MoqtDataStreamType message_type,
                                              bool is_first_in_stream);
   quiche::QuicheBuffer SerializeObjectDatagram(const MoqtObject& message,
                                                absl::string_view payload);
@@ -73,7 +74,8 @@ class QUICHE_EXPORT MoqtFramer {
 
  private:
   // Returns true if the metadata is internally consistent.
-  static bool ValidateObjectMetadata(const MoqtObject& object);
+  static bool ValidateObjectMetadata(const MoqtObject& object,
+                                     MoqtDataStreamType message_type);
 
   quiche::QuicheBufferAllocator* allocator_;
   bool using_webtrans_;

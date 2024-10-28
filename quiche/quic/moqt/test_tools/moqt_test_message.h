@@ -326,6 +326,56 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
   };
 };
 
+class QUICHE_NO_EXPORT StreamHeaderFetchMessage : public ObjectMessage {
+ public:
+  StreamHeaderFetchMessage() : ObjectMessage() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+    object_.subgroup_id = 8;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvv-v---", false); }
+
+  bool SetPayloadLength(uint8_t payload_length) {
+    if (payload_length > 63) {
+      // This only supports one-byte varints.
+      return false;
+    }
+    object_.payload_length = payload_length;
+    raw_packet_[6] = payload_length;
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+    return true;
+  }
+
+ private:
+  uint8_t raw_packet_[10] = {
+      0x05,                    // type field
+      0x04,                    // subscribe ID
+                               // object middler:
+      0x05, 0x08, 0x06,        // sequence
+      0x07,                    // publisher priority
+      0x03, 0x66, 0x6f, 0x6f,  // payload = "foo"
+  };
+};
+
+// Used only for tests that process multiple objects on one stream.
+class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
+ public:
+  StreamMiddlerFetchMessage() : ObjectMessage() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+    object_.forwarding_preference = MoqtForwardingPreference::kTrack;
+    object_.subgroup_id = 8;
+    object_.object_id = 9;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("vvv-v---", false); }
+
+ private:
+  uint8_t raw_packet_[8] = {
+      0x05, 0x08, 0x09, 0x07,  // Object metadata
+      0x03, 0x62, 0x61, 0x72,  // Payload = "bar"
+  };
+};
+
 class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
  public:
   explicit ClientSetupMessage(bool webtrans) : TestMessageBase() {
@@ -1623,6 +1673,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestDataStream(
       return std::make_unique<StreamHeaderTrackMessage>();
     case MoqtDataStreamType::kStreamHeaderSubgroup:
       return std::make_unique<StreamHeaderSubgroupMessage>();
+    case MoqtDataStreamType::kStreamHeaderFetch:
+      return std::make_unique<StreamHeaderFetchMessage>();
     case MoqtDataStreamType::kPadding:
       return nullptr;
   }

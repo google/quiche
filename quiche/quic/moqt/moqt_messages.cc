@@ -129,6 +129,8 @@ std::string MoqtDataStreamTypeToString(MoqtDataStreamType type) {
       return "STREAM_HEADER_TRACK";
     case MoqtDataStreamType::kStreamHeaderSubgroup:
       return "STREAM_HEADER_SUBGROUP";
+    case MoqtDataStreamType::kStreamHeaderFetch:
+      return "STREAM_HEADER_FETCH";
     case MoqtDataStreamType::kPadding:
       return "PADDING";
   }
@@ -158,6 +160,8 @@ MoqtForwardingPreference GetForwardingPreference(MoqtDataStreamType type) {
       return MoqtForwardingPreference::kTrack;
     case MoqtDataStreamType::kStreamHeaderSubgroup:
       return MoqtForwardingPreference::kSubgroup;
+    case MoqtDataStreamType::kStreamHeaderFetch:
+      return MoqtForwardingPreference::kTrack;  // This is a placeholder.
     default:
       break;
   }

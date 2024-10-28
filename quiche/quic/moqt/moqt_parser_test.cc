@@ -60,7 +60,9 @@ constexpr std::array kMessageTypes{
 };
 constexpr std::array kDataStreamTypes{
     MoqtDataStreamType::kStreamHeaderTrack,
-    MoqtDataStreamType::kStreamHeaderSubgroup};
+    MoqtDataStreamType::kStreamHeaderSubgroup,
+    MoqtDataStreamType::kStreamHeaderFetch,
+};
 
 using GeneralizedMessageType =
     absl::variant<MoqtMessageType, MoqtDataStreamType>;

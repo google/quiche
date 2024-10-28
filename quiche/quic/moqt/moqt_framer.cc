@@ -263,20 +263,21 @@ uint64_t SignedVarintSerializedForm(int64_t value) {
 }  // namespace
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
-    const MoqtObject& message, bool is_first_in_stream) {
-  if (!ValidateObjectMetadata(message)) {
+    const MoqtObject& message, MoqtDataStreamType message_type,
+    bool is_first_in_stream) {
+  if (!ValidateObjectMetadata(message, message_type)) {
     QUIC_BUG(quic_bug_serialize_object_header_01)
         << "Object metadata is invalid";
     return quiche::QuicheBuffer();
   }
-  if (message.forwarding_preference == MoqtForwardingPreference::kDatagram) {
+  if (message_type == MoqtDataStreamType::kObjectDatagram) {
     QUIC_BUG(quic_bug_serialize_object_header_02)
         << "Datagrams use SerializeObjectDatagram()";
     return quiche::QuicheBuffer();
   }
   if (!is_first_in_stream) {
-    switch (message.forwarding_preference) {
-      case MoqtForwardingPreference::kTrack:
+    switch (message_type) {
+      case MoqtDataStreamType::kStreamHeaderTrack:
         return (message.payload_length == 0)
                    ? Serialize(WireVarInt62(message.group_id),
                                WireVarInt62(message.object_id),
@@ -285,7 +286,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
                    : Serialize(WireVarInt62(message.group_id),
                                WireVarInt62(message.object_id),
                                WireVarInt62(message.payload_length));
-      case MoqtForwardingPreference::kSubgroup:
+      case MoqtDataStreamType::kStreamHeaderSubgroup:
         return (message.payload_length == 0)
                    ? Serialize(WireVarInt62(message.object_id),
                                WireVarInt62(message.payload_length),
@@ -293,15 +294,27 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
                                    message.object_status)))
                    : Serialize(WireVarInt62(message.object_id),
                                WireVarInt62(message.payload_length));
+      case MoqtDataStreamType::kStreamHeaderFetch:
+        return (message.payload_length == 0)
+                   ? Serialize(WireVarInt62(message.group_id),
+                               WireVarInt62(*message.subgroup_id),
+                               WireVarInt62(message.object_id),
+                               WireUint8(message.publisher_priority),
+                               WireVarInt62(message.payload_length),
+                               WireVarInt62(static_cast<uint64_t>(
+                                   message.object_status)))
+                   : Serialize(WireVarInt62(message.group_id),
+                               WireVarInt62(*message.subgroup_id),
+                               WireVarInt62(message.object_id),
+                               WireUint8(message.publisher_priority),
+                               WireVarInt62(message.payload_length));
       default:
         QUICHE_NOTREACHED();
         return quiche::QuicheBuffer();
     }
   }
-  MoqtDataStreamType message_type =
-      GetMessageTypeForForwardingPreference(message.forwarding_preference);
-  switch (message.forwarding_preference) {
-    case MoqtForwardingPreference::kTrack:
+  switch (message_type) {
+    case MoqtDataStreamType::kStreamHeaderTrack:
       return (message.payload_length == 0)
                  ? Serialize(WireVarInt62(message_type),
                              WireVarInt62(message.track_alias),
@@ -316,7 +329,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
                              WireVarInt62(message.group_id),
                              WireVarInt62(message.object_id),
                              WireVarInt62(message.payload_length));
-    case MoqtForwardingPreference::kSubgroup:
+    case MoqtDataStreamType::kStreamHeaderSubgroup:
       return (message.payload_length == 0)
                  ? Serialize(WireVarInt62(message_type),
                              WireVarInt62(message.track_alias),
@@ -333,7 +346,24 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
                              WireUint8(message.publisher_priority),
                              WireVarInt62(message.object_id),
                              WireVarInt62(message.payload_length));
-    case MoqtForwardingPreference::kDatagram:
+    case MoqtDataStreamType::kStreamHeaderFetch:
+      return (message.payload_length == 0)
+                 ? Serialize(WireVarInt62(message_type),
+                             WireVarInt62(message.track_alias),
+                             WireVarInt62(message.group_id),
+                             WireVarInt62(*message.subgroup_id),
+                             WireVarInt62(message.object_id),
+                             WireUint8(message.publisher_priority),
+                             WireVarInt62(message.payload_length),
+                             WireVarInt62(message.object_status))
+                 : Serialize(WireVarInt62(message_type),
+                             WireVarInt62(message.track_alias),
+                             WireVarInt62(message.group_id),
+                             WireVarInt62(*message.subgroup_id),
+                             WireVarInt62(message.object_id),
+                             WireUint8(message.publisher_priority),
+                             WireVarInt62(message.payload_length));
+    default:
       QUICHE_NOTREACHED();
       return quiche::QuicheBuffer();
   }
@@ -341,7 +371,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
     const MoqtObject& message, absl::string_view payload) {
-  if (!ValidateObjectMetadata(message)) {
+  if (!ValidateObjectMetadata(message, MoqtDataStreamType::kObjectDatagram)) {
     QUIC_BUG(quic_bug_serialize_object_datagram_01)
         << "Object metadata is invalid";
     return quiche::QuicheBuffer();
@@ -697,12 +727,14 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
 }
 
 // static
-bool MoqtFramer::ValidateObjectMetadata(const MoqtObject& object) {
+bool MoqtFramer::ValidateObjectMetadata(const MoqtObject& object,
+                                        MoqtDataStreamType message_type) {
   if (object.object_status != MoqtObjectStatus::kNormal &&
       object.payload_length > 0) {
     return false;
   }
-  if ((object.forwarding_preference == MoqtForwardingPreference::kSubgroup) !=
+  if ((message_type == MoqtDataStreamType::kStreamHeaderSubgroup ||
+       message_type == MoqtDataStreamType::kStreamHeaderFetch) !=
       object.subgroup_id.has_value()) {
     return false;
   }

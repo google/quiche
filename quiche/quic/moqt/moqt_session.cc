@@ -1288,7 +1288,9 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
   header.payload_length = object.payload.length();
 
   quiche::QuicheBuffer serialized_header =
-      session_->framer_.SerializeObjectHeader(header, !stream_header_written_);
+      session_->framer_.SerializeObjectHeader(
+          header, GetMessageTypeForForwardingPreference(forwarding_preference),
+          !stream_header_written_);
   bool fin = false;
   switch (forwarding_preference) {
     case MoqtForwardingPreference::kTrack:

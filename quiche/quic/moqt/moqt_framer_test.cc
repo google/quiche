@@ -84,13 +84,15 @@ std::string ParamNameFormatter(
 quiche::QuicheBuffer SerializeObject(MoqtFramer& framer,
                                      const MoqtObject& message,
                                      absl::string_view payload,
+                                     MoqtDataStreamType stream_type,
                                      bool is_first_in_stream) {
   MoqtObject adjusted_message = message;
   adjusted_message.payload_length = payload.size();
   quiche::QuicheBuffer header =
       (message.forwarding_preference == MoqtForwardingPreference::kDatagram)
           ? framer.SerializeObjectDatagram(adjusted_message, payload)
-          : framer.SerializeObjectHeader(adjusted_message, is_first_in_stream);
+          : framer.SerializeObjectHeader(adjusted_message, stream_type,
+                                         is_first_in_stream);
   if (header.empty()) {
     return quiche::QuicheBuffer();
   }
@@ -259,28 +261,48 @@ class MoqtFramerSimpleTest : public quic::test::QuicTest {
 
 TEST_F(MoqtFramerSimpleTest, GroupMiddler) {
   auto header = std::make_unique<StreamHeaderSubgroupMessage>();
-  auto buffer1 = SerializeObject(
-      framer_, std::get<MoqtObject>(header->structured_data()), "foo", true);
+  auto buffer1 =
+      SerializeObject(framer_, std::get<MoqtObject>(header->structured_data()),
+                      "foo", MoqtDataStreamType::kStreamHeaderSubgroup, true);
   EXPECT_EQ(buffer1.size(), header->total_message_size());
   EXPECT_EQ(buffer1.AsStringView(), header->PacketSample());
 
   auto middler = std::make_unique<StreamMiddlerSubgroupMessage>();
-  auto buffer2 = SerializeObject(
-      framer_, std::get<MoqtObject>(middler->structured_data()), "bar", false);
+  auto buffer2 =
+      SerializeObject(framer_, std::get<MoqtObject>(middler->structured_data()),
+                      "bar", MoqtDataStreamType::kStreamHeaderSubgroup, false);
   EXPECT_EQ(buffer2.size(), middler->total_message_size());
   EXPECT_EQ(buffer2.AsStringView(), middler->PacketSample());
 }
 
 TEST_F(MoqtFramerSimpleTest, TrackMiddler) {
   auto header = std::make_unique<StreamHeaderTrackMessage>();
-  auto buffer1 = SerializeObject(
-      framer_, std::get<MoqtObject>(header->structured_data()), "foo", true);
+  auto buffer1 =
+      SerializeObject(framer_, std::get<MoqtObject>(header->structured_data()),
+                      "foo", MoqtDataStreamType::kStreamHeaderTrack, true);
   EXPECT_EQ(buffer1.size(), header->total_message_size());
   EXPECT_EQ(buffer1.AsStringView(), header->PacketSample());
 
   auto middler = std::make_unique<StreamMiddlerTrackMessage>();
-  auto buffer2 = SerializeObject(
-      framer_, std::get<MoqtObject>(middler->structured_data()), "bar", false);
+  auto buffer2 =
+      SerializeObject(framer_, std::get<MoqtObject>(middler->structured_data()),
+                      "bar", MoqtDataStreamType::kStreamHeaderTrack, false);
+  EXPECT_EQ(buffer2.size(), middler->total_message_size());
+  EXPECT_EQ(buffer2.AsStringView(), middler->PacketSample());
+}
+
+TEST_F(MoqtFramerSimpleTest, FetchMiddler) {
+  auto header = std::make_unique<StreamHeaderFetchMessage>();
+  auto buffer1 =
+      SerializeObject(framer_, std::get<MoqtObject>(header->structured_data()),
+                      "foo", MoqtDataStreamType::kStreamHeaderFetch, true);
+  EXPECT_EQ(buffer1.size(), header->total_message_size());
+  EXPECT_EQ(buffer1.AsStringView(), header->PacketSample());
+
+  auto middler = std::make_unique<StreamMiddlerFetchMessage>();
+  auto buffer2 =
+      SerializeObject(framer_, std::get<MoqtObject>(middler->structured_data()),
+                      "bar", MoqtDataStreamType::kStreamHeaderFetch, false);
   EXPECT_EQ(buffer2.size(), middler->total_message_size());
   EXPECT_EQ(buffer2.AsStringView(), middler->PacketSample());
 }
@@ -299,28 +321,34 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
   };
   quiche::QuicheBuffer buffer;
 
-  // SerializeObjectDatagram() only accepts kDatagram.
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(object, "foo"),
-                  "Only datagrams use SerializeObjectDatagram()");
-  EXPECT_TRUE(buffer.empty());
-
   // kSubgroup must have a subgroup_id.
   object.subgroup_id = std::nullopt;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(object, false),
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
+                      object, MoqtDataStreamType::kStreamHeaderSubgroup, false),
+                  "Object metadata is invalid");
+  EXPECT_TRUE(buffer.empty());
+  object.subgroup_id = 8;
+
+  // kFetch must have a subgroup_id.
+  object.subgroup_id = std::nullopt;
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
+                      object, MoqtDataStreamType::kStreamHeaderFetch, false),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
   object.subgroup_id = 8;
 
   // kTrack must not have a subgroup_id.
   object.forwarding_preference = MoqtForwardingPreference::kTrack;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(object, false),
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
+                      object, MoqtDataStreamType::kStreamHeaderTrack, false),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
   object.forwarding_preference = MoqtForwardingPreference::kSubgroup;
 
   // Non-normal status must have no payload.
   object.object_status = MoqtObjectStatus::kEndOfGroup;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(object, false),
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
+                      object, MoqtDataStreamType::kStreamHeaderSubgroup, false),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
   // object.object_status = MoqtObjectStatus::kNormal;
@@ -341,7 +369,8 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
   quiche::QuicheBuffer buffer;
 
   // No datagrams to SerializeObjectHeader().
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(object, false),
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
+                      object, MoqtDataStreamType::kObjectDatagram, false),
                   "Datagrams use SerializeObjectDatagram()")
   EXPECT_TRUE(buffer.empty());
 

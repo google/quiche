@@ -68,6 +68,7 @@ enum class QUICHE_EXPORT MoqtDataStreamType : uint64_t {
   kObjectDatagram = 0x01,
   kStreamHeaderTrack = 0x02,
   kStreamHeaderSubgroup = 0x04,
+  kStreamHeaderFetch = 0x05,
 
   // Currently QUICHE-specific.  All data on a kPadding stream is ignored.
   kPadding = 0x26d3,
@@ -324,7 +325,7 @@ MoqtObjectStatus IntegerToObjectStatus(uint64_t integer);
 // The data contained in every Object message, although the message type
 // implies some of the values.
 struct QUICHE_EXPORT MoqtObject {
-  uint64_t track_alias;
+  uint64_t track_alias;  // For FETCH, this is the subscribe ID.
   uint64_t group_id;
   uint64_t object_id;
   MoqtPriority publisher_priority;
