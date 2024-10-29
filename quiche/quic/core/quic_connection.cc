@@ -4713,6 +4713,10 @@ void QuicConnection::TearDownLocalConnectionState(
 void QuicConnection::CancelAllAlarms() {
   QUIC_DVLOG(1) << "Cancelling all QuicConnection alarms.";
 
+  // Only active in new multiplexer code.
+  alarms_.CancelAllAlarms();
+
+  // PermanentCancel() is a no-op in multiplexer case.
   ack_alarm().PermanentCancel();
   ping_manager_.Stop();
   retransmission_alarm().PermanentCancel();
@@ -4820,7 +4824,7 @@ void QuicConnection::MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number) {
 QuicConnection::ScopedPacketFlusher::ScopedPacketFlusher(
     QuicConnection* connection)
     : connection_(connection),
-      flush_and_set_pending_retransmission_alarm_on_delete_(false),
+      active_(false),
       handshake_packet_sent_(connection != nullptr &&
                              connection->handshake_packet_sent_) {
   if (connection_ == nullptr) {
@@ -4828,8 +4832,9 @@ QuicConnection::ScopedPacketFlusher::ScopedPacketFlusher(
   }
 
   if (!connection_->packet_creator_.PacketFlusherAttached()) {
-    flush_and_set_pending_retransmission_alarm_on_delete_ = true;
+    active_ = true;
     connection->packet_creator_.AttachPacketFlusher();
+    connection_->alarms_.DeferUnderlyingAlarmScheduling();
   }
 }
 
@@ -4838,7 +4843,7 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
     return;
   }
 
-  if (flush_and_set_pending_retransmission_alarm_on_delete_) {
+  if (active_) {
     const QuicTime ack_timeout =
         connection_->uber_received_packet_manager_.GetEarliestAckTimeout();
     if (ack_timeout.IsInitialized()) {
@@ -4922,8 +4927,10 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
       connection_->SetRetransmissionAlarm();
       connection_->pending_retransmission_alarm_ = false;
     }
+
+    connection_->alarms_.ResumeUnderlyingAlarmScheduling();
   }
-  QUICHE_DCHECK_EQ(flush_and_set_pending_retransmission_alarm_on_delete_,
+  QUICHE_DCHECK_EQ(active_,
                    !connection_->packet_creator_.PacketFlusherAttached());
 }
 

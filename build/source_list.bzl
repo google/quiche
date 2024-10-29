@@ -1270,6 +1270,7 @@ quiche_tests_srcs = [
     "quic/core/quic_chaos_protector_test.cc",
     "quic/core/quic_coalesced_packet_test.cc",
     "quic/core/quic_config_test.cc",
+    "quic/core/quic_connection_alarms_test.cc",
     "quic/core/quic_connection_context_test.cc",
     "quic/core/quic_connection_id_manager_test.cc",
     "quic/core/quic_connection_id_test.cc",

@@ -275,4 +275,9 @@ QUICHE_PROTOCOL_FLAG(
 QUICHE_PROTOCOL_FLAG(bool, quic_client_allow_invalid_sni_for_test, false,
                      "If true, QUIC client will allow sending invalid SNI to "
                      "the server. TLS only.")
+
+QUICHE_PROTOCOL_FLAG(
+    uint64_t, quic_multiplexer_alarm_granularity_us, 1000,
+    "Alarm update granularity used by the QUICHE multiplexer alarm");
+
 #endif

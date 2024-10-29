@@ -9,6 +9,7 @@
 
 
 #include "absl/strings/string_view.h"
+#include "absl/types/variant.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_packet_writer.h"
@@ -25,8 +26,16 @@ namespace test {
 
 // static
 void QuicConnectionAlarmsPeer::Fire(QuicAlarmProxy alarm) {
-  auto* real_alarm = static_cast<TestAlarmFactory::TestAlarm*>(alarm.alarm_);
-  real_alarm->Fire();
+  struct {
+    void operator()(QuicConnectionAlarmHolder::AlarmProxy alarm) {
+      auto* real_alarm = static_cast<TestAlarmFactory::TestAlarm*>(alarm.alarm_);
+      real_alarm->Fire();
+    }
+    void operator()(QuicAlarmMultiplexer::AlarmProxy alarm) {
+      alarm.multiplexer_->Fire(alarm.slot_);
+    }
+  } visitor;
+  absl::visit(visitor, alarm.alarm_);
 }
 
 // static

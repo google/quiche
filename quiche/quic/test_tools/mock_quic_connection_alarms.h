@@ -5,8 +5,11 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_CONNECTION_ALARMS_H_
 #define QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_CONNECTION_ALARMS_H_
 
+#include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection_alarms.h"
-#include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/core/quic_connection_context.h"
+#include "quiche/quic/test_tools/mock_clock.h"
+#include "quiche/common/platform/api/quiche_test.h"
 
 namespace quic::test {
 
@@ -25,6 +28,11 @@ class MockConnectionAlarmsDelegate : public QuicConnectionAlarmsDelegate {
   MOCK_METHOD(void, OnPingAlarm, (), (override));
 
   QuicConnectionContext* context() override { return nullptr; }
+  const QuicClock* clock() const override { return &clock_; }
+  MockClock* clock() { return &clock_; }
+
+ private:
+  MockClock clock_;
 };
 
 }  // namespace quic::test
