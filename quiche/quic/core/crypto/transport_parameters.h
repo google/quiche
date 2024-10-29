@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_TRANSPORT_PARAMETERS_H_
 #define QUICHE_QUIC_CORE_CRYPTO_TRANSPORT_PARAMETERS_H_
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -254,6 +255,10 @@ struct QUICHE_EXPORT TransportParameters {
   // Google-specific transport parameter that carries an estimate of the
   // initial round-trip time in microseconds.
   IntegerParameter initial_round_trip_time_us;
+
+  // Data length for TransportParameterId::kDiscard. Negative values means the
+  // parameter is not set.
+  int32_t discard_length = -1;
 
   // Google internal handshake message.
   std::optional<std::string> google_handshake_message;

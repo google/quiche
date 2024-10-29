@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_config.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -467,6 +468,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
     return;
   }
   const std::string kFakeGoogleHandshakeMessage = "Fake handshake message";
+  const int32_t kDiscardLength = 2000;
   config_.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
       2 * kMinimumFlowControlSendWindow);
   config_.SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
@@ -481,6 +483,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   config_.SetInitialSourceConnectionIdToSend(TestConnectionId(0x2222));
   config_.SetRetrySourceConnectionIdToSend(TestConnectionId(0x3333));
   config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
+  config_.SetDiscardLengthToSend(kDiscardLength);
   config_.SetGoogleHandshakeMessageToSend(kFakeGoogleHandshakeMessage);
   config_.SetReliableStreamReset(true);
 
@@ -542,6 +545,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   EXPECT_EQ(*reinterpret_cast<StatelessResetToken*>(
                 &params.preferred_address->stateless_reset_token.front()),
             new_stateless_reset_token);
+  EXPECT_EQ(kDiscardLength, params.discard_length);
   EXPECT_EQ(kFakeGoogleHandshakeMessage, params.google_handshake_message);
 
   EXPECT_TRUE(params.reliable_stream_reset);
@@ -655,6 +659,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
     return;
   }
   const std::string kFakeGoogleHandshakeMessage = "Fake handshake message";
+  const int32_t kDiscardLength = 2000;
   TransportParameters params;
 
   params.initial_max_stream_data_bidi_local.set_value(
@@ -674,6 +679,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   params.original_destination_connection_id = TestConnectionId(0x1111);
   params.initial_source_connection_id = TestConnectionId(0x2222);
   params.retry_source_connection_id = TestConnectionId(0x3333);
+  params.discard_length = kDiscardLength;
   params.google_handshake_message = kFakeGoogleHandshakeMessage;
 
   std::string error_details;
@@ -795,6 +801,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
             TestConnectionId(0x3333));
   EXPECT_EQ(kFakeGoogleHandshakeMessage,
             config_.GetReceivedGoogleHandshakeMessage());
+  EXPECT_EQ(kDiscardLength, config_.GetDiscardLengthReceived());
 }
 
 TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {

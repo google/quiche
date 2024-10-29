@@ -213,11 +213,7 @@ void QuicClientInteropRunner::AttemptRequest(
   if (attempt_multi_packet_chlo) {
     // Make the ClientHello span multiple packets by adding a custom transport
     // parameter.
-    constexpr auto kCustomParameter =
-        static_cast<TransportParameters::TransportParameterId>(0x173E);
-    std::string custom_value(2000, '?');
-    config.custom_transport_parameters_to_send()[kCustomParameter] =
-        custom_value;
+    config.SetDiscardLengthToSend(2000);
   }
   std::unique_ptr<QuicEventLoop> event_loop =
       GetDefaultEventLoop()->Create(QuicDefaultClock::Get());

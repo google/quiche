@@ -312,13 +312,9 @@ int QuicToyClient::SendRequestsAndPrintResponses(
         ParseQuicTagVector(client_connection_options_string));
   }
   if (quiche::GetQuicheCommandLineFlag(FLAGS_multi_packet_chlo)) {
-    // Make the ClientHello span multiple packets by adding a custom transport
-    // parameter.
-    constexpr auto kCustomParameter =
-        static_cast<TransportParameters::TransportParameterId>(0x173E);
-    std::string custom_value(2000, '?');
-    config.custom_transport_parameters_to_send()[kCustomParameter] =
-        custom_value;
+    // Make the ClientHello span multiple packets by adding a large 'discard'
+    // transport parameter.
+    config.SetDiscardLengthToSend(2000);
   }
   config.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromMilliseconds(quiche::GetQuicheCommandLineFlag(

@@ -296,6 +296,7 @@ TEST_P(TransportParametersTest, CopyConstructor) {
       CreateFakeInitialSourceConnectionId();
   orig_params.retry_source_connection_id = CreateFakeRetrySourceConnectionId();
   orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
+  orig_params.discard_length = 2000;
   std::string google_handshake_message;
   ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
                                      &google_handshake_message));
@@ -335,6 +336,7 @@ TEST_P(TransportParametersTest, RoundTripClient) {
   orig_params.initial_source_connection_id =
       CreateFakeInitialSourceConnectionId();
   orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
+  orig_params.discard_length = 2000;
   std::string google_handshake_message;
   ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
                                      &google_handshake_message));
@@ -573,6 +575,11 @@ TEST_P(TransportParametersTest, ParseClientParams) {
       0x0f,  // parameter id
       0x08,  // length
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x23, 0x45,
+      // discard
+      0x57, 0x3e,  // parameter id
+      0x10,  // length
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
       // google_handshake_message
       0x66, 0xab,  // parameter id
       0x24,  // length
@@ -652,6 +659,7 @@ TEST_P(TransportParametersTest, ParseClientParams) {
   ASSERT_TRUE(new_params.google_connection_options.has_value());
   EXPECT_EQ(CreateFakeGoogleConnectionOptions(),
             new_params.google_connection_options.value());
+  EXPECT_EQ(16, new_params.discard_length);
   std::string expected_google_handshake_message;
   ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
                                      &expected_google_handshake_message));

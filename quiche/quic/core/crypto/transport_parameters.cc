@@ -57,6 +57,9 @@ enum TransportParameters::TransportParameterId : uint64_t {
 
   kMaxDatagramFrameSize = 0x20,
 
+  // https://github.com/quicwg/base-drafts/wiki/Quantum-Readiness-test
+  kDiscard = 0x173E,
+
   kGoogleHandshakeMessage = 0x26ab,
 
   kInitialRoundTripTime = 0x3127,
@@ -71,8 +74,9 @@ enum TransportParameters::TransportParameterId : uint64_t {
 
   kMinAckDelay = 0xDE1A,           // draft-iyengar-quic-delayed-ack.
   kVersionInformation = 0xFF73DB,  // draft-ietf-quic-version-negotiation.
-  kReliableStreamReset = 0x17F7586D2CB571,
+
   // draft-ietf-quic-reliable-stream-reset.
+  kReliableStreamReset = 0x17F7586D2CB571,
 };
 
 namespace {
@@ -130,6 +134,8 @@ std::string TransportParameterIdToString(
       return "retry_source_connection_id";
     case TransportParameters::kMaxDatagramFrameSize:
       return "max_datagram_frame_size";
+    case TransportParameters::kDiscard:
+      return "discard";
     case TransportParameters::kGoogleHandshakeMessage:
       return "google_handshake_message";
     case TransportParameters::kInitialRoundTripTime:
@@ -169,6 +175,7 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kInitialSourceConnectionId:
     case TransportParameters::kRetrySourceConnectionId:
     case TransportParameters::kMaxDatagramFrameSize:
+    case TransportParameters::kDiscard:
     case TransportParameters::kGoogleHandshakeMessage:
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
@@ -439,6 +446,10 @@ std::string TransportParameters::ToString() const {
           retry_source_connection_id->ToString();
   }
   rv += max_datagram_frame_size.ToString(/*for_use_in_list=*/true);
+  if (discard_length >= 0) {
+    absl::StrAppend(&rv, " ", TransportParameterIdToString(kDiscard),
+                    " length: ", discard_length);
+  }
   if (google_handshake_message.has_value()) {
     absl::StrAppend(&rv, " ",
                     TransportParameterIdToString(kGoogleHandshakeMessage),
@@ -532,6 +543,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       max_datagram_frame_size(other.max_datagram_frame_size),
       reliable_stream_reset(other.reliable_stream_reset),
       initial_round_trip_time_us(other.initial_round_trip_time_us),
+      discard_length(other.discard_length),
       google_handshake_message(other.google_handshake_message),
       google_connection_options(other.google_connection_options),
       custom_parameters(other.custom_parameters) {
@@ -574,6 +586,7 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
         reliable_stream_reset == rhs.reliable_stream_reset &&
         initial_round_trip_time_us.value() ==
             rhs.initial_round_trip_time_us.value() &&
+        discard_length == rhs.discard_length &&
         google_handshake_message == rhs.google_handshake_message &&
         google_connection_options == rhs.google_connection_options &&
         custom_parameters == rhs.custom_parameters)) {
@@ -762,6 +775,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       kIntegerParameterLength +           // max_datagram_frame_size
       kTypeAndValueLength +               // reliable_stream_reset
       kIntegerParameterLength +           // initial_round_trip_time_us
+      kTypeAndValueLength +               // discard
       kTypeAndValueLength +               // google_handshake_message
       kTypeAndValueLength +               // google_connection_options
       kTypeAndValueLength;                // google-version
@@ -783,6 +797,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       TransportParameters::kActiveConnectionIdLimit,
       TransportParameters::kMaxDatagramFrameSize,
       TransportParameters::kReliableStreamReset,
+      TransportParameters::kDiscard,
       TransportParameters::kGoogleHandshakeMessage,
       TransportParameters::kInitialRoundTripTime,
       TransportParameters::kDisableActiveMigration,
@@ -815,6 +830,10 @@ bool SerializeTransportParameters(const TransportParameters& in,
         // Add one for the added GREASE version.
         (in.version_information->other_versions.size() + 1) *
             sizeof(QuicVersionLabel);
+  }
+  // discard.
+  if (in.discard_length >= 0) {
+    max_transport_param_length += in.discard_length;
   }
   // google_handshake_message.
   if (in.google_handshake_message.has_value()) {
@@ -999,6 +1018,19 @@ bool SerializeTransportParameters(const TransportParameters& in,
           QUIC_BUG(Failed to write max_datagram_frame_size)
               << "Failed to write max_datagram_frame_size for " << in;
           return false;
+        }
+      } break;
+      // discard
+      case TransportParameters::kDiscard: {
+        if (in.discard_length >= 0) {
+          std::string discard_data(in.discard_length, '\0');
+          if (!writer.WriteVarInt62(TransportParameters::kDiscard) ||
+              !writer.WriteStringPieceVarInt62(discard_data)) {
+            QUIC_BUG(Failed to write discard_data)
+                << "Failed to write discard data of length: "
+                << in.discard_length << " for " << in;
+            return false;
+          }
         }
       } break;
       // google_handshake_message
@@ -1250,7 +1282,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
                   << " bytes";
 
   return true;
-}
+}  // NOLINT(readability/fn_size)
 
 bool ParseTransportParameters(ParsedQuicVersion version,
                               Perspective perspective, const uint8_t* in,
@@ -1450,6 +1482,9 @@ bool ParseTransportParameters(ParsedQuicVersion version,
       case TransportParameters::kMaxDatagramFrameSize:
         parse_success =
             out->max_datagram_frame_size.Read(&value_reader, error_details);
+        break;
+      case TransportParameters::kDiscard:
+        out->discard_length = value_reader.ReadRemainingPayload().length();
         break;
       case TransportParameters::kGoogleHandshakeMessage:
         if (out->google_handshake_message.has_value()) {
