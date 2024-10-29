@@ -173,6 +173,7 @@ class QUICHE_EXPORT QuicSession
   std::string GetStreamsInfoForLogging() const override;
   void OnPathDegrading() override;
   void OnForwardProgressMadeAfterPathDegrading() override;
+  void OnForwardProgressMadeAfterFlowLabelChange() override;
   bool AllowSelfAddressChange() const override;
   HandshakeState GetHandshakeState() const override;
   bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override;

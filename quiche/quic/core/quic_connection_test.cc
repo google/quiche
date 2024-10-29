@@ -10043,6 +10043,14 @@ TEST_P(QuicConnectionTest, PtoChangesFlowLabel) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_NE(flow_label, connection_.outgoing_flow_label());
+  EXPECT_EQ(1, connection_.GetStats().num_flow_label_changes);
+
+  EXPECT_CALL(visitor_, OnForwardProgressMadeAfterFlowLabelChange());
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _, _, _));
+  QuicAckFrame frame = InitAckFrame(last_packet);
+  ProcessAckPacket(1, &frame);
+  EXPECT_EQ(
+      1, connection_.GetStats().num_forward_progress_after_flow_label_change);
 }
 
 TEST_P(QuicConnectionTest, NewReceiveNewFlowLabelWithGapChangesFlowLabel) {

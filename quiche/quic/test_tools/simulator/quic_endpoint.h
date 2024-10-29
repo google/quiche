@@ -71,6 +71,7 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnConnectionMigration(AddressChangeType /*type*/) override {}
   void OnPathDegrading() override {}
   void OnForwardProgressMadeAfterPathDegrading() override {}
+  void OnForwardProgressMadeAfterFlowLabelChange() override {}
   void OnAckNeedsRetransmittableFrame() override {}
   void SendAckFrequency(const QuicAckFrequencyFrame& /*frame*/) override {}
   void SendNewConnectionId(const QuicNewConnectionIdFrame& /*frame*/) override {

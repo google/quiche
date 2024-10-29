@@ -232,6 +232,10 @@ struct QUICHE_EXPORT QuicConnectionStats {
   size_t num_path_degrading = 0;
   // Number of forward progress made after path degrading.
   size_t num_forward_progress_after_path_degrading = 0;
+  // Number of path degrading.
+  size_t num_flow_label_changes = 0;
+  // Number of forward progress made after aflow label change.
+  size_t num_forward_progress_after_flow_label_change = 0;
 
   bool server_preferred_address_validated = false;
   bool failed_to_validate_server_preferred_address = false;

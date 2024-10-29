@@ -208,6 +208,7 @@ QuicConnection::QuicConnection(
       bundle_retransmittable_with_pto_ack_(false),
       last_control_frame_id_(kInvalidControlFrameId),
       is_path_degrading_(false),
+      flow_label_has_changed_(false),
       processing_ack_frame_(false),
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
@@ -4205,6 +4206,8 @@ void QuicConnection::OnRetransmissionAlarm() {
     }
     if (enable_black_hole_avoidance_via_flow_label_) {
       GenerateNewOutgoingFlowLabel();
+      ++stats_.num_flow_label_changes;
+      flow_label_has_changed_ = true;
       expect_peer_flow_label_change_ = true;
       QUIC_CODE_COUNT(quic_generated_new_flow_label_on_pto);
     }
@@ -6135,6 +6138,11 @@ void QuicConnection::OnForwardProgressMade() {
     visitor_->OnForwardProgressMadeAfterPathDegrading();
     stats_.num_forward_progress_after_path_degrading++;
     is_path_degrading_ = false;
+  }
+  if (flow_label_has_changed_) {
+    visitor_->OnForwardProgressMadeAfterFlowLabelChange();
+    stats_.num_forward_progress_after_flow_label_change++;
+    flow_label_has_changed_ = false;
   }
   if (sent_packet_manager_.HasInFlightPackets()) {
     // Restart detections if forward progress has been made.

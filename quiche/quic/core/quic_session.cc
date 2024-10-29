@@ -645,6 +645,8 @@ void QuicSession::OnPathDegrading() {
 
 void QuicSession::OnForwardProgressMadeAfterPathDegrading() {}
 
+void QuicSession::OnForwardProgressMadeAfterFlowLabelChange() {}
+
 bool QuicSession::AllowSelfAddressChange() const { return false; }
 
 void QuicSession::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {

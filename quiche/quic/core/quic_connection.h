@@ -166,6 +166,9 @@ class QUICHE_EXPORT QuicConnectionVisitorInterface {
   // Called when forward progress made after path degrading.
   virtual void OnForwardProgressMadeAfterPathDegrading() = 0;
 
+  // Called when forward progress made after flow label change
+  virtual void OnForwardProgressMadeAfterFlowLabelChange() = 0;
+
   // Called when the connection sends ack after
   // max_consecutive_num_packets_with_no_retransmittable_frames_ consecutive not
   // retransmittable packets sent. To instigate an ack from peer, a
@@ -2409,6 +2412,9 @@ class QUICHE_EXPORT QuicConnection
 
   // True if the peer is unreachable on the current path.
   bool is_path_degrading_;
+
+  // True if the outgoing flow label has changed since the last foward progress.
+  bool flow_label_has_changed_;
 
   // True if an ack frame is being processed.
   bool processing_ack_frame_;

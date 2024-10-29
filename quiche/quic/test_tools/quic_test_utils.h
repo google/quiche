@@ -473,6 +473,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               (override));
   MOCK_METHOD(void, OnPathDegrading, (), (override));
   MOCK_METHOD(void, OnForwardProgressMadeAfterPathDegrading, (), (override));
+  MOCK_METHOD(void, OnForwardProgressMadeAfterFlowLabelChange, (), (override));
   MOCK_METHOD(bool, WillingAndAbleToWrite, (), (const, override));
   MOCK_METHOD(bool, ShouldKeepConnectionAlive, (), (const, override));
   MOCK_METHOD(std::string, GetStreamsInfoForLogging, (), (const, override));
