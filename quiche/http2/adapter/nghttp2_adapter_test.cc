@@ -463,6 +463,67 @@ TEST(NgHttp2AdapterTest, ClientRejects100HeadersWithFin) {
                                             SpdyFrameType::RST_STREAM}));
 }
 
+TEST(NgHttp2AdapterTest, ClientRejectsFinFollowing100Headers) {
+  TestVisitor visitor;
+  auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);
+
+  testing::InSequence s;
+
+  const std::vector<Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+
+  const int32_t stream_id1 =
+      adapter->SubmitRequest(headers1, nullptr, true, nullptr);
+  ASSERT_GT(stream_id1, 0);
+  QUICHE_LOG(INFO) << "Created stream: " << stream_id1;
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _, 0x5, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .Headers(stream_id1, {{":status", "100"}}, /*fin=*/false)
+          .Data(stream_id1, "", /*fin=*/true)
+          .Serialize();
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id1));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id1, ":status", "100"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id1));
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id1, _, DATA, 1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(stream_id1, _));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, 1, _, 0x0, 1));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id1, Http2ErrorCode::PROTOCOL_ERROR));
+
+  EXPECT_TRUE(adapter->want_write());
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS,
+                                            SpdyFrameType::RST_STREAM}));
+}
+
 TEST(NgHttp2AdapterTest, ClientRejects100HeadersWithContent) {
   TestVisitor visitor;
   auto adapter = NgHttp2Adapter::CreateClientAdapter(visitor);

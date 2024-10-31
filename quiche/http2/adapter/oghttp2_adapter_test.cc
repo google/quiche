@@ -958,6 +958,72 @@ TEST(OgHttp2AdapterTest, ClientRejects100HeadersWithFin) {
                                             SpdyFrameType::RST_STREAM}));
 }
 
+TEST(OgHttp2AdapterTest, ClientHandlesFinFollowing100Headers) {
+  TestVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kClient;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  const std::vector<Header> headers1 =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+
+  const int32_t stream_id1 =
+      adapter->SubmitRequest(headers1, nullptr, true, nullptr);
+  ASSERT_GT(stream_id1, 0);
+  QUICHE_LOG(INFO) << "Created stream: " << stream_id1;
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id1, _,
+                                         END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id1, _,
+                                   END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  visitor.Clear();
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .Headers(stream_id1, {{":status", "100"}}, /*fin=*/false)
+          .Data(stream_id1, "", /*fin=*/true)
+          .Serialize();
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id1, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id1));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id1, ":status", "100"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id1));
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id1, _, DATA, 1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(stream_id1, _));
+  // Behavior difference: nghttp2 generates a RST_STREAM PROTOCOL_ERROR.
+  EXPECT_CALL(visitor, OnEndStream(stream_id1));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, ACK_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, ACK_FLAG, 0));
+
+  EXPECT_TRUE(adapter->want_write());
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
+}
+
 TEST(OgHttp2AdapterTest, ClientRejects100HeadersWithContent) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
