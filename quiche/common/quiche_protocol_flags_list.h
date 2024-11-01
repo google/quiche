@@ -278,6 +278,6 @@ QUICHE_PROTOCOL_FLAG(bool, quic_client_allow_invalid_sni_for_test, false,
 
 QUICHE_PROTOCOL_FLAG(
     uint64_t, quic_multiplexer_alarm_granularity_us, 1000,
-    "Alarm update granularity used by the QUICHE multiplexer alarm");
+    "Alarm update granularity used by the QUICHE multiplexer alarm")
 
 #endif
