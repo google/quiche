@@ -12,7 +12,9 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/frames/quic_ack_frame.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
@@ -60,6 +62,13 @@ class MockDebugDelegate : public QuicSentPacketManager::DebugDelegate {
               (QuicPacketNumber lost_packet_number,
                EncryptionLevel encryption_level,
                TransmissionType transmission_type, QuicTime detection_time),
+              (override));
+  MOCK_METHOD(void, OnIncomingAck,
+              (QuicPacketNumber ack_packet_number,
+               EncryptionLevel ack_decrypted_level,
+               const QuicAckFrame& ack_frame, QuicTime ack_receive_time,
+               QuicPacketNumber largest_observed, bool rtt_updated,
+               QuicPacketNumber least_unacked_sent_packet),
               (override));
 };
 
@@ -556,6 +565,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_CALL(debug_delegate, OnIncomingAck(_, _, _, _, _, _, _)).Times(1);
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
@@ -582,6 +592,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_CALL(debug_delegate, OnIncomingAck(_, _, _, _, _, _, _)).Times(1);
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
@@ -603,6 +614,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(6));
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_CALL(debug_delegate, OnIncomingAck(_, _, _, _, _, _, _)).Times(1);
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
@@ -3242,13 +3254,47 @@ TEST_F(QuicSentPacketManagerTest, EcnCountsAreStored) {
   SendDataPacket(8, ENCRYPTION_HANDSHAKE, ECN_ECT1);
   SendDataPacket(9, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
   SendDataPacket(10, ENCRYPTION_FORWARD_SECURE, ECN_ECT1);
+  MockDebugDelegate debug_delegate;
+  manager_.SetDebugDelegate(&debug_delegate);
+  bool correct_report = false;
+  EXPECT_CALL(debug_delegate, OnIncomingAck(_, _, _, _, _, _, _))
+      .WillOnce(Invoke(
+          [&](QuicPacketNumber /*ack_packet_number*/,
+              EncryptionLevel /*ack_decrypted_level*/,
+              const QuicAckFrame& ack_frame, QuicTime /*ack_receive_time*/,
+              QuicPacketNumber /*largest_observed*/, bool /*rtt_updated*/,
+              QuicPacketNumber /*least_unacked_sent_packet*/) {
+            correct_report = (ack_frame.ecn_counters == ecn_counts1);
+          }));
   manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1), ENCRYPTION_INITIAL,
                          ecn_counts1);
+  EXPECT_TRUE(correct_report);
+  correct_report = false;
+  EXPECT_CALL(debug_delegate, OnIncomingAck(_, _, _, _, _, _, _))
+      .WillOnce(Invoke(
+          [&](QuicPacketNumber /*ack_packet_number*/,
+              EncryptionLevel /*ack_decrypted_level*/,
+              const QuicAckFrame& ack_frame, QuicTime /*ack_receive_time*/,
+              QuicPacketNumber /*largest_observed*/, bool /*rtt_updated*/,
+              QuicPacketNumber /*least_unacked_sent_packet*/) {
+            correct_report = (ack_frame.ecn_counters == ecn_counts2);
+          }));
   manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
                          ENCRYPTION_HANDSHAKE, ecn_counts2);
-
+  EXPECT_TRUE(correct_report);
+  correct_report = false;
+  EXPECT_CALL(debug_delegate, OnIncomingAck(_, _, _, _, _, _, _))
+      .WillOnce(Invoke(
+          [&](QuicPacketNumber /*ack_packet_number*/,
+              EncryptionLevel /*ack_decrypted_level*/,
+              const QuicAckFrame& ack_frame, QuicTime /*ack_receive_time*/,
+              QuicPacketNumber /*largest_observed*/, bool /*rtt_updated*/,
+              QuicPacketNumber /*least_unacked_sent_packet*/) {
+            correct_report = (ack_frame.ecn_counters == ecn_counts3);
+          }));
   manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
                          ENCRYPTION_FORWARD_SECURE, ecn_counts3);
+  EXPECT_TRUE(correct_report);
   EXPECT_EQ(
       *QuicSentPacketManagerPeer::GetPeerEcnCounts(&manager_, INITIAL_DATA),
       ecn_counts1);

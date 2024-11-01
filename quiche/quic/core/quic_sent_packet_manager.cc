@@ -1455,6 +1455,10 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
                       last_ack_frame_.ack_delay_time,
                       acked_packet.receive_timestamp);
   }
+  // Copy raw ECN counts to last_ack_frame_ so it is logged properly. Validated
+  // ECN counts are stored in valid_ecn_counts, and the congestion controller
+  // uses that for processing.
+  last_ack_frame_.ecn_counters = ecn_counts;
   // Validate ECN feedback.
   std::optional<QuicEcnCounts> valid_ecn_counts;
   if (GetQuicRestartFlag(quic_support_ect1)) {
