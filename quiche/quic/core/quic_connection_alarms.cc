@@ -295,7 +295,7 @@ void QuicAlarmMultiplexer::RescheduleUnderlyingAlarms() {
   QuicTime now = connection_->clock()->ApproximateNow();
   bool schedule_now = false;
   QuicTime later_alarm_deadline = QuicTime::Infinite();
-  for (const QuicTime deadline : deadlines_) {
+  for (const QuicTime& deadline : deadlines_) {
     if (!deadline.IsInitialized()) {
       continue;
     }
