@@ -13,21 +13,27 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 #if defined(__linux__)
 #include <fcntl.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <linux/sockios.h>
 #include <sys/ioctl.h>
 #endif  // defined(__linux__)
 
 #include "absl/cleanup/cleanup.h"
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, tap_bridge_interface, "",
+    "Bridge tap interfaces created by CONNECT-ETHERNET mode to be bridged to "
+    "the specified interface, if any.");
 
 namespace quic {
 
@@ -186,6 +192,12 @@ int CreateTapInterface() {
   }
   absl::Cleanup sock_fd_closer = [sock_fd] { close(sock_fd); };
 
+  err = ioctl(sock_fd, SIOCGIFINDEX, &ifr);
+  if (err < 0) {
+    QUIC_PLOG(ERROR) << "SIOCGIFINDEX failed";
+  }
+  int tap_ifindex = ifr.ifr_ifindex;
+
   ifr.ifr_mtu = 1280;
   err = ioctl(sock_fd, SIOCSIFMTU, &ifr);
   if (err < 0) {
@@ -204,6 +216,25 @@ int CreateTapInterface() {
     QUIC_PLOG(ERROR) << "SIOCSIFFLAGS failed";
     return -1;
   }
+
+  const std::string tap_bridge_interface =
+      quiche::GetQuicheCommandLineFlag(FLAGS_tap_bridge_interface);
+
+  if (!tap_bridge_interface.empty()) {
+    if (tap_bridge_interface.size() >= IFNAMSIZ) {
+      QUIC_LOG(ERROR) << "tap bridge interface size too long: "
+                      << tap_bridge_interface.size();
+      return -1;
+    }
+    strncpy(ifr.ifr_name, tap_bridge_interface.c_str(), IFNAMSIZ);
+    ifr.ifr_ifindex = tap_ifindex;
+    err = ioctl(sock_fd, SIOCBRADDIF, &ifr);
+    if (err < 0) {
+      QUIC_PLOG(ERROR) << "SIOCBRADDIF failed";
+      return -1;
+    }
+  }
+
   std::move(tap_fd_closer).Cancel();
   return tap_fd;
 }
