@@ -314,21 +314,9 @@ SpdyFrameWithHeaderBlockIR::SpdyFrameWithHeaderBlockIR(
 
 SpdyFrameWithHeaderBlockIR::~SpdyFrameWithHeaderBlockIR() = default;
 
-SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, absl::string_view data)
-    : SpdyFrameWithFinIR(stream_id),
-      data_(nullptr),
-      data_len_(0),
-      padded_(false),
-      padding_payload_len_(0) {
-  SetDataDeep(data);
-}
-
-SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, const char* data)
-    : SpdyDataIR(stream_id, absl::string_view(data)) {}
-
 SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, std::string data)
     : SpdyFrameWithFinIR(stream_id),
-      data_store_(std::make_unique<std::string>(std::move(data))),
+      data_store_(std::move(data)),
       data_(data_store_->data()),
       data_len_(data_store_->size()),
       padded_(false),

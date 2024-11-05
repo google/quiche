@@ -15,6 +15,7 @@
 #include <iosfwd>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -523,16 +524,15 @@ class QUICHE_EXPORT SpdyFrameWithHeaderBlockIR : public SpdyFrameWithFinIR {
 
 class QUICHE_EXPORT SpdyDataIR : public SpdyFrameWithFinIR {
  public:
-  // Performs a deep copy on data.
-  SpdyDataIR(SpdyStreamId stream_id, absl::string_view data);
-
-  // Performs a deep copy on data.
-  SpdyDataIR(SpdyStreamId stream_id, const char* data);
-
-  // Moves data into data_store_. Makes a copy if passed a non-movable string.
+  // Makes a copy of `data` if passed a non-movable string.
   SpdyDataIR(SpdyStreamId stream_id, std::string data);
 
-  // Use in conjunction with SetDataShallow() for shallow-copy on data.
+  template <typename S>
+  SpdyDataIR(SpdyStreamId stream_id, S data)
+      : SpdyDataIR(stream_id, std::string(data)) {}
+
+  // Use in conjunction with SetDataShallow() to set the DATA frame payload
+  // length.
   explicit SpdyDataIR(SpdyStreamId stream_id);
   SpdyDataIR(const SpdyDataIR&) = delete;
   SpdyDataIR& operator=(const SpdyDataIR&) = delete;
@@ -554,24 +554,10 @@ class QUICHE_EXPORT SpdyDataIR : public SpdyFrameWithFinIR {
     padding_payload_len_ = padding_len - 1;
   }
 
-  // Deep-copy of data (keep private copy).
-  void SetDataDeep(absl::string_view data) {
-    data_store_ = std::make_unique<std::string>(data.data(), data.size());
-    data_ = data_store_->data();
-    data_len_ = data.size();
-  }
-
-  // Shallow-copy of data (do not keep private copy).
-  void SetDataShallow(absl::string_view data) {
-    data_store_.reset();
-    data_ = data.data();
-    data_len_ = data.size();
-  }
-
   // Use this method if we don't have a contiguous buffer and only
   // need a length.
   void SetDataShallow(size_t len) {
-    data_store_.reset();
+    data_store_ = std::nullopt;
     data_ = nullptr;
     data_len_ = len;
   }
@@ -586,7 +572,7 @@ class QUICHE_EXPORT SpdyDataIR : public SpdyFrameWithFinIR {
 
  private:
   // Used to store data that this SpdyDataIR should own.
-  std::unique_ptr<std::string> data_store_;
+  std::optional<std::string> data_store_;
   const char* data_;
   size_t data_len_;
 

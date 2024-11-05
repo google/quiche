@@ -1539,7 +1539,7 @@ TEST_P(SpdyFramerTest, CreateDataFrame) {
                  ABSL_ARRAYSIZE(kH2FrameData));
 
     SpdyDataIR data_header_ir(/* stream_id = */ 1);
-    data_header_ir.SetDataShallow(bytes);
+    data_header_ir.SetDataShallow(strlen(bytes));
     frame =
         framer_.SerializeDataFrameHeaderWithPaddingLengthField(data_header_ir);
     CompareCharArraysWithHexError(
