@@ -10,16 +10,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#if defined(__linux__)
-#include <linux/in6.h>
-#ifndef IPV6_FLOWLABEL
-#define IPV6_FLOWINFO 11
-#define IPV6_FLOWINFO_SEND 33
-#define IPV6_FLOWINFO_FLOWLABEL 0x000fffff
-#endif
-#endif
-
 #include "absl/base/optimization.h"
+#include "quiche/quic/core/flow_label.h"
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"

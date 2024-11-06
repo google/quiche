@@ -8,6 +8,7 @@
 #include <cstddef>
 
 #include "quiche/quic/core/batch_writer/quic_batch_writer_base.h"
+#include "quiche/quic/core/flow_label.h"
 #include "quiche/quic/core/quic_linux_socket_utils.h"
 
 namespace quic {
@@ -60,10 +61,11 @@ class QUICHE_EXPORT QuicGsoBatchWriter : public QuicUdpBatchWriter {
   }
 
   static const int kCmsgSpace = kCmsgSpaceForIp + kCmsgSpaceForSegmentSize +
-                                kCmsgSpaceForTxTime + kCmsgSpaceForTOS;
+                                kCmsgSpaceForTxTime + kCmsgSpaceForTOS +
+                                kCmsgSpaceForFlowLabel;
   static void BuildCmsg(QuicMsgHdr* hdr, const QuicIpAddress& self_address,
                         uint16_t gso_size, uint64_t release_time,
-                        QuicEcnCodepoint ecn_codepoint);
+                        QuicEcnCodepoint ecn_codepoint, uint32_t flow_label);
 
   template <size_t CmsgSpace, typename CmsgBuilderT>
   FlushImplResult InternalFlushImpl(CmsgBuilderT cmsg_builder) {
@@ -83,7 +85,7 @@ class QUICHE_EXPORT QuicGsoBatchWriter : public QuicUdpBatchWriter {
 
     uint16_t gso_size = buffered_writes().size() > 1 ? first.buf_len : 0;
     cmsg_builder(&hdr, first.self_address, gso_size, first.release_time,
-                 first.params.ecn_codepoint);
+                 first.params.ecn_codepoint, first.params.flow_label);
 
     write_result = QuicLinuxSocketUtils::WritePacket(fd(), hdr);
     QUIC_DVLOG(1) << "Write GSO packet result: " << write_result

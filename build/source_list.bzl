@@ -217,6 +217,7 @@ quiche_core_hdrs = [
     "quic/core/crypto/transport_parameters.h",
     "quic/core/crypto/web_transport_fingerprint_proof_verifier.h",
     "quic/core/deterministic_connection_id_generator.h",
+    "quic/core/flow_label.h",
     "quic/core/frames/quic_ack_frame.h",
     "quic/core/frames/quic_ack_frequency_frame.h",
     "quic/core/frames/quic_blocked_frame.h",

@@ -10,6 +10,7 @@
 #include <memory>
 #include <utility>
 
+#include "quiche/quic/core/flow_label.h"
 #include "quiche/quic/core/quic_linux_socket_utils.h"
 #include "quiche/quic/platform/api/quic_server_stats.h"
 
@@ -140,7 +141,8 @@ uint64_t QuicGsoBatchWriter::NowInNanosForReleaseTime() const {
 void QuicGsoBatchWriter::BuildCmsg(QuicMsgHdr* hdr,
                                    const QuicIpAddress& self_address,
                                    uint16_t gso_size, uint64_t release_time,
-                                   QuicEcnCodepoint ecn_codepoint) {
+                                   QuicEcnCodepoint ecn_codepoint,
+                                   uint32_t flow_label) {
   hdr->SetIpInNextCmsg(self_address);
   if (gso_size > 0) {
     *hdr->GetNextCmsgData<uint16_t>(SOL_UDP, UDP_SEGMENT) = gso_size;
@@ -157,6 +159,11 @@ void QuicGsoBatchWriter::BuildCmsg(QuicMsgHdr* hdr,
       *hdr->GetNextCmsgData<int>(IPPROTO_IPV6, IPV6_TCLASS) =
           static_cast<int>(ecn_codepoint);
     }
+  }
+
+  if (flow_label != 0) {
+    *hdr->GetNextCmsgData<uint32_t>(IPPROTO_IPV6, IPV6_FLOWINFO) =
+        htonl(flow_label & IPV6_FLOWINFO_FLOWLABEL);
   }
 }
 

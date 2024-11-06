@@ -216,6 +216,7 @@
     "quiche/quic/core/crypto/transport_parameters.h",
     "quiche/quic/core/crypto/web_transport_fingerprint_proof_verifier.h",
     "quiche/quic/core/deterministic_connection_id_generator.h",
+    "quiche/quic/core/flow_label.h",
     "quiche/quic/core/frames/quic_ack_frame.h",
     "quiche/quic/core/frames/quic_ack_frequency_frame.h",
     "quiche/quic/core/frames/quic_blocked_frame.h",
