@@ -110,6 +110,8 @@ TEST(HeaderPropertiesTest, HasInvalidPathChar) {
   EXPECT_FALSE(HasInvalidPathChar("/square[brackets]surprisingly/allowed"));
   EXPECT_FALSE(HasInvalidPathChar("/curly{braces}surprisingly/allowed"));
   EXPECT_FALSE(HasInvalidPathChar("/caret^pipe|surprisingly/allowed"));
+  // Surprise! Chrome sends backslash in query params, sometimes.
+  EXPECT_FALSE(HasInvalidPathChar("/path/with?backslash\\hooray"));
 
   EXPECT_TRUE(HasInvalidPathChar("/path with spaces"));
   EXPECT_TRUE(HasInvalidPathChar("/path\rwith\tother\nwhitespace"));

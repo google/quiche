@@ -51,10 +51,10 @@ inline constexpr char kInvalidHeaderCharList[] = {
 // The set of characters allowed in the Path and Query components of a URI, as
 // described in RFC 3986 Sections 3.3 and 3.4. Also includes the following
 // characters, which are not actually valid, but are seen in request paths on
-// the internet and unlikely to cause problems: []{}|^
+// the internet and unlikely to cause problems: []{}|^ and backslash.
 inline constexpr char kValidPathCharList[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~%!$&'()*"
-    "+,;=:@/?[]{}|^";
+    "+,;=:@/?[]{}|^\\";
 
 // Returns true if the given `c` is invalid in a header field name. The first
 // version is spec compliant, the second one incorrectly allows '"'.
