@@ -55,8 +55,8 @@ bool QuicPacketReader::ReadAndDispatchPackets(
        QuicUdpPacketInfoBit::V6_SELF_IP, QuicUdpPacketInfoBit::RECV_TIMESTAMP,
        QuicUdpPacketInfoBit::TTL, QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER,
        QuicUdpPacketInfoBit::ECN});
-  if (GetQuicRestartFlag(quic_support_flow_label)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_support_flow_label, 4, 5);
+  if (GetQuicRestartFlag(quic_support_flow_label2)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_support_flow_label2, 4, 6);
     info_bits.Set(QuicUdpPacketInfoBit::V6_FLOW_LABEL);
   }
   size_t packets_read =

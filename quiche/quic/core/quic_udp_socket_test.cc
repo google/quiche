@@ -28,7 +28,7 @@ class QuicUdpSocketTest : public QuicTest {
 };
 
 TEST_F(QuicUdpSocketTest, Basic) {
-  SetQuicRestartFlag(quic_support_flow_label, true);
+  SetQuicRestartFlag(quic_support_flow_label2, true);
   const QuicSocketAddress any_address(quiche::QuicheIpAddress::Any6(), 0);
   QuicUdpSocketApi socket_api;
 
@@ -81,7 +81,7 @@ TEST_F(QuicUdpSocketTest, Basic) {
 }
 
 TEST_F(QuicUdpSocketTest, FlowLabel) {
-  SetQuicRestartFlag(quic_support_flow_label, true);
+  SetQuicRestartFlag(quic_support_flow_label2, true);
   const QuicSocketAddress any_address(quiche::QuicheIpAddress::Any6(), 0);
   QuicUdpSocketApi socket_api;
 

@@ -55,7 +55,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_true, true, true,
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_alarm_multiplexer, false, false, "Manages all of the connection alarms via QuicAlarmMultiplexer.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_received_client_addresses_cache, true, true, "If true, use a LRU cache to record client addresses of packets received on server's original address.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_ect1, false, false, "When true, allows sending of QUIC packets marked ECT(1). A different flag (TBD) will actually utilize this capability to send ECT(1).")
-QUICHE_FLAG(bool, quiche_restart_flag_quic_support_flow_label, false, false, "If true, QUIC will support reading and writing IPv6 flow labels.")
+QUICHE_FLAG(bool, quiche_restart_flag_quic_support_flow_label2, false, false, "If true, QUIC will support reading and writing IPv6 flow labels.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_release_time_for_gso, false, false, "If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_false, false, false, "A testonly restart flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_true, true, true, "A testonly restart flag that will always default to true.")

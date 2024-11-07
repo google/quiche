@@ -236,8 +236,8 @@ bool QuicUdpSocketApi::SetupSocket(QuicUdpSocketFd fd, int address_family,
       return false;
     }
 #if defined(__linux__)
-    if (GetQuicRestartFlag(quic_support_flow_label)) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_support_flow_label, 5, 5);
+    if (GetQuicRestartFlag(quic_support_flow_label2)) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_support_flow_label2, 5, 6);
       if (setsockopt(fd, SOL_IPV6, IPV6_FLOWINFO, &set, sizeof(set)) != 0) {
         QUIC_LOG_FIRST_N(ERROR, 100)
             << "Failed to request to receive flow label on "
