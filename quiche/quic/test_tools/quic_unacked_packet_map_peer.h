@@ -19,6 +19,8 @@ class QuicUnackedPacketMapPeer {
                              Perspective perspective);
 
   static size_t GetCapacity(const QuicUnackedPacketMap& unacked_packets);
+
+  static size_t GetSize(const QuicUnackedPacketMap& unacked_packets);
 };
 
 }  // namespace test

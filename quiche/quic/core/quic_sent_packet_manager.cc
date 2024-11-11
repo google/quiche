@@ -573,10 +573,10 @@ void QuicSentPacketManager::RecordOneSpuriousRetransmission(
 }
 
 void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
-                                              QuicTransmissionInfo* info,
                                               QuicTime ack_receive_time,
                                               QuicTime::Delta ack_delay_time,
-                                              QuicTime receive_timestamp) {
+                                              QuicTime receive_timestamp,
+                                              QuicTransmissionInfo*& info) {
   if (info->has_ack_frequency) {
     for (const auto& frame : info->retransmittable_frames) {
       if (frame.type == ACK_FREQUENCY_FRAME) {
@@ -587,12 +587,17 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
   // Try to aggregate acked stream frames if acked packet is not a
   // retransmission.
   if (info->transmission_type == NOT_RETRANSMISSION) {
-    unacked_packets_.MaybeAggregateAckedStreamFrame(*info, ack_delay_time,
-                                                    receive_timestamp);
+    unacked_packets_.MaybeAggregateAckedStreamFrame(
+        packet_number, ack_delay_time, receive_timestamp, info);
   } else {
     unacked_packets_.NotifyAggregatedStreamFrameAcked(ack_delay_time);
+    if (unacked_packets_.update_transmission_info_on_frame_acked()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_update_transmission_info_on_frame_acked,
+                                   1, 3);
+      info = unacked_packets_.GetMutableTransmissionInfo(packet_number);
+    }
     const bool new_data_acked = unacked_packets_.NotifyFramesAcked(
-        *info, ack_delay_time, receive_timestamp);
+        packet_number, ack_delay_time, receive_timestamp, info);
     if (!new_data_acked && info->transmission_type != NOT_RETRANSMISSION) {
       // Record as a spurious retransmission if this packet is a
       // retransmission and no new data gets acked.
@@ -1451,9 +1456,9 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
     }
     unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
         packet_number_space, acked_packet.packet_number);
-    MarkPacketHandled(acked_packet.packet_number, info, ack_receive_time,
+    MarkPacketHandled(acked_packet.packet_number, ack_receive_time,
                       last_ack_frame_.ack_delay_time,
-                      acked_packet.receive_timestamp);
+                      acked_packet.receive_timestamp, info);
   }
   // Copy raw ECN counts to last_ack_frame_ so it is logged properly. Validated
   // ECN counts are stored in valid_ecn_counts, and the congestion controller

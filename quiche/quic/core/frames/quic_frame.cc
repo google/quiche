@@ -177,6 +177,15 @@ void RemoveFramesForStream(QuicFrames* frames, QuicStreamId stream_id) {
   }
 }
 
+bool HasMessageFrame(const QuicFrames& frames) {
+  for (const QuicFrame& frame : frames) {
+    if (frame.type == MESSAGE_FRAME) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool IsControlFrame(QuicFrameType type) {
   switch (type) {
     case RST_STREAM_FRAME:

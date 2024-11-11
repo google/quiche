@@ -545,10 +545,14 @@ class QUICHE_EXPORT QuicSentPacketManager {
 
   // Removes the retransmittability and in flight properties from the packet at
   // |info| due to receipt by the peer.
+  // Note: The function may cause the QuicTransmissionInfo for |packet_number|
+  // to move, in that case, |info| will be updated to point to the new
+  // QuicTransmissionInfo when the function returns.
   void MarkPacketHandled(QuicPacketNumber packet_number,
-                         QuicTransmissionInfo* info, QuicTime ack_receive_time,
+                         QuicTime ack_receive_time,
                          QuicTime::Delta ack_delay_time,
-                         QuicTime receive_timestamp);
+                         QuicTime receive_timestamp,
+                         QuicTransmissionInfo*& info);
 
   // Request that |packet_number| be retransmitted after the other pending
   // retransmissions.  Does not add it to the retransmissions if it's already

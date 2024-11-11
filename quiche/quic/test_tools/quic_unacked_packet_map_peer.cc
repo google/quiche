@@ -7,22 +7,24 @@
 namespace quic {
 namespace test {
 
-// static
 const QuicStreamFrame& QuicUnackedPacketMapPeer::GetAggregatedStreamFrame(
     const QuicUnackedPacketMap& unacked_packets) {
   return unacked_packets.aggregated_stream_frame_;
 }
 
-// static
 void QuicUnackedPacketMapPeer::SetPerspective(
     QuicUnackedPacketMap* unacked_packets, Perspective perspective) {
   *const_cast<Perspective*>(&unacked_packets->perspective_) = perspective;
 }
 
-// static
 size_t QuicUnackedPacketMapPeer::GetCapacity(
     const QuicUnackedPacketMap& unacked_packets) {
   return unacked_packets.unacked_packets_.capacity();
+}
+
+size_t QuicUnackedPacketMapPeer::GetSize(
+    const QuicUnackedPacketMap& unacked_packets) {
+  return unacked_packets.unacked_packets_.size();
 }
 
 }  // namespace test

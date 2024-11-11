@@ -889,6 +889,19 @@ TEST_F(PacketNumberQueueTest, IntervalLengthAndRemoveInterval) {
   EXPECT_EQ(QuicPacketNumber(49u), queue.Max());
 }
 
+TEST_F(QuicFramesTest, HasMessageFrame) {
+  QuicFrames frames;
+
+  frames.push_back(QuicFrame(QuicHandshakeDoneFrame()));
+  EXPECT_FALSE(HasMessageFrame(frames));
+
+  frames.push_back(
+      QuicFrame(new QuicMessageFrame(1, MemSliceFromString("message"))));
+  EXPECT_TRUE(HasMessageFrame(frames));
+
+  DeleteFrames(&frames);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
