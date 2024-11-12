@@ -25,9 +25,7 @@ class QUICHE_EXPORT QuicGsoBatchWriter : public QuicUdpBatchWriter {
 
   bool SupportsReleaseTime() const final { return supports_release_time_; }
 
-  bool SupportsEcn() const override {
-    return GetQuicRestartFlag(quic_support_ect1);
-  }
+  bool SupportsEcn() const override { return true; }
 
   CanBatchResult CanBatch(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,

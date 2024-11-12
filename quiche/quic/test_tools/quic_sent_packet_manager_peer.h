@@ -98,6 +98,9 @@ class QuicSentPacketManagerPeer {
 
   static QuicPacketCount GetEct1Sent(QuicSentPacketManager* sent_packet_manager,
                                      PacketNumberSpace space);
+
+  static void SetEcnQueried(QuicSentPacketManager* sent_packet_manager,
+                            bool ecn_queried);
 };
 
 }  // namespace test

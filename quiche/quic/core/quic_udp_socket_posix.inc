@@ -570,8 +570,8 @@ WriteResult QuicUdpSocketApi::WritePacket(
     int cmsg_type;
     unsigned char value_buf[20];
     socklen_t value_len = sizeof(value_buf);
-    if (GetQuicRestartFlag(quic_support_ect1)) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_support_ect1, 9, 9);
+    if (GetQuicRestartFlag(quic_preserve_dscp_with_ecn)) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_preserve_dscp_with_ecn, 1, 2);
       if (GetEcnCmsgArgsPreserveDscp(
               fd, packet_info.peer_address().host().address_family(),
               packet_info.ecn_codepoint(), cmsg_type, value_buf,
@@ -581,6 +581,9 @@ WriteResult QuicUdpSocketApi::WritePacket(
         return WriteResult(WRITE_STATUS_ERROR, EINVAL);
       }
     } else {
+      // Only some writers set QuicUdpPacketInfoBit::ECN, so verify that this
+      // is being exercised.
+      QUIC_RESTART_FLAG_COUNT_N(quic_preserve_dscp_with_ecn, 2, 2);
       cmsg_type = (cmsg_level == IPPROTO_IP) ? IP_TOS : IPV6_TCLASS;
       *(int*)value_buf = static_cast<int>(packet_info.ecn_codepoint());
       value_len = sizeof(int);

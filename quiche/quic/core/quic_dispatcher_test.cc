@@ -3190,7 +3190,6 @@ TEST_P(BufferedPacketStoreTest, BufferedChloWithEcn) {
   if (!version_.HasIetfQuicFrames()) {
     return;
   }
-  SetQuicRestartFlag(quic_support_ect1, true);
   InSequence s;
   QuicConnectionId conn_id = TestConnectionId(1);
   // Process non-CHLO packet. This ProcessUndecryptableEarlyPacket() but with

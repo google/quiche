@@ -442,7 +442,21 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     active_migration_disabled_ = true;
   }
 
+  // Note that SetFromConfig() can be called twice: once at initialization and
+  // once after handshake completion. This can cause ECN to be set again after
+  // failing validation during the handshake. It is legal per RFC9000 to
+  // periodically try to validate ECN after failure, and post-handshakes is as
+  // good a time as any.
   sent_packet_manager_.SetFromConfig(config);
+  // TODO(martinduke): set_ecn_codepoint() itself calls EnableECT1() and
+  // EnableECT0(). Once set_ecn_codepoint() has proven to be safe, this can
+  // just call set_ecn_codepoint(ECT0) and (ECT1) without any conditional.
+  if (sent_packet_manager_.EnableECT1()) {
+    set_ecn_codepoint(ECN_ECT1);
+  } else if (sent_packet_manager_.EnableECT0()) {
+    set_ecn_codepoint(ECN_ECT0);
+  }
+
   if (perspective_ == Perspective::IS_SERVER &&
       config.HasClientSentConnectionOption(kAFF2, perspective_)) {
     send_ack_frequency_on_handshake_completion_ = true;
@@ -3966,19 +3980,14 @@ void QuicConnection::OnPathMtuIncreased(QuicPacketLength packet_size) {
 }
 
 void QuicConnection::OnInFlightEcnPacketAcked() {
-  QUIC_BUG_IF(quic_bug_518619343_01, !GetQuicRestartFlag(quic_support_ect1))
-      << "Unexpected call to OnInFlightEcnPacketAcked()";
   // Only packets on the default path are in-flight.
   if (!default_path_.ecn_marked_packet_acked) {
     QUIC_DVLOG(1) << ENDPOINT << "First ECT packet acked on active path.";
-    QUIC_RESTART_FLAG_COUNT_N(quic_support_ect1, 2, 9);
     default_path_.ecn_marked_packet_acked = true;
   }
 }
 
 void QuicConnection::OnInvalidEcnFeedback() {
-  QUIC_BUG_IF(quic_bug_518619343_02, !GetQuicRestartFlag(quic_support_ect1))
-      << "Unexpected call to OnInvalidEcnFeedback().";
   if (disable_ecn_codepoint_validation_) {
     // In some tests, senders may send ECN marks in patterns that are not
     // in accordance with the spec, and should not fail validation as a result.
@@ -7467,10 +7476,6 @@ void QuicConnection::set_outgoing_flow_label(uint32_t flow_label) {
 }
 
 bool QuicConnection::set_ecn_codepoint(QuicEcnCodepoint ecn_codepoint) {
-  if (!GetQuicRestartFlag(quic_support_ect1)) {
-    return false;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_support_ect1, 3, 9);
   if (disable_ecn_codepoint_validation_ || ecn_codepoint == ECN_NOT_ECT) {
     packet_writer_params_.ecn_codepoint = ecn_codepoint;
     return true;

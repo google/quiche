@@ -202,5 +202,11 @@ QuicPacketCount QuicSentPacketManagerPeer::GetEct1Sent(
   return sent_packet_manager->ect1_packets_sent_[space];
 }
 
+// static
+void QuicSentPacketManagerPeer::SetEcnQueried(
+    QuicSentPacketManager* sent_packet_manager, bool ecn_queried) {
+  sent_packet_manager->ecn_queried_ = ecn_queried;
+}
+
 }  // namespace test
 }  // namespace quic
