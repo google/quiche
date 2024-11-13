@@ -863,7 +863,7 @@ std::string GenerateClientNonceHex(const QuicClock* clock,
   std::unique_ptr<CryptoHandshakeMessage> msg =
       crypto_config->AddConfig(primary_config, clock->WallNow());
   absl::string_view orbit;
-  QUICHE_CHECK(msg->GetStringPiece(kORBT, &orbit));
+  QUICHE_CHECK(msg->GetStringPiece(kOBIT, &orbit));
   std::string nonce;
   CryptoUtils::GenerateNonce(clock->WallNow(), QuicRandom::GetInstance(), orbit,
                              &nonce);

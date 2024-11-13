@@ -244,7 +244,7 @@ TEST_P(QuicConfigTest, MissingOptionalValuesInCHLO) {
 
   // Set all REQUIRED tags.
   msg.SetValue(kICSL, 1);
-  msg.SetValue(kMIBS, 1);
+  msg.SetValue(kMIDS, 1);
 
   // No error, as rest are optional.
   std::string error_details;
@@ -263,7 +263,7 @@ TEST_P(QuicConfigTest, MissingOptionalValuesInSHLO) {
 
   // Set all REQUIRED tags.
   msg.SetValue(kICSL, 1);
-  msg.SetValue(kMIBS, 1);
+  msg.SetValue(kMIDS, 1);
 
   // No error, as rest are optional.
   std::string error_details;

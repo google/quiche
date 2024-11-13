@@ -374,7 +374,7 @@ QuicServerConfigProtobuf QuicCryptoServerConfig::GenerateConfig(
     QUICHE_DCHECK(options.orbit.empty());
     rand->RandBytes(orbit_bytes, sizeof(orbit_bytes));
   }
-  msg.SetStringPiece(kORBT,
+  msg.SetStringPiece(kOBIT,
                      absl::string_view(orbit_bytes, sizeof(orbit_bytes)));
 
   if (options.channel_id_enabled) {
@@ -1630,8 +1630,8 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
   }
 
   absl::string_view orbit;
-  if (!msg->GetStringPiece(kORBT, &orbit)) {
-    QUIC_LOG(WARNING) << "Server config message is missing ORBT";
+  if (!msg->GetStringPiece(kOBIT, &orbit)) {
+    QUIC_LOG(WARNING) << "Server config message is missing OBIT";
     return nullptr;
   }
 

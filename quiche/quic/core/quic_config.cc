@@ -430,7 +430,7 @@ QuicConfig::QuicConfig()
       connection_options_(kCOPT, PRESENCE_OPTIONAL),
       client_connection_options_(kCLOP, PRESENCE_OPTIONAL),
       max_idle_timeout_to_send_(QuicTime::Delta::Infinite()),
-      max_bidirectional_streams_(kMIBS, PRESENCE_REQUIRED),
+      max_bidirectional_streams_(kMIDS, PRESENCE_REQUIRED),
       max_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL),
       bytes_for_connection_id_(kTCID, PRESENCE_OPTIONAL),
       initial_round_trip_time_us_(kIRTT, PRESENCE_OPTIONAL),

@@ -31,7 +31,7 @@ using ServerConfigID = std::string;
 // "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL", "CHSP",
 // "BPTE", "ACKD", "AKD2", "AKD4", "MAD1", "MAD4", "MAD5", "ACD0", "ACKQ",
 // "TLPR", "CCS\0", "PDP4", "NCHP", "NBPE", "2RTO", "3RTO", "4RTO", "6RTO",
-// "PDP1", "PDP2", "PDP3", "PDP5", "QLVE", "RVCM", "BBPD"
+// "PDP1", "PDP2", "PDP3", "PDP5", "QLVE", "RVCM", "BBPD", "TPC\0"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -129,8 +129,6 @@ const QuicTag kBBHI = TAG('B', 'B', 'H', 'I');   // Increase inflight_hi in
                                                  // PROBE_UP if ever inflight_hi
                                                  // limited in round
 const QuicTag kRENO = TAG('R', 'E', 'N', 'O');   // Reno Congestion Control
-const QuicTag kTPCC = TAG('P', 'C', 'C', '\0');  // Performance-Oriented
-                                                 // Congestion Control
 const QuicTag kBYTE = TAG('B', 'Y', 'T', 'E');   // TCP cubic or reno in bytes
 const QuicTag kIW03 = TAG('I', 'W', '0', '3');   // Force ICWND to 3
 const QuicTag kIW10 = TAG('I', 'W', '1', '0');   // Force ICWND to 10
@@ -389,7 +387,7 @@ const QuicTag kAEAD = TAG('A', 'E', 'A', 'D');   // Authenticated
 const QuicTag kCOPT = TAG('C', 'O', 'P', 'T');   // Connection options
 const QuicTag kCLOP = TAG('C', 'L', 'O', 'P');   // Client connection options
 const QuicTag kICSL = TAG('I', 'C', 'S', 'L');   // Idle network timeout
-const QuicTag kMIBS = TAG('M', 'I', 'D', 'S');   // Max incoming bidi streams
+const QuicTag kMIDS = TAG('M', 'I', 'D', 'S');   // Max incoming bidi streams
 const QuicTag kMIUS = TAG('M', 'I', 'U', 'S');   // Max incoming unidi streams
 const QuicTag kADE  = TAG('A', 'D', 'E', 0);     // Ack Delay Exponent (IETF
                                                  // QUIC ACK Frame Only).
@@ -401,7 +399,7 @@ const QuicTag kSNI  = TAG('S', 'N', 'I', '\0');  // Server name
                                                  // indication
 const QuicTag kPUBS = TAG('P', 'U', 'B', 'S');   // Public key values
 const QuicTag kSCID = TAG('S', 'C', 'I', 'D');   // Server config id
-const QuicTag kORBT = TAG('O', 'B', 'I', 'T');   // Server orbit.
+const QuicTag kOBIT = TAG('O', 'B', 'I', 'T');   // Server orbit.
 const QuicTag kPDMD = TAG('P', 'D', 'M', 'D');   // Proof demand.
 const QuicTag kPROF = TAG('P', 'R', 'O', 'F');   // Proof (signature).
 const QuicTag kCCRT = TAG('C', 'C', 'R', 'T');   // Cached certificate

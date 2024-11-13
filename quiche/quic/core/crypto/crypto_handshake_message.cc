@@ -273,7 +273,7 @@ std::string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
       case kSFCW:
       case kIRTT:
       case kMIUS:
-      case kMIBS:
+      case kMIDS:
       case kTCID:
       case kMAD:
         // uint32_t value

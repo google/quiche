@@ -125,7 +125,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
         config_.AddConfig(primary_config, clock_.WallNow()));
 
     absl::string_view orbit;
-    QUICHE_CHECK(msg->GetStringPiece(kORBT, &orbit));
+    QUICHE_CHECK(msg->GetStringPiece(kOBIT, &orbit));
     QUICHE_CHECK_EQ(sizeof(orbit_), orbit.size());
     memcpy(orbit_, orbit.data(), orbit.size());
 

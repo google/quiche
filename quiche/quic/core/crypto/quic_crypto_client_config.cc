@@ -515,7 +515,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   }
 
   absl::string_view orbit;
-  if (!scfg->GetStringPiece(kORBT, &orbit) || orbit.size() != kOrbitSize) {
+  if (!scfg->GetStringPiece(kOBIT, &orbit) || orbit.size() != kOrbitSize) {
     *error_details = "SCFG missing OBIT";
     return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
   }
