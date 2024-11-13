@@ -1127,6 +1127,7 @@ quiche_tests_srcs = [
     "http2/decoder/decode_buffer_test.cc",
     "http2/decoder/decode_http2_structures_test.cc",
     "http2/decoder/http2_frame_decoder_test.cc",
+    "http2/decoder/http2_structure_decoder_remaining_payload_test.cc",
     "http2/decoder/http2_structure_decoder_test.cc",
     "http2/decoder/payload_decoders/altsvc_payload_decoder_test.cc",
     "http2/decoder/payload_decoders/continuation_payload_decoder_test.cc",
