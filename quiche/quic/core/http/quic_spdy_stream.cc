@@ -1777,7 +1777,6 @@ bool QuicSpdyStream::ValidateReceivedHeaders(
     QUIC_DLOG(ERROR) << invalid_request_details_;
     return false;
   }
-  bool is_response = false;
   for (const std::pair<std::string, std::string>& pair : header_list) {
     const std::string& name = pair.first;
     if (!IsValidHeaderName(name)) {
@@ -1786,18 +1785,8 @@ bool QuicSpdyStream::ValidateReceivedHeaders(
       QUIC_DLOG(ERROR) << invalid_request_details_;
       return false;
     }
-    if (name == ":status") {
-      is_response = !pair.second.empty();
-    }
     if (name == "host") {
-      if (GetQuicReloadableFlag(quic_allow_host_in_request2)) {
-        QUICHE_RELOADABLE_FLAG_COUNT_N(quic_allow_host_in_request2, 1, 3);
-        continue;
-      }
-      if (is_response) {
-        // Host header is allowed in response.
-        continue;
-      }
+      continue;
     }
     if (http2::GetInvalidHttp2HeaderSet().contains(name)) {
       invalid_request_details_ = absl::StrCat(name, " header is not allowed");

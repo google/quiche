@@ -291,7 +291,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, InvalidRequestHeader) {
 
 TEST_F(QuicSpdyServerStreamBaseTest, HostHeaderWithoutAuthority) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
-  SetQuicReloadableFlag(quic_allow_host_in_request2, true);
   // A request with host but without authority should be rejected.
   QuicHeaderList header_list;
   header_list.OnHeader("host", "www.google.com:4433");
@@ -311,7 +310,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, HostHeaderWithoutAuthority) {
 
 TEST_F(QuicSpdyServerStreamBaseTest, HostHeaderWitDifferentAuthority) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
-  SetQuicReloadableFlag(quic_allow_host_in_request2, true);
   // A request with host that does not match authority should be rejected.
   QuicHeaderList header_list;
   header_list.OnHeader(":authority", "www.google.com:4433");
@@ -332,7 +330,6 @@ TEST_F(QuicSpdyServerStreamBaseTest, HostHeaderWitDifferentAuthority) {
 
 TEST_F(QuicSpdyServerStreamBaseTest, ValidHostHeader) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
-  SetQuicReloadableFlag(quic_allow_host_in_request2, true);
   // A request with host that matches authority should be accepted.
   QuicHeaderList header_list;
   header_list.OnHeader(":authority", "www.google.com:4433");

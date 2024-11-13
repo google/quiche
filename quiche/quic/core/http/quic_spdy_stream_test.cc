@@ -3566,12 +3566,7 @@ TEST_P(QuicSpdyStreamTest, HostHeaderInRequest) {
   Initialize(kShouldProcessData);
 
   headers_["host"] = "foo";
-  if (GetQuicReloadableFlag(quic_allow_host_in_request2)) {
-    EXPECT_TRUE(stream_->ValidateReceivedHeaders(AsHeaderList(headers_)));
-  } else {
-    EXPECT_FALSE(stream_->ValidateReceivedHeaders(AsHeaderList(headers_)));
-    EXPECT_EQ("host header is not allowed", stream_->invalid_request_details());
-  }
+  EXPECT_TRUE(stream_->ValidateReceivedHeaders(AsHeaderList(headers_)));
 }
 
 }  // namespace

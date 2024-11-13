@@ -115,23 +115,20 @@ bool QuicSpdyServerStreamBase::ValidateReceivedHeaders(
     }
   }
 
-  if (GetQuicReloadableFlag(quic_allow_host_in_request2)) {
-    // If the :scheme pseudo-header field identifies a scheme that has a
-    // mandatory authority component (including "http" and "https"), the
-    // request MUST contain either an :authority pseudo-header field or a
-    // Host header field. If these fields are present, they MUST NOT be
-    // empty. If both fields are present, they MUST contain the same value.
-    // If the scheme does not have a mandatory authority component and none
-    // is provided in the request target, the request MUST NOT contain the
-    // :authority pseudo-header or Host header fields.
-    //
-    // https://datatracker.ietf.org/doc/html/rfc9114#section-4.3.1
-    QUICHE_RELOADABLE_FLAG_COUNT_N(quic_allow_host_in_request2, 2, 3);
-    if (host && (!authority || *authority != *host)) {
-      QUIC_CODE_COUNT(http3_host_header_does_not_match_authority);
-      set_invalid_request_details("Host header does not match authority");
-      return false;
-    }
+  // If the :scheme pseudo-header field identifies a scheme that has a
+  // mandatory authority component (including "http" and "https"), the
+  // request MUST contain either an :authority pseudo-header field or a
+  // Host header field. If these fields are present, they MUST NOT be
+  // empty. If both fields are present, they MUST contain the same value.
+  // If the scheme does not have a mandatory authority component and none
+  // is provided in the request target, the request MUST NOT contain the
+  // :authority pseudo-header or Host header fields.
+  //
+  // https://datatracker.ietf.org/doc/html/rfc9114#section-4.3.1
+  if (host && (!authority || *authority != *host)) {
+    QUIC_CODE_COUNT(http3_host_header_does_not_match_authority);
+    set_invalid_request_details("Host header does not match authority");
+    return false;
   }
 
   if (is_extended_connect) {
