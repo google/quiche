@@ -1458,6 +1458,7 @@ default_platform_impl_hdrs = [
     "common/platform/default/quiche_platform_impl/quiche_server_stats_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_stack_trace_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_testvalue_impl.h",
+    "common/platform/default/quiche_platform_impl/quiche_thread_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_time_utils_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_udp_socket_platform_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_url_utils_impl.h",
@@ -1487,7 +1488,6 @@ default_platform_impl_test_support_hdrs = [
     "common/platform/default/quiche_platform_impl/quiche_test_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_test_loopback_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_test_output_impl.h",
-    "common/platform/default/quiche_platform_impl/quiche_thread_impl.h",
 ]
 default_platform_impl_test_support_srcs = [
     "common/platform/default/quiche_platform_impl/quiche_test_impl.cc",

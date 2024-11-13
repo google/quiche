@@ -5,6 +5,7 @@
 #ifndef QUICHE_BALSA_HTTP_VALIDATION_POLICY_H_
 #define QUICHE_BALSA_HTTP_VALIDATION_POLICY_H_
 
+#include <cstdint>
 #include <ostream>
 
 #include "quiche/common/platform/api/quiche_export.h"
