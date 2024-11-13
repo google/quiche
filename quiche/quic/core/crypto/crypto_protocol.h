@@ -78,7 +78,7 @@ const QuicTag kIFW9 = TAG('I', 'F', 'W', '9');   // Set initial size
                                                  // of stream flow control
                                                  // receive window to
                                                  // 512KB. (2^9 KB).
-const QuicTag kIFWA = TAG('I', 'F', 'W', 'a');   // Set initial size
+const QuicTag kIFWa = TAG('I', 'F', 'W', 'a');   // Set initial size
                                                  // of stream flow control
                                                  // receive window to
                                                  // 1MB. (2^0xa KB).

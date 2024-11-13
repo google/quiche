@@ -3994,7 +3994,7 @@ TEST_P(EndToEndTest, NegotiatedServerInitialFlowControlWindow) {
   // Bump the window.
   const uint32_t kExpectedStreamIFCW = 1024 * 1024;
   const uint32_t kExpectedSessionIFCW = 1.5 * 1024 * 1024;
-  client_extra_copts_.push_back(kIFWA);
+  client_extra_copts_.push_back(kIFWa);
 
   ASSERT_TRUE(Initialize());
 
