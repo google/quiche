@@ -12,7 +12,7 @@
 
 #include "absl/base/optimization.h"
 #include "quiche/quic/core/flow_label.h"
-#include "quiche/quic/core/io/socket.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
@@ -564,29 +564,20 @@ WriteResult QuicUdpSocketApi::WritePacket(
 
   // TODO(b/270584616): This code block might go away when full support for
   // marking ECN is implemented.
-  if (packet_info.HasValue(QuicUdpPacketInfoBit::ECN)) {
+  if (packet_info.HasValue(QuicUdpPacketInfoBit::ECN) &&
+      packet_info.ecn_codepoint() != ECN_NOT_ECT) {
     int cmsg_level =
         packet_info.peer_address().host().IsIPv4() ? IPPROTO_IP : IPPROTO_IPV6;
     int cmsg_type;
     unsigned char value_buf[20];
     socklen_t value_len = sizeof(value_buf);
-    if (GetQuicRestartFlag(quic_preserve_dscp_with_ecn)) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_preserve_dscp_with_ecn, 1, 2);
-      if (GetEcnCmsgArgsPreserveDscp(
-              fd, packet_info.peer_address().host().address_family(),
-              packet_info.ecn_codepoint(), cmsg_type, value_buf,
-              value_len) != 0) {
-        QUIC_LOG_FIRST_N(ERROR, 100)
-            << "Could not get ECN msg type for this platform.";
-        return WriteResult(WRITE_STATUS_ERROR, EINVAL);
-      }
-    } else {
-      // Only some writers set QuicUdpPacketInfoBit::ECN, so verify that this
-      // is being exercised.
-      QUIC_RESTART_FLAG_COUNT_N(quic_preserve_dscp_with_ecn, 2, 2);
-      cmsg_type = (cmsg_level == IPPROTO_IP) ? IP_TOS : IPV6_TCLASS;
-      *(int*)value_buf = static_cast<int>(packet_info.ecn_codepoint());
-      value_len = sizeof(int);
+    if (GetEcnCmsgArgsPreserveDscp(
+            fd, packet_info.peer_address().host().address_family(),
+            packet_info.ecn_codepoint(), cmsg_type, value_buf,
+            value_len) != 0) {
+      QUIC_LOG_FIRST_N(ERROR, 100)
+          << "Could not get ECN msg type for this platform.";
+      return WriteResult(WRITE_STATUS_ERROR, EINVAL);
     }
     if (!NextCmsg(&hdr, control_buffer, sizeof(control_buffer), cmsg_level,
                   cmsg_type, value_len, &cmsg)) {
