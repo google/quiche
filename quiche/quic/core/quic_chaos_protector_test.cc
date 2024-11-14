@@ -27,10 +27,10 @@
 namespace quic {
 namespace test {
 
-class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
-                               public QuicStreamFrameDataProducer {
+class QuicChaosProtectorOldTest : public QuicTestWithParam<ParsedQuicVersion>,
+                                  public QuicStreamFrameDataProducer {
  public:
-  QuicChaosProtectorTest()
+  QuicChaosProtectorOldTest()
       : version_(GetParam()),
         framer_({version_}, QuicTime::Zero(), Perspective::IS_CLIENT,
                 kQuicDefaultConnectionIdLength),
@@ -47,7 +47,7 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
   }
 
   void ReCreateChaosProtector() {
-    chaos_protector_ = std::make_unique<QuicChaosProtector>(
+    chaos_protector_ = std::make_unique<QuicChaosProtectorOld>(
         crypto_frame_, num_padding_bytes_, packet_size_,
         SetupHeaderAndFramers(), &random_);
   }
@@ -139,12 +139,12 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
   int num_padding_bytes_;
   size_t packet_size_;
   std::unique_ptr<char[]> packet_buffer_;
-  std::unique_ptr<QuicChaosProtector> chaos_protector_;
+  std::unique_ptr<QuicChaosProtectorOld> chaos_protector_;
 };
 
 namespace {
 
-ParsedQuicVersionVector TestVersions() {
+ParsedQuicVersionVector TestVersionsOld() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     if (version.UsesCryptoFrames()) {
@@ -154,11 +154,11 @@ ParsedQuicVersionVector TestVersions() {
   return versions;
 }
 
-INSTANTIATE_TEST_SUITE_P(QuicChaosProtectorTests, QuicChaosProtectorTest,
-                         ::testing::ValuesIn(TestVersions()),
+INSTANTIATE_TEST_SUITE_P(QuicChaosProtectorOldTests, QuicChaosProtectorOldTest,
+                         ::testing::ValuesIn(TestVersionsOld()),
                          ::testing::PrintToStringParamName());
 
-TEST_P(QuicChaosProtectorTest, Main) {
+TEST_P(QuicChaosProtectorOldTest, Main) {
   BuildEncryptAndParse();
   ASSERT_EQ(validation_framer_.crypto_frames().size(), 4u);
   EXPECT_EQ(validation_framer_.crypto_frames()[0]->offset, 0u);
@@ -168,7 +168,7 @@ TEST_P(QuicChaosProtectorTest, Main) {
   EXPECT_EQ(validation_framer_.padding_frames()[0].num_padding_bytes, 3);
 }
 
-TEST_P(QuicChaosProtectorTest, DifferentRandom) {
+TEST_P(QuicChaosProtectorOldTest, DifferentRandom) {
   random_.ResetBase(4);
   BuildEncryptAndParse();
   ASSERT_EQ(validation_framer_.crypto_frames().size(), 4u);
@@ -176,7 +176,7 @@ TEST_P(QuicChaosProtectorTest, DifferentRandom) {
   ASSERT_EQ(validation_framer_.padding_frames().size(), 8u);
 }
 
-TEST_P(QuicChaosProtectorTest, RandomnessZero) {
+TEST_P(QuicChaosProtectorOldTest, RandomnessZero) {
   random_.ResetBase(0);
   BuildEncryptAndParse();
   ASSERT_EQ(validation_framer_.crypto_frames().size(), 1u);
@@ -187,7 +187,7 @@ TEST_P(QuicChaosProtectorTest, RandomnessZero) {
   ASSERT_EQ(validation_framer_.padding_frames().size(), 1u);
 }
 
-TEST_P(QuicChaosProtectorTest, Offset) {
+TEST_P(QuicChaosProtectorOldTest, Offset) {
   ResetOffset(123);
   BuildEncryptAndParse();
   ASSERT_EQ(validation_framer_.crypto_frames().size(), 4u);
@@ -198,7 +198,7 @@ TEST_P(QuicChaosProtectorTest, Offset) {
   EXPECT_EQ(validation_framer_.padding_frames()[0].num_padding_bytes, 3);
 }
 
-TEST_P(QuicChaosProtectorTest, OffsetAndRandomnessZero) {
+TEST_P(QuicChaosProtectorOldTest, OffsetAndRandomnessZero) {
   ResetOffset(123);
   random_.ResetBase(0);
   BuildEncryptAndParse();
@@ -210,7 +210,7 @@ TEST_P(QuicChaosProtectorTest, OffsetAndRandomnessZero) {
   ASSERT_EQ(validation_framer_.padding_frames().size(), 1u);
 }
 
-TEST_P(QuicChaosProtectorTest, ZeroRemainingBytesAfterSplit) {
+TEST_P(QuicChaosProtectorOldTest, ZeroRemainingBytesAfterSplit) {
   QuicPacketLength new_length = 63;
   num_padding_bytes_ = QuicFramer::GetMinCryptoFrameSize(
       crypto_frame_.offset + new_length, new_length);
@@ -238,10 +238,10 @@ enum class InputFramesPattern {
   kAckCryptoAndPadding,
 };
 
-class QuicChaosProtectorNewTest : public QuicTestWithParam<ParsedQuicVersion>,
-                                  public QuicStreamFrameDataProducer {
+class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
+                               public QuicStreamFrameDataProducer {
  public:
-  QuicChaosProtectorNewTest()
+  QuicChaosProtectorTest()
       : version_(GetParam()),
         framer_({version_}, QuicTime::Zero(), Perspective::IS_CLIENT,
                 kQuicDefaultConnectionIdLength),
@@ -281,7 +281,7 @@ class QuicChaosProtectorNewTest : public QuicTestWithParam<ParsedQuicVersion>,
   }
 
   void ReCreateChaosProtector() {
-    chaos_protector_ = std::make_unique<QuicChaosProtectorNew>(
+    chaos_protector_ = std::make_unique<QuicChaosProtector>(
         packet_size_, level_, SetupHeaderAndFramers(), &random_);
   }
 
@@ -413,12 +413,12 @@ class QuicChaosProtectorNewTest : public QuicTestWithParam<ParsedQuicVersion>,
   int num_padding_bytes_;
   size_t packet_size_;
   std::unique_ptr<char[]> packet_buffer_;
-  std::unique_ptr<QuicChaosProtectorNew> chaos_protector_;
+  std::unique_ptr<QuicChaosProtector> chaos_protector_;
 };
 
 namespace {
 
-ParsedQuicVersionVector TestVersionsNew() {
+ParsedQuicVersionVector TestVersions() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     if (version.UsesCryptoFrames()) {
@@ -428,11 +428,11 @@ ParsedQuicVersionVector TestVersionsNew() {
   return versions;
 }
 
-INSTANTIATE_TEST_SUITE_P(QuicChaosProtectorNewTests, QuicChaosProtectorNewTest,
-                         ::testing::ValuesIn(TestVersionsNew()),
+INSTANTIATE_TEST_SUITE_P(QuicChaosProtectorTests, QuicChaosProtectorTest,
+                         ::testing::ValuesIn(TestVersions()),
                          ::testing::PrintToStringParamName());
 
-TEST_P(QuicChaosProtectorNewTest, Main) {
+TEST_P(QuicChaosProtectorTest, Main) {
   BuildEncryptAndParse();
   ASSERT_EQ(validation_framer_.crypto_frames().size(), 4u);
   EXPECT_EQ(validation_framer_.crypto_frames()[0]->offset, 0u);
@@ -442,7 +442,7 @@ TEST_P(QuicChaosProtectorNewTest, Main) {
   EXPECT_EQ(validation_framer_.padding_frames()[0].num_padding_bytes, 3);
 }
 
-TEST_P(QuicChaosProtectorNewTest, DifferentRandom) {
+TEST_P(QuicChaosProtectorTest, DifferentRandom) {
   random_.ResetBase(4);
   BuildEncryptAndParse();
   ASSERT_EQ(validation_framer_.crypto_frames().size(), 4u);
@@ -450,7 +450,7 @@ TEST_P(QuicChaosProtectorNewTest, DifferentRandom) {
   ASSERT_EQ(validation_framer_.padding_frames().size(), 8u);
 }
 
-TEST_P(QuicChaosProtectorNewTest, RandomnessZero) {
+TEST_P(QuicChaosProtectorTest, RandomnessZero) {
   random_.ResetBase(0);
   BuildEncryptAndParse();
   ASSERT_EQ(validation_framer_.crypto_frames().size(), 1u);
@@ -461,7 +461,7 @@ TEST_P(QuicChaosProtectorNewTest, RandomnessZero) {
   ASSERT_EQ(validation_framer_.padding_frames().size(), 1u);
 }
 
-TEST_P(QuicChaosProtectorNewTest, Offset) {
+TEST_P(QuicChaosProtectorTest, Offset) {
   ResetOffset(123);
   BuildEncryptAndParse();
   ASSERT_EQ(validation_framer_.crypto_frames().size(), 4u);
@@ -472,7 +472,7 @@ TEST_P(QuicChaosProtectorNewTest, Offset) {
   EXPECT_EQ(validation_framer_.padding_frames()[0].num_padding_bytes, 3);
 }
 
-TEST_P(QuicChaosProtectorNewTest, OffsetAndRandomnessZero) {
+TEST_P(QuicChaosProtectorTest, OffsetAndRandomnessZero) {
   ResetOffset(123);
   random_.ResetBase(0);
   BuildEncryptAndParse();
@@ -484,7 +484,7 @@ TEST_P(QuicChaosProtectorNewTest, OffsetAndRandomnessZero) {
   ASSERT_EQ(validation_framer_.padding_frames().size(), 1u);
 }
 
-TEST_P(QuicChaosProtectorNewTest, ZeroRemainingBytesAfterSplit) {
+TEST_P(QuicChaosProtectorTest, ZeroRemainingBytesAfterSplit) {
   QuicPacketLength new_length = 63;
   num_padding_bytes_ = QuicFramer::GetMinCryptoFrameSize(
       crypto_offset_ + new_length, new_length);
@@ -500,7 +500,7 @@ TEST_P(QuicChaosProtectorNewTest, ZeroRemainingBytesAfterSplit) {
   EXPECT_EQ(validation_framer_.ping_frames().size(), 0u);
 }
 
-TEST_P(QuicChaosProtectorNewTest, CryptoCryptoAndPadding) {
+TEST_P(QuicChaosProtectorTest, CryptoCryptoAndPadding) {
   input_frames_pattern_ = InputFramesPattern::kCryptoCryptoAndPadding;
   random_.ResetBase(38);
   BuildEncryptAndParse();
@@ -509,7 +509,7 @@ TEST_P(QuicChaosProtectorNewTest, CryptoCryptoAndPadding) {
   EXPECT_EQ(validation_framer_.padding_frames().size(), 3u);
 }
 
-TEST_P(QuicChaosProtectorNewTest, ReorderedCryptoCryptoAndPadding) {
+TEST_P(QuicChaosProtectorTest, ReorderedCryptoCryptoAndPadding) {
   input_frames_pattern_ = InputFramesPattern::kReorderedCryptoCryptoAndPadding;
   random_.ResetBase(38);
   BuildEncryptAndParse();
@@ -518,7 +518,7 @@ TEST_P(QuicChaosProtectorNewTest, ReorderedCryptoCryptoAndPadding) {
   EXPECT_EQ(validation_framer_.padding_frames().size(), 3u);
 }
 
-TEST_P(QuicChaosProtectorNewTest, AckCryptoAndPadding) {
+TEST_P(QuicChaosProtectorTest, AckCryptoAndPadding) {
   input_frames_pattern_ = InputFramesPattern::kAckCryptoAndPadding;
   random_.ResetBase(37);
   BuildEncryptAndParse();

@@ -29,10 +29,9 @@
 
 namespace quic {
 
-QuicChaosProtector::QuicChaosProtector(const QuicCryptoFrame& crypto_frame,
-                                       int num_padding_bytes,
-                                       size_t packet_size, QuicFramer* framer,
-                                       QuicRandom* random)
+QuicChaosProtectorOld::QuicChaosProtectorOld(
+    const QuicCryptoFrame& crypto_frame, int num_padding_bytes,
+    size_t packet_size, QuicFramer* framer, QuicRandom* random)
     : packet_size_(packet_size),
       crypto_data_length_(crypto_frame.data_length),
       crypto_buffer_offset_(crypto_frame.offset),
@@ -45,9 +44,9 @@ QuicChaosProtector::QuicChaosProtector(const QuicCryptoFrame& crypto_frame,
   QUICHE_DCHECK_NE(random_, nullptr);
 }
 
-QuicChaosProtector::~QuicChaosProtector() { DeleteFrames(&frames_); }
+QuicChaosProtectorOld::~QuicChaosProtectorOld() { DeleteFrames(&frames_); }
 
-std::optional<size_t> QuicChaosProtector::BuildDataPacket(
+std::optional<size_t> QuicChaosProtectorOld::BuildDataPacket(
     const QuicPacketHeader& header, char* buffer) {
   if (!CopyCryptoDataToLocalBuffer()) {
     return std::nullopt;
@@ -59,7 +58,7 @@ std::optional<size_t> QuicChaosProtector::BuildDataPacket(
   return BuildPacket(header, buffer);
 }
 
-WriteStreamDataResult QuicChaosProtector::WriteStreamData(
+WriteStreamDataResult QuicChaosProtectorOld::WriteStreamData(
     QuicStreamId id, QuicStreamOffset offset, QuicByteCount data_length,
     QuicDataWriter* /*writer*/) {
   QUIC_BUG(chaos stream) << "This should never be called; id " << id
@@ -68,10 +67,10 @@ WriteStreamDataResult QuicChaosProtector::WriteStreamData(
   return STREAM_MISSING;
 }
 
-bool QuicChaosProtector::WriteCryptoData(EncryptionLevel level,
-                                         QuicStreamOffset offset,
-                                         QuicByteCount data_length,
-                                         QuicDataWriter* writer) {
+bool QuicChaosProtectorOld::WriteCryptoData(EncryptionLevel level,
+                                            QuicStreamOffset offset,
+                                            QuicByteCount data_length,
+                                            QuicDataWriter* writer) {
   if (level != level_) {
     QUIC_BUG(chaos bad level) << "Unexpected " << level << " != " << level_;
     return false;
@@ -91,7 +90,7 @@ bool QuicChaosProtector::WriteCryptoData(EncryptionLevel level,
   return true;
 }
 
-bool QuicChaosProtector::CopyCryptoDataToLocalBuffer() {
+bool QuicChaosProtectorOld::CopyCryptoDataToLocalBuffer() {
   crypto_frame_buffer_ = std::make_unique<char[]>(packet_size_);
   frames_.push_back(QuicFrame(
       new QuicCryptoFrame(level_, crypto_buffer_offset_, crypto_data_length_)));
@@ -122,7 +121,7 @@ bool QuicChaosProtector::CopyCryptoDataToLocalBuffer() {
   return true;
 }
 
-void QuicChaosProtector::SplitCryptoFrame() {
+void QuicChaosProtectorOld::SplitCryptoFrame() {
   const int max_overhead_of_adding_a_crypto_frame =
       static_cast<int>(QuicFramer::GetMinCryptoFrameSize(
           crypto_buffer_offset_ + crypto_data_length_, crypto_data_length_));
@@ -170,7 +169,7 @@ void QuicChaosProtector::SplitCryptoFrame() {
   }
 }
 
-void QuicChaosProtector::AddPingFrames() {
+void QuicChaosProtectorOld::AddPingFrames() {
   if (remaining_padding_bytes_ == 0) {
     return;
   }
@@ -184,14 +183,14 @@ void QuicChaosProtector::AddPingFrames() {
   remaining_padding_bytes_ -= static_cast<int>(num_ping_frames);
 }
 
-void QuicChaosProtector::ReorderFrames() {
+void QuicChaosProtectorOld::ReorderFrames() {
   // Walk the array backwards and swap each frame with a random earlier one.
   for (size_t i = frames_.size() - 1; i > 0; i--) {
     std::swap(frames_[i], frames_[random_->InsecureRandUint64() % (i + 1)]);
   }
 }
 
-void QuicChaosProtector::SpreadPadding() {
+void QuicChaosProtectorOld::SpreadPadding() {
   for (auto it = frames_.begin(); it != frames_.end(); ++it) {
     const int padding_bytes_in_this_frame =
         random_->InsecureRandUint64() % (remaining_padding_bytes_ + 1);
@@ -208,7 +207,7 @@ void QuicChaosProtector::SpreadPadding() {
   }
 }
 
-std::optional<size_t> QuicChaosProtector::BuildPacket(
+std::optional<size_t> QuicChaosProtectorOld::BuildPacket(
     const QuicPacketHeader& header, char* buffer) {
   QuicStreamFrameDataProducer* original_data_producer =
       framer_->data_producer();
@@ -226,10 +225,9 @@ std::optional<size_t> QuicChaosProtector::BuildPacket(
 
 // End of old code, start of new code.
 
-QuicChaosProtectorNew::QuicChaosProtectorNew(size_t packet_size,
-                                             EncryptionLevel level,
-                                             QuicFramer* framer,
-                                             QuicRandom* random)
+QuicChaosProtector::QuicChaosProtector(size_t packet_size,
+                                       EncryptionLevel level,
+                                       QuicFramer* framer, QuicRandom* random)
     : packet_size_(packet_size),
       level_(level),
       framer_(framer),
@@ -239,7 +237,7 @@ QuicChaosProtectorNew::QuicChaosProtectorNew(size_t packet_size,
   QUICHE_DCHECK_NE(random_, nullptr);
 }
 
-bool QuicChaosProtectorNew::IngestFrames(const QuicFrames& frames) {
+bool QuicChaosProtector::IngestFrames(const QuicFrames& frames) {
   bool has_crypto_frame = false;
   bool has_padding_frame = false;
   QuicByteCount max_crypto_data;
@@ -295,9 +293,9 @@ bool QuicChaosProtectorNew::IngestFrames(const QuicFrames& frames) {
   return has_crypto_frame && has_padding_frame;
 }
 
-QuicChaosProtectorNew::~QuicChaosProtectorNew() { DeleteFrames(&frames_); }
+QuicChaosProtector::~QuicChaosProtector() { DeleteFrames(&frames_); }
 
-std::optional<size_t> QuicChaosProtectorNew::BuildDataPacket(
+std::optional<size_t> QuicChaosProtector::BuildDataPacket(
     const QuicPacketHeader& header, const QuicFrames& frames, char* buffer) {
   if (!IngestFrames(frames)) {
     QUIC_DVLOG(1) << "Failed to ingest frames";
@@ -314,7 +312,7 @@ std::optional<size_t> QuicChaosProtectorNew::BuildDataPacket(
   return BuildPacket(header, buffer);
 }
 
-WriteStreamDataResult QuicChaosProtectorNew::WriteStreamData(
+WriteStreamDataResult QuicChaosProtector::WriteStreamData(
     QuicStreamId id, QuicStreamOffset offset, QuicByteCount data_length,
     QuicDataWriter* /*writer*/) {
   QUIC_BUG(chaos stream) << "This should never be called; id " << id
@@ -323,10 +321,10 @@ WriteStreamDataResult QuicChaosProtectorNew::WriteStreamData(
   return STREAM_MISSING;
 }
 
-bool QuicChaosProtectorNew::WriteCryptoData(EncryptionLevel level,
-                                            QuicStreamOffset offset,
-                                            QuicByteCount data_length,
-                                            QuicDataWriter* writer) {
+bool QuicChaosProtector::WriteCryptoData(EncryptionLevel level,
+                                         QuicStreamOffset offset,
+                                         QuicByteCount data_length,
+                                         QuicDataWriter* writer) {
   if (level != level_) {
     QUIC_BUG(chaos bad level) << "Unexpected " << level << " != " << level_;
     return false;
@@ -346,7 +344,7 @@ bool QuicChaosProtectorNew::WriteCryptoData(EncryptionLevel level,
   return true;
 }
 
-bool QuicChaosProtectorNew::CopyCryptoDataToLocalBuffer() {
+bool QuicChaosProtector::CopyCryptoDataToLocalBuffer() {
   size_t frame_size = QuicDataWriter::GetVarInt62Len(crypto_buffer_offset_) +
                       QuicDataWriter::GetVarInt62Len(crypto_data_length_) +
                       crypto_data_length_;
@@ -380,7 +378,7 @@ bool QuicChaosProtectorNew::CopyCryptoDataToLocalBuffer() {
   return true;
 }
 
-void QuicChaosProtectorNew::SplitCryptoFrame() {
+void QuicChaosProtector::SplitCryptoFrame() {
   const int max_overhead_of_adding_a_crypto_frame =
       static_cast<int>(QuicFramer::GetMinCryptoFrameSize(
           crypto_buffer_offset_ + crypto_data_length_, crypto_data_length_));
@@ -432,7 +430,7 @@ void QuicChaosProtectorNew::SplitCryptoFrame() {
   }
 }
 
-void QuicChaosProtectorNew::AddPingFrames() {
+void QuicChaosProtector::AddPingFrames() {
   if (remaining_padding_bytes_ == 0) {
     return;
   }
@@ -446,7 +444,7 @@ void QuicChaosProtectorNew::AddPingFrames() {
   remaining_padding_bytes_ -= static_cast<int>(num_ping_frames);
 }
 
-void QuicChaosProtectorNew::ReorderFrames() {
+void QuicChaosProtector::ReorderFrames() {
   // Walk the array backwards and swap each frame with a random earlier one.
   for (size_t i = frames_.size() - 1; i > 0; i--) {
     quic::QuicFrame& lhs = frames_[i];
@@ -458,7 +456,7 @@ void QuicChaosProtectorNew::ReorderFrames() {
   }
 }
 
-void QuicChaosProtectorNew::SpreadPadding() {
+void QuicChaosProtector::SpreadPadding() {
   for (auto it = frames_.begin(); it != frames_.end(); ++it) {
     const int padding_bytes_in_this_frame =
         random_->InsecureRandUint64() % (remaining_padding_bytes_ + 1);
@@ -479,7 +477,7 @@ void QuicChaosProtectorNew::SpreadPadding() {
   }
 }
 
-std::optional<size_t> QuicChaosProtectorNew::BuildPacket(
+std::optional<size_t> QuicChaosProtector::BuildPacket(
     const QuicPacketHeader& header, char* buffer) {
   QuicStreamFrameDataProducer* original_data_producer =
       framer_->data_producer();

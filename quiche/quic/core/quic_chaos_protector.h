@@ -21,24 +21,25 @@
 namespace quic {
 
 namespace test {
-class QuicChaosProtectorTest;
+class QuicChaosProtectorOldTest;
 }
 
-// QuicChaosProtector will take a crypto frame and an amount of padding and
+// QuicChaosProtectorOld will take a crypto frame and an amount of padding and
 // build a data packet that will parse to something equivalent.
-class QUICHE_EXPORT QuicChaosProtector : public QuicStreamFrameDataProducer {
+class QUICHE_EXPORT QuicChaosProtectorOld : public QuicStreamFrameDataProducer {
  public:
-  // |framer| and |random| must be valid for the lifetime of QuicChaosProtector.
-  explicit QuicChaosProtector(const QuicCryptoFrame& crypto_frame,
-                              int num_padding_bytes, size_t packet_size,
-                              QuicFramer* framer, QuicRandom* random);
+  // |framer| and |random| must be valid for the lifetime of
+  // QuicChaosProtectorOld.
+  explicit QuicChaosProtectorOld(const QuicCryptoFrame& crypto_frame,
+                                 int num_padding_bytes, size_t packet_size,
+                                 QuicFramer* framer, QuicRandom* random);
 
-  ~QuicChaosProtector() override;
+  ~QuicChaosProtectorOld() override;
 
-  QuicChaosProtector(const QuicChaosProtector&) = delete;
-  QuicChaosProtector(QuicChaosProtector&&) = delete;
-  QuicChaosProtector& operator=(const QuicChaosProtector&) = delete;
-  QuicChaosProtector& operator=(QuicChaosProtector&&) = delete;
+  QuicChaosProtectorOld(const QuicChaosProtectorOld&) = delete;
+  QuicChaosProtectorOld(QuicChaosProtectorOld&&) = delete;
+  QuicChaosProtectorOld& operator=(const QuicChaosProtectorOld&) = delete;
+  QuicChaosProtectorOld& operator=(QuicChaosProtectorOld&&) = delete;
 
   // Attempts to build a data packet with chaos protection. If an error occurs,
   // then std::nullopt is returned. Otherwise returns the serialized length.
@@ -55,7 +56,7 @@ class QUICHE_EXPORT QuicChaosProtector : public QuicStreamFrameDataProducer {
                        QuicDataWriter* writer) override;
 
  private:
-  friend class test::QuicChaosProtectorTest;
+  friend class test::QuicChaosProtectorOldTest;
 
   // Allocate the crypto data buffer, create the CRYPTO frame and write the
   // crypto data to our buffer.
@@ -93,24 +94,24 @@ class QUICHE_EXPORT QuicChaosProtector : public QuicStreamFrameDataProducer {
 // End of old code, start of new code.
 
 namespace test {
-class QuicChaosProtectorNewTest;
+class QuicChaosProtectorTest;
 }
 
-// QuicChaosProtectorNew will take a crypto frame and an amount of padding and
+// QuicChaosProtector will take a crypto frame and an amount of padding and
 // build a data packet that will parse to something equivalent.
-class QUICHE_EXPORT QuicChaosProtectorNew : public QuicStreamFrameDataProducer {
+class QUICHE_EXPORT QuicChaosProtector : public QuicStreamFrameDataProducer {
  public:
   // |framer| and |random| must be valid for the lifetime of
-  // QuicChaosProtectorNew.
-  explicit QuicChaosProtectorNew(size_t packet_size, EncryptionLevel level,
-                                 QuicFramer* framer, QuicRandom* random);
+  // QuicChaosProtector.
+  explicit QuicChaosProtector(size_t packet_size, EncryptionLevel level,
+                              QuicFramer* framer, QuicRandom* random);
 
-  ~QuicChaosProtectorNew() override;
+  ~QuicChaosProtector() override;
 
-  QuicChaosProtectorNew(const QuicChaosProtectorNew&) = delete;
-  QuicChaosProtectorNew(QuicChaosProtectorNew&&) = delete;
-  QuicChaosProtectorNew& operator=(const QuicChaosProtectorNew&) = delete;
-  QuicChaosProtectorNew& operator=(QuicChaosProtectorNew&&) = delete;
+  QuicChaosProtector(const QuicChaosProtector&) = delete;
+  QuicChaosProtector(QuicChaosProtector&&) = delete;
+  QuicChaosProtector& operator=(const QuicChaosProtector&) = delete;
+  QuicChaosProtector& operator=(QuicChaosProtector&&) = delete;
 
   // Attempts to build a data packet with chaos protection. If an error occurs,
   // then std::nullopt is returned. Otherwise returns the serialized length.
@@ -127,7 +128,7 @@ class QUICHE_EXPORT QuicChaosProtectorNew : public QuicStreamFrameDataProducer {
                        QuicDataWriter* writer) override;
 
  private:
-  friend class test::QuicChaosProtectorNewTest;
+  friend class test::QuicChaosProtectorTest;
 
   // Ingest the frames to be chaos protected.
   bool IngestFrames(const QuicFrames& frames);

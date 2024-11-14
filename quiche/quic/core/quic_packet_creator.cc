@@ -790,14 +790,14 @@ QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
                                   << " != " << crypto_frame.level;
       return std::nullopt;
     }
-    QuicChaosProtector chaos_protector(
+    QuicChaosProtectorOld chaos_protector(
         crypto_frame, queued_frames_[1].padding_frame.num_padding_bytes,
         packet_size_, framer_, random_);
     return chaos_protector.BuildDataPacket(header, buffer);
   }
   QUIC_RELOADABLE_FLAG_COUNT(quic_enable_new_chaos_protector);
-  QuicChaosProtectorNew chaos_protector(packet_size_, packet_.encryption_level,
-                                        framer_, random_);
+  QuicChaosProtector chaos_protector(packet_size_, packet_.encryption_level,
+                                     framer_, random_);
   return chaos_protector.BuildDataPacket(header, queued_frames_, buffer);
 }
 
