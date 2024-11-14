@@ -18,6 +18,8 @@ namespace http2 {
 namespace adapter {
 namespace callbacks {
 
+using OnHeaderResult = ::http2::adapter::Http2VisitorInterface::OnHeaderResult;
+
 ssize_t OnReadyToSend(nghttp2_session* /* session */, const uint8_t* data,
                       size_t length, int flags, void* user_data) {
   QUICHE_CHECK_NE(user_data, nullptr);
@@ -187,18 +189,17 @@ int OnHeader(nghttp2_session* /* session */, const nghttp2_frame* frame,
                  << "], value=[" << absl::CEscape(ToStringView(value)) << "])";
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
-  const Http2VisitorInterface::OnHeaderResult result =
-      visitor->OnHeaderForStream(frame->hd.stream_id, ToStringView(name),
-                                 ToStringView(value));
+  const OnHeaderResult result = visitor->OnHeaderForStream(
+      frame->hd.stream_id, ToStringView(name), ToStringView(value));
   switch (result) {
-    case Http2VisitorInterface::HEADER_OK:
+    case OnHeaderResult::HEADER_OK:
       return 0;
-    case Http2VisitorInterface::HEADER_CONNECTION_ERROR:
-    case Http2VisitorInterface::HEADER_COMPRESSION_ERROR:
+    case OnHeaderResult::HEADER_CONNECTION_ERROR:
+    case OnHeaderResult::HEADER_COMPRESSION_ERROR:
       return NGHTTP2_ERR_CALLBACK_FAILURE;
-    case Http2VisitorInterface::HEADER_RST_STREAM:
-    case Http2VisitorInterface::HEADER_FIELD_INVALID:
-    case Http2VisitorInterface::HEADER_HTTP_MESSAGING:
+    case OnHeaderResult::HEADER_RST_STREAM:
+    case OnHeaderResult::HEADER_FIELD_INVALID:
+    case OnHeaderResult::HEADER_HTTP_MESSAGING:
       return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
   }
   // Unexpected value.

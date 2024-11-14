@@ -77,6 +77,8 @@ struct nghttp2_session_callbacks {
 namespace http2 {
 namespace adapter {
 
+using OnHeaderResult = ::http2::adapter::Http2VisitorInterface::OnHeaderResult;
+
 CallbackVisitor::CallbackVisitor(Perspective perspective,
                                  const nghttp2_session_callbacks& callbacks,
                                  void* user_data)
@@ -240,8 +242,9 @@ bool CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   return true;
 }
 
-Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(
-    Http2StreamId stream_id, absl::string_view name, absl::string_view value) {
+OnHeaderResult CallbackVisitor::OnHeaderForStream(Http2StreamId stream_id,
+                                                  absl::string_view name,
+                                                  absl::string_view value) {
   QUICHE_VLOG(2) << "OnHeaderForStream(stream_id=" << stream_id << ", name=["
                  << absl::CEscape(name) << "], value=[" << absl::CEscape(value)
                  << "])";
@@ -251,15 +254,15 @@ Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(
         ToUint8Ptr(value.data()), value.size(), NGHTTP2_NV_FLAG_NONE,
         user_data_);
     if (result == 0) {
-      return HEADER_OK;
+      return OnHeaderResult::HEADER_OK;
     } else if (result == NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE) {
-      return HEADER_RST_STREAM;
+      return OnHeaderResult::HEADER_RST_STREAM;
     } else {
       // Assume NGHTTP2_ERR_CALLBACK_FAILURE.
-      return HEADER_CONNECTION_ERROR;
+      return OnHeaderResult::HEADER_CONNECTION_ERROR;
     }
   }
-  return HEADER_OK;
+  return OnHeaderResult::HEADER_OK;
 }
 
 bool CallbackVisitor::OnEndHeadersForStream(Http2StreamId stream_id) {

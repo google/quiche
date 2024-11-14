@@ -150,7 +150,7 @@ class QUICHE_EXPORT Http2VisitorInterface {
   // different error code instead, which should be done before returning
   // HEADER_RST_STREAM. Returning HEADER_CONNECTION_ERROR will lead to a
   // non-recoverable error on the connection.
-  enum OnHeaderResult {
+  enum class OnHeaderResult {
     // The header was accepted.
     HEADER_OK,
     // The application considers the header a connection error.

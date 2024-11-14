@@ -23,6 +23,7 @@ namespace test {
 namespace {
 
 using ConnectionError = Http2VisitorInterface::ConnectionError;
+using OnHeaderResult = ::http2::adapter::Http2VisitorInterface::OnHeaderResult;
 
 using spdy::SpdyFrameType;
 using testing::_;
@@ -1832,7 +1833,7 @@ TEST(OgHttp2AdapterTest, ClientRstStreamWhileHandlingHeaders) {
           testing::InvokeWithoutArgs([&adapter]() {
             adapter->SubmitRst(1, Http2ErrorCode::REFUSED_STREAM);
           }),
-          testing::Return(Http2VisitorInterface::HEADER_RST_STREAM)));
+          testing::Return(OnHeaderResult::HEADER_RST_STREAM)));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
@@ -1910,8 +1911,7 @@ TEST(OgHttp2AdapterTest, ClientConnectionErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, "server", "my-fake-server"));
   EXPECT_CALL(visitor,
               OnHeaderForStream(1, "date", "Tue, 6 Apr 2021 12:54:01 GMT"))
-      .WillOnce(
-          testing::Return(Http2VisitorInterface::HEADER_CONNECTION_ERROR));
+      .WillOnce(testing::Return(OnHeaderResult::HEADER_CONNECTION_ERROR));
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kHeaderError));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
@@ -1985,8 +1985,7 @@ TEST(OgHttp2AdapterTest, ClientConnectionErrorWhileHandlingHeadersOnly) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, "server", "my-fake-server"));
   EXPECT_CALL(visitor,
               OnHeaderForStream(1, "date", "Tue, 6 Apr 2021 12:54:01 GMT"))
-      .WillOnce(
-          testing::Return(Http2VisitorInterface::HEADER_CONNECTION_ERROR));
+      .WillOnce(testing::Return(OnHeaderResult::HEADER_CONNECTION_ERROR));
   EXPECT_CALL(visitor, OnConnectionError(ConnectionError::kHeaderError));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
@@ -4913,7 +4912,7 @@ TEST(OgHttp2AdapterTest, ServerVisitorRejectsHeaders) {
   EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
   EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(5);
   EXPECT_CALL(visitor, OnHeaderForStream(1, "header2", _))
-      .WillOnce(testing::Return(Http2VisitorInterface::HEADER_RST_STREAM));
+      .WillOnce(testing::Return(OnHeaderResult::HEADER_RST_STREAM));
   // The CONTINUATION frame header and header fields are not processed.
 
   int64_t result = adapter->ProcessBytes(frames);
@@ -6246,7 +6245,7 @@ TEST(OgHttp2AdapterTest, ServerErrorWhileHandlingHeaders) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, "accept", "some bogus value!"))
-      .WillOnce(testing::Return(Http2VisitorInterface::HEADER_RST_STREAM));
+      .WillOnce(testing::Return(OnHeaderResult::HEADER_RST_STREAM));
   // Stream WINDOW_UPDATE and DATA frames are not delivered to the visitor.
   EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(0, 2000));
@@ -6315,7 +6314,7 @@ TEST(OgHttp2AdapterTest, ServerErrorWhileHandlingHeadersDropsFrames) {
   EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
   EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
   EXPECT_CALL(visitor, OnHeaderForStream(1, "accept", "some bogus value!"))
-      .WillOnce(testing::Return(Http2VisitorInterface::HEADER_RST_STREAM));
+      .WillOnce(testing::Return(OnHeaderResult::HEADER_RST_STREAM));
   // Frames for the RST_STREAM-marked stream are not delivered to the visitor.
   // Note: nghttp2 still delivers control frames and metadata for the stream.
   EXPECT_CALL(visitor, OnFrameHeader(0, 4, WINDOW_UPDATE, 0));

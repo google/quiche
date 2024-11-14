@@ -29,6 +29,7 @@ namespace {
 
 using ConnectionError = Http2VisitorInterface::ConnectionError;
 using DataFrameHeaderInfo = Http2VisitorInterface::DataFrameHeaderInfo;
+using OnHeaderResult = ::http2::adapter::Http2VisitorInterface::OnHeaderResult;
 using SpdyFramerError = Http2DecoderAdapter::SpdyFramerError;
 
 using ::spdy::SpdySettingsIR;
@@ -226,23 +227,22 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
   if (!status) {
     QUICHE_VLOG(1)
         << "Visitor rejected header block, returning HEADER_CONNECTION_ERROR";
-    SetResult(Http2VisitorInterface::HEADER_CONNECTION_ERROR);
+    SetResult(OnHeaderResult::HEADER_CONNECTION_ERROR);
   }
   validator_->StartHeaderBlock();
 }
 
-Http2VisitorInterface::OnHeaderResult InterpretHeaderStatus(
-    HeaderValidator::HeaderStatus status) {
+OnHeaderResult InterpretHeaderStatus(HeaderValidator::HeaderStatus status) {
   switch (status) {
     case HeaderValidator::HEADER_OK:
     case HeaderValidator::HEADER_SKIP:
-      return Http2VisitorInterface::HEADER_OK;
+      return OnHeaderResult::HEADER_OK;
     case HeaderValidator::HEADER_FIELD_INVALID:
-      return Http2VisitorInterface::HEADER_FIELD_INVALID;
+      return OnHeaderResult::HEADER_FIELD_INVALID;
     case HeaderValidator::HEADER_FIELD_TOO_LONG:
-      return Http2VisitorInterface::HEADER_RST_STREAM;
+      return OnHeaderResult::HEADER_RST_STREAM;
   }
-  return Http2VisitorInterface::HEADER_CONNECTION_ERROR;
+  return OnHeaderResult::HEADER_CONNECTION_ERROR;
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
@@ -262,7 +262,7 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     SetResult(InterpretHeaderStatus(validation_result));
     return;
   }
-  const Http2VisitorInterface::OnHeaderResult result =
+  const OnHeaderResult result =
       visitor_.OnHeaderForStream(stream_id_, key, value);
   SetResult(result);
 }
@@ -277,13 +277,13 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
   if (!validator_->FinishHeaderBlock(type_)) {
     QUICHE_VLOG(1) << "FinishHeaderBlock returned false; returning "
                    << "HEADER_HTTP_MESSAGING";
-    SetResult(Http2VisitorInterface::HEADER_HTTP_MESSAGING);
+    SetResult(OnHeaderResult::HEADER_HTTP_MESSAGING);
     return;
   }
   if (frame_contains_fin_ && IsResponse(type_) &&
       StatusIs1xx(status_header())) {
     QUICHE_VLOG(1) << "Unexpected end of stream without final headers";
-    SetResult(Http2VisitorInterface::HEADER_HTTP_MESSAGING);
+    SetResult(OnHeaderResult::HEADER_HTTP_MESSAGING);
     return;
   }
   const bool result = visitor_.OnEndHeadersForStream(stream_id_);
@@ -313,8 +313,8 @@ bool OgHttp2Session::PassthroughHeadersHandler::CanReceiveBody() const {
 }
 
 void OgHttp2Session::PassthroughHeadersHandler::SetResult(
-    Http2VisitorInterface::OnHeaderResult result) {
-  if (result != Http2VisitorInterface::HEADER_OK) {
+    OnHeaderResult result) {
+  if (result != OnHeaderResult::HEADER_OK) {
     error_encountered_ = true;
     session_.OnHeaderStatus(stream_id_, result);
   }
@@ -1641,24 +1641,24 @@ void OgHttp2Session::OnUnknownFramePayload(spdy::SpdyStreamId stream_id,
   }
 }
 
-void OgHttp2Session::OnHeaderStatus(
-    Http2StreamId stream_id, Http2VisitorInterface::OnHeaderResult result) {
-  QUICHE_DCHECK_NE(result, Http2VisitorInterface::HEADER_OK);
+void OgHttp2Session::OnHeaderStatus(Http2StreamId stream_id,
+                                    OnHeaderResult result) {
+  QUICHE_DCHECK(result != OnHeaderResult::HEADER_OK);
   QUICHE_VLOG(1) << "OnHeaderStatus(stream_id=" << stream_id
-                 << ", result=" << result << ")";
+                 << ", result=" << static_cast<int>(result) << ")";
   const bool should_reset_stream =
-      result == Http2VisitorInterface::HEADER_RST_STREAM ||
-      result == Http2VisitorInterface::HEADER_FIELD_INVALID ||
-      result == Http2VisitorInterface::HEADER_HTTP_MESSAGING;
+      result == OnHeaderResult::HEADER_RST_STREAM ||
+      result == OnHeaderResult::HEADER_FIELD_INVALID ||
+      result == OnHeaderResult::HEADER_HTTP_MESSAGING;
   if (should_reset_stream) {
     const Http2ErrorCode error_code =
-        (result == Http2VisitorInterface::HEADER_RST_STREAM)
+        (result == OnHeaderResult::HEADER_RST_STREAM)
             ? Http2ErrorCode::INTERNAL_ERROR
             : Http2ErrorCode::PROTOCOL_ERROR;
     const spdy::SpdyErrorCode spdy_error_code = TranslateErrorCode(error_code);
     const Http2VisitorInterface::InvalidFrameError frame_error =
-        (result == Http2VisitorInterface::HEADER_RST_STREAM ||
-         result == Http2VisitorInterface::HEADER_FIELD_INVALID)
+        (result == OnHeaderResult::HEADER_RST_STREAM ||
+         result == OnHeaderResult::HEADER_FIELD_INVALID)
             ? Http2VisitorInterface::InvalidFrameError::kHttpHeader
             : Http2VisitorInterface::InvalidFrameError::kHttpMessaging;
     auto it = streams_reset_.find(stream_id);
@@ -1666,8 +1666,8 @@ void OgHttp2Session::OnHeaderStatus(
       EnqueueFrame(
           std::make_unique<spdy::SpdyRstStreamIR>(stream_id, spdy_error_code));
 
-      if (result == Http2VisitorInterface::HEADER_FIELD_INVALID ||
-          result == Http2VisitorInterface::HEADER_HTTP_MESSAGING) {
+      if (result == OnHeaderResult::HEADER_FIELD_INVALID ||
+          result == OnHeaderResult::HEADER_HTTP_MESSAGING) {
         const bool ok = visitor_.OnInvalidFrame(stream_id, frame_error);
         if (!ok) {
           fatal_visitor_callback_failure_ = true;
@@ -1675,11 +1675,11 @@ void OgHttp2Session::OnHeaderStatus(
         }
       }
     }
-  } else if (result == Http2VisitorInterface::HEADER_CONNECTION_ERROR) {
+  } else if (result == OnHeaderResult::HEADER_CONNECTION_ERROR) {
     fatal_visitor_callback_failure_ = true;
     LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
                         ConnectionError::kHeaderError);
-  } else if (result == Http2VisitorInterface::HEADER_COMPRESSION_ERROR) {
+  } else if (result == OnHeaderResult::HEADER_COMPRESSION_ERROR) {
     LatchErrorAndNotify(Http2ErrorCode::COMPRESSION_ERROR,
                         ConnectionError::kHeaderError);
   }

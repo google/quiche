@@ -8,6 +8,8 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
+using OnHeaderResult = ::http2::adapter::Http2VisitorInterface::OnHeaderResult;
+
 int64_t RecordingHttp2Visitor::OnReadyToSend(absl::string_view serialized) {
   events_.push_back(absl::StrFormat("OnReadyToSend %d", serialized.size()));
   return serialized.size();
@@ -64,11 +66,11 @@ bool RecordingHttp2Visitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   return true;
 }
 
-Http2VisitorInterface::OnHeaderResult RecordingHttp2Visitor::OnHeaderForStream(
+OnHeaderResult RecordingHttp2Visitor::OnHeaderForStream(
     Http2StreamId stream_id, absl::string_view name, absl::string_view value) {
   events_.push_back(
       absl::StrFormat("OnHeaderForStream %d %s %s", stream_id, name, value));
-  return HEADER_OK;
+  return OnHeaderResult::HEADER_OK;
 }
 
 bool RecordingHttp2Visitor::OnEndHeadersForStream(Http2StreamId stream_id) {
