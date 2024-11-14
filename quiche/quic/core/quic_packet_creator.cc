@@ -783,16 +783,22 @@ QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
       framer_->data_producer() == nullptr) {
     return std::nullopt;
   }
-  const QuicCryptoFrame& crypto_frame = *queued_frames_[0].crypto_frame;
-  if (packet_.encryption_level != crypto_frame.level) {
-    QUIC_BUG(chaos frame level)
-        << ENDPOINT << packet_.encryption_level << " != " << crypto_frame.level;
-    return std::nullopt;
+  if (!GetQuicReloadableFlag(quic_enable_new_chaos_protector)) {
+    const QuicCryptoFrame& crypto_frame = *queued_frames_[0].crypto_frame;
+    if (packet_.encryption_level != crypto_frame.level) {
+      QUIC_BUG(chaos frame level) << ENDPOINT << packet_.encryption_level
+                                  << " != " << crypto_frame.level;
+      return std::nullopt;
+    }
+    QuicChaosProtector chaos_protector(
+        crypto_frame, queued_frames_[1].padding_frame.num_padding_bytes,
+        packet_size_, framer_, random_);
+    return chaos_protector.BuildDataPacket(header, buffer);
   }
-  QuicChaosProtector chaos_protector(
-      crypto_frame, queued_frames_[1].padding_frame.num_padding_bytes,
-      packet_size_, framer_, random_);
-  return chaos_protector.BuildDataPacket(header, buffer);
+  QUIC_RELOADABLE_FLAG_COUNT(quic_enable_new_chaos_protector);
+  QuicChaosProtectorNew chaos_protector(packet_size_, packet_.encryption_level,
+                                        framer_, random_);
+  return chaos_protector.BuildDataPacket(header, queued_frames_, buffer);
 }
 
 bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,

@@ -33,6 +33,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_discard_initial_packet_with_key_dr
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_ecn_in_first_ack, false, false, "When true, reports ECN in counts in the ACK of the a client initial that goes in the buffered packet store.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_disable_resumption, true, true, "If true, disable resumption when receiving NRES connection option.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_mtu_discovery_at_server, false, false, "If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_new_chaos_protector, false, false, "If true, use new refactored QuicChaosProtector implementation.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_server_on_wire_ping, true, true, "If true, enable server retransmittable on wire PING.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_version_rfcv2, false, false, "When true, support RFC9369.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_timeouts, true, true, "If true, postpone setting handshake timeout to infinite to handshake complete.")

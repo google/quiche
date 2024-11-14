@@ -35,6 +35,7 @@ class SimpleQuicFramer {
 
   const QuicPacketHeader& header() const;
   size_t num_frames() const;
+  const std::vector<QuicFrameType>& frame_types() const;
   const std::vector<QuicAckFrame>& ack_frames() const;
   const std::vector<QuicConnectionCloseFrame>& connection_close_frames() const;
   const std::vector<QuicStopWaitingFrame>& stop_waiting_frames() const;

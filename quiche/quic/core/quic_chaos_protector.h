@@ -90,6 +90,81 @@ class QUICHE_EXPORT QuicChaosProtector : public QuicStreamFrameDataProducer {
   QuicRandom* random_;  // Unowned.
 };
 
+// End of old code, start of new code.
+
+namespace test {
+class QuicChaosProtectorNewTest;
+}
+
+// QuicChaosProtectorNew will take a crypto frame and an amount of padding and
+// build a data packet that will parse to something equivalent.
+class QUICHE_EXPORT QuicChaosProtectorNew : public QuicStreamFrameDataProducer {
+ public:
+  // |framer| and |random| must be valid for the lifetime of
+  // QuicChaosProtectorNew.
+  explicit QuicChaosProtectorNew(size_t packet_size, EncryptionLevel level,
+                                 QuicFramer* framer, QuicRandom* random);
+
+  ~QuicChaosProtectorNew() override;
+
+  QuicChaosProtectorNew(const QuicChaosProtectorNew&) = delete;
+  QuicChaosProtectorNew(QuicChaosProtectorNew&&) = delete;
+  QuicChaosProtectorNew& operator=(const QuicChaosProtectorNew&) = delete;
+  QuicChaosProtectorNew& operator=(QuicChaosProtectorNew&&) = delete;
+
+  // Attempts to build a data packet with chaos protection. If an error occurs,
+  // then std::nullopt is returned. Otherwise returns the serialized length.
+  std::optional<size_t> BuildDataPacket(const QuicPacketHeader& header,
+                                        const QuicFrames& frames, char* buffer);
+
+  // From QuicStreamFrameDataProducer.
+  WriteStreamDataResult WriteStreamData(QuicStreamId id,
+                                        QuicStreamOffset offset,
+                                        QuicByteCount data_length,
+                                        QuicDataWriter* /*writer*/) override;
+  bool WriteCryptoData(EncryptionLevel level, QuicStreamOffset offset,
+                       QuicByteCount data_length,
+                       QuicDataWriter* writer) override;
+
+ private:
+  friend class test::QuicChaosProtectorNewTest;
+
+  // Ingest the frames to be chaos protected.
+  bool IngestFrames(const QuicFrames& frames);
+
+  // Allocate the crypto data buffer, create the CRYPTO frame and write the
+  // crypto data to our buffer.
+  bool CopyCryptoDataToLocalBuffer();
+
+  // Split the CRYPTO frame in |frames_| into one or more CRYPTO frames that
+  // collectively represent the same data. Adjusts padding to compensate.
+  void SplitCryptoFrame();
+
+  // Add a random number of PING frames to |frames_| and adjust padding.
+  void AddPingFrames();
+
+  // Randomly reorder |frames_|.
+  void ReorderFrames();
+
+  // Add PADDING frames randomly between all other frames.
+  void SpreadPadding();
+
+  // Serialize |frames_| using |framer_|.
+  std::optional<size_t> BuildPacket(const QuicPacketHeader& header,
+                                    char* buffer);
+
+  size_t packet_size_;
+  std::unique_ptr<char[]> crypto_frame_buffer_;
+  const char* crypto_data_buffer_ = nullptr;
+  QuicByteCount crypto_data_length_ = 0;
+  QuicStreamOffset crypto_buffer_offset_ = 0;
+  EncryptionLevel level_;
+  int remaining_padding_bytes_ = 0;
+  QuicFrames frames_;   // Inner frames owned, will be deleted by destructor.
+  QuicFramer* framer_;  // Unowned.
+  QuicRandom* random_;  // Unowned.
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_CHAOS_PROTECTOR_H_
