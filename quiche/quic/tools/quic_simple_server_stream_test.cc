@@ -22,6 +22,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -830,6 +831,9 @@ TEST_P(QuicSimpleServerStreamTest, ErrorOnUnhandledConnect) {
   // Expect single set of failure response headers with FIN in response to the
   // headers. Then, expect abrupt stream termination in response to the body.
   EXPECT_CALL(*stream_, WriteHeadersMock(true));
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    EXPECT_CALL(session_, MaybeSendStopSendingFrame(stream_->id(), _));
+  }
   EXPECT_CALL(session_, MaybeSendRstStreamFrame(stream_->id(), _, _));
 
   QuicHeaderList header_list;
@@ -894,6 +898,10 @@ TEST_P(QuicSimpleServerStreamTest, BackendCanTerminateStream) {
       QuicResetStreamError::FromInternal(QUIC_STREAM_CONNECT_ERROR);
   EXPECT_CALL(*test_backend_ptr, HandleConnectHeaders(_, _))
       .WillOnce(TerminateStream(expected_error));
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    EXPECT_CALL(session_,
+                MaybeSendStopSendingFrame(stream_->id(), expected_error));
+  }
   EXPECT_CALL(session_,
               MaybeSendRstStreamFrame(stream_->id(), expected_error, _));
 

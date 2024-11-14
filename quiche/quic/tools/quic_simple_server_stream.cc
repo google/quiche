@@ -147,7 +147,7 @@ void QuicSimpleServerStream::HandleRequestConnectData(bool fin_received) {
 
   if (quic_simple_server_backend_ == nullptr) {
     QUIC_DVLOG(1) << "Backend is missing on CONNECT data.";
-    ResetWriteSide(
+    ResetWithError(
         QuicResetStreamError::FromInternal(QUIC_STREAM_CONNECT_ERROR));
     return;
   }
@@ -376,7 +376,7 @@ void QuicSimpleServerStream::TerminateStreamWithError(
     QuicResetStreamError error) {
   QUIC_DVLOG(1) << "Stream " << id() << " abruptly terminating with error "
                 << error.internal_code();
-  ResetWriteSide(error);
+  ResetWithError(error);
 }
 
 void QuicSimpleServerStream::OnCanWrite() {
