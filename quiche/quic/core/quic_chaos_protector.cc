@@ -252,9 +252,6 @@ bool QuicChaosProtector::IngestFrames(const QuicFrames& frames) {
         crypto_data_length_ = frame.crypto_frame->data_length;
         crypto_buffer_offset_ = frame.crypto_frame->offset;
         max_crypto_data = crypto_buffer_offset_ + crypto_data_length_;
-        QUIC_LOG(ERROR) << "ds33 first max_crypto_data = " << max_crypto_data
-                        << " offset = " << crypto_buffer_offset_
-                        << " data_length = " << crypto_data_length_;
       } else {
         crypto_buffer_offset_ =
             std::min(crypto_buffer_offset_, frame.crypto_frame->offset);
@@ -262,10 +259,6 @@ bool QuicChaosProtector::IngestFrames(const QuicFrames& frames) {
             std::max(max_crypto_data, frame.crypto_frame->offset +
                                           frame.crypto_frame->data_length);
         crypto_data_length_ = max_crypto_data - crypto_buffer_offset_;
-        QUIC_LOG(ERROR) << "ds33 subsequent max_crypto_data = "
-                        << max_crypto_data
-                        << " offset = " << crypto_buffer_offset_
-                        << " data_length = " << crypto_data_length_;
       }
       has_crypto_frame = true;
       frames_.push_back(QuicFrame(new QuicCryptoFrame(*frame.crypto_frame)));

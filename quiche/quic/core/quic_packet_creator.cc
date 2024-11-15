@@ -772,18 +772,20 @@ QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
   if (!GetQuicFlag(quic_enable_chaos_protection) ||
       framer_->perspective() != Perspective::IS_CLIENT ||
       packet_.encryption_level != ENCRYPTION_INITIAL ||
-      !framer_->version().UsesCryptoFrames() || queued_frames_.size() != 2u ||
-      queued_frames_[0].type != CRYPTO_FRAME ||
-      queued_frames_[1].type != PADDING_FRAME ||
-      // Do not perform chaos protection if we do not have a known number of
-      // padding bytes to work with.
-      queued_frames_[1].padding_frame.num_padding_bytes <= 0 ||
+      !framer_->version().UsesCryptoFrames() ||
       // Chaos protection relies on the framer using a crypto data producer,
       // which is always the case in practice.
       framer_->data_producer() == nullptr) {
     return std::nullopt;
   }
   if (!GetQuicReloadableFlag(quic_enable_new_chaos_protector)) {
+    if (queued_frames_.size() != 2u || queued_frames_[0].type != CRYPTO_FRAME ||
+        queued_frames_[1].type != PADDING_FRAME ||
+        // Do not perform chaos protection if we do not have a known number of
+        // padding bytes to work with.
+        queued_frames_[1].padding_frame.num_padding_bytes <= 0) {
+      return std::nullopt;
+    }
     const QuicCryptoFrame& crypto_frame = *queued_frames_[0].crypto_frame;
     if (packet_.encryption_level != crypto_frame.level) {
       QUIC_BUG(chaos frame level) << ENDPOINT << packet_.encryption_level
