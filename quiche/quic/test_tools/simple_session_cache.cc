@@ -17,9 +17,10 @@ void SimpleSessionCache::Insert(const QuicServerId& server_id,
                                 bssl::UniquePtr<SSL_SESSION> session,
                                 const TransportParameters& params,
                                 const ApplicationState* application_state) {
-  auto it = cache_entries_.find(server_id);
+  auto it = cache_entries_.find(server_id.cache_key());
   if (it == cache_entries_.end()) {
-    it = cache_entries_.insert(std::make_pair(server_id, Entry())).first;
+    it = cache_entries_.insert(std::make_pair(server_id.cache_key(), Entry()))
+             .first;
   }
   if (session != nullptr) {
     it->second.session = std::move(session);
@@ -34,7 +35,7 @@ void SimpleSessionCache::Insert(const QuicServerId& server_id,
 std::unique_ptr<QuicResumptionState> SimpleSessionCache::Lookup(
     const QuicServerId& server_id, QuicWallTime /*now*/,
     const SSL_CTX* /*ctx*/) {
-  auto it = cache_entries_.find(server_id);
+  auto it = cache_entries_.find(server_id.cache_key());
   if (it == cache_entries_.end()) {
     return nullptr;
   }
@@ -63,7 +64,7 @@ void SimpleSessionCache::ClearEarlyData(const QuicServerId& /*server_id*/) {
 
 void SimpleSessionCache::OnNewTokenReceived(const QuicServerId& server_id,
                                             absl::string_view token) {
-  auto it = cache_entries_.find(server_id);
+  auto it = cache_entries_.find(server_id.cache_key());
   if (it == cache_entries_.end()) {
     return;
   }

@@ -14,7 +14,7 @@ class QuicClientSessionCachePeer {
  public:
   static std::string GetToken(QuicClientSessionCache* cache,
                               const QuicServerId& server_id) {
-    auto iter = cache->cache_.Lookup(server_id);
+    auto iter = cache->cache_.Lookup(server_id.cache_key());
     if (iter == cache->cache_.end()) {
       return {};
     }
@@ -23,7 +23,7 @@ class QuicClientSessionCachePeer {
 
   static bool HasEntry(QuicClientSessionCache* cache,
                        const QuicServerId& server_id) {
-    return cache->cache_.Lookup(server_id) != cache->cache_.end();
+    return cache->cache_.Lookup(server_id.cache_key()) != cache->cache_.end();
   }
 };
 

@@ -60,16 +60,22 @@ std::optional<QuicServerId> QuicServerId::ParseFromHostPortString(
 QuicServerId::QuicServerId() : QuicServerId("", 0) {}
 
 QuicServerId::QuicServerId(std::string host, uint16_t port)
-    : host_(std::move(host)), port_(port) {}
+    : host_(host), port_(port), cache_key_(absl::StrCat(host, ":", port)) {}
+
+QuicServerId::QuicServerId(std::string host, uint16_t port,
+                           std::string cache_key)
+    : host_(std::move(host)), port_(port), cache_key_(std::move(cache_key)) {}
 
 QuicServerId::~QuicServerId() {}
 
 bool QuicServerId::operator<(const QuicServerId& other) const {
-  return std::tie(port_, host_) < std::tie(other.port_, other.host_);
+  return std::tie(port_, host_, cache_key_) <
+         std::tie(other.port_, other.host_, other.cache_key_);
 }
 
 bool QuicServerId::operator==(const QuicServerId& other) const {
-  return host_ == other.host_ && port_ == other.port_;
+  return host_ == other.host_ && port_ == other.port_ &&
+         cache_key_ == other.cache_key_;
 }
 
 bool QuicServerId::operator!=(const QuicServerId& other) const {

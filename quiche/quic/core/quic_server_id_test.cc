@@ -4,8 +4,11 @@
 
 #include "quiche/quic/core/quic_server_id.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "quiche/quic/platform/api/quic_test.h"
 
@@ -61,6 +64,9 @@ TEST_F(QuicServerIdTest, Equals) {
   QuicServerId b_10_https("b.com", 10);
   QuicServerId b_11_https("b.com", 11);
 
+  EXPECT_NE(a_10_https.cache_key(), a_11_https.cache_key());
+  EXPECT_NE(a_10_https.cache_key(), b_10_https.cache_key());
+  EXPECT_NE(a_10_https.cache_key(), b_11_https.cache_key());
   EXPECT_NE(a_10_https, a_11_https);
   EXPECT_NE(a_10_https, b_10_https);
   EXPECT_NE(a_10_https, b_11_https);
@@ -70,6 +76,10 @@ TEST_F(QuicServerIdTest, Equals) {
   QuicServerId new_b_10_https("b.com", 10);
   QuicServerId new_b_11_https("b.com", 11);
 
+  EXPECT_EQ(new_a_10_https.cache_key(), a_10_https.cache_key());
+  EXPECT_EQ(new_a_11_https.cache_key(), a_11_https.cache_key());
+  EXPECT_EQ(new_b_10_https.cache_key(), b_10_https.cache_key());
+  EXPECT_EQ(new_b_11_https.cache_key(), b_11_https.cache_key());
   EXPECT_EQ(new_a_10_https, a_10_https);
   EXPECT_EQ(new_a_11_https, a_11_https);
   EXPECT_EQ(new_b_10_https, b_10_https);
@@ -165,6 +175,47 @@ TEST_F(QuicServerIdTest, RemoveBracketsFromNonIpv6) {
   QuicServerId server_id("host.test", 100);
 
   EXPECT_EQ(server_id.GetHostWithoutIpv6Brackets(), "host.test");
+}
+
+TEST_F(QuicServerIdTest, CacheKeyEquals) {
+  QuicServerId a_10_https("a.com", 10, "key1");
+  QuicServerId a_11_https("a.com", 11, "key1");
+  QuicServerId b_10_https("b.com", 10, "key2");
+  QuicServerId b_11_https("b.com", 11, "key2");
+
+  EXPECT_EQ(a_10_https.cache_key(), a_10_https.cache_key());
+  EXPECT_EQ(a_10_https.cache_key(), a_11_https.cache_key());
+  EXPECT_EQ(b_10_https.cache_key(), b_11_https.cache_key());
+  EXPECT_NE(a_10_https.cache_key(), b_10_https.cache_key());
+  EXPECT_NE(a_10_https.cache_key(), b_11_https.cache_key());
+  EXPECT_NE(a_11_https.cache_key(), b_10_https.cache_key());
+  EXPECT_NE(a_11_https.cache_key(), b_11_https.cache_key());
+
+  EXPECT_EQ(a_10_https, a_10_https);
+  EXPECT_NE(a_10_https, a_11_https);
+  EXPECT_NE(b_10_https, b_11_https);
+  EXPECT_NE(a_10_https, b_10_https);
+  EXPECT_NE(a_10_https, b_11_https);
+  EXPECT_NE(a_11_https, b_10_https);
+  EXPECT_NE(a_11_https, b_11_https);
+
+  EXPECT_EQ(QuicServerIdHash()(a_10_https), QuicServerIdHash()(a_10_https));
+  EXPECT_EQ(QuicServerIdHash()(a_10_https), QuicServerIdHash()(a_11_https));
+  EXPECT_EQ(QuicServerIdHash()(b_10_https), QuicServerIdHash()(b_11_https));
+}
+
+TEST_F(QuicServerIdTest, CacheKeyLessThan) {
+  std::vector<QuicServerId> server_ids;
+  for (uint16_t port : {10, 11}) {
+    for (std::string host : {"a.com", "b.com"}) {
+      for (std::string cache_key : {"key1", "key2"}) {
+        server_ids.push_back(QuicServerId(host, port, cache_key));
+      }
+    }
+  }
+  for (size_t i = 0; i < server_ids.size() - 1; ++i) {
+    EXPECT_LT(server_ids[i], server_ids[i + 1]);
+  }
 }
 
 }  // namespace

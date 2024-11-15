@@ -6,7 +6,9 @@
 #define QUICHE_QUIC_TEST_TOOLS_SIMPLE_SESSION_CACHE_H_
 
 #include <memory>
+#include <string>
 
+#include "absl/container/flat_hash_map.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 
@@ -44,7 +46,7 @@ class SimpleSessionCache : public SessionCache {
     std::unique_ptr<ApplicationState> application_state;
     std::string token;
   };
-  std::map<QuicServerId, Entry> cache_entries_;
+  absl::flat_hash_map<std::string, Entry> cache_entries_;
 };
 
 }  // namespace test

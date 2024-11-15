@@ -27,6 +27,7 @@ class QUICHE_EXPORT QuicServerId {
 
   QuicServerId();
   QuicServerId(std::string host, uint16_t port);
+  QuicServerId(std::string host, uint16_t port, std::string cache_key);
   ~QuicServerId();
 
   // Needed to be an element of an ordered container.
@@ -38,6 +39,9 @@ class QUICHE_EXPORT QuicServerId {
   const std::string& host() const { return host_; }
 
   uint16_t port() const { return port_; }
+
+  // This is the key used by SessionCache to retrieve the cached session.
+  const std::string& cache_key() const { return cache_key_; }
 
   // Returns a "host:port" representation. IPv6 literal hosts will always be
   // bracketed in result.
@@ -53,12 +57,15 @@ class QUICHE_EXPORT QuicServerId {
 
   template <typename H>
   friend H AbslHashValue(H h, const QuicServerId& server_id) {
-    return H::combine(std::move(h), server_id.host(), server_id.port());
+    return H::combine(std::move(h), server_id.cache_key_);
   }
 
  private:
   std::string host_;
   uint16_t port_;
+
+  // Key used for order comparison, equality and hashing.
+  std::string cache_key_;
 };
 
 using QuicServerIdHash = absl::Hash<QuicServerId>;
