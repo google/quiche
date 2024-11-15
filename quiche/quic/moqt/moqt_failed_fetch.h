@@ -21,6 +21,8 @@ class MoqtFailedFetch : public MoqtFetchTask {
     return kError;
   }
   absl::Status GetStatus() override { return status_; }
+  void SetObjectAvailableCallback(
+      ObjectsAvailableCallback /*callback*/) override {}
 
  private:
   absl::Status status_;

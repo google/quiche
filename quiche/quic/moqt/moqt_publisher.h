@@ -15,6 +15,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace moqt {
 
@@ -47,6 +48,8 @@ class MoqtObjectListener {
 // cancelled by deleting the object.
 class MoqtFetchTask {
  public:
+  using ObjectsAvailableCallback = quiche::MultiUseCallback<void()>;
+
   virtual ~MoqtFetchTask() = default;
 
   // Potential results of a GetNextObject() call.
@@ -64,6 +67,12 @@ class MoqtFetchTask {
 
   // Returns the next object received via the fetch, if available.
   virtual GetNextObjectResult GetNextObject(PublishedObject& output) = 0;
+
+  // Sets the callback that is called when GetNextObject() has previously
+  // returned kPending, but now a new object (or potentially an error or an
+  // end-of-fetch) is available.
+  virtual void SetObjectAvailableCallback(
+      ObjectsAvailableCallback callback) = 0;
 
   // Returns the error if fetch has completely failed, and OK otherwise.
   virtual absl::Status GetStatus() = 0;

@@ -103,6 +103,12 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
     GetNextObjectResult GetNextObject(PublishedObject&) override;
     absl::Status GetStatus() override { return status_; }
 
+    void SetObjectAvailableCallback(
+        ObjectsAvailableCallback /*callback*/) override {
+      // Not needed since all objects in a fetch against an in-memory queue are
+      // guaranteed to resolve immediately.
+    }
+
    private:
     GetNextObjectResult GetNextObjectInner(PublishedObject&);
 
