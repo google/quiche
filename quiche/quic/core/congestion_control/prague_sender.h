@@ -22,10 +22,10 @@ namespace quic {
 
 class RttStats;
 
-constexpr float kPragueEwmaGain = 1 / 16.0;
-constexpr QuicTime::Delta kPragueRttVirtMin =
+inline constexpr float kPragueEwmaGain = 1 / 16.0;
+inline constexpr QuicTime::Delta kPragueRttVirtMin =
     QuicTime::Delta::FromMilliseconds(25);
-constexpr int kRoundsBeforeReducedRttDependence = 500;
+inline constexpr int kRoundsBeforeReducedRttDependence = 500;
 
 namespace test {
 class PragueSenderPeer;

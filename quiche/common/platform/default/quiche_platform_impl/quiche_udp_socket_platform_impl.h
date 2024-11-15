@@ -15,9 +15,9 @@
 
 namespace quiche {
 
-constexpr size_t kCmsgSpaceForGooglePacketHeaderImpl = 0;
+inline constexpr size_t kCmsgSpaceForGooglePacketHeaderImpl = 0;
 
-constexpr uint8_t kQuichePlatformImplEcnMask = 0x03;
+inline constexpr uint8_t kQuichePlatformImplEcnMask = 0x03;
 
 inline bool GetGooglePacketHeadersFromControlMessageImpl(
     struct ::cmsghdr* /*cmsg*/, char** /*packet_headers*/,

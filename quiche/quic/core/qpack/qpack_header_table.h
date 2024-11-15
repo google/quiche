@@ -18,7 +18,7 @@ namespace quic {
 
 using QpackEntry = spdy::HpackEntry;
 using QpackLookupEntry = spdy::HpackLookupEntry;
-constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
+inline constexpr size_t kQpackEntrySizeOverhead = spdy::kHpackEntrySizeOverhead;
 
 // Encoder needs pointer stability for |dynamic_index_| and
 // |dynamic_name_index_|.  However, it does not need random access.

@@ -27,13 +27,15 @@ class LoadBalancerEncoderPeer;
 inline constexpr uint8_t kLoadBalancerUnroutableLen = 8;
 // When the encoder is self-encoding the connection ID length, these are the
 // bits of the first byte that do so.
-constexpr uint8_t kLoadBalancerLengthMask = (1 << kConnectionIdLengthBits) - 1;
+inline constexpr uint8_t kLoadBalancerLengthMask =
+    (1 << kConnectionIdLengthBits) - 1;
 
 // The bits of the connection ID first byte that encode the config ID.
-constexpr uint8_t kLoadBalancerConfigIdMask = ~kLoadBalancerLengthMask;
+inline constexpr uint8_t kLoadBalancerConfigIdMask = ~kLoadBalancerLengthMask;
 // The config ID that means the connection ID does not contain routing
 // information.
-constexpr uint8_t kLoadBalancerUnroutableConfigId = kNumLoadBalancerConfigs;
+inline constexpr uint8_t kLoadBalancerUnroutableConfigId =
+    kNumLoadBalancerConfigs;
 // The bits of the connection ID first byte that correspond to a connection ID
 // that does not contain routing information.
 constexpr uint8_t kLoadBalancerUnroutablePrefix =
