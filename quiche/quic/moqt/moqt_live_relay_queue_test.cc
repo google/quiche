@@ -67,6 +67,8 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
     }
   }
 
+  MOCK_METHOD(void, OnNewFinAvailable, (FullSequence sequence));
+  MOCK_METHOD(void, OnGroupAbandoned, (uint64_t group_id));
   MOCK_METHOD(void, CloseStreamForGroup, (uint64_t group_id), ());
   MOCK_METHOD(void, CloseStreamForSubgroup,
               (uint64_t group_id, uint64_t subgroup_id), ());
@@ -198,9 +200,11 @@ TEST(MoqtLiveRelayQueue, FiveGroups) {
     EXPECT_CALL(queue, PublishObject(2, 0, "e"));
     EXPECT_CALL(queue, PublishObject(2, 1, "f"));
     EXPECT_CALL(queue, CloseStreamForGroup(2));
+    EXPECT_CALL(queue, OnGroupAbandoned(0));
     EXPECT_CALL(queue, PublishObject(3, 0, "g"));
     EXPECT_CALL(queue, PublishObject(3, 1, "h"));
     EXPECT_CALL(queue, CloseStreamForGroup(3));
+    EXPECT_CALL(queue, OnGroupAbandoned(1));
     EXPECT_CALL(queue, PublishObject(4, 0, "i"));
     EXPECT_CALL(queue, PublishObject(4, 1, "j"));
   }
@@ -237,9 +241,11 @@ TEST(MoqtLiveRelayQueue, FiveGroupsPastSubscribe) {
     EXPECT_CALL(queue, PublishObject(2, 0, "e"));
     EXPECT_CALL(queue, PublishObject(2, 1, "f"));
     EXPECT_CALL(queue, CloseStreamForGroup(2));
+    EXPECT_CALL(queue, OnGroupAbandoned(0));
     EXPECT_CALL(queue, PublishObject(3, 0, "g"));
     EXPECT_CALL(queue, PublishObject(3, 1, "h"));
     EXPECT_CALL(queue, CloseStreamForGroup(3));
+    EXPECT_CALL(queue, OnGroupAbandoned(1));
     EXPECT_CALL(queue, PublishObject(4, 0, "i"));
     EXPECT_CALL(queue, PublishObject(4, 1, "j"));
 
@@ -286,9 +292,11 @@ TEST(MoqtLiveRelayQueue, FiveGroupsPastSubscribeFromMidGroup) {
     EXPECT_CALL(queue, PublishObject(2, 0, "e"));
     EXPECT_CALL(queue, PublishObject(2, 1, "f"));
     EXPECT_CALL(queue, CloseStreamForGroup(2));
+    EXPECT_CALL(queue, OnGroupAbandoned(0));
     EXPECT_CALL(queue, PublishObject(3, 0, "g"));
     EXPECT_CALL(queue, PublishObject(3, 1, "h"));
     EXPECT_CALL(queue, CloseStreamForGroup(3));
+    EXPECT_CALL(queue, OnGroupAbandoned(1));
     EXPECT_CALL(queue, PublishObject(4, 0, "i"));
     EXPECT_CALL(queue, PublishObject(4, 1, "j"));
   }
@@ -426,6 +434,36 @@ TEST(MoqtLiveRelayQueue, EndOfSubgroup) {
   EXPECT_TRUE(
       queue.AddObject(FullSequence{0, 0, 1}, MoqtObjectStatus::kEndOfSubgroup));
   EXPECT_FALSE(queue.AddObject(FullSequence{0, 0, 2}, "b"));
+}
+
+TEST(MoqtLiveRelayQueue, AddObjectWithFin) {
+  TestMoqtLiveRelayQueue queue;
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+  }
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0, 0}, "a", true));
+  std::optional<PublishedObject> object =
+      queue.GetCachedObject(FullSequence{0, 0});
+  ASSERT_TRUE(object.has_value());
+  EXPECT_EQ(object->status, MoqtObjectStatus::kNormal);
+  EXPECT_TRUE(object->fin_after_this);
+}
+
+TEST(MoqtLiveRelayQueue, LateFin) {
+  TestMoqtLiveRelayQueue queue;
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+  }
+  EXPECT_TRUE(queue.AddObject(FullSequence{0, 0, 0}, "a", false));
+  EXPECT_CALL(queue, OnNewFinAvailable(FullSequence{0, 0}));
+  EXPECT_TRUE(queue.AddFin(FullSequence{0, 0}));
+  std::optional<PublishedObject> object =
+      queue.GetCachedObject(FullSequence{0, 0});
+  ASSERT_TRUE(object.has_value());
+  EXPECT_EQ(object->status, MoqtObjectStatus::kNormal);
+  EXPECT_TRUE(object->fin_after_this);
 }
 
 }  // namespace

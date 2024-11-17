@@ -1061,6 +1061,39 @@ void MoqtSession::PublishedSubscription::OnTrackPublisherGone() {
                             "Publisher is gone");
 }
 
+void MoqtSession::PublishedSubscription::OnNewFinAvailable(
+    FullSequence sequence) {
+  if (!window_.InWindow(sequence)) {
+    return;
+  }
+  std::optional<webtransport::StreamId> stream_id =
+      stream_map().GetStreamForSequence(sequence);
+  if (!stream_id.has_value()) {
+    return;
+  }
+  webtransport::Stream* raw_stream =
+      session_->session_->GetStreamById(*stream_id);
+  if (raw_stream == nullptr) {
+    return;
+  }
+  OutgoingDataStream* stream =
+      static_cast<OutgoingDataStream*>(raw_stream->visitor());
+  stream->Fin(sequence);
+}
+
+void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
+  std::vector<webtransport::StreamId> streams =
+      stream_map().GetStreamsForGroup(group_id);
+  for (webtransport::StreamId stream_id : streams) {
+    webtransport::Stream* raw_stream =
+        session_->session_->GetStreamById(stream_id);
+    if (raw_stream == nullptr) {
+      continue;
+    }
+    raw_stream->ResetWithUserCode(kResetCodeTimedOut);
+  }
+}
+
 void MoqtSession::PublishedSubscription::Backfill() {
   const FullSequence start = window_.start();
   const FullSequence end = track_publisher_->GetLargestSequence();
@@ -1261,6 +1294,17 @@ void MoqtSession::OutgoingDataStream::SendObjects(
   }
 }
 
+void MoqtSession::OutgoingDataStream::Fin(FullSequence last_object) {
+  if (next_object_ <= last_object) {
+    // There is still data to send, do nothing.
+    return;
+  }
+  // All data has already been sent; send a pure FIN.
+  bool success = stream_->SendFin();
+  QUICHE_BUG_IF(OutgoingDataStream_fin_failed, !success)
+      << "Writing pure FIN failed.";
+}
+
 void MoqtSession::OutgoingDataStream::SendNextObject(
     PublishedSubscription& subscription, PublishedObject object) {
   QUICHE_DCHECK(next_object_ <= object.sequence);
@@ -1291,7 +1335,6 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
       session_->framer_.SerializeObjectHeader(
           header, GetMessageTypeForForwardingPreference(forwarding_preference),
           !stream_header_written_);
-  bool fin = false;
   switch (forwarding_preference) {
     case MoqtForwardingPreference::kTrack:
       if (object.status == MoqtObjectStatus::kEndOfGroup ||
@@ -1301,20 +1344,10 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
       } else {
         next_object_.object = header.object_id + 1;
       }
-      fin = object.status == MoqtObjectStatus::kEndOfTrack ||
-            !subscription.InWindow(next_object_);
       break;
 
     case MoqtForwardingPreference::kSubgroup:
-      // TODO(martinduke): EndOfGroup and EndOfTrack implies the ability to
-      // close other streams/subgroups. PublishedObject should contain a boolean
-      // if the stream is safe to close.
       next_object_.object = header.object_id + 1;
-      fin = object.status == MoqtObjectStatus::kEndOfTrack ||
-            object.status == MoqtObjectStatus::kEndOfGroup ||
-            object.status == MoqtObjectStatus::kEndOfSubgroup ||
-            object.status == MoqtObjectStatus::kGroupDoesNotExist ||
-            !subscription.InWindow(next_object_);
       break;
 
     case MoqtForwardingPreference::kDatagram:
@@ -1327,7 +1360,7 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
   std::array<absl::string_view, 2> write_vector = {
       serialized_header.AsStringView(), object.payload.AsStringView()};
   quiche::StreamWriteOptions options;
-  options.set_send_fin(fin);
+  options.set_send_fin(object.fin_after_this);
   absl::Status write_status = stream_->Writev(write_vector, options);
   if (!write_status.ok()) {
     QUICHE_BUG(MoqtSession_SendNextObject_write_failed)
@@ -1339,7 +1372,7 @@ void MoqtSession::OutgoingDataStream::SendNextObject(
   }
 
   QUIC_DVLOG(1) << "Stream " << stream_->GetStreamId() << " successfully wrote "
-                << object.sequence << ", fin = " << fin
+                << object.sequence << ", fin = " << object.fin_after_this
                 << ", next: " << next_object_;
 
   stream_header_written_ = true;

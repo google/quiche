@@ -66,6 +66,8 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
     }
   }
 
+  MOCK_METHOD(void, OnNewFinAvailable, (FullSequence sequence));
+  MOCK_METHOD(void, OnGroupAbandoned, (uint64_t group_id));
   MOCK_METHOD(void, CloseStreamForGroup, (uint64_t group_id), ());
   MOCK_METHOD(void, PublishObject,
               (uint64_t group_id, uint64_t object_id,

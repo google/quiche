@@ -21,6 +21,7 @@ struct CachedObject {
   MoqtObjectStatus status;
   MoqtPriority publisher_priority;
   std::shared_ptr<quiche::QuicheMemSlice> payload;
+  bool fin_after_this;  // This is the last object before FIN.
 };
 
 // Transforms a CachedObject into a PublishedObject.

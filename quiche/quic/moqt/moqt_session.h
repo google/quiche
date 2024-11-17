@@ -313,6 +313,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // This is only called for objects that have just arrived.
     void OnNewObjectAvailable(FullSequence sequence) override;
     void OnTrackPublisherGone() override;
+    void OnNewFinAvailable(FullSequence sequence) override;
+    void OnGroupAbandoned(uint64_t group_id) override;
     void ProcessObjectAck(const MoqtObjectAck& message) {
       if (monitoring_interface_ == nullptr) {
         return;
@@ -402,6 +404,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // stream becomes write-blocked or closed.
     void SendObjects(PublishedSubscription& subscription);
 
+    // Sends a pure FIN on the stream, if the last object sent matches
+    // |last_object|. Otherwise, does nothing.
+    void Fin(FullSequence last_object);
+
     // Recomputes the send order and updates it for the associated stream.
     void UpdateSendOrder(PublishedSubscription& subscription);
 
@@ -412,8 +418,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // the stream and returns nullptr.
     PublishedSubscription* GetSubscriptionIfValid();
 
-    // Actually sends an object on the stream; the object MUST be
-    // `next_object_`.
+    // Actually sends an object on the stream; the object MUST have object ID
+    // of at least `next_object_`.
     void SendNextObject(PublishedSubscription& subscription,
                         PublishedObject object);
 

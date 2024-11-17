@@ -1187,13 +1187,252 @@ TEST_F(MoqtSessionTest, CreateIncomingDataStreamAndSend) {
       });
   EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([] {
     return PublishedObject{FullSequence(5, 0), MoqtObjectStatus::kNormal, 127,
-                           MemSliceFromString("deadbeef")};
+                           MemSliceFromString("deadbeef"), false};
   });
   EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
   subscription->OnNewObjectAvailable(FullSequence(5, 0));
   EXPECT_TRUE(correct_message);
+  EXPECT_FALSE(fin);
+}
+
+TEST_F(MoqtSessionTest, FinDataStreamFromCache) {
+  FullTrackName ftn("foo", "bar");
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
+                              FullSequence(4, 2));
+  MoqtObjectListener* subscription =
+      MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
+
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true));
+  bool fin = false;
+  webtransport::test::MockStream mock_stream;
+  EXPECT_CALL(mock_stream, CanWrite()).WillRepeatedly([&] { return !fin; });
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(&mock_stream));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor;
+  EXPECT_CALL(mock_stream, SetVisitor(_))
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor = std::move(visitor);
+      });
+  EXPECT_CALL(mock_stream, visitor()).WillOnce([&] {
+    return stream_visitor.get();
+  });
+  EXPECT_CALL(mock_stream, GetStreamId())
+      .WillRepeatedly(Return(kOutgoingUniStreamId));
+  EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
+      .WillRepeatedly(Return(&mock_stream));
+
+  // Verify first six message fields are sent correctly
+  bool correct_message = false;
+  const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x00};
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = absl::StartsWith(data[0], kExpectedMessage);
+        fin = options.send_fin();
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([] {
+    return PublishedObject{FullSequence(5, 0), MoqtObjectStatus::kNormal, 127,
+                           MemSliceFromString("deadbeef"), true};
+  });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+    return std::optional<PublishedObject>();
+  });
+  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  EXPECT_TRUE(correct_message);
+  EXPECT_TRUE(fin);
+}
+
+TEST_F(MoqtSessionTest, GroupAbandoned) {
+  FullTrackName ftn("foo", "bar");
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
+                              FullSequence(4, 2));
+  MoqtObjectListener* subscription =
+      MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
+
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true));
+  bool fin = false;
+  webtransport::test::MockStream mock_stream;
+  EXPECT_CALL(mock_stream, CanWrite()).WillRepeatedly([&] { return !fin; });
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(&mock_stream));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor;
+  EXPECT_CALL(mock_stream, SetVisitor(_))
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor = std::move(visitor);
+      });
+  EXPECT_CALL(mock_stream, visitor()).WillOnce([&] {
+    return stream_visitor.get();
+  });
+  EXPECT_CALL(mock_stream, GetStreamId())
+      .WillRepeatedly(Return(kOutgoingUniStreamId));
+  EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
+      .WillRepeatedly(Return(&mock_stream));
+
+  // Verify first six message fields are sent correctly
+  bool correct_message = false;
+  const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x00};
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = absl::StartsWith(data[0], kExpectedMessage);
+        fin |= options.send_fin();
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([] {
+    return PublishedObject{FullSequence(5, 0), MoqtObjectStatus::kNormal, 127,
+                           MemSliceFromString("deadbeef"), true};
+  });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+    return std::optional<PublishedObject>();
+  });
+  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  EXPECT_TRUE(correct_message);
+  EXPECT_TRUE(fin);
+
+  EXPECT_CALL(mock_stream, ResetWithUserCode(kResetCodeTimedOut));
+  subscription->OnGroupAbandoned(5);
+}
+
+TEST_F(MoqtSessionTest, LateFinDataStream) {
+  FullTrackName ftn("foo", "bar");
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
+                              FullSequence(4, 2));
+  MoqtObjectListener* subscription =
+      MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
+
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true));
+  bool fin = false;
+  webtransport::test::MockStream mock_stream;
+  EXPECT_CALL(mock_stream, CanWrite()).WillRepeatedly([&] { return !fin; });
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(&mock_stream));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor;
+  EXPECT_CALL(mock_stream, SetVisitor(_))
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor = std::move(visitor);
+      });
+  EXPECT_CALL(mock_stream, visitor()).WillRepeatedly([&] {
+    return stream_visitor.get();
+  });
+  EXPECT_CALL(mock_stream, GetStreamId())
+      .WillRepeatedly(Return(kOutgoingUniStreamId));
+  EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
+      .WillRepeatedly(Return(&mock_stream));
+
+  // Verify first six message fields are sent correctly
+  bool correct_message = false;
+  const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x00};
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = absl::StartsWith(data[0], kExpectedMessage);
+        fin = options.send_fin();
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([] {
+    return PublishedObject{FullSequence(5, 0), MoqtObjectStatus::kNormal, 127,
+                           MemSliceFromString("deadbeef"), false};
+  });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+    return std::optional<PublishedObject>();
+  });
+  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  EXPECT_TRUE(correct_message);
+  EXPECT_FALSE(fin);
+  fin = false;
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        EXPECT_TRUE(data.empty());
+        fin = options.send_fin();
+        return absl::OkStatus();
+      });
+  subscription->OnNewFinAvailable(FullSequence(5, 0));
+}
+
+TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
+  FullTrackName ftn("foo", "bar");
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
+                              FullSequence(4, 2));
+  MoqtObjectListener* subscription =
+      MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
+
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true));
+  bool fin = false;
+  webtransport::test::MockStream mock_stream;
+  EXPECT_CALL(mock_stream, CanWrite()).WillRepeatedly([&] { return !fin; });
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(&mock_stream));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor;
+  EXPECT_CALL(mock_stream, SetVisitor(_))
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor = std::move(visitor);
+      });
+  EXPECT_CALL(mock_stream, visitor()).WillRepeatedly([&] {
+    return stream_visitor.get();
+  });
+  EXPECT_CALL(mock_stream, GetStreamId())
+      .WillRepeatedly(Return(kOutgoingUniStreamId));
+  EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
+      .WillRepeatedly(Return(&mock_stream));
+
+  // Verify first six message fields are sent correctly
+  bool correct_message = false;
+  const std::string kExpectedMessage = {0x04, 0x00, 0x02, 0x05, 0x00, 0x00};
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = absl::StartsWith(data[0], kExpectedMessage);
+        fin = options.send_fin();
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([] {
+    return PublishedObject{FullSequence(5, 0), MoqtObjectStatus::kNormal, 127,
+                           MemSliceFromString("deadbeef"), false};
+  });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+    return std::optional<PublishedObject>();
+  });
+  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  EXPECT_FALSE(fin);
+  // Try to deliver (5,1), but fail.
+  EXPECT_CALL(mock_stream, CanWrite()).WillRepeatedly([&] { return false; });
+  EXPECT_CALL(*track, GetCachedObject(_)).Times(0);
+  EXPECT_CALL(mock_stream, Writev(_, _)).Times(0);
+  subscription->OnNewObjectAvailable(FullSequence(5, 1));
+  // Notify that FIN arrived, but do nothing with it because (5, 1) isn't sent.
+  EXPECT_CALL(mock_stream, Writev(_, _)).Times(0);
+  subscription->OnNewFinAvailable(FullSequence(5, 1));
+
+  // Reopen the window.
+  correct_message = false;
+  // object id, payload length, status.
+  const std::string kExpectedMessage2 = {0x01, 0x00, 0x03};
+  EXPECT_CALL(mock_stream, CanWrite()).WillRepeatedly([&] { return true; });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+    return PublishedObject{FullSequence(5, 1), MoqtObjectStatus::kEndOfGroup,
+                           127, MemSliceFromString(""), true};
+  });
+  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 2))).WillRepeatedly([] {
+    return std::optional<PublishedObject>();
+  });
+  EXPECT_CALL(mock_stream, Writev(_, _))
+      .WillOnce([&](absl::Span<const absl::string_view> data,
+                    const quiche::StreamWriteOptions& options) {
+        correct_message = absl::StartsWith(data[0], kExpectedMessage2);
+        fin = options.send_fin();
+        return absl::OkStatus();
+      });
+  stream_visitor->OnCanWrite();
+  EXPECT_TRUE(correct_message);
+  EXPECT_TRUE(fin);
 }
 
 // TODO: Test operation with multiple streams.

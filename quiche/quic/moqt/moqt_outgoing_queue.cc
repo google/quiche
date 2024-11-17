@@ -41,6 +41,9 @@ void MoqtOutgoingQueue::AddObject(quiche::QuicheMemSlice payload, bool key) {
 
     if (queue_.size() == kMaxQueuedGroups) {
       queue_.erase(queue_.begin());
+      for (MoqtObjectListener* listener : listeners_) {
+        listener->OnGroupAbandoned(current_group_id_ - kMaxQueuedGroups + 1);
+      }
     }
     queue_.emplace_back();
     ++current_group_id_;
@@ -52,9 +55,11 @@ void MoqtOutgoingQueue::AddObject(quiche::QuicheMemSlice payload, bool key) {
 void MoqtOutgoingQueue::AddRawObject(MoqtObjectStatus status,
                                      quiche::QuicheMemSlice payload) {
   FullSequence sequence{current_group_id_, queue_.back().size()};
+  bool fin = forwarding_preference_ == MoqtForwardingPreference::kSubgroup &&
+             status == MoqtObjectStatus::kEndOfGroup;
   queue_.back().push_back(CachedObject{
       sequence, status, publisher_priority_,
-      std::make_shared<quiche::QuicheMemSlice>(std::move(payload))});
+      std::make_shared<quiche::QuicheMemSlice>(std::move(payload)), fin});
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnNewObjectAvailable(sequence);
   }
@@ -73,12 +78,7 @@ std::optional<PublishedObject> MoqtOutgoingQueue::GetCachedObject(
   const std::vector<CachedObject>& group =
       queue_[sequence.group - first_group_in_queue()];
   if (sequence.object >= group.size()) {
-    if (sequence.group == current_group_id_) {
-      return std::nullopt;
-    }
-    return PublishedObject{FullSequence{sequence.group, sequence.object},
-                           MoqtObjectStatus::kObjectDoesNotExist,
-                           publisher_priority_, quiche::QuicheMemSlice()};
+    return std::nullopt;
   }
   QUICHE_DCHECK(sequence == group[sequence.object].sequence);
   return CachedObjectToPublishedObject(group[sequence.object]);

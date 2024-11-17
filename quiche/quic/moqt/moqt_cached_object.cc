@@ -20,6 +20,7 @@ moqt::PublishedObject CachedObjectToPublishedObject(
         object.payload->data(), object.payload->length(),
         [retained_pointer = object.payload](const char*) {});
   }
+  result.fin_after_this = object.fin_after_this;
   return result;
 }
 

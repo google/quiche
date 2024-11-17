@@ -53,13 +53,21 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   // occur. A false return value might result in a session error on the
   // inbound session, but this queue is the only place that retains enough state
   // to check.
-  bool AddObject(FullSequence sequence, MoqtObjectStatus status) {
-    return AddRawObject(sequence, status, publisher_priority_, "");
+  bool AddObject(FullSequence sequence, MoqtObjectStatus status,
+                 bool fin = false) {
+    return AddRawObject(sequence, status, publisher_priority_, "", fin);
   }
-  bool AddObject(FullSequence sequence, absl::string_view object) {
+  bool AddObject(FullSequence sequence, absl::string_view object,
+                 bool fin = false) {
     return AddRawObject(sequence, MoqtObjectStatus::kNormal,
-                        publisher_priority_, object);
+                        publisher_priority_, object, fin);
   }
+  // Record a received FIN that did not come with the last object.
+  // If the forwarding preference is kDatagram or kTrack, |sequence| is ignored.
+  // Otherwise, |sequence| is used to determine which stream is being FINed. If
+  // the object ID does not match the last object ID in the stream, no action
+  // is taken.
+  bool AddFin(FullSequence sequence);
 
   // MoqtTrackPublisher implementation.
   const FullTrackName& GetTrackName() const override { return track_; }
@@ -112,12 +120,12 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
 
   struct Group {
     uint64_t next_object = 0;
-    bool complete = false;
+    bool complete = false;  // If true, kEndOfGroup has been received.
     absl::btree_map<SubgroupPriority, Subgroup> subgroups;
   };
 
   bool AddRawObject(FullSequence sequence, MoqtObjectStatus status,
-                    MoqtPriority priority, absl::string_view payload);
+                    MoqtPriority priority, absl::string_view payload, bool fin);
 
   FullTrackName track_;
   MoqtForwardingPreference forwarding_preference_;

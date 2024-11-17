@@ -26,6 +26,7 @@ struct PublishedObject {
   MoqtObjectStatus status;
   MoqtPriority publisher_priority;
   quiche::QuicheMemSlice payload;
+  bool fin_after_this = false;
 };
 
 // MoqtObjectListener is an interface for any entity that is listening for
@@ -38,6 +39,12 @@ class MoqtObjectListener {
   // available.  The object payload itself may be retrieved via GetCachedObject
   // method of the associated track publisher.
   virtual void OnNewObjectAvailable(FullSequence sequence) = 0;
+  // Notifies that a pure FIN has arrived following |sequence|.
+  virtual void OnNewFinAvailable(FullSequence sequence) = 0;
+
+  // No further object will be published for the given group, usually due to a
+  // timeout. The owner of the Listener may want to reset the relevant streams.
+  virtual void OnGroupAbandoned(uint64_t group_id) = 0;
 
   // Notifies that the Publisher is being destroyed, so no more objects are
   // coming.

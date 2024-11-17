@@ -4,6 +4,7 @@
 
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -21,35 +22,61 @@ bool SubscribeWindow::InWindow(const FullSequence& seq) const {
   return (!end_.has_value() || seq <= *end_);
 }
 
+ReducedSequenceIndex::ReducedSequenceIndex(
+    FullSequence sequence, MoqtForwardingPreference preference) {
+  switch (preference) {
+    case MoqtForwardingPreference::kTrack:
+      sequence_ = FullSequence(0, 0, 0);
+      break;
+    case MoqtForwardingPreference::kSubgroup:
+      sequence_ = FullSequence(sequence.group, sequence.subgroup, 0);
+      break;
+    case MoqtForwardingPreference::kDatagram:
+      sequence_ = FullSequence(sequence.group, sequence.object, 0);
+      return;
+  }
+}
+
 std::optional<webtransport::StreamId> SendStreamMap::GetStreamForSequence(
     FullSequence sequence) const {
-  ReducedSequenceIndex index(sequence, forwarding_preference_);
-  auto stream_it = send_streams_.find(index);
-  if (stream_it == send_streams_.end()) {
+  FullSequence index =
+      ReducedSequenceIndex(sequence, forwarding_preference_).sequence();
+  auto group_it = send_streams_.find(index.group);
+  if (group_it == send_streams_.end()) {
     return std::nullopt;
   }
-  return stream_it->second;
+  auto subgroup_it = group_it->second.find(index.subgroup);
+  if (subgroup_it == group_it->second.end()) {
+    return std::nullopt;
+  }
+  return subgroup_it->second;
 }
 
 void SendStreamMap::AddStream(FullSequence sequence,
                               webtransport::StreamId stream_id) {
-  ReducedSequenceIndex index(sequence, forwarding_preference_);
-  if (forwarding_preference_ == MoqtForwardingPreference::kDatagram) {
-    QUIC_BUG(quic_bug_moqt_draft_03_01) << "Adding a stream for datagram";
-    return;
-  }
-  auto [stream_it, success] = send_streams_.emplace(index, stream_id);
+  FullSequence index =
+      ReducedSequenceIndex(sequence, forwarding_preference_).sequence();
+  auto [it, result] = send_streams_.insert({index.group, Group()});
+  auto [sg, success] = it->second.try_emplace(index.subgroup, stream_id);
   QUIC_BUG_IF(quic_bug_moqt_draft_03_02, !success) << "Stream already added";
 }
 
 void SendStreamMap::RemoveStream(FullSequence sequence,
                                  webtransport::StreamId stream_id) {
-  ReducedSequenceIndex index(sequence, forwarding_preference_);
-  QUICHE_DCHECK(send_streams_.contains(index) &&
-                send_streams_.find(index)->second == stream_id)
-      << "Requested to remove a stream ID that does not match the one in the "
-         "map";
-  send_streams_.erase(index);
+  FullSequence index =
+      ReducedSequenceIndex(sequence, forwarding_preference_).sequence();
+  auto group_it = send_streams_.find(index.group);
+  if (group_it == send_streams_.end()) {
+    QUICHE_NOTREACHED();
+    return;
+  }
+  auto subgroup_it = group_it->second.find(index.subgroup);
+  if (subgroup_it == group_it->second.end() ||
+      subgroup_it->second != stream_id) {
+    QUICHE_NOTREACHED();
+    return;
+  }
+  group_it->second.erase(subgroup_it);
 }
 
 bool SubscribeWindow::UpdateStartEnd(FullSequence start,
@@ -66,25 +93,25 @@ bool SubscribeWindow::UpdateStartEnd(FullSequence start,
   return true;
 }
 
-ReducedSequenceIndex::ReducedSequenceIndex(
-    FullSequence sequence, MoqtForwardingPreference preference) {
-  switch (preference) {
-    case MoqtForwardingPreference::kTrack:
-      sequence_ = FullSequence(0, 0);
-      break;
-    case MoqtForwardingPreference::kSubgroup:
-      sequence_ = FullSequence(sequence.group, 0);
-      break;
-    case MoqtForwardingPreference::kDatagram:
-      sequence_ = sequence;
-      return;
-  }
-}
-
 std::vector<webtransport::StreamId> SendStreamMap::GetAllStreams() const {
   std::vector<webtransport::StreamId> ids;
-  for (const auto& [index, id] : send_streams_) {
-    ids.push_back(id);
+  for (const auto& [group, subgroup_map] : send_streams_) {
+    for (const auto& [subgroup, stream_id] : subgroup_map) {
+      ids.push_back(stream_id);
+    }
+  }
+  return ids;
+}
+
+std::vector<webtransport::StreamId> SendStreamMap::GetStreamsForGroup(
+    uint64_t group_id) const {
+  std::vector<webtransport::StreamId> ids;
+  auto it = send_streams_.find(group_id);
+  if (it == send_streams_.end()) {
+    return ids;
+  }
+  for (const auto& [subgroup, stream_id] : it->second) {
+    ids.push_back(stream_id);
   }
   return ids;
 }

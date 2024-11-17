@@ -9,7 +9,7 @@
 #include <optional>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
+#include "absl/container/btree_map.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/web_transport/web_transport.h"
@@ -36,7 +36,7 @@ class QUICHE_EXPORT SubscribeWindow {
       : start_(start), end_(end) {}
 
   bool InWindow(const FullSequence& seq) const;
-  bool HasEnd() const { return end_.has_value(); }
+  const std::optional<FullSequence>& end() const { return end_; }
   FullSequence start() const { return start_; }
 
   // Updates the subscription window. Returns true if the update is valid (in
@@ -44,6 +44,7 @@ class QUICHE_EXPORT SubscribeWindow {
   bool UpdateStartEnd(FullSequence start, std::optional<FullSequence> end);
 
  private:
+  // The subgroups in these sequences have no meaning.
   FullSequence start_;
   std::optional<FullSequence> end_;
 };
@@ -61,6 +62,7 @@ class ReducedSequenceIndex {
   bool operator!=(const ReducedSequenceIndex& other) const {
     return sequence_ != other.sequence_;
   }
+  FullSequence sequence() { return sequence_; }
 
   template <typename H>
   friend H AbslHashValue(H h, const ReducedSequenceIndex& m) {
@@ -82,10 +84,12 @@ class QUICHE_EXPORT SendStreamMap {
   void AddStream(FullSequence sequence, webtransport::StreamId stream_id);
   void RemoveStream(FullSequence sequence, webtransport::StreamId stream_id);
   std::vector<webtransport::StreamId> GetAllStreams() const;
+  std::vector<webtransport::StreamId> GetStreamsForGroup(
+      uint64_t group_id) const;
 
  private:
-  absl::flat_hash_map<ReducedSequenceIndex, webtransport::StreamId>
-      send_streams_;
+  using Group = absl::btree_map<uint64_t, webtransport::StreamId>;
+  absl::btree_map<uint64_t, Group> send_streams_;
   MoqtForwardingPreference forwarding_preference_;
 };
 
