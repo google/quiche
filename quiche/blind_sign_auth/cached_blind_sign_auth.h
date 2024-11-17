@@ -8,11 +8,12 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/thread_annotations.h"
 #include "absl/status/statusor.h"
+#include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 #include "quiche/common/quiche_circular_deque.h"
 
 namespace quiche {
@@ -45,7 +46,7 @@ class QUICHE_EXPORT CachedBlindSignAuth : public BlindSignAuthInterface {
 
   // Removes all tokens in the cache.
   void ClearCache() {
-    QuicheWriterMutexLock lock(&mutex_);
+    absl::WriterMutexLock lock(&mutex_);
     cached_tokens_.clear();
   }
 
@@ -54,13 +55,13 @@ class QUICHE_EXPORT CachedBlindSignAuth : public BlindSignAuthInterface {
       SignedTokenCallback callback, int num_tokens,
       absl::StatusOr<absl::Span<BlindSignToken>> tokens);
   std::vector<BlindSignToken> CreateOutputTokens(int num_tokens)
-      QUICHE_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-  void RemoveExpiredTokens() QUICHE_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void RemoveExpiredTokens() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   BlindSignAuthInterface* blind_sign_auth_;
   int max_tokens_per_request_;
-  QuicheMutex mutex_;
-  QuicheCircularDeque<BlindSignToken> cached_tokens_ QUICHE_GUARDED_BY(mutex_);
+  absl::Mutex mutex_;
+  QuicheCircularDeque<BlindSignToken> cached_tokens_ ABSL_GUARDED_BY(mutex_);
 };
 
 }  // namespace quiche

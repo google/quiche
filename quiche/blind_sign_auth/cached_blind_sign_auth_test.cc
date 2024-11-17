@@ -14,12 +14,12 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/test_tools/mock_blind_sign_auth_interface.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
@@ -79,7 +79,7 @@ TEST_F(CachedBlindSignAuthTest, TestGetTokensOneCallSuccessful) {
       });
 
   int num_tokens = 5;
-  QuicheNotification done;
+  absl::Notification done;
   SignedTokenCallback callback =
       [num_tokens, &done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
@@ -107,7 +107,7 @@ TEST_F(CachedBlindSignAuthTest, TestGetTokensMultipleRemoteCallsSuccessful) {
       });
 
   int num_tokens = kBlindSignAuthRequestMaxTokens - 1;
-  QuicheNotification first;
+  absl::Notification first;
   SignedTokenCallback first_callback =
       [num_tokens, &first](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
@@ -123,7 +123,7 @@ TEST_F(CachedBlindSignAuthTest, TestGetTokensMultipleRemoteCallsSuccessful) {
       BlindSignAuthServiceType::kChromeIpBlinding, std::move(first_callback));
   first.WaitForNotification();
 
-  QuicheNotification second;
+  absl::Notification second;
   SignedTokenCallback second_callback =
       [num_tokens, &second](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
@@ -153,7 +153,7 @@ TEST_F(CachedBlindSignAuthTest, TestGetTokensSecondRequestFilledFromCache) {
       });
 
   int num_tokens = kBlindSignAuthRequestMaxTokens / 2;
-  QuicheNotification first;
+  absl::Notification first;
   SignedTokenCallback first_callback =
       [num_tokens, &first](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
@@ -169,7 +169,7 @@ TEST_F(CachedBlindSignAuthTest, TestGetTokensSecondRequestFilledFromCache) {
       BlindSignAuthServiceType::kChromeIpBlinding, std::move(first_callback));
   first.WaitForNotification();
 
-  QuicheNotification second;
+  absl::Notification second;
   SignedTokenCallback second_callback =
       [num_tokens, &second](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
@@ -198,7 +198,7 @@ TEST_F(CachedBlindSignAuthTest, TestGetTokensThirdRequestRefillsCache) {
       });
 
   int num_tokens = kBlindSignAuthRequestMaxTokens / 2;
-  QuicheNotification first;
+  absl::Notification first;
   SignedTokenCallback first_callback =
       [num_tokens, &first](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
@@ -214,7 +214,7 @@ TEST_F(CachedBlindSignAuthTest, TestGetTokensThirdRequestRefillsCache) {
       BlindSignAuthServiceType::kChromeIpBlinding, std::move(first_callback));
   first.WaitForNotification();
 
-  QuicheNotification second;
+  absl::Notification second;
   SignedTokenCallback second_callback =
       [num_tokens, &second](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
@@ -231,7 +231,7 @@ TEST_F(CachedBlindSignAuthTest, TestGetTokensThirdRequestRefillsCache) {
       BlindSignAuthServiceType::kChromeIpBlinding, std::move(second_callback));
   second.WaitForNotification();
 
-  QuicheNotification third;
+  absl::Notification third;
   int third_request_tokens = 10;
   SignedTokenCallback third_callback =
       [third_request_tokens,
@@ -305,7 +305,7 @@ TEST_F(CachedBlindSignAuthTest, TestHandleGetTokensResponseErrorHandling) {
       });
 
   int num_tokens = kBlindSignAuthRequestMaxTokens;
-  QuicheNotification first;
+  absl::Notification first;
   SignedTokenCallback first_callback =
       [&first](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
@@ -318,7 +318,7 @@ TEST_F(CachedBlindSignAuthTest, TestHandleGetTokensResponseErrorHandling) {
       BlindSignAuthServiceType::kChromeIpBlinding, std::move(first_callback));
   first.WaitForNotification();
 
-  QuicheNotification second;
+  absl::Notification second;
   SignedTokenCallback second_callback =
       [&second](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(),
@@ -360,7 +360,7 @@ TEST_F(CachedBlindSignAuthTest, TestExpiredTokensArePruned) {
       });
 
   int num_tokens = kBlindSignAuthRequestMaxTokens;
-  QuicheNotification first;
+  absl::Notification first;
   SignedTokenCallback first_callback =
       [&first](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(),
@@ -385,7 +385,7 @@ TEST_F(CachedBlindSignAuthTest, TestClearCacheRemovesTokens) {
       });
 
   int num_tokens = kBlindSignAuthRequestMaxTokens / 2;
-  QuicheNotification first;
+  absl::Notification first;
   SignedTokenCallback first_callback =
       [&first](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(),
@@ -400,7 +400,7 @@ TEST_F(CachedBlindSignAuthTest, TestClearCacheRemovesTokens) {
 
   cached_blind_sign_auth_->ClearCache();
 
-  QuicheNotification second;
+  absl::Notification second;
   SignedTokenCallback second_callback =
       [&second](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(),

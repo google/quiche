@@ -9,7 +9,9 @@
 
 #include <memory>
 
+#include "absl/base/thread_annotations.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
@@ -18,7 +20,6 @@
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/qbone/bonnet/icmp_reachable_interface.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 
 namespace quic {
 
@@ -79,9 +80,9 @@ class IcmpReachable : public IcmpReachableInterface {
 
   // Initializes this reachability probe. Must be called from within the
   // |epoll_server|'s thread.
-  bool Init() QUICHE_LOCKS_EXCLUDED(header_lock_) override;
+  bool Init() ABSL_LOCKS_EXCLUDED(header_lock_) override;
 
-  void OnAlarm() QUICHE_LOCKS_EXCLUDED(header_lock_);
+  void OnAlarm() ABSL_LOCKS_EXCLUDED(header_lock_);
 
   static absl::string_view StatusName(Status status);
 
@@ -113,7 +114,7 @@ class IcmpReachable : public IcmpReachableInterface {
     IcmpReachable* reachable_;
   };
 
-  bool OnEvent(int fd) QUICHE_LOCKS_EXCLUDED(header_lock_);
+  bool OnEvent(int fd) ABSL_LOCKS_EXCLUDED(header_lock_);
 
   const QuicTime::Delta timeout_;
 
@@ -134,8 +135,8 @@ class IcmpReachable : public IcmpReachableInterface {
   int send_fd_;
   int recv_fd_;
 
-  quiche::QuicheMutex header_lock_;
-  icmp6_hdr icmp_header_ QUICHE_GUARDED_BY(header_lock_){};
+  absl::Mutex header_lock_;
+  icmp6_hdr icmp_header_ ABSL_GUARDED_BY(header_lock_){};
 
   QuicTime start_ = QuicTime::Zero();
   QuicTime end_ = QuicTime::Zero();

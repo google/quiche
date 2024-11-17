@@ -15,6 +15,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/notification.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/connecting_client_socket.h"
 #include "quiche/quic/core/io/event_loop_socket_factory.h"
@@ -28,7 +29,6 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_loopback.h"
 #include "quiche/common/platform/api/quiche_thread.h"
@@ -63,7 +63,7 @@ class TestServerSocketRunner : public quiche::QuicheThread {
 
   const SocketBehavior& behavior() const { return behavior_; }
 
-  quiche::QuicheNotification& completion_notification() {
+  absl::Notification& completion_notification() {
     return completion_notification_;
   }
 
@@ -71,7 +71,7 @@ class TestServerSocketRunner : public quiche::QuicheThread {
   const SocketFd server_socket_descriptor_;
   const SocketBehavior behavior_;
 
-  quiche::QuicheNotification completion_notification_;
+  absl::Notification completion_notification_;
 };
 
 class TestTcpServerSocketRunner : public TestServerSocketRunner {

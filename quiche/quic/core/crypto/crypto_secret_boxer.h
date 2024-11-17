@@ -10,10 +10,11 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/thread_annotations.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 
 namespace quic {
 
@@ -55,11 +56,11 @@ class QUICHE_EXPORT CryptoSecretBoxer {
  private:
   struct State;
 
-  mutable quiche::QuicheMutex lock_;
+  mutable absl::Mutex lock_;
 
   // state_ is an opaque pointer to whatever additional state the concrete
   // implementation of CryptoSecretBoxer requires.
-  std::unique_ptr<State> state_ QUICHE_GUARDED_BY(lock_);
+  std::unique_ptr<State> state_ ABSL_GUARDED_BY(lock_);
 };
 
 }  // namespace quic

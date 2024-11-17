@@ -13,12 +13,12 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 
 namespace quiche {
 
@@ -42,7 +42,7 @@ void CachedBlindSignAuth::GetTokens(std::optional<std::string> oauth_token,
 
   std::vector<BlindSignToken> output_tokens;
   {
-    QuicheWriterMutexLock lock(&mutex_);
+    absl::WriterMutexLock lock(&mutex_);
 
     RemoveExpiredTokens();
     // Try to fill the request from cache.
@@ -83,7 +83,7 @@ void CachedBlindSignAuth::HandleGetTokensResponse(
   std::vector<BlindSignToken> output_tokens;
   size_t cache_size;
   {
-    QuicheWriterMutexLock lock(&mutex_);
+    absl::WriterMutexLock lock(&mutex_);
 
     // Add returned tokens to cache.
     for (const BlindSignToken& token : *tokens) {

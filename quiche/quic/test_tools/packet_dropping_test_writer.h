@@ -10,13 +10,14 @@
 #include <memory>
 
 #include "absl/base/attributes.h"
+#include "absl/base/thread_annotations.h"
+#include "absl/synchronization/mutex.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 
 namespace quic {
 namespace test {
@@ -80,7 +81,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   // |fake_packet_loss_percentage|, because every dropped package is followed by
   // a minimum number of successfully written packets.
   void set_fake_packet_loss_percentage(int32_t fake_packet_loss_percentage) {
-    quiche::QuicheWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     fake_packet_loss_percentage_ = fake_packet_loss_percentage;
   }
 
@@ -89,14 +90,14 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   // simulated error conditions.
   void set_passthrough_for_next_n_packets(
       uint32_t passthrough_for_next_n_packets) {
-    quiche::QuicheWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     passthrough_for_next_n_packets_ = passthrough_for_next_n_packets;
   }
 
   // Simulate dropping the first n packets unconditionally.
   // Subsequent packets will be lost at fake_packet_loss_percentage_ if set.
   void set_fake_drop_first_n_packets(int32_t fake_drop_first_n_packets) {
-    quiche::QuicheWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     fake_drop_first_n_packets_ = fake_drop_first_n_packets;
   }
 
@@ -105,14 +106,14 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   void set_fake_blocked_socket_percentage(
       int32_t fake_blocked_socket_percentage) {
     QUICHE_DCHECK(clock_);
-    quiche::QuicheWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     fake_blocked_socket_percentage_ = fake_blocked_socket_percentage;
   }
 
   // The percent of time a packet is simulated as being reordered.
   void set_fake_reorder_percentage(int32_t fake_packet_reorder_percentage) {
     QUICHE_DCHECK(clock_);
-    quiche::QuicheWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     QUICHE_DCHECK(!fake_packet_delay_.IsZero());
     fake_packet_reorder_percentage_ = fake_packet_reorder_percentage;
   }
@@ -120,7 +121,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   // The delay before writing this packet.
   void set_fake_packet_delay(QuicTime::Delta fake_packet_delay) {
     QUICHE_DCHECK(clock_);
-    quiche::QuicheWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     fake_packet_delay_ = fake_packet_delay;
   }
 
@@ -131,7 +132,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   void set_max_bandwidth_and_buffer_size(QuicBandwidth fake_bandwidth,
                                          QuicByteCount buffer_size) {
     QUICHE_DCHECK(clock_);
-    quiche::QuicheWriterMutexLock lock(&config_mutex_);
+    absl::WriterMutexLock lock(&config_mutex_);
     fake_bandwidth_ = fake_bandwidth;
     buffer_size_ = buffer_size;
   }
@@ -179,17 +180,17 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   DelayedPacketList delayed_packets_;
   QuicByteCount cur_buffer_size_;
   uint64_t num_calls_to_write_;
-  uint32_t passthrough_for_next_n_packets_ QUICHE_GUARDED_BY(config_mutex_);
+  uint32_t passthrough_for_next_n_packets_ ABSL_GUARDED_BY(config_mutex_);
   int32_t num_consecutive_succesful_writes_;
 
-  quiche::QuicheMutex config_mutex_;
-  int32_t fake_packet_loss_percentage_ QUICHE_GUARDED_BY(config_mutex_);
-  int32_t fake_drop_first_n_packets_ QUICHE_GUARDED_BY(config_mutex_);
-  int32_t fake_blocked_socket_percentage_ QUICHE_GUARDED_BY(config_mutex_);
-  int32_t fake_packet_reorder_percentage_ QUICHE_GUARDED_BY(config_mutex_);
-  QuicTime::Delta fake_packet_delay_ QUICHE_GUARDED_BY(config_mutex_);
-  QuicBandwidth fake_bandwidth_ QUICHE_GUARDED_BY(config_mutex_);
-  QuicByteCount buffer_size_ QUICHE_GUARDED_BY(config_mutex_);
+  absl::Mutex config_mutex_;
+  int32_t fake_packet_loss_percentage_ ABSL_GUARDED_BY(config_mutex_);
+  int32_t fake_drop_first_n_packets_ ABSL_GUARDED_BY(config_mutex_);
+  int32_t fake_blocked_socket_percentage_ ABSL_GUARDED_BY(config_mutex_);
+  int32_t fake_packet_reorder_percentage_ ABSL_GUARDED_BY(config_mutex_);
+  QuicTime::Delta fake_packet_delay_ ABSL_GUARDED_BY(config_mutex_);
+  QuicBandwidth fake_bandwidth_ ABSL_GUARDED_BY(config_mutex_);
+  QuicByteCount buffer_size_ ABSL_GUARDED_BY(config_mutex_);
 };
 
 }  // namespace test

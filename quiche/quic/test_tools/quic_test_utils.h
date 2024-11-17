@@ -17,6 +17,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "quiche/quic/core/congestion_control/loss_detection_interface.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
@@ -2082,7 +2083,7 @@ class DroppingPacketsWithSpecificDestinationWriter
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options,
                           const QuicPacketWriterParams& params) override {
-    quiche::QuicheReaderMutexLock lock(&mutex_);
+    absl::ReaderMutexLock lock(&mutex_);
     QUIC_LOG(ERROR) << "DroppingPacketsWithSpecificDestinationWriter::"
                        "WritePacket with peer address "
                     << peer_address.ToString() << " and peer_address_to_drop_ "
@@ -2098,12 +2099,12 @@ class DroppingPacketsWithSpecificDestinationWriter
   }
 
   void set_peer_address_to_drop(const QuicSocketAddress& peer_address) {
-    quiche::QuicheWriterMutexLock lock(&mutex_);
+    absl::WriterMutexLock lock(&mutex_);
     peer_address_to_drop_ = peer_address;
   }
 
  private:
-  quiche::QuicheMutex mutex_;
+  absl::Mutex mutex_;
   QuicSocketAddress peer_address_to_drop_ ABSL_GUARDED_BY(mutex_);
 };
 

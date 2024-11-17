@@ -97,7 +97,7 @@ WriteResult PacketDroppingTestWriter::WritePacket(
   ++num_calls_to_write_;
   ReleaseOldPackets();
 
-  quiche::QuicheWriterMutexLock lock(&config_mutex_);
+  absl::WriterMutexLock lock(&config_mutex_);
   if (passthrough_for_next_n_packets_ > 0) {
     --passthrough_for_next_n_packets_;
     return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
@@ -201,7 +201,7 @@ QuicTime PacketDroppingTestWriter::ReleaseNextPacket() {
   if (delayed_packets_.empty()) {
     return QuicTime::Zero();
   }
-  quiche::QuicheReaderMutexLock lock(&config_mutex_);
+  absl::ReaderMutexLock lock(&config_mutex_);
   auto iter = delayed_packets_.begin();
   // Determine if we should re-order.
   if (delayed_packets_.size() > 1 && fake_packet_reorder_percentage_ > 0 &&

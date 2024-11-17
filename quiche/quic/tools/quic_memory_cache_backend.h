@@ -10,14 +10,15 @@
 #include <memory>
 #include <vector>
 
+#include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "quiche/http2/core/spdy_framer.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/common/http/http_header_block.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 
 namespace quic {
 
@@ -153,19 +154,19 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   // Cached responses.
   absl::flat_hash_map<std::string, std::unique_ptr<QuicBackendResponse>>
-      responses_ QUICHE_GUARDED_BY(response_mutex_);
+      responses_ ABSL_GUARDED_BY(response_mutex_);
 
   // The default response for cache misses, if set.
   std::unique_ptr<QuicBackendResponse> default_response_
-      QUICHE_GUARDED_BY(response_mutex_);
+      ABSL_GUARDED_BY(response_mutex_);
 
   // The generate bytes response, if set.
   std::unique_ptr<QuicBackendResponse> generate_bytes_response_
-      QUICHE_GUARDED_BY(response_mutex_);
+      ABSL_GUARDED_BY(response_mutex_);
 
   // Protects against concurrent access from test threads setting responses, and
   // server threads accessing those responses.
-  mutable quiche::QuicheMutex response_mutex_;
+  mutable absl::Mutex response_mutex_;
   bool cache_initialized_;
 
   bool enable_webtransport_ = false;

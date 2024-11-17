@@ -13,6 +13,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
@@ -26,7 +27,6 @@
 #include "quiche/blind_sign_auth/blind_sign_message_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_message_response.h"
 #include "quiche/blind_sign_auth/test_tools/mock_blind_sign_message_interface.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
@@ -266,7 +266,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
       .Times(0);
 
   int num_tokens = 1;
-  QuicheNotification done;
+  absl::Notification done;
   SignedTokenCallback callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);
@@ -301,7 +301,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadGetInitialDataResponse) {
       .Times(0);
 
   int num_tokens = 1;
-  QuicheNotification done;
+  absl::Notification done;
   SignedTokenCallback callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);
@@ -346,7 +346,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
   }
 
   int num_tokens = 1;
-  QuicheNotification done;
+  absl::Notification done;
   SignedTokenCallback callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
@@ -389,7 +389,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
   }
 
   int num_tokens = 1;
-  QuicheNotification done;
+  absl::Notification done;
   SignedTokenCallback callback =
       [this, &done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
@@ -430,7 +430,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensFailsWithBadExtensions) {
       });
 
   int num_tokens = 1;
-  QuicheNotification done;
+  absl::Notification done;
   SignedTokenCallback callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);

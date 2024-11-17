@@ -7,12 +7,13 @@
 #include <memory>
 #include <utility>
 
+#include "absl/synchronization/mutex.h"
+#include "absl/synchronization/notification.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_dispatcher_peer.h"
 #include "quiche/quic/test_tools/quic_server_peer.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 #include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
@@ -37,7 +38,7 @@ void ServerThread::Initialize() {
     return;
   }
 
-  quiche::QuicheWriterMutexLock lock(&port_lock_);
+  absl::WriterMutexLock lock(&port_lock_);
   port_ = server_->port();
 
   initialized_ = true;
@@ -62,20 +63,20 @@ void ServerThread::Run() {
 }
 
 int ServerThread::GetPort() {
-  quiche::QuicheReaderMutexLock lock(&port_lock_);
+  absl::ReaderMutexLock lock(&port_lock_);
   int rc = port_;
   return rc;
 }
 
 void ServerThread::Schedule(quiche::SingleUseCallback<void()> action) {
   QUICHE_DCHECK(!quit_.HasBeenNotified());
-  quiche::QuicheWriterMutexLock lock(&scheduled_actions_lock_);
+  absl::WriterMutexLock lock(&scheduled_actions_lock_);
   scheduled_actions_.push_back(std::move(action));
 }
 
 void ServerThread::ScheduleAndWaitForCompletion(
     quiche::SingleUseCallback<void()> action) {
-  quiche::QuicheNotification action_done;
+  absl::Notification action_done;
   Schedule([&] {
     std::move(action)();
     action_done.Notify();
@@ -92,7 +93,7 @@ bool ServerThread::WaitUntil(
     QuicTime::Delta timeout) {
   const QuicTime deadline = clock_->Now() + timeout;
   while (clock_->Now() < deadline) {
-    quiche::QuicheNotification done_checking;
+    absl::Notification done_checking;
     bool should_terminate = false;
     Schedule([&] {
       should_terminate = termination_predicate();
@@ -146,7 +147,7 @@ void ServerThread::MaybeNotifyOfHandshakeConfirmation() {
 void ServerThread::ExecuteScheduledActions() {
   quiche::QuicheCircularDeque<quiche::SingleUseCallback<void()>> actions;
   {
-    quiche::QuicheWriterMutexLock lock(&scheduled_actions_lock_);
+    absl::WriterMutexLock lock(&scheduled_actions_lock_);
     actions.swap(scheduled_actions_);
   }
   while (!actions.empty()) {

@@ -16,6 +16,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
@@ -7742,7 +7743,7 @@ TEST_P(EndToEndTest, FlowLabelSend) {
   ASSERT_TRUE(Initialize());
 
   const uint32_t server_flow_label = 2;
-  quiche::QuicheNotification set;
+  absl::Notification set;
   server_thread_->Schedule([this, &set]() {
     QuicConnection* server_connection = GetServerConnection();
     if (server_connection != nullptr) {

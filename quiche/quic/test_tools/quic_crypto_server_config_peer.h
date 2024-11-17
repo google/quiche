@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_CRYPTO_SERVER_CONFIG_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_CRYPTO_SERVER_CONFIG_PEER_H_
 
+#include "absl/base/thread_annotations.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 
@@ -65,7 +66,7 @@ class QuicCryptoServerConfigPeer {
   // ConfigsDebug returns a std::string that contains debugging information
   // about the set of Configs loaded in |server_config_| and their status.
   std::string ConfigsDebug()
-      QUICHE_SHARED_LOCKS_REQUIRED(server_config_->configs_lock_);
+      ABSL_SHARED_LOCKS_REQUIRED(server_config_->configs_lock_);
 
   void SelectNewPrimaryConfig(int seconds);
 
