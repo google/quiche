@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <cstring>
 
+#include "absl/base/prefetch.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_prefetch.h"
 
 namespace quiche {
 
@@ -47,9 +47,9 @@ QuicheBuffer QuicheBuffer::CopyFromIovec(QuicheBufferAllocator* allocator,
     char* next_base = static_cast<char*>(iov[iovnum + 1].iov_base);
     // Prefetch 2 cachelines worth of data to get the prefetcher started; leave
     // it to the hardware prefetcher after that.
-    quiche::QuichePrefetchT0(next_base);
+    absl::PrefetchToLocalCache(next_base);
     if (iov[iovnum + 1].iov_len >= 64) {
-      quiche::QuichePrefetchT0(next_base + ABSL_CACHELINE_SIZE);
+      absl::PrefetchToLocalCache(next_base + ABSL_CACHELINE_SIZE);
     }
   }
 
