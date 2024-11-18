@@ -200,8 +200,8 @@ TEST_F(QuicServerIdTest, CacheKeyEquals) {
   EXPECT_NE(a_11_https, b_11_https);
 
   EXPECT_EQ(QuicServerIdHash()(a_10_https), QuicServerIdHash()(a_10_https));
-  EXPECT_EQ(QuicServerIdHash()(a_10_https), QuicServerIdHash()(a_11_https));
-  EXPECT_EQ(QuicServerIdHash()(b_10_https), QuicServerIdHash()(b_11_https));
+  EXPECT_NE(QuicServerIdHash()(a_10_https), QuicServerIdHash()(a_11_https));
+  EXPECT_NE(QuicServerIdHash()(b_10_https), QuicServerIdHash()(b_11_https));
 }
 
 TEST_F(QuicServerIdTest, CacheKeyLessThan) {

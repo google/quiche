@@ -57,7 +57,8 @@ class QUICHE_EXPORT QuicServerId {
 
   template <typename H>
   friend H AbslHashValue(H h, const QuicServerId& server_id) {
-    return H::combine(std::move(h), server_id.cache_key_);
+    return H::combine(std::move(h), server_id.host_, server_id.port_,
+                      server_id.cache_key_);
   }
 
  private:
