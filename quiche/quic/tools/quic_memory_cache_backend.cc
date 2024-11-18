@@ -40,7 +40,7 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
                      << file_name_;
     return;
   }
-  file_contents_ = *maybe_file_contents;
+  file_contents_ = *std::move(maybe_file_contents);
 
   // First read the headers.
   for (size_t start = 0; start < file_contents_.length();) {
@@ -54,12 +54,11 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
     if (file_contents_[pos - 1] == '\r') {
       len -= 1;
     }
-    absl::string_view line(file_contents_.data() + start, len);
+    auto line = absl::string_view(file_contents_).substr(start, len);
     start = pos + 1;
     // Headers end with an empty line.
     if (line.empty()) {
-      body_ = absl::string_view(file_contents_.data() + start,
-                                file_contents_.size() - start);
+      body_ = absl::string_view(file_contents_).substr(start);
       break;
     }
     // Extract the status from the HTTP first line.
@@ -137,8 +136,7 @@ const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
   if (it == responses_.end()) {
     uint64_t ignored = 0;
     if (generate_bytes_response_) {
-      if (absl::SimpleAtoi(absl::string_view(path.data() + 1, path.size() - 1),
-                           &ignored)) {
+      if (absl::SimpleAtoi(path.substr(1), &ignored)) {
         // The actual parsed length is ignored here and will be recomputed
         // by the caller.
         return generate_bytes_response_.get();

@@ -129,14 +129,12 @@ bool CryptoSecretBoxer::Unbox(absl::string_view in_ciphertext,
     absl::ReaderMutexLock l(&lock_);
     for (const bssl::UniquePtr<EVP_AEAD_CTX>& ctx : state_->ctxs) {
       size_t bytes_written;
-      if (EVP_AEAD_CTX_open(ctx.get(),
-                            reinterpret_cast<uint8_t*>(
-                                const_cast<char*>(out_storage->data())),
-                            &bytes_written, ciphertext_len, nonce,
-                            kSIVNonceSize, ciphertext, ciphertext_len, nullptr,
-                            0)) {
+      if (EVP_AEAD_CTX_open(
+              ctx.get(), reinterpret_cast<uint8_t*>(out_storage->data()),
+              &bytes_written, ciphertext_len, nonce, kSIVNonceSize, ciphertext,
+              ciphertext_len, nullptr, 0)) {
         ok = true;
-        *out = absl::string_view(out_storage->data(), bytes_written);
+        *out = absl::string_view(*out_storage).substr(0, bytes_written);
         break;
       }
 

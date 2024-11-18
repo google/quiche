@@ -778,8 +778,7 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
       }
       if (static_cast<size_t>(result) < frame.size()) {
         // The frame was partially written, so the rest must be buffered.
-        buffered_data_.Append(
-            absl::string_view(frame.data() + result, frame.size() - result));
+        buffered_data_.Append(absl::string_view(frame).substr(result));
         return SendResult::SEND_BLOCKED;
       }
     }
