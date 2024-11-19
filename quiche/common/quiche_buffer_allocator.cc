@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstring>
 
+#include "absl/base/optimization.h"
 #include "absl/base/prefetch.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -48,7 +49,7 @@ QuicheBuffer QuicheBuffer::CopyFromIovec(QuicheBufferAllocator* allocator,
     // Prefetch 2 cachelines worth of data to get the prefetcher started; leave
     // it to the hardware prefetcher after that.
     absl::PrefetchToLocalCache(next_base);
-    if (iov[iovnum + 1].iov_len >= 64) {
+    if (iov[iovnum + 1].iov_len >= ABSL_CACHELINE_SIZE) {
       absl::PrefetchToLocalCache(next_base + ABSL_CACHELINE_SIZE);
     }
   }
