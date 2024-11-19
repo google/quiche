@@ -204,7 +204,7 @@ OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
     OgHttp2Session& session, Http2VisitorInterface& visitor)
     : session_(session), visitor_(visitor) {
   if (session_.options_.validate_http_headers) {
-    QUICHE_VLOG(2) << "instantiating regular header validator";
+    QUICHE_VLOG(3) << "instantiating regular header validator";
     validator_ = std::make_unique<HeaderValidator>();
     if (session_.options_.validate_path) {
       validator_->SetValidatePath();
@@ -216,7 +216,7 @@ OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
       validator_->SetAllowDifferentHostAndAuthority();
     }
   } else {
-    QUICHE_VLOG(2) << "instantiating noop header validator";
+    QUICHE_VLOG(3) << "instantiating noop header validator";
     validator_ = std::make_unique<NoopHeaderValidator>();
   }
 }
@@ -225,8 +225,8 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockStart() {
   Reset();
   const bool status = visitor_.OnBeginHeadersForStream(stream_id_);
   if (!status) {
-    QUICHE_VLOG(1)
-        << "Visitor rejected header block, returning HEADER_CONNECTION_ERROR";
+    QUICHE_VLOG(1) << "Visitor rejected header block for stream " << stream_id_
+                   << ", returning HEADER_CONNECTION_ERROR";
     SetResult(OnHeaderResult::HEADER_CONNECTION_ERROR);
   }
   validator_->StartHeaderBlock();
@@ -248,7 +248,7 @@ OnHeaderResult InterpretHeaderStatus(HeaderValidator::HeaderStatus status) {
 void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     absl::string_view key, absl::string_view value) {
   if (error_encountered_) {
-    QUICHE_VLOG(2) << "Early return; status not HEADER_OK";
+    QUICHE_VLOG(3) << "Early return; status not HEADER_OK";
     return;
   }
   const HeaderValidator::HeaderStatus validation_result =
@@ -257,7 +257,7 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeader(
     return;
   }
   if (validation_result != HeaderValidator::HEADER_OK) {
-    QUICHE_VLOG(2) << "Header validation failed with result "
+    QUICHE_VLOG(3) << "Header validation failed with result "
                    << static_cast<int>(validation_result);
     SetResult(InterpretHeaderStatus(validation_result));
     return;
@@ -469,7 +469,7 @@ int OgHttp2Session::GetHpackDecoderSizeLimit() const {
 }
 
 int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
-  QUICHE_VLOG(2) << TracePerspectiveAsString(options_.perspective)
+  QUICHE_VLOG(3) << TracePerspectiveAsString(options_.perspective)
                  << " processing [" << absl::CEscape(bytes) << "]";
   return absl::visit(ProcessBytesResultVisitor(), ProcessBytesImpl(bytes));
 }
@@ -477,7 +477,7 @@ int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
 absl::variant<int64_t, OgHttp2Session::ProcessBytesError>
 OgHttp2Session::ProcessBytesImpl(absl::string_view bytes) {
   if (processing_bytes_) {
-    QUICHE_VLOG(1) << "Returning early; already processing bytes.";
+    QUICHE_VLOG(2) << "Returning early; already processing bytes.";
     return 0;
   }
   processing_bytes_ = true;
@@ -489,7 +489,7 @@ OgHttp2Session::ProcessBytesImpl(absl::string_view bytes) {
 
   int64_t preface_consumed = 0;
   if (!remaining_preface_.empty()) {
-    QUICHE_VLOG(2) << "Preface bytes remaining: " << remaining_preface_.size();
+    QUICHE_VLOG(3) << "Preface bytes remaining: " << remaining_preface_.size();
     // decoder_ does not understand the client connection preface.
     size_t min_size = std::min(remaining_preface_.size(), bytes.size());
     if (!absl::StartsWith(remaining_preface_, bytes.substr(0, min_size))) {
@@ -504,21 +504,21 @@ OgHttp2Session::ProcessBytesImpl(absl::string_view bytes) {
     remaining_preface_.remove_prefix(min_size);
     bytes.remove_prefix(min_size);
     if (!remaining_preface_.empty()) {
-      QUICHE_VLOG(2) << "Preface bytes remaining: "
+      QUICHE_VLOG(3) << "Preface bytes remaining: "
                      << remaining_preface_.size();
       return static_cast<int64_t>(min_size);
     }
     preface_consumed = min_size;
   }
   int64_t result = decoder_.ProcessInput(bytes.data(), bytes.size());
-  QUICHE_VLOG(2) << "ProcessBytes result: " << result;
+  QUICHE_VLOG(3) << "ProcessBytes result: " << result;
   if (fatal_visitor_callback_failure_) {
     QUICHE_DCHECK(latched_error_);
-    QUICHE_VLOG(2) << "Visitor callback failed while processing bytes.";
+    QUICHE_VLOG(3) << "Visitor callback failed while processing bytes.";
     return ProcessBytesError::kVisitorCallbackFailed;
   }
   if (latched_error_ || result < 0) {
-    QUICHE_VLOG(2) << "ProcessBytes encountered an error.";
+    QUICHE_VLOG(3) << "ProcessBytes encountered an error.";
     if (options_.blackhole_data_on_connection_error) {
       return static_cast<int64_t>(bytes.size() + preface_consumed);
     } else {
@@ -595,7 +595,7 @@ void OgHttp2Session::EnqueueFrame(std::unique_ptr<spdy::SpdyFrameIR> frame) {
 
 int OgHttp2Session::Send() {
   if (sending_) {
-    QUICHE_VLOG(1) << TracePerspectiveAsString(options_.perspective)
+    QUICHE_VLOG(2) << TracePerspectiveAsString(options_.perspective)
                    << " returning early; already sending.";
     return 0;
   }
@@ -622,7 +622,7 @@ int OgHttp2Session::Send() {
     const Http2StreamId stream_id = GetNextReadyStream();
     // TODO(birenroy): Add a return value to indicate write blockage, so streams
     // aren't woken unnecessarily.
-    QUICHE_VLOG(1) << "Waking stream " << stream_id << " for writes.";
+    QUICHE_VLOG(2) << "Waking stream " << stream_id << " for writes.";
     continue_writing = WriteForStream(stream_id);
   }
   if (continue_writing == SendResult::SEND_OK) {
@@ -878,7 +878,7 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
          IsReadyToWriteData(state)) {
     DataFrameHeaderInfo info =
         GetDataFrameInfo(stream_id, available_window, state);
-    QUICHE_VLOG(2) << "WriteForStream | length: " << info.payload_length
+    QUICHE_VLOG(3) << "WriteForStream | length: " << info.payload_length
                    << " end_data: " << info.end_data
                    << " end_stream: " << info.end_stream
                    << " trailers: " << state.trailers.get();
@@ -1301,11 +1301,11 @@ void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
       value = std::min(value, HpackCapacityBound(options_));
       if (value < framer_.GetHpackEncoder()->CurrentHeaderTableSizeSetting()) {
         // Safe to apply a smaller table capacity immediately.
-        QUICHE_VLOG(2) << TracePerspectiveAsString(options_.perspective)
+        QUICHE_VLOG(3) << TracePerspectiveAsString(options_.perspective)
                        << " applying encoder table capacity " << value;
         framer_.GetHpackEncoder()->ApplyHeaderTableSizeSetting(value);
       } else {
-        QUICHE_VLOG(2)
+        QUICHE_VLOG(3)
             << TracePerspectiveAsString(options_.perspective)
             << " NOT applying encoder table capacity until writing ack: "
             << value;
@@ -1524,6 +1524,8 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
     connection_send_window_ += delta_window_size;
   } else {
     if (delta_window_size == 0) {
+      QUICHE_VLOG(1) << "Received WINDOW_UPDATE with delta 0 for stream "
+                     << stream_id;
       // A PROTOCOL_ERROR, according to RFC 9113 Section 6.9.
       EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
           stream_id, spdy::ERROR_CODE_PROTOCOL_ERROR));
@@ -1555,7 +1557,7 @@ void OgHttp2Session::OnWindowUpdate(spdy::SpdyStreamId stream_id,
       it->second.send_window += delta_window_size;
       if (was_blocked && it->second.send_window > 0) {
         // The stream was blocked on flow control.
-        QUICHE_VLOG(1) << "Marking stream " << stream_id << " ready to write.";
+        QUICHE_VLOG(2) << "Marking stream " << stream_id << " ready to write.";
         write_scheduler_.MarkStreamReady(stream_id, false);
       }
     }
@@ -1643,13 +1645,13 @@ void OgHttp2Session::OnUnknownFramePayload(spdy::SpdyStreamId stream_id,
 void OgHttp2Session::OnHeaderStatus(Http2StreamId stream_id,
                                     OnHeaderResult result) {
   QUICHE_DCHECK(result != OnHeaderResult::HEADER_OK);
-  QUICHE_VLOG(1) << "OnHeaderStatus(stream_id=" << stream_id
-                 << ", result=" << static_cast<int>(result) << ")";
   const bool should_reset_stream =
       result == OnHeaderResult::HEADER_RST_STREAM ||
       result == OnHeaderResult::HEADER_FIELD_INVALID ||
       result == OnHeaderResult::HEADER_HTTP_MESSAGING;
   if (should_reset_stream) {
+    QUICHE_VLOG(1) << "OnHeaderStatus(stream_id=" << stream_id
+                   << ", result=" << static_cast<int>(result) << ")";
     const Http2ErrorCode error_code =
         (result == OnHeaderResult::HEADER_RST_STREAM)
             ? Http2ErrorCode::INTERNAL_ERROR
@@ -1675,10 +1677,14 @@ void OgHttp2Session::OnHeaderStatus(Http2StreamId stream_id,
       }
     }
   } else if (result == OnHeaderResult::HEADER_CONNECTION_ERROR) {
+    QUICHE_VLOG(1) << "OnHeaderStatus(stream_id=" << stream_id
+                   << ", result=" << static_cast<int>(result) << ")";
     fatal_visitor_callback_failure_ = true;
     LatchErrorAndNotify(Http2ErrorCode::INTERNAL_ERROR,
                         ConnectionError::kHeaderError);
   } else if (result == OnHeaderResult::HEADER_COMPRESSION_ERROR) {
+    QUICHE_VLOG(1) << "OnHeaderStatus(stream_id=" << stream_id
+                   << ", result=" << static_cast<int>(result) << ")";
     LatchErrorAndNotify(Http2ErrorCode::COMPRESSION_ERROR,
                         ConnectionError::kHeaderError);
   }
@@ -1746,7 +1752,7 @@ void OgHttp2Session::HandleOutboundSettings(
       case INITIAL_WINDOW_SIZE:
       case MAX_FRAME_SIZE:
       case MAX_HEADER_LIST_SIZE:
-        QUICHE_VLOG(2)
+        QUICHE_VLOG(3)
             << "Not adjusting internal state for outbound setting with id "
             << id;
         break;
@@ -1775,7 +1781,7 @@ void OgHttp2Session::HandleOutboundSettings(
             case ENABLE_PUSH:
             case MAX_HEADER_LIST_SIZE:
             case ENABLE_CONNECT_PROTOCOL:
-              QUICHE_VLOG(2)
+              QUICHE_VLOG(3)
                   << "No action required in ack for outbound setting with id "
                   << id;
               break;
@@ -2034,6 +2040,7 @@ void OgHttp2Session::DecrementQueuedFrameCount(uint32_t stream_id,
 }
 
 void OgHttp2Session::HandleContentLengthError(Http2StreamId stream_id) {
+  QUICHE_VLOG(1) << "Content length error for stream " << stream_id;
   if (current_frame_type_ == static_cast<uint8_t>(FrameType::HEADERS)) {
     // For consistency, either OnInvalidFrame should always be invoked,
     // regardless of frame type, or perhaps we should introduce an OnStreamError
