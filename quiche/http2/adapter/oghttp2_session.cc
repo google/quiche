@@ -20,6 +20,7 @@
 #include "quiche/http2/adapter/noop_header_validator.h"
 #include "quiche/http2/adapter/oghttp2_util.h"
 #include "quiche/http2/core/spdy_protocol.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
 
 namespace http2 {
@@ -1075,6 +1076,22 @@ void OgHttp2Session::SubmitMetadata(Http2StreamId stream_id) {
 void OgHttp2Session::SubmitSettings(absl::Span<const Http2Setting> settings) {
   auto frame = PrepareSettingsFrame(settings);
   EnqueueFrame(std::move(frame));
+}
+
+void OgHttp2Session::SubmitGoAway(Http2StreamId last_accepted_stream_id,
+                                  Http2ErrorCode error_code,
+                                  absl::string_view opaque_data) {
+  if (!IsServerSession() && !options_.send_goaway_as_client) {
+    QUICHE_VLOG(2)
+        << "Dropping GOAWAY from client with last_accepted_stream_id "
+        << last_accepted_stream_id << ", error_code "
+        << Http2ErrorCodeToString(error_code) << ", opaque_data "
+        << opaque_data;
+    return;
+  }
+  EnqueueFrame(std::make_unique<spdy::SpdyGoAwayIR>(
+      last_accepted_stream_id, TranslateErrorCode(error_code),
+      std::string(opaque_data)));
 }
 
 void OgHttp2Session::OnError(SpdyFramerError error,

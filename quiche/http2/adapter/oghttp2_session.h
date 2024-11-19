@@ -89,6 +89,8 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     // If true, crumbles `Cookie` header field values for potentially better
     // HPACK compression.
     bool crumble_cookies = false;
+    // If true, allows a GOAWAY to be sent even when acting as a client.
+    bool send_goaway_as_client = false;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);
@@ -116,6 +118,8 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
                       std::unique_ptr<MetadataSource> source);
   void SubmitMetadata(Http2StreamId stream_id);
   void SubmitSettings(absl::Span<const Http2Setting> settings);
+  void SubmitGoAway(Http2StreamId last_accepted_stream_id,
+                    Http2ErrorCode error_code, absl::string_view opaque_data);
 
   bool IsServerSession() const {
     return options_.perspective == Perspective::kServer;

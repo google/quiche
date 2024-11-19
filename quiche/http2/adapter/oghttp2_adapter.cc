@@ -15,7 +15,6 @@ namespace adapter {
 
 namespace {
 
-using spdy::SpdyGoAwayIR;
 using spdy::SpdyPingIR;
 using spdy::SpdyPriorityIR;
 using spdy::SpdyWindowUpdateIR;
@@ -61,10 +60,9 @@ void OgHttp2Adapter::SubmitShutdownNotice() {
 void OgHttp2Adapter::SubmitGoAway(Http2StreamId last_accepted_stream_id,
                                   Http2ErrorCode error_code,
                                   absl::string_view opaque_data) {
-  session_->EnqueueFrame(std::make_unique<SpdyGoAwayIR>(
-      last_accepted_stream_id, TranslateErrorCode(error_code),
-      std::string(opaque_data)));
+  session_->SubmitGoAway(last_accepted_stream_id, error_code, opaque_data);
 }
+
 void OgHttp2Adapter::SubmitWindowUpdate(Http2StreamId stream_id,
                                         int window_increment) {
   session_->EnqueueFrame(

@@ -2419,10 +2419,11 @@ TEST(OgHttp2AdapterTest, ClientStartsShutdown) {
   EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
-TEST(OgHttp2AdapterTest, ClientSubmitsGoAwayAfterRequest) {
+TEST(OgHttp2AdapterTest, ClientSubmitsGoAwayAfterRequestOptionEnabled) {
   TestVisitor visitor;
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
+  options.send_goaway_as_client = true;
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
   testing::InSequence s;
@@ -2492,6 +2493,80 @@ TEST(OgHttp2AdapterTest, ClientSubmitsGoAwayAfterRequest) {
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
+}
+
+TEST(OgHttp2AdapterTest, ClientSubmitsGoAwayAfterRequestOptionDisabled) {
+  TestVisitor visitor;
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kClient;
+  options.send_goaway_as_client = false;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
+
+  const std::vector<Header> headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"}});
+
+  const int32_t stream_id =
+      adapter->SubmitRequest(headers, nullptr, true, nullptr);
+  ASSERT_GT(stream_id, 0);
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _,
+                                         END_STREAM_FLAG | END_HEADERS_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _,
+                                   END_STREAM_FLAG | END_HEADERS_FLAG, 0));
+
+  int result = adapter->Send();
+  EXPECT_EQ(0, result);
+  absl::string_view data = visitor.data();
+  EXPECT_THAT(data, testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  data.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(data,
+              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::HEADERS}));
+  visitor.Clear();
+
+  const std::string stream_frames =
+      TestFrameSequence()
+          .ServerPreface()
+          .Headers(stream_id, {{":status", "200"}}, /*fin=*/true)
+          .Serialize();
+
+  // Server preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  EXPECT_CALL(visitor, OnFrameHeader(stream_id, _, HEADERS,
+                                     END_HEADERS_FLAG | END_STREAM_FLAG));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnHeaderForStream(stream_id, ":status", "200"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(stream_id));
+  EXPECT_CALL(visitor, OnEndStream(stream_id));
+  EXPECT_CALL(visitor,
+              OnCloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  const int64_t stream_result = adapter->ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
+
+  // Now that the stream has been processed, the highest stream ID should be
+  // updated. Attempting to send a GOAWAY with this stream ID should be a no-op
+  // because the option is disabled.
+  EXPECT_EQ(adapter->GetHighestReceivedStreamId(), stream_id);
+  adapter->SubmitGoAway(adapter->GetHighestReceivedStreamId(),
+                        Http2ErrorCode::HTTP2_NO_ERROR, "opaque_data");
+  EXPECT_TRUE(adapter->want_write());
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, ACK_FLAG));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, ACK_FLAG, 0));
+
+  result = adapter->Send();
+  EXPECT_EQ(0, result);
+  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 TEST(OgHttp2AdapterTest, ClientReceivesGoAway) {
