@@ -809,16 +809,16 @@ TEST_P(TlsServerHandshakerTest, ResumptionWithPlaceholderTicket) {
   EXPECT_FALSE(server_stream()->IsResumption());
   EXPECT_FALSE(server_stream()->ResumptionAttempted());
 
-  // Now do another handshake. It should end up with a full handshake because
-  // the placeholder ticket is undecryptable.
+  // Now do another handshake. It should end up with a full handshake. When the
+  // placeholder ticket is enabled, it will be undecryptable. When it is
+  // disabled, newer BoringSSL servers will skip sending a ticket altogether, so
+  // the client will not even attempt resumption.
   InitializeServer();
   InitializeFakeClient();
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
   EXPECT_FALSE(client_stream()->IsResumption());
   EXPECT_FALSE(server_stream()->IsResumption());
-  EXPECT_NE(server_stream()->ResumptionAttempted(),
-            GetParam().disable_resumption);
 }
 
 TEST_P(TlsServerHandshakerTest, AdvanceHandshakeDuringAsyncDecryptCallback) {
