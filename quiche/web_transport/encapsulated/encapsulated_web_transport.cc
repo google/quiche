@@ -36,6 +36,7 @@
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/quiche_stream.h"
+#include "quiche/common/vectorized_io_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace webtransport {

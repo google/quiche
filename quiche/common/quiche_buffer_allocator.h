@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_iovec.h"
 
@@ -109,6 +110,7 @@ class QUICHE_EXPORT QuicheBuffer {
   absl::string_view AsStringView() const {
     return absl::string_view(data(), size());
   }
+  absl::Span<char> AsSpan() { return absl::Span<char>(data(), size()); }
 
   // Releases the ownership of the underlying buffer.
   QuicheUniqueBufferPtr Release() {

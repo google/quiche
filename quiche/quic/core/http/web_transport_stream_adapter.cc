@@ -8,7 +8,7 @@
 #include <limits>
 #include <optional>
 #include <string>
-#include <vector>
+#include <utility>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -25,8 +25,11 @@
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
-#include "quiche/common/quiche_mem_slice_storage.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_stream.h"
+#include "quiche/common/vectorized_io_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
@@ -79,21 +82,20 @@ absl::Status WebTransportStreamAdapter::Writev(
     return initial_check_status;
   }
 
-  std::vector<iovec> iovecs;
-  size_t total_size = 0;
-  iovecs.resize(data.size());
-  for (size_t i = 0; i < data.size(); i++) {
-    // QuicheMemSliceStorage only reads iovec, thus this is safe.
-    iovecs[i].iov_base = const_cast<char*>(data[i].data());
-    iovecs[i].iov_len = data[i].size();
-    total_size += data[i].size();
+  size_t total_size = quiche::TotalStringViewSpanSize(data);
+  quiche::QuicheMemSlice slice;
+  if (total_size > 0) {
+    quiche::QuicheBuffer buffer(
+        session_->connection()->helper()->GetStreamSendBufferAllocator(),
+        total_size);
+    size_t bytes_copied = quiche::GatherStringViewSpan(data, buffer.AsSpan());
+    QUICHE_DCHECK_EQ(total_size, bytes_copied);
+    slice = quiche::QuicheMemSlice(std::move(buffer));
   }
-  quiche::QuicheMemSliceStorage storage(
-      iovecs.data(), iovecs.size(),
-      session_->connection()->helper()->GetStreamSendBufferAllocator(),
-      GetQuicFlag(quic_send_buffer_max_data_slice_size));
   QuicConsumedData consumed = stream_->WriteMemSlices(
-      storage.ToSpan(), /*fin=*/options.send_fin(),
+      slice.empty() ? absl::Span<quiche::QuicheMemSlice>()
+                    : absl::MakeSpan(&slice, 1),
+      /*fin=*/options.send_fin(),
       /*buffer_uncondtionally=*/options.buffer_unconditionally());
 
   if (consumed.bytes_consumed == total_size) {

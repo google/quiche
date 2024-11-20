@@ -199,15 +199,6 @@ inline absl::Status SendFinOnStream(WriteStream& stream) {
   return stream.Writev(absl::Span<const absl::string_view>(), options);
 }
 
-inline size_t TotalStringViewSpanSize(
-    absl::Span<const absl::string_view> span) {
-  size_t total = 0;
-  for (absl::string_view view : span) {
-    total += view.size();
-  }
-  return total;
-}
-
 }  // namespace quiche
 
 #endif  // QUICHE_COMMON_QUICHE_STREAM_H_
