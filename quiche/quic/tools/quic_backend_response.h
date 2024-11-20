@@ -25,8 +25,9 @@ class QuicBackendResponse {
     INCOMPLETE_RESPONSE,   // The server will act as if there is a non-empty
                            // trailer but it will not be sent, as a result, FIN
                            // will not be sent too.
-    GENERATE_BYTES         // Sends a response with a length equal to the number
+    GENERATE_BYTES,        // Sends a response with a length equal to the number
                            // of bytes in the URL path.
+    EMPTY_PAYLOAD_WITH_FIN,  // Sends an empty STREAM_FRAME with FIN.
   };
   QuicBackendResponse();
 

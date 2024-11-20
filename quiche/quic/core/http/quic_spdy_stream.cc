@@ -822,9 +822,6 @@ void QuicSpdyStream::OnDataAvailable() {
   if (!VersionUsesHttp3(transport_version())) {
     // Sequencer must be blocked until headers are consumed.
     QUICHE_DCHECK(FinishedReadingHeaders());
-  }
-
-  if (!VersionUsesHttp3(transport_version())) {
     HandleBodyAvailable();
     return;
   }
@@ -880,6 +877,17 @@ void QuicSpdyStream::OnDataAvailable() {
     }
   }
 
+  if (GetQuicReloadableFlag(quic_fin_before_completed_http_headers)) {
+    if (sequencer()->IsClosed() && !headers_decompressed_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fin_before_completed_http_headers, 1,
+                                   2);
+      OnUnrecoverableError(
+          QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+          "Received FIN before finishing receiving HTTP headers.");
+      return;
+    }
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_fin_before_completed_http_headers, 2, 2);
+  }
   // Do not call HandleBodyAvailable() until headers are consumed.
   if (!FinishedReadingHeaders()) {
     return;

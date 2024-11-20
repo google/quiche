@@ -8141,6 +8141,32 @@ TEST_P(EndToEndTest, SerializeConnectionClosePacketWithLargestPacketNumber) {
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
   EXPECT_THAT(client_->connection_error(), IsError(QUIC_PUBLIC_RESET));
 }
+
+TEST_P(EndToEndTest, EmptyResponseWithFin) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+  memory_cache_backend_.AddSpecialResponse(
+      server_hostname_, "/empty_response_with_fin",
+      QuicBackendResponse::EMPTY_PAYLOAD_WITH_FIN);
+
+  quiche::HttpHeaderBlock headers;
+  headers[":scheme"] = "https";
+  headers[":authority"] = server_hostname_;
+  headers[":method"] = "GET";
+  headers[":path"] = "/empty_response_with_fin";
+  client_->SendMessage(headers, "", /*fin=*/true);
+  client_->WaitForResponseForMs(100);
+  if (GetQuicReloadableFlag(quic_fin_before_completed_http_headers)) {
+    EXPECT_THAT(client_->connection_error(),
+                IsError(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM));
+  } else {
+    EXPECT_FALSE(client_->response_headers_complete());
+    EXPECT_FALSE(client_->response_complete());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

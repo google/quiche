@@ -2142,6 +2142,46 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   EXPECT_FALSE(stream_->HasBytesToRead());
 }
 
+TEST_P(QuicSpdyStreamTest, IncompleteHeadersWithFin) {
+  SetQuicReloadableFlag(quic_fin_before_completed_http_headers, true);
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(!kShouldProcessData);
+
+  std::string headers = HeadersFrame({std::make_pair("foo", "bar")});
+  std::string partial_headers = headers.substr(0, headers.length() - 2);
+  EXPECT_FALSE(partial_headers.empty());
+  // Receive the first three bytes of the headers frame with FIN.
+  QuicStreamFrame frame(stream_->id(), true, 0, partial_headers);
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(
+          QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+          MatchesRegex("Received FIN before finishing receiving HTTP headers."),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  stream_->OnStreamFrame(frame);
+}
+
+TEST_P(QuicSpdyStreamTest, EmptyStreamFrameWithFin) {
+  SetQuicReloadableFlag(quic_fin_before_completed_http_headers, true);
+  if (!UsesHttp3()) {
+    return;
+  }
+  Initialize(!kShouldProcessData);
+
+  // Receive the first three bytes of the headers frame with FIN.
+  QuicStreamFrame frame(stream_->id(), true, 0, 0);
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(
+          QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+          MatchesRegex("Received FIN before finishing receiving HTTP headers."),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  stream_->OnStreamFrame(frame);
+}
+
 // The test stream will receive a stream frame containing malformed headers and
 // normal body. Make sure the http decoder stops processing body after the
 // connection shuts down.

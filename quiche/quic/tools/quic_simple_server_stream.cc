@@ -303,6 +303,15 @@ void QuicSimpleServerStream::Respond(const QuicBackendResponse* response) {
     return;
   }
 
+  if (response->response_type() ==
+      QuicBackendResponse::EMPTY_PAYLOAD_WITH_FIN) {
+    // Send an empty payload with FIN without any response headers or body.
+    absl::InlinedVector<quiche::QuicheMemSlice, 4> quic_slices;
+    absl::Span<quiche::QuicheMemSlice> span(quic_slices);
+    WriteMemSlices(std::move(span), true);
+    return;
+  }
+
   // Examing response status, if it was not pure integer as typical h2
   // response status, send error response. Notice that
   // QuicHttpResponseCache push urls are strictly authority + path only,

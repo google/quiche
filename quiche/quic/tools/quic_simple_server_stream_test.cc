@@ -740,6 +740,12 @@ TEST_P(QuicSimpleServerStreamTest, InvalidHeadersWithFin) {
   absl::string_view data(arr, ABSL_ARRAYSIZE(arr));
   QuicStreamFrame frame(stream_->id(), true, 0, data);
   // Verify that we don't crash when we get a invalid headers in stream frame.
+  if (GetQuicReloadableFlag(quic_fin_before_completed_http_headers) &&
+      UsesHttp3()) {
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM, _, _));
+  }
   stream_->OnStreamFrame(frame);
 }
 

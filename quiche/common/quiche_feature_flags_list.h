@@ -36,6 +36,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_mtu_discovery_at_server, fa
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_new_chaos_protector, false, false, "If true, use new refactored QuicChaosProtector implementation.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_server_on_wire_ping, true, true, "If true, enable server retransmittable on wire PING.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_version_rfcv2, false, false, "When true, support RFC9369.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fin_before_completed_http_headers, false, true, "If true, close the connection with error if FIN is received before finish receiving the whole HTTP headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_timeouts, true, true, "If true, postpone setting handshake timeout to infinite to handshake complete.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_gfe_allow_alps_new_codepoint, true, true, "If true, allow quic to use new ALPS codepoint to negotiate during handshake for H3 if client sends new ALPS codepoint.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_ignore_gquic_probing, true, true, "If true, QUIC server will not respond to gQUIC probing packet(PING + PADDING) but treat it as a regular packet.")
