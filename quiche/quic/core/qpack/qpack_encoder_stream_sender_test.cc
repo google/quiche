@@ -19,13 +19,13 @@ namespace {
 
 class QpackEncoderStreamSenderTest : public QuicTestWithParam<bool> {
  protected:
-  QpackEncoderStreamSenderTest() : stream_(HuffmanEncoding()) {
+  QpackEncoderStreamSenderTest() : stream_(GetHuffmanEncoding()) {
     stream_.set_qpack_stream_sender_delegate(&delegate_);
   }
   ~QpackEncoderStreamSenderTest() override = default;
 
   bool DisableHuffmanEncoding() { return GetParam(); }
-  HuffmanEncoding HuffmanEncoding() {
+  HuffmanEncoding GetHuffmanEncoding() {
     return DisableHuffmanEncoding() ? HuffmanEncoding::kDisabled
                                     : HuffmanEncoding::kEnabled;
   }
