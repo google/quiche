@@ -69,6 +69,7 @@ MasqueClientSession::MasqueClientSession(
       masque_mode_(masque_mode),
       uri_template_(uri_template),
       owner_(owner) {
+  QUICHE_CHECK(!QuicUrl(uri_template_).host().empty());
   // We don't currently use `masque_mode_` but will in the future. To silence
   // clang's `-Wunused-private-field` warning for this when building QUICHE for
   // Chrome, add a use of it here.
@@ -112,6 +113,7 @@ MasqueClientSession::GetOrCreateConnectUdpClientState(
   } else {
     target_host = target_server_address.host().ToString();
   }
+  QUICHE_CHECK(!target_host.empty());
 
   url::Parsed parsed_uri_template;
   url::ParseStandardURL(uri_template_.c_str(), uri_template_.length(),
@@ -704,6 +706,7 @@ void MasqueClientSession::ConnectEthernetClientState::OnHttp3Datagram(
 
 quiche::QuicheIpAddress MasqueClientSession::GetFakeAddress(
     absl::string_view hostname) {
+  QUICHE_CHECK(!hostname.empty());
   quiche::QuicheIpAddress address;
   uint8_t address_bytes[16] = {0xFD};
   quiche::QuicheRandom::GetInstance()->RandBytes(&address_bytes[1],

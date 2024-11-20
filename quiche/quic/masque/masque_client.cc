@@ -26,6 +26,7 @@
 #include "quiche/quic/tools/quic_default_client.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_url.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -37,7 +38,9 @@ MasqueClient::MasqueClient(QuicSocketAddress server_address,
     : QuicDefaultClient(server_address, server_id, MasqueSupportedVersions(),
                         event_loop, std::move(proof_verifier)),
       masque_mode_(masque_mode),
-      uri_template_(uri_template) {}
+      uri_template_(uri_template) {
+  QUICHE_CHECK(!QuicUrl(uri_template_).host().empty());
+}
 
 MasqueClient::MasqueClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,
@@ -49,7 +52,9 @@ MasqueClient::MasqueClient(
                         config, event_loop, std::move(network_helper),
                         std::move(proof_verifier)),
       masque_mode_(masque_mode),
-      uri_template_(uri_template) {}
+      uri_template_(uri_template) {
+  QUICHE_CHECK(!QuicUrl(uri_template_).host().empty());
+}
 
 MasqueClient::MasqueClient(
     QuicSocketAddress server_address, const QuicServerId& server_id,
@@ -89,6 +94,11 @@ std::unique_ptr<MasqueClient> MasqueClient::Create(
     QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier) {
   QuicUrl url(uri_template);
   std::string host = url.host();
+  if (host.empty()) {
+    QUIC_LOG(ERROR) << "Failed to parse URI template \"" << uri_template
+                    << "\"";
+    return nullptr;
+  }
   uint16_t port = url.port();
   // Build the masque_client, and try to connect.
   QuicSocketAddress addr = tools::LookupAddress(host, absl::StrCat(port));

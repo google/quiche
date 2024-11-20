@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
@@ -68,7 +69,16 @@ CreateAndConnectMasqueEncapsulatedClient(
     QUIC_LOG(ERROR) << "Refusing to use MASQUE without datagram support";
     return nullptr;
   }
-  const QuicUrl url(url_string, "https");
+
+  QuicUrl url(url_string, "https");
+  if (url.host().empty() && !absl::StrContains(url_string, "://")) {
+    url = QuicUrl(absl::StrCat("https://", url_string));
+  }
+  if (url.host().empty()) {
+    QUIC_LOG(ERROR) << "Failed to parse URL \"" << url_string << "\"";
+    return nullptr;
+  }
+
   std::unique_ptr<ProofVerifier> proof_verifier;
   if (disable_certificate_verification) {
     proof_verifier = std::make_unique<FakeProofVerifier>();
