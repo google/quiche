@@ -803,7 +803,6 @@ quiche_test_support_hdrs = [
     "quic/test_tools/limited_mtu_test_writer.h",
     "quic/test_tools/mock_clock.h",
     "quic/test_tools/mock_connection_id_generator.h",
-    "quic/test_tools/mock_load_balancer_encoder.h",
     "quic/test_tools/mock_quic_connection_alarms.h",
     "quic/test_tools/mock_quic_dispatcher.h",
     "quic/test_tools/mock_quic_session_visitor.h",
@@ -1495,6 +1494,7 @@ load_balancer_hdrs = [
     "quic/load_balancer/load_balancer_encoder.h",
     "quic/load_balancer/load_balancer_server_id.h",
     "quic/load_balancer/load_balancer_server_id_map.h",
+    "quic/test_tools/mock_load_balancer_encoder.h",
 ]
 load_balancer_srcs = [
     "quic/load_balancer/load_balancer_config.cc",

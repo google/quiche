@@ -802,7 +802,6 @@
     "quiche/quic/test_tools/limited_mtu_test_writer.h",
     "quiche/quic/test_tools/mock_clock.h",
     "quiche/quic/test_tools/mock_connection_id_generator.h",
-    "quiche/quic/test_tools/mock_load_balancer_encoder.h",
     "quiche/quic/test_tools/mock_quic_connection_alarms.h",
     "quiche/quic/test_tools/mock_quic_dispatcher.h",
     "quiche/quic/test_tools/mock_quic_session_visitor.h",
@@ -1497,7 +1496,8 @@
     "quiche/quic/load_balancer/load_balancer_decoder.h",
     "quiche/quic/load_balancer/load_balancer_encoder.h",
     "quiche/quic/load_balancer/load_balancer_server_id.h",
-    "quiche/quic/load_balancer/load_balancer_server_id_map.h"
+    "quiche/quic/load_balancer/load_balancer_server_id_map.h",
+    "quiche/quic/test_tools/mock_load_balancer_encoder.h"
   ],
   "load_balancer_srcs": [
     "quiche/quic/load_balancer/load_balancer_config.cc",
