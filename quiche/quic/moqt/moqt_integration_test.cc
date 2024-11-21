@@ -231,7 +231,7 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
   server_->session()->set_publisher(&publisher);
 
   for (MoqtForwardingPreference forwarding_preference :
-       {MoqtForwardingPreference::kTrack, MoqtForwardingPreference::kSubgroup,
+       {MoqtForwardingPreference::kSubgroup,
         MoqtForwardingPreference::kDatagram}) {
     SCOPED_TRACE(MoqtForwardingPreferenceToString(forwarding_preference));
     MockRemoteTrackVisitor client_visitor;
@@ -294,7 +294,7 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
   server_->session()->set_publisher(&publisher);
 
   for (MoqtForwardingPreference forwarding_preference :
-       {MoqtForwardingPreference::kTrack, MoqtForwardingPreference::kSubgroup,
+       {MoqtForwardingPreference::kSubgroup,
         MoqtForwardingPreference::kDatagram}) {
     SCOPED_TRACE(MoqtForwardingPreferenceToString(forwarding_preference));
     MockRemoteTrackVisitor client_visitor;

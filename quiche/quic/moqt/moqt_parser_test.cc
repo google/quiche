@@ -59,7 +59,6 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kObjectAck,
 };
 constexpr std::array kDataStreamTypes{
-    MoqtDataStreamType::kStreamHeaderTrack,
     MoqtDataStreamType::kStreamHeaderSubgroup,
     MoqtDataStreamType::kStreamHeaderFetch,
 };
@@ -510,27 +509,6 @@ TEST_F(MoqtMessageSpecificTest, StreamHeaderSubgroupFollowOn) {
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
 }
 
-TEST_F(MoqtMessageSpecificTest, StreamHeaderTrackFollowOn) {
-  MoqtDataParser parser(&visitor_);
-  // first part
-  auto message1 = std::make_unique<StreamHeaderTrackMessage>();
-  parser.ProcessData(message1->PacketSample(), false);
-  EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_TRUE(message1->EqualFieldValues(*visitor_.last_message_));
-  EXPECT_TRUE(visitor_.end_of_message_);
-  EXPECT_EQ(visitor_.object_payload(), "foo");
-  EXPECT_FALSE(visitor_.parsing_error_.has_value());
-  // second part
-  visitor_.object_payloads_.clear();
-  auto message2 = std::make_unique<StreamMiddlerTrackMessage>();
-  parser.ProcessData(message2->PacketSample(), false);
-  EXPECT_EQ(visitor_.messages_received_, 2);
-  EXPECT_TRUE(message2->EqualFieldValues(*visitor_.last_message_));
-  EXPECT_TRUE(visitor_.end_of_message_);
-  EXPECT_EQ(visitor_.object_payload(), "bar");
-  EXPECT_FALSE(visitor_.parsing_error_.has_value());
-}
-
 TEST_F(MoqtMessageSpecificTest, ClientSetupRoleIsInvalid) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
@@ -892,7 +870,7 @@ TEST_F(MoqtMessageSpecificTest, FinMidPayload) {
 
 TEST_F(MoqtMessageSpecificTest, PartialPayloadThenFin) {
   MoqtDataParser parser(&visitor_);
-  auto message = std::make_unique<StreamHeaderTrackMessage>();
+  auto message = std::make_unique<StreamHeaderSubgroupMessage>();
   parser.ProcessData(
       message->PacketSample().substr(0, message->total_message_size() - 1),
       false);

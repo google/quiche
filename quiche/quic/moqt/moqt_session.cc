@@ -1278,20 +1278,13 @@ webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
   MoqtPriority publisher_priority = track_publisher_->GetPublisherPriority();
   MoqtDeliveryOrder delivery_order = subscriber_delivery_order().value_or(
       track_publisher_->GetDeliveryOrder());
-  switch (forwarding_preference) {
-    case MoqtForwardingPreference::kTrack:
-      return SendOrderForStream(subscriber_priority_, publisher_priority,
-                                /*group_id=*/0, delivery_order);
-      break;
-    case MoqtForwardingPreference::kSubgroup:
-      return SendOrderForStream(subscriber_priority_, publisher_priority,
-                                sequence.group, sequence.subgroup,
-                                delivery_order);
-      break;
-    case MoqtForwardingPreference::kDatagram:
-      QUICHE_NOTREACHED();
-      return 0;
+  if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
+    QUICHE_BUG(quic_bug_GetSendOrder_for_Datagram)
+        << "Datagram Track requesting SendOrder";
+    return 0;
   }
+  return SendOrderForStream(subscriber_priority_, publisher_priority,
+                            sequence.group, sequence.subgroup, delivery_order);
 }
 
 // Returns the highest send order in the subscription.
@@ -1442,29 +1435,16 @@ void MoqtSession::OutgoingDataStream::SendObjects(
     MoqtForwardingPreference forwarding_preference =
         publisher.GetForwardingPreference();
     UpdateSendOrder(subscription);
-    switch (forwarding_preference) {
-      case MoqtForwardingPreference::kTrack:
-        if (object->status == MoqtObjectStatus::kEndOfGroup ||
-            object->status == MoqtObjectStatus::kGroupDoesNotExist) {
-          ++next_object_.group;
-          next_object_.object = 0;
-        } else {
-          next_object_.object = object->sequence.object + 1;
-        }
-        break;
-
-      case MoqtForwardingPreference::kSubgroup:
-        next_object_.object = object->sequence.object + 1;
-        break;
-
-      case MoqtForwardingPreference::kDatagram:
-        QUICHE_NOTREACHED();
-        break;
+    if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
+      QUICHE_BUG(quic_bug_SendObjects_for_Datagram)
+          << "Datagram Track requesting SendObjects";
+      return;
     }
+    next_object_.object = object->sequence.object + 1;
     if (session_->WriteObjectToStream(
             stream_, subscription.track_alias(), *object,
-            GetMessageTypeForForwardingPreference(forwarding_preference),
-            !stream_header_written_, object->fin_after_this)) {
+            MoqtDataStreamType::kStreamHeaderSubgroup, !stream_header_written_,
+            object->fin_after_this)) {
       stream_header_written_ = true;
       subscription.OnObjectSent(object->sequence);
     }

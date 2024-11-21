@@ -52,7 +52,6 @@ uint64_t SignedVarintUnserializedForm(uint64_t value) {
 bool IsAllowedStreamType(uint64_t value) {
   constexpr std::array kAllowedStreamTypes = {
       MoqtDataStreamType::kStreamHeaderSubgroup,
-      MoqtDataStreamType::kStreamHeaderTrack,
       MoqtDataStreamType::kStreamHeaderFetch, MoqtDataStreamType::kPadding};
   for (MoqtDataStreamType type : kAllowedStreamTypes) {
     if (static_cast<uint64_t>(type) == value) {
@@ -67,8 +66,7 @@ size_t ParseObjectHeader(quic::QuicDataReader& reader, MoqtObject& object,
   if (!reader.ReadVarInt62(&object.track_alias)) {
     return 0;
   }
-  if (type != MoqtDataStreamType::kStreamHeaderTrack &&
-      type != MoqtDataStreamType::kStreamHeaderFetch &&
+  if (type != MoqtDataStreamType::kStreamHeaderFetch &&
       !reader.ReadVarInt62(&object.group_id)) {
     return 0;
   }
@@ -94,14 +92,12 @@ size_t ParseObjectHeader(quic::QuicDataReader& reader, MoqtObject& object,
     return 0;
   }
   object.object_status = IntegerToObjectStatus(status);
-  object.forwarding_preference = GetForwardingPreference(type);
   return reader.PreviouslyReadPayload().size();
 }
 
 size_t ParseObjectSubheader(quic::QuicDataReader& reader, MoqtObject& object,
                             MoqtDataStreamType type) {
   switch (type) {
-    case MoqtDataStreamType::kStreamHeaderTrack:
     case MoqtDataStreamType::kStreamHeaderFetch:
       if (!reader.ReadVarInt62(&object.group_id)) {
         return 0;
@@ -1082,6 +1078,7 @@ absl::string_view ParseDatagram(absl::string_view data,
   if (processed_data == 0) {  // Incomplete header
     return absl::string_view();
   }
+  object_metadata.forwarding_preference = MoqtForwardingPreference::kDatagram;
   return reader.PeekRemainingPayload();
 }
 
@@ -1156,6 +1153,7 @@ absl::string_view MoqtDataParser::ProcessDataInner(absl::string_view data) {
         if (bytes_read == 0) {
           return remainder;
         }
+        header.forwarding_preference = MoqtForwardingPreference::kSubgroup;
         metadata_ = header;
         continue;
       }

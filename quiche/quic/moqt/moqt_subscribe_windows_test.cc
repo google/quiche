@@ -34,16 +34,6 @@ TEST_F(SubscribeWindowTest, Queries) {
   EXPECT_FALSE(window.InWindow(FullSequence(3, 12)));
 }
 
-TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdTrack) {
-  SendStreamMap stream_map(MoqtForwardingPreference::kTrack);
-  stream_map.AddStream(FullSequence{4, 0}, 2);
-  EXPECT_QUIC_BUG(stream_map.AddStream(FullSequence{5, 2}, 6),
-                  "Stream already added");
-  EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(5, 2)), 2);
-  stream_map.RemoveStream(FullSequence{7, 2}, 2);
-  EXPECT_EQ(stream_map.GetStreamForSequence(FullSequence(4, 0)), std::nullopt);
-}
-
 TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdSubgroup) {
   SendStreamMap stream_map(MoqtForwardingPreference::kSubgroup);
   stream_map.AddStream(FullSequence{4, 0}, 2);

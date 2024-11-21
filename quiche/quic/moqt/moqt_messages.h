@@ -32,11 +32,11 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft06 = 0xff000006,
+  kDraft07 = 0xff000007,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft06;
+inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft07;
 inline constexpr uint64_t kDefaultInitialMaxSubscribeId = 100;
 
 struct QUICHE_EXPORT MoqtSessionParameters {
@@ -66,7 +66,6 @@ inline constexpr size_t kMaxMessageHeaderSize = 2048;
 
 enum class QUICHE_EXPORT MoqtDataStreamType : uint64_t {
   kObjectDatagram = 0x01,
-  kStreamHeaderTrack = 0x02,
   kStreamHeaderSubgroup = 0x04,
   kStreamHeaderFetch = 0x05,
 
@@ -305,7 +304,6 @@ struct QUICHE_EXPORT MoqtServerSetup {
 
 // These codes do not appear on the wire.
 enum class QUICHE_EXPORT MoqtForwardingPreference {
-  kTrack,
   kSubgroup,
   kDatagram,
 };

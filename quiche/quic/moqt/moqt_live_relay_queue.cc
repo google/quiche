@@ -27,9 +27,6 @@ bool MoqtLiveRelayQueue::AddFin(FullSequence sequence) {
   switch (forwarding_preference_) {
     case MoqtForwardingPreference::kDatagram:
       return false;
-    case MoqtForwardingPreference::kTrack:
-      // TODO(martinduke): Support if it doesn't go away.
-      return false;
     case MoqtForwardingPreference::kSubgroup:
       break;
   }

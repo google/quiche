@@ -1160,7 +1160,7 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
   EXPECT_CALL(mock_stream, GetStreamId())
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, true);
-  object.forwarding_preference = MoqtForwardingPreference::kTrack;
+  object.forwarding_preference = MoqtForwardingPreference::kDatagram;
   ++object.object_id;
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
@@ -1215,7 +1215,7 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
   MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor, 2);
   // The track already exists, and has a different forwarding preference.
   MoqtSessionPeer::remote_track(&session_, 2)
-      .CheckForwardingPreference(MoqtForwardingPreference::kTrack);
+      .CheckForwardingPreference(MoqtForwardingPreference::kDatagram);
 
   // SUBSCRIBE_OK arrives
   MoqtSubscribeOk ok = {
@@ -1696,8 +1696,8 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
 
 TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
   FullTrackName ftn("foo", "bar");
-  auto track =
-      SetupPublisher(ftn, MoqtForwardingPreference::kTrack, FullSequence(4, 2));
+  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
+                              FullSequence(4, 2));
   MoqtSessionPeer::AddSubscription(&session_, track, 0, 1, 3, 4);
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -1800,7 +1800,7 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, true);
   ++object.object_id;
-  object.forwarding_preference = MoqtForwardingPreference::kTrack;
+  object.forwarding_preference = MoqtForwardingPreference::kDatagram;
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
                            "Forwarding preference changes mid-track"))
@@ -2398,7 +2398,8 @@ TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {
   MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kSubscriber);
   FullTrackName ftn("foo", "bar");
   MockLocalTrackVisitor track_visitor;
-  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kTrack, &track_visitor);
+  session_.AddLocalTrack(ftn, MoqtForwardingPreference::kSubgroup,
+                         &track_visitor);
   MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
   // Get the window, set the maximum delivered.
   LocalTrack* track = MoqtSessionPeer::local_track(&session_, ftn);

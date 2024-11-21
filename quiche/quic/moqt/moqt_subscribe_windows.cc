@@ -25,9 +25,6 @@ bool SubscribeWindow::InWindow(const FullSequence& seq) const {
 ReducedSequenceIndex::ReducedSequenceIndex(
     FullSequence sequence, MoqtForwardingPreference preference) {
   switch (preference) {
-    case MoqtForwardingPreference::kTrack:
-      sequence_ = FullSequence(0, 0, 0);
-      break;
     case MoqtForwardingPreference::kSubgroup:
       sequence_ = FullSequence(sequence.group, sequence.subgroup, 0);
       break;
