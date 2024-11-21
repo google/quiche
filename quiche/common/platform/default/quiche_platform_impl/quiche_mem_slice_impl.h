@@ -77,9 +77,9 @@ class QUICHE_EXPORT QuicheMemSliceImpl {
   bool empty() const { return size_ == 0; }
 
  private:
-  const char* data_;
-  size_t size_;
-  SingleUseCallback<void(const char*)> done_callback_;
+  const char* data_ = nullptr;
+  size_t size_ = 0;
+  SingleUseCallback<void(const char*)> done_callback_ = nullptr;
 };
 
 }  // namespace quiche

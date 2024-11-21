@@ -33,6 +33,13 @@ class QuicheMemSliceTest : public QuicheTest {
   size_t orig_length_;
 };
 
+TEST_F(QuicheMemSliceTest, Empty) {
+  QuicheMemSlice empty;
+  EXPECT_EQ(empty.data(), nullptr);
+  EXPECT_EQ(empty.length(), 0);
+  EXPECT_TRUE(empty.empty());
+}
+
 TEST_F(QuicheMemSliceTest, MoveConstruct) {
   QuicheMemSlice moved(std::move(slice_));
   EXPECT_EQ(moved.data(), orig_data_);
