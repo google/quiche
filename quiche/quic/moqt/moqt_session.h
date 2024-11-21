@@ -172,6 +172,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
  private:
   friend class test::MoqtSessionPeer;
 
+  struct Empty {};
+
   class QUICHE_EXPORT ControlStream : public webtransport::StreamVisitor,
                                       public MoqtControlParserVisitor {
    public:
@@ -213,7 +215,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnUnsubscribeAnnouncesMessage(
         const MoqtUnsubscribeAnnounces& message) override {}
     void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override;
-    void OnFetchMessage(const MoqtFetch& message) override {}
+    void OnFetchMessage(const MoqtFetch& message) override;
     void OnFetchCancelMessage(const MoqtFetchCancel& message) override {}
     void OnFetchOkMessage(const MoqtFetchOk& message) override {}
     void OnFetchErrorMessage(const MoqtFetchError& message) override {}
@@ -244,6 +246,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                             SubscribeErrorCode error_code,
                             absl::string_view reason_phrase,
                             uint64_t track_alias);
+    void SendFetchError(uint64_t subscribe_id, SubscribeErrorCode error_code,
+                        absl::string_view reason_phrase);
 
     MoqtSession* session_;
     webtransport::Stream* stream_;
@@ -418,11 +422,6 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // the stream and returns nullptr.
     PublishedSubscription* GetSubscriptionIfValid();
 
-    // Actually sends an object on the stream; the object MUST have object ID
-    // of at least `next_object_`.
-    void SendNextObject(PublishedSubscription& subscription,
-                        PublishedObject object);
-
     MoqtSession* session_;
     webtransport::Stream* stream_;
     uint64_t subscription_id_;
@@ -434,6 +433,54 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // A weak pointer to an object owned by the session.  Used to make sure the
     // session does not get called after being destroyed.
     std::weak_ptr<void> session_liveness_;
+  };
+
+  class QUICHE_EXPORT PublishedFetch {
+   public:
+    PublishedFetch(uint64_t fetch_id, MoqtSession* session,
+                   std::unique_ptr<MoqtFetchTask> fetch)
+        : session_(session), fetch_(std::move(fetch)), fetch_id_(fetch_id) {}
+
+    class FetchStreamVisitor : public webtransport::StreamVisitor {
+     public:
+      FetchStreamVisitor(std::shared_ptr<PublishedFetch> fetch,
+                         webtransport::Stream* stream)
+          : fetch_(fetch), stream_(stream) {
+        fetch->fetch_task()->SetObjectAvailableCallback(
+            [this]() { this->OnCanWrite(); });
+      }
+      ~FetchStreamVisitor() {
+        std::shared_ptr<PublishedFetch> fetch = fetch_.lock();
+        if (fetch != nullptr) {
+          fetch->session()->incoming_fetches_.erase(fetch->fetch_id_);
+        }
+      }
+      // webtransport::StreamVisitor implementation.
+      void OnCanRead() override {}  // Write-only stream.
+      void OnCanWrite() override;
+      void OnResetStreamReceived(webtransport::StreamErrorCode error) override {
+      }  // Write-only stream
+      void OnStopSendingReceived(webtransport::StreamErrorCode error) override {
+      }
+      void OnWriteSideInDataRecvdState() override {}
+
+     private:
+      std::weak_ptr<PublishedFetch> fetch_;
+      webtransport::Stream* stream_;
+      bool stream_header_written_ = false;
+    };
+
+    MoqtFetchTask* fetch_task() { return fetch_.get(); }
+    MoqtSession* session() { return session_; }
+    uint64_t fetch_id() const { return fetch_id_; }
+    void SetStreamId(webtransport::StreamId id) { stream_id_ = id; }
+
+   private:
+    MoqtSession* session_;
+    std::unique_ptr<MoqtFetchTask> fetch_;
+    uint64_t fetch_id_;
+    // Store the stream ID in case a FETCH_CANCEL requires a reset.
+    std::optional<webtransport::StreamId> stream_id_;
   };
 
   // Private members of MoqtSession.
@@ -458,11 +505,25 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // blocked.
   webtransport::Stream* OpenDataStream(PublishedSubscription& subscription,
                                        FullSequence first_object);
+  // Returns false if creation failed.
+  [[nodiscard]] bool OpenDataStream(std::shared_ptr<PublishedFetch> fetch);
 
   // Get FullTrackName and visitor for a subscribe_id and track_alias. Returns
   // an empty FullTrackName tuple and nullptr if not present.
   std::pair<FullTrackName, RemoteTrack::Visitor*> TrackPropertiesFromAlias(
       const MoqtObject& message);
+
+  // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
+  // a session error if is not.
+  bool ValidateSubscribeId(uint64_t subscribe_id);
+
+  // Actually sends an object on |stream| with track alias or fetch ID |id|
+  // and metadata in |object|. Not for use with datagrams. Returns |true| if
+  // the write was successful.
+  bool WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
+                           const PublishedObject& object,
+                           MoqtDataStreamType type, bool is_first_on_stream,
+                           bool fin);
 
   // Sends an OBJECT_ACK message for a specific subscribe ID.
   void SendObjectAck(uint64_t subscribe_id, uint64_t group_id,
@@ -515,6 +576,12 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   absl::flat_hash_set<uint64_t> used_track_aliases_;
   uint64_t next_local_track_alias_ = 0;
 
+  // Incoming FETCHes, indexed by fetch ID. There will be other pointers to
+  // PublishedFetch, so storing a shared_ptr in the map provides pointer
+  // stability for the value.
+  absl::flat_hash_map<uint64_t, std::shared_ptr<PublishedFetch>>
+      incoming_fetches_;
+
   // Indexed by subscribe_id.
   struct ActiveSubscribe {
     MoqtSubscribe message;
@@ -547,10 +614,12 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   uint64_t peer_max_subscribe_id_ = 0;
   // The maximum subscribe ID sent to the peer.
   uint64_t local_max_subscribe_id_ = 0;
+  // The minimum subscribe ID the peer can use that is monotonically increasing.
+  uint64_t next_incoming_subscribe_id_ = 0;
 
   // Must be last.  Token used to make sure that the streams do not call into
   // the session when the session has already been destroyed.
-  struct Empty {};
+
   std::shared_ptr<Empty> liveness_token_;
 };
 

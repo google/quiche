@@ -84,8 +84,9 @@ class MoqtFetchTask {
   // Returns the error if fetch has completely failed, and OK otherwise.
   virtual absl::Status GetStatus() = 0;
 
-  // TODO: expose the largest sequence and the end of track bit returned in
-  // the FETCH_OK.
+  // Returns the highest sequence number that will be delivered by the fetch.
+  // It is the minimum of the end of the fetch range and the live edge.
+  virtual FullSequence GetLargestId() const = 0;
 };
 
 // MoqtTrackPublisher is an application-side API for an MoQT publisher

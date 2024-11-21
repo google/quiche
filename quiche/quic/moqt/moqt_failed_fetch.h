@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 
 namespace moqt {
@@ -23,6 +24,7 @@ class MoqtFailedFetch : public MoqtFetchTask {
   absl::Status GetStatus() override { return status_; }
   void SetObjectAvailableCallback(
       ObjectsAvailableCallback /*callback*/) override {}
+  FullSequence GetLargestId() const override { return FullSequence(); }
 
  private:
   absl::Status status_;

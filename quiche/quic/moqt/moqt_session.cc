@@ -339,6 +339,46 @@ bool MoqtSession::SubscribeCurrentGroup(const FullTrackName& name,
   return Subscribe(message, visitor);
 }
 
+void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
+  std::shared_ptr<PublishedFetch> fetch = fetch_.lock();
+  if (fetch == nullptr) {
+    return;
+  }
+  PublishedObject object;
+  while (stream_->CanWrite()) {
+    MoqtFetchTask::GetNextObjectResult result =
+        fetch->fetch_task()->GetNextObject(object);
+    switch (result) {
+      case MoqtFetchTask::GetNextObjectResult::kSuccess:
+        // Skip ObjectDoesNotExist in FETCH.
+        if (object.status == MoqtObjectStatus::kObjectDoesNotExist) {
+          continue;
+        }
+        if (fetch->session_->WriteObjectToStream(
+                stream_, fetch->fetch_id_, object,
+                MoqtDataStreamType::kStreamHeaderFetch, !stream_header_written_,
+                /*fin=*/false)) {
+          stream_header_written_ = true;
+        }
+        break;
+      case MoqtFetchTask::GetNextObjectResult::kPending:
+        return;
+      case MoqtFetchTask::GetNextObjectResult::kEof:
+        // TODO(martinduke): Either prefetch the next object, or alter the API
+        // so that we're not sending FIN in a separate frame.
+        if (!quiche::SendFinOnStream(*stream_).ok()) {
+          QUIC_DVLOG(1) << "Sending FIN onStream " << stream_->GetStreamId()
+                        << " failed";
+        }
+        return;
+      case MoqtFetchTask::GetNextObjectResult::kError:
+        stream_->ResetWithUserCode(static_cast<webtransport::StreamErrorCode>(
+            fetch->fetch_task()->GetStatus().code()));
+        return;
+    }
+  }
+}
+
 bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
                                   absl::string_view reason_phrase) {
   auto it = published_subscriptions_.find(subscribe_id);
@@ -446,13 +486,36 @@ webtransport::Stream* MoqtSession::OpenDataStream(
   return new_stream;
 }
 
+bool MoqtSession::OpenDataStream(std::shared_ptr<PublishedFetch> fetch) {
+  webtransport::Stream* new_stream =
+      session_->OpenOutgoingUnidirectionalStream();
+  if (new_stream == nullptr) {
+    QUICHE_BUG(MoqtSession_OpenDataStream_blocked)
+        << "OpenDataStream called when creation of new streams is blocked.";
+    return false;
+  }
+  fetch->SetStreamId(new_stream->GetStreamId());
+  new_stream->SetVisitor(
+      std::make_unique<PublishedFetch::FetchStreamVisitor>(fetch, new_stream));
+  if (new_stream->CanWrite()) {
+    new_stream->visitor()->OnCanWrite();
+  }
+  return true;
+}
+
 void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
   while (!subscribes_with_queued_outgoing_data_streams_.empty() &&
          session_->CanOpenNextOutgoingUnidirectionalStream()) {
     auto next = subscribes_with_queued_outgoing_data_streams_.rbegin();
     auto subscription = published_subscriptions_.find(next->subscription_id);
     if (subscription == published_subscriptions_.end()) {
-      // Subscription no longer exists; delete the entry.
+      auto fetch = incoming_fetches_.find(next->subscription_id);
+      // Create the stream if the fetch still exists.
+      if (fetch != incoming_fetches_.end() && !OpenDataStream(fetch->second)) {
+        return;  // A QUIC_BUG has fired because this shouldn't happen.
+      }
+      // FETCH needs only one stream, and can be deleted from the queue. Or,
+      // there is no subscribe and no fetch; the entry in the queue is invalid.
       subscribes_with_queued_outgoing_data_streams_.erase((++next).base());
       continue;
     }
@@ -533,6 +596,28 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
         {FullTrackName{}, nullptr});
   }
   return std::make_pair(track.full_track_name(), track.visitor());
+}
+
+bool MoqtSession::ValidateSubscribeId(uint64_t subscribe_id) {
+  if (peer_role_ == MoqtRole::kPublisher) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Publisher peer sent SUBSCRIBE";
+    Error(MoqtError::kProtocolViolation, "Received SUBSCRIBE from publisher");
+    return false;
+  }
+  if (subscribe_id > local_max_subscribe_id_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received SUBSCRIBE with too large ID";
+    Error(MoqtError::kTooManySubscribes,
+          "Received SUBSCRIBE with too large ID");
+    return false;
+  }
+  if (subscribe_id < next_incoming_subscribe_id_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Subscribe ID not monotonically increasing";
+    Error(MoqtError::kProtocolViolation,
+          "Subscribe ID not monotonically increasing");
+    return false;
+  }
+  next_incoming_subscribe_id_ = subscribe_id + 1;
+  return true;
 }
 
 template <class Parser>
@@ -647,18 +732,19 @@ void MoqtSession::ControlStream::SendSubscribeError(
       session_->framer_.SerializeSubscribeError(subscribe_error));
 }
 
+void MoqtSession::ControlStream::SendFetchError(
+    uint64_t subscribe_id, SubscribeErrorCode error_code,
+    absl::string_view reason_phrase) {
+  MoqtFetchError fetch_error;
+  fetch_error.subscribe_id = subscribe_id;
+  fetch_error.error_code = error_code;
+  fetch_error.reason_phrase = reason_phrase;
+  SendOrBufferMessage(session_->framer_.SerializeFetchError(fetch_error));
+}
+
 void MoqtSession::ControlStream::OnSubscribeMessage(
     const MoqtSubscribe& message) {
-  if (session_->peer_role_ == MoqtRole::kPublisher) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Publisher peer sent SUBSCRIBE";
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received SUBSCRIBE from publisher");
-    return;
-  }
-  if (message.subscribe_id > session_->local_max_subscribe_id_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Received SUBSCRIBE with too large ID";
-    session_->Error(MoqtError::kTooManySubscribes,
-                    "Received SUBSCRIBE with too large ID");
+  if (!session_->ValidateSubscribeId(message.subscribe_id)) {
     return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE for "
@@ -881,6 +967,66 @@ void MoqtSession::ControlStream::OnMaxSubscribeIdMessage(
     return;
   }
   session_->peer_max_subscribe_id_ = message.max_subscribe_id;
+}
+
+void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
+  if (!session_->ValidateSubscribeId(message.subscribe_id)) {
+    return;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH for "
+                  << message.full_track_name;
+
+  const FullTrackName& track_name = message.full_track_name;
+  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
+      session_->publisher_->GetTrack(track_name);
+  if (!track_publisher.ok()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
+                    << " rejected by the application: "
+                    << track_publisher.status();
+    SendFetchError(message.subscribe_id, SubscribeErrorCode::kTrackDoesNotExist,
+                   track_publisher.status().message());
+    return;
+  }
+  std::unique_ptr<MoqtFetchTask> fetch =
+      (*track_publisher)
+          ->Fetch(message.start_object, message.end_group, message.end_object,
+                  message.group_order.value_or(
+                      (*track_publisher)->GetDeliveryOrder()));
+  if (!fetch->GetStatus().ok()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
+                    << " could not initialize the task";
+    SendFetchError(message.subscribe_id, SubscribeErrorCode::kInvalidRange,
+                   fetch->GetStatus().message());
+    return;
+  }
+  auto published_fetch = std::make_unique<PublishedFetch>(
+      message.subscribe_id, session_, std::move(fetch));
+  auto result = session_->incoming_fetches_.emplace(message.subscribe_id,
+                                                    std::move(published_fetch));
+  if (!result.second) {  // Emplace failed.
+    QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
+                    << " could not be added to the session";
+    SendFetchError(message.subscribe_id, SubscribeErrorCode::kInternalError,
+                   "Could not initialize FETCH state");
+    return;
+  }
+  MoqtFetchOk fetch_ok;
+  fetch_ok.subscribe_id = message.subscribe_id;
+  fetch_ok.group_order =
+      message.group_order.value_or((*track_publisher)->GetDeliveryOrder());
+  fetch_ok.largest_id = result.first->second->fetch_task()->GetLargestId();
+  SendOrBufferMessage(session_->framer_.SerializeFetchOk(fetch_ok));
+  if (!session_->session()->CanOpenNextOutgoingUnidirectionalStream() ||
+      !session_->OpenDataStream(result.first->second)) {
+    // Put the FETCH in the queue for a new stream.
+    session_->UpdateQueuedSendOrder(
+        message.subscribe_id, std::nullopt,
+        SendOrderForStream(message.subscriber_priority,
+                           (*track_publisher)->GetPublisherPriority(),
+                           /*group_id=*/0,
+                           message.group_order.value_or(
+                               (*track_publisher)->GetDeliveryOrder())));
+  }
 }
 
 void MoqtSession::ControlStream::OnParsingError(MoqtError error_code,
@@ -1290,7 +1436,38 @@ void MoqtSession::OutgoingDataStream::SendObjects(
           << "Writing FIN failed despite CanWrite() being true.";
       return;
     }
-    SendNextObject(subscription, *std::move(object));
+    QUICHE_DCHECK(next_object_ <= object->sequence);
+    MoqtTrackPublisher& publisher = subscription.publisher();
+    QUICHE_DCHECK(DoesTrackStatusImplyHavingData(*publisher.GetTrackStatus()));
+    MoqtForwardingPreference forwarding_preference =
+        publisher.GetForwardingPreference();
+    UpdateSendOrder(subscription);
+    switch (forwarding_preference) {
+      case MoqtForwardingPreference::kTrack:
+        if (object->status == MoqtObjectStatus::kEndOfGroup ||
+            object->status == MoqtObjectStatus::kGroupDoesNotExist) {
+          ++next_object_.group;
+          next_object_.object = 0;
+        } else {
+          next_object_.object = object->sequence.object + 1;
+        }
+        break;
+
+      case MoqtForwardingPreference::kSubgroup:
+        next_object_.object = object->sequence.object + 1;
+        break;
+
+      case MoqtForwardingPreference::kDatagram:
+        QUICHE_NOTREACHED();
+        break;
+    }
+    if (session_->WriteObjectToStream(
+            stream_, subscription.track_alias(), *object,
+            GetMessageTypeForForwardingPreference(forwarding_preference),
+            !stream_header_written_, object->fin_after_this)) {
+      stream_header_written_ = true;
+      subscription.OnObjectSent(object->sequence);
+    }
   }
 }
 
@@ -1305,78 +1482,41 @@ void MoqtSession::OutgoingDataStream::Fin(FullSequence last_object) {
       << "Writing pure FIN failed.";
 }
 
-void MoqtSession::OutgoingDataStream::SendNextObject(
-    PublishedSubscription& subscription, PublishedObject object) {
-  QUICHE_DCHECK(next_object_ <= object.sequence);
-  QUICHE_DCHECK(stream_->CanWrite());
-
-  MoqtTrackPublisher& publisher = subscription.publisher();
-  QUICHE_DCHECK(DoesTrackStatusImplyHavingData(*publisher.GetTrackStatus()));
-  MoqtForwardingPreference forwarding_preference =
-      publisher.GetForwardingPreference();
-
-  UpdateSendOrder(subscription);
-
+bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
+                                      const PublishedObject& object,
+                                      MoqtDataStreamType type,
+                                      bool is_first_on_stream, bool fin) {
+  QUICHE_DCHECK(stream->CanWrite());
   MoqtObject header;
-  header.track_alias = subscription.track_alias();
+  header.track_alias = id;
   header.group_id = object.sequence.group;
+  header.subgroup_id = object.sequence.subgroup;
   header.object_id = object.sequence.object;
-  header.publisher_priority = publisher.GetPublisherPriority();
+  header.publisher_priority = object.publisher_priority;
   header.object_status = object.status;
-  header.forwarding_preference = forwarding_preference;
-  // TODO(martinduke): send values other than 0.
-  header.subgroup_id =
-      (forwarding_preference == MoqtForwardingPreference::kSubgroup)
-          ? 0
-          : std::optional<uint64_t>();
   header.payload_length = object.payload.length();
 
   quiche::QuicheBuffer serialized_header =
-      session_->framer_.SerializeObjectHeader(
-          header, GetMessageTypeForForwardingPreference(forwarding_preference),
-          !stream_header_written_);
-  switch (forwarding_preference) {
-    case MoqtForwardingPreference::kTrack:
-      if (object.status == MoqtObjectStatus::kEndOfGroup ||
-          object.status == MoqtObjectStatus::kGroupDoesNotExist) {
-        ++next_object_.group;
-        next_object_.object = 0;
-      } else {
-        next_object_.object = header.object_id + 1;
-      }
-      break;
-
-    case MoqtForwardingPreference::kSubgroup:
-      next_object_.object = header.object_id + 1;
-      break;
-
-    case MoqtForwardingPreference::kDatagram:
-      QUICHE_NOTREACHED();
-      break;
-  }
-
+      framer_.SerializeObjectHeader(header, type, is_first_on_stream);
   // TODO(vasilvv): add a version of WebTransport write API that accepts
   // memslices so that we can avoid a copy here.
   std::array<absl::string_view, 2> write_vector = {
       serialized_header.AsStringView(), object.payload.AsStringView()};
   quiche::StreamWriteOptions options;
-  options.set_send_fin(object.fin_after_this);
-  absl::Status write_status = stream_->Writev(write_vector, options);
+  options.set_send_fin(fin);
+  absl::Status write_status = stream->Writev(write_vector, options);
   if (!write_status.ok()) {
-    QUICHE_BUG(MoqtSession_SendNextObject_write_failed)
+    QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
         << "Writing into MoQT stream failed despite CanWrite() being true "
            "before; status: "
         << write_status;
-    session_->Error(MoqtError::kInternalError, "Data stream write error");
-    return;
+    Error(MoqtError::kInternalError, "Data stream write error");
+    return false;
   }
 
-  QUIC_DVLOG(1) << "Stream " << stream_->GetStreamId() << " successfully wrote "
-                << object.sequence << ", fin = " << object.fin_after_this
-                << ", next: " << next_object_;
-
-  stream_header_written_ = true;
-  subscription.OnObjectSent(object.sequence);
+  QUIC_DVLOG(1) << "Stream " << stream->GetStreamId() << " successfully wrote "
+                << object.sequence << ", fin = " << fin;
+  return true;
 }
 
 void MoqtSession::PublishedSubscription::SendDatagram(FullSequence sequence) {
