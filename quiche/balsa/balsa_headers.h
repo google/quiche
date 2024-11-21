@@ -1179,10 +1179,14 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
 
 // Base class for iterating the headers in a BalsaHeaders object, returning a
 // pair of string_view's for each header.
-class QUICHE_EXPORT BalsaHeaders::iterator_base
-    : public std::iterator<std::forward_iterator_tag,
-                           std::pair<absl::string_view, absl::string_view>> {
+class QUICHE_EXPORT BalsaHeaders::iterator_base {
  public:
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = std::pair<absl::string_view, absl::string_view>;
+  using difference_type = std::ptrdiff_t;
+  using pointer = value_type*;
+  using reference = value_type&;
+
   iterator_base() : headers_(nullptr), idx_(0) {}
 
   std::pair<absl::string_view, absl::string_view>& operator*() const {
