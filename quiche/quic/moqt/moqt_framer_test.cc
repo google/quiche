@@ -89,7 +89,7 @@ quiche::QuicheBuffer SerializeObject(MoqtFramer& framer,
   MoqtObject adjusted_message = message;
   adjusted_message.payload_length = payload.size();
   quiche::QuicheBuffer header =
-      (message.forwarding_preference == MoqtForwardingPreference::kDatagram)
+      (stream_type == MoqtDataStreamType::kObjectDatagram)
           ? framer.SerializeObjectDatagram(adjusted_message, payload)
           : framer.SerializeObjectHeader(adjusted_message, stream_type,
                                          is_first_in_stream);
@@ -299,7 +299,6 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
       /*object_id=*/6,
       /*publisher_priority=*/7,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
       /*subgroup_id=*/8,
       /*payload_length=*/3,
   };
@@ -338,7 +337,6 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
       /*object_id=*/6,
       /*publisher_priority=*/7,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kDatagram,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/3,
   };
@@ -375,7 +373,6 @@ TEST_F(MoqtFramerSimpleTest, Datagram) {
       /*object_id=*/6,
       /*publisher_priority=*/7,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kDatagram,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/3,
   };

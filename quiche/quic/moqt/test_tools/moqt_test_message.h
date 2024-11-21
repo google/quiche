@@ -184,10 +184,6 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "OBJECT Object Status mismatch";
       return false;
     }
-    if (cast.forwarding_preference != object_.forwarding_preference) {
-      QUIC_LOG(INFO) << "OBJECT Object Send Order mismatch";
-      return false;
-    }
     if (cast.subgroup_id != object_.subgroup_id) {
       QUIC_LOG(INFO) << "OBJECT Subgroup ID mismatch";
       return false;
@@ -210,7 +206,6 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       /*object_id=*/6,
       /*publisher_priority=*/7,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/3,
   };
@@ -220,7 +215,6 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
  public:
   ObjectDatagramMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
-    object_.forwarding_preference = MoqtForwardingPreference::kDatagram;
   }
 
   void ExpandVarints() override { ExpandVarintsImpl("vvvv-v---", false); }
@@ -239,7 +233,6 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
  public:
   StreamHeaderSubgroupMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
-    object_.forwarding_preference = MoqtForwardingPreference::kSubgroup;
     object_.subgroup_id = 8;
   }
 
@@ -270,7 +263,6 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
  public:
   StreamMiddlerSubgroupMessage() : ObjectMessage() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
-    object_.forwarding_preference = MoqtForwardingPreference::kSubgroup;
     object_.subgroup_id = 8;
     object_.object_id = 9;
   }

@@ -45,7 +45,6 @@ class ChatServer {
         const moqt::FullTrackName& full_track_name, FullSequence sequence,
         moqt::MoqtPriority /*publisher_priority*/,
         moqt::MoqtObjectStatus /*status*/,
-        moqt::MoqtForwardingPreference /*forwarding_preference*/,
         absl::string_view object, bool end_of_message) override;
 
    private:

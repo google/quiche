@@ -352,11 +352,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
         << "Object metadata is invalid";
     return quiche::QuicheBuffer();
   }
-  if (message.forwarding_preference != MoqtForwardingPreference::kDatagram) {
-    QUIC_BUG(quic_bug_serialize_object_datagram_02)
-        << "Only datagrams use SerializeObjectDatagram()";
-    return quiche::QuicheBuffer();
-  }
   if (message.payload_length != payload.length()) {
     QUIC_BUG(quic_bug_serialize_object_datagram_03)
         << "Payload length does not match payload";

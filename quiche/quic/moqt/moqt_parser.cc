@@ -1078,7 +1078,6 @@ absl::string_view ParseDatagram(absl::string_view data,
   if (processed_data == 0) {  // Incomplete header
     return absl::string_view();
   }
-  object_metadata.forwarding_preference = MoqtForwardingPreference::kDatagram;
   return reader.PeekRemainingPayload();
 }
 
@@ -1153,7 +1152,6 @@ absl::string_view MoqtDataParser::ProcessDataInner(absl::string_view data) {
         if (bytes_read == 0) {
           return remainder;
         }
-        header.forwarding_preference = MoqtForwardingPreference::kSubgroup;
         metadata_ = header;
         continue;
       }

@@ -93,7 +93,6 @@ void ChatServer::RemoteTrackVisitor::OnReply(
 void ChatServer::RemoteTrackVisitor::OnObjectFragment(
     const moqt::FullTrackName& full_track_name, moqt::FullSequence sequence,
     moqt::MoqtPriority /*publisher_priority*/, moqt::MoqtObjectStatus status,
-    moqt::MoqtForwardingPreference /*forwarding_preference*/,
     absl::string_view object, bool end_of_message) {
   if (!end_of_message) {
     std::cerr << "Error: received partial message despite requesting "

@@ -509,9 +509,12 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   [[nodiscard]] bool OpenDataStream(std::shared_ptr<PublishedFetch> fetch);
 
   // Get FullTrackName and visitor for a subscribe_id and track_alias. Returns
-  // an empty FullTrackName tuple and nullptr if not present.
+  // an empty FullTrackName tuple and nullptr if not present. If the caller has
+  // information about the track's forwarding preference, it can be passed via
+  // |forwarding_preference| so that it can be stored in RemoteTrack.
   std::pair<FullTrackName, RemoteTrack::Visitor*> TrackPropertiesFromAlias(
-      const MoqtObject& message);
+      const MoqtObject& message,
+      std::optional<MoqtForwardingPreference> forwarding_preference);
 
   // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
   // a session error if is not.

@@ -40,7 +40,6 @@ class RemoteTrack {
     virtual void OnObjectFragment(
         const FullTrackName& full_track_name, FullSequence sequence,
         MoqtPriority publisher_priority, MoqtObjectStatus object_status,
-        MoqtForwardingPreference forwarding_preference,
         absl::string_view object, bool end_of_message) = 0;
     // TODO(martinduke): Add final sequence numbers
   };
@@ -61,6 +60,10 @@ class RemoteTrack {
   // Otherwise, returns true if the incoming object does not violate the rule
   // that the preference is consistent.
   bool CheckForwardingPreference(MoqtForwardingPreference preference);
+
+  std::optional<MoqtForwardingPreference> forwarding_preference() const {
+    return forwarding_preference_;
+  }
 
  private:
   // TODO: There is no accounting for the number of outstanding subscribes,

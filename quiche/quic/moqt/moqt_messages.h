@@ -328,7 +328,6 @@ struct QUICHE_EXPORT MoqtObject {
   uint64_t object_id;
   MoqtPriority publisher_priority;
   MoqtObjectStatus object_status;
-  MoqtForwardingPreference forwarding_preference;
   std::optional<uint64_t> subgroup_id;
   uint64_t payload_length;
 };

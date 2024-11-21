@@ -180,7 +180,6 @@ class MoqtIngestionHandler {
                           FullSequence sequence,
                           MoqtPriority /*publisher_priority*/,
                           MoqtObjectStatus /*status*/,
-                          MoqtForwardingPreference /*forwarding_preference*/,
                           absl::string_view object,
                           bool /*end_of_message*/) override {
       std::string file_name = absl::StrCat(sequence.group, "-", sequence.object,

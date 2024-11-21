@@ -198,12 +198,12 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
                     << message.object_id << " priority "
                     << message.publisher_priority << " length "
                     << payload.size();
-  auto [full_track_name, visitor] = TrackPropertiesFromAlias(message);
+  auto [full_track_name, visitor] =
+      TrackPropertiesFromAlias(message, MoqtForwardingPreference::kDatagram);
   if (visitor != nullptr) {
     visitor->OnObjectFragment(
         full_track_name, FullSequence{message.group_id, 0, message.object_id},
-        message.publisher_priority, message.object_status,
-        message.forwarding_preference, payload, true);
+        message.publisher_priority, message.object_status, payload, true);
   }
 }
 
@@ -556,7 +556,9 @@ void MoqtSession::GrantMoreSubscribes(uint64_t num_subscribes) {
 }
 
 std::pair<FullTrackName, RemoteTrack::Visitor*>
-MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
+MoqtSession::TrackPropertiesFromAlias(
+    const MoqtObject& message,
+    std::optional<MoqtForwardingPreference> forwarding_preference) {
   auto it = remote_tracks_.find(message.track_alias);
   if (it == remote_tracks_.end()) {
     ActiveSubscribe* subscribe = nullptr;
@@ -574,21 +576,28 @@ MoqtSession::TrackPropertiesFromAlias(const MoqtObject& message) {
           {FullTrackName{}, nullptr});
     }
     subscribe->received_object = true;
-    if (subscribe->forwarding_preference.has_value()) {
-      if (message.forwarding_preference != *subscribe->forwarding_preference) {
-        Error(MoqtError::kProtocolViolation,
-              "Forwarding preference changes mid-track");
-        return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-            {FullTrackName{}, nullptr});
+    if (forwarding_preference.has_value()) {
+      if (subscribe->forwarding_preference.has_value()) {
+        if (*forwarding_preference != *subscribe->forwarding_preference) {
+          Error(MoqtError::kProtocolViolation,
+                "Forwarding preference changes mid-track");
+          return std::pair<FullTrackName, RemoteTrack::Visitor*>(
+              {FullTrackName{}, nullptr});
+        }
+      } else {
+        subscribe->forwarding_preference = *forwarding_preference;
       }
     } else {
-      subscribe->forwarding_preference = message.forwarding_preference;
+      QUICHE_BUG(quic_subscribe_no_forwarding preference)
+          << "Objects from a subscribe should know the forwarding preference";
     }
     return std::make_pair(subscribe->message.full_track_name,
                           subscribe->visitor);
   }
   RemoteTrack& track = it->second;
-  if (!track.CheckForwardingPreference(message.forwarding_preference)) {
+  // Update the forwarding preference if it is present.
+  if (forwarding_preference.has_value() &&
+      !track.CheckForwardingPreference(*forwarding_preference)) {
     // Incorrect forwarding preference.
     Error(MoqtError::kProtocolViolation,
           "Forwarding preference changes mid-track");
@@ -1058,9 +1067,6 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                   << message.track_alias << " with sequence "
                   << message.group_id << ":" << message.object_id
                   << " priority " << message.publisher_priority
-                  << " forwarding_preference "
-                  << MoqtForwardingPreferenceToString(
-                         message.forwarding_preference)
                   << " length " << payload.size() << " length "
                   << message.payload_length << (end_of_message ? "F" : "");
   if (!session_->parameters_.deliver_partial_objects) {
@@ -1078,14 +1084,15 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       payload = absl::string_view(partial_object_);
     }
   }
-  auto [full_track_name, visitor] = session_->TrackPropertiesFromAlias(message);
+  auto [full_track_name, visitor] = session_->TrackPropertiesFromAlias(
+      message, MoqtForwardingPreference::kSubgroup);
   if (visitor != nullptr) {
     visitor->OnObjectFragment(
         full_track_name,
         FullSequence{message.group_id, message.subgroup_id.value_or(0),
                      message.object_id},
-        message.publisher_priority, message.object_status,
-        message.forwarding_preference, payload, end_of_message);
+        message.publisher_priority, message.object_status, payload,
+        end_of_message);
   }
   partial_object_.clear();
 }
@@ -1514,7 +1521,6 @@ void MoqtSession::PublishedSubscription::SendDatagram(FullSequence sequence) {
   header.object_id = object->sequence.object;
   header.publisher_priority = track_publisher_->GetPublisherPriority();
   header.object_status = object->status;
-  header.forwarding_preference = MoqtForwardingPreference::kDatagram;
   header.subgroup_id = std::nullopt;
   header.payload_length = object->payload.length();
   quiche::QuicheBuffer datagram = session_->framer_.SerializeObjectDatagram(

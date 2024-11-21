@@ -205,7 +205,6 @@ class ObjectReceiver : public RemoteTrack::Visitor {
                         FullSequence sequence,
                         MoqtPriority /*publisher_priority*/,
                         MoqtObjectStatus status,
-                        MoqtForwardingPreference /*forwarding_preference*/,
                         absl::string_view object,
                         bool end_of_message) override {
     QUICHE_DCHECK(full_track_name == TrackName());

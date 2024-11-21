@@ -931,7 +931,6 @@ TEST_F(MoqtSessionTest, IncomingObject) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
@@ -939,7 +938,7 @@ TEST_F(MoqtSessionTest, IncomingObject) {
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
       MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
 
-  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _, _)).Times(1);
+  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(1);
   EXPECT_CALL(mock_stream, GetStreamId())
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, true);
@@ -956,7 +955,6 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
       /*subgroup_id=*/0,
       /*payload_length=*/16,
   };
@@ -964,7 +962,7 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
       MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
 
-  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _, _)).Times(1);
+  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(1);
   EXPECT_CALL(mock_stream, GetStreamId())
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, false);
@@ -986,7 +984,6 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
       /*subgroup_id=*/0,
       /*payload_length=*/16,
   };
@@ -994,7 +991,7 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
       MoqtSessionPeer::CreateIncomingDataStream(&session, &mock_stream);
 
-  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _, _)).Times(2);
+  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(2);
   EXPECT_CALL(mock_stream, GetStreamId())
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, false);
@@ -1023,7 +1020,6 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
@@ -1031,10 +1027,9 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
       MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
 
-  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _, _))
+  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
                     MoqtPriority publisher_priority, MoqtObjectStatus status,
-                    MoqtForwardingPreference forwarding_preference,
                     absl::string_view payload, bool end_of_message) {
         EXPECT_EQ(full_track_name, ftn);
         EXPECT_EQ(sequence.group, object.group_id);
@@ -1080,7 +1075,6 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
@@ -1088,10 +1082,9 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
       MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
 
-  EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _, _))
+  EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
                     MoqtPriority publisher_priority, MoqtObjectStatus status,
-                    MoqtForwardingPreference forwarding_preference,
                     absl::string_view payload, bool end_of_message) {
         EXPECT_EQ(full_track_name, ftn);
         EXPECT_EQ(sequence.group, object.group_id);
@@ -1140,7 +1133,6 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
@@ -1148,10 +1140,9 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
       MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
 
-  EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _, _))
+  EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
                     MoqtPriority publisher_priority, MoqtObjectStatus status,
-                    MoqtForwardingPreference forwarding_preference,
                     absl::string_view payload, bool end_of_message) {
         EXPECT_EQ(full_track_name, ftn);
         EXPECT_EQ(sequence.group, object.group_id);
@@ -1160,13 +1151,13 @@ TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
   EXPECT_CALL(mock_stream, GetStreamId())
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, true);
-  object.forwarding_preference = MoqtForwardingPreference::kDatagram;
-  ++object.object_id;
+  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x08, 0x64,
+                     0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
                            "Forwarding preference changes mid-track"))
       .Times(1);
-  object_stream->OnObjectMessage(object, payload, true);
+  session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
 }
 
 TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
@@ -1191,7 +1182,6 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
@@ -1199,10 +1189,9 @@ TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
       MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
 
-  EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _, _))
+  EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
                     MoqtPriority publisher_priority, MoqtObjectStatus status,
-                    MoqtForwardingPreference forwarding_preference,
                     absl::string_view payload, bool end_of_message) {
         EXPECT_EQ(full_track_name, ftn);
         EXPECT_EQ(sequence.group, object.group_id);
@@ -1761,7 +1750,6 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kDatagram,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/8,
   };
@@ -1770,8 +1758,8 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
   EXPECT_CALL(
       visitor_,
       OnObjectFragment(ftn, FullSequence{object.group_id, object.object_id},
-                       object.publisher_priority, object.object_status,
-                       object.forwarding_preference, payload, true))
+                       object.publisher_priority, object.object_status, payload,
+                       true))
       .Times(1);
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
 }
@@ -1787,7 +1775,6 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*forwarding_preference=*/MoqtForwardingPreference::kSubgroup,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
@@ -1795,17 +1782,17 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
       MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
 
-  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _, _)).Times(1);
+  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(1);
   EXPECT_CALL(mock_stream, GetStreamId())
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, true);
-  ++object.object_id;
-  object.forwarding_preference = MoqtForwardingPreference::kDatagram;
+  char datagram[] = {0x01, 0x02, 0x00, 0x10, 0x00, 0x08, 0x64,
+                     0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
                            "Forwarding preference changes mid-track"))
       .Times(1);
-  object_stream->OnObjectMessage(object, payload, true);
+  session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
 }
 
 TEST_F(MoqtSessionTest, AnnounceToPublisher) {

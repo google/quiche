@@ -101,7 +101,6 @@ class ChatClient {
                           FullSequence sequence,
                           moqt::MoqtPriority publisher_priority,
                           moqt::MoqtObjectStatus status,
-                          moqt::MoqtForwardingPreference forwarding_preference,
                           absl::string_view object,
                           bool end_of_message) override;
 
