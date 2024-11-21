@@ -137,8 +137,6 @@ class QUICHE_EXPORT QuicheDataWriter {
   }
 
  private:
-  // TODO(fkastenholz, b/73004262) change buffer_, et al, to be uint8_t, not
-  // char.
   char* buffer_;
   size_t capacity_;  // Allocation size of payload (or -1 if buffer is const).
   size_t length_;    // Current length of the buffer.

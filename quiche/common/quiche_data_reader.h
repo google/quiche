@@ -208,8 +208,6 @@ class QUICHE_EXPORT QuicheDataReader {
   quiche::Endianness endianness() const { return endianness_; }
 
  private:
-  // TODO(fkastenholz, b/73004262) change buffer_, et al, to be uint8_t, not
-  // char. The data buffer that we're reading from.
   const char* data_;
 
   // The length of the data buffer that we're reading from.
