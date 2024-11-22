@@ -373,10 +373,9 @@ TEST_P(MetadataApiTest, ClientSendsMetadataAfterFlowControlBlock) {
   const std::string kBody = std::string(100 * 1024, 'a');
   visitor.AppendPayloadForStream(1, kBody);
   visitor.SetEndData(1, false);
-  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
 
   const int32_t stream_id1 =
-      adapter->SubmitRequest(headers1, std::move(body1), false, nullptr);
+      adapter->SubmitRequest(headers1, nullptr, false, nullptr);
   ASSERT_EQ(stream_id1, 1);
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
@@ -615,10 +614,9 @@ TEST_P(MetadataApiTest, ServerQueuesMetadataThenTrailers) {
   // the stream.
   visitor.AppendPayloadForStream(1, kBody);
   visitor.SetEndData(1, false);
-  auto body1 = std::make_unique<VisitorDataSource>(visitor, 1);
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}, {"x-comment", "Sure, sounds good."}}),
-      std::move(body1), false);
+      nullptr, false);
   EXPECT_EQ(submit_result, 0);
   EXPECT_TRUE(adapter->want_write());
 

@@ -7180,7 +7180,6 @@ TEST(NgHttp2AdapterTest, SkipsSendingFramesForRejectedStream) {
 
   visitor.AppendPayloadForStream(
       1, "Here is some data, which will be completely ignored!");
-  auto body = std::make_unique<VisitorDataSource>(visitor, 1);
 
   int submit_result = adapter->SubmitResponse(
       1, ToHeaders({{":status", "200"}}), nullptr, false);
