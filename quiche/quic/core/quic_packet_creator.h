@@ -640,6 +640,12 @@ class QUICHE_EXPORT QuicPacketCreator {
   // after.
   void MaybeBundleOpportunistically();
 
+  // Generates crypto frames from any remaining available crypto data.
+  size_t GenerateRemainingCryptoFrames(EncryptionLevel level,
+                                       size_t write_length,
+                                       QuicStreamOffset offset,
+                                       size_t total_bytes_consumed);
+
   // Does not own these delegates or the framer.
   DelegateInterface* delegate_;
   DebugDelegate* debug_delegate_;

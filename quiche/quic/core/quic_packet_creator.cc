@@ -1537,27 +1537,9 @@ QuicConsumedData QuicPacketCreator::ConsumeDataFastPath(
                           fin && (total_bytes_consumed == write_length));
 }
 
-size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
-                                            size_t write_length,
-                                            QuicStreamOffset offset) {
-  QUIC_DVLOG(2) << ENDPOINT << "ConsumeCryptoData " << level << " write_length "
-                << write_length << " offset " << offset;
-  QUIC_BUG_IF(quic_bug_10752_25, !flusher_attached_)
-      << ENDPOINT
-      << "Packet flusher is not attached when "
-         "generator tries to write crypto data.";
-  MaybeBundleOpportunistically();
-  // To make reasoning about crypto frames easier, we don't combine them with
-  // other retransmittable frames in a single packet.
-  // TODO(nharper): Once we have separate packet number spaces, everything
-  // should be driven by encryption level, and we should stop flushing in this
-  // spot.
-  if (HasPendingRetransmittableFrames()) {
-    FlushCurrentPacket();
-  }
-
-  size_t total_bytes_consumed = 0;
-
+size_t QuicPacketCreator::GenerateRemainingCryptoFrames(
+    EncryptionLevel level, size_t write_length, QuicStreamOffset offset,
+    size_t total_bytes_consumed) {
   while (
       total_bytes_consumed < write_length &&
       delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA, IS_HANDSHAKE)) {
@@ -1581,6 +1563,30 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
     total_bytes_consumed += frame.crypto_frame->data_length;
     FlushCurrentPacket();
   }
+  return total_bytes_consumed;
+}
+
+size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
+                                            size_t write_length,
+                                            QuicStreamOffset offset) {
+  QUIC_DVLOG(2) << ENDPOINT << "ConsumeCryptoData " << level << " write_length "
+                << write_length << " offset " << offset;
+  QUIC_BUG_IF(quic_bug_10752_25, !flusher_attached_)
+      << ENDPOINT
+      << "Packet flusher is not attached when "
+         "generator tries to write crypto data.";
+  MaybeBundleOpportunistically();
+  // To make reasoning about crypto frames easier, we don't combine them with
+  // other retransmittable frames in a single packet.
+  // TODO(nharper): Once we have separate packet number spaces, everything
+  // should be driven by encryption level, and we should stop flushing in this
+  // spot.
+  if (HasPendingRetransmittableFrames()) {
+    FlushCurrentPacket();
+  }
+
+  size_t total_bytes_consumed = GenerateRemainingCryptoFrames(
+      level, write_length, offset, /*total_bytes_consumed=*/0);
 
   // Don't allow the handshake to be bundled with other retransmittable frames.
   FlushCurrentPacket();
