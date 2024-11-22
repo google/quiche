@@ -121,14 +121,6 @@ class QUICHE_EXPORT Http2Adapter {
   // returns a negative integer indicating an error code. |data_source| should
   // be nullptr if the request does not have a body. If |end_stream| is true,
   // the adapter will set the fin bit on the request HEADERS frame.
-  // DEPRECATED in favor of the version with end_headers.
-  int32_t SubmitRequest(absl::Span<const Header> headers,
-                        std::unique_ptr<DataFrameSource> data_source,
-                        void* user_data) {
-    const bool end_headers = (data_source == nullptr);
-    return SubmitRequest(headers, std::move(data_source), end_headers,
-                         user_data);
-  }
   virtual int32_t SubmitRequest(absl::Span<const Header> headers,
                                 std::unique_ptr<DataFrameSource> data_source,
                                 bool end_stream, void* user_data) = 0;
@@ -136,13 +128,6 @@ class QUICHE_EXPORT Http2Adapter {
   // Returns 0 on success. |data_source| may be nullptr if the response does not
   // have a body. If |end_stream| is true, the adapter will set the fin bit on
   // the response HEADERS frame.
-  // DEPRECATED in favor of the version with end_headers.
-  int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
-                     std::unique_ptr<DataFrameSource> data_source) {
-    const bool end_headers = (data_source == nullptr);
-    return SubmitResponse(stream_id, headers, std::move(data_source),
-                          end_headers);
-  }
   virtual int SubmitResponse(Http2StreamId stream_id,
                              absl::Span<const Header> headers,
                              std::unique_ptr<DataFrameSource> data_source,
