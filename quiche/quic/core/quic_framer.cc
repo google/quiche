@@ -5209,6 +5209,7 @@ bool QuicFramer::AppendCryptoFrame(const QuicCryptoFrame& frame,
     QUICHE_DCHECK_EQ(nullptr, frame.data_buffer);
     if (!data_producer_->WriteCryptoData(frame.level, frame.offset,
                                          frame.data_length, writer)) {
+      set_detailed_error("Writing frame data from producer failed.");
       return false;
     }
   }
