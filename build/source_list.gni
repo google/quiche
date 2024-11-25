@@ -1529,6 +1529,7 @@ moqt_hdrs = [
     "src/quiche/quic/moqt/moqt_session.h",
     "src/quiche/quic/moqt/moqt_subscribe_windows.h",
     "src/quiche/quic/moqt/moqt_track.h",
+    "src/quiche/quic/moqt/test_tools/moqt_session_peer.h",
     "src/quiche/quic/moqt/test_tools/moqt_simulator_harness.h",
     "src/quiche/quic/moqt/test_tools/moqt_test_message.h",
     "src/quiche/quic/moqt/tools/chat_client.h",

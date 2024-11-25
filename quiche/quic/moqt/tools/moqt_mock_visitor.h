@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
@@ -98,6 +99,24 @@ class MockPublishingMonitorInterface : public MoqtPublishingMonitorInterface {
               (uint64_t group_id, uint64_t object_id,
                quic::QuicTimeDelta delta_from_deadline),
               (override));
+};
+
+class MockFetchTask : public MoqtFetchTask {
+ public:
+  MOCK_METHOD(MoqtFetchTask::GetNextObjectResult, GetNextObject,
+              (PublishedObject & output), (override));
+  MOCK_METHOD(absl::Status, GetStatus, (), (override));
+  MOCK_METHOD(FullSequence, GetLargestId, (), (const, override));
+
+  void SetObjectAvailableCallback(ObjectsAvailableCallback callback) override {
+    objects_available_callback_ = std::move(callback);
+  }
+  ObjectsAvailableCallback& objects_available_callback() {
+    return objects_available_callback_;
+  };
+
+ private:
+  ObjectsAvailableCallback objects_available_callback_;
 };
 
 }  // namespace moqt::test

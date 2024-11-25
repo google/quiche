@@ -1528,6 +1528,7 @@
     "quiche/quic/moqt/moqt_session.h",
     "quiche/quic/moqt/moqt_subscribe_windows.h",
     "quiche/quic/moqt/moqt_track.h",
+    "quiche/quic/moqt/test_tools/moqt_session_peer.h",
     "quiche/quic/moqt/test_tools/moqt_simulator_harness.h",
     "quiche/quic/moqt/test_tools/moqt_test_message.h",
     "quiche/quic/moqt/tools/chat_client.h",
