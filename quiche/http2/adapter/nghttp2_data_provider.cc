@@ -28,24 +28,6 @@ ssize_t VisitorReadCallback(Http2VisitorInterface& visitor, int32_t stream_id,
   return payload_length;
 }
 
-ssize_t DataFrameSourceReadCallback(DataFrameSource& source, size_t length,
-                                    uint32_t* data_flags) {
-  *data_flags |= NGHTTP2_DATA_FLAG_NO_COPY;
-  auto [result_length, done] = source.SelectPayloadLength(length);
-  if (result_length == 0 && !done) {
-    return NGHTTP2_ERR_DEFERRED;
-  } else if (result_length == DataFrameSource::kError) {
-    return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
-  }
-  if (done) {
-    *data_flags |= NGHTTP2_DATA_FLAG_EOF;
-  }
-  if (!source.send_fin()) {
-    *data_flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
-  }
-  return result_length;
-}
-
 }  // namespace callbacks
 }  // namespace adapter
 }  // namespace http2

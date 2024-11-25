@@ -97,7 +97,7 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
   void RemoveStream(Http2StreamId stream_id);
 
   // Accessor for testing.
-  size_t sources_size() const { return sources_.size(); }
+  size_t sources_size() const { return 0; }
   size_t stream_metadata_size() const { return stream_metadata_.size(); }
   size_t pending_metadata_count(Http2StreamId stream_id) const {
     if (auto it = stream_metadata_.find(stream_id);
@@ -139,8 +139,6 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
       absl::InlinedVector<std::unique_ptr<MetadataSource>, 2>;
   using MetadataMap = absl::flat_hash_map<Http2StreamId, MetadataSourceVec>;
   MetadataMap stream_metadata_;
-
-  absl::flat_hash_map<int32_t, std::unique_ptr<DataFrameSource>> sources_;
 };
 
 }  // namespace adapter

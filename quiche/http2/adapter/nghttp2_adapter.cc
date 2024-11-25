@@ -304,10 +304,11 @@ int32_t NgHttp2Adapter::SubmitRequest(
     absl::Span<const Header> headers,
     std::unique_ptr<DataFrameSource> data_source, bool end_stream,
     void* stream_user_data) {
+  QUICHE_DCHECK(data_source == nullptr);
   auto nvs = GetNghttp2Nvs(headers);
   std::unique_ptr<nghttp2_data_provider> provider;
 
-  if (data_source != nullptr || !end_stream) {
+  if (!end_stream) {
     provider = std::make_unique<nghttp2_data_provider>();
     provider->source.ptr = this;
     provider->read_callback = &DataFrameReadCallback;
@@ -316,9 +317,6 @@ int32_t NgHttp2Adapter::SubmitRequest(
   int32_t stream_id =
       nghttp2_submit_request(session_->raw_ptr(), nullptr, nvs.data(),
                              nvs.size(), provider.get(), stream_user_data);
-  if (data_source != nullptr) {
-    sources_.emplace(stream_id, std::move(data_source));
-  }
   QUICHE_VLOG(1) << "Submitted request with " << nvs.size()
                  << " request headers and user data " << stream_user_data
                  << "; resulted in stream " << stream_id;
@@ -329,15 +327,13 @@ int NgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
                                    absl::Span<const Header> headers,
                                    std::unique_ptr<DataFrameSource> data_source,
                                    bool end_stream) {
+  QUICHE_DCHECK(data_source == nullptr);
   auto nvs = GetNghttp2Nvs(headers);
   std::unique_ptr<nghttp2_data_provider> provider;
-  if (data_source != nullptr || !end_stream) {
+  if (!end_stream) {
     provider = std::make_unique<nghttp2_data_provider>();
     provider->source.ptr = this;
     provider->read_callback = &DataFrameReadCallback;
-  }
-  if (data_source != nullptr) {
-    sources_.emplace(stream_id, std::move(data_source));
   }
 
   int result = nghttp2_submit_response(session_->raw_ptr(), stream_id,
@@ -377,39 +373,22 @@ void NgHttp2Adapter::FrameNotSent(Http2StreamId stream_id, uint8_t frame_type) {
   }
 }
 
-void NgHttp2Adapter::RemoveStream(Http2StreamId stream_id) {
-  sources_.erase(stream_id);
-}
+void NgHttp2Adapter::RemoveStream(Http2StreamId /*stream_id*/) {}
 
 ssize_t NgHttp2Adapter::DelegateReadCallback(int32_t stream_id,
                                              size_t max_length,
                                              uint32_t* data_flags) {
-  auto it = sources_.find(stream_id);
-  if (it == sources_.end()) {
-    // A DataFrameSource is not available for this stream; forward to the
-    // visitor.
-    return callbacks::VisitorReadCallback(visitor_, stream_id, max_length,
-                                          data_flags);
-  } else {
-    // A DataFrameSource is available for this stream.
-    return callbacks::DataFrameSourceReadCallback(*it->second, max_length,
-                                                  data_flags);
-  }
+  // Forward to the visitor.
+  return callbacks::VisitorReadCallback(visitor_, stream_id, max_length,
+                                        data_flags);
 }
 
 int NgHttp2Adapter::DelegateSendCallback(int32_t stream_id,
                                          const uint8_t* framehd,
                                          size_t length) {
-  auto it = sources_.find(stream_id);
-  if (it == sources_.end()) {
-    // A DataFrameSource is not available for this stream; forward to the
-    // visitor.
-    visitor_.SendDataFrame(stream_id, ToStringView(framehd, kFrameHeaderSize),
-                           length);
-  } else {
-    // A DataFrameSource is available for this stream.
-    it->second->Send(ToStringView(framehd, kFrameHeaderSize), length);
-  }
+  // Forward to the visitor.
+  visitor_.SendDataFrame(stream_id, ToStringView(framehd, kFrameHeaderSize),
+                         length);
   return 0;
 }
 
