@@ -14,6 +14,9 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
@@ -117,13 +120,31 @@ class QuicBufferedPacketStoreTest : public QuicTest {
         packet_time_(QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(42)),
         packet_(packet_content_.data(), packet_content_.size(), packet_time_),
         invalid_version_(UnsupportedQuicVersion()),
-        valid_version_(CurrentSupportedVersions().front()) {}
+        valid_version_(CurrentSupportedVersions().front()) {
+    store_.set_writer(&mock_packet_writer_);
+
+    EXPECT_CALL(mock_packet_writer_, IsWriteBlocked())
+        .WillRepeatedly(Return(false));
+    EXPECT_CALL(mock_packet_writer_, WritePacket(_, _, _, _, _, _))
+        .WillRepeatedly(testing::Invoke(
+            [&](const char* buffer, size_t buf_len, const QuicIpAddress&,
+                const QuicSocketAddress&, PerPacketOptions*,
+                const QuicPacketWriterParams&) {
+              // This packet is sent by the store and "received" by the client.
+              client_received_packets_.push_back(
+                  std::make_unique<ClientReceivedPacket>(
+                      buffer, buf_len, peer_address_, self_address_));
+              return WriteResult(WRITE_STATUS_OK, buf_len);
+            }));
+  }
 
  protected:
   QuicDispatcherStats stats_;
   QuicBufferedPacketStoreVisitor visitor_;
   MockClock clock_;
   MockAlarmFactory alarm_factory_;
+  // Mock the sending of the INITIAL ACK packets.
+  MockPacketWriter mock_packet_writer_;
   QuicBufferedPacketStore store_;
   QuicSocketAddress self_address_;
   QuicSocketAddress peer_address_;
@@ -133,6 +154,35 @@ class QuicBufferedPacketStoreTest : public QuicTest {
   const ParsedQuicVersion invalid_version_;
   const ParsedQuicVersion valid_version_;
   MockConnectionIdGenerator connection_id_generator_;
+
+  // A packet that is sent by the store and "received" by the client.
+  struct ClientReceivedPacket {
+    ClientReceivedPacket(const char* buffer, size_t buf_len,
+                         const QuicSocketAddress& client_address,
+                         const QuicSocketAddress& server_address)
+        : self_address(client_address),
+          peer_address(server_address),
+          packet(QuicReceivedPacket(buffer, buf_len, QuicTime::Zero()).Clone()),
+          packet_info(self_address, peer_address, *packet) {
+      std::string detailed_error;
+      MockConnectionIdGenerator unused_generator;
+      if (QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
+              *packet, &packet_info.form, &packet_info.long_packet_type,
+              &packet_info.version_flag, &packet_info.use_length_prefix,
+              &packet_info.version_label, &packet_info.version,
+              &packet_info.destination_connection_id,
+              &packet_info.source_connection_id, &packet_info.retry_token,
+              &detailed_error, unused_generator) != QUIC_NO_ERROR) {
+        ADD_FAILURE() << "Failed to parse packet header: " << detailed_error;
+      }
+    }
+
+    const QuicSocketAddress self_address;
+    const QuicSocketAddress peer_address;
+    std::unique_ptr<QuicReceivedPacket> packet;
+    ReceivedPacketInfo packet_info;
+  };
+  std::vector<std::unique_ptr<ClientReceivedPacket>> client_received_packets_;
 };
 
 TEST_F(QuicBufferedPacketStoreTest, SimpleEnqueueAndDeliverPacket) {
@@ -835,6 +885,49 @@ TEST_F(QuicBufferedPacketStoreTest, BufferedPacketRetainsEcn) {
   for (const auto& packet : delivered_packets.buffered_packets) {
     EXPECT_EQ(packet.packet->ecn_codepoint(), ECN_ECT1);
   }
+}
+
+TEST_F(QuicBufferedPacketStoreTest, InitialAckHasClientConnectionId) {
+  const QuicConnectionId kDCID = TestConnectionId(1);
+  const QuicConnectionId kSCID = TestConnectionId(42);
+  const std::string crypto_data = "crypto_data";
+  ParsedQuicVersionVector versions = {ParsedQuicVersion::RFCv1()};
+  std::unique_ptr<QuicEncryptedPacket> client_initial_packet(
+      ConstructEncryptedPacket(
+          kDCID, kSCID, /*version_flag=*/true, /*reset_flag=*/false,
+          /*packet_number=*/1, crypto_data, /*full_padding=*/true,
+          CONNECTION_ID_PRESENT, CONNECTION_ID_PRESENT,
+          PACKET_4BYTE_PACKET_NUMBER, &versions, Perspective::IS_CLIENT));
+
+  QuicReceivedPacket received_client_initial(client_initial_packet->data(),
+                                             client_initial_packet->length(),
+                                             QuicTime::Zero());
+  ReceivedPacketInfo packet_info(self_address_, peer_address_,
+                                 received_client_initial);
+  std::string detailed_error;
+  ASSERT_EQ(QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
+                received_client_initial, &packet_info.form,
+                &packet_info.long_packet_type, &packet_info.version_flag,
+                &packet_info.use_length_prefix, &packet_info.version_label,
+                &packet_info.version, &packet_info.destination_connection_id,
+                &packet_info.source_connection_id, &packet_info.retry_token,
+                &detailed_error, connection_id_generator_),
+            QUIC_NO_ERROR)
+      << detailed_error;
+  store_.EnqueuePacket(packet_info, kNoParsedChlo, connection_id_generator_);
+  ASSERT_EQ(client_received_packets_.size(), 1u);
+
+  const ReceivedPacketInfo& client_received_packet_info =
+      client_received_packets_[0]->packet_info;
+  // From the client's perspective, the destination connection ID is kSCID and
+  // the source connection ID is kDCID.
+  if (GetQuicReloadableFlag(quic_buffered_store_set_client_cid)) {
+    EXPECT_EQ(client_received_packet_info.destination_connection_id, kSCID);
+  } else {
+    EXPECT_EQ(client_received_packet_info.destination_connection_id,
+              EmptyQuicConnectionId());
+  }
+  EXPECT_EQ(client_received_packet_info.source_connection_id, kDCID);
 }
 
 TEST_F(QuicBufferedPacketStoreTest, EmptyBufferedPacketList) {
