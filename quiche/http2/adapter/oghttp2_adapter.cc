@@ -139,19 +139,14 @@ void OgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
       stream_id, TranslateErrorCode(error_code)));
 }
 
-int32_t OgHttp2Adapter::SubmitRequest(
-    absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source, bool end_stream,
-    void* user_data) {
-  QUICHE_DCHECK(data_source == nullptr);
+int32_t OgHttp2Adapter::SubmitRequest(absl::Span<const Header> headers,
+                                      bool end_stream, void* user_data) {
   return session_->SubmitRequest(headers, end_stream, user_data);
 }
 
 int OgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
                                    absl::Span<const Header> headers,
-                                   std::unique_ptr<DataFrameSource> data_source,
                                    bool end_stream) {
-  QUICHE_DCHECK(data_source == nullptr);
   return session_->SubmitResponse(stream_id, headers, end_stream);
 }
 

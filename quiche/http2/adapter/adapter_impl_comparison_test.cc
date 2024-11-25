@@ -64,7 +64,7 @@ TEST(AdapterImplComparisonTest, SubmitWindowUpdateBumpsWindow) {
   const int kConnectionWindowIncrease = 192 * 1024;
 
   const int32_t nghttp2_stream_id =
-      nghttp2_adapter->SubmitRequest(request_headers, nullptr, true, nullptr);
+      nghttp2_adapter->SubmitRequest(request_headers, true, nullptr);
 
   // Both the connection and stream flow control windows are increased.
   nghttp2_adapter->SubmitWindowUpdate(0, kConnectionWindowIncrease);
@@ -77,7 +77,7 @@ TEST(AdapterImplComparisonTest, SubmitWindowUpdateBumpsWindow) {
             nghttp2_window);
 
   const int32_t oghttp2_stream_id =
-      oghttp2_adapter->SubmitRequest(request_headers, nullptr, true, nullptr);
+      oghttp2_adapter->SubmitRequest(request_headers, true, nullptr);
   // Both the connection and stream flow control windows are increased.
   oghttp2_adapter->SubmitWindowUpdate(0, kConnectionWindowIncrease);
   oghttp2_adapter->SubmitWindowUpdate(oghttp2_stream_id,

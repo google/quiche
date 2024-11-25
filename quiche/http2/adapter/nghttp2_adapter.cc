@@ -300,11 +300,8 @@ void NgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
   }
 }
 
-int32_t NgHttp2Adapter::SubmitRequest(
-    absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source, bool end_stream,
-    void* stream_user_data) {
-  QUICHE_DCHECK(data_source == nullptr);
+int32_t NgHttp2Adapter::SubmitRequest(absl::Span<const Header> headers,
+                                      bool end_stream, void* stream_user_data) {
   auto nvs = GetNghttp2Nvs(headers);
   std::unique_ptr<nghttp2_data_provider> provider;
 
@@ -325,9 +322,7 @@ int32_t NgHttp2Adapter::SubmitRequest(
 
 int NgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
                                    absl::Span<const Header> headers,
-                                   std::unique_ptr<DataFrameSource> data_source,
                                    bool end_stream) {
-  QUICHE_DCHECK(data_source == nullptr);
   auto nvs = GetNghttp2Nvs(headers);
   std::unique_ptr<nghttp2_data_provider> provider;
   if (!end_stream) {

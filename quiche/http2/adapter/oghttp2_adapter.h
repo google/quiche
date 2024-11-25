@@ -53,11 +53,13 @@ class QUICHE_EXPORT OgHttp2Adapter : public Http2Adapter {
   void MarkDataConsumedForStream(Http2StreamId stream_id,
                                  size_t num_bytes) override;
   void SubmitRst(Http2StreamId stream_id, Http2ErrorCode error_code) override;
+  // For the deprecated overload.
+  using Http2Adapter::SubmitRequest;
   int32_t SubmitRequest(absl::Span<const Header> headers,
-                        std::unique_ptr<DataFrameSource> data_source,
                         bool end_stream, void* user_data) override;
+  // For the deprecated overload.
+  using Http2Adapter::SubmitResponse;
   int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
-                     std::unique_ptr<DataFrameSource> data_source,
                      bool end_stream) override;
 
   int SubmitTrailer(Http2StreamId stream_id,
