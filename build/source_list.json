@@ -1438,8 +1438,7 @@
     "quiche/http2/adapter/callback_visitor_test.cc",
     "quiche/http2/adapter/nghttp2_adapter_test.cc",
     "quiche/http2/adapter/nghttp2_data_provider_test.cc",
-    "quiche/http2/adapter/nghttp2_session_test.cc",
-    "quiche/http2/adapter/nghttp2_util_test.cc"
+    "quiche/http2/adapter/nghttp2_session_test.cc"
   ],
   "default_platform_impl_hdrs": [
     "quiche/common/platform/default/quiche_platform_impl/quiche_bug_tracker_impl.h",

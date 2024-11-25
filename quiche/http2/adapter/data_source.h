@@ -11,26 +11,10 @@
 namespace http2 {
 namespace adapter {
 
-// Represents a source of DATA frames for transmission to the peer.
+// TODO(birenroy): move the remaining constants.
 class QUICHE_EXPORT DataFrameSource {
  public:
-  virtual ~DataFrameSource() {}
-
   enum : int64_t { kBlocked = 0, kError = -1 };
-
-  // Returns the number of bytes to send in the next DATA frame, and whether
-  // this frame indicates the end of the data. Returns {kBlocked, false} if
-  // blocked, {kError, false} on error.
-  virtual std::pair<int64_t, bool> SelectPayloadLength(size_t max_length) = 0;
-
-  // This method is called with a frame header and a payload length to send. The
-  // source should send or buffer the entire frame and return true, or return
-  // false without sending or buffering anything.
-  virtual bool Send(absl::string_view frame_header, size_t payload_length) = 0;
-
-  // If true, the end of this data source indicates the end of the stream.
-  // Otherwise, this data will be followed by trailers.
-  virtual bool send_fin() const = 0;
 };
 
 // Represents a source of metadata frames for transmission to the peer.

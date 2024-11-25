@@ -61,13 +61,6 @@ Http2ErrorCode ToHttp2ErrorCode(uint32_t wire_error_code);
 int ToNgHttp2ErrorCode(Http2VisitorInterface::InvalidFrameError error);
 Http2VisitorInterface::InvalidFrameError ToInvalidFrameError(int error);
 
-// Transforms a nghttp2_data_provider into a DataFrameSource. Assumes that
-// |provider| uses the zero-copy nghttp2_data_source_read_callback API. Unsafe
-// otherwise.
-std::unique_ptr<DataFrameSource> MakeZeroCopyDataFrameSource(
-    nghttp2_data_provider provider, void* user_data,
-    nghttp2_send_data_callback send_data);
-
 void LogBeforeSend(const nghttp2_frame& frame);
 
 }  // namespace adapter

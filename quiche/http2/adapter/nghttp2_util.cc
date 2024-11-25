@@ -163,67 +163,6 @@ InvalidFrameError ToInvalidFrameError(int error) {
   return InvalidFrameError::kProtocol;
 }
 
-class Nghttp2DataFrameSource : public DataFrameSource {
- public:
-  Nghttp2DataFrameSource(nghttp2_data_provider provider,
-                         nghttp2_send_data_callback send_data, void* user_data)
-      : provider_(std::move(provider)),
-        send_data_(std::move(send_data)),
-        user_data_(user_data) {}
-
-  std::pair<int64_t, bool> SelectPayloadLength(size_t max_length) override {
-    const int32_t stream_id = 0;
-    uint32_t data_flags = 0;
-    int64_t result = provider_.read_callback(
-        nullptr /* session */, stream_id, nullptr /* buf */, max_length,
-        &data_flags, &provider_.source, nullptr /* user_data */);
-    if (result == NGHTTP2_ERR_DEFERRED) {
-      return {kBlocked, false};
-    } else if (result < 0) {
-      return {kError, false};
-    } else if ((data_flags & NGHTTP2_DATA_FLAG_NO_COPY) == 0) {
-      QUICHE_LOG(ERROR) << "Source did not use the zero-copy API!";
-      return {kError, false};
-    } else {
-      const bool eof = data_flags & NGHTTP2_DATA_FLAG_EOF;
-      if (eof && (data_flags & NGHTTP2_DATA_FLAG_NO_END_STREAM) == 0) {
-        send_fin_ = true;
-      }
-      return {result, eof};
-    }
-  }
-
-  bool Send(absl::string_view frame_header, size_t payload_length) override {
-    nghttp2_frame frame;
-    frame.hd.type = 0;
-    frame.hd.length = payload_length;
-    frame.hd.flags = 0;
-    frame.hd.stream_id = 0;
-    frame.data.padlen = 0;
-    const int result = send_data_(
-        nullptr /* session */, &frame, ToUint8Ptr(frame_header.data()),
-        payload_length, &provider_.source, user_data_);
-    QUICHE_LOG_IF(ERROR, result < 0 && result != NGHTTP2_ERR_WOULDBLOCK)
-        << "Unexpected error code from send: " << result;
-    return result == 0;
-  }
-
-  bool send_fin() const override { return send_fin_; }
-
- private:
-  nghttp2_data_provider provider_;
-  nghttp2_send_data_callback send_data_;
-  void* user_data_;
-  bool send_fin_ = false;
-};
-
-std::unique_ptr<DataFrameSource> MakeZeroCopyDataFrameSource(
-    nghttp2_data_provider provider, void* user_data,
-    nghttp2_send_data_callback send_data) {
-  return std::make_unique<Nghttp2DataFrameSource>(
-      std::move(provider), std::move(send_data), user_data);
-}
-
 absl::string_view ErrorString(uint32_t error_code) {
   return Http2ErrorCodeToString(static_cast<Http2ErrorCode>(error_code));
 }
