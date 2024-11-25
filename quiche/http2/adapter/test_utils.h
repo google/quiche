@@ -104,22 +104,6 @@ class QUICHE_NO_EXPORT TestVisitor
   bool has_write_error_ = false;
 };
 
-// A DataFrameSource that invokes visitor methods.
-class QUICHE_NO_EXPORT VisitorDataSource : public DataFrameSource {
- public:
-  VisitorDataSource(Http2VisitorInterface& visitor, Http2StreamId stream_id);
-
-  std::pair<int64_t, bool> SelectPayloadLength(size_t max_length) override;
-  bool Send(absl::string_view frame_header, size_t payload_length) override;
-  bool send_fin() const override;
-
- private:
-  Http2VisitorInterface& visitor_;
-  const Http2StreamId stream_id_;
-  // Whether the stream should end with the final frame of data.
-  bool has_fin_ = false;
-};
-
 class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
  public:
   explicit TestMetadataSource(const quiche::HttpHeaderBlock& entries);

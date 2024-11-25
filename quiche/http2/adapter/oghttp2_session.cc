@@ -658,49 +658,6 @@ Http2StreamId OgHttp2Session::GetNextReadyStream() {
   return write_scheduler_.PopNextReadyStream();
 }
 
-int32_t OgHttp2Session::SubmitRequestInternal(
-    absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source, bool end_stream,
-    void* user_data) {
-  // TODO(birenroy): return an error for the incorrect perspective
-  const Http2StreamId stream_id = next_stream_id_;
-  next_stream_id_ += 2;
-  if (!pending_streams_.empty() || !CanCreateStream()) {
-    // TODO(diannahu): There should probably be a limit to the number of allowed
-    // pending streams.
-    pending_streams_.insert(
-        {stream_id,
-         PendingStreamState{ToHeaderBlock(headers), std::move(data_source),
-                            user_data, end_stream}});
-    StartPendingStreams();
-  } else {
-    StartRequest(stream_id, ToHeaderBlock(headers), std::move(data_source),
-                 user_data, end_stream);
-  }
-  return stream_id;
-}
-
-int OgHttp2Session::SubmitResponseInternal(
-    Http2StreamId stream_id, absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source, bool end_stream) {
-  // TODO(birenroy): return an error for the incorrect perspective
-  auto iter = stream_map_.find(stream_id);
-  if (iter == stream_map_.end()) {
-    QUICHE_LOG(ERROR) << "Unable to find stream " << stream_id;
-    return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
-  }
-  if (data_source != nullptr) {
-    // Add data source to stream state
-    iter->second.outbound_body = std::move(data_source);
-    write_scheduler_.MarkStreamReady(stream_id, false);
-  } else if (!end_stream) {
-    iter->second.check_visitor_for_body = true;
-    write_scheduler_.MarkStreamReady(stream_id, false);
-  }
-  SendHeaders(stream_id, ToHeaderBlock(headers), end_stream);
-  return 0;
-}
-
 OgHttp2Session::SendResult OgHttp2Session::MaybeSendBufferedData() {
   int64_t result = std::numeric_limits<int64_t>::max();
   while (result > 0 && !buffered_data_.Empty()) {
@@ -1018,20 +975,39 @@ void OgHttp2Session::SerializeMetadata(Http2StreamId stream_id) {
   }
 }
 
-int32_t OgHttp2Session::SubmitRequest(
-    absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source, bool end_stream,
-    void* user_data) {
-  return SubmitRequestInternal(headers, std::move(data_source), end_stream,
-                               user_data);
+int32_t OgHttp2Session::SubmitRequest(absl::Span<const Header> headers,
+                                      bool end_stream, void* user_data) {
+  // TODO(birenroy): return an error for the incorrect perspective
+  const Http2StreamId stream_id = next_stream_id_;
+  next_stream_id_ += 2;
+  if (!pending_streams_.empty() || !CanCreateStream()) {
+    // TODO(diannahu): There should probably be a limit to the number of allowed
+    // pending streams.
+    pending_streams_.insert(
+        {stream_id,
+         PendingStreamState{ToHeaderBlock(headers), user_data, end_stream}});
+    StartPendingStreams();
+  } else {
+    StartRequest(stream_id, ToHeaderBlock(headers), user_data, end_stream);
+  }
+  return stream_id;
 }
 
 int OgHttp2Session::SubmitResponse(Http2StreamId stream_id,
                                    absl::Span<const Header> headers,
-                                   std::unique_ptr<DataFrameSource> data_source,
                                    bool end_stream) {
-  return SubmitResponseInternal(stream_id, headers, std::move(data_source),
-                                end_stream);
+  // TODO(birenroy): return an error for the incorrect perspective
+  auto iter = stream_map_.find(stream_id);
+  if (iter == stream_map_.end()) {
+    QUICHE_LOG(ERROR) << "Unable to find stream " << stream_id;
+    return -501;  // NGHTTP2_ERR_INVALID_ARGUMENT
+  }
+  if (!end_stream) {
+    iter->second.check_visitor_for_body = true;
+    write_scheduler_.MarkStreamReady(stream_id, false);
+  }
+  SendHeaders(stream_id, ToHeaderBlock(headers), end_stream);
+  return 0;
 }
 
 int OgHttp2Session::SubmitTrailer(Http2StreamId stream_id,
@@ -1874,7 +1850,6 @@ OgHttp2Session::StreamStateMap::iterator OgHttp2Session::CreateStream(
 
 void OgHttp2Session::StartRequest(Http2StreamId stream_id,
                                   quiche::HttpHeaderBlock headers,
-                                  std::unique_ptr<DataFrameSource> data_source,
                                   void* user_data, bool end_stream) {
   if (received_goaway_) {
     // Do not start new streams after receiving a GOAWAY.
@@ -1883,10 +1858,7 @@ void OgHttp2Session::StartRequest(Http2StreamId stream_id,
   }
 
   auto iter = CreateStream(stream_id);
-  if (data_source != nullptr) {
-    iter->second.outbound_body = std::move(data_source);
-    write_scheduler_.MarkStreamReady(stream_id, false);
-  } else if (!end_stream) {
+  if (!end_stream) {
     iter->second.check_visitor_for_body = true;
     write_scheduler_.MarkStreamReady(stream_id, false);
   }
@@ -1903,7 +1875,6 @@ void OgHttp2Session::StartPendingStreams() {
   while (!pending_streams_.empty() && CanCreateStream()) {
     auto& [stream_id, pending_stream] = pending_streams_.front();
     StartRequest(stream_id, std::move(pending_stream.headers),
-                 std::move(pending_stream.data_source),
                  pending_stream.user_data, pending_stream.end_stream);
     pending_streams_.pop_front();
   }
@@ -2121,8 +2092,7 @@ void OgHttp2Session::UpdateStreamReceiveWindowSizes(uint32_t new_value) {
 }
 
 bool OgHttp2Session::HasMoreData(const StreamState& stream_state) const {
-  return stream_state.outbound_body != nullptr ||
-         stream_state.check_visitor_for_body;
+  return stream_state.check_visitor_for_body;
 }
 
 bool OgHttp2Session::IsReadyToWriteData(const StreamState& stream_state) const {
@@ -2130,21 +2100,13 @@ bool OgHttp2Session::IsReadyToWriteData(const StreamState& stream_state) const {
 }
 
 void OgHttp2Session::AbandonData(StreamState& stream_state) {
-  stream_state.outbound_body = nullptr;
   stream_state.check_visitor_for_body = false;
 }
 
 OgHttp2Session::DataFrameHeaderInfo OgHttp2Session::GetDataFrameInfo(
     Http2StreamId stream_id, size_t flow_control_available,
     StreamState& stream_state) {
-  if (stream_state.outbound_body != nullptr) {
-    DataFrameHeaderInfo info;
-    std::tie(info.payload_length, info.end_data) =
-        stream_state.outbound_body->SelectPayloadLength(flow_control_available);
-    info.end_stream =
-        info.end_data ? stream_state.outbound_body->send_fin() : false;
-    return info;
-  } else if (stream_state.check_visitor_for_body) {
+  if (stream_state.check_visitor_for_body) {
     DataFrameHeaderInfo info =
         visitor_.OnReadyToSendDataForStream(stream_id, flow_control_available);
     info.end_data = info.end_data || info.end_stream;
@@ -2159,12 +2121,8 @@ bool OgHttp2Session::SendDataFrame(Http2StreamId stream_id,
                                    absl::string_view frame_header,
                                    size_t payload_length,
                                    StreamState& stream_state) {
-  if (stream_state.outbound_body != nullptr) {
-    return stream_state.outbound_body->Send(frame_header, payload_length);
-  } else {
-    QUICHE_DCHECK(stream_state.check_visitor_for_body);
-    return visitor_.SendDataFrame(stream_id, frame_header, payload_length);
-  }
+  QUICHE_DCHECK(stream_state.check_visitor_for_body);
+  return visitor_.SendDataFrame(stream_id, frame_header, payload_length);
 }
 
 }  // namespace adapter

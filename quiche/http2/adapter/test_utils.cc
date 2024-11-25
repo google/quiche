@@ -124,25 +124,6 @@ void TestVisitor::AppendMetadataForStream(
   outbound_metadata_map_.insert({stream_id, EncodeHeaders(payload)});
 }
 
-VisitorDataSource::VisitorDataSource(Http2VisitorInterface& visitor,
-                                     Http2StreamId stream_id)
-    : visitor_(visitor), stream_id_(stream_id) {}
-
-bool VisitorDataSource::send_fin() const { return has_fin_; }
-
-std::pair<int64_t, bool> VisitorDataSource::SelectPayloadLength(
-    size_t max_length) {
-  auto [payload_length, end_data, end_stream] =
-      visitor_.OnReadyToSendDataForStream(stream_id_, max_length);
-  has_fin_ = end_stream;
-  return {payload_length, end_data};
-}
-
-bool VisitorDataSource::Send(absl::string_view frame_header,
-                             size_t payload_length) {
-  return visitor_.SendDataFrame(stream_id_, frame_header, payload_length);
-}
-
 TestMetadataSource::TestMetadataSource(const quiche::HttpHeaderBlock& entries)
     : encoded_entries_(EncodeHeaders(entries)) {
   remaining_ = encoded_entries_;

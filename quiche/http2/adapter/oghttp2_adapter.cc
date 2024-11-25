@@ -143,16 +143,16 @@ int32_t OgHttp2Adapter::SubmitRequest(
     absl::Span<const Header> headers,
     std::unique_ptr<DataFrameSource> data_source, bool end_stream,
     void* user_data) {
-  return session_->SubmitRequest(headers, std::move(data_source), end_stream,
-                                 user_data);
+  QUICHE_DCHECK(data_source == nullptr);
+  return session_->SubmitRequest(headers, end_stream, user_data);
 }
 
 int OgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
                                    absl::Span<const Header> headers,
                                    std::unique_ptr<DataFrameSource> data_source,
                                    bool end_stream) {
-  return session_->SubmitResponse(stream_id, headers, std::move(data_source),
-                                  end_stream);
+  QUICHE_DCHECK(data_source == nullptr);
+  return session_->SubmitResponse(stream_id, headers, end_stream);
 }
 
 int OgHttp2Adapter::SubmitTrailer(Http2StreamId stream_id,
