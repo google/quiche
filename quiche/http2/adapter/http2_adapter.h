@@ -125,7 +125,7 @@ class QUICHE_EXPORT Http2Adapter {
                                 bool end_stream, void* user_data) = 0;
   // Deprecated
   int32_t SubmitRequest(absl::Span<const Header> headers,
-                        nullptr_t /*data_source*/, bool end_stream,
+                        std::nullptr_t /*data_source*/, bool end_stream,
                         void* user_data) {
     return SubmitRequest(headers, end_stream, user_data);
   }
@@ -138,7 +138,7 @@ class QUICHE_EXPORT Http2Adapter {
                              bool end_stream) = 0;
   // Deprecated
   int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
-                     nullptr_t /*data_source*/, bool end_stream) {
+                     std::nullptr_t /*data_source*/, bool end_stream) {
     return SubmitResponse(stream_id, headers, end_stream);
   }
 
