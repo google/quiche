@@ -210,69 +210,43 @@ TEST_F(QuicBufferedPacketStoreTest, SimpleEnqueueAndDeliverPacket) {
 
 TEST_F(QuicBufferedPacketStoreTest, SimpleEnqueueAckSent) {
   SetQuicReloadableFlag(quic_ecn_in_first_ack, true);
-  QuicConnectionId connection_id = TestConnectionId(1);
-  MockPacketWriter writer;
-  store_.set_writer(&writer);
-  // Build a decryptable Initial packet with PADDING.
-  QuicFramer client_framer(ParsedQuicVersionVector{ParsedQuicVersion::RFCv1()},
-                           QuicTime::Zero(), Perspective::IS_CLIENT, 8);
-  client_framer.SetInitialObfuscators(connection_id);
-  QuicPacketHeader header;
-  header.destination_connection_id = connection_id;
-  header.version_flag = true;
-  header.packet_number = QuicPacketNumber(1);
-  header.packet_number_length = PACKET_1BYTE_PACKET_NUMBER;
-  header.long_packet_type = INITIAL;
-  header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
-  header.retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
-  QuicFrames frames = {QuicFrame(QuicPaddingFrame(1200))};
+  const QuicConnectionId kDCID = TestConnectionId(1);
+  const std::string crypto_data = "crypto_data";
+  ParsedQuicVersionVector versions = {ParsedQuicVersion::RFCv1()};
+  std::unique_ptr<QuicEncryptedPacket> client_initial_packet(
+      ConstructEncryptedPacket(
+          kDCID, QuicConnectionId(), /*version_flag=*/true,
+          /*reset_flag=*/false, /*packet_number=*/1, crypto_data,
+          /*full_padding=*/true, CONNECTION_ID_PRESENT, CONNECTION_ID_PRESENT,
+          PACKET_4BYTE_PACKET_NUMBER, &versions, Perspective::IS_CLIENT));
+  QuicReceivedPacket received_client_initial(
+      client_initial_packet->data(), client_initial_packet->length(),
+      QuicTime::Zero(), false, 0, true, nullptr, 0, false, ECN_ECT1);
+  ReceivedPacketInfo packet_info(self_address_, peer_address_,
+                                 received_client_initial);
+  std::string detailed_error;
+  ASSERT_EQ(QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
+                received_client_initial, &packet_info.form,
+                &packet_info.long_packet_type, &packet_info.version_flag,
+                &packet_info.use_length_prefix, &packet_info.version_label,
+                &packet_info.version, &packet_info.destination_connection_id,
+                &packet_info.source_connection_id, &packet_info.retry_token,
+                &detailed_error, connection_id_generator_),
+            QUIC_NO_ERROR)
+      << detailed_error;
+  store_.EnqueuePacket(packet_info, kNoParsedChlo, connection_id_generator_);
 
-  char* buffer = new char[1500];
-  EncryptionLevel level = HeaderToEncryptionLevel(header);
-  size_t length =
-      client_framer.BuildDataPacket(header, frames, buffer, 1500, level);
-
-  ASSERT_GT(length, 0);
-
-  // Re-construct the data packet with data ownership.
-  auto data = std::make_unique<QuicPacket>(
-      buffer, length, /* owns_buffer */ true,
-      GetIncludedDestinationConnectionIdLength(header),
-      GetIncludedSourceConnectionIdLength(header), header.version_flag,
-      header.nonce != nullptr, header.packet_number_length,
-      header.retry_token_length_length, header.retry_token.length(),
-      header.length_length);
-  unsigned char raw[1500] = {};
-  size_t final_size = client_framer.EncryptPayload(
-      ENCRYPTION_INITIAL, header.packet_number, *data, (char*)raw, 1500);
-  QuicReceivedPacket packet((char*)raw, final_size, QuicTime::Zero(), false, 0,
-                            true, nullptr, 0, false, ECN_ECT1);
-
-  EXPECT_CALL(writer, IsWriteBlocked()).WillOnce(Return(false));
-  std::unique_ptr<QuicEncryptedPacket> ack_packet;
-  EXPECT_CALL(writer, WritePacket(_, _, _, _, _, _))
-      .WillOnce(Invoke([&](const char* buffer, size_t buf_len,
-                           const QuicIpAddress& /*self_address*/,
-                           const QuicSocketAddress& /*peer_address*/,
-                           PerPacketOptions* /*options*/,
-                           const QuicPacketWriterParams& /*params*/) {
-        auto tmp_packet =
-            std::make_unique<QuicEncryptedPacket>(buffer, buf_len);
-        ack_packet = tmp_packet->Clone();
-        return WriteResult(WRITE_STATUS_OK, 1);
-      }));
-  EXPECT_CALL(writer, Flush());
-  EnqueuePacketToStore(store_, connection_id, IETF_QUIC_LONG_HEADER_PACKET,
-                       INITIAL, packet, self_address_, peer_address_,
-                       ParsedQuicVersion::RFCv1(), kNoParsedChlo,
-                       connection_id_generator_);
-  const BufferedPacketList* buffered_list = store_.GetPacketList(connection_id);
+  const BufferedPacketList* buffered_list = store_.GetPacketList(kDCID);
   ASSERT_NE(buffered_list, nullptr);
   ASSERT_EQ(buffered_list->dispatcher_sent_packets.size(), 1);
   EXPECT_EQ(buffered_list->dispatcher_sent_packets[0].largest_acked,
             QuicPacketNumber(1));
+  ASSERT_EQ(client_received_packets_.size(), 1u);
 
   // Decrypt the packet, and verify it reports ECN.
+  QuicFramer client_framer(ParsedQuicVersionVector{ParsedQuicVersion::RFCv1()},
+                           QuicTime::Zero(), Perspective::IS_CLIENT, 8);
+  client_framer.SetInitialObfuscators(kDCID);
   MockFramerVisitor mock_framer_visitor;
   client_framer.set_visitor(&mock_framer_visitor);
   EXPECT_CALL(mock_framer_visitor, OnPacket()).Times(1);
@@ -282,7 +256,7 @@ TEST_F(QuicBufferedPacketStoreTest, SimpleEnqueueAckSent) {
   std::optional<QuicEcnCounts> counts = QuicEcnCounts(0, 1, 0);
   EXPECT_CALL(mock_framer_visitor, OnAckFrameEnd(_, counts))
       .WillOnce(Return(true));
-  client_framer.ProcessPacket(*ack_packet);
+  client_framer.ProcessPacket(*client_received_packets_[0]->packet);
 }
 
 TEST_F(QuicBufferedPacketStoreTest, DifferentPacketAddressOnOneConnection) {
