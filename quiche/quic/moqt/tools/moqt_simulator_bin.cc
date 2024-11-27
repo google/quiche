@@ -186,12 +186,13 @@ class ObjectGenerator : public quic::simulator::Actor,
   std::vector<QuicBandwidth> bitrate_history_;
 };
 
-class ObjectReceiver : public RemoteTrack::Visitor {
+class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
  public:
   explicit ObjectReceiver(const QuicClock* clock, QuicTimeDelta deadline)
       : clock_(clock), deadline_(deadline) {}
 
   void OnReply(const FullTrackName& full_track_name,
+               std::optional<FullSequence> /*largest_id*/,
                std::optional<absl::string_view> error_reason_phrase) override {
     QUICHE_CHECK(full_track_name == TrackName());
     QUICHE_CHECK(!error_reason_phrase.has_value()) << *error_reason_phrase;

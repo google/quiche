@@ -29,6 +29,7 @@
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -117,24 +118,28 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // Subscribe from (start_group, start_object) to the end of the track.
   bool SubscribeAbsolute(
       const FullTrackName& name, uint64_t start_group, uint64_t start_object,
-      RemoteTrack::Visitor* visitor,
+      SubscribeRemoteTrack::Visitor* visitor,
       MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
   // Subscribe from (start_group, start_object) to the end of end_group.
   bool SubscribeAbsolute(
       const FullTrackName& name, uint64_t start_group, uint64_t start_object,
-      uint64_t end_group, RemoteTrack::Visitor* visitor,
+      uint64_t end_group, SubscribeRemoteTrack::Visitor* visitor,
       MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
   // Subscribe from (start_group, start_object) to (end_group, end_object).
   bool SubscribeAbsolute(
       const FullTrackName& name, uint64_t start_group, uint64_t start_object,
-      uint64_t end_group, uint64_t end_object, RemoteTrack::Visitor* visitor,
+      uint64_t end_group, uint64_t end_object,
+      SubscribeRemoteTrack::Visitor* visitor,
       MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
   bool SubscribeCurrentObject(
-      const FullTrackName& name, RemoteTrack::Visitor* visitor,
+      const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
       MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
   bool SubscribeCurrentGroup(
-      const FullTrackName& name, RemoteTrack::Visitor* visitor,
+      const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
       MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
+  // Returns false if the subscription is not found. The session immediately
+  // destroys all subscription state.
+  void Unsubscribe(const FullTrackName& name);
 
   webtransport::Session* session() { return session_; }
   MoqtSessionCallbacks& callbacks() { return callbacks_; }
@@ -285,6 +290,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
     MoqtSession* session_;
     webtransport::Stream* stream_;
+    // Once the subscribe ID is identified, set it here.
+    quiche::QuicheWeakPtr<RemoteTrack> track_;
+    // std::optional<uint64_t> subscribe_id_ = std::nullopt;
     MoqtDataParser parser_;
     std::string partial_object_;
   };
@@ -494,8 +502,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // is present.
   void SendControlMessage(quiche::QuicheBuffer message);
 
-  // Returns false if the SUBSCRIBE isn't sent.
-  bool Subscribe(MoqtSubscribe& message, RemoteTrack::Visitor* visitor);
+  // Returns false if the SUBSCRIBE isn't sent. |provided_track_alias| has a
+  // value only if this call is due to a SUBSCRIBE_ERROR.
+  bool Subscribe(MoqtSubscribe& message, SubscribeRemoteTrack::Visitor* visitor,
+                 std::optional<uint64_t> provided_track_alias = std::nullopt);
 
   // Opens a new data stream, or queues it if the session is flow control
   // blocked.
@@ -508,13 +518,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // Returns false if creation failed.
   [[nodiscard]] bool OpenDataStream(std::shared_ptr<PublishedFetch> fetch);
 
-  // Get FullTrackName and visitor for a subscribe_id and track_alias. Returns
-  // an empty FullTrackName tuple and nullptr if not present. If the caller has
-  // information about the track's forwarding preference, it can be passed via
-  // |forwarding_preference| so that it can be stored in RemoteTrack.
-  std::pair<FullTrackName, RemoteTrack::Visitor*> TrackPropertiesFromAlias(
-      const MoqtObject& message,
-      std::optional<MoqtForwardingPreference> forwarding_preference);
+  SubscribeRemoteTrack* RemoteTrackByAlias(uint64_t track_alias);
+  RemoteTrack* RemoteTrackById(uint64_t subscribe_id);
+  RemoteTrack* RemoteTrackByName(const FullTrackName& name);
 
   // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
   // a session error if is not.
@@ -557,11 +563,22 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   bool peer_supports_object_ack_ = false;
   std::string error_;
 
+  // Upstream SUBSCRIBE state.
   // All the tracks the session is subscribed to, indexed by track_alias.
-  absl::flat_hash_map<uint64_t, RemoteTrack> remote_tracks_;
-  // Look up aliases for remote tracks by name
-  absl::flat_hash_map<FullTrackName, uint64_t> remote_track_aliases_;
+  absl::flat_hash_map<uint64_t, std::unique_ptr<SubscribeRemoteTrack>>
+      subscribe_by_alias_;
+  // Upstream SUBSCRIBEs indexed by subscribe_id.
+  // TODO(martinduke): Add fetches to this.
+  absl::flat_hash_map<uint64_t, RemoteTrack*> upstream_by_id_;
+  // The application only has track names, so this allows MoqtSession to
+  // quickly find what it's looking for. Also allows a quick check for duplicate
+  // subscriptions.
+  absl::flat_hash_map<FullTrackName, RemoteTrack*> upstream_by_name_;
   uint64_t next_remote_track_alias_ = 0;
+  // The next subscribe ID that the local endpoint can send.
+  uint64_t next_subscribe_id_ = 0;
+  // The maximum subscribe ID that the local endpoint can send.
+  uint64_t peer_max_subscribe_id_ = 0;
 
   // All open incoming subscriptions, indexed by track name, used to check for
   // duplicates.
@@ -585,21 +602,6 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   absl::flat_hash_map<uint64_t, std::shared_ptr<PublishedFetch>>
       incoming_fetches_;
 
-  // Indexed by subscribe_id.
-  struct ActiveSubscribe {
-    MoqtSubscribe message;
-    RemoteTrack::Visitor* visitor;
-    // The forwarding preference of the first received object, which all
-    // subsequent objects must match.
-    std::optional<MoqtForwardingPreference> forwarding_preference;
-    // If true, an object has arrived for the subscription before SUBSCRIBE_OK
-    // arrived.
-    bool received_object = false;
-  };
-  // Outgoing SUBSCRIBEs that have not received SUBSCRIBE_OK or SUBSCRIBE_ERROR.
-  absl::flat_hash_map<uint64_t, ActiveSubscribe> active_subscribes_;
-  uint64_t next_subscribe_id_ = 0;
-
   // Monitoring interfaces for expected incoming subscriptions.
   absl::flat_hash_map<FullTrackName, MoqtPublishingMonitorInterface*>
       monitoring_interfaces_for_published_tracks_;
@@ -613,12 +615,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // parameter, and other checks have changed/been disabled.
   MoqtRole peer_role_ = MoqtRole::kPubSub;
 
-  // The maximum subscribe ID that the local endpoint can send.
-  uint64_t peer_max_subscribe_id_ = 0;
-  // The maximum subscribe ID sent to the peer.
-  uint64_t local_max_subscribe_id_ = 0;
   // The minimum subscribe ID the peer can use that is monotonically increasing.
   uint64_t next_incoming_subscribe_id_ = 0;
+  // The maximum subscribe ID sent to the peer.
+  uint64_t local_max_subscribe_id_ = 0;
 
   // Must be last.  Token used to make sure that the streams do not call into
   // the session when the session has already been destroyed.

@@ -4,18 +4,15 @@
 
 #include "quiche/quic/moqt/moqt_track.h"
 
-#include <cstdint>
-
 #include "quiche/quic/moqt/moqt_messages.h"
 
 namespace moqt {
 
-bool RemoteTrack::CheckForwardingPreference(
-    MoqtForwardingPreference preference) {
-  if (forwarding_preference_.has_value()) {
-    return forwarding_preference_.value() == preference;
+bool RemoteTrack::CheckDataStreamType(MoqtDataStreamType type) {
+  if (data_stream_type_.has_value()) {
+    return data_stream_type_.value() == type;
   }
-  forwarding_preference_ = preference;
+  data_stream_type_ = type;
   return true;
 }
 

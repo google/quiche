@@ -77,10 +77,11 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   FullTrackName track_name_;
 };
 
-class MockRemoteTrackVisitor : public RemoteTrack::Visitor {
+class MockSubscribeRemoteTrackVisitor : public SubscribeRemoteTrack::Visitor {
  public:
   MOCK_METHOD(void, OnReply,
               (const FullTrackName& full_track_name,
+               std::optional<FullSequence> largest_id,
                std::optional<absl::string_view> error_reason_phrase),
               (override));
   MOCK_METHOD(void, OnCanAckObjects, (MoqtObjectAckFunction ack_function),

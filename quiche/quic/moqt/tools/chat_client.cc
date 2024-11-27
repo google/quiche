@@ -109,6 +109,7 @@ void ChatClient::OnTerminalLineInput(absl::string_view input_message) {
 
 void ChatClient::RemoteTrackVisitor::OnReply(
     const FullTrackName& full_track_name,
+    std::optional<FullSequence> /*largest_id*/,
     std::optional<absl::string_view> reason_phrase) {
   client_->subscribes_to_make_--;
   if (full_track_name == client_->chat_strings_->GetCatalogName()) {
@@ -200,7 +201,7 @@ bool ChatClient::AnnounceAndSubscribe() {
 }
 
 void ChatClient::ProcessCatalog(absl::string_view object,
-                                RemoteTrack::Visitor* visitor,
+                                SubscribeRemoteTrack::Visitor* visitor,
                                 uint64_t group_sequence,
                                 uint64_t object_sequence) {
   std::string message(object);
@@ -245,7 +246,7 @@ void ChatClient::ProcessCatalog(absl::string_view object,
       continue;
     }
     if (!add) {
-      // TODO: Unsubscribe from the user that's leaving
+      session_->Unsubscribe(chat_strings_->GetFullTrackNameFromUsername(user));
       std::cout << user << "left the chat\n";
       other_users_.erase(user);
       continue;

@@ -23,6 +23,13 @@
 
 namespace moqt::test {
 
+class MoqtDataParserPeer {
+ public:
+  static void SetType(MoqtDataParser* parser, MoqtDataStreamType type) {
+    parser->type_ = type;
+  }
+};
+
 class MoqtSessionPeer {
  public:
   static constexpr webtransport::StreamId kControlStreamId = 4;
@@ -43,9 +50,11 @@ class MoqtSessionPeer {
   }
 
   static std::unique_ptr<MoqtDataParserVisitor> CreateIncomingDataStream(
-      MoqtSession* session, webtransport::Stream* stream) {
+      MoqtSession* session, webtransport::Stream* stream,
+      MoqtDataStreamType type) {
     auto new_stream =
         std::make_unique<MoqtSession::IncomingDataStream>(session, stream);
+    MoqtDataParserPeer::SetType(&new_stream->parser_, type);
     return new_stream;
   }
 
@@ -62,18 +71,15 @@ class MoqtSessionPeer {
     return static_cast<MoqtSession::ControlStream*>(visitor);
   }
 
-  static void CreateRemoteTrack(MoqtSession* session, const FullTrackName& name,
-                                RemoteTrack::Visitor* visitor,
-                                uint64_t track_alias) {
-    session->remote_tracks_.try_emplace(track_alias, name, track_alias,
-                                        visitor);
-    session->remote_track_aliases_.try_emplace(name, track_alias);
-  }
-
-  static void AddActiveSubscribe(MoqtSession* session, uint64_t subscribe_id,
-                                 MoqtSubscribe& subscribe,
-                                 RemoteTrack::Visitor* visitor) {
-    session->active_subscribes_[subscribe_id] = {subscribe, visitor};
+  static void CreateRemoteTrack(MoqtSession* session,
+                                const MoqtSubscribe& subscribe,
+                                SubscribeRemoteTrack::Visitor* visitor) {
+    auto track = std::make_unique<SubscribeRemoteTrack>(subscribe, visitor);
+    session->upstream_by_id_.try_emplace(subscribe.subscribe_id, track.get());
+    session->upstream_by_name_.try_emplace(subscribe.full_track_name,
+                                           track.get());
+    session->subscribe_by_alias_.try_emplace(subscribe.track_alias,
+                                             std::move(track));
   }
 
   static MoqtObjectListener* AddSubscription(
@@ -109,8 +115,9 @@ class MoqtSessionPeer {
     session->peer_role_ = role;
   }
 
-  static RemoteTrack& remote_track(MoqtSession* session, uint64_t track_alias) {
-    return session->remote_tracks_.find(track_alias)->second;
+  static SubscribeRemoteTrack* remote_track(MoqtSession* session,
+                                            uint64_t track_alias) {
+    return session->RemoteTrackByAlias(track_alias);
   }
 
   static void set_next_subscribe_id(MoqtSession* session, uint64_t id) {

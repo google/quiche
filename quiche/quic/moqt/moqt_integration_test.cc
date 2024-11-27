@@ -149,7 +149,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
   EXPECT_CALL(server_callbacks_.incoming_announce_callback,
               Call(FullTrackName{"foo"}))
       .WillOnce(Return(std::nullopt));
-  MockRemoteTrackVisitor server_visitor;
+  MockSubscribeRemoteTrackVisitor server_visitor;
   testing::MockFunction<void(
       FullTrackName track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
@@ -166,7 +166,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
         EXPECT_FALSE(error.has_value());
         server_->session()->SubscribeCurrentGroup(track_name, &server_visitor);
       });
-  EXPECT_CALL(server_visitor, OnReply(_, _)).WillOnce([&]() {
+  EXPECT_CALL(server_visitor, OnReply(_, _, _)).WillOnce([&]() {
     matches = true;
   });
   bool success =
@@ -179,7 +179,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
 
   // Set up the server to subscribe to "data" track for the namespace announce
   // it receives.
-  MockRemoteTrackVisitor server_visitor;
+  MockSubscribeRemoteTrackVisitor server_visitor;
   EXPECT_CALL(server_callbacks_.incoming_announce_callback, Call(_))
       .WillOnce([&](FullTrackName track_namespace) {
         FullTrackName track_name = track_namespace;
@@ -196,7 +196,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
   client_->session()->set_publisher(&known_track_publisher);
   queue->AddObject(MemSliceFromString("object data"), /*key=*/true);
   bool received_subscribe_ok = false;
-  EXPECT_CALL(server_visitor, OnReply(_, _)).WillOnce([&]() {
+  EXPECT_CALL(server_visitor, OnReply(_, _, _)).WillOnce([&]() {
     received_subscribe_ok = true;
   });
   client_->session()->Announce(
@@ -232,7 +232,7 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
        {MoqtForwardingPreference::kSubgroup,
         MoqtForwardingPreference::kDatagram}) {
     SCOPED_TRACE(MoqtForwardingPreferenceToString(forwarding_preference));
-    MockRemoteTrackVisitor client_visitor;
+    MockSubscribeRemoteTrackVisitor client_visitor;
     std::string name =
         absl::StrCat("pref_", static_cast<int>(forwarding_preference));
     auto queue = std::make_shared<MoqtOutgoingQueue>(
@@ -295,7 +295,7 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
        {MoqtForwardingPreference::kSubgroup,
         MoqtForwardingPreference::kDatagram}) {
     SCOPED_TRACE(MoqtForwardingPreferenceToString(forwarding_preference));
-    MockRemoteTrackVisitor client_visitor;
+    MockSubscribeRemoteTrackVisitor client_visitor;
     std::string name =
         absl::StrCat("pref_", static_cast<int>(forwarding_preference));
     auto queue = std::make_shared<MoqtOutgoingQueue>(
@@ -379,10 +379,10 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(track_publisher);
 
-  MockRemoteTrackVisitor client_visitor;
+  MockSubscribeRemoteTrackVisitor client_visitor;
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
-  EXPECT_CALL(client_visitor, OnReply(full_track_name, expected_reason))
+  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
   client_->session()->SubscribeAbsolute(full_track_name, 0, 0, &client_visitor);
   bool success =
@@ -399,10 +399,10 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(track_publisher);
 
-  MockRemoteTrackVisitor client_visitor;
+  MockSubscribeRemoteTrackVisitor client_visitor;
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
-  EXPECT_CALL(client_visitor, OnReply(full_track_name, expected_reason))
+  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
   client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor);
   bool success =
@@ -419,10 +419,10 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentGroupOk) {
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(track_publisher);
 
-  MockRemoteTrackVisitor client_visitor;
+  MockSubscribeRemoteTrackVisitor client_visitor;
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
-  EXPECT_CALL(client_visitor, OnReply(full_track_name, expected_reason))
+  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
   client_->session()->SubscribeCurrentGroup(full_track_name, &client_visitor);
   bool success =
@@ -433,10 +433,10 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentGroupOk) {
 TEST_F(MoqtIntegrationTest, SubscribeError) {
   EstablishSession();
   FullTrackName full_track_name("foo", "bar");
-  MockRemoteTrackVisitor client_visitor;
+  MockSubscribeRemoteTrackVisitor client_visitor;
   std::optional<absl::string_view> expected_reason = "No tracks published";
   bool received_ok = false;
-  EXPECT_CALL(client_visitor, OnReply(full_track_name, expected_reason))
+  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
   client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor);
   bool success =
@@ -452,7 +452,7 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
   ConnectEndpoints();
 
   FullTrackName full_track_name("foo", "bar");
-  MockRemoteTrackVisitor client_visitor;
+  MockSubscribeRemoteTrackVisitor client_visitor;
 
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
@@ -468,8 +468,9 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
       .WillOnce([&](MoqtObjectAckFunction new_ack_function) {
         ack_function = std::move(new_ack_function);
       });
-  EXPECT_CALL(client_visitor, OnReply(_, _))
-      .WillOnce([&](const FullTrackName&, std::optional<absl::string_view>) {
+  EXPECT_CALL(client_visitor, OnReply(_, _, _))
+      .WillOnce([&](const FullTrackName&, std::optional<FullSequence>,
+                    std::optional<absl::string_view>) {
         ack_function(10, 20, quic::QuicTimeDelta::FromMicroseconds(-123));
         ack_function(100, 200, quic::QuicTimeDelta::FromMicroseconds(456));
       });

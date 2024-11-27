@@ -24,7 +24,6 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
@@ -49,6 +48,21 @@ using ::testing::StrictMock;
 
 constexpr webtransport::StreamId kIncomingUniStreamId = 15;
 constexpr webtransport::StreamId kOutgoingUniStreamId = 14;
+
+MoqtSubscribe DefaultSubscribe() {
+  MoqtSubscribe subscribe = {
+      /*subscribe_id=*/1,
+      /*track_alias=*/2,
+      /*full_track_name=*/FullTrackName("foo", "bar"),
+      /*subscriber_priority=*/0x80,
+      /*group_order=*/std::nullopt,
+      /*start_group=*/0,
+      /*start_object=*/0,
+      /*end_group=*/std::nullopt,
+      /*end_object=*/std::nullopt,
+  };
+  return subscribe;
+}
 
 static std::shared_ptr<MockTrackPublisher> SetupPublisher(
     FullTrackName track_name, MoqtForwardingPreference forwarding_preference,
@@ -195,18 +209,7 @@ TEST_F(MoqtSessionTest, Error) {
 }
 
 TEST_F(MoqtSessionTest, AddLocalTrack) {
-  MoqtSubscribe request = {
-      /*subscribe_id=*/1,
-      /*track_alias=*/2,
-      /*full_track_name=*/FullTrackName({"foo", "bar"}),
-      /*subscriber_priority=*/0x80,
-      /*group_order=*/std::nullopt,
-      /*start_group=*/0,
-      /*start_object=*/0,
-      /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
-      /*parameters=*/MoqtSubscribeParameters(),
-  };
+  MoqtSubscribe request = DefaultSubscribe();
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
@@ -298,26 +301,13 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
       .WillRepeatedly(Return(FullSequence(10, 20)));
   publisher_.Add(track);
 
-  // Peer subscribes to (0, 0)
-  MoqtSubscribe request = {
-      /*subscribe_id=*/1,
-      /*track_alias=*/2,
-      /*full_track_name=*/FullTrackName({"foo", "bar"}),
-      /*subscriber_priority=*/0x80,
-      /*group_order=*/std::nullopt,
-      /*start_group=*/0,
-      /*start_object=*/0,
-      /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
-      /*parameters=*/MoqtSubscribeParameters(),
-  };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
   EXPECT_CALL(
       mock_stream,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeError), _));
-  stream_input->OnSubscribeMessage(request);
+  stream_input->OnSubscribeMessage(DefaultSubscribe());
 }
 
 TEST_F(MoqtSessionTest, TwoSubscribesForTrack) {
@@ -439,19 +429,7 @@ TEST_F(MoqtSessionTest, SubscribeIdTooHigh) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeIdNotIncreasing) {
-  // Peer subscribes to (0, 0)
-  MoqtSubscribe request = {
-      /*subscribe_id=*/1,
-      /*track_alias=*/2,
-      /*full_track_name=*/FullTrackName({"foo", "bar"}),
-      /*subscriber_priority=*/0x80,
-      /*group_order=*/std::nullopt,
-      /*start_group=*/0,
-      /*start_object=*/0,
-      /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
-      /*parameters=*/MoqtSubscribeParameters(),
-  };
+  MoqtSubscribe request = DefaultSubscribe();
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
@@ -475,7 +453,7 @@ TEST_F(MoqtSessionTest, SubscribeIdNotIncreasing) {
 TEST_F(MoqtSessionTest, TooManySubscribes) {
   MoqtSessionPeer::set_next_subscribe_id(&session_,
                                          kDefaultInitialMaxSubscribeId);
-  MockRemoteTrackVisitor remote_track_visitor;
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
@@ -488,11 +466,26 @@ TEST_F(MoqtSessionTest, TooManySubscribes) {
                                               &remote_track_visitor));
 }
 
+TEST_F(MoqtSessionTest, SubscribeDuplicateTrackName) {
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  EXPECT_CALL(mock_session_, GetStreamById(_))
+      .WillRepeatedly(Return(&mock_stream));
+  EXPECT_CALL(mock_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  EXPECT_TRUE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+                                             &remote_track_visitor));
+  EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+                                              &remote_track_visitor));
+}
+
 TEST_F(MoqtSessionTest, SubscribeWithOk) {
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
-  MockRemoteTrackVisitor remote_track_visitor;
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
   EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream));
   EXPECT_CALL(mock_stream,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
@@ -503,8 +496,9 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
       /*subscribe_id=*/0,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
   };
-  EXPECT_CALL(remote_track_visitor, OnReply(_, _))
+  EXPECT_CALL(remote_track_visitor, OnReply(_, _, _))
       .WillOnce([&](const FullTrackName& ftn,
+                    std::optional<FullSequence> /*largest_id*/,
                     std::optional<absl::string_view> error_message) {
         EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
         EXPECT_FALSE(error_message.has_value());
@@ -515,7 +509,7 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
 TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
   MoqtSessionPeer::set_next_subscribe_id(&session_,
                                          kDefaultInitialMaxSubscribeId + 1);
-  MockRemoteTrackVisitor remote_track_visitor;
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
   EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
                                               &remote_track_visitor));
   MoqtMaxSubscribeId max_subscribe_id = {
@@ -590,7 +584,7 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
-  MockRemoteTrackVisitor remote_track_visitor;
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
   EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream));
   EXPECT_CALL(mock_stream,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
@@ -603,13 +597,29 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
       /*reason_phrase=*/"deadbeef",
       /*track_alias=*/2,
   };
-  EXPECT_CALL(remote_track_visitor, OnReply(_, _))
+  EXPECT_CALL(remote_track_visitor, OnReply(_, _, _))
       .WillOnce([&](const FullTrackName& ftn,
+                    std::optional<FullSequence> /*largest_id*/,
                     std::optional<absl::string_view> error_message) {
         EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
         EXPECT_EQ(*error_message, "deadbeef");
       });
   stream_input->OnSubscribeErrorMessage(error);
+}
+
+TEST_F(MoqtSessionTest, Unsubscribe) {
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(),
+                                     &remote_track_visitor);
+  EXPECT_CALL(mock_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kUnsubscribe), _));
+  EXPECT_NE(MoqtSessionPeer::remote_track(&session_, 2), nullptr);
+  session_.Unsubscribe(FullTrackName("foo", "bar"));
+  // State is destroyed.
+  EXPECT_EQ(MoqtSessionPeer::remote_track(&session_, 2), nullptr);
 }
 
 TEST_F(MoqtSessionTest, ReplyToAnnounce) {
@@ -630,10 +640,10 @@ TEST_F(MoqtSessionTest, ReplyToAnnounce) {
 }
 
 TEST_F(MoqtSessionTest, IncomingObject) {
-  MockRemoteTrackVisitor visitor_;
+  MockSubscribeRemoteTrackVisitor visitor_;
   FullTrackName ftn("foo", "bar");
   std::string payload = "deadbeef";
-  MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor_, 2);
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor_);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_sequence=*/0,
@@ -645,7 +655,8 @@ TEST_F(MoqtSessionTest, IncomingObject) {
   };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
+      MoqtSessionPeer::CreateIncomingDataStream(
+          &session_, &mock_stream, MoqtDataStreamType::kStreamHeaderSubgroup);
 
   EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(1);
   EXPECT_CALL(mock_stream, GetStreamId())
@@ -654,10 +665,10 @@ TEST_F(MoqtSessionTest, IncomingObject) {
 }
 
 TEST_F(MoqtSessionTest, IncomingPartialObject) {
-  MockRemoteTrackVisitor visitor_;
+  MockSubscribeRemoteTrackVisitor visitor_;
   FullTrackName ftn("foo", "bar");
   std::string payload = "deadbeef";
-  MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor_, 2);
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor_);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_sequence=*/0,
@@ -669,7 +680,8 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
   };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
+      MoqtSessionPeer::CreateIncomingDataStream(
+          &session_, &mock_stream, MoqtDataStreamType::kStreamHeaderSubgroup);
 
   EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(1);
   EXPECT_CALL(mock_stream, GetStreamId())
@@ -683,10 +695,10 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
   parameters.deliver_partial_objects = true;
   MoqtSession session(&mock_session_, parameters,
                       session_callbacks_.AsSessionCallbacks());
-  MockRemoteTrackVisitor visitor_;
+  MockSubscribeRemoteTrackVisitor visitor_;
   FullTrackName ftn("foo", "bar");
   std::string payload = "deadbeef";
-  MoqtSessionPeer::CreateRemoteTrack(&session, ftn, &visitor_, 2);
+  MoqtSessionPeer::CreateRemoteTrack(&session, DefaultSubscribe(), &visitor_);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_sequence=*/0,
@@ -698,7 +710,8 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
   };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(&session, &mock_stream);
+      MoqtSessionPeer::CreateIncomingDataStream(
+          &session, &mock_stream, MoqtDataStreamType::kStreamHeaderSubgroup);
 
   EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(2);
   EXPECT_CALL(mock_stream, GetStreamId())
@@ -708,21 +721,10 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
 }
 
 TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
-  MockRemoteTrackVisitor visitor_;
+  MockSubscribeRemoteTrackVisitor visitor_;
   FullTrackName ftn("foo", "bar");
   std::string payload = "deadbeef";
-  MoqtSubscribe subscribe = {
-      /*subscribe_id=*/1,
-      /*track_alias=*/2,
-      /*full_track_name=*/ftn,
-      /*subscriber_priority=*/0x80,
-      /*group_order=*/std::nullopt,
-      /*start_group=*/0,
-      /*start_object=*/0,
-      /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
-  };
-  MoqtSessionPeer::AddActiveSubscribe(&session_, 1, subscribe, &visitor_);
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor_);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_sequence=*/0,
@@ -734,7 +736,8 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
   };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
+      MoqtSessionPeer::CreateIncomingDataStream(
+          &session_, &mock_stream, MoqtDataStreamType::kStreamHeaderSubgroup);
 
   EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
@@ -758,26 +761,15 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
   webtransport::test::MockStream mock_control_stream;
   std::unique_ptr<MoqtControlParserVisitor> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_control_stream);
-  EXPECT_CALL(visitor_, OnReply(_, _)).Times(1);
+  EXPECT_CALL(visitor_, OnReply(_, _, _)).Times(1);
   control_stream->OnSubscribeOkMessage(ok);
 }
 
 TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
-  MockRemoteTrackVisitor visitor;
+  MockSubscribeRemoteTrackVisitor visitor;
   FullTrackName ftn("foo", "bar");
   std::string payload = "deadbeef";
-  MoqtSubscribe subscribe = {
-      /*subscribe_id=*/1,
-      /*track_alias=*/2,
-      /*full_track_name=*/ftn,
-      /*subscriber_priority=*/0x80,
-      /*group_order=*/std::nullopt,
-      /*start_group=*/0,
-      /*start_object=*/0,
-      /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
-  };
-  MoqtSessionPeer::AddActiveSubscribe(&session_, 1, subscribe, &visitor);
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_sequence=*/0,
@@ -789,7 +781,8 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
   };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
+      MoqtSessionPeer::CreateIncomingDataStream(
+          &session_, &mock_stream, MoqtDataStreamType::kStreamHeaderSubgroup);
 
   EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
@@ -813,123 +806,53 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
   webtransport::test::MockStream mock_control_stream;
   std::unique_ptr<MoqtControlParserVisitor> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_control_stream);
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Received SUBSCRIBE_ERROR after object"))
+  EXPECT_CALL(
+      mock_session_,
+      CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                   "Received SUBSCRIBE_ERROR after SUBSCRIBE_OK or objects"))
       .Times(1);
   control_stream->OnSubscribeErrorMessage(subscribe_error);
 }
 
-TEST_F(MoqtSessionTest, TwoEarlyObjectsDifferentForwarding) {
-  MockRemoteTrackVisitor visitor;
-  FullTrackName ftn("foo", "bar");
-  std::string payload = "deadbeef";
-  MoqtSubscribe subscribe = {
-      /*subscribe_id=*/1,
-      /*track_alias=*/2,
-      /*full_track_name=*/ftn,
-      /*subscriber_priority=*/0x80,
-      /*group_order=*/std::nullopt,
-      /*start_group=*/0,
-      /*start_object=*/0,
-      /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
-  };
-  MoqtSessionPeer::AddActiveSubscribe(&session_, 1, subscribe, &visitor);
-  MoqtObject object = {
-      /*track_alias=*/2,
-      /*group_sequence=*/0,
-      /*object_sequence=*/0,
-      /*publisher_priority=*/0,
-      /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/0,
-      /*payload_length=*/8,
-  };
-  webtransport::test::MockStream mock_stream;
-  std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
+TEST_F(MoqtSessionTest, SubscribeErrorWithTrackAlias) {
+  MockSubscribeRemoteTrackVisitor visitor;
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor);
 
-  EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _))
-      .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
-                    MoqtPriority publisher_priority, MoqtObjectStatus status,
-                    absl::string_view payload, bool end_of_message) {
-        EXPECT_EQ(full_track_name, ftn);
-        EXPECT_EQ(sequence.group, object.group_id);
-        EXPECT_EQ(sequence.object, object.object_id);
-      });
-  EXPECT_CALL(mock_stream, GetStreamId())
-      .WillRepeatedly(Return(kIncomingUniStreamId));
-  object_stream->OnObjectMessage(object, payload, true);
-  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x08, 0x64,
-                     0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Forwarding preference changes mid-track"))
+  // SUBSCRIBE_ERROR arrives
+  MoqtSubscribeError subscribe_error = {
+      /*subscribe_id=*/1,
+      /*error_code=*/SubscribeErrorCode::kRetryTrackAlias,
+      /*reason_phrase=*/"foo",
+      /*track_alias =*/3,
+  };
+  webtransport::test::MockStream mock_control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_control_stream);
+  EXPECT_CALL(mock_control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _))
       .Times(1);
-  session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
+  control_stream->OnSubscribeErrorMessage(subscribe_error);
 }
 
-TEST_F(MoqtSessionTest, EarlyObjectForwardingDoesNotMatchTrack) {
-  MockRemoteTrackVisitor visitor;
-  FullTrackName ftn("foo", "bar");
-  std::string payload = "deadbeef";
-  MoqtSubscribe subscribe = {
+TEST_F(MoqtSessionTest, SubscribeErrorWithBadTrackAlias) {
+  MockSubscribeRemoteTrackVisitor visitor;
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor);
+
+  // SUBSCRIBE_ERROR arrives
+  MoqtSubscribeError subscribe_error = {
       /*subscribe_id=*/1,
-      /*track_alias=*/2,
-      /*full_track_name=*/ftn,
-      /*subscriber_priority=*/0x80,
-      /*group_order=*/std::nullopt,
-      /*start_group=*/0,
-      /*start_object=*/0,
-      /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
-  };
-  MoqtSessionPeer::AddActiveSubscribe(&session_, 1, subscribe, &visitor);
-  MoqtObject object = {
-      /*track_alias=*/2,
-      /*group_sequence=*/0,
-      /*object_sequence=*/0,
-      /*publisher_priority=*/0,
-      /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/0,
-      /*payload_length=*/8,
-  };
-  webtransport::test::MockStream mock_stream;
-  std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
-
-  EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _))
-      .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
-                    MoqtPriority publisher_priority, MoqtObjectStatus status,
-                    absl::string_view payload, bool end_of_message) {
-        EXPECT_EQ(full_track_name, ftn);
-        EXPECT_EQ(sequence.group, object.group_id);
-        EXPECT_EQ(sequence.object, object.object_id);
-      });
-  EXPECT_CALL(mock_stream, GetStreamId())
-      .WillRepeatedly(Return(kIncomingUniStreamId));
-  object_stream->OnObjectMessage(object, payload, true);
-
-  MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor, 2);
-  // The track already exists, and has a different forwarding preference.
-  MoqtSessionPeer::remote_track(&session_, 2)
-      .CheckForwardingPreference(MoqtForwardingPreference::kDatagram);
-
-  // SUBSCRIBE_OK arrives
-  MoqtSubscribeOk ok = {
-      /*subscribe_id=*/1,
-      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/std::nullopt,
+      /*error_code=*/SubscribeErrorCode::kRetryTrackAlias,
+      /*reason_phrase=*/"foo",
+      /*track_alias =*/2,
   };
   webtransport::test::MockStream mock_control_stream;
   std::unique_ptr<MoqtControlParserVisitor> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_control_stream);
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Forwarding preference different in early objects"))
+                           "Provided track alias already in use"))
       .Times(1);
-  control_stream->OnSubscribeOkMessage(ok);
+  control_stream->OnSubscribeErrorMessage(subscribe_error);
 }
 
 TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
@@ -1428,10 +1351,10 @@ TEST_F(MoqtSessionTest, SendDatagram) {
 }
 
 TEST_F(MoqtSessionTest, ReceiveDatagram) {
-  MockRemoteTrackVisitor visitor_;
+  MockSubscribeRemoteTrackVisitor visitor_;
   FullTrackName ftn("foo", "bar");
   std::string payload = "deadbeef";
-  MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor_, 2);
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor_);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_sequence=*/0,
@@ -1452,11 +1375,10 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
 }
 
-TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
-  MockRemoteTrackVisitor visitor_;
-  FullTrackName ftn("foo", "bar");
+TEST_F(MoqtSessionTest, DataStreamTypeMismatch) {
+  MockSubscribeRemoteTrackVisitor visitor_;
   std::string payload = "deadbeef";
-  MoqtSessionPeer::CreateRemoteTrack(&session_, ftn, &visitor_, 2);
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor_);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_sequence=*/0,
@@ -1468,7 +1390,8 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
   };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream);
+      MoqtSessionPeer::CreateIncomingDataStream(
+          &session_, &mock_stream, MoqtDataStreamType::kStreamHeaderSubgroup);
 
   EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(1);
   EXPECT_CALL(mock_stream, GetStreamId())
@@ -1478,8 +1401,43 @@ TEST_F(MoqtSessionTest, ForwardingPreferenceMismatch) {
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Forwarding preference changes mid-track"))
+                           "Received DATAGRAM for non-datagram track"))
       .Times(1);
+  session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
+}
+
+TEST_F(MoqtSessionTest, StreamObjectOutOfWindow) {
+  MockSubscribeRemoteTrackVisitor visitor_;
+  std::string payload = "deadbeef";
+  MoqtSubscribe subscribe = DefaultSubscribe();
+  subscribe.start_group = 1;
+  MoqtSessionPeer::CreateRemoteTrack(&session_, subscribe, &visitor_);
+  MoqtObject object = {
+      /*track_alias=*/2,
+      /*group_sequence=*/0,
+      /*object_sequence=*/0,
+      /*publisher_priority=*/0,
+      /*object_status=*/MoqtObjectStatus::kNormal,
+      /*subgroup_id=*/0,
+      /*payload_length=*/8,
+  };
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtDataParserVisitor> object_stream =
+      MoqtSessionPeer::CreateIncomingDataStream(
+          &session_, &mock_stream, MoqtDataStreamType::kStreamHeaderSubgroup);
+  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(0);
+  object_stream->OnObjectMessage(object, payload, true);
+}
+
+TEST_F(MoqtSessionTest, DatagramOutOfWindow) {
+  MockSubscribeRemoteTrackVisitor visitor_;
+  std::string payload = "deadbeef";
+  MoqtSubscribe subscribe = DefaultSubscribe();
+  subscribe.start_group = 1;
+  MoqtSessionPeer::CreateRemoteTrack(&session_, subscribe, &visitor_);
+  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x80, 0x08, 0x64,
+                     0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
+  EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(0);
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
 }
 
@@ -1496,18 +1454,6 @@ TEST_F(MoqtSessionTest, AnnounceToPublisher) {
 
 TEST_F(MoqtSessionTest, SubscribeFromPublisher) {
   MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kPublisher);
-  MoqtSubscribe request = {
-      /*subscribe_id=*/1,
-      /*track_alias=*/2,
-      /*full_track_name=*/FullTrackName({"foo", "bar"}),
-      /*subscriber_priority=*/0x80,
-      /*group_order=*/std::nullopt,
-      /*start_group=*/0,
-      /*start_object=*/0,
-      /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
-      /*parameters=*/MoqtSubscribeParameters(),
-  };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
@@ -1517,7 +1463,7 @@ TEST_F(MoqtSessionTest, SubscribeFromPublisher) {
                            "Received SUBSCRIBE from publisher"))
       .Times(1);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_)).Times(1);
-  stream_input->OnSubscribeMessage(request);
+  stream_input->OnSubscribeMessage(DefaultSubscribe());
 }
 
 TEST_F(MoqtSessionTest, AnnounceFromSubscriber) {

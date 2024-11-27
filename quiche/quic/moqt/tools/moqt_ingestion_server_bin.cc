@@ -160,13 +160,14 @@ class MoqtIngestionHandler {
   }
 
  private:
-  class NamespaceHandler : public RemoteTrack::Visitor {
+  class NamespaceHandler : public SubscribeRemoteTrack::Visitor {
    public:
     explicit NamespaceHandler(absl::string_view directory)
         : directory_(directory) {}
 
     void OnReply(
         const FullTrackName& full_track_name,
+        std::optional<FullSequence> /*largest_id*/,
         std::optional<absl::string_view> error_reason_phrase) override {
       if (error_reason_phrase.has_value()) {
         QUICHE_LOG(ERROR) << "Failed to subscribe to the peer track "

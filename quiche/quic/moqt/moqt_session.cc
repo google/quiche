@@ -198,11 +198,27 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
                     << message.object_id << " priority "
                     << message.publisher_priority << " length "
                     << payload.size();
-  auto [full_track_name, visitor] =
-      TrackPropertiesFromAlias(message, MoqtForwardingPreference::kDatagram);
+  SubscribeRemoteTrack* track = RemoteTrackByAlias(message.track_alias);
+  if (track == nullptr) {
+    return;
+  }
+  if (!track->CheckDataStreamType(MoqtDataStreamType::kObjectDatagram)) {
+    Error(MoqtError::kProtocolViolation,
+          "Received DATAGRAM for non-datagram track");
+    return;
+  }
+  if (!track->InWindow(FullSequence(message.group_id, message.object_id))) {
+    // TODO(martinduke): a recent SUBSCRIBE_UPDATE could put us here, and it's
+    // not an error.
+    return;
+  }
+  QUICHE_CHECK(!track->is_fetch());
+  track->OnObjectOrOk();
+  SubscribeRemoteTrack::Visitor* visitor = track->visitor();
   if (visitor != nullptr) {
     visitor->OnObjectFragment(
-        full_track_name, FullSequence{message.group_id, 0, message.object_id},
+        track->full_track_name(),
+        FullSequence{message.group_id, 0, message.object_id},
         message.publisher_priority, message.object_status, payload, true);
   }
 }
@@ -248,7 +264,7 @@ void MoqtSession::Announce(FullTrackName track_namespace,
 
 bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
-                                    RemoteTrack::Visitor* visitor,
+                                    SubscribeRemoteTrack::Visitor* visitor,
                                     MoqtSubscribeParameters parameters) {
   MoqtSubscribe message;
   message.full_track_name = name;
@@ -265,7 +281,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
 bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     uint64_t end_group,
-                                    RemoteTrack::Visitor* visitor,
+                                    SubscribeRemoteTrack::Visitor* visitor,
                                     MoqtSubscribeParameters parameters) {
   if (end_group < start_group) {
     QUIC_DLOG(ERROR) << "Subscription end is before beginning";
@@ -286,7 +302,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
 bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     uint64_t end_group, uint64_t end_object,
-                                    RemoteTrack::Visitor* visitor,
+                                    SubscribeRemoteTrack::Visitor* visitor,
                                     MoqtSubscribeParameters parameters) {
   if (end_group < start_group) {
     QUIC_DLOG(ERROR) << "Subscription end is before beginning";
@@ -309,7 +325,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
 }
 
 bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
-                                         RemoteTrack::Visitor* visitor,
+                                         SubscribeRemoteTrack::Visitor* visitor,
                                          MoqtSubscribeParameters parameters) {
   MoqtSubscribe message;
   message.full_track_name = name;
@@ -324,7 +340,7 @@ bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
 }
 
 bool MoqtSession::SubscribeCurrentGroup(const FullTrackName& name,
-                                        RemoteTrack::Visitor* visitor,
+                                        SubscribeRemoteTrack::Visitor* visitor,
                                         MoqtSubscribeParameters parameters) {
   MoqtSubscribe message;
   message.full_track_name = name;
@@ -337,6 +353,21 @@ bool MoqtSession::SubscribeCurrentGroup(const FullTrackName& name,
   message.end_object = std::nullopt;
   message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
+}
+
+void MoqtSession::Unsubscribe(const FullTrackName& name) {
+  RemoteTrack* track = RemoteTrackByName(name);
+  if (track == nullptr) {
+    return;
+  }
+  MoqtUnsubscribe message;
+  message.subscribe_id = track->subscribe_id();
+  SendControlMessage(framer_.SerializeUnsubscribe(message));
+  // Destroy state.
+  upstream_by_name_.erase(name);
+  upstream_by_id_.erase(track->subscribe_id());
+  subscribe_by_alias_.erase(
+      static_cast<SubscribeRemoteTrack*>(track)->track_alias());
 }
 
 void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
@@ -411,7 +442,8 @@ bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
 }
 
 bool MoqtSession::Subscribe(MoqtSubscribe& message,
-                            RemoteTrack::Visitor* visitor) {
+                            SubscribeRemoteTrack::Visitor* visitor,
+                            std::optional<uint64_t> provided_track_alias) {
   if (peer_role_ == MoqtRole::kSubscriber) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE to subscriber peer";
     return false;
@@ -424,16 +456,20 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
                     << peer_max_subscribe_id_;
     return false;
   }
-  message.subscribe_id = next_subscribe_id_++;
-  auto it = remote_track_aliases_.find(message.full_track_name);
-  if (it != remote_track_aliases_.end()) {
-    message.track_alias = it->second;
-    if (message.track_alias >= next_remote_track_alias_) {
-      next_remote_track_alias_ = message.track_alias + 1;
-    }
-  } else {
-    message.track_alias = next_remote_track_alias_++;
+  if (upstream_by_name_.contains(message.full_track_name)) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE for track "
+                    << message.full_track_name
+                    << " which is already subscribed";
+    return false;
   }
+  if (provided_track_alias.has_value() &&
+      subscribe_by_alias_.contains(*provided_track_alias)) {
+    Error(MoqtError::kProtocolViolation, "Provided track alias already in use");
+    return false;
+  }
+  message.subscribe_id = next_subscribe_id_++;
+  message.track_alias =
+      provided_track_alias.value_or(next_remote_track_alias_++);
   if (SupportsObjectAck() && visitor != nullptr) {
     // Since we do not expose subscribe IDs directly in the API, instead wrap
     // the session and subscribe ID in a callback.
@@ -448,7 +484,10 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
   SendControlMessage(framer_.SerializeSubscribe(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE message for "
                   << message.full_track_name;
-  active_subscribes_.try_emplace(message.subscribe_id, message, visitor);
+  auto track = std::make_unique<SubscribeRemoteTrack>(message, visitor);
+  upstream_by_name_.emplace(message.full_track_name, track.get());
+  upstream_by_id_.emplace(message.subscribe_id, track.get());
+  subscribe_by_alias_.emplace(message.track_alias, std::move(track));
   return true;
 }
 
@@ -503,6 +542,30 @@ bool MoqtSession::OpenDataStream(std::shared_ptr<PublishedFetch> fetch) {
   return true;
 }
 
+SubscribeRemoteTrack* MoqtSession::RemoteTrackByAlias(uint64_t track_alias) {
+  auto it = subscribe_by_alias_.find(track_alias);
+  if (it == subscribe_by_alias_.end()) {
+    return nullptr;
+  }
+  return it->second.get();
+}
+
+RemoteTrack* MoqtSession::RemoteTrackById(uint64_t subscribe_id) {
+  auto it = upstream_by_id_.find(subscribe_id);
+  if (it == upstream_by_id_.end()) {
+    return nullptr;
+  }
+  return it->second;
+}
+
+RemoteTrack* MoqtSession::RemoteTrackByName(const FullTrackName& name) {
+  auto it = upstream_by_name_.find(name);
+  if (it == upstream_by_name_.end()) {
+    return nullptr;
+  }
+  return it->second;
+}
+
 void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
   while (!subscribes_with_queued_outgoing_data_streams_.empty() &&
          session_->CanOpenNextOutgoingUnidirectionalStream()) {
@@ -553,58 +616,6 @@ void MoqtSession::GrantMoreSubscribes(uint64_t num_subscribes) {
   MoqtMaxSubscribeId message;
   message.max_subscribe_id = local_max_subscribe_id_;
   SendControlMessage(framer_.SerializeMaxSubscribeId(message));
-}
-
-std::pair<FullTrackName, RemoteTrack::Visitor*>
-MoqtSession::TrackPropertiesFromAlias(
-    const MoqtObject& message,
-    std::optional<MoqtForwardingPreference> forwarding_preference) {
-  auto it = remote_tracks_.find(message.track_alias);
-  if (it == remote_tracks_.end()) {
-    ActiveSubscribe* subscribe = nullptr;
-    // SUBSCRIBE_OK has not arrived yet, but deliver the object. Indexing
-    // active_subscribes_ by track alias would make this faster if the
-    // subscriber has tons of incomplete subscribes.
-    for (auto& open_subscribe : active_subscribes_) {
-      if (open_subscribe.second.message.track_alias == message.track_alias) {
-        subscribe = &open_subscribe.second;
-        break;
-      }
-    }
-    if (subscribe == nullptr) {
-      return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-          {FullTrackName{}, nullptr});
-    }
-    subscribe->received_object = true;
-    if (forwarding_preference.has_value()) {
-      if (subscribe->forwarding_preference.has_value()) {
-        if (*forwarding_preference != *subscribe->forwarding_preference) {
-          Error(MoqtError::kProtocolViolation,
-                "Forwarding preference changes mid-track");
-          return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-              {FullTrackName{}, nullptr});
-        }
-      } else {
-        subscribe->forwarding_preference = *forwarding_preference;
-      }
-    } else {
-      QUICHE_BUG(quic_subscribe_no_forwarding preference)
-          << "Objects from a subscribe should know the forwarding preference";
-    }
-    return std::make_pair(subscribe->message.full_track_name,
-                          subscribe->visitor);
-  }
-  RemoteTrack& track = it->second;
-  // Update the forwarding preference if it is present.
-  if (forwarding_preference.has_value() &&
-      !track.CheckForwardingPreference(*forwarding_preference)) {
-    // Incorrect forwarding preference.
-    Error(MoqtError::kProtocolViolation,
-          "Forwarding preference changes mid-track");
-    return std::pair<FullTrackName, RemoteTrack::Visitor*>(
-        {FullTrackName{}, nullptr});
-  }
-  return std::make_pair(track.full_track_name(), track.visitor());
 }
 
 bool MoqtSession::ValidateSubscribeId(uint64_t subscribe_id) {
@@ -820,66 +831,75 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
 
 void MoqtSession::ControlStream::OnSubscribeOkMessage(
     const MoqtSubscribeOk& message) {
-  auto it = session_->active_subscribes_.find(message.subscribe_id);
-  if (it == session_->active_subscribes_.end()) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received SUBSCRIBE_OK for nonexistent subscribe");
+  RemoteTrack* track = session_->RemoteTrackById(message.subscribe_id);
+  if (track == nullptr) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
+                    << "subscribe_id = " << message.subscribe_id
+                    << " but no track exists";
+    // Subscription state might have been destroyed for internal reasons.
     return;
   }
-  MoqtSubscribe& subscribe = it->second.message;
+  if (track->is_fetch()) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received SUBSCRIBE_OK for a FETCH");
+    return;
+  }
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
                   << "subscribe_id = " << message.subscribe_id << " "
-                  << subscribe.full_track_name;
-  // Copy the Remote Track from session_->active_subscribes_ to
-  // session_->remote_tracks_.
-  RemoteTrack::Visitor* visitor = it->second.visitor;
-  auto [track_iter, new_entry] = session_->remote_tracks_.try_emplace(
-      subscribe.track_alias, subscribe.full_track_name, subscribe.track_alias,
-      visitor);
-  if (it->second.forwarding_preference.has_value()) {
-    if (!track_iter->second.CheckForwardingPreference(
-            *it->second.forwarding_preference)) {
-      session_->Error(MoqtError::kProtocolViolation,
-                      "Forwarding preference different in early objects");
-      return;
-    }
+                  << track->full_track_name();
+  SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
+  subscribe->OnObjectOrOk();
+  // TODO(martinduke): Handle expires field.
+  // TODO(martinduke): Resize the window based on largest_id.
+  if (subscribe->visitor() != nullptr) {
+    subscribe->visitor()->OnReply(track->full_track_name(), message.largest_id,
+                                  std::nullopt);
   }
-  // TODO: handle expires.
-  if (visitor != nullptr) {
-    visitor->OnReply(subscribe.full_track_name, std::nullopt);
-  }
-  session_->active_subscribes_.erase(it);
+  subscribe->OnObjectOrOk();
 }
 
 void MoqtSession::ControlStream::OnSubscribeErrorMessage(
     const MoqtSubscribeError& message) {
-  auto it = session_->active_subscribes_.find(message.subscribe_id);
-  if (it == session_->active_subscribes_.end()) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received SUBSCRIBE_ERROR for nonexistent subscribe");
+  RemoteTrack* track = session_->RemoteTrackById(message.subscribe_id);
+  if (track == nullptr) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_ERROR for "
+                    << "subscribe_id = " << message.subscribe_id
+                    << " but no track exists";
+    // Subscription state might have been destroyed for internal reasons.
     return;
   }
-  if (it->second.received_object) {
+  if (track->is_fetch()) {
     session_->Error(MoqtError::kProtocolViolation,
-                    "Received SUBSCRIBE_ERROR after object");
+                    "Received SUBSCRIBE_ERROR for a FETCH");
     return;
   }
-  MoqtSubscribe& subscribe = it->second.message;
+  if (!track->ErrorIsAllowed()) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received SUBSCRIBE_ERROR after SUBSCRIBE_OK or objects");
+    return;
+  }
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_ERROR for "
                   << "subscribe_id = " << message.subscribe_id << " ("
-                  << subscribe.full_track_name << ")"
+                  << track->full_track_name() << ")"
                   << ", error = " << static_cast<int>(message.error_code)
                   << " (" << message.reason_phrase << ")";
-  RemoteTrack::Visitor* visitor = it->second.visitor;
+  SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
+  // Delete secondary references to the track. Preserve the owner
+  // (subscribe_by_alias_) to get the original subscribe, if needed. Erasing the
+  // other references now prevents an error due to a duplicate subscription in
+  // Subscribe().
+  session_->upstream_by_id_.erase(subscribe->subscribe_id());
+  session_->upstream_by_name_.erase(subscribe->full_track_name());
   if (message.error_code == SubscribeErrorCode::kRetryTrackAlias) {
     // Automatically resubscribe with new alias.
-    session_->remote_track_aliases_[subscribe.full_track_name] =
-        message.track_alias;
-    session_->Subscribe(subscribe, visitor);
-  } else if (visitor != nullptr) {
-    visitor->OnReply(subscribe.full_track_name, message.reason_phrase);
+    MoqtSubscribe& subscribe_message = subscribe->GetSubscribe();
+    session_->Subscribe(subscribe_message, subscribe->visitor(),
+                        message.track_alias);
+  } else if (subscribe->visitor() != nullptr) {
+    subscribe->visitor()->OnReply(subscribe->full_track_name(), std::nullopt,
+                                  message.reason_phrase);
   }
-  session_->active_subscribes_.erase(it);
+  session_->subscribe_by_alias_.erase(subscribe->track_alias());
 }
 
 void MoqtSession::ControlStream::OnUnsubscribeMessage(
@@ -1084,11 +1104,37 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       payload = absl::string_view(partial_object_);
     }
   }
-  auto [full_track_name, visitor] = session_->TrackPropertiesFromAlias(
-      message, MoqtForwardingPreference::kSubgroup);
-  if (visitor != nullptr) {
-    visitor->OnObjectFragment(
-        full_track_name,
+  QUICHE_BUG_IF(quic_bug_object_with_no_stream_type,
+                !parser_.stream_type().has_value())
+      << "Object delivered without a stream type";
+  // Get a pointer to the upstream state.
+  RemoteTrack* track = track_.GetIfAvaliable();
+  if (track == nullptr) {
+    track = (*parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch)
+                // message.track_alias is actually a fetch ID for fetches.
+                ? session_->RemoteTrackById(message.track_alias)
+                : session_->RemoteTrackByAlias(message.track_alias);
+    if (track == nullptr) {
+      stream_->SendStopSending(kResetCodeSubscriptionGone);
+      // Received object for nonexistent track.
+      return;
+    }
+    track_ = track->weak_ptr();
+  }
+  if (!track->CheckDataStreamType(*parser_.stream_type())) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received object for a track with a different stream type");
+    return;
+  }
+  if (!track->InWindow(FullSequence(message.group_id, message.object_id))) {
+    // This is not an error. It can be the result of a recent SUBSCRIBE_UPDATE.
+    return;
+  }
+  track->OnObjectOrOk();
+  SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
+  if (subscribe->visitor() != nullptr) {
+    subscribe->visitor()->OnObjectFragment(
+        track->full_track_name(),
         FullSequence{message.group_id, message.subgroup_id.value_or(0),
                      message.object_id},
         message.publisher_priority, message.object_status, payload,

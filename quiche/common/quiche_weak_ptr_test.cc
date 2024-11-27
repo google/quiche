@@ -4,7 +4,6 @@
 
 #include "quiche/common/quiche_weak_ptr.h"
 
-#include <memory>
 #include <utility>
 
 #include "quiche/common/platform/api/quiche_test.h"
@@ -61,13 +60,6 @@ TEST(QuicheWeakPtrTest, Expired) {
     EXPECT_TRUE(ptr.IsValid());
   }
   EXPECT_FALSE(ptr.IsValid());
-}
-
-TEST(QuicheWeakPtrTest, OutOfClassFactory) {
-  bool object = false;
-  EXPECT_QUICHE_DEBUG_DEATH(
-      std::make_unique<QuicheWeakPtrFactory<bool>>(&object),
-      "must be a member of T");
 }
 
 }  // namespace

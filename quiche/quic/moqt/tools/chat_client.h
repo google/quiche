@@ -88,11 +88,13 @@ class ChatClient {
 
   quic::QuicEventLoop* event_loop() { return event_loop_; }
 
-  class QUICHE_EXPORT RemoteTrackVisitor : public moqt::RemoteTrack::Visitor {
+  class QUICHE_EXPORT RemoteTrackVisitor
+      : public moqt::SubscribeRemoteTrack::Visitor {
    public:
     RemoteTrackVisitor(ChatClient* client) : client_(client) {}
 
     void OnReply(const moqt::FullTrackName& full_track_name,
+                 std::optional<FullSequence> largest_id,
                  std::optional<absl::string_view> reason_phrase) override;
 
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
@@ -127,7 +129,7 @@ class ChatClient {
   // Objects from the same catalog group arrive on the same stream, and in
   // object sequence order.
   void ProcessCatalog(absl::string_view object,
-                      moqt::RemoteTrack::Visitor* visitor,
+                      moqt::SubscribeRemoteTrack::Visitor* visitor,
                       uint64_t group_sequence, uint64_t object_sequence);
 
   struct ChatUser {

@@ -72,6 +72,7 @@ ChatServer::RemoteTrackVisitor::RemoteTrackVisitor(ChatServer* server)
 
 void ChatServer::RemoteTrackVisitor::OnReply(
     const moqt::FullTrackName& full_track_name,
+    std::optional<FullSequence> /*largest_id*/,
     std::optional<absl::string_view> reason_phrase) {
   std::cout << "Subscription to user "
             << server_->strings().GetUsernameFromFullTrackName(full_track_name)

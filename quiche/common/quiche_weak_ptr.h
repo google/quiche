@@ -93,17 +93,7 @@ template <typename T>
 class QUICHE_NO_EXPORT QuicheWeakPtrFactory final {
  public:
   explicit QuicheWeakPtrFactory(absl::Nonnull<T*> object)
-      : control_block_(std::make_shared<ControlBlock>(object)) {
-    // Chromium uses a Clang plugin to ensure that WeakPtrFactory objects are
-    // always last; QUICHE does not have infrastructure for that, but we can do
-    // some basic checks to prevent the API misuse.
-    const uintptr_t factory_address = reinterpret_cast<uintptr_t>(this);
-    const uintptr_t object_address_start = reinterpret_cast<uintptr_t>(object);
-    const uintptr_t object_address_end = object_address_start + sizeof(object);
-    QUICHE_DCHECK(factory_address >= object_address_start &&
-                  factory_address <= object_address_end)
-        << "WeakPtrFactory<T> must be a member of T";
-  }
+      : control_block_(std::make_shared<ControlBlock>(object)) {}
   ~QuicheWeakPtrFactory() { control_block_->Clear(); }
 
   QuicheWeakPtrFactory(const QuicheWeakPtrFactory&) = delete;

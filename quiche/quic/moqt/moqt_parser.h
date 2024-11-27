@@ -20,6 +20,10 @@
 
 namespace moqt {
 
+namespace test {
+class MoqtDataParserPeer;
+}
+
 class QUICHE_EXPORT MoqtControlParserVisitor {
  public:
   virtual ~MoqtControlParserVisitor() = default;
@@ -195,7 +199,11 @@ class QUICHE_EXPORT MoqtDataParser {
   // be used for testing.
   void set_chunk_size(size_t size) { chunk_size_ = size; }
 
+  std::optional<MoqtDataStreamType> stream_type() const { return type_; }
+
  private:
+  friend class test::MoqtDataParserPeer;
+
   // If there is buffered data from the previous attempt at parsing it, new data
   // will be added in `chunk_size_`-sized chunks.
   constexpr static size_t kDefaultChunkSize = 64;
