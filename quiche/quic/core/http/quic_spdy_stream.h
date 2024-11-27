@@ -406,6 +406,12 @@ class QUICHE_EXPORT QuicSpdyStream
 
   void CloseReadSide() override;
 
+  // Called when any new data is acked.
+  void OnNewDataAcked(QuicStreamOffset offset, QuicByteCount data_length,
+                      QuicByteCount newly_acked_length,
+                      QuicTime receive_timestamp,
+                      QuicTime::Delta ack_delay_time) override;
+
  private:
   friend class test::QuicSpdyStreamPeer;
   friend class test::QuicStreamPeer;

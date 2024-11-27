@@ -26,6 +26,7 @@
 #include "quiche/quic/core/qpack/qpack_decoder.h"
 #include "quiche/quic/core/qpack/qpack_encoder.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -1036,6 +1037,7 @@ bool QuicSpdyStream::OnDataFrameEnd() {
   return true;
 }
 
+// TODO(danzh): Remove this override once the flag is deprecated.
 bool QuicSpdyStream::OnStreamFrameAcked(QuicStreamOffset offset,
                                         QuicByteCount data_length,
                                         bool fin_acked,
@@ -1046,15 +1048,36 @@ bool QuicSpdyStream::OnStreamFrameAcked(QuicStreamOffset offset,
       offset, data_length, fin_acked, ack_delay_time, receive_timestamp,
       newly_acked_length);
 
-  const QuicByteCount newly_acked_header_length =
-      GetNumFrameHeadersInInterval(offset, data_length);
-  QUICHE_DCHECK_LE(newly_acked_header_length, *newly_acked_length);
-  unacked_frame_headers_offsets_.Difference(offset, offset + data_length);
-  if (ack_listener_ != nullptr && new_data_acked) {
-    ack_listener_->OnPacketAcked(
-        *newly_acked_length - newly_acked_header_length, ack_delay_time);
+  if (!notify_ack_listener_earlier()) {
+    const QuicByteCount newly_acked_header_length =
+        GetNumFrameHeadersInInterval(offset, data_length);
+    QUICHE_DCHECK_LE(newly_acked_header_length, *newly_acked_length);
+    unacked_frame_headers_offsets_.Difference(offset, offset + data_length);
+    if (ack_listener_ != nullptr && new_data_acked) {
+      ack_listener_->OnPacketAcked(
+          *newly_acked_length - newly_acked_header_length, ack_delay_time);
+    }
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_notify_ack_listener_earlier, 2, 3);
   }
   return new_data_acked;
+}
+
+void QuicSpdyStream::OnNewDataAcked(QuicStreamOffset offset,
+                                    QuicByteCount data_length,
+                                    QuicByteCount newly_acked_length,
+                                    QuicTime receive_timestamp,
+                                    QuicTime::Delta ack_delay_time) {
+  QuicStream::OnNewDataAcked(offset, data_length, newly_acked_length,
+                             receive_timestamp, ack_delay_time);
+  const QuicByteCount newly_acked_header_length =
+      GetNumFrameHeadersInInterval(offset, data_length);
+  QUICHE_DCHECK_LE(newly_acked_header_length, newly_acked_length);
+  unacked_frame_headers_offsets_.Difference(offset, offset + data_length);
+  if (ack_listener_ != nullptr) {
+    ack_listener_->OnPacketAcked(newly_acked_length - newly_acked_header_length,
+                                 ack_delay_time);
+  }
 }
 
 void QuicSpdyStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,

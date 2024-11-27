@@ -1132,8 +1132,8 @@ void QuicStream::AddRandomPaddingAfterFin() {
 
 bool QuicStream::OnStreamFrameAcked(QuicStreamOffset offset,
                                     QuicByteCount data_length, bool fin_acked,
-                                    QuicTime::Delta /*ack_delay_time*/,
-                                    QuicTime /*receive_timestamp*/,
+                                    QuicTime::Delta ack_delay_time,
+                                    QuicTime receive_timestamp,
                                     QuicByteCount* newly_acked_length) {
   QUIC_DVLOG(1) << ENDPOINT << "stream " << id_ << " Acking "
                 << "[" << offset << ", " << offset + data_length << "]"
@@ -1160,10 +1160,23 @@ bool QuicStream::OnStreamFrameAcked(QuicStreamOffset offset,
     OnWriteSideInDataRecvdState();
     write_side_data_recvd_state_notified_ = true;
   }
+  if (notify_ack_listener_earlier_ && new_data_acked) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_notify_ack_listener_earlier, 1, 3);
+    OnNewDataAcked(offset, data_length, *newly_acked_length, receive_timestamp,
+                   ack_delay_time);
+  }
   if (!IsWaitingForAcks() && read_side_closed_ && write_side_closed_) {
     session_->MaybeCloseZombieStream(id_);
   }
   return new_data_acked;
+}
+
+void QuicStream::OnNewDataAcked(QuicStreamOffset /*offset*/,
+                                QuicByteCount /*data_length*/,
+                                QuicByteCount /*newly_acked_length*/,
+                                QuicTime /*receive_timestamp*/,
+                                QuicTime::Delta /*ack_delay_time*/) {
+  QUICHE_DCHECK(notify_ack_listener_earlier_);
 }
 
 void QuicStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,

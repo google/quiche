@@ -1902,6 +1902,66 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
 }
 
+TEST_P(QuicSpdyStreamTest, OnPacketAckedBeforeStreamDestroy) {
+  Initialize(kShouldProcessData);
+  quiche::QuicheReferenceCountedPointer<MockAckListener> mock_ack_listener(
+      new StrictMock<MockAckListener>);
+  stream_->set_ack_listener(mock_ack_listener);
+  EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AtLeast(1));
+  // Stream is not waiting for acks initially.
+  EXPECT_FALSE(stream_->IsWaitingForAcks());
+  EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
+  // Receive and consume initial headers with FIN set.
+  QuicHeaderList headers = ProcessHeaders(true, headers_);
+  stream_->ConsumeHeaderList();
+  stream_->OnFinRead();
+  EXPECT_TRUE(stream_->read_side_closed());
+
+  // Send kData1.
+  stream_->WriteOrBufferData("FooAndBar", false, nullptr);
+  EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
+  EXPECT_TRUE(stream_->IsWaitingForAcks());
+  EXPECT_CALL(*mock_ack_listener, OnPacketAcked(9, _));
+  QuicByteCount newly_acked_length = 0;
+  EXPECT_TRUE(stream_->OnStreamFrameAcked(0, 9, false, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
+                                          &newly_acked_length));
+  // Stream is not waiting for acks as all sent data is acked.
+  EXPECT_FALSE(stream_->IsWaitingForAcks());
+  EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
+
+  // Send kData2.
+  stream_->WriteOrBufferData("FooAndBar", true, nullptr);
+  EXPECT_TRUE(stream_->IsWaitingForAcks());
+  EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
+  EXPECT_TRUE(stream_->IsZombie());
+
+  // kData2 is acked.
+  EXPECT_CALL(*mock_ack_listener, OnPacketAcked(9, _));
+  EXPECT_TRUE(stream_->OnStreamFrameAcked(9, 9, false, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
+                                          &newly_acked_length));
+  // Stream is waiting for acks as FIN is not acked.
+  EXPECT_TRUE(stream_->IsWaitingForAcks());
+  EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
+
+  // FIN is acked.
+  EXPECT_CALL(*mock_ack_listener, OnPacketAcked(0, _))
+      .WillOnce(InvokeWithoutArgs([&]() {
+        if (GetQuicReloadableFlag(quic_notify_ack_listener_earlier)) {
+          // Stream is not added to closed stream list yet.
+          EXPECT_NE(session_->GetActiveStream(stream_->id()), nullptr);
+        } else {
+          EXPECT_EQ(session_->GetActiveStream(stream_->id()), nullptr);
+        }
+      }));
+  EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 0, true, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
+                                          &newly_acked_length));
+  EXPECT_FALSE(stream_->IsWaitingForAcks());
+  EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
+}
+
 TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
   Initialize(kShouldProcessData);
   quiche::QuicheReferenceCountedPointer<MockAckListener> mock_ack_listener(

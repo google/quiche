@@ -484,6 +484,13 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // Does not send a FIN.  May cause the stream to be closed.
   virtual void CloseWriteSide();
 
+  // Called when any new data is acked.
+  virtual void OnNewDataAcked(QuicStreamOffset offset,
+                              QuicByteCount data_length,
+                              QuicByteCount newly_acked_length,
+                              QuicTime receive_timestamp,
+                              QuicTime::Delta ack_delay_time);
+
   void set_rst_received(bool rst_received) { rst_received_ = rst_received; }
   void set_stream_error(QuicResetStreamError error) { stream_error_ = error; }
 
@@ -509,6 +516,10 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // Return the current stream-level flow control send window in bytes.
   std::optional<QuicByteCount> GetSendWindow() const;
   std::optional<QuicByteCount> GetReceiveWindow() const;
+
+  bool notify_ack_listener_earlier() const {
+    return notify_ack_listener_earlier_;
+  }
 
  private:
   friend class test::QuicStreamPeer;
@@ -643,6 +654,9 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   std::optional<QuicResetStreamAtFrame> buffered_reset_stream_at_;
 
   Perspective perspective_;
+
+  const bool notify_ack_listener_earlier_ =
+      GetQuicReloadableFlag(quic_notify_ack_listener_earlier);
 };
 
 }  // namespace quic
