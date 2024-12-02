@@ -867,6 +867,7 @@ quiche_test_support_hdrs = [
     "quic/test_tools/test_ticket_crypter.h",
     "quic/test_tools/web_transport_resets_backend.h",
     "quic/test_tools/web_transport_test_tools.h",
+    "web_transport/test_tools/in_memory_stream.h",
     "web_transport/test_tools/mock_web_transport.h",
 ]
 quiche_test_support_srcs = [
@@ -961,6 +962,7 @@ quiche_test_support_srcs = [
     "quic/test_tools/test_ip_packets.cc",
     "quic/test_tools/test_ticket_crypter.cc",
     "quic/test_tools/web_transport_resets_backend.cc",
+    "web_transport/test_tools/in_memory_stream.cc",
 ]
 balsa_hdrs = [
     "balsa/balsa_enums.h",
@@ -1342,6 +1344,7 @@ quiche_tests_srcs = [
     "quic/tools/quic_tcp_like_trace_converter_test.cc",
     "quic/tools/simple_ticket_crypter_test.cc",
     "web_transport/encapsulated/encapsulated_web_transport_test.cc",
+    "web_transport/test_tools/in_memory_stream_test.cc",
     "web_transport/web_transport_headers_test.cc",
     "web_transport/web_transport_priority_scheduler_test.cc",
 ]

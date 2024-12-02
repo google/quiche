@@ -866,6 +866,7 @@
     "quiche/quic/test_tools/test_ticket_crypter.h",
     "quiche/quic/test_tools/web_transport_resets_backend.h",
     "quiche/quic/test_tools/web_transport_test_tools.h",
+    "quiche/web_transport/test_tools/in_memory_stream.h",
     "quiche/web_transport/test_tools/mock_web_transport.h"
   ],
   "quiche_test_support_srcs": [
@@ -959,7 +960,8 @@
     "quiche/quic/test_tools/test_certificates.cc",
     "quiche/quic/test_tools/test_ip_packets.cc",
     "quiche/quic/test_tools/test_ticket_crypter.cc",
-    "quiche/quic/test_tools/web_transport_resets_backend.cc"
+    "quiche/quic/test_tools/web_transport_resets_backend.cc",
+    "quiche/web_transport/test_tools/in_memory_stream.cc"
   ],
   "balsa_hdrs": [
     "quiche/balsa/balsa_enums.h",
@@ -1342,6 +1344,7 @@
     "quiche/quic/tools/quic_tcp_like_trace_converter_test.cc",
     "quiche/quic/tools/simple_ticket_crypter_test.cc",
     "quiche/web_transport/encapsulated/encapsulated_web_transport_test.cc",
+    "quiche/web_transport/test_tools/in_memory_stream_test.cc",
     "quiche/web_transport/web_transport_headers_test.cc",
     "quiche/web_transport/web_transport_priority_scheduler_test.cc"
   ],
