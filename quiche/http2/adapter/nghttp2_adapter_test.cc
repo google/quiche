@@ -7519,6 +7519,12 @@ TEST(NgHttp2AdapterTest, ServerHandlesContentLengthMismatchWithDataPending) {
                        {":path", "/this/is/request/one"},
                        {"content-length", "4"}})
           .Data(1, "ok", /*fin=*/false)
+          .Headers(3, {{":method", "GET"},
+                       {":scheme", "https"},
+                       {":authority", "example.com"},
+                       {":path", "/this/is/request/three"},
+                       {"content-length", "4"}})
+          .Data(3, "ok", /*fin=*/false)
           .Serialize();
 
   // Client preface (empty SETTINGS)
@@ -7526,7 +7532,7 @@ TEST(NgHttp2AdapterTest, ServerHandlesContentLengthMismatchWithDataPending) {
   EXPECT_CALL(visitor, OnSettingsStart());
   EXPECT_CALL(visitor, OnSettingsEnd());
 
-  // Stream 1: content-length is smaller than actual data, but not yet
+  // Stream 1
   // Headers and the beginning of data is delivered to the visitor.
   EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 4));
   EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
@@ -7536,6 +7542,16 @@ TEST(NgHttp2AdapterTest, ServerHandlesContentLengthMismatchWithDataPending) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 2));
   EXPECT_CALL(visitor, OnDataForStream(1, _));
 
+  // Stream 3
+  // Headers and the beginning of data is delivered to the visitor.
+  EXPECT_CALL(visitor, OnFrameHeader(3, _, HEADERS, 4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(3));
+  EXPECT_CALL(visitor, OnHeaderForStream(3, _, _)).Times(5);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(3));
+  EXPECT_CALL(visitor, OnFrameHeader(3, 2, DATA, 0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(3, 2));
+  EXPECT_CALL(visitor, OnDataForStream(3, _));
+
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
   EXPECT_EQ(stream_frames.size(), static_cast<size_t>(stream_result));
 
@@ -7544,23 +7560,34 @@ TEST(NgHttp2AdapterTest, ServerHandlesContentLengthMismatchWithDataPending) {
       1, "Here is some response data, and there will be more. ");
   adapter->SubmitResponse(1, ToHeaders({{":status", "200"}}), false);
 
+  // Initial response data for stream 3.
+  visitor.AppendPayloadForStream(
+      3, "Here is some response data, and there will be more. ");
+  adapter->SubmitResponse(3, ToHeaders({{":status", "200"}}), false);
+
   // Server preface (SETTINGS)
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
   // SETTINGS ack
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, ACK_FLAG));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, ACK_FLAG, 0));
-  // Stream 1, with some DATA
+  // Stream 1 HEADERS
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+  // Stream 3 HEADERS
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 3, _, 0x4));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 3, _, 0x4, 0));
+  // DATA
   EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnFrameSent(DATA, 3, _, 0x0, 0));
 
   EXPECT_TRUE(adapter->want_write());
   int result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
-                            SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
+                            SpdyFrameType::HEADERS, SpdyFrameType::HEADERS,
+                            SpdyFrameType::DATA, SpdyFrameType::DATA}));
 
   visitor.Clear();
 
@@ -7569,13 +7596,27 @@ TEST(NgHttp2AdapterTest, ServerHandlesContentLengthMismatchWithDataPending) {
   visitor.SetEndData(1, true);
   adapter->ResumeStream(1);
 
-  const std::string client_fin =
-      TestFrameSequence().Data(1, "ay!", /*fin=*/true).Serialize();
+  // Final response data and fin for stream 3.
+  visitor.AppendPayloadForStream(3, "Last data!");
+  visitor.SetEndData(3, true);
+  adapter->ResumeStream(3);
+
+  // Stream 1: actual data overshoots the content-length from request headers.
+  // Stream 3: actual data undershoots the content-length from request headers.
+  const std::string client_fin = TestFrameSequence()
+                                     .Data(1, "ay!", /*fin=*/true)
+                                     .Data(3, "", /*fin=*/true)
+                                     .Serialize();
 
   // The library does not deliver the actual data or fin from the client to the
   // visitor.
   EXPECT_CALL(visitor, OnFrameHeader(1, 3, DATA, 0x1));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 3));
+
+  // The library does not deliver the actual data or fin from the client to the
+  // visitor.
+  EXPECT_CALL(visitor, OnFrameHeader(3, 0, DATA, 0x1));
+  EXPECT_CALL(visitor, OnBeginDataForStream(3, 0));
 
   const int64_t fin_result = adapter->ProcessBytes(client_fin);
   ASSERT_EQ(client_fin.size(), fin_result);
@@ -7586,6 +7627,13 @@ TEST(NgHttp2AdapterTest, ServerHandlesContentLengthMismatchWithDataPending) {
               OnFrameSent(RST_STREAM, 1, _, 0x0,
                           static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::PROTOCOL_ERROR));
+  // The library sends the RST_STREAM but not the end of data.
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
+  EXPECT_CALL(visitor,
+              OnFrameSent(RST_STREAM, 3, _, 0x0,
+                          static_cast<int>(Http2ErrorCode::PROTOCOL_ERROR)));
+  EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::PROTOCOL_ERROR));
+
   result = adapter->Send();
   EXPECT_EQ(0, result);
 }
