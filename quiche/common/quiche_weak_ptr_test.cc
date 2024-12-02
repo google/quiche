@@ -22,14 +22,14 @@ class TestClass {
 TEST(QuicheWeakPtrTest, Empty) {
   QuicheWeakPtr<TestClass> ptr;
   EXPECT_FALSE(ptr.IsValid());
-  EXPECT_EQ(ptr.GetIfAvaliable(), nullptr);
+  EXPECT_EQ(ptr.GetIfAvailable(), nullptr);
 }
 
 TEST(QuicheWeakPtrTest, Valid) {
   TestClass object;
   QuicheWeakPtr<TestClass> ptr = object.CreateWeakPtr();
   EXPECT_TRUE(ptr.IsValid());
-  EXPECT_EQ(ptr.GetIfAvaliable(), &object);
+  EXPECT_EQ(ptr.GetIfAvailable(), &object);
 }
 
 TEST(QuicheWeakPtrTest, ValidCopy) {
@@ -38,8 +38,8 @@ TEST(QuicheWeakPtrTest, ValidCopy) {
   QuicheWeakPtr<TestClass> ptr_copy = ptr;
   EXPECT_TRUE(ptr.IsValid());
   EXPECT_TRUE(ptr_copy.IsValid());
-  EXPECT_EQ(ptr.GetIfAvaliable(), &object);
-  EXPECT_EQ(ptr_copy.GetIfAvaliable(), &object);
+  EXPECT_EQ(ptr.GetIfAvailable(), &object);
+  EXPECT_EQ(ptr_copy.GetIfAvailable(), &object);
 }
 
 TEST(QuicheWeakPtrTest, EmptyAfterMove) {
@@ -48,8 +48,8 @@ TEST(QuicheWeakPtrTest, EmptyAfterMove) {
   QuicheWeakPtr<TestClass> ptr_moved = std::move(ptr);
   EXPECT_FALSE(ptr.IsValid());  // NOLINT(bugprone-use-after-move)
   EXPECT_TRUE(ptr_moved.IsValid());
-  EXPECT_EQ(ptr.GetIfAvaliable(), nullptr);  // NOLINT(bugprone-use-after-move)
-  EXPECT_EQ(ptr_moved.GetIfAvaliable(), &object);
+  EXPECT_EQ(ptr.GetIfAvailable(), nullptr);  // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(ptr_moved.GetIfAvailable(), &object);
 }
 
 TEST(QuicheWeakPtrTest, Expired) {

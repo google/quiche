@@ -53,7 +53,7 @@ class QUICHE_NO_EXPORT QuicheWeakPtr final {
 
   // Returns the pointer to the underlying object if it is alive, or nullptr
   // otherwise.
-  absl::Nullable<T*> GetIfAvaliable() const {
+  absl::Nullable<T*> GetIfAvailable() const {
     return control_block_ != nullptr ? control_block_->Get() : nullptr;
   }
 

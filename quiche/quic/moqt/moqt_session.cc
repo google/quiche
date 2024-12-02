@@ -1108,7 +1108,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                 !parser_.stream_type().has_value())
       << "Object delivered without a stream type";
   // Get a pointer to the upstream state.
-  RemoteTrack* track = track_.GetIfAvaliable();
+  RemoteTrack* track = track_.GetIfAvailable();
   if (track == nullptr) {
     track = (*parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch)
                 // message.track_alias is actually a fetch ID for fetches.
