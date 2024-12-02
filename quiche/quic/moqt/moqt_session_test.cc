@@ -452,7 +452,7 @@ TEST_F(MoqtSessionTest, SubscribeIdNotIncreasing) {
 
 TEST_F(MoqtSessionTest, TooManySubscribes) {
   MoqtSessionPeer::set_next_subscribe_id(&session_,
-                                         kDefaultInitialMaxSubscribeId);
+                                         kDefaultInitialMaxSubscribeId - 1);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -462,7 +462,7 @@ TEST_F(MoqtSessionTest, TooManySubscribes) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
                                              &remote_track_visitor));
-  EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+  EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo2", "bar2"),
                                               &remote_track_visitor));
 }
 
@@ -508,7 +508,7 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
 
 TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
   MoqtSessionPeer::set_next_subscribe_id(&session_,
-                                         kDefaultInitialMaxSubscribeId + 1);
+                                         kDefaultInitialMaxSubscribeId);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
                                               &remote_track_visitor));
@@ -552,7 +552,7 @@ TEST_F(MoqtSessionTest, GrantMoreSubscribes) {
   session_.GrantMoreSubscribes(1);
   // Peer subscribes to (0, 0)
   MoqtSubscribe request = {
-      /*subscribe_id=*/kDefaultInitialMaxSubscribeId + 1,
+      /*subscribe_id=*/kDefaultInitialMaxSubscribeId,
       /*track_alias=*/2,
       /*full_track_name=*/FullTrackName({"foo", "bar"}),
       /*subscriber_priority=*/0x80,

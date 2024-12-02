@@ -449,7 +449,7 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
     return false;
   }
   // TODO(martinduke): support authorization info
-  if (next_subscribe_id_ > peer_max_subscribe_id_) {
+  if (next_subscribe_id_ >= peer_max_subscribe_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE with ID "
                     << next_subscribe_id_
                     << " which is greater than the maximum ID "
@@ -624,7 +624,7 @@ bool MoqtSession::ValidateSubscribeId(uint64_t subscribe_id) {
     Error(MoqtError::kProtocolViolation, "Received SUBSCRIBE from publisher");
     return false;
   }
-  if (subscribe_id > local_max_subscribe_id_) {
+  if (subscribe_id >= local_max_subscribe_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received SUBSCRIBE with too large ID";
     Error(MoqtError::kTooManySubscribes,
           "Received SUBSCRIBE with too large ID");

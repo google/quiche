@@ -577,7 +577,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   uint64_t next_remote_track_alias_ = 0;
   // The next subscribe ID that the local endpoint can send.
   uint64_t next_subscribe_id_ = 0;
-  // The maximum subscribe ID that the local endpoint can send.
+  // The local endpoint can send subscribe IDs less than this value.
   uint64_t peer_max_subscribe_id_ = 0;
 
   // All open incoming subscriptions, indexed by track name, used to check for
@@ -617,7 +617,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
   // The minimum subscribe ID the peer can use that is monotonically increasing.
   uint64_t next_incoming_subscribe_id_ = 0;
-  // The maximum subscribe ID sent to the peer.
+  // The maximum subscribe ID sent to the peer. Peer-generated IDs must be less
+  // than this value.
   uint64_t local_max_subscribe_id_ = 0;
 
   // Must be last.  Token used to make sure that the streams do not call into
