@@ -250,6 +250,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
   } else {
     ++stats_.packets_enqueued_early;
   }
+  QUIC_CODE_COUNT(quic_buffered_packet_store_enqueue_packet);
   return SUCCESS;
 }
 
