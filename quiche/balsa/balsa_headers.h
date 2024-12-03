@@ -116,7 +116,7 @@ class QUICHE_EXPORT BalsaBuffer {
       if (rhs.buffer == nullptr) {
         buffer = nullptr;
       } else {
-        buffer = std::make_unique<char[]>(buffer_size);
+        buffer = absl::make_unique_for_overwrite<char[]>(buffer_size);
         memcpy(buffer.get(), rhs.buffer.get(), rhs.bytes_used());
       }
     }
