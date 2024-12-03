@@ -282,6 +282,10 @@ void QuicPacketCreator::SkipNPacketNumbers(
                       << " packet_number:" << packet_.packet_number;
     return;
   }
+  QUIC_DVLOG(1) << ENDPOINT << "Skipping " << count
+                << " packet numbers, least_packet_awaited_by_peer: "
+                << least_packet_awaited_by_peer
+                << " packet_number: " << packet_.packet_number;
   packet_.packet_number += count;
   // Packet number changes, update packet number length if necessary.
   UpdatePacketNumberLength(least_packet_awaited_by_peer, max_packets_in_flight);
@@ -797,7 +801,7 @@ QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
         packet_size_, framer_, random_);
     return chaos_protector.BuildDataPacket(header, buffer);
   }
-  QUIC_RELOADABLE_FLAG_COUNT(quic_enable_new_chaos_protector);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_new_chaos_protector, 1, 2);
   QuicChaosProtector chaos_protector(packet_size_, packet_.encryption_level,
                                      framer_, random_);
   return chaos_protector.BuildDataPacket(header, queued_frames_, buffer);
@@ -1561,9 +1565,132 @@ size_t QuicPacketCreator::GenerateRemainingCryptoFrames(
       return 0;
     }
     total_bytes_consumed += frame.crypto_frame->data_length;
-    FlushCurrentPacket();
+    if (!GetQuicReloadableFlag(quic_enable_new_chaos_protector) ||
+        level != ENCRYPTION_INITIAL ||
+        frame.crypto_frame->data_length < write_length) {
+      FlushCurrentPacket();
+    }
   }
   return total_bytes_consumed;
+}
+
+size_t QuicPacketCreator::MultiPacketChaosProtect(EncryptionLevel level,
+                                                  size_t write_length,
+                                                  QuicStreamOffset offset) {
+  if (!GetQuicFlag(quic_enable_chaos_protection) ||
+      !GetQuicReloadableFlag(quic_enable_new_chaos_protector) ||
+      framer_->perspective() != Perspective::IS_CLIENT ||
+      level != ENCRYPTION_INITIAL || !framer_->version().UsesCryptoFrames() ||
+      framer_->data_producer() == nullptr ||
+      !fully_pad_crypto_handshake_packets_ || offset != 0 ||
+      !delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA,
+                                       IS_HANDSHAKE)) {
+    return 0;
+  }
+  size_t min_crypto_frame_size = QuicFramer::GetMinCryptoFrameSize(
+      offset + write_length - 1, write_length);
+  if (BytesFree() < 2 * min_crypto_frame_size) {
+    // First packet is too full to fit two crypto frames, do not attempt chaos
+    // protection.
+    return 0;
+  }
+  size_t max_crypto_data_length_first_packet =
+      BytesFree() - 2 * min_crypto_frame_size;
+  if (max_plaintext_size_ < PacketHeaderSize() + min_crypto_frame_size) {
+    QUIC_BUG(multi_packet_chaos_protection_packets_too_small);
+    return 0;
+  }
+  size_t max_crypto_data_length_other_packets =
+      max_plaintext_size_ - PacketHeaderSize() - min_crypto_frame_size;
+
+  if (write_length <= max_crypto_data_length_first_packet) {
+    // We can fit the entire crypto data in a single packet, no need for
+    // multi-packet chaos protection.
+    return 0;
+  }
+  if (max_crypto_data_length_other_packets <
+      max_crypto_data_length_first_packet) {
+    QUIC_BUG(multi_packet_chaos_protection_unexpected_math);
+    return 0;
+  }
+  size_t first_packet_occupied_space = max_crypto_data_length_other_packets -
+                                       max_crypto_data_length_first_packet;
+  size_t num_packets = (write_length + first_packet_occupied_space +
+                        max_crypto_data_length_other_packets - 1) /
+                       max_crypto_data_length_other_packets;
+  size_t data_in_other_packets =
+      (write_length + first_packet_occupied_space + num_packets - 1) /
+      num_packets;
+  if (data_in_other_packets < first_packet_occupied_space) {
+    // First packet is too full, do not attempt chaos protection.
+    return 0;
+  }
+  size_t data_in_first_packet =
+      data_in_other_packets - first_packet_occupied_space;
+  // The TLS client hello starts with a mostly fixed header followed by
+  // type-length-value extensions. The simplest way to force receivers to parse
+  // multiple packets is therefore to ensure that one packet has the header and
+  // the length of the first extension, and then put the subsequent extensions
+  // into the second packet. When there are 3 cipher suites enabled, this all
+  // adds up to 55 bytes. We also add some randomness for good measure. After
+  // this split, the first packet contains the first ~55 bytes and the end of
+  // the client hello. The middle of the client hello is then split between
+  // subsequent packets.
+  static constexpr size_t kMinFirstFrameLength = 55;
+  static constexpr size_t kFirstFrameLengthRandom = 32;
+  size_t first_frame_length =
+      kMinFirstFrameLength +
+      (random_->InsecureRandUint64() % kFirstFrameLengthRandom);
+  if (write_length <= first_frame_length) {
+    QUIC_BUG(multi_packet_chaos_protection_short_first_frame);
+    return 0;
+  }
+  if (data_in_first_packet <= first_frame_length) {
+    // Return early if we can't fit the first crypto frame in the first packet.
+    return 0;
+  }
+  size_t last_frame_length = data_in_first_packet - first_frame_length;
+  size_t total_bytes_consumed = 0;
+  QuicFrame first_frame;
+  if (!CreateCryptoFrame(level, first_frame_length, offset, &first_frame)) {
+    QUIC_BUG(multi_packet_chaos_protection_failed_to_create_first_frame);
+    return 0;
+  }
+  total_bytes_consumed += first_frame_length;
+  QuicFrame last_frame;
+  if (!CreateCryptoFrame(level, last_frame_length,
+                         offset + write_length - last_frame_length,
+                         &last_frame)) {
+    QUIC_BUG(multi_packet_chaos_protection_failed_to_create_last_frame);
+    DeleteFrame(&first_frame);
+    return 0;
+  }
+  if (!AddFrame(first_frame, next_transmission_type_)) {
+    QUIC_BUG(multi_packet_chaos_protection_failed_to_add_first_frame);
+    DeleteFrame(&first_frame);
+    DeleteFrame(&last_frame);
+    return 0;
+  }
+  if (!AddFrame(last_frame, next_transmission_type_)) {
+    QUIC_BUG(multi_packet_chaos_protection_failed_to_add_last_frame);
+    DeleteFrame(&last_frame);
+    return 0;
+  }
+  needs_full_padding_ = true;
+  FlushCurrentPacket();
+  RemoveSoftMaxPacketLength();
+
+  size_t remaining_bytes_consumed = GenerateRemainingCryptoFrames(
+      level, write_length - last_frame_length, offset, total_bytes_consumed);
+  if (remaining_bytes_consumed == 0) {
+    QUIC_BUG(multi_packet_chaos_protection_failed_to_generate_remaining_frames);
+    return 0;
+  }
+  QUIC_DVLOG(1) << "Performed multi-packet Chaos Protection for "
+                << write_length << " bytes accross " << num_packets
+                << " packets (first=" << first_frame_length
+                << ", last=" << last_frame_length << ")";
+  return remaining_bytes_consumed + last_frame_length;
 }
 
 size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
@@ -1581,15 +1708,27 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
   // TODO(nharper): Once we have separate packet number spaces, everything
   // should be driven by encryption level, and we should stop flushing in this
   // spot.
-  if (HasPendingRetransmittableFrames()) {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_new_chaos_protector, 2, 2);
+  if (HasPendingRetransmittableFrames() &&
+      (!GetQuicReloadableFlag(quic_enable_new_chaos_protector) ||
+       level != ENCRYPTION_INITIAL)) {
     FlushCurrentPacket();
   }
 
-  size_t total_bytes_consumed = GenerateRemainingCryptoFrames(
-      level, write_length, offset, /*total_bytes_consumed=*/0);
+  size_t total_bytes_consumed =
+      MultiPacketChaosProtect(level, write_length, offset);
+  if (total_bytes_consumed == 0) {
+    // Multi-packet chaos protection was not applied, generate the crypto frames
+    // here instead.
+    total_bytes_consumed = GenerateRemainingCryptoFrames(
+        level, write_length, offset, total_bytes_consumed);
+  }
 
   // Don't allow the handshake to be bundled with other retransmittable frames.
-  FlushCurrentPacket();
+  if (!GetQuicReloadableFlag(quic_enable_new_chaos_protector) ||
+      level != ENCRYPTION_INITIAL) {
+    FlushCurrentPacket();
+  }
 
   return total_bytes_consumed;
 }

@@ -647,7 +647,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathChallengePacket) {
   header.reset_flag = false;
   header.version_flag = false;
   header.packet_number = kPacketNumber;
-  MockRandom randomizer;
+  ::testing::NiceMock<MockRandom> randomizer;
   QuicPathFrameBuffer payload;
   randomizer.RandBytes(payload.data(), payload.size());
 
@@ -1398,7 +1398,7 @@ void QuicPacketCreatorTest::TestChaosProtection(bool enabled) {
   if (!GetParam().version.UsesCryptoFrames()) {
     return;
   }
-  MockRandom mock_random(2);
+  ::testing::NiceMock<MockRandom> mock_random(2);
   QuicPacketCreatorPeer::SetRandom(&creator_, &mock_random);
   std::string data("ChAoS_ThEoRy!");
   producer_.SaveCryptoData(ENCRYPTION_INITIAL, 0, data);
@@ -2805,8 +2805,15 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
     }
   }
 
+  void TestChaosProtection(bool chaos_protection_enabled,
+                           size_t crypto_data_length, int num_packets);
+  void SetupInitialCrypto(size_t crypto_data_length, int num_ack_blocks,
+                          bool chaos_protection_enabled);
+  void CheckPackets(int num_ack_blocks, int num_packets,
+                    bool chaos_protection_expected);
+
   QuicFramer framer_;
-  MockRandom random_creator_;
+  ::testing::NiceMock<MockRandom> random_creator_;
   StrictMock<MockDelegate> delegate_;
   MultiplePacketsTestPacketCreator creator_;
   SimpleQuicFramer simple_framer_;
@@ -3043,7 +3050,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_Handshake) {
   const std::string data = "foo bar";
   size_t consumed_bytes = 0;
   if (QuicVersionUsesCryptoFrames(framer_.transport_version())) {
-    consumed_bytes = creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data, 0);
+    consumed_bytes =
+        creator_.ConsumeCryptoData(ENCRYPTION_FORWARD_SECURE, data, 0);
   } else {
     consumed_bytes =
         creator_
@@ -3070,6 +3078,258 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_Handshake) {
   EXPECT_EQ(kDefaultMaxPacketSize, packets_[0].encrypted_length);
 }
 
+TEST_F(QuicPacketCreatorMultiplePacketsTest,
+       ChaosProtection_Enabled_OnePacket) {
+  TestChaosProtection(
+      /*chaos_protection_enabled=*/true, /*crypto_data_length=*/1000,
+      /*num_packets=*/1);
+}
+
+TEST_F(QuicPacketCreatorMultiplePacketsTest,
+       ChaosProtection_Enabled_TwoPackets) {
+  // 1505 bytes is the usual size of the ClientHello when post-quantum
+  // cryptography is enabled.
+  TestChaosProtection(
+      /*chaos_protection_enabled=*/true, /*crypto_data_length=*/1505,
+      /*num_packets=*/2);
+}
+
+TEST_F(QuicPacketCreatorMultiplePacketsTest,
+       ChaosProtection_Enabled_ThreePackets) {
+  TestChaosProtection(
+      /*chaos_protection_enabled=*/true, /*crypto_data_length=*/3000,
+      /*num_packets=*/3);
+}
+
+TEST_F(QuicPacketCreatorMultiplePacketsTest,
+       ChaosProtection_Disabled_OnePacket) {
+  TestChaosProtection(
+      /*chaos_protection_enabled=*/false, /*crypto_data_length=*/1000,
+      /*num_packets=*/1);
+}
+
+TEST_F(QuicPacketCreatorMultiplePacketsTest,
+       ChaosProtection_Disabled_TwoPackets) {
+  // 1505 bytes is the usual size of the ClientHello when post-quantum
+  // cryptography is enabled.
+  TestChaosProtection(
+      /*chaos_protection_enabled=*/false, /*crypto_data_length=*/1505,
+      /*num_packets=*/2);
+}
+
+TEST_F(QuicPacketCreatorMultiplePacketsTest,
+       ChaosProtection_Disabled_ThreePackets) {
+  TestChaosProtection(
+      /*chaos_protection_enabled=*/false, /*crypto_data_length=*/3000,
+      /*num_packets=*/3);
+}
+
+void QuicPacketCreatorMultiplePacketsTest::TestChaosProtection(
+    bool chaos_protection_enabled, size_t crypto_data_length, int num_packets) {
+  if (!framer_.version().UsesCryptoFrames()) {
+    return;
+  }
+  SetupInitialCrypto(/*crypto_data_length=*/0, /*num_ack_blocks=*/0,
+                     chaos_protection_enabled);
+  std::vector<uint8_t> data_bytes(crypto_data_length);
+  for (size_t i = 0; i < data_bytes.size(); ++i) {
+    data_bytes[i] = (i & 0xFF);
+  }
+  const std::string data(reinterpret_cast<char*>(data_bytes.data()),
+                         crypto_data_length);
+  EXPECT_EQ(creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data, /*offset=*/0),
+            crypto_data_length);
+  creator_.Flush();
+  EXPECT_FALSE(creator_.HasPendingFrames());
+  EXPECT_FALSE(creator_.HasPendingRetransmittableFrames());
+  EXPECT_EQ(kDefaultMaxPacketSize, creator_.max_packet_length());
+
+  QuicIntervalSet<QuicStreamOffset> crypto_data_intervals;
+  int num_crypto_frames = 0;
+  bool first_packet = true;
+  QuicStreamOffset max_crypto_first_packet = 0;
+  QuicStreamOffset min_crypto_subsequent_packets =
+      std::numeric_limits<QuicStreamOffset>::max();
+  for (const auto& packet : packets_) {
+    EXPECT_EQ(packet.encrypted_length, kDefaultMaxPacketSize);
+    ASSERT_TRUE(packet.encrypted_buffer != nullptr);
+    simple_framer_.Reset();
+    ASSERT_TRUE(simple_framer_.ProcessPacket(
+        QuicEncryptedPacket(packet.encrypted_buffer, packet.encrypted_length)));
+    for (const auto& frame : simple_framer_.crypto_frames()) {
+      if (first_packet) {
+        QuicStreamOffset max_crypto = frame->data_length + frame->offset;
+        if (max_crypto > max_crypto_first_packet) {
+          max_crypto_first_packet = max_crypto;
+        }
+      } else {
+        QuicStreamOffset min_crypto = frame->offset;
+        if (min_crypto < min_crypto_subsequent_packets) {
+          min_crypto_subsequent_packets = min_crypto;
+        }
+      }
+      num_crypto_frames++;
+      QuicInterval<QuicStreamOffset> interval(
+          frame->offset, frame->offset + frame->data_length);
+      // Check that we don't repeat the same crypto data in different frames.
+      ASSERT_TRUE(crypto_data_intervals.IsDisjoint(interval));
+      crypto_data_intervals.Add(interval);
+      for (QuicStreamOffset i = 0; i < frame->data_length; ++i) {
+        // Check the crypto data itself is correct.
+        EXPECT_EQ(frame->data_buffer[i],
+                  static_cast<char>((frame->offset + i) & 0xFF))
+            << "i = " << i << ", offset = " << frame->offset
+            << ", data_length = " << frame->data_length;
+      }
+    }
+    first_packet = false;
+  }
+  // Make sure that the combination of all crypto frames covers the entire data.
+  EXPECT_EQ(crypto_data_intervals.Size(), 1u);
+  EXPECT_EQ(*crypto_data_intervals.begin(),
+            QuicInterval<QuicStreamOffset>(0, crypto_data_length));
+
+  EXPECT_EQ(packets_.size(), num_packets);
+  if (chaos_protection_enabled) {
+    EXPECT_GT(num_crypto_frames, packets_.size() + 1);
+  } else {
+    EXPECT_EQ(num_crypto_frames, packets_.size());
+  }
+  // Check that multi-packet chaos protection was performed if and only if it
+  // was expected.
+  EXPECT_EQ(chaos_protection_enabled && num_packets > 1,
+            max_crypto_first_packet > min_crypto_subsequent_packets);
+}
+
+void QuicPacketCreatorMultiplePacketsTest::SetupInitialCrypto(
+    size_t crypto_data_length, int num_ack_blocks,
+    bool chaos_protection_enabled) {
+  SetQuicFlag(quic_enable_chaos_protection, chaos_protection_enabled);
+  SetQuicReloadableFlag(quic_enable_new_chaos_protector,
+                        chaos_protection_enabled);
+  random_creator_.ResetBase(4);
+  creator_.SetEncrypter(ENCRYPTION_INITIAL,
+                        std::make_unique<TaggingEncrypter>(ENCRYPTION_INITIAL));
+  creator_.set_encryption_level(ENCRYPTION_INITIAL);
+  if (simple_framer_.framer()->version().KnowsWhichDecrypterToUse()) {
+    simple_framer_.framer()->InstallDecrypter(
+        ENCRYPTION_INITIAL, std::make_unique<TaggingDecrypter>());
+  }
+  delegate_.SetCanWriteAnything();
+
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillRepeatedly(
+          Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
+
+  if (num_ack_blocks > 0) {
+    std::vector<QuicAckBlock> ack_blocks;
+    for (int i = 1; i <= num_ack_blocks; ++i) {
+      ack_blocks.push_back(
+          {QuicPacketNumber(3 * i), QuicPacketNumber(3 * i + 1)});
+    }
+    ack_frame_ = InitAckFrame(ack_blocks);
+    EXPECT_TRUE(creator_.AddFrame(QuicFrame(&ack_frame_), NOT_RETRANSMISSION));
+    EXPECT_TRUE(creator_.HasPendingFrames());
+  } else {
+    EXPECT_FALSE(creator_.HasPendingFrames());
+  }
+  EXPECT_FALSE(creator_.HasPendingRetransmittableFrames());
+
+  if (crypto_data_length > 0) {
+    const std::string data(crypto_data_length, '?');
+    EXPECT_EQ(
+        creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data, /*offset=*/0),
+        data.size());
+  }
+  EXPECT_FALSE(creator_.HasPendingFrames());
+  EXPECT_FALSE(creator_.HasPendingRetransmittableFrames());
+  EXPECT_EQ(kDefaultMaxPacketSize, creator_.max_packet_length());
+}
+
+void QuicPacketCreatorMultiplePacketsTest::CheckPackets(
+    int num_ack_blocks, int num_packets, bool chaos_protection_expected) {
+  ASSERT_EQ(packets_.size(), num_packets);
+  // Check first packet.
+  EXPECT_EQ(packets_[0].encrypted_length, kDefaultMaxPacketSize);
+  ASSERT_TRUE(packets_[0].encrypted_buffer != nullptr);
+  ASSERT_TRUE(simple_framer_.ProcessPacket(QuicEncryptedPacket(
+      packets_[0].encrypted_buffer, packets_[0].encrypted_length)));
+  EXPECT_GE(simple_framer_.crypto_frames().size(), 1u);
+  EXPECT_EQ(simple_framer_.ack_frames().size(), num_ack_blocks > 0 ? 1u : 0u);
+  QuicStreamOffset max_crypto_first_packet = 0;
+  for (const auto& frame : simple_framer_.crypto_frames()) {
+    QuicStreamOffset max_crypto = frame->data_length + frame->offset;
+    if (max_crypto > max_crypto_first_packet) {
+      max_crypto_first_packet = max_crypto;
+    }
+  }
+  // Check subsequent packets.
+  QuicStreamOffset min_crypto_subsequent_packets =
+      std::numeric_limits<QuicStreamOffset>::max();
+  for (int i = 1; i < num_packets; ++i) {
+    simple_framer_.Reset();
+    EXPECT_EQ(packets_[i].encrypted_length, kDefaultMaxPacketSize);
+    ASSERT_TRUE(packets_[i].encrypted_buffer != nullptr);
+    ASSERT_TRUE(simple_framer_.ProcessPacket(QuicEncryptedPacket(
+        packets_[i].encrypted_buffer, packets_[i].encrypted_length)));
+    EXPECT_GE(simple_framer_.crypto_frames().size(), 1u);
+    EXPECT_EQ(simple_framer_.ack_frames().size(), 0u);
+    for (const auto& frame : simple_framer_.crypto_frames()) {
+      QuicStreamOffset min_crypto = frame->offset;
+      if (min_crypto < min_crypto_subsequent_packets) {
+        min_crypto_subsequent_packets = min_crypto;
+      }
+    }
+  }
+  EXPECT_EQ(chaos_protection_expected,
+            max_crypto_first_packet > min_crypto_subsequent_packets);
+}
+
+TEST_F(QuicPacketCreatorMultiplePacketsTest, ChaosProtectionWithPriorAcks) {
+  // Ensure that multi-packet chaos protection takes into account any pending
+  // non-retransmittable frames.
+  if (!framer_.version().UsesCryptoFrames()) {
+    return;
+  }
+  static constexpr int kNumAckBlocks = 100;
+  // Size the crypto data such that it could fit in one packet by itself but
+  // can't fit with the ack frame.
+  static constexpr size_t kCryptoDataSize =
+      kDefaultMaxPacketSize - 2 * kNumAckBlocks;
+  SetupInitialCrypto(kCryptoDataSize, kNumAckBlocks,
+                     /*chaos_protection_enabled=*/true);
+  CheckPackets(kNumAckBlocks, /*num_packets=*/2,
+               /*chaos_protection_expected=*/true);
+}
+
+TEST_F(QuicPacketCreatorMultiplePacketsTest, ChaosProtectionFirstPacketFull) {
+  // Ensure that chaos protection returns disabled early when the packet has
+  // more pending data than the amount of crypto data per packet.
+  if (!framer_.version().UsesCryptoFrames()) {
+    return;
+  }
+  static constexpr int kNumAckBlocks = (kDefaultMaxPacketSize - 100) / 2;
+  static constexpr size_t kCryptoDataSize = 2000;
+  SetupInitialCrypto(kCryptoDataSize, kNumAckBlocks,
+                     /*chaos_protection_enabled=*/true);
+  CheckPackets(kNumAckBlocks, /*num_packets=*/3,
+               /*chaos_protection_expected=*/false);
+}
+
+TEST_F(QuicPacketCreatorMultiplePacketsTest, ChaosProtectionCantFitFirstFrame) {
+  // Ensure that chaos protection disables itself if we can't fit the first
+  // frame in the first packet.
+  if (!framer_.version().UsesCryptoFrames()) {
+    return;
+  }
+  static constexpr int kNumAckBlocks = (kDefaultMaxPacketSize - 100) / 2;
+  static constexpr size_t kCryptoDataSize = 2400;
+  SetupInitialCrypto(kCryptoDataSize, kNumAckBlocks,
+                     /*chaos_protection_enabled=*/true);
+  CheckPackets(kNumAckBlocks, /*num_packets=*/3,
+               /*chaos_protection_expected=*/false);
+}
+
 // Test the behavior of ConsumeData when the data is for the crypto handshake
 // stream, but padding is disabled.
 TEST_F(QuicPacketCreatorMultiplePacketsTest,
@@ -3084,7 +3344,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   const std::string data = "foo";
   size_t bytes_consumed = 0;
   if (QuicVersionUsesCryptoFrames(framer_.transport_version())) {
-    bytes_consumed = creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data, 0);
+    bytes_consumed =
+        creator_.ConsumeCryptoData(ENCRYPTION_FORWARD_SECURE, data, 0);
   } else {
     bytes_consumed =
         creator_

@@ -291,11 +291,14 @@ QuicChaosProtector::~QuicChaosProtector() { DeleteFrames(&frames_); }
 std::optional<size_t> QuicChaosProtector::BuildDataPacket(
     const QuicPacketHeader& header, const QuicFrames& frames, char* buffer) {
   if (!IngestFrames(frames)) {
-    QUIC_DVLOG(1) << "Failed to ingest frames";
+    QUIC_DVLOG(1) << "Failed to ingest frames for initial packet number "
+                  << header.packet_number;
     return std::nullopt;
   }
   if (!CopyCryptoDataToLocalBuffer()) {
-    QUIC_DVLOG(1) << "Failed to copy crypto data to local buffer";
+    QUIC_DVLOG(1) << "Failed to copy crypto data to local buffer for initial "
+                     "packet number "
+                  << header.packet_number;
     return std::nullopt;
   }
   SplitCryptoFrame();
@@ -481,8 +484,12 @@ std::optional<size_t> QuicChaosProtector::BuildPacket(
 
   framer_->set_data_producer(original_data_producer);
   if (length == 0) {
+    QUIC_DVLOG(1) << "Failed to build data packet for initial packet number "
+                  << header.packet_number;
     return std::nullopt;
   }
+  QUIC_DVLOG(1) << "Performed chaos protection on initial packet number "
+                << header.packet_number << " with length " << length;
   return length;
 }
 

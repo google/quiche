@@ -646,6 +646,12 @@ class QUICHE_EXPORT QuicPacketCreator {
                                        QuicStreamOffset offset,
                                        size_t total_bytes_consumed);
 
+  // Attempts to perform multi-packet chaos protection. If this portion of the
+  // crypto stream isn't supposed to be protected or if anything fails then 0 is
+  // returned. Otherwise returns the amount of crypto data consumed.
+  size_t MultiPacketChaosProtect(EncryptionLevel level, size_t write_length,
+                                 QuicStreamOffset offset);
+
   // Does not own these delegates or the framer.
   DelegateInterface* delegate_;
   DebugDelegate* debug_delegate_;

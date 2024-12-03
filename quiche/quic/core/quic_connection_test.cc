@@ -341,18 +341,23 @@ class TestConnection : public QuicConnection {
   // split needlessly across packet boundaries).  As a result, we have separate
   // tests for some cases for this stream.
   QuicConsumedData SendCryptoStreamData() {
+    return SendCryptoStreamDataAtLevel(ENCRYPTION_INITIAL);
+  }
+
+  QuicConsumedData SendCryptoStreamDataAtLevel(
+      EncryptionLevel encryption_level) {
     QuicStreamOffset offset = 0;
     absl::string_view data("chlo");
     if (!QuicVersionUsesCryptoFrames(transport_version())) {
       return SendCryptoDataWithString(data, offset);
     }
-    producer_.SaveCryptoData(ENCRYPTION_INITIAL, offset, data);
+    producer_.SaveCryptoData(encryption_level, offset, data);
     size_t bytes_written;
     if (notifier_) {
       bytes_written =
-          notifier_->WriteCryptoData(ENCRYPTION_INITIAL, data.length(), offset);
+          notifier_->WriteCryptoData(encryption_level, data.length(), offset);
     } else {
-      bytes_written = QuicConnection::SendCryptoData(ENCRYPTION_INITIAL,
+      bytes_written = QuicConnection::SendCryptoData(encryption_level,
                                                      data.length(), offset);
     }
     return QuicConsumedData(bytes_written, /*fin_consumed*/ false);
@@ -4009,7 +4014,7 @@ TEST_P(QuicConnectionTest, FramePackingCryptoThenNonCrypto) {
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
-    connection_.SendCryptoStreamData();
+    connection_.SendCryptoStreamDataAtLevel(ENCRYPTION_FORWARD_SECURE);
     connection_.SendStreamData3();
   }
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
@@ -17750,7 +17755,6 @@ TEST_P(QuicConnectionTest, EcnCodepointsAccepted) {
     EXPECT_EQ(writer_->last_ecn_sent(), expected_codepoint);
   }
 }
-
 
 TEST_P(QuicConnectionTest, EcnValidationDisabled) {
   QuicConnectionPeer::DisableEcnCodepointValidation(&connection_);
