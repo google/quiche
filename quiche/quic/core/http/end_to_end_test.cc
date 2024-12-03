@@ -1219,24 +1219,15 @@ TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO) {
   QuicConnection* server_connection = GetServerConnection();
   ASSERT_NE(server_connection, nullptr);
   const QuicConnectionStats& server_stats = server_connection->GetStats();
-
-  if (version_ != ParsedQuicVersion::RFCv2()) {
-    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 1u);
-  } else {
-    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 0u);
-  }
+  EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 1u);
 
   const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
   // The first CHLO packet is enqueued, the second causes session to be created.
   EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 2u);
   EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 1u);
   EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
+  EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
 
-  if (version_ != ParsedQuicVersion::RFCv2()) {
-    EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
-  } else {
-    EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
-  }
   server_thread_->Resume();
 }
 
@@ -1270,25 +1261,12 @@ TEST_P(EndToEndTest,
   server_thread_->ScheduleAndWaitForCompletion([&] {
     const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
     EXPECT_EQ(dispatcher_stats.sessions_created, 1u);
-
-    if (version_ != ParsedQuicVersion::RFCv2()) {
-      // 2 CHLO packets are enqueued, but only the 1st caused a dispatcher ACK.
-      EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
-      EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 2u);
-      EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 1u);
-      EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
-      EXPECT_DEBUG_EQ(
-          dispatcher_stats.packets_processed_with_replaced_cid_in_store, 1u);
-    } else {
-      EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
-      // 4 CHLO packets are sent by client, 1 of them is lost in client_writer_.
-      EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 3u);
-      // Packet 1 and its retransmission are enqueued early.
-      EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
-      EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
-      EXPECT_DEBUG_EQ(
-          dispatcher_stats.packets_processed_with_replaced_cid_in_store, 0u);
-    }
+    EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
+    EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 2u);
+    EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 1u);
+    EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
+    EXPECT_DEBUG_EQ(
+        dispatcher_stats.packets_processed_with_replaced_cid_in_store, 1u);
   });
 }
 
@@ -1328,13 +1306,8 @@ TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO_BothBuffered) {
     EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 1u);
     EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 1u);
     EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 2u);
-
-    if (version_ != ParsedQuicVersion::RFCv2()) {
-      // 2 CHLO packets are enqueued, but only the 1st caused a dispatcher ACK.
-      EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
-    } else {
-      EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
-    }
+    // 2 CHLO packets are enqueued, but only the 1st caused a dispatcher ACK.
+    EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
     EXPECT_EQ(dispatcher_stats.sessions_created, 0u);
 
     GetDispatcher()->ProcessBufferedChlos(1);
@@ -1366,12 +1339,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithThreePacketCHLO) {
   QuicConnection* server_connection = GetServerConnection();
   ASSERT_NE(server_connection, nullptr);
   const QuicConnectionStats& server_stats = server_connection->GetStats();
-
-  if (version_ != ParsedQuicVersion::RFCv2()) {
-    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 2u);
-  } else {
-    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 0u);
-  }
+  EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 2u);
 
   const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
   // The first and second CHLO packets are enqueued, the third causes session to
@@ -1379,12 +1347,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithThreePacketCHLO) {
   EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 3u);
   EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
   EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
-
-  if (version_ != ParsedQuicVersion::RFCv2()) {
-    EXPECT_EQ(dispatcher_stats.packets_sent, 2u);
-  } else {
-    EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
-  }
+  EXPECT_EQ(dispatcher_stats.packets_sent, 2u);
   server_thread_->Resume();
 }
 
@@ -1413,12 +1376,7 @@ TEST_P(EndToEndTest,
   QuicConnection* server_connection = GetServerConnection();
   ASSERT_NE(server_connection, nullptr);
   const QuicConnectionStats& server_stats = server_connection->GetStats();
-
-  if (version_ != ParsedQuicVersion::RFCv2()) {
-    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 1u);
-  } else {
-    EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 0u);
-  }
+  EXPECT_EQ(server_stats.packets_sent_by_dispatcher, 1u);
 
   const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
   // The first and second CHLO packets are enqueued, the third causes session to
@@ -1426,12 +1384,7 @@ TEST_P(EndToEndTest,
   EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 3u);
   EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
   EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
-
-  if (version_ != ParsedQuicVersion::RFCv2()) {
-    EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
-  } else {
-    EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
-  }
+  EXPECT_EQ(dispatcher_stats.packets_sent, 1u);
   server_thread_->Resume();
 }
 
@@ -1466,24 +1419,13 @@ TEST_P(EndToEndTest,
     const QuicDispatcherStats& dispatcher_stats = GetDispatcherStats();
     EXPECT_EQ(dispatcher_stats.sessions_created, 1u);
 
-    if (version_ != ParsedQuicVersion::RFCv2()) {
-      // Packet 1 and Packet 2's retransmission caused dispatcher ACKs.
-      EXPECT_EQ(dispatcher_stats.packets_sent, 2u);
-      EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 3u);
-      EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
-      EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
-      EXPECT_DEBUG_EQ(
-          dispatcher_stats.packets_processed_with_replaced_cid_in_store, 2u);
-    } else {
-      EXPECT_EQ(dispatcher_stats.packets_sent, 0u);
-      // 6 CHLO packets are sent by client, 2 of them are lost in client_writer.
-      EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 4u);
-      // Packet 1 and packet 1 & 2's retransmissions are enqueued early.
-      EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 3u);
-      EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
-      EXPECT_DEBUG_EQ(
-          dispatcher_stats.packets_processed_with_replaced_cid_in_store, 0u);
-    }
+    // Packet 1 and Packet 2's retransmission caused dispatcher ACKs.
+    EXPECT_EQ(dispatcher_stats.packets_sent, 2u);
+    EXPECT_EQ(dispatcher_stats.packets_processed_with_unknown_cid, 3u);
+    EXPECT_EQ(dispatcher_stats.packets_enqueued_early, 2u);
+    EXPECT_EQ(dispatcher_stats.packets_enqueued_chlo, 0u);
+    EXPECT_DEBUG_EQ(
+        dispatcher_stats.packets_processed_with_replaced_cid_in_store, 2u);
   });
 }
 

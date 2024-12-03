@@ -13285,6 +13285,9 @@ TEST_P(QuicFramerTest, DispatcherParseClientVersionNegotiationProbePacket) {
 }
 
 TEST_P(QuicFramerTest, DispatcherParseClientInitialPacketNumber) {
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
   // clang-format off
   PacketFragments packet = {
       // Type (Long header, INITIAL, 2B packet number)
@@ -13314,6 +13317,7 @@ TEST_P(QuicFramerTest, DispatcherParseClientInitialPacketNumber) {
   };
   // clang-format on
 
+  ReviseFirstByteByVersion(packet);
   SetDecrypterLevel(ENCRYPTION_INITIAL);
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(packet));
@@ -13336,10 +13340,6 @@ TEST_P(QuicFramerTest, DispatcherParseClientInitialPacketNumber) {
                 &destination_connection_id, &source_connection_id, &retry_token,
                 &detailed_error, generator));
   EXPECT_EQ(parsed_version, version_);
-  if (parsed_version != ParsedQuicVersion::RFCv1() &&
-      parsed_version != ParsedQuicVersion::Draft29()) {
-    return;
-  }
   EXPECT_EQ(format, IETF_QUIC_LONG_HEADER_PACKET);
   EXPECT_EQ(destination_connection_id.length(), 8);
   EXPECT_EQ(long_packet_type, INITIAL);
@@ -13363,7 +13363,7 @@ TEST_P(QuicFramerTest, DispatcherParseClientInitialPacketNumber) {
 
 TEST_P(QuicFramerTest,
        DispatcherParseClientInitialPacketNumberFromCoalescedPacket) {
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (!version_.HasIetfQuicFrames()) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_INITIAL);
@@ -13457,10 +13457,6 @@ TEST_P(QuicFramerTest,
                 &destination_connection_id, &source_connection_id, &retry_token,
                 &detailed_error, generator));
   EXPECT_EQ(parsed_version, version_);
-  if (parsed_version != ParsedQuicVersion::RFCv1() &&
-      parsed_version != ParsedQuicVersion::Draft29()) {
-    return;
-  }
   EXPECT_EQ(format, IETF_QUIC_LONG_HEADER_PACKET);
   EXPECT_EQ(destination_connection_id.length(), 8);
   EXPECT_EQ(long_packet_type, INITIAL);
