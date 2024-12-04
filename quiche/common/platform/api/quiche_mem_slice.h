@@ -39,14 +39,6 @@ class QUICHE_EXPORT QuicheMemSlice {
                  quiche::SingleUseCallback<void(const char*)> done_callback)
       : impl_(buffer, length, std::move(done_callback)) {}
 
-  // Ensures the use of the in-place constructor (below) is intentional.
-  struct InPlace {};
-
-  // Constructs a QuicheMemSlice by constructing |impl_| in-place.
-  template <typename... Args>
-  explicit QuicheMemSlice(InPlace, Args&&... args)
-      : impl_{std::forward<Args>(args)...} {}
-
   QuicheMemSlice(const QuicheMemSlice& other) = delete;
   QuicheMemSlice& operator=(const QuicheMemSlice& other) = delete;
 
