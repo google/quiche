@@ -6,13 +6,19 @@
 #define QUICHE_QUIC_MOQT_TEST_TOOLS_MOQT_FRAMER_UTILS_H_
 
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "absl/types/variant.h"
 #include "quiche/quic/moqt/moqt_messages.h"
-#include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_data_reader.h"
+#include "quiche/common/quiche_stream.h"
 
 namespace moqt::test {
 
@@ -31,6 +37,9 @@ MoqtMessageType MessageTypeForGenericMessage(const MoqtGenericFrame& frame);
 
 std::string SerializeGenericMessage(const MoqtGenericFrame& frame,
                                     bool use_webtrans = false);
+
+// Parses a concatenation of one or more MoQT control messages.
+std::vector<MoqtGenericFrame> ParseGenericMessage(absl::string_view body);
 
 MATCHER_P(SerializedControlMessage, message,
           "Matches against a specific expected MoQT message") {
@@ -56,6 +65,20 @@ MATCHER_P(ControlMessageOfType, expected_type,
   }
   return true;
 }
+
+// gmock action for extracting an SUBSCRIBE message written onto a stream.
+class StoreSubscribe {
+ public:
+  explicit StoreSubscribe(std::optional<MoqtSubscribe>* subscribe)
+      : subscribe_(subscribe) {}
+
+  // quiche::WriteStream::Writev() implementation.
+  absl::Status operator()(absl::Span<const absl::string_view> data,
+                          const quiche::StreamWriteOptions& options) const;
+
+ private:
+  std::optional<MoqtSubscribe>* subscribe_;
+};
 
 }  // namespace moqt::test
 
