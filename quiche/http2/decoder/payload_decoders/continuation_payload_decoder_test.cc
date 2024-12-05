@@ -10,8 +10,8 @@
 #include <type_traits>
 
 #include "quiche/http2/core/http2_constants.h"
+#include "quiche/http2/core/http2_structures.h"
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
-#include "quiche/http2/http2_structures.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector.h"
 #include "quiche/http2/test_tools/payload_decoder_base_test_util.h"

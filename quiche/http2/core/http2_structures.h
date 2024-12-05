@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_HTTP2_HTTP2_STRUCTURES_H_
-#define QUICHE_HTTP2_HTTP2_STRUCTURES_H_
+#ifndef QUICHE_HTTP2_CORE_HTTP2_STRUCTURES_H_
+#define QUICHE_HTTP2_CORE_HTTP2_STRUCTURES_H_
 
 // Defines structs for various fixed sized structures in HTTP/2.
 //
@@ -344,4 +344,4 @@ QUICHE_EXPORT std::ostream& operator<<(std::ostream& out,
 
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_HTTP2_STRUCTURES_H_
+#endif  // QUICHE_HTTP2_CORE_HTTP2_STRUCTURES_H_

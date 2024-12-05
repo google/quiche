@@ -5,7 +5,7 @@
 #include "quiche/http2/decoder/http2_structure_decoder.h"
 
 // Tests decoding all of the fixed size HTTP/2 structures (i.e. those defined in
-// quiche/http2/http2_structures.h) using Http2StructureDecoder, which
+// quiche/http2/core/http2_structures.h) using Http2StructureDecoder, which
 // handles buffering of structures split across input buffer boundaries, and in
 // turn uses DoDecode when it has all of a structure in a contiguous buffer.
 

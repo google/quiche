@@ -5,7 +5,7 @@
 #include "quiche/http2/decoder/decode_http2_structures.h"
 
 // Tests decoding all of the fixed size HTTP/2 structures (i.e. those defined
-// in quiche/http2/http2_structures.h).
+// in quiche/http2/core/http2_structures.h).
 
 #include <stddef.h>
 

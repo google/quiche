@@ -5,8 +5,8 @@
 #include "quiche/http2/test_tools/http2_frame_decoder_listener_test_util.h"
 
 #include "quiche/http2/core/http2_constants.h"
+#include "quiche/http2/core/http2_structures.h"
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
-#include "quiche/http2/http2_structures.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 

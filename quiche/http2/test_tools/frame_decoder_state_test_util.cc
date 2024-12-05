@@ -4,7 +4,7 @@
 
 #include "quiche/http2/test_tools/frame_decoder_state_test_util.h"
 
-#include "quiche/http2/http2_structures.h"
+#include "quiche/http2/core/http2_structures.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/test_tools/http2_structure_decoder_test_util.h"
 #include "quiche/http2/test_tools/http2_structures_test_util.h"

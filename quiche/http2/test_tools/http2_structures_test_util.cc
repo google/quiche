@@ -7,7 +7,7 @@
 #include <cstdint>
 
 #include "quiche/http2/core/http2_constants.h"
-#include "quiche/http2/http2_structures.h"
+#include "quiche/http2/core/http2_structures.h"
 #include "quiche/http2/test_tools/http2_constants_test_util.h"
 #include "quiche/http2/test_tools/http2_random.h"
 

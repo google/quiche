@@ -17,11 +17,11 @@
 #include <cstdint>
 
 #include "quiche/http2/core/http2_constants.h"
+#include "quiche/http2/core/http2_structures.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
 #include "quiche/http2/decoder/http2_structure_decoder.h"
-#include "quiche/http2/http2_structures.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 

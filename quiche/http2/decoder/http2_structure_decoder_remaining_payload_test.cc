@@ -1,8 +1,8 @@
 // Tests decoding all of the fixed size HTTP/2 structures that are in the frame
-// payload (i.e. those defined in quiche/http2/http2_structures.h, except
-// Http2FrameHeader) using Http2StructureDecoder, which handles buffering of
-// structures split across input buffer boundaries, and in turn
-// uses DoDecode when it has all of a structure in a contiguous buffer.
+// payload (i.e. those defined in quiche/http2/core/http2_structures.h,
+// except Http2FrameHeader) using Http2StructureDecoder, which handles buffering
+// of structures split across input buffer boundaries, and in turn uses DoDecode
+// when it has all of a structure in a contiguous buffer.
 
 #include <stddef.h>
 
@@ -13,10 +13,10 @@
 #include "absl/flags/flag.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/core/http2_constants.h"
+#include "quiche/http2/core/http2_structures.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/decoder/http2_structure_decoder.h"
-#include "quiche/http2/http2_structures.h"
 #include "quiche/http2/test_tools/http2_structure_decoder_test_util.h"
 #include "quiche/http2/test_tools/http2_structures_test_util.h"
 #include "quiche/http2/test_tools/random_decoder_test_base.h"

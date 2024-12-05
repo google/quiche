@@ -32,7 +32,7 @@
 #include <type_traits>
 
 #include "quiche/http2/core/http2_constants.h"
-#include "quiche/http2/http2_structures.h"
+#include "quiche/http2/core/http2_structures.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {

@@ -21,6 +21,7 @@
 
 #include <cstdint>
 
+#include "quiche/http2/core/http2_structures.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/decoder/frame_decoder_state.h"
@@ -38,7 +39,6 @@
 #include "quiche/http2/decoder/payload_decoders/settings_payload_decoder.h"
 #include "quiche/http2/decoder/payload_decoders/unknown_payload_decoder.h"
 #include "quiche/http2/decoder/payload_decoders/window_update_payload_decoder.h"
-#include "quiche/http2/http2_structures.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/http2/http2_structures.h"
+#include "quiche/http2/core/http2_structures.h"
 
 #include <cstring>  // For std::memcmp
 #include <ostream>
