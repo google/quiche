@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-#include "quiche/http2/http2_constants.h"
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {

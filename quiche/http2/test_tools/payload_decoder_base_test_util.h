@@ -12,11 +12,11 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/decoder/frame_decoder_state.h"
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
-#include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/http2_constants_test_util.h"

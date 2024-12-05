@@ -11,7 +11,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
-#include "quiche/http2/http2_constants.h"
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_error_codes.h"

@@ -6,9 +6,9 @@
 
 #include <ostream>
 
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/hpack/varint/hpack_varint_decoder.h"
-#include "quiche/http2/http2_constants.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 

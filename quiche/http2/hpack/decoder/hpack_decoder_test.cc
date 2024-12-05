@@ -11,12 +11,12 @@
 #include <utility>
 #include <vector>
 
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_listener.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_state.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_tables.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
-#include "quiche/http2/http2_constants.h"
 #include "quiche/http2/test_tools/hpack_block_builder.h"
 #include "quiche/http2/test_tools/hpack_example.h"
 #include "quiche/http2/test_tools/http2_random.h"

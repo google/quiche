@@ -12,10 +12,10 @@
 
 #include "absl/flags/flag.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/decoder/http2_structure_decoder.h"
-#include "quiche/http2/http2_constants.h"
 #include "quiche/http2/http2_structures.h"
 #include "quiche/http2/test_tools/http2_structure_decoder_test_util.h"
 #include "quiche/http2/test_tools/http2_structures_test_util.h"

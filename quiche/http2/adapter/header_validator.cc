@@ -9,7 +9,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/adapter/header_validator_base.h"
-#include "quiche/http2/http2_constants.h"
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {

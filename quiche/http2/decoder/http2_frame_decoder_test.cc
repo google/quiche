@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "quiche/http2/http2_constants.h"
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/http2/test_tools/frame_parts.h"
 #include "quiche/http2/test_tools/frame_parts_collector_listener.h"
 #include "quiche/http2/test_tools/http2_random.h"

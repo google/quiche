@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
-#include "quiche/http2/http2_constants.h"
 #include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"

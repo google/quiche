@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_HTTP2_HTTP2_CONSTANTS_H_
-#define QUICHE_HTTP2_HTTP2_CONSTANTS_H_
+#ifndef QUICHE_HTTP2_CORE_HTTP2_CONSTANTS_H_
+#define QUICHE_HTTP2_CORE_HTTP2_CONSTANTS_H_
 
 // Constants from the HTTP/2 spec, RFC 7540, and associated helper functions.
 
@@ -267,4 +267,4 @@ QUICHE_EXPORT const InvalidHeaderSet& GetInvalidHttp2HeaderSet();
 
 }  // namespace http2
 
-#endif  // QUICHE_HTTP2_HTTP2_CONSTANTS_H_
+#endif  // QUICHE_HTTP2_CORE_HTTP2_CONSTANTS_H_
