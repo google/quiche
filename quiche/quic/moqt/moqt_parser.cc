@@ -4,22 +4,28 @@
 
 #include "quiche/quic/moqt/moqt_parser.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <optional>
 #include <string>
+#include <tuple>
 
+#include "absl/base/casts.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_data_reader.h"
+#include "quiche/common/quiche_stream.h"
 
 namespace moqt {
 
@@ -59,81 +65,6 @@ bool IsAllowedStreamType(uint64_t value) {
     }
   }
   return false;
-}
-
-size_t ParseObjectHeader(quic::QuicDataReader& reader, MoqtObject& object,
-                         MoqtDataStreamType type) {
-  if (!reader.ReadVarInt62(&object.track_alias)) {
-    return 0;
-  }
-  if (type != MoqtDataStreamType::kStreamHeaderFetch &&
-      !reader.ReadVarInt62(&object.group_id)) {
-    return 0;
-  }
-  if (type == MoqtDataStreamType::kStreamHeaderSubgroup) {
-    uint64_t subgroup_id;
-    if (!reader.ReadVarInt62(&subgroup_id)) {
-      return 0;
-    }
-    object.subgroup_id = subgroup_id;
-  }
-  if (type == MoqtDataStreamType::kObjectDatagram &&
-      !reader.ReadVarInt62(&object.object_id)) {
-    return 0;
-  }
-  if (type != MoqtDataStreamType::kStreamHeaderFetch &&
-      !reader.ReadUInt8(&object.publisher_priority)) {
-    return 0;
-  }
-  uint64_t status = static_cast<uint64_t>(MoqtObjectStatus::kNormal);
-  if (type == MoqtDataStreamType::kObjectDatagram &&
-      (!reader.ReadVarInt62(&object.payload_length) ||
-       (object.payload_length == 0 && !reader.ReadVarInt62(&status)))) {
-    return 0;
-  }
-  object.object_status = IntegerToObjectStatus(status);
-  return reader.PreviouslyReadPayload().size();
-}
-
-size_t ParseObjectSubheader(quic::QuicDataReader& reader, MoqtObject& object,
-                            MoqtDataStreamType type) {
-  switch (type) {
-    case MoqtDataStreamType::kStreamHeaderFetch:
-      if (!reader.ReadVarInt62(&object.group_id)) {
-        return 0;
-      }
-      if (type == MoqtDataStreamType::kStreamHeaderFetch) {
-        uint64_t value;
-        if (!reader.ReadVarInt62(&value)) {
-          return 0;
-        }
-        object.subgroup_id = value;
-      }
-      [[fallthrough]];
-
-    case MoqtDataStreamType::kStreamHeaderSubgroup: {
-      if (!reader.ReadVarInt62(&object.object_id)) {
-        return 0;
-      }
-      if (type == MoqtDataStreamType::kStreamHeaderFetch &&
-          !reader.ReadUInt8(&object.publisher_priority)) {
-        return 0;
-      }
-      if (!reader.ReadVarInt62(&object.payload_length)) {
-        return 0;
-      }
-      uint64_t status = static_cast<uint64_t>(MoqtObjectStatus::kNormal);
-      if (object.payload_length == 0 && !reader.ReadVarInt62(&status)) {
-        return 0;
-      }
-      object.object_status = IntegerToObjectStatus(status);
-      return reader.PreviouslyReadPayload().size();
-    }
-
-    default:
-      QUICHE_NOTREACHED();
-      return 0;
-  }
 }
 
 }  // namespace
@@ -1057,31 +988,44 @@ void MoqtDataParser::ParseError(absl::string_view reason) {
   if (parsing_error_) {
     return;  // Don't send multiple parse errors.
   }
+  next_input_ = kFailed;
   no_more_data_ = true;
   parsing_error_ = true;
   visitor_.OnParsingError(MoqtError::kProtocolViolation, reason);
 }
 
-absl::string_view ParseDatagram(absl::string_view data,
-                                MoqtObject& object_metadata) {
-  uint64_t value;
+std::optional<absl::string_view> ParseDatagram(absl::string_view data,
+                                               MoqtObject& object_metadata) {
+  uint64_t type_raw, object_status_raw;
   quic::QuicDataReader reader(data);
-  if (!reader.ReadVarInt62(&value)) {
-    return absl::string_view();
+  if (!reader.ReadVarInt62(&type_raw) ||
+      type_raw != static_cast<uint64_t>(MoqtDataStreamType::kObjectDatagram) ||
+      !reader.ReadVarInt62(&object_metadata.track_alias) ||
+      !reader.ReadVarInt62(&object_metadata.group_id) ||
+      !reader.ReadVarInt62(&object_metadata.object_id) ||
+      !reader.ReadUInt8(&object_metadata.publisher_priority) ||
+      !reader.ReadVarInt62(&object_metadata.payload_length)) {
+    return std::nullopt;
   }
-  if (static_cast<MoqtDataStreamType>(value) !=
-      MoqtDataStreamType::kObjectDatagram) {
-    return absl::string_view();
+  if (object_metadata.payload_length > 0) {
+    object_metadata.object_status = MoqtObjectStatus::kNormal;
+  } else {
+    if (!reader.ReadVarInt62(&object_status_raw)) {
+      return std::nullopt;
+    }
+    object_metadata.object_status = IntegerToObjectStatus(object_status_raw);
+    if (object_metadata.object_status ==
+        MoqtObjectStatus::kInvalidObjectStatus) {
+      return std::nullopt;
+    }
   }
-  size_t processed_data = ParseObjectHeader(
-      reader, object_metadata, MoqtDataStreamType::kObjectDatagram);
-  if (processed_data == 0) {  // Incomplete header
-    return absl::string_view();
+  if (reader.PeekRemainingPayload().size() != object_metadata.payload_length) {
+    return std::nullopt;
   }
   return reader.PeekRemainingPayload();
 }
 
-void MoqtDataParser::ProcessData(absl::string_view data, bool fin) {
+void MoqtDataParser::ReadAllData() {
   if (processing_) {
     QUICHE_BUG(MoqtDataParser_reentry)
         << "Calling ProcessData() when ProcessData() is already in progress.";
@@ -1090,104 +1034,253 @@ void MoqtDataParser::ProcessData(absl::string_view data, bool fin) {
   processing_ = true;
   auto on_return = absl::MakeCleanup([&] { processing_ = false; });
 
-  if (no_more_data_) {
-    ParseError("Data after end of stream");
-    return;
-  }
-
-  // Sad path: there is already data buffered.  Attempt to transfer a small
-  // chunk from `data` into the buffer, in hope that it will make the contents
-  // of the buffer parsable without any leftover data.  This is a reasonable
-  // expectation, since object headers are small, and are often followed by
-  // large blobs of data.
-  while (!buffered_message_.empty() && !data.empty()) {
-    absl::string_view chunk = data.substr(0, chunk_size_);
-    absl::StrAppend(&buffered_message_, chunk);
-    absl::string_view unprocessed = ProcessDataInner(buffered_message_);
-    if (unprocessed.size() >= chunk.size()) {
-      // chunk didn't allow any processing at all.
-      data.remove_prefix(chunk.size());
-    } else {
-      buffered_message_.clear();
-      data.remove_prefix(chunk.size() - unprocessed.size());
+  State last_state = state();
+  for (;;) {
+    ParseNextItemFromStream();
+    if (state() == last_state || no_more_data_) {
+      break;
     }
-  }
-
-  // Happy path: there is no buffered data.
-  if (buffered_message_.empty() && !data.empty()) {
-    buffered_message_.assign(ProcessDataInner(data));
-  }
-
-  if (fin) {
-    if (!buffered_message_.empty() || !metadata_.has_value() ||
-        payload_length_remaining_ > 0) {
-      ParseError("FIN received at an unexpected point in the stream");
-      return;
-    }
-    no_more_data_ = true;
+    last_state = state();
   }
 }
 
-absl::string_view MoqtDataParser::ProcessDataInner(absl::string_view data) {
-  quic::QuicDataReader reader(data);
-  while (!reader.IsDoneReading()) {
-    absl::string_view remainder = reader.PeekRemainingPayload();
-    switch (GetNextInput()) {
-      case kStreamType: {
-        uint64_t value;
-        if (!reader.ReadVarInt62(&value)) {
-          return remainder;
-        }
-        if (!IsAllowedStreamType(value)) {
-          ParseError(absl::StrCat("Unknown stream type: ", value));
-          return "";
-        }
-        type_ = static_cast<MoqtDataStreamType>(value);
-        continue;
-      }
+std::optional<uint64_t> MoqtDataParser::ReadVarInt62(bool& fin_read) {
+  fin_read = false;
 
-      case kHeader: {
-        MoqtObject header;
-        size_t bytes_read = ParseObjectHeader(reader, header, *type_);
-        if (bytes_read == 0) {
-          return remainder;
-        }
-        metadata_ = header;
-        continue;
-      }
-
-      case kSubheader: {
-        size_t bytes_read = ParseObjectSubheader(reader, *metadata_, *type_);
-        if (bytes_read == 0) {
-          return remainder;
-        }
-        if (metadata_->object_status ==
-            MoqtObjectStatus::kInvalidObjectStatus) {
-          ParseError("Invalid object status provided");
-          return "";
-        }
-        payload_length_remaining_ = metadata_->payload_length;
-        if (payload_length_remaining_ == 0) {
-          visitor_.OnObjectMessage(*metadata_, "", true);
-        }
-        continue;
-      }
-
-      case kData: {
-        absl::string_view payload =
-            reader.ReadAtMost(payload_length_remaining_);
-        visitor_.OnObjectMessage(*metadata_, payload,
-                                 payload.size() == payload_length_remaining_);
-        payload_length_remaining_ -= payload.size();
-
-        continue;
-      }
-
-      case kPadding:
-        return "";
+  quiche::ReadStream::PeekResult peek_result = stream_.PeekNextReadableRegion();
+  if (!peek_result.has_data()) {
+    if (peek_result.fin_next) {
+      fin_read = stream_.SkipBytes(0);
+      QUICHE_DCHECK(fin_read);
     }
+    return std::nullopt;
   }
-  return "";
+  char first_byte = peek_result.peeked_data[0];
+  size_t varint_size =
+      1 << ((absl::bit_cast<uint8_t>(first_byte) & 0b11000000) >> 6);
+  if (stream_.ReadableBytes() < varint_size) {
+    return std::nullopt;
+  }
+
+  char buffer[8];
+  absl::Span<char> bytes_to_read =
+      absl::MakeSpan(buffer).subspan(0, varint_size);
+  quiche::ReadStream::ReadResult read_result = stream_.Read(bytes_to_read);
+  QUICHE_DCHECK_EQ(read_result.bytes_read, varint_size);
+  fin_read = read_result.fin;
+
+  quiche::QuicheDataReader reader(buffer, read_result.bytes_read);
+  uint64_t result;
+  bool success = reader.ReadVarInt62(&result);
+  QUICHE_DCHECK(success);
+  QUICHE_DCHECK(reader.IsDoneReading());
+  return result;
+}
+
+std::optional<uint64_t> MoqtDataParser::ReadVarInt62NoFin() {
+  bool fin_read = false;
+  std::optional<uint64_t> result = ReadVarInt62(fin_read);
+  if (fin_read) {
+    ParseError("Unexpected FIN received in the middle of a header");
+    return std::nullopt;
+  }
+  return result;
+}
+
+std::optional<uint8_t> MoqtDataParser::ReadUint8NoFin() {
+  char buffer[1];
+  quiche::ReadStream::ReadResult read_result =
+      stream_.Read(absl::MakeSpan(buffer));
+  if (read_result.fin) {
+    ParseError("Unexpected FIN received in the middle of a header");
+    return std::nullopt;
+  }
+  if (read_result.bytes_read == 0) {
+    return std::nullopt;
+  }
+  return absl::bit_cast<uint8_t>(buffer[0]);
+}
+
+void MoqtDataParser::AdvanceParserState() {
+  QUICHE_DCHECK(type_ == MoqtDataStreamType::kStreamHeaderSubgroup ||
+                type_ == MoqtDataStreamType::kStreamHeaderFetch);
+  const bool is_fetch = type_ == MoqtDataStreamType::kStreamHeaderFetch;
+  switch (next_input_) {
+    // The state table is factored into a separate function (rather than
+    // inlined) in order to separate the order of elements from the way they are
+    // parsed.
+    case kStreamType:
+      next_input_ = kTrackAlias;
+      break;
+    case kTrackAlias:
+      next_input_ = kGroupId;
+      break;
+    case kGroupId:
+      next_input_ = kSubgroupId;
+      break;
+    case kSubgroupId:
+      next_input_ = is_fetch ? kObjectId : kPublisherPriority;
+      break;
+    case kPublisherPriority:
+      next_input_ = is_fetch ? kObjectPayloadLength : kObjectId;
+      break;
+    case kObjectId:
+      next_input_ = is_fetch ? kPublisherPriority : kObjectPayloadLength;
+      break;
+    case kStatus:
+    case kData:
+      next_input_ = is_fetch ? kGroupId : kObjectId;
+      break;
+
+    case kObjectPayloadLength:  // Either kStatus or kData depending on length.
+    case kPadding:              // Handled separately.
+    case kFailed:               // Should cause parsing to cease.
+      QUICHE_NOTREACHED();
+      break;
+  }
+}
+
+void MoqtDataParser::ParseNextItemFromStream() {
+  switch (next_input_) {
+    case kStreamType: {
+      std::optional<uint64_t> value_read = ReadVarInt62NoFin();
+      if (value_read.has_value()) {
+        if (!IsAllowedStreamType(*value_read)) {
+          ParseError("Invalid stream type supplied");
+          return;
+        }
+        type_ = static_cast<MoqtDataStreamType>(*value_read);
+        switch (*type_) {
+          case MoqtDataStreamType::kStreamHeaderSubgroup:
+          case MoqtDataStreamType::kStreamHeaderFetch:
+            AdvanceParserState();
+            break;
+          case MoqtDataStreamType::kPadding:
+            next_input_ = kPadding;
+            break;
+          case MoqtDataStreamType::kObjectDatagram:
+            QUICHE_BUG(ParseDataFromStream_kStreamType_unexpected);
+            return;
+        }
+      }
+      return;
+    }
+
+    case kTrackAlias: {
+      std::optional<uint64_t> value_read = ReadVarInt62NoFin();
+      if (value_read.has_value()) {
+        metadata_.track_alias = *value_read;
+        AdvanceParserState();
+      }
+      return;
+    }
+
+    case kGroupId: {
+      std::optional<uint64_t> value_read = ReadVarInt62NoFin();
+      if (value_read.has_value()) {
+        metadata_.group_id = *value_read;
+        AdvanceParserState();
+      }
+      return;
+    }
+
+    case kSubgroupId: {
+      std::optional<uint64_t> value_read = ReadVarInt62NoFin();
+      if (value_read.has_value()) {
+        metadata_.subgroup_id = *value_read;
+        AdvanceParserState();
+      }
+      return;
+    }
+
+    case kPublisherPriority: {
+      std::optional<uint8_t> value_read = ReadUint8NoFin();
+      if (value_read.has_value()) {
+        metadata_.publisher_priority = *value_read;
+        AdvanceParserState();
+      }
+      return;
+    }
+
+    case kObjectId: {
+      std::optional<uint64_t> value_read = ReadVarInt62NoFin();
+      if (value_read.has_value()) {
+        metadata_.object_id = *value_read;
+        AdvanceParserState();
+      }
+      return;
+    }
+
+    case kObjectPayloadLength: {
+      std::optional<uint64_t> value_read = ReadVarInt62NoFin();
+      if (value_read.has_value()) {
+        metadata_.payload_length = *value_read;
+        payload_length_remaining_ = *value_read;
+        if (metadata_.payload_length > 0) {
+          metadata_.object_status = MoqtObjectStatus::kNormal;
+          next_input_ = kData;
+        } else {
+          next_input_ = kStatus;
+        }
+      }
+      return;
+    }
+
+    case kStatus: {
+      bool fin_read = false;
+      std::optional<uint64_t> value_read = ReadVarInt62(fin_read);
+      if (value_read.has_value()) {
+        metadata_.object_status = IntegerToObjectStatus(*value_read);
+        if (metadata_.object_status == MoqtObjectStatus::kInvalidObjectStatus) {
+          ParseError("Invalid object status provided");
+          return;
+        }
+
+        visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
+        AdvanceParserState();
+      }
+      if (fin_read) {
+        no_more_data_ = true;
+        return;
+      }
+      return;
+    }
+
+    case kData: {
+      while (payload_length_remaining_ > 0) {
+        quiche::ReadStream::PeekResult peek_result =
+            stream_.PeekNextReadableRegion();
+        if (peek_result.peeked_data.empty() && !peek_result.fin_next) {
+          return;
+        }
+        if (peek_result.fin_next &&
+            peek_result.peeked_data.size() < payload_length_remaining_) {
+          ParseError("FIN received at an unexpected point in the stream");
+          return;
+        }
+
+        size_t chunk_size =
+            std::min(payload_length_remaining_, peek_result.peeked_data.size());
+        payload_length_remaining_ -= chunk_size;
+        bool done = payload_length_remaining_ == 0;
+        visitor_.OnObjectMessage(
+            metadata_, peek_result.peeked_data.substr(0, chunk_size), done);
+        const bool fin = stream_.SkipBytes(chunk_size);
+        if (done) {
+          no_more_data_ |= fin;
+          AdvanceParserState();
+        }
+      }
+      return;
+    }
+
+    case kPadding:
+      no_more_data_ |= stream_.SkipBytes(stream_.ReadableBytes());
+      return;
+
+    case kFailed:
+      return;
+  }
 }
 
 }  // namespace moqt

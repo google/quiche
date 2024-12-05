@@ -190,14 +190,18 @@ void MoqtSession::OnIncomingUnidirectionalStreamAvailable() {
 
 void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   MoqtObject message;
-  absl::string_view payload = ParseDatagram(datagram, message);
+  std::optional<absl::string_view> payload = ParseDatagram(datagram, message);
+  if (!payload.has_value()) {
+    Error(MoqtError::kProtocolViolation, "Malformed datagram received");
+    return;
+  }
   QUICHE_DLOG(INFO) << ENDPOINT
                     << "Received OBJECT message in datagram for subscribe_id "
                     << " for track alias " << message.track_alias
                     << " with sequence " << message.group_id << ":"
                     << message.object_id << " priority "
                     << message.publisher_priority << " length "
-                    << payload.size();
+                    << payload->size();
   SubscribeRemoteTrack* track = RemoteTrackByAlias(message.track_alias);
   if (track == nullptr) {
     return;
@@ -219,7 +223,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     visitor->OnObjectFragment(
         track->full_track_name(),
         FullSequence{message.group_id, 0, message.object_id},
-        message.publisher_priority, message.object_status, payload, true);
+        message.publisher_priority, message.object_status, *payload, true);
   }
 }
 
@@ -1086,9 +1090,9 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                   << stream_->GetStreamId() << " for track alias "
                   << message.track_alias << " with sequence "
                   << message.group_id << ":" << message.object_id
-                  << " priority " << message.publisher_priority
-                  << " length " << payload.size() << " length "
-                  << message.payload_length << (end_of_message ? "F" : "");
+                  << " priority " << message.publisher_priority << " length "
+                  << payload.size() << " length " << message.payload_length
+                  << (end_of_message ? "F" : "");
   if (!session_->parameters_.deliver_partial_objects) {
     if (!end_of_message) {  // Buffer partial object.
       if (partial_object_.empty()) {
@@ -1143,9 +1147,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   partial_object_.clear();
 }
 
-void MoqtSession::IncomingDataStream::OnCanRead() {
-  ForwardStreamDataToParser(*stream_, parser_);
-}
+void MoqtSession::IncomingDataStream::OnCanRead() { parser_.ReadAllData(); }
 
 void MoqtSession::IncomingDataStream::OnControlMessageReceived() {
   session_->Error(MoqtError::kProtocolViolation,

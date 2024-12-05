@@ -262,7 +262,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                                            public MoqtDataParserVisitor {
    public:
     IncomingDataStream(MoqtSession* session, webtransport::Stream* stream)
-        : session_(session), stream_(stream), parser_(this) {}
+        : session_(session), stream_(stream), parser_(stream, this) {}
 
     // webtransport::StreamVisitor implementation.
     void OnCanRead() override;
