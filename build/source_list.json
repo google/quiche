@@ -42,6 +42,7 @@
     "quiche/common/quiche_crypto_logging.h",
     "quiche/common/quiche_data_reader.h",
     "quiche/common/quiche_data_writer.h",
+    "quiche/common/quiche_default_mem_slice_impl.h",
     "quiche/common/quiche_endian.h",
     "quiche/common/quiche_feature_flags_list.h",
     "quiche/common/quiche_intrusive_list.h",

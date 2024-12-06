@@ -43,6 +43,7 @@ quiche_core_hdrs = [
     "src/quiche/common/quiche_crypto_logging.h",
     "src/quiche/common/quiche_data_reader.h",
     "src/quiche/common/quiche_data_writer.h",
+    "src/quiche/common/quiche_default_mem_slice_impl.h",
     "src/quiche/common/quiche_endian.h",
     "src/quiche/common/quiche_feature_flags_list.h",
     "src/quiche/common/quiche_intrusive_list.h",
