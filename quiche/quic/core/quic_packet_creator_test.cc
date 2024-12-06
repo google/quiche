@@ -1412,9 +1412,9 @@ void QuicPacketCreatorTest::TestChaosProtection(bool enabled) {
   EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   if (enabled) {
-    EXPECT_CALL(framer_visitor_, OnCryptoFrame(_)).Times(AtLeast(2));
+    EXPECT_CALL(framer_visitor_, OnCryptoFrame(_)).Times(AtLeast(3));
     EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(AtLeast(2));
-    EXPECT_CALL(framer_visitor_, OnPingFrame(_)).Times(AtLeast(1));
+    EXPECT_CALL(framer_visitor_, OnPingFrame(_)).Times(AtLeast(2));
   } else {
     EXPECT_CALL(framer_visitor_, OnCryptoFrame(_)).Times(1);
     EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(1);

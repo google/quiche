@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <list>
 #include <memory>
 #include <optional>
@@ -23,6 +24,7 @@
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
 #include "quiche/quic/core/frames/quic_blocked_frame.h"
+#include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
@@ -37,7 +39,10 @@
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
+#include "quiche/quic/core/quic_interval.h"
+#include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_packet_creator.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -48,6 +53,7 @@
 #include "quiche/quic/core/tls_client_handshaker.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -76,6 +82,7 @@
 #include "quiche/quic/test_tools/quic_test_server.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/server_thread.h"
+#include "quiche/quic/test_tools/simple_quic_framer.h"
 #include "quiche/quic/test_tools/web_transport_test_tools.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
@@ -289,6 +296,11 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         std::make_unique<QuicClientSessionCache>(),
         GetParam().event_loop->Create(QuicDefaultClock::Get()));
     client->SetUserAgentID(kTestUserAgentId);
+    if (enable_kyber_in_client_) {
+      std::vector<uint16_t> client_supported_groups = {
+          SSL_GROUP_X25519_KYBER768_DRAFT00, SSL_GROUP_X25519};
+      client->SetPreferredGroups(client_supported_groups);
+    }
     client->UseWriter(writer);
     if (!pre_shared_key_client_.empty()) {
       client->client()->SetPreSharedKey(pre_shared_key_client_);
@@ -990,6 +1002,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     CreateClientWithWriter();
   }
 
+  void TestMultiPacketChaosProtection(int num_packets, bool drop_first_packet,
+                                      bool kyber = false);
+
   quiche::test::ScopedEnvironmentForThreads environment_;
   bool initialized_;
   // If true, the Initialize() function will create |client_| and starts to
@@ -1022,6 +1037,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   int override_client_connection_id_length_ = -1;
   uint8_t expected_server_connection_id_length_;
   bool enable_web_transport_ = false;
+  bool enable_kyber_in_client_ = false;
   std::vector<std::string> received_webtransport_unidirectional_streams_;
   bool use_preferred_address_ = false;
   QuicSocketAddress server_preferred_address_;
@@ -6557,34 +6573,232 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
   server_thread_->Resume();
 }
 
-// Testing packet writer that makes a copy of the first sent packets before
-// sending them. Useful for tests that need access to sent packets.
-class CopyingPacketWriter : public PacketDroppingTestWriter {
+// Testing packet writer that parses initial packets and saves information
+// relevant to chaos protection.
+class ChaosPacketWriter : public PacketDroppingTestWriter {
  public:
-  explicit CopyingPacketWriter(int num_packets_to_copy)
-      : num_packets_to_copy_(num_packets_to_copy) {}
+  explicit ChaosPacketWriter(const ParsedQuicVersion& version,
+                             bool drop_first_initial_packet)
+      : framer_({version}),
+        drop_next_initial_packet_(drop_first_initial_packet) {
+    framer_.framer()->SetInitialObfuscators(TestConnectionId());
+  }
+
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options,
                           const QuicPacketWriterParams& params) override {
-    if (num_packets_to_copy_ > 0) {
-      num_packets_to_copy_--;
-      packets_.push_back(
-          QuicEncryptedPacket(buffer, buf_len, /*owns_buffer=*/false).Clone());
+    bool drop_packet = false;
+    QuicEncryptedPacket packet(buffer, buf_len);
+    if (framer_.ProcessPacket(packet)) {
+      if (framer_.header().form == IETF_QUIC_LONG_HEADER_PACKET &&
+          framer_.header().long_packet_type == INITIAL) {
+        auto initial_packet = std::make_unique<InitialPacketContents>();
+        for (const auto& frame : framer_.crypto_frames()) {
+          QuicInterval<QuicStreamOffset> interval(
+              frame->offset, frame->offset + frame->data_length);
+          initial_packet->crypto_data_intervals.Add(interval);
+          initial_packet->total_crypto_data_length += frame->data_length;
+        }
+        initial_packet->packet_number =
+            framer_.header().packet_number.ToUint64();
+        initial_packet->num_crypto_frames = framer_.crypto_frames().size();
+        initial_packet->num_padding_frames = framer_.padding_frames().size();
+        initial_packet->num_ping_frames = framer_.ping_frames().size();
+        if (drop_next_initial_packet_) {
+          drop_packet = true;
+          drop_next_initial_packet_ = false;
+          initial_packet->was_dropped = true;
+        }
+        initial_packets_.push_back(std::move(initial_packet));
+      }
+    }
+    if (drop_packet) {
+      return WriteResult(WRITE_STATUS_OK, buf_len);
     }
     return PacketDroppingTestWriter::WritePacket(buffer, buf_len, self_address,
                                                  peer_address, options, params);
   }
 
-  std::vector<std::unique_ptr<QuicEncryptedPacket>>& packets() {
-    return packets_;
+  struct InitialPacketContents {
+    uint64_t packet_number = std::numeric_limits<uint64_t>::max();
+    int num_crypto_frames = 0;
+    int num_padding_frames = 0;
+    int num_ping_frames = 0;
+    bool was_dropped = false;
+    QuicByteCount total_crypto_data_length = 0;
+    QuicIntervalSet<QuicStreamOffset> crypto_data_intervals;
+    QuicByteCount min_crypto_offset() const {
+      return crypto_data_intervals.SpanningInterval().min();
+    }
+    QuicByteCount max_crypto_data() const {
+      return crypto_data_intervals.SpanningInterval().max();
+    }
+  };
+
+  const std::vector<std::unique_ptr<InitialPacketContents>>& initial_packets() {
+    return initial_packets_;
   }
 
  private:
-  int num_packets_to_copy_;
-  std::vector<std::unique_ptr<QuicEncryptedPacket>> packets_;
+  SimpleQuicFramer framer_;
+  std::vector<std::unique_ptr<InitialPacketContents>> initial_packets_;
+  bool drop_next_initial_packet_;
 };
+
+TEST_P(EndToEndTest, KyberChaosProtection) {
+  TestMultiPacketChaosProtection(/*num_packets=*/2,
+                                 /*drop_first_packet=*/false,
+                                 /*kyber=*/true);
+}
+
+TEST_P(EndToEndTest, KyberChaosProtectionWithRetransmission) {
+  TestMultiPacketChaosProtection(/*num_packets=*/2,
+                                 /*drop_first_packet=*/true,
+                                 /*kyber=*/true);
+}
+
+TEST_P(EndToEndTest, TwoPacketChaosProtection) {
+  TestMultiPacketChaosProtection(/*num_packets=*/2,
+                                 /*drop_first_packet=*/false);
+}
+
+TEST_P(EndToEndTest, TwoPacketChaosProtectionWithRetransmission) {
+  TestMultiPacketChaosProtection(/*num_packets=*/2,
+                                 /*drop_first_packet=*/true);
+}
+
+TEST_P(EndToEndTest, ThreePacketChaosProtection) {
+  TestMultiPacketChaosProtection(/*num_packets=*/3,
+                                 /*drop_first_packet=*/false);
+}
+
+TEST_P(EndToEndTest, ThreePacketChaosProtectionWithRetransmission) {
+  TestMultiPacketChaosProtection(/*num_packets=*/3,
+                                 /*drop_first_packet=*/true);
+}
+
+void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
+                                                  bool drop_first_packet,
+                                                  bool kyber) {
+  if (!version_.HasIetfQuicFrames()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  SetQuicReloadableFlag(quic_enable_new_chaos_protector, true);
+  // Setup test harness with a custom client writer.
+  connect_to_server_on_initialize_ = false;
+  int discard_length;
+  if (kyber) {
+    discard_length = 1216;
+    enable_kyber_in_client_ = true;
+  } else {
+    discard_length = 1000 * num_packets;
+    client_config_.SetDiscardLengthToSend(discard_length);
+  }
+  ASSERT_TRUE(Initialize());
+  auto copying_writer = new ChaosPacketWriter(version_, drop_first_packet);
+  delete client_writer_;
+  client_writer_ = copying_writer;
+  client_.reset(CreateQuicClient(client_writer_, /*connect=*/false));
+  client_->UseConnectionId(TestConnectionId());
+  client_->Connect();
+  MockableQuicClient* client = client_->client();
+  QuicConnection* client_connection = GetClientConnection();
+  client_writer_->Initialize(
+      QuicConnectionPeer::GetHelper(client_connection),
+      QuicConnectionPeer::GetAlarmFactory(client_connection),
+      std::make_unique<ClientDelegate>(client));
+  EXPECT_TRUE(client->connected());
+  // Make sure application data can be sent.
+  EXPECT_TRUE(SendSynchronousFooRequestAndCheckResponse());
+
+  // Make sure the first flight contains the entire client hello.
+  QuicIntervalSet<QuicStreamOffset> crypto_data_intervals;
+  int num_first_flight_packets = 0;
+  for (size_t i = 0; i < copying_writer->initial_packets().size(); ++i) {
+    if (copying_writer->initial_packets()[i]->crypto_data_intervals.Empty()) {
+      continue;
+    }
+    bool found = false;
+    for (const auto& interval :
+         copying_writer->initial_packets()[i]->crypto_data_intervals) {
+      if (!crypto_data_intervals.IsDisjoint(interval)) {
+        found = true;
+      }
+      crypto_data_intervals.Add(interval);
+    }
+    if (found) {
+      break;
+    }
+    num_first_flight_packets++;
+  }
+  EXPECT_EQ(num_first_flight_packets, num_packets);
+  EXPECT_EQ(crypto_data_intervals.Size(), 1u);
+  EXPECT_EQ(crypto_data_intervals.SpanningInterval().min(), 0u);
+  EXPECT_GT(crypto_data_intervals.SpanningInterval().max(), discard_length);
+
+  ASSERT_GE(copying_writer->initial_packets().size(), 2u);
+  // First packet contains the start and end of the client hello.
+  auto& packet1 = copying_writer->initial_packets()[0];
+  EXPECT_EQ(packet1->was_dropped, drop_first_packet);
+  EXPECT_EQ(packet1->packet_number, 1u);
+  EXPECT_GE(packet1->num_crypto_frames, 3u);
+  EXPECT_GE(packet1->num_ping_frames, 2u);
+  EXPECT_GE(packet1->num_padding_frames, 1u);
+  EXPECT_EQ(packet1->min_crypto_offset(), 0u);
+  EXPECT_GE(packet1->max_crypto_data(), discard_length);
+  EXPECT_GE(packet1->total_crypto_data_length, 500u);
+  // Subsequent packets contain the middle of the client hello.
+  auto& packet2 = copying_writer->initial_packets()[1];
+  EXPECT_FALSE(packet2->was_dropped);
+  EXPECT_EQ(packet2->packet_number, 2u);
+  if (num_packets == 2) {
+    EXPECT_GE(packet2->num_crypto_frames, 3u);
+    EXPECT_GE(packet2->num_ping_frames, 2u);
+  } else {
+    EXPECT_GE(packet2->num_crypto_frames, 1u);
+  }
+  EXPECT_GT(packet2->min_crypto_offset(), 0u);
+  EXPECT_LT(packet2->max_crypto_data(), discard_length);
+  EXPECT_GE(packet2->total_crypto_data_length, 500u);
+  if (num_packets >= 3) {
+    ASSERT_GE(copying_writer->initial_packets().size(), 3u);
+    auto& packet3 = copying_writer->initial_packets()[2];
+    EXPECT_FALSE(packet3->was_dropped);
+    EXPECT_EQ(packet3->packet_number, 3u);
+    EXPECT_GE(packet3->num_crypto_frames, 3u);
+    EXPECT_GE(packet3->num_ping_frames, 2u);
+    EXPECT_GE(packet3->num_padding_frames, 1u);
+    EXPECT_GT(packet3->min_crypto_offset(), 0u);
+    EXPECT_LT(packet3->max_crypto_data(), discard_length);
+    EXPECT_GE(packet3->total_crypto_data_length, 500u);
+  }
+  if (!drop_first_packet) {
+    return;
+  }
+  // Retransmission of the first packet contains the start and end of the client
+  // hello. This validates that the multiple crypto frames are retransmitted in
+  // the same packet, without the packet creator flushing between them.
+  bool found_retransmission = false;
+  for (size_t i = num_packets; i < copying_writer->initial_packets().size();
+       ++i) {
+    // Iterate on subsequent packets until we find the one that contains the
+    // retransmission of the crypto frame that contains the start of the client
+    // hello.
+    auto& packet = copying_writer->initial_packets()[i];
+    if (packet->num_crypto_frames == 0 || packet->min_crypto_offset() != 0) {
+      continue;
+    }
+    found_retransmission = true;
+    EXPECT_FALSE(packet->was_dropped);
+    EXPECT_GE(packet->num_crypto_frames, 2u);
+    EXPECT_GE(packet->max_crypto_data(), discard_length);
+    EXPECT_GE(packet->total_crypto_data_length, 500u);
+  }
+  EXPECT_TRUE(found_retransmission);
+}
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByClient) {
   if (!version_.UsesTls()) {

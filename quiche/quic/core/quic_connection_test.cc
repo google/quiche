@@ -10243,7 +10243,7 @@ TEST_P(QuicConnectionTest, SendCoalescedPackets) {
   EXPECT_EQ(connection_.max_packet_length(), writer_->last_packet_size());
 
   // Verify packet process.
-  EXPECT_EQ(1u, writer_->crypto_frames().size());
+  EXPECT_LE(1u, writer_->crypto_frames().size());
   EXPECT_EQ(0u, writer_->stream_frames().size());
   // Verify there is coalesced packet.
   EXPECT_NE(nullptr, writer_->coalesced_packet());
@@ -10706,7 +10706,7 @@ TEST_P(QuicConnectionTest, ClientRetransmitsInitialPacketsOnRetry) {
   // RETRY.
   if (GetParam().ack_response == AckResponse::kImmediate) {
     EXPECT_EQ(2u, writer_->packets_write_attempts());
-    EXPECT_EQ(1u, writer_->framer()->crypto_frames().size());
+    EXPECT_LE(1u, writer_->framer()->crypto_frames().size());
   }
 }
 

@@ -379,9 +379,12 @@ void QuicChaosProtector::SplitCryptoFrame() {
       static_cast<int>(QuicFramer::GetMinCryptoFrameSize(
           crypto_buffer_offset_ + crypto_data_length_, crypto_data_length_));
   // Pick a random number of CRYPTO frames to add.
+  constexpr uint64_t kMinAddedCryptoFrames = 2;
   constexpr uint64_t kMaxAddedCryptoFrames = 10;
   const uint64_t num_added_crypto_frames =
-      random_->InsecureRandUint64() % (kMaxAddedCryptoFrames + 1);
+      kMinAddedCryptoFrames +
+      random_->InsecureRandUint64() %
+          (kMaxAddedCryptoFrames + 1 - kMinAddedCryptoFrames);
   for (uint64_t i = 0; i < num_added_crypto_frames; i++) {
     if (remaining_padding_bytes_ < max_overhead_of_adding_a_crypto_frame) {
       break;
@@ -430,10 +433,12 @@ void QuicChaosProtector::AddPingFrames() {
   if (remaining_padding_bytes_ == 0) {
     return;
   }
+  constexpr uint64_t kMinAddedPingFrames = 2;
   constexpr uint64_t kMaxAddedPingFrames = 10;
-  const uint64_t num_ping_frames =
-      random_->InsecureRandUint64() %
-      std::min<uint64_t>(kMaxAddedPingFrames, remaining_padding_bytes_);
+  const uint64_t num_ping_frames = std::min<uint64_t>(
+      kMinAddedPingFrames + random_->InsecureRandUint64() %
+                                (kMaxAddedPingFrames + 1 - kMinAddedPingFrames),
+      remaining_padding_bytes_);
   for (uint64_t i = 0; i < num_ping_frames; i++) {
     frames_.push_back(QuicFrame(QuicPingFrame()));
   }

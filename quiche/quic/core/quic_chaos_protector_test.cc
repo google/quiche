@@ -434,41 +434,43 @@ INSTANTIATE_TEST_SUITE_P(QuicChaosProtectorTests, QuicChaosProtectorTest,
 
 TEST_P(QuicChaosProtectorTest, Main) {
   BuildEncryptAndParse();
-  ASSERT_EQ(validation_framer_.crypto_frames().size(), 4u);
+  ASSERT_EQ(validation_framer_.crypto_frames().size(), 6u);
   EXPECT_EQ(validation_framer_.crypto_frames()[0]->offset, 0u);
   EXPECT_EQ(validation_framer_.crypto_frames()[0]->data_length, 1u);
-  ASSERT_EQ(validation_framer_.ping_frames().size(), 3u);
-  ASSERT_EQ(validation_framer_.padding_frames().size(), 7u);
+  EXPECT_EQ(validation_framer_.ping_frames().size(), 5u);
+  ASSERT_EQ(validation_framer_.padding_frames().size(), 9u);
   EXPECT_EQ(validation_framer_.padding_frames()[0].num_padding_bytes, 3);
 }
 
 TEST_P(QuicChaosProtectorTest, DifferentRandom) {
   random_.ResetBase(4);
   BuildEncryptAndParse();
-  ASSERT_EQ(validation_framer_.crypto_frames().size(), 4u);
-  ASSERT_EQ(validation_framer_.ping_frames().size(), 4u);
-  ASSERT_EQ(validation_framer_.padding_frames().size(), 8u);
+  EXPECT_EQ(validation_framer_.crypto_frames().size(), 4u);
+  EXPECT_EQ(validation_framer_.ping_frames().size(), 6u);
+  EXPECT_EQ(validation_framer_.padding_frames().size(), 8u);
 }
 
 TEST_P(QuicChaosProtectorTest, RandomnessZero) {
   random_.ResetBase(0);
   BuildEncryptAndParse();
-  ASSERT_EQ(validation_framer_.crypto_frames().size(), 1u);
-  EXPECT_EQ(validation_framer_.crypto_frames()[0]->offset, crypto_offset_);
+  ASSERT_EQ(validation_framer_.crypto_frames().size(), 2u);
+  EXPECT_EQ(validation_framer_.crypto_frames()[0]->offset, 1);
   EXPECT_EQ(validation_framer_.crypto_frames()[0]->data_length,
-            crypto_data_length_);
-  ASSERT_EQ(validation_framer_.ping_frames().size(), 0u);
-  ASSERT_EQ(validation_framer_.padding_frames().size(), 1u);
+            crypto_data_length_ - 1);
+  EXPECT_EQ(validation_framer_.crypto_frames()[1]->offset, crypto_offset_);
+  EXPECT_EQ(validation_framer_.crypto_frames()[1]->data_length, 1);
+  EXPECT_EQ(validation_framer_.ping_frames().size(), 2u);
+  EXPECT_EQ(validation_framer_.padding_frames().size(), 1u);
 }
 
 TEST_P(QuicChaosProtectorTest, Offset) {
   ResetOffset(123);
   BuildEncryptAndParse();
-  ASSERT_EQ(validation_framer_.crypto_frames().size(), 4u);
+  ASSERT_EQ(validation_framer_.crypto_frames().size(), 6u);
   EXPECT_EQ(validation_framer_.crypto_frames()[0]->offset, crypto_offset_);
   EXPECT_EQ(validation_framer_.crypto_frames()[0]->data_length, 1u);
-  ASSERT_EQ(validation_framer_.ping_frames().size(), 3u);
-  ASSERT_EQ(validation_framer_.padding_frames().size(), 7u);
+  EXPECT_EQ(validation_framer_.ping_frames().size(), 5u);
+  ASSERT_EQ(validation_framer_.padding_frames().size(), 8u);
   EXPECT_EQ(validation_framer_.padding_frames()[0].num_padding_bytes, 3);
 }
 
@@ -476,12 +478,14 @@ TEST_P(QuicChaosProtectorTest, OffsetAndRandomnessZero) {
   ResetOffset(123);
   random_.ResetBase(0);
   BuildEncryptAndParse();
-  ASSERT_EQ(validation_framer_.crypto_frames().size(), 1u);
-  EXPECT_EQ(validation_framer_.crypto_frames()[0]->offset, crypto_offset_);
+  ASSERT_EQ(validation_framer_.crypto_frames().size(), 2u);
+  EXPECT_EQ(validation_framer_.crypto_frames()[0]->offset, crypto_offset_ + 1);
   EXPECT_EQ(validation_framer_.crypto_frames()[0]->data_length,
-            crypto_data_length_);
-  ASSERT_EQ(validation_framer_.ping_frames().size(), 0u);
-  ASSERT_EQ(validation_framer_.padding_frames().size(), 1u);
+            crypto_data_length_ - 1);
+  EXPECT_EQ(validation_framer_.crypto_frames()[1]->offset, crypto_offset_);
+  EXPECT_EQ(validation_framer_.crypto_frames()[1]->data_length, 1);
+  EXPECT_EQ(validation_framer_.ping_frames().size(), 2u);
+  EXPECT_EQ(validation_framer_.padding_frames().size(), 1u);
 }
 
 TEST_P(QuicChaosProtectorTest, ZeroRemainingBytesAfterSplit) {
@@ -505,17 +509,17 @@ TEST_P(QuicChaosProtectorTest, CryptoCryptoAndPadding) {
   random_.ResetBase(38);
   BuildEncryptAndParse();
   EXPECT_EQ(validation_framer_.crypto_frames().size(), 6u);
-  EXPECT_EQ(validation_framer_.ping_frames().size(), 8u);
-  EXPECT_EQ(validation_framer_.padding_frames().size(), 3u);
+  EXPECT_EQ(validation_framer_.ping_frames().size(), 4u);
+  EXPECT_EQ(validation_framer_.padding_frames().size(), 4u);
 }
 
 TEST_P(QuicChaosProtectorTest, ReorderedCryptoCryptoAndPadding) {
   input_frames_pattern_ = InputFramesPattern::kReorderedCryptoCryptoAndPadding;
   random_.ResetBase(38);
   BuildEncryptAndParse();
-  EXPECT_EQ(validation_framer_.crypto_frames().size(), 7u);
-  EXPECT_EQ(validation_framer_.ping_frames().size(), 8u);
-  EXPECT_EQ(validation_framer_.padding_frames().size(), 3u);
+  EXPECT_EQ(validation_framer_.crypto_frames().size(), 6u);
+  EXPECT_EQ(validation_framer_.ping_frames().size(), 4u);
+  EXPECT_EQ(validation_framer_.padding_frames().size(), 4u);
 }
 
 TEST_P(QuicChaosProtectorTest, AckCryptoAndPadding) {
@@ -523,8 +527,8 @@ TEST_P(QuicChaosProtectorTest, AckCryptoAndPadding) {
   random_.ResetBase(37);
   BuildEncryptAndParse();
   EXPECT_EQ(validation_framer_.crypto_frames().size(), 3u);
-  EXPECT_EQ(validation_framer_.ping_frames().size(), 7u);
-  EXPECT_EQ(validation_framer_.padding_frames().size(), 2u);
+  EXPECT_EQ(validation_framer_.ping_frames().size(), 3u);
+  EXPECT_EQ(validation_framer_.padding_frames().size(), 4u);
   ASSERT_EQ(validation_framer_.ack_frames().size(), 1u);
   // Chaos protector does not insert padding before ACK, or recorder ACK frames.
   EXPECT_EQ(validation_framer_.frame_types()[0], ACK_FRAME);

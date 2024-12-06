@@ -190,6 +190,10 @@ class QuicClientBase : public QuicSession::Visitor {
     crypto_config_.set_user_agent_id(user_agent_id);
   }
 
+  void SetPreferredGroups(const std::vector<uint16_t>& preferred_groups) {
+    crypto_config_.set_preferred_groups(preferred_groups);
+  }
+
   void SetTlsSignatureAlgorithms(std::string signature_algorithms) {
     crypto_config_.set_tls_signature_algorithms(
         std::move(signature_algorithms));

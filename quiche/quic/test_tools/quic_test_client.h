@@ -149,6 +149,9 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
   // Sets the |user_agent_id| of the |client_|.
   void SetUserAgentID(const std::string& user_agent_id);
 
+  // Sets the preferred TLS key exchange groups of the |client_|.
+  void SetPreferredGroups(const std::vector<uint16_t>& preferred_groups);
+
   // Wraps data in a quic packet and sends it.
   int64_t SendData(const std::string& data, bool last_data);
   // As above, but |delegate| will be notified when |data| is ACKed.

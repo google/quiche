@@ -377,6 +377,11 @@ void QuicTestClient::SetUserAgentID(const std::string& user_agent_id) {
   client_->SetUserAgentID(user_agent_id);
 }
 
+void QuicTestClient::SetPreferredGroups(
+    const std::vector<uint16_t>& preferred_groups) {
+  client_->SetPreferredGroups(preferred_groups);
+}
+
 int64_t QuicTestClient::SendRequest(const std::string& uri) {
   quiche::HttpHeaderBlock headers;
   if (!PopulateHeaderBlockFromUrl(uri, &headers)) {
