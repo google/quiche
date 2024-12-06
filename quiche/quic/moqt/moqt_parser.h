@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_stream.h"
 
 namespace moqt {
@@ -194,6 +195,10 @@ class QUICHE_EXPORT MoqtDataParser {
   // Reads all of the available objects on the stream.
   void ReadAllData();
 
+  void ReadStreamType();
+  void ReadTrackAlias();
+  void ReadAtMostOneObject();
+
   // Returns the type of the unidirectional stream, if already known.
   std::optional<MoqtDataStreamType> stream_type() const { return type_; }
 
@@ -214,6 +219,10 @@ class QUICHE_EXPORT MoqtDataParser {
     kPadding,
     kFailed,
   };
+
+  // If a StopCondition callback returns true, parsing will terminate.
+  using StopCondition = quiche::UnretainedCallback<bool()>;
+
   struct State {
     NextInput next_input;
     uint64_t payload_remaining;
@@ -221,6 +230,8 @@ class QUICHE_EXPORT MoqtDataParser {
     bool operator==(const State&) const = default;
   };
   State state() const { return State{next_input_, payload_length_remaining_}; }
+
+  void ReadDataUntil(StopCondition stop_condition);
 
   // Reads a single varint from the underlying stream.
   std::optional<uint64_t> ReadVarInt62(bool& fin_read);
@@ -235,6 +246,9 @@ class QUICHE_EXPORT MoqtDataParser {
   void AdvanceParserState();
   // Reads the next available item from the stream.
   void ParseNextItemFromStream();
+  // Checks if we have encountered a FIN without data.  If so, processes it and
+  // returns true.
+  bool CheckForFinWithoutData();
 
   void ParseError(absl::string_view reason);
 
@@ -250,6 +264,7 @@ class QUICHE_EXPORT MoqtDataParser {
   NextInput next_input_ = kStreamType;
   MoqtObject metadata_;
   size_t payload_length_remaining_ = 0;
+  size_t num_objects_read_ = 0;
 
   bool processing_ = false;  // True if currently in ProcessData(), to prevent
                              // re-entrancy.

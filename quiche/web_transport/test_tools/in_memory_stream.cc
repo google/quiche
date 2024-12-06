@@ -43,9 +43,7 @@ quiche::ReadStream::PeekResult InMemoryStream::PeekNextReadableRegion() const {
     return PeekResult{"", fin_received_, fin_received_};
   }
   absl::string_view next_chunk = *buffer_.Chunks().begin();
-  return PeekResult{next_chunk,
-                    fin_received_ && next_chunk.size() == buffer_.size(),
-                    fin_received_};
+  return PeekResult{next_chunk, false, fin_received_};
 }
 
 bool InMemoryStream::SkipBytes(size_t bytes) {

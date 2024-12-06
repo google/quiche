@@ -1379,4 +1379,53 @@ TEST_F(MoqtMessageSpecificTest, PaddingStream) {
   }
 }
 
+class MoqtDataParserStateMachineTest : public quic::test::QuicTest {
+ protected:
+  MoqtDataParserStateMachineTest()
+      : stream_(/*stream_id=*/0), parser_(&stream_, &visitor_) {}
+
+  webtransport::test::InMemoryStream stream_;
+  MoqtParserTestVisitor visitor_;
+  MoqtDataParser parser_;
+};
+
+TEST_F(MoqtDataParserStateMachineTest, ReadAll) {
+  stream_.Receive(StreamHeaderSubgroupMessage().PacketSample());
+  stream_.Receive(StreamMiddlerSubgroupMessage().PacketSample());
+  parser_.ReadAllData();
+  ASSERT_EQ(visitor_.messages_received_, 2);
+  EXPECT_EQ(visitor_.object_payloads_[0], "foo");
+  EXPECT_EQ(visitor_.object_payloads_[1], "bar");
+  stream_.Receive("", /*fin=*/true);
+  parser_.ReadAllData();
+  EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
+}
+
+TEST_F(MoqtDataParserStateMachineTest, ReadObjects) {
+  stream_.Receive(StreamHeaderSubgroupMessage().PacketSample());
+  stream_.Receive(StreamMiddlerSubgroupMessage().PacketSample(), /*fin=*/true);
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received_, 1);
+  EXPECT_EQ(visitor_.object_payloads_[0], "foo");
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received_, 2);
+  EXPECT_EQ(visitor_.object_payloads_[1], "bar");
+  EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
+}
+
+TEST_F(MoqtDataParserStateMachineTest, ReadTypeThenObjects) {
+  stream_.Receive(StreamHeaderSubgroupMessage().PacketSample());
+  stream_.Receive(StreamMiddlerSubgroupMessage().PacketSample(), /*fin=*/true);
+  parser_.ReadStreamType();
+  ASSERT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(parser_.stream_type(), MoqtDataStreamType::kStreamHeaderSubgroup);
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received_, 1);
+  EXPECT_EQ(visitor_.object_payloads_[0], "foo");
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received_, 2);
+  EXPECT_EQ(visitor_.object_payloads_[1], "bar");
+  EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
+}
+
 }  // namespace moqt::test

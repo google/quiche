@@ -1025,7 +1025,7 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
   return reader.PeekRemainingPayload();
 }
 
-void MoqtDataParser::ReadAllData() {
+void MoqtDataParser::ReadDataUntil(StopCondition stop_condition) {
   if (processing_) {
     QUICHE_BUG(MoqtDataParser_reentry)
         << "Calling ProcessData() when ProcessData() is already in progress.";
@@ -1037,7 +1037,7 @@ void MoqtDataParser::ReadAllData() {
   State last_state = state();
   for (;;) {
     ParseNextItemFromStream();
-    if (state() == last_state || no_more_data_) {
+    if (state() == last_state || no_more_data_ || stop_condition()) {
       break;
     }
     last_state = state();
@@ -1048,7 +1048,7 @@ std::optional<uint64_t> MoqtDataParser::ReadVarInt62(bool& fin_read) {
   fin_read = false;
 
   quiche::ReadStream::PeekResult peek_result = stream_.PeekNextReadableRegion();
-  if (!peek_result.has_data()) {
+  if (peek_result.peeked_data.empty()) {
     if (peek_result.fin_next) {
       fin_read = stream_.SkipBytes(0);
       QUICHE_DCHECK(fin_read);
@@ -1141,6 +1141,9 @@ void MoqtDataParser::AdvanceParserState() {
 }
 
 void MoqtDataParser::ParseNextItemFromStream() {
+  if (CheckForFinWithoutData()) {
+    return;
+  }
   switch (next_input_) {
     case kStreamType: {
       std::optional<uint64_t> value_read = ReadVarInt62NoFin();
@@ -1236,6 +1239,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
           return;
         }
 
+        ++num_objects_read_;
         visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
         AdvanceParserState();
       }
@@ -1250,11 +1254,10 @@ void MoqtDataParser::ParseNextItemFromStream() {
       while (payload_length_remaining_ > 0) {
         quiche::ReadStream::PeekResult peek_result =
             stream_.PeekNextReadableRegion();
-        if (peek_result.peeked_data.empty() && !peek_result.fin_next) {
+        if (!peek_result.has_data()) {
           return;
         }
-        if (peek_result.fin_next &&
-            peek_result.peeked_data.size() < payload_length_remaining_) {
+        if (peek_result.fin_next && payload_length_remaining_ > 0) {
           ParseError("FIN received at an unexpected point in the stream");
           return;
         }
@@ -1267,6 +1270,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
             metadata_, peek_result.peeked_data.substr(0, chunk_size), done);
         const bool fin = stream_.SkipBytes(chunk_size);
         if (done) {
+          ++num_objects_read_;
           no_more_data_ |= fin;
           AdvanceParserState();
         }
@@ -1281,6 +1285,41 @@ void MoqtDataParser::ParseNextItemFromStream() {
     case kFailed:
       return;
   }
+}
+
+void MoqtDataParser::ReadAllData() {
+  ReadDataUntil(+[]() { return false; });
+}
+
+void MoqtDataParser::ReadStreamType() {
+  return ReadDataUntil([this]() { return type_.has_value(); });
+}
+
+void MoqtDataParser::ReadTrackAlias() {
+  return ReadDataUntil(
+      [this]() { return type_.has_value() && next_input_ != kTrackAlias; });
+}
+
+void MoqtDataParser::ReadAtMostOneObject() {
+  const size_t num_objects_read_initial = num_objects_read_;
+  return ReadDataUntil(
+      [&]() { return num_objects_read_ != num_objects_read_initial; });
+}
+
+bool MoqtDataParser::CheckForFinWithoutData() {
+  if (!stream_.PeekNextReadableRegion().fin_next) {
+    return false;
+  }
+  const bool valid_state =
+      (type_ == MoqtDataStreamType::kStreamHeaderSubgroup &&
+       next_input_ == kObjectId) ||
+      (type_ == MoqtDataStreamType::kStreamHeaderFetch &&
+       next_input_ == kGroupId);
+  if (!valid_state || num_objects_read_ == 0) {
+    ParseError("FIN received at an unexpected point in the stream");
+    return true;
+  }
+  return stream_.SkipBytes(0);
 }
 
 }  // namespace moqt
