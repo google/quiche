@@ -697,6 +697,10 @@ class QUICHE_EXPORT QuicSession
     return enable_stop_sending_for_zombie_streams_;
   }
 
+  bool notify_stream_soon_to_destroy() const {
+    return notify_stream_soon_to_destroy_;
+  }
+
  protected:
   using StreamMap =
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
@@ -977,6 +981,15 @@ class QUICHE_EXPORT QuicSession
 
   bool ExceedsPerLoopStreamLimit() const;
 
+  // Moves the stream pointed by |it| from stream_map_ to closed_streams_.
+  void PrepareStreamForDestruction(StreamMap::iterator it);
+
+  // Called by applications to perform |action| on streams that have received
+  // and sent FIN, but still waiting for ACK. Stream iteration will be stopped
+  // if action returns false.
+  void PerformActionOnNonStaticStreams(
+      quiche::UnretainedCallback<bool(QuicStream*)> action);
+
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
   absl::flat_hash_map<QuicStreamId, QuicStreamOffset>
@@ -1105,6 +1118,9 @@ class QUICHE_EXPORT QuicSession
 
   const bool enable_stop_sending_for_zombie_streams_ =
       GetQuicReloadableFlag(quic_deliver_stop_sending_to_zombie_streams);
+
+  const bool notify_stream_soon_to_destroy_ =
+      GetQuicReloadableFlag(quic_notify_stream_soon_to_destroy);
 };
 
 }  // namespace quic

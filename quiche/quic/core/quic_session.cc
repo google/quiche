@@ -590,17 +590,32 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
 
   GetMutableCryptoStream()->OnConnectionClosed(frame, source);
 
-  PerformActionOnActiveStreams([this, frame, source](QuicStream* stream) {
-    QuicStreamId id = stream->id();
-    stream->OnConnectionClosed(frame, source);
-    auto it = stream_map_.find(id);
-    if (it != stream_map_.end()) {
-      QUIC_BUG_IF(quic_bug_12435_2, !it->second->IsZombie())
-          << ENDPOINT << "Non-zombie stream " << id
-          << " failed to close under OnConnectionClosed";
-    }
-    return true;
-  });
+  if (!notify_stream_soon_to_destroy_) {
+    PerformActionOnActiveStreams([this, frame, source](QuicStream* stream) {
+      QuicStreamId id = stream->id();
+      stream->OnConnectionClosed(frame, source);
+      auto it = stream_map_.find(id);
+      if (it != stream_map_.end()) {
+        QUIC_BUG_IF(quic_bug_12435_2, !it->second->IsZombie())
+            << ENDPOINT << "Non-zombie stream " << id
+            << " failed to close under OnConnectionClosed";
+      }
+      return true;
+    });
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_notify_stream_soon_to_destroy, 1, 2);
+    PerformActionOnNonStaticStreams([this, frame, source](QuicStream* stream) {
+      QuicStreamId id = stream->id();
+      stream->OnConnectionClosed(frame, source);
+      QUIC_BUG_IF(quic_bug_12435_12, stream_map_.contains(id))
+          << ENDPOINT << "Non-static stream " << id
+          << " failed to be moved to closed stream list under "
+             "OnConnectionClosed";
+      return true;
+    });
+    QUIC_BUG_IF(zombie_stream_not_ready_for_destruction,
+                num_zombie_streams_ > 0);
+  }
 
   closed_streams_clean_up_alarm_->Cancel();
   stream_count_reset_alarm_->Cancel();
@@ -610,6 +625,13 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                                  frame.quic_error_code, frame.error_details,
                                  source);
   }
+}
+
+void QuicSession::PrepareStreamForDestruction(StreamMap::iterator it) {
+  QUIC_BUG_IF(alive_stream_not_in_stream_map, it == stream_map_.end());
+  it->second->OnSoonToBeDestroyed();
+  closed_streams_.push_back(std::move(it->second));
+  stream_map_.erase(it);
 }
 
 void QuicSession::OnWriteBlocked() {
@@ -1162,8 +1184,7 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
     // The stream needs to be kept alive because it's waiting for acks.
     ++num_zombie_streams_;
   } else {
-    closed_streams_.push_back(std::move(it->second));
-    stream_map_.erase(it);
+    PrepareStreamForDestruction(it);
     // Do not retransmit data of a closed stream.
     streams_with_pending_retransmission_.erase(stream_id);
     if (!closed_streams_clean_up_alarm_->IsSet()) {
@@ -2407,8 +2428,7 @@ void QuicSession::MaybeCloseZombieStream(QuicStreamId id) {
     return;
   }
   --num_zombie_streams_;
-  closed_streams_.push_back(std::move(it->second));
-  stream_map_.erase(it);
+  PrepareStreamForDestruction(it);
 
   if (!closed_streams_clean_up_alarm_->IsSet()) {
     closed_streams_clean_up_alarm_->Set(connection_->clock()->ApproximateNow());
@@ -2842,6 +2862,22 @@ void QuicSession::PerformActionOnActiveStreams(
   }
 
   for (QuicStream* stream : active_streams) {
+    if (!action(stream)) {
+      return;
+    }
+  }
+}
+
+void QuicSession::PerformActionOnNonStaticStreams(
+    quiche::UnretainedCallback<bool(QuicStream*)> action) {
+  std::vector<QuicStream*> streams;
+  for (const auto& it : stream_map_) {
+    if (!it.second->is_static()) {
+      streams.push_back(it.second.get());
+    }
+  }
+
+  for (QuicStream* stream : streams) {
     if (!action(stream)) {
       return;
     }

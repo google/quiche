@@ -412,6 +412,9 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // indicating it can start processing data.
   void OnStreamCreatedFromPendingStream();
 
+  // Called by the sessionwhen a closed stream is about to be destroyed.
+  virtual void OnSoonToBeDestroyed();
+
   void DisableConnectionFlowControlForThisStream() {
     stream_contributes_to_connection_flow_control_ = false;
   }

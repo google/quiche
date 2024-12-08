@@ -541,6 +541,10 @@ bool QuicStream::OnStopSending(QuicResetStreamError error) {
   return true;
 }
 
+void QuicStream::OnSoonToBeDestroyed() {
+  QUICHE_DCHECK(write_side_closed() && read_side_closed());
+}
+
 int QuicStream::num_frames_received() const {
   return sequencer_.num_frames_received();
 }
@@ -616,18 +620,24 @@ void QuicStream::OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) {
 
 void QuicStream::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                                     ConnectionCloseSource /*source*/) {
-  if (read_side_closed_ && write_side_closed_) {
-    return;
-  }
-  auto error_code = frame.quic_error_code;
-  if (error_code != QUIC_NO_ERROR) {
-    stream_error_ =
-        QuicResetStreamError::FromInternal(QUIC_STREAM_CONNECTION_ERROR);
-    connection_error_ = error_code;
+  if (!read_side_closed_ || !write_side_closed_) {
+    auto error_code = frame.quic_error_code;
+    if (error_code != QUIC_NO_ERROR) {
+      stream_error_ =
+          QuicResetStreamError::FromInternal(QUIC_STREAM_CONNECTION_ERROR);
+      connection_error_ = error_code;
+    }
+
+    CloseWriteSide();
+    CloseReadSide();
   }
 
-  CloseWriteSide();
-  CloseReadSide();
+  if (session_->notify_stream_soon_to_destroy()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_notify_stream_soon_to_destroy, 2, 2);
+    // The stream may still be waiting for ACKs, but no ACK will be received any
+    // more. So move it into the closed stream list.
+    session_->MaybeCloseZombieStream(id_);
+  }
 }
 
 void QuicStream::OnFinRead() {

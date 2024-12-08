@@ -253,6 +253,10 @@ class TestStream : public QuicSpdyStream {
     data_ += std::string(buffer, bytes_read);
   }
 
+  void OnSoonToBeDestroyed() override {
+    on_soon_to_be_destroyed_called_ = true;
+  }
+
   MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
 
   size_t WriteHeadersImpl(
@@ -282,12 +286,16 @@ class TestStream : public QuicSpdyStream {
   }
 
   size_t headers_payload_length() const { return headers_payload_length_; }
+  bool on_soon_to_be_destroyed_called() const {
+    return on_soon_to_be_destroyed_called_;
+  }
 
  private:
   bool should_process_data_;
   quiche::HttpHeaderBlock saved_headers_;
   std::string data_;
   size_t headers_payload_length_;
+  bool on_soon_to_be_destroyed_called_ = false;
 };
 
 class TestSession : public MockQuicSpdySession {
@@ -1902,7 +1910,7 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
 }
 
-TEST_P(QuicSpdyStreamTest, OnPacketAckedBeforeStreamDestroy) {
+TEST_P(QuicSpdyStreamTest, NotifyOnPacketAckedBeforeStreamDestroy) {
   Initialize(kShouldProcessData);
   quiche::QuicheReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
@@ -1951,8 +1959,10 @@ TEST_P(QuicSpdyStreamTest, OnPacketAckedBeforeStreamDestroy) {
         if (GetQuicReloadableFlag(quic_notify_ack_listener_earlier)) {
           // Stream is not added to closed stream list yet.
           EXPECT_NE(session_->GetActiveStream(stream_->id()), nullptr);
+          EXPECT_FALSE(stream_->on_soon_to_be_destroyed_called());
         } else {
           EXPECT_EQ(session_->GetActiveStream(stream_->id()), nullptr);
+          EXPECT_TRUE(stream_->on_soon_to_be_destroyed_called());
         }
       }));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 0, true, QuicTime::Delta::Zero(),
@@ -1960,6 +1970,7 @@ TEST_P(QuicSpdyStreamTest, OnPacketAckedBeforeStreamDestroy) {
                                           &newly_acked_length));
   EXPECT_FALSE(stream_->IsWaitingForAcks());
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
+  EXPECT_TRUE(stream_->on_soon_to_be_destroyed_called());
 }
 
 TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {

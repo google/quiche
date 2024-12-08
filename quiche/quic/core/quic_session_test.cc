@@ -238,6 +238,8 @@ class TestStream : public QuicStream {
               (override));
 
   MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
+
+  MOCK_METHOD(void, OnSoonToBeDestroyed, (), (override));
 };
 
 class TestSession : public QuicSession {
@@ -3089,6 +3091,9 @@ TEST_P(QuicSessionTestServer, OnStopSendingForZombieStreams) {
   if (GetQuicReloadableFlag(quic_deliver_stop_sending_to_zombie_streams)) {
     EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
     EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(1);
+    if (GetQuicReloadableFlag(quic_notify_stream_soon_to_destroy)) {
+      EXPECT_CALL(*stream, OnSoonToBeDestroyed());
+    }
   } else {
     EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
     EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(0);
@@ -3103,6 +3108,29 @@ TEST_P(QuicSessionTestServer, OnStopSendingForZombieStreams) {
     EXPECT_TRUE(stream->IsZombie());
     EXPECT_EQ(0u, session_.closed_streams()->size());
   }
+}
+
+TEST_P(QuicSessionTestServer, OnConnectionCloseForZombieStreams) {
+  if (!VersionHasIetfQuicFrames(transport_version()) ||
+      !GetQuicReloadableFlag(quic_notify_stream_soon_to_destroy)) {
+    return;
+  }
+  CompleteHandshake();
+  session_.set_writev_consumes_all_data(true);
+
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  std::string body(100, '.');
+  QuicStreamPeer::CloseReadSide(stream);
+  stream->WriteOrBufferData(body, true, nullptr);
+  EXPECT_TRUE(stream->IsWaitingForAcks());
+  // Verify that the stream is a zombie.
+  EXPECT_TRUE(stream->IsZombie());
+  ASSERT_EQ(0u, session_.closed_streams()->size());
+
+  EXPECT_CALL(*stream, OnSoonToBeDestroyed());
+  connection_->ReallyCloseConnection(QUIC_NO_ERROR, "Testing",
+                                     ConnectionCloseBehavior::SILENT_CLOSE);
+  EXPECT_EQ(0, session_.GetNumActiveStreams());
 }
 
 // If stream is closed, return true and do not close the connection.
