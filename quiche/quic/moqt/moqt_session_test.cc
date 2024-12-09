@@ -639,6 +639,68 @@ TEST_F(MoqtSessionTest, ReplyToAnnounce) {
   stream_input->OnAnnounceMessage(announce);
 }
 
+TEST_F(MoqtSessionTest, SubscribeAnnouncesLifeCycle) {
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  FullTrackName track_namespace("foo", "bar");
+  track_namespace.NameToNamespace();
+  bool got_callback = false;
+  EXPECT_CALL(
+      mock_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnounces), _));
+  session_.SubscribeAnnounces(
+      track_namespace,
+      [&](const FullTrackName& ftn, std::optional<SubscribeErrorCode> error,
+          absl::string_view reason) {
+        got_callback = true;
+        EXPECT_EQ(track_namespace, ftn);
+        EXPECT_FALSE(error.has_value());
+        EXPECT_EQ(reason, "");
+      });
+  MoqtSubscribeAnnouncesOk ok = {
+      /*track_namespace=*/track_namespace,
+  };
+  stream_input->OnSubscribeAnnouncesOkMessage(ok);
+  EXPECT_TRUE(got_callback);
+  EXPECT_CALL(
+      mock_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kUnsubscribeAnnounces), _));
+  EXPECT_TRUE(session_.UnsubscribeAnnounces(track_namespace));
+  EXPECT_FALSE(session_.UnsubscribeAnnounces(track_namespace));
+}
+
+TEST_F(MoqtSessionTest, SubscribeAnnouncesError) {
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  FullTrackName track_namespace("foo", "bar");
+  track_namespace.NameToNamespace();
+  bool got_callback = false;
+  EXPECT_CALL(
+      mock_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnounces), _));
+  session_.SubscribeAnnounces(
+      track_namespace,
+      [&](const FullTrackName& ftn, std::optional<SubscribeErrorCode> error,
+          absl::string_view reason) {
+        got_callback = true;
+        EXPECT_EQ(track_namespace, ftn);
+        ASSERT_TRUE(error.has_value());
+        EXPECT_EQ(*error, SubscribeErrorCode::kInvalidRange);
+        EXPECT_EQ(reason, "deadbeef");
+      });
+  MoqtSubscribeAnnouncesError error = {
+      /*track_namespace=*/track_namespace,
+      /*error_code=*/SubscribeErrorCode::kInvalidRange,
+      /*reason_phrase=*/"deadbeef",
+  };
+  stream_input->OnSubscribeAnnouncesErrorMessage(error);
+  EXPECT_TRUE(got_callback);
+  // Entry is immediately gone.
+  EXPECT_FALSE(session_.UnsubscribeAnnounces(track_namespace));
+}
+
 TEST_F(MoqtSessionTest, IncomingObject) {
   MockSubscribeRemoteTrackVisitor visitor_;
   FullTrackName ftn("foo", "bar");

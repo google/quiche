@@ -49,6 +49,9 @@ using MoqtOutgoingAnnounceCallback = quiche::SingleUseCallback<void(
 using MoqtIncomingAnnounceCallback =
     quiche::MultiUseCallback<std::optional<MoqtAnnounceErrorReason>(
         FullTrackName track_namespace)>;
+using MoqtSubscribeAnnouncesCallback = quiche::SingleUseCallback<void(
+    FullTrackName track_namespace, std::optional<SubscribeErrorCode> error,
+    absl::string_view reason)>;
 
 inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
     FullTrackName /*track_namespace*/) {
@@ -105,6 +108,12 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   void Error(MoqtError code, absl::string_view error);
 
   quic::Perspective perspective() const { return parameters_.perspective; }
+
+  // Returns true if message was sent.
+  bool SubscribeAnnounces(
+      FullTrackName track_namespace, MoqtSubscribeAnnouncesCallback callback,
+      MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
+  bool UnsubscribeAnnounces(FullTrackName track_namespace);
 
   // Send an ANNOUNCE message for |track_namespace|, and call
   // |announce_callback| when the response arrives. Will fail immediately if
@@ -214,9 +223,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnSubscribeAnnouncesMessage(
         const MoqtSubscribeAnnounces& message) override {}
     void OnSubscribeAnnouncesOkMessage(
-        const MoqtSubscribeAnnouncesOk& message) override {}
+        const MoqtSubscribeAnnouncesOk& message) override;
     void OnSubscribeAnnouncesErrorMessage(
-        const MoqtSubscribeAnnouncesError& message) override {}
+        const MoqtSubscribeAnnouncesError& message) override;
     void OnUnsubscribeAnnouncesMessage(
         const MoqtUnsubscribeAnnounces& message) override {}
     void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override;
@@ -609,6 +618,12 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // Indexed by track namespace.
   absl::flat_hash_map<FullTrackName, MoqtOutgoingAnnounceCallback>
       pending_outgoing_announces_;
+  // The value is nullptr after OK or ERROR is received. The entry is deleted
+  // when sending UNSUBSCRIBE_ANNOUNCES, to make sure the application doesn't
+  // unsubscribe from something that it isn't subscribed to. ANNOUNCEs that
+  // result from this subscription use incoming_announce_callback.
+  absl::flat_hash_map<FullTrackName, MoqtSubscribeAnnouncesCallback>
+      outgoing_subscribe_announces_;
 
   // The role the peer advertised in its SETUP message. Initialize it to avoid
   // an uninitialized value if no SETUP arrives or it arrives with no Role

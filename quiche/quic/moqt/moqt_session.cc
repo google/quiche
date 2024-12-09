@@ -239,6 +239,37 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
   std::move(callbacks_.session_terminated_callback)(error);
 }
 
+bool MoqtSession::SubscribeAnnounces(FullTrackName track_namespace,
+                                     MoqtSubscribeAnnouncesCallback callback,
+                                     MoqtSubscribeParameters parameters) {
+  if (peer_role_ == MoqtRole::kSubscriber) {
+    std::move(callback)(track_namespace, SubscribeErrorCode::kInternalError,
+                        "SUBSCRIBE_ANNOUNCES cannot be sent to subscriber");
+    return false;
+  }
+  MoqtSubscribeAnnounces message;
+  message.track_namespace = track_namespace;
+  message.parameters = std::move(parameters);
+  SendControlMessage(framer_.SerializeSubscribeAnnounces(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_ANNOUNCES message for "
+                  << message.track_namespace;
+  outgoing_subscribe_announces_[track_namespace] = std::move(callback);
+  return true;
+}
+
+bool MoqtSession::UnsubscribeAnnounces(FullTrackName track_namespace) {
+  if (!outgoing_subscribe_announces_.contains(track_namespace)) {
+    return false;
+  }
+  MoqtUnsubscribeAnnounces message;
+  message.track_namespace = track_namespace;
+  SendControlMessage(framer_.SerializeUnsubscribeAnnounces(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent UNSUBSCRIBE_ANNOUNCES message for "
+                  << message.track_namespace;
+  outgoing_subscribe_announces_.erase(track_namespace);
+  return true;
+}
+
 // TODO: Create state that allows ANNOUNCE_OK/ERROR on spurious namespaces to
 // trigger session errors.
 void MoqtSession::Announce(FullTrackName track_namespace,
@@ -981,6 +1012,39 @@ void MoqtSession::ControlStream::OnAnnounceErrorMessage(
 void MoqtSession::ControlStream::OnAnnounceCancelMessage(
     const MoqtAnnounceCancel& message) {
   // TODO: notify the application about this.
+}
+
+void MoqtSession::ControlStream::OnSubscribeAnnouncesOkMessage(
+    const MoqtSubscribeAnnouncesOk& message) {
+  auto it =
+      session_->outgoing_subscribe_announces_.find(message.track_namespace);
+  if (it == session_->outgoing_subscribe_announces_.end()) {
+    return;  // UNSUBSCRIBE_ANNOUNCES may already have deleted the entry.
+  }
+  if (it->second == nullptr) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Two responses to SUBSCRIBE_ANNOUNCES");
+    return;
+  }
+  std::move(it->second)(message.track_namespace, std::nullopt, "");
+  it->second = nullptr;
+}
+
+void MoqtSession::ControlStream::OnSubscribeAnnouncesErrorMessage(
+    const MoqtSubscribeAnnouncesError& message) {
+  auto it =
+      session_->outgoing_subscribe_announces_.find(message.track_namespace);
+  if (it == session_->outgoing_subscribe_announces_.end()) {
+    return;  // UNSUBSCRIBE_ANNOUNCES may already have deleted the entry.
+  }
+  if (it->second == nullptr) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Two responses to SUBSCRIBE_ANNOUNCES");
+    return;
+  }
+  std::move(it->second)(message.track_namespace, message.error_code,
+                        absl::string_view(message.reason_phrase));
+  session_->outgoing_subscribe_announces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnMaxSubscribeIdMessage(

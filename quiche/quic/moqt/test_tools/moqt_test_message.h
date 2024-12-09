@@ -1212,13 +1212,13 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesErrorMessage : public TestMessageBase {
  private:
   uint8_t raw_packet_[12] = {
       0x13, 0x0a, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x01,                                      // error_code = 1
+      0x04,                                      // error_code = 4
       0x03, 0x62, 0x61, 0x72,                    // reason_phrase = "bar"
   };
 
   MoqtSubscribeAnnouncesError subscribe_namespace_error_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/MoqtAnnounceErrorCode::kAnnounceNotSupported,
+      /*error_code=*/SubscribeErrorCode::kUnauthorized,
       /*reason_phrase=*/"bar",
   };
 };

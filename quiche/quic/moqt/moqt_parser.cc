@@ -734,7 +734,7 @@ size_t MoqtControlParser::ProcessSubscribeAnnouncesError(
     return 0;
   }
   subscribe_namespace_error.error_code =
-      static_cast<MoqtAnnounceErrorCode>(error_code);
+      static_cast<SubscribeErrorCode>(error_code);
   visitor_.OnSubscribeAnnouncesErrorMessage(subscribe_namespace_error);
   return reader.PreviouslyReadPayload().length();
 }

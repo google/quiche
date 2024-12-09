@@ -517,7 +517,7 @@ struct QUICHE_EXPORT MoqtSubscribeAnnouncesOk {
 
 struct QUICHE_EXPORT MoqtSubscribeAnnouncesError {
   FullTrackName track_namespace;
-  MoqtAnnounceErrorCode error_code;
+  SubscribeErrorCode error_code;
   std::string reason_phrase;
 };
 
