@@ -266,6 +266,10 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   void HandleHeadersTooLongError();
 
+  inline bool IsValidChunkExtensionCharacter(char c, const char* current,
+                                             const char* begin,
+                                             const char* end);
+
   BalsaVisitorInterface* visitor_;
   BalsaHeaders* continue_headers_;  // This is not reset to nullptr in Reset().
   BalsaHeaders* headers_;           // This is not reset to nullptr in Reset().
