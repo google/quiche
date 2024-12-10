@@ -434,6 +434,13 @@ class TestSession : public QuicSession {
     return num_incoming_streams_created_;
   }
 
+  void EnableReliableStreamReset() {
+    QuicConfig* quic_config = config();
+    ASSERT_TRUE(quic_config != nullptr);
+    quic_config->SetReliableStreamReset(true);
+    connection()->SetFromConfig(*quic_config);
+  }
+
   using QuicSession::ActivateStream;
   using QuicSession::CanOpenNextOutgoingBidirectionalStream;
   using QuicSession::CanOpenNextOutgoingUnidirectionalStream;
@@ -3281,6 +3288,39 @@ TEST_P(QuicSessionTestServer, ResetForIETFStreamTypes) {
       .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(bidirectional, _));
   session_.ResetStream(bidirectional, QUIC_STREAM_CANCELLED);
+}
+
+TEST_P(QuicSessionTestServer, AcceptReliableSizeIfNegotiated) {
+  CompleteHandshake();
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  session_.EnableReliableStreamReset();
+  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
+      QuicConnectionPeer::GetWriter(session_.connection()));
+  TestStream* write_only = session_.CreateOutgoingUnidirectionalStream();
+  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  session_.SendStreamData(write_only);
+  EXPECT_FALSE(write_only->fin_sent());
+  EXPECT_TRUE(write_only->SetReliableSize());
+}
+
+TEST_P(QuicSessionTestServer, RejectReliableSizeNotNegotiated) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  CompleteHandshake();
+  ASSERT_FALSE(session_.connection()->reliable_stream_reset_enabled());
+  TestStream* bidirectional =
+      session_.CreateIncomingStream(GetNthClientInitiatedBidirectionalId(0));
+  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
+      QuicConnectionPeer::GetWriter(session_.connection()));
+  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  session_.SendStreamData(bidirectional);
+  EXPECT_FALSE(bidirectional->fin_sent());
+  EXPECT_FALSE(bidirectional->SetReliableSize());
 }
 
 TEST_P(QuicSessionTestServer, DecryptionKeyAvailableBeforeEncryptionKey) {

@@ -618,6 +618,12 @@ class QUICHE_EXPORT QuicSession
   virtual void MaybeSendRstStreamFrame(QuicStreamId id,
                                        QuicResetStreamError error,
                                        QuicStreamOffset bytes_written);
+  // Does actual work of sending RESET_STREAM_AT, if the stream type allows.
+  // Also informs the connection so that pending stream frames can be flushed.
+  virtual void MaybeSendResetStreamAtFrame(QuicStreamId id,
+                                           QuicResetStreamError error,
+                                           QuicStreamOffset bytes_written,
+                                           QuicStreamOffset reliable_size);
 
   // Sends a STOP_SENDING frame if the stream type allows.
   virtual void MaybeSendStopSendingFrame(QuicStreamId id,

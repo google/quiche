@@ -36,6 +36,7 @@
 #include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_sent_packet_manager.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -826,6 +827,10 @@ class MockQuicSession : public QuicSession {
               (QuicStreamId stream_id, QuicResetStreamError error,
                QuicStreamOffset bytes_written),
               (override));
+  MOCK_METHOD(void, MaybeSendResetStreamAtFrame,
+              (QuicStreamId stream_id, QuicResetStreamError error,
+               QuicStreamOffset bytes_written, QuicStreamOffset reliable_size),
+              (override));
   MOCK_METHOD(void, MaybeSendStopSendingFrame,
               (QuicStreamId stream_id, QuicResetStreamError error), (override));
   MOCK_METHOD(void, SendBlocked,
@@ -852,6 +857,8 @@ class MockQuicSession : public QuicSession {
     QuicSession::MaybeSendRstStreamFrame(
         id, QuicResetStreamError::FromInternal(error), bytes_written);
   }
+
+  ClosedStreams* ClosedStreams() { return QuicSession::closed_streams(); }
 
  private:
   std::unique_ptr<QuicCryptoStream> crypto_stream_;

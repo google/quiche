@@ -1089,6 +1089,18 @@ void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,
   connection_->OnStreamReset(id, error.internal_code());
 }
 
+void QuicSession::MaybeSendResetStreamAtFrame(QuicStreamId id,
+                                              QuicResetStreamError error,
+                                              QuicStreamOffset bytes_written,
+                                              QuicStreamOffset reliable_size) {
+  QUICHE_DCHECK(connection()->reliable_stream_reset_enabled());
+  if (!connection()->connected()) {
+    return;
+  }
+  control_frame_manager_.WriteOrBufferResetStreamAt(id, error, bytes_written,
+                                                    reliable_size);
+}
+
 void QuicSession::MaybeSendStopSendingFrame(QuicStreamId id,
                                             QuicResetStreamError error) {
   if (!connection()->connected()) {
