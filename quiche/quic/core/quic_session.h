@@ -1045,7 +1045,7 @@ class QUICHE_EXPORT QuicSession
 
   // Received information for a connection close.
   QuicConnectionCloseFrame on_closed_frame_;
-  std::optional<ConnectionCloseSource> source_;
+  std::optional<ConnectionCloseSource> connection_close_source_;
 
   // Used for connection-level flow control.
   QuicFlowController flow_controller_;

@@ -585,7 +585,7 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
   if (on_closed_frame_.quic_error_code == QUIC_NO_ERROR) {
     // Save all of the connection close information
     on_closed_frame_ = frame;
-    source_ = source;
+    connection_close_source_ = source;
   }
 
   GetMutableCryptoStream()->OnConnectionClosed(frame, source);
@@ -953,8 +953,8 @@ void QuicSession::ProcessUdpPacket(const QuicSocketAddress& self_address,
 std::string QuicSession::on_closed_frame_string() const {
   std::stringstream ss;
   ss << on_closed_frame_;
-  if (source_.has_value()) {
-    ss << " " << ConnectionCloseSourceToString(*source_);
+  if (connection_close_source_.has_value()) {
+    ss << " " << ConnectionCloseSourceToString(*connection_close_source_);
   }
   return ss.str();
 }
