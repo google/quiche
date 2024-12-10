@@ -57,6 +57,9 @@ class QUICHE_EXPORT TlsChloExtractor
   const std::vector<uint16_t>& cert_compression_algos() const {
     return cert_compression_algos_;
   }
+  absl::Span<const uint8_t> transport_params() const {
+    return transport_params_;
+  }
   absl::Span<const uint8_t> client_hello_bytes() const {
     return client_hello_bytes_;
   }
@@ -282,6 +285,9 @@ class QUICHE_EXPORT TlsChloExtractor
   // If set, contains the TLS alert that caused an unrecoverable error, which is
   // an AlertDescription value defined in go/rfc/8446#appendix-B.2.
   std::optional<uint8_t> tls_alert_;
+  // QUIC Transport Parameters, if present in the CHLO.
+  // Not populated for draft29.
+  std::vector<uint8_t> transport_params_;
   // Exact TLS message bytes.
   std::vector<uint8_t> client_hello_bytes_;
 };
