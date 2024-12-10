@@ -42,8 +42,13 @@ using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
 using MoqtSessionTerminatedCallback =
     quiche::SingleUseCallback<void(absl::string_view error_message)>;
 using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
-// If |error_message| is nullopt, the ANNOUNCE was successful.
-using MoqtOutgoingAnnounceCallback = quiche::SingleUseCallback<void(
+
+// If |error_message| is nullopt, this is triggered by an ANNOUNCE_OK.
+// Otherwise, it is triggered by ANNOUNCE_ERROR or ANNOUNCE_CANCEL. For
+// ERROR or CANCEL, MoqtSession is deleting all ANNOUNCE state immediately
+// after calling this callback. Alternatively, the application can call
+// Unannounce() to delete the state.
+using MoqtOutgoingAnnounceCallback = quiche::MultiUseCallback<void(
     FullTrackName track_namespace,
     std::optional<MoqtAnnounceErrorReason> error)>;
 using MoqtIncomingAnnounceCallback =
@@ -120,6 +125,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // there is already an unresolved ANNOUNCE for that namespace.
   void Announce(FullTrackName track_namespace,
                 MoqtOutgoingAnnounceCallback announce_callback);
+  // Returns true if message was sent, false if there is no ANNOUNCE to cancel.
+  bool Unannounce(FullTrackName track_namespace);
 
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
   // the track, the message will still be sent. However, the visitor will be
@@ -615,9 +622,11 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   absl::flat_hash_map<FullTrackName, MoqtPublishingMonitorInterface*>
       monitoring_interfaces_for_published_tracks_;
 
-  // Indexed by track namespace.
+  // Indexed by track namespace. If the value is not nullptr, no OK or ERROR
+  // has been received. The entry is deleted after sending UNANNOUNCE or
+  // receiving ANNOUNCE_CANCEL.
   absl::flat_hash_map<FullTrackName, MoqtOutgoingAnnounceCallback>
-      pending_outgoing_announces_;
+      outgoing_announces_;
   // The value is nullptr after OK or ERROR is received. The entry is deleted
   // when sending UNSUBSCRIBE_ANNOUNCES, to make sure the application doesn't
   // unsubscribe from something that it isn't subscribed to. ANNOUNCEs that

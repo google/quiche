@@ -963,7 +963,7 @@ class QUICHE_NO_EXPORT AnnounceCancelMessage : public TestMessageBase {
 
   MoqtAnnounceCancel announce_cancel_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/1,
+      /*error_code=*/MoqtAnnounceErrorCode::kAnnounceNotSupported,
       /*reason_phrase=*/"bar",
   };
 };

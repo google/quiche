@@ -623,13 +623,11 @@ size_t MoqtControlParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
     return 0;
   }
   uint64_t error_code;
-  if (!reader.ReadVarInt62(&error_code)) {
+  if (!reader.ReadVarInt62(&error_code) ||
+      !reader.ReadStringVarInt62(announce_error.reason_phrase)) {
     return 0;
   }
   announce_error.error_code = static_cast<MoqtAnnounceErrorCode>(error_code);
-  if (!reader.ReadStringVarInt62(announce_error.reason_phrase)) {
-    return 0;
-  }
   visitor_.OnAnnounceErrorMessage(announce_error);
   return reader.PreviouslyReadPayload().length();
 }
@@ -639,10 +637,12 @@ size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
   if (!ReadTrackNamespace(reader, announce_cancel.track_namespace)) {
     return 0;
   }
-  if (!reader.ReadVarInt62(&announce_cancel.error_code) ||
+  uint64_t error_code;
+  if (!reader.ReadVarInt62(&error_code) ||
       !reader.ReadStringVarInt62(announce_cancel.reason_phrase)) {
     return 0;
   }
+  announce_cancel.error_code = static_cast<MoqtAnnounceErrorCode>(error_code);
   visitor_.OnAnnounceCancelMessage(announce_cancel);
   return reader.PreviouslyReadPayload().length();
 }

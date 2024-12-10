@@ -493,8 +493,7 @@ struct QUICHE_EXPORT MoqtTrackStatus {
 
 struct QUICHE_EXPORT MoqtAnnounceCancel {
   FullTrackName track_namespace;
-  // TODO: What namespace is this error code in?
-  uint64_t error_code;
+  MoqtAnnounceErrorCode error_code;
   std::string reason_phrase;
 };
 

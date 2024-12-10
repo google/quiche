@@ -270,8 +270,6 @@ bool MoqtSession::UnsubscribeAnnounces(FullTrackName track_namespace) {
   return true;
 }
 
-// TODO: Create state that allows ANNOUNCE_OK/ERROR on spurious namespaces to
-// trigger session errors.
 void MoqtSession::Announce(FullTrackName track_namespace,
                            MoqtOutgoingAnnounceCallback announce_callback) {
   if (peer_role_ == MoqtRole::kPublisher) {
@@ -281,7 +279,7 @@ void MoqtSession::Announce(FullTrackName track_namespace,
                                 "ANNOUNCE cannot be sent to Publisher"});
     return;
   }
-  if (pending_outgoing_announces_.contains(track_namespace)) {
+  if (outgoing_announces_.contains(track_namespace)) {
     std::move(announce_callback)(
         track_namespace,
         MoqtAnnounceErrorReason{
@@ -294,7 +292,21 @@ void MoqtSession::Announce(FullTrackName track_namespace,
   SendControlMessage(framer_.SerializeAnnounce(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE message for "
                   << message.track_namespace;
-  pending_outgoing_announces_[track_namespace] = std::move(announce_callback);
+  outgoing_announces_[track_namespace] = std::move(announce_callback);
+}
+
+bool MoqtSession::Unannounce(FullTrackName track_namespace) {
+  auto it = outgoing_announces_.find(track_namespace);
+  if (it == outgoing_announces_.end()) {
+    return false;  // Could have been destroyed by ANNOUNCE_CANCEL.
+  }
+  MoqtUnannounce message;
+  message.track_namespace = track_namespace;
+  SendControlMessage(framer_.SerializeUnannounce(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent UNANNOUNCE message for "
+                  << message.track_namespace;
+  outgoing_announces_.erase(it);
+  return true;
 }
 
 bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
@@ -982,36 +994,45 @@ void MoqtSession::ControlStream::OnAnnounceMessage(
   SendOrBufferMessage(session_->framer_.SerializeAnnounceOk(ok));
 }
 
+// Do not enforce that there is only one of OK or ERROR per ANNOUNCE. Upon
+// ERROR, we immediately destroy the state.
 void MoqtSession::ControlStream::OnAnnounceOkMessage(
     const MoqtAnnounceOk& message) {
-  auto it = session_->pending_outgoing_announces_.find(message.track_namespace);
-  if (it == session_->pending_outgoing_announces_.end()) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received ANNOUNCE_OK for nonexistent announce");
-    return;
+  auto it = session_->outgoing_announces_.find(message.track_namespace);
+  if (it == session_->outgoing_announces_.end()) {
+    return;  // State might have been destroyed due to UNANNOUNCE.
   }
   std::move(it->second)(message.track_namespace, std::nullopt);
-  session_->pending_outgoing_announces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnAnnounceErrorMessage(
     const MoqtAnnounceError& message) {
-  auto it = session_->pending_outgoing_announces_.find(message.track_namespace);
-  if (it == session_->pending_outgoing_announces_.end()) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received ANNOUNCE_ERROR for nonexistent announce");
-    return;
+  auto it = session_->outgoing_announces_.find(message.track_namespace);
+  if (it == session_->outgoing_announces_.end()) {
+    return;  // State might have been destroyed due to UNANNOUNCE.
   }
   std::move(it->second)(
       message.track_namespace,
       MoqtAnnounceErrorReason{message.error_code,
                               std::string(message.reason_phrase)});
-  session_->pending_outgoing_announces_.erase(it);
+  session_->outgoing_announces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnAnnounceCancelMessage(
     const MoqtAnnounceCancel& message) {
-  // TODO: notify the application about this.
+  // The spec currently says that if a later SUBSCRIBE arrives for this
+  // namespace, that SHOULD be a session error. I'm hoping that via Issue #557,
+  // this will go away. Regardless, a SHOULD will not compel the session to keep
+  // state forever, so there is no support for this requirement.
+  auto it = session_->outgoing_announces_.find(message.track_namespace);
+  if (it == session_->outgoing_announces_.end()) {
+    return;  // State might have been destroyed due to UNANNOUNCE.
+  }
+  std::move(it->second)(
+      message.track_namespace,
+      MoqtAnnounceErrorReason{message.error_code,
+                              std::string(message.reason_phrase)});
+  session_->outgoing_announces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnSubscribeAnnouncesOkMessage(
