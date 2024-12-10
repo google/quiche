@@ -5228,6 +5228,10 @@ TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
 // Regression test for b/116200989.
 TEST_P(EndToEndTest,
        SendStatelessResetIfServerConnectionClosedLocallyDuringHandshake) {
+  SetQuicFlag(quic_allow_chlo_buffering, true);
+  SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 1);
+  // Make the client hello to span 2 packets.
+  client_extra_copts_.push_back(kCHP1);
   connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
 
@@ -5246,17 +5250,26 @@ TEST_P(EndToEndTest,
     return;
   }
   // Note: this writer will only used by the server connection, not the time
-  // wait list.
+  // wait list. We start failing the write after the first packet, which is the
+  // ACK of the first CHLO packet sent by the dispatcher.
   QuicDispatcherPeer::UseWriter(
       dispatcher,
-      // This cause the first server-sent packet, a.k.a REJ, to fail.
-      new BadPacketWriter(/*packet_causing_write_error=*/0, EPERM));
+      // This cause the all server-sent packets to fail except the first one.
+      new BadPacketWriter(/*packet_causing_write_error=*/1, EPERM));
   server_thread_->Resume();
 
   client_.reset(CreateQuicClient(client_writer_));
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
-  EXPECT_THAT(client_->connection_error(),
-              IsError(QUIC_HANDSHAKE_FAILED_SYNTHETIC_CONNECTION_CLOSE));
+
+  if (GetQuicReloadableFlag(
+          quic_dispatcher_only_serialize_close_if_closed_by_self)) {
+    EXPECT_THAT(client_->connection_error(),
+                IsError(QUIC_HANDSHAKE_FAILED_SYNTHETIC_CONNECTION_CLOSE));
+  } else {
+    EXPECT_THAT(client_->connection_error(),
+                testing::AnyOf(IsError(QUIC_NETWORK_IDLE_TIMEOUT),
+                               IsError(QUIC_HANDSHAKE_TIMEOUT)));
+  }
 }
 
 // Regression test for b/116200989.

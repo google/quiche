@@ -31,6 +31,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disable_version_draft_29, false, f
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disable_version_q046, false, true, "If true, disable QUIC version Q046.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disable_version_rfcv1, false, false, "If true, disable QUIC version h3 (RFCv1).")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_discard_initial_packet_with_key_dropped, false, true, "If true, discard INITIAL packet if the key has been dropped.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_dispatcher_only_serialize_close_if_closed_by_self, false, false, "If true, QuicDispatcher::CleanUpSession only serializes a connection close if the connection is closed by self, did not complete handshake and does not have termination packets.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_ecn_in_first_ack, false, true, "When true, reports ECN in counts in the ACK of the a client initial that goes in the buffered packet store.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_disable_resumption, true, true, "If true, disable resumption when receiving NRES connection option.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_mtu_discovery_at_server, false, false, "If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.")
