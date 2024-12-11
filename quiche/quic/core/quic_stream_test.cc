@@ -1953,6 +1953,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfReset) {
     return;
   }
   char data[100];
+  memset(data, 0, sizeof(data));
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(100, false)));
   SendApplicationData(data, 100, false);
@@ -1982,6 +1983,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetAndRetransmitted) {
     return;
   }
   char data[100];
+  memset(data, 0, sizeof(data));
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(100, false)));
   SendApplicationData(data, 100, false);
@@ -2024,6 +2026,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetThenReadSideReset) {
     return;
   }
   char data[100];
+  memset(data, 0, sizeof(data));
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(100, false)));
   SendApplicationData(data, 100, false);
@@ -2054,6 +2057,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetThenReadSideFin) {
     return;
   }
   char data[100];
+  memset(data, 0, sizeof(data));
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(100, false)));
   SendApplicationData(data, 100, false);
@@ -2102,6 +2106,7 @@ TEST_P(QuicStreamTest, ReliableSizeAckedAtTimeOfReset) {
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(100, false)));
   char data[100];
+  memset(data, 0, sizeof(data));
   SendApplicationData(data, 100, false);
   QuicByteCount newly_acked_length = 0;
   stream_->OnStreamFrameAcked(0, 100, false, QuicTime::Delta::Zero(),
@@ -2121,6 +2126,7 @@ TEST_P(QuicStreamTest, BufferedDataInReliableSize) {
   EXPECT_CALL(*session_, WritevData(stream_->id(), 100, 0, _, _, _))
       .WillOnce(Return(QuicConsumedData(50, false)));
   char data[100];
+  memset(data, 0, sizeof(data));
   // 50 bytes of this will be buffered.
   SendApplicationData(data, 100, false);
   EXPECT_EQ(stream_->BufferedDataBytes(), 50);
@@ -2149,6 +2155,7 @@ TEST_P(QuicStreamTest, ReliableSizeIsFinOffset) {
   EXPECT_CALL(*session_, WritevData(_, 100, 0, FIN, _, _))
       .WillOnce(Return(QuicConsumedData(100, true)));
   char data[100];
+  memset(data, 0, sizeof(data));
   SendApplicationData(data, 100, true);
   // Send STOP_SENDING, but nothing else.
   EXPECT_CALL(*session_, MaybeSendResetStreamAtFrame(_, _, _, _)).Times(1);
@@ -2170,6 +2177,7 @@ TEST_P(QuicStreamTest, DataAfterResetStreamAt) {
     return;
   }
   char data[100];
+  memset(data, 0, sizeof(data));
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(100, false)));
   SendApplicationData(data, 100, false);
@@ -2207,6 +2215,7 @@ TEST_P(QuicStreamTest, ResetStreamAtUnidirectionalWrite) {
   TestStream* stream_ptr = stream.get();
   session_->ActivateStream(std::move(stream));
   char data[100];
+  memset(data, 0, sizeof(data));
   EXPECT_CALL(*session_, WritevData(kId, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(100, false)));
   SendApplicationData(stream_ptr, data, 100, false);
@@ -2239,6 +2248,7 @@ TEST_P(QuicStreamTest, ResetStreamAtReadSideFin) {
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), true, 0, ""));
   stream_->OnFinRead();
   char data[100];
+  memset(data, 0, sizeof(data));
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(100, false)));
   SendApplicationData(data, 100, false);
@@ -2263,6 +2273,7 @@ TEST_P(QuicStreamTest, ResetStreamAtAfterStopSending) {
     return;
   }
   char data[100];
+  memset(data, 0, sizeof(data));
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(100, false)));
   stream_->WriteOrBufferData(absl::string_view(data, 100), false, nullptr);
@@ -2278,6 +2289,7 @@ TEST_P(QuicStreamTest, RejectReliableSizeOldVersion) {
     return;
   }
   char data[100];
+  memset(data, 0, sizeof(data));
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(100, false)));
   stream_->WriteOrBufferData(absl::string_view(data, 100), false, nullptr);
