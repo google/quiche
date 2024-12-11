@@ -20,6 +20,7 @@
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_hostname_utils.h"
 #include "quiche/common/quiche_text_utils.h"
@@ -133,6 +134,7 @@ bool TlsClientHandshaker::CryptoConnect() {
     cached_state_ = session_cache_->Lookup(
         server_id_, session()->GetClock()->WallNow(), SSL_get_SSL_CTX(ssl()));
   }
+  session_cache_lookup_done_ = true;
   if (cached_state_) {
     SSL_set_session(ssl(), cached_state_->tls_session.get());
     if (!cached_state_->token.empty()) {
@@ -347,7 +349,9 @@ bool TlsClientHandshaker::ProcessTransportParameters(
 int TlsClientHandshaker::num_sent_client_hellos() const { return 0; }
 
 bool TlsClientHandshaker::ResumptionAttempted() const {
-  QUIC_BUG_IF(quic_tls_client_resumption_attempted, !encryption_established_);
+  // Don't call this method if the session cache lookup hasn't completed yet.
+  QUIC_BUG_IF(quic_tls_client_resumption_attempted,
+              !session_cache_lookup_done_);
   return cached_state_ != nullptr;
 }
 

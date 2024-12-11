@@ -152,6 +152,7 @@ class QUICHE_EXPORT TlsClientHandshaker
   quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
 
+  bool session_cache_lookup_done_ = false;
   bool allow_empty_alpn_for_tests_ = false;
 
   const bool has_application_state_;
