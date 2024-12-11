@@ -37,6 +37,7 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
   absl::Status Writev(absl::Span<const absl::string_view> data,
                       const quiche::StreamWriteOptions& options) override {
     QUICHE_NOTREACHED() << "Writev called on a read-only stream";
+    return absl::UnimplementedError("Writev called on a read-only stream");
   }
   bool CanWrite() const override { return false; }
 
