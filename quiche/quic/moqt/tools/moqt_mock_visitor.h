@@ -30,17 +30,24 @@ struct MockSessionCallbacks {
   testing::MockFunction<void()> session_deleted_callback;
   testing::MockFunction<std::optional<MoqtAnnounceErrorReason>(FullTrackName)>
       incoming_announce_callback;
+  testing::MockFunction<std::optional<MoqtSubscribeErrorReason>(FullTrackName,
+                                                                SubscribeType)>
+      incoming_subscribe_announces_callback;
 
   MockSessionCallbacks() {
     ON_CALL(incoming_announce_callback, Call(testing::_))
         .WillByDefault(DefaultIncomingAnnounceCallback);
+    ON_CALL(incoming_subscribe_announces_callback, Call(testing::_, testing::_))
+        .WillByDefault(DefaultIncomingSubscribeAnnouncesCallback);
   }
 
   MoqtSessionCallbacks AsSessionCallbacks() {
-    return MoqtSessionCallbacks{session_established_callback.AsStdFunction(),
-                                session_terminated_callback.AsStdFunction(),
-                                session_deleted_callback.AsStdFunction(),
-                                incoming_announce_callback.AsStdFunction()};
+    return MoqtSessionCallbacks{
+        session_established_callback.AsStdFunction(),
+        session_terminated_callback.AsStdFunction(),
+        session_deleted_callback.AsStdFunction(),
+        incoming_announce_callback.AsStdFunction(),
+        incoming_subscribe_announces_callback.AsStdFunction()};
   }
 };
 

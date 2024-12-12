@@ -239,9 +239,10 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
   std::move(callbacks_.session_terminated_callback)(error);
 }
 
-bool MoqtSession::SubscribeAnnounces(FullTrackName track_namespace,
-                                     MoqtSubscribeAnnouncesCallback callback,
-                                     MoqtSubscribeParameters parameters) {
+bool MoqtSession::SubscribeAnnounces(
+    FullTrackName track_namespace,
+    MoqtOutgoingSubscribeAnnouncesCallback callback,
+    MoqtSubscribeParameters parameters) {
   if (peer_role_ == MoqtRole::kSubscriber) {
     std::move(callback)(track_namespace, SubscribeErrorCode::kInternalError,
                         "SUBSCRIBE_ANNOUNCES cannot be sent to subscriber");
@@ -1035,6 +1036,26 @@ void MoqtSession::ControlStream::OnAnnounceCancelMessage(
   session_->outgoing_announces_.erase(it);
 }
 
+void MoqtSession::ControlStream::OnSubscribeAnnouncesMessage(
+    const MoqtSubscribeAnnounces& message) {
+  // TODO(martinduke): Handle authentication.
+  std::optional<MoqtSubscribeErrorReason> result =
+      session_->callbacks_.incoming_subscribe_announces_callback(
+          message.track_namespace, SubscribeType::kSubscribe);
+  if (result.has_value()) {
+    MoqtSubscribeAnnouncesError error;
+    error.track_namespace = message.track_namespace;
+    error.error_code = result->error_code;
+    error.reason_phrase = result->reason_phrase;
+    SendOrBufferMessage(
+        session_->framer_.SerializeSubscribeAnnouncesError(error));
+    return;
+  }
+  MoqtSubscribeAnnouncesOk ok;
+  ok.track_namespace = message.track_namespace;
+  SendOrBufferMessage(session_->framer_.SerializeSubscribeAnnouncesOk(ok));
+}
+
 void MoqtSession::ControlStream::OnSubscribeAnnouncesOkMessage(
     const MoqtSubscribeAnnouncesOk& message) {
   auto it =
@@ -1066,6 +1087,14 @@ void MoqtSession::ControlStream::OnSubscribeAnnouncesErrorMessage(
   std::move(it->second)(message.track_namespace, message.error_code,
                         absl::string_view(message.reason_phrase));
   session_->outgoing_subscribe_announces_.erase(it);
+}
+
+void MoqtSession::ControlStream::OnUnsubscribeAnnouncesMessage(
+    const MoqtUnsubscribeAnnounces& message) {
+  // MoqtSession keeps no state here, so just tell the application.
+  std::optional<MoqtSubscribeErrorReason> result =
+      session_->callbacks_.incoming_subscribe_announces_callback(
+          message.track_namespace, SubscribeType::kUnsubscribe);
 }
 
 void MoqtSession::ControlStream::OnMaxSubscribeIdMessage(

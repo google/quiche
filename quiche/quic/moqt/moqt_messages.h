@@ -158,6 +158,20 @@ enum class MoqtAnnounceErrorCode : uint64_t {
   kAnnounceNotSupported = 1,
 };
 
+enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
+  kInternalError = 0x0,
+  kInvalidRange = 0x1,
+  kRetryTrackAlias = 0x2,
+  kTrackDoesNotExist = 0x3,
+  kUnauthorized = 0x4,
+  kTimeout = 0x5,
+};
+
+struct MoqtSubscribeErrorReason {
+  SubscribeErrorCode error_code;
+  std::string reason_phrase;
+};
+
 struct MoqtAnnounceErrorReason {
   MoqtAnnounceErrorCode error_code;
   std::string reason_phrase;
@@ -395,15 +409,6 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
   // If ContextExists on the wire is zero, largest_id has no value.
   std::optional<FullSequence> largest_id;
   MoqtSubscribeParameters parameters;
-};
-
-enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
-  kInternalError = 0x0,
-  kInvalidRange = 0x1,
-  kRetryTrackAlias = 0x2,
-  kTrackDoesNotExist = 0x3,
-  kUnauthorized = 0x4,
-  kTimeout = 0x5,
 };
 
 struct QUICHE_EXPORT MoqtSubscribeError {

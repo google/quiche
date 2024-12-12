@@ -2103,6 +2103,51 @@ TEST_F(MoqtSessionTest, FetchNonNormalObjects) {
   EXPECT_EQ(objects_received, 2);
 }
 
+TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {
+  FullTrackName track_namespace = FullTrackName{"foo"};
+  MoqtSubscribeAnnounces announces = {
+      track_namespace,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
+              Call(_, SubscribeType::kSubscribe))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(
+      control_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesOk), _));
+  stream_input->OnSubscribeAnnouncesMessage(announces);
+  MoqtUnsubscribeAnnounces unsubscribe_announces = {
+      /*track_namespace=*/FullTrackName{"foo"},
+  };
+  EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
+              Call(track_namespace, SubscribeType::kUnsubscribe))
+      .WillOnce(Return(std::nullopt));
+  stream_input->OnUnsubscribeAnnouncesMessage(unsubscribe_announces);
+}
+
+TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
+  FullTrackName track_namespace = FullTrackName{"foo"};
+  MoqtSubscribeAnnounces announces = {
+      track_namespace,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
+              Call(_, SubscribeType::kSubscribe))
+      .WillOnce(Return(
+          MoqtSubscribeErrorReason{SubscribeErrorCode::kUnauthorized, "foo"}));
+  EXPECT_CALL(
+      control_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesError),
+             _));
+  stream_input->OnSubscribeAnnouncesMessage(announces);
+}
+
 // TODO: re-enable this test once this behavior is re-implemented.
 #if 0
 TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {
