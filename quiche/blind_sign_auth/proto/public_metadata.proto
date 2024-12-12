@@ -49,6 +49,7 @@ message PublicMetadata {
   enum DebugMode {
     UNSPECIFIED_DEBUG_MODE = 0;
     DEBUG_ALL = 1;
+    ADMIN = 2;
   }
 
   DebugMode debug_mode = 4;
