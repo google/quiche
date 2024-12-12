@@ -9,6 +9,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
 
@@ -18,8 +19,8 @@ size_t TotalStringViewSpanSize(absl::Span<const absl::string_view> span);
 // Copies data contained in `inputs` into `output`, up until either the `output`
 // is full or the `inputs` are copied fully; returns the actual number of bytes
 // copied.
-size_t GatherStringViewSpan(absl::Span<const absl::string_view> inputs,
-                            absl::Span<char> output);
+size_t QUICHE_EXPORT GatherStringViewSpan(
+    absl::Span<const absl::string_view> inputs, absl::Span<char> output);
 
 }  // namespace quiche
 
