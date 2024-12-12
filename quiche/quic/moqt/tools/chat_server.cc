@@ -32,11 +32,15 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
     MoqtSession* session, ChatServer* server)
     : session_(session), server_(server) {
   session_->callbacks().incoming_announce_callback =
-      [&](FullTrackName track_namespace) {
+      [&](FullTrackName track_namespace, AnnounceEvent announce_type) {
         FullTrackName track_name = track_namespace;
         track_name.AddElement("");
-        std::cout << "Received ANNOUNCE for " << track_namespace.ToString()
-                  << "\n";
+        if (announce_type == AnnounceEvent::kAnnounce) {
+          std::cout << "Received ANNOUNCE for ";
+        } else {
+          std::cout << "Received UNANNOUNCE for ";
+        }
+        std::cout << track_namespace.ToString() << "\n";
         username_ = server_->strings().GetUsernameFromFullTrackName(track_name);
         if (username_->empty()) {
           std::cout << "Malformed ANNOUNCE namespace\n";

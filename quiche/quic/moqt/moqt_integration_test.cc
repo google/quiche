@@ -120,10 +120,10 @@ TEST_F(MoqtIntegrationTest, VersionMismatch) {
   EXPECT_TRUE(success);
 }
 
-TEST_F(MoqtIntegrationTest, AnnounceSuccess) {
+TEST_F(MoqtIntegrationTest, AnnounceSuccessThenUnannounce) {
   EstablishSession();
   EXPECT_CALL(server_callbacks_.incoming_announce_callback,
-              Call(FullTrackName{"foo"}))
+              Call(FullTrackName{"foo"}, AnnounceEvent::kAnnounce))
       .WillOnce(Return(std::nullopt));
   testing::MockFunction<void(
       FullTrackName track_namespace,
@@ -142,12 +142,62 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccess) {
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
   EXPECT_TRUE(success);
+  matches = false;
+  EXPECT_CALL(server_callbacks_.incoming_announce_callback, Call(_, _))
+      .WillOnce([&](FullTrackName name, AnnounceEvent event) {
+        matches = true;
+        EXPECT_EQ(name, FullTrackName{"foo"});
+        EXPECT_EQ(event, AnnounceEvent::kUnannounce);
+        return std::nullopt;
+      });
+  client_->session()->Unannounce(FullTrackName{"foo"});
+  success = test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
+  EXPECT_TRUE(success);
+}
+
+TEST_F(MoqtIntegrationTest, AnnounceSuccessThenCancel) {
+  EstablishSession();
+  EXPECT_CALL(server_callbacks_.incoming_announce_callback,
+              Call(FullTrackName{"foo"}, AnnounceEvent::kAnnounce))
+      .WillOnce(Return(std::nullopt));
+  testing::MockFunction<void(
+      FullTrackName track_namespace,
+      std::optional<MoqtAnnounceErrorReason> error_message)>
+      announce_callback;
+  client_->session()->Announce(FullTrackName{"foo"},
+                               announce_callback.AsStdFunction());
+  bool matches = false;
+  EXPECT_CALL(announce_callback, Call(_, _))
+      .WillOnce([&](FullTrackName track_namespace,
+                    std::optional<MoqtAnnounceErrorReason> error) {
+        matches = true;
+        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        EXPECT_FALSE(error.has_value());
+      });
+  bool success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
+  EXPECT_TRUE(success);
+  matches = false;
+  EXPECT_CALL(announce_callback, Call(_, _))
+      .WillOnce([&](FullTrackName track_namespace,
+                    std::optional<MoqtAnnounceErrorReason> error) {
+        matches = true;
+        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        ASSERT_TRUE(error.has_value());
+        EXPECT_EQ(error->error_code, MoqtAnnounceErrorCode::kInternalError);
+        EXPECT_EQ(error->reason_phrase, "internal error");
+      });
+  server_->session()->CancelAnnounce(FullTrackName{"foo"},
+                                     MoqtAnnounceErrorCode::kInternalError,
+                                     "internal error");
+  success = test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
+  EXPECT_TRUE(success);
 }
 
 TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
   EstablishSession();
   EXPECT_CALL(server_callbacks_.incoming_announce_callback,
-              Call(FullTrackName{"foo"}))
+              Call(FullTrackName{"foo"}, AnnounceEvent::kAnnounce))
       .WillOnce(Return(std::nullopt));
   MockSubscribeRemoteTrackVisitor server_visitor;
   testing::MockFunction<void(
@@ -180,8 +230,10 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
   // Set up the server to subscribe to "data" track for the namespace announce
   // it receives.
   MockSubscribeRemoteTrackVisitor server_visitor;
-  EXPECT_CALL(server_callbacks_.incoming_announce_callback, Call(_))
-      .WillOnce([&](FullTrackName track_namespace) {
+  EXPECT_CALL(server_callbacks_.incoming_announce_callback,
+              Call(_, AnnounceEvent::kAnnounce))
+      .WillOnce([&](const FullTrackName& track_namespace,
+                    AnnounceEvent /*announce*/) {
         FullTrackName track_name = track_namespace;
         track_name.AddElement("data");
         server_->session()->SubscribeAbsolute(

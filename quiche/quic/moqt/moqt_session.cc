@@ -310,6 +310,19 @@ bool MoqtSession::Unannounce(FullTrackName track_namespace) {
   return true;
 }
 
+void MoqtSession::CancelAnnounce(FullTrackName track_namespace,
+                                 MoqtAnnounceErrorCode code,
+                                 absl::string_view reason) {
+  if (peer_role_ == MoqtRole::kSubscriber) {
+    return;
+  }
+  MoqtAnnounceCancel message{track_namespace, code, std::string(reason)};
+
+  SendControlMessage(framer_.SerializeAnnounceCancel(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE_CANCEL message for "
+                  << message.track_namespace << " with reason " << reason;
+}
+
 bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     SubscribeRemoteTrack::Visitor* visitor,
@@ -981,7 +994,8 @@ void MoqtSession::ControlStream::OnAnnounceMessage(
     return;
   }
   std::optional<MoqtAnnounceErrorReason> error =
-      session_->callbacks_.incoming_announce_callback(message.track_namespace);
+      session_->callbacks_.incoming_announce_callback(message.track_namespace,
+                                                      AnnounceEvent::kAnnounce);
   if (error.has_value()) {
     MoqtAnnounceError reply;
     reply.track_namespace = message.track_namespace;
@@ -1036,12 +1050,18 @@ void MoqtSession::ControlStream::OnAnnounceCancelMessage(
   session_->outgoing_announces_.erase(it);
 }
 
+void MoqtSession::ControlStream::OnUnannounceMessage(
+    const MoqtUnannounce& message) {
+  session_->callbacks_.incoming_announce_callback(message.track_namespace,
+                                                  AnnounceEvent::kUnannounce);
+}
+
 void MoqtSession::ControlStream::OnSubscribeAnnouncesMessage(
     const MoqtSubscribeAnnounces& message) {
   // TODO(martinduke): Handle authentication.
   std::optional<MoqtSubscribeErrorReason> result =
       session_->callbacks_.incoming_subscribe_announces_callback(
-          message.track_namespace, SubscribeType::kSubscribe);
+          message.track_namespace, SubscribeEvent::kSubscribe);
   if (result.has_value()) {
     MoqtSubscribeAnnouncesError error;
     error.track_namespace = message.track_namespace;
@@ -1094,7 +1114,7 @@ void MoqtSession::ControlStream::OnUnsubscribeAnnouncesMessage(
   // MoqtSession keeps no state here, so just tell the application.
   std::optional<MoqtSubscribeErrorReason> result =
       session_->callbacks_.incoming_subscribe_announces_callback(
-          message.track_namespace, SubscribeType::kUnsubscribe);
+          message.track_namespace, SubscribeEvent::kUnsubscribe);
 }
 
 void MoqtSession::ControlStream::OnMaxSubscribeIdMessage(

@@ -43,7 +43,8 @@ using MoqtSessionTerminatedCallback =
     quiche::SingleUseCallback<void(absl::string_view error_message)>;
 using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
 
-enum class SubscribeType { kSubscribe, kUnsubscribe };
+enum class SubscribeEvent { kSubscribe, kUnsubscribe };
+enum class AnnounceEvent { kAnnounce, kUnannounce };
 
 // If |error_message| is nullopt, this is triggered by an ANNOUNCE_OK.
 // Otherwise, it is triggered by ANNOUNCE_ERROR or ANNOUNCE_CANCEL. For
@@ -55,7 +56,7 @@ using MoqtOutgoingAnnounceCallback = quiche::MultiUseCallback<void(
     std::optional<MoqtAnnounceErrorReason> error)>;
 using MoqtIncomingAnnounceCallback =
     quiche::MultiUseCallback<std::optional<MoqtAnnounceErrorReason>(
-        FullTrackName track_namespace)>;
+        const FullTrackName& track_namespace, AnnounceEvent announce_type)>;
 using MoqtOutgoingSubscribeAnnouncesCallback = quiche::SingleUseCallback<void(
     FullTrackName track_namespace, std::optional<SubscribeErrorCode> error,
     absl::string_view reason)>;
@@ -66,10 +67,10 @@ using MoqtOutgoingSubscribeAnnouncesCallback = quiche::SingleUseCallback<void(
 // and the return value will be ignored.
 using MoqtIncomingSubscribeAnnouncesCallback =
     quiche::MultiUseCallback<std::optional<MoqtSubscribeErrorReason>(
-        const FullTrackName& track_namespace, SubscribeType subscribe_type)>;
+        const FullTrackName& track_namespace, SubscribeEvent subscribe_type)>;
 
 inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
-    FullTrackName /*track_namespace*/) {
+    const FullTrackName& /*track_namespace*/, AnnounceEvent /*announce*/) {
   return std::optional(MoqtAnnounceErrorReason{
       MoqtAnnounceErrorCode::kAnnounceNotSupported,
       "This endpoint does not accept incoming ANNOUNCE messages"});
@@ -77,7 +78,7 @@ inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
 
 inline std::optional<MoqtSubscribeErrorReason>
 DefaultIncomingSubscribeAnnouncesCallback(const FullTrackName& track_namespace,
-                                          SubscribeType /*subscribe_type*/) {
+                                          SubscribeEvent /*subscribe_type*/) {
   return MoqtSubscribeErrorReason{
       SubscribeErrorCode::kUnauthorized,
       "This endpoint does not support incoming SUBSCRIBE_ANNOUNCES messages"};
@@ -148,6 +149,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                 MoqtOutgoingAnnounceCallback announce_callback);
   // Returns true if message was sent, false if there is no ANNOUNCE to cancel.
   bool Unannounce(FullTrackName track_namespace);
+  // Allows the subscriber to declare it will not subscribe to |track_namespace|
+  // anymore.
+  void CancelAnnounce(FullTrackName track_namespace, MoqtAnnounceErrorCode code,
+                      absl::string_view reason_phrase);
 
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
   // the track, the message will still be sent. However, the visitor will be
@@ -245,7 +250,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override;
     void OnTrackStatusRequestMessage(
         const MoqtTrackStatusRequest& message) override {};
-    void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override {}
+    void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override;
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override {}
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override {}
     void OnSubscribeAnnouncesMessage(

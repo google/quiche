@@ -115,8 +115,9 @@ class MoqtIngestionHandler {
         absl::bind_front(&MoqtIngestionHandler::OnAnnounceReceived, this);
   }
 
+  // TODO(martinduke): Handle when |announce| is false (UNANNOUNCE).
   std::optional<MoqtAnnounceErrorReason> OnAnnounceReceived(
-      FullTrackName track_namespace) {
+      FullTrackName track_namespace, AnnounceEvent /*announce*/) {
     if (!IsValidTrackNamespace(track_namespace) &&
         !quiche::GetQuicheCommandLineFlag(
             FLAGS_allow_invalid_track_namespaces)) {
