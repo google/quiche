@@ -7,15 +7,20 @@
 #include <algorithm>
 #include <cerrno>
 #include <cmath>
+#include <cstddef>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "absl/types/span.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
-#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/io/socket.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_alarm_factory_proxy.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -78,13 +83,13 @@ bool QuicPollEventLoop::ArtificiallyNotifyEvent(SocketFd fd,
 
 void QuicPollEventLoop::RunEventLoopOnce(QuicTime::Delta default_timeout) {
   const QuicTime start_time = clock_->Now();
-  ProcessAlarmsUpTo(start_time);
+  alarms_.ProcessAlarmsUpTo(start_time);
 
   QuicTime::Delta timeout = ComputePollTimeout(start_time, default_timeout);
   ProcessIoEvents(start_time, timeout);
 
   const QuicTime end_time = clock_->Now();
-  ProcessAlarmsUpTo(end_time);
+  alarms_.ProcessAlarmsUpTo(end_time);
 }
 
 QuicTime::Delta QuicPollEventLoop::ComputePollTimeout(
@@ -93,10 +98,11 @@ QuicTime::Delta QuicPollEventLoop::ComputePollTimeout(
   if (has_artificial_events_pending_) {
     return QuicTime::Delta::Zero();
   }
-  if (alarms_.empty()) {
+  std::optional<QuicTime> next_alarm = alarms_.GetNextUpcomingAlarm();
+  if (!next_alarm.has_value()) {
     return default_timeout;
   }
-  QuicTime end_time = std::min(now + default_timeout, alarms_.begin()->first);
+  QuicTime end_time = std::min(now + default_timeout, *next_alarm);
   if (end_time < now) {
     // We only run a single pass of processing alarm callbacks per
     // RunEventLoopOnce() call.  If an alarm schedules another alarm in the past
@@ -203,62 +209,8 @@ void QuicPollEventLoop::RunReadyCallbacks(
   ready_list.clear();
 }
 
-void QuicPollEventLoop::ProcessAlarmsUpTo(QuicTime time) {
-  // Determine which alarm callbacks needs to be run.
-  std::vector<std::weak_ptr<Alarm*>> alarms_to_call;
-  while (!alarms_.empty() && alarms_.begin()->first <= time) {
-    auto& [deadline, schedule_handle_weak] = *alarms_.begin();
-    alarms_to_call.push_back(std::move(schedule_handle_weak));
-    alarms_.erase(alarms_.begin());
-  }
-  // Actually run those callbacks.
-  for (std::weak_ptr<Alarm*>& schedule_handle_weak : alarms_to_call) {
-    std::shared_ptr<Alarm*> schedule_handle = schedule_handle_weak.lock();
-    if (!schedule_handle) {
-      // The alarm has been cancelled and might not even exist anymore.
-      continue;
-    }
-    (*schedule_handle)->DoFire();
-  }
-  // Clean up all of the alarms in the front that have been cancelled.
-  while (!alarms_.empty()) {
-    if (alarms_.begin()->second.expired()) {
-      alarms_.erase(alarms_.begin());
-    } else {
-      break;
-    }
-  }
-}
-
-QuicAlarm* QuicPollEventLoop::AlarmFactory::CreateAlarm(
-    QuicAlarm::Delegate* delegate) {
-  return new Alarm(loop_, QuicArenaScopedPtr<QuicAlarm::Delegate>(delegate));
-}
-
-QuicArenaScopedPtr<QuicAlarm> QuicPollEventLoop::AlarmFactory::CreateAlarm(
-    QuicArenaScopedPtr<QuicAlarm::Delegate> delegate,
-    QuicConnectionArena* arena) {
-  if (arena != nullptr) {
-    return arena->New<Alarm>(loop_, std::move(delegate));
-  }
-  return QuicArenaScopedPtr<QuicAlarm>(new Alarm(loop_, std::move(delegate)));
-}
-
-QuicPollEventLoop::Alarm::Alarm(
-    QuicPollEventLoop* loop, QuicArenaScopedPtr<QuicAlarm::Delegate> delegate)
-    : QuicAlarm(std::move(delegate)), loop_(loop) {}
-
-void QuicPollEventLoop::Alarm::SetImpl() {
-  current_schedule_handle_ = std::make_shared<Alarm*>(this);
-  loop_->alarms_.insert({deadline(), current_schedule_handle_});
-}
-
-void QuicPollEventLoop::Alarm::CancelImpl() {
-  current_schedule_handle_.reset();
-}
-
 std::unique_ptr<QuicAlarmFactory> QuicPollEventLoop::CreateAlarmFactory() {
-  return std::make_unique<AlarmFactory>(this);
+  return std::make_unique<QuicAlarmFactoryProxy>(&alarms_);
 }
 
 int QuicPollEventLoop::PollSyscall(pollfd* fds, size_t nfds, int timeout) {
