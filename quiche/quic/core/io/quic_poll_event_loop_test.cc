@@ -64,7 +64,7 @@ class QuicPollEventLoopForTest : public QuicPollEventLoop {
   QuicPollEventLoopForTest(MockClock* clock)
       : QuicPollEventLoop(clock), clock_(clock) {}
 
-  int PollSyscall(pollfd* fds, nfds_t nfds, int timeout) override {
+  int PollSyscall(pollfd* fds, size_t nfds, int timeout) override {
     timeouts_.push_back(timeout);
     if (eintr_after_ != QuicTime::Delta::Infinite()) {
       errno = EINTR;
