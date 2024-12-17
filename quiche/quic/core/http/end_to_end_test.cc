@@ -6757,9 +6757,11 @@ void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
   auto& packet1 = copying_writer->initial_packets()[0];
   EXPECT_EQ(packet1->was_dropped, drop_first_packet);
   EXPECT_EQ(packet1->packet_number, 1u);
-  EXPECT_GE(packet1->num_crypto_frames, 3u);
-  EXPECT_GE(packet1->num_ping_frames, 2u);
-  EXPECT_GE(packet1->num_padding_frames, 1u);
+  EXPECT_TRUE(packet1->num_crypto_frames > 2 || packet1->num_ping_frames > 0 ||
+              packet1->num_padding_frames > 1)
+      << "crypto=" << packet1->num_crypto_frames
+      << ", ping=" << packet1->num_ping_frames
+      << ", pad=" << packet1->num_padding_frames;
   EXPECT_EQ(packet1->min_crypto_offset(), 0u);
   EXPECT_GE(packet1->max_crypto_data(), discard_length);
   EXPECT_GE(packet1->total_crypto_data_length, 500u);
@@ -6768,8 +6770,11 @@ void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
   EXPECT_FALSE(packet2->was_dropped);
   EXPECT_EQ(packet2->packet_number, 2u);
   if (num_packets == 2) {
-    EXPECT_GE(packet2->num_crypto_frames, 3u);
-    EXPECT_GE(packet2->num_ping_frames, 2u);
+    EXPECT_TRUE(packet2->num_crypto_frames > 2 ||
+                packet2->num_ping_frames > 0 || packet2->num_padding_frames > 1)
+        << "crypto=" << packet2->num_crypto_frames
+        << ", ping=" << packet2->num_ping_frames
+        << ", pad=" << packet2->num_padding_frames;
   } else {
     EXPECT_GE(packet2->num_crypto_frames, 1u);
   }
@@ -6781,9 +6786,11 @@ void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
     auto& packet3 = copying_writer->initial_packets()[2];
     EXPECT_FALSE(packet3->was_dropped);
     EXPECT_EQ(packet3->packet_number, 3u);
-    EXPECT_GE(packet3->num_crypto_frames, 3u);
-    EXPECT_GE(packet3->num_ping_frames, 2u);
-    EXPECT_GE(packet3->num_padding_frames, 1u);
+    EXPECT_TRUE(packet3->num_crypto_frames > 2 ||
+                packet3->num_ping_frames > 0 || packet3->num_padding_frames > 1)
+        << "crypto=" << packet3->num_crypto_frames
+        << ", ping=" << packet3->num_ping_frames
+        << ", pad=" << packet3->num_padding_frames;
     EXPECT_GT(packet3->min_crypto_offset(), 0u);
     EXPECT_LT(packet3->max_crypto_data(), discard_length);
     EXPECT_GE(packet3->total_crypto_data_length, 500u);

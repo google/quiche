@@ -1687,7 +1687,7 @@ size_t QuicPacketCreator::MultiPacketChaosProtect(EncryptionLevel level,
     return 0;
   }
   QUIC_DVLOG(1) << "Performed multi-packet Chaos Protection for "
-                << write_length << " bytes accross " << num_packets
+                << write_length << " bytes across " << num_packets
                 << " packets (first=" << first_frame_length
                 << ", last=" << last_frame_length << ")";
   return remaining_bytes_consumed + last_frame_length;
