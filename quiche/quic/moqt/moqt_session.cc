@@ -417,7 +417,7 @@ bool MoqtSession::SubscribeCurrentGroup(const FullTrackName& name,
 }
 
 void MoqtSession::Unsubscribe(const FullTrackName& name) {
-  RemoteTrack* track = RemoteTrackByName(name);
+  SubscribeRemoteTrack* track = RemoteTrackByName(name);
   if (track == nullptr) {
     return;
   }
@@ -425,10 +425,45 @@ void MoqtSession::Unsubscribe(const FullTrackName& name) {
   message.subscribe_id = track->subscribe_id();
   SendControlMessage(framer_.SerializeUnsubscribe(message));
   // Destroy state.
-  upstream_by_name_.erase(name);
+  subscribe_by_name_.erase(name);
+  subscribe_by_alias_.erase(track->track_alias());
   upstream_by_id_.erase(track->subscribe_id());
-  subscribe_by_alias_.erase(
-      static_cast<SubscribeRemoteTrack*>(track)->track_alias());
+}
+
+bool MoqtSession::Fetch(const FullTrackName& name,
+                        FetchResponseCallback callback, FullSequence start,
+                        uint64_t end_group, std::optional<uint64_t> end_object,
+                        MoqtPriority priority,
+                        std::optional<MoqtDeliveryOrder> delivery_order,
+                        MoqtSubscribeParameters parameters) {
+  if (peer_role_ == MoqtRole::kSubscriber) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH to subscriber peer";
+    return false;
+  }
+  // TODO(martinduke): support authorization info
+  if (next_subscribe_id_ >= peer_max_subscribe_id_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH with ID "
+                    << next_subscribe_id_
+                    << " which is greater than the maximum ID "
+                    << peer_max_subscribe_id_;
+    return false;
+  }
+  MoqtFetch message;
+  message.full_track_name = name;
+  message.subscribe_id = next_subscribe_id_++;
+  message.start_object = start;
+  message.end_group = end_group;
+  message.end_object = end_object;
+  message.subscriber_priority = priority;
+  message.group_order = delivery_order;
+  message.parameters = parameters;
+  message.parameters.object_ack_window = std::nullopt;
+  SendControlMessage(framer_.SerializeFetch(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent FETCH message for "
+                  << message.full_track_name;
+  auto fetch = std::make_unique<UpstreamFetch>(message, std::move(callback));
+  upstream_by_id_.emplace(message.subscribe_id, std::move(fetch));
+  return true;
 }
 
 void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
@@ -517,7 +552,7 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
                     << peer_max_subscribe_id_;
     return false;
   }
-  if (upstream_by_name_.contains(message.full_track_name)) {
+  if (subscribe_by_name_.contains(message.full_track_name)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE for track "
                     << message.full_track_name
                     << " which is already subscribed";
@@ -529,6 +564,13 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
     return false;
   }
   message.subscribe_id = next_subscribe_id_++;
+  if (provided_track_alias.has_value()) {
+    message.track_alias = *provided_track_alias;
+    next_remote_track_alias_ =
+        std::max(next_remote_track_alias_, *provided_track_alias) + 1;
+  } else {
+    message.track_alias = next_remote_track_alias_++;
+  }
   message.track_alias =
       provided_track_alias.value_or(next_remote_track_alias_++);
   if (SupportsObjectAck() && visitor != nullptr) {
@@ -546,9 +588,9 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE message for "
                   << message.full_track_name;
   auto track = std::make_unique<SubscribeRemoteTrack>(message, visitor);
-  upstream_by_name_.emplace(message.full_track_name, track.get());
-  upstream_by_id_.emplace(message.subscribe_id, track.get());
-  subscribe_by_alias_.emplace(message.track_alias, std::move(track));
+  subscribe_by_name_.emplace(message.full_track_name, track.get());
+  subscribe_by_alias_.emplace(message.track_alias, track.get());
+  upstream_by_id_.emplace(message.subscribe_id, std::move(track));
   return true;
 }
 
@@ -608,7 +650,7 @@ SubscribeRemoteTrack* MoqtSession::RemoteTrackByAlias(uint64_t track_alias) {
   if (it == subscribe_by_alias_.end()) {
     return nullptr;
   }
-  return it->second.get();
+  return it->second;
 }
 
 RemoteTrack* MoqtSession::RemoteTrackById(uint64_t subscribe_id) {
@@ -616,12 +658,13 @@ RemoteTrack* MoqtSession::RemoteTrackById(uint64_t subscribe_id) {
   if (it == upstream_by_id_.end()) {
     return nullptr;
   }
-  return it->second;
+  return it->second.get();
 }
 
-RemoteTrack* MoqtSession::RemoteTrackByName(const FullTrackName& name) {
-  auto it = upstream_by_name_.find(name);
-  if (it == upstream_by_name_.end()) {
+SubscribeRemoteTrack* MoqtSession::RemoteTrackByName(
+    const FullTrackName& name) {
+  auto it = subscribe_by_name_.find(name);
+  if (it == subscribe_by_name_.end()) {
     return nullptr;
   }
   return it->second;
@@ -945,12 +988,10 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
                   << ", error = " << static_cast<int>(message.error_code)
                   << " (" << message.reason_phrase << ")";
   SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
-  // Delete secondary references to the track. Preserve the owner
-  // (subscribe_by_alias_) to get the original subscribe, if needed. Erasing the
-  // other references now prevents an error due to a duplicate subscription in
-  // Subscribe().
-  session_->upstream_by_id_.erase(subscribe->subscribe_id());
-  session_->upstream_by_name_.erase(subscribe->full_track_name());
+  // Delete the by-name entry at this point prevents Subscribe() from throwing
+  // an error due to a duplicate track name. The other entries for this
+  // subscribe will be deleted after calling Subscribe().
+  session_->subscribe_by_name_.erase(subscribe->full_track_name());
   if (message.error_code == SubscribeErrorCode::kRetryTrackAlias) {
     // Automatically resubscribe with new alias.
     MoqtSubscribe& subscribe_message = subscribe->GetSubscribe();
@@ -961,6 +1002,7 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
                                   message.reason_phrase);
   }
   session_->subscribe_by_alias_.erase(subscribe->track_alias());
+  session_->upstream_by_id_.erase(subscribe->subscribe_id());
 }
 
 void MoqtSession::ControlStream::OnUnsubscribeMessage(
@@ -1194,6 +1236,80 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
                            message.group_order.value_or(
                                (*track_publisher)->GetDeliveryOrder())));
   }
+}
+
+void MoqtSession::ControlStream::OnFetchOkMessage(const MoqtFetchOk& message) {
+  RemoteTrack* track = session_->RemoteTrackById(message.subscribe_id);
+  if (track == nullptr) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received the FETCH_OK for "
+                    << "subscribe_id = " << message.subscribe_id
+                    << " but no track exists";
+    // Subscription state might have been destroyed for internal reasons.
+    return;
+  }
+  if (!track->is_fetch()) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received FETCH_OK for a SUBSCRIBE");
+    return;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT << "Received the FETCH_OK for subscribe_id = "
+                  << message.subscribe_id << " " << track->full_track_name();
+  UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
+  fetch->OnFetchResult(message.largest_id, absl::OkStatus(),
+                       [=, session = session_]() {
+                         session->CancelFetch(message.subscribe_id);
+                       });
+}
+
+void MoqtSession::ControlStream::OnFetchErrorMessage(
+    const MoqtFetchError& message) {
+  RemoteTrack* track = session_->RemoteTrackById(message.subscribe_id);
+  if (track == nullptr) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received the FETCH_ERROR for "
+                    << "subscribe_id = " << message.subscribe_id
+                    << " but no track exists";
+    // Subscription state might have been destroyed for internal reasons.
+    return;
+  }
+  if (!track->is_fetch()) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received FETCH_ERROR for a SUBSCRIBE");
+    return;
+  }
+  if (!track->ErrorIsAllowed()) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received FETCH_ERROR after FETCH_OK or objects");
+    return;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT << "Received the FETCH_ERROR for "
+                  << "subscribe_id = " << message.subscribe_id << " ("
+                  << track->full_track_name() << ")"
+                  << ", error = " << static_cast<int>(message.error_code)
+                  << " (" << message.reason_phrase << ")";
+  UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
+  absl::Status status;
+  switch (message.error_code) {
+    case moqt::SubscribeErrorCode::kInternalError:
+      status = absl::InternalError(message.reason_phrase);
+      break;
+    case SubscribeErrorCode::kInvalidRange:
+      status = absl::OutOfRangeError(message.reason_phrase);
+      break;
+    case SubscribeErrorCode::kTrackDoesNotExist:
+      status = absl::NotFoundError(message.reason_phrase);
+      break;
+    case SubscribeErrorCode::kUnauthorized:
+      status = absl::UnauthenticatedError(message.reason_phrase);
+      break;
+    case SubscribeErrorCode::kTimeout:
+      status = absl::DeadlineExceededError(message.reason_phrase);
+      break;
+    default:
+      status = absl::UnknownError(message.reason_phrase);
+      break;
+  }
+  fetch->OnFetchResult(FullSequence(0, 0), status, nullptr);
+  session_->upstream_by_id_.erase(message.subscribe_id);
 }
 
 void MoqtSession::ControlStream::OnParsingError(MoqtError error_code,
@@ -1686,6 +1802,22 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   QUIC_DVLOG(1) << "Stream " << stream->GetStreamId() << " successfully wrote "
                 << object.sequence << ", fin = " << fin;
   return true;
+}
+
+void MoqtSession::CancelFetch(uint64_t subscribe_id) {
+  // This is only called from the callback where UpstreamFetchTask has been
+  // destroyed, so there is no need to notify the application.
+  upstream_by_id_.erase(subscribe_id);
+  ControlStream* stream = GetControlStream();
+  if (stream == nullptr) {
+    return;
+  }
+  MoqtFetchCancel message;
+  message.subscribe_id = subscribe_id;
+  stream->SendOrBufferMessage(framer_.SerializeFetchCancel(message));
+  // The FETCH_CANCEL will cause a RESET_STREAM to return, which would be the
+  // same as a STOP_SENDING. However, a FETCH_CANCEL works even if the stream
+  // hasn't opened yet.
 }
 
 void MoqtSession::PublishedSubscription::SendDatagram(FullSequence sequence) {

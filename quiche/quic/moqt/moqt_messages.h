@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -24,6 +25,7 @@
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
@@ -121,9 +123,10 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
 // Error codes used by MoQT to reset streams.
 // TODO: update with spec-defined error codes once those are available, see
 // <https://github.com/moq-wg/moq-transport/issues/481>.
-inline constexpr uint64_t kResetCodeUnknown = 0x00;
-inline constexpr uint64_t kResetCodeSubscriptionGone = 0x01;
-inline constexpr uint64_t kResetCodeTimedOut = 0x02;
+inline constexpr webtransport::StreamErrorCode kResetCodeUnknown = 0x00;
+inline constexpr webtransport::StreamErrorCode kResetCodeSubscriptionGone =
+    0x01;
+inline constexpr webtransport::StreamErrorCode kResetCodeTimedOut = 0x02;
 
 enum class QUICHE_EXPORT MoqtRole : uint64_t {
   kPublisher = 0x1,
@@ -582,6 +585,9 @@ MoqtForwardingPreference GetForwardingPreference(MoqtDataStreamType type);
 
 MoqtDataStreamType GetMessageTypeForForwardingPreference(
     MoqtForwardingPreference preference);
+
+absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
+                                     absl::string_view reason_phrase);
 
 }  // namespace moqt
 

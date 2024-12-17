@@ -9,13 +9,14 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/status/status.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
@@ -199,5 +200,17 @@ bool FullTrackName::operator<(const FullTrackName& other) const {
 }
 FullTrackName::FullTrackName(absl::Span<const absl::string_view> elements)
     : tuple_(elements.begin(), elements.end()) {}
+
+absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
+                                     absl::string_view reason_phrase) {
+  switch (error_code) {
+    case kResetCodeSubscriptionGone:
+      return absl::NotFoundError(reason_phrase);
+    case kResetCodeTimedOut:
+      return absl::DeadlineExceededError(reason_phrase);
+    default:
+      return absl::UnknownError(reason_phrase);
+  }
+}
 
 }  // namespace moqt

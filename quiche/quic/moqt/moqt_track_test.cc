@@ -4,11 +4,16 @@
 
 #include "quiche/quic/moqt/moqt_track.h"
 
+#include <memory>
 #include <optional>
+#include <utility>
 
+#include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/platform/api/quiche_mem_slice.h"
 
 namespace moqt {
 
@@ -64,7 +69,96 @@ TEST_F(SubscribeRemoteTrackTest, Windows) {
   EXPECT_FALSE(track_.InWindow(FullSequence(2, 0)));
 }
 
-// TODO: Write test for GetStreamForSequence.
+class UpstreamFetchTest : public quic::test::QuicTest {
+ protected:
+  UpstreamFetchTest()
+      : fetch_(fetch_message_, [&](std::unique_ptr<MoqtFetchTask> task) {
+          fetch_task_ = std::move(task);
+        }) {}
+
+  MoqtFetch fetch_message_ = {
+      /*fetch_id=*/1,
+      /*full_track_name=*/FullTrackName("foo", "bar"),
+      /*subscriber_priority=*/128,
+      /*group_order=*/std::nullopt,
+      /*start_object=*/FullSequence(1, 1),
+      /*end_group=*/3,
+      /*end_object=*/100,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  // The pointer held by the application.
+  UpstreamFetch fetch_;
+  std::unique_ptr<MoqtFetchTask> fetch_task_;
+};
+
+TEST_F(UpstreamFetchTest, Queries) {
+  EXPECT_EQ(fetch_.subscribe_id(), 1);
+  EXPECT_EQ(fetch_.full_track_name(), FullTrackName("foo", "bar"));
+  EXPECT_FALSE(
+      fetch_.CheckDataStreamType(MoqtDataStreamType::kStreamHeaderSubgroup));
+  EXPECT_TRUE(
+      fetch_.CheckDataStreamType(MoqtDataStreamType::kStreamHeaderFetch));
+  EXPECT_TRUE(fetch_.is_fetch());
+  EXPECT_FALSE(fetch_.InWindow(FullSequence{1, 0}));
+  EXPECT_TRUE(fetch_.InWindow(FullSequence{1, 1}));
+  EXPECT_TRUE(fetch_.InWindow(FullSequence{3, 100}));
+  EXPECT_FALSE(fetch_.InWindow(FullSequence{3, 101}));
+}
+
+TEST_F(UpstreamFetchTest, AllowError) {
+  EXPECT_TRUE(fetch_.ErrorIsAllowed());
+  fetch_.OnObjectOrOk();
+  EXPECT_FALSE(fetch_.ErrorIsAllowed());
+}
+
+TEST_F(UpstreamFetchTest, FetchResponse) {
+  EXPECT_EQ(fetch_task_, nullptr);
+  fetch_.OnFetchResult(FullSequence(3, 50), absl::OkStatus(), nullptr);
+  EXPECT_NE(fetch_task_, nullptr);
+  EXPECT_NE(fetch_.task(), nullptr);
+  EXPECT_TRUE(fetch_task_->GetStatus().ok());
+  EXPECT_EQ(fetch_task_->GetLargestId(), FullSequence(3, 50));
+}
+
+TEST_F(UpstreamFetchTest, FetchClosedByMoqt) {
+  bool terminated = false;
+  fetch_.OnFetchResult(FullSequence(3, 50), absl::OkStatus(),
+                       [&]() { terminated = true; });
+  bool got_eof = false;
+  fetch_task_->SetObjectAvailableCallback([&]() {
+    PublishedObject object;
+    EXPECT_EQ(fetch_task_->GetNextObject(object),
+              MoqtFetchTask::GetNextObjectResult::kEof);
+    got_eof = true;
+  });
+  fetch_.task()->OnStreamAndFetchClosed(std::nullopt, "");
+  EXPECT_FALSE(terminated);
+  EXPECT_TRUE(got_eof);
+}
+
+TEST_F(UpstreamFetchTest, FetchClosedByApplication) {
+  bool terminated = false;
+  fetch_.OnFetchResult(FullSequence(3, 50), absl::Status(),
+                       [&]() { terminated = true; });
+  fetch_task_.reset();
+  EXPECT_TRUE(terminated);
+}
+
+TEST_F(UpstreamFetchTest, ObjectRetrieval) {
+  fetch_.OnFetchResult(FullSequence(3, 50), absl::OkStatus(), nullptr);
+  PublishedObject object;
+  EXPECT_EQ(fetch_task_->GetNextObject(object),
+            MoqtFetchTask::GetNextObjectResult::kPending);
+  PublishedObject new_object(FullSequence(3, 0),
+                             MoqtObjectStatus::kGroupDoesNotExist, 128,
+                             quiche::QuicheMemSlice(), false);
+  fetch_task_->SetObjectAvailableCallback([&]() {
+    EXPECT_EQ(fetch_task_->GetNextObject(object),
+              MoqtFetchTask::GetNextObjectResult::kSuccess);
+    EXPECT_EQ(object.sequence, new_object.sequence);
+  });
+  fetch_.task()->NewObject(new_object);
+}
 
 }  // namespace test
 

@@ -2202,6 +2202,60 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
   stream_input->OnSubscribeAnnouncesMessage(announces);
 }
 
+TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  std::unique_ptr<MoqtFetchTask> fetch_task;
+  session_.Fetch(
+      FullTrackName("foo", "bar"),
+      [&](std::unique_ptr<MoqtFetchTask> task) {
+        fetch_task = std::move(task);
+      },
+      FullSequence(0, 0), 4, std::nullopt, 128, std::nullopt,
+      MoqtSubscribeParameters());
+  MoqtFetchOk ok = {
+      /*subscribe_id=*/0,
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*largest_id=*/FullSequence(3, 25),
+      MoqtSubscribeParameters(),
+  };
+  stream_input->OnFetchOkMessage(ok);
+  ASSERT_NE(fetch_task, nullptr);
+  EXPECT_EQ(fetch_task->GetLargestId(), FullSequence(3, 25));
+  EXPECT_TRUE(fetch_task->GetStatus().ok());
+  PublishedObject object;
+  EXPECT_EQ(fetch_task->GetNextObject(object),
+            MoqtFetchTask::GetNextObjectResult::kPending);
+  // Cancel the fetch.
+  EXPECT_CALL(mock_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kFetchCancel), _));
+  fetch_task.reset();
+}
+
+TEST_F(MoqtSessionTest, FetchThenError) {
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  std::unique_ptr<MoqtFetchTask> fetch_task;
+  session_.Fetch(
+      FullTrackName("foo", "bar"),
+      [&](std::unique_ptr<MoqtFetchTask> task) {
+        fetch_task = std::move(task);
+      },
+      FullSequence(0, 0), 4, std::nullopt, 128, std::nullopt,
+      MoqtSubscribeParameters());
+  MoqtFetchError error = {
+      /*subscribe_id=*/0,
+      /*error_code=*/SubscribeErrorCode::kUnauthorized,
+      /*reason_phrase=*/"No username provided",
+  };
+  stream_input->OnFetchErrorMessage(error);
+  ASSERT_NE(fetch_task, nullptr);
+  EXPECT_TRUE(absl::IsUnauthenticated(fetch_task->GetStatus()));
+  EXPECT_EQ(fetch_task->GetStatus().message(), "No username provided");
+}
+
 // TODO: re-enable this test once this behavior is re-implemented.
 #if 0
 TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {

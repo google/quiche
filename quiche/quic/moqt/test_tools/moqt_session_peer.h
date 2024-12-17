@@ -17,7 +17,6 @@
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
-#include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -75,11 +74,12 @@ class MoqtSessionPeer {
                                 const MoqtSubscribe& subscribe,
                                 SubscribeRemoteTrack::Visitor* visitor) {
     auto track = std::make_unique<SubscribeRemoteTrack>(subscribe, visitor);
-    session->upstream_by_id_.try_emplace(subscribe.subscribe_id, track.get());
-    session->upstream_by_name_.try_emplace(subscribe.full_track_name,
-                                           track.get());
     session->subscribe_by_alias_.try_emplace(subscribe.track_alias,
-                                             std::move(track));
+                                             track.get());
+    session->subscribe_by_name_.try_emplace(subscribe.full_track_name,
+                                            track.get());
+    session->upstream_by_id_.try_emplace(subscribe.subscribe_id,
+                                         std::move(track));
   }
 
   static MoqtObjectListener* AddSubscription(

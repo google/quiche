@@ -182,6 +182,15 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // Returns false if the subscription is not found. The session immediately
   // destroys all subscription state.
   void Unsubscribe(const FullTrackName& name);
+  // |callback| will be called when FETCH_OK or FETCH_ERROR is received, and
+  // delivers a pointer to MoqtFetchTask for application use. The callback
+  // transfers ownership of MoqtFetchTask to the application.
+  // To cancel a FETCH, simply destroy the FetchTask.
+  bool Fetch(const FullTrackName& name, FetchResponseCallback callback,
+             FullSequence start, uint64_t end_group,
+             std::optional<uint64_t> end_object, MoqtPriority priority,
+             std::optional<MoqtDeliveryOrder> delivery_order,
+             MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
 
   webtransport::Session* session() { return session_; }
   MoqtSessionCallbacks& callbacks() { return callbacks_; }
@@ -264,8 +273,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override;
     void OnFetchMessage(const MoqtFetch& message) override;
     void OnFetchCancelMessage(const MoqtFetchCancel& message) override {}
-    void OnFetchOkMessage(const MoqtFetchOk& message) override {}
-    void OnFetchErrorMessage(const MoqtFetchError& message) override {}
+    void OnFetchOkMessage(const MoqtFetchOk& message) override;
+    void OnFetchErrorMessage(const MoqtFetchError& message) override;
     void OnObjectAckMessage(const MoqtObjectAck& message) override {
       auto subscription_it =
           session_->published_subscriptions_.find(message.subscribe_id);
@@ -334,7 +343,6 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     webtransport::Stream* stream_;
     // Once the subscribe ID is identified, set it here.
     quiche::QuicheWeakPtr<RemoteTrack> track_;
-    // std::optional<uint64_t> subscribe_id_ = std::nullopt;
     MoqtDataParser parser_;
     std::string partial_object_;
   };
@@ -562,7 +570,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
   SubscribeRemoteTrack* RemoteTrackByAlias(uint64_t track_alias);
   RemoteTrack* RemoteTrackById(uint64_t subscribe_id);
-  RemoteTrack* RemoteTrackByName(const FullTrackName& name);
+  SubscribeRemoteTrack* RemoteTrackByName(const FullTrackName& name);
 
   // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
   // a session error if is not.
@@ -575,6 +583,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                            const PublishedObject& object,
                            MoqtDataStreamType type, bool is_first_on_stream,
                            bool fin);
+
+  void CancelFetch(uint64_t subscribe_id);
 
   // Sends an OBJECT_ACK message for a specific subscribe ID.
   void SendObjectAck(uint64_t subscribe_id, uint64_t group_id,
@@ -606,16 +616,13 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   std::string error_;
 
   // Upstream SUBSCRIBE state.
-  // All the tracks the session is subscribed to, indexed by track_alias.
-  absl::flat_hash_map<uint64_t, std::unique_ptr<SubscribeRemoteTrack>>
-      subscribe_by_alias_;
-  // Upstream SUBSCRIBEs indexed by subscribe_id.
-  // TODO(martinduke): Add fetches to this.
-  absl::flat_hash_map<uint64_t, RemoteTrack*> upstream_by_id_;
-  // The application only has track names, so this allows MoqtSession to
-  // quickly find what it's looking for. Also allows a quick check for duplicate
-  // subscriptions.
-  absl::flat_hash_map<FullTrackName, RemoteTrack*> upstream_by_name_;
+  // Upstream SUBSCRIBEs and FETCHes, indexed by subscribe_id.
+  absl::flat_hash_map<uint64_t, std::unique_ptr<RemoteTrack>> upstream_by_id_;
+  // All SUBSCRIBEs, indexed by track_alias.
+  absl::flat_hash_map<uint64_t, SubscribeRemoteTrack*> subscribe_by_alias_;
+  // All SUBSCRIBEs, indexed by track name.
+  absl::flat_hash_map<FullTrackName, SubscribeRemoteTrack*> subscribe_by_name_;
+  // The next track alias to guess on a SUBSCRIBE.
   uint64_t next_remote_track_alias_ = 0;
   // The next subscribe ID that the local endpoint can send.
   uint64_t next_subscribe_id_ = 0;
