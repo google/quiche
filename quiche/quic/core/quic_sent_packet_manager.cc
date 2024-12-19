@@ -137,10 +137,6 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   }
 
   // Configure congestion control.
-  if (perspective == Perspective::IS_CLIENT &&
-      config.HasClientRequestedIndependentOption(kPRGC, perspective)) {
-    SetSendAlgorithm(kPragueCubic);
-  }
   if (config.HasClientRequestedIndependentOption(kTBBR, perspective)) {
     SetSendAlgorithm(kBBR);
   }
@@ -156,6 +152,13 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
              (GetQuicReloadableFlag(quic_default_to_bbr) &&
               config.HasClientRequestedIndependentOption(kQBIC, perspective))) {
     SetSendAlgorithm(kCubicBytes);
+  }
+  if (perspective == Perspective::IS_CLIENT) {
+    if (config.HasClientRequestedIndependentOption(kPRGC, perspective)) {
+      SetSendAlgorithm(kPragueCubic);
+    } else if (config.HasClientRequestedIndependentOption(kCQBC, perspective)) {
+      SetSendAlgorithm(kCubicBytes);
+    }
   }
 
   // Initial window.

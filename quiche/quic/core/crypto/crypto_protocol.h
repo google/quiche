@@ -304,6 +304,8 @@ DEFINE_STATIC_QUIC_TAG(CRNT);
 
 DEFINE_STATIC_QUIC_TAG(PRGC);  // Prague Cubic congestion
                                // control (client-only)
+DEFINE_STATIC_QUIC_TAG(CQBC);  // Client-only Cubic congestion control. Used
+                               // for a control in the PRGC experiment.
 
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the
