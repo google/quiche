@@ -116,7 +116,9 @@ TEST_F(QuicUdpSocketTest, FlowLabel) {
   read_result.packet_buffer = {&packet_buffer_[0], sizeof(packet_buffer_)};
   read_result.control_buffer = {&control_buffer_[0], sizeof(control_buffer_)};
 
-  socket_api.ReadPacket(server_socket, packet_info_interested, &read_result);
+  do {
+    socket_api.ReadPacket(server_socket, packet_info_interested, &read_result);
+  } while (!read_result.ok);
   EXPECT_EQ(client_flow_label, read_result.packet_info.flow_label());
 
   const uint32_t server_flow_label = 3;
@@ -127,7 +129,9 @@ TEST_F(QuicUdpSocketTest, FlowLabel) {
   ASSERT_EQ(WRITE_STATUS_OK, write_result.status);
 
   read_result.Reset(sizeof(packet_buffer_));
-  socket_api.ReadPacket(client_socket, packet_info_interested, &read_result);
+  do {
+    socket_api.ReadPacket(client_socket, packet_info_interested, &read_result);
+  } while (!read_result.ok);
   EXPECT_EQ(server_flow_label, read_result.packet_info.flow_label());
 }
 
