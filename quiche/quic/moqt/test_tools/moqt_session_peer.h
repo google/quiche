@@ -10,6 +10,8 @@
 #include <optional>
 #include <utility>
 
+
+#include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -54,6 +56,14 @@ class MoqtSessionPeer {
     auto new_stream =
         std::make_unique<MoqtSession::IncomingDataStream>(session, stream);
     MoqtDataParserPeer::SetType(&new_stream->parser_, type);
+    return new_stream;
+  }
+
+  static std::unique_ptr<webtransport::StreamVisitor>
+  CreateIncomingStreamVisitor(MoqtSession* session,
+                              webtransport::Stream* stream) {
+    auto new_stream =
+        std::make_unique<MoqtSession::IncomingDataStream>(session, stream);
     return new_stream;
   }
 
@@ -155,6 +165,43 @@ class MoqtSessionPeer {
   static FullSequence LargestSentForSubscription(MoqtSession* session,
                                                  uint64_t subscribe_id) {
     return *session->published_subscriptions_[subscribe_id]->largest_sent();
+  }
+
+  // Adds an upstream fetch and a stream ready to receive data.
+  static std::unique_ptr<MoqtFetchTask> CreateUpstreamFetch(
+      MoqtSession* session, webtransport::Stream* stream) {
+    MoqtFetch fetch_message = {
+        0,
+        FullTrackName{"foo", "bar"},
+        128,
+        std::nullopt,
+        FullSequence{0, 0},
+        4,
+        std::nullopt,
+        MoqtSubscribeParameters(),
+    };
+    std::unique_ptr<MoqtFetchTask> task;
+    auto [it, success] = session->upstream_by_id_.try_emplace(
+        0, std::make_unique<UpstreamFetch>(
+               fetch_message, [&](std::unique_ptr<MoqtFetchTask> fetch_task) {
+                 task = std::move(fetch_task);
+               }));
+    QUICHE_DCHECK(success);
+    UpstreamFetch* fetch = static_cast<UpstreamFetch*>(it->second.get());
+    // Initialize the fetch task
+    fetch->OnFetchResult(
+        FullSequence{4, 10}, absl::OkStatus(),
+        [=, session_ptr = session, fetch_id = fetch_message.subscribe_id]() {
+          session_ptr->CancelFetch(fetch_id);
+        });
+    ;
+    auto mock_session =
+        static_cast<webtransport::test::MockSession*>(session->session());
+    EXPECT_CALL(*mock_session, AcceptIncomingUnidirectionalStream())
+        .WillOnce(testing::Return(stream))
+        .WillOnce(testing::Return(nullptr));
+    session->OnIncomingUnidirectionalStreamAvailable();
+    return task;
   }
 };
 

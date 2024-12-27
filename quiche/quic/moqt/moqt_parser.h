@@ -202,6 +202,13 @@ class QUICHE_EXPORT MoqtDataParser {
   // Returns the type of the unidirectional stream, if already known.
   std::optional<MoqtDataStreamType> stream_type() const { return type_; }
 
+  // Returns the track alias, if already known.
+  std::optional<uint64_t> track_alias() const {
+    return (next_input_ == kStreamType || next_input_ == kTrackAlias)
+               ? std::optional<uint64_t>()
+               : metadata_.track_alias;
+  }
+
  private:
   friend class test::MoqtDataParserPeer;
 

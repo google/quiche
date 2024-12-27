@@ -17,6 +17,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
@@ -195,13 +196,27 @@ class UpstreamFetch : public RemoteTrack {
       return weak_ptr_factory_.Create();
     }
 
-    // Manage the relationship with the data stream.
-    void OnStreamOpened(CanReadCallback callback) {
+    // MoqtSession should not use this function; use
+    // UpstreamFetch::OnStreamOpened() instead, in case the task does not exist
+    // yet.
+    void set_can_read_callback(CanReadCallback callback) {
       can_read_callback_ = std::move(callback);
+      can_read_callback_();  // Accept the first object.
     }
 
     // Called when the data stream receives a new object.
-    void NewObject(PublishedObject& object);
+    void NewObject(const MoqtObject& message);
+    void AppendPayloadToObject(absl::string_view payload);
+    // MoqtSession calls this for a hint if the object has been read.
+    bool HasObject() const { return next_object_.has_value(); }
+    bool NeedsMorePayload() const {
+      return next_object_.has_value() && next_object_->payload_length > 0;
+    }
+    // MoqtSession calls NotifyNewObject() after NewObject() because it has to
+    // exit the parser loop before the callback possibly causes another read.
+    // Furthermore, NewObject() may be a partial object, and so
+    // NotifyNewObject() is called only when the object is complete.
+    void NotifyNewObject();
 
     // Deletes callbacks to session or stream, updates the status. If |error|
     // has no value, will append an EOF to the object stream.
@@ -214,10 +229,22 @@ class UpstreamFetch : public RemoteTrack {
     absl::Status status_;
     TaskDestroyedCallback task_destroyed_callback_;
 
-    // Object delivery state.
-    std::optional<PublishedObject> next_object_;
+    // Object delivery state. The payload_length member is used to track the
+    // payload bytes not yet received. The application receives a
+    // PublishedObject that is constructed from next_object_ and payload_.
+    std::optional<MoqtObject> next_object_;
+    // Store payload separately. Will be converted into QuicheMemSlice only when
+    // complete, since QuicheMemSlice is immutable.
+    quiche::QuicheBuffer payload_;
+
+    // The task should only call object_available_callback_ when the last result
+    // was kPending. Otherwise, there can be recursive loops of
+    // GetNextObjectResult().
+    bool need_object_available_callback_ = true;
     bool eof_ = false;  // The next object is EOF.
+    // The Fetch task signals the application when it has new objects.
     ObjectsAvailableCallback object_available_callback_;
+    // The Fetch task signals the stream when it has dispensed of an object.
     CanReadCallback can_read_callback_;
 
     // Must be last.
@@ -230,8 +257,15 @@ class UpstreamFetch : public RemoteTrack {
 
   UpstreamFetchTask* task() { return task_.GetIfAvailable(); }
 
+  // Manage the relationship with the data stream.
+  void OnStreamOpened(CanReadCallback callback);
+
  private:
   quiche::QuicheWeakPtr<UpstreamFetchTask> task_;
+
+  // Before FetchTask is created, an incoming stream will register the callback
+  // here instead.
+  CanReadCallback can_read_callback_;
 
   // Initial values from Fetch() call.
   FetchResponseCallback ok_callback_;  // Will be destroyed on FETCH_OK.

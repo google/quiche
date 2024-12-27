@@ -36,6 +36,7 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
@@ -959,7 +960,6 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
     subscribe->visitor()->OnReply(track->full_track_name(), message.largest_id,
                                   std::nullopt);
   }
-  subscribe->OnObjectOrOk();
 }
 
 void MoqtSession::ControlStream::OnSubscribeErrorMessage(
@@ -1385,19 +1385,114 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     return;
   }
   track->OnObjectOrOk();
-  SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
-  if (subscribe->visitor() != nullptr) {
-    subscribe->visitor()->OnObjectFragment(
-        track->full_track_name(),
-        FullSequence{message.group_id, message.subgroup_id.value_or(0),
-                     message.object_id},
-        message.publisher_priority, message.object_status, payload,
-        end_of_message);
+  if (!track->is_fetch()) {
+    SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
+    if (subscribe->visitor() != nullptr) {
+      subscribe->visitor()->OnObjectFragment(
+          track->full_track_name(),
+          FullSequence{message.group_id, message.subgroup_id.value_or(0),
+                       message.object_id},
+          message.publisher_priority, message.object_status, payload,
+          end_of_message);
+    }
+  } else {  // FETCH
+    UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
+    UpstreamFetch::UpstreamFetchTask* task = fetch->task();
+    if (task == nullptr) {
+      // The application killed the FETCH.
+      stream_->SendStopSending(kResetCodeSubscriptionGone);
+      return;
+    }
+    if (!task->HasObject()) {
+      task->NewObject(message);
+    }
+    if (task->NeedsMorePayload() && !payload.empty()) {
+      task->AppendPayloadToObject(payload);
+    }
   }
   partial_object_.clear();
 }
 
-void MoqtSession::IncomingDataStream::OnCanRead() { parser_.ReadAllData(); }
+MoqtSession::IncomingDataStream::~IncomingDataStream() {
+  if (parser_.track_alias().has_value() &&
+      parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch) {
+    RemoteTrack* track = session_->RemoteTrackById(*parser_.track_alias());
+    if (track != nullptr && track->is_fetch()) {
+      session_->upstream_by_id_.erase(*parser_.track_alias());
+    }
+  }
+}
+
+void MoqtSession::IncomingDataStream::MaybeReadOneObject() {
+  if (!parser_.track_alias().has_value() ||
+      parser_.stream_type() != MoqtDataStreamType::kStreamHeaderFetch) {
+    QUICHE_BUG(quic_bug_read_one_object_parser_unexpected_state)
+        << "Requesting object, parser in unexpected state";
+  }
+  RemoteTrack* track = session_->RemoteTrackById(*parser_.track_alias());
+  if (track == nullptr || !track->is_fetch()) {
+    QUICHE_BUG(quic_bug_read_one_object_track_unexpected_state)
+        << "Requesting object, track in unexpected state";
+    return;
+  }
+  UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
+  UpstreamFetch::UpstreamFetchTask* task = fetch->task();
+  if (task == nullptr) {
+    return;
+  }
+  if (task->HasObject() && !task->NeedsMorePayload()) {
+    return;
+  }
+  parser_.ReadAtMostOneObject();
+  // If it read an object, it called OnObjectMessage and may have altered the
+  // task's object state.
+  if (task->HasObject() && !task->NeedsMorePayload()) {
+    task->NotifyNewObject();
+  }
+}
+
+void MoqtSession::IncomingDataStream::OnCanRead() {
+  if (!parser_.stream_type().has_value()) {
+    parser_.ReadStreamType();
+    if (!parser_.stream_type().has_value()) {
+      return;
+    }
+  }
+  if (parser_.stream_type() != MoqtDataStreamType::kStreamHeaderFetch) {
+    parser_.ReadAllData();
+    return;
+  }
+  bool learned_track_alias = false;
+  if (!parser_.track_alias().has_value()) {
+    learned_track_alias = true;
+    parser_.ReadTrackAlias();
+    if (!parser_.track_alias().has_value()) {
+      return;
+    }
+  }
+  auto it = session_->upstream_by_id_.find(*parser_.track_alias());
+  if (it == session_->upstream_by_id_.end()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received object for a track with no FETCH";
+    // This is a not a session error because there might be an UNSUBSCRIBE in
+    // flight.
+    stream_->SendStopSending(kResetCodeSubscriptionGone);
+    return;
+  }
+  if (it->second == nullptr) {
+    QUICHE_BUG(quiche_bug_moqt_fetch_pointer_is_null)
+        << "Fetch pointer is null";
+    return;
+  }
+  UpstreamFetch* fetch = static_cast<UpstreamFetch*>(it->second.get());
+  if (learned_track_alias) {
+    // If the task already exists (FETCH_OK has arrived), the callback will
+    // immediately execute to read the first object. Otherwise, it will only
+    // execute when the task is created or a cached object is read.
+    fetch->OnStreamOpened([this]() { MaybeReadOneObject(); });
+    return;
+  }
+  MaybeReadOneObject();
+}
 
 void MoqtSession::IncomingDataStream::OnControlMessageReceived() {
   session_->Error(MoqtError::kProtocolViolation,

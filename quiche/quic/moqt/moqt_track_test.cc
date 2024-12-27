@@ -149,15 +149,35 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
   PublishedObject object;
   EXPECT_EQ(fetch_task_->GetNextObject(object),
             MoqtFetchTask::GetNextObjectResult::kPending);
-  PublishedObject new_object(FullSequence(3, 0),
-                             MoqtObjectStatus::kGroupDoesNotExist, 128,
-                             quiche::QuicheMemSlice(), false);
+  MoqtObject new_object = {1, 3, 0, 128, MoqtObjectStatus::kNormal, 0, 6};
+  bool got_object = false;
   fetch_task_->SetObjectAvailableCallback([&]() {
+    got_object = true;
     EXPECT_EQ(fetch_task_->GetNextObject(object),
               MoqtFetchTask::GetNextObjectResult::kSuccess);
-    EXPECT_EQ(object.sequence, new_object.sequence);
+    EXPECT_EQ(object.sequence, FullSequence(3, 0, 0));
+    EXPECT_EQ(object.payload.AsStringView(), "foobar");
   });
+  int got_read_callback = 0;
+  fetch_.OnStreamOpened([&]() { ++got_read_callback; });
+  EXPECT_FALSE(fetch_.task()->HasObject());
+  EXPECT_FALSE(fetch_.task()->NeedsMorePayload());
   fetch_.task()->NewObject(new_object);
+  EXPECT_TRUE(fetch_.task()->HasObject());
+  EXPECT_TRUE(fetch_.task()->NeedsMorePayload());
+  fetch_.task()->AppendPayloadToObject("foo");
+  EXPECT_TRUE(fetch_.task()->HasObject());
+  EXPECT_TRUE(fetch_.task()->NeedsMorePayload());
+  fetch_.task()->AppendPayloadToObject("bar");
+  EXPECT_TRUE(fetch_.task()->HasObject());
+  EXPECT_FALSE(fetch_.task()->NeedsMorePayload());
+  EXPECT_FALSE(got_object);
+  EXPECT_EQ(got_read_callback, 1);  // Call from OnStreamOpened().
+  fetch_.task()->NotifyNewObject();
+  EXPECT_FALSE(fetch_.task()->HasObject());
+  EXPECT_FALSE(fetch_.task()->NeedsMorePayload());
+  EXPECT_EQ(got_read_callback, 2);  // Call from GetNextObjectResult().
+  EXPECT_TRUE(got_object);
 }
 
 }  // namespace test

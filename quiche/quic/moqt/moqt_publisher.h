@@ -77,7 +77,9 @@ class MoqtFetchTask {
 
   // Sets the callback that is called when GetNextObject() has previously
   // returned kPending, but now a new object (or potentially an error or an
-  // end-of-fetch) is available.
+  // end-of-fetch) is available. The application is responsible for calling
+  // GetNextObject() until it gets kPending; no further callback will occur
+  // until then.
   virtual void SetObjectAvailableCallback(
       ObjectsAvailableCallback callback) = 0;
 

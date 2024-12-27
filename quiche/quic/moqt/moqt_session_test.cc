@@ -8,6 +8,7 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <queue>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,17 +20,22 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_stream.h"
+#include "quiche/common/simple_buffer_allocator.h"
+#include "quiche/web_transport/test_tools/in_memory_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -2254,6 +2260,218 @@ TEST_F(MoqtSessionTest, FetchThenError) {
   ASSERT_NE(fetch_task, nullptr);
   EXPECT_TRUE(absl::IsUnauthenticated(fetch_task->GetStatus()));
   EXPECT_EQ(fetch_task->GetStatus().message(), "No username provided");
+}
+
+// The application takes objects as they arrive.
+TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  std::unique_ptr<MoqtFetchTask> fetch_task;
+  uint64_t expected_object_id = 0;
+  session_.Fetch(
+      FullTrackName("foo", "bar"),
+      [&](std::unique_ptr<MoqtFetchTask> task) {
+        fetch_task = std::move(task);
+        fetch_task->SetObjectAvailableCallback([&]() {
+          PublishedObject object;
+          MoqtFetchTask::GetNextObjectResult result;
+          do {
+            result = fetch_task->GetNextObject(object);
+            if (result == MoqtFetchTask::GetNextObjectResult::kSuccess) {
+              EXPECT_EQ(object.sequence.object, expected_object_id);
+              ++expected_object_id;
+            }
+          } while (result != MoqtFetchTask::GetNextObjectResult::kPending);
+        });
+      },
+      FullSequence(0, 0), 4, std::nullopt, 128, std::nullopt,
+      MoqtSubscribeParameters());
+  // Build queue of packets to arrive.
+  std::queue<quiche::QuicheBuffer> headers;
+  std::queue<std::string> payloads;
+  MoqtObject object = {
+      /*subscribe_id=*/0,
+      /*group_id, object_id=*/0,
+      0,
+      /*publisher_priority=*/128,
+      /*status=*/MoqtObjectStatus::kNormal,
+      /*subgroup=*/0,
+      /*payload_length=*/3,
+  };
+  MoqtFramer framer_(quiche::SimpleBufferAllocator::Get(), true);
+  for (int i = 0; i < 4; ++i) {
+    object.object_id = i;
+    headers.push(framer_.SerializeObjectHeader(
+        object, MoqtDataStreamType::kStreamHeaderFetch, i == 0));
+    payloads.push("foo");
+  }
+
+  // Open stream, deliver two objects before FETCH_OK. Neither should be read.
+  webtransport::test::InMemoryStream data_stream(kIncomingUniStreamId);
+  data_stream.SetVisitor(
+      MoqtSessionPeer::CreateIncomingStreamVisitor(&session_, &data_stream));
+  for (int i = 0; i < 2; ++i) {
+    data_stream.Receive(headers.front().AsStringView(), false);
+    data_stream.Receive(payloads.front(), false);
+    headers.pop();
+    payloads.pop();
+  }
+  EXPECT_EQ(fetch_task, nullptr);
+  EXPECT_GT(data_stream.ReadableBytes(), 0);
+
+  // FETCH_OK arrives, objects are delivered.
+  MoqtFetchOk ok = {
+      /*subscribe_id=*/0,
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*largest_id=*/FullSequence(3, 25),
+      MoqtSubscribeParameters(),
+  };
+  stream_input->OnFetchOkMessage(ok);
+  ASSERT_NE(fetch_task, nullptr);
+  EXPECT_EQ(expected_object_id, 2);
+
+  // Deliver the rest of the objects.
+  for (int i = 2; i < 4; ++i) {
+    data_stream.Receive(headers.front().AsStringView(), false);
+    data_stream.Receive(payloads.front(), false);
+    headers.pop();
+    payloads.pop();
+  }
+  EXPECT_EQ(expected_object_id, 4);
+}
+
+TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  std::unique_ptr<MoqtFetchTask> fetch_task;
+  uint64_t expected_object_id = 0;
+  bool objects_available = false;
+  session_.Fetch(
+      FullTrackName("foo", "bar"),
+      [&](std::unique_ptr<MoqtFetchTask> task) {
+        fetch_task = std::move(task);
+        fetch_task->SetObjectAvailableCallback(
+            [&]() { objects_available = true; });
+      },
+      FullSequence(0, 0), 4, std::nullopt, 128, std::nullopt,
+      MoqtSubscribeParameters());
+  // Build queue of packets to arrive.
+  std::queue<quiche::QuicheBuffer> headers;
+  std::queue<std::string> payloads;
+  MoqtObject object = {
+      /*subscribe_id=*/0,
+      /*group_id, object_id=*/0,
+      0,
+      /*publisher_priority=*/128,
+      /*status=*/MoqtObjectStatus::kNormal,
+      /*subgroup=*/0,
+      /*payload_length=*/3,
+  };
+  MoqtFramer framer_(quiche::SimpleBufferAllocator::Get(), true);
+  for (int i = 0; i < 4; ++i) {
+    object.object_id = i;
+    headers.push(framer_.SerializeObjectHeader(
+        object, MoqtDataStreamType::kStreamHeaderFetch, i == 0));
+    payloads.push("foo");
+  }
+
+  // Open stream, deliver two objects before FETCH_OK. Neither should be read.
+  webtransport::test::InMemoryStream data_stream(kIncomingUniStreamId);
+  data_stream.SetVisitor(
+      MoqtSessionPeer::CreateIncomingStreamVisitor(&session_, &data_stream));
+  for (int i = 0; i < 2; ++i) {
+    data_stream.Receive(headers.front().AsStringView(), false);
+    data_stream.Receive(payloads.front(), false);
+    headers.pop();
+    payloads.pop();
+  }
+  EXPECT_EQ(fetch_task, nullptr);
+  EXPECT_GT(data_stream.ReadableBytes(), 0);
+
+  // FETCH_OK arrives, objects are available.
+  MoqtFetchOk ok = {
+      /*subscribe_id=*/0,
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*largest_id=*/FullSequence(3, 25),
+      MoqtSubscribeParameters(),
+  };
+  stream_input->OnFetchOkMessage(ok);
+  ASSERT_NE(fetch_task, nullptr);
+  EXPECT_TRUE(objects_available);
+
+  // Get the objects
+  MoqtFetchTask::GetNextObjectResult result;
+  do {
+    PublishedObject new_object;
+    result = fetch_task->GetNextObject(new_object);
+    if (result == MoqtFetchTask::GetNextObjectResult::kSuccess) {
+      EXPECT_EQ(new_object.sequence.object, expected_object_id);
+      ++expected_object_id;
+    }
+  } while (result != MoqtFetchTask::GetNextObjectResult::kPending);
+  EXPECT_EQ(expected_object_id, 2);
+  objects_available = false;
+
+  // Deliver the rest of the objects.
+  for (int i = 2; i < 4; ++i) {
+    data_stream.Receive(headers.front().AsStringView(), false);
+    data_stream.Receive(payloads.front(), false);
+    headers.pop();
+    payloads.pop();
+  }
+  EXPECT_TRUE(objects_available);
+  EXPECT_EQ(expected_object_id, 2);  // Not delivered yet.
+  // Get the objects
+  do {
+    PublishedObject new_object;
+    result = fetch_task->GetNextObject(new_object);
+    if (result == MoqtFetchTask::GetNextObjectResult::kSuccess) {
+      EXPECT_EQ(new_object.sequence.object, expected_object_id);
+      ++expected_object_id;
+    }
+  } while (result != MoqtFetchTask::GetNextObjectResult::kPending);
+  EXPECT_EQ(expected_object_id, 4);
+}
+
+TEST_F(MoqtSessionTest, PartialObjectFetch) {
+  MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
+  parameters.deliver_partial_objects = true;
+  MoqtSession session(&mock_session_, parameters,
+                      session_callbacks_.AsSessionCallbacks());
+  webtransport::test::InMemoryStream stream(kIncomingUniStreamId);
+  std::unique_ptr<MoqtFetchTask> fetch_task =
+      MoqtSessionPeer::CreateUpstreamFetch(&session, &stream);
+  UpstreamFetch::UpstreamFetchTask* task =
+      static_cast<UpstreamFetch::UpstreamFetchTask*>(fetch_task.get());
+  ASSERT_NE(task, nullptr);
+  EXPECT_FALSE(task->HasObject());
+  bool object_ready = false;
+  task->SetObjectAvailableCallback([&]() { object_ready = true; });
+  MoqtObject object = {
+      /*subscribe_id=*/0,
+      /*group_id, object_id=*/0,
+      0,
+      /*publisher_priority=*/128,
+      /*status=*/MoqtObjectStatus::kNormal,
+      /*subgroup=*/0,
+      /*payload_length=*/6,
+  };
+  MoqtFramer framer_(quiche::SimpleBufferAllocator::Get(), true);
+  quiche::QuicheBuffer header = framer_.SerializeObjectHeader(
+      object, MoqtDataStreamType::kStreamHeaderFetch, true);
+  stream.Receive(header.AsStringView(), false);
+  EXPECT_FALSE(task->HasObject());
+  EXPECT_FALSE(object_ready);
+  stream.Receive("foo", false);
+  EXPECT_TRUE(task->HasObject());
+  EXPECT_TRUE(task->NeedsMorePayload());
+  EXPECT_FALSE(object_ready);
+  stream.Receive("bar", false);
+  EXPECT_TRUE(object_ready);
+  EXPECT_TRUE(task->HasObject());
+  EXPECT_FALSE(task->NeedsMorePayload());
 }
 
 // TODO: re-enable this test once this behavior is re-implemented.
