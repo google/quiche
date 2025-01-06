@@ -75,14 +75,19 @@ UpstreamFetch::UpstreamFetchTask::GetNextObject(PublishedObject& output) {
     need_object_available_callback_ = true;
     return kPending;
   }
-  quiche::QuicheMemSlice message_slice(std::move(payload_));
+  if (!payload_.empty()) {
+    quiche::QuicheMemSlice message_slice(std::move(payload_));
+    output.payload = std::move(message_slice);
+  }
   output.sequence = FullSequence(next_object_->group_id,
                                  next_object_->subgroup_id.value_or(0),
                                  next_object_->object_id);
   output.status = next_object_->object_status;
   output.publisher_priority = next_object_->publisher_priority;
-  output.payload = std::move(message_slice);
   output.fin_after_this = false;
+  if (output.sequence == largest_id_) {  // This is the last object.
+    eof_ = true;
+  }
   next_object_.reset();
   can_read_callback_();
   return kSuccess;

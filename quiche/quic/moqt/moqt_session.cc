@@ -1415,11 +1415,9 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
 
 MoqtSession::IncomingDataStream::~IncomingDataStream() {
   if (parser_.track_alias().has_value() &&
-      parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch) {
-    RemoteTrack* track = session_->RemoteTrackById(*parser_.track_alias());
-    if (track != nullptr && track->is_fetch()) {
-      session_->upstream_by_id_.erase(*parser_.track_alias());
-    }
+      parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch &&
+      track_.IsValid()) {
+    session_->upstream_by_id_.erase(*parser_.track_alias());
   }
 }
 
