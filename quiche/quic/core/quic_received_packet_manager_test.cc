@@ -6,13 +6,12 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <ostream>
-#include <vector>
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -709,6 +708,37 @@ TEST_F(QuicReceivedPacketManagerTest, CountEcnPackets) {
   EXPECT_EQ(ack.ack_frame->ecn_counters->ce, 1);
 }
 
+TEST_F(QuicReceivedPacketManagerTest, NewCeTriggersImmediateAck) {
+  SetQuicReloadableFlag(quic_ack_ce_immediately, true);
+  EXPECT_FALSE(HasPendingAck());
+  RecordPacketReceipt(3, QuicTime::Zero(), ECN_ECT1);
+  MaybeUpdateAckTimeout(kInstigateAck, 3);
+  EXPECT_TRUE(HasPendingAck());
+  EXPECT_GT(received_manager_.ack_timeout(), clock_.ApproximateNow());
+  // Ack is triggered by kDefaultRetransmittablePacketsBeforeAck.
+  RecordPacketReceipt(4, QuicTime::Zero(), ECN_ECT1);
+  MaybeUpdateAckTimeout(kInstigateAck, 4);
+  CheckAckTimeout(clock_.ApproximateNow());
+  // New CE triggers immediate ACK.
+  RecordPacketReceipt(5, QuicTime::Zero(), ECN_CE);
+  MaybeUpdateAckTimeout(kInstigateAck, 5);
+  CheckAckTimeout(clock_.ApproximateNow());
+  // Do not ack consecutive CE.
+  RecordPacketReceipt(6, QuicTime::Zero(), ECN_CE);
+  MaybeUpdateAckTimeout(kInstigateAck, 6);
+  EXPECT_TRUE(HasPendingAck());
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+  // Non-CE packet is second, triggers ACK.
+  RecordPacketReceipt(7, QuicTime::Zero(), ECN_ECT1);
+  MaybeUpdateAckTimeout(kInstigateAck, 7);
+  CheckAckTimeout(clock_.ApproximateNow());
+  // New non-consecutive CE triggers immediate ACK.
+  RecordPacketReceipt(8, QuicTime::Zero(), ECN_CE);
+  MaybeUpdateAckTimeout(kInstigateAck, 8);
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
 }  // namespace
+
 }  // namespace test
 }  // namespace quic

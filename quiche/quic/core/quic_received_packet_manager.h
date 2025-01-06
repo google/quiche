@@ -206,6 +206,12 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   // Whether the most recent packet was missing before it was received.
   bool was_last_packet_missing_;
 
+  // Was the previous received packet CE-marked?
+  bool last_packet_was_ce_marked_ = false;
+  // The current packet is CE-marked, and the previous packet was not. This
+  // condition should trigger an immediate ACK.
+  bool changed_to_ce_marked_ = false;
+
   // Last sent largest acked, which gets updated when ACK was successfully sent.
   QuicPacketNumber last_sent_largest_acked_;
 
