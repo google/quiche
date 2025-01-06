@@ -154,6 +154,7 @@ class QUICHE_EXPORT QuicChaosProtector : public QuicStreamFrameDataProducer {
   std::optional<size_t> BuildPacket(const QuicPacketHeader& header,
                                     char* buffer);
 
+  const bool avoid_copy_;  // Latched from quic_chaos_protector_avoid_copy flag.
   size_t packet_size_;
   std::unique_ptr<char[]> crypto_frame_buffer_;
   const char* crypto_data_buffer_ = nullptr;

@@ -19,6 +19,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr2_simplify_inflight_hi, true, t
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_block_until_settings_received_copt, true, true, "If enabled and a BSUS connection is received, blocks server connections until SETTINGS frame is received.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_buffered_store_set_client_cid, false, true, "If true, QuicBufferedPacketStore will set client CID in packets it generates.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_can_send_ack_frequency, true, true, "If true, ack frequency frame can be sent from server to client.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_chaos_protector_avoid_copy, false, true, "When true, avoid unnecessary copy in QuicChaosProtector.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_conservative_bursts, false, false, "If true, set burst token to 2 in cwnd bootstrapping experiment.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false, false, "If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true, true, "If true, default-enable 5RTO blachole detection.")

@@ -24,6 +24,8 @@
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
@@ -228,10 +230,14 @@ std::optional<size_t> QuicChaosProtectorOld::BuildPacket(
 QuicChaosProtector::QuicChaosProtector(size_t packet_size,
                                        EncryptionLevel level,
                                        QuicFramer* framer, QuicRandom* random)
-    : packet_size_(packet_size),
+    : avoid_copy_(GetQuicReloadableFlag(quic_chaos_protector_avoid_copy)),
+      packet_size_(packet_size),
       level_(level),
       framer_(framer),
       random_(random) {
+  if (avoid_copy_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_chaos_protector_avoid_copy);
+  }
   QUICHE_DCHECK_NE(framer_, nullptr);
   QUICHE_DCHECK_NE(framer_->data_producer(), nullptr);
   QUICHE_DCHECK_NE(random_, nullptr);
@@ -295,11 +301,13 @@ std::optional<size_t> QuicChaosProtector::BuildDataPacket(
                   << header.packet_number;
     return std::nullopt;
   }
-  if (!CopyCryptoDataToLocalBuffer()) {
-    QUIC_DVLOG(1) << "Failed to copy crypto data to local buffer for initial "
-                     "packet number "
-                  << header.packet_number;
-    return std::nullopt;
+  if (!avoid_copy_) {
+    if (!CopyCryptoDataToLocalBuffer()) {
+      QUIC_DVLOG(1) << "Failed to copy crypto data to local buffer for initial "
+                       "packet number "
+                    << header.packet_number;
+      return std::nullopt;
+    }
   }
   SplitCryptoFrame();
   AddPingFrames();
@@ -321,6 +329,10 @@ bool QuicChaosProtector::WriteCryptoData(EncryptionLevel level,
                                          QuicStreamOffset offset,
                                          QuicByteCount data_length,
                                          QuicDataWriter* writer) {
+  if (avoid_copy_) {
+    QUIC_BUG(chaos avoid copy WriteCryptoData) << "This should never be called";
+    return false;
+  }
   if (level != level_) {
     QUIC_BUG(chaos bad level) << "Unexpected " << level << " != " << level_;
     return false;
@@ -341,6 +353,11 @@ bool QuicChaosProtector::WriteCryptoData(EncryptionLevel level,
 }
 
 bool QuicChaosProtector::CopyCryptoDataToLocalBuffer() {
+  if (avoid_copy_) {
+    QUIC_BUG(chaos avoid copy CopyCryptoDataToLocalBuffer)
+        << "This should never be called";
+    return false;
+  }
   size_t frame_size = QuicDataWriter::GetVarInt62Len(crypto_buffer_offset_) +
                       QuicDataWriter::GetVarInt62Len(crypto_data_length_) +
                       crypto_data_length_;
@@ -480,14 +497,18 @@ void QuicChaosProtector::SpreadPadding() {
 
 std::optional<size_t> QuicChaosProtector::BuildPacket(
     const QuicPacketHeader& header, char* buffer) {
-  QuicStreamFrameDataProducer* original_data_producer =
-      framer_->data_producer();
-  framer_->set_data_producer(this);
+  QuicStreamFrameDataProducer* original_data_producer;
+  if (!avoid_copy_) {
+    original_data_producer = framer_->data_producer();
+    framer_->set_data_producer(this);
+  }
 
   size_t length =
       framer_->BuildDataPacket(header, frames_, buffer, packet_size_, level_);
 
-  framer_->set_data_producer(original_data_producer);
+  if (!avoid_copy_) {
+    framer_->set_data_producer(original_data_producer);
+  }
   if (length == 0) {
     QUIC_DVLOG(1) << "Failed to build data packet for initial packet number "
                   << header.packet_number;

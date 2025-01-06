@@ -299,8 +299,10 @@ class QuicChaosProtectorTest : public QuicTestWithParam<ParsedQuicVersion>,
                        QuicByteCount data_length,
                        QuicDataWriter* writer) override {
     EXPECT_EQ(level, level);
-    EXPECT_EQ(offset, crypto_offset_);
-    EXPECT_EQ(data_length, crypto_data_length_);
+    if (!chaos_protector_->avoid_copy_) {
+      EXPECT_EQ(offset, crypto_offset_);
+      EXPECT_EQ(data_length, crypto_data_length_);
+    }
     for (QuicByteCount i = 0; i < data_length; i++) {
       EXPECT_TRUE(writer->WriteUInt8(static_cast<uint8_t>((offset + i) & 0xFF)))
           << i;
