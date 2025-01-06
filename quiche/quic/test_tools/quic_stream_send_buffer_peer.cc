@@ -27,11 +27,6 @@ const BufferedSlice* QuicStreamSendBufferPeer::CurrentWriteSlice(
   return QuicIntervalDequePeer::GetItem(&send_buffer->interval_deque_, wi);
 }
 
-QuicStreamOffset QuicStreamSendBufferPeer::EndOffset(
-    QuicStreamSendBuffer* send_buffer) {
-  return send_buffer->current_end_offset_;
-}
-
 // static
 QuicByteCount QuicStreamSendBufferPeer::TotalLength(
     QuicStreamSendBuffer* send_buffer) {

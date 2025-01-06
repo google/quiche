@@ -6692,6 +6692,17 @@ TEST_P(EndToEndTest, ThreePacketChaosProtectionWithRetransmission) {
                                  /*drop_first_packet=*/true);
 }
 
+TEST_P(EndToEndTest, FourPacketChaosProtection) {
+  TestMultiPacketChaosProtection(/*num_packets=*/4,
+                                 /*drop_first_packet=*/false);
+}
+
+TEST_P(EndToEndTest, FivePacketChaosProtection) {
+  // Regression test for b/387486449.
+  TestMultiPacketChaosProtection(/*num_packets=*/5,
+                                 /*drop_first_packet=*/false);
+}
+
 void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
                                                   bool drop_first_packet,
                                                   bool kyber) {
@@ -6752,49 +6763,32 @@ void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
   EXPECT_EQ(crypto_data_intervals.SpanningInterval().min(), 0u);
   EXPECT_GT(crypto_data_intervals.SpanningInterval().max(), discard_length);
 
-  ASSERT_GE(copying_writer->initial_packets().size(), 2u);
-  // First packet contains the start and end of the client hello.
-  auto& packet1 = copying_writer->initial_packets()[0];
-  EXPECT_EQ(packet1->was_dropped, drop_first_packet);
-  EXPECT_EQ(packet1->packet_number, 1u);
-  EXPECT_TRUE(packet1->num_crypto_frames > 2 || packet1->num_ping_frames > 0 ||
-              packet1->num_padding_frames > 1)
-      << "crypto=" << packet1->num_crypto_frames
-      << ", ping=" << packet1->num_ping_frames
-      << ", pad=" << packet1->num_padding_frames;
-  EXPECT_EQ(packet1->min_crypto_offset(), 0u);
-  EXPECT_GE(packet1->max_crypto_data(), discard_length);
-  EXPECT_GE(packet1->total_crypto_data_length, 500u);
-  // Subsequent packets contain the middle of the client hello.
-  auto& packet2 = copying_writer->initial_packets()[1];
-  EXPECT_FALSE(packet2->was_dropped);
-  EXPECT_EQ(packet2->packet_number, 2u);
-  if (num_packets == 2) {
-    EXPECT_TRUE(packet2->num_crypto_frames > 2 ||
-                packet2->num_ping_frames > 0 || packet2->num_padding_frames > 1)
-        << "crypto=" << packet2->num_crypto_frames
-        << ", ping=" << packet2->num_ping_frames
-        << ", pad=" << packet2->num_padding_frames;
-  } else {
-    EXPECT_GE(packet2->num_crypto_frames, 1u);
+  for (int i = 1; i <= num_packets; ++i) {
+    ASSERT_GE(copying_writer->initial_packets().size(), i);
+    auto& packet = copying_writer->initial_packets()[i - 1];
+    EXPECT_EQ(packet->was_dropped, drop_first_packet && i == 1);
+    EXPECT_EQ(packet->packet_number, i);
+    if (i == 1 || i == num_packets) {
+      // Ensure first and last packets are properly chaos protected.
+      EXPECT_TRUE(packet->num_crypto_frames > 2 ||
+                  packet->num_ping_frames > 0 || packet->num_padding_frames > 1)
+          << "crypto=" << packet->num_crypto_frames
+          << ", ping=" << packet->num_ping_frames
+          << ", pad=" << packet->num_padding_frames;
+    } else {
+      // Middle packets do not have single-packet chaos protection.
+      EXPECT_GE(packet->num_crypto_frames, 1u);
+    }
+    if (i == 1) {
+      EXPECT_EQ(packet->min_crypto_offset(), 0u);
+      EXPECT_GE(packet->max_crypto_data(), discard_length);
+    } else {
+      EXPECT_GT(packet->min_crypto_offset(), 0u);
+      EXPECT_LT(packet->max_crypto_data(), discard_length);
+    }
+    EXPECT_GE(packet->total_crypto_data_length, 500u);
   }
-  EXPECT_GT(packet2->min_crypto_offset(), 0u);
-  EXPECT_LT(packet2->max_crypto_data(), discard_length);
-  EXPECT_GE(packet2->total_crypto_data_length, 500u);
-  if (num_packets >= 3) {
-    ASSERT_GE(copying_writer->initial_packets().size(), 3u);
-    auto& packet3 = copying_writer->initial_packets()[2];
-    EXPECT_FALSE(packet3->was_dropped);
-    EXPECT_EQ(packet3->packet_number, 3u);
-    EXPECT_TRUE(packet3->num_crypto_frames > 2 ||
-                packet3->num_ping_frames > 0 || packet3->num_padding_frames > 1)
-        << "crypto=" << packet3->num_crypto_frames
-        << ", ping=" << packet3->num_ping_frames
-        << ", pad=" << packet3->num_padding_frames;
-    EXPECT_GT(packet3->min_crypto_offset(), 0u);
-    EXPECT_LT(packet3->max_crypto_data(), discard_length);
-    EXPECT_GE(packet3->total_crypto_data_length, 500u);
-  }
+
   if (!drop_first_packet) {
     return;
   }

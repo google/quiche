@@ -28,8 +28,6 @@ class QuicStreamSendBufferTest : public QuicTest {
     EXPECT_EQ(0u, send_buffer_.size());
     EXPECT_EQ(0u, send_buffer_.stream_bytes_written());
     EXPECT_EQ(0u, send_buffer_.stream_bytes_outstanding());
-    // The stream offset should be 0 since nothing is written.
-    EXPECT_EQ(0u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
 
     std::string data1 = absl::StrCat(
         std::string(1536, 'a'), std::string(256, 'b'), std::string(256, 'c'));
@@ -63,7 +61,7 @@ class QuicStreamSendBufferTest : public QuicTest {
     // Write all data.
     char buf[4000];
     QuicDataWriter writer(4000, buf, quiche::HOST_BYTE_ORDER);
-    send_buffer_.WriteStreamData(0, 3840u, &writer);
+    EXPECT_TRUE(send_buffer_.WriteStreamData(0, 3840u, &writer));
 
     send_buffer_.OnStreamDataConsumed(3840u);
     EXPECT_EQ(3840u, send_buffer_.stream_bytes_written());
@@ -133,13 +131,10 @@ TEST_F(QuicStreamSendBufferTest,
   EXPECT_EQ(copy1 + copy2, absl::string_view(buf + 1024, 2048));
 
   // Write new data.
-  EXPECT_EQ(2048u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
   ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 50, &writer));
   EXPECT_EQ(std::string(50, 'c'), absl::string_view(buf + 1024 + 2048, 50));
-  EXPECT_EQ(3072u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
   ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 1124, &writer));
   EXPECT_EQ(copy3, absl::string_view(buf + 1024 + 2048 + 50, 1124));
-  EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
 }
 
 TEST_F(QuicStreamSendBufferTest, RemoveStreamFrame) {
@@ -164,7 +159,7 @@ TEST_F(QuicStreamSendBufferTest, RemoveStreamFrame) {
   EXPECT_EQ(0u, send_buffer_.size());
 }
 
-TEST_F(QuicStreamSendBufferTest, RemoveStreamFrameAcrossBoundries) {
+TEST_F(QuicStreamSendBufferTest, RemoveStreamFrameAcrossBoundaries) {
   WriteAllData();
 
   QuicByteCount newly_acked_length;
@@ -280,37 +275,21 @@ TEST_F(QuicStreamSendBufferTest, PendingRetransmission) {
   EXPECT_TRUE(send_buffer_.IsStreamDataOutstanding(400, 800));
 }
 
-TEST_F(QuicStreamSendBufferTest, EndOffset) {
-  char buf[4000];
-  QuicDataWriter writer(4000, buf, quiche::HOST_BYTE_ORDER);
-
-  EXPECT_EQ(1024u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  ASSERT_TRUE(send_buffer_.WriteStreamData(0, 1024, &writer));
-  // Last offset we've seen is 1024
-  EXPECT_EQ(1024u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-
-  ASSERT_TRUE(send_buffer_.WriteStreamData(1024, 512, &writer));
-  // Last offset is now 2048 as that's the end of the next slice.
-  EXPECT_EQ(2048u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  send_buffer_.OnStreamDataConsumed(1024);
-
-  // If data in 1st slice gets ACK'ed, it shouldn't change the indexed slice
-  QuicByteCount newly_acked_length;
-  EXPECT_TRUE(send_buffer_.OnStreamDataAcked(0, 1024, &newly_acked_length));
-  // Last offset is still 2048.
-  EXPECT_EQ(2048u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-
-  ASSERT_TRUE(
-      send_buffer_.WriteStreamData(1024 + 512, 3840 - 1024 - 512, &writer));
-
-  // Last offset is end offset of last slice.
-  EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  quiche::QuicheBuffer buffer(&allocator_, 60);
-  memset(buffer.data(), 'e', buffer.size());
-  quiche::QuicheMemSlice slice(std::move(buffer));
-  send_buffer_.SaveMemSlice(std::move(slice));
-
-  EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
+TEST_F(QuicStreamSendBufferTest, OutOfOrderWrites) {
+  char buf[3840] = {};
+  // Write data out of order.
+  QuicDataWriter writer2(sizeof(buf) - 1000, buf + 1000);
+  EXPECT_TRUE(send_buffer_.WriteStreamData(1000u, 1000u, &writer2));
+  QuicDataWriter writer4(sizeof(buf) - 3000, buf + 3000);
+  EXPECT_TRUE(send_buffer_.WriteStreamData(3000u, 840u, &writer4));
+  QuicDataWriter writer3(sizeof(buf) - 2000, buf + 2000);
+  EXPECT_TRUE(send_buffer_.WriteStreamData(2000u, 1000u, &writer3));
+  QuicDataWriter writer1(sizeof(buf), buf);
+  EXPECT_TRUE(send_buffer_.WriteStreamData(0u, 1000u, &writer1));
+  // Make sure it is correct.
+  EXPECT_EQ(absl::string_view(buf, sizeof(buf)),
+            absl::StrCat(std::string(1536, 'a'), std::string(256, 'b'),
+                         std::string(1280, 'c'), std::string(768, 'd')));
 }
 
 TEST_F(QuicStreamSendBufferTest, SaveMemSliceSpan) {
