@@ -1574,6 +1574,7 @@ moqt_srcs = [
     "quic/moqt/tools/chat_client_bin.cc",
     "quic/moqt/tools/chat_server.cc",
     "quic/moqt/tools/chat_server_bin.cc",
+    "quic/moqt/tools/moq_chat.cc",
     "quic/moqt/tools/moq_chat_end_to_end_test.cc",
     "quic/moqt/tools/moq_chat_test.cc",
     "quic/moqt/tools/moqt_client.cc",

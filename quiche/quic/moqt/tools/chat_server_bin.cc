@@ -24,15 +24,16 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(uint16_t, port, 9667,
 // A server for MoQT over chat, used for interop testing. See
 // https://afrind.github.io/draft-frindell-moq-chat/draft-frindell-moq-chat.html
 int main(int argc, char* argv[]) {
-  const char* usage = "Usage: chat_server [options] <chat-id>";
+  const char* usage = "Usage: chat_server [options]";
   std::vector<std::string> args =
       quiche::QuicheParseCommandLineFlags(usage, argc, argv);
-  if (args.size() != 1) {
+  if (!args.empty()) {
     quiche::QuichePrintCommandLineFlagHelp(usage);
     return 1;
   }
-  moqt::ChatServer server(quiche::CreateDefaultProofSource(), argv[1],
-                          quiche::GetQuicheCommandLineFlag(FLAGS_output_file));
+  moqt::moq_chat::ChatServer server(
+      quiche::CreateDefaultProofSource(),
+      quiche::GetQuicheCommandLineFlag(FLAGS_output_file));
   quiche::QuicheIpAddress bind_address;
   QUICHE_CHECK(bind_address.FromString(
       quiche::GetQuicheCommandLineFlag(FLAGS_bind_address)));

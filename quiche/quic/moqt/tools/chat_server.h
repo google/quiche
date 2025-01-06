@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_MOQT_TOOLS_CHAT_SERVER_H_
 #define QUICHE_QUIC_MOQT_TOOLS_CHAT_SERVER_H_
 
-#include <cstdint>
 #include <fstream>
 #include <list>
 #include <memory>
@@ -13,26 +12,27 @@
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
+#include "absl/functional/bind_front.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_live_relay_queue.h"
 #include "quiche/quic/moqt/moqt_messages.h"
-#include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
-#include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 
 namespace moqt {
+namespace moq_chat {
 
 class ChatServer {
  public:
   ChatServer(std::unique_ptr<quic::ProofSource> proof_source,
-             absl::string_view chat_id, absl::string_view output_file);
+             absl::string_view output_file);
   ~ChatServer();
 
   class RemoteTrackVisitor : public SubscribeRemoteTrack::Visitor {
@@ -62,12 +62,43 @@ class ChatServer {
       it_ = it;
     }
 
+    void AnnounceIfSubscribed(FullTrackName track_namespace) {
+      for (const FullTrackName& subscribed_namespace : subscribed_namespaces_) {
+        if (track_namespace.InNamespace(subscribed_namespace)) {
+          session_->Announce(
+              track_namespace,
+              absl::bind_front(&ChatServer::ChatServerSessionHandler::
+                                   OnOutgoingAnnounceReply,
+                               this));
+          return;
+        }
+      }
+    }
+
+    void UnannounceIfSubscribed(FullTrackName track_namespace) {
+      for (const FullTrackName& subscribed_namespace : subscribed_namespaces_) {
+        if (track_namespace.InNamespace(subscribed_namespace)) {
+          session_->Unannounce(track_namespace);
+          return;
+        }
+      }
+    }
+
    private:
+    // Callback for incoming announces.
+    std::optional<MoqtAnnounceErrorReason> OnIncomingAnnounce(
+        const moqt::FullTrackName& track_namespace,
+        AnnounceEvent announce_type);
+    void OnOutgoingAnnounceReply(
+        FullTrackName track_namespace,
+        std::optional<MoqtAnnounceErrorReason> error_message);
+
     MoqtSession* session_;  // Not owned.
     // This design assumes that each server has exactly one username, although
     // in theory there could be multiple users on one session.
-    std::optional<std::string> username_;
+    std::optional<FullTrackName> track_name_;
     ChatServer* server_;  // Not owned.
+    absl::flat_hash_set<FullTrackName> subscribed_namespaces_;
     // The iterator of this entry in ChatServer::sessions_, so it can destroy
     // itself later.
     std::list<ChatServerSessionHandler>::const_iterator it_;
@@ -77,11 +108,9 @@ class ChatServer {
 
   RemoteTrackVisitor* remote_track_visitor() { return &remote_track_visitor_; }
 
-  MoqtOutgoingQueue* catalog() { return catalog_.get(); }
+  void AddUser(FullTrackName track_name);
 
-  void AddUser(absl::string_view username);
-
-  void DeleteUser(absl::string_view username);
+  void DeleteUser(FullTrackName track_name);
 
   void DeleteSession(std::list<ChatServerSessionHandler>::const_iterator it) {
     sessions_.erase(it);
@@ -91,8 +120,6 @@ class ChatServer {
   bool WriteToFile(absl::string_view username, absl::string_view message);
 
   MoqtPublisher* publisher() { return &publisher_; }
-
-  MoqChatStrings& strings() { return strings_; }
 
   int num_users() const { return user_queues_.size(); }
 
@@ -106,16 +133,14 @@ class ChatServer {
   bool is_running_ = true;
   MoqtServer server_;
   std::list<ChatServerSessionHandler> sessions_;
-  MoqChatStrings strings_;
   MoqtKnownTrackPublisher publisher_;
-  std::shared_ptr<MoqtOutgoingQueue> catalog_;
   RemoteTrackVisitor remote_track_visitor_;
-  // indexed by username
-  absl::flat_hash_map<std::string, std::shared_ptr<MoqtLiveRelayQueue>>
+  absl::flat_hash_map<FullTrackName, std::shared_ptr<MoqtLiveRelayQueue>>
       user_queues_;
   std::string output_filename_;
   std::ofstream output_file_;
 };
 
+}  // namespace moq_chat
 }  // namespace moqt
 #endif  // QUICHE_QUIC_MOQT_TOOLS_CHAT_SERVER_H_

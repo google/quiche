@@ -7,70 +7,63 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
-namespace moqt {
+namespace moqt::moq_chat {
 namespace {
 
-class MoqChatStringsTest : public quiche::test::QuicheTest {
- public:
-  MoqChatStrings strings_{"chat-id"};
-};
+class MoqChatTest : public quiche::test::QuicheTest {};
 
-TEST_F(MoqChatStringsTest, IsValidPath) {
-  EXPECT_TRUE(strings_.IsValidPath("/moq-chat"));
-  EXPECT_FALSE(strings_.IsValidPath("moq-chat"));
-  EXPECT_FALSE(strings_.IsValidPath("/moq-cha"));
-  EXPECT_FALSE(strings_.IsValidPath("/moq-chats"));
-  EXPECT_FALSE(strings_.IsValidPath("/moq-chat/"));
+TEST_F(MoqChatTest, IsValidPath) {
+  EXPECT_TRUE(IsValidPath("/moq-relay"));
+  EXPECT_FALSE(IsValidPath("moq-relay"));
+  EXPECT_FALSE(IsValidPath("/moq-rela"));
+  EXPECT_FALSE(IsValidPath("/moq-relays"));
+  EXPECT_FALSE(IsValidPath("/moq-relay/"));
 }
 
-TEST_F(MoqChatStringsTest, GetUsernameFromFullTrackName) {
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"moq-chat/chat-id/participant/user", ""}),
-            "user");
+TEST_F(MoqChatTest, ConstructNameForUser) {
+  FullTrackName name = ConstructTrackName("chat-id", "user", "device");
+
+  EXPECT_EQ(GetChatId(name), "chat-id");
+  EXPECT_EQ(GetUsername(name), "user");
+  // Check that the namespace passes validation.
+  name.NameToNamespace();
+  EXPECT_TRUE(ConstructTrackNameFromNamespace(name, "chat-id").has_value());
 }
 
-TEST_F(MoqChatStringsTest, GetUsernameFromFullTrackNameInvalidInput) {
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"/moq-chat/chat-id/participant/user", ""}),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"moq-chat/chat-id/participant/user/", ""}),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"moq-cha/chat-id/participant/user", ""}),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"moq-chat/chat-i/participant/user", ""}),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"moq-chat/chat-id/participan/user", ""}),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"moq-chat/chat-id/user", ""}),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"moq-chat/chat-id/participant/foo/user", ""}),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"moq-chat/chat-id/participant/user", "foo"}),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"moq-chat/chat-id/participant/user"}),
-            "");
-  EXPECT_EQ(strings_.GetUsernameFromFullTrackName(
-                FullTrackName{"foo", "moq-chat/chat-id/participant/user", ""}),
-            "");
+TEST_F(MoqChatTest, InvalidNamespace) {
+  FullTrackName track_namespace{kBasePath, "chat-id", "username", "device",
+                                "timestamp"};
+  // Wrong chat ID.
+  EXPECT_FALSE(
+      ConstructTrackNameFromNamespace(track_namespace, "chat-id2").has_value());
+  // Namespace includes name
+  track_namespace.AddElement("chat");
+  EXPECT_FALSE(
+      ConstructTrackNameFromNamespace(track_namespace, "chat-id").has_value());
+  track_namespace.NameToNamespace();  // Restore to correct value.
+  // Namespace too short.
+  track_namespace.NameToNamespace();
+  EXPECT_FALSE(
+      ConstructTrackNameFromNamespace(track_namespace, "chat-id").has_value());
+  track_namespace.AddElement("chat");  // Restore to correct value.
+  // Base Path is wrong.
+  FullTrackName bad_base_path{"moq-chat2", "chat-id", "user", "device",
+                              "timestamp"};
+  EXPECT_FALSE(
+      ConstructTrackNameFromNamespace(bad_base_path, "chat-id").has_value());
 }
 
-TEST_F(MoqChatStringsTest, GetFullTrackNameFromUsername) {
-  EXPECT_EQ(strings_.GetFullTrackNameFromUsername("user"),
-            FullTrackName("moq-chat/chat-id/participant/user", ""));
-}
-
-TEST_F(MoqChatStringsTest, GetCatalogName) {
-  EXPECT_EQ(strings_.GetCatalogName(),
-            FullTrackName("moq-chat/chat-id", "/catalog"));
+TEST_F(MoqChatTest, Queries) {
+  FullTrackName local_name{kBasePath, "chat-id",   "user",
+                           "device",  "timestamp", kNameField};
+  EXPECT_EQ(GetChatId(local_name), "chat-id");
+  EXPECT_EQ(GetUsername(local_name), "user");
+  FullTrackName track_namespace{"moq-chat", "chat-id", "user", "device",
+                                "timestamp"};
+  EXPECT_EQ(GetUserNamespace(local_name), track_namespace);
+  FullTrackName chat_namespace{"moq-chat", "chat-id"};
+  EXPECT_EQ(GetChatNamespace(local_name), chat_namespace);
 }
 
 }  // namespace
-}  // namespace moqt
+}  // namespace moqt::moq_chat

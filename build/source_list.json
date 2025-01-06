@@ -1577,6 +1577,7 @@
     "quiche/quic/moqt/tools/chat_client_bin.cc",
     "quiche/quic/moqt/tools/chat_server.cc",
     "quiche/quic/moqt/tools/chat_server_bin.cc",
+    "quiche/quic/moqt/tools/moq_chat.cc",
     "quiche/quic/moqt/tools/moq_chat_end_to_end_test.cc",
     "quiche/quic/moqt/tools/moq_chat_test.cc",
     "quiche/quic/moqt/tools/moqt_client.cc",

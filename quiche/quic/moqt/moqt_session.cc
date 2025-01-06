@@ -422,6 +422,7 @@ void MoqtSession::Unsubscribe(const FullTrackName& name) {
   if (track == nullptr) {
     return;
   }
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent UNSUBSCRIBE message for " << name;
   MoqtUnsubscribe message;
   message.subscribe_id = track->subscribe_id();
   SendControlMessage(framer_.SerializeUnsubscribe(message));
@@ -525,7 +526,7 @@ bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
   subscribe_done.final_id = subscription.largest_sent();
   SendControlMessage(framer_.SerializeSubscribeDone(subscribe_done));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_DONE message for "
-                  << subscribe_id;
+                  << subscription.publisher().GetTrackName();
   // Clean up the subscription
   published_subscriptions_.erase(it);
   for (webtransport::StreamId stream_id : streams_to_reset) {
@@ -1007,6 +1008,12 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
 
 void MoqtSession::ControlStream::OnUnsubscribeMessage(
     const MoqtUnsubscribe& message) {
+  auto it = session_->published_subscriptions_.find(message.subscribe_id);
+  if (it == session_->published_subscriptions_.end()) {
+    return;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT << "Received an UNSUBSCRIBE for "
+                  << it->second->publisher().GetTrackName();
   session_->SubscribeIsDone(message.subscribe_id,
                             SubscribeDoneCode::kUnsubscribed, "");
 }
