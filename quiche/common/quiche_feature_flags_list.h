@@ -53,7 +53,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_notify_stream_soon_to_destroy, fal
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_optimize_qpack_blocking_manager, false, false, "If true, optimize qpack_blocking_manager for CPU efficiency.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_pacing_remove_non_initial_burst, false, false, "If true, remove the non-initial burst in QUIC PacingSender.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_parse_cert_compression_algos_from_chlo, true, true, "If true, parse offered cert compression algorithms from received CHLOs.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_parse_transport_parameters_from_chlo, false, false, "If true, parse QUIC transport parameters from received CHLOs.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_parse_transport_parameters_from_chlo, false, true, "If true, parse QUIC transport parameters from received CHLOs.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_priority_respect_incremental, false, false, "If true, respect the incremental parameter of each stream in QuicWriteBlockedList.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_require_handshake_confirmation, true, true, "If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_send_placeholder_ticket_when_encrypt_ticket_fails, true, true, "If true, when TicketCrypter fails to encrypt a session ticket, quic::TlsServerHandshaker will send a placeholder ticket, instead of an empty one, to the client.")
