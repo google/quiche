@@ -77,7 +77,6 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
       [this](absl::string_view error_message) {
         std::cout << "Session terminated, reason = " << error_message << "\n";
         session_ = nullptr;
-        server_->DeleteSession(it_);
         if (track_name_.has_value()) {
           server_->DeleteUser(*track_name_);
         }
@@ -205,6 +204,9 @@ void ChatServer::AddUser(FullTrackName track_name) {
 }
 
 void ChatServer::DeleteUser(FullTrackName track_name) {
+  if (!is_running_) {
+    return;
+  }
   // RemoveAllSubscriptions() sends a SUBSCRIBE_DONE for each.
   user_queues_[track_name]->RemoveAllSubscriptions();
   user_queues_.erase(track_name);
