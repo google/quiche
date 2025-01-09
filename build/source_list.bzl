@@ -10,6 +10,8 @@ protobuf_test_support = [
 ]
 quiche_core_hdrs = [
     "common/btree_scheduler.h",
+    "common/bug_utils.h",
+    "common/bug_utils_test_helper.h",
     "common/capsule.h",
     "common/http/http_header_block.h",
     "common/http/http_header_storage.h",
@@ -409,6 +411,7 @@ quiche_core_hdrs = [
     "web_transport/web_transport_priority_scheduler.h",
 ]
 quiche_core_srcs = [
+    "common/bug_utils.cc",
     "common/capsule.cc",
     "common/http/http_header_block.cc",
     "common/http/http_header_storage.cc",
@@ -1077,6 +1080,7 @@ quiche_tests_srcs = [
     "balsa/simple_buffer_test.cc",
     "binary_http/binary_http_message_test.cc",
     "common/btree_scheduler_test.cc",
+    "common/bug_utils_test.cc",
     "common/capsule_test.cc",
     "common/http/http_header_block_test.cc",
     "common/http/http_header_storage_test.cc",

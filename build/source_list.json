@@ -9,6 +9,8 @@
   ],
   "quiche_core_hdrs": [
     "quiche/common/btree_scheduler.h",
+    "quiche/common/bug_utils.h",
+    "quiche/common/bug_utils_test_helper.h",
     "quiche/common/capsule.h",
     "quiche/common/http/http_header_block.h",
     "quiche/common/http/http_header_storage.h",
@@ -408,6 +410,7 @@
     "quiche/web_transport/web_transport_priority_scheduler.h"
   ],
   "quiche_core_srcs": [
+    "quiche/common/bug_utils.cc",
     "quiche/common/capsule.cc",
     "quiche/common/http/http_header_block.cc",
     "quiche/common/http/http_header_storage.cc",
@@ -1077,6 +1080,7 @@
     "quiche/balsa/simple_buffer_test.cc",
     "quiche/binary_http/binary_http_message_test.cc",
     "quiche/common/btree_scheduler_test.cc",
+    "quiche/common/bug_utils_test.cc",
     "quiche/common/capsule_test.cc",
     "quiche/common/http/http_header_block_test.cc",
     "quiche/common/http/http_header_storage_test.cc",
