@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "quiche/http2/adapter/http2_protocol.h"
+#include "quiche/http2/adapter/mock_http2_visitor.h"
 #include "quiche/http2/adapter/nghttp2_adapter.h"
 #include "quiche/http2/adapter/oghttp2_adapter.h"
 #include "quiche/http2/adapter/recording_http2_visitor.h"
@@ -14,6 +15,92 @@ namespace http2 {
 namespace adapter {
 namespace test {
 namespace {
+
+using ::testing::Each;
+using ::testing::InvokeWithoutArgs;
+
+enum class Impl {
+  kNgHttp2,
+  kOgHttp2,
+};
+
+class ComparisonTest : public ::quiche::test::QuicheTest {
+ public:
+  std::vector<Impl> implementations() {
+    return {Impl::kNgHttp2, Impl::kOgHttp2};
+  }
+
+  std::unique_ptr<Http2Adapter> CreateAdapter(Http2VisitorInterface& visitor,
+                                              Impl impl, Perspective p) {
+    switch (impl) {
+      case Impl::kNgHttp2:
+        if (p == Perspective::kClient) {
+          return NgHttp2Adapter::CreateClientAdapter(visitor);
+        } else {
+          return NgHttp2Adapter::CreateServerAdapter(visitor);
+        }
+      case Impl::kOgHttp2:
+        OgHttp2Adapter::Options options;
+        options.perspective = p;
+        return OgHttp2Adapter::Create(visitor, options);
+    }
+  }
+};
+
+// Verifies that the implementations consider the same set of characters valid
+// in paths.
+TEST_F(ComparisonTest, PathCharValidation) {
+  // Iterates over all character values.
+  for (int i = std::numeric_limits<char>::min();
+       i < std::numeric_limits<char>::max(); ++i) {
+    const char c = static_cast<char>(i);
+
+    // oghttp2 permits tab and space in path, unless the path validation option
+    // is enabled
+    if (c == ' ' || c == '\t') {
+      continue;
+    }
+
+    // Constructs a path with the desired character.
+    const std::string path_value =
+        absl::StrCat("/aaa", absl::string_view(&c, 1), "bbb");
+
+    SCOPED_TRACE(absl::StrCat("Path: [", absl::CEscape(path_value), "]"));
+
+    // Constructs a request with the desired :path pseudoheader.
+    const std::string frames = TestFrameSequence()
+                                   .ClientPreface()
+                                   .Headers(1,
+                                            {{":method", "GET"},
+                                             {":scheme", "https"},
+                                             {":authority", "example.com"},
+                                             {":path", path_value},
+                                             {"name", "value"}},
+                                            /*fin=*/true)
+                                   .Serialize();
+    // Accumulates frame validation results.
+    std::vector<bool> frame_valid_results;
+    bool frame_valid = true;
+
+    testing::NiceMock<MockHttp2Visitor> visitor;
+    ON_CALL(visitor, OnInvalidFrame)
+        .WillByDefault(InvokeWithoutArgs([&frame_valid]() {
+          // Records that the frame was not valid.
+          frame_valid = false;
+          return true;
+        }));
+
+    for (Impl impl : implementations()) {
+      frame_valid = true;
+      auto adapter = CreateAdapter(visitor, impl, Perspective::kServer);
+      const int64_t result = adapter->ProcessBytes(frames);
+      EXPECT_EQ(frames.size(), static_cast<size_t>(result));
+      frame_valid_results.push_back(frame_valid);
+    }
+    // All implementations should agree on whether the frame was valid.
+    EXPECT_THAT(frame_valid_results, Each(frame_valid_results.back()));
+  }
+}
 
 TEST(AdapterImplComparisonTest, ClientHandlesFrames) {
   RecordingHttp2Visitor nghttp2_visitor;
