@@ -974,8 +974,6 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     } else {
       QUIC_CODE_COUNT(quic_tls_server_hostname_same);
     }
-  } else {
-    QUIC_LOG(INFO) << "No hostname indicated in SNI";
   }
 
   std::string error_details;
