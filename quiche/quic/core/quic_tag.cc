@@ -5,6 +5,8 @@
 #include "quiche/quic/core/quic_tag.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -12,8 +14,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_split.h"
-#include "quiche/quic/platform/api/quic_flag_utils.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "absl/strings/string_view.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -80,8 +81,8 @@ bool ContainsQuicTag(const QuicTagVector& tag_vector, QuicTag tag) {
 QuicTag ParseQuicTag(absl::string_view tag_string) {
   quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&tag_string);
   std::string tag_bytes;
-  if (tag_string.length() == 8) {
-    tag_bytes = absl::HexStringToBytes(tag_string);
+  if (tag_string.length() == 8 &&
+      absl::HexStringToBytes(tag_string, &tag_bytes)) {
     tag_string = tag_bytes;
   }
   QuicTag tag = 0;
