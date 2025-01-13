@@ -55,12 +55,6 @@ TEST_F(ComparisonTest, PathCharValidation) {
        i < std::numeric_limits<char>::max(); ++i) {
     const char c = static_cast<char>(i);
 
-    // oghttp2 permits tab and space in path, unless the path validation option
-    // is enabled
-    if (c == ' ' || c == '\t') {
-      continue;
-    }
-
     // Constructs a path with the desired character.
     const std::string path_value =
         absl::StrCat("/aaa", absl::string_view(&c, 1), "bbb");

@@ -501,9 +501,8 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
   EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::REQUEST));
 
   // Various valid path characters.
-  for (const absl::string_view c :
-       {"/", "?", "_", "'", "9", "&", "(", "@", ":", "<", ">", "\\", "[", "}",
-        "`", "\\", " ", "\t", "#"}) {
+  for (const absl::string_view c : {"/", "?", "_", "'", "9", "&", "(", "@", ":",
+                                    "<", ">", "\\", "[", "}", "`", "\\", "#"}) {
     const std::string value = absl::StrCat("/shawa", c, "rma");
 
     HeaderValidator validator;
@@ -522,7 +521,7 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
   }
 
   // Various invalid path characters.
-  for (const absl::string_view c : {"\n", "\r"}) {
+  for (const absl::string_view c : {"\n", "\r", " ", "\t"}) {
     SCOPED_TRACE(absl::StrCat("char: ", absl::CEscape(c)));
 
     const std::string value = absl::StrCat("/shawa", c, "rma");
