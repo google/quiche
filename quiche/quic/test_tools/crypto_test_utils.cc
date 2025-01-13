@@ -814,8 +814,10 @@ CryptoHandshakeMessage CreateCHLO(
     size_t value_len = value.length();
     if (value_len > 0 && value[0] == '#') {
       // This is ascii encoded hex.
-      std::string hex_value =
-          absl::HexStringToBytes(absl::string_view(&value[1]));
+      std::string hex_value;
+      QUICHE_CHECK(
+          absl::HexStringToBytes(absl::string_view(&value[1]), &hex_value));
+
       msg.SetStringPiece(quic_tag, hex_value);
       continue;
     }
