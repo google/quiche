@@ -44,6 +44,7 @@ class ComparisonTest : public ::quiche::test::QuicheTest {
         options.perspective = p;
         return OgHttp2Adapter::Create(visitor, options);
     }
+    return nullptr;  // Unreachable unless enum is corrupted.
   }
 };
 
