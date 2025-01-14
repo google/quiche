@@ -316,8 +316,8 @@ bool IsValidFullPacketNumber(uint64_t full_packet_number,
 }
 
 bool AppendIetfConnectionIds(bool version_flag, bool use_length_prefix,
-                             QuicConnectionId destination_connection_id,
-                             QuicConnectionId source_connection_id,
+                             const QuicConnectionId& destination_connection_id,
+                             const QuicConnectionId& source_connection_id,
                              QuicDataWriter* writer) {
   if (!version_flag) {
     return writer->WriteConnectionId(destination_connection_id);
