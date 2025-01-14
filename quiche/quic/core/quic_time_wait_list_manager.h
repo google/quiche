@@ -82,10 +82,6 @@ class QUICHE_EXPORT QuicTimeWaitListManager
 
   class QUICHE_EXPORT Visitor : public QuicSession::Visitor {
    public:
-    // Called after the given connection is added to the time-wait list.
-    virtual void OnConnectionAddedToTimeWaitList(
-        QuicConnectionId connection_id) = 0;
-
     void OnPathDegrading() override {}
   };
 

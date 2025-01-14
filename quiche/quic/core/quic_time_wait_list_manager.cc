@@ -135,11 +135,6 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
   int64_t max_connections = GetQuicFlag(quic_time_wait_list_max_connections);
   QUICHE_DCHECK(connection_id_map_.empty() ||
                 num_connections() < static_cast<size_t>(max_connections));
-  if (new_connection_id) {
-    for (const auto& cid : info.active_connection_ids) {
-      visitor_->OnConnectionAddedToTimeWaitList(cid);
-    }
-  }
   AddConnectionIdDataToMap(canonical_connection_id, num_packets, action,
                            std::move(info));
 }

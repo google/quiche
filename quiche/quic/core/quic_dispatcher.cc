@@ -1037,12 +1037,6 @@ void QuicDispatcher::OnConnectionIdRetired(
   reference_counted_session_map_.erase(server_connection_id);
 }
 
-void QuicDispatcher::OnConnectionAddedToTimeWaitList(
-    QuicConnectionId server_connection_id) {
-  QUIC_DLOG(INFO) << "Connection " << server_connection_id
-                  << " added to time wait list.";
-}
-
 void QuicDispatcher::StatelesslyTerminateConnection(
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address,
