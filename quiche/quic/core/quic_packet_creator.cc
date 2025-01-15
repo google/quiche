@@ -1976,6 +1976,8 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
        frame.type != ACK_FREQUENCY_FRAME))
       << ENDPOINT << frame.type << " not allowed at "
       << packet_.encryption_level;
+  QUICHE_DCHECK(packet_.encryption_level == ENCRYPTION_FORWARD_SECURE ||
+                frame.type != IMMEDIATE_ACK_FRAME);
 
   if (frame.type == STREAM_FRAME) {
     if (MaybeCoalesceStreamFrame(frame.stream_frame)) {

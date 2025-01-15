@@ -15,6 +15,7 @@
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_types.h"
@@ -81,7 +82,8 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override;
   bool OnMessageFrame(const QuicMessageFrame& frame) override;
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
-  bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& farme) override;
+  bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
+  bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override;
   bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override;
   void OnPacketComplete() override {}
   bool IsValidStatelessResetToken(
@@ -308,6 +310,11 @@ bool ChloFramerVisitor::OnHandshakeDoneFrame(
 
 bool ChloFramerVisitor::OnAckFrequencyFrame(
     const QuicAckFrequencyFrame& /*frame*/) {
+  return true;
+}
+
+bool ChloFramerVisitor::OnImmediateAckFrame(
+    const QuicImmediateAckFrame& /*frame*/) {
   return true;
 }
 

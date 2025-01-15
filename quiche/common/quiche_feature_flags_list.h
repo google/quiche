@@ -55,6 +55,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_pacing_remove_non_initial_burst, f
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_parse_cert_compression_algos_from_chlo, true, true, "If true, parse offered cert compression algorithms from received CHLOs.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_parse_transport_parameters_from_chlo, false, true, "If true, parse QUIC transport parameters from received CHLOs.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_priority_respect_incremental, false, false, "If true, respect the incremental parameter of each stream in QuicWriteBlockedList.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_receive_ack_frequency, false, false, "When true, advertises support for ACK_FREQUENCY and IMMEDIATE_ACK from draft-ietf-quic-ack-frequency-10 and processes them correctly.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_require_handshake_confirmation, true, true, "If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_send_placeholder_ticket_when_encrypt_ticket_fails, true, true, "If true, when TicketCrypter fails to encrypt a session ticket, quic::TlsServerHandshaker will send a placeholder ticket, instead of an empty one, to the client.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_stop_reading_also_stops_header_decompression, true, true, "If true, QUIC stream will not continue decompressing buffer headers after StopReading() called.")

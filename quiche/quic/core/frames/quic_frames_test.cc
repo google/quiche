@@ -10,6 +10,7 @@
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_goaway_frame.h"
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_mtu_discovery_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_padding_frame.h"
@@ -345,6 +346,15 @@ TEST_F(QuicFramesTest, QuicAckFreuqncyFrameToString) {
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 
+TEST_F(QuicFramesTest, QuicImmediateAckFrameToString) {
+  QuicImmediateAckFrame immediate_ack_frame;
+  QuicFrame frame(immediate_ack_frame);
+  std::ostringstream stream;
+  stream << frame.immediate_ack_frame;
+  EXPECT_EQ("{ }\n", stream.str());
+  EXPECT_FALSE(IsControlFrame(frame.type));
+}
+
 TEST_F(QuicFramesTest, StreamFrameToString) {
   QuicStreamFrame frame;
   frame.stream_id = 1;
@@ -660,6 +670,9 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
         break;
       case ACK_FREQUENCY_FRAME:
         frames.push_back(QuicFrame(new QuicAckFrequencyFrame()));
+        break;
+      case IMMEDIATE_ACK_FRAME:
+        frames.push_back(QuicFrame(QuicImmediateAckFrame()));
         break;
       case RESET_STREAM_AT_FRAME:
         frames.push_back(QuicFrame(new QuicResetStreamAtFrame()));

@@ -33,6 +33,8 @@
 #include "quiche/quic/core/crypto/crypto_utils.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_config.h"
@@ -265,6 +267,9 @@ QuicConnection::QuicConnection(
     AddKnownServerAddress(initial_peer_address);
   }
   packet_creator_.SetDefaultPeerAddress(initial_peer_address);
+  can_receive_ack_frequency_immediate_ack_ =
+      version().HasIetfQuicFrames() &&
+      GetQuicReloadableFlag(quic_receive_ack_frequency);
 }
 
 void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
@@ -2097,6 +2102,26 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
         << "Get AckFrequencyFrame in packet number space "
         << packet_number_space;
   }
+  MaybeUpdateAckTimeout();
+  return true;
+}
+
+bool QuicConnection::OnImmediateAckFrame(const QuicImmediateAckFrame& frame) {
+  QUIC_BUG_IF(quic_bug_immediate_ack_frame_connection_closed, !connected_)
+      << "Processing IMMEDIATE_ACK frame when connection "
+         "is closed. Received packet info: "
+      << last_received_packet_info_;
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnImmediateAckFrame(frame);
+  }
+  if (!UpdatePacketContent(IMMEDIATE_ACK_FRAME)) {
+    return false;
+  }
+  if (!can_receive_ack_frequency_immediate_ack_) {
+    QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Got unexpected ImmediateAck Frame.";
+    return false;
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 1, 1);
   MaybeUpdateAckTimeout();
   return true;
 }

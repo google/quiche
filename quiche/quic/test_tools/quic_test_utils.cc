@@ -20,11 +20,7 @@
 #include "openssl/sha.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
-#include "quiche/quic/core/crypto/crypto_utils.h"
-#include "quiche/quic/core/crypto/null_decrypter.h"
-#include "quiche/quic/core/crypto/null_encrypter.h"
-#include "quiche/quic/core/crypto/quic_decrypter.h"
-#include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -35,8 +31,6 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_config_peer.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
@@ -446,6 +440,11 @@ bool NoOpFramerVisitor::OnHandshakeDoneFrame(
 
 bool NoOpFramerVisitor::OnAckFrequencyFrame(
     const QuicAckFrequencyFrame& /*frame*/) {
+  return true;
+}
+
+bool NoOpFramerVisitor::OnImmediateAckFrame(
+    const QuicImmediateAckFrame& /*frame*/) {
   return true;
 }
 
@@ -1076,14 +1075,14 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
       BuildUnsizedDataPacket(&framer, header, frames));
   EXPECT_TRUE(packet != nullptr);
 
-  // Now set the frame type to 0x1F, which is an invalid frame type.
+  // Now set the frame type to 0x3F, which is an invalid frame type.
   reinterpret_cast<unsigned char*>(
       packet->mutable_data())[GetStartOfEncryptedData(
       framer.transport_version(),
       GetIncludedDestinationConnectionIdLength(header),
       GetIncludedSourceConnectionIdLength(header), version_flag,
       false /* no diversification nonce */, packet_number_length,
-      header.retry_token_length_length, 0, header.length_length)] = 0x1F;
+      header.retry_token_length_length, 0, header.length_length)] = 0x3F;
 
   char* buffer = new char[kMaxOutgoingPacketSize];
   size_t encrypted_length =

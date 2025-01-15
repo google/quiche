@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
@@ -87,6 +88,9 @@ QuicFrame::QuicFrame(QuicNewTokenFrame* frame)
 QuicFrame::QuicFrame(QuicAckFrequencyFrame* frame)
     : type(ACK_FREQUENCY_FRAME), ack_frequency_frame(frame) {}
 
+QuicFrame::QuicFrame(QuicImmediateAckFrame frame)
+    : immediate_ack_frame(frame) {}
+
 QuicFrame::QuicFrame(QuicResetStreamAtFrame* frame)
     : type(RESET_STREAM_AT_FRAME), reset_stream_at_frame(frame) {}
 
@@ -127,6 +131,7 @@ void DeleteFrame(QuicFrame* frame) {
     case STOP_SENDING_FRAME:
     case PATH_CHALLENGE_FRAME:
     case PATH_RESPONSE_FRAME:
+    case IMMEDIATE_ACK_FRAME:
       break;
     case ACK_FRAME:
       delete frame->ack_frame;
@@ -436,6 +441,9 @@ QuicFrame CopyQuicFrame(quiche::QuicheBufferAllocator* allocator,
     case ACK_FREQUENCY_FRAME:
       copy = QuicFrame(new QuicAckFrequencyFrame(*frame.ack_frequency_frame));
       break;
+    case IMMEDIATE_ACK_FRAME:
+      copy = QuicFrame(QuicImmediateAckFrame(frame.immediate_ack_frame));
+      break;
     case RESET_STREAM_AT_FRAME:
       copy =
           QuicFrame(new QuicResetStreamAtFrame(*frame.reset_stream_at_frame));
@@ -541,6 +549,9 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
       break;
     case ACK_FREQUENCY_FRAME:
       os << "type { ACK_FREQUENCY_FRAME } " << *(frame.ack_frequency_frame);
+      break;
+    case IMMEDIATE_ACK_FRAME:
+      os << "type { IMMEDIATE_ACK_FRAME } " << frame.immediate_ack_frame;
       break;
     case RESET_STREAM_AT_FRAME:
       os << "type { RESET_STREAM_AT_FRAME } " << *(frame.reset_stream_at_frame);

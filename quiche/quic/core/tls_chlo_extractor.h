@@ -13,12 +13,12 @@
 #include "absl/types/span.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
 
@@ -182,6 +182,9 @@ class QUICHE_EXPORT TlsChloExtractor
     return true;
   }
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& /*frame*/) override {
+    return true;
+  }
+  bool OnImmediateAckFrame(const QuicImmediateAckFrame& /*frame*/) override {
     return true;
   }
   bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& /*frame*/) override {

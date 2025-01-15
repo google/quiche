@@ -464,6 +464,15 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
+  bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override {
+    ++frame_count_;
+    immediate_ack_frames_.emplace_back(
+        std::make_unique<QuicImmediateAckFrame>(frame));
+    QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_EQ(IETF_IMMEDIATE_ACK, framer_->current_received_frame_type());
+    return true;
+  }
+
   bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override {
     ++frame_count_;
     reset_stream_at_frames_.push_back(
@@ -664,6 +673,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::vector<std::unique_ptr<QuicMessageFrame>> message_frames_;
   std::vector<std::unique_ptr<QuicHandshakeDoneFrame>> handshake_done_frames_;
   std::vector<std::unique_ptr<QuicAckFrequencyFrame>> ack_frequency_frames_;
+  std::vector<std::unique_ptr<QuicImmediateAckFrame>> immediate_ack_frames_;
   std::vector<std::unique_ptr<QuicResetStreamAtFrame>> reset_stream_at_frames_;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> coalesced_packets_;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> undecryptable_packets_;
@@ -4807,6 +4817,38 @@ TEST_P(QuicFramerTest, ParseAckFrequencyFrame) {
   EXPECT_EQ(true, frame->ignore_order);
 }
 
+TEST_P(QuicFramerTest, ParseImmediateAckFrame) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+     // type (short header, 4 byte packet number)
+     0x43,
+     // connection_id
+     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+     // packet number
+     0x12, 0x34, 0x56, 0x78,
+
+     // immediate ack frame type
+     0x1F,
+  };
+  // clang-format on
+
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+
+  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_TRUE(CheckDecryption(
+      encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
+      kPacket8ByteConnectionId, kPacket0ByteConnectionId));
+
+  ASSERT_EQ(1u, visitor_.immediate_ack_frames_.size());
+}
+
 TEST_P(QuicFramerTest, ParseResetStreamAtFrame) {
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
@@ -8175,6 +8217,41 @@ TEST_P(QuicFramerTest, BuildAckFrequencyPacket) {
     0x7f, 0xff,
     // ignore_oder
     0x00
+  };
+  // clang-format on
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      ABSL_ARRAYSIZE(packet));
+}
+
+TEST_P(QuicFramerTest, BuildImmediateAckPacket) {
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicImmediateAckFrame immediate_ack_frame;
+  QuicFrames frames = {QuicFrame(immediate_ack_frame)};
+
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (Immediate Ack frame)
+    0x1f,
   };
   // clang-format on
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {

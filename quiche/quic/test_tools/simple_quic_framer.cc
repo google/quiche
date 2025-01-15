@@ -7,13 +7,13 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_types.h"
 
@@ -240,6 +240,12 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
+  bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override {
+    immediate_ack_frames_.push_back(frame);
+    frame_types_.push_back(IMMEDIATE_ACK_FRAME);
+    return true;
+  }
+
   bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override {
     reset_stream_at_frames_.push_back(frame);
     frame_types_.push_back(RESET_STREAM_AT_FRAME);
@@ -349,6 +355,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<QuicMessageFrame> message_frames_;
   std::vector<QuicHandshakeDoneFrame> handshake_done_frames_;
   std::vector<QuicAckFrequencyFrame> ack_frequency_frames_;
+  std::vector<QuicImmediateAckFrame> immediate_ack_frames_;
   std::vector<QuicResetStreamAtFrame> reset_stream_at_frames_;
   std::vector<std::unique_ptr<std::string>> stream_data_;
   std::vector<std::unique_ptr<std::string>> crypto_data_;

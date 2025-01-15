@@ -34,12 +34,10 @@
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/core/quic_utils.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
-#include "quiche/common/quiche_text_utils.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, quic_version, "",
                                 "If set, specify the QUIC version to use.");
@@ -215,6 +213,10 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
   }
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override {
     std::cerr << "OnAckFrequencyFrame: " << frame;
+    return true;
+  }
+  bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override {
+    std::cerr << "OnImmediateAckFrame: " << frame;
     return true;
   }
   bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override {

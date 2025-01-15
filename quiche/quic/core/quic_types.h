@@ -275,6 +275,7 @@ enum QuicFrameType : uint8_t {
   NEW_TOKEN_FRAME,
   RETIRE_CONNECTION_ID_FRAME,
   ACK_FREQUENCY_FRAME,
+  IMMEDIATE_ACK_FRAME,
   RESET_STREAM_AT_FRAME,
 
   NUM_FRAME_TYPES
@@ -332,6 +333,8 @@ enum QuicIetfFrameType : uint64_t {
   IETF_APPLICATION_CLOSE = 0x1d,
 
   IETF_HANDSHAKE_DONE = 0x1e,
+  // See draft-ietf-quic-ack-frequency.
+  IETF_IMMEDIATE_ACK = 0x1f,
 
   // The MESSAGE frame type has not yet been fully standardized.
   // QUIC versions starting with 46 and before 99 use 0x20-0x21.

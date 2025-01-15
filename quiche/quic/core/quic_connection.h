@@ -32,6 +32,7 @@
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_max_streams_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
@@ -433,6 +434,9 @@ class QUICHE_EXPORT QuicConnectionDebugVisitor
   // Called when an AckFrequencyFrame has been parsed.
   virtual void OnAckFrequencyFrame(const QuicAckFrequencyFrame& /*frame*/) {}
 
+  // Called when an ImmediateAckFrame has been parsed.
+  virtual void OnImmediateAckFrame(const QuicImmediateAckFrame& /*frame*/) {}
+
   // Called when a ResetStreamAtFrame has been parsed.
   virtual void OnResetStreamAtFrame(const QuicResetStreamAtFrame& /*frame*/) {}
 
@@ -755,6 +759,7 @@ class QUICHE_EXPORT QuicConnection
   bool OnMessageFrame(const QuicMessageFrame& frame) override;
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
+  bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override;
   bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override;
   void OnPacketComplete() override;
   bool IsValidStatelessResetToken(
@@ -1316,6 +1321,10 @@ class QUICHE_EXPORT QuicConnection
 
   void set_can_receive_ack_frequency_frame() {
     can_receive_ack_frequency_frame_ = true;
+  }
+
+  void set_can_receive_ack_frequency_immediate_ack(bool can_receive) {
+    can_receive_ack_frequency_immediate_ack_ = can_receive;
   }
 
   bool is_processing_packet() const { return framer_.is_processing_packet(); }
@@ -2481,6 +2490,7 @@ class QUICHE_EXPORT QuicConnection
 
   // True if AckFrequencyFrame is supported.
   bool can_receive_ack_frequency_frame_ = false;
+  bool can_receive_ack_frequency_immediate_ack_ = false;
 
   // Indicate whether coalescing is done.
   bool coalescing_done_ = false;

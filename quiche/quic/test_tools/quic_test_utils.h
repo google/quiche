@@ -21,6 +21,7 @@
 #include "quiche/quic/core/congestion_control/loss_detection_interface.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
+#include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/quic_server_session_base.h"
@@ -357,6 +358,8 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
               (override));
   MOCK_METHOD(bool, OnAckFrequencyFrame, (const QuicAckFrequencyFrame& frame),
               (override));
+  MOCK_METHOD(bool, OnImmediateAckFrame, (const QuicImmediateAckFrame& frame),
+              (override));
   MOCK_METHOD(bool, OnResetStreamAtFrame, (const QuicResetStreamAtFrame& frame),
               (override));
   MOCK_METHOD(void, OnPacketComplete, (), (override));
@@ -426,6 +429,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool OnMessageFrame(const QuicMessageFrame& frame) override;
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
+  bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override;
   bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override;
   void OnPacketComplete() override {}
   bool IsValidStatelessResetToken(

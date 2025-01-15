@@ -15798,6 +15798,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   QuicConnectionPeer::GetSelfIssuedConnectionIdManager(&connection_)
       ->MaybeSendNewConnectionIds();
   connection_.set_can_receive_ack_frequency_frame();
+  connection_.set_can_receive_ack_frequency_immediate_ack(true);
 
   QuicAckFrame ack_frame = InitAckFrame(1);
   QuicRstStreamFrame rst_stream_frame;
@@ -15902,6 +15903,9 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
         break;
       case ACK_FREQUENCY_FRAME:
         frame = QuicFrame(&ack_frequency_frame);
+        break;
+      case IMMEDIATE_ACK_FRAME:
+        frame = QuicFrame(QuicImmediateAckFrame());
         break;
       case RESET_STREAM_AT_FRAME:
         frame = QuicFrame(&reset_stream_at_frame);
