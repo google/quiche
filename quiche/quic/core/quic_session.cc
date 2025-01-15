@@ -2333,17 +2333,19 @@ size_t QuicSession::GetNumActiveStreams() const {
          num_zombie_streams_;
 }
 
-void QuicSession::MarkConnectionLevelWriteBlocked(QuicStreamId id) {
+bool QuicSession::MarkConnectionLevelWriteBlocked(QuicStreamId id) {
+  bool ok = true;
   if (GetOrCreateStream(id) == nullptr) {
+    ok = false;
     QUIC_BUG(quic_bug_10866_11)
         << "Marking unknown stream " << id << " blocked.";
-    QUIC_LOG_FIRST_N(ERROR, 2) << QuicStackTrace();
   }
 
   QUIC_DVLOG(1) << ENDPOINT << "Adding stream " << id
                 << " to write-blocked list";
 
   write_blocked_streams_->AddStream(id);
+  return ok;
 }
 
 bool QuicSession::HasDataToWrite() const {

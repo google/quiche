@@ -410,7 +410,9 @@ class QUICHE_EXPORT QuicSession
   // connection-level flow control but not by its own stream-level flow control.
   // The stream will be given a chance to write when a connection-level
   // WINDOW_UPDATE arrives.
-  virtual void MarkConnectionLevelWriteBlocked(QuicStreamId id);
+  // TODO(b/235204908) Remove the return value.
+  // Returns false if an error occurred.
+  bool MarkConnectionLevelWriteBlocked(QuicStreamId id);
 
   // Called to close zombie stream |id|.
   void MaybeCloseZombieStream(QuicStreamId id);
