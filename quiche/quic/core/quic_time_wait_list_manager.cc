@@ -119,7 +119,7 @@ void QuicTimeWaitListManager::RemoveConnectionDataFromMap(
 void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
     TimeWaitAction action, TimeWaitConnectionInfo info) {
   QUICHE_DCHECK(!info.active_connection_ids.empty());
-  const QuicConnectionId& canonical_connection_id =
+  const QuicConnectionId canonical_connection_id =
       info.active_connection_ids.front();
   QUICHE_DCHECK(action != SEND_TERMINATION_PACKETS ||
                 !info.termination_packets.empty());
