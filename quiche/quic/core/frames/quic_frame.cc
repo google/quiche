@@ -112,7 +112,8 @@ void DeleteFrame(QuicFrame* frame) {
       frame->type != WINDOW_UPDATE_FRAME && frame->type != BLOCKED_FRAME &&
       frame->type != STOP_SENDING_FRAME &&
       frame->type != PATH_CHALLENGE_FRAME &&
-      frame->type != PATH_RESPONSE_FRAME) {
+      frame->type != PATH_RESPONSE_FRAME &&
+      frame->type != IMMEDIATE_ACK_FRAME) {
     QUICHE_CHECK(!frame->delete_forbidden) << *frame;
   }
 #endif  // QUIC_FRAME_DEBUG
