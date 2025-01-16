@@ -1262,6 +1262,8 @@ bool SerializeTransportParameters(const TransportParameters& in,
         if (!GetQuicReloadableFlag(quic_version_negotiation_rfc)) {
           version_information_param_id =
               TransportParameters::kVersionInformationDraft;
+        } else {
+          QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_negotiation_rfc, 1, 3);
         }
         if (!writer.WriteVarInt62(version_information_param_id) ||
             !writer.WriteVarInt62(
@@ -1581,6 +1583,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
               std::string(value_reader.ReadRemainingPayload());
           break;
         }
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_negotiation_rfc, 2, 3);
         if (out->version_information.has_value()) {
           *error_details = "Received a second version_information";
           return false;
@@ -1602,6 +1605,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
       } break;
       case TransportParameters::kVersionInformationDraft: {
         if (GetQuicReloadableFlag(quic_version_negotiation_rfc)) {
+          QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_negotiation_rfc, 3, 3);
           // Treat this as an unknown parameter.
           if (out->custom_parameters.find(param_id) !=
               out->custom_parameters.end()) {
