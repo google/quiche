@@ -1405,6 +1405,7 @@ cli_tools_hdrs = [
 cli_tools_srcs = [
     "src/quiche/quic/masque/masque_client_bin.cc",
     "src/quiche/quic/masque/masque_server_bin.cc",
+    "src/quiche/quic/masque/masque_tcp_client_bin.cc",
     "src/quiche/quic/tools/crypto_message_printer_bin.cc",
     "src/quiche/quic/tools/interactive_cli_demo_bin.cc",
     "src/quiche/quic/tools/qpack_offline_decoder_bin.cc",
