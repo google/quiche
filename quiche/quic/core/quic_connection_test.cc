@@ -15924,14 +15924,35 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
     ProcessFramesPacketAtLevel(packet_number++, frames,
                                ENCRYPTION_FORWARD_SECURE);
     if (QuicUtils::IsAckElicitingFrame(frame_type)) {
-      ASSERT_TRUE(connection_.HasPendingAcks()) << frame;
-      // Flush ACK.
-      clock_.AdvanceTime(DefaultDelayedAckTime());
-      connection_.GetAckAlarm()->Fire();
+      if (frame_type != IMMEDIATE_ACK_FRAME) {
+        ASSERT_TRUE(connection_.HasPendingAcks()) << frame;
+        // Flush ACK.
+        clock_.AdvanceTime(DefaultDelayedAckTime());
+        connection_.GetAckAlarm()->Fire();
+      }
+      EXPECT_FALSE(writer_->ack_frames().empty());
+      writer_->framer()->Reset();  // Clear the visitor.
     }
     EXPECT_FALSE(connection_.HasPendingAcks());
     ASSERT_TRUE(connection_.connected());
   }
+}
+
+TEST_P(QuicConnectionTest, ImmediateAckOverridesOtherFrame) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  QuicFrames frames;
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.set_can_receive_ack_frequency_immediate_ack(true);
+  // A PING frame will set the ack timer. IMMEDIATE_ACK should override it to
+  // send an ACK immediately.
+  frames.push_back(QuicFrame(QuicPingFrame()));
+  frames.push_back(QuicFrame(QuicImmediateAckFrame()));
+  writer_->framer()->Reset();  // Clear the visitor.
+  EXPECT_TRUE(writer_->ack_frames().empty());
+  ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(writer_->ack_frames().empty());
 }
 
 TEST_P(QuicConnectionTest, ReceivedChloAndAck) {

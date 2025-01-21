@@ -43,6 +43,9 @@ class QUICHE_EXPORT UberReceivedPacketManager {
   void DontWaitForPacketsBefore(EncryptionLevel decrypted_packet_level,
                                 QuicPacketNumber least_unacked);
 
+  // Trigger an immediate ACK.
+  void OnImmediateAckFrame();
+
   // Called after header of last received packet has been successfully processed
   // to update ACK timeout.
   void MaybeUpdateAckTimeout(bool should_last_packet_instigate_acks,

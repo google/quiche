@@ -72,6 +72,16 @@ void UberReceivedPacketManager::DontWaitForPacketsBefore(
       .DontWaitForPacketsBefore(least_unacked);
 }
 
+void UberReceivedPacketManager::OnImmediateAckFrame() {
+  if (!supports_multiple_packet_number_spaces_) {
+    QUIC_BUG(quic_bug_10495_4)
+        << "Received ImmediateAckFrame when multiple packet number spaces "
+           "is not supported";
+    return;
+  }
+  received_packet_managers_[APPLICATION_DATA].OnImmediateAckFrame();
+}
+
 void UberReceivedPacketManager::MaybeUpdateAckTimeout(
     bool should_last_packet_instigate_acks,
     EncryptionLevel decrypted_packet_level,

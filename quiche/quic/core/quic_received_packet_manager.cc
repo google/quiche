@@ -83,6 +83,7 @@ void QuicReceivedPacketManager::RecordPacketReceived(
     ack_frame_.received_packet_times.clear();
   }
   ack_frame_updated_ = true;
+  ack_now_ = false;
 
   // Whether |packet_number| is received out of order.
   bool packet_reordered = false;
@@ -286,6 +287,13 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     const RttStats* rtt_stats) {
   if (!ack_frame_updated_) {
     // ACK frame has not been updated, nothing to do.
+    return;
+  }
+
+  if (ack_now_) {
+    // An IMMEDIATE_ACK frame arrived. Send an ack immediately.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 2, 2);
+    ack_timeout_ = now;
     return;
   }
 

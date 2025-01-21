@@ -2121,7 +2121,16 @@ bool QuicConnection::OnImmediateAckFrame(const QuicImmediateAckFrame& frame) {
     QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Got unexpected ImmediateAck Frame.";
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 1, 1);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 1, 2);
+  if (last_received_packet_info_.decrypted_level == ENCRYPTION_FORWARD_SECURE) {
+    uber_received_packet_manager_.OnImmediateAckFrame();
+  } else {
+    QUIC_LOG_EVERY_N_SEC(ERROR, 120)
+        << "Got ImmediateAckFrame at EncryptionLevel "
+        << EncryptionLevelToString(last_received_packet_info_.decrypted_level);
+    return false;
+  }
+  should_last_packet_instigate_acks_ = false;
   MaybeUpdateAckTimeout();
   return true;
 }
