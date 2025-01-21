@@ -16,6 +16,7 @@ namespace adapter {
 namespace test {
 namespace {
 
+using ::testing::AssertionResult;
 using ::testing::Each;
 using ::testing::InvokeWithoutArgs;
 
@@ -26,6 +27,12 @@ enum class Impl {
 
 class ComparisonTest : public ::quiche::test::QuicheTest {
  public:
+  // The range of characters over which to run a TestEachChar invocation.
+  using CharRange = std::pair<char, char>;
+  // The function that creates and appends a HEADERS frame to the
+  // TestFrameSequence, given a particular character.
+  using AddHeadersFn = absl::AnyInvocable<void(char, TestFrameSequence&)>;
+
   std::vector<Impl> implementations() {
     return {Impl::kNgHttp2, Impl::kOgHttp2};
   }
@@ -46,55 +53,127 @@ class ComparisonTest : public ::quiche::test::QuicheTest {
     }
     return nullptr;  // Unreachable unless enum is corrupted.
   }
+
+  AssertionResult TestEachChar(CharRange range, AddHeadersFn add_headers) {
+    const char low = range.first;
+    const char high = range.second;
+    // An int is used as the loop variable so that it does not overflow when the
+    // value is the maximum possible character value.
+    for (int i = low; i < high; ++i) {
+      const char c = static_cast<char>(i);
+
+      TestFrameSequence sequence;
+      sequence.ClientPreface();
+      add_headers(c, sequence);
+      const std::string frames = sequence.Serialize();
+
+      // Accumulates frame validation results.
+      std::vector<bool> frame_valid_results;
+      bool frame_valid = true;
+
+      testing::NiceMock<MockHttp2Visitor> visitor;
+      ON_CALL(visitor, OnInvalidFrame)
+          .WillByDefault(InvokeWithoutArgs([&frame_valid]() {
+            // Records that the frame was not valid.
+            frame_valid = false;
+            return true;
+          }));
+
+      for (Impl impl : implementations()) {
+        frame_valid = true;
+        auto adapter = CreateAdapter(visitor, impl, Perspective::kServer);
+        const int64_t result = adapter->ProcessBytes(frames);
+        if (frames.size() != static_cast<size_t>(result)) {
+          return testing::AssertionFailure()
+                 << "Failed to parse encoded bytes! (Expected " << frames.size()
+                 << ", saw " << result << ")";
+        }
+        frame_valid_results.push_back(frame_valid);
+      }
+      // All implementations should agree on whether the frame was valid.
+      for (bool result : frame_valid_results) {
+        if (result != frame_valid_results.back()) {
+          return testing::AssertionFailure()
+                 << "All implementations should agree!";
+        }
+      }
+    }
+    return testing::AssertionSuccess();
+  }
 };
 
 // Verifies that the implementations consider the same set of characters valid
 // in paths.
 TEST_F(ComparisonTest, PathCharValidation) {
   // Iterates over all character values.
-  for (int i = std::numeric_limits<char>::min();
-       i < std::numeric_limits<char>::max(); ++i) {
-    const char c = static_cast<char>(i);
-
+  const CharRange test_range = {std::numeric_limits<char>::min(),
+                                std::numeric_limits<char>::max()};
+  auto add_headers_frame = [](char c, TestFrameSequence& seq) {
     // Constructs a path with the desired character.
     const std::string path_value =
         absl::StrCat("/aaa", absl::string_view(&c, 1), "bbb");
 
     SCOPED_TRACE(absl::StrCat("Path: [", absl::CEscape(path_value), "]"));
+    seq.Headers(1,
+                {{":method", "GET"},
+                 {":scheme", "https"},
+                 {":authority", "example.com"},
+                 {":path", path_value},
+                 {"name", "value"}},
+                /*fin=*/true);
+  };
+  EXPECT_TRUE(TestEachChar(test_range, std::move(add_headers_frame)));
+}
 
-    // Constructs a request with the desired :path pseudoheader.
-    const std::string frames = TestFrameSequence()
-                                   .ClientPreface()
-                                   .Headers(1,
-                                            {{":method", "GET"},
-                                             {":scheme", "https"},
-                                             {":authority", "example.com"},
-                                             {":path", path_value},
-                                             {"name", "value"}},
-                                            /*fin=*/true)
-                                   .Serialize();
-    // Accumulates frame validation results.
-    std::vector<bool> frame_valid_results;
-    bool frame_valid = true;
+// Verifies that the implementations consider the same set of characters valid
+// in HTTP header field names.
+TEST_F(ComparisonTest, HeaderNameCharValidation) {
+  // Iterates over all character values.
+  const CharRange test_range = {std::numeric_limits<char>::min(),
+                                std::numeric_limits<char>::max()};
 
-    testing::NiceMock<MockHttp2Visitor> visitor;
-    ON_CALL(visitor, OnInvalidFrame)
-        .WillByDefault(InvokeWithoutArgs([&frame_valid]() {
-          // Records that the frame was not valid.
-          frame_valid = false;
-          return true;
-        }));
+  auto add_headers_frame = [](char c, TestFrameSequence& seq) {
+    // Constructs a header name with the desired character.
+    const std::string name_text =
+        absl::StrCat("na", absl::string_view(&c, 1), "me");
 
-    for (Impl impl : implementations()) {
-      frame_valid = true;
-      auto adapter = CreateAdapter(visitor, impl, Perspective::kServer);
-      const int64_t result = adapter->ProcessBytes(frames);
-      EXPECT_EQ(frames.size(), static_cast<size_t>(result));
-      frame_valid_results.push_back(frame_valid);
-    }
-    // All implementations should agree on whether the frame was valid.
-    EXPECT_THAT(frame_valid_results, Each(frame_valid_results.back()));
-  }
+    SCOPED_TRACE(absl::StrCat("Name: [", absl::CEscape(name_text), "]"));
+
+    // Constructs a request with the desired header name text.
+    seq.Headers(1,
+                {{":method", "GET"},
+                 {":scheme", "https"},
+                 {":authority", "example.com"},
+                 {":path", "/my/fun/path?with_query"},
+                 {name_text, "value"}},
+                /*fin=*/true);
+  };
+  EXPECT_TRUE(TestEachChar(test_range, std::move(add_headers_frame)));
+}
+
+// Verifies that the implementations consider the same set of characters valid
+// in HTTP header field values.
+TEST_F(ComparisonTest, HeaderValueCharValidation) {
+  // Iterates over all character values except \0, which cannot be properly
+  // encoded by the test utility.
+  const CharRange test_range = {1, std::numeric_limits<char>::max()};
+  auto add_headers_frame = [](char c, TestFrameSequence& seq) {
+    // Constructs a header value with the desired character.
+    const std::string value_text =
+        absl::StrCat("va", absl::string_view(&c, 1), "lue");
+
+    SCOPED_TRACE(absl::StrCat("Value: [", absl::CEscape(value_text), "]"));
+
+    // Constructs a request with the desired header value text.
+    seq.Headers(1,
+                {{":method", "GET"},
+                 {":scheme", "https"},
+                 {":authority", "example.com"},
+                 {":path", "/my/fun/path?with_query"},
+                 {"name", value_text}},
+                /*fin=*/true);
+  };
+  EXPECT_TRUE(TestEachChar(test_range, std::move(add_headers_frame)));
 }
 
 TEST(AdapterImplComparisonTest, ClientHandlesFrames) {
