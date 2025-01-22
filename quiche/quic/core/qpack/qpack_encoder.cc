@@ -51,7 +51,7 @@ QpackEncoder::~QpackEncoder() {}
 // static
 QpackEncoder::Representation QpackEncoder::EncodeIndexedHeaderField(
     bool is_static, uint64_t index,
-    QpackBlockingManagerShim::IndexSet* referred_indices) {
+    NewQpackBlockingManager::IndexSet* referred_indices) {
   // Add |index| to |*referred_indices| only if entry is in the dynamic table.
   if (!is_static) {
     referred_indices->insert(index);
@@ -63,7 +63,7 @@ QpackEncoder::Representation QpackEncoder::EncodeIndexedHeaderField(
 QpackEncoder::Representation
 QpackEncoder::EncodeLiteralHeaderFieldWithNameReference(
     bool is_static, uint64_t index, absl::string_view value,
-    QpackBlockingManagerShim::IndexSet* referred_indices) {
+    NewQpackBlockingManager::IndexSet* referred_indices) {
   // Add |index| to |*referred_indices| only if entry is in the dynamic table.
   if (!is_static) {
     referred_indices->insert(index);
@@ -80,7 +80,7 @@ QpackEncoder::Representation QpackEncoder::EncodeLiteralHeaderField(
 
 QpackEncoder::Representations QpackEncoder::FirstPassEncode(
     QuicStreamId stream_id, const quiche::HttpHeaderBlock& header_list,
-    QpackBlockingManagerShim::IndexSet* referred_indices,
+    NewQpackBlockingManager::IndexSet* referred_indices,
     QuicByteCount* encoder_stream_sent_byte_count) {
   // If previous instructions are buffered in |encoder_stream_sender_|,
   // do not count them towards the current header block.
@@ -395,7 +395,7 @@ std::string QpackEncoder::EncodeHeaderList(
     QuicByteCount* encoder_stream_sent_byte_count) {
   // Keep track of all dynamic table indices that this header block refers to so
   // that it can be passed to QpackBlockingManager.
-  QpackBlockingManagerShim::IndexSet referred_indices;
+  NewQpackBlockingManager::IndexSet referred_indices;
 
   // First pass: encode into |representations|.
   Representations representations =
@@ -405,7 +405,7 @@ std::string QpackEncoder::EncodeHeaderList(
   const uint64_t required_insert_count =
       referred_indices.empty()
           ? 0
-          : QpackBlockingManagerShim::RequiredInsertCount(referred_indices);
+          : NewQpackBlockingManager::RequiredInsertCount(referred_indices);
   if (!referred_indices.empty()) {
     blocking_manager_.OnHeaderBlockSent(stream_id, std::move(referred_indices),
                                         required_insert_count);

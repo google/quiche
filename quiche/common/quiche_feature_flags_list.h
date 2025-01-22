@@ -69,7 +69,6 @@ QUICHE_FLAG(bool, quiche_restart_flag_quic_support_flow_label2, true, true, "If 
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_release_time_for_gso, false, false, "If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_false, false, false, "A testonly restart flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_true, true, true, "A testonly restart flag that will always default to true.")
-QUICHE_FLAG(bool, quiche_restart_flag_quic_use_new_qpack_blocking_manager, true, true, "If true, QUIC will use NewQpackBlockingManager instead of QpackBlockingManager.")
 
 #endif
 // clang-format on
