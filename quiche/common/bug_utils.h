@@ -88,7 +88,7 @@ class QUICHE_EXPORT GenericBugStreamHandler {
 
   template <typename T,
             std::enable_if_t<absl::HasAbslStringify<T>::value, bool> = true>
-  QUICHE_EXPORT GenericBugStreamHandler& operator<<(const T& v) {
+  GenericBugStreamHandler& operator<<(const T& v) {
     absl::StrAppend(&str_, v);
     return *this;
   }
@@ -97,7 +97,7 @@ class QUICHE_EXPORT GenericBugStreamHandler {
   // Abseil, but unfortunately OStringStream is in a namespace marked internal.
   template <typename T,
             std::enable_if_t<!absl::HasAbslStringify<T>::value, bool> = true>
-  QUICHE_EXPORT GenericBugStreamHandler& operator<<(const T& v) {
+  GenericBugStreamHandler& operator<<(const T& v) {
     absl::StrAppend(&str_, (std::ostringstream() << v).view());
     return *this;
   }
