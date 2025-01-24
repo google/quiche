@@ -1321,7 +1321,6 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
 
           const char c = *current;
           ++current;
-
           if (c == '\n') {
             break;
           }
