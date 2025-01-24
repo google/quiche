@@ -482,7 +482,6 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   config_.SetOriginalConnectionIdToSend(TestConnectionId(0x1111));
   config_.SetInitialSourceConnectionIdToSend(TestConnectionId(0x2222));
   config_.SetRetrySourceConnectionIdToSend(TestConnectionId(0x3333));
-  config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
   config_.SetDiscardLengthToSend(kDiscardLength);
   config_.SetGoogleHandshakeMessageToSend(kFakeGoogleHandshakeMessage);
   config_.SetReliableStreamReset(true);
@@ -533,10 +532,6 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   ASSERT_TRUE(params.retry_source_connection_id.has_value());
   EXPECT_EQ(TestConnectionId(0x3333),
             params.retry_source_connection_id.value());
-
-  EXPECT_EQ(
-      static_cast<uint64_t>(kDefaultMinAckDelayTimeMs) * kNumMicrosPerMilli,
-      params.min_ack_delay_us.value());
 
   EXPECT_EQ(params.preferred_address->ipv4_socket_address, kTestServerAddress);
   EXPECT_EQ(params.preferred_address->ipv6_socket_address,

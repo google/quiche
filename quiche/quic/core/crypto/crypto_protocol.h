@@ -49,7 +49,7 @@ using ServerConfigID = std::string;
 // "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS", "QNSP", "B2CL", "CHSP",
 // "BPTE", "ACKD", "AKD2", "AKD4", "MAD1", "MAD4", "MAD5", "ACD0", "ACKQ",
 // "TLPR", "CCS\0", "PDP4", "NCHP", "NBPE", "2RTO", "3RTO", "4RTO", "6RTO",
-// "PDP1", "PDP2", "PDP3", "PDP5", "QLVE", "RVCM", "BBPD", "TPC\0"
+// "PDP1", "PDP2", "PDP3", "PDP5", "QLVE", "RVCM", "BBPD", "TPC\0", "AFFE"
 
 DEFINE_STATIC_QUIC_TAG(CHLO);  // Client hello
 DEFINE_STATIC_QUIC_TAG(SHLO);  // Server hello
@@ -212,8 +212,6 @@ DEFINE_STATIC_QUIC_TAG(AKD3);  // Ack decimation style acking
                                // with 1/8 RTT acks.
 DEFINE_STATIC_QUIC_TAG(AKDU);  // Unlimited number of packets
                                // received before acking
-DEFINE_STATIC_QUIC_TAG(AFFE);  // Enable client receiving
-                               // AckFrequencyFrame.
 DEFINE_STATIC_QUIC_TAG(AFF1);  // Use SRTT in building
                                // AckFrequencyFrame.
 DEFINE_STATIC_QUIC_TAG(AFF2);  // Send AckFrequencyFrame upon

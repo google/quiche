@@ -180,13 +180,6 @@ void QuicSession::Initialize() {
     }
   }
   connection_->SetFromConfig(config_);
-  if (perspective_ == Perspective::IS_CLIENT) {
-    if (config_.HasClientRequestedIndependentOption(kAFFE, perspective_) &&
-        version().HasIetfQuicFrames()) {
-      connection_->set_can_receive_ack_frequency_frame();
-      config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
-    }
-  }
   if (perspective() == Perspective::IS_SERVER &&
       connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
     config_.SetStatelessResetTokenToSend(GetStatelessResetToken());

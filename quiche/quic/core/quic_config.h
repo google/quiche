@@ -476,10 +476,8 @@ class QUICHE_EXPORT QuicConfig {
   uint32_t ReceivedMaxAckDelayMs() const;
 
   // Manage the IETF QUIC extension Min Ack Delay transport parameter.
-  // An endpoint uses min_ack_delay to advsertise its support for
+  // An endpoint uses min_ack_delay to advertise its support for
   // AckFrequencyFrame sent by peer.
-  void SetMinAckDelayMs(uint32_t min_ack_delay_ms);
-  uint32_t GetMinAckDelayToSendMs() const;
   bool HasReceivedMinAckDelayMs() const;
   uint32_t ReceivedMinAckDelayMs() const;
 

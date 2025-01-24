@@ -631,14 +631,6 @@ uint32_t QuicConfig::ReceivedMaxAckDelayMs() const {
   return max_ack_delay_ms_.GetReceivedValue();
 }
 
-void QuicConfig::SetMinAckDelayMs(uint32_t min_ack_delay_ms) {
-  min_ack_delay_ms_.SetSendValue(min_ack_delay_ms);
-}
-
-uint32_t QuicConfig::GetMinAckDelayToSendMs() const {
-  return min_ack_delay_ms_.GetSendValue();
-}
-
 bool QuicConfig::HasReceivedMinAckDelayMs() const {
   return min_ack_delay_ms_.HasReceivedValue();
 }

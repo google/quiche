@@ -595,10 +595,6 @@ TEST_F(QuicReceivedPacketManagerTest,
 TEST_F(QuicReceivedPacketManagerTest,
        DisableMissingPaketsAckByIgnoreOrderFromAckFrequencyFrame) {
   EXPECT_FALSE(HasPendingAck());
-  QuicConfig config;
-  config.SetConnectionOptionsToSend({kAFFE});
-  received_manager_.SetFromConfig(config, Perspective::IS_CLIENT);
-
   QuicAckFrequencyFrame frame;
   frame.max_ack_delay = kDelayedAckTime;
   frame.packet_tolerance = 2;
