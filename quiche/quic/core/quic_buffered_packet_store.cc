@@ -332,11 +332,8 @@ void QuicBufferedPacketStore::MaybeAckInitialPacket(
     initial_ack_frame.packets.Add(sent_packet.received_packet_number);
   }
   initial_ack_frame.largest_acked = initial_ack_frame.packets.Max();
-  if (GetQuicReloadableFlag(quic_ecn_in_first_ack)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_ecn_in_first_ack);
-    initial_ack_frame.ecn_counters =
-        SinglePacketEcnCount(packet_info.packet.ecn_codepoint());
-  }
+  initial_ack_frame.ecn_counters =
+      SinglePacketEcnCount(packet_info.packet.ecn_codepoint());
   if (!creator.AddFrame(QuicFrame(&initial_ack_frame), NOT_RETRANSMISSION)) {
     QUIC_BUG(quic_dispatcher_add_ack_frame_failed)
         << "Unable to add ack frame to an empty packet while acking packet "

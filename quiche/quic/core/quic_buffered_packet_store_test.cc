@@ -209,7 +209,6 @@ TEST_F(QuicBufferedPacketStoreTest, SimpleEnqueueAndDeliverPacket) {
 }
 
 TEST_F(QuicBufferedPacketStoreTest, SimpleEnqueueAckSent) {
-  SetQuicReloadableFlag(quic_ecn_in_first_ack, true);
   const QuicConnectionId kDCID = TestConnectionId(1);
   const std::string crypto_data = "crypto_data";
   ParsedQuicVersionVector versions = {ParsedQuicVersion::RFCv1()};
