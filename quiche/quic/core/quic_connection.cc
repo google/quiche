@@ -1325,8 +1325,17 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
     default_path_.validated = true;
     stats_.address_validated_via_token = true;
   }
-  QUICHE_DCHECK(connected_);
-  return true;
+
+  if (!GetQuicReloadableFlag(quic_on_packet_header_return_connected)) {
+    QUICHE_DCHECK(connected_);
+    return true;
+  }
+
+  // TODO(b/389384603): Remove this when deprecating the flag.
+  if (!connected_) {
+    QUIC_CODE_COUNT(quic_connection_closed_on_packet_header);
+  }
+  return connected_;
 }
 
 bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {

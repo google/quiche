@@ -7136,6 +7136,25 @@ TEST_P(QuicConnectionTest, OnPacketHeaderDebugVisitor) {
   connection_.OnPacketHeader(header);
 }
 
+TEST_P(QuicConnectionTest, OnPacketHeaderReturnValue) {
+  QuicPacketHeader header;
+  header.packet_number = QuicPacketNumber(1);
+  header.form = IETF_QUIC_LONG_HEADER_PACKET;
+  EXPECT_TRUE(connection_.OnPacketHeader(header));
+
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(1);
+  connection_.CloseConnection(QUIC_NO_ERROR, "Closed by test",
+                              ConnectionCloseBehavior::SILENT_CLOSE);
+
+  header.packet_number = QuicPacketNumber(2);
+  if (!GetQuicReloadableFlag(quic_on_packet_header_return_connected)) {
+    EXPECT_QUICHE_DEBUG_DEATH(connection_.OnPacketHeader(header), ".*");
+    return;
+  }
+
+  EXPECT_FALSE(connection_.OnPacketHeader(header));
+}
+
 TEST_P(QuicConnectionTest, Pacing) {
   TestConnection server(connection_id_, kPeerAddress, kSelfAddress,
                         helper_.get(), alarm_factory_.get(), writer_.get(),
