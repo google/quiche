@@ -4611,10 +4611,7 @@ void QuicConnection::CloseConnection(
     return;
   }
 
-  if (GetQuicReloadableFlag(quic_avoid_nested_close_connection)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_avoid_nested_close_connection);
-    in_close_connection_ = true;
-  }
+  in_close_connection_ = true;
   absl::Cleanup cleanup = [this]() { in_close_connection_ = false; };
 
   if (ietf_error != NO_IETF_QUIC_ERROR) {
