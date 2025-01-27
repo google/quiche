@@ -149,6 +149,8 @@ class QUICHE_EXPORT LifetimeTrackable {
     }
   }
 
+  bool IsTracked() const { return info_ != nullptr; }
+
  private:
   friend class test::LifetimeTrackingTest;
   // nullptr if this object is not tracked by any LifetimeTracker.
