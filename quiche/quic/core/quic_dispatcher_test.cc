@@ -942,6 +942,41 @@ TEST_P(QuicDispatcherTestOneVersion, NoVersionNegotiationWithSmallPacket) {
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
+TEST_P(QuicDispatcherTestOneVersion,
+       NoVersionNegotiationWithVersionNegotiationPacket) {
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+  CreateTimeWaitListManager();
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  ParsedQuicVersionVector supported_versions;
+  for (QuicByteCount i = 0; i < kMinPacketSizeForVersionNegotiation; i += 4) {
+    supported_versions.push_back(ParsedQuicVersion::RFCv1());
+  }
+
+  std::unique_ptr<QuicEncryptedPacket> packet(
+      QuicFramer::BuildVersionNegotiationPacket(
+          TestConnectionId(), EmptyQuicConnectionId(), /*ietf_quic=*/true,
+          version_.HasLengthPrefixedConnectionIds(), supported_versions));
+  ASSERT_GT(packet->length(), kMinPacketSizeForVersionNegotiation);
+
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
+  if (GetQuicReloadableFlag(quic_no_vn_in_response_to_vn)) {
+    EXPECT_CALL(*time_wait_list_manager_,
+                SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
+        .Times(0);
+  } else {
+    EXPECT_CALL(*time_wait_list_manager_,
+                SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
+        .Times(1);
+  }
+  dispatcher_->ProcessPacket(
+      server_address_, client_address,
+      QuicReceivedPacket(packet->data(), packet->length(), QuicTime::Zero(),
+                         /*owns_buffer=*/false));
+}
+
 // Disabling CHLO size validation allows the dispatcher to send version
 // negotiation packets in response to a CHLO that is otherwise too small.
 TEST_P(QuicDispatcherTestOneVersion,
