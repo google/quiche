@@ -17942,6 +17942,17 @@ TEST_P(QuicConnectionTest, OnParsedClientHelloInfoWithDebugVisitor) {
   connection_.OnParsedClientHelloInfo(parsed_chlo);
 }
 
+TEST_P(QuicConnectionTest, ConfigEnablesAckFrequency) {
+  QuicConfig config;
+  EXPECT_FALSE(QuicConnectionPeer::CanReceiveAckFrequencyFrames(&connection_));
+  config.SetMinAckDelayDraft10Ms(kDefaultMinAckDelayTimeMs);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_TRUE(QuicConnectionPeer::CanReceiveAckFrequencyFrames(&connection_));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

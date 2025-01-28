@@ -23,6 +23,7 @@
 #include "quiche/quic/core/frames/quic_window_update_frame.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_context.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_flow_controller.h"
 #include "quiche/quic/core/quic_stream.h"
@@ -178,6 +179,9 @@ void QuicSession::Initialize() {
     } else if (config_.HasClientSentConnectionOption(kCHP2, perspective_)) {
       config_.SetDiscardLengthToSend(kDefaultMaxPacketSize * 2);
     }
+  } else if (GetQuicReloadableFlag(quic_receive_ack_frequency) &&
+             connection_->version().HasIetfQuicFrames()) {
+    config_.SetMinAckDelayDraft10Ms(kDefaultMinAckDelayTimeMs);
   }
   connection_->SetFromConfig(config_);
   if (perspective() == Perspective::IS_SERVER &&

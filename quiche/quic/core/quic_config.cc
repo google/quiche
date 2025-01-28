@@ -5,6 +5,7 @@
 #include "quiche/quic/core/quic_config.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -18,6 +19,7 @@
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_socket_address_coder.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -447,6 +449,7 @@ QuicConfig::QuicConfig()
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
       min_ack_delay_ms_(0, PRESENCE_OPTIONAL),
+      min_ack_delay_ms_draft10_(0, PRESENCE_OPTIONAL),
       ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
       max_udp_payload_size_(0, PRESENCE_OPTIONAL),
       max_datagram_frame_size_(0, PRESENCE_OPTIONAL),
@@ -629,6 +632,18 @@ bool QuicConfig::HasReceivedMaxAckDelayMs() const {
 
 uint32_t QuicConfig::ReceivedMaxAckDelayMs() const {
   return max_ack_delay_ms_.GetReceivedValue();
+}
+
+void QuicConfig::SetMinAckDelayDraft10Ms(uint64_t min_ack_delay_ms) {
+  min_ack_delay_ms_draft10_.SetSendValue(min_ack_delay_ms);
+}
+
+bool QuicConfig::HasMinAckDelayDraft10ToSend() const {
+  return min_ack_delay_ms_draft10_.HasSendValue();
+}
+
+uint64_t QuicConfig::GetMinAckDelayDraft10ToSendMs() const {
+  return min_ack_delay_ms_draft10_.GetSendValue();
 }
 
 bool QuicConfig::HasReceivedMinAckDelayMs() const {
@@ -1218,6 +1233,10 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
     params->min_ack_delay_us.set_value(min_ack_delay_ms_.GetSendValue() *
                                        kNumMicrosPerMilli);
   }
+  if (min_ack_delay_ms_draft10_.HasSendValue()) {
+    params->min_ack_delay_us_draft10 =
+        min_ack_delay_ms_draft10_.GetSendValue() * kNumMicrosPerMilli;
+  }
   params->ack_delay_exponent.set_value(GetAckDelayExponentToSend());
   params->disable_active_migration =
       connection_migration_disabled_.HasSendValue() &&
@@ -1373,6 +1392,13 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
                 &params.preferred_address->stateless_reset_token.front()));
       }
     }
+    if (params.min_ack_delay_us.value() > 0 &&
+        params.min_ack_delay_us_draft10.has_value()) {
+      *error_details =
+          "Two versions of MinAckDelay. ACK_FREQUENCY frames are "
+          "ambiguous.";
+      return IETF_QUIC_PROTOCOL_VIOLATION;
+    }
     if (params.min_ack_delay_us.value() != 0) {
       if (params.min_ack_delay_us.value() >
           params.max_ack_delay.value() * kNumMicrosPerMilli) {
@@ -1381,6 +1407,15 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
       }
       min_ack_delay_ms_.SetReceivedValue(params.min_ack_delay_us.value() /
                                          kNumMicrosPerMilli);
+    }
+    if (params.min_ack_delay_us_draft10.has_value()) {
+      if (*params.min_ack_delay_us_draft10 >
+          params.max_ack_delay.value() * kNumMicrosPerMilli) {
+        *error_details = "MinAckDelay is greater than MaxAckDelay.";
+        return IETF_QUIC_PROTOCOL_VIOLATION;
+      }
+      min_ack_delay_ms_draft10_.SetReceivedValue(
+          *params.min_ack_delay_us_draft10 / kNumMicrosPerMilli);
     }
   }
 

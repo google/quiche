@@ -3595,6 +3595,20 @@ TEST_P(QuicSessionTestServer, OpenStreamLimitPerEventLoop) {
                          GetNthClientInitiatedBidirectionalId(i - 1)));
 }
 
+TEST_P(QuicSessionTestServer, SetMinAckDelayDraft10) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_receive_ack_frequency, true);
+  session_.Initialize();
+  if (GetQuicReloadableFlag(quic_receive_ack_frequency)) {
+    EXPECT_EQ(session_.config()->GetMinAckDelayDraft10ToSendMs(),
+              kDefaultMinAckDelayTimeMs);
+  } else {
+    EXPECT_FALSE(session_.config()->HasMinAckDelayDraft10ToSend());
+  }
+}
+
 // A client test class that can be used when the automatic configuration is not
 // desired.
 class QuicSessionTestClientUnconfigured : public QuicSessionTestBase {

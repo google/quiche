@@ -249,6 +249,8 @@ class QuicConnectionPeer {
   static void DisableEcnCodepointValidation(QuicConnection* connection);
 
   static void OnForwardProgressMade(QuicConnection* connection);
+
+  static bool CanReceiveAckFrequencyFrames(QuicConnection* connection);
 };
 
 }  // namespace test

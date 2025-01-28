@@ -11,6 +11,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/variant.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
+#include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_received_packet_manager.h"
@@ -604,6 +605,12 @@ void QuicConnectionPeer::DisableEcnCodepointValidation(
 // static
 void QuicConnectionPeer::OnForwardProgressMade(QuicConnection* connection) {
   connection->OnForwardProgressMade();
+}
+
+// static
+bool QuicConnectionPeer::CanReceiveAckFrequencyFrames(
+    QuicConnection* connection) {
+  return connection->can_receive_ack_frequency_immediate_ack_;
 }
 
 }  // namespace test

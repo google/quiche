@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
-#include <forward_list>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -20,6 +19,7 @@
 #include "openssl/digest.h"
 #include "openssl/sha.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_types.h"
@@ -29,6 +29,9 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_data_writer.h"
+#include "quiche/common/quiche_endian.h"
 
 namespace quic {
 
@@ -73,7 +76,8 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kGoogleQuicVersion =
       0x4752,  // Used to transmit version and supported_versions.
 
-  kMinAckDelay = 0xDE1A,  // draft-iyengar-quic-delayed-ack.
+  kMinAckDelay = 0xDE1A,             // draft-iyengar-quic-delayed-ack.
+  kMinAckDelayDraft10 = 0xFF04DE1B,  // draft-ietf-quic-delayed-ack-10.
   kVersionInformationDraft =
       0xFF73DB,                // draft-ietf-quic-version-negotiation-13.
   kVersionInformation = 0x11,  // RFC 9368.
@@ -148,6 +152,7 @@ std::string TransportParameterIdToString(
     case TransportParameters::kGoogleQuicVersion:
       return "google-version";
     case TransportParameters::kMinAckDelay:
+    case TransportParameters::kMinAckDelayDraft10:
       return "min_ack_delay_us";
     case TransportParameters::kVersionInformation:
       if (!GetQuicReloadableFlag(quic_version_negotiation_rfc)) {
@@ -163,6 +168,48 @@ std::string TransportParameterIdToString(
       return "reliable_stream_reset";
   }
   return absl::StrCat("Unknown(", param_id, ")");
+}
+
+bool WriteIntegerTlv(QuicDataWriter* writer,
+                     TransportParameters::TransportParameterId id,
+                     uint64_t value) {
+  if (!writer->WriteVarInt62(id)) {
+    QUIC_BUG(quic_bug_10743_1)
+        << "Failed to write param_id " << TransportParameterIdToString(id);
+    return false;
+  }
+  const quiche::QuicheVariableLengthIntegerLength value_length =
+      QuicDataWriter::GetVarInt62Len(value);
+  if (!writer->WriteVarInt62(value_length)) {
+    QUIC_BUG(quic_bug_10743_2) << "Failed to write value_length for "
+                               << TransportParameterIdToString(id);
+    return false;
+  }
+  if (!writer->WriteVarInt62WithForcedLength(value, value_length)) {
+    QUIC_BUG(quic_bug_10743_3)
+        << "Failed to write value for " << TransportParameterIdToString(id);
+    return false;
+  }
+  return true;
+}
+
+// Just read the value, because the type and length have already been parsed to
+// identify the parameter as an integer and initialize |reader|.
+bool ReadIntegerValue(QuicDataReader* reader,
+                      TransportParameters::TransportParameterId param_id,
+                      uint64_t& value, std::string* error_details) {
+  if (!reader->ReadVarInt62(&value)) {
+    *error_details =
+        "Failed to parse value " + TransportParameterIdToString(param_id);
+    return false;
+  }
+  if (!reader->IsDoneReading()) {
+    *error_details = absl::StrCat(
+        "Received unexpected ", reader->BytesRemaining(),
+        " bytes after parsing ", TransportParameterIdToString(param_id));
+    return false;
+  }
+  return true;
 }
 
 bool TransportParameterIdIsKnown(
@@ -192,6 +239,7 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kGoogleConnectionOptions:
     case TransportParameters::kGoogleQuicVersion:
     case TransportParameters::kMinAckDelay:
+    case TransportParameters::kMinAckDelayDraft10:
     case TransportParameters::kReliableStreamReset:
       return true;
     case TransportParameters::kVersionInformation:
@@ -240,21 +288,7 @@ bool TransportParameters::IntegerParameter::Write(
     // Do not write if the value is default.
     return true;
   }
-  if (!writer->WriteVarInt62(param_id_)) {
-    QUIC_BUG(quic_bug_10743_1) << "Failed to write param_id for " << *this;
-    return false;
-  }
-  const quiche::QuicheVariableLengthIntegerLength value_length =
-      QuicDataWriter::GetVarInt62Len(value_);
-  if (!writer->WriteVarInt62(value_length)) {
-    QUIC_BUG(quic_bug_10743_2) << "Failed to write value_length for " << *this;
-    return false;
-  }
-  if (!writer->WriteVarInt62WithForcedLength(value_, value_length)) {
-    QUIC_BUG(quic_bug_10743_3) << "Failed to write value for " << *this;
-    return false;
-  }
-  return true;
+  return WriteIntegerTlv(writer, param_id_, value_);
 }
 
 bool TransportParameters::IntegerParameter::Read(QuicDataReader* reader,
@@ -265,19 +299,7 @@ bool TransportParameters::IntegerParameter::Read(QuicDataReader* reader,
     return false;
   }
   has_been_read_ = true;
-
-  if (!reader->ReadVarInt62(&value_)) {
-    *error_details =
-        "Failed to parse value for " + TransportParameterIdToString(param_id_);
-    return false;
-  }
-  if (!reader->IsDoneReading()) {
-    *error_details =
-        absl::StrCat("Received unexpected ", reader->BytesRemaining(),
-                     " bytes after parsing ", this->ToString(false));
-    return false;
-  }
-  return true;
+  return ReadIntegerValue(reader, param_id_, value_, error_details);
 }
 
 std::string TransportParameters::IntegerParameter::ToString(
@@ -440,6 +462,10 @@ std::string TransportParameters::ToString() const {
   rv += ack_delay_exponent.ToString(/*for_use_in_list=*/true);
   rv += max_ack_delay.ToString(/*for_use_in_list=*/true);
   rv += min_ack_delay_us.ToString(/*for_use_in_list=*/true);
+  if (min_ack_delay_us_draft10.has_value()) {
+    absl::StrAppend(&rv, " ", TransportParameterIdToString(kMinAckDelayDraft10),
+                    " ", *min_ack_delay_us_draft10);
+  }
   if (disable_active_migration) {
     rv += " " + TransportParameterIdToString(kDisableActiveMigration);
   }
@@ -550,6 +576,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       ack_delay_exponent(other.ack_delay_exponent),
       max_ack_delay(other.max_ack_delay),
       min_ack_delay_us(other.min_ack_delay_us),
+      min_ack_delay_us_draft10(other.min_ack_delay_us_draft10),
       disable_active_migration(other.disable_active_migration),
       active_connection_id_limit(other.active_connection_id_limit),
       initial_source_connection_id(other.initial_source_connection_id),
@@ -590,6 +617,7 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
         ack_delay_exponent.value() == rhs.ack_delay_exponent.value() &&
         max_ack_delay.value() == rhs.max_ack_delay.value() &&
         min_ack_delay_us.value() == rhs.min_ack_delay_us.value() &&
+        min_ack_delay_us_draft10 == rhs.min_ack_delay_us_draft10 &&
         disable_active_migration == rhs.disable_active_migration &&
         active_connection_id_limit.value() ==
             rhs.active_connection_id_limit.value() &&
@@ -781,6 +809,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       kIntegerParameterLength +           // ack_delay_exponent
       kIntegerParameterLength +           // max_ack_delay
       kIntegerParameterLength +           // min_ack_delay_us
+      kIntegerParameterLength +           // min_ack_delay_us_draft10
       kTypeAndValueLength +               // disable_active_migration
       kPreferredAddressParameterLength +  // preferred_address
       kIntegerParameterLength +           // active_connection_id_limit
@@ -808,6 +837,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       TransportParameters::kAckDelayExponent,
       TransportParameters::kMaxAckDelay,
       TransportParameters::kMinAckDelay,
+      TransportParameters::kMinAckDelayDraft10,
       TransportParameters::kActiveConnectionIdLimit,
       TransportParameters::kMaxDatagramFrameSize,
       TransportParameters::kReliableStreamReset,
@@ -1012,9 +1042,18 @@ bool SerializeTransportParameters(const TransportParameters& in,
       } break;
       // min_ack_delay_us
       case TransportParameters::kMinAckDelay: {
-        if (!in.min_ack_delay_us.Write(&writer)) {
-          QUIC_BUG(Failed to write min_ack_delay_us)
-              << "Failed to write min_ack_delay_us for " << in;
+        QUICHE_DCHECK(in.min_ack_delay_us.value() == 0);
+      } break;
+      // min_ack_delay_us_draft10
+      case TransportParameters::kMinAckDelayDraft10: {
+        if (!in.min_ack_delay_us_draft10.has_value()) {
+          break;
+        }
+        if (!WriteIntegerTlv(&writer, parameter_id,
+                             *in.min_ack_delay_us_draft10)) {
+          QUIC_BUG(quic_bug_min_ack_delay_failed_write)
+              << "Failed to write "
+              << " min_ack_delay_us_draft10 for " << in;
           return false;
         }
       } break;
@@ -1640,6 +1679,20 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         parse_success =
             out->min_ack_delay_us.Read(&value_reader, error_details);
         break;
+      case TransportParameters::kMinAckDelayDraft10: {
+        if (out->min_ack_delay_us_draft10.has_value()) {
+          *error_details = "Received a second min_ack_delay_us_draft10";
+          return false;
+        }
+        uint64_t delay_value;
+        parse_success = ReadIntegerValue(
+            &value_reader, TransportParameters::kMinAckDelayDraft10,
+            delay_value, error_details);
+        if (!parse_success) {
+          return false;
+        }
+        out->min_ack_delay_us_draft10 = delay_value;
+      } break;
       default:
         if (out->custom_parameters.find(param_id) !=
             out->custom_parameters.end()) {

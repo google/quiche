@@ -267,9 +267,6 @@ QuicConnection::QuicConnection(
     AddKnownServerAddress(initial_peer_address);
   }
   packet_creator_.SetDefaultPeerAddress(initial_peer_address);
-  can_receive_ack_frequency_immediate_ack_ =
-      version().HasIetfQuicFrames() &&
-      GetQuicReloadableFlag(quic_receive_ack_frequency);
 }
 
 void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
@@ -598,6 +595,16 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     multi_port_stats_ = std::make_unique<MultiPortStats>();
     if (config.HasClientRequestedIndependentOption(kMPQM, perspective_)) {
       multi_port_migration_enabled_ = true;
+    }
+  }
+
+  if (config.HasMinAckDelayDraft10ToSend()) {
+    if (config.GetMinAckDelayDraft10ToSendMs() <=
+        config.GetMaxAckDelayToSendMs()) {  // MinAckDelay is valid.
+      set_can_receive_ack_frequency_immediate_ack(true);
+    } else {
+      QUIC_BUG(quic_bug_min_ack_delay_too_high)
+          << "MinAckDelay higher than MaxAckDelay";
     }
   }
 

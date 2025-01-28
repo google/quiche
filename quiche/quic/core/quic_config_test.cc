@@ -13,6 +13,7 @@
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -462,6 +463,45 @@ TEST_P(QuicConfigTest, ReceivedInvalidMinAckDelayInTransportParameter) {
   EXPECT_TRUE(error_details.empty());
 }
 
+TEST_P(QuicConfigTest, ReceivedInvalidMinAckDelayDraft10InTransportParameter) {
+  if (!version_.UsesTls()) {
+    // TransportParameters are only used for QUIC+TLS.
+    return;
+  }
+  TransportParameters params;
+
+  params.max_ack_delay.set_value(25 /*ms*/);
+  params.min_ack_delay_us_draft10 = 25 * kNumMicrosPerMilli + 1;
+  std::string error_details = "foobar";
+  EXPECT_THAT(config_.ProcessTransportParameters(
+                  params, /* is_resumption = */ false, &error_details),
+              IsError(IETF_QUIC_PROTOCOL_VIOLATION));
+  EXPECT_EQ("MinAckDelay is greater than MaxAckDelay.", error_details);
+
+  params.max_ack_delay.set_value(25 /*ms*/);
+  params.min_ack_delay_us_draft10 = 25 * kNumMicrosPerMilli;
+  EXPECT_THAT(config_.ProcessTransportParameters(
+                  params, /* is_resumption = */ false, &error_details),
+              IsQuicNoError());
+  EXPECT_TRUE(error_details.empty());
+}
+
+TEST_P(QuicConfigTest, ReceivedBothMinAckDelayVersionsInTransportParameter) {
+  if (!version_.UsesTls()) {
+    // TransportParameters are only used for QUIC+TLS.
+    return;
+  }
+  TransportParameters params;
+  params.min_ack_delay_us.set_value(25 * kNumMicrosPerMilli);
+  params.min_ack_delay_us_draft10 = 25 * kNumMicrosPerMilli;
+  std::string error_details = "foobar";
+  EXPECT_THAT(config_.ProcessTransportParameters(
+                  params, /* is_resumption = */ false, &error_details),
+              IsError(IETF_QUIC_PROTOCOL_VIOLATION));
+  EXPECT_EQ("Two versions of MinAckDelay. ACK_FREQUENCY frames are ambiguous.",
+            error_details);
+}
+
 TEST_P(QuicConfigTest, FillTransportParams) {
   if (!version_.UsesTls()) {
     // TransportParameters are only used for QUIC+TLS.
@@ -482,6 +522,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   config_.SetOriginalConnectionIdToSend(TestConnectionId(0x1111));
   config_.SetInitialSourceConnectionIdToSend(TestConnectionId(0x2222));
   config_.SetRetrySourceConnectionIdToSend(TestConnectionId(0x3333));
+  config_.SetMinAckDelayDraft10Ms(kDefaultMinAckDelayTimeMs);
   config_.SetDiscardLengthToSend(kDiscardLength);
   config_.SetGoogleHandshakeMessageToSend(kFakeGoogleHandshakeMessage);
   config_.SetReliableStreamReset(true);
@@ -532,6 +573,10 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   ASSERT_TRUE(params.retry_source_connection_id.has_value());
   EXPECT_EQ(TestConnectionId(0x3333),
             params.retry_source_connection_id.value());
+
+  EXPECT_EQ(
+      static_cast<uint64_t>(kDefaultMinAckDelayTimeMs) * kNumMicrosPerMilli,
+      *params.min_ack_delay_us_draft10);
 
   EXPECT_EQ(params.preferred_address->ipv4_socket_address, kTestServerAddress);
   EXPECT_EQ(params.preferred_address->ipv6_socket_address,
