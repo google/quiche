@@ -509,13 +509,14 @@ bool QuicUtils::IsConnectionIdLengthValidForVersion(
 
 // static
 bool QuicUtils::IsConnectionIdValidForVersion(
-    QuicConnectionId connection_id, QuicTransportVersion transport_version) {
+    const QuicConnectionId& connection_id,
+    QuicTransportVersion transport_version) {
   return IsConnectionIdLengthValidForVersion(connection_id.length(),
                                              transport_version);
 }
 
 StatelessResetToken QuicUtils::GenerateStatelessResetToken(
-    QuicConnectionId connection_id) {
+    const QuicConnectionId& connection_id) {
   static_assert(sizeof(absl::uint128) == sizeof(StatelessResetToken),
                 "bad size");
   static_assert(alignof(absl::uint128) >= alignof(StatelessResetToken),

@@ -183,7 +183,8 @@ class QUICHE_EXPORT QuicUtils {
 
   // Returns true if the connection ID is valid for this QUIC version.
   static bool IsConnectionIdValidForVersion(
-      QuicConnectionId connection_id, QuicTransportVersion transport_version);
+      const QuicConnectionId& connection_id,
+      QuicTransportVersion transport_version);
 
   // Returns a connection ID suitable for QUIC use-cases that do not need the
   // connection ID for multiplexing. If the version allows variable lengths,
@@ -192,7 +193,7 @@ class QUICHE_EXPORT QuicUtils {
 
   // Generates a 128bit stateless reset token based on a connection ID.
   static StatelessResetToken GenerateStatelessResetToken(
-      QuicConnectionId connection_id);
+      const QuicConnectionId& connection_id);
 
   // Determines packet number space from |encryption_level|.
   static PacketNumberSpace GetPacketNumberSpace(
