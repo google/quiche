@@ -87,8 +87,7 @@ void BlindSignAuth::GetInitialDataCallback(
     std::string message =
         absl::StrCat("GetInitialDataRequest failed with code: ", code);
     QUICHE_LOG(WARNING) << message;
-    std::move(callback)(
-        absl::InvalidArgumentError("GetInitialDataRequest failed"));
+    std::move(callback)(absl::InvalidArgumentError(message));
     return;
   }
   // Parse GetInitialDataResponse.
@@ -295,7 +294,7 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
   if (code != absl::StatusCode::kOk) {
     std::string message = absl::StrCat("AuthAndSign failed with code: ", code);
     QUICHE_LOG(WARNING) << message;
-    std::move(callback)(absl::InvalidArgumentError("AuthAndSign failed"));
+    std::move(callback)(absl::InvalidArgumentError(message));
     return;
   }
 
