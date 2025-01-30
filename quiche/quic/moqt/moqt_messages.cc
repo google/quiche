@@ -16,6 +16,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -199,7 +200,11 @@ bool FullTrackName::operator<(const FullTrackName& other) const {
   return absl::c_lexicographical_compare(tuple_, other.tuple_);
 }
 FullTrackName::FullTrackName(absl::Span<const absl::string_view> elements)
-    : tuple_(elements.begin(), elements.end()) {}
+    : tuple_(elements.begin(), elements.end()) {
+  QUICHE_BUG_IF(Moqt_namespace_too_large_03,
+                std::size(elements) > (kMaxNamespaceElements + 1))
+      << "Constructing a namespace that is too large.";
+}
 
 absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
                                      absl::string_view reason_phrase) {

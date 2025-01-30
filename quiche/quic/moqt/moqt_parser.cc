@@ -11,7 +11,6 @@
 #include <cstring>
 #include <optional>
 #include <string>
-#include <tuple>
 
 #include "absl/base/casts.h"
 #include "absl/cleanup/cleanup.h"
@@ -972,7 +971,12 @@ bool MoqtControlParser::ReadTrackNamespace(quic::QuicDataReader& reader,
   QUICHE_DCHECK(full_track_name.empty());
   uint64_t num_elements;
   if (!reader.ReadVarInt62(&num_elements)) {
-    return 0;
+    return false;
+  }
+  if (num_elements == 0 || num_elements > kMaxNamespaceElements) {
+    ParseError(MoqtError::kProtocolViolation,
+               "Invalid number of namespace elements");
+    return false;
   }
   for (uint64_t i = 0; i < num_elements; ++i) {
     absl::string_view element;

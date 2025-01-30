@@ -1379,6 +1379,48 @@ TEST_F(MoqtMessageSpecificTest, PaddingStream) {
   }
 }
 
+// All messages with TrackNamespace use ReadTrackNamespace too check this. Use
+// ANNOUNCE_OK for the test because it's small.
+TEST_F(MoqtMessageSpecificTest, NamespaceTooSmall) {
+  MoqtControlParser parser(kRawQuic, visitor_);
+  char announce_ok[] = {
+      0x07, 0x03,       // type, length
+      0x01, 0x01, 'a',  // 1 namespace element
+  };
+  parser.ProcessData(absl::string_view(announce_ok, sizeof(announce_ok)),
+                     false);
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
+  announce_ok[1] -= 2;  // Remove one element.
+  announce_ok[2] = 0x00;
+  parser.ProcessData(absl::string_view(announce_ok, sizeof(announce_ok) - 2),
+                     false);
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");
+}
+
+TEST_F(MoqtMessageSpecificTest, NamespaceTooLarge) {
+  MoqtControlParser parser(kRawQuic, visitor_);
+  char announce_ok[70] = {
+      0x07, 0x40, 0x41,  // type, length = 65
+      0x20,              // 32 namespace elements. This is the maximum.
+  };
+  for (size_t i = 4; i < sizeof(announce_ok); i = i + 2) {
+    announce_ok[i] = 0x01;
+    announce_ok[i + 1] = 'a' + i;
+  }
+  parser.ProcessData(absl::string_view(announce_ok, sizeof(announce_ok) - 2),
+                     false);
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
+  announce_ok[2] += 2;  // Add one element.
+  ++announce_ok[3];
+  parser.ProcessData(absl::string_view(announce_ok, sizeof(announce_ok)),
+                     false);
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");
+}
+
 class MoqtDataParserStateMachineTest : public quic::test::QuicTest {
  protected:
   MoqtDataParserStateMachineTest()

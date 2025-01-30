@@ -24,6 +24,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -40,6 +41,8 @@ enum class MoqtVersion : uint64_t {
 
 inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft07;
 inline constexpr uint64_t kDefaultInitialMaxSubscribeId = 100;
+inline constexpr uint64_t kMinNamespaceElements = 1;
+inline constexpr uint64_t kMaxNamespaceElements = 32;
 
 struct QUICHE_EXPORT MoqtSessionParameters {
   // TODO: support multiple versions.
@@ -190,7 +193,11 @@ class FullTrackName {
   explicit FullTrackName(
       std::initializer_list<const absl::string_view> elements)
       : FullTrackName(absl::Span<const absl::string_view>(
-            std::data(elements), std::size(elements))) {}
+            std::data(elements), std::size(elements))) {
+    QUICHE_BUG_IF(Moqt_namespace_too_large_02,
+                  elements.size() > (kMaxNamespaceElements + 1))
+        << "Constructing a namespace that is too large.";
+  }
   explicit FullTrackName(absl::string_view ns, absl::string_view name)
       : FullTrackName({ns, name}) {}
   FullTrackName() : FullTrackName({}) {}
@@ -198,6 +205,9 @@ class FullTrackName {
   std::string ToString() const;
 
   void AddElement(absl::string_view element) {
+    QUICHE_BUG_IF(Moqt_namespace_too_large_01,
+                  tuple_.size() > (kMaxNamespaceElements + 1))
+        << "Constructing a namespace that is too large.";
     tuple_.push_back(std::string(element));
   }
   // Remove the last element to convert a name to a namespace.
