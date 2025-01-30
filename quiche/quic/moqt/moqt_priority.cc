@@ -29,24 +29,8 @@ constexpr uint64_t OnlyLowestNBits(uint64_t value) {
 //   62: 0 for data streams, 1 for control streams
 //   54-61: subscriber priority
 //   46-53: publisher priority
-//     (if stream-per-group)
-//   0-45: group ID
-//     (if stream-per-object)
 //   20-45: group ID
-//   0-19: object ID
-
-webtransport::SendOrder SendOrderForStream(MoqtPriority subscriber_priority,
-                                           MoqtPriority publisher_priority,
-                                           uint64_t group_id,
-                                           MoqtDeliveryOrder delivery_order) {
-  const int64_t track_bits = (Flip<8>(subscriber_priority) << 54) |
-                             (Flip<8>(publisher_priority) << 46);
-  group_id = OnlyLowestNBits<46>(group_id);
-  if (delivery_order == MoqtDeliveryOrder::kAscending) {
-    group_id = Flip<46>(group_id);
-  }
-  return track_bits | group_id;
-}
+//   0-19: object (for Datagrams) or subgroup (for streams) ID
 
 webtransport::SendOrder SendOrderForStream(MoqtPriority subscriber_priority,
                                            MoqtPriority publisher_priority,
@@ -62,6 +46,19 @@ webtransport::SendOrder SendOrderForStream(MoqtPriority subscriber_priority,
   }
   subgroup_id = Flip<20>(subgroup_id);
   return track_bits | (group_id << 20) | subgroup_id;
+}
+
+webtransport::SendOrder SendOrderForDatagram(MoqtPriority subscriber_priority,
+                                             MoqtPriority publisher_priority,
+                                             uint64_t group_id,
+                                             uint64_t object_id,
+                                             MoqtDeliveryOrder delivery_order) {
+  return SendOrderForStream(subscriber_priority, publisher_priority, group_id,
+                            object_id, delivery_order);
+}
+
+webtransport::SendOrder SendOrderForFetch(MoqtPriority subscriber_priority) {
+  return (Flip<8>(subscriber_priority) << 54);
 }
 
 webtransport::SendOrder UpdateSendOrderForSubscriberPriority(

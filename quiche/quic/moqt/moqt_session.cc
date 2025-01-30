@@ -630,7 +630,8 @@ webtransport::Stream* MoqtSession::OpenDataStream(
   return new_stream;
 }
 
-bool MoqtSession::OpenDataStream(std::shared_ptr<PublishedFetch> fetch) {
+bool MoqtSession::OpenDataStream(std::shared_ptr<PublishedFetch> fetch,
+                                 webtransport::SendOrder send_order) {
   webtransport::Stream* new_stream =
       session_->OpenOutgoingUnidirectionalStream();
   if (new_stream == nullptr) {
@@ -644,6 +645,8 @@ bool MoqtSession::OpenDataStream(std::shared_ptr<PublishedFetch> fetch) {
   if (new_stream->CanWrite()) {
     new_stream->visitor()->OnCanWrite();
   }
+  new_stream->SetPriority(webtransport::StreamPriority{
+      /*send_group_id=*/kMoqtSendGroupId, send_order});
   return true;
 }
 
@@ -680,7 +683,8 @@ void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
     if (subscription == published_subscriptions_.end()) {
       auto fetch = incoming_fetches_.find(next->subscription_id);
       // Create the stream if the fetch still exists.
-      if (fetch != incoming_fetches_.end() && !OpenDataStream(fetch->second)) {
+      if (fetch != incoming_fetches_.end() &&
+          !OpenDataStream(fetch->second, next->send_order)) {
         return;  // A QUIC_BUG has fired because this shouldn't happen.
       }
       // FETCH needs only one stream, and can be deleted from the queue. Or,
@@ -1232,16 +1236,13 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
       message.group_order.value_or((*track_publisher)->GetDeliveryOrder());
   fetch_ok.largest_id = result.first->second->fetch_task()->GetLargestId();
   SendOrBufferMessage(session_->framer_.SerializeFetchOk(fetch_ok));
+  webtransport::SendOrder send_order =
+      SendOrderForFetch(message.subscriber_priority);
   if (!session_->session()->CanOpenNextOutgoingUnidirectionalStream() ||
-      !session_->OpenDataStream(result.first->second)) {
+      !session_->OpenDataStream(result.first->second, send_order)) {
     // Put the FETCH in the queue for a new stream.
-    session_->UpdateQueuedSendOrder(
-        message.subscribe_id, std::nullopt,
-        SendOrderForStream(message.subscriber_priority,
-                           (*track_publisher)->GetPublisherPriority(),
-                           /*group_id=*/0,
-                           message.group_order.value_or(
-                               (*track_publisher)->GetDeliveryOrder())));
+    session_->UpdateQueuedSendOrder(message.subscribe_id, std::nullopt,
+                                    send_order);
   }
 }
 
@@ -1684,9 +1685,9 @@ webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
   MoqtDeliveryOrder delivery_order = subscriber_delivery_order().value_or(
       track_publisher_->GetDeliveryOrder());
   if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
-    QUICHE_BUG(quic_bug_GetSendOrder_for_Datagram)
-        << "Datagram Track requesting SendOrder";
-    return 0;
+    return SendOrderForDatagram(subscriber_priority_, publisher_priority,
+                                sequence.group, sequence.object,
+                                delivery_order);
   }
   return SendOrderForStream(subscriber_priority_, publisher_priority,
                             sequence.group, sequence.subgroup, delivery_order);

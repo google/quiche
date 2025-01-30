@@ -1955,6 +1955,7 @@ TEST_F(MoqtSessionTest, FetchReturnsOkImmediateOpen) {
   EXPECT_CALL(data_stream, visitor()).WillOnce(Invoke([&]() {
     return stream_visitor.get();
   }));
+  EXPECT_CALL(data_stream, SetPriority(_)).Times(1);
   EXPECT_CALL(*fetch_task, GetNextObject(_))
       .WillOnce(Return(MoqtFetchTask::GetNextObjectResult::kPending));
   stream_input->OnFetchMessage(request);
@@ -2057,6 +2058,7 @@ TEST_F(MoqtSessionTest, FetchDelivery) {
             stream_visitor = std::move(visitor);
           }));
   EXPECT_CALL(data_stream, CanWrite()).WillOnce(Return(false));
+  EXPECT_CALL(data_stream, SetPriority(_)).Times(1);
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
   // Unblock the stream. Provide one object and an EOF.
   EXPECT_CALL(data_stream, CanWrite()).WillRepeatedly(Return(true));
@@ -2114,6 +2116,7 @@ TEST_F(MoqtSessionTest, FetchNonNormalObjects) {
             stream_visitor = std::move(visitor);
           }));
   EXPECT_CALL(data_stream, CanWrite()).WillOnce(Return(false));
+  EXPECT_CALL(data_stream, SetPriority(_)).Times(1);
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
   // Unblock the stream. Provide one object and an EOF.
   EXPECT_CALL(data_stream, CanWrite()).WillRepeatedly(Return(true));

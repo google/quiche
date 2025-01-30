@@ -569,7 +569,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   webtransport::Stream* OpenDataStream(PublishedSubscription& subscription,
                                        FullSequence first_object);
   // Returns false if creation failed.
-  [[nodiscard]] bool OpenDataStream(std::shared_ptr<PublishedFetch> fetch);
+  [[nodiscard]] bool OpenDataStream(std::shared_ptr<PublishedFetch> fetch,
+                                    webtransport::SendOrder send_order);
 
   SubscribeRemoteTrack* RemoteTrackByAlias(uint64_t track_alias);
   RemoteTrack* RemoteTrackById(uint64_t subscribe_id);
