@@ -121,6 +121,8 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
   kParameterLengthMismatch = 0x5,
   kTooManySubscribes = 0x6,
   kGoawayTimeout = 0x10,
+  kControlMessageTimeout = 0x11,
+  kDataStreamTimeout = 0x12,
 };
 
 // Error codes used by MoQT to reset streams.
