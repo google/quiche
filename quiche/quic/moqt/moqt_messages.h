@@ -133,13 +133,6 @@ inline constexpr webtransport::StreamErrorCode kResetCodeSubscriptionGone =
     0x01;
 inline constexpr webtransport::StreamErrorCode kResetCodeTimedOut = 0x02;
 
-enum class QUICHE_EXPORT MoqtRole : uint64_t {
-  kPublisher = 0x1,
-  kSubscriber = 0x2,
-  kPubSub = 0x3,
-  kRoleMax = 0x3,
-};
-
 enum class QUICHE_EXPORT MoqtSetupParameter : uint64_t {
   kRole = 0x0,
   kPath = 0x1,
@@ -319,7 +312,6 @@ H AbslHashValue(H h, const FullSequence& m) {
 
 struct QUICHE_EXPORT MoqtClientSetup {
   std::vector<MoqtVersion> supported_versions;
-  std::optional<MoqtRole> role;
   std::optional<std::string> path;
   std::optional<uint64_t> max_subscribe_id;
   bool supports_object_ack = false;
@@ -327,7 +319,6 @@ struct QUICHE_EXPORT MoqtClientSetup {
 
 struct QUICHE_EXPORT MoqtServerSetup {
   MoqtVersion selected_version;
-  std::optional<MoqtRole> role;
   std::optional<uint64_t> max_subscribe_id;
   bool supports_object_ack = false;
 };

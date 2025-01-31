@@ -671,11 +671,6 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   absl::flat_hash_map<FullTrackName, MoqtOutgoingSubscribeAnnouncesCallback>
       outgoing_subscribe_announces_;
 
-  // The role the peer advertised in its SETUP message. Initialize it to avoid
-  // an uninitialized value if no SETUP arrives or it arrives with no Role
-  // parameter, and other checks have changed/been disabled.
-  MoqtRole peer_role_ = MoqtRole::kPubSub;
-
   // The minimum subscribe ID the peer can use that is monotonically increasing.
   uint64_t next_incoming_subscribe_id_ = 0;
   // The maximum subscribe ID sent to the peer. Peer-generated IDs must be less

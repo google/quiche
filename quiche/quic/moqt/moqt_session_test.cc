@@ -135,7 +135,6 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
   // Handle the server setup
   MoqtServerSetup setup = {
       kDefaultMoqtVersion,
-      MoqtRole::kPubSub,
   };
   EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
   stream_input->OnServerSetupMessage(setup);
@@ -150,7 +149,6 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);
   MoqtClientSetup setup = {
       /*supported_versions=*/{kDefaultMoqtVersion},
-      /*role=*/MoqtRole::kPubSub,
       /*path=*/std::nullopt,
   };
   EXPECT_CALL(mock_stream,
@@ -1451,7 +1449,6 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream);
   MoqtClientSetup setup = {
       /*supported_versions*/ {kDefaultMoqtVersion},
-      /*role=*/MoqtRole::kPubSub,
       /*path=*/std::nullopt,
   };
   EXPECT_CALL(mock_stream,
@@ -1613,47 +1610,6 @@ TEST_F(MoqtSessionTest, DatagramOutOfWindow) {
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(0);
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
-}
-
-TEST_F(MoqtSessionTest, AnnounceToPublisher) {
-  MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kPublisher);
-  testing::MockFunction<void(
-      FullTrackName track_namespace,
-      std::optional<MoqtAnnounceErrorReason> error_message)>
-      announce_resolved_callback;
-  EXPECT_CALL(announce_resolved_callback, Call(_, _)).Times(1);
-  session_.Announce(FullTrackName{"foo"},
-                    announce_resolved_callback.AsStdFunction());
-}
-
-TEST_F(MoqtSessionTest, SubscribeFromPublisher) {
-  MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kPublisher);
-  webtransport::test::MockStream mock_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
-  // Request for track returns Protocol Violation.
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Received SUBSCRIBE from publisher"))
-      .Times(1);
-  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_)).Times(1);
-  stream_input->OnSubscribeMessage(DefaultSubscribe());
-}
-
-TEST_F(MoqtSessionTest, AnnounceFromSubscriber) {
-  MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kSubscriber);
-  webtransport::test::MockStream mock_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
-  MoqtAnnounce announce = {
-      /*track_namespace=*/FullTrackName{"foo"},
-  };
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Received ANNOUNCE from Subscriber"))
-      .Times(1);
-  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_)).Times(1);
-  stream_input->OnAnnounceMessage(announce);
 }
 
 TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
@@ -2480,7 +2436,6 @@ TEST_F(MoqtSessionTest, PartialObjectFetch) {
 // TODO: re-enable this test once this behavior is re-implemented.
 #if 0
 TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {
-  MoqtSessionPeer::set_peer_role(&session_, MoqtRole::kSubscriber);
   FullTrackName ftn("foo", "bar");
   MockLocalTrackVisitor track_visitor;
   session_.AddLocalTrack(ftn, MoqtForwardingPreference::kSubgroup,

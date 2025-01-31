@@ -330,8 +330,8 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
     if (webtrans) {
       // Should not send PATH.
       client_setup_.path = std::nullopt;
-      raw_packet_[2] = 0x0a;  // adjust payload length (-5)
-      raw_packet_[6] = 0x02;  // only two parameters
+      raw_packet_[2] = 0x07;  // adjust payload length (-5)
+      raw_packet_[6] = 0x01;  // only two parameters
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 5);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -352,10 +352,6 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
         return false;
       }
     }
-    if (cast.role != client_setup_.role) {
-      QUIC_LOG(INFO) << "CLIENT_SETUP role mismatch";
-      return false;
-    }
     if (cast.path != client_setup_.path) {
       QUIC_LOG(INFO) << "CLIENT_SETUP path mismatch";
       return false;
@@ -369,11 +365,11 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
   void ExpandVarints() override {
     if (client_setup_.path.has_value()) {
-      ExpandVarintsImpl("--vvvvvvv-vv-vv---");
+      ExpandVarintsImpl("--vvvvvvv-vv---");
       // first two bytes are already a 2B varint. Also, don't expand parameter
       // varints because that messes up the parameter length field.
     } else {
-      ExpandVarintsImpl("--vvvvvvv-vv-");
+      ExpandVarintsImpl("--vvvvvvv-");
     }
   }
 
@@ -382,18 +378,16 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[18] = {
-      0x40, 0x40, 0x0f,              // type
+  uint8_t raw_packet_[15] = {
+      0x40, 0x40, 0x0c,              // type
       0x02, 0x01, 0x02,              // versions
-      0x03,                          // 3 parameters
-      0x00, 0x01, 0x03,              // role = PubSub
+      0x02,                          // 3 parameters
       0x02, 0x01, 0x32,              // max_subscribe_id = 50
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
   };
   MoqtClientSetup client_setup_ = {
       /*supported_versions=*/std::vector<MoqtVersion>(
           {static_cast<MoqtVersion>(1), static_cast<MoqtVersion>(2)}),
-      /*role=*/MoqtRole::kPubSub,
       /*path=*/"foo",
       /*max_subscribe_id=*/50,
   };
@@ -411,10 +405,6 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SERVER_SETUP selected version mismatch";
       return false;
     }
-    if (cast.role != server_setup_.role) {
-      QUIC_LOG(INFO) << "SERVER_SETUP role mismatch";
-      return false;
-    }
     if (cast.max_subscribe_id != server_setup_.max_subscribe_id) {
       QUIC_LOG(INFO) << "SERVER_SETUP max_subscribe_id mismatch";
       return false;
@@ -423,8 +413,8 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("--vvvvv-vv-");  // first two bytes are already a 2b
-                                       // varint
+    ExpandVarintsImpl("--vvvvv-");  // first two bytes are already a 2b
+                                    // varint
   }
 
   MessageStructuredData structured_data() const override {
@@ -432,15 +422,13 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[11] = {
-      0x40, 0x41, 0x08,  // type
-      0x01, 0x02,        // version, two parameters
-      0x00, 0x01, 0x03,  // role = PubSub
+  uint8_t raw_packet_[8] = {
+      0x40, 0x41, 0x05,  // type
+      0x01, 0x01,        // version, two parameters
       0x02, 0x01, 0x32,  // max_subscribe_id = 50
   };
   MoqtServerSetup server_setup_ = {
       /*selected_version=*/static_cast<MoqtVersion>(1),
-      /*role=*/MoqtRole::kPubSub,
       /*max_subscribe_id=*/50,
   };
 };

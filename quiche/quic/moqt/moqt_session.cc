@@ -147,7 +147,6 @@ void MoqtSession::OnSessionReady() {
   control_stream_ = control_stream->GetStreamId();
   MoqtClientSetup setup = MoqtClientSetup{
       .supported_versions = std::vector<MoqtVersion>{parameters_.version},
-      .role = MoqtRole::kPubSub,
       .max_subscribe_id = parameters_.max_subscribe_id,
       .supports_object_ack = parameters_.support_object_acks,
   };
@@ -244,11 +243,6 @@ bool MoqtSession::SubscribeAnnounces(
     FullTrackName track_namespace,
     MoqtOutgoingSubscribeAnnouncesCallback callback,
     MoqtSubscribeParameters parameters) {
-  if (peer_role_ == MoqtRole::kSubscriber) {
-    std::move(callback)(track_namespace, SubscribeErrorCode::kInternalError,
-                        "SUBSCRIBE_ANNOUNCES cannot be sent to subscriber");
-    return false;
-  }
   MoqtSubscribeAnnounces message;
   message.track_namespace = track_namespace;
   message.parameters = std::move(parameters);
@@ -274,13 +268,6 @@ bool MoqtSession::UnsubscribeAnnounces(FullTrackName track_namespace) {
 
 void MoqtSession::Announce(FullTrackName track_namespace,
                            MoqtOutgoingAnnounceCallback announce_callback) {
-  if (peer_role_ == MoqtRole::kPublisher) {
-    std::move(announce_callback)(
-        track_namespace,
-        MoqtAnnounceErrorReason{MoqtAnnounceErrorCode::kInternalError,
-                                "ANNOUNCE cannot be sent to Publisher"});
-    return;
-  }
   if (outgoing_announces_.contains(track_namespace)) {
     std::move(announce_callback)(
         track_namespace,
@@ -314,9 +301,6 @@ bool MoqtSession::Unannounce(FullTrackName track_namespace) {
 void MoqtSession::CancelAnnounce(FullTrackName track_namespace,
                                  MoqtAnnounceErrorCode code,
                                  absl::string_view reason) {
-  if (peer_role_ == MoqtRole::kSubscriber) {
-    return;
-  }
   MoqtAnnounceCancel message{track_namespace, code, std::string(reason)};
 
   SendControlMessage(framer_.SerializeAnnounceCancel(message));
@@ -438,10 +422,6 @@ bool MoqtSession::Fetch(const FullTrackName& name,
                         MoqtPriority priority,
                         std::optional<MoqtDeliveryOrder> delivery_order,
                         MoqtSubscribeParameters parameters) {
-  if (peer_role_ == MoqtRole::kSubscriber) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH to subscriber peer";
-    return false;
-  }
   // TODO(martinduke): support authorization info
   if (next_subscribe_id_ >= peer_max_subscribe_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH with ID "
@@ -542,10 +522,6 @@ bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
 bool MoqtSession::Subscribe(MoqtSubscribe& message,
                             SubscribeRemoteTrack::Visitor* visitor,
                             std::optional<uint64_t> provided_track_alias) {
-  if (peer_role_ == MoqtRole::kSubscriber) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE to subscriber peer";
-    return false;
-  }
   // TODO(martinduke): support authorization info
   if (next_subscribe_id_ >= peer_max_subscribe_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE with ID "
@@ -729,11 +705,6 @@ void MoqtSession::GrantMoreSubscribes(uint64_t num_subscribes) {
 }
 
 bool MoqtSession::ValidateSubscribeId(uint64_t subscribe_id) {
-  if (peer_role_ == MoqtRole::kPublisher) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Publisher peer sent SUBSCRIBE";
-    Error(MoqtError::kProtocolViolation, "Received SUBSCRIBE from publisher");
-    return false;
-  }
   if (subscribe_id >= local_max_subscribe_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received SUBSCRIBE with too large ID";
     Error(MoqtError::kTooManySubscribes,
@@ -812,18 +783,16 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
   if (session_->parameters_.perspective == Perspective::IS_SERVER) {
     MoqtServerSetup response;
     response.selected_version = session_->parameters_.version;
-    response.role = MoqtRole::kPubSub;
     response.max_subscribe_id = session_->parameters_.max_subscribe_id;
     response.supports_object_ack = session_->parameters_.support_object_acks;
     SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
-  // TODO: handle role and path.
+  // TODO: handle path.
   if (message.max_subscribe_id.has_value()) {
     session_->peer_max_subscribe_id_ = *message.max_subscribe_id;
   }
   std::move(session_->callbacks_.session_established_callback)();
-  session_->peer_role_ = *message.role;
 }
 
 void MoqtSession::ControlStream::OnServerSetupMessage(
@@ -842,12 +811,11 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
   }
   session_->peer_supports_object_ack_ = message.supports_object_ack;
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
-  // TODO: handle role and path.
+  // TODO: handle path.
   if (message.max_subscribe_id.has_value()) {
     session_->peer_max_subscribe_id_ = *message.max_subscribe_id;
   }
   std::move(session_->callbacks_.session_established_callback)();
-  session_->peer_role_ = *message.role;
 }
 
 void MoqtSession::ControlStream::SendSubscribeError(
@@ -1040,12 +1008,6 @@ void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
 
 void MoqtSession::ControlStream::OnAnnounceMessage(
     const MoqtAnnounce& message) {
-  if (session_->peer_role_ == MoqtRole::kSubscriber) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Subscriber peer sent SUBSCRIBE";
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received ANNOUNCE from Subscriber");
-    return;
-  }
   std::optional<MoqtAnnounceErrorReason> error =
       session_->callbacks_.incoming_announce_callback(message.track_namespace,
                                                       AnnounceEvent::kAnnounce);
@@ -1172,12 +1134,6 @@ void MoqtSession::ControlStream::OnUnsubscribeAnnouncesMessage(
 
 void MoqtSession::ControlStream::OnMaxSubscribeIdMessage(
     const MoqtMaxSubscribeId& message) {
-  if (session_->peer_role_ == MoqtRole::kSubscriber) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Subscriber peer sent MAX_SUBSCRIBE_ID";
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received MAX_SUBSCRIBE_ID from Subscriber");
-    return;
-  }
   if (message.max_subscribe_id < session_->peer_max_subscribe_id_) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Peer sent MAX_SUBSCRIBE_ID message with "

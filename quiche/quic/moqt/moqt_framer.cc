@@ -376,10 +376,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
     const MoqtClientSetup& message) {
   absl::InlinedVector<IntParameter, 1> int_parameters;
   absl::InlinedVector<StringParameter, 1> string_parameters;
-  if (message.role.has_value()) {
-    int_parameters.push_back(
-        IntParameter(MoqtSetupParameter::kRole, *message.role));
-  }
   if (message.max_subscribe_id.has_value()) {
     int_parameters.push_back(IntParameter(MoqtSetupParameter::kMaxSubscribeId,
                                           *message.max_subscribe_id));
@@ -404,10 +400,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
 quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
     const MoqtServerSetup& message) {
   absl::InlinedVector<IntParameter, 1> int_parameters;
-  if (message.role.has_value()) {
-    int_parameters.push_back(
-        IntParameter(MoqtSetupParameter::kRole, *message.role));
-  }
   if (message.max_subscribe_id.has_value()) {
     int_parameters.push_back(IntParameter(MoqtSetupParameter::kMaxSubscribeId,
                                           *message.max_subscribe_id));

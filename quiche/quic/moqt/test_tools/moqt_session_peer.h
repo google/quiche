@@ -121,10 +121,6 @@ class MoqtSessionPeer {
         priority);
   }
 
-  static void set_peer_role(MoqtSession* session, MoqtRole role) {
-    session->peer_role_ = role;
-  }
-
   static SubscribeRemoteTrack* remote_track(MoqtSession* session,
                                             uint64_t track_alias) {
     return session->RemoteTrackByAlias(track_alias);

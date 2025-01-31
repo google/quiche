@@ -523,73 +523,11 @@ TEST_F(MoqtMessageSpecificTest, StreamHeaderSubgroupFollowOn) {
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
 }
 
-TEST_F(MoqtMessageSpecificTest, ClientSetupRoleIsInvalid) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char setup[] = {
-      0x40, 0x40, 0x0c, 0x02, 0x01, 0x02,  // versions
-      0x03,                                // 3 params
-      0x00, 0x01, 0x04,                    // role = invalid
-      0x01, 0x03, 0x66, 0x6f, 0x6f         // path = "foo"
-  };
-  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_, "Invalid ROLE parameter");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
-}
-
-TEST_F(MoqtMessageSpecificTest, ServerSetupRoleIsInvalid) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char setup[] = {
-      0x40, 0x41, 0x0a, 0x01,
-      0x01,                         // 1 param
-      0x00, 0x01, 0x04,             // role = invalid
-      0x01, 0x03, 0x66, 0x6f, 0x6f  // path = "foo"
-  };
-  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_, "Invalid ROLE parameter");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
-}
-
-TEST_F(MoqtMessageSpecificTest, SetupRoleAppearsTwice) {
+TEST_F(MoqtMessageSpecificTest, ClientSetupMaxSubscribeIdAppearsTwice) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
       0x40, 0x40, 0x0f, 0x02, 0x01, 0x02,  // versions
       0x03,                                // 3 params
-      0x00, 0x01, 0x03,                    // role = PubSub
-      0x00, 0x01, 0x03,                    // role = PubSub
-      0x01, 0x03, 0x66, 0x6f, 0x6f         // path = "foo"
-  };
-  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_, "ROLE parameter appears twice in SETUP");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
-}
-
-TEST_F(MoqtMessageSpecificTest, ClientSetupRoleIsMissing) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char setup[] = {
-      0x40, 0x40, 0x09, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x01,                                // 1 param
-      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
-  };
-  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_,
-            "ROLE parameter missing from CLIENT_SETUP message");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
-}
-
-TEST_F(MoqtMessageSpecificTest, ClientSetupMaxSubscribeIdAppearsTwice) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char setup[] = {
-      0x40, 0x40, 0x12, 0x02, 0x01, 0x02,  // versions
-      0x04,                                // 4 params
-      0x00, 0x01, 0x03,                    // role = PubSub
       0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
       0x02, 0x01, 0x32,                    // max_subscribe_id = 50
       0x02, 0x01, 0x32,                    // max_subscribe_id = 50
@@ -600,37 +538,6 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMaxSubscribeIdAppearsTwice) {
   EXPECT_EQ(*visitor_.parsing_error_,
             "MAX_SUBSCRIBE_ID parameter appears twice in SETUP");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
-}
-
-TEST_F(MoqtMessageSpecificTest, ServerSetupRoleIsMissing) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char setup[] = {
-      0x40, 0x41, 0x02, 0x01, 0x00,  // 1 param
-  };
-  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_,
-            "ROLE parameter missing from SERVER_SETUP message");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
-}
-
-TEST_F(MoqtMessageSpecificTest, SetupRoleVarintLengthIsWrong) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char setup[] = {
-      0x40, 0x40, 0x0c,             // type
-      0x02, 0x01, 0x02,             // versions
-      0x02,                         // 2 parameters
-      0x00, 0x02, 0x03,             // role = PubSub, but length is 2
-      0x01, 0x03, 0x66, 0x6f, 0x6f  // path = "foo"
-  };
-  parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_,
-            "Parameter length does not match varint encoding");
-
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kParameterLengthMismatch);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
@@ -651,9 +558,8 @@ TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
 TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x11, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x03,                                // 3 params
-      0x00, 0x01, 0x03,                    // role = PubSub
+      0x40, 0x40, 0x0e, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x02,                                // 2 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
       0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
   };
@@ -668,9 +574,8 @@ TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
 TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
   MoqtControlParser parser(kWebTrans, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x0b, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x02,                                // 2 params
-      0x00, 0x01, 0x03,                    // role = PubSub
+      0x40, 0x40, 0x09, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x01,                                // 1 param
       0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
@@ -684,9 +589,8 @@ TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
 TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x07, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x01,                                // 1 param
-      0x00, 0x01, 0x03,                    // role = PubSub
+      0x40, 0x40, 0x04, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x00,                                // no param
   };
   parser.ProcessData(absl::string_view(setup, sizeof(setup)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
@@ -699,9 +603,8 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
 TEST_F(MoqtMessageSpecificTest, ServerSetupMaxSubscribeIdAppearsTwice) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char setup[] = {
-      0x40, 0x40, 0x12, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x04,                                // 4 params
-      0x00, 0x01, 0x03,                    // role = PubSub
+      0x40, 0x40, 0x0f, 0x02, 0x01, 0x02,  // versions = 1, 2
+      0x03,                                // 4 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
       0x02, 0x01, 0x32,                    // max_subscribe_id = 50
       0x02, 0x01, 0x32,                    // max_subscribe_id = 50
