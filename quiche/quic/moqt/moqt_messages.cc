@@ -117,6 +117,8 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "FETCH_OK";
     case MoqtMessageType::kFetchError:
       return "FETCH_ERROR";
+    case MoqtMessageType::kSubscribesBlocked:
+      return "SUBSCRIBES_BLOCKED";
     case MoqtMessageType::kObjectAck:
       return "OBJECT_ACK";
   }

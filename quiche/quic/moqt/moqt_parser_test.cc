@@ -57,6 +57,7 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kFetchCancel,
     MoqtMessageType::kFetchOk,
     MoqtMessageType::kFetchError,
+    MoqtMessageType::kSubscribesBlocked,
     MoqtMessageType::kObjectAck,
 };
 constexpr std::array kDataStreamTypes{
@@ -210,6 +211,10 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
     OnControlMessage(message);
   }
   void OnFetchErrorMessage(const MoqtFetchError& message) override {
+    OnControlMessage(message);
+  }
+  void OnSubscribesBlockedMessage(
+      const MoqtSubscribesBlocked& message) override {
     OnControlMessage(message);
   }
   void OnObjectAckMessage(const MoqtObjectAck& message) override {

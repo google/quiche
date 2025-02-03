@@ -680,6 +680,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetchError(
       WireStringWithVarInt62Length(message.reason_phrase));
 }
 
+quiche::QuicheBuffer MoqtFramer::SerializeSubscribesBlocked(
+    const MoqtSubscribesBlocked& message) {
+  return SerializeControlMessage(MoqtMessageType::kSubscribesBlocked,
+                                 WireVarInt62(message.max_subscribe_id));
+}
+
 quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
     const MoqtObjectAck& message) {
   return SerializeControlMessage(

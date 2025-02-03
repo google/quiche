@@ -56,6 +56,7 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kFetchCancel,
       MoqtMessageType::kFetchOk,
       MoqtMessageType::kFetchError,
+      MoqtMessageType::kSubscribesBlocked,
       MoqtMessageType::kObjectAck,
       MoqtMessageType::kClientSetup,
       MoqtMessageType::kServerSetup,
@@ -204,6 +205,10 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kFetchError: {
         auto data = std::get<MoqtFetchError>(structured_data);
         return framer_.SerializeFetchError(data);
+      }
+      case moqt::MoqtMessageType::kSubscribesBlocked: {
+        auto data = std::get<MoqtSubscribesBlocked>(structured_data);
+        return framer_.SerializeSubscribesBlocked(data);
       }
       case moqt::MoqtMessageType::kObjectAck: {
         auto data = std::get<MoqtObjectAck>(structured_data);

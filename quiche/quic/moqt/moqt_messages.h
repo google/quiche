@@ -102,6 +102,7 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kFetchCancel = 0x17,
   kFetchOk = 0x18,
   kFetchError = 0x19,
+  kSubscribesBlocked = 0x1a,
   kClientSetup = 0x40,
   kServerSetup = 0x41,
 
@@ -566,6 +567,10 @@ struct QUICHE_EXPORT MoqtFetchError {
   uint64_t subscribe_id;
   SubscribeErrorCode error_code;
   std::string reason_phrase;
+};
+
+struct QUICHE_EXPORT MoqtSubscribesBlocked {
+  uint64_t max_subscribe_id;
 };
 
 // All of the four values in this message are encoded as varints.
