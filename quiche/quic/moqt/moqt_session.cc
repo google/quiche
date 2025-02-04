@@ -25,6 +25,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -100,6 +101,7 @@ class DefaultPublisher : public MoqtPublisher {
 
 MoqtSession::MoqtSession(webtransport::Session* session,
                          MoqtSessionParameters parameters,
+                         std::unique_ptr<quic::QuicAlarmFactory> alarm_factory,
                          MoqtSessionCallbacks callbacks)
     : session_(session),
       parameters_(parameters),
@@ -107,6 +109,7 @@ MoqtSession::MoqtSession(webtransport::Session* session,
       framer_(quiche::SimpleBufferAllocator::Get(), parameters.using_webtrans),
       publisher_(DefaultPublisher::GetInstance()),
       local_max_subscribe_id_(parameters.max_subscribe_id),
+      alarm_factory_(std::move(alarm_factory)),
       liveness_token_(std::make_shared<Empty>()) {}
 
 MoqtSession::ControlStream* MoqtSession::GetControlStream() {

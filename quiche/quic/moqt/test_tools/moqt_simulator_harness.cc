@@ -4,6 +4,7 @@
 
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 
+#include <memory>
 #include <string>
 
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
@@ -14,6 +15,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
+#include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/test_harness.h"
 
@@ -41,6 +43,7 @@ MoqtClientEndpoint::MoqtClientEndpoint(quic::simulator::Simulator* simulator,
                     /*visitor_owned=*/false, nullptr, &crypto_config_),
       session_(&quic_session_,
                CreateParameters(quic::Perspective::IS_CLIENT, version),
+               std::make_unique<quic::test::TestAlarmFactory>(),
                MoqtSessionCallbacks()) {
   quic_session_.Initialize();
 }
@@ -64,6 +67,7 @@ MoqtServerEndpoint::MoqtServerEndpoint(quic::simulator::Simulator* simulator,
                     &compressed_certs_cache_),
       session_(&quic_session_,
                CreateParameters(quic::Perspective::IS_SERVER, version),
+               std::make_unique<quic::test::TestAlarmFactory>(),
                MoqtSessionCallbacks()) {
   quic_session_.Initialize();
 }

@@ -19,6 +19,10 @@
 
 namespace moqt {
 
+namespace test {
+class MoqtServerPeer;
+}  // namespace test
+
 // A callback to configure an already created MoQT session.
 using MoqtConfigureSessionCallback =
     quiche::SingleUseCallback<void(MoqtSession* session)>;
@@ -37,6 +41,7 @@ class QUICHE_EXPORT MoqtServer {
   quic::QuicServer& quic_server() { return server_; }
 
  private:
+  friend class test::MoqtServerPeer;
   quic::WebTransportOnlyBackend backend_;
   quic::QuicServer server_;
 };

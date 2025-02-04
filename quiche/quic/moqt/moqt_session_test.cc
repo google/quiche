@@ -90,6 +90,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
   MoqtSessionTest()
       : session_(&mock_session_,
                  MoqtSessionParameters(quic::Perspective::IS_CLIENT, ""),
+                 std::make_unique<quic::test::TestAlarmFactory>(),
                  session_callbacks_.AsSessionCallbacks()) {
     session_.set_publisher(&publisher_);
     MoqtSessionPeer::set_peer_max_subscribe_id(&session_,
@@ -143,6 +144,7 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
 TEST_F(MoqtSessionTest, OnClientSetup) {
   MoqtSession server_session(
       &mock_session_, MoqtSessionParameters(quic::Perspective::IS_SERVER),
+      std::make_unique<quic::test::TestAlarmFactory>(),
       session_callbacks_.AsSessionCallbacks());
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -879,6 +881,7 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
   MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
   parameters.deliver_partial_objects = true;
   MoqtSession session(&mock_session_, parameters,
+                      std::make_unique<quic::test::TestAlarmFactory>(),
                       session_callbacks_.AsSessionCallbacks());
   MockSubscribeRemoteTrackVisitor visitor_;
   FullTrackName ftn("foo", "bar");
@@ -1456,6 +1459,7 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamClient) {
 TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
   MoqtSession server_session(
       &mock_session_, MoqtSessionParameters(quic::Perspective::IS_SERVER),
+      std::make_unique<quic::test::TestAlarmFactory>(),
       session_callbacks_.AsSessionCallbacks());
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -2411,6 +2415,7 @@ TEST_F(MoqtSessionTest, PartialObjectFetch) {
   MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
   parameters.deliver_partial_objects = true;
   MoqtSession session(&mock_session_, parameters,
+                      std::make_unique<quic::test::TestAlarmFactory>(),
                       session_callbacks_.AsSessionCallbacks());
   webtransport::test::InMemoryStream stream(kIncomingUniStreamId);
   std::unique_ptr<MoqtFetchTask> fetch_task =

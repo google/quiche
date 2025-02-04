@@ -12,6 +12,7 @@
 
 
 #include "absl/status/status.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -198,6 +199,10 @@ class MoqtSessionPeer {
         .WillOnce(testing::Return(nullptr));
     session->OnIncomingUnidirectionalStreamAvailable();
     return task;
+  }
+
+  static quic::QuicAlarmFactory* GetAlarmFactory(MoqtSession* session) {
+    return session->alarm_factory_.get();
   }
 };
 

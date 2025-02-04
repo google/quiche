@@ -99,8 +99,10 @@ absl::Status MoqtClient::ConnectInner(std::string path,
         std::move(old)();
       };
 
-  auto session = std::make_unique<MoqtSession>(web_transport, parameters,
-                                               std::move(callbacks));
+  auto session = std::make_unique<MoqtSession>(
+      web_transport, parameters,
+      spdy_client_.default_network_helper()->event_loop()->CreateAlarmFactory(),
+      std::move(callbacks));
   session_ = session.get();
   web_transport->SetVisitor(std::move(session));
   return absl::OkStatus();

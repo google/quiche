@@ -1585,6 +1585,7 @@ moqt_srcs = [
     "quic/moqt/tools/moqt_end_to_end_test.cc",
     "quic/moqt/tools/moqt_ingestion_server_bin.cc",
     "quic/moqt/tools/moqt_server.cc",
+    "quic/moqt/tools/moqt_server_test.cc",
     "quic/moqt/tools/moqt_simulator_bin.cc",
 ]
 binary_http_hdrs = [

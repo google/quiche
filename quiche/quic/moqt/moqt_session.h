@@ -17,6 +17,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_framer.h"
@@ -118,6 +119,7 @@ class MoqtPublishingMonitorInterface {
 class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
  public:
   MoqtSession(webtransport::Session* session, MoqtSessionParameters parameters,
+              std::unique_ptr<quic::QuicAlarmFactory> alarm_factory,
               MoqtSessionCallbacks callbacks = MoqtSessionCallbacks());
   ~MoqtSession() { std::move(callbacks_.session_deleted_callback)(); }
 
@@ -679,6 +681,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // The maximum subscribe ID sent to the peer. Peer-generated IDs must be less
   // than this value.
   uint64_t local_max_subscribe_id_ = 0;
+
+  std::unique_ptr<quic::QuicAlarmFactory> alarm_factory_;
 
   // Must be last.  Token used to make sure that the streams do not call into
   // the session when the session has already been destroyed.

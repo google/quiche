@@ -1588,6 +1588,7 @@
     "quiche/quic/moqt/tools/moqt_end_to_end_test.cc",
     "quiche/quic/moqt/tools/moqt_ingestion_server_bin.cc",
     "quiche/quic/moqt/tools/moqt_server.cc",
+    "quiche/quic/moqt/tools/moqt_server_test.cc",
     "quiche/quic/moqt/tools/moqt_simulator_bin.cc"
   ],
   "binary_http_hdrs": [
