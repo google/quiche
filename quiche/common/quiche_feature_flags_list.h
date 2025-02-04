@@ -17,7 +17,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr2_extra_acked_window, false, tr
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr2_probe_two_rounds, true, true, "When true, the BB2U copt causes BBR2 to wait two rounds with out draining the queue before exiting PROBE_UP and BB2S has the same effect in STARTUP.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr2_simplify_inflight_hi, true, true, "When true, the BBHI copt causes QUIC BBRv2 to use a simpler algorithm for raising inflight_hi in PROBE_UP.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_block_until_settings_received_copt, true, true, "If enabled and a BSUS connection is received, blocks server connections until SETTINGS frame is received.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_buffered_store_set_client_cid, true, true, "If true, QuicBufferedPacketStore will set client CID in packets it generates.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_can_send_ack_frequency, false, false, "If true, ack frequency frame can be sent from server to client.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_chaos_protector_avoid_copy, true, true, "When true, avoid unnecessary copy in QuicChaosProtector.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_conservative_bursts, false, false, "If true, set burst token to 2 in cwnd bootstrapping experiment.")

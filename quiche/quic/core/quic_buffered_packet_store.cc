@@ -314,10 +314,7 @@ void QuicBufferedPacketStore::MaybeAckInitialPacket(
   PacketCollector collector(&send_buffer_allocator);
   QuicPacketCreator creator(server_connection_id, &framer, &collector);
 
-  if (GetQuicReloadableFlag(quic_buffered_store_set_client_cid)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_buffered_store_set_client_cid);
-    creator.SetClientConnectionId(packet_info.source_connection_id);
-  }
+  creator.SetClientConnectionId(packet_info.source_connection_id);
 
   if (!dispatcher_sent_packets.empty()) {
     // Sets the *last sent* packet number, creator will derive the next sending
