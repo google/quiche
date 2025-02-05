@@ -51,7 +51,8 @@ class HpackEncoderPeer {
 
   explicit HpackEncoderPeer(HpackEncoder* encoder) : encoder_(encoder) {}
 
-  bool compression_enabled() const { return encoder_->enable_compression_; }
+  bool dynamic_table_enabled() const { return encoder_->enable_dynamic_table_; }
+  bool huffman_enabled() const { return encoder_->enable_huffman_; }
   HpackHeaderTable* table() { return &encoder_->header_table_; }
   HpackHeaderTablePeer table_peer() { return HpackHeaderTablePeer(table()); }
   void EmitString(absl::string_view str) { encoder_->EmitString(str); }
@@ -205,7 +206,7 @@ class HpackEncoderTest
   }
   void ExpectString(HpackOutputStream* stream, absl::string_view str) {
     size_t encoded_size =
-        peer_.compression_enabled() ? http2::HuffmanSize(str) : str.size();
+        peer_.huffman_enabled() ? http2::HuffmanSize(str) : str.size();
     if (encoded_size < str.size()) {
       expected_.AppendPrefix(kStringLiteralHuffmanEncoded);
       expected_.AppendUint32(encoded_size);

@@ -86,7 +86,8 @@ HpackEncoder::HpackEncoder()
       min_table_size_setting_received_(std::numeric_limits<size_t>::max()),
       listener_(NoOpListener),
       should_index_(DefaultPolicy),
-      enable_compression_(true),
+      enable_dynamic_table_(true),
+      enable_huffman_(true),
       should_emit_table_size_(false),
       crumble_cookies_(true) {}
 
@@ -137,7 +138,7 @@ std::string HpackEncoder::EncodeRepresentations(RepresentationIterator* iter) {
   while (iter->HasNext()) {
     const auto header = iter->Next();
     listener_(header.first, header.second);
-    if (enable_compression_) {
+    if (enable_dynamic_table_) {
       size_t index =
           header_table_.GetByNameAndValue(header.first, header.second);
       if (index != kHpackEntryNotFound) {
@@ -174,7 +175,7 @@ void HpackEncoder::EmitNonIndexedLiteral(const Representation& representation) {
                   << ", " << representation.second << ")";
   output_stream_.AppendPrefix(kLiteralNoIndexOpcode);
   size_t name_index = header_table_.GetByName(representation.first);
-  if (enable_compression_ && name_index != kHpackEntryNotFound) {
+  if (enable_dynamic_table_ && name_index != kHpackEntryNotFound) {
     output_stream_.AppendUint32(name_index);
   } else {
     output_stream_.AppendUint32(0);
@@ -195,8 +196,8 @@ void HpackEncoder::EmitLiteral(const Representation& representation) {
 }
 
 void HpackEncoder::EmitString(absl::string_view str) {
-  size_t encoded_size =
-      enable_compression_ ? http2::HuffmanSize(str) : str.size();
+  const size_t encoded_size =
+      enable_huffman_ ? http2::HuffmanSize(str) : str.size();
   if (encoded_size < str.size()) {
     QUICHE_DVLOG(2) << "Emitted Huffman-encoded string of length "
                     << encoded_size;
@@ -351,14 +352,14 @@ HpackEncoder::Encoderator::Encoderator(const Representations& representations,
 std::string HpackEncoder::Encoderator::Next(size_t max_encoded_bytes) {
   QUICHE_BUG_IF(spdy_bug_61_1, !has_next_)
       << "Encoderator::Next called with nothing left to encode.";
-  const bool enable_compression = encoder_->enable_compression_;
+  const bool enable_dynamic_table = encoder_->enable_dynamic_table_;
 
   // Encode up to max_encoded_bytes of headers.
   while (header_it_->HasNext() &&
          encoder_->output_stream_.size() <= max_encoded_bytes) {
     const Representation header = header_it_->Next();
     encoder_->listener_(header.first, header.second);
-    if (enable_compression) {
+    if (enable_dynamic_table) {
       size_t index = encoder_->header_table_.GetByNameAndValue(header.first,
                                                                header.second);
       if (index != kHpackEntryNotFound) {
