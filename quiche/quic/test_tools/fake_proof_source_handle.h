@@ -46,7 +46,7 @@ class FakeProofSourceHandle : public ProofSourceHandle {
       const QuicSocketAddress& client_address,
       const QuicConnectionId& original_connection_id,
       absl::string_view ssl_capabilities, const std::string& hostname,
-      absl::string_view client_hello, const std::string& alpn,
+      const SSL_CLIENT_HELLO& client_hello, const std::string& alpn,
       std::optional<std::string> alps,
       const std::vector<uint8_t>& quic_transport_params,
       const std::optional<std::vector<uint8_t>>& early_data_context,
@@ -70,8 +70,7 @@ class FakeProofSourceHandle : public ProofSourceHandle {
                    QuicSocketAddress client_address,
                    QuicConnectionId original_connection_id,
                    absl::string_view ssl_capabilities, std::string hostname,
-                   absl::string_view client_hello, std::string alpn,
-                   std::optional<std::string> alps,
+                   std::string alpn, std::optional<std::string> alps,
                    std::vector<uint8_t> quic_transport_params,
                    std::optional<std::vector<uint8_t>> early_data_context,
                    QuicSSLConfig ssl_config)
@@ -80,7 +79,6 @@ class FakeProofSourceHandle : public ProofSourceHandle {
           original_connection_id(original_connection_id),
           ssl_capabilities(ssl_capabilities),
           hostname(hostname),
-          client_hello(client_hello),
           alpn(alpn),
           alps(alps),
           quic_transport_params(quic_transport_params),
@@ -92,7 +90,6 @@ class FakeProofSourceHandle : public ProofSourceHandle {
     QuicConnectionId original_connection_id;
     std::string ssl_capabilities;
     std::string hostname;
-    std::string client_hello;
     std::string alpn;
     std::optional<std::string> alps;
     std::vector<uint8_t> quic_transport_params;
