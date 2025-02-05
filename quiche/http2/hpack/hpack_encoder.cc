@@ -145,10 +145,10 @@ std::string HpackEncoder::EncodeRepresentations(RepresentationIterator* iter) {
       } else if (should_index_(header.first, header.second)) {
         EmitIndexedLiteral(header);
       } else {
-        EmitNonIndexedLiteral(header, enable_compression_);
+        EmitNonIndexedLiteral(header);
       }
     } else {
-      EmitNonIndexedLiteral(header, enable_compression_);
+      EmitNonIndexedLiteral(header);
     }
   }
 
@@ -169,13 +169,12 @@ void HpackEncoder::EmitIndexedLiteral(const Representation& representation) {
   header_table_.TryAddEntry(representation.first, representation.second);
 }
 
-void HpackEncoder::EmitNonIndexedLiteral(const Representation& representation,
-                                         bool enable_compression) {
+void HpackEncoder::EmitNonIndexedLiteral(const Representation& representation) {
   QUICHE_DVLOG(2) << "Emitting nonindexed literal: (" << representation.first
                   << ", " << representation.second << ")";
   output_stream_.AppendPrefix(kLiteralNoIndexOpcode);
   size_t name_index = header_table_.GetByName(representation.first);
-  if (enable_compression && name_index != kHpackEntryNotFound) {
+  if (enable_compression_ && name_index != kHpackEntryNotFound) {
     output_stream_.AppendUint32(name_index);
   } else {
     output_stream_.AppendUint32(0);
@@ -367,10 +366,10 @@ std::string HpackEncoder::Encoderator::Next(size_t max_encoded_bytes) {
       } else if (encoder_->should_index_(header.first, header.second)) {
         encoder_->EmitIndexedLiteral(header);
       } else {
-        encoder_->EmitNonIndexedLiteral(header, enable_compression);
+        encoder_->EmitNonIndexedLiteral(header);
       }
     } else {
-      encoder_->EmitNonIndexedLiteral(header, enable_compression);
+      encoder_->EmitNonIndexedLiteral(header);
     }
   }
 

@@ -121,8 +121,7 @@ class QUICHE_EXPORT HpackEncoder {
 
   // Emits a literal representation (Section 7.2).
   void EmitIndexedLiteral(const Representation& representation);
-  void EmitNonIndexedLiteral(const Representation& representation,
-                             bool enable_compression);
+  void EmitNonIndexedLiteral(const Representation& representation);
   void EmitLiteral(const Representation& representation);
 
   // Emits a Huffman or identity string (whichever is smaller).
