@@ -8,6 +8,7 @@
 #include "quiche/http2/adapter/oghttp2_adapter.h"
 #include "quiche/http2/adapter/recording_http2_visitor.h"
 #include "quiche/http2/adapter/test_frame_sequence.h"
+#include "quiche/http2/adapter/test_utils.h"
 #include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -16,14 +17,35 @@ namespace adapter {
 namespace test {
 namespace {
 
+using ::testing::_;
 using ::testing::AssertionResult;
 using ::testing::Each;
 using ::testing::InvokeWithoutArgs;
+
+enum FrameType {
+  DATA,
+  HEADERS,
+  PRIORITY,
+  RST_STREAM,
+  SETTINGS,
+  PUSH_PROMISE,
+  PING,
+  GOAWAY,
+  WINDOW_UPDATE,
+  CONTINUATION,
+};
 
 enum class Impl {
   kNgHttp2,
   kOgHttp2,
 };
+
+absl::string_view ToString(Impl impl) {
+  if (impl == Impl::kNgHttp2) {
+    return "nghttp2";
+  }
+  return "oghttp2";
+}
 
 class ComparisonTest : public ::quiche::test::QuicheTest {
  public:
@@ -174,6 +196,58 @@ TEST_F(ComparisonTest, HeaderValueCharValidation) {
                 /*fin=*/true);
   };
   EXPECT_TRUE(TestEachChar(test_range, std::move(add_headers_frame)));
+}
+
+TEST_F(ComparisonTest, StreamCloseAfterReset) {
+  for (Impl impl : implementations()) {
+    SCOPED_TRACE(absl::StrCat("Implementation: ", ToString(impl)));
+
+    testing::InSequence s;
+
+    TestVisitor visitor;
+    std::unique_ptr<Http2Adapter> adapter =
+        CreateAdapter(visitor, impl, Perspective::kClient);
+
+    const std::vector<Header> request_headers =
+        ToHeaders({{":method", "POST"},
+                   {":scheme", "https"},
+                   {":authority", "example.com"},
+                   {":path", "/"}});
+
+    const int32_t stream_id =
+        adapter->SubmitRequest(request_headers, false, nullptr);
+    EXPECT_GT(stream_id, 0);
+
+    if (impl == Impl::kOgHttp2) {
+      // oghttp2 generates an empty SETTINGS frame, per the HTTP/2 spec.
+      EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+      EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+    }
+
+    EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+    EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+
+    int result = adapter->Send();
+    EXPECT_EQ(result, 0);
+
+    // The WINDOW_UPDATE frame before the RST_STREAM is dropped.
+
+    EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, _, _));
+    EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, 1, _, _, _));
+
+    // The WINDOW_UPDATE frame after the RST_STREAM is dropped.
+
+    if (impl == Impl::kNgHttp2) {
+      EXPECT_CALL(visitor, OnCloseStream(1, _));
+    }
+
+    adapter->SubmitWindowUpdate(1, 10000);
+    adapter->SubmitRst(1, Http2ErrorCode::CANCEL);
+    adapter->SubmitWindowUpdate(1, 10000);
+
+    result = adapter->Send();
+    EXPECT_EQ(result, 0);
+  }
 }
 
 TEST(AdapterImplComparisonTest, ClientHandlesFrames) {
