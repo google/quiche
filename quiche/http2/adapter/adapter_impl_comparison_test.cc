@@ -237,9 +237,7 @@ TEST_F(ComparisonTest, StreamCloseAfterReset) {
 
     // The WINDOW_UPDATE frame after the RST_STREAM is dropped.
 
-    if (impl == Impl::kNgHttp2) {
-      EXPECT_CALL(visitor, OnCloseStream(1, _));
-    }
+    EXPECT_CALL(visitor, OnCloseStream(1, _));
 
     adapter->SubmitWindowUpdate(1, 10000);
     adapter->SubmitRst(1, Http2ErrorCode::CANCEL);

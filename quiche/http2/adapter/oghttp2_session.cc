@@ -1946,14 +1946,14 @@ void OgHttp2Session::LatchErrorAndNotify(Http2ErrorCode error_code,
       ConnectionErrorToString(error)));
 }
 
-void OgHttp2Session::CloseStreamIfReady(uint8_t frame_type,
+void OgHttp2Session::CloseStreamIfReady(uint8_t /*frame_type*/,
                                         uint32_t stream_id) {
   auto iter = stream_map_.find(stream_id);
   if (iter == stream_map_.end()) {
     return;
   }
   const StreamState& state = iter->second;
-  if (static_cast<FrameType>(frame_type) == FrameType::RST_STREAM ||
+  if (streams_reset_.find(stream_id) != streams_reset_.end() ||
       (state.half_closed_local && state.half_closed_remote)) {
     CloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR);
   }
