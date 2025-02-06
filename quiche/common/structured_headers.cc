@@ -21,7 +21,6 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quiche {
@@ -43,9 +42,6 @@ constexpr char kKeyChars09[] = DIGIT LCALPHA "_-";
 constexpr char kKeyChars[] = DIGIT LCALPHA "_-.*";
 constexpr char kSP[] = " ";
 constexpr char kOWS[] = " \t";
-// https://www.rfc-editor.org/rfc/rfc8941.html#section-4.2.7
-// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-header-structure-09#section-4.2.11
-constexpr char kBase64Chars[] = DIGIT UCALPHA LCALPHA "+/=";
 #undef DIGIT
 #undef LCALPHA
 #undef UCALPHA
@@ -471,21 +467,7 @@ class StructuredHeaderParser {
       QUICHE_DVLOG(1) << "ReadByteSequence: missing closing delimiter";
       return std::nullopt;
     }
-
-    absl::string_view unpadded = input_.substr(0, len);
-    // This check is partially redundant with the call to
-    // `absl::Base64Unescape()` below, but unfortunately that function
-    // allows `.` as a padding byte and does not reject ASCII whitespace, so it
-    // cannot be used in isolation.
-    if (unpadded.find_first_not_of(kBase64Chars) != absl::string_view::npos) {
-      QUICHE_CODE_COUNT(structured_header_invalid_base64_char);
-      // TODO(b/393153699, b/393408763): Early-return here to reject the invalid
-      // input instead of silently proceeding.
-    }
-
-    // TODO: This string copy shouldn't be necessary, as
-    // `absl::Base64Unescape()` already handles the absence of padding.
-    std::string base64(unpadded);
+    std::string base64(input_.substr(0, len));
     // Append the necessary padding characters.
     base64.resize((base64.size() + 3) / 4 * 4, '=');
 
