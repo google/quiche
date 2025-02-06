@@ -334,6 +334,43 @@ TEST(OgHttp2SessionTest, ClientSubmitRequest) {
             kInitialFlowControlWindowSize);
 }
 
+TEST(OgHttp2SessionTest, ClientHeaderCompression) {
+  using CompressionOption = OgHttp2Session::Options::CompressionOption;
+  absl::flat_hash_map<CompressionOption, size_t> wire_sizes;
+  for (CompressionOption option : {CompressionOption::ENABLE_COMPRESSION,
+                                   CompressionOption::DISABLE_COMPRESSION,
+                                   CompressionOption::DISABLE_HUFFMAN}) {
+    TestVisitor visitor;
+    testing::InSequence seq;
+    EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+    EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+    EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, _, _, 0x5));
+    EXPECT_CALL(visitor, OnFrameSent(HEADERS, _, _, 0x5, 0));
+
+    OgHttp2Session::Options options;
+    options.perspective = Perspective::kClient;
+    options.compression_option = option;
+    OgHttp2Session session(visitor, options);
+
+    // All characters in "adefmost " have sub-1-byte Huffman codings.
+    constexpr absl::string_view kValue = "toast toast toast feed meeeee";
+    session.SubmitRequest(ToHeaders({{":method", "POST"},
+                                     {":scheme", "http"},
+                                     {":authority", "example.com"},
+                                     {":path", "/this/is/request/one"},
+                                     {"food", kValue},
+                                     {"food", kValue}}),
+                          true, nullptr);
+    int result = session.Send();
+    ASSERT_EQ(result, 0);
+    wire_sizes[option] = visitor.data().size();
+  }
+  EXPECT_LT(wire_sizes[CompressionOption::ENABLE_COMPRESSION],
+            wire_sizes[CompressionOption::DISABLE_HUFFMAN]);
+  EXPECT_LT(wire_sizes[CompressionOption::DISABLE_HUFFMAN],
+            wire_sizes[CompressionOption::DISABLE_COMPRESSION]);
+}
+
 TEST(OgHttp2SessionTest, ClientSubmitRequestWithLargePayload) {
   TestVisitor visitor;
   OgHttp2Session::Options options;

@@ -91,6 +91,13 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     bool crumble_cookies = false;
     // If true, allows a GOAWAY to be sent even when acting as a client.
     bool send_goaway_as_client = false;
+    // Specifies the behavior of the HPACK encoder when compressing headers.
+    enum CompressionOption {
+      ENABLE_COMPRESSION,   // Dynamic table enabled, Huffman enabled.
+      DISABLE_COMPRESSION,  // Dynamic table enabled, Huffman disabled.
+      DISABLE_HUFFMAN,      // Dynamic table disabled, Huffman disabled.
+    };
+    CompressionOption compression_option = ENABLE_COMPRESSION;
   };
 
   OgHttp2Session(Http2VisitorInterface& visitor, Options options);
@@ -487,7 +494,7 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   Http2FrameLogger send_logger_;
 
   // Encodes outbound frames.
-  spdy::SpdyFramer framer_{spdy::SpdyFramer::ENABLE_COMPRESSION};
+  spdy::SpdyFramer framer_;
 
   // Decodes inbound frames.
   http2::Http2DecoderAdapter decoder_;

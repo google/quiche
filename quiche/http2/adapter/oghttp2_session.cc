@@ -199,6 +199,20 @@ bool IsNonAckSettings(const spdy::SpdyFrameIR& frame) {
          !reinterpret_cast<const SpdySettingsIR&>(frame).is_ack();
 }
 
+spdy::SpdyFramer::CompressionOption TranslateCompressionOption(
+    OgHttp2Session::Options::CompressionOption option) {
+  using CompressionOption = OgHttp2Session::Options::CompressionOption;
+  switch (option) {
+    case CompressionOption::DISABLE_COMPRESSION:
+      return spdy::SpdyFramer::DISABLE_COMPRESSION;
+    case CompressionOption::DISABLE_HUFFMAN:
+      return spdy::SpdyFramer::DISABLE_HUFFMAN;
+    case CompressionOption::ENABLE_COMPRESSION:
+    default:
+      return spdy::SpdyFramer::ENABLE_COMPRESSION;
+  }
+}
+
 }  // namespace
 
 OgHttp2Session::PassthroughHeadersHandler::PassthroughHeadersHandler(
@@ -354,6 +368,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
             return logging_enabled;
           },
           this),
+      framer_(TranslateCompressionOption(options.compression_option)),
       headers_handler_(*this, visitor),
       noop_headers_handler_(/*listener=*/nullptr),
       connection_window_manager_(
