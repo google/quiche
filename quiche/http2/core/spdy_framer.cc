@@ -1348,8 +1348,16 @@ size_t SpdyFramer::SerializeFrame(const SpdyFrameIR& frame,
 HpackEncoder* SpdyFramer::GetHpackEncoder() {
   if (hpack_encoder_ == nullptr) {
     hpack_encoder_ = std::make_unique<HpackEncoder>();
-    if (compression_option() == DISABLE_COMPRESSION) {
-      hpack_encoder_->DisableCompression();
+    switch (compression_option()) {
+      case DISABLE_COMPRESSION:
+        hpack_encoder_->DisableCompression();
+        break;
+      case DISABLE_HUFFMAN:
+        hpack_encoder_->DisableHuffman();
+        break;
+      case ENABLE_COMPRESSION:
+      default:
+        break;
     }
   }
   return hpack_encoder_.get();

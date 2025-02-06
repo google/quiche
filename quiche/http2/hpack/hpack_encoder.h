@@ -100,6 +100,8 @@ class QUICHE_EXPORT HpackEncoder {
     enable_huffman_ = false;
   }
 
+  void DisableHuffman() { enable_huffman_ = false; }
+
   // Disables the deconstruction of Cookie header values into individual
   // components, as described in
   // https://httpwg.org/specs/rfc9113.html#CompressCookie. The deconstructed

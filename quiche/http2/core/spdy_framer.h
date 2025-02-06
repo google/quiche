@@ -45,8 +45,12 @@ class QUICHE_EXPORT SpdyFrameSequence {
 class QUICHE_EXPORT SpdyFramer {
  public:
   enum CompressionOption {
+    // Both the dynamic table and Huffman compression are enabled.
     ENABLE_COMPRESSION,
+    // Both the dynamic table and Huffman compression are disabled.
     DISABLE_COMPRESSION,
+    // The dynamic table is enabled, but Huffman is disabled.
+    DISABLE_HUFFMAN,
   };
 
   // Create a SpdyFrameSequence to serialize |frame_ir|.
