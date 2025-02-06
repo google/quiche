@@ -212,9 +212,7 @@ class QUICHE_EXPORT SpdyFramer {
   size_t SerializeFrame(const SpdyFrameIR& frame, ZeroCopyOutputBuffer* output);
 
   // Returns whether this SpdyFramer will compress header blocks using HPACK.
-  bool compression_enabled() const {
-    return compression_option_ == ENABLE_COMPRESSION;
-  }
+  CompressionOption compression_option() const { return compression_option_; }
 
   void SetHpackIndexingPolicy(HpackEncoder::IndexingPolicy policy) {
     GetHpackEncoder()->SetIndexingPolicy(std::move(policy));
