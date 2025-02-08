@@ -19,6 +19,8 @@
 #include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
+#include "fuzztest/fuzztest.h"
+
 using ::testing::AssertionSuccess;
 
 namespace http2 {
@@ -914,6 +916,14 @@ TEST_F(Http2FrameDecoderTest, WindowUpdateTooLong) {
   Http2FrameHeader header(5, Http2FrameType::WINDOW_UPDATE, 0, 1);
   EXPECT_TRUE(DecodePayloadExpectingFrameSizeError(kFrameData, header));
 }
+
+void FuzzFrameDecoder(const std::string &s) {
+    http2::Http2FrameDecoderNoOpListener listener;
+    http2::Http2FrameDecoder decoder(&listener);
+    http2::DecodeBuffer db(reinterpret_cast<const char *>(s.c_str()), s.size());
+    decoder.DecodeFrame(&db);
+}
+FUZZ_TEST(Http2FrameDecoderFuzzTest, FuzzFrameDecoder);
 
 }  // namespace
 }  // namespace test
