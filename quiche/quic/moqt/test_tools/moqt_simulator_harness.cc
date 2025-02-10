@@ -7,15 +7,16 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/quic_alarm_factory_proxy.h"
 #include "quiche/quic/core/quic_generic_session.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
-#include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/test_harness.h"
 
@@ -27,6 +28,13 @@ MoqtSessionParameters CreateParameters(quic::Perspective perspective,
   MoqtSessionParameters parameters(perspective, "");
   parameters.version = version;
   return parameters;
+}
+
+MoqtSessionCallbacks CreateCallbacks(quic::simulator::Simulator* simulator) {
+  return MoqtSessionCallbacks(
+      +[] {}, +[](absl::string_view) {}, +[] {},
+      DefaultIncomingAnnounceCallback,
+      DefaultIncomingSubscribeAnnouncesCallback, simulator->GetClock());
 }
 }  // namespace
 
@@ -43,8 +51,9 @@ MoqtClientEndpoint::MoqtClientEndpoint(quic::simulator::Simulator* simulator,
                     /*visitor_owned=*/false, nullptr, &crypto_config_),
       session_(&quic_session_,
                CreateParameters(quic::Perspective::IS_CLIENT, version),
-               std::make_unique<quic::test::TestAlarmFactory>(),
-               MoqtSessionCallbacks()) {
+               std::make_unique<quic::QuicAlarmFactoryProxy>(
+                   simulator->GetAlarmFactory()),
+               CreateCallbacks(simulator)) {
   quic_session_.Initialize();
 }
 
@@ -67,8 +76,9 @@ MoqtServerEndpoint::MoqtServerEndpoint(quic::simulator::Simulator* simulator,
                     &compressed_certs_cache_),
       session_(&quic_session_,
                CreateParameters(quic::Perspective::IS_SERVER, version),
-               std::make_unique<quic::test::TestAlarmFactory>(),
-               MoqtSessionCallbacks()) {
+               std::make_unique<quic::QuicAlarmFactoryProxy>(
+                   simulator->GetAlarmFactory()),
+               CreateCallbacks(simulator)) {
   quic_session_.Initialize();
 }
 

@@ -57,9 +57,10 @@ void MoqtOutgoingQueue::AddRawObject(MoqtObjectStatus status,
   FullSequence sequence{current_group_id_, queue_.back().size()};
   bool fin = forwarding_preference_ == MoqtForwardingPreference::kSubgroup &&
              status == MoqtObjectStatus::kEndOfGroup;
-  queue_.back().push_back(CachedObject{
-      sequence, status, publisher_priority_,
-      std::make_shared<quiche::QuicheMemSlice>(std::move(payload)), fin});
+  queue_.back().push_back(
+      CachedObject{sequence, status, publisher_priority_,
+                   std::make_shared<quiche::QuicheMemSlice>(std::move(payload)),
+                   clock_->ApproximateNow(), fin});
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnNewObjectAvailable(sequence);
   }
@@ -70,7 +71,8 @@ std::optional<PublishedObject> MoqtOutgoingQueue::GetCachedObject(
   if (sequence.group < first_group_in_queue()) {
     return PublishedObject{FullSequence{sequence.group, sequence.object},
                            MoqtObjectStatus::kGroupDoesNotExist,
-                           publisher_priority_, quiche::QuicheMemSlice()};
+                           publisher_priority_, quiche::QuicheMemSlice(),
+                           clock_->ApproximateNow()};
   }
   if (sequence.group > current_group_id_) {
     return std::nullopt;

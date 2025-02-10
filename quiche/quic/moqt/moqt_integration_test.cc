@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -12,12 +13,14 @@
 #include "quiche/quic/core/quic_generic_session.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
+#include "quiche/quic/moqt/moqt_live_relay_queue.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -46,10 +49,17 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
   }
   void SetupCallbacks() {
     client_->session()->callbacks() = client_callbacks_.AsSessionCallbacks();
+    client_->session()->callbacks().clock =
+        test_harness_.simulator().GetClock();
     server_->session()->callbacks() = server_callbacks_.AsSessionCallbacks();
+    server_->session()->callbacks().clock =
+        test_harness_.simulator().GetClock();
   }
 
   void WireUpEndpoints() { test_harness_.WireUpEndpoints(); }
+  void WireUpEndpointsWithLoss(int lose_every_n) {
+    test_harness_.WireUpEndpointsWithLoss(lose_every_n);
+  }
   void ConnectEndpoints() {
     client_->quic_session()->CryptoConnect();
     bool client_established = false;
@@ -528,6 +538,57 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
       .WillOnce([&] { done = true; });
   bool success = test_harness_.RunUntilWithDefaultTimeout([&] { return done; });
   EXPECT_TRUE(success);
+}
+
+TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
+  CreateDefaultEndpoints();
+  WireUpEndpointsWithLoss(/*lose_every_n=*/4);
+  ConnectEndpoints();
+  FullTrackName full_track_name("foo", "bar");
+
+  MoqtKnownTrackPublisher publisher;
+  server_->session()->set_publisher(&publisher);
+  auto queue = std::make_shared<MoqtLiveRelayQueue>(
+      full_track_name, MoqtForwardingPreference::kSubgroup,
+      test_harness_.simulator().GetClock());
+  auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
+  publisher.Add(queue);
+
+  MockSubscribeRemoteTrackVisitor client_visitor;
+  std::optional<absl::string_view> expected_reason = std::nullopt;
+  bool received_ok = false;
+  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
+      .WillOnce([&]() { received_ok = true; });
+  MoqtSubscribeParameters parameters;
+  // Set delivery timeout to ~ 1 RTT: any loss is fatal.
+  parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
+  client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
+                                             parameters);
+  bool success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
+  EXPECT_TRUE(success);
+
+  // Publish 4 large objects with a FIN. One of them will be lost.
+  std::string data(1000, '\0');
+  size_t bytes_received = 0;
+  EXPECT_CALL(client_visitor, OnObjectFragment)
+      .WillRepeatedly(
+          [&](const FullTrackName&, FullSequence sequence,
+              MoqtPriority /*publisher_priority*/, MoqtObjectStatus status,
+              absl::string_view object,
+              bool end_of_message) { bytes_received += object.size(); });
+  queue->AddObject(FullSequence{0, 0, 0}, data, false);
+  queue->AddObject(FullSequence{0, 0, 1}, data, false);
+  queue->AddObject(FullSequence{0, 0, 2}, data, false);
+  queue->AddObject(FullSequence{0, 0, 3}, data, true);
+  success = test_harness_.RunUntilWithDefaultTimeout([&]() {
+    return MoqtSessionPeer::SubgroupHasBeenReset(
+        MoqtSessionPeer::GetSubscription(server_->session(), 0),
+        FullSequence{0, 0, 0});
+  });
+  EXPECT_TRUE(success);
+  // Stream was reset before all the bytes arrived.
+  EXPECT_LT(bytes_received, 4000);
 }
 
 }  // namespace

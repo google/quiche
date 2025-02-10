@@ -14,6 +14,8 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_default_clock.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -347,6 +349,17 @@ TEST(MoqtOutgoingQueue, ObjectsGoneWhileFetching) {
 
   EXPECT_THAT(FetchToVector(std::move(deferred_fetch)),
               IsOkAndHolds(IsEmpty()));
+}
+
+TEST(MoqtOutgoingQueue, ObjectIsTimestamped) {
+  quic::QuicDefaultClock* clock = quic::QuicDefaultClock::Get();
+  quic::QuicTime test_start = clock->ApproximateNow();
+  TestMoqtOutgoingQueue queue;
+  queue.AddObject(MemSliceFromString("a"), true);
+  std::optional<PublishedObject> object =
+      queue.GetCachedObject(FullSequence{0, 0});
+  ASSERT_TRUE(object.has_value());
+  EXPECT_GE(object->arrival_time, test_start);
 }
 
 }  // namespace

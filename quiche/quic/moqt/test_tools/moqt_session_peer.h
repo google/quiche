@@ -12,7 +12,9 @@
 
 
 #include "absl/status/status.h"
+#include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -111,6 +113,15 @@ class MoqtSessionPeer {
     return session->published_subscriptions_[subscribe_id].get();
   }
 
+  static MoqtObjectListener* GetSubscription(MoqtSession* session,
+                                             uint64_t subscribe_id) {
+    auto it = session->published_subscriptions_.find(subscribe_id);
+    if (it == session->published_subscriptions_.end()) {
+      return nullptr;
+    }
+    return it->second.get();
+  }
+
   static void DeleteSubscription(MoqtSession* session, uint64_t subscribe_id) {
     session->published_subscriptions_.erase(subscribe_id);
   }
@@ -203,6 +214,34 @@ class MoqtSessionPeer {
 
   static quic::QuicAlarmFactory* GetAlarmFactory(MoqtSession* session) {
     return session->alarm_factory_.get();
+  }
+
+  static quic::QuicTime Now(MoqtSession* session) {
+    return session->callbacks_.clock->ApproximateNow();
+  }
+
+  static quic::QuicAlarm* GetAlarm(webtransport::StreamVisitor* visitor) {
+    return static_cast<MoqtSession::OutgoingDataStream*>(visitor)
+        ->delivery_timeout_alarm_.get();
+  }
+
+  static quic::QuicTimeDelta GetDeliveryTimeout(
+      MoqtObjectListener* subscription) {
+    return static_cast<MoqtSession::PublishedSubscription*>(subscription)
+        ->delivery_timeout();
+  }
+  static void SetDeliveryTimeout(MoqtObjectListener* subscription,
+                                 quic::QuicTimeDelta timeout) {
+    static_cast<MoqtSession::PublishedSubscription*>(subscription)
+        ->set_delivery_timeout(timeout);
+  }
+
+  static bool SubgroupHasBeenReset(MoqtObjectListener* subscription,
+                                   FullSequence sequence) {
+    sequence.object = 0;
+    return static_cast<MoqtSession::PublishedSubscription*>(subscription)
+        ->reset_subgroups()
+        .contains(sequence);
   }
 };
 

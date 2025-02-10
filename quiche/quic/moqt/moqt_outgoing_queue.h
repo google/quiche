@@ -16,6 +16,8 @@
 #include "absl/container/inlined_vector.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -34,9 +36,11 @@ namespace moqt {
 // frames that they produce.
 class MoqtOutgoingQueue : public MoqtTrackPublisher {
  public:
-  explicit MoqtOutgoingQueue(FullTrackName track,
-                             MoqtForwardingPreference forwarding_preference)
-      : track_(std::move(track)),
+  MoqtOutgoingQueue(
+      FullTrackName track, MoqtForwardingPreference forwarding_preference,
+      const quic::QuicClock* clock = quic::QuicDefaultClock::Get())
+      : clock_(clock),
+        track_(std::move(track)),
         forwarding_preference_(forwarding_preference) {}
 
   MoqtOutgoingQueue(const MoqtOutgoingQueue&) = delete;
@@ -127,6 +131,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
     return current_group_id_ - queue_.size() + 1;
   }
 
+  const quic::QuicClock* clock_;
   FullTrackName track_;
   MoqtForwardingPreference forwarding_preference_;
   MoqtPriority publisher_priority_ = 128;

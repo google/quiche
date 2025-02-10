@@ -17,7 +17,10 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_framer.h"
@@ -96,6 +99,7 @@ struct MoqtSessionCallbacks {
       DefaultIncomingAnnounceCallback;
   MoqtIncomingSubscribeAnnouncesCallback incoming_subscribe_announces_callback =
       DefaultIncomingSubscribeAnnouncesCallback;
+  const quic::QuicClock* clock = quic::QuicDefaultClock::Get();
 };
 
 struct SubscriptionWithQueuedStream {
@@ -422,6 +426,22 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // streams.
     FullSequence NextQueuedOutgoingDataStream();
 
+    quic::QuicTimeDelta delivery_timeout() const { return delivery_timeout_; }
+    void set_delivery_timeout(quic::QuicTimeDelta timeout) {
+      delivery_timeout_ = timeout;
+    }
+
+    void OnStreamTimeout(FullSequence sequence) {
+      sequence.object = 0;
+      reset_subgroups_.insert(sequence);
+    }
+
+    uint64_t first_active_group() const { return first_active_group_; }
+
+    absl::flat_hash_set<FullSequence>& reset_subgroups() {
+      return reset_subgroups_;
+    }
+
    private:
     SendStreamMap& stream_map();
     quic::Perspective perspective() const {
@@ -441,6 +461,16 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     uint64_t track_alias_;
     SubscribeWindow window_;
     MoqtPriority subscriber_priority_;
+
+    // The subscription will ignore any groups with a lower ID, so it doesn't
+    // need to track reset subgroups.
+    uint64_t first_active_group_ = 0;
+    // If a stream has been reset due to delivery timeout, do not open a new
+    // stream if more object arrive for it.
+    absl::flat_hash_set<FullSequence> reset_subgroups_;
+    // The min of DELIVERY_TIMEOUT from SUBSCRIBE and SUBSCRIBE_OK.
+    quic::QuicTimeDelta delivery_timeout_ = quic::QuicTimeDelta::Infinite();
+
     std::optional<MoqtDeliveryOrder> subscriber_delivery_order_;
     MoqtPublishingMonitorInterface* monitoring_interface_;
     // Largest sequence number ever sent via this subscription.
@@ -467,6 +497,17 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnStopSendingReceived(webtransport::StreamErrorCode error) override {}
     void OnWriteSideInDataRecvdState() override {}
 
+    class DeliveryTimeoutDelegate
+        : public quic::QuicAlarm::DelegateWithoutContext {
+     public:
+      explicit DeliveryTimeoutDelegate(OutgoingDataStream* stream)
+          : stream_(stream) {}
+      void OnAlarm() override;
+
+     private:
+      OutgoingDataStream* stream_;
+    };
+
     webtransport::Stream* stream() const { return stream_; }
 
     // Sends objects on the stream, starting with `next_object_`, until the
@@ -482,6 +523,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
    private:
     friend class test::MoqtSessionPeer;
+    friend class DeliveryTimeoutDelegate;
 
     // Checks whether the associated subscription is still valid; if not, resets
     // the stream and returns nullptr.
@@ -495,6 +537,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // the next object could be in a different subgroup or simply be skipped.
     FullSequence next_object_;
     bool stream_header_written_ = false;
+    // If this data stream is for SUBSCRIBE, reset it if an object has been
+    // excessively delayed per Section 7.1.1.2.
+    std::unique_ptr<quic::QuicAlarm> delivery_timeout_alarm_;
     // A weak pointer to an object owned by the session.  Used to make sure the
     // session does not get called after being destroyed.
     std::weak_ptr<void> session_liveness_;

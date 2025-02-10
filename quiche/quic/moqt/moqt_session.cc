@@ -20,12 +20,14 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/functional/bind_front.h"
+#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -899,6 +901,9 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   }
   auto subscription = std::make_unique<MoqtSession::PublishedSubscription>(
       session_, *std::move(track_publisher), message, monitoring);
+  subscription->set_delivery_timeout(
+      message.parameters.delivery_timeout.value_or(
+          quic::QuicTimeDelta::Infinite()));
   auto [it, success] = session_->published_subscriptions_.emplace(
       message.subscribe_id, std::move(subscription));
   if (!success) {
@@ -911,6 +916,8 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   subscribe_ok.subscribe_id = message.subscribe_id;
   subscribe_ok.group_order = delivery_order;
   subscribe_ok.largest_id = largest_id;
+  // TODO(martinduke): Support sending DELIVERY_TIMEOUT parameter as the
+  // publisher.
   SendOrBufferMessage(session_->framer_.SerializeSubscribeOk(subscribe_ok));
 
   if (largest_id.has_value()) {
@@ -1015,6 +1022,9 @@ void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
                                                : UINT64_MAX);
   }
   it->second->Update(start, end, message.subscriber_priority);
+  if (message.parameters.delivery_timeout.has_value()) {
+    it->second->set_delivery_timeout(*message.parameters.delivery_timeout);
+  }
 }
 
 void MoqtSession::ControlStream::OnAnnounceMessage(
@@ -1555,6 +1565,12 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
   if (!window_.InWindow(sequence)) {
     return;
   }
+  if (reset_subgroups_.contains(
+          FullSequence{sequence.group, sequence.subgroup, 0})) {
+    // This subgroup has already been reset, ignore.
+    return;
+  }
+  QUICHE_DCHECK_GE(sequence.group, first_active_group_);
 
   MoqtForwardingPreference forwarding_preference =
       track_publisher_->GetForwardingPreference();
@@ -1590,6 +1606,12 @@ void MoqtSession::PublishedSubscription::OnNewFinAvailable(
   if (!window_.InWindow(sequence)) {
     return;
   }
+  if (reset_subgroups_.contains(
+          FullSequence{sequence.group, sequence.subgroup, 0})) {
+    // This subgroup has already been reset, ignore.
+    return;
+  }
+  QUICHE_DCHECK_GE(sequence.group, first_active_group_);
   std::optional<webtransport::StreamId> stream_id =
       stream_map().GetStreamForSequence(sequence);
   if (!stream_id.has_value()) {
@@ -1616,6 +1638,10 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
     }
     raw_stream->ResetWithUserCode(kResetCodeTimedOut);
   }
+  first_active_group_ = std::max(first_active_group_, group_id + 1);
+  absl::erase_if(reset_subgroups_, [&](const FullSequence& sequence) {
+    return sequence.group < first_active_group_;
+  });
 }
 
 void MoqtSession::PublishedSubscription::Backfill() {
@@ -1751,6 +1777,9 @@ MoqtSession::OutgoingDataStream::~OutgoingDataStream() {
   if (session_liveness_.expired()) {
     return;
   }
+  if (delivery_timeout_alarm_ != nullptr) {
+    delivery_timeout_alarm_->PermanentCancel();
+  }
   auto it = session_->published_subscriptions_.find(subscription_id_);
   if (it != session_->published_subscriptions_.end()) {
     it->second->OnDataStreamDestroyed(stream_->GetStreamId(), next_object_);
@@ -1763,6 +1792,15 @@ void MoqtSession::OutgoingDataStream::OnCanWrite() {
     return;
   }
   SendObjects(*subscription);
+}
+
+void MoqtSession::OutgoingDataStream::DeliveryTimeoutDelegate::OnAlarm() {
+  auto it = stream_->session_->published_subscriptions_.find(
+      stream_->subscription_id_);
+  if (it != stream_->session_->published_subscriptions_.end()) {
+    it->second->OnStreamTimeout(stream_->next_object_);
+  }
+  stream_->stream_->ResetWithUserCode(kResetCodeTimedOut);
 }
 
 MoqtSession::PublishedSubscription*
@@ -1807,6 +1845,13 @@ void MoqtSession::OutgoingDataStream::SendObjects(
           << "Writing FIN failed despite CanWrite() being true.";
       return;
     }
+    quic::QuicTimeDelta delivery_timeout = subscription.delivery_timeout();
+    if (session_->callbacks_.clock->ApproximateNow() - object->arrival_time >
+        delivery_timeout) {
+      subscription.OnStreamTimeout(next_object_);
+      stream_->ResetWithUserCode(kResetCodeTimedOut);
+      return;
+    }
     QUICHE_DCHECK(next_object_ <= object->sequence);
     MoqtTrackPublisher& publisher = subscription.publisher();
     QUICHE_DCHECK(DoesTrackStatusImplyHavingData(*publisher.GetTrackStatus()));
@@ -1826,6 +1871,12 @@ void MoqtSession::OutgoingDataStream::SendObjects(
       stream_header_written_ = true;
       subscription.OnObjectSent(object->sequence);
     }
+    if (object->fin_after_this && !delivery_timeout.IsInfinite()) {
+      delivery_timeout_alarm_ =
+          absl::WrapUnique(session_->alarm_factory_->CreateAlarm(
+              new DeliveryTimeoutDelegate(this)));
+      delivery_timeout_alarm_->Set(object->arrival_time + delivery_timeout);
+    }
   }
 }
 
@@ -1838,6 +1889,18 @@ void MoqtSession::OutgoingDataStream::Fin(FullSequence last_object) {
   bool success = stream_->SendFin();
   QUICHE_BUG_IF(OutgoingDataStream_fin_failed, !success)
       << "Writing pure FIN failed.";
+  auto it = session_->published_subscriptions_.find(subscription_id_);
+  if (it == session_->published_subscriptions_.end()) {
+    return;
+  }
+  quic::QuicTimeDelta delivery_timeout = it->second->delivery_timeout();
+  if (!delivery_timeout.IsInfinite()) {
+    delivery_timeout_alarm_ =
+        absl::WrapUnique(session_->alarm_factory_->CreateAlarm(
+            new DeliveryTimeoutDelegate(this)));
+    delivery_timeout_alarm_->Set(session_->callbacks_.clock->ApproximateNow() +
+                                 delivery_timeout);
+  }
 }
 
 bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,

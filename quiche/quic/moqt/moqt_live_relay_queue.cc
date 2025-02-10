@@ -159,8 +159,10 @@ bool MoqtLiveRelayQueue::AddRawObject(FullSequence sequence,
           ? nullptr
           : std::make_shared<quiche::QuicheMemSlice>(quiche::QuicheBuffer::Copy(
                 quiche::SimpleBufferAllocator::Get(), payload));
-  subgroup.emplace(sequence.object, CachedObject{sequence, status, priority,
-                                                 slice, last_object_in_stream});
+  subgroup.emplace(
+      sequence.object,
+      CachedObject{sequence, status, priority, slice, clock_->ApproximateNow(),
+                   last_object_in_stream});
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnNewObjectAvailable(sequence);
   }

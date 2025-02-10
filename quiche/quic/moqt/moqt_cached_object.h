@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -21,6 +22,7 @@ struct CachedObject {
   MoqtObjectStatus status;
   MoqtPriority publisher_priority;
   std::shared_ptr<quiche::QuicheMemSlice> payload;
+  quic::QuicTime arrival_time;
   bool fin_after_this;  // This is the last object before FIN.
 };
 

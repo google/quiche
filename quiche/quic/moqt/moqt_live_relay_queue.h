@@ -17,6 +17,8 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_failed_fetch.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -37,9 +39,11 @@ namespace moqt {
 // frames that arrive for a short time.
 class MoqtLiveRelayQueue : public MoqtTrackPublisher {
  public:
-  explicit MoqtLiveRelayQueue(FullTrackName track,
-                              MoqtForwardingPreference forwarding_preference)
-      : track_(std::move(track)),
+  MoqtLiveRelayQueue(
+      FullTrackName track, MoqtForwardingPreference forwarding_preference,
+      const quic::QuicClock* clock = quic::QuicDefaultClock::Get())
+      : clock_(clock),
+        track_(std::move(track)),
         forwarding_preference_(forwarding_preference),
         next_sequence_(0, 0) {}
 
@@ -127,6 +131,7 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   bool AddRawObject(FullSequence sequence, MoqtObjectStatus status,
                     MoqtPriority priority, absl::string_view payload, bool fin);
 
+  const quic::QuicClock* clock_;
   FullTrackName track_;
   MoqtForwardingPreference forwarding_preference_;
   MoqtPriority publisher_priority_ = 128;
