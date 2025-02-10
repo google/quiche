@@ -85,6 +85,16 @@ const struct ItemTestCase {
     {"c-style hex escape in string", "\"\\x61\"", std::nullopt, nullptr},
     {"valid quoting containing \\u", "\"\\\\u0061\"", Item("\\u0061"), nullptr},
     {"c-style unicode escape in string", "\"\\u0061\"", std::nullopt, nullptr},
+    // TODO(b/393440282): Remove the following two tests once
+    // structured_headers_generated_test.cc is updated to include them.
+    // Manually copied from
+    // https://github.com/httpwg/structured-field-tests/blob/d2ec605907058638faa895642063581939d84da6/binary.json#L40-L44
+    // TODO(b/393153699): This input should be rejected.
+    {"bad padding dot", ":YQ=.:", Item("a", Item::kByteSequenceType), ":YQ==:"},
+    // Manually copied from
+    // https://github.com/httpwg/structured-field-tests/blob/d2ec605907058638faa895642063581939d84da6/binary.json#L58-L62
+    // TODO(b/393408763): This input should be rejected.
+    {"all whitespace", ":    :", Item("", Item::kByteSequenceType), "::"},
 };
 
 const ItemTestCase sh09_item_test_cases[] = {
