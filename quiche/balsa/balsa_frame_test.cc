@@ -3390,6 +3390,26 @@ TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsAnError) {
             balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, ChunkedTransferEncodingWithContentLength) {
+  std::string header =
+      "POST / HTTP/1.1\r\n"
+      "transfer-encoding: chunked\r\n"
+      "content-length: 3\r\n"
+      "\r\n";
+  FakeHeaders fake_headers;
+  fake_headers.AddKeyValue("transfer-encoding", "chunked");
+  fake_headers.AddKeyValue("content-length", "3");
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
+
+  balsa_frame_.ProcessInput(header.data(), header.size());
+
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(headers_.content_length_status(),
+            BalsaHeadersEnums::VALID_CONTENT_LENGTH);
+  EXPECT_EQ(headers_.content_length(), 3);
+  EXPECT_TRUE(headers_.transfer_encoding_is_chunked());
+}
+
 TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingHeadersIsAnError) {
   std::string header =
       "HTTP/1.1 200 OK\r\n"
