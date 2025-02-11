@@ -681,12 +681,18 @@ void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
       subscribes_with_queued_outgoing_data_streams_.erase((++next).base());
       continue;
     }
-    // Open the stream. The second argument pops the item from the
-    // subscription's queue, which might update
+    // Pop the item from the subscription's queue, which might update
     // subscribes_with_queued_outgoing_data_streams_.
+    FullSequence next_queued_stream =
+        subscription->second->NextQueuedOutgoingDataStream();
+    // Check if Group is too old.
+    if (next_queued_stream.group < subscription->second->first_active_group()) {
+      // The stream is too old to be sent.
+      continue;
+    }
+    // Open the stream.
     webtransport::Stream* stream =
-        OpenDataStream(*subscription->second,
-                       subscription->second->NextQueuedOutgoingDataStream());
+        OpenDataStream(*subscription->second, next_queued_stream);
     if (stream != nullptr) {
       stream->visitor()->OnCanWrite();
     }
@@ -1570,6 +1576,26 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
     // This subgroup has already been reset, ignore.
     return;
   }
+  if (session_->alternate_delivery_timeout_ &&
+      !delivery_timeout_.IsInfinite() && largest_sent_.has_value() &&
+      sequence.group >= largest_sent_->group) {
+    // Start the delivery timeout timer on all previous groups.
+    for (uint64_t group = first_active_group_; group < sequence.group;
+         ++group) {
+      for (webtransport::StreamId stream_id :
+           stream_map().GetStreamsForGroup(group)) {
+        webtransport::Stream* raw_stream =
+            session_->session_->GetStreamById(stream_id);
+        if (raw_stream == nullptr) {
+          continue;
+        }
+        OutgoingDataStream* stream =
+            static_cast<OutgoingDataStream*>(raw_stream->visitor());
+        stream->CreateAndSetAlarm(session_->callbacks_.clock->ApproximateNow() +
+                                  delivery_timeout_);
+      }
+    }
+  }
   QUICHE_DCHECK_GE(sequence.group, first_active_group_);
 
   MoqtForwardingPreference forwarding_preference =
@@ -1846,8 +1872,9 @@ void MoqtSession::OutgoingDataStream::SendObjects(
       return;
     }
     quic::QuicTimeDelta delivery_timeout = subscription.delivery_timeout();
-    if (session_->callbacks_.clock->ApproximateNow() - object->arrival_time >
-        delivery_timeout) {
+    if (!session_->alternate_delivery_timeout_ &&
+        session_->callbacks_.clock->ApproximateNow() - object->arrival_time >
+            delivery_timeout) {
       subscription.OnStreamTimeout(next_object_);
       stream_->ResetWithUserCode(kResetCodeTimedOut);
       return;
@@ -1871,11 +1898,9 @@ void MoqtSession::OutgoingDataStream::SendObjects(
       stream_header_written_ = true;
       subscription.OnObjectSent(object->sequence);
     }
-    if (object->fin_after_this && !delivery_timeout.IsInfinite()) {
-      delivery_timeout_alarm_ =
-          absl::WrapUnique(session_->alarm_factory_->CreateAlarm(
-              new DeliveryTimeoutDelegate(this)));
-      delivery_timeout_alarm_->Set(object->arrival_time + delivery_timeout);
+    if (object->fin_after_this && !delivery_timeout.IsInfinite() &&
+        !session_->alternate_delivery_timeout_) {
+      CreateAndSetAlarm(object->arrival_time + delivery_timeout);
     }
   }
 }
@@ -1895,11 +1920,8 @@ void MoqtSession::OutgoingDataStream::Fin(FullSequence last_object) {
   }
   quic::QuicTimeDelta delivery_timeout = it->second->delivery_timeout();
   if (!delivery_timeout.IsInfinite()) {
-    delivery_timeout_alarm_ =
-        absl::WrapUnique(session_->alarm_factory_->CreateAlarm(
-            new DeliveryTimeoutDelegate(this)));
-    delivery_timeout_alarm_->Set(session_->callbacks_.clock->ApproximateNow() +
-                                 delivery_timeout);
+    CreateAndSetAlarm(session_->callbacks_.clock->ApproximateNow() +
+                      delivery_timeout);
   }
 }
 
@@ -1984,6 +2006,16 @@ void MoqtSession::OutgoingDataStream::UpdateSendOrder(
   stream_->SetPriority(
       webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
                                    subscription.GetSendOrder(next_object_)});
+}
+
+void MoqtSession::OutgoingDataStream::CreateAndSetAlarm(
+    quic::QuicTime deadline) {
+  if (delivery_timeout_alarm_ != nullptr) {
+    return;
+  }
+  delivery_timeout_alarm_ = absl::WrapUnique(
+      session_->alarm_factory_->CreateAlarm(new DeliveryTimeoutDelegate(this)));
+  delivery_timeout_alarm_->Set(deadline);
 }
 
 }  // namespace moqt

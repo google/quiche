@@ -591,6 +591,53 @@ TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
   EXPECT_LT(bytes_received, 4000);
 }
 
+TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
+  EstablishSession();
+  FullTrackName full_track_name("foo", "bar");
+
+  MoqtKnownTrackPublisher publisher;
+  server_->session()->set_publisher(&publisher);
+  server_->session()->UseAlternateDeliveryTimeout();
+  auto queue = std::make_shared<MoqtLiveRelayQueue>(
+      full_track_name, MoqtForwardingPreference::kSubgroup,
+      test_harness_.simulator().GetClock());
+  auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
+  publisher.Add(queue);
+
+  MockSubscribeRemoteTrackVisitor client_visitor;
+  std::optional<absl::string_view> expected_reason = std::nullopt;
+  bool received_ok = false;
+  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
+      .WillOnce([&]() { received_ok = true; });
+  MoqtSubscribeParameters parameters;
+  // Set delivery timeout to ~ 1 RTT: any loss is fatal.
+  parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
+  client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
+                                             parameters);
+  bool success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
+  EXPECT_TRUE(success);
+
+  std::string data(1000, '\0');
+  size_t bytes_received = 0;
+  EXPECT_CALL(client_visitor, OnObjectFragment)
+      .WillRepeatedly(
+          [&](const FullTrackName&, FullSequence sequence,
+              MoqtPriority /*publisher_priority*/, MoqtObjectStatus status,
+              absl::string_view object,
+              bool end_of_message) { bytes_received += object.size(); });
+  queue->AddObject(FullSequence{0, 0, 0}, data, false);
+  queue->AddObject(FullSequence{1, 0, 0}, data, false);
+  success = test_harness_.RunUntilWithDefaultTimeout([&]() {
+    return MoqtSessionPeer::SubgroupHasBeenReset(
+        MoqtSessionPeer::GetSubscription(server_->session(), 0),
+        FullSequence{0, 0, 0});
+  });
+  EXPECT_TRUE(success);
+  // Stream was reset before all the bytes arrived.
+  EXPECT_EQ(bytes_received, 2000);
+}
+
 }  // namespace
 
 }  // namespace moqt::test

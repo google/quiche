@@ -231,6 +231,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
   void GrantMoreSubscribes(uint64_t num_subscribes);
 
+  void UseAlternateDeliveryTimeout() { alternate_delivery_timeout_ = true; }
+
  private:
   friend class test::MoqtSessionPeer;
 
@@ -434,6 +436,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnStreamTimeout(FullSequence sequence) {
       sequence.object = 0;
       reset_subgroups_.insert(sequence);
+      if (session_->alternate_delivery_timeout_) {
+        first_active_group_ = std::max(first_active_group_, sequence.group + 1);
+      }
     }
 
     uint64_t first_active_group() const { return first_active_group_; }
@@ -479,7 +484,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     std::optional<SendStreamMap> lazily_initialized_stream_map_;
     // Store the send order of queued outgoing data streams. Use a
     // subscriber_priority_ of zero to avoid having to update it, and call
-    // FinalizeSendOrder() whenever delivering it to the MoqtSession.d
+    // FinalizeSendOrder() whenever delivering it to the MoqtSession.
     absl::btree_multimap<webtransport::SendOrder, FullSequence>
         queued_outgoing_data_streams_;
   };
@@ -520,6 +525,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
 
     // Recomputes the send order and updates it for the associated stream.
     void UpdateSendOrder(PublishedSubscription& subscription);
+
+    // Creates and sets an alarm for the given deadline. Does nothing if the
+    // alarm is already created.
+    void CreateAndSetAlarm(quic::QuicTime deadline);
 
    private:
     friend class test::MoqtSessionPeer;
@@ -728,6 +737,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   uint64_t local_max_subscribe_id_ = 0;
 
   std::unique_ptr<quic::QuicAlarmFactory> alarm_factory_;
+
+  // If true, use a non-standard design where a timer starts for group n when
+  // the first object of group n+1 arrives.
+  bool alternate_delivery_timeout_ = false;
 
   // Must be last.  Token used to make sure that the streams do not call into
   // the session when the session has already been destroyed.
