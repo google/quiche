@@ -593,11 +593,7 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
         packet_number, ack_delay_time, receive_timestamp, info);
   } else {
     unacked_packets_.NotifyAggregatedStreamFrameAcked(ack_delay_time);
-    if (unacked_packets_.update_transmission_info_on_frame_acked()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_update_transmission_info_on_frame_acked,
-                                   1, 3);
-      info = unacked_packets_.GetMutableTransmissionInfo(packet_number);
-    }
+    info = unacked_packets_.GetMutableTransmissionInfo(packet_number);
     const bool new_data_acked = unacked_packets_.NotifyFramesAcked(
         packet_number, ack_delay_time, receive_timestamp, info);
     if (!new_data_acked && info->transmission_type != NOT_RETRANSMISSION) {

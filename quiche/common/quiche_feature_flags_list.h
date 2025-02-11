@@ -60,7 +60,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_stop_reading_also_stops_header_dec
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_test_peer_addr_change_after_normalize, false, false, "If true, QuicConnection::ProcessValidatedPacket will use normalized address to test peer address changes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_false, false, false, "A testonly reloadable flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_true, true, true, "A testonly reloadable flag that will always default to true.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_update_transmission_info_on_frame_acked, true, true, "If true, QuicUnackedPacketMap will update transmission info after session_notifier_->OnFrameAcked.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_alarm_multiplexer, false, false, "Manages all of the connection alarms via QuicAlarmMultiplexer.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_received_client_addresses_cache, true, true, "If true, use a LRU cache to record client addresses of packets received on server's original address.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_version_negotiation_rfc, false, true, "If true, use the RFC version of the version negotiation transport parameter.")

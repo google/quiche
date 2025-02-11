@@ -271,10 +271,6 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
         ", packets_in_flight: ", packets_in_flight_, "}");
   }
 
-  bool update_transmission_info_on_frame_acked() const {
-    return update_transmission_info_on_frame_acked_;
-  }
-
  private:
   friend class test::QuicUnackedPacketMapPeer;
 
@@ -348,9 +344,6 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
 
   // Latched value of the quic_simple_inflight_time flag.
   bool simple_inflight_time_;
-
-  const bool update_transmission_info_on_frame_acked_ =
-      GetQuicReloadableFlag(quic_update_transmission_info_on_frame_acked);
 };
 
 }  // namespace quic

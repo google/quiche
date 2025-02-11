@@ -503,12 +503,9 @@ bool QuicUnackedPacketMap::NotifyFramesAcked(QuicPacketNumber packet_number,
   const QuicFrames* frames = &info->retransmittable_frames;
   quiche::SimpleBufferAllocator allocator;
   std::optional<QuicFrames> frames_copy;
-  const bool use_copied_frames = update_transmission_info_on_frame_acked_ &&
-                                 !HasMessageFrame(info->retransmittable_frames);
+  const bool use_copied_frames = !HasMessageFrame(info->retransmittable_frames);
 
   if (use_copied_frames) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_update_transmission_info_on_frame_acked,
-                                 2, 3);
     frames = &frames_copy.emplace(
         CopyQuicFrames(&allocator, info->retransmittable_frames));
   }
@@ -549,12 +546,9 @@ void QuicUnackedPacketMap::MaybeAggregateAckedStreamFrame(
   const QuicFrames* frames = &info->retransmittable_frames;
   quiche::SimpleBufferAllocator allocator;
   std::optional<QuicFrames> frames_copy;
-  const bool use_copied_frames = update_transmission_info_on_frame_acked_ &&
-                                 !HasMessageFrame(info->retransmittable_frames);
+  const bool use_copied_frames = !HasMessageFrame(info->retransmittable_frames);
 
   if (use_copied_frames) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_update_transmission_info_on_frame_acked,
-                                 3, 3);
     frames = &frames_copy.emplace(
         CopyQuicFrames(&allocator, info->retransmittable_frames));
   }

@@ -632,9 +632,6 @@ TEST_P(QuicUnackedPacketMapTest, CannotAggregateAckedControlFrames) {
 }
 
 TEST_P(QuicUnackedPacketMapTest, UpdateTransmissionInfoOnFrameAcked) {
-  if (!GetQuicReloadableFlag(quic_update_transmission_info_on_frame_acked)) {
-    return;
-  }
   uint64_t next_packet_number = 1;
   do {
     uint64_t packet_number = next_packet_number++;
