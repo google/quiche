@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_SOCKET_ADDRESS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_SOCKET_ADDRESS_H_
 
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/common/quiche_socket_address.h"
 
 namespace quic {
