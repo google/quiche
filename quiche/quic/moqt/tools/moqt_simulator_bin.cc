@@ -89,6 +89,14 @@ struct SimulationParameters {
   QuicTimeDelta deadline = QuicTimeDelta::FromSeconds(2);
   // Delivery order used by the publisher.
   MoqtDeliveryOrder delivery_order = MoqtDeliveryOrder::kDescending;
+  // Delivery timeout for the subscription.  This is mechanically independent
+  // from `deadline`, which is an accounting-only parameter (in practice, those
+  // should probably be close).
+  QuicTimeDelta delivery_timeout = QuicTimeDelta::Infinite();
+  // Whether MoqtBitrateAdjuster is enabled.
+  bool bitrate_adaptation = true;
+  // Use alternative delivery timeout design.
+  bool alternative_timeout = false;
 
   // Number of frames in an individual group.
   int keyframe_interval = 30 * 2;
@@ -118,7 +126,8 @@ class ObjectGenerator : public quic::simulator::Actor,
                   QuicBandwidth bitrate)
       : Actor(simulator, actor_name),
         queue_(std::make_shared<MoqtOutgoingQueue>(
-            track_name, MoqtForwardingPreference::kSubgroup)),
+            track_name, MoqtForwardingPreference::kSubgroup,
+            simulator->GetClock())),
         keyframe_interval_(keyframe_interval),
         time_between_frames_(QuicTimeDelta::FromMicroseconds(1.0e6 / fps)),
         i_to_p_ratio_(i_to_p_ratio),
@@ -205,8 +214,7 @@ class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
   void OnObjectFragment(const FullTrackName& full_track_name,
                         FullSequence sequence,
                         MoqtPriority /*publisher_priority*/,
-                        MoqtObjectStatus status,
-                        absl::string_view object,
+                        MoqtObjectStatus status, absl::string_view object,
                         bool end_of_message) override {
     QUICHE_DCHECK(full_track_name == TrackName());
     if (status != MoqtObjectStatus::kNormal) {
@@ -349,7 +357,12 @@ class MoqtSimulator {
 
     generator_.queue()->SetDeliveryOrder(parameters_.delivery_order);
     client_session()->set_publisher(&publisher_);
-    client_session()->SetMonitoringInterfaceForTrack(TrackName(), &adjuster_);
+    if (parameters_.bitrate_adaptation) {
+      client_session()->SetMonitoringInterfaceForTrack(TrackName(), &adjuster_);
+    }
+    if (parameters_.alternative_timeout) {
+      client_session()->UseAlternateDeliveryTimeout();
+    }
     publisher_.Add(generator_.queue());
 
     // The simulation is started as follows.  At t=0:
@@ -358,7 +371,12 @@ class MoqtSimulator {
     //       server does not yet have an active subscription, so the client has
     //       some catching up to do.
     generator_.Start();
-    server_session()->SubscribeCurrentGroup(TrackName(), &receiver_);
+    MoqtSubscribeParameters subscription_parameters;
+    if (!parameters_.delivery_timeout.IsInfinite()) {
+      subscription_parameters.delivery_timeout = parameters_.delivery_timeout;
+    }
+    server_session()->SubscribeCurrentGroup(TrackName(), &receiver_,
+                                            subscription_parameters);
     simulator_.RunFor(parameters_.duration);
 
     // At the end, we wait for eight RTTs until the connection settles down.
@@ -434,6 +452,17 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, delivery_order, "desc",
     "Delivery order used for the MoQT track simulated ('asc' or 'desc').");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, bitrate_adaptation, true,
+    "Whether track payload's bitrate can be adjusted.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(absl::Duration, delivery_timeout,
+                                absl::InfiniteDuration(),
+                                "Delivery timeout for the subscription.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, alternative_timeout, false,
+                                "Use alternative delivery timeout design.");
+
 int main(int argc, char** argv) {
   moqt::test::SimulationParameters parameters;
   quiche::QuicheParseCommandLineFlags("moqt_simulator", argc, argv);
@@ -443,6 +472,12 @@ int main(int argc, char** argv) {
       quic::QuicTimeDelta(quiche::GetQuicheCommandLineFlag(FLAGS_deadline));
   parameters.duration =
       quic::QuicTimeDelta(quiche::GetQuicheCommandLineFlag(FLAGS_duration));
+  parameters.bitrate_adaptation =
+      quiche::GetQuicheCommandLineFlag(FLAGS_bitrate_adaptation);
+  parameters.delivery_timeout = quic::QuicTimeDelta(
+      quiche::GetQuicheCommandLineFlag(FLAGS_delivery_timeout));
+  parameters.alternative_timeout =
+      quiche::GetQuicheCommandLineFlag(FLAGS_alternative_timeout);
 
   std::string raw_delivery_order = absl::AsciiStrToLower(
       quiche::GetQuicheCommandLineFlag(FLAGS_delivery_order));
