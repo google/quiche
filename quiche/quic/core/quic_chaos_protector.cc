@@ -7,8 +7,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
-#include <memory>
 #include <optional>
 
 #include "absl/strings/string_view.h"
@@ -17,15 +15,10 @@
 #include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_padding_frame.h"
 #include "quiche/quic/core/frames/quic_ping_frame.h"
-#include "quiche/quic/core/quic_data_reader.h"
-#include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_packets.h"
-#include "quiche/quic/core/quic_stream_frame_data_producer.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_flag_utils.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
@@ -34,14 +27,10 @@ namespace quic {
 QuicChaosProtector::QuicChaosProtector(size_t packet_size,
                                        EncryptionLevel level,
                                        QuicFramer* framer, QuicRandom* random)
-    : avoid_copy_(GetQuicReloadableFlag(quic_chaos_protector_avoid_copy)),
-      packet_size_(packet_size),
+    : packet_size_(packet_size),
       level_(level),
       framer_(framer),
       random_(random) {
-  if (avoid_copy_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_chaos_protector_avoid_copy);
-  }
   QUICHE_DCHECK_NE(framer_, nullptr);
   QUICHE_DCHECK_NE(framer_->data_producer(), nullptr);
   QUICHE_DCHECK_NE(random_, nullptr);
@@ -105,94 +94,11 @@ std::optional<size_t> QuicChaosProtector::BuildDataPacket(
                   << header.packet_number;
     return std::nullopt;
   }
-  if (!avoid_copy_) {
-    if (!CopyCryptoDataToLocalBuffer()) {
-      QUIC_DVLOG(1) << "Failed to copy crypto data to local buffer for initial "
-                       "packet number "
-                    << header.packet_number;
-      return std::nullopt;
-    }
-  }
   SplitCryptoFrame();
   AddPingFrames();
   SpreadPadding();
   ReorderFrames();
   return BuildPacket(header, buffer);
-}
-
-WriteStreamDataResult QuicChaosProtector::WriteStreamData(
-    QuicStreamId id, QuicStreamOffset offset, QuicByteCount data_length,
-    QuicDataWriter* /*writer*/) {
-  QUIC_BUG(chaos stream) << "This should never be called; id " << id
-                         << " offset " << offset << " data_length "
-                         << data_length;
-  return STREAM_MISSING;
-}
-
-bool QuicChaosProtector::WriteCryptoData(EncryptionLevel level,
-                                         QuicStreamOffset offset,
-                                         QuicByteCount data_length,
-                                         QuicDataWriter* writer) {
-  if (avoid_copy_) {
-    QUIC_BUG(chaos avoid copy WriteCryptoData) << "This should never be called";
-    return false;
-  }
-  if (level != level_) {
-    QUIC_BUG(chaos bad level) << "Unexpected " << level << " != " << level_;
-    return false;
-  }
-  // This is `offset + data_length > buffer_offset_ + buffer_length_`
-  // but with integer overflow protection.
-  if (offset < crypto_buffer_offset_ || data_length > crypto_data_length_ ||
-      offset - crypto_buffer_offset_ > crypto_data_length_ - data_length) {
-    QUIC_BUG(chaos bad lengths)
-        << "Unexpected buffer_offset_ " << crypto_buffer_offset_ << " offset "
-        << offset << " buffer_length_ " << crypto_data_length_
-        << " data_length " << data_length;
-    return false;
-  }
-  writer->WriteBytes(&crypto_data_buffer_[offset - crypto_buffer_offset_],
-                     data_length);
-  return true;
-}
-
-bool QuicChaosProtector::CopyCryptoDataToLocalBuffer() {
-  if (avoid_copy_) {
-    QUIC_BUG(chaos avoid copy CopyCryptoDataToLocalBuffer)
-        << "This should never be called";
-    return false;
-  }
-  size_t frame_size = QuicDataWriter::GetVarInt62Len(crypto_buffer_offset_) +
-                      QuicDataWriter::GetVarInt62Len(crypto_data_length_) +
-                      crypto_data_length_;
-  crypto_frame_buffer_ = std::make_unique<char[]>(frame_size);
-  // We use |framer_| to serialize the CRYPTO frame in order to extract its
-  // data from the crypto data producer. This ensures that we reuse the
-  // usual serialization code path, but has the downside that we then need to
-  // parse the offset and length in order to skip over those fields.
-  QuicDataWriter writer(frame_size, crypto_frame_buffer_.get());
-  QuicCryptoFrame crypto_frame(level_, crypto_buffer_offset_,
-                               crypto_data_length_);
-  if (!framer_->AppendCryptoFrame(crypto_frame, &writer)) {
-    QUIC_BUG(chaos write crypto data);
-    return false;
-  }
-  QuicDataReader reader(crypto_frame_buffer_.get(), writer.length());
-  uint64_t parsed_offset, parsed_length;
-  if (!reader.ReadVarInt62(&parsed_offset) ||
-      !reader.ReadVarInt62(&parsed_length)) {
-    QUIC_BUG(chaos parse crypto frame);
-    return false;
-  }
-
-  absl::string_view crypto_data = reader.ReadRemainingPayload();
-  crypto_data_buffer_ = crypto_data.data();
-
-  QUICHE_DCHECK_EQ(parsed_offset, crypto_buffer_offset_);
-  QUICHE_DCHECK_EQ(parsed_length, crypto_data_length_);
-  QUICHE_DCHECK_EQ(parsed_length, crypto_data.length());
-
-  return true;
 }
 
 void QuicChaosProtector::SplitCryptoFrame() {
@@ -301,18 +207,8 @@ void QuicChaosProtector::SpreadPadding() {
 
 std::optional<size_t> QuicChaosProtector::BuildPacket(
     const QuicPacketHeader& header, char* buffer) {
-  QuicStreamFrameDataProducer* original_data_producer;
-  if (!avoid_copy_) {
-    original_data_producer = framer_->data_producer();
-    framer_->set_data_producer(this);
-  }
-
   size_t length =
       framer_->BuildDataPacket(header, frames_, buffer, packet_size_, level_);
-
-  if (!avoid_copy_) {
-    framer_->set_data_producer(original_data_producer);
-  }
   if (length == 0) {
     QUIC_DVLOG(1) << "Failed to build data packet for initial packet number "
                   << header.packet_number;
