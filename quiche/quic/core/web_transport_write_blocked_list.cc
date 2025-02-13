@@ -129,19 +129,29 @@ void WebTransportWriteBlockedList::UnregisterStream(QuicStreamId stream_id) {
     return;
   }
   Subscheduler& subscheduler = subscheduler_it->second;
+  const bool subscheduler_had_scheduled_streams = subscheduler.HasScheduled();
   absl::Status status = subscheduler.Unregister(stream_id);
   QUICHE_BUG_IF(WTWriteBlocked_UnregisterStream_subscheduler_stream_failed,
                 !status.ok())
       << status;
 
-  // If this is the last stream associated with the group, remove the group.
   if (!subscheduler.HasRegistered()) {
+    // If this is the last stream associated with the group, remove the group.
     status = main_schedule_.Unregister(key);
     QUICHE_BUG_IF(WTWriteBlocked_UnregisterStream_subscheduler_failed,
                   !status.ok())
         << status;
 
     web_transport_session_schedulers_.erase(subscheduler_it);
+  } else if (subscheduler_had_scheduled_streams &&
+             !subscheduler.HasScheduled()) {
+    // If this is the last scheduled stream associated with the group, but there
+    // are still unscheduled streams in the group, deschedule the group.
+    status = main_schedule_.Deschedule(key);
+    QUICHE_BUG_IF(
+        WTWriteBlocked_UnregisterStream_subscheduler_deschedule_failed,
+        !status.ok())
+        << status;
   }
 }
 

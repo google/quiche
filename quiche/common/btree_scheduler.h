@@ -83,6 +83,8 @@ class QUICHE_NO_EXPORT BTreeScheduler {
 
   // Adds the `stream` into the schedule if it's not already there.
   absl::Status Schedule(Id stream_id);
+  // Deschedules a stream that is known to be currently scheduled.
+  absl::Status Deschedule(Id stream_id);
   // Returns true if `stream` is in the schedule.
   bool IsScheduled(Id stream_id) const;
 
@@ -298,6 +300,27 @@ bool BTreeScheduler<Id, Priority>::IsScheduled(Id stream_id) const {
     return false;
   }
   return stream_it->second.scheduled();
+}
+
+template <typename Id, typename Priority>
+absl::Status BTreeScheduler<Id, Priority>::Deschedule(Id stream_id) {
+  auto it = streams_.find(stream_id);
+  if (it == streams_.end()) {
+    return absl::NotFoundError("Stream not registered");
+  }
+  StreamEntry& stream = it->second;
+
+  if (!stream.scheduled()) {
+    return absl::FailedPreconditionError("Stream not scheduled");
+  }
+  if (!DescheduleStream(stream).ok()) {
+    QUICHE_BUG(BTreeSchedule_Unregister_NotInSchedule)
+        << "UnregisterStream() called on a stream ID " << stream_id
+        << ", which is marked ready, but is not in the schedule";
+  }
+  stream.current_sequence_number.reset();
+
+  return absl::OkStatus();
 }
 
 }  // namespace quiche

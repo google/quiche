@@ -466,6 +466,22 @@ TEST_F(WebTransportWriteBlockedListTest, ShouldYield) {
   PopAll();
 }
 
+TEST_F(WebTransportWriteBlockedListTest, RemoveOneStreamFromActiveGroup) {
+  RegisterHttpStream(1);
+  RegisterWebTransportDataStream(2, WebTransportStreamPriority{1, 0, 0});
+  RegisterWebTransportDataStream(3, WebTransportStreamPriority{1, 0, 1});
+  RegisterHttpStream(4, HttpStreamPriority::kDefaultUrgency - 1);
+  RegisterWebTransportDataStream(5, WebTransportStreamPriority{4, 0, 0});
+
+  list_.AddStream(3);
+  list_.AddStream(4);
+
+  list_.UnregisterStream(3);
+  EXPECT_EQ(list_.PopFront(), 4);
+  list_.UnregisterStream(2);
+  list_.UnregisterStream(1);
+}
+
 TEST_F(WebTransportWriteBlockedListTest, RandomizedTest) {
   RegisterHttpStream(1);
   RegisterHttpStream(2, HttpStreamPriority::kMinimumUrgency);
