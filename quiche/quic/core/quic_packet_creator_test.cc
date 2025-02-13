@@ -3205,8 +3205,6 @@ void QuicPacketCreatorMultiplePacketsTest::SetupInitialCrypto(
     size_t crypto_data_length, int num_ack_blocks,
     bool chaos_protection_enabled) {
   SetQuicFlag(quic_enable_chaos_protection, chaos_protection_enabled);
-  SetQuicReloadableFlag(quic_enable_chaos_protection_v2,
-                        chaos_protection_enabled);
   random_creator_.ResetBase(4);
   creator_.SetEncrypter(ENCRYPTION_INITIAL,
                         std::make_unique<TaggingEncrypter>(ENCRYPTION_INITIAL));

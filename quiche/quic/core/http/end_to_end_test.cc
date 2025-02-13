@@ -6710,7 +6710,6 @@ void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
     ASSERT_TRUE(Initialize());
     return;
   }
-  SetQuicReloadableFlag(quic_enable_chaos_protection_v2, true);
   // Setup test harness with a custom client writer.
   connect_to_server_on_initialize_ = false;
   int discard_length;

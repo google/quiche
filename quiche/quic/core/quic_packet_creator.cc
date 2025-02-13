@@ -782,26 +782,6 @@ QuicPacketCreator::MaybeBuildDataPacketWithChaosProtection(
       framer_->data_producer() == nullptr) {
     return std::nullopt;
   }
-  if (!GetQuicReloadableFlag(quic_enable_chaos_protection_v2)) {
-    if (queued_frames_.size() != 2u || queued_frames_[0].type != CRYPTO_FRAME ||
-        queued_frames_[1].type != PADDING_FRAME ||
-        // Do not perform chaos protection if we do not have a known number of
-        // padding bytes to work with.
-        queued_frames_[1].padding_frame.num_padding_bytes <= 0) {
-      return std::nullopt;
-    }
-    const QuicCryptoFrame& crypto_frame = *queued_frames_[0].crypto_frame;
-    if (packet_.encryption_level != crypto_frame.level) {
-      QUIC_BUG(chaos frame level) << ENDPOINT << packet_.encryption_level
-                                  << " != " << crypto_frame.level;
-      return std::nullopt;
-    }
-    QuicChaosProtectorOld chaos_protector(
-        crypto_frame, queued_frames_[1].padding_frame.num_padding_bytes,
-        packet_size_, framer_, random_);
-    return chaos_protector.BuildDataPacket(header, buffer);
-  }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_chaos_protection_v2, 1, 2);
   QuicChaosProtector chaos_protector(packet_size_, packet_.encryption_level,
                                      framer_, random_);
   return chaos_protector.BuildDataPacket(header, queued_frames_, buffer);
@@ -1571,8 +1551,7 @@ size_t QuicPacketCreator::GenerateRemainingCryptoFrames(
       return 0;
     }
     total_bytes_consumed += frame.crypto_frame->data_length;
-    if (!GetQuicReloadableFlag(quic_enable_chaos_protection_v2) ||
-        level != ENCRYPTION_INITIAL ||
+    if (level != ENCRYPTION_INITIAL ||
         frame.crypto_frame->data_length < write_length) {
       FlushCurrentPacket();
     }
@@ -1584,7 +1563,6 @@ size_t QuicPacketCreator::MultiPacketChaosProtect(EncryptionLevel level,
                                                   size_t write_length,
                                                   QuicStreamOffset offset) {
   if (!GetQuicFlag(quic_enable_chaos_protection) ||
-      !GetQuicReloadableFlag(quic_enable_chaos_protection_v2) ||
       framer_->perspective() != Perspective::IS_CLIENT ||
       level != ENCRYPTION_INITIAL || !framer_->version().UsesCryptoFrames() ||
       framer_->data_producer() == nullptr ||
@@ -1714,10 +1692,7 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
   // TODO(nharper): Once we have separate packet number spaces, everything
   // should be driven by encryption level, and we should stop flushing in this
   // spot.
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_chaos_protection_v2, 2, 2);
-  if (HasPendingRetransmittableFrames() &&
-      (!GetQuicReloadableFlag(quic_enable_chaos_protection_v2) ||
-       level != ENCRYPTION_INITIAL)) {
+  if (HasPendingRetransmittableFrames() && level != ENCRYPTION_INITIAL) {
     FlushCurrentPacket();
   }
 
@@ -1731,8 +1706,7 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
   }
 
   // Don't allow the handshake to be bundled with other retransmittable frames.
-  if (!GetQuicReloadableFlag(quic_enable_chaos_protection_v2) ||
-      level != ENCRYPTION_INITIAL) {
+  if (level != ENCRYPTION_INITIAL) {
     FlushCurrentPacket();
   }
 
