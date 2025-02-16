@@ -12,6 +12,7 @@
 #include <string>
 
 #include "quiche/quic/core/quic_syscall_wrapper.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -269,6 +270,10 @@ WriteResult QuicLinuxSocketUtils::WritePacket(int fd, const QuicMsgHdr& hdr) {
   } while (rc < 0 && errno == EINTR);
   if (rc >= 0) {
     return WriteResult(WRITE_STATUS_OK, rc);
+  }
+  if (errno == ENOBUFS) {
+    QUIC_CODE_COUNT(quic_sendmsg_enobufs);
+    errno = ENOBUFS;
   }
   return WriteResult((errno == EAGAIN || errno == EWOULDBLOCK)
                          ? WRITE_STATUS_BLOCKED
