@@ -112,7 +112,17 @@ MoqtSession::MoqtSession(webtransport::Session* session,
       publisher_(DefaultPublisher::GetInstance()),
       local_max_subscribe_id_(parameters.max_subscribe_id),
       alarm_factory_(std::move(alarm_factory)),
-      liveness_token_(std::make_shared<Empty>()) {}
+      liveness_token_(std::make_shared<Empty>()) {
+  if (parameters_.using_webtrans) {
+    session_->SetOnDraining([this]() {
+      QUICHE_DLOG(INFO) << "WebTransport session is draining";
+      received_goaway_ = true;
+      if (callbacks_.goaway_received_callback != nullptr) {
+        std::move(callbacks_.goaway_received_callback)(absl::string_view());
+      }
+    });
+  }
+}
 
 MoqtSession::ControlStream* MoqtSession::GetControlStream() {
   if (!control_stream_.has_value()) {
@@ -248,6 +258,11 @@ bool MoqtSession::SubscribeAnnounces(
     FullTrackName track_namespace,
     MoqtOutgoingSubscribeAnnouncesCallback callback,
     MoqtSubscribeParameters parameters) {
+  if (received_goaway_ || sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Tried to send SUBSCRIBE_ANNOUNCES after GOAWAY";
+    return false;
+  }
   MoqtSubscribeAnnounces message;
   message.track_namespace = track_namespace;
   message.parameters = std::move(parameters);
@@ -279,6 +294,10 @@ void MoqtSession::Announce(FullTrackName track_namespace,
         MoqtAnnounceErrorReason{
             MoqtAnnounceErrorCode::kInternalError,
             "ANNOUNCE message already outstanding for namespace"});
+    return;
+  }
+  if (received_goaway_ || sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send ANNOUNCE after GOAWAY";
     return;
   }
   MoqtAnnounce message;
@@ -435,6 +454,10 @@ bool MoqtSession::Fetch(const FullTrackName& name,
                     << peer_max_subscribe_id_;
     return false;
   }
+  if (received_goaway_ || sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH after GOAWAY";
+    return false;
+  }
   MoqtFetch message;
   message.full_track_name = name;
   message.subscribe_id = next_subscribe_id_++;
@@ -451,6 +474,22 @@ bool MoqtSession::Fetch(const FullTrackName& name,
   auto fetch = std::make_unique<UpstreamFetch>(message, std::move(callback));
   upstream_by_id_.emplace(message.subscribe_id, std::move(fetch));
   return true;
+}
+
+void MoqtSession::GoAway(absl::string_view new_session_uri) {
+  if (sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send multiple GOAWAY";
+    return;
+  }
+  if (!new_session_uri.empty() && !new_session_uri.empty()) {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Client tried to send GOAWAY with new session URI";
+    return;
+  }
+  MoqtGoAway message;
+  message.new_session_uri = std::string(new_session_uri);
+  SendControlMessage(framer_.SerializeGoAway(message));
+  sent_goaway_ = true;
 }
 
 void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
@@ -552,6 +591,10 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
   if (provided_track_alias.has_value() &&
       subscribe_by_alias_.contains(*provided_track_alias)) {
     Error(MoqtError::kProtocolViolation, "Provided track alias already in use");
+    return false;
+  }
+  if (received_goaway_ || sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE after GOAWAY";
     return false;
   }
   message.subscribe_id = next_subscribe_id_++;
@@ -889,6 +932,12 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
                        message.track_alias);
     return;
   }
+  if (session_->sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH after GOAWAY";
+    SendSubscribeError(message, SubscribeErrorCode::kUnauthorized,
+                       "SUBSCRIBE after GOAWAY", message.track_alias);
+    return;
+  }
   MoqtDeliveryOrder delivery_order = (*track_publisher)->GetDeliveryOrder();
 
   MoqtPublishingMonitorInterface* monitoring = nullptr;
@@ -1035,6 +1084,15 @@ void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
 
 void MoqtSession::ControlStream::OnAnnounceMessage(
     const MoqtAnnounce& message) {
+  if (session_->sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received an ANNOUNCE after GOAWAY";
+    MoqtAnnounceError error;
+    error.track_namespace = message.track_namespace;
+    error.error_code = MoqtAnnounceErrorCode::kUnauthorized;
+    error.reason_phrase = "ANNOUNCE after GOAWAY";
+    SendOrBufferMessage(session_->framer_.SerializeAnnounceError(error));
+    return;
+  }
   std::optional<MoqtAnnounceErrorReason> error =
       session_->callbacks_.incoming_announce_callback(message.track_namespace,
                                                       AnnounceEvent::kAnnounce);
@@ -1098,9 +1156,39 @@ void MoqtSession::ControlStream::OnUnannounceMessage(
                                                   AnnounceEvent::kUnannounce);
 }
 
+void MoqtSession::ControlStream::OnGoAwayMessage(const MoqtGoAway& message) {
+  if (!message.new_session_uri.empty() &&
+      perspective() == quic::Perspective::IS_SERVER) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received GOAWAY with new_session_uri on the server");
+    return;
+  }
+  if (session_->received_goaway_) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received multiple GOAWAY messages");
+    return;
+  }
+  session_->received_goaway_ = true;
+  if (session_->callbacks_.goaway_received_callback != nullptr) {
+    std::move(session_->callbacks_.goaway_received_callback)(
+        message.new_session_uri);
+  }
+}
+
 void MoqtSession::ControlStream::OnSubscribeAnnouncesMessage(
     const MoqtSubscribeAnnounces& message) {
   // TODO(martinduke): Handle authentication.
+  if (session_->sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Received a SUBSCRIBE_ANNOUNCES after GOAWAY";
+    MoqtSubscribeAnnouncesError error;
+    error.track_namespace = message.track_namespace;
+    error.error_code = SubscribeErrorCode::kUnauthorized;
+    error.reason_phrase = "SUBSCRIBE_ANNOUNCES after GOAWAY";
+    SendOrBufferMessage(
+        session_->framer_.SerializeSubscribeAnnouncesError(error));
+    return;
+  }
   std::optional<MoqtSubscribeErrorReason> result =
       session_->callbacks_.incoming_subscribe_announces_callback(
           message.track_namespace, SubscribeEvent::kSubscribe);
@@ -1178,6 +1266,12 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH for "
                   << message.full_track_name;
+  if (session_->sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH after GOAWAY";
+    SendFetchError(message.subscribe_id, SubscribeErrorCode::kUnauthorized,
+                   "FETCH after GOAWAY");
+    return;
+  }
 
   const FullTrackName& track_name = message.full_track_name;
   absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =

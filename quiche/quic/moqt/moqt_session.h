@@ -43,6 +43,8 @@ class MoqtSessionPeer;
 }
 
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
+using MoqtSessionGoAwayCallback =
+    quiche::SingleUseCallback<void(absl::string_view new_session_uri)>;
 using MoqtSessionTerminatedCallback =
     quiche::SingleUseCallback<void(absl::string_view error_message)>;
 using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
@@ -91,6 +93,8 @@ DefaultIncomingSubscribeAnnouncesCallback(const FullTrackName& track_namespace,
 // Callbacks for session-level events.
 struct MoqtSessionCallbacks {
   MoqtSessionEstablishedCallback session_established_callback = +[] {};
+  MoqtSessionGoAwayCallback goaway_received_callback =
+      +[](absl::string_view) {};
   MoqtSessionTerminatedCallback session_terminated_callback =
       +[](absl::string_view) {};
   MoqtSessionDeletedCallback session_deleted_callback = +[] {};
@@ -198,6 +202,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
              std::optional<MoqtDeliveryOrder> delivery_order,
              MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
 
+  // Send a GOAWAY message to the peer. |new_session_uri| must be empty if
+  // called by the client.
+  void GoAway(absl::string_view new_session_uri);
+
   webtransport::Session* session() { return session_; }
   MoqtSessionCallbacks& callbacks() { return callbacks_; }
   MoqtPublisher* publisher() { return publisher_; }
@@ -269,7 +277,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
         const MoqtTrackStatusRequest& message) override {};
     void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override;
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override {}
-    void OnGoAwayMessage(const MoqtGoAway& /*message*/) override {}
+    void OnGoAwayMessage(const MoqtGoAway& /*message*/) override;
     void OnSubscribeAnnouncesMessage(
         const MoqtSubscribeAnnounces& message) override;
     void OnSubscribeAnnouncesOkMessage(
@@ -676,6 +684,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   std::optional<webtransport::StreamId> control_stream_;
   bool peer_supports_object_ack_ = false;
   std::string error_;
+
+  bool sent_goaway_ = false;
+  bool received_goaway_ = false;
 
   // Upstream SUBSCRIBE state.
   // Upstream SUBSCRIBEs and FETCHes, indexed by subscribe_id.

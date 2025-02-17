@@ -101,7 +101,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
   }
 
   MockSessionCallbacks session_callbacks_;
-  StrictMock<webtransport::test::MockSession> mock_session_;
+  webtransport::test::MockSession mock_session_;
   MoqtSession session_;
   MoqtKnownTrackPublisher publisher_;
 };
@@ -2768,6 +2768,138 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAlternateDesign) {
         stream_visitor1.reset();
       }));
   delivery_alarm->Fire();
+}
+
+TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  EXPECT_CALL(session_callbacks_.goaway_received_callback, Call("foo"));
+  stream_input->OnGoAwayMessage(MoqtGoAway("foo"));
+  // New requests not allowed.
+  EXPECT_CALL(mock_stream, Writev).Times(0);
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+                                              &remote_track_visitor));
+  EXPECT_FALSE(session_.SubscribeAnnounces(
+      FullTrackName{"foo"}, +[](FullTrackName /*track_namespace*/,
+                                std::optional<SubscribeErrorCode> /*error*/,
+                                absl::string_view /*reason*/) {}));
+  session_.Announce(
+      FullTrackName{"foo"},
+      +[](FullTrackName /*track_namespace*/,
+          std::optional<MoqtAnnounceErrorReason> /*error*/) {});
+  EXPECT_FALSE(session_.Fetch(
+      FullTrackName{"foo", "bar"},
+      +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, FullSequence(0, 0),
+      5, std::nullopt, 127, std::nullopt));
+  // Error on additional GOAWAY.
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Received multiple GOAWAY messages"))
+      .Times(1);
+  bool reported_error = false;
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
+      .WillOnce([&](absl::string_view error_message) {
+        reported_error = true;
+        EXPECT_EQ(error_message, "Received multiple GOAWAY messages");
+      });
+  stream_input->OnGoAwayMessage(MoqtGoAway("foo"));
+}
+
+TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  auto track_publisher =
+      std::make_shared<MockTrackPublisher>(FullTrackName("foo", "bar"));
+  EXPECT_CALL(*track_publisher, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
+  publisher_.Add(track_publisher);
+  EXPECT_CALL(mock_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kGoAway), _));
+  session_.GoAway("");
+  EXPECT_CALL(
+      mock_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeError), _));
+  stream_input->OnSubscribeMessage(DefaultSubscribe());
+  EXPECT_CALL(mock_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kAnnounceError), _));
+  stream_input->OnAnnounceMessage(
+      MoqtAnnounce(FullTrackName("foo", "bar"), MoqtSubscribeParameters()));
+  EXPECT_CALL(mock_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kFetchError), _));
+  MoqtFetch request = {
+      /*subscribe_id=*/2,
+      /*full_track_name=*/FullTrackName("foo", "bar"),
+      /*subscriber_priority=*/0x80,
+      /*group_order=*/std::nullopt,
+      /*start=*/FullSequence(0, 0),
+      /*end_group=*/1,
+      /*end_object=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  stream_input->OnFetchMessage(request);
+  EXPECT_CALL(
+      mock_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesError),
+             _));
+  stream_input->OnSubscribeAnnouncesMessage(
+      MoqtSubscribeAnnounces(FullTrackName("foo", "bar")));
+  // Block all outgoing SUBSCRIBE, ANNOUNCE, GOAWAY,etc.
+  EXPECT_CALL(mock_stream, Writev).Times(0);
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
+                                              &remote_track_visitor));
+  EXPECT_FALSE(session_.SubscribeAnnounces(
+      FullTrackName{"foo"}, +[](FullTrackName /*track_namespace*/,
+                                std::optional<SubscribeErrorCode> /*error*/,
+                                absl::string_view /*reason*/) {}));
+  session_.Announce(
+      FullTrackName{"foo"},
+      +[](FullTrackName /*track_namespace*/,
+          std::optional<MoqtAnnounceErrorReason> /*error*/) {});
+  EXPECT_FALSE(session_.Fetch(
+      FullTrackName{"foo", "bar"},
+      +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, FullSequence(0, 0),
+      5, std::nullopt, 127, std::nullopt));
+  session_.GoAway("");
+}
+
+TEST_F(MoqtSessionTest, ClientCannotSendNewSessionUri) {
+  // session_ is a client session.
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  // Client GOAWAY not sent.
+  EXPECT_CALL(mock_stream, Writev).Times(0);
+  session_.GoAway("foo");
+}
+
+TEST_F(MoqtSessionTest, ServerCannotReceiveNewSessionUri) {
+  webtransport::test::MockSession mock_session;
+  webtransport::test::MockStream mock_stream;
+  MoqtSession session(&mock_session,
+                      MoqtSessionParameters(quic::Perspective::IS_SERVER),
+                      std::make_unique<quic::test::TestAlarmFactory>(),
+                      session_callbacks_.AsSessionCallbacks());
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session, &mock_stream);
+  MoqtSessionPeer::CreateControlStream(&session, &mock_stream);
+  EXPECT_CALL(
+      mock_session,
+      CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                   "Received GOAWAY with new_session_uri on the server"))
+      .Times(1);
+  bool reported_error = false;
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
+      .WillOnce([&](absl::string_view error_message) {
+        reported_error = true;
+        EXPECT_EQ(error_message,
+                  "Received GOAWAY with new_session_uri on the server");
+      });
+  stream_input->OnGoAwayMessage(MoqtGoAway("foo"));
+  EXPECT_TRUE(reported_error);
 }
 
 // TODO: re-enable this test once this behavior is re-implemented.

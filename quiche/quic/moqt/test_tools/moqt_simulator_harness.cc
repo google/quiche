@@ -32,7 +32,7 @@ MoqtSessionParameters CreateParameters(quic::Perspective perspective,
 
 MoqtSessionCallbacks CreateCallbacks(quic::simulator::Simulator* simulator) {
   return MoqtSessionCallbacks(
-      +[] {}, +[](absl::string_view) {}, +[] {},
+      +[] {}, +[](absl::string_view) {}, +[](absl::string_view) {}, +[] {},
       DefaultIncomingAnnounceCallback,
       DefaultIncomingSubscribeAnnouncesCallback, simulator->GetClock());
 }

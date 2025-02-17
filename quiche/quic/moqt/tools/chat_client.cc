@@ -111,6 +111,12 @@ ChatClient::ChatClient(const quic::QuicServerId& server_id,
     std::cout << "Session established\n";
     session_is_open_ = true;
   };
+  session_callbacks_.goaway_received_callback =
+      [](absl::string_view new_session_uri) {
+        std::cout << "GoAway received, new session uri = " << new_session_uri
+                  << "\n";
+        // TODO (martinduke): Connect to the new session uri.
+      };
   session_callbacks_.session_terminated_callback =
       [this](absl::string_view error_message) {
         std::cerr << "Closed session, reason = " << error_message << "\n";

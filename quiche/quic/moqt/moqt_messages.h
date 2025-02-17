@@ -159,6 +159,7 @@ enum class MoqtAnnounceErrorCode : uint64_t {
   kInternalError = 0,
   kAnnounceNotSupported = 1,
   kNotASubscribedNamespace = 2,
+  kUnauthorized = 3,
 };
 
 enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
