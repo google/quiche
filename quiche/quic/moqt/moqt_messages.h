@@ -35,11 +35,11 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft07 = 0xff000007,
+  kDraft08 = 0xff000008,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft07;
+inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft08;
 inline constexpr uint64_t kDefaultInitialMaxSubscribeId = 100;
 inline constexpr uint64_t kMinNamespaceElements = 1;
 inline constexpr uint64_t kMaxNamespaceElements = 32;
@@ -390,17 +390,15 @@ struct QUICHE_EXPORT MoqtSubscribe {
   std::optional<MoqtDeliveryOrder> group_order;
 
   // The combinations of these that have values indicate the filter type.
-  // SG: Start Group; SO: Start Object; EG: End Group; EO: End Object;
+  // SG: Start Group; SO: Start Object; EG: End Group;
   // (none): KLatestObject
   // SO: kLatestGroup (must be zero)
   // SG, SO: kAbsoluteStart
-  // SG, SO, EG, EO: kAbsoluteRange
   // SG, SO, EG: kAbsoluteRange (request whole last group)
   // All other combinations are invalid.
   std::optional<uint64_t> start_group;
   std::optional<uint64_t> start_object;
   std::optional<uint64_t> end_group;
-  std::optional<uint64_t> end_object;
   // If the mode is kNone, the these are std::nullopt.
 
   MoqtSubscribeParameters parameters;
@@ -453,7 +451,6 @@ struct QUICHE_EXPORT MoqtSubscribeUpdate {
   uint64_t start_group;
   uint64_t start_object;
   std::optional<uint64_t> end_group;
-  std::optional<uint64_t> end_object;
   MoqtPriority subscriber_priority;
   MoqtSubscribeParameters parameters;
 };

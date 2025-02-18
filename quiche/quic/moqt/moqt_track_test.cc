@@ -33,7 +33,6 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
       /*ranges=*/2,
       0,
       std::nullopt,
-      std::nullopt,
       MoqtSubscribeParameters(),
   };
   SubscribeRemoteTrack track_;

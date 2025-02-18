@@ -30,37 +30,20 @@ MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
 }
 
 MoqtFilterType GetFilterType(const MoqtSubscribe& message) {
-  if (!message.end_group.has_value() && message.end_object.has_value()) {
-    return MoqtFilterType::kNone;
-  }
-  bool has_start =
-      message.start_group.has_value() && message.start_object.has_value();
-  if (message.end_group.has_value()) {
-    if (has_start) {
-      if (*message.end_group < *message.start_group) {
-        return MoqtFilterType::kNone;
-      } else if (*message.end_group == *message.start_group &&
-                 *message.end_object <= *message.start_object) {
-        if (*message.end_object < *message.start_object) {
-          return MoqtFilterType::kNone;
-        } else if (*message.end_object == *message.start_object) {
-          return MoqtFilterType::kAbsoluteStart;
-        }
+  if (message.start_object.has_value()) {
+    if (message.start_group.has_value()) {
+      if (message.end_group.has_value()) {
+        return (*message.end_group >= *message.start_group)
+                   ? MoqtFilterType::kAbsoluteRange
+                   : MoqtFilterType::kNone;
       }
-      return MoqtFilterType::kAbsoluteRange;
-    }
-  } else {
-    if (has_start) {
       return MoqtFilterType::kAbsoluteStart;
-    } else if (!message.start_group.has_value()) {
-      if (message.start_object.has_value()) {
-        if (message.start_object.value() == 0) {
-          return MoqtFilterType::kLatestGroup;
-        }
-      } else {
-        return MoqtFilterType::kLatestObject;
-      }
     }
+    return *message.start_object == 0 ? MoqtFilterType::kLatestGroup
+                                      : MoqtFilterType::kNone;
+  }
+  if (!message.start_group.has_value() && !message.end_group.has_value()) {
+    return MoqtFilterType::kLatestObject;
   }
   return MoqtFilterType::kNone;
 }

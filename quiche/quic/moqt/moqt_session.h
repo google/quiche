@@ -182,12 +182,6 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
       const FullTrackName& name, uint64_t start_group, uint64_t start_object,
       uint64_t end_group, SubscribeRemoteTrack::Visitor* visitor,
       MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
-  // Subscribe from (start_group, start_object) to (end_group, end_object).
-  bool SubscribeAbsolute(
-      const FullTrackName& name, uint64_t start_group, uint64_t start_object,
-      uint64_t end_group, uint64_t end_object,
-      SubscribeRemoteTrack::Visitor* visitor,
-      MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
   bool SubscribeCurrentObject(
       const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
       MoqtSubscribeParameters parameters = MoqtSubscribeParameters());

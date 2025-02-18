@@ -394,23 +394,13 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
       if (filter_type == MoqtFilterType::kAbsoluteStart) {
         break;
       }
-      if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
+      if (!reader.ReadVarInt62(&group)) {
         return 0;
       }
       subscribe_request.end_group = group;
       if (subscribe_request.end_group < subscribe_request.start_group) {
         ParseError("End group is less than start group");
         return 0;
-      }
-      if (object == 0) {
-        subscribe_request.end_object = std::nullopt;
-      } else {
-        subscribe_request.end_object = object - 1;
-        if (subscribe_request.start_group == subscribe_request.end_group &&
-            subscribe_request.end_object < subscribe_request.start_object) {
-          ParseError("End object comes before start object");
-          return 0;
-        }
       }
       break;
     default:
@@ -513,40 +503,23 @@ size_t MoqtControlParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
   MoqtSubscribeUpdate subscribe_update;
-  uint64_t end_group, end_object;
+  uint64_t end_group;
   if (!reader.ReadVarInt62(&subscribe_update.subscribe_id) ||
       !reader.ReadVarInt62(&subscribe_update.start_group) ||
       !reader.ReadVarInt62(&subscribe_update.start_object) ||
-      !reader.ReadVarInt62(&end_group) || !reader.ReadVarInt62(&end_object) ||
+      !reader.ReadVarInt62(&end_group) ||
       !reader.ReadUInt8(&subscribe_update.subscriber_priority)) {
     return 0;
   }
   if (!ReadSubscribeParameters(reader, subscribe_update.parameters)) {
     return 0;
   }
-  if (end_group == 0) {
-    // end_group remains nullopt.
-    if (end_object > 0) {
-      ParseError("SUBSCRIBE_UPDATE has end_object but no end_group");
-      return 0;
-    }
-  } else {
+  if (end_group > 0) {
     subscribe_update.end_group = end_group - 1;
     if (subscribe_update.end_group < subscribe_update.start_group) {
       ParseError("End group is less than start group");
       return 0;
     }
-  }
-  if (end_object > 0) {
-    subscribe_update.end_object = end_object - 1;
-    if (subscribe_update.end_object.has_value() &&
-        subscribe_update.start_group == *subscribe_update.end_group &&
-        *subscribe_update.end_object < subscribe_update.start_object) {
-      ParseError("End object comes before start object");
-      return 0;
-    }
-  } else {
-    subscribe_update.end_object = std::nullopt;
   }
   if (subscribe_update.parameters.authorization_info.has_value()) {
     ParseError("SUBSCRIBE_UPDATE has authorization info");

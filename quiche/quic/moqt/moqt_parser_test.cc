@@ -735,10 +735,10 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationInfo) {
 TEST_F(MoqtMessageSpecificTest, SubscribeUpdateHasAuthorizationInfo) {
   MoqtControlParser parser(kWebTrans, visitor_);
   char subscribe_update[] = {
-      0x02, 0x0c, 0x02, 0x03, 0x01, 0x05, 0x06,  // start and end sequences
-      0xaa,                                      // priority = 0xaa
-      0x01,                                      // 1 parameter
-      0x02, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
+      0x02, 0x0b, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
+      0xaa,                                // priority = 0xaa
+      0x01,                                // 1 parameter
+      0x02, 0x03, 0x62, 0x61, 0x72,        // authorization_info = "bar"
   };
   parser.ProcessData(
       absl::string_view(subscribe_update, sizeof(subscribe_update)), false);
@@ -885,7 +885,6 @@ TEST_F(MoqtMessageSpecificTest, LatestGroup) {
   EXPECT_FALSE(message.start_group.has_value());
   EXPECT_EQ(message.start_object, 0);
   EXPECT_FALSE(message.end_group.has_value());
-  EXPECT_FALSE(message.end_object.has_value());
 }
 
 TEST_F(MoqtMessageSpecificTest, LatestObject) {
@@ -907,7 +906,6 @@ TEST_F(MoqtMessageSpecificTest, LatestObject) {
   EXPECT_FALSE(message.start_group.has_value());
   EXPECT_FALSE(message.start_object.has_value());
   EXPECT_FALSE(message.end_group.has_value());
-  EXPECT_FALSE(message.end_object.has_value());
 }
 
 TEST_F(MoqtMessageSpecificTest, InvalidDeliveryOrder) {
@@ -947,39 +945,12 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteStart) {
   EXPECT_EQ(message.start_group.value(), 4);
   EXPECT_EQ(message.start_object.value(), 1);
   EXPECT_FALSE(message.end_group.has_value());
-  EXPECT_FALSE(message.end_object.has_value());
 }
 
-TEST_F(MoqtMessageSpecificTest, AbsoluteRangeExplicitEndObject) {
+TEST_F(MoqtMessageSpecificTest, AbsoluteRange) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x19, 0x01, 0x02,        // id and alias
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x20, 0x02,                    // priority = 0x20 descending
-      0x04,                          // filter_type = kAbsoluteStart
-      0x04,                          // start_group = 4
-      0x01,                          // start_object = 1
-      0x07,                          // end_group = 7
-      0x03,                          // end_object = 2
-      0x01,                          // 1 parameter
-      0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
-  };
-  parser.ProcessData(absl::string_view(subscribe, sizeof(subscribe)), false);
-  EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_FALSE(visitor_.parsing_error_.has_value());
-  MoqtSubscribe message =
-      std::get<MoqtSubscribe>(visitor_.last_message_.value());
-  EXPECT_EQ(message.start_group.value(), 4);
-  EXPECT_EQ(message.start_object.value(), 1);
-  EXPECT_EQ(message.end_group.value(), 7);
-  EXPECT_EQ(message.end_object.value(), 2);
-}
-
-TEST_F(MoqtMessageSpecificTest, AbsoluteRangeWholeEndGroup) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char subscribe[] = {
-      0x03, 0x19, 0x01, 0x02,        // id and alias
+      0x03, 0x18, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
@@ -987,7 +958,6 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeWholeEndGroup) {
       0x04,                          // start_group = 4
       0x01,                          // start_object = 1
       0x07,                          // end_group = 7
-      0x00,                          // end whole group
       0x01,                          // 1 parameter
       0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
   };
@@ -999,13 +969,12 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeWholeEndGroup) {
   EXPECT_EQ(message.start_group.value(), 4);
   EXPECT_EQ(message.start_object.value(), 1);
   EXPECT_EQ(message.end_group.value(), 7);
-  EXPECT_FALSE(message.end_object.has_value());
 }
 
 TEST_F(MoqtMessageSpecificTest, AbsoluteRangeEndGroupTooLow) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x19, 0x01, 0x02,        // id and alias
+      0x03, 0x18, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
@@ -1013,7 +982,6 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeEndGroupTooLow) {
       0x04,                          // start_group = 4
       0x01,                          // start_object = 1
       0x03,                          // end_group = 3
-      0x00,                          // end whole group
       0x01,                          // 1 parameter
       0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
   };
@@ -1026,7 +994,7 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeEndGroupTooLow) {
 TEST_F(MoqtMessageSpecificTest, AbsoluteRangeExactlyOneObject) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
-      0x03, 0x14, 0x01, 0x02,        // id and alias
+      0x03, 0x13, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20, 0x02,                    // priority = 0x20 descending
@@ -1034,7 +1002,6 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeExactlyOneObject) {
       0x04,                          // start_group = 4
       0x01,                          // start_object = 1
       0x04,                          // end_group = 4
-      0x02,                          // end object = 1
       0x00,                          // no parameters
   };
   parser.ProcessData(absl::string_view(subscribe, sizeof(subscribe)), false);
@@ -1044,9 +1011,9 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeExactlyOneObject) {
 TEST_F(MoqtMessageSpecificTest, SubscribeUpdateExactlyOneObject) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe_update[] = {
-      0x02, 0x07, 0x02, 0x03, 0x01, 0x04, 0x07,  // start and end sequences
-      0x20,                                      // priority
-      0x00,                                      // No parameters
+      0x02, 0x06, 0x02, 0x03, 0x01, 0x04,  // start and end sequences
+      0x20,                                // priority
+      0x00,                                // No parameters
   };
   parser.ProcessData(
       absl::string_view(subscribe_update, sizeof(subscribe_update)), false);
@@ -1056,65 +1023,16 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateExactlyOneObject) {
 TEST_F(MoqtMessageSpecificTest, SubscribeUpdateEndGroupTooLow) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe_update[] = {
-      0x02, 0x0c, 0x02, 0x03, 0x01, 0x03, 0x06,  // start and end sequences
-      0x20,                                      // priority
-      0x01,                                      // 1 parameter
-      0x02, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
+      0x02, 0x0b, 0x02, 0x03, 0x01, 0x03,  // start and end sequences
+      0x20,                                // priority
+      0x01,                                // 1 parameter
+      0x02, 0x03, 0x62, 0x61, 0x72,        // authorization_info = "bar"
   };
   parser.ProcessData(
       absl::string_view(subscribe_update, sizeof(subscribe_update)), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_TRUE(visitor_.parsing_error_.has_value());
   EXPECT_EQ(*visitor_.parsing_error_, "End group is less than start group");
-}
-
-TEST_F(MoqtMessageSpecificTest, AbsoluteRangeEndObjectTooLow) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char subscribe[] = {
-      0x03, 0x19, 0x01, 0x02,        // id and alias
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x20, 0x02,                    // priority = 0x20 descending
-      0x04,                          // filter_type = kAbsoluteRange
-      0x04,                          // start_group = 4
-      0x01,                          // start_object = 1
-      0x04,                          // end_group = 4
-      0x01,                          // end_object = 0
-      0x01,                          // 1 parameter
-      0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
-  };
-  parser.ProcessData(absl::string_view(subscribe, sizeof(subscribe)), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_, "End object comes before start object");
-}
-
-TEST_F(MoqtMessageSpecificTest, SubscribeUpdateEndObjectTooLow) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char subscribe_update[] = {
-      0x02, 0x07, 0x02, 0x03, 0x02, 0x04, 0x01,  // start and end sequences
-      0xf0, 0x00,                                // priority, no parameter
-  };
-  parser.ProcessData(
-      absl::string_view(subscribe_update, sizeof(subscribe_update)), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_, "End object comes before start object");
-}
-
-TEST_F(MoqtMessageSpecificTest, SubscribeUpdateNoEndGroup) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char subscribe_update[] = {
-      0x02, 0x07, 0x02, 0x03, 0x02, 0x00, 0x01,  // start and end sequences
-      0x20,                                      // priority
-      0x00,                                      // No parameter
-  };
-  parser.ProcessData(
-      absl::string_view(subscribe_update, sizeof(subscribe_update)), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_,
-            "SUBSCRIBE_UPDATE has end_object but no end_group");
 }
 
 TEST_F(MoqtMessageSpecificTest, ObjectAckNegativeDelta) {

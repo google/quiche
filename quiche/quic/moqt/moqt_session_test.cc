@@ -65,7 +65,6 @@ MoqtSubscribe DefaultSubscribe() {
       /*start_group=*/0,
       /*start_object=*/0,
       /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
   };
   return subscribe;
 }
@@ -392,7 +391,6 @@ TEST_F(MoqtSessionTest, TwoSubscribesForTrack) {
       /*start_group=*/11,
       /*start_object=*/0,
       /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
       /*parameters=*/MoqtSubscribeParameters(),
   };
   webtransport::test::MockStream mock_stream;
@@ -436,7 +434,6 @@ TEST_F(MoqtSessionTest, UnsubscribeAllowsSecondSubscribe) {
       /*start_group=*/11,
       /*start_object=*/0,
       /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
       /*parameters=*/MoqtSubscribeParameters(),
   };
   webtransport::test::MockStream mock_stream;
@@ -473,7 +470,6 @@ TEST_F(MoqtSessionTest, SubscribeIdTooHigh) {
       /*start_group=*/0,
       /*start_object=*/0,
       /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
       /*parameters=*/MoqtSubscribeParameters(),
   };
   webtransport::test::MockStream mock_stream;
@@ -631,7 +627,6 @@ TEST_F(MoqtSessionTest, GrantMoreSubscribes) {
       /*start_group=*/10,
       /*start_object=*/0,
       /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
       /*parameters=*/MoqtSubscribeParameters(),
   };
   FullTrackName ftn("foo", "bar");
@@ -2928,7 +2923,6 @@ TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {
       /*start_group=*/5,
       /*start_object=*/0,
       /*end_group=*/7,
-      /*end_object=*/3,
   };
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtParserVisitor> stream_input =

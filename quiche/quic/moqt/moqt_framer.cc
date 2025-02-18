@@ -450,8 +450,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
           WireDeliveryOrder(message.group_order), WireVarInt62(filter_type),
           WireVarInt62(*message.start_group),
           WireVarInt62(*message.start_object), WireVarInt62(*message.end_group),
-          WireVarInt62(message.end_object.has_value() ? *message.end_object + 1
-                                                      : 0),
           WireSubscribeParameterList(message.parameters));
     default:
       QUICHE_BUG(MoqtFramer_end_group_missing) << "Subscribe framing error.";
@@ -520,17 +518,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(
   }
   uint64_t end_group =
       message.end_group.has_value() ? *message.end_group + 1 : 0;
-  uint64_t end_object =
-      message.end_object.has_value() ? *message.end_object + 1 : 0;
-  if (end_group == 0 && end_object != 0) {
-    QUICHE_BUG(MoqtFramer_invalid_subscribe_update) << "Invalid object range";
-    return quiche::QuicheBuffer();
-  }
   return SerializeControlMessage(
       MoqtMessageType::kSubscribeUpdate, WireVarInt62(message.subscribe_id),
       WireVarInt62(message.start_group), WireVarInt62(message.start_object),
-      WireVarInt62(end_group), WireVarInt62(end_object),
-      WireUint8(message.subscriber_priority),
+      WireVarInt62(end_group), WireUint8(message.subscriber_priority),
       WireSubscribeParameterList(message.parameters));
 }
 

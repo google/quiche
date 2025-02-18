@@ -297,7 +297,7 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     std::string name =
         absl::StrCat("pref_", static_cast<int>(forwarding_preference));
     auto queue = std::make_shared<MoqtOutgoingQueue>(
-        FullTrackName{"test", name}, MoqtForwardingPreference::kSubgroup);
+        FullTrackName{"test", name}, forwarding_preference);
     publisher.Add(queue);
     queue->AddObject(MemSliceFromString("object 1"), /*key=*/true);
     queue->AddObject(MemSliceFromString("object 2"), /*key=*/false);

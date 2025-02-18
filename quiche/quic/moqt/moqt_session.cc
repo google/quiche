@@ -82,7 +82,7 @@ SubscribeWindow SubscribeMessageToWindow(const MoqtSubscribe& subscribe,
       return SubscribeWindow(*subscribe.start_group, *subscribe.start_object);
     case MoqtFilterType::kAbsoluteRange:
       return SubscribeWindow(*subscribe.start_group, *subscribe.start_object,
-                             *subscribe.end_group, *subscribe.end_object);
+                             *subscribe.end_group, UINT64_MAX);
     case MoqtFilterType::kNone:
       QUICHE_BUG(MoqtSession_Subscription_invalid_filter_passed);
       return SubscribeWindow(0, 0);
@@ -347,7 +347,6 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
   message.start_group = start_group;
   message.start_object = start_object;
   message.end_group = std::nullopt;
-  message.end_object = std::nullopt;
   message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
 }
@@ -368,32 +367,6 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
   message.start_group = start_group;
   message.start_object = start_object;
   message.end_group = end_group;
-  message.end_object = std::nullopt;
-  message.parameters = std::move(parameters);
-  return Subscribe(message, visitor);
-}
-
-bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
-                                    uint64_t start_group, uint64_t start_object,
-                                    uint64_t end_group, uint64_t end_object,
-                                    SubscribeRemoteTrack::Visitor* visitor,
-                                    MoqtSubscribeParameters parameters) {
-  if (end_group < start_group) {
-    QUIC_DLOG(ERROR) << "Subscription end is before beginning";
-    return false;
-  }
-  if (end_group == start_group && end_object < start_object) {
-    QUIC_DLOG(ERROR) << "Subscription end is before beginning";
-    return false;
-  }
-  MoqtSubscribe message;
-  message.full_track_name = name;
-  message.subscriber_priority = kDefaultSubscriberPriority;
-  message.group_order = std::nullopt;
-  message.start_group = start_group;
-  message.start_object = start_object;
-  message.end_group = end_group;
-  message.end_object = end_object;
   message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
 }
@@ -408,7 +381,6 @@ bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
   message.start_group = std::nullopt;
   message.start_object = std::nullopt;
   message.end_group = std::nullopt;
-  message.end_object = std::nullopt;
   message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
 }
@@ -424,7 +396,6 @@ bool MoqtSession::SubscribeCurrentGroup(const FullTrackName& name,
   message.start_group = std::nullopt;
   message.start_object = 0;
   message.end_group = std::nullopt;
-  message.end_object = std::nullopt;
   message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
 }
@@ -1092,9 +1063,7 @@ void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
   FullSequence start(message.start_group, message.start_object);
   std::optional<FullSequence> end;
   if (message.end_group.has_value()) {
-    end = FullSequence(*message.end_group, message.end_object.has_value()
-                                               ? *message.end_object
-                                               : UINT64_MAX);
+    end = FullSequence(*message.end_group, UINT64_MAX);
   }
   it->second->Update(start, end, message.subscriber_priority);
   if (message.parameters.delivery_timeout.has_value()) {

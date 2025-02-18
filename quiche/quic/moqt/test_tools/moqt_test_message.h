@@ -473,10 +473,6 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE end group mismatch";
       return false;
     }
-    if (cast.end_object != subscribe_.end_object) {
-      QUIC_LOG(INFO) << "SUBSCRIBE end object mismatch";
-      return false;
-    }
     if (cast.parameters != subscribe_.parameters) {
       QUIC_LOG(INFO) << "SUBSCRIBE parameter mismatch";
       return false;
@@ -518,7 +514,6 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       /*start_group=*/4,
       /*start_object=*/1,
       /*end_group=*/std::nullopt,
-      /*end_object=*/std::nullopt,
       /*parameters=*/
       MoqtSubscribeParameters{
           "bar", quic::QuicTimeDelta::FromMilliseconds(10000),
@@ -753,10 +748,6 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE end group mismatch";
       return false;
     }
-    if (cast.end_object != subscribe_update_.end_object) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE end group mismatch";
-      return false;
-    }
     if (cast.subscriber_priority != subscribe_update_.subscriber_priority) {
       QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE subscriber priority mismatch";
       return false;
@@ -768,19 +759,19 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvv-vvv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvv-vvv---"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_update_);
   }
 
  private:
-  uint8_t raw_packet_[17] = {
-      0x02, 0x0f, 0x02, 0x03, 0x01, 0x05, 0x06,  // start and end sequences
-      0xaa,                                      // subscriber_priority
-      0x02,                                      // 1 parameter
-      0x03, 0x02, 0x67, 0x10,                    // delivery_timeout = 10000
-      0x04, 0x02, 0x67, 0x10,                    // max_cache_duration = 10000
+  uint8_t raw_packet_[16] = {
+      0x02, 0x0e, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
+      0xaa,                                // subscriber_priority
+      0x02,                                // 2 parameters
+      0x03, 0x02, 0x67, 0x10,              // delivery_timeout = 10000
+      0x04, 0x02, 0x67, 0x10,              // max_cache_duration = 10000
   };
 
   MoqtSubscribeUpdate subscribe_update_ = {
@@ -788,7 +779,6 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
       /*start_group=*/3,
       /*start_object=*/1,
       /*end_group=*/4,
-      /*end_object=*/5,
       /*subscriber_priority=*/0xaa,
       /*parameters=*/
       MoqtSubscribeParameters{

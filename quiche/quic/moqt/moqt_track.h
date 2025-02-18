@@ -113,7 +113,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
                     SubscribeWindow(subscribe.start_group.value_or(0),
                                     subscribe.start_object.value_or(0),
                                     subscribe.end_group.value_or(UINT64_MAX),
-                                    subscribe.end_object.value_or(UINT64_MAX))),
+                                    UINT64_MAX)),
         track_alias_(subscribe.track_alias),
         visitor_(visitor),
         subscribe_(std::make_unique<MoqtSubscribe>(subscribe)) {}
