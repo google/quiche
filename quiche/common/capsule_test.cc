@@ -15,6 +15,7 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_ip_address.h"
+#include "quiche/common/quiche_socket_address.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/web_transport.h"
@@ -56,6 +57,10 @@ class CapsuleTest : public QuicheTest {
     EXPECT_CALL(visitor_, OnCapsuleParseFailure(_)).Times(0);
     capsule_parser_.ErrorIfThereIsRemainingBufferedData();
     EXPECT_TRUE(CapsuleParserPeer::buffered_data(&capsule_parser_)->empty());
+  }
+
+  void ValidateParserHasData() {
+    EXPECT_FALSE(CapsuleParserPeer::buffered_data(&capsule_parser_)->empty());
   }
 
   void TestSerialization(const Capsule& capsule,
@@ -283,6 +288,105 @@ TEST_F(CapsuleTest, RouteAdvertisementCapsule) {
   ip_address_range2.ip_protocol = 1;
   expected_capsule.route_advertisement_capsule().ip_address_ranges.push_back(
       ip_address_range2);
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
+TEST_F(CapsuleTest, CompressionAssignCapsulev4) {
+  std::string capsule_fragment;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("9C0FE323"  // COMPRESSION_ASSIGN capsule type
+                             "08"        // capsule length = 8
+                             "01"        // context ID = 1
+                             "04"        // IP version = 4
+                             "C000022A"  // 192.0.2.42
+                             "00BB",     // port = 187
+                             &capsule_fragment));
+  Capsule expected_capsule = Capsule::CompressionAssign();
+  expected_capsule.compression_assign_capsule().context_id = 1;
+  quiche::QuicheIpAddress ip_address;
+  ip_address.FromString("192.0.2.42");
+  expected_capsule.compression_assign_capsule().ip_address_port =
+      QuicheSocketAddress(ip_address, 187);
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
+TEST_F(CapsuleTest, CompressionAssignCapsulev6) {
+  std::string capsule_fragment;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("9C0FE323"  // COMPRESSION_ASSIGN capsule type
+                             "15"        // capsule length = 21
+                             "41F4"      // context ID = 500
+                             "06"        // IP version = 6
+                             "4836b0c03318c528a5b6c8910d78fc1a"
+                             "88CC",  // port = 35020
+                             &capsule_fragment));
+  Capsule expected_capsule = Capsule::CompressionAssign();
+  expected_capsule.compression_assign_capsule().context_id = 500;
+  quiche::QuicheIpAddress ip_address;
+  ip_address.FromString("4836:b0c0:3318:c528:a5b6:c891:0d78:fc1a");
+  expected_capsule.compression_assign_capsule().ip_address_port =
+      QuicheSocketAddress(ip_address, 35020);
+  {
+    EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
+    ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+  ValidateParserIsEmpty();
+  TestSerialization(expected_capsule, capsule_fragment);
+}
+
+TEST_F(CapsuleTest, CompressionAssignTestInvalidCapsule) {
+  std::string capsule_fragment;
+
+  // Test invalid IP version
+  ASSERT_TRUE(
+      absl::HexStringToBytes("9C0FE323"  // COMPRESSION_ASSIGN capsule type
+                             "15"        // capsule length = 21
+                             "41F4"      // context ID = 500
+                             "09"        // IP version = 9
+                             "4836b0c03318c528a5b6c8910d78fc1a"
+                             "88CC",  // port = 35020
+                             &capsule_fragment));
+  {
+    EXPECT_CALL(visitor_,
+                OnCapsuleParseFailure("Bad compression assign address family"));
+    ASSERT_FALSE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+
+  // Test extra bytes in capsule
+  ASSERT_TRUE(
+      absl::HexStringToBytes("9C0FE323"  // COMPRESSION_ASSIGN capsule type
+                             "16"        // capsule length = 22
+                             "41F4"      // context ID = 500
+                             "06"        // IP version = 6
+                             "4836b0c03318c528a5b6c8910d78fc1a"
+                             "88CC"  // port = 35020
+                             "3D"    // extra byte
+                             ,
+                             &capsule_fragment));
+  {
+    ASSERT_FALSE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));
+  }
+}
+
+TEST_F(CapsuleTest, CompressionCloseCapsule) {
+  std::string capsule_fragment;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("9C0FE324"  // COMPRESSION_CLOSE capsule type
+                             "01"        // capsule length = 1
+                             "03",       // context ID = 3
+                             &capsule_fragment));
+  Capsule expected_capsule = Capsule::CompressionClose();
+  expected_capsule.compression_close_capsule().context_id = 3;
   {
     EXPECT_CALL(visitor_, OnCapsule(expected_capsule));
     ASSERT_TRUE(capsule_parser_.IngestCapsuleFragment(capsule_fragment));

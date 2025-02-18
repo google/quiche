@@ -32,6 +32,7 @@
 #include "quiche/quic/core/quic_write_blocked_list.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
 #include "quiche/quic/test_tools/quic_config_peer.h"
@@ -3549,6 +3550,8 @@ TEST_P(QuicSpdyStreamTest, Capsules) {
   stream_->RegisterHttp3DatagramVisitor(&h3_datagram_visitor);
   SavingConnectIpVisitor connect_ip_visitor;
   stream_->RegisterConnectIpVisitor(&connect_ip_visitor);
+  SavingConnectUdpBindVisitor connect_udp_bind_visitor;
+  stream_->RegisterConnectUdpBindVisitor(&connect_udp_bind_visitor);
   headers_[":method"] = "CONNECT";
   headers_[":protocol"] = "fake-capsule-protocol";
   ProcessHeaders(/*fin=*/false, headers_);
@@ -3590,6 +3593,22 @@ TEST_P(QuicSpdyStreamTest, Capsules) {
   EXPECT_THAT(
       connect_ip_visitor.received_route_advertisement_capsules(),
       ElementsAre(route_advertisement_capsule.route_advertisement_capsule()));
+  // Compression assign capsule.
+  Capsule compression_assign_capsule = Capsule::CompressionAssign();
+  compression_assign_capsule.compression_assign_capsule().context_id = 100;
+  compression_assign_capsule.compression_assign_capsule().ip_address_port =
+      QuicSocketAddress(QuicIpAddress::Loopback4(), 80);
+  stream_->OnCapsule(compression_assign_capsule);
+  EXPECT_THAT(
+      connect_udp_bind_visitor.received_compression_assign_capsules(),
+      ElementsAre(compression_assign_capsule.compression_assign_capsule()));
+  // Compression close capsule.
+  Capsule compression_close_capsule = Capsule::CompressionClose();
+  compression_close_capsule.compression_close_capsule().context_id = 100;
+  stream_->OnCapsule(compression_close_capsule);
+  EXPECT_THAT(
+      connect_udp_bind_visitor.received_compression_close_capsules(),
+      ElementsAre(compression_close_capsule.compression_close_capsule()));
   // Unknown capsule.
   uint64_t capsule_type = 0x17u;
   std::string capsule_payload = {1, 2, 3, 4};
@@ -3601,6 +3620,7 @@ TEST_P(QuicSpdyStreamTest, Capsules) {
   // Cleanup.
   stream_->UnregisterHttp3DatagramVisitor();
   stream_->UnregisterConnectIpVisitor();
+  stream_->UnregisterConnectUdpBindVisitor();
 }
 
 TEST_P(QuicSpdyStreamTest,

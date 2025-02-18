@@ -110,6 +110,15 @@ class QUICHE_EXPORT QuicSpdyStream
     virtual void OnHeadersWritten() = 0;
   };
 
+  class QUICHE_EXPORT ConnectUdpBindVisitor {
+   public:
+    virtual ~ConnectUdpBindVisitor() {}
+    virtual bool OnCompressionAssignCapsule(
+        const quiche::CompressionAssignCapsule& capsule) = 0;
+    virtual bool OnCompressionCloseCapsule(
+        const quiche::CompressionCloseCapsule& capsule) = 0;
+  };
+
   QuicSpdyStream(QuicStreamId id, QuicSpdySession* spdy_session,
                  StreamType type);
   QuicSpdyStream(PendingStream* pending, QuicSpdySession* spdy_session);
@@ -305,6 +314,18 @@ class QUICHE_EXPORT QuicSpdyStream
   // Unregisters an HTTP/3 datagram visitor. Must only be called after a call to
   // RegisterHttp3DatagramVisitor.
   void UnregisterHttp3DatagramVisitor();
+
+  // Registers |visitor| to receive CONNECT-UDP-BIND capsules. |visitor| must be
+  // valid until a corresponding call to UnregisterConnectUdpBindVisitor.
+  void RegisterConnectUdpBindVisitor(ConnectUdpBindVisitor* visitor);
+
+  // Unregisters a CONNECT-UDP-BIND visitor. Must only be called after a call to
+  // RegisterConnectUdpBindVisitor.
+  void UnregisterConnectUdpBindVisitor();
+
+  // Replaces the current CONNECT-UDP-BIND visitor with a different visitor.
+  // Mainly meant to be used by the visitors' move operators.
+  void ReplaceConnectUdpBindVisitor(ConnectUdpBindVisitor* visitor);
 
   // Replaces the current HTTP/3 datagram visitor with a different visitor.
   // Mainly meant to be used by the visitors' move operators.
@@ -542,6 +563,8 @@ class QUICHE_EXPORT QuicSpdyStream
   Http3DatagramVisitor* datagram_visitor_ = nullptr;
   // CONNECT-IP support.
   ConnectIpVisitor* connect_ip_visitor_ = nullptr;
+  // CONNECT-UDP-BIND support.
+  ConnectUdpBindVisitor* connect_udp_bind_visitor_ = nullptr;
 
   // Present if HTTP/3 METADATA frames should be parsed.
   MetadataVisitor* metadata_visitor_ = nullptr;

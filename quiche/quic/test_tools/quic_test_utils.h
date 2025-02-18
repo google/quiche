@@ -2231,6 +2231,37 @@ class SavingConnectIpVisitor : public QuicSpdyStream::ConnectIpVisitor {
   bool headers_written_ = false;
 };
 
+class SavingConnectUdpBindVisitor
+    : public QuicSpdyStream::ConnectUdpBindVisitor {
+ public:
+  const std::vector<quiche::CompressionAssignCapsule>&
+  received_compression_assign_capsules() const {
+    return received_compression_assign_capsules_;
+  }
+  const std::vector<quiche::CompressionCloseCapsule>&
+  received_compression_close_capsules() const {
+    return received_compression_close_capsules_;
+  }
+
+  bool OnCompressionAssignCapsule(
+      const quiche::CompressionAssignCapsule& capsule) override {
+    received_compression_assign_capsules_.push_back(capsule);
+    return true;
+  }
+
+  bool OnCompressionCloseCapsule(
+      const quiche::CompressionCloseCapsule& capsule) override {
+    received_compression_close_capsules_.push_back(capsule);
+    return true;
+  }
+
+ private:
+  std::vector<quiche::CompressionAssignCapsule>
+      received_compression_assign_capsules_;
+  std::vector<quiche::CompressionCloseCapsule>
+      received_compression_close_capsules_;
+};
+
 inline std::string EscapeTestParamName(absl::string_view name) {
   std::string result(name);
   // Escape all characters that are not allowed by gtest ([a-zA-Z0-9_]).
