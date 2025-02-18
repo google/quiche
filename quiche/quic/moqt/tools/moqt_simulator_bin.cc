@@ -22,6 +22,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "quiche/quic/core/crypto/quic_random.h"
@@ -111,6 +112,13 @@ struct SimulationParameters {
 std::string FormatPercentage(size_t n, size_t total) {
   float percentage = 100.0f * n / total;
   return absl::StrFormat("%d / %d (%.2f%%)", n, total, percentage);
+}
+
+using OutputField = std::pair<absl::string_view, std::string>;
+
+OutputField OutputFraction(absl::string_view key, size_t n, size_t total) {
+  float fraction = static_cast<float>(n) / total;
+  return OutputField(key, absl::StrCat(fraction));
 }
 
 // Generates test objects at a constant rate.  The first eight bytes of every
@@ -381,14 +389,16 @@ class MoqtSimulator {
 
     // At the end, we wait for eight RTTs until the connection settles down.
     generator_.Stop();
-    absl::Duration wait_at_the_end =
+    wait_at_the_end_ =
         8 * client_endpoint_.quic_session()->GetSessionStats().smoothed_rtt;
-    simulator_.RunFor(QuicTimeDelta(wait_at_the_end));
-    const QuicTimeDelta total_time =
-        parameters_.duration + QuicTimeDelta(wait_at_the_end);
+    simulator_.RunFor(QuicTimeDelta(wait_at_the_end_));
+  }
 
+  void HumanReadableOutput() {
+    const QuicTimeDelta total_time =
+        parameters_.duration + QuicTimeDelta(wait_at_the_end_);
     absl::PrintF("Ran simulation for %v + %.1fms\n", parameters_.duration,
-                 absl::ToDoubleMilliseconds(wait_at_the_end));
+                 absl::ToDoubleMilliseconds(wait_at_the_end_));
     absl::PrintF("Congestion control used: %s\n",
                  GetClientSessionCongestionControl());
 
@@ -413,6 +423,22 @@ class MoqtSimulator {
     absl::PrintF("Bitrates: %s\n", generator_.FormatBitrateHistory());
   }
 
+  void CustomOutput(absl::string_view format) {
+    size_t total_sent = generator_.total_objects_sent();
+    std::vector<OutputField> fields;
+    fields.push_back(OutputFraction("{on_time_fraction}",
+                                    receiver_.full_objects_received_on_time(),
+                                    total_sent));
+    fields.push_back(OutputFraction(
+        "{late_fraction}", receiver_.full_objects_received_late(), total_sent));
+    size_t missing_objects =
+        generator_.total_objects_sent() - receiver_.full_objects_received();
+    fields.push_back(
+        OutputFraction("{missing_fraction}", missing_objects, total_sent));
+    std::string output = absl::StrReplaceAll(format, fields);
+    std::cout << output << std::endl;
+  }
+
  private:
   Simulator simulator_;
   MoqtClientEndpoint client_endpoint_;
@@ -428,6 +454,7 @@ class MoqtSimulator {
 
   bool client_established_ = false;
   bool server_established_ = false;
+  absl::Duration wait_at_the_end_;
 };
 
 }  // namespace
@@ -463,6 +490,17 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(absl::Duration, delivery_timeout,
 DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, alternative_timeout, false,
                                 "Use alternative delivery timeout design.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, output_format, "",
+    R"(If non-empty, instead of the usual human-readable format,
+the tool will output the raw numbers from the simulation, formatted as
+descrbied by the parameter.
+
+Supported format keys:
+* {on_time_fraction} -- fraction of objects that arrived on time
+* {late_fraction} -- fraction of objects that arrived late
+* {missing_fraction} -- fraction of objects that never arrived)");
+
 int main(int argc, char** argv) {
   moqt::test::SimulationParameters parameters;
   quiche::QuicheParseCommandLineFlags("moqt_simulator", argc, argv);
@@ -492,5 +530,13 @@ int main(int argc, char** argv) {
 
   moqt::test::MoqtSimulator simulator(parameters);
   simulator.Run();
+
+  std::string output_format =
+      quiche::GetQuicheCommandLineFlag(FLAGS_output_format);
+  if (output_format.empty()) {
+    simulator.HumanReadableOutput();
+  } else {
+    simulator.CustomOutput(output_format);
+  }
   return 0;
 }
