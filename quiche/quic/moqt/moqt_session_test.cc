@@ -2864,6 +2864,14 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
       +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, FullSequence(0, 0),
       5, std::nullopt, 127, std::nullopt));
   session_.GoAway("");
+  // GoAway timer fires.
+  auto* goaway_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
+      MoqtSessionPeer::GetGoAwayTimeoutAlarm(&session_));
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<webtransport::SessionErrorCode>(
+                               MoqtError::kGoawayTimeout),
+                           _));
+  goaway_alarm->Fire();
 }
 
 TEST_F(MoqtSessionTest, ClientCannotSendNewSessionUri) {

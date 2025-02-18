@@ -225,6 +225,10 @@ class MoqtSessionPeer {
         ->delivery_timeout_alarm_.get();
   }
 
+  static quic::QuicAlarm* GetGoAwayTimeoutAlarm(MoqtSession* session) {
+    return session->goaway_timeout_alarm_.get();
+  }
+
   static quic::QuicTimeDelta GetDeliveryTimeout(
       MoqtObjectListener* subscription) {
     return static_cast<MoqtSession::PublishedSubscription*>(subscription)

@@ -129,7 +129,12 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   MoqtSession(webtransport::Session* session, MoqtSessionParameters parameters,
               std::unique_ptr<quic::QuicAlarmFactory> alarm_factory,
               MoqtSessionCallbacks callbacks = MoqtSessionCallbacks());
-  ~MoqtSession() { std::move(callbacks_.session_deleted_callback)(); }
+  ~MoqtSession() {
+    if (goaway_timeout_alarm_ != nullptr) {
+      goaway_timeout_alarm_->PermanentCancel();
+    }
+    std::move(callbacks_.session_deleted_callback)();
+  }
 
   // webtransport::SessionVisitor implementation.
   void OnSessionReady() override;
@@ -610,6 +615,15 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     std::optional<webtransport::StreamId> stream_id_;
   };
 
+  class GoAwayTimeoutDelegate : public quic::QuicAlarm::DelegateWithoutContext {
+   public:
+    explicit GoAwayTimeoutDelegate(MoqtSession* session) : session_(session) {}
+    void OnAlarm() override;
+
+   private:
+    MoqtSession* session_;
+  };
+
   // Private members of MoqtSession.
 
   // Returns true if SUBSCRIBE_DONE was sent.
@@ -748,6 +762,9 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   uint64_t local_max_subscribe_id_ = 0;
 
   std::unique_ptr<quic::QuicAlarmFactory> alarm_factory_;
+  // Kill the session if the peer doesn't promptly close out the session after
+  // a GOAWAY.
+  std::unique_ptr<quic::QuicAlarm> goaway_timeout_alarm_;
 
   // If true, use a non-standard design where a timer starts for group n when
   // the first object of group n+1 arrives.

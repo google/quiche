@@ -55,6 +55,8 @@ namespace {
 using ::quic::Perspective;
 
 constexpr MoqtPriority kDefaultSubscriberPriority = 0x80;
+constexpr quic::QuicTimeDelta kDefaultGoAwayTimeout =
+    quic::QuicTime::Delta::FromSeconds(10);
 
 // WebTransport lets applications split a session into multiple send groups
 // that have equal weight for scheduling. We don't have a use for that, so the
@@ -490,6 +492,10 @@ void MoqtSession::GoAway(absl::string_view new_session_uri) {
   message.new_session_uri = std::string(new_session_uri);
   SendControlMessage(framer_.SerializeGoAway(message));
   sent_goaway_ = true;
+  goaway_timeout_alarm_ = absl::WrapUnique(
+      alarm_factory_->CreateAlarm(new GoAwayTimeoutDelegate(this)));
+  goaway_timeout_alarm_->Set(callbacks_.clock->ApproximateNow() +
+                             kDefaultGoAwayTimeout);
 }
 
 void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
@@ -530,6 +536,11 @@ void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
         return;
     }
   }
+}
+
+void MoqtSession::GoAwayTimeoutDelegate::OnAlarm() {
+  session_->Error(MoqtError::kGoawayTimeout,
+                  "Peer did not close session after GOAWAY");
 }
 
 bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
