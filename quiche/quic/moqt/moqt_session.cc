@@ -267,6 +267,8 @@ bool MoqtSession::SubscribeAnnounces(
   }
   MoqtSubscribeAnnounces message;
   message.track_namespace = track_namespace;
+  // Cannot contain a delivery timeout.
+  parameters.delivery_timeout = std::nullopt;
   message.parameters = std::move(parameters);
   SendControlMessage(framer_.SerializeSubscribeAnnounces(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_ANNOUNCES message for "
@@ -460,6 +462,8 @@ bool MoqtSession::Fetch(const FullTrackName& name,
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH after GOAWAY";
     return false;
   }
+  // Cannot have a delivery timeout.
+  parameters.delivery_timeout = std::nullopt;
   MoqtFetch message;
   message.full_track_name = name;
   message.subscribe_id = next_subscribe_id_++;
@@ -628,6 +632,11 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
         << "Attempting to set object_ack_window on a connection that does not "
            "support it.";
     message.parameters.object_ack_window = std::nullopt;
+  }
+  if (message.parameters.delivery_timeout.has_value() &&
+      message.parameters.delivery_timeout->IsInfinite()) {
+    // Cannot encode an infinite delivery timeout.
+    message.parameters.delivery_timeout = std::nullopt;
   }
   SendControlMessage(framer_.SerializeSubscribe(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE message for "
