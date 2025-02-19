@@ -1916,12 +1916,8 @@ bool QuicSpdyStream::AreHeaderFieldValuesValid(
 
 void QuicSpdyStream::StopReading() {
   QuicStream::StopReading();
-  if (GetQuicReloadableFlag(
-          quic_stop_reading_also_stops_header_decompression) &&
-      VersionUsesHttp3(transport_version()) && !fin_received() &&
+  if (VersionUsesHttp3(transport_version()) && !fin_received() &&
       spdy_session_->qpack_decoder()) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_stop_reading_also_stops_header_decompression);
     // Clean up Qpack decoding states.
     spdy_session_->qpack_decoder()->OnStreamReset(id());
     qpack_decoded_headers_accumulator_.reset();

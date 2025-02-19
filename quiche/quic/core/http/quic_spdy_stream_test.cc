@@ -2500,24 +2500,15 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecodingAndStopReading) {
 
   // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream_->headers_decompressed());
+  EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _)).Times(0);
 
-  if (GetQuicReloadableFlag(
-          quic_stop_reading_also_stops_header_decompression)) {
-    EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _)).Times(0);
-  }
   // Stop reading from now on. Any buffered compressed headers shouldn't be
   // decompressed and delivered up.
   stream_->StopReading();
 
-  if (!GetQuicReloadableFlag(
-          quic_stop_reading_also_stops_header_decompression)) {
-    EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _));
-  }
   // Deliver dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
-  EXPECT_NE(
-      GetQuicReloadableFlag(quic_stop_reading_also_stops_header_decompression),
-      stream_->headers_decompressed());
+  EXPECT_FALSE(stream_->headers_decompressed());
 }
 
 TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
