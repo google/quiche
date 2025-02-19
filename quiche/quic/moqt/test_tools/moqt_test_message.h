@@ -10,6 +10,7 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -180,6 +181,21 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "OBJECT Publisher Priority mismatch";
       return false;
     }
+    if (cast.extension_headers.size() != object_.extension_headers.size()) {
+      QUIC_LOG(INFO) << "OBJECT Extension Header size mismatch";
+      return false;
+    }
+    for (size_t i = 0; i < cast.extension_headers.size(); ++i) {
+      if (cast.extension_headers[i].type != object_.extension_headers[i].type) {
+        QUIC_LOG(INFO) << "OBJECT Extension Header type mismatch";
+        return false;
+      }
+      if (cast.extension_headers[i].value !=
+          object_.extension_headers[i].value) {
+        QUIC_LOG(INFO) << "OBJECT Extension Header value mismatch";
+        return false;
+      }
+    }
     if (cast.object_status != object_.object_status) {
       QUIC_LOG(INFO) << "OBJECT Object Status mismatch";
       return false;
@@ -205,6 +221,10 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       /*group_id*/ 5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
+      std::vector<MoqtExtensionHeader>(
+          {MoqtExtensionHeader(0, absl::variant<uint64_t, std::string>(12ULL)),
+           MoqtExtensionHeader(1,
+                               absl::variant<uint64_t, std::string>("foo"))}),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/3,
@@ -217,17 +237,38 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv-v---", false); }
+  void ExpandVarints() override {
+    ExpandVarintsImpl("vvvv-vvvvv---v---", false);
+  }
 
  private:
-  uint8_t raw_packet_[9] = {
+  uint8_t raw_packet_[17] = {
       0x01, 0x04, 0x05, 0x06,  // varints
-      0x07,                    // publisher priority
-      0x03, 0x66, 0x6f, 0x6f,  // payload = "foo"
+      0x07, 0x02,              // publisher priority, no extensions
+      0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // extensions
+      0x03, 0x66, 0x6f, 0x6f,                    // payload = "foo"
   };
 };
 
-// Concatentation of the base header and the object-specific header. Follow-on
+class QUICHE_NO_EXPORT ObjectStatusDatagramMessage : public ObjectMessage {
+ public:
+  ObjectStatusDatagramMessage() : ObjectMessage() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+    object_.object_status = MoqtObjectStatus::kEndOfGroup;
+    object_.payload_length = 0;
+    object_.extension_headers.clear();
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv-v", false); }
+
+ private:
+  uint8_t raw_packet_[6] = {
+      0x02, 0x04, 0x05, 0x06,  // varints
+      0x07, 0x03,              // publisher priority, kEndOfGroup
+  };
+};
+
+// Concatenation of the base header and the object-specific header. Follow-on
 // object headers are handled in a different class.
 class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
  public:
@@ -236,7 +277,7 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
     object_.subgroup_id = 8;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv-vv", false); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv-vvvvvv---v", false); }
 
   bool SetPayloadLength(uint8_t payload_length) {
     if (payload_length > 63) {
@@ -244,17 +285,19 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
       return false;
     }
     object_.payload_length = payload_length;
-    raw_packet_[6] = payload_length;
+    raw_packet_[14] = payload_length;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     return true;
   }
 
  private:
-  uint8_t raw_packet_[10] = {
-      0x04,                          // type field
-      0x04, 0x05, 0x08,              // varints
-      0x07,                          // publisher priority
-      0x06, 0x03, 0x66, 0x6f, 0x6f,  // object middler; payload = "foo"
+  uint8_t raw_packet_[18] = {
+      0x04,                                      // type field
+      0x04, 0x05, 0x08,                          // varints
+      0x07,                                      // publisher priority
+      0x06, 0x02,                                // object ID, 2 extensions
+      0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // extensions
+      0x03, 0x66, 0x6f, 0x6f,                    // payload = "foo"
   };
 };
 
@@ -267,11 +310,13 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
     object_.object_id = 9;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vv", false); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvv---v", false); }
 
  private:
-  uint8_t raw_packet_[5] = {
-      0x09, 0x03, 0x62, 0x61, 0x72,  // object middler; payload = "bar"
+  uint8_t raw_packet_[13] = {
+      0x09, 0x02,                                // object ID; 2 extensions
+      0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // extensions
+      0x03, 0x62, 0x61, 0x72,                    // payload = "bar"
   };
 };
 
@@ -282,7 +327,9 @@ class QUICHE_NO_EXPORT StreamHeaderFetchMessage : public ObjectMessage {
     object_.subgroup_id = 8;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvv-v---", false); }
+  void ExpandVarints() override {
+    ExpandVarintsImpl("vvvvv-vvvvv---v---", false);
+  }
 
   bool SetPayloadLength(uint8_t payload_length) {
     if (payload_length > 63) {
@@ -290,19 +337,20 @@ class QUICHE_NO_EXPORT StreamHeaderFetchMessage : public ObjectMessage {
       return false;
     }
     object_.payload_length = payload_length;
-    raw_packet_[6] = payload_length;
+    raw_packet_[14] = payload_length;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     return true;
   }
 
  private:
-  uint8_t raw_packet_[10] = {
-      0x05,                    // type field
-      0x04,                    // subscribe ID
-                               // object middler:
-      0x05, 0x08, 0x06,        // sequence
-      0x07,                    // publisher priority
-      0x03, 0x66, 0x6f, 0x6f,  // payload = "foo"
+  uint8_t raw_packet_[18] = {
+      0x05,              // type field
+      0x04,              // subscribe ID
+                         // object middler:
+      0x05, 0x08, 0x06,  // sequence
+      0x07, 0x02,        // publisher priority, 2 extensions
+      0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // extensions
+      0x03, 0x66, 0x6f, 0x6f,                    // payload = "foo"
   };
 };
 
@@ -315,12 +363,13 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
     object_.object_id = 9;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv-v---", false); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv-vv---", false); }
 
  private:
-  uint8_t raw_packet_[8] = {
-      0x05, 0x08, 0x09, 0x07,  // Object metadata
-      0x03, 0x62, 0x61, 0x72,  // Payload = "bar"
+  uint8_t raw_packet_[16] = {
+      0x05, 0x08, 0x09, 0x07, 0x02,              // Object metadata
+      0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // extensions
+      0x03, 0x62, 0x61, 0x72,                    // Payload = "bar"
   };
 };
 
@@ -1626,8 +1675,6 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
 static inline std::unique_ptr<TestMessageBase> CreateTestDataStream(
     MoqtDataStreamType type) {
   switch (type) {
-    case MoqtDataStreamType::kObjectDatagram:
-      return std::make_unique<ObjectDatagramMessage>();
     case MoqtDataStreamType::kStreamHeaderSubgroup:
       return std::make_unique<StreamHeaderSubgroupMessage>();
     case MoqtDataStreamType::kStreamHeaderFetch:

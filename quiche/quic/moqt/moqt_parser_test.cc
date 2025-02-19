@@ -482,7 +482,7 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObjectFirstIncomplete) {
   EXPECT_EQ(visitor_.messages_received_, 0);
 
   // second part. Add padding to it.
-  message->set_wire_image_size(55);
+  message->set_wire_image_size(63);
   stream.Receive(
       message->PacketSample().substr(4, message->total_message_size() - 4),
       false);
@@ -490,7 +490,7 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObjectFirstIncomplete) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
   EXPECT_FALSE(visitor_.end_of_message_);
-  // The value "48" is the overall wire image size of 55 minus the non-payload
+  // The value "48" is the overall wire image size of 63 minus the non-payload
   // part of the message.
   EXPECT_EQ(visitor_.object_payload().length(), 48);
 
@@ -820,10 +820,10 @@ TEST_F(MoqtMessageSpecificTest, InvalidObjectStatus) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtDataParser parser(&stream, &visitor_);
   char stream_header_subgroup[] = {
-      0x04,              // type field
-      0x04, 0x05, 0x08,  // varints
-      0x07,              // publisher priority
-      0x06, 0x00, 0x0f,  // object middler; status = 0x0f
+      0x04,                    // type field
+      0x04, 0x05, 0x08,        // varints
+      0x07,                    // publisher priority
+      0x06, 0x00, 0x00, 0x0f,  // object middler; status = 0x0f
   };
   stream.Receive(
       absl::string_view(stream_header_subgroup, sizeof(stream_header_subgroup)),
@@ -1097,6 +1097,18 @@ TEST_F(MoqtMessageSpecificTest, DatagramSuccessful) {
       TestMessageBase::MessageStructuredData(object);
   EXPECT_TRUE(message.EqualFieldValues(object_metadata));
   EXPECT_EQ(payload, "foo");
+}
+
+TEST_F(MoqtMessageSpecificTest, DatagramStatusSuccessful) {
+  ObjectStatusDatagramMessage message;
+  MoqtObject object;
+  std::optional<absl::string_view> payload =
+      ParseDatagram(message.PacketSample(), object);
+  ASSERT_TRUE(payload.has_value());
+  TestMessageBase::MessageStructuredData object_metadata =
+      TestMessageBase::MessageStructuredData(object);
+  EXPECT_TRUE(message.EqualFieldValues(object_metadata));
+  EXPECT_TRUE(payload.has_value() && payload->empty());
 }
 
 TEST_F(MoqtMessageSpecificTest, WrongMessageInDatagram) {

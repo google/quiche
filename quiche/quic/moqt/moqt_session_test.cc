@@ -831,6 +831,7 @@ TEST_F(MoqtSessionTest, IncomingObject) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
+      std::vector<MoqtExtensionHeader>(),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
@@ -856,6 +857,7 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
+      std::vector<MoqtExtensionHeader>(),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/0,
       /*payload_length=*/16,
@@ -887,6 +889,7 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
+      std::vector<MoqtExtensionHeader>(),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/0,
       /*payload_length=*/16,
@@ -913,6 +916,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
+      std::vector<MoqtExtensionHeader>(),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
@@ -958,6 +962,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
+      std::vector<MoqtExtensionHeader>(),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
@@ -1293,7 +1298,7 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
 
   // Verify first six message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x04, 0x00, 0x02, 0x05, 0x00, 0x00};
+  const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x7f, 0x00, 0x00};
   EXPECT_CALL(mock_stream, Writev(_, _))
       .WillOnce([&](absl::Span<const absl::string_view> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1326,7 +1331,7 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
   // Reopen the window.
   correct_message = false;
   // object id, payload length, status.
-  const std::string kExpectedMessage2 = {0x01, 0x00, 0x03};
+  const std::string kExpectedMessage2 = {0x01, 0x00, 0x00, 0x03};
   EXPECT_CALL(mock_stream, CanWrite()).WillRepeatedly([&] { return true; });
   EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([&] {
     return PublishedObject{
@@ -1580,7 +1585,7 @@ TEST_F(MoqtSessionTest, SendDatagram) {
   // Publish in window.
   bool correct_message = false;
   uint8_t kExpectedMessage[] = {
-      0x01, 0x02, 0x05, 0x00, 0x00, 0x08, 0x64,
+      0x01, 0x02, 0x05, 0x00, 0x80, 0x00, 0x08, 0x64,
       0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66,
   };
   EXPECT_CALL(mock_session_, SendOrQueueDatagram(_))
@@ -1611,11 +1616,12 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
+      std::vector<MoqtExtensionHeader>(),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/8,
   };
-  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x08, 0x64,
+  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x08, 0x64,
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(
       visitor_,
@@ -1635,6 +1641,7 @@ TEST_F(MoqtSessionTest, DataStreamTypeMismatch) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
+      std::vector<MoqtExtensionHeader>(),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
@@ -1648,7 +1655,7 @@ TEST_F(MoqtSessionTest, DataStreamTypeMismatch) {
   EXPECT_CALL(mock_stream, GetStreamId())
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, true);
-  char datagram[] = {0x01, 0x02, 0x00, 0x10, 0x00, 0x08, 0x64,
+  char datagram[] = {0x01, 0x02, 0x00, 0x10, 0x00, 0x00, 0x08, 0x64,
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
@@ -1668,6 +1675,7 @@ TEST_F(MoqtSessionTest, StreamObjectOutOfWindow) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
+      std::vector<MoqtExtensionHeader>(),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
@@ -1686,7 +1694,7 @@ TEST_F(MoqtSessionTest, DatagramOutOfWindow) {
   MoqtSubscribe subscribe = DefaultSubscribe();
   subscribe.start_group = 1;
   MoqtSessionPeer::CreateRemoteTrack(&session_, subscribe, &visitor_);
-  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x80, 0x08, 0x64,
+  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x80, 0x00, 0x08, 0x64,
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _)).Times(0);
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
@@ -2334,6 +2342,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
       /*group_id, object_id=*/0,
       0,
       /*publisher_priority=*/128,
+      std::vector<MoqtExtensionHeader>(),
       /*status=*/MoqtObjectStatus::kNormal,
       /*subgroup=*/0,
       /*payload_length=*/3,
@@ -2404,6 +2413,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
       /*group_id, object_id=*/0,
       0,
       /*publisher_priority=*/128,
+      std::vector<MoqtExtensionHeader>(),
       /*status=*/MoqtObjectStatus::kNormal,
       /*subgroup=*/0,
       /*payload_length=*/3,
@@ -2494,6 +2504,7 @@ TEST_F(MoqtSessionTest, PartialObjectFetch) {
       /*group_id, object_id=*/0,
       0,
       /*publisher_priority=*/128,
+      std::vector<MoqtExtensionHeader>(),
       /*status=*/MoqtObjectStatus::kNormal,
       /*subgroup=*/0,
       /*payload_length=*/6,

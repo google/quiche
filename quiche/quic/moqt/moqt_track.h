@@ -129,10 +129,21 @@ class SubscribeRemoteTrack : public RemoteTrack {
     // This class will soon be destroyed, so there's no need to null the
     // unique_ptr;
   }
+  // Returns false if the forwarding preference is changing on the track.
+  bool OnObject(bool is_datagram) {
+    OnObjectOrOk();
+    if (!is_datagram_.has_value()) {
+      is_datagram_ = is_datagram;
+      return true;
+    } else {
+      return (is_datagram_ == is_datagram);
+    }
+  }
 
  private:
   const uint64_t track_alias_;
   Visitor* visitor_;
+  std::optional<bool> is_datagram_;
   // For convenience, store the subscribe message if it has to be re-sent with
   // a new track alias.
   std::unique_ptr<MoqtSubscribe> subscribe_;

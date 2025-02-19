@@ -223,7 +223,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   if (track == nullptr) {
     return;
   }
-  if (!track->CheckDataStreamType(MoqtDataStreamType::kObjectDatagram)) {
+  if (!track->OnObject(/*is_datagram=*/true)) {
     Error(MoqtError::kProtocolViolation,
           "Received DATAGRAM for non-datagram track");
     return;
@@ -234,9 +234,9 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     return;
   }
   QUICHE_CHECK(!track->is_fetch());
-  track->OnObjectOrOk();
   SubscribeRemoteTrack::Visitor* visitor = track->visitor();
   if (visitor != nullptr) {
+    // TODO(martinduke): Handle extension headers.
     visitor->OnObjectFragment(
         track->full_track_name(),
         FullSequence{message.group_id, 0, message.object_id},
@@ -1463,10 +1463,11 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     // This is not an error. It can be the result of a recent SUBSCRIBE_UPDATE.
     return;
   }
-  track->OnObjectOrOk();
   if (!track->is_fetch()) {
     SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
+    subscribe->OnObject(/*is_datagram=*/false);
     if (subscribe->visitor() != nullptr) {
+      // TODO(martinduke): Send extension headers.
       subscribe->visitor()->OnObjectFragment(
           track->full_track_name(),
           FullSequence{message.group_id, message.subgroup_id.value_or(0),
@@ -1475,6 +1476,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
           end_of_message);
     }
   } else {  // FETCH
+    track->OnObjectOrOk();
     UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
     UpstreamFetch::UpstreamFetchTask* task = fetch->task();
     if (task == nullptr) {
@@ -2074,7 +2076,7 @@ void MoqtSession::PublishedSubscription::SendDatagram(FullSequence sequence) {
   header.track_alias = track_alias();
   header.group_id = object->sequence.group;
   header.object_id = object->sequence.object;
-  header.publisher_priority = track_publisher_->GetPublisherPriority();
+  header.publisher_priority = object->publisher_priority;
   header.object_status = object->status;
   header.subgroup_id = std::nullopt;
   header.payload_length = object->payload.length();

@@ -77,7 +77,7 @@ class QUICHE_EXPORT MoqtFramer {
  private:
   // Returns true if the metadata is internally consistent.
   static bool ValidateObjectMetadata(const MoqtObject& object,
-                                     MoqtDataStreamType message_type);
+                                     bool is_datagram);
 
   quiche::QuicheBufferAllocator* allocator_;
   bool using_webtrans_;

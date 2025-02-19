@@ -13,6 +13,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/variant.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
@@ -89,11 +90,8 @@ quiche::QuicheBuffer SerializeObject(MoqtFramer& framer,
                                      bool is_first_in_stream) {
   MoqtObject adjusted_message = message;
   adjusted_message.payload_length = payload.size();
-  quiche::QuicheBuffer header =
-      (stream_type == MoqtDataStreamType::kObjectDatagram)
-          ? framer.SerializeObjectDatagram(adjusted_message, payload)
-          : framer.SerializeObjectHeader(adjusted_message, stream_type,
-                                         is_first_in_stream);
+  quiche::QuicheBuffer header = framer.SerializeObjectHeader(
+      adjusted_message, stream_type, is_first_in_stream);
   if (header.empty()) {
     return quiche::QuicheBuffer();
   }
@@ -303,6 +301,7 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
+      /*extension_headers=*/std::vector<MoqtExtensionHeader>({}),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/8,
       /*payload_length=*/3,
@@ -341,17 +340,12 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
+      /*extension_headers=*/std::vector<MoqtExtensionHeader>({}),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/3,
   };
   quiche::QuicheBuffer buffer;
-
-  // No datagrams to SerializeObjectHeader().
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
-                      object, MoqtDataStreamType::kObjectDatagram, false),
-                  "Datagrams use SerializeObjectDatagram()")
-  EXPECT_TRUE(buffer.empty());
 
   object.object_status = MoqtObjectStatus::kEndOfGroup;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(object, "foo"),
@@ -377,6 +371,8 @@ TEST_F(MoqtFramerSimpleTest, Datagram) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
+      std::vector<MoqtExtensionHeader>(
+          {MoqtExtensionHeader(0, 12ULL), MoqtExtensionHeader(1, "foo")}),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/3,
@@ -384,6 +380,24 @@ TEST_F(MoqtFramerSimpleTest, Datagram) {
   std::string payload = "foo";
   quiche::QuicheBuffer buffer;
   buffer = framer_.SerializeObjectDatagram(object, payload);
+  EXPECT_EQ(buffer.size(), datagram->total_message_size());
+  EXPECT_EQ(buffer.AsStringView(), datagram->PacketSample());
+}
+
+TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
+  auto datagram = std::make_unique<ObjectStatusDatagramMessage>();
+  MoqtObject object = {
+      /*track_alias=*/4,
+      /*group_id=*/5,
+      /*object_id=*/6,
+      /*publisher_priority=*/7,
+      std::vector<MoqtExtensionHeader>({}),
+      /*object_status=*/MoqtObjectStatus::kEndOfGroup,
+      /*subgroup_id=*/std::nullopt,
+      /*payload_length=*/0,
+  };
+  quiche::QuicheBuffer buffer;
+  buffer = framer_.SerializeObjectDatagram(object, "");
   EXPECT_EQ(buffer.size(), datagram->total_message_size());
   EXPECT_EQ(buffer.AsStringView(), datagram->PacketSample());
 }
@@ -516,6 +530,38 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
   EXPECT_GT(buffer.size(), 0);
   const uint8_t* end_group = BufferAtOffset(buffer, 5);
   EXPECT_EQ(*end_group, 5);
+}
+
+TEST_F(MoqtFramerSimpleTest, InvalidExtensionType) {
+  MoqtObject object = {
+      /*track_alias=*/4,
+      /*group_id=*/5,
+      /*object_id=*/6,
+      /*publisher_priority=*/7,
+      /*extension_headers=*/
+      std::vector<MoqtExtensionHeader>({MoqtExtensionHeader(0, 12ULL)}),
+      /*object_status=*/MoqtObjectStatus::kNormal,
+      /*subgroup_id=*/std::nullopt,
+      /*payload_length=*/3,
+  };
+  EXPECT_QUIC_BUG(framer_.SerializeObjectHeader(
+                      object, MoqtDataStreamType::kStreamHeaderSubgroup, false),
+                  "Object metadata is invalid");
+
+  object = {
+      /*track_alias=*/4,
+      /*group_id=*/5,
+      /*object_id=*/6,
+      /*publisher_priority=*/7,
+      /*extension_headers=*/
+      std::vector<MoqtExtensionHeader>({MoqtExtensionHeader(1, "foo")}),
+      /*object_status=*/MoqtObjectStatus::kNormal,
+      /*subgroup_id=*/std::nullopt,
+      /*payload_length=*/3,
+  };
+  EXPECT_QUIC_BUG(framer_.SerializeObjectHeader(
+                      object, MoqtDataStreamType::kStreamHeaderSubgroup, false),
+                  "Object metadata is invalid");
 }
 
 }  // namespace moqt::test

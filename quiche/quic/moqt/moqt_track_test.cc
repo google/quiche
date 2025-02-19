@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -51,7 +52,6 @@ TEST_F(SubscribeRemoteTrackTest, UpdateDataStreamType) {
       track_.CheckDataStreamType(MoqtDataStreamType::kStreamHeaderSubgroup));
   EXPECT_TRUE(
       track_.CheckDataStreamType(MoqtDataStreamType::kStreamHeaderSubgroup));
-  EXPECT_FALSE(track_.CheckDataStreamType(MoqtDataStreamType::kObjectDatagram));
 }
 
 TEST_F(SubscribeRemoteTrackTest, AllowError) {
@@ -148,7 +148,14 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
   PublishedObject object;
   EXPECT_EQ(fetch_task_->GetNextObject(object),
             MoqtFetchTask::GetNextObjectResult::kPending);
-  MoqtObject new_object = {1, 3, 0, 128, MoqtObjectStatus::kNormal, 0, 6};
+  MoqtObject new_object = {1,
+                           3,
+                           0,
+                           128,
+                           std::vector<MoqtExtensionHeader>(),
+                           MoqtObjectStatus::kNormal,
+                           0,
+                           6};
   bool got_object = false;
   fetch_task_->SetObjectAvailableCallback([&]() {
     got_object = true;

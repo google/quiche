@@ -20,6 +20,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "absl/types/variant.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -70,12 +71,16 @@ struct QUICHE_EXPORT MoqtSessionParameters {
 inline constexpr size_t kMaxMessageHeaderSize = 2048;
 
 enum class QUICHE_EXPORT MoqtDataStreamType : uint64_t {
-  kObjectDatagram = 0x01,
   kStreamHeaderSubgroup = 0x04,
   kStreamHeaderFetch = 0x05,
 
   // Currently QUICHE-specific.  All data on a kPadding stream is ignored.
   kPadding = 0x26d3,
+};
+
+enum class QUICHE_EXPORT MoqtDatagramType : uint64_t {
+  kObject = 0x01,
+  kObjectStatus = 0x02,
 };
 
 enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
@@ -343,6 +348,11 @@ enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
 
 MoqtObjectStatus IntegerToObjectStatus(uint64_t integer);
 
+struct MoqtExtensionHeader {
+  uint64_t type;
+  absl::variant<uint64_t, std::string> value;
+};
+
 // The data contained in every Object message, although the message type
 // implies some of the values.
 struct QUICHE_EXPORT MoqtObject {
@@ -350,6 +360,7 @@ struct QUICHE_EXPORT MoqtObject {
   uint64_t group_id;
   uint64_t object_id;
   MoqtPriority publisher_priority;
+  std::vector<MoqtExtensionHeader> extension_headers;
   MoqtObjectStatus object_status;
   std::optional<uint64_t> subgroup_id;
   uint64_t payload_length;
@@ -584,13 +595,9 @@ struct QUICHE_EXPORT MoqtObjectAck {
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type);
+std::string MoqtDatagramTypeToString(MoqtDatagramType type);
 
 std::string MoqtForwardingPreferenceToString(
-    MoqtForwardingPreference preference);
-
-MoqtForwardingPreference GetForwardingPreference(MoqtDataStreamType type);
-
-MoqtDataStreamType GetMessageTypeForForwardingPreference(
     MoqtForwardingPreference preference);
 
 absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
