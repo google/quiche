@@ -676,7 +676,7 @@ class QUICHE_NO_EXPORT SubscribeErrorMessage : public TestMessageBase {
   uint8_t raw_packet_[9] = {
       0x05, 0x07,
       0x02,                    // subscribe_id = 2
-      0x01,                    // error_code = 2
+      0x05,                    // error_code = 5
       0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
       0x04,                    // track_alias = 4
   };
@@ -760,7 +760,7 @@ class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[10] = {
-      0x0b, 0x08, 0x02, 0x03,  // subscribe_id = 2, error_code = 3,
+      0x0b, 0x08, 0x02, 0x02,  // subscribe_id = 2, error_code = 2,
       0x02, 0x68, 0x69,        // reason_phrase = "hi"
       0x01, 0x08, 0x0c,        // final_id = (8,12)
   };
@@ -941,13 +941,13 @@ class QUICHE_NO_EXPORT AnnounceErrorMessage : public TestMessageBase {
  private:
   uint8_t raw_packet_[12] = {
       0x08, 0x0a, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x01,                                      // error_code = 1
+      0x03,                                      // error_code = 3
       0x03, 0x62, 0x61, 0x72,                    // reason_phrase = "bar"
   };
 
   MoqtAnnounceError announce_error_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/MoqtAnnounceErrorCode::kAnnounceNotSupported,
+      /*error_code=*/SubscribeErrorCode::kNotSupported,
       /*reason_phrase=*/"bar",
   };
 };
@@ -984,13 +984,13 @@ class QUICHE_NO_EXPORT AnnounceCancelMessage : public TestMessageBase {
  private:
   uint8_t raw_packet_[12] = {
       0x0c, 0x0a, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x01,                                      // error_code = 1
+      0x03,                                      // error_code = 3
       0x03, 0x62, 0x61, 0x72,                    // reason_phrase = "bar"
   };
 
   MoqtAnnounceCancel announce_cancel_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/MoqtAnnounceErrorCode::kAnnounceNotSupported,
+      /*error_code=*/SubscribeErrorCode::kNotSupported,
       /*reason_phrase=*/"bar",
   };
 };
@@ -1239,7 +1239,7 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesErrorMessage : public TestMessageBase {
  private:
   uint8_t raw_packet_[12] = {
       0x13, 0x0a, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x04,                                      // error_code = 4
+      0x01,                                      // error_code = 1
       0x03, 0x62, 0x61, 0x72,                    // reason_phrase = "bar"
   };
 
@@ -1519,7 +1519,7 @@ class QUICHE_NO_EXPORT FetchErrorMessage : public TestMessageBase {
   uint8_t raw_packet_[8] = {
       0x19, 0x06,
       0x01,                    // subscribe_id = 1
-      0x04,                    // error_code = kUnauthorized
+      0x01,                    // error_code = kUnauthorized
       0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
   };
 

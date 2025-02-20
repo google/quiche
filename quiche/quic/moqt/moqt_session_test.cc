@@ -263,7 +263,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
 
   MoqtAnnounceCancel cancel = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/MoqtAnnounceErrorCode::kInternalError,
+      /*error_code=*/SubscribeErrorCode::kInternalError,
       /*reason_phrase=*/"Test error",
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
@@ -271,7 +271,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
                     std::optional<MoqtAnnounceErrorReason> error) {
         EXPECT_EQ(track_namespace, FullTrackName{"foo"});
         ASSERT_TRUE(error.has_value());
-        EXPECT_EQ(error->error_code, MoqtAnnounceErrorCode::kInternalError);
+        EXPECT_EQ(error->error_code, SubscribeErrorCode::kInternalError);
         EXPECT_EQ(error->reason_phrase, "Test error");
       });
   stream_input->OnAnnounceCancelMessage(cancel);
@@ -328,7 +328,7 @@ TEST_F(MoqtSessionTest, AnnounceWithError) {
 
   MoqtAnnounceError error = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/MoqtAnnounceErrorCode::kInternalError,
+      /*error_code=*/SubscribeErrorCode::kInternalError,
       /*reason_phrase=*/"Test error",
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
@@ -336,7 +336,7 @@ TEST_F(MoqtSessionTest, AnnounceWithError) {
                     std::optional<MoqtAnnounceErrorReason> error) {
         EXPECT_EQ(track_namespace, FullTrackName{"foo"});
         ASSERT_TRUE(error.has_value());
-        EXPECT_EQ(error->error_code, MoqtAnnounceErrorCode::kInternalError);
+        EXPECT_EQ(error->error_code, SubscribeErrorCode::kInternalError);
         EXPECT_EQ(error->reason_phrase, "Test error");
       });
   stream_input->OnAnnounceErrorMessage(error);
@@ -447,9 +447,8 @@ TEST_F(MoqtSessionTest, UnsubscribeAllowsSecondSubscribe) {
   MoqtUnsubscribe unsubscribe = {
       /*subscribe_id=*/1,
   };
-  EXPECT_CALL(mock_stream,
-              Writev(ControlMessageOfType(MoqtMessageType::kSubscribeDone), _));
   stream_input->OnUnsubscribeMessage(unsubscribe);
+  EXPECT_EQ(MoqtSessionPeer::GetSubscription(&session_, 1), nullptr);
 
   // Subscribe again, succeeds.
   request.subscribe_id = 2;
@@ -729,11 +728,11 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenAnnounceCancel) {
   stream_input->OnAnnounceMessage(announce);
   EXPECT_CALL(mock_stream,
               Writev(SerializedControlMessage(MoqtAnnounceCancel{
-                         track_namespace, MoqtAnnounceErrorCode::kInternalError,
+                         track_namespace, SubscribeErrorCode::kInternalError,
                          "deadbeef"}),
                      _));
-  session_.CancelAnnounce(track_namespace,
-                          MoqtAnnounceErrorCode::kInternalError, "deadbeef");
+  session_.CancelAnnounce(track_namespace, SubscribeErrorCode::kInternalError,
+                          "deadbeef");
 }
 
 TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
@@ -745,7 +744,7 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
       track_namespace,
   };
   MoqtAnnounceErrorReason error = {
-      MoqtAnnounceErrorCode::kAnnounceNotSupported,
+      SubscribeErrorCode::kNotSupported,
       "deadbeef",
   };
   EXPECT_CALL(session_callbacks_.incoming_announce_callback,
@@ -1569,10 +1568,8 @@ TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
   MoqtUnsubscribe unsubscribe = {
       /*subscribe_id=*/0,
   };
-  EXPECT_CALL(mock_session_, GetStreamById(4)).WillOnce(Return(&mock_stream));
-  EXPECT_CALL(mock_stream,
-              Writev(ControlMessageOfType(MoqtMessageType::kSubscribeDone), _));
   stream_input->OnUnsubscribeMessage(unsubscribe);
+  EXPECT_EQ(MoqtSessionPeer::GetSubscription(&session_, 0), nullptr);
 }
 
 TEST_F(MoqtSessionTest, SendDatagram) {

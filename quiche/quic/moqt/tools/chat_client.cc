@@ -58,8 +58,7 @@ std::optional<MoqtAnnounceErrorReason> ChatClient::OnIncomingAnnounce(
   if (!track_name.has_value()) {
     std::cout << "ANNOUNCE rejected, invalid namespace\n";
     return std::make_optional<MoqtAnnounceErrorReason>(
-        MoqtAnnounceErrorCode::kNotASubscribedNamespace,
-        "Not a subscribed namespace");
+        SubscribeErrorCode::kDoesNotExist, "Not a subscribed namespace");
   }
   if (other_users_.contains(*track_name)) {
     std::cout << "Duplicate ANNOUNCE, send OK and ignore\n";

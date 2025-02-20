@@ -296,7 +296,7 @@ void MoqtSession::Announce(FullTrackName track_namespace,
     std::move(announce_callback)(
         track_namespace,
         MoqtAnnounceErrorReason{
-            MoqtAnnounceErrorCode::kInternalError,
+            SubscribeErrorCode::kInternalError,
             "ANNOUNCE message already outstanding for namespace"});
     return;
   }
@@ -327,7 +327,7 @@ bool MoqtSession::Unannounce(FullTrackName track_namespace) {
 }
 
 void MoqtSession::CancelAnnounce(FullTrackName track_namespace,
-                                 MoqtAnnounceErrorCode code,
+                                 SubscribeErrorCode code,
                                  absl::string_view reason) {
   MoqtAnnounceCancel message{track_namespace, code, std::string(reason)};
 
@@ -908,7 +908,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     QUIC_DLOG(INFO) << ENDPOINT << "SUBSCRIBE for " << track_name
                     << " rejected by the application: "
                     << track_publisher.status();
-    SendSubscribeError(message, SubscribeErrorCode::kTrackDoesNotExist,
+    SendSubscribeError(message, SubscribeErrorCode::kDoesNotExist,
                        track_publisher.status().message(), message.track_alias);
     return;
   }
@@ -1050,8 +1050,7 @@ void MoqtSession::ControlStream::OnUnsubscribeMessage(
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received an UNSUBSCRIBE for "
                   << it->second->publisher().GetTrackName();
-  session_->SubscribeIsDone(message.subscribe_id,
-                            SubscribeDoneCode::kUnsubscribed, "");
+  session_->published_subscriptions_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
@@ -1077,7 +1076,7 @@ void MoqtSession::ControlStream::OnAnnounceMessage(
     QUIC_DLOG(INFO) << ENDPOINT << "Received an ANNOUNCE after GOAWAY";
     MoqtAnnounceError error;
     error.track_namespace = message.track_namespace;
-    error.error_code = MoqtAnnounceErrorCode::kUnauthorized;
+    error.error_code = SubscribeErrorCode::kUnauthorized;
     error.reason_phrase = "ANNOUNCE after GOAWAY";
     SendOrBufferMessage(session_->framer_.SerializeAnnounceError(error));
     return;
@@ -1269,7 +1268,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
     QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
                     << " rejected by the application: "
                     << track_publisher.status();
-    SendFetchError(message.subscribe_id, SubscribeErrorCode::kTrackDoesNotExist,
+    SendFetchError(message.subscribe_id, SubscribeErrorCode::kDoesNotExist,
                    track_publisher.status().message());
     return;
   }
@@ -1363,13 +1362,13 @@ void MoqtSession::ControlStream::OnFetchErrorMessage(
   UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
   absl::Status status;
   switch (message.error_code) {
-    case moqt::SubscribeErrorCode::kInternalError:
+    case SubscribeErrorCode::kInternalError:
       status = absl::InternalError(message.reason_phrase);
       break;
     case SubscribeErrorCode::kInvalidRange:
       status = absl::OutOfRangeError(message.reason_phrase);
       break;
-    case SubscribeErrorCode::kTrackDoesNotExist:
+    case SubscribeErrorCode::kDoesNotExist:
       status = absl::NotFoundError(message.reason_phrase);
       break;
     case SubscribeErrorCode::kUnauthorized:
@@ -1377,6 +1376,9 @@ void MoqtSession::ControlStream::OnFetchErrorMessage(
       break;
     case SubscribeErrorCode::kTimeout:
       status = absl::DeadlineExceededError(message.reason_phrase);
+      break;
+    case SubscribeErrorCode::kNotSupported:
+      status = absl::UnavailableError(message.reason_phrase);
       break;
     default:
       status = absl::UnknownError(message.reason_phrase);

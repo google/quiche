@@ -158,33 +158,25 @@ enum class QUICHE_EXPORT MoqtTrackRequestParameter : uint64_t {
   kOackWindowSize = 0xbbf1439,
 };
 
-// TODO: those are non-standard; add standard error codes once those exist, see
-// <https://github.com/moq-wg/moq-transport/issues/393>.
-enum class MoqtAnnounceErrorCode : uint64_t {
-  kInternalError = 0,
-  kAnnounceNotSupported = 1,
-  kNotASubscribedNamespace = 2,
-  kUnauthorized = 3,
-};
-
+// Used for SUBSCRIBE_ERROR, ANNOUNCE_ERROR, ANNOUNCE_CANCEL,
+// SUBSCRIBE_ANNOUNCES_ERROR, and FETCH_ERROR.
+// TODO(martinduke): Create aliases like FetchErrorCode, etc. to hide the fact
+// that these are all the same enum.
 enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
   kInternalError = 0x0,
-  kInvalidRange = 0x1,
-  kRetryTrackAlias = 0x2,
-  kTrackDoesNotExist = 0x3,
-  kUnauthorized = 0x4,
-  kTimeout = 0x5,
+  kUnauthorized = 0x1,
+  kTimeout = 0x2,
+  kNotSupported = 0x3,
+  kDoesNotExist = 0x4,     // Can also mean "not interested" or "unknown".
+  kInvalidRange = 0x5,     // SUBSCRIBE_ERROR and FETCH_ERROR only.
+  kRetryTrackAlias = 0x6,  // SUBSCRIBE_ERROR only.
 };
 
 struct MoqtSubscribeErrorReason {
   SubscribeErrorCode error_code;
   std::string reason_phrase;
 };
-
-struct MoqtAnnounceErrorReason {
-  MoqtAnnounceErrorCode error_code;
-  std::string reason_phrase;
-};
+using MoqtAnnounceErrorReason = MoqtSubscribeErrorReason;
 
 // Full track name represents a tuple of name elements. All higher order
 // elements MUST be present, but lower-order ones (like the name) can be
@@ -441,13 +433,13 @@ struct QUICHE_EXPORT MoqtUnsubscribe {
 };
 
 enum class QUICHE_EXPORT SubscribeDoneCode : uint64_t {
-  kUnsubscribed = 0x0,
-  kInternalError = 0x1,
-  kUnauthorized = 0x2,
-  kTrackEnded = 0x3,
-  kSubscriptionEnded = 0x4,
-  kGoingAway = 0x5,
-  kExpired = 0x6,
+  kInternalError = 0x0,
+  kUnauthorized = 0x1,
+  kTrackEnded = 0x2,
+  kSubscriptionEnded = 0x3,
+  kGoingAway = 0x4,
+  kExpired = 0x5,
+  kTooFarBehind = 0x6,
 };
 
 struct QUICHE_EXPORT MoqtSubscribeDone {
@@ -477,7 +469,7 @@ struct QUICHE_EXPORT MoqtAnnounceOk {
 
 struct QUICHE_EXPORT MoqtAnnounceError {
   FullTrackName track_namespace;
-  MoqtAnnounceErrorCode error_code;
+  SubscribeErrorCode error_code;
   std::string reason_phrase;
 };
 
@@ -515,7 +507,7 @@ struct QUICHE_EXPORT MoqtTrackStatus {
 
 struct QUICHE_EXPORT MoqtAnnounceCancel {
   FullTrackName track_namespace;
-  MoqtAnnounceErrorCode error_code;
+  SubscribeErrorCode error_code;
   std::string reason_phrase;
 };
 

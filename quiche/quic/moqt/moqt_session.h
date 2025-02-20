@@ -78,7 +78,7 @@ using MoqtIncomingSubscribeAnnouncesCallback =
 inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
     const FullTrackName& /*track_namespace*/, AnnounceEvent /*announce*/) {
   return std::optional(MoqtAnnounceErrorReason{
-      MoqtAnnounceErrorCode::kAnnounceNotSupported,
+      SubscribeErrorCode::kNotSupported,
       "This endpoint does not accept incoming ANNOUNCE messages"});
 };
 
@@ -166,7 +166,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   bool Unannounce(FullTrackName track_namespace);
   // Allows the subscriber to declare it will not subscribe to |track_namespace|
   // anymore.
-  void CancelAnnounce(FullTrackName track_namespace, MoqtAnnounceErrorCode code,
+  void CancelAnnounce(FullTrackName track_namespace, SubscribeErrorCode code,
                       absl::string_view reason_phrase);
 
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
@@ -375,6 +375,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
         std::shared_ptr<MoqtTrackPublisher> track_publisher,
         const MoqtSubscribe& subscribe,
         MoqtPublishingMonitorInterface* monitoring_interface);
+    // TODO(martinduke): Immediately reset all the streams.
     ~PublishedSubscription();
 
     PublishedSubscription(const PublishedSubscription&) = delete;

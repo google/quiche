@@ -566,7 +566,7 @@ size_t MoqtControlParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
       !reader.ReadStringVarInt62(announce_error.reason_phrase)) {
     return 0;
   }
-  announce_error.error_code = static_cast<MoqtAnnounceErrorCode>(error_code);
+  announce_error.error_code = static_cast<SubscribeErrorCode>(error_code);
   visitor_.OnAnnounceErrorMessage(announce_error);
   return reader.PreviouslyReadPayload().length();
 }
@@ -581,7 +581,7 @@ size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
       !reader.ReadStringVarInt62(announce_cancel.reason_phrase)) {
     return 0;
   }
-  announce_cancel.error_code = static_cast<MoqtAnnounceErrorCode>(error_code);
+  announce_cancel.error_code = static_cast<SubscribeErrorCode>(error_code);
   visitor_.OnAnnounceCancelMessage(announce_cancel);
   return reader.PreviouslyReadPayload().length();
 }

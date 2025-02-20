@@ -125,7 +125,7 @@ class MoqtIngestionHandler {
                               "disallowed characters; namespace: "
                            << track_namespace;
       return MoqtAnnounceErrorReason{
-          MoqtAnnounceErrorCode::kInternalError,
+          SubscribeErrorCode::kInternalError,
           "Track namespace contains disallowed characters"};
     }
 
@@ -144,7 +144,7 @@ class MoqtIngestionHandler {
       subscribed_namespaces_.erase(it);
       QUICHE_LOG(ERROR) << "Failed to create directory " << directory_path
                         << "; " << status;
-      return MoqtAnnounceErrorReason{MoqtAnnounceErrorCode::kInternalError,
+      return MoqtAnnounceErrorReason{SubscribeErrorCode::kInternalError,
                                      "Failed to create output directory"};
     }
 
