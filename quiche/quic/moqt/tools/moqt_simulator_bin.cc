@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -17,6 +18,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/casts.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
@@ -40,6 +42,7 @@
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/test_tools/simulator/actor.h"
 #include "quiche/quic/test_tools/simulator/link.h"
+#include "quiche/quic/test_tools/simulator/port.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/switch.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
@@ -62,6 +65,7 @@ using ::quic::QuicClock;
 using ::quic::QuicTime;
 using ::quic::QuicTimeDelta;
 
+using ::quic::simulator::Endpoint;
 using ::quic::simulator::Simulator;
 
 // In the simulation, the server link is supposed to be the bottleneck, so this
@@ -107,6 +111,9 @@ struct SimulationParameters {
   float i_to_p_ratio = 2 / 1;
   // The target bitrate of the data being exchanged.
   QuicBandwidth bitrate = QuicBandwidth::FromBitsPerSecond(1.0e6);
+
+  // Adds random packet loss rate, as a fraction.
+  float packet_loss_rate = 0.0f;
 };
 
 std::string FormatPercentage(size_t n, size_t total) {
@@ -120,6 +127,52 @@ OutputField OutputFraction(absl::string_view key, size_t n, size_t total) {
   float fraction = static_cast<float>(n) / total;
   return OutputField(key, absl::StrCat(fraction));
 }
+
+float RandFloat(quic::QuicRandom& rng) {
+  uint32_t number;
+  rng.RandBytes(&number, sizeof(number));
+  return absl::bit_cast<float>((number & 0x7fffff) | 0x3f800000) - 1.0f;
+}
+
+// Box that enacts MoQT simulator specific modifications to the traffic.
+class ModificationBox : public Endpoint,
+                        public quic::simulator::UnconstrainedPortInterface {
+ public:
+  ModificationBox(Endpoint* wrapped_endpoint,
+                  const SimulationParameters& parameters)
+      : Endpoint(
+            wrapped_endpoint->simulator(),
+            absl::StrCat(wrapped_endpoint->name(), " (moedification box)")),
+        wrapped_endpoint_(*wrapped_endpoint),
+        parameters_(parameters) {}
+
+  // Endpoint implementation.
+  void Act() override {}
+  quic::simulator::UnconstrainedPortInterface* GetRxPort() override {
+    return this;
+  }
+  void SetTxPort(quic::simulator::ConstrainedPortInterface* port) override {
+    return wrapped_endpoint_.SetTxPort(port);
+  }
+
+  // UnconstrainedPortInterface implementation.
+  void AcceptPacket(std::unique_ptr<quic::simulator::Packet> packet) {
+    quic::QuicRandom* const rng = simulator()->GetRandomGenerator();
+    bool drop = false;
+    if (parameters_.packet_loss_rate > 0) {
+      if (RandFloat(*rng) < parameters_.packet_loss_rate) {
+        drop = true;
+      }
+    }
+    if (!drop) {
+      wrapped_endpoint_.GetRxPort()->AcceptPacket(std::move(packet));
+    }
+  }
+
+ private:
+  Endpoint& wrapped_endpoint_;
+  SimulationParameters parameters_;
+};
 
 // Generates test objects at a constant rate.  The first eight bytes of every
 // object generated is a timestamp, the rest is all zeroes.  The first object in
@@ -302,8 +355,9 @@ class MoqtSimulator {
         client_endpoint_(&simulator_, "Client", "Server", kMoqtVersion),
         server_endpoint_(&simulator_, "Server", "Client", kMoqtVersion),
         switch_(&simulator_, "Switch", 8, AdjustedQueueSize(parameters)),
-        client_link_(&client_endpoint_, switch_.port(1), kClientLinkBandwidth,
-                     parameters.min_rtt * 0.25),
+        modification_box_(switch_.port(1), parameters),
+        client_link_(&client_endpoint_, &modification_box_,
+                     kClientLinkBandwidth, parameters.min_rtt * 0.25),
         server_link_(&server_endpoint_, switch_.port(2), parameters.bandwidth,
                      parameters.min_rtt * 0.25),
         generator_(&simulator_, "Client generator", client_endpoint_.session(),
@@ -430,6 +484,7 @@ class MoqtSimulator {
   MoqtClientEndpoint client_endpoint_;
   MoqtServerEndpoint server_endpoint_;
   quic::simulator::Switch switch_;
+  ModificationBox modification_box_;
   quic::simulator::SymmetricLink client_link_;
   quic::simulator::SymmetricLink server_link_;
   MoqtKnownTrackPublisher publisher_;
@@ -477,6 +532,12 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, alternative_timeout, false,
                                 "Use alternative delivery timeout design.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    float, packet_loss_rate,
+    moqt::test::SimulationParameters().packet_loss_rate,
+    "Adds additional packet loss at the publisher-to-subscriber direction, "
+    "specified as a fraction.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, output_format, "",
     R"(If non-empty, instead of the usual human-readable format,
 the tool will output the raw numbers from the simulation, formatted as
@@ -500,6 +561,8 @@ int main(int argc, char** argv) {
       quiche::GetQuicheCommandLineFlag(FLAGS_bitrate_adaptation);
   parameters.delivery_timeout = quic::QuicTimeDelta(
       quiche::GetQuicheCommandLineFlag(FLAGS_delivery_timeout));
+  parameters.packet_loss_rate =
+      quiche::GetQuicheCommandLineFlag(FLAGS_packet_loss_rate);
   parameters.alternative_timeout =
       quiche::GetQuicheCommandLineFlag(FLAGS_alternative_timeout);
 
