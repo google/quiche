@@ -27,6 +27,7 @@ MoqtSessionParameters CreateParameters(quic::Perspective perspective,
                                        MoqtVersion version) {
   MoqtSessionParameters parameters(perspective, "");
   parameters.version = version;
+  parameters.deliver_partial_objects = false;
   return parameters;
 }
 

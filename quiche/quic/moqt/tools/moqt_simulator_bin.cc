@@ -229,25 +229,11 @@ class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
       QUICHE_DCHECK(end_of_message);
       return;
     }
-
-    // Buffer and assemble partially available objects.
-    // TODO: this logic should be factored out. Also, this should take advantage
-    // of the fact that in the current MoQT, the object size is known in
-    // advance.
     if (!end_of_message) {
-      auto [it, unused] = partial_objects_.try_emplace(sequence);
-      it->second.append(object);
+      QUICHE_LOG(DFATAL) << "Partial receiving of objects wasn't enabled";
       return;
     }
-    auto it = partial_objects_.find(sequence);
-    if (it == partial_objects_.end()) {
-      OnFullObject(sequence, object);
-      return;
-    }
-    std::string full_object = std::move(it->second);
-    full_object.append(object);
-    partial_objects_.erase(it);
-    OnFullObject(sequence, full_object);
+    OnFullObject(sequence, object);
   }
 
   void OnFullObject(FullSequence sequence, absl::string_view payload) {
