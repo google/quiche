@@ -114,6 +114,10 @@ struct SimulationParameters {
 
   // Adds random packet loss rate, as a fraction.
   float packet_loss_rate = 0.0f;
+
+  // If non-zero, makes the traffic disappear in the middle of the connection
+  // for the specified duration.
+  quic::QuicTimeDelta blackhole_duration = QuicTimeDelta::Zero();
 };
 
 std::string FormatPercentage(size_t n, size_t total) {
@@ -146,6 +150,15 @@ class ModificationBox : public Endpoint,
         wrapped_endpoint_(*wrapped_endpoint),
         parameters_(parameters) {}
 
+  void OnBeforeSimulationStart() {
+    if (!parameters_.blackhole_duration.IsZero()) {
+      float offset =
+          0.5f + RandFloat(*simulator()->GetRandomGenerator()) * 0.2f;
+      blackhole_start_time_ =
+          simulator()->GetClock()->Now() + offset * parameters_.duration;
+    }
+  }
+
   // Endpoint implementation.
   void Act() override {}
   quic::simulator::UnconstrainedPortInterface* GetRxPort() override {
@@ -158,9 +171,17 @@ class ModificationBox : public Endpoint,
   // UnconstrainedPortInterface implementation.
   void AcceptPacket(std::unique_ptr<quic::simulator::Packet> packet) {
     quic::QuicRandom* const rng = simulator()->GetRandomGenerator();
+    const quic::QuicTime now = simulator()->GetClock()->Now();
     bool drop = false;
     if (parameters_.packet_loss_rate > 0) {
       if (RandFloat(*rng) < parameters_.packet_loss_rate) {
+        drop = true;
+      }
+    }
+    if (blackhole_start_time_.has_value()) {
+      quic::QuicTime blackhole_end_time =
+          *blackhole_start_time_ + parameters_.blackhole_duration;
+      if (now >= blackhole_start_time_ && now < blackhole_end_time) {
         drop = true;
       }
     }
@@ -172,6 +193,7 @@ class ModificationBox : public Endpoint,
  private:
   Endpoint& wrapped_endpoint_;
   SimulationParameters parameters_;
+  std::optional<QuicTime> blackhole_start_time_;
 };
 
 // Generates test objects at a constant rate.  The first eight bytes of every
@@ -412,6 +434,7 @@ class MoqtSimulator {
       client_session()->UseAlternateDeliveryTimeout();
     }
     publisher_.Add(generator_.queue());
+    modification_box_.OnBeforeSimulationStart();
 
     // The simulation is started as follows.  At t=0:
     //   (1) The server issues a subscribe request.
@@ -538,6 +561,12 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "specified as a fraction.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    absl::Duration, blackhole_duration,
+    moqt::test::SimulationParameters().blackhole_duration.ToAbsl(),
+    "If non-zero, makes the traffic disappear in the middle of the connection "
+    "for the specified duration.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, output_format, "",
     R"(If non-empty, instead of the usual human-readable format,
 the tool will output the raw numbers from the simulation, formatted as
@@ -565,6 +594,8 @@ int main(int argc, char** argv) {
       quiche::GetQuicheCommandLineFlag(FLAGS_packet_loss_rate);
   parameters.alternative_timeout =
       quiche::GetQuicheCommandLineFlag(FLAGS_alternative_timeout);
+  parameters.blackhole_duration = quic::QuicTimeDelta(
+      quiche::GetQuicheCommandLineFlag(FLAGS_blackhole_duration));
 
   std::string raw_delivery_order = absl::AsciiStrToLower(
       quiche::GetQuicheCommandLineFlag(FLAGS_delivery_order));
