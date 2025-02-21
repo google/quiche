@@ -333,8 +333,8 @@ enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
   kObjectDoesNotExist = 0x1,
   kGroupDoesNotExist = 0x2,
   kEndOfGroup = 0x3,
-  kEndOfTrack = 0x4,
-  kEndOfSubgroup = 0x5,
+  kEndOfTrackAndGroup = 0x4,
+  kEndOfTrack = 0x5,
   kInvalidObjectStatus = 0x6,
 };
 

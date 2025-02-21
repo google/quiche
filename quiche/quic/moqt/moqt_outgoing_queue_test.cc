@@ -25,6 +25,7 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 namespace {
@@ -69,6 +70,9 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
   }
 
   MOCK_METHOD(void, OnNewFinAvailable, (FullSequence sequence));
+  MOCK_METHOD(void, OnSubgroupAbandoned,
+              (FullSequence sequence,
+               webtransport::StreamErrorCode error_code));
   MOCK_METHOD(void, OnGroupAbandoned, (uint64_t group_id));
   MOCK_METHOD(void, CloseStreamForGroup, (uint64_t group_id), ());
   MOCK_METHOD(void, PublishObject,

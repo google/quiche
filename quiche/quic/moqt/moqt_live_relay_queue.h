@@ -24,6 +24,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
@@ -72,6 +73,11 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   // the object ID does not match the last object ID in the stream, no action
   // is taken.
   bool AddFin(FullSequence sequence);
+  // Record a received RESET_STREAM. |sequence| encodes the group and subgroup
+  // of the stream that is being reset. Returns false on datagram tracks, or if
+  // the stream does not exist.
+  bool OnStreamReset(FullSequence sequence,
+                     webtransport::StreamErrorCode error_code);
 
   // MoqtTrackPublisher implementation.
   const FullTrackName& GetTrackName() const override { return track_; }

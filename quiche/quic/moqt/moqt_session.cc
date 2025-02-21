@@ -1740,6 +1740,30 @@ void MoqtSession::PublishedSubscription::OnNewFinAvailable(
   stream->Fin(sequence);
 }
 
+void MoqtSession::PublishedSubscription::OnSubgroupAbandoned(
+    FullSequence sequence, webtransport::StreamErrorCode error_code) {
+  if (!window_.InWindow(sequence)) {
+    return;
+  }
+  if (reset_subgroups_.contains(
+          FullSequence{sequence.group, sequence.subgroup, 0})) {
+    // This subgroup has already been reset, ignore.
+    return;
+  }
+  QUICHE_DCHECK_GE(sequence.group, first_active_group_);
+  std::optional<webtransport::StreamId> stream_id =
+      stream_map().GetStreamForSequence(sequence);
+  if (!stream_id.has_value()) {
+    return;
+  }
+  webtransport::Stream* raw_stream =
+      session_->session_->GetStreamById(*stream_id);
+  if (raw_stream == nullptr) {
+    return;
+  }
+  raw_stream->ResetWithUserCode(error_code);
+}
+
 void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
   std::vector<webtransport::StreamId> streams =
       stream_map().GetStreamsForGroup(group_id);

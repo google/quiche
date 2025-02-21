@@ -397,6 +397,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnNewObjectAvailable(FullSequence sequence) override;
     void OnTrackPublisherGone() override;
     void OnNewFinAvailable(FullSequence sequence) override;
+    void OnSubgroupAbandoned(FullSequence sequence,
+                             webtransport::StreamErrorCode error_code) override;
     void OnGroupAbandoned(uint64_t group_id) override;
     void ProcessObjectAck(const MoqtObjectAck& message) {
       if (monitoring_interface_ == nullptr) {
