@@ -44,7 +44,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_path_degrading_before_handshake
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_vn_in_response_to_vn, false, true, "If true, QUIC will not send a version negotiation in response to a version negotiation packet.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_write_control_frame_upon_connection_close, false, true, "If trrue, early return before write control frame in OnCanWrite() if the connection is already closed.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_write_control_frame_upon_connection_close2, false, false, "If true, QuicSession will block outgoing control frames when the connection is closed.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_notify_ack_listener_earlier, false, false, "If true, call QuicAckListenerInterface::OnPacketAcked() before moving the stream to closed stream list.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_notify_ack_listener_earlier, false, true, "If true, call QuicAckListenerInterface::OnPacketAcked() before moving the stream to closed stream list.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_notify_stream_soon_to_destroy, false, false, "If true, notify each QUIC stream before it gets destroyed and update ACK listener before that.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_on_packet_header_return_connected, false, true, "If true, QuicConnection::OnPacketHeader will return connected_ at the end of the function.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_optimize_qpack_blocking_manager, false, false, "If true, optimize qpack_blocking_manager for CPU efficiency.")
