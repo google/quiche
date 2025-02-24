@@ -437,11 +437,7 @@ void TlsChloExtractor::HandleParsedChlo(const SSL_CLIENT_HELLO* client_hello) {
     }
   }
 
-  if (GetQuicReloadableFlag(quic_parse_transport_parameters_from_chlo)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_parse_transport_parameters_from_chlo);
-
-    transport_params_ = GetTransportParameters(client_hello);
-  }
+  transport_params_ = GetTransportParameters(client_hello);
 
   // Update our state now that we've parsed a full CHLO.
   if (state_ == State::kInitial) {
