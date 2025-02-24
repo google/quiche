@@ -98,7 +98,7 @@ class QUICHE_EXPORT GenericBugStreamHandler {
   template <typename T,
             std::enable_if_t<!absl::HasAbslStringify<T>::value, bool> = true>
   GenericBugStreamHandler& operator<<(const T& v) {
-    absl::StrAppend(&str_, (std::ostringstream() << v).view());
+    absl::StrAppend(&str_, (std::ostringstream() << v).str());
     return *this;
   }
 
