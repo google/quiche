@@ -88,6 +88,11 @@ struct SimulationParameters {
   QuicByteCount network_queue_size = 0;
   // Duration for which the simulation is run.
   QuicTimeDelta duration = QuicTimeDelta::FromSeconds(60);
+  // Packet aggregation timeout.  If zero, this will be set to the quarter of
+  // min RTT.
+  QuicTimeDelta aggregation_timeout = QuicTimeDelta::Zero();
+  // Packet aggregation threshold.  If zero, packet aggregation is disabled.
+  QuicByteCount aggregation_threshold = 0;
 
   // Count frames as useful only if they were received `deadline` after which
   // they were generated.
@@ -389,6 +394,14 @@ class MoqtSimulator {
         adjuster_(simulator_.GetClock(), client_endpoint_.session()->session(),
                   &generator_),
         parameters_(parameters) {
+    if (parameters.aggregation_threshold > 0) {
+      QuicTimeDelta timeout = parameters.aggregation_timeout;
+      if (timeout.IsZero()) {
+        timeout = parameters.min_rtt * 0.25;
+      }
+      switch_.port_queue(2)->EnableAggregation(parameters.aggregation_threshold,
+                                               timeout);
+    }
     client_endpoint_.RecordTrace();
   }
 
@@ -567,6 +580,19 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "for the specified duration.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    quic::QuicByteCount, aggregation_threshold,
+    moqt::test::SimulationParameters().aggregation_threshold,
+    "If non-zero, enables packet aggregation with the specified threshold (the "
+    "packets sent by publisher will be delayed until the specified number is "
+    "present).");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    absl::Duration, aggregation_timeout,
+    moqt::test::SimulationParameters().aggregation_timeout.ToAbsl(),
+    "Sets the timeout for packet aggregation; if zero, this will be set to the "
+    "quarter of min RTT.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, output_format, "",
     R"(If non-empty, instead of the usual human-readable format,
 the tool will output the raw numbers from the simulation, formatted as
@@ -596,6 +622,10 @@ int main(int argc, char** argv) {
       quiche::GetQuicheCommandLineFlag(FLAGS_alternative_timeout);
   parameters.blackhole_duration = quic::QuicTimeDelta(
       quiche::GetQuicheCommandLineFlag(FLAGS_blackhole_duration));
+  parameters.aggregation_threshold =
+      quiche::GetQuicheCommandLineFlag(FLAGS_aggregation_threshold);
+  parameters.aggregation_timeout = quic::QuicTimeDelta(
+      quiche::GetQuicheCommandLineFlag(FLAGS_aggregation_timeout));
 
   std::string raw_delivery_order = absl::AsciiStrToLower(
       quiche::GetQuicheCommandLineFlag(FLAGS_delivery_order));
