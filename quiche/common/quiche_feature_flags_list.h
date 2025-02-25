@@ -63,7 +63,7 @@ QUICHE_FLAG(bool, quiche_restart_flag_quic_support_flow_label2, true, true, "If 
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_release_time_for_gso, false, false, "If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_false, false, false, "A testonly restart flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_true, true, true, "A testonly restart flag that will always default to true.")
-QUICHE_FLAG(bool, quiche_restart_flag_quic_use_one_map_in_time_wait_list, false, false, "If true, use a single connection ID data map in time wait list manager.")
+QUICHE_FLAG(bool, quiche_restart_flag_quic_use_one_map_in_time_wait_list, false, true, "If true, use a single connection ID data map in time wait list manager.")
 
 #endif
 // clang-format on
