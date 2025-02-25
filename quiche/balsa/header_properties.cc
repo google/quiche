@@ -99,6 +99,15 @@ std::array<bool, 256> buildInvalidPathCharLookupTable() {
   return invalidCharTable;
 }
 
+std::array<bool, 256> buildInvalidQueryCharLookupTable() {
+  std::array<bool, 256> invalidCharTable;
+  invalidCharTable.fill(true);
+  for (uint8_t c : kValidQueryCharList) {
+    invalidCharTable[c] = false;
+  }
+  return invalidCharTable;
+}
+
 }  // anonymous namespace
 
 bool IsMultivaluedHeader(absl::string_view header) {
@@ -140,6 +149,17 @@ bool HasInvalidHeaderChars(absl::string_view value) {
 bool HasInvalidPathChar(absl::string_view value) {
   static const std::array<bool, 256> invalidCharTable =
       buildInvalidPathCharLookupTable();
+  for (const char c : value) {
+    if (invalidCharTable[c]) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool HasInvalidQueryChar(absl::string_view value) {
+  static const std::array<bool, 256> invalidCharTable =
+      buildInvalidQueryCharLookupTable();
   for (const char c : value) {
     if (invalidCharTable[c]) {
       return true;

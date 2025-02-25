@@ -119,5 +119,26 @@ TEST(HeaderPropertiesTest, HasInvalidPathChar) {
   EXPECT_TRUE(HasInvalidPathChar("/angle<brackets>also/bad"));
 }
 
+TEST(HeaderPropertiesTest, HasInvalidQueryChar) {
+  EXPECT_FALSE(HasInvalidQueryChar(""));
+  EXPECT_FALSE(HasInvalidQueryChar("/"));
+  EXPECT_FALSE(HasInvalidQueryChar("valid_query/chars"));
+  EXPECT_FALSE(HasInvalidQueryChar("query;fragment"));
+  EXPECT_FALSE(HasInvalidQueryChar("query2.fun/my_site-root/!&$=,+*()/wow"));
+  // Surprise! []{}^| are seen in requests on the internet.
+  EXPECT_FALSE(HasInvalidQueryChar("square[brackets]surprisingly/allowed"));
+  EXPECT_FALSE(HasInvalidQueryChar("curly{braces}surprisingly/allowed"));
+  EXPECT_FALSE(HasInvalidQueryChar("caret^pipe|surprisingly/allowed"));
+  // Surprise! Chrome sends backslash in query params, sometimes.
+  EXPECT_FALSE(HasInvalidQueryChar("query_with?backslash\\hooray"));
+  // Query params sometimes contain backtick or double quote.
+  EXPECT_FALSE(HasInvalidQueryChar("backtick`"));
+  EXPECT_FALSE(HasInvalidQueryChar("double\"quote"));
+
+  EXPECT_TRUE(HasInvalidQueryChar("query with spaces"));
+  EXPECT_TRUE(HasInvalidQueryChar("query\rwith\tother\nwhitespace"));
+  EXPECT_TRUE(HasInvalidQueryChar("query_with_angle<brackets>also_bad"));
+}
+
 }  // namespace
 }  // namespace quiche::header_properties::test
