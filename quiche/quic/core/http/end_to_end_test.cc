@@ -5260,16 +5260,8 @@ TEST_P(EndToEndTest,
 
   client_.reset(CreateQuicClient(client_writer_));
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
-
-  if (GetQuicReloadableFlag(
-          quic_dispatcher_only_serialize_close_if_closed_by_self)) {
-    EXPECT_THAT(client_->connection_error(),
-                IsError(QUIC_HANDSHAKE_FAILED_SYNTHETIC_CONNECTION_CLOSE));
-  } else {
-    EXPECT_THAT(client_->connection_error(),
-                testing::AnyOf(IsError(QUIC_NETWORK_IDLE_TIMEOUT),
-                               IsError(QUIC_HANDSHAKE_TIMEOUT)));
-  }
+  EXPECT_THAT(client_->connection_error(),
+              IsError(QUIC_HANDSHAKE_FAILED_SYNTHETIC_CONNECTION_CLOSE));
 }
 
 // Regression test for b/116200989.
