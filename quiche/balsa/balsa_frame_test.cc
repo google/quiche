@@ -723,7 +723,6 @@ TEST(HTTPBalsaFrame, RequestFirstLineParsedCorrectly) {
 
 TEST(HTTPBalsaFrame, RequestLineSanitizedProperly) {
   SCOPED_TRACE("Testing that the request line is properly sanitized.");
-  using enum HttpValidationPolicy::FirstLineValidationOption;
   using FirstLineValidationOption =
       HttpValidationPolicy::FirstLineValidationOption;
 
@@ -735,35 +734,35 @@ TEST(HTTPBalsaFrame, RequestLineSanitizedProperly) {
   };
   const std::vector<TestCase> cases = {
       // No invalid whitespace.
-      {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1", NONE,
+      {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1", FirstLineValidationOption::NONE,
        BalsaFrameEnums::BALSA_NO_ERROR},
-      {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1", SANITIZE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1", REJECT,
-       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1",
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1",
+       FirstLineValidationOption::REJECT, BalsaFrameEnums::BALSA_NO_ERROR},
 
       // Illegal CR in the request-line.
-      {"GET /\rHTTP/1.1\r\n", "GET /\rHTTP/1.1", NONE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"GET /\rHTTP/1.1\r\n", "GET / HTTP/1.1", SANITIZE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"GET /\rHTTP/1.1\r\n", "", REJECT,
+      {"GET /\rHTTP/1.1\r\n", "GET /\rHTTP/1.1",
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET /\rHTTP/1.1\r\n", "GET / HTTP/1.1",
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET /\rHTTP/1.1\r\n", "", FirstLineValidationOption::REJECT,
        BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE},
 
       // Invalid tab in the request-line.
-      {"GET \t/ HTTP/1.1\r\n", "GET \t/ HTTP/1.1", NONE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"GET \t/ HTTP/1.1\r\n", "GET  / HTTP/1.1", SANITIZE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"GET \t/ HTTP/1.1\r\n", "", REJECT,
+      {"GET \t/ HTTP/1.1\r\n", "GET \t/ HTTP/1.1",
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET \t/ HTTP/1.1\r\n", "GET  / HTTP/1.1",
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET \t/ HTTP/1.1\r\n", "", FirstLineValidationOption::REJECT,
        BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE},
 
       // Both CR and tab in the request-line.
-      {"GET \t/\rHTTP/1.1 \r\n", "GET \t/\rHTTP/1.1", NONE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"GET \t/\rHTTP/1.1 \r\n", "GET  / HTTP/1.1", SANITIZE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"GET \t/\rHTTP/1.1 \r\n", "", REJECT,
+      {"GET \t/\rHTTP/1.1 \r\n", "GET \t/\rHTTP/1.1",
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET \t/\rHTTP/1.1 \r\n", "GET  / HTTP/1.1",
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"GET \t/\rHTTP/1.1 \r\n", "", FirstLineValidationOption::REJECT,
        BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE},
   };
   const absl::string_view kHeaderLineAndEnding = "Foo: bar\r\n\r\n";
@@ -851,7 +850,6 @@ TEST(HTTPBalsaFrame, ResponseFirstLineParsedCorrectly) {
 
 TEST(HTTPBalsaFrame, StatusLineSanitizedProperly) {
   SCOPED_TRACE("Testing that the status line is properly sanitized.");
-  using enum HttpValidationPolicy::FirstLineValidationOption;
   using FirstLineValidationOption =
       HttpValidationPolicy::FirstLineValidationOption;
 
@@ -863,35 +861,35 @@ TEST(HTTPBalsaFrame, StatusLineSanitizedProperly) {
   };
   const std::vector<TestCase> cases = {
       // No invalid whitespace.
-      {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK", NONE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK", SANITIZE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK", REJECT,
-       BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK",
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK",
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 200 OK\r\n", "HTTP/1.1 200 OK",
+       FirstLineValidationOption::REJECT, BalsaFrameEnums::BALSA_NO_ERROR},
 
       // Illegal CR in the status-line.
-      {"HTTP/1.1 200\rOK\r\n", "HTTP/1.1 200\rOK", NONE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"HTTP/1.1 200\rOK\r\n", "HTTP/1.1 200 OK", SANITIZE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"HTTP/1.1 200\rOK\r\n", "", REJECT,
+      {"HTTP/1.1 200\rOK\r\n", "HTTP/1.1 200\rOK",
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 200\rOK\r\n", "HTTP/1.1 200 OK",
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 200\rOK\r\n", "", FirstLineValidationOption::REJECT,
        BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE},
 
       // Invalid tab in the status-line.
-      {"HTTP/1.1 \t200 OK\r\n", "HTTP/1.1 \t200 OK", NONE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"HTTP/1.1 \t200 OK\r\n", "HTTP/1.1  200 OK", SANITIZE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"HTTP/1.1 \t200 OK\r\n", "", REJECT,
+      {"HTTP/1.1 \t200 OK\r\n", "HTTP/1.1 \t200 OK",
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 \t200 OK\r\n", "HTTP/1.1  200 OK",
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 \t200 OK\r\n", "", FirstLineValidationOption::REJECT,
        BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE},
 
       // Both CR and tab in the request-line.
-      {"HTTP/1.1 \t200\rOK \r\n", "HTTP/1.1 \t200\rOK", NONE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"HTTP/1.1 \t200\rOK \r\n", "HTTP/1.1  200 OK", SANITIZE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
-      {"HTTP/1.1 \t200\rOK \r\n", "", REJECT,
+      {"HTTP/1.1 \t200\rOK \r\n", "HTTP/1.1 \t200\rOK",
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 \t200\rOK \r\n", "HTTP/1.1  200 OK",
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+      {"HTTP/1.1 \t200\rOK \r\n", "", FirstLineValidationOption::REJECT,
        BalsaFrameEnums::INVALID_WS_IN_STATUS_LINE},
   };
   const absl::string_view kHeaderLineAndEnding =
