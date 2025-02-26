@@ -593,6 +593,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "quarter of min RTT.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    absl::Duration, group_duration, absl::ZeroDuration(),
+    "If non-zero, sets the group size to match the requested duration");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, output_format, "",
     R"(If non-empty, instead of the usual human-readable format,
 the tool will output the raw numbers from the simulation, formatted as
@@ -626,6 +630,13 @@ int main(int argc, char** argv) {
       quiche::GetQuicheCommandLineFlag(FLAGS_aggregation_threshold);
   parameters.aggregation_timeout = quic::QuicTimeDelta(
       quiche::GetQuicheCommandLineFlag(FLAGS_aggregation_timeout));
+
+  absl::Duration group_duration =
+      quiche::GetQuicheCommandLineFlag(FLAGS_group_duration);
+  if (group_duration > absl::ZeroDuration()) {
+    parameters.keyframe_interval =
+        absl::ToDoubleSeconds(group_duration) * parameters.fps;
+  }
 
   std::string raw_delivery_order = absl::AsciiStrToLower(
       quiche::GetQuicheCommandLineFlag(FLAGS_delivery_order));
