@@ -31,7 +31,7 @@ class FailingProofSource : public ProofSource {
       uint16_t signature_algorithm, absl::string_view in,
       std::unique_ptr<SignatureCallback> callback) override;
 
-  absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()
+  QuicSignatureAlgorithmVector SupportedTlsSignatureAlgorithms()
       const override {
     return {};
   }

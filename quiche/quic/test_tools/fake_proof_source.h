@@ -49,8 +49,7 @@ class FakeProofSource : public ProofSource {
       const QuicSocketAddress& client_address, const std::string& hostname,
       uint16_t signature_algorithm, absl::string_view in,
       std::unique_ptr<ProofSource::SignatureCallback> callback) override;
-  absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()
-      const override;
+  QuicSignatureAlgorithmVector SupportedTlsSignatureAlgorithms() const override;
   TicketCrypter* GetTicketCrypter() override;
 
   // Sets the TicketCrypter to use. If nullptr, the TicketCrypter from

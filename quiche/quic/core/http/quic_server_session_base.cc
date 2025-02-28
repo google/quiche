@@ -308,7 +308,7 @@ QuicSSLConfig QuicServerSessionBase::GetSSLConfig() const {
     return ssl_config;
   }
 
-  absl::InlinedVector<uint16_t, 8> signature_algorithms =
+  QuicSignatureAlgorithmVector signature_algorithms =
       crypto_config_->proof_source()->SupportedTlsSignatureAlgorithms();
   if (!signature_algorithms.empty()) {
     ssl_config.signing_algorithm_prefs = std::move(signature_algorithms);

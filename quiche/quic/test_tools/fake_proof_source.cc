@@ -116,8 +116,8 @@ void FakeProofSource::ComputeTlsSignature(
       std::move(callback), delegate_.get()));
 }
 
-absl::InlinedVector<uint16_t, 8>
-FakeProofSource::SupportedTlsSignatureAlgorithms() const {
+QuicSignatureAlgorithmVector FakeProofSource::SupportedTlsSignatureAlgorithms()
+    const {
   return delegate_->SupportedTlsSignatureAlgorithms();
 }
 
