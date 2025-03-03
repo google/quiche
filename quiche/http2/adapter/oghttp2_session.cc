@@ -1210,11 +1210,14 @@ void OgHttp2Session::OnStreamEnd(spdy::SpdyStreamId stream_id) {
   auto queued_frames_iter = queued_frames_.find(stream_id);
   const bool no_queued_frames = queued_frames_iter == queued_frames_.end() ||
                                 queued_frames_iter->second == 0;
-  if (iter != stream_map_.end() && iter->second.half_closed_local &&
-      !IsServerSession() && no_queued_frames) {
-    // From the client's perspective, the stream can be closed if it's already
-    // half_closed_local.
-    CloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR);
+  if (!IsServerSession() && no_queued_frames) {
+    // `iter` could have been invalidated by `visitor_.OnEndStream()`.
+    iter = stream_map_.find(stream_id);
+    if (iter != stream_map_.end() && iter->second.half_closed_local) {
+      // From the client's perspective, the stream can be closed if it's already
+      // half_closed_local.
+      CloseStream(stream_id, Http2ErrorCode::HTTP2_NO_ERROR);
+    }
   }
 }
 

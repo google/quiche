@@ -1109,6 +1109,60 @@ TEST(OgHttp2SessionTest, ServerSeesErrorOnEndStream) {
   EXPECT_FALSE(session.want_write());
 }
 
+TEST(OgHttp2SessionTest, ServerClosesStreamDuringOnEndStream) {
+  // This is a regression test for a prior crash bug caused by invalidating an
+  // iterator in `OnEndStream()`.
+  TestVisitor visitor;
+  OgHttp2Session::Options options;
+  options.perspective = Perspective::kServer;
+  OgHttp2Session session(visitor, options);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/"}},
+                                          /*fin=*/true)
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0x5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "POST"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1))
+      .WillOnce(testing::InvokeWithoutArgs([&session]() {
+        int res = session.SubmitResponse(/*stream_id=*/1,
+                                         ToHeaders({{":status", "200"}}),
+                                         /*end_stream=*/true);
+        EXPECT_EQ(res, 0);
+        int send_result = session.Send();
+        EXPECT_EQ(0, send_result);
+        return true;
+      }));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, _));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, _, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, _));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, _, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, _));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, _, 0));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  const int64_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(result, frames.size());
+}
+
 }  // namespace test
 }  // namespace adapter
 }  // namespace http2
