@@ -19,7 +19,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -27,13 +26,8 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/span.h"
-#include "quiche/http2/adapter/http2_protocol.h"
-#include "quiche/http2/adapter/http2_visitor_interface.h"
-#include "quiche/http2/adapter/oghttp2_adapter.h"
 #include "openssl/boringssl/src/include/openssl/base.h"
 #include "openssl/boringssl/src/include/openssl/bio.h"
-#include "openssl/boringssl/src/include/openssl/err.h"
 #include "openssl/boringssl/src/include/openssl/pool.h"
 #include "openssl/boringssl/src/include/openssl/ssl.h"
 #include "openssl/boringssl/src/include/openssl/stack.h"
@@ -45,11 +39,13 @@
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/masque/masque_h2_connection.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_url.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
@@ -65,23 +61,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(int, address_family, 0,
                                 "IP address family to use. Must be 0, 4 or 6. "
                                 "Defaults to 0 which means any.");
 
-using http2::adapter::Header;
-using http2::adapter::HeaderRep;
-using http2::adapter::Http2ErrorCode;
-using http2::adapter::Http2KnownSettingsId;
-using http2::adapter::Http2PingId;
-using http2::adapter::Http2Setting;
-using http2::adapter::Http2SettingsIdToString;
-using http2::adapter::Http2StreamId;
-using http2::adapter::Http2VisitorInterface;
-using http2::adapter::OgHttp2Adapter;
-
 namespace quic {
-
 namespace {
 
 class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
-                                  public Http2VisitorInterface {
+                                  public MasqueH2Connection::Visitor {
  public:
   explicit MasqueTlsTcpClientHandler(QuicEventLoop *event_loop, QuicUrl url,
                                      bool disable_certificate_verification,
@@ -267,6 +251,11 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
     }
     QUICHE_DVLOG(1) << "Wrote " << data->length()
                     << " bytes from transport to TLS";
+    if (h2_selected_) {
+      h2_connection_->OnTransportReadable();
+      socket_->ReceiveAsync(kBioBufferSize);
+      return;
+    }
     int handshake_ret = SSL_do_handshake(ssl_.get());
     if (handshake_ret != 1) {
       int ssl_err = SSL_get_error(ssl_.get(), handshake_ret);
@@ -301,11 +290,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
         done_ = true;
         return;
       }
-      if (h2_selected_) {
-        QUICHE_DVLOG(1) << "TLS read " << ssl_read_ret << " bytes of h2 data";
-        h2_adapter_->ProcessBytes(absl::string_view(
-            reinterpret_cast<const char *>(buffer), ssl_read_ret));
-      } else {
+      if (!h2_selected_) {
         QUICHE_DVLOG(1) << "TLS read " << ssl_read_ret
                         << " bytes of h1 response";
         std::cout << buffer << std::endl;
@@ -326,34 +311,35 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
 
   bool IsDone() const { return done_; }
 
+  // From MasqueH2Connection::Visitor.
+  void OnConnectionFinished(MasqueH2Connection * /*connection*/) override {
+    done_ = true;
+  }
+
+  void OnRequest(MasqueH2Connection * /*connection*/, int32_t /*stream_id*/,
+                 const quiche::HttpHeaderBlock & /*headers*/,
+                 const std::string & /*body*/) override {
+    QUICHE_LOG(FATAL) << "Client cannot receive requests";
+  }
+
+  void OnResponse(MasqueH2Connection *connection, int32_t stream_id,
+                  const quiche::HttpHeaderBlock &headers,
+                  const std::string &body) override {
+    if (connection != h2_connection_.get()) {
+      QUICHE_LOG(FATAL) << "Unexpected connection";
+    }
+    if (stream_id != stream_id_) {
+      QUICHE_LOG(FATAL) << "Unexpected stream id";
+    }
+    QUICHE_LOG(INFO) << "Received h2 response headers: "
+                     << headers.DebugString() << " body: " << body;
+    done_ = true;
+  }
+
  private:
   static SSL_CTX *MasqueSslCtx() {
     static bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
     return ctx.get();
-  }
-
-  static void PrintSSLError(const char *msg, int ssl_err, int ret) {
-    switch (ssl_err) {
-      case SSL_ERROR_SSL:
-        QUICHE_LOG(ERROR) << msg << ": "
-                          << ERR_reason_error_string(ERR_peek_error());
-        break;
-      case SSL_ERROR_SYSCALL:
-        if (ret == 0) {
-          QUICHE_LOG(ERROR) << msg << ": peer closed connection";
-        } else {
-          QUICHE_LOG(ERROR) << msg << ": " << strerror(errno);
-        }
-        break;
-      case SSL_ERROR_ZERO_RETURN:
-        QUICHE_LOG(ERROR) << msg << ": received close_notify";
-        break;
-      default:
-        QUICHE_LOG(ERROR) << msg << ": unexpected error: "
-                          << SSL_error_description(ssl_err);
-        break;
-    }
-    ERR_print_errors_fp(stderr);
   }
 
   void MaybeSendRequest() {
@@ -447,239 +433,25 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
   }
 
   void SendH2Request() {
-    OgHttp2Adapter::Options options;
-    h2_adapter_ = OgHttp2Adapter::Create(*this, options);
-    std::vector<Http2Setting> settings;
-    settings.push_back(
-        Http2Setting{Http2KnownSettingsId::HEADER_TABLE_SIZE, 4096});
-    settings.push_back(Http2Setting{Http2KnownSettingsId::ENABLE_PUSH, 0});
-    settings.push_back(
-        Http2Setting{Http2KnownSettingsId::MAX_CONCURRENT_STREAMS, 100});
-    settings.push_back(
-        Http2Setting{Http2KnownSettingsId::INITIAL_WINDOW_SIZE, 65535});
-    settings.push_back(
-        Http2Setting{Http2KnownSettingsId::MAX_FRAME_SIZE, 16384});
-    settings.push_back(
-        Http2Setting{Http2KnownSettingsId::MAX_HEADER_LIST_SIZE, 65535});
-    settings.push_back(
-        Http2Setting{Http2KnownSettingsId::ENABLE_CONNECT_PROTOCOL, 1});
-    h2_adapter_->SubmitSettings(settings);
-    std::vector<Header> headers;
-    headers.push_back(std::make_pair(HeaderRep(std::string(":method")),
-                                     HeaderRep(std::string("GET"))));
-    headers.push_back(std::make_pair(HeaderRep(std::string(":scheme")),
-                                     HeaderRep(url_.scheme())));
-    headers.push_back(std::make_pair(HeaderRep(std::string(":authority")),
-                                     HeaderRep(url_.HostPort())));
-    headers.push_back(std::make_pair(HeaderRep(std::string(":path")),
-                                     HeaderRep(url_.path())));
-    headers.push_back(std::make_pair(HeaderRep(std::string("host")),
-                                     HeaderRep(url_.HostPort())));
-    stream_id_ =
-        h2_adapter_->SubmitRequest(headers,
-                                   /*end_stream=*/true, /*user_data=*/nullptr);
-    int h2_send_result = h2_adapter_->Send();
-    if (h2_send_result != 0) {
-      QUICHE_LOG(ERROR) << "h2 send failed";
-      done_ = true;
-      return;
-    }
-    QUICHE_LOG(INFO) << "Sent h2 request on stream " << stream_id_;
-  }
-
-  // From Http2VisitorInterface.
-  using Http2VisitorInterface::ConnectionError;
-  using Http2VisitorInterface::DataFrameHeaderInfo;
-  using Http2VisitorInterface::InvalidFrameError;
-  using Http2VisitorInterface::OnHeaderResult;
-
-  int64_t OnReadyToSend(absl::string_view serialized) override {
-    QUICHE_DVLOG(1) << "Writing " << serialized.size()
-                    << " bytes of h2 data to TLS";
-    int write_res = WriteDataToTls(serialized);
-    if (write_res < 0) {
-      return kSendError;
-    }
-    return write_res;
-  }
-
-  DataFrameHeaderInfo OnReadyToSendDataForStream(
-      Http2StreamId /*stream_id*/, size_t /*max_length*/) override {
-    // We'll need to implement this to support POST or CONNECT requests.
-    QUICHE_LOG(FATAL) << "Sending h2 DATA not implemented";
-    return DataFrameHeaderInfo{};
-  }
-
-  bool SendDataFrame(Http2StreamId /*stream_id*/,
-                     absl::string_view /*frame_header*/,
-                     size_t /*payload_bytes*/) override {
-    // We'll need to implement this to support POST or CONNECT requests.
-    QUICHE_LOG(FATAL) << "Sending h2 DATA not implemented";
-    return false;
-  }
-
-  void OnConnectionError(ConnectionError error) override {
-    QUICHE_LOG(ERROR) << "OnConnectionError: " << static_cast<int>(error);
-    done_ = true;
-  }
-
-  void OnSettingsStart() override {}
-
-  void OnSetting(Http2Setting setting) override {
-    QUICHE_LOG(INFO) << "Received " << Http2SettingsIdToString(setting.id)
-                     << " = " << setting.value;
-  }
-
-  void OnSettingsEnd() override {}
-  void OnSettingsAck() override {}
-
-  bool OnBeginHeadersForStream(Http2StreamId stream_id) override {
-    QUICHE_DVLOG(1) << "OnBeginHeadersForStream " << stream_id;
-    return true;
-  }
-
-  OnHeaderResult OnHeaderForStream(Http2StreamId stream_id,
-                                   absl::string_view key,
-                                   absl::string_view value) override {
-    QUICHE_LOG(INFO) << "Stream " << stream_id << " received header " << key
-                     << " = " << value;
-    return OnHeaderResult::HEADER_OK;
-  }
-
-  bool OnEndHeadersForStream(Http2StreamId stream_id) override {
-    QUICHE_DVLOG(1) << "OnEndHeadersForStream " << stream_id;
-    return true;
-  }
-
-  bool OnBeginDataForStream(Http2StreamId stream_id,
-                            size_t payload_length) override {
-    QUICHE_DVLOG(1) << "OnBeginDataForStream " << stream_id
-                    << " payload_length: " << payload_length;
-    return true;
-  }
-
-  bool OnDataPaddingLength(Http2StreamId stream_id,
-                           size_t padding_length) override {
-    QUICHE_LOG(INFO) << "OnDataPaddingLength stream_id: " << stream_id
-                     << " padding_length: " << padding_length;
-    return true;
-  }
-
-  bool OnDataForStream(Http2StreamId stream_id,
-                       absl::string_view data) override {
-    QUICHE_DVLOG(1) << "OnDataForStream " << stream_id
-                    << " data length: " << data.size() << std::endl
-                    << data;
-    return true;
-  }
-
-  bool OnEndStream(Http2StreamId stream_id) override {
-    QUICHE_DVLOG(1) << "OnEndStream " << stream_id;
-    return true;
-  }
-
-  void OnRstStream(Http2StreamId stream_id,
-                   Http2ErrorCode error_code) override {
-    QUICHE_LOG(INFO) << "Stream " << stream_id << " reset with error code "
-                     << Http2ErrorCodeToString(error_code);
-  }
-
-  bool OnCloseStream(Http2StreamId stream_id,
-                     Http2ErrorCode error_code) override {
-    QUICHE_LOG(INFO) << "Stream " << stream_id << " closed with error code "
-                     << Http2ErrorCodeToString(error_code);
-    if (stream_id == stream_id_) {
+    h2_connection_ =
+        std::make_unique<MasqueH2Connection>(ssl_.get(),
+                                             /*is_server=*/false, this);
+    h2_connection_->OnTransportReadable();
+    quiche::HttpHeaderBlock headers;
+    headers[":method"] = "GET";
+    headers[":scheme"] = url_.scheme();
+    headers[":authority"] = url_.HostPort();
+    headers[":path"] = url_.path();
+    headers["host"] = url_.HostPort();
+    stream_id_ = h2_connection_->SendRequest(headers, std::string());
+    if (stream_id_ >= 0) {
+      QUICHE_LOG(INFO) << "Wrote h2 request to stream " << stream_id_
+                       << ", now sending to transport";
+      SendToTransport();
+    } else {
+      QUICHE_LOG(ERROR) << "Failed to send h2 request";
       done_ = true;
     }
-    return true;
-  }
-
-  void OnPriorityForStream(Http2StreamId stream_id,
-                           Http2StreamId parent_stream_id, int weight,
-                           bool exclusive) override {
-    QUICHE_LOG(INFO) << "Stream " << stream_id << " received priority "
-                     << weight << (exclusive ? " exclusive" : "") << " parent "
-                     << parent_stream_id;
-  }
-
-  void OnPing(Http2PingId ping_id, bool is_ack) override {
-    QUICHE_LOG(INFO) << "Received ping " << ping_id << (is_ack ? " ack" : "");
-  }
-
-  void OnPushPromiseForStream(Http2StreamId stream_id,
-                              Http2StreamId promised_stream_id) override {
-    QUICHE_LOG(INFO) << "Stream " << stream_id
-                     << " received push promise for stream "
-                     << promised_stream_id;
-  }
-
-  bool OnGoAway(Http2StreamId last_accepted_stream_id,
-                Http2ErrorCode error_code,
-                absl::string_view opaque_data) override {
-    QUICHE_LOG(INFO) << "Received GOAWAY frame with last_accepted_stream_id: "
-                     << last_accepted_stream_id
-                     << " error_code: " << Http2ErrorCodeToString(error_code)
-                     << " opaque_data length: " << opaque_data.size();
-    return true;
-  }
-
-  void OnWindowUpdate(Http2StreamId stream_id, int window_increment) override {
-    QUICHE_LOG(INFO) << "Stream " << stream_id << " received window update "
-                     << window_increment;
-  }
-
-  int OnBeforeFrameSent(uint8_t frame_type, Http2StreamId stream_id,
-                        size_t length, uint8_t flags) override {
-    QUICHE_DVLOG(1) << "OnBeforeFrameSent frame_type: "
-                    << static_cast<int>(frame_type)
-                    << " stream_id: " << stream_id << " length: " << length
-                    << " flags: " << static_cast<int>(flags);
-    return 0;
-  }
-
-  int OnFrameSent(uint8_t frame_type, Http2StreamId stream_id, size_t length,
-                  uint8_t flags, uint32_t error_code) override {
-    QUICHE_DVLOG(1) << "OnFrameSent frame_type: "
-                    << static_cast<int>(frame_type)
-                    << " stream_id: " << stream_id << " length: " << length
-                    << " flags: " << static_cast<int>(flags)
-                    << " error_code: " << error_code;
-    return 0;
-  }
-
-  bool OnInvalidFrame(Http2StreamId stream_id,
-                      InvalidFrameError error) override {
-    QUICHE_LOG(INFO) << "Stream " << stream_id
-                     << " received invalid frame error "
-                     << static_cast<int>(error);
-    if (stream_id == stream_id_) {
-      done_ = true;
-      return false;
-    }
-    return true;
-  }
-
-  void OnBeginMetadataForStream(Http2StreamId stream_id,
-                                size_t payload_length) override {
-    QUICHE_LOG(INFO) << "Stream " << stream_id
-                     << " about to receive metadata of length "
-                     << payload_length;
-  }
-
-  bool OnMetadataForStream(Http2StreamId stream_id,
-                           absl::string_view metadata) override {
-    QUICHE_LOG(INFO) << "Stream " << stream_id
-                     << " received metadata of length " << metadata.size();
-    return true;
-  }
-
-  bool OnMetadataEndForStream(Http2StreamId stream_id) override {
-    QUICHE_LOG(INFO) << "Stream " << stream_id << " done receiving metadata";
-    return true;
-  }
-
-  void OnErrorDebug(absl::string_view message) override {
-    QUICHE_LOG(ERROR) << "OnErrorDebug: " << message;
   }
 
   static constexpr size_t kBioBufferSize = 16384;
@@ -695,10 +467,10 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
   bssl::UniquePtr<SSL> ssl_;
   bool tls_connected_ = false;
   bool h2_selected_ = false;
-  int32_t stream_id_ = -1;
   bool request_sent_ = false;
   bool done_ = false;
-  std::unique_ptr<OgHttp2Adapter> h2_adapter_;
+  int32_t stream_id_ = -1;
+  std::unique_ptr<MasqueH2Connection> h2_connection_;
 };
 
 int RunMasqueTcpClient(int argc, char *argv[]) {
