@@ -705,7 +705,6 @@ TEST_F(QuicReceivedPacketManagerTest, CountEcnPackets) {
 }
 
 TEST_F(QuicReceivedPacketManagerTest, NewCeTriggersImmediateAck) {
-  SetQuicReloadableFlag(quic_ack_ce_immediately, true);
   EXPECT_FALSE(HasPendingAck());
   RecordPacketReceipt(3, QuicTime::Zero(), ECN_ECT1);
   MaybeUpdateAckTimeout(kInstigateAck, 3);

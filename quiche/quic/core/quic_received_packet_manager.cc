@@ -125,13 +125,10 @@ void QuicReceivedPacketManager::RecordPacketReceived(
     }
   }
 
-  if (GetQuicReloadableFlag(quic_ack_ce_immediately)) {
-    if (ecn == ECN_CE && !last_packet_was_ce_marked_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_ack_ce_immediately, 1, 2);
-      changed_to_ce_marked_ = true;
-    }
-    last_packet_was_ce_marked_ = ecn == ECN_CE;
+  if (ecn == ECN_CE && !last_packet_was_ce_marked_) {
+    changed_to_ce_marked_ = true;
   }
+  last_packet_was_ce_marked_ = ecn == ECN_CE;
   if (ecn != ECN_NOT_ECT) {
     if (!ack_frame_.ecn_counters.has_value()) {
       ack_frame_.ecn_counters = QuicEcnCounts();
@@ -307,11 +304,8 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
   }
 
   if (changed_to_ce_marked_) {
-    // changed_to_ce_marked_ is always false if quic_ack_ce_immediately is
-    // false, so there's no need to check the feature flag here.
     ack_timeout_ = now;
     changed_to_ce_marked_ = false;
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_ack_ce_immediately, 2, 2);
     return;
   }
 
