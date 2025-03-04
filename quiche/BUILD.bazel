@@ -334,6 +334,7 @@ cc_library(
         ":quiche_core",
         ":quiche_tool_support",
         "@boringssl//:crypto",
+        "@boringssl//:ssl",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/cleanup",
