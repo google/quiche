@@ -7,9 +7,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <type_traits>
 
 #include "quiche/quic/core/io/socket.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
@@ -37,6 +39,7 @@ enum class QuicUdpPacketInfoBit : uint8_t {
   GOOGLE_PACKET_HEADER,  // Read
   IS_GRO,                // Read
   V6_FLOW_LABEL,         // Read & Write
+  TOS,                   // Read
 
   // Must be the last value.
   NUM_BITS
@@ -164,6 +167,19 @@ class QUICHE_EXPORT QuicUdpPacketInfo {
     bitmask_.Set(QuicUdpPacketInfoBit::ECN);
   }
 
+  std::optional<uint8_t> GetTos() const {
+    if (HasValue(QuicUdpPacketInfoBit::TOS)) {
+      return tos_;
+    }
+    return std::nullopt;
+  }
+
+  void SetTos(uint8_t tos) {
+    tos_ = tos;
+    bitmask_.Set(QuicUdpPacketInfoBit::TOS);
+    SetEcnCodepoint(QuicEcnCodepoint(tos_ & kEcnMask));
+  }
+
   uint32_t flow_label() const {
     QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::V6_FLOW_LABEL));
     return ipv6_flow_label_;
@@ -185,6 +201,7 @@ class QUICHE_EXPORT QuicUdpPacketInfo {
   BufferSpan google_packet_headers_;
   size_t gso_size_ = 0;
   QuicEcnCodepoint ecn_codepoint_ = ECN_NOT_ECT;
+  uint8_t tos_ = 0;
   uint32_t ipv6_flow_label_ = 0;
 };
 

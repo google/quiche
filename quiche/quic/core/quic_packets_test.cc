@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/quic_packets.h"
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/memory/memory.h"
@@ -130,6 +132,23 @@ TEST_F(QuicPacketsTest, CloneReceivedPacket) {
   EXPECT_EQ(packet.ecn_codepoint(), copy->ecn_codepoint());
 }
 
+TEST_F(QuicPacketsTest, NoTosByDefault) {
+  char header[4] = "bar";
+  QuicReceivedPacket packet(
+      "foo", 3, QuicTime::Zero(), false, 0, true, header, sizeof(header) - 1,
+      false, QuicEcnCodepoint::ECN_ECT1, /*tos=*/std::nullopt, 42);
+  EXPECT_FALSE(packet.tos().has_value());
+}
+
+TEST_F(QuicPacketsTest, ExplicitTos) {
+  char header[4] = "bar";
+  uint8_t tos = 0xc | QuicEcnCodepoint::ECN_ECT1;
+  QuicReceivedPacket packet("foo", 3, QuicTime::Zero(), false, 0, true, header,
+                            sizeof(header) - 1, false,
+                            QuicEcnCodepoint::ECN_ECT1, tos, 42);
+  EXPECT_THAT(packet.tos(), testing::Optional(tos));
+}
+
 TEST_F(QuicPacketsTest, NoFlowLabelByDefault) {
   char header[4] = "bar";
   QuicReceivedPacket packet("foo", 3, QuicTime::Zero(), false, 0, true, header,
@@ -140,9 +159,9 @@ TEST_F(QuicPacketsTest, NoFlowLabelByDefault) {
 
 TEST_F(QuicPacketsTest, ExplicitFlowLabel) {
   char header[4] = "bar";
-  QuicReceivedPacket packet("foo", 3, QuicTime::Zero(), false, 0, true, header,
-                            sizeof(header) - 1, false,
-                            QuicEcnCodepoint::ECN_ECT1, 42);
+  QuicReceivedPacket packet(
+      "foo", 3, QuicTime::Zero(), false, 0, true, header, sizeof(header) - 1,
+      false, QuicEcnCodepoint::ECN_ECT1, /*tos=*/std::nullopt, 42);
   EXPECT_EQ(42, packet.ipv6_flow_label());
 }
 

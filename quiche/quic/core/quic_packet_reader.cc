@@ -53,11 +53,18 @@ bool QuicPacketReader::ReadAndDispatchPackets(
       {QuicUdpPacketInfoBit::DROPPED_PACKETS,
        QuicUdpPacketInfoBit::PEER_ADDRESS, QuicUdpPacketInfoBit::V4_SELF_IP,
        QuicUdpPacketInfoBit::V6_SELF_IP, QuicUdpPacketInfoBit::RECV_TIMESTAMP,
-       QuicUdpPacketInfoBit::TTL, QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER,
-       QuicUdpPacketInfoBit::ECN});
+       QuicUdpPacketInfoBit::TTL, QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER});
   if (GetQuicRestartFlag(quic_support_flow_label2)) {
     QUIC_RESTART_FLAG_COUNT_N(quic_support_flow_label2, 4, 6);
     info_bits.Set(QuicUdpPacketInfoBit::V6_FLOW_LABEL);
+  }
+  if (GetQuicReloadableFlag(quic_record_tos_byte)) {
+    QUIC_CODE_COUNT(quic_record_tos_byte);
+    // TODO: martinduke - Consolidate ECN and TOS bits.
+    // Note ToS bit will also populate ECN codepoint.
+    info_bits.Set(QuicUdpPacketInfoBit::TOS);
+  } else {
+    info_bits.Set(QuicUdpPacketInfoBit::ECN);
   }
   size_t packets_read =
       socket_api_.ReadMultiplePackets(fd, info_bits, &read_results_);
@@ -107,7 +114,7 @@ bool QuicPacketReader::ReadAndDispatchPackets(
         result.packet_buffer.buffer, result.packet_buffer.buffer_len, now,
         /*owns_buffer=*/false, ttl, has_ttl, headers, headers_length,
         /*owns_header_buffer=*/false, result.packet_info.ecn_codepoint(),
-        flow_label);
+        result.packet_info.GetTos(), flow_label);
     QuicSocketAddress self_address(self_ip, port);
     processor->ProcessPacket(self_address, peer_address, packet);
   }

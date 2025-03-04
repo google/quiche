@@ -5,7 +5,9 @@
 #include "quiche/quic/core/quic_packets.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -14,10 +16,12 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -358,21 +362,27 @@ QuicReceivedPacket::QuicReceivedPacket(
     : quic::QuicReceivedPacket(buffer, length, receipt_time, owns_buffer, ttl,
                                ttl_valid, packet_headers, headers_length,
                                owns_header_buffer, ecn_codepoint,
+                               /*tos=*/std::nullopt,
                                /*ipv6_flow_label=*/0) {}
 
 QuicReceivedPacket::QuicReceivedPacket(
     const char* buffer, size_t length, QuicTime receipt_time, bool owns_buffer,
     int ttl, bool ttl_valid, char* packet_headers, size_t headers_length,
     bool owns_header_buffer, QuicEcnCodepoint ecn_codepoint,
-    uint32_t ipv6_flow_label)
+    std::optional<uint8_t> tos, uint32_t ipv6_flow_label)
     : QuicEncryptedPacket(buffer, length, owns_buffer),
       receipt_time_(receipt_time),
       ttl_(ttl_valid ? ttl : -1),
       packet_headers_(packet_headers),
       headers_length_(headers_length),
       owns_header_buffer_(owns_header_buffer),
+      tos_(tos),
       ecn_codepoint_(ecn_codepoint),
-      ipv6_flow_label_(ipv6_flow_label) {}
+      ipv6_flow_label_(ipv6_flow_label) {
+  // Explicit Congestion Notification is extracted from the TOS byte.
+  QUICHE_DCHECK(!tos_.has_value() ||
+                QuicEcnCodepoint(*tos_ & kEcnMask) == ecn_codepoint_);
+}
 
 QuicReceivedPacket::~QuicReceivedPacket() {
   if (owns_header_buffer_) {

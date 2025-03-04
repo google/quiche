@@ -326,6 +326,9 @@ inline constexpr size_t kMaxNumMultiPortPaths = 5;
 
 inline constexpr size_t kMaxDuplicatedPacketsSentToServerPreferredAddress = 5;
 
+// Explicit Congestion Notification is the last two bits of the TOS byte.
+constexpr uint8_t kEcnMask = 0x03;
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_CONSTANTS_H_

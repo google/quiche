@@ -1040,7 +1040,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                            0 /* ttl */, true /* ttl_valid */,
                            nullptr /* packet_headers */, 0 /* headers_length */,
                            false /* owns_header_buffer */, ECN_NOT_ECT,
-                           flow_label));
+                           /*tos=*/std::nullopt, flow_label));
 
     if (connection_.GetSendAlarm()->IsSet()) {
       connection_.GetSendAlarm()->Fire();
