@@ -4,29 +4,39 @@
 
 #include "quiche/quic/tools/quic_server.h"
 
+#include <cerrno>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <utility>
 
-#include "quiche/quic/core/crypto/crypto_handshake.h"
+#include "absl/status/statusor.h"
+#include "quiche/quic/core/crypto/crypto_handshake_message.h"
+#include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/io/event_loop_socket_factory.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
-#include "quiche/quic/core/quic_clock.h"
-#include "quiche/quic/core/quic_crypto_stream.h"
-#include "quiche/quic/core/quic_data_reader.h"
+#include "quiche/quic/core/io/quic_server_io_harness.h"
+#include "quiche/quic/core/io/socket.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/core/quic_default_packet_writer.h"
 #include "quiche/quic/core/quic_dispatcher.h"
-#include "quiche/quic/core/quic_packet_reader.h"
-#include "quiche/quic/core/quic_packets.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/core/quic_packet_writer.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_udp_socket.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "quiche/quic/tools/quic_simple_dispatcher.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 namespace quic {
@@ -36,8 +46,6 @@ namespace {
 const char kSourceAddressTokenSecret[] = "secret";
 
 }  // namespace
-
-const size_t kNumSessionsToCreatePerSocketEvent = 16;
 
 QuicServer::QuicServer(std::unique_ptr<ProofSource> proof_source,
                        QuicSimpleServerBackend* quic_simple_server_backend)
@@ -57,19 +65,12 @@ QuicServer::QuicServer(
     const ParsedQuicVersionVector& supported_versions,
     QuicSimpleServerBackend* quic_simple_server_backend,
     uint8_t expected_server_connection_id_length)
-    : port_(0),
-      fd_(-1),
-      packets_dropped_(0),
-      overflow_supported_(false),
-      silent_close_(false),
+    : silent_close_(false),
       config_(config),
       crypto_config_(kSourceAddressTokenSecret, QuicRandom::GetInstance(),
                      std::move(proof_source), KeyExchangeSource::Default()),
       crypto_config_options_(crypto_config_options),
       version_manager_(supported_versions),
-      max_sessions_to_create_per_socket_event_(
-          kNumSessionsToCreatePerSocketEvent),
-      packet_reader_(new QuicPacketReader()),
       quic_simple_server_backend_(quic_simple_server_backend),
       expected_server_connection_id_length_(
           expected_server_connection_id_length),
@@ -100,11 +101,9 @@ void QuicServer::Initialize() {
 }
 
 QuicServer::~QuicServer() {
-  if (event_loop_ != nullptr) {
-    if (!event_loop_->UnregisterSocket(fd_)) {
-      QUIC_LOG(ERROR) << "Failed to unregister socket: " << fd_;
-    }
-  }
+  // Ensure the I/O harness is gone before closing the socket.
+  io_.reset();
+
   (void)socket_api::Close(fd_);
   fd_ = kInvalidSocketFd;
 
@@ -121,41 +120,25 @@ bool QuicServer::CreateUDPSocketAndListen(const QuicSocketAddress& address) {
       event_loop_.get(), quiche::SimpleBufferAllocator::Get());
   quic_simple_server_backend_->SetSocketFactory(socket_factory_.get());
 
-  QuicUdpSocketApi socket_api;
-  fd_ = socket_api.Create(address.host().AddressFamilyToInt(),
-                          /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
-                          /*send_buffer_size =*/kDefaultSocketReceiveBuffer);
-  if (fd_ == kQuicInvalidSocketFd) {
-    QUIC_LOG(ERROR) << "CreateSocket() failed: " << strerror(errno);
-    return false;
-  }
-
-  overflow_supported_ = socket_api.EnableDroppedPacketCount(fd_);
-  socket_api.EnableReceiveTimestamp(fd_);
-
-  bool success = socket_api.Bind(fd_, address);
-  if (!success) {
-    QUIC_LOG(ERROR) << "Bind failed: " << strerror(errno);
-    return false;
-  }
-  QUIC_LOG(INFO) << "Listening on " << address.ToString();
-  port_ = address.port();
-  if (port_ == 0) {
-    QuicSocketAddress self_address;
-    if (self_address.FromSocket(fd_) != 0) {
-      QUIC_LOG(ERROR) << "Unable to get self address.  Error: "
-                      << strerror(errno);
-    }
-    port_ = self_address.port();
-  }
-
-  bool register_result = event_loop_->RegisterSocket(
-      fd_, kSocketEventReadable | kSocketEventWritable, this);
-  if (!register_result) {
-    return false;
-  }
   dispatcher_.reset(CreateQuicDispatcher());
+
+  absl::StatusOr<SocketFd> fd = CreateAndBindServerSocket(address);
+  if (!fd.ok()) {
+    QUIC_LOG(ERROR) << "Failed to create and bind socket: " << fd;
+    return false;
+  }
+  fd_ = *fd;
   dispatcher_->InitializeWithWriter(CreateWriter(fd_));
+
+  absl::StatusOr<std::unique_ptr<QuicServerIoHarness>> io =
+      QuicServerIoHarness::Create(event_loop_.get(), dispatcher_.get(), fd_);
+  if (!io.ok()) {
+    QUICHE_LOG(ERROR) << "Failed to create I/O harness: " << io.status();
+    return false;
+  }
+  io_ = *std::move(io);
+
+  QUIC_LOG(INFO) << "Listening on " << io_->local_address();
 
   return true;
 }
@@ -195,45 +178,9 @@ void QuicServer::Shutdown() {
     dispatcher_->Shutdown();
   }
 
+  io_.reset();
   dispatcher_.reset();
   event_loop_.reset();
-}
-
-void QuicServer::OnSocketEvent(QuicEventLoop* /*event_loop*/,
-                               QuicUdpSocketFd fd, QuicSocketEventMask events) {
-  QUICHE_DCHECK_EQ(fd, fd_);
-
-  if (events & kSocketEventReadable) {
-    QUIC_DVLOG(1) << "EPOLLIN";
-
-    dispatcher_->ProcessBufferedChlos(max_sessions_to_create_per_socket_event_);
-
-    bool more_to_read = true;
-    while (more_to_read) {
-      more_to_read = packet_reader_->ReadAndDispatchPackets(
-          fd_, port_, *QuicDefaultClock::Get(), dispatcher_.get(),
-          overflow_supported_ ? &packets_dropped_ : nullptr);
-    }
-
-    if (dispatcher_->HasChlosBuffered()) {
-      // Register EPOLLIN event to consume buffered CHLO(s).
-      bool success =
-          event_loop_->ArtificiallyNotifyEvent(fd_, kSocketEventReadable);
-      QUICHE_DCHECK(success);
-    }
-    if (!event_loop_->SupportsEdgeTriggered()) {
-      bool success = event_loop_->RearmSocket(fd_, kSocketEventReadable);
-      QUICHE_DCHECK(success);
-    }
-  }
-  if (events & kSocketEventWritable) {
-    dispatcher_->OnCanWrite();
-    if (!event_loop_->SupportsEdgeTriggered() &&
-        dispatcher_->HasPendingWrites()) {
-      bool success = event_loop_->RearmSocket(fd_, kSocketEventWritable);
-      QUICHE_DCHECK(success);
-    }
-  }
 }
 
 }  // namespace quic

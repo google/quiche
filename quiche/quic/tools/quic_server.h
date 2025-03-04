@@ -12,16 +12,22 @@
 #define QUICHE_QUIC_TOOLS_QUIC_SERVER_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/deterministic_connection_id_generator.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/io/quic_server_io_harness.h"
+#include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_packet_writer.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/core/quic_version_manager.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/core/socket_factory.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
@@ -36,7 +42,7 @@ class QuicServerPeer;
 class QuicDispatcher;
 class QuicPacketReader;
 
-class QuicServer : public QuicSpdyServerBase, public QuicSocketEventListener {
+class QuicServer : public QuicSpdyServerBase {
  public:
   // `quic_simple_server_backend` must outlive the created QuicServer.
   QuicServer(std::unique_ptr<ProofSource> proof_source,
@@ -66,10 +72,6 @@ class QuicServer : public QuicSpdyServerBase, public QuicSocketEventListener {
   // Server deletion is imminent.  Start cleaning up any pending sessions.
   virtual void Shutdown();
 
-  // QuicSocketEventListener implementation.
-  void OnSocketEvent(QuicEventLoop* event_loop, QuicUdpSocketFd fd,
-                     QuicSocketEventMask events) override;
-
   void SetChloMultiplier(size_t multiplier) {
     crypto_config_.set_chlo_multiplier(multiplier);
   }
@@ -78,16 +80,16 @@ class QuicServer : public QuicSpdyServerBase, public QuicSocketEventListener {
     crypto_config_.set_pre_shared_key(key);
   }
 
-  bool overflow_supported() { return overflow_supported_; }
+  bool overflow_supported() const { return io_->overflow_supported(); }
 
-  QuicPacketCount packets_dropped() { return packets_dropped_; }
+  QuicPacketCount packets_dropped() { return io_->packets_dropped(); }
 
-  int port() { return port_; }
+  int port() { return io_->local_address().port(); }
 
   QuicEventLoop* event_loop() { return event_loop_.get(); }
 
   void set_max_sessions_to_create_per_socket_event(size_t value) {
-    max_sessions_to_create_per_socket_event_ = value;
+    io_->set_max_sessions_to_create_per_socket_event(value);
   }
 
  protected:
@@ -132,21 +134,6 @@ class QuicServer : public QuicSpdyServerBase, public QuicSocketEventListener {
   // Accepts data from the framer and demuxes clients to sessions.
   std::unique_ptr<QuicDispatcher> dispatcher_;
 
-  // The port the server is listening on.
-  int port_;
-
-  // Listening connection.  Also used for outbound client communication.
-  QuicUdpSocketFd fd_;
-
-  // If overflow_supported_ is true this will be the number of packets dropped
-  // during the lifetime of the server.  This may overflow if enough packets
-  // are dropped.
-  QuicPacketCount packets_dropped_;
-
-  // True if the kernel supports SO_RXQ_OVFL, the number of packets dropped
-  // because the socket would otherwise overflow.
-  bool overflow_supported_;
-
   // If true, do not call Shutdown on the dispatcher.  Connections will close
   // without sending a final connection close.
   bool silent_close_;
@@ -162,20 +149,15 @@ class QuicServer : public QuicSpdyServerBase, public QuicSocketEventListener {
   // Used to generate current supported versions.
   QuicVersionManager version_manager_;
 
-  // The maximum number of sessions to create per socket event. Default to
-  // |kNumSessionsToCreatePerSocketEvent|.
-  size_t max_sessions_to_create_per_socket_event_;
-
-  // Point to a QuicPacketReader object on the heap. The reader allocates more
-  // space than allowed on the stack.
-  std::unique_ptr<QuicPacketReader> packet_reader_;
-
   QuicSimpleServerBackend* quic_simple_server_backend_;  // unowned.
 
   // Connection ID length expected to be read on incoming IETF short headers.
   uint8_t expected_server_connection_id_length_;
 
   DeterministicConnectionIdGenerator connection_id_generator_;
+
+  SocketFd fd_ = kInvalidSocketFd;
+  std::unique_ptr<QuicServerIoHarness> io_;
 };
 
 }  // namespace quic
