@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/core/internet_checksum.h"
+#include "quiche/common/internet_checksum.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -10,7 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 
-namespace quic {
+namespace quiche {
 
 void InternetChecksum::Update(const char* data, size_t size) {
   const char* current;
@@ -44,4 +44,4 @@ uint16_t InternetChecksum::Value() const {
   return ~static_cast<uint16_t>(total);
 }
 
-}  // namespace quic
+}  // namespace quiche

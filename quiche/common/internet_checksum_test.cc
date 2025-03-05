@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/core/internet_checksum.h"
+#include "quiche/common/internet_checksum.h"
 
-#include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/platform/api/quiche_test.h"
 
-namespace quic {
+namespace quiche {
 namespace {
 
 // From the Numerical Example described in RFC 1071
@@ -64,4 +64,4 @@ TEST(InternetChecksumTest, ChecksumRequiringMultipleCarriesInLittleEndian) {
 }
 
 }  // namespace
-}  // namespace quic
+}  // namespace quiche

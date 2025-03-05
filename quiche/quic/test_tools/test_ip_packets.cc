@@ -10,8 +10,8 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/internet_checksum.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/internet_checksum.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_data_writer.h"
 #include "quiche/common/quiche_endian.h"
@@ -161,7 +161,7 @@ std::string CreateUdpPacket(const QuicSocketAddress& source_address,
   header_writer.WriteUInt16(destination_address.port());
   header_writer.WriteUInt16(kUdpHeaderSize + payload.size());
 
-  InternetChecksum checksum;
+  quiche::InternetChecksum checksum;
   switch (source_address.host().address_family()) {
     case quiche::IpAddressFamily::IP_V4: {
       // IP pseudo header information. See RFC768.

@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_INTERNET_CHECKSUM_H_
-#define QUICHE_QUIC_CORE_INTERNET_CHECKSUM_H_
+// WARNING: this file is a part of the QUICHE API that is publicly available and
+// may be used by code that is not covered by QUICHE presubmits. Please run a
+// global presubmit before making breaking changes.
+
+#ifndef QUICHE_COMMON_INTERNET_CHECKSUM_H_
+#define QUICHE_COMMON_INTERNET_CHECKSUM_H_
 
 #include <cstddef>
 #include <cstdint>
@@ -12,7 +16,7 @@
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
-namespace quic {
+namespace quiche {
 
 // Incrementally compute an Internet header checksum as described in RFC 1071.
 class QUICHE_EXPORT InternetChecksum {
@@ -32,6 +36,6 @@ class QUICHE_EXPORT InternetChecksum {
   uint32_t accumulator_ = 0;
 };
 
-}  // namespace quic
+}  // namespace quiche
 
-#endif  // QUICHE_QUIC_CORE_INTERNET_CHECKSUM_H_
+#endif  // QUICHE_COMMON_INTERNET_CHECKSUM_H_

@@ -9,7 +9,7 @@
 #include <algorithm>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/internet_checksum.h"
+#include "quiche/common/internet_checksum.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_endian.h"
 
@@ -67,7 +67,7 @@ void CreateIcmpPacket(in6_addr src, in6_addr dst, const icmp6_hdr& icmp_header,
   IPv6PseudoHeader pseudo_header{};
   pseudo_header.payload_size = quiche::QuicheEndian::HostToNet32(payload_size);
 
-  InternetChecksum checksum;
+  quiche::InternetChecksum checksum;
   // Pseudoheader.
   checksum.Update(icmp_packet.ip_header.ip6_src.s6_addr, kIPv6AddressSize);
   checksum.Update(icmp_packet.ip_header.ip6_dst.s6_addr, kIPv6AddressSize);
