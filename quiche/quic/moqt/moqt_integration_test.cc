@@ -611,11 +611,12 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
   MoqtSubscribeParameters parameters;
   // Set delivery timeout to ~ 1 RTT: any loss is fatal.
   parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
-  client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
-                                             parameters);
+  client_->session()->SubscribeCurrentGroup(full_track_name, &client_visitor,
+                                            parameters);
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
   EXPECT_TRUE(success);
+  success = false;
 
   std::string data(1000, '\0');
   size_t bytes_received = 0;
@@ -633,7 +634,6 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
         FullSequence{0, 0, 0});
   });
   EXPECT_TRUE(success);
-  // Stream was reset before all the bytes arrived.
   EXPECT_EQ(bytes_received, 2000);
 }
 

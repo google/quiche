@@ -460,9 +460,10 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
 TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
   MoqtFetch fetch = {
       /*subscribe_id =*/1,
-      /*full_track_name=*/FullTrackName{"foo", "bar"},
       /*subscriber_priority=*/2,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*joining_fetch=*/std::nullopt,
+      /*full_track_name=*/FullTrackName{"foo", "bar"},
       /*start_object=*/FullSequence{1, 2},
       /*end_group=*/1,
       /*end_object=*/1,
@@ -562,6 +563,14 @@ TEST_F(MoqtFramerSimpleTest, InvalidExtensionType) {
   EXPECT_QUIC_BUG(framer_.SerializeObjectHeader(
                       object, MoqtDataStreamType::kStreamHeaderSubgroup, false),
                   "Object metadata is invalid");
+}
+
+TEST_F(MoqtFramerSimpleTest, JoiningFetch) {
+  JoiningFetchMessage message;
+  quiche::QuicheBuffer buffer =
+      framer_.SerializeFetch(std::get<MoqtFetch>(message.structured_data()));
+  EXPECT_EQ(buffer.size(), message.total_message_size());
+  EXPECT_EQ(buffer.AsStringView(), message.PacketSample());
 }
 
 }  // namespace moqt::test

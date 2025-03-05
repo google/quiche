@@ -702,31 +702,56 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
   absl::string_view track_name;
   uint8_t group_order;
   uint64_t end_object;
-  if (!reader.ReadVarInt62(&fetch.subscribe_id) ||
-      !ReadTrackNamespace(reader, fetch.full_track_name) ||
-      !reader.ReadStringPieceVarInt62(&track_name) ||
+  uint64_t type;
+  if (!reader.ReadVarInt62(&fetch.fetch_id) ||
       !reader.ReadUInt8(&fetch.subscriber_priority) ||
-      !reader.ReadUInt8(&group_order) ||
-      !reader.ReadVarInt62(&fetch.start_object.group) ||
-      !reader.ReadVarInt62(&fetch.start_object.object) ||
-      !reader.ReadVarInt62(&fetch.end_group) ||
-      !reader.ReadVarInt62(&end_object) ||
-      !ReadSubscribeParameters(reader, fetch.parameters)) {
+      !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&type)) {
     return 0;
   }
-  // Elements that have to be translated from the literal value.
-  fetch.full_track_name.AddElement(track_name);
   if (!ParseDeliveryOrder(group_order, fetch.group_order)) {
     ParseError("Invalid group order value in FETCH message");
     return 0;
   }
-  fetch.end_object =
-      end_object == 0 ? std::optional<uint64_t>() : (end_object - 1);
-  if (fetch.end_group < fetch.start_object.group ||
-      (fetch.end_group == fetch.start_object.group &&
-       fetch.end_object.has_value() &&
-       *fetch.end_object < fetch.start_object.object)) {
-    ParseError("End object comes before start object in FETCH");
+  switch (static_cast<FetchType>(type)) {
+    case FetchType::kJoining: {
+      uint64_t joining_subscribe_id;
+      uint64_t preceding_group_offset;
+      if (!reader.ReadVarInt62(&joining_subscribe_id) ||
+          !reader.ReadVarInt62(&preceding_group_offset)) {
+        return 0;
+      }
+      fetch.joining_fetch =
+          JoiningFetch{joining_subscribe_id, preceding_group_offset};
+      break;
+    }
+    case FetchType::kStandalone: {
+      fetch.joining_fetch = std::nullopt;
+      if (!ReadTrackNamespace(reader, fetch.full_track_name) ||
+          !reader.ReadStringPieceVarInt62(&track_name) ||
+          !reader.ReadVarInt62(&fetch.start_object.group) ||
+          !reader.ReadVarInt62(&fetch.start_object.object) ||
+          !reader.ReadVarInt62(&fetch.end_group) ||
+          !reader.ReadVarInt62(&end_object)) {
+        return 0;
+      }
+      // Elements that have to be translated from the literal value.
+      fetch.full_track_name.AddElement(track_name);
+      fetch.end_object =
+          end_object == 0 ? std::optional<uint64_t>() : (end_object - 1);
+      if (fetch.end_group < fetch.start_object.group ||
+          (fetch.end_group == fetch.start_object.group &&
+           fetch.end_object.has_value() &&
+           *fetch.end_object < fetch.start_object.object)) {
+        ParseError("End object comes before start object in FETCH");
+        return 0;
+      }
+      break;
+    }
+    default:
+      ParseError("Invalid FETCH type");
+      return 0;
+  }
+  if (!ReadSubscribeParameters(reader, fetch.parameters)) {
     return 0;
   }
   visitor_.OnFetchMessage(fetch);

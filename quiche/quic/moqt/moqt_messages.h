@@ -542,11 +542,24 @@ struct QUICHE_EXPORT MoqtMaxSubscribeId {
   uint64_t max_subscribe_id;
 };
 
+enum class QUICHE_EXPORT FetchType : uint64_t {
+  kStandalone = 0x1,
+  kJoining = 0x2,
+};
+
+struct JoiningFetch {
+  uint64_t joining_subscribe_id;
+  uint64_t preceding_group_offset;
+};
+
 struct QUICHE_EXPORT MoqtFetch {
-  uint64_t subscribe_id;
-  FullTrackName full_track_name;
+  uint64_t fetch_id;
   MoqtPriority subscriber_priority;
   std::optional<MoqtDeliveryOrder> group_order;
+  // If joining_fetch has a value, then the parser will not populate the name
+  // and ranges. The session will populate them instead.
+  std::optional<JoiningFetch> joining_fetch;
+  FullTrackName full_track_name;
   FullSequence start_object;  // subgroup is ignored
   uint64_t end_group;
   std::optional<uint64_t> end_object;

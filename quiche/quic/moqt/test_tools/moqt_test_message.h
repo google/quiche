@@ -1321,12 +1321,8 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetch>(values);
-    if (cast.subscribe_id != fetch_.subscribe_id) {
-      QUIC_LOG(INFO) << "FETCH subscribe_id mismatch";
-      return false;
-    }
-    if (cast.full_track_name != fetch_.full_track_name) {
-      QUIC_LOG(INFO) << "FETCH full_track_name mismatch";
+    if (cast.fetch_id != fetch_.fetch_id) {
+      QUIC_LOG(INFO) << "FETCH fetch_id mismatch";
       return false;
     }
     if (cast.subscriber_priority != fetch_.subscriber_priority) {
@@ -1337,17 +1333,38 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "FETCH group_order mismatch";
       return false;
     }
-    if (cast.start_object != fetch_.start_object) {
-      QUIC_LOG(INFO) << "FETCH start_object mismatch";
+    if (cast.joining_fetch.has_value() != fetch_.joining_fetch.has_value()) {
+      QUIC_LOG(INFO) << "FETCH type mismatch";
       return false;
     }
-    if (cast.end_group != fetch_.end_group) {
-      QUIC_LOG(INFO) << "FETCH end_group mismatch";
-      return false;
-    }
-    if (cast.end_object != fetch_.end_object) {
-      QUIC_LOG(INFO) << "FETCH end_object mismatch";
-      return false;
+    if (cast.joining_fetch.has_value()) {
+      if (cast.joining_fetch->joining_subscribe_id !=
+          fetch_.joining_fetch->joining_subscribe_id) {
+        QUIC_LOG(INFO) << "FETCH joining_subscribe_id mismatch";
+        return false;
+      }
+      if (cast.joining_fetch->preceding_group_offset !=
+          fetch_.joining_fetch->preceding_group_offset) {
+        QUIC_LOG(INFO) << "FETCH preceding_group_offset mismatch";
+        return false;
+      }
+    } else {
+      if (cast.full_track_name != fetch_.full_track_name) {
+        QUIC_LOG(INFO) << "FETCH full_track_name mismatch";
+        return false;
+      }
+      if (cast.start_object != fetch_.start_object) {
+        QUIC_LOG(INFO) << "FETCH start_object mismatch";
+        return false;
+      }
+      if (cast.end_group != fetch_.end_group) {
+        QUIC_LOG(INFO) << "FETCH end_group mismatch";
+        return false;
+      }
+      if (cast.end_object != fetch_.end_object) {
+        QUIC_LOG(INFO) << "FETCH end_object mismatch";
+        return false;
+      }
     }
     if (cast.parameters != fetch_.parameters) {
       QUIC_LOG(INFO) << "FETCH parameters mismatch";
@@ -1357,7 +1374,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvv---v-----vvvvvvv---");
+    ExpandVarintsImpl("vvv--vvv---v---vvvvvv---");
   }
 
   MessageStructuredData structured_data() const override {
@@ -1370,34 +1387,136 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
     QUICHE_CHECK(!object.has_value() || *object < 64);
     fetch_.end_group = group;
     fetch_.end_object = object;
-    raw_packet_[16] = group;
-    raw_packet_[17] = object.has_value() ? (*object + 1) : 0;
+    raw_packet_[17] = group;
+    raw_packet_[18] = object.has_value() ? (*object + 1) : 0;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   void SetGroupOrder(uint8_t group_order) {
-    raw_packet_[13] = static_cast<uint8_t>(group_order);
+    raw_packet_[4] = static_cast<uint8_t>(group_order);
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
  private:
-  uint8_t raw_packet_[24] = {
-      0x16, 0x16,
-      0x01,                                // subscribe_id = 1
-      0x01, 0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
-      0x03, 0x62, 0x61, 0x72,              // track_name = "bar"
+  uint8_t raw_packet_[25] = {
+      0x16, 0x17,
+      0x01,                                // fetch_id = 1
       0x02,                                // priority = kHigh
       0x01,                                // group_order = kAscending
+      0x01,                                // type = kStandalone
+      0x01, 0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
+      0x03, 0x62, 0x61, 0x72,              // track_name = "bar"
       0x01, 0x02,                          // start_object = 1, 2
       0x05, 0x07,                          // end_object = 5, 6
       0x01, 0x02, 0x03, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
   MoqtFetch fetch_ = {
-      /*subscribe_id =*/1,
-      /*full_track_name=*/FullTrackName{"foo", "bar"},
+      /*fetch_id =*/1,
       /*subscriber_priority=*/2,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*joining_fetch=*/std::optional<JoiningFetch>(),
+      /*full_track_name=*/FullTrackName{"foo", "bar"},
+      /*start_object=*/FullSequence{1, 2},
+      /*end_group=*/5,
+      /*end_object=*/6,
+      /*parameters=*/
+      MoqtSubscribeParameters{"baz", std::nullopt, std::nullopt, std::nullopt},
+  };
+};
+
+// This is not used in the parameterized Parser and Framer tests, because it
+// does not have its own MoqtMessageType.
+class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
+ public:
+  JoiningFetchMessage() : TestMessageBase() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+  bool EqualFieldValues(MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtFetch>(values);
+    if (cast.fetch_id != fetch_.fetch_id) {
+      QUIC_LOG(INFO) << "FETCH fetch_id mismatch";
+      return false;
+    }
+    if (cast.subscriber_priority != fetch_.subscriber_priority) {
+      QUIC_LOG(INFO) << "FETCH subscriber_priority mismatch";
+      return false;
+    }
+    if (cast.group_order != fetch_.group_order) {
+      QUIC_LOG(INFO) << "FETCH group_order mismatch";
+      return false;
+    }
+    if (cast.joining_fetch.has_value() != fetch_.joining_fetch.has_value()) {
+      QUIC_LOG(INFO) << "FETCH type mismatch";
+      return false;
+    }
+    if (cast.joining_fetch.has_value()) {
+      if (cast.joining_fetch->joining_subscribe_id !=
+          fetch_.joining_fetch->joining_subscribe_id) {
+        QUIC_LOG(INFO) << "FETCH joining_subscribe_id mismatch";
+        return false;
+      }
+      if (cast.joining_fetch->preceding_group_offset !=
+          fetch_.joining_fetch->preceding_group_offset) {
+        QUIC_LOG(INFO) << "FETCH preceding_group_offset mismatch";
+        return false;
+      }
+    } else {
+      if (cast.full_track_name != fetch_.full_track_name) {
+        QUIC_LOG(INFO) << "FETCH full_track_name mismatch";
+        return false;
+      }
+      if (cast.start_object != fetch_.start_object) {
+        QUIC_LOG(INFO) << "FETCH start_object mismatch";
+        return false;
+      }
+      if (cast.end_group != fetch_.end_group) {
+        QUIC_LOG(INFO) << "FETCH end_group mismatch";
+        return false;
+      }
+      if (cast.end_object != fetch_.end_object) {
+        QUIC_LOG(INFO) << "FETCH end_object mismatch";
+        return false;
+      }
+    }
+    if (cast.parameters != fetch_.parameters) {
+      QUIC_LOG(INFO) << "FETCH parameters mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override {
+    ExpandVarintsImpl("vvv--vvv---v---vvvvvv---");
+  }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(fetch_);
+  }
+
+  void SetGroupOrder(uint8_t group_order) {
+    raw_packet_[4] = static_cast<uint8_t>(group_order);
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+
+ private:
+  uint8_t raw_packet_[14] = {
+      0x16, 0x0c,
+      0x01,                                // fetch_id = 1
+      0x02,                                // priority = kHigh
+      0x01,                                // group_order = kAscending
+      0x02,                                // type = kJoining
+      0x02, 0x02,                          // joining_subscribe_id = 2, 2 groups
+      0x01, 0x02, 0x03, 0x62, 0x61, 0x7a,  // parameters = "baz"
+  };
+
+  MoqtFetch fetch_ = {
+      /*fetch_id =*/1,
+      /*subscriber_priority=*/2,
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*joining_fetch=*/JoiningFetch{2, 2},
+      /* the next four are ignored for joining fetches*/
+      /*full_track_name=*/FullTrackName{"foo", "bar"},
       /*start_object=*/FullSequence{1, 2},
       /*end_group=*/5,
       /*end_object=*/6,

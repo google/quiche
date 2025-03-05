@@ -77,7 +77,7 @@ SubscribeWindow SubscribeMessageToWindow(const MoqtSubscribe& subscribe,
     case MoqtFilterType::kLatestGroup:
       return SubscribeWindow(sequence.group, 0);
     case MoqtFilterType::kLatestObject:
-      return SubscribeWindow(sequence.group, sequence.object);
+      return SubscribeWindow(sequence.group, sequence.object + 1);
     case MoqtFilterType::kAbsoluteStart:
       return SubscribeWindow(*subscribe.start_group, *subscribe.start_object);
     case MoqtFilterType::kAbsoluteRange:
@@ -437,7 +437,7 @@ bool MoqtSession::Fetch(const FullTrackName& name,
   parameters.delivery_timeout = std::nullopt;
   MoqtFetch message;
   message.full_track_name = name;
-  message.subscribe_id = next_subscribe_id_++;
+  message.fetch_id = next_subscribe_id_++;
   message.start_object = start;
   message.end_group = end_group;
   message.end_object = end_object;
@@ -449,7 +449,7 @@ bool MoqtSession::Fetch(const FullTrackName& name,
   QUIC_DLOG(INFO) << ENDPOINT << "Sent FETCH message for "
                   << message.full_track_name;
   auto fetch = std::make_unique<UpstreamFetch>(message, std::move(callback));
-  upstream_by_id_.emplace(message.subscribe_id, std::move(fetch));
+  upstream_by_id_.emplace(message.fetch_id, std::move(fetch));
   return true;
 }
 
@@ -1249,54 +1249,83 @@ void MoqtSession::ControlStream::OnMaxSubscribeIdMessage(
 }
 
 void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
-  if (!session_->ValidateSubscribeId(message.subscribe_id)) {
+  if (!session_->ValidateSubscribeId(message.fetch_id)) {
     return;
   }
-  QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH for "
-                  << message.full_track_name;
   if (session_->sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH after GOAWAY";
-    SendFetchError(message.subscribe_id, SubscribeErrorCode::kUnauthorized,
+    SendFetchError(message.fetch_id, SubscribeErrorCode::kUnauthorized,
                    "FETCH after GOAWAY");
     return;
   }
-
-  const FullTrackName& track_name = message.full_track_name;
+  FullTrackName track_name;
+  FullSequence start_object;
+  uint64_t end_group;
+  std::optional<uint64_t> end_object;
+  if (message.joining_fetch.has_value()) {
+    uint64_t joining_subscribe_id = message.joining_fetch->joining_subscribe_id;
+    auto it = session_->published_subscriptions_.find(joining_subscribe_id);
+    if (it == session_->published_subscriptions_.end()) {
+      QUIC_DLOG(INFO) << ENDPOINT << "Received a JOINING_FETCH for "
+                      << "subscribe_id " << joining_subscribe_id
+                      << " that does not exist";
+      SendFetchError(message.fetch_id, SubscribeErrorCode::kDoesNotExist,
+                     "Joining Fetch for non-existent subscribe");
+      return;
+    }
+    track_name = it->second->publisher().GetTrackName();
+    FullSequence fetch_end = it->second->GetWindowStart();
+    if (message.joining_fetch->preceding_group_offset > fetch_end.group) {
+      start_object = FullSequence(0, 0);
+    } else {
+      start_object = FullSequence(
+          fetch_end.group - message.joining_fetch->preceding_group_offset, 0,
+          0);
+    }
+    end_group = fetch_end.group;
+    end_object = fetch_end.object - 1;
+  } else {
+    track_name = message.full_track_name;
+    start_object = message.start_object;
+    end_group = message.end_group;
+    end_object = message.end_object;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH for " << track_name;
   absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
       session_->publisher_->GetTrack(track_name);
   if (!track_publisher.ok()) {
     QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
                     << " rejected by the application: "
                     << track_publisher.status();
-    SendFetchError(message.subscribe_id, SubscribeErrorCode::kDoesNotExist,
+    SendFetchError(message.fetch_id, SubscribeErrorCode::kDoesNotExist,
                    track_publisher.status().message());
     return;
   }
   std::unique_ptr<MoqtFetchTask> fetch =
       (*track_publisher)
-          ->Fetch(message.start_object, message.end_group, message.end_object,
+          ->Fetch(start_object, end_group, end_object,
                   message.group_order.value_or(
                       (*track_publisher)->GetDeliveryOrder()));
   if (!fetch->GetStatus().ok()) {
     QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
                     << " could not initialize the task";
-    SendFetchError(message.subscribe_id, SubscribeErrorCode::kInvalidRange,
+    SendFetchError(message.fetch_id, SubscribeErrorCode::kInvalidRange,
                    fetch->GetStatus().message());
     return;
   }
   auto published_fetch = std::make_unique<PublishedFetch>(
-      message.subscribe_id, session_, std::move(fetch));
-  auto result = session_->incoming_fetches_.emplace(message.subscribe_id,
+      message.fetch_id, session_, std::move(fetch));
+  auto result = session_->incoming_fetches_.emplace(message.fetch_id,
                                                     std::move(published_fetch));
   if (!result.second) {  // Emplace failed.
     QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
                     << " could not be added to the session";
-    SendFetchError(message.subscribe_id, SubscribeErrorCode::kInternalError,
+    SendFetchError(message.fetch_id, SubscribeErrorCode::kInternalError,
                    "Could not initialize FETCH state");
     return;
   }
   MoqtFetchOk fetch_ok;
-  fetch_ok.subscribe_id = message.subscribe_id;
+  fetch_ok.subscribe_id = message.fetch_id;
   fetch_ok.group_order =
       message.group_order.value_or((*track_publisher)->GetDeliveryOrder());
   fetch_ok.largest_id = result.first->second->fetch_task()->GetLargestId();
@@ -1306,8 +1335,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
   if (!session_->session()->CanOpenNextOutgoingUnidirectionalStream() ||
       !session_->OpenDataStream(result.first->second, send_order)) {
     // Put the FETCH in the queue for a new stream.
-    session_->UpdateQueuedSendOrder(message.subscribe_id, std::nullopt,
-                                    send_order);
+    session_->UpdateQueuedSendOrder(message.fetch_id, std::nullopt, send_order);
   }
 }
 

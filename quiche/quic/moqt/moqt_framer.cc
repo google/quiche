@@ -710,11 +710,22 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
     QUICHE_BUG(MoqtFramer_invalid_fetch) << "Invalid FETCH object range";
     return quiche::QuicheBuffer();
   }
+  if (message.joining_fetch.has_value()) {
+    return SerializeControlMessage(
+        MoqtMessageType::kFetch, WireVarInt62(message.fetch_id),
+        WireUint8(message.subscriber_priority),
+        WireDeliveryOrder(message.group_order),
+        WireVarInt62(FetchType::kJoining),
+        WireVarInt62(message.joining_fetch->joining_subscribe_id),
+        WireVarInt62(message.joining_fetch->preceding_group_offset),
+        WireSubscribeParameterList(message.parameters));
+  }
   return SerializeControlMessage(
-      MoqtMessageType::kFetch, WireVarInt62(message.subscribe_id),
-      WireFullTrackName(message.full_track_name, true),
+      MoqtMessageType::kFetch, WireVarInt62(message.fetch_id),
       WireUint8(message.subscriber_priority),
       WireDeliveryOrder(message.group_order),
+      WireVarInt62(FetchType::kStandalone),
+      WireFullTrackName(message.full_track_name, true),
       WireVarInt62(message.start_object.group),
       WireVarInt62(message.start_object.object),
       WireVarInt62(message.end_group),

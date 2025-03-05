@@ -200,6 +200,14 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
              std::optional<uint64_t> end_object, MoqtPriority priority,
              std::optional<MoqtDeliveryOrder> delivery_order,
              MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
+  // Sends both a SUBSCRIBE and a joining FETCH, beginning |num_previous_groups|
+  // groups before the current group.
+  // TODO(martinduke): Implement this.
+  bool JoiningFetch(
+      const FullTrackName& name, FetchResponseCallback callback,
+      uint64_t num_previous_groups, std::optional<uint64_t> end_group,
+      MoqtPriority priority, std::optional<MoqtDeliveryOrder> delivery_order,
+      MoqtSubscribeParameters parameters = MoqtSubscribeParameters()) {}
 
   // Send a GOAWAY message to the peer. |new_session_uri| must be empty if
   // called by the client.
@@ -420,6 +428,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // Checks if the specified sequence is within the window of this
     // subscription.
     bool InWindow(FullSequence sequence) { return window_.InWindow(sequence); }
+    FullSequence GetWindowStart() const { return window_.start(); }
 
     void OnDataStreamCreated(webtransport::StreamId id,
                              FullSequence start_sequence);

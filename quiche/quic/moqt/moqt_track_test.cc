@@ -77,9 +77,10 @@ class UpstreamFetchTest : public quic::test::QuicTest {
 
   MoqtFetch fetch_message_ = {
       /*fetch_id=*/1,
-      /*full_track_name=*/FullTrackName("foo", "bar"),
       /*subscriber_priority=*/128,
       /*group_order=*/std::nullopt,
+      /*joining_fetch=*/std::nullopt,
+      /*full_track_name=*/FullTrackName("foo", "bar"),
       /*start_object=*/FullSequence(1, 1),
       /*end_group=*/3,
       /*end_object=*/100,

@@ -169,7 +169,7 @@ using TaskDestroyedCallback = quiche::SingleUseCallback<void()>;
 class UpstreamFetch : public RemoteTrack {
  public:
   UpstreamFetch(const MoqtFetch& fetch, FetchResponseCallback callback)
-      : RemoteTrack(fetch.full_track_name, fetch.subscribe_id,
+      : RemoteTrack(fetch.full_track_name, fetch.fetch_id,
                     SubscribeWindow(
                         fetch.start_object,
                         FullSequence(fetch.end_group,

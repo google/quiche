@@ -1259,6 +1259,16 @@ TEST_F(MoqtMessageSpecificTest, NamespaceTooLarge) {
   EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");
 }
 
+TEST_F(MoqtMessageSpecificTest, JoiningFetch) {
+  MoqtControlParser parser(kRawQuic, visitor_);
+  JoiningFetchMessage message;
+  parser.ProcessData(message.PacketSample(), false);
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
+  EXPECT_TRUE(visitor_.last_message_.has_value() &&
+              message.EqualFieldValues(*visitor_.last_message_));
+}
+
 class MoqtDataParserStateMachineTest : public quic::test::QuicTest {
  protected:
   MoqtDataParserStateMachineTest()
