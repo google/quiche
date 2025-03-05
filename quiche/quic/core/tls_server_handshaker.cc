@@ -949,6 +949,13 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 
     if (use_alps_new_codepoint == 0) {
       QUIC_CODE_COUNT(quic_gfe_alps_use_old_codepoint);
+
+      // Record whether the client sets the old alps codepoint extension.
+      if (SSL_early_callback_ctx_extension_get(
+              client_hello, TLSEXT_TYPE_application_settings_old,
+              &unused_extension_bytes, &unused_extension_len)) {
+        QUIC_CODE_COUNT(quic_gfe_alps_old_codepoint_received);
+      }
     }
   }
 
