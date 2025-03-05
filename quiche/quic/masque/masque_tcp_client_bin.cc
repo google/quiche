@@ -18,6 +18,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -61,16 +62,55 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(int, address_family, 0,
                                 "IP address family to use. Must be 0, 4 or 6. "
                                 "Defaults to 0 which means any.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, client_cert_file, "",
+                                "Path to the client certificate chain.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, client_cert_key_file, "",
+    "Path to the pkcs8 client certificate private key.");
+
 namespace quic {
 namespace {
+
+std::optional<bssl::UniquePtr<SSL_CTX>> CreateSslCtx(
+    const std::string &client_cert_file,
+    const std::string &client_cert_key_file) {
+  if (client_cert_file.empty() != client_cert_key_file.empty()) {
+    QUICHE_LOG(ERROR) << "Both private key and certificate chain are required "
+                         "when using client certificates";
+    return std::nullopt;
+  }
+  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+
+  if (!client_cert_key_file.empty() &&
+      !SSL_CTX_use_PrivateKey_file(ctx.get(), client_cert_key_file.c_str(),
+                                   SSL_FILETYPE_PEM)) {
+    QUICHE_LOG(ERROR) << "Failed to load client certificate private key: "
+                      << client_cert_key_file;
+    return std::nullopt;
+  }
+  if (!client_cert_file.empty() && !SSL_CTX_use_certificate_chain_file(
+                                       ctx.get(), client_cert_file.c_str())) {
+    QUICHE_LOG(ERROR) << "Failed to load client certificate chain: "
+                      << client_cert_file;
+    return std::nullopt;
+  }
+
+  SSL_CTX_set_min_proto_version(ctx.get(), TLS1_2_VERSION);
+  SSL_CTX_set_max_proto_version(ctx.get(), TLS1_3_VERSION);
+
+  return ctx;
+}
 
 class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
                                   public MasqueH2Connection::Visitor {
  public:
-  explicit MasqueTlsTcpClientHandler(QuicEventLoop *event_loop, QuicUrl url,
+  explicit MasqueTlsTcpClientHandler(QuicEventLoop *event_loop, SSL_CTX *ctx,
+                                     QuicUrl url,
                                      bool disable_certificate_verification,
                                      int address_family_for_lookup)
       : event_loop_(event_loop),
+        ctx_(ctx),
         socket_factory_(std::make_unique<EventLoopSocketFactory>(
             event_loop_, quiche::SimpleBufferAllocator::Get())),
         url_(url),
@@ -167,10 +207,8 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
 
     QUICHE_LOG(INFO) << "TCP connected to " << socket_address_;
 
-    ssl_.reset((SSL_new(MasqueSslCtx())));
+    ssl_.reset((SSL_new(ctx_)));
 
-    SSL_set_min_proto_version(ssl_.get(), TLS1_2_VERSION);
-    SSL_set_max_proto_version(ssl_.get(), TLS1_3_VERSION);
     if (SSL_set_app_data(ssl_.get(), this) != 1) {
       QUICHE_LOG(FATAL) << "SSL_set_app_data failed";
       return;
@@ -337,11 +375,6 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
   }
 
  private:
-  static SSL_CTX *MasqueSslCtx() {
-    static bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
-    return ctx.get();
-  }
-
   void MaybeSendRequest() {
     if (request_sent_ || done_ || !tls_connected_) {
       return;
@@ -456,6 +489,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
 
   static constexpr size_t kBioBufferSize = 16384;
   QuicEventLoop *event_loop_;  // Not owned.
+  SSL_CTX *ctx_;               // Not owned.
   std::unique_ptr<EventLoopSocketFactory> socket_factory_;
   QuicUrl url_;
   bool disable_certificate_verification_;
@@ -486,6 +520,13 @@ int RunMasqueTcpClient(int argc, char *argv[]) {
   const bool disable_certificate_verification =
       quiche::GetQuicheCommandLineFlag(FLAGS_disable_certificate_verification);
 
+  std::optional<bssl::UniquePtr<SSL_CTX>> ssl_ctx = CreateSslCtx(
+      quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_file),
+      quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_key_file));
+  if (!ssl_ctx.has_value()) {
+    return 1;
+  }
+
   const int address_family =
       quiche::GetQuicheCommandLineFlag(FLAGS_address_family);
   int address_family_for_lookup;
@@ -511,7 +552,7 @@ int RunMasqueTcpClient(int argc, char *argv[]) {
     return 1;
   }
 
-  MasqueTlsTcpClientHandler tls_handler(event_loop.get(), url,
+  MasqueTlsTcpClientHandler tls_handler(event_loop.get(), ssl_ctx->get(), url,
                                         disable_certificate_verification,
                                         address_family_for_lookup);
   if (!tls_handler.Start()) {

@@ -23,6 +23,7 @@
 #include "openssl/base.h"
 #include "openssl/bio.h"
 #include "openssl/ssl.h"
+#include "openssl/x509.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/io/socket.h"
@@ -45,6 +46,9 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, certificate_file, "",
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, key_file, "",
                                 "Path to the pkcs8 private key.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, client_root_ca_file, "",
+                                "Path to the PEM file containing root CAs.");
 
 namespace quic {
 
@@ -152,7 +156,8 @@ class MasqueTcpServer : public QuicSocketEventListener,
   }
 
   bool SetupSslCtx(const std::string &certificate_file,
-                   const std::string &key_file) {
+                   const std::string &key_file,
+                   const std::string &client_root_ca_file) {
     ctx_.reset(SSL_CTX_new(TLS_method()));
 
     if (!SSL_CTX_use_PrivateKey_file(ctx_.get(), key_file.c_str(),
@@ -164,6 +169,22 @@ class MasqueTcpServer : public QuicSocketEventListener,
                                             certificate_file.c_str())) {
       QUICHE_LOG(ERROR) << "Failed to load cert chain: " << certificate_file;
       return false;
+    }
+    if (!client_root_ca_file.empty()) {
+      X509_STORE *store = SSL_CTX_get_cert_store(ctx_.get());
+      if (store == nullptr) {
+        QUICHE_LOG(ERROR) << "Failed to get certificate store";
+        return false;
+      }
+      if (X509_STORE_load_locations(store, client_root_ca_file.c_str(),
+                                    /*dir=*/nullptr) != 1) {
+        QUICHE_LOG(ERROR) << "Failed to load client root CA file: "
+                          << client_root_ca_file;
+        return false;
+      }
+      SSL_CTX_set_verify(ctx_.get(),
+                         SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                         /*callback=*/nullptr);
     }
 
     SSL_CTX_set_alpn_select_cb(ctx_.get(), &SelectAlpnCallback, this);
@@ -325,11 +346,13 @@ int RunMasqueTcpServer(int argc, char *argv[]) {
     QUICHE_LOG(ERROR) << "--key_file cannot be empty";
     return 1;
   }
+  std::string client_root_ca_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_client_root_ca_file);
 
   quiche::QuicheSystemEventLoop system_event_loop("masque_tcp_server");
 
   MasqueTcpServer server;
-  if (!server.SetupSslCtx(certificate_file, key_file)) {
+  if (!server.SetupSslCtx(certificate_file, key_file, client_root_ca_file)) {
     QUICHE_LOG(ERROR) << "Failed to setup SSL context";
     return 1;
   }
