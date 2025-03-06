@@ -186,7 +186,8 @@ class QUICHE_EXPORT QuicSpdyStream
   bool OnStreamFrameAcked(QuicStreamOffset offset, QuicByteCount data_length,
                           bool fin_acked, QuicTime::Delta ack_delay_time,
                           QuicTime receive_timestamp,
-                          QuicByteCount* newly_acked_length) override;
+                          QuicByteCount* newly_acked_length,
+                          bool is_retransmission) override;
 
   // Override to report bytes retransmitted via ack_listener_.
   void OnStreamFrameRetransmitted(QuicStreamOffset offset,
@@ -431,7 +432,8 @@ class QUICHE_EXPORT QuicSpdyStream
   void OnNewDataAcked(QuicStreamOffset offset, QuicByteCount data_length,
                       QuicByteCount newly_acked_length,
                       QuicTime receive_timestamp,
-                      QuicTime::Delta ack_delay_time) override;
+                      QuicTime::Delta ack_delay_time,
+                      bool is_retransmission) override;
 
  private:
   friend class test::QuicSpdyStreamPeer;

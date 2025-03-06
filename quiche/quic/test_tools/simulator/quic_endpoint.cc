@@ -171,9 +171,11 @@ bool QuicEndpoint::AllowSelfAddressChange() const { return false; }
 
 bool QuicEndpoint::OnFrameAcked(const QuicFrame& frame,
                                 QuicTime::Delta ack_delay_time,
-                                QuicTime receive_timestamp) {
+                                QuicTime receive_timestamp,
+                                bool is_retransmission) {
   if (notifier_ != nullptr) {
-    return notifier_->OnFrameAcked(frame, ack_delay_time, receive_timestamp);
+    return notifier_->OnFrameAcked(frame, ack_delay_time, receive_timestamp,
+                                   is_retransmission);
   }
   return false;
 }

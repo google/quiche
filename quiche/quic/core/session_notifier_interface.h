@@ -20,7 +20,8 @@ class QUICHE_EXPORT SessionNotifierInterface {
   // returns false otherwise.
   virtual bool OnFrameAcked(const QuicFrame& frame,
                             QuicTime::Delta ack_delay_time,
-                            QuicTime receive_timestamp) = 0;
+                            QuicTime receive_timestamp,
+                            bool is_retransmission) = 0;
 
   // Called when |frame| is retransmitted.
   virtual void OnStreamFrameRetransmitted(const QuicStreamFrame& frame) = 0;

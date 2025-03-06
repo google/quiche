@@ -2472,7 +2472,8 @@ QuicStream* QuicSession::GetActiveStream(QuicStreamId id) const {
 
 bool QuicSession::OnFrameAcked(const QuicFrame& frame,
                                QuicTime::Delta ack_delay_time,
-                               QuicTime receive_timestamp) {
+                               QuicTime receive_timestamp,
+                               bool is_retransmission) {
   if (frame.type == MESSAGE_FRAME) {
     OnMessageAcked(frame.message_frame->message_id, receive_timestamp);
     return true;
@@ -2499,7 +2500,7 @@ bool QuicSession::OnFrameAcked(const QuicFrame& frame,
     new_stream_data_acked = stream->OnStreamFrameAcked(
         frame.stream_frame.offset, frame.stream_frame.data_length,
         frame.stream_frame.fin, ack_delay_time, receive_timestamp,
-        &newly_acked_length);
+        &newly_acked_length, is_retransmission);
     if (!stream->HasPendingRetransmission()) {
       streams_with_pending_retransmission_.erase(stream->id());
     }

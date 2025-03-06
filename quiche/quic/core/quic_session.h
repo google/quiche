@@ -210,7 +210,8 @@ class QUICHE_EXPORT QuicSession
 
   // SessionNotifierInterface methods:
   bool OnFrameAcked(const QuicFrame& frame, QuicTime::Delta ack_delay_time,
-                    QuicTime receive_timestamp) override;
+                    QuicTime receive_timestamp,
+                    bool is_retransmission) override;
   void OnStreamFrameRetransmitted(const QuicStreamFrame& frame) override;
   void OnFrameLost(const QuicFrame& frame) override;
   bool RetransmitFrames(const QuicFrames& frames,

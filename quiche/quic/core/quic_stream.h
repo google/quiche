@@ -359,7 +359,8 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
                                   QuicByteCount data_length, bool fin_acked,
                                   QuicTime::Delta ack_delay_time,
                                   QuicTime receive_timestamp,
-                                  QuicByteCount* newly_acked_length);
+                                  QuicByteCount* newly_acked_length,
+                                  bool is_retransmission);
 
   // Called when data [offset, offset + data_length) was retransmitted.
   // |fin_retransmitted| indicates whether fin was retransmitted.
@@ -506,7 +507,8 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
                               QuicByteCount data_length,
                               QuicByteCount newly_acked_length,
                               QuicTime receive_timestamp,
-                              QuicTime::Delta ack_delay_time);
+                              QuicTime::Delta ack_delay_time,
+                              bool is_retransmission);
 
   void set_rst_received(bool rst_received) { rst_received_ = rst_received; }
   void set_stream_error(QuicResetStreamError error) { stream_error_ = error; }

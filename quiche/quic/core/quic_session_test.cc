@@ -1349,7 +1349,8 @@ TEST_P(QuicSessionTestServer, LimitMaxStreams) {
   EXPECT_CALL(*connection_, SendControlFrame(IsFrame(MAX_STREAMS_FRAME)))
       .WillOnce(Invoke(&ClearControlFrame));
   session_.OnFrameAcked(QuicFrame(max_stream_frames[0]),
-                        QuicTime::Delta::Zero(), QuicTime::Zero());
+                        QuicTime::Delta::Zero(), QuicTime::Zero(),
+                        /*is_retransmission=*/false);
   EXPECT_EQ(3 * kMaxStreams,
             QuicSessionPeer::ietf_streamid_manager(&session_)
                 ->advertised_max_incoming_bidirectional_streams());
@@ -1368,7 +1369,8 @@ TEST_P(QuicSessionTestServer, LimitMaxStreams) {
   // When the remaining outstanding MAX_STREAMS frame is ACK'd no new one
   // will be sent because the correct limit has already been advertised.
   session_.OnFrameAcked(QuicFrame(max_stream_frames[1]),
-                        QuicTime::Delta::Zero(), QuicTime::Zero());
+                        QuicTime::Delta::Zero(), QuicTime::Zero(),
+                        /*is_retransmission=*/false);
 }
 
 TEST_P(QuicSessionTestServer, BufferedHandshake) {

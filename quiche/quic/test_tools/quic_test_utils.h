@@ -1448,8 +1448,8 @@ class MockSessionNotifier : public SessionNotifierInterface {
   MockSessionNotifier();
   ~MockSessionNotifier() override;
 
-  MOCK_METHOD(bool, OnFrameAcked, (const QuicFrame&, QuicTime::Delta, QuicTime),
-              (override));
+  MOCK_METHOD(bool, OnFrameAcked,
+              (const QuicFrame&, QuicTime::Delta, QuicTime, bool), (override));
   MOCK_METHOD(void, OnStreamFrameRetransmitted, (const QuicStreamFrame&),
               (override));
   MOCK_METHOD(void, OnFrameLost, (const QuicFrame&), (override));
