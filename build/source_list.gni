@@ -998,6 +998,7 @@ masque_support_hdrs = [
     "src/quiche/quic/masque/masque_client.h",
     "src/quiche/quic/masque/masque_client_session.h",
     "src/quiche/quic/masque/masque_client_tools.h",
+    "src/quiche/quic/masque/masque_connection_pool.h",
     "src/quiche/quic/masque/masque_dispatcher.h",
     "src/quiche/quic/masque/masque_encapsulated_client.h",
     "src/quiche/quic/masque/masque_encapsulated_client_session.h",
@@ -1011,6 +1012,7 @@ masque_support_srcs = [
     "src/quiche/quic/masque/masque_client.cc",
     "src/quiche/quic/masque/masque_client_session.cc",
     "src/quiche/quic/masque/masque_client_tools.cc",
+    "src/quiche/quic/masque/masque_connection_pool.cc",
     "src/quiche/quic/masque/masque_dispatcher.cc",
     "src/quiche/quic/masque/masque_encapsulated_client.cc",
     "src/quiche/quic/masque/masque_encapsulated_client_session.cc",
@@ -1409,6 +1411,7 @@ cli_tools_hdrs = [
 ]
 cli_tools_srcs = [
     "src/quiche/quic/masque/masque_client_bin.cc",
+    "src/quiche/quic/masque/masque_ohttp_client_bin.cc",
     "src/quiche/quic/masque/masque_server_bin.cc",
     "src/quiche/quic/masque/masque_tcp_client_bin.cc",
     "src/quiche/quic/masque/masque_tcp_server_bin.cc",

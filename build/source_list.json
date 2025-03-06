@@ -997,6 +997,7 @@
     "quiche/quic/masque/masque_client.h",
     "quiche/quic/masque/masque_client_session.h",
     "quiche/quic/masque/masque_client_tools.h",
+    "quiche/quic/masque/masque_connection_pool.h",
     "quiche/quic/masque/masque_dispatcher.h",
     "quiche/quic/masque/masque_encapsulated_client.h",
     "quiche/quic/masque/masque_encapsulated_client_session.h",
@@ -1010,6 +1011,7 @@
     "quiche/quic/masque/masque_client.cc",
     "quiche/quic/masque/masque_client_session.cc",
     "quiche/quic/masque/masque_client_tools.cc",
+    "quiche/quic/masque/masque_connection_pool.cc",
     "quiche/quic/masque/masque_dispatcher.cc",
     "quiche/quic/masque/masque_encapsulated_client.cc",
     "quiche/quic/masque/masque_encapsulated_client_session.cc",
@@ -1408,6 +1410,7 @@
   ],
   "cli_tools_srcs": [
     "quiche/quic/masque/masque_client_bin.cc",
+    "quiche/quic/masque/masque_ohttp_client_bin.cc",
     "quiche/quic/masque/masque_server_bin.cc",
     "quiche/quic/masque/masque_tcp_client_bin.cc",
     "quiche/quic/masque/masque_tcp_server_bin.cc",

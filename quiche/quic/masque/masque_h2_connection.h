@@ -37,6 +37,7 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   class QUICHE_NO_EXPORT Visitor {
    public:
     virtual ~Visitor() = default;
+    virtual void OnConnectionReady(MasqueH2Connection *connection) = 0;
     virtual void OnConnectionFinished(MasqueH2Connection *connection) = 0;
     virtual void OnRequest(MasqueH2Connection *connection, int32_t stream_id,
                            const quiche::HttpHeaderBlock &headers,
@@ -59,6 +60,8 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   bool aborted() const { return aborted_; }
   // Call when there is more data to be read from SSL.
   void OnTransportReadable();
+  // Call when there is more data to be written to SSL.
+  bool AttemptToSend();
   int32_t SendRequest(const quiche::HttpHeaderBlock &headers,
                       const std::string &body);
   void SendResponse(int32_t stream_id, const quiche::HttpHeaderBlock &headers,
@@ -74,7 +77,6 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   void Abort();
   void StartH2();
   bool TryRead();
-  bool AttemptToSend();
   MasqueH2Stream *GetOrCreateH2Stream(Http2StreamId stream_id);
   std::vector<http2::adapter::Header> ConvertHeaders(
       const quiche::HttpHeaderBlock &headers);

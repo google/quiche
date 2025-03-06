@@ -350,6 +350,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
   bool IsDone() const { return done_; }
 
   // From MasqueH2Connection::Visitor.
+  void OnConnectionReady(MasqueH2Connection * /*connection*/) override {}
   void OnConnectionFinished(MasqueH2Connection * /*connection*/) override {
     done_ = true;
   }
@@ -477,6 +478,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
     headers[":path"] = url_.path();
     headers["host"] = url_.HostPort();
     stream_id_ = h2_connection_->SendRequest(headers, std::string());
+    h2_connection_->AttemptToSend();
     if (stream_id_ >= 0) {
       QUICHE_LOG(INFO) << "Wrote h2 request to stream " << stream_id_
                        << ", now sending to transport";

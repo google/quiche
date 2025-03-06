@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -19,9 +20,11 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
 #include "openssl/bio.h"
+#include "openssl/hpke.h"
 #include "openssl/ssl.h"
 #include "openssl/x509.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
@@ -37,6 +40,7 @@
 #include "quiche/common/quiche_ip_address.h"
 #include "quiche/common/quiche_ip_address_family.h"
 #include "quiche/common/quiche_socket_address.h"
+#include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, port, 9661,
                                 "The port the MASQUE server will listen on.");
@@ -50,9 +54,103 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, key_file, "",
 DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, client_root_ca_file, "",
                                 "Path to the PEM file containing root CAs.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, ohttp_key, "",
+    "Hex-encoded bytes of the OHTTP HPKE private key.");
+
+using quiche::ObliviousHttpHeaderKeyConfig;
+using quiche::ObliviousHttpKeyConfigs;
+
 namespace quic {
 
 namespace {
+
+class MasqueOhttpGateway {
+ public:
+  MasqueOhttpGateway() {}
+
+  bool Setup(const std::string &ohttp_key) {
+    hpke_key_.reset(EVP_HPKE_KEY_new());
+    if (!ohttp_key.empty()) {
+      if (!absl::HexStringToBytes(ohttp_key, &hpke_private_key_)) {
+        QUICHE_LOG(ERROR) << "OHTTP key is not a valid hex string";
+        return false;
+      }
+      if (EVP_HPKE_KEY_init(
+              hpke_key_.get(), kem_,
+              reinterpret_cast<const uint8_t *>(hpke_private_key_.data()),
+              hpke_private_key_.size()) != 1) {
+        QUICHE_LOG(ERROR) << "Failed to ingest HPKE key";
+        return false;
+      }
+    } else {
+      if (EVP_HPKE_KEY_generate(hpke_key_.get(), kem_) != 1) {
+        QUICHE_LOG(ERROR) << "Failed to generate new HPKE key";
+        return false;
+      }
+      size_t private_key_len = EVP_HPKE_KEM_private_key_len(kem_);
+      hpke_private_key_ = std::string(private_key_len, '0');
+      if (EVP_HPKE_KEY_private_key(
+              hpke_key_.get(),
+              reinterpret_cast<uint8_t *>(hpke_private_key_.data()),
+              &private_key_len, private_key_len) != 1 ||
+          private_key_len != hpke_private_key_.size()) {
+        QUICHE_LOG(ERROR) << "Failed to extract new HPKE private key";
+        return false;
+      }
+      QUICHE_LOG(INFO) << "Generated new HPKE private key: "
+                       << absl::BytesToHexString(hpke_private_key_);
+    }
+    size_t public_key_len = EVP_HPKE_KEM_public_key_len(kem_);
+    hpke_public_key_ = std::string(public_key_len, '0');
+    if (EVP_HPKE_KEY_public_key(
+            hpke_key_.get(),
+            reinterpret_cast<uint8_t *>(hpke_public_key_.data()),
+            &public_key_len, public_key_len) != 1 ||
+        public_key_len != hpke_public_key_.size()) {
+      QUICHE_LOG(ERROR) << "Failed to extract new HPKE public key";
+      return false;
+    }
+    static constexpr uint8_t kOhttpKeyId = 0x01;
+    static constexpr uint16_t kOhttpKemId = EVP_HPKE_DHKEM_X25519_HKDF_SHA256;
+    static constexpr uint16_t kOhttpKdfId = EVP_HPKE_HKDF_SHA256;
+    static constexpr uint16_t kOhttpAeadId = EVP_HPKE_AES_128_GCM;
+    absl::StatusOr<ObliviousHttpHeaderKeyConfig> ohttp_header_key_config =
+        ObliviousHttpHeaderKeyConfig::Create(kOhttpKeyId, kOhttpKemId,
+                                             kOhttpKdfId, kOhttpAeadId);
+    if (!ohttp_header_key_config.ok()) {
+      QUICHE_LOG(ERROR) << "Failed to create OHTTP header key config: "
+                        << ohttp_header_key_config.status();
+      return false;
+    }
+    absl::StatusOr<ObliviousHttpKeyConfigs> ohttp_key_configs =
+        ObliviousHttpKeyConfigs::Create(*ohttp_header_key_config,
+                                        hpke_public_key_);
+    if (!ohttp_key_configs.ok()) {
+      QUICHE_LOG(ERROR) << "Failed to create OHTTP key configs: "
+                        << ohttp_key_configs.status();
+      return false;
+    }
+    absl::StatusOr<std::string> concatenated_keys =
+        ohttp_key_configs->GenerateConcatenatedKeys();
+    if (!concatenated_keys.ok()) {
+      QUICHE_LOG(ERROR) << "Failed to generate concatenated keys: "
+                        << concatenated_keys.status();
+      return false;
+    }
+    concatenated_keys_ = *concatenated_keys;
+    return true;
+  }
+
+  std::string concatenated_keys() const { return concatenated_keys_; }
+
+ private:
+  std::string hpke_private_key_;
+  std::string hpke_public_key_;
+  const EVP_HPKE_KEM *kem_ = EVP_hpke_x25519_hkdf_sha256();
+  bssl::UniquePtr<EVP_HPKE_KEY> hpke_key_;
+  std::string concatenated_keys_;
+};
 
 static int SelectAlpnCallback(SSL * /*ssl*/, const uint8_t **out,
                               uint8_t *out_len, const uint8_t *in,
@@ -137,8 +235,9 @@ class MasqueH2SocketConnection : public QuicSocketEventListener {
 class MasqueTcpServer : public QuicSocketEventListener,
                         public MasqueH2Connection::Visitor {
  public:
-  explicit MasqueTcpServer()
-      : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())) {}
+  explicit MasqueTcpServer(MasqueOhttpGateway *ohttp_gateway)
+      : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
+        ohttp_gateway_(ohttp_gateway) {}
 
   MasqueTcpServer(const MasqueTcpServer &) = delete;
   MasqueTcpServer(MasqueTcpServer &&) = delete;
@@ -257,6 +356,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
   }
 
   // From MasqueH2Connection::Visitor.
+  void OnConnectionReady(MasqueH2Connection * /*connection*/) override {}
   void OnConnectionFinished(MasqueH2Connection *connection) override {
     connections_.erase(
         std::remove_if(connections_.begin(), connections_.end(),
@@ -273,11 +373,18 @@ class MasqueTcpServer : public QuicSocketEventListener,
     std::string response_body;
     auto path_pair = headers.find(":path");
     auto method_pair = headers.find(":method");
+    auto content_type_pair = headers.find("content-type");
     if (path_pair == headers.end() || method_pair == headers.end()) {
       // This should never happen because the h2 adapter should have rejected
       // the request, but handle it gracefully just in case.
       response_headers[":status"] = "400";
       response_body = "Request missing pseudo-headers";
+    } else if (method_pair->second == "GET" &&
+               content_type_pair != headers.end() &&
+               content_type_pair->second == "application/ohttp-keys") {
+      response_headers[":status"] = "200";
+      response_headers["content-type"] = "application/ohttp-keys";
+      response_body = ohttp_gateway_->concatenated_keys();
     } else if (method_pair->second == "GET" && path_pair->second == "/") {
       response_headers[":status"] = "200";
       response_body = "<h1>This is a response body</h1>";
@@ -322,6 +429,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
 
   std::unique_ptr<QuicEventLoop> event_loop_;
   bssl::UniquePtr<SSL_CTX> ctx_;
+  MasqueOhttpGateway *ohttp_gateway_;  // Unowned.
   SocketFd server_socket_ = kInvalidSocketFd;
   std::vector<std::unique_ptr<MasqueH2SocketConnection>> connections_;
 };
@@ -351,7 +459,13 @@ int RunMasqueTcpServer(int argc, char *argv[]) {
 
   quiche::QuicheSystemEventLoop system_event_loop("masque_tcp_server");
 
-  MasqueTcpServer server;
+  MasqueOhttpGateway ohttp_gateway;
+  if (!ohttp_gateway.Setup(quiche::GetQuicheCommandLineFlag(FLAGS_ohttp_key))) {
+    QUICHE_LOG(ERROR) << "Failed to setup OHTTP";
+    return 1;
+  }
+
+  MasqueTcpServer server(&ohttp_gateway);
   if (!server.SetupSslCtx(certificate_file, key_file, client_root_ca_file)) {
     QUICHE_LOG(ERROR) << "Failed to setup SSL context";
     return 1;

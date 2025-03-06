@@ -74,6 +74,7 @@ void MasqueH2Connection::StartH2() {
       Http2Setting{Http2KnownSettingsId::MAX_HEADER_LIST_SIZE, 65535});
   h2_adapter_ = http2::adapter::OgHttp2Adapter::Create(*this, options);
   h2_adapter_->SubmitSettings(settings);
+  visitor_->OnConnectionReady(this);
 }
 bool MasqueH2Connection::TryRead() {
   if (!tls_connected_) {
@@ -215,6 +216,10 @@ MasqueH2Connection::OnHeaderResult MasqueH2Connection::OnHeaderForStream(
 }
 
 bool MasqueH2Connection::AttemptToSend() {
+  if (!h2_adapter_) {
+    QUICHE_LOG(ERROR) << "Connection is not ready to send yet";
+    return false;
+  }
   int h2_send_result = h2_adapter_->Send();
   if (h2_send_result != 0) {
     QUICHE_LOG(ERROR) << "h2 adapter failed to send";
@@ -250,6 +255,10 @@ int32_t MasqueH2Connection::SendRequest(const quiche::HttpHeaderBlock &headers,
   if (is_server_) {
     QUICHE_LOG(FATAL) << "Server cannot send requests";
   }
+  if (!h2_adapter_) {
+    QUICHE_LOG(ERROR) << "Connection is not ready to send requests yet";
+    return -1;
+  }
   std::vector<Header> h2_headers = ConvertHeaders(headers);
   QUICHE_LOG(INFO) << "Sending request with body of length " << body.size()
                    << ", headers: " << headers.DebugString();
@@ -262,7 +271,6 @@ int32_t MasqueH2Connection::SendRequest(const quiche::HttpHeaderBlock &headers,
     return -1;
   }
   GetOrCreateH2Stream(stream_id)->body_to_send = body;
-  AttemptToSend();
   return stream_id;
 }
 
