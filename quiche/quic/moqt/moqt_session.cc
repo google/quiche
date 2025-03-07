@@ -464,6 +464,46 @@ bool MoqtSession::Fetch(const FullTrackName& name,
   return true;
 }
 
+bool MoqtSession::JoiningFetch(const FullTrackName& name,
+                               SubscribeRemoteTrack::Visitor* visitor,
+                               FetchResponseCallback callback,
+                               uint64_t num_previous_groups,
+                               MoqtPriority priority,
+                               std::optional<MoqtDeliveryOrder> delivery_order,
+                               MoqtSubscribeParameters parameters) {
+  if ((next_subscribe_id_ + 1) >= peer_max_subscribe_id_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send JOINING_FETCH with ID "
+                    << (next_subscribe_id_ + 1)
+                    << " which is greater than the maximum ID "
+                    << peer_max_subscribe_id_;
+    return false;
+  }
+  MoqtSubscribe subscribe;
+  subscribe.full_track_name = name;
+  subscribe.subscriber_priority = priority;
+  subscribe.group_order = delivery_order;
+  // Must be "Current Object" filter.
+  subscribe.start_group = std::nullopt;
+  subscribe.start_object = std::nullopt;
+  subscribe.end_group = std::nullopt;
+  subscribe.parameters = parameters;
+  if (!Subscribe(subscribe, visitor, std::nullopt)) {
+    return false;
+  }
+  MoqtFetch fetch;
+  fetch.fetch_id = next_subscribe_id_++;
+  fetch.subscriber_priority = priority;
+  fetch.group_order = delivery_order;
+  fetch.joining_fetch = {subscribe.subscribe_id, num_previous_groups};
+  fetch.parameters = parameters;
+  SendControlMessage(framer_.SerializeFetch(fetch));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent Joining FETCH message for " << name;
+  auto upstream_fetch =
+      std::make_unique<UpstreamFetch>(fetch, std::move(callback));
+  upstream_by_id_.emplace(fetch.fetch_id, std::move(upstream_fetch));
+  return true;
+}
+
 void MoqtSession::GoAway(absl::string_view new_session_uri) {
   if (sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send multiple GOAWAY";
@@ -602,8 +642,6 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
   } else {
     message.track_alias = next_remote_track_alias_++;
   }
-  message.track_alias =
-      provided_track_alias.value_or(next_remote_track_alias_++);
   if (SupportsObjectAck() && visitor != nullptr) {
     // Since we do not expose subscribe IDs directly in the API, instead wrap
     // the session and subscribe ID in a callback.
@@ -1283,6 +1321,17 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
                      "Joining Fetch for non-existent subscribe");
       return;
     }
+    if (it->second->filter_type() != MoqtFilterType::kLatestObject) {
+      // Current state variables do not allow us to distinguish between
+      // LatestObject and AbsoluteStart with object ID > 0, but accept
+      // JoiningFetch for AbsoluteStart.
+      QUIC_DLOG(INFO) << ENDPOINT << "Received a JOINING_FETCH for "
+                      << "subscribe_id " << joining_subscribe_id
+                      << " that is not a LatestObject";
+      session_->Error(MoqtError::kProtocolViolation,
+                      "Joining Fetch for non-LatestObject subscribe");
+      return;
+    }
     track_name = it->second->publisher().GetTrackName();
     FullSequence fetch_end = it->second->GetWindowStart();
     if (message.joining_fetch->preceding_group_offset > fetch_end.group) {
@@ -1627,7 +1676,8 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
     MoqtSession* session, std::shared_ptr<MoqtTrackPublisher> track_publisher,
     const MoqtSubscribe& subscribe,
     MoqtPublishingMonitorInterface* monitoring_interface)
-    : subscription_id_(subscribe.subscribe_id),
+    : filter_type_(GetFilterType(subscribe)),
+      subscription_id_(subscribe.subscribe_id),
       session_(session),
       track_publisher_(track_publisher),
       track_alias_(subscribe.track_alias),

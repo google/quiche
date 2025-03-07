@@ -202,12 +202,11 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
              MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
   // Sends both a SUBSCRIBE and a joining FETCH, beginning |num_previous_groups|
   // groups before the current group.
-  // TODO(martinduke): Implement this.
   bool JoiningFetch(
-      const FullTrackName& name, FetchResponseCallback callback,
-      uint64_t num_previous_groups, std::optional<uint64_t> end_group,
+      const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
+      FetchResponseCallback callback, uint64_t num_previous_groups,
       MoqtPriority priority, std::optional<MoqtDeliveryOrder> delivery_order,
-      MoqtSubscribeParameters parameters = MoqtSubscribeParameters()) {}
+      MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
 
   // Send a GOAWAY message to the peer. |new_session_uri| must be empty if
   // called by the client.
@@ -429,6 +428,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // subscription.
     bool InWindow(FullSequence sequence) { return window_.InWindow(sequence); }
     FullSequence GetWindowStart() const { return window_.start(); }
+    MoqtFilterType filter_type() const { return filter_type_; };
 
     void OnDataStreamCreated(webtransport::StreamId id,
                              FullSequence start_sequence);
@@ -479,6 +479,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
                                                   subscriber_priority_);
     }
 
+    MoqtFilterType filter_type_;
     uint64_t subscription_id_;
     MoqtSession* session_;
     std::shared_ptr<MoqtTrackPublisher> track_publisher_;

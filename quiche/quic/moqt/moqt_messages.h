@@ -548,6 +548,9 @@ enum class QUICHE_EXPORT FetchType : uint64_t {
 };
 
 struct JoiningFetch {
+  JoiningFetch(uint64_t joining_subscribe_id, uint64_t preceding_group_offset)
+      : joining_subscribe_id(joining_subscribe_id),
+        preceding_group_offset(preceding_group_offset) {}
   uint64_t joining_subscribe_id;
   uint64_t preceding_group_offset;
 };
