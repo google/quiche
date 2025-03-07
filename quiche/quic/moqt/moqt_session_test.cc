@@ -367,6 +367,9 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
   EXPECT_CALL(*track, GetCachedObject(_)).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
+  EXPECT_CALL(*track, GetDeliveryOrder()).WillRepeatedly([] {
+    return MoqtDeliveryOrder::kAscending;
+  });
   EXPECT_CALL(*track, GetCachedObjectsInRange(_, _))
       .WillRepeatedly(Return(std::vector<FullSequence>()));
   EXPECT_CALL(*track, GetLargestSequence())
@@ -376,10 +379,46 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
   webtransport::test::MockStream mock_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
-  EXPECT_CALL(
-      mock_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeError), _));
+  MoqtSubscribeOk expected_ok = {
+      /*subscribe_id=*/1,
+      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*largest_id=*/FullSequence(10, 20),
+  };
+  EXPECT_CALL(mock_stream, Writev(SerializedControlMessage(expected_ok), _));
   stream_input->OnSubscribeMessage(DefaultSubscribe());
+}
+
+TEST_F(MoqtSessionTest, SubscribeEntirelyInPast) {
+  FullTrackName ftn("foo", "bar");
+  auto track = std::make_shared<MockTrackPublisher>(ftn);
+  EXPECT_CALL(*track, GetTrackStatus())
+      .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
+  EXPECT_CALL(*track, GetCachedObject(_)).WillRepeatedly([] {
+    return std::optional<PublishedObject>();
+  });
+  EXPECT_CALL(*track, GetDeliveryOrder()).WillRepeatedly([] {
+    return MoqtDeliveryOrder::kAscending;
+  });
+  EXPECT_CALL(*track, GetCachedObjectsInRange(_, _))
+      .WillRepeatedly(Return(std::vector<FullSequence>()));
+  EXPECT_CALL(*track, GetLargestSequence())
+      .WillRepeatedly(Return(FullSequence(10, 20)));
+  publisher_.Add(track);
+
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  MoqtSubscribeError expected_error = {
+      /*subscribe_id=*/1,
+      /*error_code=*/SubscribeErrorCode::kInvalidRange,
+      /*reason_phrase=*/"SUBSCRIBE ends in previous group",
+      /*track_alias=*/2,
+  };
+  EXPECT_CALL(mock_stream, Writev(SerializedControlMessage(expected_error), _));
+  MoqtSubscribe subscribe = DefaultSubscribe();
+  subscribe.end_group = 9;
+  stream_input->OnSubscribeMessage(subscribe);
 }
 
 TEST_F(MoqtSessionTest, TwoSubscribesForTrack) {

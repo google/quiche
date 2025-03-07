@@ -73,16 +73,27 @@ SubscribeWindow SubscribeMessageToWindow(const MoqtSubscribe& subscribe,
   const FullSequence sequence = PublisherHasData(publisher)
                                     ? publisher.GetLargestSequence()
                                     : FullSequence{0, 0};
+  uint64_t start_group = sequence.group;
+  uint64_t start_object =
+      sequence.object + (PublisherHasData(publisher) ? 1 : 0);
+  if (subscribe.start_group.has_value() &&
+      *subscribe.start_group >= start_group) {
+    QUICHE_DCHECK(subscribe.start_object.has_value());
+    start_group = *subscribe.start_group;
+    start_object = subscribe.start_object.value_or(0);
+  }
   switch (GetFilterType(subscribe)) {
     case MoqtFilterType::kLatestGroup:
-      return SubscribeWindow(sequence.group, 0);
+      return SubscribeWindow(start_group, 0);
     case MoqtFilterType::kLatestObject:
-      return SubscribeWindow(sequence.group, sequence.object + 1);
     case MoqtFilterType::kAbsoluteStart:
-      return SubscribeWindow(*subscribe.start_group, *subscribe.start_object);
+      return SubscribeWindow(start_group, start_object);
     case MoqtFilterType::kAbsoluteRange:
-      return SubscribeWindow(*subscribe.start_group, *subscribe.start_object,
-                             *subscribe.end_group, UINT64_MAX);
+      // If end_group has no value, the filter cannot be AbsoluteRange.
+      QUICHE_DCHECK(subscribe.end_group.has_value());
+      return SubscribeWindow(start_group, start_object,
+                             subscribe.end_group.value_or(UINT64_MAX),
+                             UINT64_MAX);
     case MoqtFilterType::kNone:
       QUICHE_BUG(MoqtSession_Subscription_invalid_filter_passed);
       return SubscribeWindow(0, 0);
@@ -916,11 +927,10 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   if (PublisherHasData(**track_publisher)) {
     largest_id = (*track_publisher)->GetLargestSequence();
   }
-  if (message.start_group.has_value() && largest_id.has_value() &&
-      *message.start_group < largest_id->group) {
+  if (message.end_group.has_value() && largest_id.has_value() &&
+      *message.end_group < largest_id->group) {
     SendSubscribeError(message, SubscribeErrorCode::kInvalidRange,
-                       "SUBSCRIBE starts in previous group",
-                       message.track_alias);
+                       "SUBSCRIBE ends in previous group", message.track_alias);
     return;
   }
   if (session_->sent_goaway_) {
