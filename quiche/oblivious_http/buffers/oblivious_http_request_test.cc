@@ -85,20 +85,20 @@ const ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id,
 }
 }  // namespace
 
-// Direct test example from OHttp spec.
-// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A
+// Direct test example from RFC.
+// https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A
 TEST(ObliviousHttpRequest, TestDecapsulateWithSpecAppendixAExample) {
   auto ohttp_key_config =
       GetOhttpKeyConfig(/*key_id=*/1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
                         EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM);
 
   // X25519 Secret key (priv key).
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-2
+  // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A-2
   constexpr absl::string_view kX25519SecretKey =
       "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a";
 
   // Encapsulated request.
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-14
+  // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A-14
   constexpr absl::string_view kEncapsulatedRequest =
       "010020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c2"
       "08b4726374e469135906992e1268c594d2a10c695d858c40a026e7965e7d86b83dd440b2"
@@ -119,7 +119,7 @@ TEST(ObliviousHttpRequest, TestDecapsulateWithSpecAppendixAExample) {
   auto decrypted = instance->GetPlaintextData();
 
   // Encapsulated/Ephemeral public key.
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-10
+  // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A-10
   constexpr absl::string_view kExpectedEphemeralPublicKey =
       "4b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c208b472";
   std::string expected_ephemeral_public_key_bytes;
@@ -130,7 +130,7 @@ TEST(ObliviousHttpRequest, TestDecapsulateWithSpecAppendixAExample) {
             expected_ephemeral_public_key_bytes);
 
   // Binary HTTP message.
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-6
+  // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A-6
   constexpr absl::string_view kExpectedBinaryHTTPMessage =
       "00034745540568747470730b6578616d706c652e636f6d012f";
   std::string expected_binary_http_message_bytes;

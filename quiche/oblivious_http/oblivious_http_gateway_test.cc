@@ -47,7 +47,7 @@ const ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id,
 
 TEST(ObliviousHttpGateway, TestProvisioningKeyAndDecapsulate) {
   // X25519 Secret key (priv key).
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-2
+  // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A-2
   constexpr absl::string_view kX25519SecretKey =
       "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a";
   std::string x25519_secret_key_bytes;
@@ -61,7 +61,7 @@ TEST(ObliviousHttpGateway, TestProvisioningKeyAndDecapsulate) {
           EVP_HPKE_AES_128_GCM));
 
   // Encapsulated request.
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-14
+  // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A-14
   constexpr absl::string_view kEncapsulatedRequest =
       "010020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c2"
       "08b4726374e469135906992e1268c594d2a10c695d858c40a026e7965e7d86b83dd440b2"

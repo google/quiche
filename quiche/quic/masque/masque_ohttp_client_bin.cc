@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -125,7 +126,8 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
       return;
     }
     QUICHE_LOG(INFO) << "Successfully got " << key_configs->NumKeys()
-                     << " OHTTP keys";
+                     << " OHTTP keys: " << std::endl
+                     << key_configs->DebugString();
     // TODO(dschinazi): Use the keys to send requests.
     Abort();
   }

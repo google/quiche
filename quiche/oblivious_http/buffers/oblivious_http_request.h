@@ -15,7 +15,7 @@ namespace quiche {
 // added to HTTP POST body and passed on to Relay.
 // 2. Handles server side decryption of the payload received in HTTP POST body
 // from Relay.
-// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#name-encapsulation-of-requests
+// https://www.rfc-editor.org/rfc/rfc9458.html#section-4.3
 class QUICHE_EXPORT ObliviousHttpRequest {
  public:
   // Holds the HPKE related data received from request. This context is created

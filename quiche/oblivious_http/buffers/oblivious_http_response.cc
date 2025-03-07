@@ -43,7 +43,7 @@ ObliviousHttpResponse::ObliviousHttpResponse(std::string encrypted_data,
 // 3. Derive aead_key using HKDF_Labeled_Expand
 // 4. Derive aead_nonce using HKDF_Labeled_Expand
 // 5. Setup AEAD context and Decrypt.
-// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-4
+// https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-3
 absl::StatusOr<ObliviousHttpResponse>
 ObliviousHttpResponse::CreateClientObliviousResponse(
     std::string encrypted_data,
@@ -74,7 +74,7 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
 
   // secret_len = [max(Nn, Nk)] where Nk and Nn are the length of AEAD
   // key and nonce associated with HPKE context.
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.1
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-2.1.1
   size_t secret_len = aead_params_st.value().secret_len;
   if (encrypted_data.size() < secret_len) {
     return absl::InvalidArgumentError(
@@ -83,7 +83,7 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
                      secret_len, " bytes."));
   }
   // Extract response_nonce. Step 2
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.2
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-2.2.1
   absl::string_view response_nonce =
       absl::string_view(encrypted_data).substr(0, secret_len);
   absl::string_view encrypted_response =
@@ -104,7 +104,7 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
 
   // Decrypt with initialized AEAD context.
   // response, error = Open(aead_key, aead_nonce, "", ct)
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-6
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-6
   if (!EVP_AEAD_CTX_open(
           common_ops_st.value().aead_ctx.get(),
           reinterpret_cast<uint8_t*>(decrypted.data()), &decrypted_len,
@@ -124,8 +124,7 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
 }
 
 // Response Encapsulation.
-// Follows the Ohttp spec section-4.2 (Encapsulation of Responses) Ref
-// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2
+// https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4
 // Use HPKE context from BoringSSL to export a secret and use it to Seal (AKA
 // encrypt) the response back to the Sender(client)
 absl::StatusOr<ObliviousHttpResponse>
@@ -161,7 +160,7 @@ ObliviousHttpResponse::CreateServerObliviousResponse(
           oblivious_http_request_context.hpke_context_.get())));
   std::string encrypted_data(max_encrypted_data_size, '\0');
   // response_nonce = random(max(Nn, Nk))
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.2
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-2.2.1
   random(quiche_random, encrypted_data.data(), nonce_size);
   absl::string_view response_nonce =
       absl::string_view(encrypted_data).substr(0, nonce_size);
@@ -177,7 +176,7 @@ ObliviousHttpResponse::CreateServerObliviousResponse(
   }
 
   // ct = Seal(aead_key, aead_nonce, "", response)
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.6
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-2.2.1
   size_t ciphertext_len;
   if (!EVP_AEAD_CTX_seal(
           common_ops_st.value().aead_ctx.get(),
@@ -205,7 +204,7 @@ ObliviousHttpResponse::CreateServerObliviousResponse(
 
 // Serialize.
 // enc_response = concat(response_nonce, ct)
-// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-4
+// https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-3
 const std::string& ObliviousHttpResponse::EncapsulateAndSerialize() const {
   return encrypted_data_;
 }
@@ -241,8 +240,8 @@ ObliviousHttpResponse::GetCommonAeadParams(
 // Common Steps of AEAD key and AEAD nonce derivation common to both
 // client(decapsulation) & Gateway(encapsulation) in handling
 // Oblivious-Response. Ref Steps (1, 3-to-5, and setting up AEAD context in
-// preparation for 6th step's Seal/Open) in spec.
-// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-4
+// preparation for 6th step's Seal/Open) in the RFC.
+// https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-3
 absl::StatusOr<ObliviousHttpResponse::CommonOperationsResult>
 ObliviousHttpResponse::CommonOperationsToEncapDecap(
     absl::string_view response_nonce,
@@ -255,7 +254,7 @@ ObliviousHttpResponse::CommonOperationsToEncapDecap(
   // secret = context.Export("message/bhttp response", Nk)
   // Export secret of len [max(Nn, Nk)] where Nk and Nn are the length of AEAD
   // key and nonce associated with context.
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.1
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-2.1.1
   std::string secret(secret_len, '\0');
   if (!EVP_HPKE_CTX_export(oblivious_http_request_context.hpke_context_.get(),
                            reinterpret_cast<uint8_t*>(secret.data()),
@@ -266,12 +265,12 @@ ObliviousHttpResponse::CommonOperationsToEncapDecap(
   }
 
   // salt = concat(enc, response_nonce)
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.3
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-2.3.1
   std::string salt = absl::StrCat(
       oblivious_http_request_context.encapsulated_key_, response_nonce);
 
   // prk = Extract(salt, secret)
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.3
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-2.3.1
   std::string pseudorandom_key(EVP_MAX_MD_SIZE, '\0');
   size_t prk_len;
   auto evp_md = EVP_HPKE_KDF_hkdf_md(
@@ -295,7 +294,7 @@ ObliviousHttpResponse::CommonOperationsToEncapDecap(
   pseudorandom_key.resize(prk_len);
 
   // aead_key = Expand(prk, "key", Nk)
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.4
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-2.4.1
   std::string aead_key(aead_key_len, '\0');
   absl::string_view hkdf_info = ObliviousHttpHeaderKeyConfig::kKeyHkdfInfo;
   // All currently supported KDFs are HKDF-based. See CheckKdfId in
@@ -310,7 +309,7 @@ ObliviousHttpResponse::CommonOperationsToEncapDecap(
   }
 
   // aead_nonce = Expand(prk, "nonce", Nn)
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#section-4.2-2.5
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-2.5.1
   std::string aead_nonce(aead_nonce_len, '\0');
   hkdf_info = ObliviousHttpHeaderKeyConfig::kNonceHkdfInfo;
   // All currently supported KDFs are HKDF-based. See CheckKdfId in

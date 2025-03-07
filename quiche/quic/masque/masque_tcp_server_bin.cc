@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -123,6 +124,8 @@ class MasqueOhttpGateway {
                         << ohttp_header_key_config.status();
       return false;
     }
+    QUICHE_LOG(INFO) << "Using OHTTP header key config: "
+                     << ohttp_header_key_config->DebugString();
     absl::StatusOr<ObliviousHttpKeyConfigs> ohttp_key_configs =
         ObliviousHttpKeyConfigs::Create(*ohttp_header_key_config,
                                         hpke_public_key_);
@@ -131,6 +134,8 @@ class MasqueOhttpGateway {
                         << ohttp_key_configs.status();
       return false;
     }
+    QUICHE_LOG(INFO) << "Using OHTTP key configs: " << std::endl
+                     << ohttp_key_configs->DebugString();
     absl::StatusOr<std::string> concatenated_keys =
         ohttp_key_configs->GenerateConcatenatedKeys();
     if (!concatenated_keys.ok()) {

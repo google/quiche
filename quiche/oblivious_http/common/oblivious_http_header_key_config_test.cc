@@ -3,8 +3,11 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "openssl/hpke.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -13,6 +16,7 @@
 namespace quiche {
 namespace {
 using ::testing::AllOf;
+using ::testing::HasSubstr;
 using ::testing::Property;
 using ::testing::StrEq;
 using ::testing::UnorderedElementsAre;
@@ -74,6 +78,7 @@ TEST(ObliviousHttpHeaderKeyConfig, TestSerializeRecipientContextInfo) {
       ObliviousHttpHeaderKeyConfig::Create(key_id, kem_id, kdf_id, aead_id);
   ASSERT_TRUE(instance.ok());
   EXPECT_EQ(instance.value().SerializeRecipientContextInfo(), expected);
+  EXPECT_THAT(instance->DebugString(), HasSubstr("AES-256-GCM"));
 }
 
 TEST(ObliviousHttpHeaderKeyConfig, TestValidKeyConfig) {
@@ -81,6 +86,7 @@ TEST(ObliviousHttpHeaderKeyConfig, TestValidKeyConfig) {
       2, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
       EVP_HPKE_AES_256_GCM);
   ASSERT_TRUE(valid_key_config.ok());
+  EXPECT_THAT(valid_key_config->DebugString(), HasSubstr("AES-256-GCM"));
 }
 
 TEST(ObliviousHttpHeaderKeyConfig, TestInvalidKeyConfig) {
@@ -150,6 +156,7 @@ TEST(ObliviousHttpHeaderKeyConfig, TestSerializeOhttpPayloadHeader) {
   EXPECT_EQ(instance->SerializeOhttpPayloadHeader(),
             BuildHeader(7, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
                         EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM));
+  EXPECT_THAT(instance->DebugString(), HasSubstr("SHA256"));
 }
 
 MATCHER_P(HasKeyId, id, "") {
@@ -225,6 +232,8 @@ TEST(ObliviousHttpKeyConfigs, RFCExample) {
   EXPECT_THAT(
       configs.GetPublicKeyForId(configs.PreferredConfig().GetKeyId()).value(),
       StrEq(expected_public_key));
+  EXPECT_THAT(configs.DebugString(), HasSubstr("AES-128-GCM"));
+  EXPECT_THAT(configs.DebugString(), HasSubstr("31e1f05a7401"));
 }
 
 TEST(ObliviousHttpKeyConfigs, DuplicateKeyId) {
@@ -242,7 +251,8 @@ TEST(ObliviousHttpHeaderKeyConfigs, TestCreateWithSingleKeyConfig) {
   auto instance = ObliviousHttpHeaderKeyConfig::Create(
       123, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
       EVP_HPKE_CHACHA20_POLY1305);
-  EXPECT_TRUE(instance.ok());
+  ASSERT_TRUE(instance.ok());
+  EXPECT_THAT(instance->DebugString(), HasSubstr("CHACHA20-POLY1305"));
   std::string test_public_key(
       EVP_HPKE_KEM_public_key_len(instance->GetHpkeKem()), 'a');
   auto configs =
@@ -266,13 +276,16 @@ TEST(ObliviousHttpHeaderKeyConfigs, TestCreateWithWithMultipleKeys) {
       EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
       std::string(32, 'a'),
       {{EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM}}};
+  EXPECT_THAT(config1.DebugString(), HasSubstr("AES-256-GCM"));
   ObliviousHttpKeyConfigs::OhttpKeyConfig config2 = {
       200,
       EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
       expected_preferred_public_key,
       {{EVP_HPKE_HKDF_SHA256, EVP_HPKE_CHACHA20_POLY1305}}};
+  EXPECT_THAT(config2.DebugString(), HasSubstr("CHACHA20-POLY1305"));
   auto configs = ObliviousHttpKeyConfigs::Create({config1, config2});
-  EXPECT_TRUE(configs.ok());
+  ASSERT_TRUE(configs.ok());
+  EXPECT_THAT(configs->DebugString(), HasSubstr("CHACHA20-POLY1305"));
   auto serialized_key = configs->GenerateConcatenatedKeys();
   EXPECT_TRUE(serialized_key.ok());
   ASSERT_EQ(serialized_key.value(),
@@ -280,7 +293,8 @@ TEST(ObliviousHttpHeaderKeyConfigs, TestCreateWithWithMultipleKeys) {
                          GetSerializedKeyConfig(config1)));
   auto ohttp_configs =
       ObliviousHttpKeyConfigs::ParseConcatenatedKeys(serialized_key.value());
-  EXPECT_TRUE(ohttp_configs.ok());
+  ASSERT_TRUE(ohttp_configs.ok());
+  EXPECT_THAT(ohttp_configs->DebugString(), HasSubstr("CHACHA20-POLY1305"));
   ASSERT_EQ(ohttp_configs->NumKeys(), 2);
   EXPECT_THAT(configs->PreferredConfig(),
               AllOf(HasKeyId(200), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
@@ -319,6 +333,7 @@ TEST(ObliviousHttpHeaderKeyConfigs,
       123, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
       EVP_HPKE_AES_128_GCM);
   ASSERT_TRUE(sample_ohttp_hdr_config.ok());
+  EXPECT_THAT(sample_ohttp_hdr_config->DebugString(), HasSubstr("AES-128-GCM"));
   ASSERT_EQ(ObliviousHttpKeyConfigs::Create(sample_ohttp_hdr_config.value(),
                                             "" /*empty public_key*/)
                 .status()

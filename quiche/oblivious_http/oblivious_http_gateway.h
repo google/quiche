@@ -77,7 +77,7 @@ class QUICHE_EXPORT ObliviousHttpGateway {
   bssl::UniquePtr<EVP_HPKE_KEY> server_hpke_key_;
   // Holds server's keyID and HPKE related IDs that's published under HPKE
   // public Key configuration.
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#name-key-configuration
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-3
   ObliviousHttpHeaderKeyConfig ohttp_key_config_;
   QuicheRandom* quiche_random_;
 };
