@@ -24,6 +24,10 @@
 
 namespace moqt {
 
+namespace test {
+class SubscribeRemoteTrackPeer;
+}  // namespace test
+
 using MoqtObjectAckFunction =
     quiche::MultiUseCallback<void(uint64_t group_id, uint64_t object_id,
                                   quic::QuicTimeDelta delta_from_deadline)>;
@@ -140,7 +144,17 @@ class SubscribeRemoteTrack : public RemoteTrack {
     }
   }
 
+  // The application can request a Joining FETCH but also for FETCH objects to
+  // be delivered via SubscribeRemoteTrack::Visitor::OnObjectFragment(). When
+  // this occurs, the session passes the FetchTask here to handle incoming
+  // FETCH objects to pipe directly into the visitor.
+  void OnJoiningFetchReady(std::unique_ptr<MoqtFetchTask> fetch_task);
+
  private:
+  friend class test::SubscribeRemoteTrackPeer;
+  void FetchObjects();
+  std::unique_ptr<MoqtFetchTask> fetch_task_;
+
   const uint64_t track_alias_;
   Visitor* visitor_;
   std::optional<bool> is_datagram_;

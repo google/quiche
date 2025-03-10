@@ -130,6 +130,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
               std::unique_ptr<quic::QuicAlarmFactory> alarm_factory,
               MoqtSessionCallbacks callbacks = MoqtSessionCallbacks());
   ~MoqtSession() {
+    is_closing_ = true;
     if (goaway_timeout_alarm_ != nullptr) {
       goaway_timeout_alarm_->PermanentCancel();
     }
@@ -201,7 +202,18 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
              std::optional<MoqtDeliveryOrder> delivery_order,
              MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
   // Sends both a SUBSCRIBE and a joining FETCH, beginning |num_previous_groups|
-  // groups before the current group.
+  // groups before the current group. The Fetch will not be flow controlled,
+  // instead using |visitor| to deliver fetched objects when they arrive. Gaps
+  // in the FETCH will not be filled by with ObjectDoesNotExist. If the FETCH
+  // fails for any reason, the application will not receive a notification; it
+  // will just appear to be missing objects.
+  bool JoiningFetch(
+      const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
+      uint64_t num_previous_groups,
+      MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
+  // Sends both a SUBSCRIBE and a joining FETCH, beginning |num_previous_groups|
+  // groups before the current group. The application provides |callback| to
+  // fully control acceptance of Fetched objects.
   bool JoiningFetch(
       const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
       FetchResponseCallback callback, uint64_t num_previous_groups,
@@ -696,6 +708,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   bool SupportsObjectAck() const {
     return parameters_.support_object_acks && peer_supports_object_ack_;
   }
+  bool is_closing_ = false;
 
   webtransport::Session* session_;
   MoqtSessionParameters parameters_;

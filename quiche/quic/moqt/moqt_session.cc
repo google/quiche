@@ -466,6 +466,28 @@ bool MoqtSession::Fetch(const FullTrackName& name,
 
 bool MoqtSession::JoiningFetch(const FullTrackName& name,
                                SubscribeRemoteTrack::Visitor* visitor,
+                               uint64_t num_previous_groups,
+                               MoqtSubscribeParameters parameters) {
+  return JoiningFetch(
+      name, visitor,
+      [this,
+       id = next_subscribe_id_](std::unique_ptr<MoqtFetchTask> fetch_task) {
+        // Move the fetch_task to the subscribe to plumb into its visitor.
+        RemoteTrack* track = RemoteTrackById(id);
+        if (track == nullptr || track->is_fetch()) {
+          fetch_task.release();
+          return;
+        }
+        auto* subscribe = static_cast<SubscribeRemoteTrack*>(track);
+        RemoteTrackByName(track->full_track_name());
+        subscribe->OnJoiningFetchReady(std::move(fetch_task));
+      },
+      num_previous_groups, kDefaultSubscriberPriority, std::nullopt,
+      parameters);
+}
+
+bool MoqtSession::JoiningFetch(const FullTrackName& name,
+                               SubscribeRemoteTrack::Visitor* visitor,
                                FetchResponseCallback callback,
                                uint64_t num_previous_groups,
                                MoqtPriority priority,
@@ -2162,6 +2184,9 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
 }
 
 void MoqtSession::CancelFetch(uint64_t subscribe_id) {
+  if (is_closing_) {
+    return;
+  }
   // This is only called from the callback where UpstreamFetchTask has been
   // destroyed, so there is no need to notify the application.
   upstream_by_id_.erase(subscribe_id);

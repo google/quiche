@@ -7,18 +7,29 @@
 #include <memory>
 #include <optional>
 #include <utility>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
 
 namespace moqt {
 
 namespace test {
+
+using ::testing::_;
+using ::testing::Invoke;
+using ::testing::Return;
+
+class SubscribeRemoteTrackPeer {
+ public:
+  static MoqtFetchTask* GetFetchTask(SubscribeRemoteTrack* track) {
+    return track->fetch_task_.get();
+  }
+};
 
 class SubscribeRemoteTrackTest : public quic::test::QuicTest {
  public:
@@ -66,6 +77,56 @@ TEST_F(SubscribeRemoteTrackTest, Windows) {
   SubscribeWindow new_window(2, 1);
   track_.ChangeWindow(new_window);
   EXPECT_FALSE(track_.InWindow(FullSequence(2, 0)));
+}
+
+TEST_F(SubscribeRemoteTrackTest, JoiningFetch) {
+  auto fetch_task = std::make_unique<MockFetchTask>();
+  MockFetchTask* fetch = fetch_task.get();
+  EXPECT_CALL(*fetch, GetStatus()).WillRepeatedly(Return(absl::OkStatus()));
+  EXPECT_CALL(*fetch, GetNextObject(_))
+      .WillOnce(Invoke([](PublishedObject& object) {
+        object.sequence = FullSequence(0, 0);
+        object.status = MoqtObjectStatus::kNormal;
+        object.publisher_priority = 128;
+        object.payload = quic::test::MemSliceFromString("foobar");
+        object.fin_after_this = false;
+        return MoqtFetchTask::GetNextObjectResult::kSuccess;
+      }))
+      .WillOnce(Return(MoqtFetchTask::GetNextObjectResult::kPending));
+  EXPECT_CALL(visitor_, OnObjectFragment).Times(1);
+  track_.OnJoiningFetchReady(std::move(fetch_task));
+
+  EXPECT_CALL(*fetch, GetNextObject(_))
+      .WillOnce(Invoke([](PublishedObject& object) {
+        object.sequence = FullSequence(0, 1);
+        object.status = MoqtObjectStatus::kNormal;
+        object.publisher_priority = 128;
+        object.payload = quic::test::MemSliceFromString("foobar");
+        object.fin_after_this = false;
+        return MoqtFetchTask::GetNextObjectResult::kSuccess;
+      }))
+      .WillOnce(Return(MoqtFetchTask::GetNextObjectResult::kEof));
+  EXPECT_CALL(visitor_, OnObjectFragment).Times(1);
+  fetch->objects_available_callback()();
+  EXPECT_EQ(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
+}
+
+TEST_F(SubscribeRemoteTrackTest, JoiningFetchBadStatus) {
+  auto fetch_task = std::make_unique<MockFetchTask>();
+  MockFetchTask* fetch = fetch_task.get();
+  EXPECT_CALL(*fetch, GetStatus()).WillOnce(Return(absl::NotFoundError("foo")));
+  track_.OnJoiningFetchReady(std::move(fetch_task));
+  EXPECT_EQ(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
+}
+
+TEST_F(SubscribeRemoteTrackTest, JoiningFetchErrorReturn) {
+  auto fetch_task = std::make_unique<MockFetchTask>();
+  MockFetchTask* fetch = fetch_task.get();
+  EXPECT_CALL(*fetch, GetStatus()).WillRepeatedly(Return(absl::OkStatus()));
+  EXPECT_CALL(*fetch, GetNextObject(_))
+      .WillOnce(Return(MoqtFetchTask::GetNextObjectResult::kError));
+  track_.OnJoiningFetchReady(std::move(fetch_task));
+  EXPECT_EQ(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
 }
 
 class UpstreamFetchTest : public quic::test::QuicTest {

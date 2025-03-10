@@ -2384,10 +2384,55 @@ TEST_F(MoqtSessionTest, SendJoiningFetch) {
   EXPECT_CALL(mock_stream,
               Writev(SerializedControlMessage(expected_subscribe), _));
   EXPECT_CALL(mock_stream, Writev(SerializedControlMessage(expected_fetch), _));
-  // std::unique_ptr<MoqtFetchTask> fetch_task;
   EXPECT_TRUE(session_.JoiningFetch(
       expected_subscribe.full_track_name, &remote_track_visitor, nullptr, 1,
       0x80, MoqtDeliveryOrder::kAscending, MoqtSubscribeParameters()));
+}
+
+TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  webtransport::test::MockStream mock_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream);
+  EXPECT_CALL(mock_session_, GetStreamById(_))
+      .WillRepeatedly(Return(&mock_stream));
+  EXPECT_CALL(mock_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  EXPECT_CALL(mock_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kFetch), _));
+  EXPECT_TRUE(session_.JoiningFetch(FullTrackName("foo", "bar"),
+                                    &remote_track_visitor, 0));
+
+  EXPECT_CALL(remote_track_visitor, OnReply).Times(1);
+  stream_input->OnSubscribeOkMessage(
+      MoqtSubscribeOk(0, quic::QuicTimeDelta::FromMilliseconds(0),
+                      MoqtDeliveryOrder::kAscending, FullSequence(2, 0),
+                      MoqtSubscribeParameters()));
+  stream_input->OnFetchOkMessage(MoqtFetchOk(1, MoqtDeliveryOrder::kAscending,
+                                             FullSequence(2, 0),
+                                             MoqtSubscribeParameters()));
+  // Packet arrives on FETCH stream.
+  MoqtObject object = {
+      /*fetch_id=*/1,
+      /*group_id, object_id=*/0,
+      0,
+      /*publisher_priority=*/128,
+      std::vector<MoqtExtensionHeader>(),
+      /*status=*/MoqtObjectStatus::kNormal,
+      /*subgroup=*/0,
+      /*payload_length=*/3,
+  };
+  MoqtFramer framer(quiche::SimpleBufferAllocator::Get(), true);
+  quiche::QuicheBuffer header = framer.SerializeObjectHeader(
+      object, MoqtDataStreamType::kStreamHeaderFetch, true);
+
+  // Open stream, deliver two objects before FETCH_OK. Neither should be read.
+  webtransport::test::InMemoryStream data_stream(kIncomingUniStreamId);
+  data_stream.SetVisitor(
+      MoqtSessionPeer::CreateIncomingStreamVisitor(&session_, &data_stream));
+  data_stream.Receive(header.AsStringView(), false);
+  EXPECT_CALL(remote_track_visitor, OnObjectFragment).Times(1);
+  data_stream.Receive("foo", false);
 }
 
 TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {

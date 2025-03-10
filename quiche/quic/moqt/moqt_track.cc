@@ -29,6 +29,39 @@ bool RemoteTrack::CheckDataStreamType(MoqtDataStreamType type) {
   return true;
 }
 
+void SubscribeRemoteTrack::OnJoiningFetchReady(
+    std::unique_ptr<MoqtFetchTask> fetch_task) {
+  fetch_task_ = std::move(fetch_task);
+  fetch_task_->SetObjectAvailableCallback([this]() { FetchObjects(); });
+  FetchObjects();
+}
+
+void SubscribeRemoteTrack::FetchObjects() {
+  if (fetch_task_ == nullptr) {
+    return;
+  }
+  if (visitor_ == nullptr || !fetch_task_->GetStatus().ok()) {
+    fetch_task_.reset();
+    return;
+  }
+  while (true) {
+    PublishedObject object;
+    switch (fetch_task_->GetNextObject(object)) {
+      case MoqtFetchTask::GetNextObjectResult::kSuccess:
+        visitor_->OnObjectFragment(full_track_name(), object.sequence,
+                                   object.publisher_priority, object.status,
+                                   object.payload.AsStringView(), true);
+        break;
+      case MoqtFetchTask::GetNextObjectResult::kError:
+      case MoqtFetchTask::GetNextObjectResult::kEof:
+        fetch_task_.reset();
+        return;
+      case MoqtFetchTask::GetNextObjectResult::kPending:
+        return;
+    }
+  }
+}
+
 UpstreamFetch::~UpstreamFetch() {
   if (task_.IsValid()) {
     // Notify the task (which the application owns) that nothing more is coming.
