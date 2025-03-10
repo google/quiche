@@ -703,10 +703,11 @@ quiche::QuicheBuffer MoqtFramer::SerializeMaxSubscribeId(
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
-  if (message.end_group < message.start_object.group ||
-      (message.end_group == message.start_object.group &&
-       message.end_object.has_value() &&
-       *message.end_object < message.start_object.object)) {
+  if (!message.joining_fetch.has_value() &&
+      (message.end_group < message.start_object.group ||
+       (message.end_group == message.start_object.group &&
+        message.end_object.has_value() &&
+        *message.end_object < message.start_object.object))) {
     QUICHE_BUG(MoqtFramer_invalid_fetch) << "Invalid FETCH object range";
     return quiche::QuicheBuffer();
   }
