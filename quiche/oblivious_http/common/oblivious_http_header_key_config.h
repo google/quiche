@@ -138,7 +138,7 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
     std::string DebugString() const;
   };
 
-  struct OhttpKeyConfig {
+  struct QUICHE_EXPORT OhttpKeyConfig {
     uint8_t key_id;
     uint16_t kem_id;
     std::string public_key;  // Raw byte string.
