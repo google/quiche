@@ -1910,6 +1910,78 @@ TEST_F(HTTPBalsaFrameTest, ChunkExtensionLoneCarriageReturnAtBoundary) {
   EXPECT_EQ(BalsaFrameEnums::INVALID_CHUNK_EXTENSION, balsa_frame_.ErrorCode());
 }
 
+// Regression test for chunk extension sanitization.
+TEST_F(HTTPBalsaFrameTest, InvalidChunkExtensionWithLineFeedAllowed) {
+  balsa_frame_.set_http_validation_policy(
+      HttpValidationPolicy{.disallow_lone_lf_in_chunk_extension = false});
+  std::string message_headers =
+      "POST /potato?salad=withmayo HTTP/1.1\r\n"
+      "transfer-encoding: chunked\r\n"
+      "\r\n";
+  std::string message_body =
+      "9; bad\nextension\r\n"
+      "012345678\r\n"
+      "0\r\n"
+      "\r\n";
+  std::string message =
+      std::string(message_headers) + std::string(message_body);
+
+  EXPECT_CALL(visitor_mock_,
+              HandleError(BalsaFrameEnums::INVALID_CHUNK_EXTENSION))
+      .Times(0);  // Bug! b/380075645
+  ASSERT_EQ(message_headers.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  balsa_frame_.ProcessInput(message.data() + message_headers.size(),
+                            message.size());
+}
+
+// A LF character preceded by CR is allowed even if separated into multiple
+// calls to ProcessInput().
+TEST_F(HTTPBalsaFrameTest,
+       ChunkExtensionLoneCarriageReturnAtBoundaryWithLineFeed) {
+  balsa_frame_.set_http_validation_policy(
+      HttpValidationPolicy{.disallow_lone_lf_in_chunk_extension = true});
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  constexpr absl::string_view headers(
+      "POST / HTTP/1.1\r\n"
+      "transfer-encoding: chunked\r\n\r\n");
+  ASSERT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+
+  constexpr absl::string_view body1("3\r");
+  ASSERT_EQ(body1.size(),
+            balsa_frame_.ProcessInput(body1.data(), body1.size()));
+  ASSERT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+
+  constexpr absl::string_view body2("\n");
+  EXPECT_EQ(body2.size(),
+            balsa_frame_.ProcessInput(body2.data(), body2.size()));
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, InvalidChunkExtensionWithLineFeedRejected) {
+  balsa_frame_.set_http_validation_policy(
+      HttpValidationPolicy{.disallow_lone_lf_in_chunk_extension = true});
+  std::string message_headers =
+      "POST /potato?salad=withmayo HTTP/1.1\r\n"
+      "transfer-encoding: chunked\r\n\r\n";
+  std::string message_body =
+      "9; bad\nextension\r\n"
+      "012345678\r\n"
+      "0\r\n"
+      "\r\n";
+  const std::string message = absl::StrCat(message_headers, message_body);
+
+  EXPECT_CALL(visitor_mock_,
+              HandleError(BalsaFrameEnums::INVALID_CHUNK_EXTENSION))
+      .Times(1);
+  ASSERT_EQ(message_headers.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
+  balsa_frame_.ProcessInput(message.data() + message_headers.size(),
+                            message.size());
+}
+
 TEST_F(HTTPBalsaFrameTest,
        VisitorInvokedProperlyForRequestWithTransferEncoding) {
   std::string message_headers =
@@ -1919,7 +1991,7 @@ TEST_F(HTTPBalsaFrameTest,
   std::string message_body =
       "A            chunkjed extension  \r\n"
       "01234567890            more crud including numbers 123123\r\n"
-      "3f\n"
+      "3f\r\n"
       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
       "0 last one\r\n"
       "\r\n";
@@ -1986,7 +2058,7 @@ TEST_F(HTTPBalsaFrameTest,
   std::string message_body =
       "A            chunkjed extension  \r\n"
       "01234567890            more crud including numbers 123123\r\n"
-      "3f\n"
+      "3f\r\n"
       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
       "1  \r\n"
       "x   \r\n"
@@ -2548,7 +2620,7 @@ TEST_F(HTTPBalsaFrameTest,
   std::string message_body =
       "A            chunkjed extension  \r\n"
       "01234567890            more crud including numbers 123123\r\n"
-      "3f\n"
+      "3f\r\n"
       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
       "0 last one\r\n"
       "\r\n";
@@ -2610,7 +2682,7 @@ TEST_F(HTTPBalsaFrameTest,
   std::string message_body =
       "A            chunkjed extension  \r\n"
       "01234567890            more crud including numbers 123123\r\n"
-      "3f\n"
+      "3f\r\n"
       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
       "0 last one\r\n";
   std::string trailer_data =
@@ -2680,7 +2752,7 @@ TEST_F(
   std::string message_body =
       "A            chunkjed extension  \r\n"
       "01234567890            more crud including numbers 123123\r\n"
-      "3f\n"
+      "3f\r\n"
       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
       "0 last one\r\n";
   std::string trailer_data =
@@ -2756,7 +2828,7 @@ TEST(HTTPBalsaFrame,
     std::string message_body =
         "A            chunkjed extension  \r\n"
         "01234567890            more crud including numbers 123123\r\n"
-        "3f\n"
+        "3f\r\n"
         "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
         "0 last one\r\n";
     std::string trailer_data =
@@ -3785,7 +3857,7 @@ TEST_F(HTTPBalsaFrameTest, MultipleHeadersInTrailer) {
   std::string chunks =
       "3\r\n"
       "123\n"
-      "0\n";
+      "0\r\n";
   std::map<std::string, std::string> trailer;
   trailer["X-Trace"] =
       "http://trace.example.com/trace?host="

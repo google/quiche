@@ -1506,6 +1506,14 @@ bool BalsaFrame::IsValidChunkExtensionCharacter(char c, const char* current,
       return false;
     }
   }
+  const bool prev_c_is_cr =
+      current == begin ? last_char_was_slash_r_ : *(current - 1) == '\r';
+  // This is a LF char and the previous one was not CR.
+  if (c == '\n' && !prev_c_is_cr) {
+    if (http_validation_policy_.disallow_lone_lf_in_chunk_extension) {
+      return false;
+    }
+  }
   return true;
 }
 
