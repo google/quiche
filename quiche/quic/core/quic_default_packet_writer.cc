@@ -24,10 +24,7 @@ WriteResult QuicDefaultPacketWriter::WritePacket(
   packet_info.SetPeerAddress(peer_address);
   packet_info.SetSelfIp(self_address);
   packet_info.SetEcnCodepoint(params.ecn_codepoint);
-  if (GetQuicRestartFlag(quic_support_flow_label2)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_support_flow_label2, 3, 6);
-    packet_info.SetFlowLabel(params.flow_label);
-  }
+  packet_info.SetFlowLabel(params.flow_label);
   WriteResult result =
       QuicUdpSocketApi().WritePacket(fd_, buffer, buf_len, packet_info);
   if (IsWriteBlockedStatus(result.status)) {

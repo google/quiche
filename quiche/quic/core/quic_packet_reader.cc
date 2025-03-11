@@ -53,11 +53,8 @@ bool QuicPacketReader::ReadAndDispatchPackets(
       {QuicUdpPacketInfoBit::DROPPED_PACKETS,
        QuicUdpPacketInfoBit::PEER_ADDRESS, QuicUdpPacketInfoBit::V4_SELF_IP,
        QuicUdpPacketInfoBit::V6_SELF_IP, QuicUdpPacketInfoBit::RECV_TIMESTAMP,
-       QuicUdpPacketInfoBit::TTL, QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER});
-  if (GetQuicRestartFlag(quic_support_flow_label2)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_support_flow_label2, 4, 6);
-    info_bits.Set(QuicUdpPacketInfoBit::V6_FLOW_LABEL);
-  }
+       QuicUdpPacketInfoBit::TTL, QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER,
+       QuicUdpPacketInfoBit::V6_FLOW_LABEL});
   if (GetQuicReloadableFlag(quic_record_tos_byte)) {
     QUIC_CODE_COUNT(quic_record_tos_byte);
     // TODO: martinduke - Consolidate ECN and TOS bits.
