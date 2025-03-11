@@ -99,8 +99,17 @@ MasqueConnectionPool::SendRequest(const Message &request) {
     return absl::InternalError(
         absl::StrCat("Failed to create connection to ", authority->second));
   }
-  RequestId request_id = ++next_request_id_;
   auto pending_request = std::make_unique<PendingRequest>();
+  if (connection->connection() != nullptr) {
+    pending_request->connection = connection->connection();
+    pending_request->stream_id =
+        connection->connection()->SendRequest(request.headers, request.body);
+    if (pending_request->stream_id < 0) {
+      return absl::InternalError(
+          absl::StrCat("Failed to send request to ", authority->second));
+    }
+  }
+  RequestId request_id = ++next_request_id_;
   pending_request->request.headers = request.headers.Clone();
   pending_request->request.body = request.body;
   pending_requests_.insert({request_id, std::move(pending_request)});

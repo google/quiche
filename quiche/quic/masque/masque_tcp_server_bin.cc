@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -22,6 +23,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
 #include "openssl/bio.h"
@@ -34,6 +36,7 @@
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/masque/masque_h2_connection.h"
+#include "quiche/binary_http/binary_http_message.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -42,6 +45,7 @@
 #include "quiche/common/quiche_ip_address_family.h"
 #include "quiche/common/quiche_socket_address.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
+#include "quiche/oblivious_http/oblivious_http_gateway.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, port, 9661,
                                 "The port the MASQUE server will listen on.");
@@ -59,8 +63,13 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, ohttp_key, "",
     "Hex-encoded bytes of the OHTTP HPKE private key.");
 
+using quiche::BinaryHttpRequest;
+using quiche::BinaryHttpResponse;
+using quiche::ObliviousHttpGateway;
 using quiche::ObliviousHttpHeaderKeyConfig;
 using quiche::ObliviousHttpKeyConfigs;
+using quiche::ObliviousHttpRequest;
+using quiche::ObliviousHttpResponse;
 
 namespace quic {
 
@@ -144,6 +153,73 @@ class MasqueOhttpGateway {
       return false;
     }
     concatenated_keys_ = *concatenated_keys;
+    absl::StatusOr<ObliviousHttpGateway> ohttp_gateway =
+        ObliviousHttpGateway::Create(hpke_private_key_,
+                                     *ohttp_header_key_config);
+    if (!ohttp_gateway.ok()) {
+      QUICHE_LOG(ERROR) << "Failed to create OHTTP gateway: "
+                        << ohttp_gateway.status();
+      return false;
+    }
+    ohttp_gateway_.emplace(std::move(*ohttp_gateway));
+    return true;
+  }
+
+  bool HandleRequest(MasqueH2Connection *connection, int32_t stream_id,
+                     const std::string &encapsulated_request) {
+    if (!ohttp_gateway_.has_value()) {
+      QUICHE_LOG(ERROR) << "Not ready to handle OHTTP request";
+      return false;
+    }
+    absl::StatusOr<ObliviousHttpRequest> decrypted_request =
+        ohttp_gateway_->DecryptObliviousHttpRequest(encapsulated_request);
+    if (!decrypted_request.ok()) {
+      QUICHE_LOG(ERROR) << "Failed to decrypt OHTTP request: "
+                        << decrypted_request.status();
+      return false;
+    }
+    absl::StatusOr<BinaryHttpRequest> binary_request =
+        BinaryHttpRequest::Create(decrypted_request->GetPlaintextData());
+    if (!binary_request.ok()) {
+      QUICHE_LOG(ERROR) << "Failed to parse binary request: "
+                        << binary_request.status();
+      return false;
+    }
+    const BinaryHttpRequest::ControlData &control_data =
+        binary_request->control_data();
+    // TODO(dschinazi): Send the decapsulated request to the authority instead
+    // of replying with a fake local response.
+    std::string response_body = absl::StrCat(
+        "OHTTP Response! Request method: ", control_data.method,
+        " scheme: ", control_data.scheme, " path: ", control_data.path,
+        " authority: ", control_data.authority);
+
+    BinaryHttpResponse binary_response(/*status_code=*/200);
+    binary_response.swap_body(response_body);
+    absl::StatusOr<std::string> encoded_response = binary_response.Serialize();
+    if (!encoded_response.ok()) {
+      QUICHE_LOG(ERROR) << "Failed to encode response: "
+                        << encoded_response.status();
+      return false;
+    }
+
+    auto context = std::move(*decrypted_request).ReleaseContext();
+    absl::StatusOr<ObliviousHttpResponse> ohttp_response =
+        ohttp_gateway_->CreateObliviousHttpResponse(*encoded_response, context);
+    if (!ohttp_response.ok()) {
+      QUICHE_LOG(ERROR) << "Failed to create OHTTP response: "
+                        << ohttp_response.status();
+      return false;
+    }
+    std::string encapsulated_response =
+        ohttp_response->EncapsulateAndSerialize();
+    QUICHE_LOG(INFO) << "Sending OHTTP response";
+
+    quiche::HttpHeaderBlock response_headers;
+    response_headers[":status"] = "200";
+    response_headers["content-type"] = "message/ohttp-res";
+    connection->SendResponse(stream_id, response_headers,
+                             encapsulated_response);
     return true;
   }
 
@@ -155,6 +231,7 @@ class MasqueOhttpGateway {
   const EVP_HPKE_KEM *kem_ = EVP_hpke_x25519_hkdf_sha256();
   bssl::UniquePtr<EVP_HPKE_KEY> hpke_key_;
   std::string concatenated_keys_;
+  std::optional<ObliviousHttpGateway> ohttp_gateway_;
 };
 
 static int SelectAlpnCallback(SSL * /*ssl*/, const uint8_t **out,
@@ -240,9 +317,9 @@ class MasqueH2SocketConnection : public QuicSocketEventListener {
 class MasqueTcpServer : public QuicSocketEventListener,
                         public MasqueH2Connection::Visitor {
  public:
-  explicit MasqueTcpServer(MasqueOhttpGateway *ohttp_gateway)
+  explicit MasqueTcpServer(MasqueOhttpGateway *masque_ohttp_gateway)
       : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
-        ohttp_gateway_(ohttp_gateway) {}
+        masque_ohttp_gateway_(masque_ohttp_gateway) {}
 
   MasqueTcpServer(const MasqueTcpServer &) = delete;
   MasqueTcpServer(MasqueTcpServer &&) = delete;
@@ -371,9 +448,15 @@ class MasqueTcpServer : public QuicSocketEventListener,
         connections_.end());
   }
 
+  bool HandleOhttpRequest(MasqueH2Connection *connection, int32_t stream_id,
+                          const std::string &encapsulated_request) {
+    return masque_ohttp_gateway_->HandleRequest(connection, stream_id,
+                                                encapsulated_request);
+  }
+
   void OnRequest(MasqueH2Connection *connection, int32_t stream_id,
                  const quiche::HttpHeaderBlock &headers,
-                 const std::string & /*body*/) override {
+                 const std::string &body) override {
     quiche::HttpHeaderBlock response_headers;
     std::string response_body;
     auto path_pair = headers.find(":path");
@@ -389,7 +472,16 @@ class MasqueTcpServer : public QuicSocketEventListener,
                content_type_pair->second == "application/ohttp-keys") {
       response_headers[":status"] = "200";
       response_headers["content-type"] = "application/ohttp-keys";
-      response_body = ohttp_gateway_->concatenated_keys();
+      response_body = masque_ohttp_gateway_->concatenated_keys();
+    } else if (method_pair->second == "POST" &&
+               content_type_pair != headers.end() &&
+               content_type_pair->second == "message/ohttp-req") {
+      if (HandleOhttpRequest(connection, stream_id, body)) {
+        return;
+      } else {
+        response_headers[":status"] = "500";
+        response_body = "Failed to handle OHTTP request";
+      }
     } else if (method_pair->second == "GET" && path_pair->second == "/") {
       response_headers[":status"] = "200";
       response_body = "<h1>This is a response body</h1>";
@@ -434,7 +526,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
 
   std::unique_ptr<QuicEventLoop> event_loop_;
   bssl::UniquePtr<SSL_CTX> ctx_;
-  MasqueOhttpGateway *ohttp_gateway_;  // Unowned.
+  MasqueOhttpGateway *masque_ohttp_gateway_;  // Unowned.
   SocketFd server_socket_ = kInvalidSocketFd;
   std::vector<std::unique_ptr<MasqueH2SocketConnection>> connections_;
 };
@@ -464,13 +556,14 @@ int RunMasqueTcpServer(int argc, char *argv[]) {
 
   quiche::QuicheSystemEventLoop system_event_loop("masque_tcp_server");
 
-  MasqueOhttpGateway ohttp_gateway;
-  if (!ohttp_gateway.Setup(quiche::GetQuicheCommandLineFlag(FLAGS_ohttp_key))) {
+  MasqueOhttpGateway masque_ohttp_gateway;
+  if (!masque_ohttp_gateway.Setup(
+          quiche::GetQuicheCommandLineFlag(FLAGS_ohttp_key))) {
     QUICHE_LOG(ERROR) << "Failed to setup OHTTP";
     return 1;
   }
 
-  MasqueTcpServer server(&ohttp_gateway);
+  MasqueTcpServer server(&masque_ohttp_gateway);
   if (!server.SetupSslCtx(certificate_file, key_file, client_root_ca_file)) {
     QUICHE_LOG(ERROR) << "Failed to setup SSL context";
     return 1;

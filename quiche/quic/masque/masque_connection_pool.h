@@ -78,6 +78,8 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
     void OnSocketEvent(QuicEventLoop *event_loop, SocketFd fd,
                        QuicSocketEventMask events) override;
 
+    MasqueH2Connection *connection() { return connection_.get(); }
+
    private:
     static enum ssl_verify_result_t VerifyCallback(SSL *ssl,
                                                    uint8_t *out_alert);
