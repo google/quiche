@@ -28,7 +28,10 @@ QuicSimpleServerSession::QuicSimpleServerSession(
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSimpleServerBackend* quic_simple_server_backend)
     : QuicServerSessionBase(config, supported_versions, connection, visitor,
-                            helper, crypto_config, compressed_certs_cache),
+                            helper, crypto_config, compressed_certs_cache,
+                            quic_simple_server_backend->SupportsWebTransport()
+                                ? QuicPriorityType::kWebTransport
+                                : QuicPriorityType::kHttp),
       quic_simple_server_backend_(quic_simple_server_backend) {
   QUICHE_DCHECK(quic_simple_server_backend_);
   set_max_streams_accepted_per_loop(5u);

@@ -161,7 +161,8 @@ class QUICHE_EXPORT QuicSpdySession
   // Does not take ownership of |connection| or |visitor|.
   QuicSpdySession(QuicConnection* connection, QuicSession::Visitor* visitor,
                   const QuicConfig& config,
-                  const ParsedQuicVersionVector& supported_versions);
+                  const ParsedQuicVersionVector& supported_versions,
+                  QuicPriorityType priority_type = QuicPriorityType::kHttp);
   QuicSpdySession(const QuicSpdySession&) = delete;
   QuicSpdySession& operator=(const QuicSpdySession&) = delete;
 

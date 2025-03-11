@@ -34,13 +34,14 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
  public:
   // Does not take ownership of |connection|. |crypto_config| must outlive the
   // session. |helper| must outlive any created crypto streams.
-  QuicServerSessionBase(const QuicConfig& config,
-                        const ParsedQuicVersionVector& supported_versions,
-                        QuicConnection* connection,
-                        QuicSession::Visitor* visitor,
-                        QuicCryptoServerStreamBase::Helper* helper,
-                        const QuicCryptoServerConfig* crypto_config,
-                        QuicCompressedCertsCache* compressed_certs_cache);
+  QuicServerSessionBase(
+      const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection, QuicSession::Visitor* visitor,
+      QuicCryptoServerStreamBase::Helper* helper,
+      const QuicCryptoServerConfig* crypto_config,
+      QuicCompressedCertsCache* compressed_certs_cache,
+      QuicPriorityType priority_type = QuicPriorityType::kHttp);
   QuicServerSessionBase(const QuicServerSessionBase&) = delete;
   QuicServerSessionBase& operator=(const QuicServerSessionBase&) = delete;
 

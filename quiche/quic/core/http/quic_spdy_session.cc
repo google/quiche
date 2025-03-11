@@ -532,14 +532,15 @@ Http3DebugVisitor::~Http3DebugVisitor() {}
 // https://tools.ietf.org/html/draft-ietf-quic-http-22#section-6.2.
 QuicSpdySession::QuicSpdySession(
     QuicConnection* connection, QuicSession::Visitor* visitor,
-    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions)
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
+    QuicPriorityType priority_type)
     : QuicSession(connection, visitor, config, supported_versions,
                   /*num_expected_unidirectional_static_streams = */
                   VersionUsesHttp3(connection->transport_version())
                       ? static_cast<QuicStreamCount>(
                             kHttp3StaticUnidirectionalStreamCount)
                       : 0u,
-                  std::make_unique<DatagramObserver>(this)),
+                  std::make_unique<DatagramObserver>(this), priority_type),
       send_control_stream_(nullptr),
       receive_control_stream_(nullptr),
       qpack_encoder_receive_stream_(nullptr),

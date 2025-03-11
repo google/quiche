@@ -208,6 +208,10 @@ void WebTransportStreamAdapter::SendStopSending(WebTransportStreamError error) {
 void WebTransportStreamAdapter::SetPriority(
     const webtransport::StreamPriority& priority) {
   if (session_->priority_type() != QuicPriorityType::kWebTransport) {
+    QUIC_BUG(WebTransportStreamAdapter_WrongPriorityType)
+        << "Attempting to set WebTransport priority on a session "
+           "that uses priorities of type "
+        << session_->priority_type();
     return;
   }
   // If no session is yet available, associate with an invalid control stream;

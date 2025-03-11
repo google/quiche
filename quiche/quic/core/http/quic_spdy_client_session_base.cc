@@ -19,8 +19,10 @@ namespace quic {
 
 QuicSpdyClientSessionBase::QuicSpdyClientSessionBase(
     QuicConnection* connection, QuicSession::Visitor* visitor,
-    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions)
-    : QuicSpdySession(connection, visitor, config, supported_versions) {}
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
+    QuicPriorityType priority_type)
+    : QuicSpdySession(connection, visitor, config, supported_versions,
+                      priority_type) {}
 
 QuicSpdyClientSessionBase::~QuicSpdyClientSessionBase() {
   DeleteConnection();
