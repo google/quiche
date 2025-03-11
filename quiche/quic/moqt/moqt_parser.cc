@@ -479,26 +479,14 @@ size_t MoqtControlParser::ProcessUnsubscribe(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
   MoqtSubscribeDone subscribe_done;
-  uint8_t content_exists;
   uint64_t value;
   if (!reader.ReadVarInt62(&subscribe_done.subscribe_id) ||
       !reader.ReadVarInt62(&value) ||
-      !reader.ReadStringVarInt62(subscribe_done.reason_phrase) ||
-      !reader.ReadUInt8(&content_exists)) {
+      !reader.ReadVarInt62(&subscribe_done.stream_count) ||
+      !reader.ReadStringVarInt62(subscribe_done.reason_phrase)) {
     return 0;
   }
   subscribe_done.status_code = static_cast<SubscribeDoneCode>(value);
-  if (content_exists > 1) {
-    ParseError("SUBSCRIBE_DONE ContentExists has invalid value");
-    return 0;
-  }
-  if (content_exists == 1) {
-    subscribe_done.final_id = FullSequence();
-    if (!reader.ReadVarInt62(&subscribe_done.final_id->group) ||
-        !reader.ReadVarInt62(&subscribe_done.final_id->object)) {
-      return 0;
-    }
-  }
   visitor_.OnSubscribeDoneMessage(subscribe_done);
   return reader.PreviouslyReadPayload().length();
 }

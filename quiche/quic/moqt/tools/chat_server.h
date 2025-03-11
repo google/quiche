@@ -47,6 +47,7 @@ class ChatServer {
         moqt::MoqtPriority /*publisher_priority*/,
         moqt::MoqtObjectStatus /*status*/,
         absl::string_view object, bool end_of_message) override;
+    void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
 
    private:
     ChatServer* server_;

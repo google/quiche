@@ -192,6 +192,8 @@ class MoqtIngestionHandler {
       output.close();
     }
 
+    void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+
    private:
     std::string directory_;
   };

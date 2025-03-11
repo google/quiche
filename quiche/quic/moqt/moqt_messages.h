@@ -445,8 +445,8 @@ enum class QUICHE_EXPORT SubscribeDoneCode : uint64_t {
 struct QUICHE_EXPORT MoqtSubscribeDone {
   uint64_t subscribe_id;
   SubscribeDoneCode status_code;
+  uint64_t stream_count;
   std::string reason_phrase;
-  std::optional<FullSequence> final_id;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeUpdate {

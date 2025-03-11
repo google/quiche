@@ -736,40 +736,36 @@ class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE_DONE status code mismatch";
       return false;
     }
+    if (cast.stream_count != subscribe_done_.stream_count) {
+      QUIC_LOG(INFO) << "SUBSCRIBE_DONE stream count mismatch";
+      return false;
+    }
     if (cast.reason_phrase != subscribe_done_.reason_phrase) {
       QUIC_LOG(INFO) << "SUBSCRIBE_DONE reason phrase mismatch";
       return false;
     }
-    if (cast.final_id != subscribe_done_.final_id) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_DONE final ID mismatch";
-      return false;
-    }
+
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvv---vv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvv--"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_done_);
   }
 
-  void SetInvalidContentExists() {
-    raw_packet_[7] = 0x02;
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-  }
-
  private:
-  uint8_t raw_packet_[10] = {
-      0x0b, 0x08, 0x02, 0x02,  // subscribe_id = 2, error_code = 2,
+  uint8_t raw_packet_[8] = {
+      0x0b, 0x06, 0x02, 0x02,  // subscribe_id = 2, error_code = 2,
+      0x05,                    // stream_count = 5
       0x02, 0x68, 0x69,        // reason_phrase = "hi"
-      0x01, 0x08, 0x0c,        // final_id = (8,12)
   };
 
   MoqtSubscribeDone subscribe_done_ = {
       /*subscribe_id=*/2,
       /*error_code=*/SubscribeDoneCode::kTrackEnded,
+      /*stream_count=*/5,
       /*reason_phrase=*/"hi",
-      /*final_id=*/FullSequence(8, 12),
   };
 };
 

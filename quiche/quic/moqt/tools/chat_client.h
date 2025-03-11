@@ -104,6 +104,8 @@ class ChatClient {
                           absl::string_view object,
                           bool end_of_message) override;
 
+    void OnSubscribeDone(FullTrackName full_track_name) override {}
+
    private:
     ChatClient* client_;
   };

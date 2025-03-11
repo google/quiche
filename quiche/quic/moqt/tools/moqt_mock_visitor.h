@@ -101,6 +101,8 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeRemoteTrack::Visitor {
                MoqtPriority publisher_priority, MoqtObjectStatus status,
                absl::string_view object, bool end_of_message),
               (override));
+  MOCK_METHOD(void, OnSubscribeDone, (FullTrackName full_track_name),
+              (override));
 };
 
 class MockPublishingMonitorInterface : public MoqtPublishingMonitorInterface {

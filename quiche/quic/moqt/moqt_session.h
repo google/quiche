@@ -284,8 +284,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override;
     void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
     // There is no state to update for SUBSCRIBE_DONE.
-    void OnSubscribeDoneMessage(const MoqtSubscribeDone& /*message*/) override {
-    }
+    void OnSubscribeDoneMessage(const MoqtSubscribeDone& /*message*/) override;
     void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override;
     void OnAnnounceMessage(const MoqtAnnounce& message) override;
     void OnAnnounceOkMessage(const MoqtAnnounceOk& message) override;
@@ -478,6 +477,8 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
       return reset_subgroups_;
     }
 
+    uint64_t streams_opened() const { return streams_opened_; }
+
    private:
     SendStreamMap& stream_map();
     quic::Perspective perspective() const {
@@ -498,6 +499,7 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     uint64_t track_alias_;
     SubscribeWindow window_;
     MoqtPriority subscriber_priority_;
+    uint64_t streams_opened_ = 0;
 
     // The subscription will ignore any groups with a lower ID, so it doesn't
     // need to track reset subgroups.
@@ -643,11 +645,25 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     MoqtSession* session_;
   };
 
-  // Private members of MoqtSession.
+  class SubscribeDoneDelegate : public quic::QuicAlarm::DelegateWithoutContext {
+   public:
+    SubscribeDoneDelegate(MoqtSession* session, SubscribeRemoteTrack* subscribe)
+        : session_(session), subscribe_(subscribe) {}
 
+    void OnAlarm() override { session_->DestroySubscription(subscribe_); }
+
+   private:
+    MoqtSession* session_;
+    SubscribeRemoteTrack* subscribe_;
+  };
+
+  // Private members of MoqtSession.
   // Returns true if SUBSCRIBE_DONE was sent.
   bool SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
                        absl::string_view reason_phrase);
+  void MaybeDestroySubscription(SubscribeRemoteTrack* subscribe);
+  void DestroySubscription(SubscribeRemoteTrack* subscribe);
+
   // Returns the pointer to the control stream, or nullptr if none is present.
   ControlStream* GetControlStream();
   // Sends a message on the control stream; QUICHE_DCHECKs if no control stream

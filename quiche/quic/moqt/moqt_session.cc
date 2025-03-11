@@ -420,10 +420,7 @@ void MoqtSession::Unsubscribe(const FullTrackName& name) {
   MoqtUnsubscribe message;
   message.subscribe_id = track->subscribe_id();
   SendControlMessage(framer_.SerializeUnsubscribe(message));
-  // Destroy state.
-  subscribe_by_name_.erase(name);
-  subscribe_by_alias_.erase(track->track_alias());
-  upstream_by_id_.erase(track->subscribe_id());
+  DestroySubscription(track);
 }
 
 bool MoqtSession::Fetch(const FullTrackName& name,
@@ -605,8 +602,8 @@ bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
   MoqtSubscribeDone subscribe_done;
   subscribe_done.subscribe_id = subscribe_id;
   subscribe_done.status_code = code;
+  subscribe_done.stream_count = subscription.streams_opened();
   subscribe_done.reason_phrase = reason_phrase;
-  subscribe_done.final_id = subscription.largest_sent();
   SendControlMessage(framer_.SerializeSubscribeDone(subscribe_done));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_DONE message for "
                   << subscription.publisher().GetTrackName();
@@ -620,6 +617,18 @@ bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
     stream->ResetWithUserCode(kResetCodeSubscriptionGone);
   }
   return true;
+}
+
+void MoqtSession::MaybeDestroySubscription(SubscribeRemoteTrack* subscribe) {
+  if (subscribe != nullptr && subscribe->all_streams_closed()) {
+    DestroySubscription(subscribe);
+  }
+}
+
+void MoqtSession::DestroySubscription(SubscribeRemoteTrack* subscribe) {
+  subscribe->visitor()->OnSubscribeDone(subscribe->full_track_name());
+  subscribe_by_name_.erase(subscribe->full_track_name());
+  subscribe_by_alias_.erase(subscribe->track_alias());
 }
 
 bool MoqtSession::Subscribe(MoqtSubscribe& message,
@@ -683,7 +692,10 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
   SendControlMessage(framer_.SerializeSubscribe(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE message for "
                   << message.full_track_name;
-  auto track = std::make_unique<SubscribeRemoteTrack>(message, visitor);
+  auto track = std::make_unique<SubscribeRemoteTrack>(
+      message, visitor,
+      message.parameters.delivery_timeout.value_or(
+          quic::QuicTimeDelta::Infinite()));
   subscribe_by_name_.emplace(message.full_track_name, track.get());
   subscribe_by_alias_.emplace(message.track_alias, track.get());
   upstream_by_id_.emplace(message.subscribe_id, std::move(track));
@@ -1056,13 +1068,21 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
                     "Received SUBSCRIBE_OK for a FETCH");
     return;
   }
-  QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
-                  << "subscribe_id = " << message.subscribe_id << " "
-                  << track->full_track_name();
+  if (message.largest_id.has_value()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
+                    << "subscribe_id = " << message.subscribe_id << " "
+                    << track->full_track_name()
+                    << " largest_id = " << *message.largest_id;
+  } else {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
+                    << "subscribe_id = " << message.subscribe_id << " "
+                    << track->full_track_name();
+  }
   SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
   subscribe->OnObjectOrOk();
   // TODO(martinduke): Handle expires field.
   // TODO(martinduke): Resize the window based on largest_id.
+  // TODO(martinduke): Handle delivery_timeout parameter.
   if (subscribe->visitor() != nullptr) {
     subscribe->visitor()->OnReply(track->full_track_name(), message.largest_id,
                                   std::nullopt);
@@ -1121,6 +1141,22 @@ void MoqtSession::ControlStream::OnUnsubscribeMessage(
   QUIC_DLOG(INFO) << ENDPOINT << "Received an UNSUBSCRIBE for "
                   << it->second->publisher().GetTrackName();
   session_->published_subscriptions_.erase(it);
+}
+
+void MoqtSession::ControlStream::OnSubscribeDoneMessage(
+    const MoqtSubscribeDone& message) {
+  auto it = session_->upstream_by_id_.find(message.subscribe_id);
+  if (it == session_->upstream_by_id_.end()) {
+    return;
+  }
+  auto* subscribe = static_cast<SubscribeRemoteTrack*>(it->second.get());
+  QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE_DONE for "
+                  << it->second->full_track_name();
+  subscribe->OnSubscribeDone(
+      message.stream_count, session_->callbacks_.clock,
+      absl::WrapUnique(session_->alarm_factory_->CreateAlarm(
+          new SubscribeDoneDelegate(session_, subscribe))));
+  session_->MaybeDestroySubscription(subscribe);
 }
 
 void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
@@ -1606,11 +1642,28 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
 }
 
 MoqtSession::IncomingDataStream::~IncomingDataStream() {
-  if (parser_.track_alias().has_value() &&
-      parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch &&
-      track_.IsValid()) {
+  QUICHE_DVLOG(1) << ENDPOINT << "Destroying incoming data stream "
+                  << stream_->GetStreamId();
+  if (!parser_.track_alias().has_value()) {
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Destroying incoming data stream before "
+                     "learning track alias";
+    return;
+  }
+  if (!track_.IsValid()) {
+    return;
+  }
+  if (parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch) {
     session_->upstream_by_id_.erase(*parser_.track_alias());
   }
+  // It's a subscribe.
+  SubscribeRemoteTrack* subscribe =
+      static_cast<SubscribeRemoteTrack*>(track_.GetIfAvailable());
+  if (subscribe == nullptr) {
+    return;
+  }
+  subscribe->OnStreamClosed();
+  session_->MaybeDestroySubscription(subscribe);
 }
 
 void MoqtSession::IncomingDataStream::MaybeReadOneObject() {
@@ -1648,17 +1701,31 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
       return;
     }
   }
-  if (parser_.stream_type() != MoqtDataStreamType::kStreamHeaderFetch) {
+  bool knew_track_alias = parser_.track_alias().has_value();
+  if (parser_.stream_type() == MoqtDataStreamType::kStreamHeaderSubgroup) {
     parser_.ReadAllData();
+  } else if (!knew_track_alias) {
+    parser_.ReadTrackAlias();
+  }
+  if (!parser_.track_alias().has_value()) {
     return;
   }
-  bool learned_track_alias = false;
-  if (!parser_.track_alias().has_value()) {
-    learned_track_alias = true;
-    parser_.ReadTrackAlias();
-    if (!parser_.track_alias().has_value()) {
+  if (parser_.stream_type() == MoqtDataStreamType::kStreamHeaderSubgroup) {
+    if (knew_track_alias) {
       return;
     }
+    // This is a new stream for a subscribe. Notify the subscription.
+    auto it = session_->subscribe_by_alias_.find(*parser_.track_alias());
+    if (it == session_->subscribe_by_alias_.end()) {
+      QUIC_DLOG(INFO) << ENDPOINT
+                      << "Received object for a track with no SUBSCRIBE";
+      // This is a not a session error because there might be an UNSUBSCRIBE in
+      // flight.
+      stream_->SendStopSending(kResetCodeSubscriptionGone);
+      return;
+    }
+    it->second->OnStreamOpened();
+    return;
   }
   auto it = session_->upstream_by_id_.find(*parser_.track_alias());
   if (it == session_->upstream_by_id_.end()) {
@@ -1674,7 +1741,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
     return;
   }
   UpstreamFetch* fetch = static_cast<UpstreamFetch*>(it->second.get());
-  if (learned_track_alias) {
+  if (!knew_track_alias) {
     // If the task already exists (FETCH_OK has arrived), the callback will
     // immediately execute to read the first object. Otherwise, it will only
     // execute when the task is created or a cached object is read.
@@ -1986,6 +2053,7 @@ MoqtSession::PublishedSubscription::NextQueuedOutgoingDataStream() {
 
 void MoqtSession::PublishedSubscription::OnDataStreamCreated(
     webtransport::StreamId id, FullSequence start_sequence) {
+  ++streams_opened_;
   stream_map().AddStream(start_sequence, id);
 }
 void MoqtSession::PublishedSubscription::OnDataStreamDestroyed(

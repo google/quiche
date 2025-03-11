@@ -1158,17 +1158,6 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkInvalidDeliveryOrder) {
             "Invalid group order value in SUBSCRIBE_OK");
 }
 
-TEST_F(MoqtMessageSpecificTest, SubscribeDoneInvalidContentExists) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  SubscribeDoneMessage subscribe_done;
-  subscribe_done.SetInvalidContentExists();
-  parser.ProcessData(subscribe_done.PacketSample(), false);
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_TRUE(visitor_.parsing_error_.has_value());
-  EXPECT_EQ(*visitor_.parsing_error_,
-            "SUBSCRIBE_DONE ContentExists has invalid value");
-}
-
 TEST_F(MoqtMessageSpecificTest, FetchInvalidRange) {
   MoqtControlParser parser(kRawQuic, visitor_);
   FetchMessage fetch;

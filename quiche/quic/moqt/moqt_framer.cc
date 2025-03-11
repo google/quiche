@@ -571,18 +571,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribe(
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeDone(
     const MoqtSubscribeDone& message) {
-  if (message.final_id.has_value()) {
-    return SerializeControlMessage(
-        MoqtMessageType::kSubscribeDone, WireVarInt62(message.subscribe_id),
-        WireVarInt62(message.status_code),
-        WireStringWithVarInt62Length(message.reason_phrase), WireUint8(1),
-        WireVarInt62(message.final_id->group),
-        WireVarInt62(message.final_id->object));
-  }
   return SerializeControlMessage(
       MoqtMessageType::kSubscribeDone, WireVarInt62(message.subscribe_id),
-      WireVarInt62(message.status_code),
-      WireStringWithVarInt62Length(message.reason_phrase), WireUint8(0));
+      WireVarInt62(message.status_code), WireVarInt62(message.stream_count),
+      WireStringWithVarInt62Length(message.reason_phrase));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(

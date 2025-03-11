@@ -79,6 +79,19 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
     ConnectEndpoints();
   }
 
+  // Client subscribes to the latest object in |track_name|.
+  void SubscribeLatestObject(FullTrackName track_name,
+                             MockSubscribeRemoteTrackVisitor* visitor) {
+    bool received_ok = false;
+    EXPECT_CALL(*visitor, OnReply(track_name, std::optional<FullSequence>(),
+                                  std::optional<absl::string_view>()))
+        .WillOnce([&]() { received_ok = true; });
+    client_->session()->SubscribeCurrentObject(track_name, visitor);
+    bool success =
+        test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
+    EXPECT_TRUE(success);
+  }
+
  protected:
   quic::simulator::TestHarness test_harness_;
 
@@ -423,6 +436,7 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
 
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
+  // TODO(martinduke): Unmock this.
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(track_publisher);
 
@@ -443,6 +457,7 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
 
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
+  // TODO(martinduke): Unmock this.
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(track_publisher);
 
@@ -463,6 +478,7 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentGroupOk) {
 
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
+  // TODO(martinduke): Unmock this.
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(track_publisher);
 
@@ -489,6 +505,48 @@ TEST_F(MoqtIntegrationTest, SubscribeError) {
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
   EXPECT_TRUE(success);
+}
+
+TEST_F(MoqtIntegrationTest, CleanSubscribeDone) {
+  EstablishSession();
+  FullTrackName full_track_name("foo", "bar");
+
+  MoqtKnownTrackPublisher publisher;
+  server_->session()->set_publisher(&publisher);
+  auto queue = std::make_shared<MoqtLiveRelayQueue>(
+      full_track_name, MoqtForwardingPreference::kSubgroup);
+  publisher.Add(queue);
+
+  MockSubscribeRemoteTrackVisitor client_visitor;
+  SubscribeLatestObject(full_track_name, &client_visitor);
+
+  // Deliver 3 objects on 2 streams.
+  queue->AddObject(FullSequence(0, 0), "object,0,0", false);
+  queue->AddObject(FullSequence(0, 1), "object,0,1", true);
+  queue->AddObject(FullSequence(1, 0), "object,1,0", true);
+  int received = 0;
+  EXPECT_CALL(client_visitor, OnObjectFragment).WillRepeatedly([&]() {
+    ++received;
+  });
+  bool success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return received == 3; });
+  EXPECT_TRUE(success);
+
+  // Reject this subscribe because there already is one.
+  EXPECT_FALSE(client_->session()->SubscribeCurrentGroup(full_track_name,
+                                                         &client_visitor));
+  queue->RemoveAllSubscriptions();  // Induce a SUBSCRIBE_DONE.
+  bool subscribe_done = false;
+  EXPECT_CALL(client_visitor, OnSubscribeDone).WillOnce([&]() {
+    subscribe_done = true;
+  });
+  success = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return subscribe_done; });
+  EXPECT_TRUE(success);
+  // Subscription is deleted; the client session should not immediately reject
+  // a new attempt.
+  EXPECT_TRUE(client_->session()->SubscribeCurrentGroup(full_track_name,
+                                                        &client_visitor));
 }
 
 TEST_F(MoqtIntegrationTest, ObjectAcks) {

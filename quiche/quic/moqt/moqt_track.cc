@@ -4,6 +4,8 @@
 
 #include "quiche/quic/moqt/moqt_track.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <optional>
@@ -11,6 +13,9 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -21,12 +26,57 @@
 
 namespace moqt {
 
+namespace {
+
+constexpr quic::QuicTimeDelta kMinSubscribeDoneTimeout =
+    quic::QuicTimeDelta::FromSeconds(1);
+constexpr quic::QuicTimeDelta kMaxSubscribeDoneTimeout =
+    quic::QuicTimeDelta::FromSeconds(10);
+
+}  // namespace
+
 bool RemoteTrack::CheckDataStreamType(MoqtDataStreamType type) {
   if (data_stream_type_.has_value()) {
     return data_stream_type_.value() == type;
   }
   data_stream_type_ = type;
   return true;
+}
+
+void SubscribeRemoteTrack::OnStreamOpened() {
+  ++currently_open_streams_;
+  if (subscribe_done_alarm_ != nullptr && subscribe_done_alarm_->IsSet()) {
+    subscribe_done_alarm_->Cancel();
+  }
+}
+
+void SubscribeRemoteTrack::OnStreamClosed() {
+  ++streams_closed_;
+  --currently_open_streams_;
+  QUICHE_DCHECK_GE(currently_open_streams_, -1);
+  if (subscribe_done_alarm_ == nullptr) {
+    return;
+  }
+  MaybeSetSubscribeDoneAlarm();
+}
+
+void SubscribeRemoteTrack::OnSubscribeDone(
+    uint64_t stream_count, const quic::QuicClock* clock,
+    std::unique_ptr<quic::QuicAlarm> subscribe_done_alarm) {
+  total_streams_ = stream_count;
+  clock_ = clock;
+  subscribe_done_alarm_ = std::move(subscribe_done_alarm);
+  MaybeSetSubscribeDoneAlarm();
+}
+
+void SubscribeRemoteTrack::MaybeSetSubscribeDoneAlarm() {
+  if (currently_open_streams_ == 0 && total_streams_.has_value() &&
+      clock_ != nullptr) {
+    quic::QuicTimeDelta timeout =
+        std::min(delivery_timeout_, kMaxSubscribeDoneTimeout);
+    timeout = std::max(timeout, kMinSubscribeDoneTimeout);
+    subscribe_done_alarm_->Set(clock_->ApproximateNow() + timeout);
+  }
 }
 
 void SubscribeRemoteTrack::OnJoiningFetchReady(

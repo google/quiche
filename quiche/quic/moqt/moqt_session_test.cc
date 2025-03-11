@@ -4,6 +4,7 @@
 
 #include "quiche/quic/moqt/moqt_session.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -113,6 +114,61 @@ class MoqtSessionTest : public quic::test::QuicTest {
   }
   ~MoqtSessionTest() {
     EXPECT_CALL(session_callbacks_.session_deleted_callback, Call());
+  }
+
+  // If visitor == nullptr, it's the first object in the stream, and will be
+  // assigned to the visitor the session creates.
+  // TODO(martinduke): Support delivering object payload.
+  void DeliverObject(MoqtObject& object, bool fin,
+                     webtransport::test::MockSession& session,
+                     webtransport::test::MockStream* stream,
+                     std::unique_ptr<webtransport::StreamVisitor>& visitor,
+                     MockSubscribeRemoteTrackVisitor* track_visitor) {
+    MoqtFramer framer(quiche::SimpleBufferAllocator::Get(), true);
+    quiche::QuicheBuffer buffer = framer.SerializeObjectHeader(
+        object, MoqtDataStreamType::kStreamHeaderSubgroup, visitor == nullptr);
+    size_t data_read = 0;
+    if (visitor == nullptr) {  // It's the first object in the stream
+      EXPECT_CALL(session, AcceptIncomingUnidirectionalStream())
+          .WillOnce(Return(stream))
+          .WillOnce(Return(nullptr));
+      EXPECT_CALL(*stream, SetVisitor(_))
+          .WillOnce(Invoke(
+              [&](std::unique_ptr<webtransport::StreamVisitor> new_visitor) {
+                visitor = std::move(new_visitor);
+              }));
+      EXPECT_CALL(*stream, visitor()).WillRepeatedly(Invoke([&]() {
+        return visitor.get();
+      }));
+    }
+    EXPECT_CALL(*stream, PeekNextReadableRegion()).WillRepeatedly(Invoke([&]() {
+      return quiche::ReadStream::PeekResult(
+          absl::string_view(buffer.data() + data_read,
+                            buffer.size() - data_read),
+          fin && data_read == buffer.size(), fin, );
+    }));
+    EXPECT_CALL(*stream, ReadableBytes()).WillRepeatedly(Invoke([&]() {
+      return buffer.size() - data_read;
+    }));
+    EXPECT_CALL(*stream, Read(testing::An<absl::Span<char>>()))
+        .WillRepeatedly(Invoke([&](absl::Span<char> bytes_to_read) {
+          size_t read_size =
+              std::min(bytes_to_read.size(), buffer.size() - data_read);
+          memcpy(bytes_to_read.data(), buffer.data() + data_read, read_size);
+          data_read += read_size;
+          return quiche::ReadStream::ReadResult(
+              read_size, fin && data_read == buffer.size());
+        }));
+    EXPECT_CALL(*stream, SkipBytes(_)).WillRepeatedly(Invoke([&](size_t bytes) {
+      data_read += bytes;
+      return fin && data_read == buffer.size();
+    }));
+    EXPECT_CALL(*track_visitor, OnObjectFragment).Times(1);
+    if (visitor == nullptr) {
+      session_.OnIncomingUnidirectionalStreamAvailable();
+    } else {
+      visitor->OnCanRead();
+    }
   }
 
   MockSessionCallbacks session_callbacks_;
@@ -3130,6 +3186,178 @@ TEST_F(MoqtSessionTest, ServerCannotReceiveNewSessionUri) {
       });
   stream_input->OnGoAwayMessage(MoqtGoAway("foo"));
   EXPECT_TRUE(reported_error);
+}
+
+TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithOpenStreams) {
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  EXPECT_CALL(mock_session_, GetStreamById(_))
+      .WillRepeatedly(Return(&control_stream));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
+                                              &remote_track_visitor));
+  MoqtSubscribeOk ok = {
+      /*subscribe_id=*/0,
+      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*largest_id=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  stream_input->OnSubscribeOkMessage(ok);
+  constexpr uint64_t kNumStreams = 3;
+  webtransport::test::MockStream data[kNumStreams];
+  std::unique_ptr<webtransport::StreamVisitor> data_streams[kNumStreams];
+
+  MoqtObject object = {
+      /*track_alias=*/0,
+      /*group_id=*/0,
+      /*object_id=*/0,
+      /*publisher_priority=*/7,
+      std::vector<MoqtExtensionHeader>(),
+      /*object_status=*/MoqtObjectStatus::kGroupDoesNotExist,
+      /*subgroup_id=*/0,
+      /*payload_length=*/0,
+  };
+  for (uint64_t i = 0; i < kNumStreams; ++i) {
+    EXPECT_CALL(data[i], GetStreamId())
+        .WillRepeatedly(Return(kOutgoingUniStreamId + i * 4));
+    EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId + i * 4))
+        .WillRepeatedly(Return(&data[i]));
+    object.group_id = i;
+    DeliverObject(object, false, mock_session_, &data[i], data_streams[i],
+                  &remote_track_visitor);
+  }
+  SubscribeRemoteTrack* track = MoqtSessionPeer::remote_track(&session_, 0);
+  ASSERT_NE(track, nullptr);
+  EXPECT_FALSE(track->all_streams_closed());
+  stream_input->OnSubscribeDoneMessage(
+      MoqtSubscribeDone(0, SubscribeDoneCode::kTrackEnded, kNumStreams, "foo"));
+  track = MoqtSessionPeer::remote_track(&session_, 0);
+  ASSERT_NE(track, nullptr);
+  EXPECT_FALSE(track->all_streams_closed());
+  EXPECT_CALL(remote_track_visitor, OnSubscribeDone(_));
+  for (uint64_t i = 0; i < kNumStreams; ++i) {
+    data_streams[i].reset();
+  }
+  EXPECT_EQ(MoqtSessionPeer::remote_track(&session_, 0), nullptr);
+}
+
+TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithClosedStreams) {
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  EXPECT_CALL(mock_session_, GetStreamById(_))
+      .WillRepeatedly(Return(&control_stream));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
+                                              &remote_track_visitor));
+  MoqtSubscribeOk ok = {
+      /*subscribe_id=*/0,
+      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*largest_id=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  stream_input->OnSubscribeOkMessage(ok);
+  constexpr uint64_t kNumStreams = 3;
+  webtransport::test::MockStream data[kNumStreams];
+  std::unique_ptr<webtransport::StreamVisitor> data_streams[kNumStreams];
+
+  MoqtObject object = {
+      /*track_alias=*/0,
+      /*group_id=*/0,
+      /*object_id=*/0,
+      /*publisher_priority=*/7,
+      std::vector<MoqtExtensionHeader>(),
+      /*object_status=*/MoqtObjectStatus::kGroupDoesNotExist,
+      /*subgroup_id=*/0,
+      /*payload_length=*/0,
+  };
+  for (uint64_t i = 0; i < kNumStreams; ++i) {
+    EXPECT_CALL(data[i], GetStreamId())
+        .WillRepeatedly(Return(kOutgoingUniStreamId + i * 4));
+    EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId + i * 4))
+        .WillRepeatedly(Return(&data[i]));
+    object.group_id = i;
+    DeliverObject(object, true, mock_session_, &data[i], data_streams[i],
+                  &remote_track_visitor);
+  }
+  for (uint64_t i = 0; i < kNumStreams; ++i) {
+    data_streams[i].reset();
+  }
+  SubscribeRemoteTrack* track = MoqtSessionPeer::remote_track(&session_, 0);
+  ASSERT_NE(track, nullptr);
+  EXPECT_FALSE(track->all_streams_closed());
+  EXPECT_CALL(remote_track_visitor, OnSubscribeDone(_));
+  stream_input->OnSubscribeDoneMessage(
+      MoqtSubscribeDone(0, SubscribeDoneCode::kTrackEnded, kNumStreams, "foo"));
+  EXPECT_EQ(MoqtSessionPeer::remote_track(&session_, 0), nullptr);
+}
+
+TEST_F(MoqtSessionTest, SubscribeDoneTimeout) {
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  EXPECT_CALL(mock_session_, GetStreamById(_))
+      .WillRepeatedly(Return(&control_stream));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
+                                              &remote_track_visitor));
+  MoqtSubscribeOk ok = {
+      /*subscribe_id=*/0,
+      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*largest_id=*/std::nullopt,
+      /*parameters=*/MoqtSubscribeParameters(),
+  };
+  stream_input->OnSubscribeOkMessage(ok);
+  constexpr uint64_t kNumStreams = 3;
+  webtransport::test::MockStream data[kNumStreams];
+  std::unique_ptr<webtransport::StreamVisitor> data_streams[kNumStreams];
+
+  MoqtObject object = {
+      /*track_alias=*/0,
+      /*group_id=*/0,
+      /*object_id=*/0,
+      /*publisher_priority=*/7,
+      std::vector<MoqtExtensionHeader>(),
+      /*object_status=*/MoqtObjectStatus::kGroupDoesNotExist,
+      /*subgroup_id=*/0,
+      /*payload_length=*/0,
+  };
+  for (uint64_t i = 0; i < kNumStreams; ++i) {
+    EXPECT_CALL(data[i], GetStreamId())
+        .WillRepeatedly(Return(kOutgoingUniStreamId + i * 4));
+    EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId + i * 4))
+        .WillRepeatedly(Return(&data[i]));
+    object.group_id = i;
+    DeliverObject(object, true, mock_session_, &data[i], data_streams[i],
+                  &remote_track_visitor);
+  }
+  for (uint64_t i = 0; i < kNumStreams; ++i) {
+    data_streams[i].reset();
+  }
+  SubscribeRemoteTrack* track = MoqtSessionPeer::remote_track(&session_, 0);
+  ASSERT_NE(track, nullptr);
+  EXPECT_FALSE(track->all_streams_closed());
+  // stream_count includes a stream that was never sent.
+  stream_input->OnSubscribeDoneMessage(MoqtSubscribeDone(
+      0, SubscribeDoneCode::kTrackEnded, kNumStreams + 1, "foo"));
+  EXPECT_FALSE(track->all_streams_closed());
+  auto* subscribe_done_alarm =
+      static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
+          MoqtSessionPeer::GetSubscribeDoneAlarm(track));
+  EXPECT_CALL(remote_track_visitor, OnSubscribeDone(_));
+  subscribe_done_alarm->Fire();
+  // quic::test::MockAlarmFactory::FireAlarm(subscribe_done_alarm);;
+  EXPECT_EQ(MoqtSessionPeer::remote_track(&session_, 0), nullptr);
 }
 
 // TODO: re-enable this test once this behavior is re-implemented.
