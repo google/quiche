@@ -215,11 +215,14 @@ using TaskDestroyedCallback = quiche::SingleUseCallback<void()>;
 class UpstreamFetch : public RemoteTrack {
  public:
   UpstreamFetch(const MoqtFetch& fetch, FetchResponseCallback callback)
-      : RemoteTrack(fetch.full_track_name, fetch.fetch_id,
-                    SubscribeWindow(
-                        fetch.start_object,
-                        FullSequence(fetch.end_group,
-                                     fetch.end_object.value_or(UINT64_MAX)))),
+      : RemoteTrack(
+            fetch.full_track_name, fetch.fetch_id,
+            fetch.joining_fetch.has_value()
+                ? SubscribeWindow(0, 0)
+                : SubscribeWindow(
+                      fetch.start_object,
+                      FullSequence(fetch.end_group,
+                                   fetch.end_object.value_or(UINT64_MAX)))),
         ok_callback_(std::move(callback)) {
     // Immediately set the data stream type.
     CheckDataStreamType(MoqtDataStreamType::kStreamHeaderFetch);
