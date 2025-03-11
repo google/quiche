@@ -5,6 +5,10 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_SERVER_SESSION_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_SERVER_SESSION_H_
 
+#include <sys/types.h>
+
+#include <cstdint>
+#include <limits>
 #include <list>
 #include <memory>
 
@@ -43,6 +47,10 @@ class QUIC_NO_EXPORT MasqueServerSession
       public MasqueServerBackend::BackendClient,
       public QuicSocketEventListener {
  public:
+  using ContextId = uint64_t;
+  constexpr static ContextId kInvalidContextId =
+      std::numeric_limits<uint64_t>::max();
+
   explicit MasqueServerSession(
       MasqueMode masque_mode, const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
@@ -89,13 +97,15 @@ class QUIC_NO_EXPORT MasqueServerSession
 
   // State that the MasqueServerSession keeps for each CONNECT-UDP request.
   class QUIC_NO_EXPORT ConnectUdpServerState
-      : public QuicSpdyStream::Http3DatagramVisitor {
+      : public QuicSpdyStream::Http3DatagramVisitor,
+        public QuicSpdyStream::ConnectUdpBindVisitor {
    public:
-    // ConnectUdpServerState takes ownership of |fd|. It will unregister it
-    // from |event_loop| and close the file descriptor when destructed.
+    // Server state for CONNECT-UDP and CONNECT-UDP-BIND.
+    // is_bind is true for CONNECT-UDP-BIND.
     explicit ConnectUdpServerState(
         QuicSpdyStream* stream, const QuicSocketAddress& target_server_address,
-        QuicUdpSocketFd fd, MasqueServerSession* masque_session);
+        QuicUdpSocketFd bind_fd, MasqueServerSession* masque_session,
+        bool is_bind = false);
 
     ~ConnectUdpServerState();
 
@@ -111,17 +121,42 @@ class QUIC_NO_EXPORT MasqueServerSession
     }
     QuicUdpSocketFd fd() const { return fd_; }
 
+    // CONNECT-UDP-BIND.
+    bool is_bind() const { return is_bind_; }
+
     // From QuicSpdyStream::Http3DatagramVisitor.
     void OnHttp3Datagram(QuicStreamId stream_id,
                          absl::string_view payload) override;
     void OnUnknownCapsule(QuicStreamId /*stream_id*/,
                           const quiche::UnknownCapsule& /*capsule*/) override {}
 
+    // From QuicSpdyStream::ConnectUdpBindVisitor.
+    bool OnCompressionAssignCapsule(
+        const quiche::CompressionAssignCapsule& capsule) override;
+    bool OnCompressionCloseCapsule(
+        const quiche::CompressionCloseCapsule& capsule) override;
+
+    absl::flat_hash_map<ContextId, quic::QuicSocketAddress>&
+    bind_context_ip_map() {
+      return bind_context_ip_map_;
+    }
+    ContextId uncompressed_context_id() const {
+      return uncompressed_context_id_;
+    }
+
    private:
     QuicSpdyStream* stream_;
     QuicSocketAddress target_server_address_;
     QuicUdpSocketFd fd_;                   // Owned.
     MasqueServerSession* masque_session_;  // Unowned.
+    bool is_bind_;
+
+    // CONNECT-UDP-BIND context id to ip:port map.
+    absl::flat_hash_map<ContextId, quic::QuicSocketAddress>
+        bind_context_ip_map_ = {};
+    ContextId uncompressed_context_id_ = kInvalidContextId;
+    // TODO(abhisinghx): Add Server's ability to request compression
+    // or close contexts.
   };
 
   // State that the MasqueServerSession keeps for each CONNECT-IP request.
