@@ -223,11 +223,8 @@ class QUICHE_EXPORT MoqtDataParser {
     kSubgroupId,
     kPublisherPriority,
     kObjectId,
-    kExtensionCount,
-    kExtensionType,
-    kExtensionVarint,
-    kExtensionLength,
-    kExtensionPayload,
+    kExtensionSize,
+    kExtensionBody,
     kObjectPayloadLength,
     kStatus,
     kData,
@@ -241,13 +238,10 @@ class QUICHE_EXPORT MoqtDataParser {
   struct State {
     NextInput next_input;
     uint64_t payload_remaining;
-    uint64_t extensions_remaining;
 
     bool operator==(const State&) const = default;
   };
-  State state() const {
-    return State{next_input_, payload_length_remaining_, extensions_remaining_};
-  }
+  State state() const { return State{next_input_, payload_length_remaining_}; }
 
   void ReadDataUntil(StopCondition stop_condition);
 
@@ -282,9 +276,7 @@ class QUICHE_EXPORT MoqtDataParser {
   NextInput next_input_ = kStreamType;
   MoqtObject metadata_;
   size_t payload_length_remaining_ = 0;
-  uint64_t extensions_remaining_ = 0;
   size_t num_objects_read_ = 0;
-  MoqtExtensionHeader current_extension_;
 
   bool processing_ = false;  // True if currently in ProcessData(), to prevent
                              // re-entrancy.

@@ -13,7 +13,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/variant.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
@@ -301,7 +300,7 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
-      /*extension_headers=*/std::vector<MoqtExtensionHeader>({}),
+      std::string(kDefaultExtensionBlob.data(), kDefaultExtensionBlob.size()),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/8,
       /*payload_length=*/3,
@@ -340,7 +339,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
-      /*extension_headers=*/std::vector<MoqtExtensionHeader>({}),
+      std::string(kDefaultExtensionBlob),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/3,
@@ -371,8 +370,7 @@ TEST_F(MoqtFramerSimpleTest, Datagram) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
-      std::vector<MoqtExtensionHeader>(
-          {MoqtExtensionHeader(0, 12ULL), MoqtExtensionHeader(1, "foo")}),
+      std::string(kDefaultExtensionBlob),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/3,
@@ -391,7 +389,7 @@ TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
-      std::vector<MoqtExtensionHeader>({}),
+      std::string(kDefaultExtensionBlob),
       /*object_status=*/MoqtObjectStatus::kEndOfGroup,
       /*subgroup_id=*/std::nullopt,
       /*payload_length=*/0,
@@ -531,38 +529,6 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
   EXPECT_GT(buffer.size(), 0);
   const uint8_t* end_group = BufferAtOffset(buffer, 5);
   EXPECT_EQ(*end_group, 5);
-}
-
-TEST_F(MoqtFramerSimpleTest, InvalidExtensionType) {
-  MoqtObject object = {
-      /*track_alias=*/4,
-      /*group_id=*/5,
-      /*object_id=*/6,
-      /*publisher_priority=*/7,
-      /*extension_headers=*/
-      std::vector<MoqtExtensionHeader>({MoqtExtensionHeader(0, 12ULL)}),
-      /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/std::nullopt,
-      /*payload_length=*/3,
-  };
-  EXPECT_QUIC_BUG(framer_.SerializeObjectHeader(
-                      object, MoqtDataStreamType::kStreamHeaderSubgroup, false),
-                  "Object metadata is invalid");
-
-  object = {
-      /*track_alias=*/4,
-      /*group_id=*/5,
-      /*object_id=*/6,
-      /*publisher_priority=*/7,
-      /*extension_headers=*/
-      std::vector<MoqtExtensionHeader>({MoqtExtensionHeader(1, "foo")}),
-      /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/std::nullopt,
-      /*payload_length=*/3,
-  };
-  EXPECT_QUIC_BUG(framer_.SerializeObjectHeader(
-                      object, MoqtDataStreamType::kStreamHeaderSubgroup, false),
-                  "Object metadata is invalid");
 }
 
 TEST_F(MoqtFramerSimpleTest, JoiningFetch) {

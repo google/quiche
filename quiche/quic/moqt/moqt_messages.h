@@ -36,11 +36,11 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft08 = 0xff000008,
+  kDraft10 = 0xff00000a,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft08;
+inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft10;
 inline constexpr uint64_t kDefaultInitialMaxSubscribeId = 100;
 inline constexpr uint64_t kMinNamespaceElements = 1;
 inline constexpr uint64_t kMaxNamespaceElements = 32;
@@ -340,11 +340,6 @@ enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
 
 MoqtObjectStatus IntegerToObjectStatus(uint64_t integer);
 
-struct MoqtExtensionHeader {
-  uint64_t type;
-  absl::variant<uint64_t, std::string> value;
-};
-
 // The data contained in every Object message, although the message type
 // implies some of the values.
 struct QUICHE_EXPORT MoqtObject {
@@ -352,7 +347,7 @@ struct QUICHE_EXPORT MoqtObject {
   uint64_t group_id;
   uint64_t object_id;
   MoqtPriority publisher_priority;
-  std::vector<MoqtExtensionHeader> extension_headers;
+  std::string extension_headers;  // Raw, unparsed extension headers.
   MoqtObjectStatus object_status;
   std::optional<uint64_t> subgroup_id;
   uint64_t payload_length;

@@ -66,8 +66,6 @@ bool IsAllowedStreamType(uint64_t value) {
   return false;
 }
 
-bool IsExtensionTypeVarint(uint64_t type) { return (type % 2 == 0); }
-
 }  // namespace
 
 // The buffering philosophy is complicated, to minimize copying. Here is an
@@ -964,14 +962,17 @@ void MoqtDataParser::ParseError(absl::string_view reason) {
 std::optional<absl::string_view> ParseDatagram(absl::string_view data,
                                                MoqtObject& object_metadata) {
   uint64_t type_raw, object_status_raw;
+  absl::string_view extensions;
   quic::QuicDataReader reader(data);
   if (!reader.ReadVarInt62(&type_raw) ||
       !reader.ReadVarInt62(&object_metadata.track_alias) ||
       !reader.ReadVarInt62(&object_metadata.group_id) ||
       !reader.ReadVarInt62(&object_metadata.object_id) ||
-      !reader.ReadUInt8(&object_metadata.publisher_priority)) {
+      !reader.ReadUInt8(&object_metadata.publisher_priority) ||
+      !reader.ReadStringPieceVarInt62(&extensions)) {
     return std::nullopt;
   }
+  object_metadata.extension_headers = std::string(extensions);
   if (static_cast<MoqtDatagramType>(type_raw) ==
       MoqtDatagramType::kObjectStatus) {
     object_metadata.payload_length = 0;
@@ -981,30 +982,7 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
     object_metadata.object_status = IntegerToObjectStatus(object_status_raw);
     return "";
   }
-  uint64_t extensions_remaining;
-  if (!reader.ReadVarInt62(&extensions_remaining)) {
-    return std::nullopt;
-  }
-  while (extensions_remaining > 0) {
-    uint64_t type;
-    if (!reader.ReadVarInt62(&type)) {
-      return std::nullopt;
-    }
-    --extensions_remaining;
-    if (IsExtensionTypeVarint(type)) {
-      uint64_t value;
-      if (!reader.ReadVarInt62(&value)) {
-        return std::nullopt;
-      }
-      object_metadata.extension_headers.push_back({type, value});
-    } else {
-      absl::string_view value;
-      if (!reader.ReadStringPieceVarInt62(&value)) {
-        return std::nullopt;
-      }
-      object_metadata.extension_headers.push_back({type, std::string(value)});
-    }
-  }
+
   absl::string_view payload;
   if (!reader.ReadStringPieceVarInt62(&payload)) {
     return std::nullopt;
@@ -1111,26 +1089,20 @@ void MoqtDataParser::AdvanceParserState() {
       next_input_ = is_fetch ? kObjectId : kPublisherPriority;
       break;
     case kPublisherPriority:
-      next_input_ = is_fetch ? kExtensionCount : kObjectId;
+      next_input_ = is_fetch ? kExtensionSize : kObjectId;
       break;
     case kObjectId:
-      next_input_ = is_fetch ? kPublisherPriority : kExtensionCount;
+      next_input_ = is_fetch ? kPublisherPriority : kExtensionSize;
       break;
-    case kExtensionLength:
-      next_input_ = kExtensionPayload;
+    case kExtensionBody:
+      next_input_ = kObjectPayloadLength;
       break;
-
     case kStatus:
     case kData:
       next_input_ = is_fetch ? kGroupId : kObjectId;
       break;
 
-    case kExtensionCount:       // Either kExtensionType or
-                                // kObjectPayloadLength.
-    case kExtensionType:        // Either kExtensionVarint or kExtensionLength.
-    case kExtensionVarint:      // Either kExtensionType or
-                                // kObjectPayloadLength.
-    case kExtensionPayload:     // Either kExtensionType or
+    case kExtensionSize:        // Either kExtensionBody or
                                 // kObjectPayloadLength.
     case kObjectPayloadLength:  // Either kStatus or kData depending on length.
     case kPadding:              // Handled separately.
@@ -1211,50 +1183,12 @@ void MoqtDataParser::ParseNextItemFromStream() {
       return;
     }
 
-    case kExtensionCount: {
+    case kExtensionSize: {
       std::optional<uint64_t> value_read = ReadVarInt62NoFin();
       if (value_read.has_value()) {
-        extensions_remaining_ = *value_read;
-        next_input_ = (extensions_remaining_ == 0) ? kObjectPayloadLength
-                                                   : kExtensionType;
         metadata_.extension_headers.clear();
-      }
-      return;
-    }
-
-    case kExtensionType: {
-      std::optional<uint64_t> value_read = ReadVarInt62NoFin();
-      if (value_read.has_value()) {
-        --extensions_remaining_;
-        current_extension_.type = *value_read;
-        next_input_ = IsExtensionTypeVarint(*value_read) ? kExtensionVarint
-                                                         : kExtensionLength;
-      }
-      return;
-    }
-
-    case kExtensionVarint: {
-      std::optional<uint64_t> value_read = ReadVarInt62NoFin();
-      if (value_read.has_value()) {
-        next_input_ = (extensions_remaining_ == 0) ? kObjectPayloadLength
-                                                   : kExtensionType;
-        current_extension_.value = *value_read;
-        metadata_.extension_headers.push_back(current_extension_);
-        current_extension_.value = "";
-      }
-      return;
-    }
-
-    case kExtensionLength: {
-      std::optional<uint64_t> value_read = ReadVarInt62NoFin();
-      if (value_read.has_value()) {
-        if (*value_read > 0) {
-          next_input_ = kExtensionPayload;
-          payload_length_remaining_ = *value_read;
-        } else {
-          next_input_ = (extensions_remaining_ == 0) ? kObjectPayloadLength
-                                                     : kExtensionType;
-        }
+        payload_length_remaining_ = *value_read;
+        next_input_ = (value_read == 0) ? kObjectPayloadLength : kExtensionBody;
       }
       return;
     }
@@ -1295,7 +1229,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
       return;
     }
 
-    case kExtensionPayload:
+    case kExtensionBody:
     case kData: {
       while (payload_length_remaining_ > 0) {
         quiche::ReadStream::PeekResult peek_result =
@@ -1322,17 +1256,14 @@ void MoqtDataParser::ParseNextItemFromStream() {
             AdvanceParserState();
           }
         } else {
-          std::get<std::string>(current_extension_.value)
-              .append(peek_result.peeked_data.substr(0, chunk_size));
+          absl::StrAppend(&metadata_.extension_headers,
+                          peek_result.peeked_data.substr(0, chunk_size));
           if (stream_.SkipBytes(chunk_size)) {
             ParseError("FIN received at an unexpected point in the stream");
             return;
           }
           if (done) {
-            next_input_ = (extensions_remaining_ == 0) ? kObjectPayloadLength
-                                                       : kExtensionType;
-            metadata_.extension_headers.push_back(current_extension_);
-            current_extension_.value = "";
+            AdvanceParserState();
           }
         }
       }

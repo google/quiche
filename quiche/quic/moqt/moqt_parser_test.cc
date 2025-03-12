@@ -504,6 +504,27 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObjectFirstIncomplete) {
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
 }
 
+TEST_F(MoqtMessageSpecificTest, ObjectSplitInExtension) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtDataParser parser(&stream, &visitor_);
+  auto message = std::make_unique<StreamHeaderSubgroupMessage>();
+
+  // first part
+  stream.Receive(message->PacketSample().substr(0, 10), false);
+  parser.ReadAllData();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+
+  // second part
+  stream.Receive(
+      message->PacketSample().substr(10, sizeof(message->total_message_size())),
+      false);
+  parser.ReadAllData();
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  EXPECT_TRUE(visitor_.last_message_.has_value() &&
+              message->EqualFieldValues(*visitor_.last_message_));
+  EXPECT_TRUE(visitor_.end_of_message_);
+}
+
 TEST_F(MoqtMessageSpecificTest, StreamHeaderSubgroupFollowOn) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtDataParser parser(&stream, &visitor_);

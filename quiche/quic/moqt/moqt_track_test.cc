@@ -4,9 +4,11 @@
 
 #include "quiche/quic/moqt/moqt_track.h"
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
@@ -174,14 +176,7 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
   PublishedObject object;
   EXPECT_EQ(fetch_task_->GetNextObject(object),
             MoqtFetchTask::GetNextObjectResult::kPending);
-  MoqtObject new_object = {1,
-                           3,
-                           0,
-                           128,
-                           std::vector<MoqtExtensionHeader>(),
-                           MoqtObjectStatus::kNormal,
-                           0,
-                           6};
+  MoqtObject new_object = {1, 3, 0, 128, "", MoqtObjectStatus::kNormal, 0, 6};
   bool got_object = false;
   fetch_task_->SetObjectAvailableCallback([&]() {
     got_object = true;
