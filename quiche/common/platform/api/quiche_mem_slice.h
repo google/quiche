@@ -9,12 +9,11 @@
 #include <memory>
 #include <utility>
 
-#include "quiche_platform_impl/quiche_mem_slice_impl.h"
-
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_default_mem_slice_impl.h"
 
 namespace quiche {
 
@@ -65,7 +64,7 @@ class QUICHE_EXPORT QuicheMemSlice {
   bool empty() const { return impl_.empty(); }
 
  private:
-  QuicheMemSliceImpl impl_;
+  QuicheDefaultMemSliceImpl impl_;
 };
 
 }  // namespace quiche

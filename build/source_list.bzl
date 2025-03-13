@@ -1473,7 +1473,6 @@ default_platform_impl_hdrs = [
     "common/platform/default/quiche_platform_impl/quiche_iovec_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_logging_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_lower_case_string_impl.h",
-    "common/platform/default/quiche_platform_impl/quiche_mem_slice_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_reference_counted_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_server_stats_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_stack_trace_impl.h",
