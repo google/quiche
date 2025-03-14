@@ -90,6 +90,11 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
   MOCK_METHOD(void, SkipGroup, (uint64_t group_id), ());
   MOCK_METHOD(void, CloseTrack, (), ());
   MOCK_METHOD(void, OnTrackPublisherGone, (), (override));
+  MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
+  MOCK_METHOD(void, OnSubscribeRejected,
+              (MoqtSubscribeErrorReason reason,
+               std::optional<uint64_t> track_alias),
+              (override));
 };
 
 // Duplicates of MoqtOutgoingQueue test cases.

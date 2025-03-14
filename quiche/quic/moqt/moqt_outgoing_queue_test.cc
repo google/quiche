@@ -80,6 +80,11 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
                absl::string_view payload),
               ());
   MOCK_METHOD(void, OnTrackPublisherGone, (), (override));
+  MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
+  MOCK_METHOD(void, OnSubscribeRejected,
+              (MoqtSubscribeErrorReason reason,
+               std::optional<uint64_t> track_alias),
+              (override));
 };
 
 absl::StatusOr<std::vector<std::string>> FetchToVector(

@@ -60,6 +60,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
       FullSequence start, FullSequence end) const override;
   void AddObjectListener(MoqtObjectListener* listener) override {
     listeners_.insert(listener);
+    listener->OnSubscribeAccepted();
   }
   void RemoveObjectListener(MoqtObjectListener* listener) override {
     listeners_.erase(listener);

@@ -331,12 +331,13 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     // control credit.
     void SendOrBufferMessage(quiche::QuicheBuffer message, bool fin = false);
 
-   private:
-    friend class test::MoqtSessionPeer;
-    void SendSubscribeError(const MoqtSubscribe& message,
+    void SendSubscribeError(uint64_t subscribe_id,
                             SubscribeErrorCode error_code,
                             absl::string_view reason_phrase,
                             uint64_t track_alias);
+
+   private:
+    friend class test::MoqtSessionPeer;
     void SendFetchError(uint64_t subscribe_id, SubscribeErrorCode error_code,
                         absl::string_view reason_phrase);
 
@@ -388,11 +389,10 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
   // being sent to the peer.
   class PublishedSubscription : public MoqtObjectListener {
    public:
-    explicit PublishedSubscription(
-        MoqtSession* session,
-        std::shared_ptr<MoqtTrackPublisher> track_publisher,
-        const MoqtSubscribe& subscribe,
-        MoqtPublishingMonitorInterface* monitoring_interface);
+    PublishedSubscription(MoqtSession* session,
+                          std::shared_ptr<MoqtTrackPublisher> track_publisher,
+                          const MoqtSubscribe& subscribe,
+                          MoqtPublishingMonitorInterface* monitoring_interface);
     // TODO(martinduke): Immediately reset all the streams.
     ~PublishedSubscription();
 
@@ -411,6 +411,11 @@ class QUICHE_EXPORT MoqtSession : public webtransport::SessionVisitor {
     }
     void set_subscriber_priority(MoqtPriority priority);
 
+    // MoqtObjectListener implementation.
+    void OnSubscribeAccepted() override;
+    void OnSubscribeRejected(
+        MoqtSubscribeErrorReason reason,
+        std::optional<uint64_t> track_alias = std::nullopt) override;
     // This is only called for objects that have just arrived.
     void OnNewObjectAvailable(FullSequence sequence) override;
     void OnTrackPublisherGone() override;

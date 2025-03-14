@@ -268,7 +268,6 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
   MoqtKnownTrackPublisher known_track_publisher;
   known_track_publisher.Add(queue);
   client_->session()->set_publisher(&known_track_publisher);
-  queue->AddObject(MemSliceFromString("object data"), /*key=*/true);
   bool received_subscribe_ok = false;
   EXPECT_CALL(server_visitor, OnReply(_, _, _)).WillOnce([&]() {
     received_subscribe_ok = true;
@@ -276,7 +275,12 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
   client_->session()->Announce(
       FullTrackName{"test"},
       [](FullTrackName, std::optional<MoqtAnnounceErrorReason>) {});
+  bool success = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return received_subscribe_ok; });
+  EXPECT_TRUE(success);
+  success = false;
 
+  queue->AddObject(MemSliceFromString("object data"), /*key=*/true);
   bool received_object = false;
   EXPECT_CALL(server_visitor, OnObjectFragment(_, _, _, _, _, _))
       .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
@@ -291,9 +295,8 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
         EXPECT_TRUE(end_of_message);
         received_object = true;
       });
-  bool success = test_harness_.RunUntilWithDefaultTimeout(
+  success = test_harness_.RunUntilWithDefaultTimeout(
       [&]() { return received_object; });
-  EXPECT_TRUE(received_subscribe_ok);
   EXPECT_TRUE(success);
 }
 
@@ -321,6 +324,7 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     client_->session()->SubscribeCurrentGroup(FullTrackName("test", name),
                                               &client_visitor);
     int received = 0;
+    EXPECT_CALL(client_visitor, OnReply);
     EXPECT_CALL(client_visitor,
                 OnObjectFragment(_, FullSequence{1, 0}, _,
                                  MoqtObjectStatus::kNormal, "object 4", true))
@@ -443,6 +447,10 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
   MockSubscribeRemoteTrackVisitor client_visitor;
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
+  EXPECT_CALL(*track_publisher, AddObjectListener)
+      .WillOnce([&](MoqtObjectListener* listener) {
+        listener->OnSubscribeAccepted();
+      });
   EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
   client_->session()->SubscribeAbsolute(full_track_name, 0, 0, &client_visitor);
@@ -464,6 +472,10 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
   MockSubscribeRemoteTrackVisitor client_visitor;
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
+  EXPECT_CALL(*track_publisher, AddObjectListener)
+      .WillOnce([&](MoqtObjectListener* listener) {
+        listener->OnSubscribeAccepted();
+      });
   EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
   client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor);
@@ -485,6 +497,10 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentGroupOk) {
   MockSubscribeRemoteTrackVisitor client_visitor;
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
+  EXPECT_CALL(*track_publisher, AddObjectListener)
+      .WillOnce([&](MoqtObjectListener* listener) {
+        listener->OnSubscribeAccepted();
+      });
   EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
   client_->session()->SubscribeCurrentGroup(full_track_name, &client_visitor);
@@ -572,6 +588,10 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
   EXPECT_CALL(client_visitor, OnCanAckObjects(_))
       .WillOnce([&](MoqtObjectAckFunction new_ack_function) {
         ack_function = std::move(new_ack_function);
+      });
+  EXPECT_CALL(*track_publisher, AddObjectListener)
+      .WillOnce([&](MoqtObjectListener* listener) {
+        listener->OnSubscribeAccepted();
       });
   EXPECT_CALL(client_visitor, OnReply(_, _, _))
       .WillOnce([&](const FullTrackName&, std::optional<FullSequence>,

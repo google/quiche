@@ -38,6 +38,16 @@ class MoqtObjectListener {
  public:
   virtual ~MoqtObjectListener() = default;
 
+  // Called when the publisher is sure that it can serve the subscription. This
+  // could happen synchronously or asynchronously.Details necessary for the
+  // SUBSCRIBE_OK can be obtained from the MoqtTrackPublisher.
+  virtual void OnSubscribeAccepted() = 0;
+  // Called when the publisher is sure that it cannot serve the subscription.
+  // This could happen synchronously or asynchronously.
+  virtual void OnSubscribeRejected(
+      MoqtSubscribeErrorReason reason,
+      std::optional<uint64_t> track_alias = std::nullopt) = 0;
+
   // Notifies that an object with the given sequence number has become
   // available.  The object payload itself may be retrieved via GetCachedObject
   // method of the associated track publisher.

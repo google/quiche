@@ -68,36 +68,10 @@ bool PublisherHasData(const MoqtTrackPublisher& publisher) {
   return status.ok() && DoesTrackStatusImplyHavingData(*status);
 }
 
-SubscribeWindow SubscribeMessageToWindow(const MoqtSubscribe& subscribe,
-                                         MoqtTrackPublisher& publisher) {
-  const FullSequence sequence = PublisherHasData(publisher)
-                                    ? publisher.GetLargestSequence()
-                                    : FullSequence{0, 0};
-  uint64_t start_group = sequence.group;
-  uint64_t start_object =
-      sequence.object + (PublisherHasData(publisher) ? 1 : 0);
-  if (subscribe.start_group.has_value() &&
-      *subscribe.start_group >= start_group) {
-    QUICHE_DCHECK(subscribe.start_object.has_value());
-    start_group = *subscribe.start_group;
-    start_object = subscribe.start_object.value_or(0);
-  }
-  switch (GetFilterType(subscribe)) {
-    case MoqtFilterType::kLatestGroup:
-      return SubscribeWindow(start_group, 0);
-    case MoqtFilterType::kLatestObject:
-    case MoqtFilterType::kAbsoluteStart:
-      return SubscribeWindow(start_group, start_object);
-    case MoqtFilterType::kAbsoluteRange:
-      // If end_group has no value, the filter cannot be AbsoluteRange.
-      QUICHE_DCHECK(subscribe.end_group.has_value());
-      return SubscribeWindow(start_group, start_object,
-                             subscribe.end_group.value_or(UINT64_MAX),
-                             UINT64_MAX);
-    case MoqtFilterType::kNone:
-      QUICHE_BUG(MoqtSession_Subscription_invalid_filter_passed);
-      return SubscribeWindow(0, 0);
-  }
+SubscribeWindow SubscribeMessageToWindow(const MoqtSubscribe& subscribe) {
+  return SubscribeWindow(subscribe.start_group.value_or(0),
+                         subscribe.start_object.value_or(0),
+                         subscribe.end_group.value_or(UINT64_MAX), UINT64_MAX);
 }
 
 class DefaultPublisher : public MoqtPublisher {
@@ -955,10 +929,10 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
 }
 
 void MoqtSession::ControlStream::SendSubscribeError(
-    const MoqtSubscribe& message, SubscribeErrorCode error_code,
+    uint64_t subscribe_id, SubscribeErrorCode error_code,
     absl::string_view reason_phrase, uint64_t track_alias) {
   MoqtSubscribeError subscribe_error;
-  subscribe_error.subscribe_id = message.subscribe_id;
+  subscribe_error.subscribe_id = subscribe_id;
   subscribe_error.error_code = error_code;
   subscribe_error.reason_phrase = reason_phrase;
   subscribe_error.track_alias = track_alias;
@@ -983,7 +957,17 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE for "
                   << message.full_track_name;
-
+  if (session_->sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE after GOAWAY";
+    SendSubscribeError(message.subscribe_id, SubscribeErrorCode::kUnauthorized,
+                       "SUBSCRIBE after GOAWAY", message.track_alias);
+    return;
+  }
+  if (session_->subscribed_track_names_.contains(message.full_track_name)) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Duplicate subscribe for track");
+    return;
+  }
   const FullTrackName& track_name = message.full_track_name;
   absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
       session_->publisher_->GetTrack(track_name);
@@ -991,27 +975,10 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     QUIC_DLOG(INFO) << ENDPOINT << "SUBSCRIBE for " << track_name
                     << " rejected by the application: "
                     << track_publisher.status();
-    SendSubscribeError(message, SubscribeErrorCode::kDoesNotExist,
+    SendSubscribeError(message.subscribe_id, SubscribeErrorCode::kDoesNotExist,
                        track_publisher.status().message(), message.track_alias);
     return;
   }
-  std::optional<FullSequence> largest_id;
-  if (PublisherHasData(**track_publisher)) {
-    largest_id = (*track_publisher)->GetLargestSequence();
-  }
-  if (message.end_group.has_value() && largest_id.has_value() &&
-      *message.end_group < largest_id->group) {
-    SendSubscribeError(message, SubscribeErrorCode::kInvalidRange,
-                       "SUBSCRIBE ends in previous group", message.track_alias);
-    return;
-  }
-  if (session_->sent_goaway_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH after GOAWAY";
-    SendSubscribeError(message, SubscribeErrorCode::kUnauthorized,
-                       "SUBSCRIBE after GOAWAY", message.track_alias);
-    return;
-  }
-  MoqtDeliveryOrder delivery_order = (*track_publisher)->GetDeliveryOrder();
 
   MoqtPublishingMonitorInterface* monitoring = nullptr;
   auto monitoring_it =
@@ -1022,35 +989,19 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     session_->monitoring_interfaces_for_published_tracks_.erase(monitoring_it);
   }
 
-  if (session_->subscribed_track_names_.contains(track_name)) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Duplicate subscribe for track");
-    return;
-  }
+  MoqtTrackPublisher* track_publisher_ptr = track_publisher->get();
   auto subscription = std::make_unique<MoqtSession::PublishedSubscription>(
       session_, *std::move(track_publisher), message, monitoring);
   subscription->set_delivery_timeout(
       message.parameters.delivery_timeout.value_or(
           quic::QuicTimeDelta::Infinite()));
+  MoqtSession::PublishedSubscription* subscription_ptr = subscription.get();
   auto [it, success] = session_->published_subscriptions_.emplace(
       message.subscribe_id, std::move(subscription));
   if (!success) {
-    SendSubscribeError(message, SubscribeErrorCode::kInternalError,
-                       "Duplicate subscribe ID", message.track_alias);
-    return;
+    QUICHE_NOTREACHED();  // ValidateSubscribeId() should have caught this.
   }
-
-  MoqtSubscribeOk subscribe_ok;
-  subscribe_ok.subscribe_id = message.subscribe_id;
-  subscribe_ok.group_order = delivery_order;
-  subscribe_ok.largest_id = largest_id;
-  // TODO(martinduke): Support sending DELIVERY_TIMEOUT parameter as the
-  // publisher.
-  SendOrBufferMessage(session_->framer_.SerializeSubscribeOk(subscribe_ok));
-
-  if (largest_id.has_value()) {
-    it->second->Backfill();
-  }
+  track_publisher_ptr->AddObjectListener(subscription_ptr);
 }
 
 void MoqtSession::ControlStream::OnSubscribeOkMessage(
@@ -1770,11 +1721,10 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
       session_(session),
       track_publisher_(track_publisher),
       track_alias_(subscribe.track_alias),
-      window_(SubscribeMessageToWindow(subscribe, *track_publisher)),
+      window_(SubscribeMessageToWindow(subscribe)),
       subscriber_priority_(subscribe.subscriber_priority),
       subscriber_delivery_order_(subscribe.group_order),
       monitoring_interface_(monitoring_interface) {
-  track_publisher->AddObjectListener(this);
   if (monitoring_interface_ != nullptr) {
     monitoring_interface_->OnObjectAckSupportKnown(
         subscribe.parameters.object_ack_window.has_value());
@@ -1829,6 +1779,48 @@ void MoqtSession::PublishedSubscription::set_subscriber_priority(
   session_->UpdateQueuedSendOrder(subscription_id_, old_send_order,
                                   FinalizeSendOrder(old_send_order));
 };
+
+void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
+  std::optional<FullSequence> largest_id;
+  ControlStream* stream = session_->GetControlStream();
+  if (PublisherHasData(*track_publisher_)) {
+    largest_id = track_publisher_->GetLargestSequence();
+    if (window_.end().has_value() && *window_.end() < *largest_id) {
+      stream->SendSubscribeError(subscription_id_,
+                                 SubscribeErrorCode::kInvalidRange,
+                                 "SUBSCRIBE ends in past group", track_alias_);
+      session_->published_subscriptions_.erase(subscription_id_);
+      // No class access below this line!
+      return;
+    }
+    if (filter_type_ == MoqtFilterType::kLatestGroup) {
+      window_.UpdateStartEnd(FullSequence{largest_id->group, 0}, window_.end());
+    } else {
+      window_.UpdateStartEnd(largest_id->next(), window_.end());
+    }
+  }
+
+  MoqtSubscribeOk subscribe_ok;
+  subscribe_ok.subscribe_id = subscription_id_;
+  subscribe_ok.group_order = track_publisher_->GetDeliveryOrder();
+  subscribe_ok.largest_id = largest_id;
+  // TODO(martinduke): Support sending DELIVERY_TIMEOUT parameter as the
+  // publisher.
+  stream->SendOrBufferMessage(
+      session_->framer_.SerializeSubscribeOk(subscribe_ok));
+  if (largest_id.has_value()) {
+    Backfill();
+  }
+}
+
+void MoqtSession::PublishedSubscription::OnSubscribeRejected(
+    MoqtSubscribeErrorReason reason, std::optional<uint64_t> track_alias) {
+  session_->GetControlStream()->SendSubscribeError(
+      subscription_id_, reason.error_code, reason.reason_phrase,
+      track_alias.value_or(track_alias_));
+  session_->published_subscriptions_.erase(subscription_id_);
+  // No class access below this line!
+}
 
 void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
     FullSequence sequence) {
