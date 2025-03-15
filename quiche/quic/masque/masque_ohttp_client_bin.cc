@@ -46,6 +46,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, client_cert_key_file, "",
     "Path to the pkcs8 client certificate private key.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, post_data, "",
+    "When set, the client will send a POST request with this data.");
+
 using quiche::BinaryHttpRequest;
 using quiche::BinaryHttpResponse;
 using quiche::ObliviousHttpClient;
@@ -64,8 +68,10 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
   explicit MasqueOhttpClient(QuicEventLoop *event_loop, SSL_CTX *ssl_ctx,
                              std::vector<std::string> urls,
                              bool disable_certificate_verification,
-                             int address_family_for_lookup)
+                             int address_family_for_lookup,
+                             const std::string &post_data)
       : urls_(urls),
+        post_data_(post_data),
         connection_pool_(event_loop, ssl_ctx, disable_certificate_verification,
                          address_family_for_lookup, this) {}
 
@@ -228,11 +234,12 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
       return;
     }
     BinaryHttpRequest::ControlData control_data;
-    control_data.method = "GET";
+    control_data.method = post_data_.empty() ? "GET" : "POST";
     control_data.scheme = url.scheme();
     control_data.authority = url.HostPort();
     control_data.path = url.path();
     BinaryHttpRequest binary_request(control_data);
+    binary_request.set_body(post_data_);
     absl::StatusOr<std::string> encoded_request = binary_request.Serialize();
     if (!encoded_request.ok()) {
       QUICHE_LOG(ERROR) << "Failed to encode request: "
@@ -275,6 +282,7 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
   }
 
   std::vector<std::string> urls_;
+  std::string post_data_;
   MasqueConnectionPool connection_pool_;
   std::optional<RequestId> key_fetch_request_id_;
   bool aborted_ = false;
@@ -318,10 +326,11 @@ int RunMasqueOhttpClient(int argc, char *argv[]) {
   }
   std::unique_ptr<QuicEventLoop> event_loop =
       GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
+  std::string post_data = quiche::GetQuicheCommandLineFlag(FLAGS_post_data);
 
   MasqueOhttpClient masque_ohttp_client(event_loop.get(), ssl_ctx->get(), urls,
                                         disable_certificate_verification,
-                                        address_family_for_lookup);
+                                        address_family_for_lookup, post_data);
   if (!masque_ohttp_client.Start()) {
     return 1;
   }

@@ -189,10 +189,12 @@ class MasqueOhttpGateway {
         binary_request->control_data();
     // TODO(dschinazi): Send the decapsulated request to the authority instead
     // of replying with a fake local response.
+    absl::string_view request_body = binary_request->body();
     std::string response_body = absl::StrCat(
         "OHTTP Response! Request method: ", control_data.method,
         " scheme: ", control_data.scheme, " path: ", control_data.path,
-        " authority: ", control_data.authority);
+        " authority: ", control_data.authority, " body: \"", request_body,
+        "\"");
 
     BinaryHttpResponse binary_response(/*status_code=*/200);
     binary_response.swap_body(response_body);
