@@ -68,7 +68,7 @@ void MasqueH2Connection::StartH2() {
   settings.push_back(
       Http2Setting{Http2KnownSettingsId::MAX_CONCURRENT_STREAMS, 100});
   settings.push_back(
-      Http2Setting{Http2KnownSettingsId::INITIAL_WINDOW_SIZE, 65535});
+      Http2Setting{Http2KnownSettingsId::INITIAL_WINDOW_SIZE, 268435456});
   settings.push_back(Http2Setting{Http2KnownSettingsId::MAX_FRAME_SIZE, 16384});
   settings.push_back(
       Http2Setting{Http2KnownSettingsId::MAX_HEADER_LIST_SIZE, 65535});
