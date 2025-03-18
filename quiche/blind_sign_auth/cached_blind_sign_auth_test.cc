@@ -28,7 +28,6 @@ namespace test {
 namespace {
 
 using ::testing::_;
-using ::testing::InvokeArgument;
 using ::testing::Unused;
 
 class CachedBlindSignAuthTest : public QuicheTest {

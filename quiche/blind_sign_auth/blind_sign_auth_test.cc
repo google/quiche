@@ -38,7 +38,6 @@ using ::testing::_;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Invoke;
-using ::testing::StartsWith;
 using ::testing::Unused;
 
 class BlindSignAuthTest : public QuicheTest {
