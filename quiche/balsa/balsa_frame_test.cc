@@ -38,7 +38,6 @@ using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
 using ::testing::InSequence;
-using ::testing::IsEmpty;
 using ::testing::Mock;
 using ::testing::NiceMock;
 using ::testing::Pointee;
