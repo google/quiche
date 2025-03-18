@@ -18,7 +18,6 @@
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
-using ::testing::ContainerEq;
 
 namespace http2 {
 namespace test {
