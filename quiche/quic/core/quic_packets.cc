@@ -240,7 +240,7 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
       os << ", retry_token_length_length: "
          << static_cast<int>(header.retry_token_length_length);
     }
-    if (header.retry_token.length() != 0) {
+    if (!header.retry_token.empty()) {
       os << ", retry_token_length: " << header.retry_token.length();
     }
     if (header.length_length != quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0) {

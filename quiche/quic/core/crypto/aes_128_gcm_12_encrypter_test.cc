@@ -212,7 +212,7 @@ TEST_F(Aes128Gcm12EncrypterTest, Encrypt) {
                            // This deliberately tests that the encrypter can
                            // handle an AAD that is set to nullptr, as opposed
                            // to a zero-length, non-nullptr pointer.
-                           aad.length() ? aad : absl::string_view(), pt));
+                           !aad.empty() ? aad : absl::string_view(), pt));
       ASSERT_TRUE(encrypted.get());
 
       // The test vectors have 16 byte authenticators but this code only uses

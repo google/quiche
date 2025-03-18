@@ -263,7 +263,7 @@ TEST_F(Aes128GcmDecrypterTest, Decrypt) {
           // This deliberately tests that the decrypter can
           // handle an AAD that is set to nullptr, as opposed
           // to a zero-length, non-nullptr pointer.
-          aad.length() ? aad : absl::string_view(), ciphertext));
+          !aad.empty() ? aad : absl::string_view(), ciphertext));
       if (!decrypted) {
         EXPECT_FALSE(has_pt);
         continue;

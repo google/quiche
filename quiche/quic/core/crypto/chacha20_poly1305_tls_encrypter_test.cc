@@ -136,7 +136,7 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, Encrypt) {
         &encrypter, fixed + iv,
         // This deliberately tests that the encrypter can handle an AAD that
         // is set to nullptr, as opposed to a zero-length, non-nullptr pointer.
-        absl::string_view(aad.length() ? aad.data() : nullptr, aad.length()),
+        absl::string_view(!aad.empty() ? aad.data() : nullptr, aad.length()),
         pt));
     ASSERT_TRUE(encrypted.get());
     EXPECT_EQ(16u, ct.size() - pt.size());

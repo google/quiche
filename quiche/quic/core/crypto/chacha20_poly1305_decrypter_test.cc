@@ -164,7 +164,7 @@ TEST_F(ChaCha20Poly1305DecrypterTest, Decrypt) {
         &decrypter, fixed + iv,
         // This deliberately tests that the decrypter can handle an AAD that
         // is set to nullptr, as opposed to a zero-length, non-nullptr pointer.
-        absl::string_view(aad.length() ? aad.data() : nullptr, aad.length()),
+        absl::string_view(!aad.empty() ? aad.data() : nullptr, aad.length()),
         ct));
     if (!decrypted) {
       EXPECT_FALSE(has_pt);

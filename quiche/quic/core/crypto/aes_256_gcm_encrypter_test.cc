@@ -219,7 +219,7 @@ TEST_F(Aes256GcmEncrypterTest, Encrypt) {
                            // This deliberately tests that the encrypter can
                            // handle an AAD that is set to nullptr, as opposed
                            // to a zero-length, non-nullptr pointer.
-                           aad.length() ? aad : absl::string_view(), pt));
+                           !aad.empty() ? aad : absl::string_view(), pt));
       ASSERT_TRUE(encrypted.get());
 
       ASSERT_EQ(ct.length() + tag.length(), encrypted->length());

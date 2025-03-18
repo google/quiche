@@ -94,7 +94,7 @@ QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(
     absl::Span<quiche::QuicheMemSlice> span) {
   QuicByteCount total = 0;
   for (quiche::QuicheMemSlice& slice : span) {
-    if (slice.length() == 0) {
+    if (slice.empty()) {
       // Skip empty slices.
       continue;
     }

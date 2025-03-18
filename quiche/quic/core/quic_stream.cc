@@ -817,7 +817,7 @@ void QuicStream::WriteOrBufferDataAtLevel(
   bool had_buffered_data = HasBufferedData();
   // Do not respect buffered data upper limit as WriteOrBufferData guarantees
   // all data to be consumed.
-  if (data.length() > 0) {
+  if (!data.empty()) {
     QuicStreamOffset offset = send_buffer_.stream_offset();
     if (kMaxStreamLength - offset < data.length()) {
       QUIC_BUG(quic_bug_10586_4) << "Write too many data via stream " << id_;

@@ -411,7 +411,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
     QUICHE_VLOG(1) << "OnAltSvc(" << stream_id << ", \"" << origin
                    << "\", altsvc_vector)";
     test_altsvc_ir_ = std::make_unique<SpdyAltSvcIR>(stream_id);
-    if (origin.length() > 0) {
+    if (!origin.empty()) {
       test_altsvc_ir_->set_origin(std::string(origin));
     }
     for (const auto& altsvc : altsvc_vector) {
