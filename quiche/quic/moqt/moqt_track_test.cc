@@ -27,10 +27,6 @@ namespace test {
 
 namespace {
 
-using ::testing::_;
-using ::testing::Invoke;
-using ::testing::Return;
-
 class AlarmDelegate : public quic::QuicAlarm::DelegateWithoutContext {
  public:
   AlarmDelegate(bool* fired) : fired_(fired) {}

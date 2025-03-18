@@ -36,7 +36,6 @@ namespace {
 
 using ::quiche::QuicheBuffer;
 using ::quiche::WireBytes;
-using ::quiche::WireOptional;
 using ::quiche::WireSpan;
 using ::quiche::WireStringWithVarInt62Length;
 using ::quiche::WireUint8;
