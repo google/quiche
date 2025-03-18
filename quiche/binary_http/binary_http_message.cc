@@ -114,6 +114,12 @@ absl::StatusOr<BinaryHttpRequest> DecodeKnownLengthRequest(
     return control_data.status();
   }
   BinaryHttpRequest request(std::move(*control_data));
+  if (reader.IsDoneReading()) {
+    // Per RFC 9292, Section 3.8, "Decoders MUST treat missing truncated fields
+    // as equivalent to having been sent with the length field set to zero."
+    // If we've run out of payload, stop parsing and return the request.
+    return request;
+  }
   if (const absl::Status status = DecodeFieldsAndBody(reader, request);
       !status.ok()) {
     return status;
