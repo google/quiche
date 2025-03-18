@@ -12,8 +12,6 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
-using ::testing::Optional;
-
 using Header = std::pair<absl::string_view, absl::string_view>;
 constexpr Header kSampleRequestPseudoheaders[] = {{":authority", "www.foo.com"},
                                                   {":method", "GET"},
