@@ -95,7 +95,6 @@
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 using quiche::HttpHeaderBlock;
-using spdy::kV3LowestPriority;
 using spdy::SpdyFramer;
 using spdy::SpdySerializedFrame;
 using spdy::SpdySettingsIR;

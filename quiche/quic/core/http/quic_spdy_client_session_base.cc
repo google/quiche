@@ -13,8 +13,6 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 
-using quiche::HttpHeaderBlock;
-
 namespace quic {
 
 QuicSpdyClientSessionBase::QuicSpdyClientSessionBase(

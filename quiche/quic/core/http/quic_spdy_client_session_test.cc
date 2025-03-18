@@ -41,13 +41,11 @@
 #include "quiche/quic/test_tools/simple_session_cache.h"
 #include "quiche/common/http/http_header_block.h"
 
-using quiche::HttpHeaderBlock;
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
 using ::testing::AtMost;
 using ::testing::Invoke;
-using ::testing::StrictMock;
 using ::testing::Truly;
 
 namespace quic {

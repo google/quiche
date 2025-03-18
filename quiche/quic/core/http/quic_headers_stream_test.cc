@@ -65,7 +65,6 @@ using spdy::SpdyStreamId;
 using spdy::SpdyWindowUpdateIR;
 using testing::_;
 using testing::AnyNumber;
-using testing::AtLeast;
 using testing::InSequence;
 using testing::Invoke;
 using testing::Return;
