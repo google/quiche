@@ -78,8 +78,6 @@ enum TransportParameters::TransportParameterId : uint64_t {
 
   kMinAckDelay = 0xDE1A,             // draft-iyengar-quic-delayed-ack.
   kMinAckDelayDraft10 = 0xFF04DE1B,  // draft-ietf-quic-delayed-ack-10.
-  kVersionInformationDraft =
-      0xFF73DB,                // draft-ietf-quic-version-negotiation-13.
   kVersionInformation = 0x11,  // RFC 9368.
 
   // draft-ietf-quic-reliable-stream-reset.
@@ -155,14 +153,6 @@ std::string TransportParameterIdToString(
     case TransportParameters::kMinAckDelayDraft10:
       return "min_ack_delay_us";
     case TransportParameters::kVersionInformation:
-      if (!GetQuicReloadableFlag(quic_version_negotiation_rfc)) {
-        break;
-      }
-      return "version_information";
-    case TransportParameters::kVersionInformationDraft:
-      if (GetQuicReloadableFlag(quic_version_negotiation_rfc)) {
-        break;
-      }
       return "version_information";
     case TransportParameters::kReliableStreamReset:
       return "reliable_stream_reset";
@@ -241,11 +231,8 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kMinAckDelay:
     case TransportParameters::kMinAckDelayDraft10:
     case TransportParameters::kReliableStreamReset:
-      return true;
     case TransportParameters::kVersionInformation:
-      return GetQuicReloadableFlag(quic_version_negotiation_rfc);
-    case TransportParameters::kVersionInformationDraft:
-      return !GetQuicReloadableFlag(quic_version_negotiation_rfc);
+      return true;
   }
   return false;
 }
@@ -1296,15 +1283,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
         const uint64_t version_information_length =
             sizeof(in.version_information->chosen_version) +
             sizeof(QuicVersionLabel) * other_versions.size();
-        TransportParameters::TransportParameterId version_information_param_id =
-            TransportParameters::kVersionInformation;
-        if (!GetQuicReloadableFlag(quic_version_negotiation_rfc)) {
-          version_information_param_id =
-              TransportParameters::kVersionInformationDraft;
-        } else {
-          QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_negotiation_rfc, 1, 3);
-        }
-        if (!writer.WriteVarInt62(version_information_param_id) ||
+        if (!writer.WriteVarInt62(TransportParameters::kVersionInformation) ||
             !writer.WriteVarInt62(
                 /* transport parameter length */ version_information_length) ||
             !writer.WriteUInt32(in.version_information->chosen_version)) {
@@ -1610,52 +1589,6 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         }
       } break;
       case TransportParameters::kVersionInformation: {
-        if (!GetQuicReloadableFlag(quic_version_negotiation_rfc)) {
-          // Treat this as an unknown parameter.
-          if (out->custom_parameters.find(param_id) !=
-              out->custom_parameters.end()) {
-            *error_details = "Received a second unknown parameter" +
-                             TransportParameterIdToString(param_id);
-            return false;
-          }
-          out->custom_parameters[param_id] =
-              std::string(value_reader.ReadRemainingPayload());
-          break;
-        }
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_negotiation_rfc, 2, 3);
-        if (out->version_information.has_value()) {
-          *error_details = "Received a second version_information";
-          return false;
-        }
-        out->version_information = TransportParameters::VersionInformation();
-        if (!value_reader.ReadUInt32(
-                &out->version_information->chosen_version)) {
-          *error_details = "Failed to read chosen version";
-          return false;
-        }
-        while (!value_reader.IsDoneReading()) {
-          QuicVersionLabel other_version;
-          if (!value_reader.ReadUInt32(&other_version)) {
-            *error_details = "Failed to parse other version";
-            return false;
-          }
-          out->version_information->other_versions.push_back(other_version);
-        }
-      } break;
-      case TransportParameters::kVersionInformationDraft: {
-        if (GetQuicReloadableFlag(quic_version_negotiation_rfc)) {
-          QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_negotiation_rfc, 3, 3);
-          // Treat this as an unknown parameter.
-          if (out->custom_parameters.find(param_id) !=
-              out->custom_parameters.end()) {
-            *error_details = "Received a second unknown parameter" +
-                             TransportParameterIdToString(param_id);
-            return false;
-          }
-          out->custom_parameters[param_id] =
-              std::string(value_reader.ReadRemainingPayload());
-          break;
-        }
         if (out->version_information.has_value()) {
           *error_details = "Received a second version_information";
           return false;
