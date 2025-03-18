@@ -23,7 +23,6 @@
 #include "quiche/common/quiche_text_utils.h"
 
 using quiche::HttpHeaderBlock;
-using spdy::kV3LowestPriority;
 
 namespace quic {
 
