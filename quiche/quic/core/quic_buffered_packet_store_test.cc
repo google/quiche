@@ -54,7 +54,7 @@ namespace {
 
 const std::optional<ParsedClientHello> kNoParsedChlo;
 const std::optional<ParsedClientHello> kDefaultParsedChlo =
-    absl::make_optional<ParsedClientHello>();
+    std::make_optional<ParsedClientHello>();
 
 using BufferedPacket = QuicBufferedPacketStore::BufferedPacket;
 using BufferedPacketList = QuicBufferedPacketStore::BufferedPacketList;

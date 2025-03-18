@@ -163,7 +163,7 @@ class QUICHE_EXPORT PriorityWriteScheduler {
     PriorityInfo& priority_info =
         priority_infos_[PriorityTypeToInt()(it->second->priority)];
     priority_info.last_event_time =
-        std::max(priority_info.last_event_time, absl::make_optional(now));
+        std::max(priority_info.last_event_time, std::make_optional(now));
   }
 
   // Returns time of the last read/write event for a stream with higher priority

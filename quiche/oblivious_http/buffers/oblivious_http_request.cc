@@ -30,7 +30,7 @@ ObliviousHttpRequest::ObliviousHttpRequest(
     bssl::UniquePtr<EVP_HPKE_CTX> hpke_context, std::string encapsulated_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
     std::string req_ciphertext, std::string req_plaintext)
-    : oblivious_http_request_context_(absl::make_optional(
+    : oblivious_http_request_context_(std::make_optional(
           Context(std::move(hpke_context), std::move(encapsulated_key)))),
       key_config_(ohttp_key_config),
       request_ciphertext_(std::move(req_ciphertext)),
