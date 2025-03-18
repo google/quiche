@@ -33,8 +33,6 @@
 #include "quiche/common/quiche_endian.h"
 
 using ::spdy::ExtensionVisitorInterface;
-using ::spdy::HpackDecoderAdapter;
-using ::spdy::HpackHeaderTable;
 using ::spdy::ParseErrorCode;
 using ::spdy::ParseFrameType;
 using ::spdy::SpdyAltSvcWireFormat;
