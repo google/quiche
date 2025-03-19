@@ -29,7 +29,6 @@ using testing::AnyNumber;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
 using testing::IsEmpty;
-using testing::Not;
 using testing::Pointwise;
 using testing::Return;
 using testing::StrictMock;
