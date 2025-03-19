@@ -8,13 +8,13 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "absl/types/variant.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_data_reader.h"
@@ -25,15 +25,15 @@ namespace moqt::test {
 // TODO: remove MoqtObject from TestMessageBase::MessageStructuredData and merge
 // those two types.
 using MoqtGenericFrame =
-    absl::variant<MoqtClientSetup, MoqtServerSetup, MoqtSubscribe,
-                  MoqtSubscribeOk, MoqtSubscribeError, MoqtUnsubscribe,
-                  MoqtSubscribeDone, MoqtSubscribeUpdate, MoqtAnnounce,
-                  MoqtAnnounceOk, MoqtAnnounceError, MoqtAnnounceCancel,
-                  MoqtTrackStatusRequest, MoqtUnannounce, MoqtTrackStatus,
-                  MoqtGoAway, MoqtSubscribeAnnounces, MoqtSubscribeAnnouncesOk,
-                  MoqtSubscribeAnnouncesError, MoqtUnsubscribeAnnounces,
-                  MoqtMaxSubscribeId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
-                  MoqtFetchError, MoqtSubscribesBlocked, MoqtObjectAck>;
+    std::variant<MoqtClientSetup, MoqtServerSetup, MoqtSubscribe,
+                 MoqtSubscribeOk, MoqtSubscribeError, MoqtUnsubscribe,
+                 MoqtSubscribeDone, MoqtSubscribeUpdate, MoqtAnnounce,
+                 MoqtAnnounceOk, MoqtAnnounceError, MoqtAnnounceCancel,
+                 MoqtTrackStatusRequest, MoqtUnannounce, MoqtTrackStatus,
+                 MoqtGoAway, MoqtSubscribeAnnounces, MoqtSubscribeAnnouncesOk,
+                 MoqtSubscribeAnnouncesError, MoqtUnsubscribeAnnounces,
+                 MoqtMaxSubscribeId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
+                 MoqtFetchError, MoqtSubscribesBlocked, MoqtObjectAck>;
 
 MoqtMessageType MessageTypeForGenericMessage(const MoqtGenericFrame& frame);
 

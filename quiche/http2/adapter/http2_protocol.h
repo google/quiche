@@ -4,10 +4,10 @@
 #include <cstdint>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace http2 {
@@ -23,7 +23,7 @@ using Http2SettingsId = uint16_t;
 using Http2PingId = uint64_t;
 
 // Represents a single header name or value.
-using HeaderRep = absl::variant<absl::string_view, std::string>;
+using HeaderRep = std::variant<absl::string_view, std::string>;
 
 // Boolean return value is true if |rep| holds a string_view, which is assumed
 // to have an indefinite lifetime.

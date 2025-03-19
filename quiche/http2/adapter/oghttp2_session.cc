@@ -487,10 +487,10 @@ int OgHttp2Session::GetHpackDecoderSizeLimit() const {
 int64_t OgHttp2Session::ProcessBytes(absl::string_view bytes) {
   QUICHE_VLOG(3) << TracePerspectiveAsString(options_.perspective)
                  << " processing [" << absl::CEscape(bytes) << "]";
-  return absl::visit(ProcessBytesResultVisitor(), ProcessBytesImpl(bytes));
+  return std::visit(ProcessBytesResultVisitor(), ProcessBytesImpl(bytes));
 }
 
-absl::variant<int64_t, OgHttp2Session::ProcessBytesError>
+std::variant<int64_t, OgHttp2Session::ProcessBytesError>
 OgHttp2Session::ProcessBytesImpl(absl::string_view bytes) {
   if (processing_bytes_) {
     QUICHE_VLOG(2) << "Returning early; already processing bytes.";

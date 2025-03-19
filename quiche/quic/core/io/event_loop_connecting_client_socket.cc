@@ -7,12 +7,12 @@
 #include <limits>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "absl/types/variant.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -43,7 +43,7 @@ EventLoopConnectingClientSocket::~EventLoopConnectingClientSocket() {
   // safely recover if state indicates caller may be expecting async callbacks.
   QUICHE_DCHECK(connect_status_ != ConnectStatus::kConnecting);
   QUICHE_DCHECK(!receive_max_size_.has_value());
-  QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
   if (descriptor_ != kInvalidSocketFd) {
     QUICHE_BUG(quic_event_loop_connecting_socket_invalid_destruction)
         << "Must call Disconnect() on connected socket before destruction.";
@@ -58,7 +58,7 @@ absl::Status EventLoopConnectingClientSocket::ConnectBlocking() {
   QUICHE_DCHECK_EQ(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kNotConnected);
   QUICHE_DCHECK(!receive_max_size_.has_value());
-  QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
 
   absl::Status status = Open();
   if (!status.ok()) {
@@ -108,7 +108,7 @@ void EventLoopConnectingClientSocket::ConnectAsync() {
   QUICHE_DCHECK_EQ(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kNotConnected);
   QUICHE_DCHECK(!receive_max_size_.has_value());
-  QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
 
   absl::Status status = Open();
   if (!status.ok()) {
@@ -132,8 +132,8 @@ void EventLoopConnectingClientSocket::Disconnect() {
   bool require_receive_callback = receive_max_size_.has_value();
   receive_max_size_.reset();
   bool require_send_callback =
-      !absl::holds_alternative<absl::monostate>(send_data_);
-  send_data_ = absl::monostate();
+      !std::holds_alternative<std::monostate>(send_data_);
+  send_data_ = std::monostate();
   send_remaining_ = "";
 
   if (require_connect_callback) {
@@ -213,7 +213,7 @@ void EventLoopConnectingClientSocket::ReceiveAsync(QuicByteCount max_size) {
 
 absl::Status EventLoopConnectingClientSocket::SendBlocking(std::string data) {
   QUICHE_DCHECK(!data.empty());
-  QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
 
   send_data_ = std::move(data);
   return SendBlockingInternal();
@@ -222,7 +222,7 @@ absl::Status EventLoopConnectingClientSocket::SendBlocking(std::string data) {
 absl::Status EventLoopConnectingClientSocket::SendBlocking(
     quiche::QuicheMemSlice data) {
   QUICHE_DCHECK(!data.empty());
-  QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
 
   send_data_ = std::move(data);
   return SendBlockingInternal();
@@ -230,21 +230,20 @@ absl::Status EventLoopConnectingClientSocket::SendBlocking(
 
 void EventLoopConnectingClientSocket::SendAsync(std::string data) {
   QUICHE_DCHECK(!data.empty());
-  QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
 
   send_data_ = std::move(data);
-  send_remaining_ = absl::get<std::string>(send_data_);
+  send_remaining_ = std::get<std::string>(send_data_);
 
   FinishOrRearmAsyncSend(SendInternal());
 }
 
 void EventLoopConnectingClientSocket::SendAsync(quiche::QuicheMemSlice data) {
   QUICHE_DCHECK(!data.empty());
-  QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
 
   send_data_ = std::move(data);
-  send_remaining_ =
-      absl::get<quiche::QuicheMemSlice>(send_data_).AsStringView();
+  send_remaining_ = std::get<quiche::QuicheMemSlice>(send_data_).AsStringView();
 
   FinishOrRearmAsyncSend(SendInternal());
 }
@@ -274,7 +273,7 @@ absl::Status EventLoopConnectingClientSocket::Open() {
   QUICHE_DCHECK_EQ(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kNotConnected);
   QUICHE_DCHECK(!receive_max_size_.has_value());
-  QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
   QUICHE_DCHECK(send_remaining_.empty());
 
   absl::StatusOr<SocketFd> descriptor =
@@ -356,7 +355,7 @@ absl::Status EventLoopConnectingClientSocket::DoInitialConnect() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kNotConnected);
   QUICHE_DCHECK(!receive_max_size_.has_value());
-  QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
 
   absl::Status connect_result = socket_api::Connect(descriptor_, peer_address_);
 
@@ -379,7 +378,7 @@ absl::Status EventLoopConnectingClientSocket::GetConnectResult() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnecting);
   QUICHE_DCHECK(!receive_max_size_.has_value());
-  QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
 
   absl::Status error = socket_api::GetSocketError(descriptor_);
 
@@ -516,7 +515,7 @@ absl::StatusOr<bool> EventLoopConnectingClientSocket::OneBytePeek() {
 absl::Status EventLoopConnectingClientSocket::SendBlockingInternal() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnected);
-  QUICHE_DCHECK(!absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(!std::holds_alternative<std::monostate>(send_data_));
   QUICHE_DCHECK(send_remaining_.empty());
 
   absl::Status status =
@@ -525,15 +524,15 @@ absl::Status EventLoopConnectingClientSocket::SendBlockingInternal() {
     QUICHE_LOG_FIRST_N(WARNING, 100)
         << "Failed to set socket to address: " << peer_address_.ToString()
         << " as blocking for send with error: " << status;
-    send_data_ = absl::monostate();
+    send_data_ = std::monostate();
     return status;
   }
 
-  if (absl::holds_alternative<std::string>(send_data_)) {
-    send_remaining_ = absl::get<std::string>(send_data_);
+  if (std::holds_alternative<std::string>(send_data_)) {
+    send_remaining_ = std::get<std::string>(send_data_);
   } else {
     send_remaining_ =
-        absl::get<quiche::QuicheMemSlice>(send_data_).AsStringView();
+        std::get<quiche::QuicheMemSlice>(send_data_).AsStringView();
   }
 
   status = SendInternal();
@@ -541,10 +540,10 @@ absl::Status EventLoopConnectingClientSocket::SendBlockingInternal() {
     QUICHE_LOG_FIRST_N(ERROR, 100)
         << "Non-blocking send for should-be blocking socket to address:"
         << peer_address_.ToString();
-    send_data_ = absl::monostate();
+    send_data_ = std::monostate();
     send_remaining_ = "";
   } else {
-    QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+    QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
     QUICHE_DCHECK(send_remaining_.empty());
   }
 
@@ -564,7 +563,7 @@ absl::Status EventLoopConnectingClientSocket::SendBlockingInternal() {
 absl::Status EventLoopConnectingClientSocket::SendInternal() {
   QUICHE_DCHECK_NE(descriptor_, kInvalidSocketFd);
   QUICHE_DCHECK(connect_status_ == ConnectStatus::kConnected);
-  QUICHE_DCHECK(!absl::holds_alternative<absl::monostate>(send_data_));
+  QUICHE_DCHECK(!std::holds_alternative<std::monostate>(send_data_));
   QUICHE_DCHECK(!send_remaining_.empty());
 
   // Repeat send until all data sent, unavailable, or error.
@@ -586,14 +585,14 @@ absl::Status EventLoopConnectingClientSocket::SendInternal() {
         QUICHE_DVLOG(1) << "Failed to send to socket to address: "
                         << peer_address_.ToString()
                         << " with error: " << remainder.status();
-        send_data_ = absl::monostate();
+        send_data_ = std::monostate();
         send_remaining_ = "";
       }
       return remainder.status();
     }
   }
 
-  send_data_ = absl::monostate();
+  send_data_ = std::monostate();
   return absl::OkStatus();
 }
 
@@ -608,10 +607,10 @@ void EventLoopConnectingClientSocket::FinishOrRearmAsyncSend(
           descriptor_, kSocketEventWritable | kSocketEventError);
       QUICHE_DCHECK(result);
     }
-    QUICHE_DCHECK(!absl::holds_alternative<absl::monostate>(send_data_));
+    QUICHE_DCHECK(!std::holds_alternative<std::monostate>(send_data_));
     QUICHE_DCHECK(!send_remaining_.empty());
   } else {
-    QUICHE_DCHECK(absl::holds_alternative<absl::monostate>(send_data_));
+    QUICHE_DCHECK(std::holds_alternative<std::monostate>(send_data_));
     QUICHE_DCHECK(send_remaining_.empty());
     async_visitor_->SendComplete(status);
   }

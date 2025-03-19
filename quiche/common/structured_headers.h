@@ -12,10 +12,10 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
@@ -92,30 +92,30 @@ class QUICHE_EXPORT Item {
   bool is_boolean() const { return Type() == kBooleanType; }
 
   int64_t GetInteger() const {
-    const auto* value = absl::get_if<int64_t>(&value_);
+    const auto* value = std::get_if<int64_t>(&value_);
     QUICHE_CHECK(value);
     return *value;
   }
   double GetDecimal() const {
-    const auto* value = absl::get_if<double>(&value_);
+    const auto* value = std::get_if<double>(&value_);
     QUICHE_CHECK(value);
     return *value;
   }
   bool GetBoolean() const {
-    const auto* value = absl::get_if<bool>(&value_);
+    const auto* value = std::get_if<bool>(&value_);
     QUICHE_CHECK(value);
     return *value;
   }
   // TODO(iclelland): Split up accessors for String, Token and Byte Sequence.
   const std::string& GetString() const {
     struct Visitor {
-      const std::string* operator()(const absl::monostate&) { return nullptr; }
+      const std::string* operator()(const std::monostate&) { return nullptr; }
       const std::string* operator()(const int64_t&) { return nullptr; }
       const std::string* operator()(const double&) { return nullptr; }
       const std::string* operator()(const std::string& value) { return &value; }
       const std::string* operator()(const bool&) { return nullptr; }
     };
-    const std::string* value = absl::visit(Visitor(), value_);
+    const std::string* value = std::visit(Visitor(), value_);
     QUICHE_CHECK(value);
     return *value;
   }
@@ -123,13 +123,13 @@ class QUICHE_EXPORT Item {
   // Transfers ownership of the underlying String, Token, or Byte Sequence.
   std::string TakeString() && {
     struct Visitor {
-      std::string* operator()(absl::monostate&) { return nullptr; }
+      std::string* operator()(std::monostate&) { return nullptr; }
       std::string* operator()(int64_t&) { return nullptr; }
       std::string* operator()(double&) { return nullptr; }
       std::string* operator()(std::string& value) { return &value; }
       std::string* operator()(bool&) { return nullptr; }
     };
-    std::string* value = absl::visit(Visitor(), value_);
+    std::string* value = std::visit(Visitor(), value_);
     QUICHE_CHECK(value);
     return std::move(*value);
   }
@@ -137,8 +137,8 @@ class QUICHE_EXPORT Item {
   ItemType Type() const { return static_cast<ItemType>(value_.index()); }
 
  private:
-  absl::variant<absl::monostate, int64_t, double, std::string, std::string,
-                std::string, bool>
+  std::variant<std::monostate, int64_t, double, std::string, std::string,
+               std::string, bool>
       value_;
 };
 

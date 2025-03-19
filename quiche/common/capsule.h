@@ -10,11 +10,11 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -265,114 +265,114 @@ class QUICHE_EXPORT Capsule {
                                                 const Capsule& capsule);
 
   CapsuleType capsule_type() const {
-    return absl::visit(
+    return std::visit(
         [](const auto& capsule) { return capsule.capsule_type(); }, capsule_);
   }
   DatagramCapsule& datagram_capsule() {
-    return absl::get<DatagramCapsule>(capsule_);
+    return std::get<DatagramCapsule>(capsule_);
   }
   const DatagramCapsule& datagram_capsule() const {
-    return absl::get<DatagramCapsule>(capsule_);
+    return std::get<DatagramCapsule>(capsule_);
   }
   LegacyDatagramCapsule& legacy_datagram_capsule() {
-    return absl::get<LegacyDatagramCapsule>(capsule_);
+    return std::get<LegacyDatagramCapsule>(capsule_);
   }
   const LegacyDatagramCapsule& legacy_datagram_capsule() const {
-    return absl::get<LegacyDatagramCapsule>(capsule_);
+    return std::get<LegacyDatagramCapsule>(capsule_);
   }
   LegacyDatagramWithoutContextCapsule&
   legacy_datagram_without_context_capsule() {
-    return absl::get<LegacyDatagramWithoutContextCapsule>(capsule_);
+    return std::get<LegacyDatagramWithoutContextCapsule>(capsule_);
   }
   const LegacyDatagramWithoutContextCapsule&
   legacy_datagram_without_context_capsule() const {
-    return absl::get<LegacyDatagramWithoutContextCapsule>(capsule_);
+    return std::get<LegacyDatagramWithoutContextCapsule>(capsule_);
   }
   CloseWebTransportSessionCapsule& close_web_transport_session_capsule() {
-    return absl::get<CloseWebTransportSessionCapsule>(capsule_);
+    return std::get<CloseWebTransportSessionCapsule>(capsule_);
   }
   const CloseWebTransportSessionCapsule& close_web_transport_session_capsule()
       const {
-    return absl::get<CloseWebTransportSessionCapsule>(capsule_);
+    return std::get<CloseWebTransportSessionCapsule>(capsule_);
   }
   AddressRequestCapsule& address_request_capsule() {
-    return absl::get<AddressRequestCapsule>(capsule_);
+    return std::get<AddressRequestCapsule>(capsule_);
   }
   const AddressRequestCapsule& address_request_capsule() const {
-    return absl::get<AddressRequestCapsule>(capsule_);
+    return std::get<AddressRequestCapsule>(capsule_);
   }
   AddressAssignCapsule& address_assign_capsule() {
-    return absl::get<AddressAssignCapsule>(capsule_);
+    return std::get<AddressAssignCapsule>(capsule_);
   }
   const AddressAssignCapsule& address_assign_capsule() const {
-    return absl::get<AddressAssignCapsule>(capsule_);
+    return std::get<AddressAssignCapsule>(capsule_);
   }
   RouteAdvertisementCapsule& route_advertisement_capsule() {
-    return absl::get<RouteAdvertisementCapsule>(capsule_);
+    return std::get<RouteAdvertisementCapsule>(capsule_);
   }
   const RouteAdvertisementCapsule& route_advertisement_capsule() const {
-    return absl::get<RouteAdvertisementCapsule>(capsule_);
+    return std::get<RouteAdvertisementCapsule>(capsule_);
   }
   CompressionAssignCapsule& compression_assign_capsule() {
-    return absl::get<CompressionAssignCapsule>(capsule_);
+    return std::get<CompressionAssignCapsule>(capsule_);
   }
   const CompressionAssignCapsule& compression_assign_capsule() const {
-    return absl::get<CompressionAssignCapsule>(capsule_);
+    return std::get<CompressionAssignCapsule>(capsule_);
   }
   CompressionCloseCapsule& compression_close_capsule() {
-    return absl::get<CompressionCloseCapsule>(capsule_);
+    return std::get<CompressionCloseCapsule>(capsule_);
   }
   const CompressionCloseCapsule& compression_close_capsule() const {
-    return absl::get<CompressionCloseCapsule>(capsule_);
+    return std::get<CompressionCloseCapsule>(capsule_);
   }
   WebTransportStreamDataCapsule& web_transport_stream_data() {
-    return absl::get<WebTransportStreamDataCapsule>(capsule_);
+    return std::get<WebTransportStreamDataCapsule>(capsule_);
   }
   const WebTransportStreamDataCapsule& web_transport_stream_data() const {
-    return absl::get<WebTransportStreamDataCapsule>(capsule_);
+    return std::get<WebTransportStreamDataCapsule>(capsule_);
   }
   WebTransportResetStreamCapsule& web_transport_reset_stream() {
-    return absl::get<WebTransportResetStreamCapsule>(capsule_);
+    return std::get<WebTransportResetStreamCapsule>(capsule_);
   }
   const WebTransportResetStreamCapsule& web_transport_reset_stream() const {
-    return absl::get<WebTransportResetStreamCapsule>(capsule_);
+    return std::get<WebTransportResetStreamCapsule>(capsule_);
   }
   WebTransportStopSendingCapsule& web_transport_stop_sending() {
-    return absl::get<WebTransportStopSendingCapsule>(capsule_);
+    return std::get<WebTransportStopSendingCapsule>(capsule_);
   }
   const WebTransportStopSendingCapsule& web_transport_stop_sending() const {
-    return absl::get<WebTransportStopSendingCapsule>(capsule_);
+    return std::get<WebTransportStopSendingCapsule>(capsule_);
   }
   WebTransportMaxStreamDataCapsule& web_transport_max_stream_data() {
-    return absl::get<WebTransportMaxStreamDataCapsule>(capsule_);
+    return std::get<WebTransportMaxStreamDataCapsule>(capsule_);
   }
   const WebTransportMaxStreamDataCapsule& web_transport_max_stream_data()
       const {
-    return absl::get<WebTransportMaxStreamDataCapsule>(capsule_);
+    return std::get<WebTransportMaxStreamDataCapsule>(capsule_);
   }
   WebTransportMaxStreamsCapsule& web_transport_max_streams() {
-    return absl::get<WebTransportMaxStreamsCapsule>(capsule_);
+    return std::get<WebTransportMaxStreamsCapsule>(capsule_);
   }
   const WebTransportMaxStreamsCapsule& web_transport_max_streams() const {
-    return absl::get<WebTransportMaxStreamsCapsule>(capsule_);
+    return std::get<WebTransportMaxStreamsCapsule>(capsule_);
   }
   UnknownCapsule& unknown_capsule() {
-    return absl::get<UnknownCapsule>(capsule_);
+    return std::get<UnknownCapsule>(capsule_);
   }
   const UnknownCapsule& unknown_capsule() const {
-    return absl::get<UnknownCapsule>(capsule_);
+    return std::get<UnknownCapsule>(capsule_);
   }
 
  private:
-  absl::variant<DatagramCapsule, LegacyDatagramCapsule,
-                LegacyDatagramWithoutContextCapsule,
-                CloseWebTransportSessionCapsule,
-                DrainWebTransportSessionCapsule, AddressRequestCapsule,
-                AddressAssignCapsule, RouteAdvertisementCapsule,
-                WebTransportStreamDataCapsule, WebTransportResetStreamCapsule,
-                WebTransportStopSendingCapsule, WebTransportMaxStreamsCapsule,
-                WebTransportMaxStreamDataCapsule, UnknownCapsule,
-                CompressionAssignCapsule, CompressionCloseCapsule>
+  std::variant<DatagramCapsule, LegacyDatagramCapsule,
+               LegacyDatagramWithoutContextCapsule,
+               CloseWebTransportSessionCapsule, DrainWebTransportSessionCapsule,
+               AddressRequestCapsule, AddressAssignCapsule,
+               RouteAdvertisementCapsule, WebTransportStreamDataCapsule,
+               WebTransportResetStreamCapsule, WebTransportStopSendingCapsule,
+               WebTransportMaxStreamsCapsule, WebTransportMaxStreamDataCapsule,
+               UnknownCapsule, CompressionAssignCapsule,
+               CompressionCloseCapsule>
       capsule_;
 };
 

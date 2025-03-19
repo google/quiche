@@ -5,13 +5,13 @@
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "absl/types/variant.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
@@ -293,11 +293,11 @@ class GenericMessageParseVisitor : public MoqtControlParserVisitor {
 std::string SerializeGenericMessage(const MoqtGenericFrame& frame,
                                     bool use_webtrans) {
   MoqtFramer framer(quiche::SimpleBufferAllocator::Get(), use_webtrans);
-  return std::string(absl::visit(FramingVisitor{framer}, frame).AsStringView());
+  return std::string(std::visit(FramingVisitor{framer}, frame).AsStringView());
 }
 
 MoqtMessageType MessageTypeForGenericMessage(const MoqtGenericFrame& frame) {
-  return absl::visit(TypeVisitor(), frame);
+  return std::visit(TypeVisitor(), frame);
 }
 
 std::vector<MoqtGenericFrame> ParseGenericMessage(absl::string_view body) {
@@ -313,12 +313,11 @@ absl::Status StoreSubscribe::operator()(
     const quiche::StreamWriteOptions& options) const {
   std::string merged_message = absl::StrJoin(data, "");
   std::vector<MoqtGenericFrame> frames = ParseGenericMessage(merged_message);
-  if (frames.size() != 1 ||
-      !absl::holds_alternative<MoqtSubscribe>(frames[0])) {
+  if (frames.size() != 1 || !std::holds_alternative<MoqtSubscribe>(frames[0])) {
     ADD_FAILURE() << "Expected one SUBSCRIBE frame in a write";
     return absl::InternalError("Expected one SUBSCRIBE frame in a write");
   }
-  *subscribe_ = absl::get<MoqtSubscribe>(frames[0]);
+  *subscribe_ = std::get<MoqtSubscribe>(frames[0]);
   return absl::OkStatus();
 }
 

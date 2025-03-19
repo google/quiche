@@ -10,10 +10,10 @@ namespace http2 {
 namespace adapter {
 
 std::pair<absl::string_view, bool> GetStringView(const HeaderRep& rep) {
-  if (absl::holds_alternative<absl::string_view>(rep)) {
-    return std::make_pair(absl::get<absl::string_view>(rep), true);
+  if (std::holds_alternative<absl::string_view>(rep)) {
+    return std::make_pair(std::get<absl::string_view>(rep), true);
   } else {
-    absl::string_view view = absl::get<std::string>(rep);
+    absl::string_view view = std::get<std::string>(rep);
     return std::make_pair(view, false);
   }
 }

@@ -13,6 +13,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -20,7 +21,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -230,8 +230,8 @@ std::string WebTransportMaxStreamsCapsule::ToString() const {
 }
 
 std::string Capsule::ToString() const {
-  return absl::visit([](const auto& capsule) { return capsule.ToString(); },
-                     capsule_);
+  return std::visit([](const auto& capsule) { return capsule.ToString(); },
+                    capsule_);
 }
 
 std::ostream& operator<<(std::ostream& os, const Capsule& capsule) {

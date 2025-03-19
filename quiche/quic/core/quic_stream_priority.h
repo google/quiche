@@ -9,9 +9,9 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <variant>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/variant.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -74,19 +74,19 @@ class QUICHE_EXPORT QuicStreamPriority {
   explicit QuicStreamPriority(WebTransportStreamPriority priority)
       : value_(priority) {}
 
-  QuicPriorityType type() const { return absl::visit(TypeExtractor(), value_); }
+  QuicPriorityType type() const { return std::visit(TypeExtractor(), value_); }
 
   HttpStreamPriority http() const {
-    if (absl::holds_alternative<HttpStreamPriority>(value_)) {
-      return absl::get<HttpStreamPriority>(value_);
+    if (std::holds_alternative<HttpStreamPriority>(value_)) {
+      return std::get<HttpStreamPriority>(value_);
     }
     QUICHE_BUG(invalid_priority_type_http)
         << "Tried to access HTTP priority for a priority type" << type();
     return HttpStreamPriority();
   }
   WebTransportStreamPriority web_transport() const {
-    if (absl::holds_alternative<WebTransportStreamPriority>(value_)) {
-      return absl::get<WebTransportStreamPriority>(value_);
+    if (std::holds_alternative<WebTransportStreamPriority>(value_)) {
+      return std::get<WebTransportStreamPriority>(value_);
     }
     QUICHE_BUG(invalid_priority_type_wt)
         << "Tried to access WebTransport priority for a priority type"
@@ -108,7 +108,7 @@ class QUICHE_EXPORT QuicStreamPriority {
     }
   };
 
-  absl::variant<HttpStreamPriority, WebTransportStreamPriority> value_;
+  std::variant<HttpStreamPriority, WebTransportStreamPriority> value_;
 };
 
 // Serializes the Priority Field Value for a PRIORITY_UPDATE frame.

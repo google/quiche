@@ -11,11 +11,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/variant.h"
 #include "openssl/base.h"
 #include "openssl/pool.h"
 #include "openssl/ssl.h"
@@ -280,7 +280,7 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
     QuicDelayedSSLConfig delayed_ssl_config;
   };
 
-  using SSLConfig = absl::variant<LocalSSLConfig, HintsSSLConfig>;
+  using SSLConfig = std::variant<LocalSSLConfig, HintsSSLConfig>;
 
   // Called when a ProofSourceHandle::SelectCertificate operation completes.
   // |ok| indicates whether the operation was successful.

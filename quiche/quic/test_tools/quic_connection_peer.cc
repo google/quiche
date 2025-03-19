@@ -6,10 +6,10 @@
 
 #include <memory>
 #include <string>
+#include <variant>
 
 
 #include "absl/strings/string_view.h"
-#include "absl/types/variant.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_alarms.h"
@@ -36,7 +36,7 @@ void QuicConnectionAlarmsPeer::Fire(QuicAlarmProxy alarm) {
       alarm.multiplexer_->Fire(alarm.slot_);
     }
   } visitor;
-  absl::visit(visitor, alarm.alarm_);
+  std::visit(visitor, alarm.alarm_);
 }
 
 // static

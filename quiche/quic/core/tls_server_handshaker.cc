@@ -11,13 +11,13 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "absl/types/variant.h"
 #include "openssl/base.h"
 #include "openssl/bytestring.h"
 #include "openssl/ssl.h"
@@ -1074,7 +1074,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
 
   // Extract the delayed SSL config from either LocalSSLConfig or
   // HintsSSLConfig.
-  const QuicDelayedSSLConfig& delayed_ssl_config = absl::visit(
+  const QuicDelayedSSLConfig& delayed_ssl_config = std::visit(
       [](const auto& config) { return config.delayed_ssl_config; }, ssl_config);
 
   if (delayed_ssl_config.quic_transport_parameters.has_value()) {
@@ -1100,7 +1100,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
   }
 
   if (ok) {
-    if (auto* local_config = absl::get_if<LocalSSLConfig>(&ssl_config);
+    if (auto* local_config = std::get_if<LocalSSLConfig>(&ssl_config);
         local_config != nullptr) {
       if (local_config->chain && !local_config->chain->certs.empty()) {
         tls_connection_.SetCertChain(
@@ -1114,7 +1114,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
                          << ", client_address:"
                          << session()->connection()->peer_address();
       }
-    } else if (auto* hints_config = absl::get_if<HintsSSLConfig>(&ssl_config);
+    } else if (auto* hints_config = std::get_if<HintsSSLConfig>(&ssl_config);
                hints_config != nullptr) {
       select_alpn_ = std::move(hints_config->select_alpn);
       if (hints_config->configure_ssl) {

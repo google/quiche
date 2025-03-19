@@ -11,11 +11,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/variant.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -66,7 +66,7 @@ constexpr std::array kDataStreamTypes{
 };
 
 using GeneralizedMessageType =
-    absl::variant<MoqtMessageType, MoqtDataStreamType>;
+    std::variant<MoqtMessageType, MoqtDataStreamType>;
 }  // namespace
 
 struct MoqtParserTestParams {
@@ -107,8 +107,8 @@ std::string TypeFormatter(MoqtDataStreamType type) {
 }
 std::string ParamNameFormatter(
     const testing::TestParamInfo<MoqtParserTestParams>& info) {
-  return absl::visit([](auto x) { return TypeFormatter(x); },
-                     info.param.message_type) +
+  return std::visit([](auto x) { return TypeFormatter(x); },
+                    info.param.message_type) +
          "_" + (info.param.uses_web_transport ? "WebTransport" : "QUIC");
 }
 
@@ -247,14 +247,14 @@ class MoqtParserTest
         data_parser_(&data_stream_, &visitor_) {}
 
   bool IsDataStream() {
-    return absl::holds_alternative<MoqtDataStreamType>(message_type_);
+    return std::holds_alternative<MoqtDataStreamType>(message_type_);
   }
 
   std::unique_ptr<TestMessageBase> MakeMessage() {
     if (IsDataStream()) {
-      return CreateTestDataStream(absl::get<MoqtDataStreamType>(message_type_));
+      return CreateTestDataStream(std::get<MoqtDataStreamType>(message_type_));
     } else {
-      return CreateTestMessage(absl::get<MoqtMessageType>(message_type_),
+      return CreateTestMessage(std::get<MoqtMessageType>(message_type_),
                                webtrans_);
     }
   }
