@@ -18,7 +18,7 @@ namespace quiche {
 // QuicheMemSlice is a memory buffer with a type-erased deleter callback.
 class QUICHE_EXPORT QuicheMemSlice {
  public:
-  using ReleaseCallback = SingleUseCallback<void(const char*)>;
+  using ReleaseCallback = SingleUseCallback<void(absl::string_view)>;
 
   // Constructs a empty QuicheMemSlice with no underlying data.
   QuicheMemSlice() = default;

@@ -5,6 +5,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
 
@@ -15,19 +16,19 @@ QuicheMemSlice::QuicheMemSlice(QuicheBuffer buffer)
   QuicheUniqueBufferPtr owned = buffer.Release();
   QuicheBufferAllocator* allocator = owned.get_deleter().allocator();
   owned.release();
-  done_callback_ = [allocator](const char* ptr) {
-    allocator->Delete(const_cast<char*>(ptr));
+  done_callback_ = [allocator](absl::string_view ptr) {
+    allocator->Delete(const_cast<char*>(ptr.data()));
   };
 }
 
 QuicheMemSlice::QuicheMemSlice(std::unique_ptr<char[]> buffer, size_t length)
     : data_(buffer.release()),
       size_(length),
-      done_callback_(+[](const char* ptr) { delete[] ptr; }) {}
+      done_callback_(+[](absl::string_view ptr) { delete[] ptr.data(); }) {}
 
 QuicheMemSlice::QuicheMemSlice(
     const char* buffer, size_t length,
-    SingleUseCallback<void(const char*)> done_callback)
+    SingleUseCallback<void(absl::string_view)> done_callback)
     : data_(buffer), size_(length), done_callback_(std::move(done_callback)) {}
 
 // Move constructors. |other| will not hold a reference to the data buffer
@@ -55,7 +56,7 @@ QuicheMemSlice::~QuicheMemSlice() { Reset(); }
 
 void QuicheMemSlice::Reset() {
   if (done_callback_ && data_ != nullptr) {
-    std::move(done_callback_)(data_);
+    std::move(done_callback_)(AsStringView());
   }
   data_ = nullptr;
   size_ = 0;

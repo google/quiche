@@ -76,18 +76,21 @@ TEST_F(QuicheMemSliceTest, MoveAssignNonEmpty) {
 }
 
 TEST_F(QuicheMemSliceTest, SliceCustomDoneCallback) {
-  const absl::string_view data("foo");
+  constexpr absl::string_view kData("foo");
   bool deleted = false;
 
-  char* buffer = new char[data.length()];
-  std::memcpy(buffer, data.data(), data.length());
+  char* buffer = new char[kData.length()];
+  std::memcpy(buffer, kData.data(), kData.length());
 
   {
-    QuicheMemSlice slice(buffer, data.length(), [&deleted](const char* data) {
-      deleted = true;
-      delete[] data;
-    });
-    EXPECT_EQ(data, slice.AsStringView());
+    QuicheMemSlice slice(
+        buffer, kData.length(),
+        [size = kData.size(), &deleted](absl::string_view slice) {
+          deleted = true;
+          EXPECT_EQ(slice.size(), size);
+          delete[] slice.data();
+        });
+    EXPECT_EQ(kData, slice.AsStringView());
   }
   EXPECT_TRUE(deleted);
 }
