@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "absl/base/macros.h"
-#include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
@@ -29,7 +28,6 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
-using absl::make_unique;
 using testing::AnyOf;
 using testing::Combine;
 using testing::ElementsAre;
@@ -78,7 +76,7 @@ using BufferBlock = BalsaBuffer::BufferBlock;
 BufferBlock MakeBufferBlock(const std::string& s) {
   // Make the buffer twice the size needed to verify that CopyFrom copies our
   // buffer_size (as opposed to shrinking to fit or reusing an old buffer).
-  BufferBlock block{make_unique<char[]>(s.size()), s.size() * 2, s.size()};
+  BufferBlock block{std::make_unique<char[]>(s.size()), s.size() * 2, s.size()};
   std::memcpy(block.buffer.get(), s.data(), s.size());
   return block;
 }
