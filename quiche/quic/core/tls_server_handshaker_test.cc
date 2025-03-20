@@ -1239,22 +1239,17 @@ TEST_P(TlsServerHandshakerTest, EnableKyber) {
 TEST_P(TlsServerHandshakerTest, AlpsUseNewCodepoint) {
   const struct {
     bool client_use_alps_new_codepoint;
-    bool server_allow_alps_new_codepoint;
   } tests[] = {
       // The intent of this test is to demonstrate different combinations of
-      // ALPS codepoint settings works well for both client and server.
-      {true, true},
-      {false, true},
-      {false, false},
-      {true, true},
+      // ALPS codepoint settings works well.
+      {true},
+      {false},
   };
   for (size_t i = 0; i < ABSL_ARRAYSIZE(tests); i++) {
     SCOPED_TRACE(absl::StrCat("Test #", i));
     const auto& test = tests[i];
     client_crypto_config_->set_alps_use_new_codepoint(
         test.client_use_alps_new_codepoint);
-    SetQuicReloadableFlag(quic_gfe_allow_alps_new_codepoint,
-                          test.server_allow_alps_new_codepoint);
 
     ASSERT_TRUE(SetupClientCert());
     InitializeFakeClient();
