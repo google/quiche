@@ -1518,10 +1518,8 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
 
 void QuicDispatcher::MaybeSendVersionNegotiationPacket(
     const ReceivedPacketInfo& packet_info) {
-  if (GetQuicReloadableFlag(quic_no_vn_in_response_to_vn) &&
-      packet_info.form == IETF_QUIC_LONG_HEADER_PACKET &&
+  if (packet_info.form == IETF_QUIC_LONG_HEADER_PACKET &&
       packet_info.long_packet_type == VERSION_NEGOTIATION) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_no_vn_in_response_to_vn);
     return;
   }
   if (crypto_config()->validate_chlo_size() &&

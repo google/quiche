@@ -962,15 +962,10 @@ TEST_P(QuicDispatcherTestOneVersion,
   ASSERT_GT(packet->length(), kMinPacketSizeForVersionNegotiation);
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  if (GetQuicReloadableFlag(quic_no_vn_in_response_to_vn)) {
-    EXPECT_CALL(*time_wait_list_manager_,
-                SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
-        .Times(0);
-  } else {
-    EXPECT_CALL(*time_wait_list_manager_,
-                SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
-        .Times(1);
-  }
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
+      .Times(0);
+
   dispatcher_->ProcessPacket(
       server_address_, client_address,
       QuicReceivedPacket(packet->data(), packet->length(), QuicTime::Zero(),
