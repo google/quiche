@@ -1547,6 +1547,8 @@
     "quiche/quic/moqt/moqt_probe_manager.h",
     "quiche/quic/moqt/moqt_publisher.h",
     "quiche/quic/moqt/moqt_session.h",
+    "quiche/quic/moqt/moqt_session_callbacks.h",
+    "quiche/quic/moqt/moqt_session_interface.h",
     "quiche/quic/moqt/moqt_subscribe_windows.h",
     "quiche/quic/moqt/moqt_track.h",
     "quiche/quic/moqt/test_tools/moqt_framer_utils.h",

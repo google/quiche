@@ -86,7 +86,8 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
     EXPECT_CALL(*visitor, OnReply(track_name, std::optional<FullSequence>(),
                                   std::optional<absl::string_view>()))
         .WillOnce([&]() { received_ok = true; });
-    client_->session()->SubscribeCurrentObject(track_name, visitor);
+    client_->session()->SubscribeCurrentObject(track_name, visitor,
+                                               MoqtSubscribeParameters());
     bool success =
         test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
     EXPECT_TRUE(success);
@@ -236,7 +237,8 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
         FullTrackName track_name = track_namespace;
         track_name.AddElement("/catalog");
         EXPECT_FALSE(error.has_value());
-        server_->session()->SubscribeCurrentGroup(track_name, &server_visitor);
+        server_->session()->SubscribeCurrentGroup(track_name, &server_visitor,
+                                                  MoqtSubscribeParameters());
       });
   EXPECT_CALL(server_visitor, OnReply(_, _, _)).WillOnce([&]() {
     matches = true;
@@ -259,7 +261,8 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
         FullTrackName track_name = track_namespace;
         track_name.AddElement("data");
         server_->session()->SubscribeAbsolute(
-            track_name, /*start_group=*/0, /*start_object=*/0, &server_visitor);
+            track_name, /*start_group=*/0, /*start_object=*/0, &server_visitor,
+            MoqtSubscribeParameters());
         return std::optional<MoqtAnnounceErrorReason>();
       });
 
@@ -322,7 +325,8 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     queue->AddObject(MemSliceFromString("object 5"), /*key=*/false);
 
     client_->session()->SubscribeCurrentGroup(FullTrackName("test", name),
-                                              &client_visitor);
+                                              &client_visitor,
+                                              MoqtSubscribeParameters());
     int received = 0;
     EXPECT_CALL(client_visitor, OnReply);
     EXPECT_CALL(client_visitor,
@@ -453,7 +457,8 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
       });
   EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
-  client_->session()->SubscribeAbsolute(full_track_name, 0, 0, &client_visitor);
+  client_->session()->SubscribeAbsolute(full_track_name, 0, 0, &client_visitor,
+                                        MoqtSubscribeParameters());
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
   EXPECT_TRUE(success);
@@ -478,7 +483,8 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
       });
   EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
-  client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor);
+  client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
+                                             MoqtSubscribeParameters());
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
   EXPECT_TRUE(success);
@@ -503,7 +509,8 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentGroupOk) {
       });
   EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
-  client_->session()->SubscribeCurrentGroup(full_track_name, &client_visitor);
+  client_->session()->SubscribeCurrentGroup(full_track_name, &client_visitor,
+                                            MoqtSubscribeParameters());
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
   EXPECT_TRUE(success);
@@ -517,7 +524,8 @@ TEST_F(MoqtIntegrationTest, SubscribeError) {
   bool received_ok = false;
   EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
-  client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor);
+  client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
+                                             MoqtSubscribeParameters());
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
   EXPECT_TRUE(success);
@@ -549,8 +557,8 @@ TEST_F(MoqtIntegrationTest, CleanSubscribeDone) {
   EXPECT_TRUE(success);
 
   // Reject this subscribe because there already is one.
-  EXPECT_FALSE(client_->session()->SubscribeCurrentGroup(full_track_name,
-                                                         &client_visitor));
+  EXPECT_FALSE(client_->session()->SubscribeCurrentGroup(
+      full_track_name, &client_visitor, MoqtSubscribeParameters()));
   queue->RemoveAllSubscriptions();  // Induce a SUBSCRIBE_DONE.
   bool subscribe_done = false;
   EXPECT_CALL(client_visitor, OnSubscribeDone).WillOnce([&]() {
@@ -561,8 +569,8 @@ TEST_F(MoqtIntegrationTest, CleanSubscribeDone) {
   EXPECT_TRUE(success);
   // Subscription is deleted; the client session should not immediately reject
   // a new attempt.
-  EXPECT_TRUE(client_->session()->SubscribeCurrentGroup(full_track_name,
-                                                        &client_visitor));
+  EXPECT_TRUE(client_->session()->SubscribeCurrentGroup(
+      full_track_name, &client_visitor, MoqtSubscribeParameters()));
 }
 
 TEST_F(MoqtIntegrationTest, ObjectAcks) {

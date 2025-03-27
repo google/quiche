@@ -154,7 +154,8 @@ class MoqtIngestionHandler {
     for (absl::string_view track : tracks_to_subscribe) {
       FullTrackName full_track_name = track_namespace;
       full_track_name.AddElement(track);
-      session_->SubscribeCurrentGroup(full_track_name, &it->second);
+      session_->SubscribeCurrentGroup(full_track_name, &it->second,
+                                      MoqtSubscribeParameters());
     }
 
     return std::nullopt;

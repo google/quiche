@@ -49,8 +49,8 @@ ChatServer::ChatServerSessionHandler::OnIncomingAnnounce(
     return std::nullopt;
   }
   std::cout << "Received ANNOUNCE for " << track_namespace.ToString() << "\n";
-  session_->SubscribeCurrentGroup(*track_name_,
-                                  server_->remote_track_visitor());
+  session_->SubscribeCurrentGroup(*track_name_, server_->remote_track_visitor(),
+                                  MoqtSubscribeParameters());
   server_->AddUser(*track_name_);
   return std::nullopt;
 }

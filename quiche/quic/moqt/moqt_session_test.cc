@@ -605,16 +605,19 @@ TEST_F(MoqtSessionTest, TooManySubscribes) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
-                                             &remote_track_visitor));
+                                             &remote_track_visitor,
+                                             MoqtSubscribeParameters()));
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribesBlocked), _))
       .Times(1);
   EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo2", "bar2"),
-                                              &remote_track_visitor));
+                                              &remote_track_visitor,
+                                              MoqtSubscribeParameters()));
   // Second time does not send SUBSCRIBES_BLOCKED.
   EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo2", "bar2"),
-                                              &remote_track_visitor));
+                                              &remote_track_visitor,
+                                              MoqtSubscribeParameters()));
 }
 
 TEST_F(MoqtSessionTest, SubscribeDuplicateTrackName) {
@@ -626,9 +629,11 @@ TEST_F(MoqtSessionTest, SubscribeDuplicateTrackName) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
-                                             &remote_track_visitor));
+                                             &remote_track_visitor,
+                                             MoqtSubscribeParameters()));
   EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
-                                              &remote_track_visitor));
+                                              &remote_track_visitor,
+                                              MoqtSubscribeParameters()));
 }
 
 TEST_F(MoqtSessionTest, SubscribeWithOk) {
@@ -639,7 +644,8 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
-                                 &remote_track_visitor);
+                                 &remote_track_visitor,
+                                 MoqtSubscribeParameters());
 
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/0,
@@ -667,7 +673,8 @@ TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribesBlocked), _));
   EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
-                                              &remote_track_visitor));
+                                              &remote_track_visitor,
+                                              MoqtSubscribeParameters()));
   MoqtMaxSubscribeId max_subscribe_id = {
       /*max_subscribe_id=*/kDefaultInitialMaxSubscribeId + 1,
   };
@@ -676,7 +683,8 @@ TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
-                                             &remote_track_visitor));
+                                             &remote_track_visitor,
+                                             MoqtSubscribeParameters()));
 }
 
 TEST_F(MoqtSessionTest, LowerMaxSubscribeIdIsAnError) {
@@ -715,7 +723,8 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
-                                 &remote_track_visitor);
+                                 &remote_track_visitor,
+                                 MoqtSubscribeParameters());
 
   MoqtSubscribeError error = {
       /*subscribe_id=*/0,
@@ -2354,7 +2363,8 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kFetch), _));
   EXPECT_TRUE(session_.JoiningFetch(FullTrackName("foo", "bar"),
-                                    &remote_track_visitor, 0));
+                                    &remote_track_visitor, 0,
+                                    MoqtSubscribeParameters()));
 
   EXPECT_CALL(remote_track_visitor, OnReply).Times(1);
   stream_input->OnSubscribeOkMessage(
@@ -2953,7 +2963,8 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
   EXPECT_CALL(mock_stream_, Writev).Times(0);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
-                                              &remote_track_visitor));
+                                              &remote_track_visitor,
+                                              MoqtSubscribeParameters()));
   EXPECT_FALSE(session_.SubscribeAnnounces(
       FullTrackName{"foo"}, +[](FullTrackName /*track_namespace*/,
                                 std::optional<SubscribeErrorCode> /*error*/,
@@ -2965,7 +2976,7 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
   EXPECT_FALSE(session_.Fetch(
       FullTrackName{"foo", "bar"},
       +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, FullSequence(0, 0),
-      5, std::nullopt, 127, std::nullopt));
+      5, std::nullopt, 127, std::nullopt, MoqtSubscribeParameters()));
   // Error on additional GOAWAY.
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
@@ -3009,7 +3020,8 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_CALL(mock_stream_, Writev).Times(0);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   EXPECT_FALSE(session_.SubscribeCurrentGroup(FullTrackName("foo", "bar"),
-                                              &remote_track_visitor));
+                                              &remote_track_visitor,
+                                              MoqtSubscribeParameters()));
   EXPECT_FALSE(session_.SubscribeAnnounces(
       FullTrackName{"foo"}, +[](FullTrackName /*track_namespace*/,
                                 std::optional<SubscribeErrorCode> /*error*/,
@@ -3021,7 +3033,7 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_FALSE(session_.Fetch(
       FullTrackName{"foo", "bar"},
       +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, FullSequence(0, 0),
-      5, std::nullopt, 127, std::nullopt));
+      5, std::nullopt, 127, std::nullopt, MoqtSubscribeParameters()));
   session_.GoAway("");
   // GoAway timer fires.
   auto* goaway_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
@@ -3077,7 +3089,8 @@ TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithOpenStreams) {
   EXPECT_CALL(control_stream,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
-                                              &remote_track_visitor));
+                                              &remote_track_visitor,
+                                              MoqtSubscribeParameters()));
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/0,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
@@ -3134,7 +3147,8 @@ TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithClosedStreams) {
   EXPECT_CALL(control_stream,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
-                                              &remote_track_visitor));
+                                              &remote_track_visitor,
+                                              MoqtSubscribeParameters()));
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/0,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
@@ -3188,7 +3202,8 @@ TEST_F(MoqtSessionTest, SubscribeDoneTimeout) {
   EXPECT_CALL(control_stream,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
-                                              &remote_track_visitor));
+                                              &remote_track_visitor,
+                                              MoqtSubscribeParameters()));
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/0,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),

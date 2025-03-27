@@ -1544,6 +1544,8 @@ moqt_hdrs = [
     "quic/moqt/moqt_probe_manager.h",
     "quic/moqt/moqt_publisher.h",
     "quic/moqt/moqt_session.h",
+    "quic/moqt/moqt_session_callbacks.h",
+    "quic/moqt/moqt_session_interface.h",
     "quic/moqt/moqt_subscribe_windows.h",
     "quic/moqt/moqt_track.h",
     "quic/moqt/test_tools/moqt_framer_utils.h",
