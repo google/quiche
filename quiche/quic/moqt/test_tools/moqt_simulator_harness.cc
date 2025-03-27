@@ -5,6 +5,7 @@
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -13,12 +14,15 @@
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_alarm_factory_proxy.h"
 #include "quiche/quic/core/quic_generic_session.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/test_harness.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace moqt::test {
 
@@ -81,6 +85,30 @@ MoqtServerEndpoint::MoqtServerEndpoint(quic::simulator::Simulator* simulator,
                    simulator->GetAlarmFactory()),
                CreateCallbacks(simulator)) {
   quic_session_.Initialize();
+}
+
+void RunHandshakeOrDie(quic::simulator::Simulator& simulator,
+                       MoqtClientEndpoint& client, MoqtServerEndpoint& server,
+                       std::optional<quic::QuicTimeDelta> timeout) {
+  constexpr quic::QuicTimeDelta kDefaultTimeout =
+      quic::QuicTimeDelta::FromSeconds(3);
+  bool client_established = false;
+  bool server_established = false;
+
+  // Retaining pointers to local variables is safe here, since if the handshake
+  // succeeds, both callbacks are executed and deleted, and if either fails, the
+  // program crashes.
+  client.session()->callbacks().session_established_callback =
+      [&client_established] { client_established = true; };
+  server.session()->callbacks().session_established_callback =
+      [&server_established] { server_established = true; };
+
+  client.quic_session()->CryptoConnect();
+  simulator.RunUntilOrTimeout(
+      [&]() { return client_established && server_established; },
+      timeout.value_or(kDefaultTimeout));
+  QUICHE_CHECK(client_established) << "Client failed to establish session";
+  QUICHE_CHECK(server_established) << "Server failed to establish session";
 }
 
 }  // namespace moqt::test

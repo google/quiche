@@ -5,12 +5,14 @@
 #ifndef QUICHE_QUIC_MOQT_TEST_TOOLS_MOQT_SIMULATOR_HARNESS_H_
 #define QUICHE_QUIC_MOQT_TEST_TOOLS_MOQT_SIMULATOR_HARNESS_H_
 
+#include <optional>
 #include <string>
 
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/quic_generic_session.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
@@ -50,6 +52,13 @@ class MoqtServerEndpoint : public quic::simulator::QuicEndpointWithConnection {
   quic::QuicGenericServerSession quic_session_;
   MoqtSession session_;
 };
+
+// Runs the handshake for MoQT, crashes if the handshake fails.  Overrides
+// the pre-existing session_initalized_callback of both sessions.
+void RunHandshakeOrDie(
+    quic::simulator::Simulator& simulator, MoqtClientEndpoint& client,
+    MoqtServerEndpoint& server,
+    std::optional<quic::QuicTimeDelta> timeout = std::nullopt);
 
 }  // namespace moqt::test
 

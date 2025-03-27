@@ -61,16 +61,7 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
     test_harness_.WireUpEndpointsWithLoss(lose_every_n);
   }
   void ConnectEndpoints() {
-    client_->quic_session()->CryptoConnect();
-    bool client_established = false;
-    bool server_established = false;
-    EXPECT_CALL(client_callbacks_.session_established_callback, Call())
-        .WillOnce(Assign(&client_established, true));
-    EXPECT_CALL(server_callbacks_.session_established_callback, Call())
-        .WillOnce(Assign(&server_established, true));
-    bool success = test_harness_.RunUntilWithDefaultTimeout(
-        [&]() { return client_established && server_established; });
-    QUICHE_CHECK(success);
+    RunHandshakeOrDie(test_harness_.simulator(), *client_, *server_);
   }
 
   void EstablishSession() {
