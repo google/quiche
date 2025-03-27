@@ -78,12 +78,6 @@ class MockMoqtSession : public MoqtSessionInterface {
                MoqtSubscribeParameters parameters),
               (override));
 
-  [[deprecated]] bool SubscribeCurrentGroup(
-      const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
-      MoqtSubscribeParameters parameters) override {
-    QUICHE_LOG(FATAL) << "Don't call this";
-  }
-
  private:
   class LoopbackObjectListener;
 

@@ -15,13 +15,6 @@
 
 namespace moqt {
 
-bool SubscribeWindow::InWindow(const FullSequence& seq) const {
-  if (seq < start_) {
-    return false;
-  }
-  return (!end_.has_value() || seq <= *end_);
-}
-
 ReducedSequenceIndex::ReducedSequenceIndex(
     FullSequence sequence, MoqtForwardingPreference preference) {
   switch (preference) {
@@ -77,17 +70,27 @@ void SendStreamMap::RemoveStream(FullSequence sequence,
   group_it->second.erase(subgroup_it);
 }
 
-bool SubscribeWindow::UpdateStartEnd(FullSequence start,
-                                     std::optional<FullSequence> end) {
-  // Can't make the subscription window bigger.
-  if (!InWindow(start)) {
-    return false;
-  }
-  if (end_.has_value() && (!end.has_value() || *end_ < *end)) {
+bool SubscribeWindow::TruncateStart(FullSequence start) {
+  if (start < start_) {
     return false;
   }
   start_ = start;
-  end_ = end;
+  return true;
+}
+
+bool SubscribeWindow::TruncateEnd(uint64_t end_group) {
+  if (end_group > end_.group) {
+    return false;
+  }
+  end_ = FullSequence(end_group, UINT64_MAX);
+  return true;
+}
+
+bool SubscribeWindow::TruncateEnd(FullSequence largest_id) {
+  if (largest_id > end_) {
+    return false;
+  }
+  end_ = largest_id;
   return true;
 }
 

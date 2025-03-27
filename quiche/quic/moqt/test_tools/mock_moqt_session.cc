@@ -128,24 +128,26 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
         .WillByDefault([this](const FullTrackName& name,
                               SubscribeRemoteTrack::Visitor* visitor,
                               MoqtSubscribeParameters) {
-          return Subscribe(name, visitor, SubscribeWindow(0, 0));
+          return Subscribe(name, visitor, SubscribeWindow());
         });
     ON_CALL(*this, SubscribeAbsolute(_, _, _, _, _))
         .WillByDefault([this](const FullTrackName& name, uint64_t start_group,
                               uint64_t start_object,
                               SubscribeRemoteTrack::Visitor* visitor,
                               MoqtSubscribeParameters) {
-          return Subscribe(name, visitor,
-                           SubscribeWindow(start_group, start_object));
+          return Subscribe(
+              name, visitor,
+              SubscribeWindow(FullSequence(start_group, start_object)));
         });
     ON_CALL(*this, SubscribeAbsolute(_, _, _, _, _, _))
         .WillByDefault([this](const FullTrackName& name, uint64_t start_group,
                               uint64_t start_object, uint64_t end_group,
                               SubscribeRemoteTrack::Visitor* visitor,
                               MoqtSubscribeParameters) {
-          return Subscribe(name, visitor,
-                           SubscribeWindow(start_group, start_object, end_group,
-                                           UINT64_MAX));
+          return Subscribe(
+              name, visitor,
+              SubscribeWindow(FullSequence(start_group, start_object),
+                              end_group));
         });
     ON_CALL(*this, Unsubscribe)
         .WillByDefault([this](const FullTrackName& name) {

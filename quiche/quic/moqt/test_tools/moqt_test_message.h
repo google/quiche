@@ -507,12 +507,8 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE group order mismatch";
       return false;
     }
-    if (cast.start_group != subscribe_.start_group) {
-      QUIC_LOG(INFO) << "SUBSCRIBE start group mismatch";
-      return false;
-    }
-    if (cast.start_object != subscribe_.start_object) {
-      QUIC_LOG(INFO) << "SUBSCRIBE start object mismatch";
+    if (cast.start != subscribe_.start) {
+      QUIC_LOG(INFO) << "SUBSCRIBE start mismatch";
       return false;
     }
     if (cast.end_group != subscribe_.end_group) {
@@ -557,8 +553,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*subscriber_priority=*/0x20,
       /*group_order=*/MoqtDeliveryOrder::kDescending,
-      /*start_group=*/4,
-      /*start_object=*/1,
+      /*start=*/FullSequence(4, 1),
       /*end_group=*/std::nullopt,
       /*parameters=*/
       MoqtSubscribeParameters{
@@ -778,11 +773,7 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE subscribe ID mismatch";
       return false;
     }
-    if (cast.start_group != subscribe_update_.start_group) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE start group mismatch";
-      return false;
-    }
-    if (cast.start_object != subscribe_update_.start_object) {
+    if (cast.start != subscribe_update_.start) {
       QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE start group mismatch";
       return false;
     }
@@ -818,8 +809,7 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
 
   MoqtSubscribeUpdate subscribe_update_ = {
       /*subscribe_id=*/2,
-      /*start_group=*/3,
-      /*start_object=*/1,
+      /*start=*/FullSequence(3, 1),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
       /*parameters=*/

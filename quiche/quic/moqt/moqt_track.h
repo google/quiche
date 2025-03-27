@@ -69,11 +69,12 @@ class RemoteTrack {
     return window_.InWindow(sequence);
   }
 
-  void ChangeWindow(SubscribeWindow& window) { window_ = window; }
-
   quiche::QuicheWeakPtr<RemoteTrack> weak_ptr() {
     return weak_ptr_factory_.Create();
   }
+
+ protected:
+  SubscribeWindow& window() { return window_; };
 
  private:
   const FullTrackName full_track_name_;
@@ -118,10 +119,8 @@ class SubscribeRemoteTrack : public RemoteTrack {
       const MoqtSubscribe& subscribe, Visitor* visitor,
       quic::QuicTimeDelta delivery_timeout = quic::QuicTimeDelta::Infinite())
       : RemoteTrack(subscribe.full_track_name, subscribe.subscribe_id,
-                    SubscribeWindow(subscribe.start_group.value_or(0),
-                                    subscribe.start_object.value_or(0),
-                                    subscribe.end_group.value_or(UINT64_MAX),
-                                    UINT64_MAX)),
+                    SubscribeWindow(subscribe.start.value_or(FullSequence()),
+                                    subscribe.end_group)),
         track_alias_(subscribe.track_alias),
         visitor_(visitor),
         delivery_timeout_(delivery_timeout),
@@ -152,6 +151,14 @@ class SubscribeRemoteTrack : public RemoteTrack {
     } else {
       return (is_datagram_ == is_datagram);
     }
+  }
+  // Called on SUBSCRIBE_OK or SUBSCRIBE_UPDATE.
+  bool TruncateStart(FullSequence start) {
+    return window().TruncateStart(start);
+  }
+  // Called on SUBSCRIBE_UPDATE.
+  bool TruncateEnd(uint64_t end_group) {
+    return window().TruncateEnd(end_group);
   }
   void OnStreamOpened();
   void OnStreamClosed();
@@ -215,14 +222,11 @@ using TaskDestroyedCallback = quiche::SingleUseCallback<void()>;
 class UpstreamFetch : public RemoteTrack {
  public:
   UpstreamFetch(const MoqtFetch& fetch, FetchResponseCallback callback)
-      : RemoteTrack(
-            fetch.full_track_name, fetch.fetch_id,
-            fetch.joining_fetch.has_value()
-                ? SubscribeWindow(0, 0)
-                : SubscribeWindow(
-                      fetch.start_object,
-                      FullSequence(fetch.end_group,
-                                   fetch.end_object.value_or(UINT64_MAX)))),
+      : RemoteTrack(fetch.full_track_name, fetch.fetch_id,
+                    fetch.joining_fetch.has_value()
+                        ? SubscribeWindow(FullSequence(0, 0))
+                        : SubscribeWindow(fetch.start_object, fetch.end_group,
+                                          fetch.end_object)),
         ok_callback_(std::move(callback)) {
     // Immediately set the data stream type.
     CheckDataStreamType(MoqtDataStreamType::kStreamHeaderFetch);

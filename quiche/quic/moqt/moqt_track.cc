@@ -125,6 +125,7 @@ void UpstreamFetch::OnFetchResult(FullSequence largest_id, absl::Status status,
   auto task = std::make_unique<UpstreamFetchTask>(largest_id, status,
                                                   std::move(callback));
   task_ = task->weak_ptr();
+  window().TruncateEnd(largest_id);
   std::move(ok_callback_)(std::move(task));
   if (can_read_callback_) {
     task_.GetIfAvailable()->set_can_read_callback(

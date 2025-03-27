@@ -887,27 +887,6 @@ TEST_F(MoqtMessageSpecificTest, UnknownMessageType) {
   EXPECT_EQ(*visitor_.parsing_error_, "Unknown message type");
 }
 
-TEST_F(MoqtMessageSpecificTest, LatestGroup) {
-  MoqtControlParser parser(kRawQuic, visitor_);
-  char subscribe[] = {
-      0x03, 0x15, 0x01, 0x02,        // id and alias
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x20, 0x02,                    // priority = 0x20 descending
-      0x01,                          // filter_type = kLatestGroup
-      0x01,                          // 1 parameter
-      0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
-  };
-  parser.ProcessData(absl::string_view(subscribe, sizeof(subscribe)), false);
-  EXPECT_EQ(visitor_.messages_received_, 1);
-  ASSERT_TRUE(visitor_.last_message_.has_value());
-  MoqtSubscribe message =
-      std::get<MoqtSubscribe>(visitor_.last_message_.value());
-  EXPECT_FALSE(message.start_group.has_value());
-  EXPECT_EQ(message.start_object, 0);
-  EXPECT_FALSE(message.end_group.has_value());
-}
-
 TEST_F(MoqtMessageSpecificTest, LatestObject) {
   MoqtControlParser parser(kRawQuic, visitor_);
   char subscribe[] = {
@@ -924,8 +903,7 @@ TEST_F(MoqtMessageSpecificTest, LatestObject) {
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
   MoqtSubscribe message =
       std::get<MoqtSubscribe>(visitor_.last_message_.value());
-  EXPECT_FALSE(message.start_group.has_value());
-  EXPECT_FALSE(message.start_object.has_value());
+  EXPECT_FALSE(message.start.has_value());
   EXPECT_FALSE(message.end_group.has_value());
 }
 
@@ -963,8 +941,8 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteStart) {
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
   MoqtSubscribe message =
       std::get<MoqtSubscribe>(visitor_.last_message_.value());
-  EXPECT_EQ(message.start_group.value(), 4);
-  EXPECT_EQ(message.start_object.value(), 1);
+  EXPECT_TRUE(message.start.has_value() && message.start->group == 4);
+  EXPECT_TRUE(message.start.has_value() && message.start->object == 1);
   EXPECT_FALSE(message.end_group.has_value());
 }
 
@@ -987,8 +965,8 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRange) {
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
   MoqtSubscribe message =
       std::get<MoqtSubscribe>(visitor_.last_message_.value());
-  EXPECT_EQ(message.start_group.value(), 4);
-  EXPECT_EQ(message.start_object.value(), 1);
+  EXPECT_TRUE(message.start.has_value() && message.start->group == 4);
+  EXPECT_TRUE(message.start.has_value() && message.start->object == 1);
   EXPECT_EQ(message.end_group.value(), 7);
 }
 

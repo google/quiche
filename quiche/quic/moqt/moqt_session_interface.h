@@ -61,10 +61,6 @@ class MoqtSessionInterface {
   virtual bool SubscribeCurrentObject(const FullTrackName& name,
                                       SubscribeRemoteTrack::Visitor* visitor,
                                       MoqtSubscribeParameters parameters) = 0;
-  // TODO(vasilvv): remove.
-  [[deprecated]] virtual bool SubscribeCurrentGroup(
-      const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
-      MoqtSubscribeParameters parameters) = 0;
 
   // Sends an UNSUBSCRIBE message and removes all of the state related to the
   // subscription.  Returns false if the subscription is not found.

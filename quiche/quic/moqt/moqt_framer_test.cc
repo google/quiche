@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
@@ -401,38 +402,35 @@ TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
 }
 
 TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
-  for (std::optional<uint64_t> start_group :
-       {std::optional<uint64_t>(), std::optional<uint64_t>(4)}) {
-    for (std::optional<uint64_t> start_object :
-         {std::optional<uint64_t>(), std::optional<uint64_t>(0)}) {
-      for (std::optional<uint64_t> end_group :
-           {std::optional<uint64_t>(), std::optional<uint64_t>(7)}) {
-        MoqtSubscribe subscribe = {
-            /*subscribe_id=*/3,
-            /*track_alias=*/4,
-            /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-            /*subscriber_priority=*/0x20,
-            /*group_order=*/std::nullopt,
-            start_group,
-            start_object,
-            end_group,
-            MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt,
-                                    std::nullopt},
-        };
-        quiche::QuicheBuffer buffer;
-        MoqtFilterType expected_filter_type = GetFilterType(subscribe);
-        if (expected_filter_type == MoqtFilterType::kNone) {
-          EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
-                          "Invalid object range");
-          EXPECT_EQ(buffer.size(), 0);
-          continue;
-        }
-        buffer = framer_.SerializeSubscribe(subscribe);
-        // Go to the filter type.
-        const uint8_t* read = BufferAtOffset(buffer, 16);
-        EXPECT_EQ(static_cast<MoqtFilterType>(*read), expected_filter_type);
-        EXPECT_GT(buffer.size(), 0);
+  for (std::optional<FullSequence> start :
+       {std::optional<FullSequence>(),
+        std::optional<FullSequence>(std::in_place, 4, 0)}) {
+    for (std::optional<uint64_t> end_group :
+         {std::optional<uint64_t>(), std::optional<uint64_t>(7)}) {
+      MoqtSubscribe subscribe = {
+          /*subscribe_id=*/3,
+          /*track_alias=*/4,
+          /*full_track_name=*/FullTrackName({"foo", "abcd"}),
+          /*subscriber_priority=*/0x20,
+          /*group_order=*/std::nullopt,
+          start,
+          end_group,
+          MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt,
+                                  std::nullopt},
+      };
+      quiche::QuicheBuffer buffer;
+      MoqtFilterType expected_filter_type = GetFilterType(subscribe);
+      if (expected_filter_type == MoqtFilterType::kNone) {
+        EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
+                        "Invalid object range");
+        EXPECT_EQ(buffer.size(), 0);
+        continue;
       }
+      buffer = framer_.SerializeSubscribe(subscribe);
+      // Go to the filter type.
+      const uint8_t* read = BufferAtOffset(buffer, 16);
+      EXPECT_EQ(static_cast<MoqtFilterType>(*read), expected_filter_type);
+      EXPECT_GT(buffer.size(), 0);
     }
   }
 }
@@ -444,9 +442,8 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
       /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*subscriber_priority=*/0x20,
       /*group_order=*/std::nullopt,
-      /*start_group=*/std::optional<uint64_t>(4),
-      /*start_object=*/std::optional<uint64_t>(3),
-      /*end_group=*/std::optional<uint64_t>(3),
+      /*start=*/FullSequence(4, 3),
+      /*end_group=*/3,
       MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt, std::nullopt},
   };
   quiche::QuicheBuffer buffer;
@@ -479,29 +476,10 @@ TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
   EXPECT_EQ(buffer.size(), 0);
 }
 
-TEST_F(MoqtFramerSimpleTest, SubscribeLatestGroupNonzeroObject) {
-  MoqtSubscribe subscribe = {
-      /*subscribe_id=*/3,
-      /*track_alias=*/4,
-      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-      /*subscriber_priority=*/0x20,
-      /*group_order=*/std::nullopt,
-      /*start_group=*/std::nullopt,
-      /*start_object=*/std::optional<uint64_t>(3),
-      /*end_group=*/std::nullopt,
-      MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt, std::nullopt},
-  };
-  quiche::QuicheBuffer buffer;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
-                  "Invalid object range");
-  EXPECT_EQ(buffer.size(), 0);
-}
-
 TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
   MoqtSubscribeUpdate subscribe_update = {
       /*subscribe_id=*/3,
-      /*start_group=*/4,
-      /*start_object=*/3,
+      /*start=*/FullSequence(4, 3),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
       MoqtSubscribeParameters{std::nullopt, std::nullopt, std::nullopt,
@@ -517,8 +495,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
 TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
   MoqtSubscribeUpdate subscribe_update = {
       /*subscribe_id=*/3,
-      /*start_group=*/4,
-      /*start_object=*/3,
+      /*start=*/FullSequence(4, 3),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
       MoqtSubscribeParameters{std::nullopt, std::nullopt, std::nullopt,

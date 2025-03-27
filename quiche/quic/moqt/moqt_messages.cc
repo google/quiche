@@ -30,22 +30,19 @@ MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
 }
 
 MoqtFilterType GetFilterType(const MoqtSubscribe& message) {
-  if (message.start_object.has_value()) {
-    if (message.start_group.has_value()) {
-      if (message.end_group.has_value()) {
-        return (*message.end_group >= *message.start_group)
-                   ? MoqtFilterType::kAbsoluteRange
-                   : MoqtFilterType::kNone;
+  if (message.start.has_value()) {
+    if (message.end_group.has_value()) {
+      if (*message.end_group < message.start->group) {
+        return MoqtFilterType::kNone;
       }
-      return MoqtFilterType::kAbsoluteStart;
+      return MoqtFilterType::kAbsoluteRange;
     }
-    return *message.start_object == 0 ? MoqtFilterType::kLatestGroup
-                                      : MoqtFilterType::kNone;
+    return MoqtFilterType::kAbsoluteStart;
   }
-  if (!message.start_group.has_value() && !message.end_group.has_value()) {
-    return MoqtFilterType::kLatestObject;
+  if (message.end_group.has_value()) {
+    return MoqtFilterType::kNone;  // End group without start is invalid.
   }
-  return MoqtFilterType::kNone;
+  return MoqtFilterType::kLatestObject;
 }
 
 std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {

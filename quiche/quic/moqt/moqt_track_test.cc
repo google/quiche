@@ -54,8 +54,7 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
       /*full_track_name=*/FullTrackName("foo", "bar"),
       /*subscriber_priority=*/128,
       /*group_order=*/std::nullopt,
-      /*ranges=*/2,
-      0,
+      /*start=*/FullSequence(2, 0),
       std::nullopt,
       MoqtSubscribeParameters(),
   };
@@ -86,9 +85,10 @@ TEST_F(SubscribeRemoteTrackTest, AllowError) {
 
 TEST_F(SubscribeRemoteTrackTest, Windows) {
   EXPECT_TRUE(track_.InWindow(FullSequence(2, 0)));
-  SubscribeWindow new_window(2, 1);
-  track_.ChangeWindow(new_window);
+  track_.TruncateStart(FullSequence(2, 1));
   EXPECT_FALSE(track_.InWindow(FullSequence(2, 0)));
+  track_.TruncateEnd(2);
+  EXPECT_FALSE(track_.InWindow(FullSequence(3, 0)));
 }
 
 class UpstreamFetchTest : public quic::test::QuicTest {

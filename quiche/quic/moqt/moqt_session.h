@@ -125,9 +125,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool SubscribeCurrentObject(const FullTrackName& name,
                               SubscribeRemoteTrack::Visitor* visitor,
                               MoqtSubscribeParameters parameters) override;
-  bool SubscribeCurrentGroup(const FullTrackName& name,
-                             SubscribeRemoteTrack::Visitor* visitor,
-                             MoqtSubscribeParameters parameters) override;
   // Returns false if the subscription is not found. The session immediately
   // destroys all subscription state.
   void Unsubscribe(const FullTrackName& name);
@@ -371,14 +368,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
           message.group_id, message.object_id, message.delta_from_deadline);
     }
 
-    // Creates streams for all objects that are currently in the track's object
-    // cache and match the subscription window.  This is in some sense similar
-    // to a fetch (since all of the objects are in the past), but is
-    // conceptually simpler, as backpressure is less of a concern.
-    void Backfill();
-
     // Updates the window and other properties of the subscription in question.
-    void Update(FullSequence start, std::optional<FullSequence> end,
+    void Update(FullSequence start, std::optional<uint64_t> end,
                 MoqtPriority subscriber_priority);
     // Checks if the specified sequence is within the window of this
     // subscription.

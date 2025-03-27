@@ -379,9 +379,6 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
   }
   MoqtFilterType filter_type = static_cast<MoqtFilterType>(filter);
   switch (filter_type) {
-    case MoqtFilterType::kLatestGroup:
-      subscribe_request.start_object = 0;
-      break;
     case MoqtFilterType::kLatestObject:
       break;
     case MoqtFilterType::kAbsoluteStart:
@@ -389,8 +386,7 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
       if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
         return 0;
       }
-      subscribe_request.start_group = group;
-      subscribe_request.start_object = object;
+      subscribe_request.start = FullSequence(group, object);
       if (filter_type == MoqtFilterType::kAbsoluteStart) {
         break;
       }
@@ -398,7 +394,7 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
         return 0;
       }
       subscribe_request.end_group = group;
-      if (subscribe_request.end_group < subscribe_request.start_group) {
+      if (*subscribe_request.end_group < subscribe_request.start->group) {
         ParseError("End group is less than start group");
         return 0;
       }
@@ -491,20 +487,20 @@ size_t MoqtControlParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
   MoqtSubscribeUpdate subscribe_update;
-  uint64_t end_group;
+  uint64_t start_group, start_object, end_group;
   if (!reader.ReadVarInt62(&subscribe_update.subscribe_id) ||
-      !reader.ReadVarInt62(&subscribe_update.start_group) ||
-      !reader.ReadVarInt62(&subscribe_update.start_object) ||
-      !reader.ReadVarInt62(&end_group) ||
+      !reader.ReadVarInt62(&start_group) ||
+      !reader.ReadVarInt62(&start_object) || !reader.ReadVarInt62(&end_group) ||
       !reader.ReadUInt8(&subscribe_update.subscriber_priority)) {
     return 0;
   }
   if (!ReadSubscribeParameters(reader, subscribe_update.parameters)) {
     return 0;
   }
+  subscribe_update.start = FullSequence(start_group, start_object);
   if (end_group > 0) {
     subscribe_update.end_group = end_group - 1;
-    if (subscribe_update.end_group < subscribe_update.start_group) {
+    if (subscribe_update.end_group < start_group) {
       ParseError("End group is less than start group");
       return 0;
     }

@@ -103,8 +103,7 @@ class MoqtSessionPeer {
     subscribe.full_track_name = publisher->GetTrackName();
     subscribe.track_alias = track_alias;
     subscribe.subscribe_id = subscribe_id;
-    subscribe.start_group = start_group;
-    subscribe.start_object = start_object;
+    subscribe.start = FullSequence(start_group, start_object);
     subscribe.subscriber_priority = 0x80;
     session->published_subscriptions_.emplace(
         subscribe_id, std::make_unique<MoqtSession::PublishedSubscription>(

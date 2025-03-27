@@ -69,7 +69,7 @@ std::optional<MoqtAnnounceErrorReason> ChatClient::OnIncomingAnnounce(
                  "do not subscribe\n";
     return std::nullopt;
   }
-  if (session_->SubscribeCurrentGroup(
+  if (session_->SubscribeCurrentObject(
           *track_name, &remote_track_visitor_,
           MoqtSubscribeParameters{std::string(GetUsername(my_track_name_)),
                                   std::nullopt, std::nullopt, std::nullopt})) {

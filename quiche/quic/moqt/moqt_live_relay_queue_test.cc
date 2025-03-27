@@ -64,7 +64,7 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
     }
   }
 
-  void CallSubscribeForPast(const SubscribeWindow& window) {
+  void GetObjectsFromPast(const SubscribeWindow& window) {
     std::vector<FullSequence> objects =
         GetCachedObjectsInRange(FullSequence(0, 0), GetLargestSequence());
     for (FullSequence object : objects) {
@@ -129,7 +129,7 @@ TEST(MoqtLiveRelayQueue, SingleGroupPastSubscribeFromZero) {
   EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
   EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
   EXPECT_TRUE(queue.AddObject(FullSequence{0, 2}, "c"));
-  queue.CallSubscribeForPast(SubscribeWindow(0, 0));
+  queue.GetObjectsFromPast(SubscribeWindow());
 }
 
 TEST(MoqtLiveRelayQueue, SingleGroupPastSubscribeFromMidGroup) {
@@ -146,7 +146,7 @@ TEST(MoqtLiveRelayQueue, SingleGroupPastSubscribeFromMidGroup) {
   EXPECT_TRUE(queue.AddObject(FullSequence{0, 0}, "a"));
   EXPECT_TRUE(queue.AddObject(FullSequence{0, 1}, "b"));
   EXPECT_TRUE(queue.AddObject(FullSequence{0, 2}, "c"));
-  queue.CallSubscribeForPast(SubscribeWindow(0, 1));
+  queue.GetObjectsFromPast(SubscribeWindow(FullSequence(0, 1)));
 }
 
 TEST(MoqtLiveRelayQueue, TwoGroups) {
@@ -198,7 +198,7 @@ TEST(MoqtLiveRelayQueue, TwoGroupsPastSubscribe) {
   EXPECT_TRUE(queue.AddObject(FullSequence{1, 0}, "d"));
   EXPECT_TRUE(queue.AddObject(FullSequence{1, 1}, "e"));
   EXPECT_TRUE(queue.AddObject(FullSequence{1, 2}, "f"));
-  queue.CallSubscribeForPast(SubscribeWindow(0, 1));
+  queue.GetObjectsFromPast(SubscribeWindow(FullSequence(0, 1)));
 }
 
 TEST(MoqtLiveRelayQueue, FiveGroups) {
@@ -292,7 +292,7 @@ TEST(MoqtLiveRelayQueue, FiveGroupsPastSubscribe) {
       queue.AddObject(FullSequence{3, 2}, MoqtObjectStatus::kEndOfGroup));
   EXPECT_TRUE(queue.AddObject(FullSequence{4, 0}, "i"));
   EXPECT_TRUE(queue.AddObject(FullSequence{4, 1}, "j"));
-  queue.CallSubscribeForPast(SubscribeWindow(0, 0));
+  queue.GetObjectsFromPast(SubscribeWindow());
 }
 
 TEST(MoqtLiveRelayQueue, FiveGroupsPastSubscribeFromMidGroup) {
@@ -447,7 +447,7 @@ TEST(MoqtLiveRelayQueue, DifferentSubgroups) {
   EXPECT_TRUE(queue.AddObject(FullSequence{0, 2, 7}, "f"));
   EXPECT_TRUE(queue.AddFin(FullSequence{0, 1, 5}));
   EXPECT_TRUE(queue.AddFin(FullSequence{0, 2, 7}));
-  queue.CallSubscribeForPast(SubscribeWindow(0, 0));
+  queue.GetObjectsFromPast(SubscribeWindow());
 }
 
 TEST(MoqtLiveRelayQueue, EndOfSubgroup) {

@@ -20,33 +20,39 @@ namespace moqt {
 // can be valid.
 class QUICHE_EXPORT SubscribeWindow {
  public:
-  // Creates a half-open window. |next_object| is the expected sequence number
-  // of the next published object on the track.
-  SubscribeWindow(uint64_t start_group, uint64_t start_object)
-      : SubscribeWindow(FullSequence(start_group, start_object), std::nullopt) {
+  // Creates a half-open window for SUBSCRIBES.
+  SubscribeWindow() = default;
+  SubscribeWindow(FullSequence start) : start_(start) {}
+
+  // Creates a closed window for SUBSCRIBE or FETCH with no end object;
+  SubscribeWindow(FullSequence start, std::optional<uint64_t> end_group)
+      : start_(start),
+        end_(FullSequence(end_group.value_or(UINT64_MAX), UINT64_MAX)) {}
+  // For FETCH with end object
+  SubscribeWindow(FullSequence start, uint64_t end_group,
+                  std::optional<uint64_t> end_object)
+      : start_(start),
+        end_(FullSequence(end_group, end_object.value_or(UINT64_MAX))) {}
+
+  bool InWindow(const FullSequence& seq) const {
+    return start_ <= seq && seq <= end_;
   }
-
-  // Creates a closed window.
-  SubscribeWindow(uint64_t start_group, uint64_t start_object,
-                  uint64_t end_group, uint64_t end_object)
-      : SubscribeWindow(FullSequence(start_group, start_object),
-                        FullSequence(end_group, end_object)) {}
-
-  SubscribeWindow(FullSequence start, std::optional<FullSequence> end)
-      : start_(start), end_(end) {}
-
-  bool InWindow(const FullSequence& seq) const;
-  const std::optional<FullSequence>& end() const { return end_; }
   FullSequence start() const { return start_; }
+  FullSequence end() const { return end_; }
 
   // Updates the subscription window. Returns true if the update is valid (in
   // MoQT, subscription windows are only allowed to shrink, not to expand).
-  bool UpdateStartEnd(FullSequence start, std::optional<FullSequence> end);
+  // Called only as a result of SUBSCRIBE_OK (largest_id) or SUBSCRIBE_UPDATE.
+  bool TruncateStart(FullSequence start);
+  // Called only as a result of SUBSCRIBE_UPDATE.
+  bool TruncateEnd(uint64_t end_group);
+  // Called only as a result of FETCH_OK (largest_id)
+  bool TruncateEnd(FullSequence largest_id);
 
  private:
   // The subgroups in these sequences have no meaning.
-  FullSequence start_;
-  std::optional<FullSequence> end_;
+  FullSequence start_ = FullSequence();
+  FullSequence end_ = FullSequence(UINT64_MAX, UINT64_MAX);
 };
 
 // ReducedSequenceIndex represents an index object such that if two sequence

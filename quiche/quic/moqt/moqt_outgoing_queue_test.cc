@@ -59,7 +59,7 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
     }
   }
 
-  void CallSubscribeForPast(const SubscribeWindow& window) {
+  void GetObjectsFromPast(const SubscribeWindow& window) {
     std::vector<FullSequence> objects =
         GetCachedObjectsInRange(FullSequence(0, 0), GetLargestSequence());
     for (FullSequence object : objects) {
@@ -146,7 +146,7 @@ TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromZero) {
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
   queue.AddObject(MemSliceFromString("c"), false);
-  queue.CallSubscribeForPast(SubscribeWindow(0, 0));
+  queue.GetObjectsFromPast(SubscribeWindow(FullSequence(0, 0)));
 }
 
 TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromMidGroup) {
@@ -163,7 +163,7 @@ TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromMidGroup) {
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
   queue.AddObject(MemSliceFromString("c"), false);
-  queue.CallSubscribeForPast(SubscribeWindow(0, 1));
+  queue.GetObjectsFromPast(SubscribeWindow(FullSequence(0, 1)));
 }
 
 TEST(MoqtOutgoingQueue, TwoGroups) {
@@ -211,7 +211,7 @@ TEST(MoqtOutgoingQueue, TwoGroupsPastSubscribe) {
   queue.AddObject(MemSliceFromString("d"), true);
   queue.AddObject(MemSliceFromString("e"), false);
   queue.AddObject(MemSliceFromString("f"), false);
-  queue.CallSubscribeForPast(SubscribeWindow(0, 1));
+  queue.GetObjectsFromPast(SubscribeWindow(FullSequence(0, 1)));
 }
 
 TEST(MoqtOutgoingQueue, FiveGroups) {
@@ -284,7 +284,7 @@ TEST(MoqtOutgoingQueue, FiveGroupsPastSubscribe) {
   queue.AddObject(MemSliceFromString("h"), false);
   queue.AddObject(MemSliceFromString("i"), true);
   queue.AddObject(MemSliceFromString("j"), false);
-  queue.CallSubscribeForPast(SubscribeWindow(0, 0));
+  queue.GetObjectsFromPast(SubscribeWindow(FullSequence(0, 0)));
 }
 
 TEST(MoqtOutgoingQueue, Fetch) {

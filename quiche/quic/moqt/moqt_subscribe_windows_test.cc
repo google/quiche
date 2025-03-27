@@ -22,14 +22,13 @@ class QUICHE_EXPORT SubscribeWindowTest : public quic::test::QuicTest {
 
   const uint64_t subscribe_id_ = 2;
   const FullSequence start_{4, 0};
-  const FullSequence end_{5, 5};
+  const uint64_t end_ = 5;
 };
 
 TEST_F(SubscribeWindowTest, Queries) {
   SubscribeWindow window(start_, end_);
   EXPECT_TRUE(window.InWindow(FullSequence(4, 0)));
-  EXPECT_TRUE(window.InWindow(FullSequence(5, 5)));
-  EXPECT_FALSE(window.InWindow(FullSequence(5, 6)));
+  EXPECT_TRUE(window.InWindow(FullSequence(5, UINT64_MAX)));
   EXPECT_FALSE(window.InWindow(FullSequence(6, 0)));
   EXPECT_FALSE(window.InWindow(FullSequence(3, 12)));
 }
@@ -49,20 +48,17 @@ TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdSubgroup) {
 
 TEST_F(SubscribeWindowTest, UpdateStartEnd) {
   SubscribeWindow window(start_, end_);
-  EXPECT_TRUE(window.UpdateStartEnd(start_.next(),
-                                    FullSequence(end_.group, end_.object - 1)));
-  EXPECT_FALSE(window.InWindow(FullSequence(start_.group, start_.object)));
-  EXPECT_FALSE(window.InWindow(FullSequence(end_.group, end_.object)));
-  EXPECT_FALSE(
-      window.UpdateStartEnd(start_, FullSequence(end_.group, end_.object - 1)));
-  EXPECT_FALSE(window.UpdateStartEnd(start_.next(), end_));
-}
-
-TEST_F(SubscribeWindowTest, UpdateStartEndOpenEnded) {
-  SubscribeWindow window(start_, std::nullopt);
-  EXPECT_TRUE(window.UpdateStartEnd(start_, end_));
-  EXPECT_FALSE(window.InWindow(end_.next()));
-  EXPECT_FALSE(window.UpdateStartEnd(start_, std::nullopt));
+  EXPECT_TRUE(window.TruncateStart(start_.next()));
+  EXPECT_TRUE(window.TruncateEnd(end_ - 1));
+  EXPECT_FALSE(window.InWindow(start_));
+  EXPECT_FALSE(window.InWindow(FullSequence(end_, 0)));
+  // Widens start_ again.
+  EXPECT_FALSE(window.TruncateStart(start_));
+  // Widens end_ again.
+  EXPECT_FALSE(window.TruncateEnd(end_));
+  EXPECT_TRUE(window.TruncateEnd(FullSequence(end_ - 1, 10)));
+  EXPECT_TRUE(window.InWindow(FullSequence(end_ - 1, 10)));
+  EXPECT_FALSE(window.InWindow(FullSequence(end_ - 1, 11)));
 }
 
 }  // namespace test

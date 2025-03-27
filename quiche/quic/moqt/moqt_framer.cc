@@ -440,7 +440,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
     return quiche::QuicheBuffer();
   }
   switch (filter_type) {
-    case MoqtFilterType::kLatestGroup:
     case MoqtFilterType::kLatestObject:
       return SerializeControlMessage(
           MoqtMessageType::kSubscribe, WireVarInt62(message.subscribe_id),
@@ -456,8 +455,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
           WireFullTrackName(message.full_track_name, true),
           WireUint8(message.subscriber_priority),
           WireDeliveryOrder(message.group_order), WireVarInt62(filter_type),
-          WireVarInt62(*message.start_group),
-          WireVarInt62(*message.start_object),
+          WireVarInt62(message.start->group),
+          WireVarInt62(message.start->object),
           WireSubscribeParameterList(message.parameters));
     case MoqtFilterType::kAbsoluteRange:
       return SerializeControlMessage(
@@ -466,8 +465,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
           WireFullTrackName(message.full_track_name, true),
           WireUint8(message.subscriber_priority),
           WireDeliveryOrder(message.group_order), WireVarInt62(filter_type),
-          WireVarInt62(*message.start_group),
-          WireVarInt62(*message.start_object), WireVarInt62(*message.end_group),
+          WireVarInt62(message.start->group),
+          WireVarInt62(message.start->object), WireVarInt62(*message.end_group),
           WireSubscribeParameterList(message.parameters));
     default:
       QUICHE_BUG(MoqtFramer_end_group_missing) << "Subscribe framing error.";
@@ -530,7 +529,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(
       message.end_group.has_value() ? *message.end_group + 1 : 0;
   return SerializeControlMessage(
       MoqtMessageType::kSubscribeUpdate, WireVarInt62(message.subscribe_id),
-      WireVarInt62(message.start_group), WireVarInt62(message.start_object),
+      WireVarInt62(message.start.group), WireVarInt62(message.start.object),
       WireVarInt62(end_group), WireUint8(message.subscriber_priority),
       WireSubscribeParameterList(message.parameters));
 }

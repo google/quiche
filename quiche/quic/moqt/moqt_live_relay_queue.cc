@@ -241,7 +241,7 @@ std::optional<PublishedObject> MoqtLiveRelayQueue::GetCachedObject(
 std::vector<FullSequence> MoqtLiveRelayQueue::GetCachedObjectsInRange(
     FullSequence start, FullSequence end) const {
   std::vector<FullSequence> sequences;
-  SubscribeWindow window(start, end);
+  SubscribeWindow window(start, end.group, end.object);
   for (auto& group_it : queue_) {
     if (group_it.first < start.group) {
       continue;

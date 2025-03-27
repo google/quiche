@@ -89,7 +89,7 @@ std::optional<PublishedObject> MoqtOutgoingQueue::GetCachedObject(
 std::vector<FullSequence> MoqtOutgoingQueue::GetCachedObjectsInRange(
     FullSequence start, FullSequence end) const {
   std::vector<FullSequence> sequences;
-  SubscribeWindow window(start, end);
+  SubscribeWindow window(start, end.group, end.object);
   for (const Group& group : queue_) {
     for (const CachedObject& object : group) {
       if (window.InWindow(object.sequence)) {
