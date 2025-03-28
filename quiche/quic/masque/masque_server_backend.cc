@@ -57,7 +57,6 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
     return false;
   }
   absl::string_view method = method_pair->second;
-  std::string masque_path = "";
   auto protocol_pair = request_headers.find(":protocol");
   if (method != "CONNECT" || protocol_pair == request_headers.end() ||
       (protocol_pair->second != "connect-udp" &&
@@ -84,7 +83,8 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
 
   auto it = backend_client_states_.find(request_handler->connection_id());
   if (it == backend_client_states_.end()) {
-    QUIC_LOG(ERROR) << "Could not find backend client for " << masque_path
+    QUIC_LOG(ERROR) << "Could not find backend client for "
+                    << request_handler->connection_id()
                     << request_headers.DebugString();
     return false;
   }
@@ -95,11 +95,13 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
       backend_client->HandleMasqueRequest(request_headers, request_handler);
   if (response == nullptr) {
     QUIC_LOG(ERROR) << "Backend client did not process request for "
-                    << masque_path << request_headers.DebugString();
+                    << request_handler->connection_id()
+                    << request_headers.DebugString();
     return false;
   }
 
   QUIC_DLOG(INFO) << "Sending MASQUE response for "
+                  << request_handler->connection_id()
                   << request_headers.DebugString();
 
   request_handler->OnResponseBackendComplete(response.get());
