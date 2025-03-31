@@ -40,6 +40,8 @@ class QuicConnectionAlarmsPeer {
 class QuicTestAlarmProxy : public QuicAlarmProxy {
  public:
   explicit QuicTestAlarmProxy(QuicAlarmProxy proxy) : QuicAlarmProxy(proxy) {}
+  QuicTestAlarmProxy(QuicAlarmMultiplexer* multiplexer, QuicAlarmSlot slot)
+      : QuicAlarmProxy(multiplexer, slot) {}
 
   void Fire() { QuicConnectionAlarmsPeer::Fire(*this); }
 

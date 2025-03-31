@@ -2170,44 +2170,31 @@ class QUICHE_EXPORT QuicConnection
 
   void GenerateNewOutgoingFlowLabel();
 
-  QuicAlarmProxy ack_alarm() { return alarms_.ack_alarm(); }
-  QuicAlarmProxy retransmission_alarm() {
-    return alarms_.retransmission_alarm();
+  QuicAlarmProxy ack_alarm() {
+    return QuicAlarmProxy(&alarms_, QuicAlarmSlot::kAck);
   }
-  QuicAlarmProxy send_alarm() { return alarms_.send_alarm(); }
-  QuicAlarmProxy mtu_discovery_alarm() { return alarms_.mtu_discovery_alarm(); }
+  QuicAlarmProxy retransmission_alarm() {
+    return QuicAlarmProxy(&alarms_, QuicAlarmSlot::kRetransmission);
+  }
+  QuicAlarmProxy send_alarm() {
+    return QuicAlarmProxy(&alarms_, QuicAlarmSlot::kSend);
+  }
+  QuicAlarmProxy mtu_discovery_alarm() {
+    return QuicAlarmProxy(&alarms_, QuicAlarmSlot::kMtuDiscovery);
+  }
   QuicAlarmProxy process_undecryptable_packets_alarm() {
-    return alarms_.process_undecryptable_packets_alarm();
+    return QuicAlarmProxy(&alarms_,
+                          QuicAlarmSlot::kProcessUndecryptablePackets);
   }
   QuicAlarmProxy discard_previous_one_rtt_keys_alarm() {
-    return alarms_.discard_previous_one_rtt_keys_alarm();
+    return QuicAlarmProxy(&alarms_, QuicAlarmSlot::kDiscardPreviousOneRttKeys);
   }
   QuicAlarmProxy discard_zero_rtt_decryption_keys_alarm() {
-    return alarms_.discard_zero_rtt_decryption_keys_alarm();
+    return QuicAlarmProxy(&alarms_,
+                          QuicAlarmSlot::kDiscardZeroRttDecryptionKeys);
   }
   QuicAlarmProxy multi_port_probing_alarm() {
-    return alarms_.multi_port_probing_alarm();
-  }
-
-  QuicConstAlarmProxy ack_alarm() const { return alarms_.ack_alarm(); }
-  QuicConstAlarmProxy retransmission_alarm() const {
-    return alarms_.retransmission_alarm();
-  }
-  QuicConstAlarmProxy send_alarm() const { return alarms_.send_alarm(); }
-  QuicConstAlarmProxy mtu_discovery_alarm() const {
-    return alarms_.mtu_discovery_alarm();
-  }
-  QuicConstAlarmProxy process_undecryptable_packets_alarm() const {
-    return alarms_.process_undecryptable_packets_alarm();
-  }
-  QuicConstAlarmProxy discard_previous_one_rtt_keys_alarm() const {
-    return alarms_.discard_previous_one_rtt_keys_alarm();
-  }
-  QuicConstAlarmProxy discard_zero_rtt_decryption_keys_alarm() const {
-    return alarms_.discard_zero_rtt_decryption_keys_alarm();
-  }
-  QuicConstAlarmProxy multi_port_probing_alarm() const {
-    return alarms_.multi_port_probing_alarm();
+    return QuicAlarmProxy(&alarms_, QuicAlarmSlot::kMultiPortProbing);
   }
 
   QuicConnectionContext context_;
@@ -2337,7 +2324,7 @@ class QUICHE_EXPORT QuicConnection
   QuicConnectionArena arena_;
 
   // Alarms used by the connection.
-  QuicConnectionAlarms alarms_;
+  QuicAlarmMultiplexer alarms_;
 
   // Neither visitor is owned by this class.
   QuicConnectionVisitorInterface* visitor_;

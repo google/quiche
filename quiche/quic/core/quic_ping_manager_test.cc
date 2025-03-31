@@ -16,10 +16,6 @@ namespace test {
 
 class QuicPingManagerPeer {
  public:
-  static QuicAlarmProxy GetAlarm(QuicPingManager* manager) {
-    return manager->alarm_;
-  }
-
   static void SetPerspective(QuicPingManager* manager,
                              Perspective perspective) {
     manager->perspective_ = perspective;
@@ -40,9 +36,9 @@ class MockDelegate : public QuicPingManager::Delegate {
 class QuicPingManagerTest : public QuicTest {
  public:
   QuicPingManagerTest()
-      : alarms_(&connection_alarms_delegate_, alarm_factory_, arena_),
-        manager_(Perspective::IS_CLIENT, &delegate_, alarms_.ping_alarm()),
-        alarm_(QuicPingManagerPeer::GetAlarm(&manager_)) {
+      : alarms_(&connection_alarms_delegate_, arena_, alarm_factory_),
+        alarm_(&alarms_, QuicAlarmSlot::kPing),
+        manager_(Perspective::IS_CLIENT, &delegate_, alarm_) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     ON_CALL(connection_alarms_delegate_, OnPingAlarm()).WillByDefault([&] {
       manager_.OnAlarm();
@@ -55,9 +51,9 @@ class QuicPingManagerTest : public QuicTest {
   MockClock clock_;
   QuicConnectionArena arena_;
   MockAlarmFactory alarm_factory_;
-  QuicConnectionAlarms alarms_;
-  QuicPingManager manager_;
+  QuicAlarmMultiplexer alarms_;
   QuicTestAlarmProxy alarm_;
+  QuicPingManager manager_;
 };
 
 TEST_F(QuicPingManagerTest, KeepAliveTimeout) {

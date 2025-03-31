@@ -20,7 +20,6 @@
 #include "quiche/quic/core/quic_connection_context.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -399,42 +398,4 @@ void QuicAlarmMultiplexer::CancelAllAlarms() {
   later_alarm_->PermanentCancel();
 }
 
-QuicConnectionAlarmHolder::QuicConnectionAlarmHolder(
-    QuicConnectionAlarmsDelegate* delegate, QuicAlarmFactory& alarm_factory,
-    QuicConnectionArena& arena)
-    : ack_alarm_(alarm_factory.CreateAlarm(
-          arena.New<AckAlarmDelegate>(delegate), &arena)),
-      retransmission_alarm_(alarm_factory.CreateAlarm(
-          arena.New<RetransmissionAlarmDelegate>(delegate), &arena)),
-      send_alarm_(alarm_factory.CreateAlarm(
-          arena.New<SendAlarmDelegate>(delegate), &arena)),
-      mtu_discovery_alarm_(alarm_factory.CreateAlarm(
-          arena.New<MtuDiscoveryAlarmDelegate>(delegate), &arena)),
-      process_undecryptable_packets_alarm_(alarm_factory.CreateAlarm(
-          arena.New<ProcessUndecryptablePacketsAlarmDelegate>(delegate),
-          &arena)),
-      discard_previous_one_rtt_keys_alarm_(alarm_factory.CreateAlarm(
-          arena.New<DiscardPreviousOneRttKeysAlarmDelegate>(delegate), &arena)),
-      discard_zero_rtt_decryption_keys_alarm_(alarm_factory.CreateAlarm(
-          arena.New<DiscardZeroRttDecryptionKeysAlarmDelegate>(delegate),
-          &arena)),
-      multi_port_probing_alarm_(alarm_factory.CreateAlarm(
-          arena.New<MultiPortProbingAlarmDelegate>(delegate), &arena)),
-      idle_network_detector_alarm_(alarm_factory.CreateAlarm(
-          arena.New<IdleDetectorAlarmDelegate>(delegate), &arena)),
-      network_blackhole_detector_alarm_(alarm_factory.CreateAlarm(
-          arena.New<NetworkBlackholeDetectorAlarmDelegate>(delegate), &arena)),
-      ping_alarm_(alarm_factory.CreateAlarm(
-          arena.New<PingAlarmDelegate>(delegate), &arena)) {}
-
-QuicConnectionAlarms::QuicConnectionAlarms(
-    QuicConnectionAlarmsDelegate* delegate, QuicAlarmFactory& alarm_factory,
-    QuicConnectionArena& arena)
-    : use_multiplexer_(GetQuicReloadableFlag(quic_use_alarm_multiplexer)) {
-  if (use_multiplexer_) {
-    multiplexer_.emplace(delegate, arena, alarm_factory);
-  } else {
-    holder_.emplace(delegate, alarm_factory, arena);
-  }
-}
 }  // namespace quic

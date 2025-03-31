@@ -36,9 +36,9 @@ const size_t kBlackholeDelayInSeconds = 10;
 class QuicNetworkBlackholeDetectorTest : public QuicTest {
  public:
   QuicNetworkBlackholeDetectorTest()
-      : alarms_(&connection_alarms_delegate_, alarm_factory_, arena_),
-        detector_(&delegate_, alarms_.network_blackhole_detector_alarm()),
-        alarm_(QuicNetworkBlackholeDetectorPeer::GetAlarm(&detector_)),
+      : alarms_(&connection_alarms_delegate_, arena_, alarm_factory_),
+        alarm_(&alarms_, QuicAlarmSlot::kNetworkBlackholeDetector),
+        detector_(&delegate_, alarm_),
         path_degrading_delay_(
             QuicTime::Delta::FromSeconds(kPathDegradingDelayInSeconds)),
         path_mtu_reduction_delay_(
@@ -61,11 +61,11 @@ class QuicNetworkBlackholeDetectorTest : public QuicTest {
   MockConnectionAlarmsDelegate connection_alarms_delegate_;
   QuicConnectionArena arena_;
   MockAlarmFactory alarm_factory_;
-  QuicConnectionAlarms alarms_;
+  QuicAlarmMultiplexer alarms_;
+  QuicTestAlarmProxy alarm_;
 
   QuicNetworkBlackholeDetector detector_;
 
-  QuicTestAlarmProxy alarm_;
   MockClock clock_;
   const QuicTime::Delta path_degrading_delay_;
   const QuicTime::Delta path_mtu_reduction_delay_;

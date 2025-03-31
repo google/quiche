@@ -38,6 +38,7 @@
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -188,7 +189,7 @@ QuicConnection::QuicConnection(
       pending_retransmission_alarm_(false),
       defer_send_in_response_to_packets_(false),
       arena_(),
-      alarms_(this, *alarm_factory_, arena_),
+      alarms_(this, arena_, *alarm_factory_),
       visitor_(nullptr),
       debug_visitor_(nullptr),
       packet_creator_(server_connection_id, &framer_, random_generator_, this),
@@ -214,12 +215,16 @@ QuicConnection::QuicConnection(
       processing_ack_frame_(false),
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
-      blackhole_detector_(this, alarms_.network_blackhole_detector_alarm()),
-      idle_network_detector_(this, clock_->ApproximateNow(),
-                             alarms_.idle_network_detector_alarm()),
+      blackhole_detector_(
+          this,
+          QuicAlarmProxy(&alarms_, QuicAlarmSlot::kNetworkBlackholeDetector)),
+      idle_network_detector_(
+          this, clock_->ApproximateNow(),
+          QuicAlarmProxy(&alarms_, QuicAlarmSlot::kIdleNetworkDetector)),
       path_validator_(alarm_factory_, &arena_, this, random_generator_, clock_,
                       &context_),
-      ping_manager_(perspective, this, alarms_.ping_alarm()),
+      ping_manager_(perspective, this,
+                    QuicAlarmProxy(&alarms_, QuicAlarmSlot::kPing)),
       multi_port_probing_interval_(kDefaultMultiPortProbingInterval),
       connection_id_generator_(generator),
       received_client_addresses_cache_(kMaxReceivedClientAddressSize) {
@@ -1130,7 +1135,9 @@ void QuicConnection::OnParsedClientHelloInfo(
   }
 }
 
-bool QuicConnection::HasPendingAcks() const { return ack_alarm().IsSet(); }
+bool QuicConnection::HasPendingAcks() const {
+  return alarms_.IsSet(QuicAlarmSlot::kAck);
+}
 
 void QuicConnection::OnUserAgentIdKnown(const std::string& /*user_agent_id*/) {
   sent_packet_manager_.OnUserAgentIdKnown();

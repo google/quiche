@@ -35,10 +35,10 @@ class MockDelegate : public QuicIdleNetworkDetector::Delegate {
 class QuicIdleNetworkDetectorTest : public QuicTest {
  public:
   QuicIdleNetworkDetectorTest()
-      : alarms_(&connection_alarms_delegate_, alarm_factory_, arena_),
+      : alarms_(&connection_alarms_delegate_, arena_, alarm_factory_),
+        alarm_(&alarms_, QuicAlarmSlot::kIdleNetworkDetector),
         detector_(&delegate_, clock_.Now() + QuicTimeDelta::FromSeconds(1),
-                  alarms_.idle_network_detector_alarm()),
-        alarm_(alarms_.idle_network_detector_alarm()) {
+                  alarm_) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     ON_CALL(connection_alarms_delegate_, OnIdleDetectorAlarm())
         .WillByDefault([&] { detector_.OnAlarm(); });
@@ -49,10 +49,10 @@ class QuicIdleNetworkDetectorTest : public QuicTest {
   MockConnectionAlarmsDelegate connection_alarms_delegate_;
   QuicConnectionArena arena_;
   MockAlarmFactory alarm_factory_;
-  QuicConnectionAlarms alarms_;
+  QuicAlarmMultiplexer alarms_;
+  QuicTestAlarmProxy alarm_;
   MockClock clock_;
   QuicIdleNetworkDetector detector_;
-  QuicTestAlarmProxy alarm_;
 };
 
 TEST_F(QuicIdleNetworkDetectorTest,
