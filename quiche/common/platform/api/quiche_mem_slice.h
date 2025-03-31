@@ -20,6 +20,10 @@ class QUICHE_EXPORT QuicheMemSlice {
  public:
   using ReleaseCallback = SingleUseCallback<void(absl::string_view)>;
 
+  // Creates a QuicheMemSlice by allocating memory on heap and copying the
+  // specified bytes.
+  static QuicheMemSlice Copy(absl::string_view data);
+
   // Constructs a empty QuicheMemSlice with no underlying data.
   QuicheMemSlice() = default;
 

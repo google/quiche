@@ -128,6 +128,18 @@ TEST_F(QuicheMemSliceTest, SliceFromBuffer) {
   EXPECT_EQ(slice.length(), kTestString.length());
 }
 
+TEST_F(QuicheMemSliceTest, Copy) {
+  QuicheMemSlice slice = QuicheMemSlice::Copy("test");
+  EXPECT_EQ(slice.AsStringView(), "test");
+}
+
+TEST_F(QuicheMemSliceTest, CopyEmpty) {
+  QuicheMemSlice slice = QuicheMemSlice::Copy("");
+  EXPECT_TRUE(slice.empty());
+  EXPECT_TRUE(slice.data() == nullptr);
+  EXPECT_EQ(slice.length(), 0u);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quiche

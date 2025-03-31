@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <utility>
 
@@ -61,6 +62,15 @@ void QuicheMemSlice::Reset() {
   data_ = nullptr;
   size_ = 0;
   done_callback_ = nullptr;
+}
+
+QuicheMemSlice QuicheMemSlice::Copy(absl::string_view data) {
+  if (data.empty()) {
+    return QuicheMemSlice();
+  }
+  auto buffer = std::make_unique<char[]>(data.size());
+  memcpy(buffer.get(), data.data(), data.size());
+  return QuicheMemSlice(std::move(buffer), data.size());
 }
 
 }  // namespace quiche

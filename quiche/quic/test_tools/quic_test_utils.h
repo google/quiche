@@ -1651,7 +1651,9 @@ StreamType DetermineStreamType(QuicStreamId id, ParsedQuicVersion version,
 
 // Creates a MemSlice using a singleton trivial buffer allocator.  Performs a
 // copy.
-quiche::QuicheMemSlice MemSliceFromString(absl::string_view data);
+// TODO: remove once all uses are replaced with QuicheMemSlice::Copy.
+[[deprecated]] quiche::QuicheMemSlice MemSliceFromString(
+    absl::string_view data);
 
 // Used to compare ReceivedPacketInfo.
 MATCHER_P(ReceivedPacketInfoEquals, info, "") {
