@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
@@ -94,6 +95,10 @@ void RunHandshakeOrDie(quic::simulator::Simulator& simulator,
       quic::QuicTimeDelta::FromSeconds(3);
   bool client_established = false;
   bool server_established = false;
+  MoqtSessionEstablishedCallback old_client_callback =
+      std::move(client.session()->callbacks().session_established_callback);
+  MoqtSessionEstablishedCallback old_server_callback =
+      std::move(server.session()->callbacks().session_established_callback);
 
   // Retaining pointers to local variables is safe here, since if the handshake
   // succeeds, both callbacks are executed and deleted, and if either fails, the
@@ -109,6 +114,8 @@ void RunHandshakeOrDie(quic::simulator::Simulator& simulator,
       timeout.value_or(kDefaultTimeout));
   QUICHE_CHECK(client_established) << "Client failed to establish session";
   QUICHE_CHECK(server_established) << "Server failed to establish session";
+  std::move(old_client_callback)();
+  std::move(old_server_callback)();
 }
 
 }  // namespace moqt::test

@@ -53,8 +53,8 @@ class MoqtServerEndpoint : public quic::simulator::QuicEndpointWithConnection {
   MoqtSession session_;
 };
 
-// Runs the handshake for MoQT, crashes if the handshake fails.  Overrides
-// the pre-existing session_initalized_callback of both sessions.
+// Runs the handshake for MoQT, crashes if the handshake fails.  Calls
+// the pre-existing session_initialized_callback for both sessions.
 void RunHandshakeOrDie(
     quic::simulator::Simulator& simulator, MoqtClientEndpoint& client,
     MoqtServerEndpoint& server,
