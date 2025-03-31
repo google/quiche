@@ -372,6 +372,19 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     success = test_harness_.RunUntilWithDefaultTimeout(
         [&]() { return received >= 7; });
     EXPECT_TRUE(success);
+
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{2, 2}, _,
+                                 MoqtObjectStatus::kEndOfGroup, "", true))
+        .WillOnce([&] { ++received; });
+    EXPECT_CALL(client_visitor,
+                OnObjectFragment(_, FullSequence{3, 0}, _,
+                                 MoqtObjectStatus::kEndOfTrack, "", true))
+        .WillOnce([&] { ++received; });
+    queue->Close();
+    success = test_harness_.RunUntilWithDefaultTimeout(
+        [&]() { return received >= 9; });
+    EXPECT_TRUE(success);
   }
 }
 

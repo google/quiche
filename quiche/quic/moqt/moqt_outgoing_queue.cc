@@ -33,23 +33,31 @@ void MoqtOutgoingQueue::AddObject(quiche::QuicheMemSlice payload, bool key) {
            "flag.";
     return;
   }
-
-  if (key) {
-    if (!queue_.empty()) {
-      AddRawObject(MoqtObjectStatus::kEndOfGroup, quiche::QuicheMemSlice());
-    }
-
-    if (queue_.size() == kMaxQueuedGroups) {
-      queue_.erase(queue_.begin());
-      for (MoqtObjectListener* listener : listeners_) {
-        listener->OnGroupAbandoned(current_group_id_ - kMaxQueuedGroups + 1);
-      }
-    }
-    queue_.emplace_back();
-    ++current_group_id_;
+  if (closed_) {
+    QUICHE_BUG(MoqtOutgoingQueue_AddObject_closed)
+        << "Trying to send objects on a closed queue.";
+    return;
   }
 
+  if (key) {
+    OpenNewGroup();
+  }
   AddRawObject(MoqtObjectStatus::kNormal, std::move(payload));
+}
+
+void MoqtOutgoingQueue::OpenNewGroup() {
+  if (!queue_.empty()) {
+    AddRawObject(MoqtObjectStatus::kEndOfGroup, quiche::QuicheMemSlice());
+  }
+
+  if (queue_.size() == kMaxQueuedGroups) {
+    queue_.erase(queue_.begin());
+    for (MoqtObjectListener* listener : listeners_) {
+      listener->OnGroupAbandoned(current_group_id_ - kMaxQueuedGroups + 1);
+    }
+  }
+  queue_.emplace_back();
+  ++current_group_id_;
 }
 
 void MoqtOutgoingQueue::AddRawObject(MoqtObjectStatus status,
@@ -101,6 +109,9 @@ std::vector<FullSequence> MoqtOutgoingQueue::GetCachedObjectsInRange(
 }
 
 absl::StatusOr<MoqtTrackStatusCode> MoqtOutgoingQueue::GetTrackStatus() const {
+  if (closed_) {
+    return MoqtTrackStatusCode::kFinished;
+  }
   if (queue_.empty()) {
     return MoqtTrackStatusCode::kNotYetBegun;
   }
@@ -191,6 +202,18 @@ MoqtOutgoingQueue::FetchTask::GetNextObjectInner(PublishedObject& object) {
   object = *std::move(result);
   objects_.pop_front();
   return kSuccess;
+}
+
+void MoqtOutgoingQueue::Close() {
+  if (closed_) {
+    QUICHE_BUG(MoqtOutgoingQueue_Close_twice)
+        << "Trying to close an outgoing queue that is already closed.";
+    return;
+  }
+  closed_ = true;
+
+  OpenNewGroup();
+  AddRawObject(MoqtObjectStatus::kEndOfTrack, {});
 }
 
 }  // namespace moqt

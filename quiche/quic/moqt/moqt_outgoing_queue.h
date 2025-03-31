@@ -95,6 +95,9 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
     }
   }
 
+  // Sends an "End of Track" object.
+  void Close();
+
  private:
   // The number of recent groups to keep around for newly joined subscribers.
   static constexpr size_t kMaxQueuedGroups = 3;
@@ -125,7 +128,10 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
 
   using Group = std::vector<CachedObject>;
 
+  // Appends an object to the end of the current group.
   void AddRawObject(MoqtObjectStatus status, quiche::QuicheMemSlice payload);
+  // Closes the current group, if there is any, and opens a new one.
+  void OpenNewGroup();
 
   // The number of the oldest group available.
   uint64_t first_group_in_queue() const {
@@ -137,6 +143,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   MoqtForwardingPreference forwarding_preference_;
   MoqtPriority publisher_priority_ = 128;
   MoqtDeliveryOrder delivery_order_ = MoqtDeliveryOrder::kAscending;
+  bool closed_ = false;
   absl::InlinedVector<Group, kMaxQueuedGroups> queue_;
   uint64_t current_group_id_ = -1;
   absl::flat_hash_set<MoqtObjectListener*> listeners_;
