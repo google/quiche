@@ -18,8 +18,12 @@ WriteResult QuicPacketWriterWrapper::WritePacket(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
     const QuicSocketAddress& peer_address, PerPacketOptions* options,
     const QuicPacketWriterParams& params) {
-  return writer_->WritePacket(buffer, buf_len, self_address, peer_address,
-                              options, params);
+  const WriteResult result = writer_->WritePacket(
+      buffer, buf_len, self_address, peer_address, options, params);
+  if (on_write_done_ != nullptr) {
+    on_write_done_(buf_len, result);
+  }
+  return result;
 }
 
 bool QuicPacketWriterWrapper::IsWriteBlocked() const {

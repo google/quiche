@@ -7,8 +7,10 @@
 
 #include <cstddef>
 #include <memory>
+#include <utility>
 
 #include "quiche/quic/core/quic_packet_writer.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 
@@ -52,11 +54,23 @@ class QUICHE_EXPORT QuicPacketWriterWrapper : public QuicPacketWriter {
 
   QuicPacketWriter* writer() { return writer_; }
 
+  // First argument is the packet size. Second argument is the result of the
+  // write.
+  using OnWriteDoneCallback =
+      quiche::MultiUseCallback<void(size_t, const WriteResult&)>;
+
+  // If set, |on_write_done| will be called after each write.
+  void set_on_write_done(OnWriteDoneCallback on_write_done) {
+    on_write_done_ = std::move(on_write_done);
+  }
+
  private:
   void unset_writer();
 
   QuicPacketWriter* writer_ = nullptr;
   bool owns_writer_ = false;
+  // If not null, called after each write.
+  OnWriteDoneCallback on_write_done_;
 };
 
 }  // namespace quic
