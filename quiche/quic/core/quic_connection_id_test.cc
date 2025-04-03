@@ -6,10 +6,8 @@
 
 #include <cstdint>
 #include <cstring>
-#include <string>
 
-#include "absl/base/macros.h"
-#include "quiche/quic/core/quic_types.h"
+#include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
@@ -143,37 +141,43 @@ TEST_F(QuicConnectionIdTest, AssignAndCopy) {
 TEST_F(QuicConnectionIdTest, ChangeLength) {
   QuicConnectionId connection_id64_1 = test::TestConnectionId(1);
   QuicConnectionId connection_id64_2 = test::TestConnectionId(2);
-  QuicConnectionId connection_id136_2 = test::TestConnectionId(2);
-  connection_id136_2.set_length(17);
-  memset(connection_id136_2.mutable_data() + 8, 0, 9);
-  char connection_id136_2_bytes[17] = {0, 0, 0, 0, 0, 0, 0, 2, 0,
-                                       0, 0, 0, 0, 0, 0, 0, 0};
-  QuicConnectionId connection_id136_2b(connection_id136_2_bytes,
-                                       sizeof(connection_id136_2_bytes));
-  EXPECT_EQ(connection_id136_2, connection_id136_2b);
+  QuicConnectionId connection_id200_2 = test::TestConnectionId(2);
+  connection_id200_2.set_length(25);
+  memset(connection_id200_2.mutable_data() + 8, 0, 17);
+  char connection_id200_2_bytes[25] = {0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0,
+                                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  QuicConnectionId connection_id200_2b(connection_id200_2_bytes,
+                                       sizeof(connection_id200_2_bytes));
+  EXPECT_EQ(connection_id200_2, connection_id200_2b);
   QuicConnectionId connection_id = connection_id64_1;
-  connection_id.set_length(17);
+  connection_id.set_length(25);
   EXPECT_NE(connection_id64_1, connection_id);
   // Check resizing big to small.
   connection_id.set_length(8);
   EXPECT_EQ(connection_id64_1, connection_id);
   // Check resizing small to big.
-  connection_id.set_length(17);
+  connection_id.set_length(25);
   memset(connection_id.mutable_data(), 0, connection_id.length());
   memcpy(connection_id.mutable_data(), connection_id64_2.data(),
          connection_id64_2.length());
-  EXPECT_EQ(connection_id136_2, connection_id);
-  EXPECT_EQ(connection_id136_2b, connection_id);
-  QuicConnectionId connection_id120(connection_id136_2_bytes, 15);
-  connection_id.set_length(15);
-  EXPECT_EQ(connection_id120, connection_id);
+  EXPECT_EQ(connection_id200_2, connection_id);
+  EXPECT_EQ(connection_id200_2b, connection_id);
+  QuicConnectionId connection_id192(connection_id200_2_bytes, 24);
+  connection_id.set_length(24);
+  EXPECT_EQ(connection_id192, connection_id);
   // Check resizing big to big.
-  QuicConnectionId connection_id2 = connection_id120;
-  connection_id2.set_length(17);
-  connection_id2.mutable_data()[15] = 0;
-  connection_id2.mutable_data()[16] = 0;
-  EXPECT_EQ(connection_id136_2, connection_id2);
-  EXPECT_EQ(connection_id136_2b, connection_id2);
+  QuicConnectionId connection_id2 = connection_id192;
+  connection_id2.set_length(25);
+  connection_id2.mutable_data()[24] = 0;
+  EXPECT_EQ(connection_id200_2, connection_id2);
+  EXPECT_EQ(connection_id200_2b, connection_id2);
+}
+
+TEST_F(QuicConnectionIdTest, MaximumLength) {
+  char bytes[255];
+  memset(bytes, 0xa, sizeof(bytes));
+  QuicConnectionId max_length(bytes, sizeof(bytes));
+  EXPECT_EQ(memcmp(max_length.data(), bytes, sizeof(bytes)), 0);
 }
 
 }  // namespace
