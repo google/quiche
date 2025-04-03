@@ -1,7 +1,5 @@
 # `oghttp2`: a general purpose HTTP/2 library
 
-[TOC]
-
 ## Overview
 
 The code in this directory implements the HTTP/2 internet protocol as specified
@@ -48,6 +46,9 @@ These utilities are incorporated wholesale into `oghttp2`:
 *   a HPACK encoder, in `http2/hpack/hpack_encoder.h`; and
 *   a HPACK decoder, in `http2/hpack/hpack_decoder_adapter.h`.
 
+The name of the library is related to this history: it was built from the
+"original generation" HTTP/2 implementation.
+
 Given that part of our motivation for the `oghttp2` project was the needs of the
 Envoy open source project, the first piece that we built was a C++ API around
 the existing HTTP/2 library that Envoy used at that time:
@@ -60,7 +61,52 @@ API that we could build on.
 
 ## Code Overview
 
+The main structure of the library consists of two components:
+
+*   a session object that represents a single multiplexed HTTP/2 connection
+    (called a `Http2Adapter` in the code), and
+*   a visitor interface (`Http2VisitorInterface`) that application code can
+    implement in order to receive HTTP/2 events.
+
+An application can take certain actions to update the state of the HTTP/2
+connection by invoking `Http2Adapter` methods. The application can observe the
+effects of those actions and the behavior of the peer as `Http2VisitorInterface`
+callbacks are invoked.
+
+Consider the following example:
+
+```
+Http2Adapter* client_session = /* code to initialize the session */;
+MyStreamStruct* stream_data = new MyStreamStruct;
+const int32_t stream_id =
+    client_session->SubmitRequest({{":authority", "www.example.com"},
+                                   {":scheme", "http"},
+                                   {":method", "GET"},
+                                   {":path", "/index.html"}},
+                                   /*end_stream=*/true,
+                                   /*user_data=*/stream_data);
+const int status = client_session->Send();
+// Handle error if status is nonzero.
+```
+
+This is how a client would send a request on a new stream. When the request is
+actually sent, the client application would receive an `OnFrameSent()` callback
+with the `HEADERS` frame type, the stream ID on which the request was sent, the
+payload size, and any flags set on the frame.
+
 ### Common Types
+
+Several protocol elements from the spec are defined as types in
+`http2_protocol.h`:
+
+*   `Http2StreamId`: the 31-bit stream ID
+*   `FrameType`: the 8-bit frame type value (e.g. `HEADERS`, `DATA`, etc.)
+*   `FrameFlags`: each of the frame flag values defined in the specification
+*   `Http2ErrorCode`: an enumeration of the error codes
+*   `Http2KnownSettingsId`: an enumeration of the `SETTINGS` identifiers
+
+This file also provides several useful constants related to limits or initial
+values defined in the specification.
 
 ### Design
 
