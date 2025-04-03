@@ -75,7 +75,7 @@ enum QuicRstStreamErrorCode : uint32_t {
   // A frame that fails to satisfy layout requirements or with an invalid size
   // was received.
   QUIC_STREAM_FRAME_ERROR = 23,
-  // Peer exhibits a behavior that might be generating excessive load.
+  // The system is experiencing excessive load, possibly due to peer behavior.
   QUIC_STREAM_EXCESSIVE_LOAD = 24,
   // A Stream ID or Push ID was used incorrectly, such as exceeding a limit,
   // reducing a limit, or being reused.
