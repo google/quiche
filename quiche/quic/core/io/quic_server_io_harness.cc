@@ -44,8 +44,8 @@ absl::StatusOr<SocketFd> CreateAndBindServerSocket(
 }
 
 absl::StatusOr<std::unique_ptr<QuicServerIoHarness>>
-QuicServerIoHarness::Create(absl::Nonnull<QuicEventLoop*> event_loop,
-                            absl::Nonnull<QuicDispatcher*> dispatcher,
+QuicServerIoHarness::Create(QuicEventLoop* absl_nonnull event_loop,
+                            QuicDispatcher* absl_nonnull dispatcher,
                             SocketFd fd) {
   auto harness =
       absl::WrapUnique(new QuicServerIoHarness(event_loop, dispatcher, fd));

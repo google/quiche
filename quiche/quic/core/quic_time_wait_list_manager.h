@@ -346,7 +346,7 @@ class QUICHE_EXPORT QuicTimeWaitListManager
       indirect_connection_id_map_;
 
   // Find data for the given connection_id. Returns nullptr if not found.
-  absl::Nullable<ConnectionIdData*> FindConnectionIdData(
+  ConnectionIdData* absl_nullable FindConnectionIdData(
       const QuicConnectionId& connection_id);
   // Find an iterator for the given connection_id. Returns
   // connection_id_map_.end() if none found.
