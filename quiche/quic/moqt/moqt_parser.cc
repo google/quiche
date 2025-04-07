@@ -14,6 +14,7 @@
 
 #include "absl/base/casts.h"
 #include "absl/cleanup/cleanup.h"
+#include "absl/container/fixed_array.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -66,83 +67,119 @@ bool IsAllowedStreamType(uint64_t value) {
   return false;
 }
 
+std::optional<uint64_t> ReadVarInt62FromStream(quiche::ReadStream& stream,
+                                               bool& fin_read) {
+  fin_read = false;
+
+  quiche::ReadStream::PeekResult peek_result = stream.PeekNextReadableRegion();
+  if (peek_result.peeked_data.empty()) {
+    if (peek_result.fin_next) {
+      fin_read = stream.SkipBytes(0);
+      QUICHE_DCHECK(fin_read);
+    }
+    return std::nullopt;
+  }
+  char first_byte = peek_result.peeked_data[0];
+  size_t varint_size =
+      1 << ((absl::bit_cast<uint8_t>(first_byte) & 0b11000000) >> 6);
+  if (stream.ReadableBytes() < varint_size) {
+    return std::nullopt;
+  }
+
+  char buffer[8];
+  absl::Span<char> bytes_to_read =
+      absl::MakeSpan(buffer).subspan(0, varint_size);
+  quiche::ReadStream::ReadResult read_result = stream.Read(bytes_to_read);
+  QUICHE_DCHECK_EQ(read_result.bytes_read, varint_size);
+  fin_read = read_result.fin;
+
+  quiche::QuicheDataReader reader(buffer, read_result.bytes_read);
+  uint64_t result;
+  bool success = reader.ReadVarInt62(&result);
+  QUICHE_DCHECK(success);
+  QUICHE_DCHECK(reader.IsDoneReading());
+  return result;
+}
+
 }  // namespace
 
-// The buffering philosophy is complicated, to minimize copying. Here is an
-// overview:
-// If the entire message body is present (except for OBJECT payload), it is
-// parsed and delivered. If not, the partial body is buffered. (requiring a
-// copy).
-// Any OBJECT payload is always delivered to the application without copying.
-// If something has been buffered, when more data arrives copy just enough of it
-// to finish parsing that thing, then resume normal processing.
-void MoqtControlParser::ProcessData(absl::string_view data, bool fin) {
+void MoqtControlParser::ReadAndDispatchMessages() {
   if (no_more_data_) {
     ParseError("Data after end of stream");
+    return;
   }
   if (processing_) {
     return;
   }
   processing_ = true;
   auto on_return = absl::MakeCleanup([&] { processing_ = false; });
-  // Check for early fin
-  if (fin) {
-    no_more_data_ = true;
-    if (!buffered_message_.empty() && data.empty()) {
-      ParseError("End of stream before complete message");
+  while (!no_more_data_) {
+    bool fin_read = false;
+
+    // Read the message type.
+    if (!message_type_.has_value()) {
+      message_type_ = ReadVarInt62FromStream(stream_, fin_read);
+      if (fin_read) {
+        ParseError("FIN on control stream");
+        return;
+      }
+      if (!message_type_.has_value()) {
+        return;
+      }
+    }
+    QUICHE_DCHECK(message_type_.has_value());
+
+    // Read the message length.
+    if (!message_size_.has_value()) {
+      message_size_ = ReadVarInt62FromStream(stream_, fin_read);
+      if (fin_read) {
+        ParseError("FIN on control stream");
+        return;
+      }
+      if (!message_size_.has_value()) {
+        return;
+      }
+
+      if (*message_size_ > kMaxMessageHeaderSize) {
+        ParseError(MoqtError::kInternalError,
+                   absl::StrCat("Cannot parse control messages more than ",
+                                kMaxMessageHeaderSize, " bytes"));
+        return;
+      }
+    }
+    QUICHE_DCHECK(message_size_.has_value());
+
+    // Read the message if it's fully received.
+    //
+    // CAUTION: if the flow control windows are too low, and
+    // kMaxMessageHeaderSize is too high, this will cause a deadlock.
+    if (stream_.ReadableBytes() < *message_size_) {
       return;
     }
-  }
-  std::optional<quic::QuicDataReader> reader = std::nullopt;
-  size_t original_buffer_size = buffered_message_.size();
-  if (!buffered_message_.empty()) {
-    absl::StrAppend(&buffered_message_, data);
-    reader.emplace(buffered_message_);
-  } else {
-    // No message in progress.
-    reader.emplace(data);
-  }
-  size_t total_processed = 0;
-  while (!reader->IsDoneReading()) {
-    size_t message_len = ProcessMessage(reader->PeekRemainingPayload());
-    if (message_len == 0) {
-      if (reader->BytesRemaining() > kMaxMessageHeaderSize) {
-        ParseError(MoqtError::kInternalError,
-                   "Cannot parse non-OBJECT messages > 2KB");
-        return;
-      }
-      if (fin) {
-        ParseError("FIN after incomplete message");
-        return;
-      }
-      if (buffered_message_.empty()) {
-        // If the buffer is not empty, |data| has already been copied there.
-        absl::StrAppend(&buffered_message_, reader->PeekRemainingPayload());
-      }
-      break;
+    absl::FixedArray<char> message(*message_size_);
+    quiche::ReadStream::ReadResult result =
+        stream_.Read(absl::MakeSpan(message));
+    if (result.bytes_read != *message_size_) {
+      ParseError("Stream returned incorrect ReadableBytes");
+      return;
     }
-    // A message was successfully processed.
-    total_processed += message_len;
-    reader->Seek(message_len);
-  }
-  if (original_buffer_size > 0) {
-    buffered_message_.erase(0, total_processed);
+    if (result.fin) {
+      ParseError("FIN on control stream");
+      return;
+    }
+
+    ProcessMessage(absl::string_view(message.data(), message.size()),
+                   static_cast<MoqtMessageType>(*message_type_));
+    message_type_.reset();
+    message_size_.reset();
   }
 }
 
-size_t MoqtControlParser::ProcessMessage(absl::string_view data) {
-  uint64_t value, length;
+size_t MoqtControlParser::ProcessMessage(absl::string_view data,
+                                         MoqtMessageType message_type) {
   quic::QuicDataReader reader(data);
-  if (!reader.ReadVarInt62(&value) || !reader.ReadVarInt62(&length)) {
-    return 0;
-  }
-  if (length > reader.BytesRemaining()) {
-    return 0;
-  }
-  auto type = static_cast<MoqtMessageType>(value);
-  size_t message_header_length = reader.PreviouslyReadPayload().length();
   size_t bytes_read;
-  switch (type) {
+  switch (message_type) {
     case MoqtMessageType::kClientSetup:
       bytes_read = ProcessClientSetup(reader);
       break;
@@ -229,7 +266,7 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data) {
       bytes_read = 0;
       break;
   }
-  if ((bytes_read - message_header_length) != length) {
+  if (bytes_read != data.size() || bytes_read == 0) {
     ParseError("Message length does not match payload length");
     return 0;
   }
@@ -1007,42 +1044,9 @@ void MoqtDataParser::ReadDataUntil(StopCondition stop_condition) {
   }
 }
 
-std::optional<uint64_t> MoqtDataParser::ReadVarInt62(bool& fin_read) {
-  fin_read = false;
-
-  quiche::ReadStream::PeekResult peek_result = stream_.PeekNextReadableRegion();
-  if (peek_result.peeked_data.empty()) {
-    if (peek_result.fin_next) {
-      fin_read = stream_.SkipBytes(0);
-      QUICHE_DCHECK(fin_read);
-    }
-    return std::nullopt;
-  }
-  char first_byte = peek_result.peeked_data[0];
-  size_t varint_size =
-      1 << ((absl::bit_cast<uint8_t>(first_byte) & 0b11000000) >> 6);
-  if (stream_.ReadableBytes() < varint_size) {
-    return std::nullopt;
-  }
-
-  char buffer[8];
-  absl::Span<char> bytes_to_read =
-      absl::MakeSpan(buffer).subspan(0, varint_size);
-  quiche::ReadStream::ReadResult read_result = stream_.Read(bytes_to_read);
-  QUICHE_DCHECK_EQ(read_result.bytes_read, varint_size);
-  fin_read = read_result.fin;
-
-  quiche::QuicheDataReader reader(buffer, read_result.bytes_read);
-  uint64_t result;
-  bool success = reader.ReadVarInt62(&result);
-  QUICHE_DCHECK(success);
-  QUICHE_DCHECK(reader.IsDoneReading());
-  return result;
-}
-
 std::optional<uint64_t> MoqtDataParser::ReadVarInt62NoFin() {
   bool fin_read = false;
-  std::optional<uint64_t> result = ReadVarInt62(fin_read);
+  std::optional<uint64_t> result = ReadVarInt62FromStream(stream_, fin_read);
   if (fin_read) {
     ParseError("Unexpected FIN received in the middle of a header");
     return std::nullopt;
@@ -1206,7 +1210,8 @@ void MoqtDataParser::ParseNextItemFromStream() {
 
     case kStatus: {
       bool fin_read = false;
-      std::optional<uint64_t> value_read = ReadVarInt62(fin_read);
+      std::optional<uint64_t> value_read =
+          ReadVarInt62FromStream(stream_, fin_read);
       if (value_read.has_value()) {
         metadata_.object_status = IntegerToObjectStatus(*value_read);
         if (metadata_.object_status == MoqtObjectStatus::kInvalidObjectStatus) {

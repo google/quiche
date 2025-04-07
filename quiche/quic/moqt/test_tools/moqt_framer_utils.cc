@@ -19,6 +19,7 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
+#include "quiche/web_transport/test_tools/in_memory_stream.h"
 
 namespace moqt::test {
 
@@ -303,8 +304,10 @@ MoqtMessageType MessageTypeForGenericMessage(const MoqtGenericFrame& frame) {
 std::vector<MoqtGenericFrame> ParseGenericMessage(absl::string_view body) {
   std::vector<MoqtGenericFrame> result;
   GenericMessageParseVisitor visitor(&result);
-  MoqtControlParser parser(/*uses_web_transport=*/true, visitor);
-  parser.ProcessData(body, /*fin=*/true);
+  webtransport::test::InMemoryStream stream(/*id=*/0);
+  MoqtControlParser parser(/*uses_web_transport=*/true, &stream, visitor);
+  stream.Receive(body, /*fin=*/false);
+  parser.ReadAndDispatchMessages();
   return result;
 }
 

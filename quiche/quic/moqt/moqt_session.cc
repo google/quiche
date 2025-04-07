@@ -811,30 +811,18 @@ bool MoqtSession::ValidateSubscribeId(uint64_t subscribe_id) {
   return true;
 }
 
-template <class Parser>
-static void ForwardStreamDataToParser(webtransport::Stream& stream,
-                                      Parser& parser) {
-  bool fin =
-      quiche::ProcessAllReadableRegions(stream, [&](absl::string_view chunk) {
-        parser.ProcessData(chunk, /*end_of_stream=*/false);
-      });
-  if (fin) {
-    parser.ProcessData("", /*end_of_stream=*/true);
-  }
-}
-
 MoqtSession::ControlStream::ControlStream(MoqtSession* session,
                                           webtransport::Stream* stream)
     : session_(session),
       stream_(stream),
-      parser_(session->parameters_.using_webtrans, *this) {
+      parser_(session->parameters_.using_webtrans, stream, *this) {
   stream_->SetPriority(
       webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
                                    /*send_order=*/kMoqtControlStreamSendOrder});
 }
 
 void MoqtSession::ControlStream::OnCanRead() {
-  ForwardStreamDataToParser(*stream_, parser_);
+  parser_.ReadAndDispatchMessages();
 }
 void MoqtSession::ControlStream::OnCanWrite() {
   // We buffer serialized control frames unconditionally, thus OnCanWrite()

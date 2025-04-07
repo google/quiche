@@ -86,27 +86,21 @@ class MoqtDataParserVisitor {
 
 class QUICHE_EXPORT MoqtControlParser {
  public:
-  MoqtControlParser(bool uses_web_transport, MoqtControlParserVisitor& visitor)
-      : visitor_(visitor), uses_web_transport_(uses_web_transport) {}
+  MoqtControlParser(bool uses_web_transport, quiche::ReadStream* stream,
+                    MoqtControlParserVisitor& visitor)
+      : visitor_(visitor),
+        stream_(*stream),
+        uses_web_transport_(uses_web_transport) {}
   ~MoqtControlParser() = default;
 
-  // Take a buffer from the transport in |data|. Parse each complete message and
-  // call the appropriate visitor function. If |fin| is true, there
-  // is no more data arriving on the stream, so the parser will deliver any
-  // message encoded as to run to the end of the stream.
-  // All bytes can be freed. Calls OnParsingError() when there is a parsing
-  // error.
-  // Any calls after sending |fin| = true will be ignored.
-  // TODO(martinduke): Figure out what has to happen if the message arrives via
-  // datagram rather than a stream.
-  void ProcessData(absl::string_view data, bool fin);
+  void ReadAndDispatchMessages();
 
  private:
   // The central switch statement to dispatch a message to the correct
   // Process* function. Returns 0 if it could not parse the full messsage
   // (except for object payload). Otherwise, returns the number of bytes
   // processed.
-  size_t ProcessMessage(absl::string_view data);
+  size_t ProcessMessage(absl::string_view data, MoqtMessageType message_type);
 
   // The Process* functions parse the serialized data into the appropriate
   // structs, and call the relevant visitor function for further action. Returns
@@ -169,11 +163,13 @@ class QUICHE_EXPORT MoqtControlParser {
                           FullTrackName& full_track_name);
 
   MoqtControlParserVisitor& visitor_;
+  quiche::ReadStream& stream_;
   bool uses_web_transport_;
   bool no_more_data_ = false;  // Fatal error or fin. No more parsing.
   bool parsing_error_ = false;
 
-  std::string buffered_message_;
+  std::optional<uint64_t> message_type_;
+  std::optional<uint64_t> message_size_;
 
   bool processing_ = false;  // True if currently in ProcessData(), to prevent
                              // re-entrancy.
@@ -245,8 +241,6 @@ class QUICHE_EXPORT MoqtDataParser {
 
   void ReadDataUntil(StopCondition stop_condition);
 
-  // Reads a single varint from the underlying stream.
-  std::optional<uint64_t> ReadVarInt62(bool& fin_read);
   // Reads a single varint from the underlying stream. Triggers a parse error if
   // a FIN has been encountered.
   std::optional<uint64_t> ReadVarInt62NoFin();
