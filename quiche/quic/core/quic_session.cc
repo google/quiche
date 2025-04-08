@@ -704,6 +704,7 @@ void QuicSession::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 }
 
 void QuicSession::OnBlockedFrame(const QuicBlockedFrame& frame) {
+  QUIC_CODE_COUNT(quic_session_blocked_frame_received);
   // TODO(rjshade): Compare our flow control receive windows for specified
   //                streams: if we have a large window then maybe something
   //                had gone wrong with the flow control accounting.
