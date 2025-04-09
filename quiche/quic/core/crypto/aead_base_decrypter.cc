@@ -20,22 +20,11 @@
 namespace quic {
 using ::quiche::ClearOpenSslErrors;
 using ::quiche::DLogOpenSslErrors;
-namespace {
 
-const EVP_AEAD* InitAndCall(const EVP_AEAD* (*aead_getter)()) {
-  // Ensure BoringSSL is initialized before calling |aead_getter|. In Chromium,
-  // the static initializer is disabled.
-  CRYPTO_library_init();
-  return aead_getter();
-}
-
-}  // namespace
-
-AeadBaseDecrypter::AeadBaseDecrypter(const EVP_AEAD* (*aead_getter)(),
-                                     size_t key_size, size_t auth_tag_size,
-                                     size_t nonce_size,
+AeadBaseDecrypter::AeadBaseDecrypter(const EVP_AEAD* aead_alg, size_t key_size,
+                                     size_t auth_tag_size, size_t nonce_size,
                                      bool use_ietf_nonce_construction)
-    : aead_alg_(InitAndCall(aead_getter)),
+    : aead_alg_(aead_alg),
       key_size_(key_size),
       auth_tag_size_(auth_tag_size),
       nonce_size_(nonce_size),
