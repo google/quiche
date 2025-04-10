@@ -12,6 +12,8 @@
 #include <vector>
 
 
+#include "absl/algorithm/container.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
@@ -24,8 +26,10 @@
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/capsule.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/web_transport/web_transport.h"
+#include "quiche/web_transport/web_transport_headers.h"
 
 #define ENDPOINT \
   (session_->perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
@@ -182,6 +186,12 @@ void WebTransportHttp3::HeadersReceived(
                        "status code "
                     << status_code << ", rejecting.";
       rejection_reason_ = WebTransportHttp3RejectionReason::kWrongStatusCode;
+      return;
+    }
+    WebTransportHttp3RejectionReason subprotocol_result =
+        MaybeSetSubprotocolFromResponseHeaders(headers);
+    if (subprotocol_result != WebTransportHttp3RejectionReason::kNone) {
+      rejection_reason_ = subprotocol_result;
       return;
     }
   }
@@ -471,6 +481,36 @@ uint64_t WebTransportErrorToHttp3(
     WebTransportStreamError webtransport_error_code) {
   return kWebTransportMappedErrorCodeFirst + webtransport_error_code +
          webtransport_error_code / 0x1e;
+}
+
+WebTransportHttp3RejectionReason
+WebTransportHttp3::MaybeSetSubprotocolFromResponseHeaders(
+    const quiche::HttpHeaderBlock& headers) {
+  auto subprotocol_it = headers.find(webtransport::kSubprotocolResponseHeader);
+  if (subprotocol_it == headers.end()) {
+    return WebTransportHttp3RejectionReason::kNone;
+  }
+
+  absl::StatusOr<std::string> subprotocol =
+      webtransport::ParseSubprotocolResponseHeader(subprotocol_it->second);
+  if (!subprotocol.ok()) {
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "WebTransport server has malformed WT-Protocol "
+                     "header, rejecting.";
+    return WebTransportHttp3RejectionReason::kSubprotocolParseError;
+  }
+
+  if (session_->perspective() == Perspective::IS_CLIENT &&
+      !absl::c_linear_search(subprotocols_offered_, *subprotocol)) {
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "WebTransport server has offered a subprotocol value \""
+                  << *subprotocol
+                  << "\", which was not one of the ones offered, rejecting.";
+    return WebTransportHttp3RejectionReason::kSubprotocolMismatch;
+  }
+
+  subprotocol_selected_ = *std::move(subprotocol);
+  return WebTransportHttp3RejectionReason::kNone;
 }
 
 }  // namespace quic

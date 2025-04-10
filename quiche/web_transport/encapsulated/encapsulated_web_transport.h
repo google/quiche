@@ -102,6 +102,7 @@ class QUICHE_EXPORT EncapsulatedSession
   SessionStats GetSessionStats() override;
   void NotifySessionDraining() override;
   void SetOnDraining(quiche::SingleUseCallback<void()> callback) override;
+  std::optional<std::string> GetNegotiatedSubprotocol() const override;
 
   // quiche::WriteStreamVisitor implementation.
   void OnCanWrite() override;

@@ -7,6 +7,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
@@ -106,6 +109,9 @@ class QUICHE_EXPORT QuicGenericSessionBase : public QuicSession,
   }
   void NotifySessionDraining() override {}
   void SetOnDraining(quiche::SingleUseCallback<void()>) override {}
+  std::optional<std::string> GetNegotiatedSubprotocol() const override {
+    return alpn_;
+  }
 
   void CloseSession(webtransport::SessionErrorCode error_code,
                     absl::string_view error_message) override {

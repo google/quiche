@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 // The dependencies of this API should be kept minimal and independent of
@@ -260,6 +261,10 @@ class QUICHE_EXPORT Session {
   // capsule), or the underlying connection (HTTP GOAWAY) is being drained by
   // the peer.
   virtual void SetOnDraining(quiche::SingleUseCallback<void()> callback) = 0;
+
+  // Returns the negotiated subprotocol, or std::nullopt, if none was
+  // negotiated.
+  virtual std::optional<std::string> GetNegotiatedSubprotocol() const = 0;
 };
 
 }  // namespace webtransport

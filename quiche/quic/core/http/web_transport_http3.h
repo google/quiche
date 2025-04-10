@@ -7,9 +7,13 @@
 
 #include <memory>
 #include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
@@ -34,6 +38,8 @@ enum class WebTransportHttp3RejectionReason {
   kWrongStatusCode,
   kMissingDraftVersion,
   kUnsupportedDraftVersion,
+  kSubprotocolMismatch,
+  kSubprotocolParseError,
 };
 
 // A session of WebTransport over HTTP/3.  The session is owned by
@@ -117,6 +123,18 @@ class QUICHE_EXPORT WebTransportHttp3
   void OnGoAwayReceived();
   void OnDrainSessionReceived();
 
+  const std::vector<std::string>& subprotocols_offered() const {
+    return subprotocols_offered_;
+  }
+  void set_subprotocols_offered(std::vector<std::string> subprotocols_offered) {
+    subprotocols_offered_ = std::move(subprotocols_offered);
+  }
+  std::optional<std::string> GetNegotiatedSubprotocol() const override {
+    return subprotocol_selected_;
+  }
+  WebTransportHttp3RejectionReason MaybeSetSubprotocolFromResponseHeaders(
+      const quiche::HttpHeaderBlock& headers);
+
  private:
   // Notifies the visitor that the connection has been closed.  Ensures that the
   // visitor is only ever called once.
@@ -135,6 +153,12 @@ class QUICHE_EXPORT WebTransportHttp3
   bool close_sent_ = false;
   bool close_received_ = false;
   bool close_notified_ = false;
+
+  // On client side, stores the offered subprotocols.
+  std::vector<std::string> subprotocols_offered_;
+  // Stores the actually selected subprotocol, both on the client and on the
+  // server.
+  std::optional<std::string> subprotocol_selected_;
 
   quiche::SingleUseCallback<void()> drain_callback_ = nullptr;
 

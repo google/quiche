@@ -794,4 +794,11 @@ void EncapsulatedSession::InnerStream::SetPriority(
   QUICHE_BUG_IF(EncapsulatedWebTransport_SetPriority_order, !status.ok())
       << status;
 }
+
+std::optional<std::string> EncapsulatedSession::GetNegotiatedSubprotocol()
+    const {
+  // TODO: implement.
+  return std::nullopt;
+}
+
 }  // namespace webtransport
