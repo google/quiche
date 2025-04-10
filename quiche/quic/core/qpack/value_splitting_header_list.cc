@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -92,9 +93,13 @@ void ValueSplittingHeaderList::const_iterator::UpdateHeaderField() {
 
   // Skip character after ';' separator if it is a space.
   if (name == kCookieKey && value_end_ != absl::string_view::npos &&
-      value_end_ + 1 < original_value.size() &&
-      original_value[value_end_ + 1] == kOptionalSpaceAfterCookieSeparator) {
-    ++value_end_;
+      value_end_ + 1 < original_value.size()) {
+    if (original_value[value_end_ + 1] == kOptionalSpaceAfterCookieSeparator) {
+      ++value_end_;
+      QUIC_CODE_COUNT(quic_crumbled_cookie_with_optional_space);
+    } else {
+      QUIC_CODE_COUNT(quic_crumbled_cookie_without_optional_space);
+    }
   }
 }
 
