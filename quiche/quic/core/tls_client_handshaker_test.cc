@@ -867,7 +867,6 @@ TEST_P(TlsClientHandshakerTest, ECHGrease) {
   EXPECT_FALSE(stream()->crypto_negotiated_params().encrypted_client_hello);
 }
 
-#if BORINGSSL_API_VERSION >= 22
 TEST_P(TlsClientHandshakerTest, EnableKyber) {
   crypto_config_->set_preferred_groups({SSL_GROUP_X25519_KYBER768_DRAFT00});
   server_crypto_config_->set_preferred_groups(
@@ -881,9 +880,7 @@ TEST_P(TlsClientHandshakerTest, EnableKyber) {
   EXPECT_EQ(SSL_GROUP_X25519_KYBER768_DRAFT00,
             SSL_get_group_id(stream()->GetSsl()));
 }
-#endif  // BORINGSSL_API_VERSION
 
-#if BORINGSSL_API_VERSION >= 27
 TEST_P(TlsClientHandshakerTest, EnableClientAlpsUseNewCodepoint) {
   // The intent of this test is to demonstrate the handshake should complete
   // successfully.
@@ -910,7 +907,6 @@ TEST_P(TlsClientHandshakerTest, EnableClientAlpsUseNewCodepoint) {
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(callback_ran);
 }
-#endif  // BORINGSSL_API_VERSION
 
 }  // namespace
 }  // namespace test

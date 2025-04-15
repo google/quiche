@@ -224,11 +224,7 @@ ssl_early_data_reason_t TlsHandshaker::EarlyDataReason() const {
 }
 
 const EVP_MD* TlsHandshaker::Prf(const SSL_CIPHER* cipher) {
-#if BORINGSSL_API_VERSION >= 23
   return SSL_CIPHER_get_handshake_digest(cipher);
-#else
-  return EVP_get_digestbynid(SSL_CIPHER_get_prf_nid(cipher));
-#endif
 }
 
 enum ssl_verify_result_t TlsHandshaker::VerifyCert(uint8_t* out_alert) {
@@ -420,7 +416,6 @@ void TlsHandshaker::SendAlert(EncryptionLevel level, uint8_t desc) {
 
 void TlsHandshaker::MessageCallback(bool is_write, int /*version*/,
                                     int content_type, absl::string_view data) {
-#if BORINGSSL_API_VERSION >= 17
   if (content_type == SSL3_RT_CLIENT_HELLO_INNER) {
     // Notify QuicConnectionDebugVisitor. Most TLS messages can be seen in
     // CRYPTO frames, but, with ECH enabled, the ClientHelloInner is encrypted
@@ -431,11 +426,6 @@ void TlsHandshaker::MessageCallback(bool is_write, int /*version*/,
       handshaker_delegate_->OnEncryptedClientHelloReceived(data);
     }
   }
-#else   // BORINGSSL_API_VERSION
-  (void)is_write;
-  (void)content_type;
-  (void)data;
-#endif  // BORINGSSL_API_VERSION
 }
 
 }  // namespace quic

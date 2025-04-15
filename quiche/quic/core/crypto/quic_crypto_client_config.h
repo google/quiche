@@ -403,12 +403,10 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
   bool pad_full_hello() const { return pad_full_hello_; }
   void set_pad_full_hello(bool new_value) { pad_full_hello_ = new_value; }
 
-#if BORINGSSL_API_VERSION >= 27
   bool alps_use_new_codepoint() const { return alps_use_new_codepoint_; }
   void set_alps_use_new_codepoint(bool new_value) {
     alps_use_new_codepoint_ = new_value;
   }
-#endif  // BORINGSSL_API_VERSION
 
   const QuicSSLConfig& ssl_config() const { return ssl_config_; }
   QuicSSLConfig& ssl_config() { return ssl_config_; }
@@ -485,10 +483,8 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
   bool pad_inchoate_hello_ = true;
   bool pad_full_hello_ = true;
 
-#if BORINGSSL_API_VERSION >= 27
   // Set whether ALPS uses the new codepoint or not.
   bool alps_use_new_codepoint_ = false;
-#endif  // BORINGSSL_API_VERSION
 
   // Configs applied to BoringSSL's SSL object. TLS only.
   QuicSSLConfig ssl_config_;
