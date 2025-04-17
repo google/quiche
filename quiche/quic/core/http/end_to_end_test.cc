@@ -93,6 +93,7 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
+#include "quiche/web_transport/web_transport_headers.h"
 
 using quiche::HttpHeaderBlock;
 using spdy::SpdyFramer;
@@ -854,7 +855,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
   WebTransportHttp3* CreateWebTransportSession(
       const std::string& path, bool wait_for_server_response,
-      QuicSpdyStream** connect_stream_out = nullptr) {
+      std::initializer_list<std::pair<absl::string_view, absl::string_view>>
+          extra_headers = {}) {
     // Wait until we receive the settings from the server indicating
     // WebTransport support.
     client_->WaitUntil(
@@ -869,6 +871,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     headers[":path"] = path;
     headers[":method"] = "CONNECT";
     headers[":protocol"] = "webtransport";
+    for (const auto& [key, value] : extra_headers) {
+      headers[key] = std::string(value);
+    }
 
     client_->SendMessage(headers, "", /*fin=*/false);
     QuicSpdyStream* stream = client_->latest_created_stream();
@@ -885,9 +890,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       client_->WaitUntil(-1,
                          [stream]() { return stream->headers_decompressed(); });
       EXPECT_TRUE(session->ready());
-    }
-    if (connect_stream_out != nullptr) {
-      *connect_stream_out = stream;
     }
     return session;
   }
@@ -7178,6 +7180,40 @@ TEST_P(EndToEndTest, WebTransportSessionSetup) {
   EXPECT_TRUE(server_session->GetWebTransportSession(web_transport->id()) !=
               nullptr);
   server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest, WebTransportSessionProtocolNegotiation) {
+  enable_web_transport_ = true;
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesHttp3()) {
+    return;
+  }
+
+  WebTransportHttp3* session = CreateWebTransportSession(
+      "/selected-subprotocol", /*wait_for_server_response=*/true,
+      {{webtransport::kSubprotocolRequestHeader, "a, b, c, d"},
+       {"subprotocol-index", "1"}});
+  ASSERT_NE(session, nullptr);
+  NiceMock<MockWebTransportSessionVisitor>& visitor =
+      SetupWebTransportVisitor(session);
+  EXPECT_EQ(session->GetNegotiatedSubprotocol(), "b");
+
+  WebTransportStream* received_stream =
+      session->AcceptIncomingUnidirectionalStream();
+  if (received_stream == nullptr) {
+    // Retry if reordering happens.
+    bool stream_received = false;
+    EXPECT_CALL(visitor, OnIncomingUnidirectionalStreamAvailable())
+        .WillOnce(Assign(&stream_received, true));
+    client_->WaitUntil(2000, [&stream_received]() { return stream_received; });
+    received_stream = session->AcceptIncomingUnidirectionalStream();
+  }
+  ASSERT_TRUE(received_stream != nullptr);
+  std::string received_data;
+  WebTransportStream::ReadResult result = received_stream->Read(&received_data);
+  EXPECT_EQ(received_data, "b");
+  EXPECT_TRUE(result.fin);
 }
 
 TEST_P(EndToEndTest, WebTransportSessionSetupWithEchoWithSuffix) {

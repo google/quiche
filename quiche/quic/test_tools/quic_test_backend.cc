@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/statusor.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
@@ -17,6 +19,9 @@
 #include "quiche/quic/test_tools/web_transport_resets_backend.h"
 #include "quiche/quic/tools/web_transport_test_visitors.h"
 #include "quiche/common/platform/api/quiche_googleurl.h"
+#include "quiche/web_transport/complete_buffer_visitor.h"
+#include "quiche/web_transport/web_transport.h"
+#include "quiche/web_transport/web_transport_headers.h"
 
 namespace quic {
 namespace test {
@@ -69,6 +74,40 @@ class SessionCloseVisitor : public WebTransportVisitor {
   WebTransportSession* session_;  // Not owned.
 };
 
+// SubprotocolStreamVisitor opens one stream that contains the selected
+// subprotocol.
+class SubprotocolStreamVisitor : public WebTransportVisitor {
+ public:
+  SubprotocolStreamVisitor(WebTransportSession* session) : session_(session) {}
+
+  void OnSessionReady() override {
+    OnCanCreateNewOutgoingUnidirectionalStream();
+  }
+  void OnSessionClosed(WebTransportSessionError /*error_code*/,
+                       const std::string& /*error_message*/) override {}
+  void OnIncomingBidirectionalStreamAvailable() override {}
+  void OnIncomingUnidirectionalStreamAvailable() override {}
+  void OnDatagramReceived(absl::string_view /*datagram*/) override {}
+  void OnCanCreateNewOutgoingBidirectionalStream() override {}
+  void OnCanCreateNewOutgoingUnidirectionalStream() override {
+    if (sent_) {
+      return;
+    }
+    webtransport::Stream* stream = session_->OpenOutgoingUnidirectionalStream();
+    if (stream == nullptr) {
+      return;
+    }
+    stream->SetVisitor(std::make_unique<webtransport::CompleteBufferVisitor>(
+        stream, session_->GetNegotiatedSubprotocol().value_or("[none]")));
+    stream->visitor()->OnCanWrite();
+    sent_ = true;
+  }
+
+ private:
+  WebTransportSession* session_;  // Not owned.
+  bool sent_ = false;
+};
+
 }  // namespace
 
 QuicSimpleServerBackend::WebTransportResponse
@@ -117,6 +156,38 @@ QuicTestBackend::ProcessWebTransportRequest(
     WebTransportResponse response;
     response.response_headers[":status"] = "200";
     response.visitor = std::make_unique<SessionCloseVisitor>(session);
+    return response;
+  }
+  if (path == "/selected-subprotocol") {
+    auto subprotocol_it =
+        request_headers.find(webtransport::kSubprotocolRequestHeader);
+    if (subprotocol_it == request_headers.end()) {
+      WebTransportResponse response;
+      response.response_headers[":status"] = "400";
+      return response;
+    }
+    absl::StatusOr<std::vector<std::string>> subprotocols =
+        webtransport::ParseSubprotocolRequestHeader(subprotocol_it->second);
+    if (!subprotocols.ok() || subprotocols->empty()) {
+      WebTransportResponse response;
+      response.response_headers[":status"] = "400";
+      return response;
+    }
+    size_t subprotocol_index = 0;
+    auto subprotocol_index_it = request_headers.find("subprotocol-index");
+    if (subprotocol_index_it != request_headers.end()) {
+      if (!absl::SimpleAtoi(subprotocol_index_it->second, &subprotocol_index) ||
+          subprotocol_index >= subprotocols->size()) {
+        WebTransportResponse response;
+        response.response_headers[":status"] = "400";
+        return response;
+      }
+    }
+    WebTransportResponse response;
+    response.response_headers[":status"] = "200";
+    response.response_headers[webtransport::kSubprotocolResponseHeader] =
+        (*subprotocols)[subprotocol_index];
+    response.visitor = std::make_unique<SubprotocolStreamVisitor>(session);
     return response;
   }
 

@@ -17,8 +17,8 @@
 namespace webtransport {
 
 inline constexpr absl::string_view kSubprotocolRequestHeader =
-    "WT-Available-Protocols";
-inline constexpr absl::string_view kSubprotocolResponseHeader = "WT-Protocol";
+    "wt-available-protocols";
+inline constexpr absl::string_view kSubprotocolResponseHeader = "wt-protocol";
 
 QUICHE_EXPORT absl::StatusOr<std::vector<std::string>>
 ParseSubprotocolRequestHeader(absl::string_view value);
