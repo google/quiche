@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -18,8 +19,10 @@
 #include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 
 namespace quic {
 
@@ -449,6 +452,18 @@ class QUICHE_EXPORT QuicFramer {
   // ConnectionIdGeneartor interface, and callers need an accurate
   // Destination Connection ID for short header packets, call
   // ParsePublicHeaderDispatcherShortHeaderLengthUnknown() instead.
+  // |detailed_error| can be nullptr.
+  static QuicErrorCode ParsePublicHeader(
+      QuicDataReader* reader, uint8_t expected_destination_connection_id_length,
+      bool ietf_format, uint8_t* first_byte, PacketHeaderFormat* format,
+      bool* version_present, bool* has_length_prefix,
+      QuicVersionLabel* version_label, ParsedQuicVersion* parsed_version,
+      absl::string_view* destination_connection_id,
+      absl::string_view* source_connection_id,
+      QuicLongHeaderType* long_packet_type,
+      quiche::QuicheVariableLengthIntegerLength* retry_token_length_length,
+      absl::string_view* retry_token, std::string* detailed_error);
+  // Deprecated version that uses QuicConnectionId instead of string_view.
   static QuicErrorCode ParsePublicHeader(
       QuicDataReader* reader, uint8_t expected_destination_connection_id_length,
       bool ietf_format, uint8_t* first_byte, PacketHeaderFormat* format,
@@ -466,6 +481,18 @@ class QUICHE_EXPORT QuicFramer {
   // for short headers. When callers need an accurate Destination Connection ID
   // specifically for short header packets, call
   // ParsePublicHeaderDispatcherShortHeaderLengthUnknown() instead.
+  // |detailed_error| can be nullptr.
+  static QuicErrorCode ParsePublicHeaderDispatcher(
+      const QuicEncryptedPacket& packet,
+      uint8_t expected_destination_connection_id_length,
+      PacketHeaderFormat* format, QuicLongHeaderType* long_packet_type,
+      bool* version_present, bool* has_length_prefix,
+      QuicVersionLabel* version_label, ParsedQuicVersion* parsed_version,
+      absl::string_view* destination_connection_id,
+      absl::string_view* source_connection_id,
+      std::optional<absl::string_view>* retry_token,
+      std::string* detailed_error);
+  // Deprecated version that uses QuicConnectionId instead of string_view.
   static QuicErrorCode ParsePublicHeaderDispatcher(
       const QuicEncryptedPacket& packet,
       uint8_t expected_destination_connection_id_length,
@@ -485,6 +512,16 @@ class QUICHE_EXPORT QuicFramer {
   // short header. Some callers are only interested in parsing long header
   // packets to peer into the handshake, and should use
   // ParsePublicHeaderDispatcher instead.
+  static QuicErrorCode ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
+      const QuicEncryptedPacket& packet, PacketHeaderFormat* format,
+      QuicLongHeaderType* long_packet_type, bool* version_present,
+      bool* has_length_prefix, QuicVersionLabel* version_label,
+      ParsedQuicVersion* parsed_version,
+      absl::string_view* destination_connection_id,
+      absl::string_view* source_connection_id,
+      std::optional<absl::string_view>* retry_token,
+      std::string* detailed_error, ConnectionIdGeneratorInterface& generator);
+  // Deprecated version that uses QuicConnectionId instead of string_view.
   static QuicErrorCode ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
       const QuicEncryptedPacket& packet, PacketHeaderFormat* format,
       QuicLongHeaderType* long_packet_type, bool* version_present,
@@ -954,6 +991,14 @@ class QUICHE_EXPORT QuicFramer {
 
   static AckFrameInfo GetAckFrameInfo(const QuicAckFrame& frame);
 
+  // |detailed_error| can be nullptr.
+  static QuicErrorCode ParsePublicHeaderGoogleQuic(
+      QuicDataReader* reader, uint8_t* first_byte, PacketHeaderFormat* format,
+      bool* version_present, QuicVersionLabel* version_label,
+      ParsedQuicVersion* parsed_version,
+      absl::string_view* destination_connection_id,
+      std::string* detailed_error);
+  // Deprecated version that uses QuicConnectionId instead of string_view.
   static QuicErrorCode ParsePublicHeaderGoogleQuic(
       QuicDataReader* reader, uint8_t* first_byte, PacketHeaderFormat* format,
       bool* version_present, QuicVersionLabel* version_label,

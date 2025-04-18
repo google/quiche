@@ -385,6 +385,13 @@ size_t AckEcnCountSize(const QuicAckFrame& ack_frame) {
           QuicDataWriter::GetVarInt62Len(ack_frame.ecn_counters->ce));
 }
 
+// A version of QuicFramer::set_detailed_error() for static methods.
+void set_detailed_error_static(std::string* out, const char* detailed_error) {
+  if (out != nullptr) {
+    *out = detailed_error;
+  }
+}
+
 }  // namespace
 
 QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
@@ -2404,16 +2411,37 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     QuicVersionLabel version_label;
     bool has_length_prefix;
     std::string detailed_error;
-    QuicErrorCode parse_result = QuicFramer::ParsePublicHeader(
-        reader, expected_destination_connection_id_length, /*ietf_format=*/true,
-        &header->type_byte, &header->form, &header->version_flag,
-        &has_length_prefix, &version_label, &header->version,
-        &header->destination_connection_id, &header->source_connection_id,
-        &header->long_packet_type, &header->retry_token_length_length,
-        &header->retry_token, &detailed_error);
-    if (parse_result != QUIC_NO_ERROR) {
-      set_detailed_error(detailed_error);
-      return false;
+    if (GetQuicReloadableFlag(quic_heapless_static_parser)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_static_parser, 1, 3);
+      absl::string_view destination_connection_id;
+      absl::string_view source_connection_id;
+      QuicErrorCode parse_result = QuicFramer::ParsePublicHeader(
+          reader, expected_destination_connection_id_length,
+          /*ietf_format=*/true, &header->type_byte, &header->form,
+          &header->version_flag, &has_length_prefix, &version_label,
+          &header->version, &destination_connection_id, &source_connection_id,
+          &header->long_packet_type, &header->retry_token_length_length,
+          &header->retry_token, &detailed_error);
+      if (parse_result != QUIC_NO_ERROR) {
+        set_detailed_error(detailed_error);
+        return false;
+      }
+      header->destination_connection_id =
+          QuicConnectionId(destination_connection_id);
+      header->source_connection_id = QuicConnectionId(source_connection_id);
+    } else {
+      QuicErrorCode parse_result = QuicFramer::ParsePublicHeader(
+          reader, expected_destination_connection_id_length,
+          /*ietf_format=*/true, &header->type_byte, &header->form,
+          &header->version_flag, &has_length_prefix, &version_label,
+          &header->version, &header->destination_connection_id,
+          &header->source_connection_id, &header->long_packet_type,
+          &header->retry_token_length_length, &header->retry_token,
+          &detailed_error);
+      if (parse_result != QUIC_NO_ERROR) {
+        set_detailed_error(detailed_error);
+        return false;
+      }
     }
     header->destination_connection_id_included = CONNECTION_ID_PRESENT;
     header->source_connection_id_included =
@@ -6426,6 +6454,57 @@ QuicErrorCode QuicFramer::ParsePublicHeaderDispatcher(
     PacketHeaderFormat* format, QuicLongHeaderType* long_packet_type,
     bool* version_present, bool* has_length_prefix,
     QuicVersionLabel* version_label, ParsedQuicVersion* parsed_version,
+    absl::string_view* destination_connection_id,
+    absl::string_view* source_connection_id,
+    std::optional<absl::string_view>* retry_token,
+    std::string* detailed_error) {
+  QuicDataReader reader(packet.data(), packet.length());
+  if (reader.IsDoneReading()) {
+    set_detailed_error_static(detailed_error, "Unable to read first byte.");
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  const uint8_t first_byte = reader.PeekByte();
+  if ((first_byte & FLAGS_LONG_HEADER) == 0 &&
+      (first_byte & FLAGS_FIXED_BIT) == 0 &&
+      (first_byte & FLAGS_DEMULTIPLEXING_BIT) == 0) {
+    // All versions of Google QUIC up to and including Q043 set
+    // FLAGS_DEMULTIPLEXING_BIT to one on all client-to-server packets. Q044
+    // and Q045 were never default-enabled in production. All subsequent
+    // versions of Google QUIC (starting with Q046) require FLAGS_FIXED_BIT to
+    // be set to one on all packets. All versions of IETF QUIC (since
+    // draft-ietf-quic-transport-17 which was earlier than the first IETF QUIC
+    // version that was deployed in production by any implementation) also
+    // require FLAGS_FIXED_BIT to be set to one on all packets. If a packet
+    // has the FLAGS_LONG_HEADER bit set to one, it could be a first flight
+    // from an unknown future version that allows the other two bits to be set
+    // to zero. Based on this, packets that have all three of those bits set
+    // to zero are known to be invalid.
+    set_detailed_error_static(detailed_error, "Invalid flags.");
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  const bool ietf_format = QuicUtils::IsIetfPacketHeader(first_byte);
+  uint8_t unused_first_byte;
+  quiche::QuicheVariableLengthIntegerLength retry_token_length_length;
+  absl::string_view maybe_retry_token;
+  QuicErrorCode error_code = ParsePublicHeader(
+      &reader, expected_destination_connection_id_length, ietf_format,
+      &unused_first_byte, format, version_present, has_length_prefix,
+      version_label, parsed_version, destination_connection_id,
+      source_connection_id, long_packet_type, &retry_token_length_length,
+      &maybe_retry_token, detailed_error);
+  if (retry_token_length_length != quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0) {
+    *retry_token = maybe_retry_token;
+  } else {
+    retry_token->reset();
+  }
+  return error_code;
+}
+QuicErrorCode QuicFramer::ParsePublicHeaderDispatcher(
+    const QuicEncryptedPacket& packet,
+    uint8_t expected_destination_connection_id_length,
+    PacketHeaderFormat* format, QuicLongHeaderType* long_packet_type,
+    bool* version_present, bool* has_length_prefix,
+    QuicVersionLabel* version_label, ParsedQuicVersion* parsed_version,
     QuicConnectionId* destination_connection_id,
     QuicConnectionId* source_connection_id,
     std::optional<absl::string_view>* retry_token,
@@ -6473,6 +6552,35 @@ QuicErrorCode QuicFramer::ParsePublicHeaderDispatcher(
 }
 
 // static
+QuicErrorCode QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
+    const QuicEncryptedPacket& packet, PacketHeaderFormat* format,
+    QuicLongHeaderType* long_packet_type, bool* version_present,
+    bool* has_length_prefix, QuicVersionLabel* version_label,
+    ParsedQuicVersion* parsed_version,
+    absl::string_view* destination_connection_id,
+    absl::string_view* source_connection_id,
+    std::optional<absl::string_view>* retry_token, std::string* detailed_error,
+    ConnectionIdGeneratorInterface& generator) {
+  QuicDataReader reader(packet.data(), packet.length());
+  // Get the first two bytes.
+  if (reader.BytesRemaining() < 2) {
+    set_detailed_error_static(detailed_error,
+                              "Unable to read first two bytes.");
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  uint8_t two_bytes[2];
+  reader.ReadBytes(two_bytes, 2);
+  uint8_t expected_destination_connection_id_length =
+      (!QuicUtils::IsIetfPacketHeader(two_bytes[0]) ||
+       two_bytes[0] & FLAGS_LONG_HEADER)
+          ? 0
+          : generator.ConnectionIdLength(two_bytes[1]);
+  return ParsePublicHeaderDispatcher(
+      packet, expected_destination_connection_id_length, format,
+      long_packet_type, version_present, has_length_prefix, version_label,
+      parsed_version, destination_connection_id, source_connection_id,
+      retry_token, detailed_error);
+}
 QuicErrorCode QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
     const QuicEncryptedPacket& packet, PacketHeaderFormat* format,
     QuicLongHeaderType* long_packet_type, bool* version_present,
@@ -6614,6 +6722,32 @@ QuicErrorCode QuicFramer::ParsePublicHeaderGoogleQuic(
     QuicDataReader* reader, uint8_t* first_byte, PacketHeaderFormat* format,
     bool* version_present, QuicVersionLabel* version_label,
     ParsedQuicVersion* parsed_version,
+    absl::string_view* destination_connection_id, std::string* detailed_error) {
+  *format = GOOGLE_QUIC_PACKET;
+  *version_present = (*first_byte & PACKET_PUBLIC_FLAGS_VERSION) != 0;
+  uint8_t destination_connection_id_length = 0;
+  if ((*first_byte & PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID) != 0) {
+    destination_connection_id_length = kQuicDefaultConnectionIdLength;
+  }
+  if (!reader->ReadStringPiece(destination_connection_id,
+                               destination_connection_id_length)) {
+    set_detailed_error_static(detailed_error, "Unable to read ConnectionId.");
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  if (*version_present) {
+    if (!ProcessVersionLabel(reader, version_label)) {
+      set_detailed_error_static(detailed_error,
+                                "Unable to read protocol version.");
+      return QUIC_INVALID_PACKET_HEADER;
+    }
+    *parsed_version = ParseQuicVersionLabel(*version_label);
+  }
+  return QUIC_NO_ERROR;
+}
+QuicErrorCode QuicFramer::ParsePublicHeaderGoogleQuic(
+    QuicDataReader* reader, uint8_t* first_byte, PacketHeaderFormat* format,
+    bool* version_present, QuicVersionLabel* version_label,
+    ParsedQuicVersion* parsed_version,
     QuicConnectionId* destination_connection_id, std::string* detailed_error) {
   *format = GOOGLE_QUIC_PACKET;
   *version_present = (*first_byte & PACKET_PUBLIC_FLAGS_VERSION) != 0;
@@ -6677,6 +6811,68 @@ inline bool PacketHasLengthPrefixedConnectionIds(
 
 inline bool ParseLongHeaderConnectionIds(
     QuicDataReader& reader, bool has_length_prefix,
+    QuicVersionLabel version_label,
+    absl::string_view* destination_connection_id,
+    absl::string_view* source_connection_id, std::string* detailed_error) {
+  if (has_length_prefix) {
+    if (!reader.ReadStringPiece8(destination_connection_id)) {
+      set_detailed_error_static(detailed_error,
+                                "Unable to read destination connection ID.");
+      return false;
+    }
+    if (!reader.ReadStringPiece8(source_connection_id)) {
+      if (version_label == kProxVersionLabel) {
+        // The "PROX" version does not follow the length-prefixed invariants,
+        // and can therefore attempt to read a payload byte and interpret it
+        // as the source connection ID length, which could fail to parse.
+        // In that scenario we keep the source connection ID empty but mark
+        // parsing as successful.
+        return true;
+      }
+      set_detailed_error_static(detailed_error,
+                                "Unable to read source connection ID.");
+      return false;
+    }
+  } else {
+    // Parse connection ID lengths.
+    uint8_t connection_id_lengths_byte;
+    if (!reader.ReadUInt8(&connection_id_lengths_byte)) {
+      set_detailed_error_static(detailed_error,
+                                "Unable to read connection ID lengths.");
+      return false;
+    }
+    uint8_t destination_connection_id_length =
+        (connection_id_lengths_byte & kDestinationConnectionIdLengthMask) >> 4;
+    if (destination_connection_id_length != 0) {
+      destination_connection_id_length += kConnectionIdLengthAdjustment;
+    }
+    uint8_t source_connection_id_length =
+        connection_id_lengths_byte & kSourceConnectionIdLengthMask;
+    if (source_connection_id_length != 0) {
+      source_connection_id_length += kConnectionIdLengthAdjustment;
+    }
+
+    // Read destination connection ID.
+    if (!reader.ReadStringPiece(destination_connection_id,
+                                destination_connection_id_length)) {
+      set_detailed_error_static(detailed_error,
+                                "Unable to read destination connection ID.");
+      return false;
+    }
+
+    // Read source connection ID.
+    if (!reader.ReadStringPiece(source_connection_id,
+                                source_connection_id_length)) {
+      set_detailed_error_static(detailed_error,
+                                "Unable to read source connection ID.");
+      return false;
+    }
+  }
+  return true;
+}
+// Deprecated version that uses QuicConnectionId instead of string_view.
+inline bool ParseLongHeaderConnectionIds(
+    QuicDataReader& reader, bool has_length_prefix,
     QuicVersionLabel version_label, QuicConnectionId& destination_connection_id,
     QuicConnectionId& source_connection_id, std::string& detailed_error) {
   if (has_length_prefix) {
@@ -6734,6 +6930,114 @@ inline bool ParseLongHeaderConnectionIds(
 }  // namespace
 
 // static
+QuicErrorCode QuicFramer::ParsePublicHeader(
+    QuicDataReader* reader, uint8_t expected_destination_connection_id_length,
+    bool ietf_format, uint8_t* first_byte, PacketHeaderFormat* format,
+    bool* version_present, bool* has_length_prefix,
+    QuicVersionLabel* version_label, ParsedQuicVersion* parsed_version,
+    absl::string_view* destination_connection_id,
+    absl::string_view* source_connection_id,
+    QuicLongHeaderType* long_packet_type,
+    quiche::QuicheVariableLengthIntegerLength* retry_token_length_length,
+    absl::string_view* retry_token, std::string* detailed_error) {
+  *version_present = false;
+  *has_length_prefix = false;
+  *version_label = 0;
+  *parsed_version = UnsupportedQuicVersion();
+  *source_connection_id = absl::string_view();
+  *long_packet_type = INVALID_PACKET_TYPE;
+  *retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  *retry_token = absl::string_view();
+  set_detailed_error_static(detailed_error, "");
+
+  if (!reader->ReadUInt8(first_byte)) {
+    set_detailed_error_static(detailed_error, "Unable to read first byte.");
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  if (!ietf_format) {
+    return ParsePublicHeaderGoogleQuic(
+        reader, first_byte, format, version_present, version_label,
+        parsed_version, destination_connection_id, detailed_error);
+  }
+
+  *format = GetIetfPacketHeaderFormat(*first_byte);
+
+  if (*format == IETF_QUIC_SHORT_HEADER_PACKET) {
+    if (!reader->ReadStringPiece(destination_connection_id,
+                                 expected_destination_connection_id_length)) {
+      set_detailed_error_static(detailed_error,
+                                "Unable to read destination connection ID.");
+      return QUIC_INVALID_PACKET_HEADER;
+    }
+    return QUIC_NO_ERROR;
+  }
+
+  QUICHE_DCHECK_EQ(IETF_QUIC_LONG_HEADER_PACKET, *format);
+  *version_present = true;
+  if (!ProcessVersionLabel(reader, version_label)) {
+    set_detailed_error_static(detailed_error,
+                              "Unable to read protocol version.");
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  if (*version_label == 0) {
+    *long_packet_type = VERSION_NEGOTIATION;
+  }
+
+  // Parse version.
+  *parsed_version = ParseQuicVersionLabel(*version_label);
+
+  // Figure out which IETF QUIC invariants this packet follows.
+  *has_length_prefix = PacketHasLengthPrefixedConnectionIds(
+      *reader, *parsed_version, *version_label, *first_byte);
+
+  // Parse connection IDs.
+  if (!ParseLongHeaderConnectionIds(*reader, *has_length_prefix, *version_label,
+                                    destination_connection_id,
+                                    source_connection_id, detailed_error)) {
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  if (!parsed_version->IsKnown()) {
+    // Skip parsing of long packet type and retry token for unknown versions.
+    return QUIC_NO_ERROR;
+  }
+
+  // Parse long packet type.
+  *long_packet_type = GetLongHeaderType(*first_byte, *parsed_version);
+
+  switch (*long_packet_type) {
+    case INVALID_PACKET_TYPE:
+      set_detailed_error_static(detailed_error,
+                                "Unable to parse long packet type.");
+      return QUIC_INVALID_PACKET_HEADER;
+    case INITIAL:
+      if (!parsed_version->SupportsRetry()) {
+        // Retry token is only present on initial packets for some versions.
+        return QUIC_NO_ERROR;
+      }
+      break;
+    default:
+      return QUIC_NO_ERROR;
+  }
+
+  *retry_token_length_length = reader->PeekVarInt62Length();
+  uint64_t retry_token_length;
+  if (!reader->ReadVarInt62(&retry_token_length)) {
+    *retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
+    set_detailed_error_static(detailed_error,
+                              "Unable to read retry token length.");
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  if (!reader->ReadStringPiece(retry_token, retry_token_length)) {
+    set_detailed_error_static(detailed_error, "Unable to read retry token.");
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  return QUIC_NO_ERROR;
+}
 QuicErrorCode QuicFramer::ParsePublicHeader(
     QuicDataReader* reader, uint8_t expected_destination_connection_id_length,
     bool ietf_format, uint8_t* first_byte, PacketHeaderFormat* format,

@@ -5,11 +5,10 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CONNECTION_ID_H_
 #define QUICHE_QUIC_CORE_QUIC_CONNECTION_ID_H_
 
-#include <cstddef>
 #include <cstdint>
-#include <ostream>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
@@ -46,6 +45,7 @@ class QUICHE_EXPORT QuicConnectionId {
   // Creates a connection ID from network order bytes.
   QuicConnectionId(const char* data, uint8_t length);
   QuicConnectionId(absl::Span<const uint8_t> data);
+  QuicConnectionId(absl::string_view data);
 
   // Creates a connection ID from another connection ID.
   QuicConnectionId(const QuicConnectionId& other);
@@ -89,8 +89,12 @@ class QUICHE_EXPORT QuicConnectionId {
   }
 
   // Generates an ASCII string that represents
-  // the contents of the connection ID, or "0" if it is empty.
+  // the contents of the connection ID in hex, or "0" if it is empty.
   std::string ToString() const;
+  // ToStringView() is not in hex. Returns "" if empty.
+  absl::string_view ToStringView() const {
+    return absl::string_view(data(), length());
+  }
 
   // operator<< allows easily logging connection IDs.
   friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,

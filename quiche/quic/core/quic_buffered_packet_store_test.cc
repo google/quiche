@@ -165,15 +165,19 @@ class QuicBufferedPacketStoreTest : public QuicTest {
           packet_info(self_address, peer_address, *packet) {
       std::string detailed_error;
       MockConnectionIdGenerator unused_generator;
+      absl::string_view destination_connection_id, source_connection_id;
       if (QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
               *packet, &packet_info.form, &packet_info.long_packet_type,
               &packet_info.version_flag, &packet_info.use_length_prefix,
               &packet_info.version_label, &packet_info.version,
-              &packet_info.destination_connection_id,
-              &packet_info.source_connection_id, &packet_info.retry_token,
-              &detailed_error, unused_generator) != QUIC_NO_ERROR) {
+              &destination_connection_id, &source_connection_id,
+              &packet_info.retry_token, &detailed_error,
+              unused_generator) != QUIC_NO_ERROR) {
         ADD_FAILURE() << "Failed to parse packet header: " << detailed_error;
       }
+      packet_info.destination_connection_id =
+          QuicConnectionId(destination_connection_id);
+      packet_info.source_connection_id = QuicConnectionId(source_connection_id);
     }
 
     const QuicSocketAddress self_address;
@@ -223,15 +227,19 @@ TEST_F(QuicBufferedPacketStoreTest, SimpleEnqueueAckSent) {
   ReceivedPacketInfo packet_info(self_address_, peer_address_,
                                  received_client_initial);
   std::string detailed_error;
+  absl::string_view destination_connection_id, source_connection_id;
   ASSERT_EQ(QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
                 received_client_initial, &packet_info.form,
                 &packet_info.long_packet_type, &packet_info.version_flag,
                 &packet_info.use_length_prefix, &packet_info.version_label,
-                &packet_info.version, &packet_info.destination_connection_id,
-                &packet_info.source_connection_id, &packet_info.retry_token,
+                &packet_info.version, &destination_connection_id,
+                &source_connection_id, &packet_info.retry_token,
                 &detailed_error, connection_id_generator_),
             QUIC_NO_ERROR)
       << detailed_error;
+  packet_info.destination_connection_id =
+      QuicConnectionId(destination_connection_id);
+  packet_info.source_connection_id = QuicConnectionId(source_connection_id);
   store_.EnqueuePacket(packet_info, kNoParsedChlo, connection_id_generator_);
 
   const BufferedPacketList* buffered_list = store_.GetPacketList(kDCID);
@@ -774,8 +782,8 @@ TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {
         bool unused_use_length_prefix;
         QuicVersionLabel unused_version_label;
         ParsedQuicVersion unused_parsed_version = UnsupportedQuicVersion();
-        QuicConnectionId unused_destination_connection_id;
-        QuicConnectionId unused_source_connection_id;
+        absl::string_view unused_destination_connection_id;
+        absl::string_view unused_source_connection_id;
         std::optional<absl::string_view> unused_retry_token;
         std::string unused_detailed_error;
         QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
@@ -793,8 +801,8 @@ TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {
   bool unused_use_length_prefix;
   QuicVersionLabel unused_version_label;
   ParsedQuicVersion unused_parsed_version = UnsupportedQuicVersion();
-  QuicConnectionId unused_destination_connection_id;
-  QuicConnectionId unused_source_connection_id;
+  absl::string_view unused_destination_connection_id;
+  absl::string_view unused_source_connection_id;
   std::optional<absl::string_view> unused_retry_token;
   std::string unused_detailed_error;
   QuicErrorCode error_code = QUIC_NO_ERROR;
@@ -877,15 +885,19 @@ TEST_F(QuicBufferedPacketStoreTest, InitialAckHasClientConnectionId) {
   ReceivedPacketInfo packet_info(self_address_, peer_address_,
                                  received_client_initial);
   std::string detailed_error;
+  absl::string_view destination_connection_id, source_connection_id;
   ASSERT_EQ(QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
                 received_client_initial, &packet_info.form,
                 &packet_info.long_packet_type, &packet_info.version_flag,
                 &packet_info.use_length_prefix, &packet_info.version_label,
-                &packet_info.version, &packet_info.destination_connection_id,
-                &packet_info.source_connection_id, &packet_info.retry_token,
+                &packet_info.version, &destination_connection_id,
+                &source_connection_id, &packet_info.retry_token,
                 &detailed_error, connection_id_generator_),
             QUIC_NO_ERROR)
       << detailed_error;
+  packet_info.destination_connection_id =
+      QuicConnectionId(destination_connection_id);
+  packet_info.source_connection_id = QuicConnectionId(source_connection_id);
   store_.EnqueuePacket(packet_info, kNoParsedChlo, connection_id_generator_);
   ASSERT_EQ(client_received_packets_.size(), 1u);
 

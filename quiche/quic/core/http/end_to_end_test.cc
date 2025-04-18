@@ -33,6 +33,7 @@
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_default_clock.h"
@@ -4519,7 +4520,7 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
     bool version_present, has_length_prefix;
     QuicVersionLabel version_label;
     ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
-    QuicConnectionId destination_connection_id, source_connection_id;
+    absl::string_view destination_connection_id, source_connection_id;
     std::optional<absl::string_view> retry_token;
     std::string detailed_error;
     if (QuicFramer::ParsePublicHeaderDispatcher(
@@ -4543,7 +4544,8 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
     // Send a version negotiation packet.
     std::unique_ptr<QuicEncryptedPacket> packet(
         QuicFramer::BuildVersionNegotiationPacket(
-            destination_connection_id, source_connection_id, /*ietf_quic=*/true,
+            QuicConnectionId(destination_connection_id),
+            QuicConnectionId(source_connection_id), /*ietf_quic=*/true,
             has_length_prefix, supported_versions_));
     QuicPacketWriterParams default_params;
     server_writer_->WritePacket(

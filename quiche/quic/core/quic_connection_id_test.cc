@@ -85,6 +85,19 @@ TEST_F(QuicConnectionIdTest, SpanData) {
   EXPECT_EQ(connection_id2.length(), 16);
 }
 
+TEST_F(QuicConnectionIdTest, StringData) {
+  QuicConnectionId connection_id = QuicConnectionId("foobar");
+  EXPECT_EQ(connection_id.length(), 6);
+  EXPECT_EQ(connection_id.ToString(), "666f6f626172");
+  EXPECT_EQ(connection_id.ToStringView(), "foobar");
+  absl::string_view null_sv(nullptr, 0);
+  QuicConnectionId null_connection_id(null_sv);
+  EXPECT_EQ(null_connection_id.length(), 0);
+  absl::string_view empty_sv = "";
+  QuicConnectionId empty_connection_id(empty_sv);
+  EXPECT_EQ(empty_connection_id.length(), 0);
+}
+
 TEST_F(QuicConnectionIdTest, DoubleConvert) {
   QuicConnectionId connection_id64_1 = test::TestConnectionId(1);
   QuicConnectionId connection_id64_2 = test::TestConnectionId(42);
