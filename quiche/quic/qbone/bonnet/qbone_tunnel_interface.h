@@ -5,6 +5,9 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_QBONE_TUNNEL_INTERFACE_H_
 #define QUICHE_QUIC_QBONE_BONNET_QBONE_TUNNEL_INTERFACE_H_
 
+#include <string>
+
+#include "absl/strings/string_view.h"
 #include "quiche/quic/qbone/qbone_client.h"
 
 namespace quic {
@@ -54,7 +57,28 @@ class QboneTunnelInterface : public quic::QboneClientControlStream::Handler {
   void OnControlError() override = 0;
 
   // Returns a string value of the given state.
-  virtual std::string StateToString(State state) = 0;
+  static absl::string_view StateToString(State state) {
+    switch (state) {
+      case UNINITIALIZED:
+        return "UNINITIALIZED";
+      case IP_RANGE_REQUESTED:
+        return "IP_RANGE_REQUESTED";
+      case START_REQUESTED:
+        return "START_REQUESTED";
+      case STARTED:
+        return "STARTED";
+      case LAME_DUCK_REQUESTED:
+        return "LAME_DUCK_REQUESTED";
+      case END_REQUESTED:
+        return "END_REQUESTED";
+      case ENDED:
+        return "ENDED";
+      case FAILED:
+        return "FAILED";
+      default:
+        return "UNKNOWN";
+    }
+  }
 
   virtual QboneClient* client() = 0;
 
