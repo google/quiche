@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <list>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -21,7 +20,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
-#include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
 #include "quiche/quic/core/frames/quic_blocked_frame.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
@@ -35,7 +34,6 @@
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
-#include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -48,10 +46,10 @@
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/core/tls_client_handshaker.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
@@ -86,9 +84,7 @@
 #include "quiche/quic/test_tools/simple_quic_framer.h"
 #include "quiche/quic/test_tools/web_transport_test_tools.h"
 #include "quiche/quic/tools/quic_backend_response.h"
-#include "quiche/quic/tools/quic_memory_cache_backend.h"
 #include "quiche/quic/tools/quic_server.h"
-#include "quiche/quic/tools/quic_simple_client_stream.h"
 #include "quiche/quic/tools/quic_simple_server_stream.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -8362,6 +8358,48 @@ TEST_P(EndToEndTest, EmptyResponseWithFin) {
     EXPECT_FALSE(client_->response_headers_complete());
     EXPECT_FALSE(client_->response_complete());
   }
+}
+
+TEST_P(EndToEndTest, PragueConnectionOptionSent) {
+  client_extra_copts_.push_back(kPRGC);
+  ASSERT_TRUE(Initialize());
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  server_thread_->Pause();
+  QuicSession* session = GetServerSession();
+  // Check the server received the copt.
+  ASSERT_TRUE(session->config()->HasReceivedConnectionOptions());
+  bool found_prgc = false;
+  for (auto it : session->config()->ReceivedConnectionOptions()) {
+    if (it == kPRGC) {
+      found_prgc = true;
+      break;
+    }
+  }
+  server_thread_->Resume();
+  EXPECT_TRUE(found_prgc);
+  // Sent connection option does not select the congestion control.
+  EXPECT_EQ(GetClientConnection()->ecn_codepoint(), ECN_NOT_ECT);
+}
+
+TEST_P(EndToEndTest, CubicConnectionOptionSent) {
+  client_extra_copts_.push_back(kCQBC);
+  ASSERT_TRUE(Initialize());
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  server_thread_->Pause();
+  QuicSession* session = GetServerSession();
+  // Check the server received the copt.
+  ASSERT_TRUE(session->config()->HasReceivedConnectionOptions());
+  bool found_cqbc = false;
+  for (auto it : session->config()->ReceivedConnectionOptions()) {
+    if (it == kCQBC) {
+      found_cqbc = true;
+      break;
+    }
+  }
+  server_thread_->Resume();
+  EXPECT_TRUE(found_cqbc);
+  // Sent connection option does not select the congestion control.
+  EXPECT_EQ(GetClientConnection()->ecn_codepoint(), ECN_NOT_ECT);
 }
 
 }  // namespace
