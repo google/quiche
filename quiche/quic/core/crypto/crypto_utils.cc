@@ -4,30 +4,30 @@
 
 #include "quiche/quic/core/crypto/crypto_utils.h"
 
-#include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "openssl/bytestring.h"
 #include "openssl/err.h"
 #include "openssl/hkdf.h"
 #include "openssl/mem.h"
 #include "openssl/sha.h"
-#include "quiche/quic/core/crypto/aes_128_gcm_12_decrypter.h"
-#include "quiche/quic/core/crypto/aes_128_gcm_12_encrypter.h"
 #include "quiche/quic/core/crypto/aes_128_gcm_decrypter.h"
 #include "quiche/quic/core/crypto/aes_128_gcm_encrypter.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/null_decrypter.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/crypto/quic_crypter.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/quic_hkdf.h"
@@ -36,11 +36,15 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/quiche_endian.h"
+#include "quiche/common/wire_serialization.h"
 
 namespace quic {
 
@@ -59,6 +63,37 @@ namespace {
 // The implicit PRF is explicitly passed into HkdfExpandLabel as |prf|; the
 // Secret, Label, and Length are passed in as |secret|, |label|, and
 // |out_len|, respectively. The resulting expanded secret is returned.
+bool HkdfExpandLabel(const EVP_MD* prf, absl::Span<const uint8_t> secret,
+                     absl::string_view label, absl::Span<uint8_t> out) {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 2, 7);
+  constexpr absl::string_view kLabelPrefix = "tls13 ";
+  constexpr size_t kMaxLabelLength = 10;  // "quicv2 key" is the longest
+  QUICHE_DCHECK_LE(label.length(), kMaxLabelLength);
+  char quic_hkdf_label[sizeof(uint16_t) + sizeof(uint8_t) +
+                       kLabelPrefix.length() + kMaxLabelLength +
+                       sizeof(uint8_t)];
+  QuicDataWriter writer(ABSL_ARRAYSIZE(quic_hkdf_label), quic_hkdf_label);
+  if (!quiche::SerializeIntoWriter(
+           writer, quiche::WireUint16(static_cast<uint16_t>(out.length())),
+           quiche::WireUint8(
+               static_cast<uint8_t>(kLabelPrefix.length() + label.length())),
+           quiche::WireBytes(kLabelPrefix), quiche::WireBytes(label),
+           quiche::WireUint8(0))
+           .ok()) {
+    QUIC_LOG(ERROR) << "Failed to serialize label";
+    return false;
+  }
+  if (!HKDF_expand(out.data(), out.size(), prf, secret.data(), secret.size(),
+                   reinterpret_cast<const uint8_t*>(quic_hkdf_label),
+                   writer.length())) {
+    QUIC_LOG(ERROR) << "Running HKDF-Expand-Label failed";
+    return false;
+  }
+  return true;
+}
+// Legacy overloaded version that accepts string and returns vector, which leads
+// to heap allocations.
+// TODO(martinduke): Delete this.
 std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
                                      absl::Span<const uint8_t> secret,
                                      const std::string& label, size_t out_len) {
@@ -95,10 +130,34 @@ std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
   return out;
 }
 
+// "quicv2 key" is the longest string for a version label.
+constexpr size_t kMaxVersionLabelLength = 10;
+
 }  // namespace
 
-const std::string getLabelForVersion(const ParsedQuicVersion& version,
-                                     const absl::string_view& predicate) {
+// Populates |out| with the label for |version| and |predicate|, returning a
+// string_view of the correct length.
+absl::string_view GetLabelForVersion(const ParsedQuicVersion& version,
+                                     absl::string_view predicate,
+                                     absl::Span<char> out) {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 3, 7);
+  static_assert(SupportedVersions().size() == 4u,
+                "Supported versions out of sync with HKDF labels");
+  QuicDataWriter writer(out.size(), out.data());
+  constexpr absl::string_view kV2Prefix = "quicv2 ";
+  constexpr absl::string_view kV1Prefix = "quic ";
+  if (version == ParsedQuicVersion::RFCv2()) {
+    writer.WriteStringPiece(kV2Prefix);
+  } else {
+    writer.WriteStringPiece(kV1Prefix);
+  }
+  writer.WriteStringPiece(predicate);
+  return absl::string_view(out.data(), writer.length());
+}
+// Legacy overloaded version that returns string, leading to a heap allocation.
+// TODO(martinduke): Delete this.
+std::string getLabelForVersion(const ParsedQuicVersion& version,
+                               const absl::string_view& predicate) {
   static_assert(SupportedVersions().size() == 4u,
                 "Supported versions out of sync with HKDF labels");
   if (version == ParsedQuicVersion::RFCv2()) {
@@ -108,6 +167,25 @@ const std::string getLabelForVersion(const ParsedQuicVersion& version,
   }
 }
 
+// static
+void CryptoUtils::InitializeCrypterSecrets(const EVP_MD* prf,
+                                           absl::Span<const uint8_t> pp_secret,
+                                           const ParsedQuicVersion& version,
+                                           QuicCrypter* crypter) {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 4, 7);
+  SetKeyAndIVHeapless(prf, pp_secret, version, crypter);
+  uint8_t header_protection_key[16];
+  QUIC_BUG_IF(quic_bug_hp_length_mismatch,
+              crypter->GetKeySize() > sizeof(header_protection_key))
+      << "HP length does not match crypter";
+  GenerateHeaderProtectionKey(
+      prf, pp_secret, version,
+      absl::Span<uint8_t>(header_protection_key, crypter->GetKeySize()));
+  crypter->SetHeaderProtectionKey(absl::string_view(
+      reinterpret_cast<char*>(header_protection_key), crypter->GetKeySize()));
+}
+// Version that uses the heap.
+// TODO(martinduke): Delete this.
 void CryptoUtils::InitializeCrypterSecrets(
     const EVP_MD* prf, const std::vector<uint8_t>& pp_secret,
     const ParsedQuicVersion& version, QuicCrypter* crypter) {
@@ -119,6 +197,38 @@ void CryptoUtils::InitializeCrypterSecrets(
                         header_protection_key.size()));
 }
 
+// static
+void CryptoUtils::SetKeyAndIVHeapless(const EVP_MD* prf,
+                                      absl::Span<const uint8_t> pp_secret,
+                                      const ParsedQuicVersion& version,
+                                      QuicCrypter* crypter) {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 5, 7);
+  uint8_t key[16];
+  QUIC_BUG_IF(quic_bug_key_length_mismatch, crypter->GetKeySize() > sizeof(key))
+      << "Key length does not match crypter";
+
+  char version_label_raw[kMaxVersionLabelLength];
+  constexpr absl::string_view kKeyPredicate = "key";
+  absl::string_view version_label = GetLabelForVersion(
+      version, kKeyPredicate,
+      absl::Span<char>(version_label_raw, kMaxVersionLabelLength));
+  HkdfExpandLabel(prf, pp_secret, version_label,
+                  absl::Span<uint8_t>(key, crypter->GetKeySize()));
+  uint8_t iv[12];
+  QUIC_BUG_IF(quic_bug_iv_length_mismatch, crypter->GetIVSize() > sizeof(iv))
+      << "IV length does not match crypter";
+  constexpr absl::string_view kIvPredicate = "iv";
+  version_label = GetLabelForVersion(
+      version, kIvPredicate,
+      absl::Span<char>(version_label_raw, kMaxVersionLabelLength));
+  HkdfExpandLabel(prf, pp_secret, version_label,
+                  absl::Span<uint8_t>(iv, crypter->GetIVSize()));
+  crypter->SetKey(
+      absl::string_view(reinterpret_cast<char*>(key), crypter->GetKeySize()));
+  crypter->SetIV(
+      absl::string_view(reinterpret_cast<char*>(iv), crypter->GetIVSize()));
+}
+// TODO(martinduke): Delete this.
 void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
                               absl::Span<const uint8_t> pp_secret,
                               const ParsedQuicVersion& version,
@@ -134,6 +244,19 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
       absl::string_view(reinterpret_cast<char*>(iv.data()), iv.size()));
 }
 
+// static
+bool CryptoUtils::GenerateHeaderProtectionKey(
+    const EVP_MD* prf, absl::Span<const uint8_t> pp_secret,
+    const ParsedQuicVersion& version, absl::Span<uint8_t> out) {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 6, 7);
+  char version_label_raw[kMaxVersionLabelLength];
+  constexpr absl::string_view kHeaderProtectionPredicate = "hp";
+  absl::string_view version_label = GetLabelForVersion(
+      version, kHeaderProtectionPredicate,
+      absl::Span<char>(version_label_raw, kMaxVersionLabelLength));
+  return HkdfExpandLabel(prf, pp_secret, version_label, out);
+}
+// TODO(martinduke): Delete this.
 std::vector<uint8_t> CryptoUtils::GenerateHeaderProtectionKey(
     const EVP_MD* prf, absl::Span<const uint8_t> pp_secret,
     const ParsedQuicVersion& version, size_t out_len) {
@@ -141,6 +264,19 @@ std::vector<uint8_t> CryptoUtils::GenerateHeaderProtectionKey(
                          out_len);
 }
 
+// static
+bool CryptoUtils::GenerateNextKeyPhaseSecret(
+    const EVP_MD* prf, const ParsedQuicVersion& version,
+    const absl::Span<const uint8_t> current_secret, absl::Span<uint8_t> out) {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 7, 7);
+  char version_label_raw[kMaxVersionLabelLength];
+  constexpr absl::string_view kKeyUpdatePredicate = "ku";
+  absl::string_view version_label = GetLabelForVersion(
+      version, kKeyUpdatePredicate,
+      absl::Span<char>(version_label_raw, kMaxVersionLabelLength));
+  return HkdfExpandLabel(prf, current_secret, version_label, out);
+}
+// TODO(martinduke): Delete this.
 std::vector<uint8_t> CryptoUtils::GenerateNextKeyPhaseSecret(
     const EVP_MD* prf, const ParsedQuicVersion& version,
     const std::vector<uint8_t>& current_secret) {
@@ -277,10 +413,89 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
 }  // namespace
 
 // static
+void CryptoUtils::PopulateInitialObfuscators(Perspective perspective,
+                                             const ParsedQuicVersion& version,
+                                             QuicConnectionId& connection_id,
+                                             QuicCrypter* encrypter,
+                                             QuicCrypter* decrypter) {
+  QUIC_BUG_IF(quic_bug_12871_1, !QuicUtils::IsConnectionIdValidForVersion(
+                                    connection_id, version.transport_version))
+      << "CreateTlsInitialCrypters: attempted to use connection ID "
+      << connection_id << " which is invalid with version " << version;
+  const EVP_MD* hash = EVP_sha256();
+
+  size_t salt_len;
+  const uint8_t* salt = InitialSaltForVersion(version, &salt_len);
+  uint8_t handshake_secret_raw[EVP_MAX_MD_SIZE];
+  size_t handshake_secret_len;
+  const bool hkdf_extract_success =
+      HKDF_extract(handshake_secret_raw, &handshake_secret_len, hash,
+                   reinterpret_cast<const uint8_t*>(connection_id.data()),
+                   connection_id.length(), salt, salt_len);
+  QUIC_BUG_IF(quic_bug_12871_2, !hkdf_extract_success)
+      << "HKDF_extract failed when creating initial crypters";
+  absl::Span<const uint8_t> handshake_secret(handshake_secret_raw,
+                                             handshake_secret_len);
+
+  constexpr absl::string_view kClientLabel = "client in";
+  constexpr absl::string_view kServerLabel = "server in";
+  absl::string_view encryption_label, decryption_label;
+  if (perspective == Perspective::IS_CLIENT) {
+    encryption_label = absl::string_view(kClientLabel);
+    decryption_label = absl::string_view(kServerLabel);
+  } else {
+    encryption_label = absl::string_view(kServerLabel);
+    decryption_label = absl::string_view(kClientLabel);
+  }
+  if (encrypter != nullptr) {
+    uint8_t encryption_secret[32];
+    QUIC_BUG_IF(quic_bug_digest_mismatch,
+                EVP_MD_size(hash) != sizeof(encryption_secret))
+        << "EVP_MD_size(hash) != sizeof(encryption_secret)";
+    HkdfExpandLabel(
+        hash, handshake_secret, encryption_label,
+        absl::Span<uint8_t>(encryption_secret, sizeof(encryption_secret)));
+    InitializeCrypterSecrets(hash, encryption_secret, version, encrypter);
+  }
+  if (decrypter != nullptr) {
+    uint8_t decryption_secret[32];
+    QUIC_BUG_IF(quic_bug_digest_mismatch,
+                EVP_MD_size(hash) != sizeof(decryption_secret))
+        << "EVP_MD_size(hash) != sizeof(decryption_secret)";
+    HkdfExpandLabel(
+        hash, handshake_secret, decryption_label,
+        absl::Span<uint8_t>(decryption_secret, sizeof(decryption_secret)));
+    InitializeCrypterSecrets(hash, decryption_secret, version, decrypter);
+  }
+}
+
+// static
+void CryptoUtils::CreateInitialObfuscatorsNew(Perspective perspective,
+                                              ParsedQuicVersion version,
+                                              QuicConnectionId connection_id,
+                                              CrypterPair* crypters) {
+  if (!version.UsesInitialObfuscators()) {
+    crypters->encrypter = std::make_unique<NullEncrypter>(perspective);
+    crypters->decrypter = std::make_unique<NullDecrypter>(perspective);
+    return;
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 1, 7);
+  crypters->encrypter = std::make_unique<Aes128GcmEncrypter>();
+  crypters->decrypter = std::make_unique<Aes128GcmDecrypter>();
+
+  PopulateInitialObfuscators(perspective, version, connection_id,
+                             crypters->encrypter.get(),
+                             crypters->decrypter.get());
+}
+// static
 void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
                                            ParsedQuicVersion version,
                                            QuicConnectionId connection_id,
                                            CrypterPair* crypters) {
+  if (GetQuicReloadableFlag(quic_heapless_obfuscator)) {
+    CreateInitialObfuscatorsNew(perspective, version, connection_id, crypters);
+    return;
+  }
   QUIC_DLOG(INFO) << "Creating "
                   << (perspective == Perspective::IS_CLIENT ? "client"
                                                             : "server")

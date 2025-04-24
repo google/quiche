@@ -19,6 +19,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/core/http2_frame_decoder_adapter.h"
+#include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/http_frames.h"

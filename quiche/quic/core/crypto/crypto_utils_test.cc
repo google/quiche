@@ -176,7 +176,97 @@ TEST_F(CryptoUtilsTest, ValidateServerVersionsWithDowngrade) {
 // Test that the library is using the correct labels for each version, and
 // therefore generating correct obfuscators, using the test vectors in appendix
 // A of each RFC or internet-draft.
-TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
+TEST_F(CryptoUtilsTest, ValidateCryptoLabelsHeapless) {
+  SetQuicReloadableFlag(quic_heapless_obfuscator, true);
+  // if the number of HTTP/3 QUIC versions has changed, we need to change the
+  // expected_keys hardcoded into this test. Regrettably, this is not a
+  // compile-time constant.
+  EXPECT_EQ(AllSupportedVersionsWithTls().size(), 3u);
+  const char draft_29_key[] = {// test vector from draft-ietf-quic-tls-29, A.1
+                               0x14,
+                               static_cast<char>(0x9d),
+                               0x0b,
+                               0x16,
+                               0x62,
+                               static_cast<char>(0xab),
+                               static_cast<char>(0x87),
+                               0x1f,
+                               static_cast<char>(0xbe),
+                               0x63,
+                               static_cast<char>(0xc4),
+                               static_cast<char>(0x9b),
+                               0x5e,
+                               0x65,
+                               0x5a,
+                               0x5d};
+  const char v1_key[] = {// test vector from RFC 9001, A.1
+                         static_cast<char>(0xcf),
+                         0x3a,
+                         0x53,
+                         0x31,
+                         0x65,
+                         0x3c,
+                         0x36,
+                         0x4c,
+                         static_cast<char>(0x88),
+                         static_cast<char>(0xf0),
+                         static_cast<char>(0xf3),
+                         0x79,
+                         static_cast<char>(0xb6),
+                         0x06,
+                         0x7e,
+                         0x37};
+  const char v2_08_key[] = {// test vector from draft-ietf-quic-v2-08
+                            static_cast<char>(0x82),
+                            static_cast<char>(0xdb),
+                            static_cast<char>(0x63),
+                            static_cast<char>(0x78),
+                            static_cast<char>(0x61),
+                            static_cast<char>(0xd5),
+                            static_cast<char>(0x5e),
+                            0x1d,
+                            static_cast<char>(0x01),
+                            static_cast<char>(0x1f),
+                            0x19,
+                            static_cast<char>(0xea),
+                            0x71,
+                            static_cast<char>(0xd5),
+                            static_cast<char>(0xd2),
+                            static_cast<char>(0xa7)};
+  const char connection_id[] =  // test vector from both docs
+      {static_cast<char>(0x83),
+       static_cast<char>(0x94),
+       static_cast<char>(0xc8),
+       static_cast<char>(0xf0),
+       0x3e,
+       0x51,
+       0x57,
+       0x08};
+  const QuicConnectionId cid(connection_id, sizeof(connection_id));
+  const char* key_str;
+  size_t key_size;
+  for (const ParsedQuicVersion& version : AllSupportedVersionsWithTls()) {
+    if (version == ParsedQuicVersion::Draft29()) {
+      key_str = draft_29_key;
+      key_size = sizeof(draft_29_key);
+    } else if (version == ParsedQuicVersion::RFCv1()) {
+      key_str = v1_key;
+      key_size = sizeof(v1_key);
+    } else {  // draft-ietf-quic-v2-01
+      key_str = v2_08_key;
+      key_size = sizeof(v2_08_key);
+    }
+    const absl::string_view expected_key{key_str, key_size};
+
+    CrypterPair crypters;
+    CryptoUtils::CreateInitialObfuscators(Perspective::IS_SERVER, version, cid,
+                                          &crypters);
+    EXPECT_EQ(crypters.encrypter->GetKey(), expected_key);
+  }
+}
+
+TEST_F(CryptoUtilsTest, ValidateCryptoLabelsHeap) {
+  SetQuicReloadableFlag(quic_heapless_obfuscator, false);
   // if the number of HTTP/3 QUIC versions has changed, we need to change the
   // expected_keys hardcoded into this test. Regrettably, this is not a
   // compile-time constant.

@@ -10,20 +10,20 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "openssl/evp.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
-#include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/quic_crypter.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection_id.h"
-#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
 
@@ -81,6 +81,12 @@ class QUICHE_EXPORT CryptoUtils {
   // as described in draft-ietf-quic-tls-14, section 5.1, or "quicv2 " as
   // described in draft-ietf-quic-v2-01.
   static void InitializeCrypterSecrets(const EVP_MD* prf,
+                                       absl::Span<const uint8_t> pp_secret,
+                                       const ParsedQuicVersion& version,
+                                       QuicCrypter* crypter);
+  // Overloaded legacy version that takes a vector.
+  // TODO(martinduke): Delete this.
+  static void InitializeCrypterSecrets(const EVP_MD* prf,
                                        const std::vector<uint8_t>& pp_secret,
                                        const ParsedQuicVersion& version,
                                        QuicCrypter* crypter);
@@ -89,20 +95,47 @@ class QUICHE_EXPORT CryptoUtils {
   // fields on the given QuicCrypter |*crypter|, but does not set the header
   // protection key. GenerateHeaderProtectionKey/SetHeaderProtectionKey must be
   // called before using |crypter|.
+  static void SetKeyAndIVHeapless(const EVP_MD* prf,
+                                  absl::Span<const uint8_t> pp_secret,
+                                  const ParsedQuicVersion& version,
+                                  QuicCrypter* crypter);
+  // TODO(martinduke): Delete this legacy version that allocates more from the
+  // heap.
   static void SetKeyAndIV(const EVP_MD* prf,
                           absl::Span<const uint8_t> pp_secret,
                           const ParsedQuicVersion& version,
                           QuicCrypter* crypter);
 
-  // Derives the header protection key from the packet protection secret.
+  // Derives the header protection key from the packet protection secret. Writes
+  // the result to |out|, limited by the size of the provided span. Returns true
+  // if the derivation was successful, false otherwise.
+  static bool GenerateHeaderProtectionKey(const EVP_MD* prf,
+                                          absl::Span<const uint8_t> pp_secret,
+                                          const ParsedQuicVersion& version,
+                                          absl::Span<uint8_t> out);
+  // Overloaded legacy version that allocates the vector.
   static std::vector<uint8_t> GenerateHeaderProtectionKey(
       const EVP_MD* prf, absl::Span<const uint8_t> pp_secret,
       const ParsedQuicVersion& version, size_t out_len);
 
-  // Given a secret for key phase n, return the secret for phase n+1.
+  // Given a secret for key phase n, return the secret for phase n+1 in |out|.
+  // Returns true if the derivation was successful, false otherwise.
+  static bool GenerateNextKeyPhaseSecret(
+      const EVP_MD* prf, const ParsedQuicVersion& version,
+      absl::Span<const uint8_t> current_secret, absl::Span<uint8_t> out);
+  // Overloaded legacy version that allocates the vector.
   static std::vector<uint8_t> GenerateNextKeyPhaseSecret(
       const EVP_MD* prf, const ParsedQuicVersion& version,
       const std::vector<uint8_t>& current_secret);
+
+  // Assumes Initial crypters have already been allocated, to create a path
+  // with heap allocations limited to those inherited from OpenSSL. |encrypter|
+  // or |decrypter| may be nullptr.
+  static void PopulateInitialObfuscators(Perspective perspective,
+                                         const ParsedQuicVersion& version,
+                                         QuicConnectionId& connection_id,
+                                         QuicCrypter* encrypter,
+                                         QuicCrypter* decrypter);
 
   // IETF QUIC encrypts ENCRYPTION_INITIAL messages with a version-specific key
   // (to prevent network observers that are not aware of that QUIC version from
@@ -114,6 +147,10 @@ class QUICHE_EXPORT CryptoUtils {
   // as setting the key and IV on those crypters. For older versions of QUIC
   // that do not use the new IETF style ENCRYPTION_INITIAL obfuscators, this
   // function puts a NullEncrypter and NullDecrypter in |*crypters|.
+  static void CreateInitialObfuscatorsNew(Perspective perspective,
+                                          ParsedQuicVersion version,
+                                          QuicConnectionId connection_id,
+                                          CrypterPair* crypters);
   static void CreateInitialObfuscators(Perspective perspective,
                                        ParsedQuicVersion version,
                                        QuicConnectionId connection_id,
