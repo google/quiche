@@ -64,23 +64,22 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   const FullTrackName& GetTrackName() const override { return track_name_; }
 
   MOCK_METHOD(std::optional<PublishedObject>, GetCachedObject,
-              (FullSequence sequence), (const, override));
-  MOCK_METHOD(std::vector<FullSequence>, GetCachedObjectsInRange,
-              (FullSequence start, FullSequence end), (const, override));
+              (Location sequence), (const, override));
+  MOCK_METHOD(std::vector<Location>, GetCachedObjectsInRange,
+              (Location start, Location end), (const, override));
   MOCK_METHOD(void, AddObjectListener, (MoqtObjectListener * listener),
               (override));
   MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),
               (override));
   MOCK_METHOD(absl::StatusOr<MoqtTrackStatusCode>, GetTrackStatus, (),
               (const, override));
-  MOCK_METHOD(FullSequence, GetLargestSequence, (), (const, override));
+  MOCK_METHOD(Location, GetLargestSequence, (), (const, override));
   MOCK_METHOD(MoqtForwardingPreference, GetForwardingPreference, (),
               (const, override));
   MOCK_METHOD(MoqtPriority, GetPublisherPriority, (), (const, override));
   MOCK_METHOD(MoqtDeliveryOrder, GetDeliveryOrder, (), (const, override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, Fetch,
-              (FullSequence, uint64_t, std::optional<uint64_t>,
-               MoqtDeliveryOrder),
+              (Location, uint64_t, std::optional<uint64_t>, MoqtDeliveryOrder),
               (override));
 
  private:
@@ -91,13 +90,13 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeRemoteTrack::Visitor {
  public:
   MOCK_METHOD(void, OnReply,
               (const FullTrackName& full_track_name,
-               std::optional<FullSequence> largest_id,
+               std::optional<Location> largest_id,
                std::optional<absl::string_view> error_reason_phrase),
               (override));
   MOCK_METHOD(void, OnCanAckObjects, (MoqtObjectAckFunction ack_function),
               (override));
   MOCK_METHOD(void, OnObjectFragment,
-              (const FullTrackName& full_track_name, FullSequence sequence,
+              (const FullTrackName& full_track_name, Location sequence,
                MoqtPriority publisher_priority, MoqtObjectStatus status,
                absl::string_view object, bool end_of_message),
               (override));
@@ -119,7 +118,7 @@ class MockFetchTask : public MoqtFetchTask {
   MOCK_METHOD(MoqtFetchTask::GetNextObjectResult, GetNextObject,
               (PublishedObject & output), (override));
   MOCK_METHOD(absl::Status, GetStatus, (), (override));
-  MOCK_METHOD(FullSequence, GetLargestId, (), (const, override));
+  MOCK_METHOD(Location, GetLargestId, (), (const, override));
 
   void SetObjectAvailableCallback(ObjectsAvailableCallback callback) override {
     objects_available_callback_ = std::move(callback);

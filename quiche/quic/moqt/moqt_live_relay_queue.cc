@@ -24,7 +24,7 @@
 
 namespace moqt {
 
-bool MoqtLiveRelayQueue::AddFin(FullSequence sequence) {
+bool MoqtLiveRelayQueue::AddFin(Location sequence) {
   switch (forwarding_preference_) {
     case MoqtForwardingPreference::kDatagram:
       return false;
@@ -59,7 +59,7 @@ bool MoqtLiveRelayQueue::AddFin(FullSequence sequence) {
 }
 
 bool MoqtLiveRelayQueue::OnStreamReset(
-    FullSequence sequence, webtransport::StreamErrorCode error_code) {
+    Location sequence, webtransport::StreamErrorCode error_code) {
   switch (forwarding_preference_) {
     case MoqtForwardingPreference::kDatagram:
       return false;
@@ -85,7 +85,7 @@ bool MoqtLiveRelayQueue::OnStreamReset(
 }
 
 // TODO(martinduke): Unless Track Forwarding preference goes away, support it.
-bool MoqtLiveRelayQueue::AddRawObject(FullSequence sequence,
+bool MoqtLiveRelayQueue::AddRawObject(Location sequence,
                                       MoqtObjectStatus status,
                                       MoqtPriority priority,
                                       absl::string_view payload, bool fin) {
@@ -176,7 +176,7 @@ bool MoqtLiveRelayQueue::AddRawObject(FullSequence sequence,
   }
   // Object is valid. Update state.
   if (next_sequence_ <= sequence) {
-    next_sequence_ = FullSequence{sequence.group, sequence.object + 1};
+    next_sequence_ = Location{sequence.group, sequence.object + 1};
   }
   if (sequence.object >= group.next_object) {
     group.next_object = sequence.object + 1;
@@ -212,7 +212,7 @@ bool MoqtLiveRelayQueue::AddRawObject(FullSequence sequence,
 }
 
 std::optional<PublishedObject> MoqtLiveRelayQueue::GetCachedObject(
-    FullSequence sequence) const {
+    Location sequence) const {
   auto group_it = queue_.find(sequence.group);
   if (group_it == queue_.end()) {
     // Group does not exist.
@@ -238,9 +238,9 @@ std::optional<PublishedObject> MoqtLiveRelayQueue::GetCachedObject(
   return CachedObjectToPublishedObject(object_it->second);
 }
 
-std::vector<FullSequence> MoqtLiveRelayQueue::GetCachedObjectsInRange(
-    FullSequence start, FullSequence end) const {
-  std::vector<FullSequence> sequences;
+std::vector<Location> MoqtLiveRelayQueue::GetCachedObjectsInRange(
+    Location start, Location end) const {
+  std::vector<Location> sequences;
   SubscribeWindow window(start, end.group, end.object);
   for (auto& group_it : queue_) {
     if (group_it.first < start.group) {
@@ -275,8 +275,8 @@ absl::StatusOr<MoqtTrackStatusCode> MoqtLiveRelayQueue::GetTrackStatus() const {
   return MoqtTrackStatusCode::kInProgress;
 }
 
-FullSequence MoqtLiveRelayQueue::GetLargestSequence() const {
-  return FullSequence{next_sequence_.group, next_sequence_.object - 1};
+Location MoqtLiveRelayQueue::GetLargestSequence() const {
+  return Location{next_sequence_.group, next_sequence_.object - 1};
 }
 
 }  // namespace moqt

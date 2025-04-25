@@ -54,7 +54,7 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
       /*full_track_name=*/FullTrackName("foo", "bar"),
       /*subscriber_priority=*/128,
       /*group_order=*/std::nullopt,
-      /*start=*/FullSequence(2, 0),
+      /*start=*/Location(2, 0),
       std::nullopt,
       MoqtSubscribeParameters(),
   };
@@ -84,11 +84,11 @@ TEST_F(SubscribeRemoteTrackTest, AllowError) {
 }
 
 TEST_F(SubscribeRemoteTrackTest, Windows) {
-  EXPECT_TRUE(track_.InWindow(FullSequence(2, 0)));
-  track_.TruncateStart(FullSequence(2, 1));
-  EXPECT_FALSE(track_.InWindow(FullSequence(2, 0)));
+  EXPECT_TRUE(track_.InWindow(Location(2, 0)));
+  track_.TruncateStart(Location(2, 1));
+  EXPECT_FALSE(track_.InWindow(Location(2, 0)));
   track_.TruncateEnd(2);
-  EXPECT_FALSE(track_.InWindow(FullSequence(3, 0)));
+  EXPECT_FALSE(track_.InWindow(Location(3, 0)));
 }
 
 class UpstreamFetchTest : public quic::test::QuicTest {
@@ -104,7 +104,7 @@ class UpstreamFetchTest : public quic::test::QuicTest {
       /*group_order=*/std::nullopt,
       /*joining_fetch=*/std::nullopt,
       /*full_track_name=*/FullTrackName("foo", "bar"),
-      /*start_object=*/FullSequence(1, 1),
+      /*start_object=*/Location(1, 1),
       /*end_group=*/3,
       /*end_object=*/100,
       /*parameters=*/MoqtSubscribeParameters(),
@@ -122,10 +122,10 @@ TEST_F(UpstreamFetchTest, Queries) {
   EXPECT_TRUE(
       fetch_.CheckDataStreamType(MoqtDataStreamType::kStreamHeaderFetch));
   EXPECT_TRUE(fetch_.is_fetch());
-  EXPECT_FALSE(fetch_.InWindow(FullSequence{1, 0}));
-  EXPECT_TRUE(fetch_.InWindow(FullSequence{1, 1}));
-  EXPECT_TRUE(fetch_.InWindow(FullSequence{3, 100}));
-  EXPECT_FALSE(fetch_.InWindow(FullSequence{3, 101}));
+  EXPECT_FALSE(fetch_.InWindow(Location{1, 0}));
+  EXPECT_TRUE(fetch_.InWindow(Location{1, 1}));
+  EXPECT_TRUE(fetch_.InWindow(Location{3, 100}));
+  EXPECT_FALSE(fetch_.InWindow(Location{3, 101}));
 }
 
 TEST_F(UpstreamFetchTest, AllowError) {
@@ -136,16 +136,16 @@ TEST_F(UpstreamFetchTest, AllowError) {
 
 TEST_F(UpstreamFetchTest, FetchResponse) {
   EXPECT_EQ(fetch_task_, nullptr);
-  fetch_.OnFetchResult(FullSequence(3, 50), absl::OkStatus(), nullptr);
+  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
   EXPECT_NE(fetch_task_, nullptr);
   EXPECT_NE(fetch_.task(), nullptr);
   EXPECT_TRUE(fetch_task_->GetStatus().ok());
-  EXPECT_EQ(fetch_task_->GetLargestId(), FullSequence(3, 50));
+  EXPECT_EQ(fetch_task_->GetLargestId(), Location(3, 50));
 }
 
 TEST_F(UpstreamFetchTest, FetchClosedByMoqt) {
   bool terminated = false;
-  fetch_.OnFetchResult(FullSequence(3, 50), absl::OkStatus(),
+  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(),
                        [&]() { terminated = true; });
   bool got_eof = false;
   fetch_task_->SetObjectAvailableCallback([&]() {
@@ -161,14 +161,14 @@ TEST_F(UpstreamFetchTest, FetchClosedByMoqt) {
 
 TEST_F(UpstreamFetchTest, FetchClosedByApplication) {
   bool terminated = false;
-  fetch_.OnFetchResult(FullSequence(3, 50), absl::Status(),
+  fetch_.OnFetchResult(Location(3, 50), absl::Status(),
                        [&]() { terminated = true; });
   fetch_task_.reset();
   EXPECT_TRUE(terminated);
 }
 
 TEST_F(UpstreamFetchTest, ObjectRetrieval) {
-  fetch_.OnFetchResult(FullSequence(3, 50), absl::OkStatus(), nullptr);
+  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
   PublishedObject object;
   EXPECT_EQ(fetch_task_->GetNextObject(object),
             MoqtFetchTask::GetNextObjectResult::kPending);
@@ -178,7 +178,7 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
     got_object = true;
     EXPECT_EQ(fetch_task_->GetNextObject(object),
               MoqtFetchTask::GetNextObjectResult::kSuccess);
-    EXPECT_EQ(object.sequence, FullSequence(3, 0, 0));
+    EXPECT_EQ(object.sequence, Location(3, 0, 0));
     EXPECT_EQ(object.payload.AsStringView(), "foobar");
   });
   int got_read_callback = 0;

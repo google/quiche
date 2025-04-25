@@ -553,7 +553,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*subscriber_priority=*/0x20,
       /*group_order=*/MoqtDeliveryOrder::kDescending,
-      /*start=*/FullSequence(4, 1),
+      /*start=*/Location(4, 1),
       /*end_group=*/std::nullopt,
       /*parameters=*/
       MoqtSubscribeParameters{
@@ -623,7 +623,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       /*subscribe_id=*/1,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(3),
       /*group_order=*/MoqtDeliveryOrder::kDescending,
-      /*largest_id=*/FullSequence(12, 20),
+      /*largest_id=*/Location(12, 20),
       /*parameters=*/
       MoqtSubscribeParameters{
           std::nullopt, quic::QuicTimeDelta::FromMilliseconds(10000),
@@ -809,7 +809,7 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
 
   MoqtSubscribeUpdate subscribe_update_ = {
       /*subscribe_id=*/2,
-      /*start=*/FullSequence(3, 1),
+      /*start=*/Location(3, 1),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
       /*parameters=*/
@@ -1400,7 +1400,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*joining_fetch=*/std::optional<JoiningFetch>(),
       /*full_track_name=*/FullTrackName{"foo", "bar"},
-      /*start_object=*/FullSequence{1, 2},
+      /*start_object=*/Location{1, 2},
       /*end_group=*/5,
       /*end_object=*/6,
       /*parameters=*/
@@ -1500,7 +1500,7 @@ class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
       /*joining_fetch=*/JoiningFetch{2, 2},
       /* the next four are ignored for joining fetches*/
       /*full_track_name=*/FullTrackName{"foo", "bar"},
-      /*start_object=*/FullSequence{1, 2},
+      /*start_object=*/Location{1, 2},
       /*end_group=*/5,
       /*end_object=*/6,
       /*parameters=*/
@@ -1583,7 +1583,7 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
   MoqtFetchOk fetch_ok_ = {
       /*subscribe_id =*/1,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*start_object=*/FullSequence{5, 4},
+      /*start_object=*/Location{5, 4},
       /*parameters=*/
       MoqtSubscribeParameters{"baz", std::nullopt, std::nullopt, std::nullopt},
   };

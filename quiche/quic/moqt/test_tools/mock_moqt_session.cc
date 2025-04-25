@@ -62,7 +62,7 @@ class MockMoqtSession::LoopbackObjectListener : public MoqtObjectListener {
     visitor_->OnReply(name_, std::nullopt, reason.reason_phrase);
   }
 
-  void OnNewObjectAvailable(FullSequence sequence) {
+  void OnNewObjectAvailable(Location sequence) {
     std::optional<PublishedObject> object =
         publisher_->GetCachedObject(sequence);
     if (!object.has_value()) {
@@ -79,8 +79,8 @@ class MockMoqtSession::LoopbackObjectListener : public MoqtObjectListener {
                                /*end_of_message=*/true);
   }
 
-  void OnNewFinAvailable(FullSequence sequence) override {}
-  void OnSubgroupAbandoned(FullSequence sequence,
+  void OnNewFinAvailable(Location sequence) override {}
+  void OnSubgroupAbandoned(Location sequence,
                            webtransport::StreamErrorCode error_code) override {}
   void OnGroupAbandoned(uint64_t group_id) override {}
   void OnTrackPublisherGone() override { visitor_->OnSubscribeDone(name_); }
@@ -137,7 +137,7 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
                               MoqtSubscribeParameters) {
           return Subscribe(
               name, visitor,
-              SubscribeWindow(FullSequence(start_group, start_object)));
+              SubscribeWindow(Location(start_group, start_object)));
         });
     ON_CALL(*this, SubscribeAbsolute(_, _, _, _, _, _))
         .WillByDefault([this](const FullTrackName& name, uint64_t start_group,
@@ -146,8 +146,7 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
                               MoqtSubscribeParameters) {
           return Subscribe(
               name, visitor,
-              SubscribeWindow(FullSequence(start_group, start_object),
-                              end_group));
+              SubscribeWindow(Location(start_group, start_object), end_group));
         });
     ON_CALL(*this, Unsubscribe)
         .WillByDefault([this](const FullTrackName& name) {
@@ -156,7 +155,7 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
     ON_CALL(*this, Fetch)
         .WillByDefault(
             [this](const FullTrackName& name, FetchResponseCallback callback,
-                   FullSequence start, uint64_t end_group,
+                   Location start, uint64_t end_group,
                    std::optional<uint64_t> end_object, MoqtPriority priority,
                    std::optional<MoqtDeliveryOrder> delivery_order,
                    MoqtSubscribeParameters parameters) {
@@ -207,14 +206,14 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
           if (track_publisher->get()->GetTrackStatus().value_or(
                   MoqtTrackStatusCode::kStatusNotAvailable) ==
               MoqtTrackStatusCode::kNotYetBegun) {
-            return Fetch(name, std::move(callback), FullSequence(0, 0), 0, 0,
+            return Fetch(name, std::move(callback), Location(0, 0), 0, 0,
                          priority, delivery_order, std::move(parameters));
           }
-          FullSequence largest = track_publisher->get()->GetLargestSequence();
+          Location largest = track_publisher->get()->GetLargestSequence();
           uint64_t start_group = largest.group >= num_previous_groups
                                      ? largest.group - num_previous_groups + 1
                                      : 0;
-          return Fetch(name, std::move(callback), FullSequence(start_group, 0),
+          return Fetch(name, std::move(callback), Location(start_group, 0),
                        largest.group, largest.object, priority, delivery_order,
                        std::move(parameters));
         });

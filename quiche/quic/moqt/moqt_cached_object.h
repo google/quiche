@@ -18,7 +18,7 @@ namespace moqt {
 // CachedObject is a version of PublishedObject with a reference counted
 // payload.
 struct CachedObject {
-  FullSequence sequence;
+  Location sequence;
   MoqtObjectStatus status;
   MoqtPriority publisher_priority;
   std::shared_ptr<quiche::QuicheMemSlice> payload;

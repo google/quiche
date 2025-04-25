@@ -402,9 +402,9 @@ TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
 }
 
 TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
-  for (std::optional<FullSequence> start :
-       {std::optional<FullSequence>(),
-        std::optional<FullSequence>(std::in_place, 4, 0)}) {
+  for (std::optional<Location> start :
+       {std::optional<Location>(),
+        std::optional<Location>(std::in_place, 4, 0)}) {
     for (std::optional<uint64_t> end_group :
          {std::optional<uint64_t>(), std::optional<uint64_t>(7)}) {
       MoqtSubscribe subscribe = {
@@ -442,7 +442,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
       /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*subscriber_priority=*/0x20,
       /*group_order=*/std::nullopt,
-      /*start=*/FullSequence(4, 3),
+      /*start=*/Location(4, 3),
       /*end_group=*/3,
       MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt, std::nullopt},
   };
@@ -459,7 +459,7 @@ TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*joining_fetch=*/std::nullopt,
       /*full_track_name=*/FullTrackName{"foo", "bar"},
-      /*start_object=*/FullSequence{1, 2},
+      /*start_object=*/Location{1, 2},
       /*end_group=*/1,
       /*end_object=*/1,
       /*parameters=*/
@@ -479,7 +479,7 @@ TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
 TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
   MoqtSubscribeUpdate subscribe_update = {
       /*subscribe_id=*/3,
-      /*start=*/FullSequence(4, 3),
+      /*start=*/Location(4, 3),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
       MoqtSubscribeParameters{std::nullopt, std::nullopt, std::nullopt,
@@ -495,7 +495,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
 TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
   MoqtSubscribeUpdate subscribe_update = {
       /*subscribe_id=*/3,
-      /*start=*/FullSequence(4, 3),
+      /*start=*/Location(4, 3),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
       MoqtSubscribeParameters{std::nullopt, std::nullopt, std::nullopt,

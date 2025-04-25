@@ -423,7 +423,7 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
       if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
         return 0;
       }
-      subscribe_request.start = FullSequence(group, object);
+      subscribe_request.start = Location(group, object);
       if (filter_type == MoqtFilterType::kAbsoluteStart) {
         break;
       }
@@ -468,7 +468,7 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   subscribe_ok.expires = quic::QuicTimeDelta::FromMilliseconds(milliseconds);
   subscribe_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
   if (content_exists) {
-    subscribe_ok.largest_id = FullSequence();
+    subscribe_ok.largest_id = Location();
     if (!reader.ReadVarInt62(&subscribe_ok.largest_id->group) ||
         !reader.ReadVarInt62(&subscribe_ok.largest_id->object)) {
       return 0;
@@ -534,7 +534,7 @@ size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
   if (!ReadSubscribeParameters(reader, subscribe_update.parameters)) {
     return 0;
   }
-  subscribe_update.start = FullSequence(start_group, start_object);
+  subscribe_update.start = Location(start_group, start_object);
   if (end_group > 0) {
     subscribe_update.end_group = end_group - 1;
     if (subscribe_update.end_group < start_group) {

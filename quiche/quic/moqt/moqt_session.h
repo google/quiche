@@ -133,7 +133,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // transfers ownership of MoqtFetchTask to the application.
   // To cancel a FETCH, simply destroy the FetchTask.
   bool Fetch(const FullTrackName& name, FetchResponseCallback callback,
-             FullSequence start, uint64_t end_group,
+             Location start, uint64_t end_group,
              std::optional<uint64_t> end_object, MoqtPriority priority,
              std::optional<MoqtDeliveryOrder> delivery_order,
              MoqtSubscribeParameters parameters) override;
@@ -341,7 +341,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     uint64_t subscription_id() const { return subscription_id_; }
     MoqtTrackPublisher& publisher() { return *track_publisher_; }
     uint64_t track_alias() const { return track_alias_; }
-    std::optional<FullSequence> largest_sent() const { return largest_sent_; }
+    std::optional<Location> largest_sent() const { return largest_sent_; }
     MoqtPriority subscriber_priority() const { return subscriber_priority_; }
     std::optional<MoqtDeliveryOrder> subscriber_delivery_order() const {
       return subscriber_delivery_order_;
@@ -354,10 +354,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         MoqtSubscribeErrorReason reason,
         std::optional<uint64_t> track_alias = std::nullopt) override;
     // This is only called for objects that have just arrived.
-    void OnNewObjectAvailable(FullSequence sequence) override;
+    void OnNewObjectAvailable(Location sequence) override;
     void OnTrackPublisherGone() override;
-    void OnNewFinAvailable(FullSequence sequence) override;
-    void OnSubgroupAbandoned(FullSequence sequence,
+    void OnNewFinAvailable(Location sequence) override;
+    void OnSubgroupAbandoned(Location sequence,
                              webtransport::StreamErrorCode error_code) override;
     void OnGroupAbandoned(uint64_t group_id) override;
     void ProcessObjectAck(const MoqtObjectAck& message) {
@@ -369,37 +369,37 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     }
 
     // Updates the window and other properties of the subscription in question.
-    void Update(FullSequence start, std::optional<uint64_t> end,
+    void Update(Location start, std::optional<uint64_t> end,
                 MoqtPriority subscriber_priority);
     // Checks if the specified sequence is within the window of this
     // subscription.
-    bool InWindow(FullSequence sequence) { return window_.InWindow(sequence); }
-    FullSequence GetWindowStart() const { return window_.start(); }
+    bool InWindow(Location sequence) { return window_.InWindow(sequence); }
+    Location GetWindowStart() const { return window_.start(); }
     MoqtFilterType filter_type() const { return filter_type_; };
 
     void OnDataStreamCreated(webtransport::StreamId id,
-                             FullSequence start_sequence);
+                             Location start_sequence);
     void OnDataStreamDestroyed(webtransport::StreamId id,
-                               FullSequence end_sequence);
-    void OnObjectSent(FullSequence sequence);
+                               Location end_sequence);
+    void OnObjectSent(Location sequence);
 
     std::vector<webtransport::StreamId> GetAllStreams() const;
 
-    webtransport::SendOrder GetSendOrder(FullSequence sequence) const;
+    webtransport::SendOrder GetSendOrder(Location sequence) const;
 
-    void AddQueuedOutgoingDataStream(FullSequence first_object);
+    void AddQueuedOutgoingDataStream(Location first_object);
     // Pops the pending outgoing data stream, with the highest send order.
     // The session keeps track of which subscribes have pending streams. This
     // function will trigger a QUICHE_DCHECK if called when there are no pending
     // streams.
-    FullSequence NextQueuedOutgoingDataStream();
+    Location NextQueuedOutgoingDataStream();
 
     quic::QuicTimeDelta delivery_timeout() const { return delivery_timeout_; }
     void set_delivery_timeout(quic::QuicTimeDelta timeout) {
       delivery_timeout_ = timeout;
     }
 
-    void OnStreamTimeout(FullSequence sequence) {
+    void OnStreamTimeout(Location sequence) {
       sequence.object = 0;
       reset_subgroups_.insert(sequence);
       if (session_->alternate_delivery_timeout_) {
@@ -409,7 +409,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     uint64_t first_active_group() const { return first_active_group_; }
 
-    absl::flat_hash_set<FullSequence>& reset_subgroups() {
+    absl::flat_hash_set<Location>& reset_subgroups() {
       return reset_subgroups_;
     }
 
@@ -421,7 +421,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       return session_->parameters_.perspective;
     }
 
-    void SendDatagram(FullSequence sequence);
+    void SendDatagram(Location sequence);
     webtransport::SendOrder FinalizeSendOrder(
         webtransport::SendOrder send_order) {
       return UpdateSendOrderForSubscriberPriority(send_order,
@@ -442,27 +442,27 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     uint64_t first_active_group_ = 0;
     // If a stream has been reset due to delivery timeout, do not open a new
     // stream if more object arrive for it.
-    absl::flat_hash_set<FullSequence> reset_subgroups_;
+    absl::flat_hash_set<Location> reset_subgroups_;
     // The min of DELIVERY_TIMEOUT from SUBSCRIBE and SUBSCRIBE_OK.
     quic::QuicTimeDelta delivery_timeout_ = quic::QuicTimeDelta::Infinite();
 
     std::optional<MoqtDeliveryOrder> subscriber_delivery_order_;
     MoqtPublishingMonitorInterface* monitoring_interface_;
     // Largest sequence number ever sent via this subscription.
-    std::optional<FullSequence> largest_sent_;
+    std::optional<Location> largest_sent_;
     // Should be almost always accessed via `stream_map()`.
     std::optional<SendStreamMap> lazily_initialized_stream_map_;
     // Store the send order of queued outgoing data streams. Use a
     // subscriber_priority_ of zero to avoid having to update it, and call
     // FinalizeSendOrder() whenever delivering it to the MoqtSession.
-    absl::btree_multimap<webtransport::SendOrder, FullSequence>
+    absl::btree_multimap<webtransport::SendOrder, Location>
         queued_outgoing_data_streams_;
   };
   class QUICHE_EXPORT OutgoingDataStream : public webtransport::StreamVisitor {
    public:
     OutgoingDataStream(MoqtSession* session, webtransport::Stream* stream,
                        PublishedSubscription& subscription,
-                       FullSequence first_object);
+                       Location first_object);
     ~OutgoingDataStream();
 
     // webtransport::StreamVisitor implementation.
@@ -491,7 +491,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     // Sends a pure FIN on the stream, if the last object sent matches
     // |last_object|. Otherwise, does nothing.
-    void Fin(FullSequence last_object);
+    void Fin(Location last_object);
 
     // Recomputes the send order and updates it for the associated stream.
     void UpdateSendOrder(PublishedSubscription& subscription);
@@ -511,10 +511,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
     webtransport::Stream* stream_;
     uint64_t subscription_id_;
-    // A FullSequence with the minimum object ID that should go out next. The
+    // A Location with the minimum object ID that should go out next. The
     // session doesn't know what the next object ID in the stream is because
     // the next object could be in a different subgroup or simply be skipped.
-    FullSequence next_object_;
+    Location next_object_;
     bool stream_header_written_ = false;
     // If this data stream is for SUBSCRIBE, reset it if an object has been
     // excessively delayed per Section 7.1.1.2.
@@ -614,11 +614,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Opens a new data stream, or queues it if the session is flow control
   // blocked.
   webtransport::Stream* OpenOrQueueDataStream(uint64_t subscription_id,
-                                              FullSequence first_object);
+                                              Location first_object);
   // Same as above, except the session is required to be not flow control
   // blocked.
   webtransport::Stream* OpenDataStream(PublishedSubscription& subscription,
-                                       FullSequence first_object);
+                                       Location first_object);
   // Returns false if creation failed.
   [[nodiscard]] bool OpenDataStream(std::shared_ptr<PublishedFetch> fetch,
                                     webtransport::SendOrder send_order);

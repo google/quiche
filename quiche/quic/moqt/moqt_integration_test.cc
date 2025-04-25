@@ -74,7 +74,7 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
   void SubscribeLatestObject(FullTrackName track_name,
                              MockSubscribeRemoteTrackVisitor* visitor) {
     bool received_ok = false;
-    EXPECT_CALL(*visitor, OnReply(track_name, std::optional<FullSequence>(),
+    EXPECT_CALL(*visitor, OnReply(track_name, std::optional<Location>(),
                                   std::optional<absl::string_view>()))
         .WillOnce([&]() { received_ok = true; });
     client_->session()->SubscribeCurrentObject(track_name, visitor,
@@ -277,7 +277,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
   queue->AddObject(MemSliceFromString("object data"), /*key=*/true);
   bool received_object = false;
   EXPECT_CALL(server_visitor, OnObjectFragment(_, _, _, _, _, _))
-      .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
+      .WillOnce([&](const FullTrackName& full_track_name, Location sequence,
                     MoqtPriority /*publisher_priority*/,
                     MoqtObjectStatus status, absl::string_view object,
                     bool end_of_message) {
@@ -317,30 +317,29 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     client_->session()->SubscribeCurrentObject(FullTrackName("test", name),
                                                &client_visitor,
                                                MoqtSubscribeParameters());
-    std::optional<FullSequence> largest_id;
+    std::optional<Location> largest_id;
     EXPECT_CALL(client_visitor, OnReply)
-        .WillOnce([&](const FullTrackName& /*name*/,
-                      std::optional<FullSequence> id,
+        .WillOnce([&](const FullTrackName& /*name*/, std::optional<Location> id,
                       std::optional<absl::string_view> /*reason*/) {
           largest_id = id;
         });
     bool success = test_harness_.RunUntilWithDefaultTimeout([&]() {
-      return largest_id.has_value() && *largest_id == FullSequence(0, 2);
+      return largest_id.has_value() && *largest_id == Location(0, 2);
     });
     EXPECT_TRUE(success);
 
     int received = 0;
     EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, FullSequence{0, 3}, _,
+                OnObjectFragment(_, Location{0, 3}, _,
                                  MoqtObjectStatus::kEndOfGroup, "", true))
         .WillOnce([&] { ++received; });
     EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, FullSequence{1, 0}, _,
+                OnObjectFragment(_, Location{1, 0}, _,
                                  MoqtObjectStatus::kNormal, "object 4", true))
         .WillOnce([&] { ++received; });
     queue->AddObject(MemSliceFromString("object 4"), /*key=*/true);
     EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, FullSequence{1, 1}, _,
+                OnObjectFragment(_, Location{1, 1}, _,
                                  MoqtObjectStatus::kNormal, "object 5", true))
         .WillOnce([&] { ++received; });
     queue->AddObject(MemSliceFromString("object 5"), /*key=*/false);
@@ -350,21 +349,21 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     EXPECT_TRUE(success);
 
     EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, FullSequence{1, 2}, _,
+                OnObjectFragment(_, Location{1, 2}, _,
                                  MoqtObjectStatus::kNormal, "object 6", true))
         .WillOnce([&] { ++received; });
     queue->AddObject(MemSliceFromString("object 6"), /*key=*/false);
     EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, FullSequence{1, 3}, _,
+                OnObjectFragment(_, Location{1, 3}, _,
                                  MoqtObjectStatus::kEndOfGroup, "", true))
         .WillOnce([&] { ++received; });
     EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, FullSequence{2, 0}, _,
+                OnObjectFragment(_, Location{2, 0}, _,
                                  MoqtObjectStatus::kNormal, "object 7", true))
         .WillOnce([&] { ++received; });
     queue->AddObject(MemSliceFromString("object 7"), /*key=*/true);
     EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, FullSequence{2, 1}, _,
+                OnObjectFragment(_, Location{2, 1}, _,
                                  MoqtObjectStatus::kNormal, "object 8", true))
         .WillOnce([&] { ++received; });
     queue->AddObject(MemSliceFromString("object 8"), /*key=*/false);
@@ -374,11 +373,11 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     EXPECT_TRUE(success);
 
     EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, FullSequence{2, 2}, _,
+                OnObjectFragment(_, Location{2, 2}, _,
                                  MoqtObjectStatus::kEndOfGroup, "", true))
         .WillOnce([&] { ++received; });
     EXPECT_CALL(client_visitor,
-                OnObjectFragment(_, FullSequence{3, 0}, _,
+                OnObjectFragment(_, Location{3, 0}, _,
                                  MoqtObjectStatus::kEndOfTrack, "", true))
         .WillOnce([&] { ++received; });
     queue->Close();
@@ -405,7 +404,7 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
   EXPECT_TRUE(client_->session()->Fetch(
       full_track_name,
       [&](std::unique_ptr<MoqtFetchTask> task) { fetch = std::move(task); },
-      FullSequence{0, 0}, 99, std::nullopt, 128, std::nullopt,
+      Location{0, 0}, 99, std::nullopt, 128, std::nullopt,
       MoqtSubscribeParameters()));
   // Run until we get FETCH_OK.
   bool success = test_harness_.RunUntilWithDefaultTimeout(
@@ -413,10 +412,10 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
   EXPECT_TRUE(success);
 
   EXPECT_TRUE(fetch->GetStatus().ok());
-  EXPECT_EQ(fetch->GetLargestId(), FullSequence(99, 0));
+  EXPECT_EQ(fetch->GetLargestId(), Location(99, 0));
   MoqtFetchTask::GetNextObjectResult result;
   PublishedObject object;
-  FullSequence expected{97, 0};
+  Location expected{97, 0};
   do {
     result = fetch->GetNextObject(object);
     if (result == MoqtFetchTask::GetNextObjectResult::kEof) {
@@ -435,7 +434,7 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
     }
   } while (result == MoqtFetchTask::GetNextObjectResult::kSuccess);
   EXPECT_EQ(result, MoqtFetchTask::GetNextObjectResult::kEof);
-  EXPECT_EQ(expected, FullSequence(99, 1));
+  EXPECT_EQ(expected, Location(99, 1));
 }
 
 TEST_F(MoqtIntegrationTest, AnnounceFailure) {
@@ -567,9 +566,9 @@ TEST_F(MoqtIntegrationTest, CleanSubscribeDone) {
   SubscribeLatestObject(full_track_name, &client_visitor);
 
   // Deliver 3 objects on 2 streams.
-  queue->AddObject(FullSequence(0, 0), "object,0,0", false);
-  queue->AddObject(FullSequence(0, 1), "object,0,1", true);
-  queue->AddObject(FullSequence(1, 0), "object,1,0", true);
+  queue->AddObject(Location(0, 0), "object,0,0", false);
+  queue->AddObject(Location(0, 1), "object,0,1", true);
+  queue->AddObject(Location(1, 0), "object,1,0", true);
   int received = 0;
   EXPECT_CALL(client_visitor, OnObjectFragment).WillRepeatedly([&]() {
     ++received;
@@ -624,7 +623,7 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
         listener->OnSubscribeAccepted();
       });
   EXPECT_CALL(client_visitor, OnReply(_, _, _))
-      .WillOnce([&](const FullTrackName&, std::optional<FullSequence>,
+      .WillOnce([&](const FullTrackName&, std::optional<Location>,
                     std::optional<absl::string_view>) {
         ack_function(10, 20, quic::QuicTimeDelta::FromMicroseconds(-123));
         ack_function(100, 200, quic::QuicTimeDelta::FromMicroseconds(456));
@@ -680,18 +679,18 @@ TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
   size_t bytes_received = 0;
   EXPECT_CALL(client_visitor, OnObjectFragment)
       .WillRepeatedly(
-          [&](const FullTrackName&, FullSequence sequence,
+          [&](const FullTrackName&, Location sequence,
               MoqtPriority /*publisher_priority*/, MoqtObjectStatus status,
               absl::string_view object,
               bool end_of_message) { bytes_received += object.size(); });
-  queue->AddObject(FullSequence{0, 0, 0}, data, false);
-  queue->AddObject(FullSequence{0, 0, 1}, data, false);
-  queue->AddObject(FullSequence{0, 0, 2}, data, false);
-  queue->AddObject(FullSequence{0, 0, 3}, data, true);
+  queue->AddObject(Location{0, 0, 0}, data, false);
+  queue->AddObject(Location{0, 0, 1}, data, false);
+  queue->AddObject(Location{0, 0, 2}, data, false);
+  queue->AddObject(Location{0, 0, 3}, data, true);
   success = test_harness_.RunUntilWithDefaultTimeout([&]() {
     return MoqtSessionPeer::SubgroupHasBeenReset(
         MoqtSessionPeer::GetSubscription(server_->session(), 0),
-        FullSequence{0, 0, 0});
+        Location{0, 0, 0});
   });
   EXPECT_TRUE(success);
   // Stream was reset before all the bytes arrived.
@@ -730,16 +729,16 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
   size_t bytes_received = 0;
   EXPECT_CALL(client_visitor, OnObjectFragment)
       .WillRepeatedly(
-          [&](const FullTrackName&, FullSequence sequence,
+          [&](const FullTrackName&, Location sequence,
               MoqtPriority /*publisher_priority*/, MoqtObjectStatus status,
               absl::string_view object,
               bool end_of_message) { bytes_received += object.size(); });
-  queue->AddObject(FullSequence{0, 0, 0}, data, false);
-  queue->AddObject(FullSequence{1, 0, 0}, data, false);
+  queue->AddObject(Location{0, 0, 0}, data, false);
+  queue->AddObject(Location{1, 0, 0}, data, false);
   success = test_harness_.RunUntilWithDefaultTimeout([&]() {
     return MoqtSessionPeer::SubgroupHasBeenReset(
         MoqtSessionPeer::GetSubscription(server_->session(), 0),
-        FullSequence{0, 0, 0});
+        Location{0, 0, 0});
   });
   EXPECT_TRUE(success);
   EXPECT_EQ(bytes_received, 2000);

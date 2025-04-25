@@ -24,7 +24,7 @@ class MoqtFailedFetch : public MoqtFetchTask {
   absl::Status GetStatus() override { return status_; }
   void SetObjectAvailableCallback(
       ObjectsAvailableCallback /*callback*/) override {}
-  FullSequence GetLargestId() const override { return FullSequence(); }
+  Location GetLargestId() const override { return Location(); }
 
  private:
   absl::Status status_;

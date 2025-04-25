@@ -71,7 +71,7 @@ class MoqtSessionInterface {
   // be used to process the FETCH further.  To cancel a FETCH, simply destroy
   // the MoqtFetchTask.
   virtual bool Fetch(const FullTrackName& name, FetchResponseCallback callback,
-                     FullSequence start, uint64_t end_group,
+                     Location start, uint64_t end_group,
                      std::optional<uint64_t> end_object, MoqtPriority priority,
                      std::optional<MoqtDeliveryOrder> delivery_order,
                      MoqtSubscribeParameters parameters) = 0;

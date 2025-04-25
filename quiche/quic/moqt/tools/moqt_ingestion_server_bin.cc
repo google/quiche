@@ -169,7 +169,7 @@ class MoqtIngestionHandler {
 
     void OnReply(
         const FullTrackName& full_track_name,
-        std::optional<FullSequence> /*largest_id*/,
+        std::optional<Location> /*largest_id*/,
         std::optional<absl::string_view> error_reason_phrase) override {
       if (error_reason_phrase.has_value()) {
         QUICHE_LOG(ERROR) << "Failed to subscribe to the peer track "
@@ -180,10 +180,9 @@ class MoqtIngestionHandler {
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
 
     void OnObjectFragment(const FullTrackName& full_track_name,
-                          FullSequence sequence,
+                          Location sequence,
                           MoqtPriority /*publisher_priority*/,
-                          MoqtObjectStatus /*status*/,
-                          absl::string_view object,
+                          MoqtObjectStatus /*status*/, absl::string_view object,
                           bool /*end_of_message*/) override {
       std::string file_name = absl::StrCat(sequence.group, "-", sequence.object,
                                            ".", full_track_name.tuple().back());

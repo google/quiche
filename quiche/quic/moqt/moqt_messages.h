@@ -242,44 +242,41 @@ class FullTrackName {
 };
 
 // These are absolute sequence numbers.
-struct FullSequence {
+struct Location {
   uint64_t group;
   uint64_t subgroup;
   uint64_t object;
-  FullSequence() : FullSequence(0, 0) {}
+  Location() : Location(0, 0) {}
   // There is a lot of code from before subgroups. Assume there's one subgroup
   // with ID 0 per group.
-  FullSequence(uint64_t group, uint64_t object)
-      : FullSequence(group, 0, object) {}
-  FullSequence(uint64_t group, uint64_t subgroup, uint64_t object)
+  Location(uint64_t group, uint64_t object) : Location(group, 0, object) {}
+  Location(uint64_t group, uint64_t subgroup, uint64_t object)
       : group(group), subgroup(subgroup), object(object) {}
-  bool operator==(const FullSequence& other) const {
+  bool operator==(const Location& other) const {
     return group == other.group && object == other.object;
   }
   // These are temporal ordering comparisons, so subgroup ID doesn't matter.
-  bool operator<(const FullSequence& other) const {
+  bool operator<(const Location& other) const {
     return group < other.group ||
            (group == other.group && object < other.object);
   }
-  bool operator<=(const FullSequence& other) const {
+  bool operator<=(const Location& other) const {
     return (group < other.group ||
             (group == other.group && object <= other.object));
   }
-  bool operator>(const FullSequence& other) const { return !(*this <= other); }
-  FullSequence& operator=(FullSequence other) {
+  bool operator>(const Location& other) const { return !(*this <= other); }
+  Location& operator=(Location other) {
     group = other.group;
     subgroup = other.subgroup;
     object = other.object;
     return *this;
   }
-  FullSequence next() const {
-    return FullSequence{group, subgroup, object + 1};
-  }
+  Location next() const { return Location{group, subgroup, object + 1}; }
   template <typename H>
-  friend H AbslHashValue(H h, const FullSequence& m);
+  friend H AbslHashValue(H h, const Location& m);
 
   template <typename Sink>
-  friend void AbslStringify(Sink& sink, const FullSequence& sequence) {
+  friend void AbslStringify(Sink& sink, const Location& sequence) {
     absl::Format(&sink, "(%d; %d)", sequence.group, sequence.object);
   }
 };
@@ -305,7 +302,7 @@ struct SubgroupPriority {
 };
 
 template <typename H>
-H AbslHashValue(H h, const FullSequence& m) {
+H AbslHashValue(H h, const Location& m) {
   return H::combine(std::move(h), m.group, m.object);
 }
 
@@ -391,7 +388,7 @@ struct QUICHE_EXPORT MoqtSubscribe {
   // start: kAbsoluteStart
   // start, end_group: kAbsoluteRange (request whole last group)
   // All other combinations are invalid.
-  std::optional<FullSequence> start;
+  std::optional<Location> start;
   std::optional<uint64_t> end_group;
   // If the mode is kNone, the these are std::nullopt.
 
@@ -408,7 +405,7 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
   quic::QuicTimeDelta expires = quic::QuicTimeDelta::FromMilliseconds(0);
   MoqtDeliveryOrder group_order;
   // If ContextExists on the wire is zero, largest_id has no value.
-  std::optional<FullSequence> largest_id;
+  std::optional<Location> largest_id;
   MoqtSubscribeParameters parameters;
 };
 
@@ -442,7 +439,7 @@ struct QUICHE_EXPORT MoqtSubscribeDone {
 
 struct QUICHE_EXPORT MoqtSubscribeUpdate {
   uint64_t subscribe_id;
-  FullSequence start;
+  Location start;
   std::optional<uint64_t> end_group;
   MoqtPriority subscriber_priority;
   MoqtSubscribeParameters parameters;
@@ -553,7 +550,7 @@ struct QUICHE_EXPORT MoqtFetch {
   // and ranges. The session will populate them instead.
   std::optional<JoiningFetch> joining_fetch;
   FullTrackName full_track_name;
-  FullSequence start_object;  // subgroup is ignored
+  Location start_object;  // subgroup is ignored
   uint64_t end_group;
   std::optional<uint64_t> end_object;
   MoqtSubscribeParameters parameters;
@@ -566,7 +563,7 @@ struct QUICHE_EXPORT MoqtFetchCancel {
 struct QUICHE_EXPORT MoqtFetchOk {
   uint64_t subscribe_id;
   MoqtDeliveryOrder group_order;
-  FullSequence largest_id;  // subgroup is ignored
+  Location largest_id;  // subgroup is ignored
   MoqtSubscribeParameters parameters;
 };
 

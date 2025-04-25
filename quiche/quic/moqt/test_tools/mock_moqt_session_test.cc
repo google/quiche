@@ -54,8 +54,8 @@ TEST_F(MockMoqtSessionTest, SubscribeCurrentObject) {
               OnReply(TrackName(), Eq(std::nullopt), Eq(std::nullopt)));
   session_.SubscribeCurrentObject(TrackName(), &visitor,
                                   MoqtSubscribeParameters());
-  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), FullSequence(0, 0), _, _,
-                                        "test", _));
+  EXPECT_CALL(visitor,
+              OnObjectFragment(TrackName(), Location(0, 0), _, _, "test", _));
   track_->AddObject(quic::test::MemSliceFromString("test"), /*key=*/true);
 
   session_.Unsubscribe(TrackName());
@@ -69,9 +69,9 @@ TEST_F(MockMoqtSessionTest, SubscribeAbsolute) {
               OnReply(TrackName(), Eq(std::nullopt), Eq(std::nullopt)));
   session_.SubscribeAbsolute(TrackName(), 1, 0, 1, &visitor,
                              MoqtSubscribeParameters());
-  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), FullSequence(1, 0), _,
+  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(1, 0), _,
                                         MoqtObjectStatus::kNormal, "b", _));
-  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), FullSequence(1, 1), _,
+  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(1, 1), _,
                                         MoqtObjectStatus::kEndOfGroup, "", _));
   track_->AddObject(quic::test::MemSliceFromString("a"), /*key=*/true);
   track_->AddObject(quic::test::MemSliceFromString("b"), /*key=*/true);
@@ -89,7 +89,7 @@ TEST_F(MockMoqtSessionTest, Fetch) {
       [&](std::unique_ptr<MoqtFetchTask> new_fetch) {
         fetch = std::move(new_fetch);
       },
-      FullSequence(0, 1), 0, 2, 0x80, std::nullopt, MoqtSubscribeParameters());
+      Location(0, 1), 0, 2, 0x80, std::nullopt, MoqtSubscribeParameters());
   PublishedObject object;
   ASSERT_EQ(fetch->GetNextObject(object), MoqtFetchTask::kSuccess);
   EXPECT_EQ(object.payload.AsStringView(), "b");
@@ -106,17 +106,17 @@ TEST_F(MockMoqtSessionTest, JoiningFetch) {
 
   testing::StrictMock<MockSubscribeRemoteTrackVisitor> visitor;
   EXPECT_CALL(visitor,
-              OnReply(TrackName(), Eq(FullSequence(3, 0)), Eq(std::nullopt)));
-  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), FullSequence(2, 0), _,
+              OnReply(TrackName(), Eq(Location(3, 0)), Eq(std::nullopt)));
+  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(2, 0), _,
                                         MoqtObjectStatus::kNormal, "c", _));
-  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), FullSequence(2, 1), _,
+  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(2, 1), _,
                                         MoqtObjectStatus::kEndOfGroup, "", _));
-  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), FullSequence(3, 0), _,
+  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(3, 0), _,
                                         MoqtObjectStatus::kNormal, "d", _));
   session_.JoiningFetch(TrackName(), &visitor, 2, MoqtSubscribeParameters());
-  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), FullSequence(3, 1), _,
+  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(3, 1), _,
                                         MoqtObjectStatus::kEndOfGroup, "", _));
-  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), FullSequence(4, 0), _,
+  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(4, 0), _,
                                         MoqtObjectStatus::kNormal, "e", _));
   track_->AddObject(quic::test::MemSliceFromString("e"), /*key=*/true);
 }
@@ -126,8 +126,8 @@ TEST_F(MockMoqtSessionTest, JoiningFetchNoObjects) {
   EXPECT_CALL(visitor,
               OnReply(TrackName(), Eq(std::nullopt), Eq(std::nullopt)));
   session_.JoiningFetch(TrackName(), &visitor, 0, MoqtSubscribeParameters());
-  EXPECT_CALL(visitor, OnObjectFragment(TrackName(), FullSequence(0, 0), _, _,
-                                        "test", _));
+  EXPECT_CALL(visitor,
+              OnObjectFragment(TrackName(), Location(0, 0), _, _, "test", _));
   track_->AddObject(quic::test::MemSliceFromString("test"), /*key=*/true);
 }
 

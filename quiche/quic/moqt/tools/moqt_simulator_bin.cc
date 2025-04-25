@@ -289,7 +289,7 @@ class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
       : clock_(clock), deadline_(deadline) {}
 
   void OnReply(const FullTrackName& full_track_name,
-               std::optional<FullSequence> /*largest_id*/,
+               std::optional<Location> /*largest_id*/,
                std::optional<absl::string_view> error_reason_phrase) override {
     QUICHE_CHECK(full_track_name == TrackName());
     QUICHE_CHECK(!error_reason_phrase.has_value()) << *error_reason_phrase;
@@ -299,8 +299,7 @@ class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
     object_ack_function_ = std::move(ack_function);
   }
 
-  void OnObjectFragment(const FullTrackName& full_track_name,
-                        FullSequence sequence,
+  void OnObjectFragment(const FullTrackName& full_track_name, Location sequence,
                         MoqtPriority /*publisher_priority*/,
                         MoqtObjectStatus status, absl::string_view object,
                         bool end_of_message) override {
@@ -318,7 +317,7 @@ class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
 
   void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
 
-  void OnFullObject(FullSequence sequence, absl::string_view payload) {
+  void OnFullObject(Location sequence, absl::string_view payload) {
     QUICHE_CHECK_GE(payload.size(), 8u);
     quiche::QuicheDataReader reader(payload);
     uint64_t time_us;
@@ -354,7 +353,7 @@ class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
  private:
   const QuicClock* clock_ = nullptr;
   // TODO: figure out when partial objects should be discarded.
-  absl::flat_hash_map<FullSequence, std::string> partial_objects_;
+  absl::flat_hash_map<Location, std::string> partial_objects_;
   MoqtObjectAckFunction object_ack_function_ = nullptr;
 
   size_t full_objects_received_ = 0;

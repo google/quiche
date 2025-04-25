@@ -69,7 +69,7 @@ bool PublisherHasData(const MoqtTrackPublisher& publisher) {
 }
 
 SubscribeWindow SubscribeMessageToWindow(const MoqtSubscribe& subscribe) {
-  return SubscribeWindow(subscribe.start.value_or(FullSequence(0, 0)),
+  return SubscribeWindow(subscribe.start.value_or(Location(0, 0)),
                          subscribe.end_group);
 }
 
@@ -212,7 +212,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
           "Received DATAGRAM for non-datagram track");
     return;
   }
-  if (!track->InWindow(FullSequence(message.group_id, message.object_id))) {
+  if (!track->InWindow(Location(message.group_id, message.object_id))) {
     // TODO(martinduke): a recent SUBSCRIBE_UPDATE could put us here, and it's
     // not an error.
     return;
@@ -221,10 +221,10 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   SubscribeRemoteTrack::Visitor* visitor = track->visitor();
   if (visitor != nullptr) {
     // TODO(martinduke): Handle extension headers.
-    visitor->OnObjectFragment(
-        track->full_track_name(),
-        FullSequence{message.group_id, 0, message.object_id},
-        message.publisher_priority, message.object_status, *payload, true);
+    visitor->OnObjectFragment(track->full_track_name(),
+                              Location{message.group_id, 0, message.object_id},
+                              message.publisher_priority, message.object_status,
+                              *payload, true);
   }
 }
 
@@ -328,7 +328,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
   message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
   message.group_order = std::nullopt;
-  message.start = FullSequence(start_group, start_object);
+  message.start = Location(start_group, start_object);
   message.end_group = std::nullopt;
   message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
@@ -347,7 +347,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
   message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
   message.group_order = std::nullopt;
-  message.start = FullSequence(start_group, start_object);
+  message.start = Location(start_group, start_object);
   message.end_group = end_group;
   message.parameters = std::move(parameters);
   return Subscribe(message, visitor);
@@ -379,7 +379,7 @@ void MoqtSession::Unsubscribe(const FullTrackName& name) {
 }
 
 bool MoqtSession::Fetch(const FullTrackName& name,
-                        FetchResponseCallback callback, FullSequence start,
+                        FetchResponseCallback callback, Location start,
                         uint64_t end_group, std::optional<uint64_t> end_object,
                         MoqtPriority priority,
                         std::optional<MoqtDeliveryOrder> delivery_order,
@@ -657,7 +657,7 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
 }
 
 webtransport::Stream* MoqtSession::OpenOrQueueDataStream(
-    uint64_t subscription_id, FullSequence first_object) {
+    uint64_t subscription_id, Location first_object) {
   auto it = published_subscriptions_.find(subscription_id);
   if (it == published_subscriptions_.end()) {
     // It is possible that the subscription has been discarded while the stream
@@ -676,7 +676,7 @@ webtransport::Stream* MoqtSession::OpenOrQueueDataStream(
 }
 
 webtransport::Stream* MoqtSession::OpenDataStream(
-    PublishedSubscription& subscription, FullSequence first_object) {
+    PublishedSubscription& subscription, Location first_object) {
   webtransport::Stream* new_stream =
       session_->OpenOutgoingUnidirectionalStream();
   if (new_stream == nullptr) {
@@ -754,7 +754,7 @@ void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
     }
     // Pop the item from the subscription's queue, which might update
     // subscribes_with_queued_outgoing_data_streams_.
-    FullSequence next_queued_stream =
+    Location next_queued_stream =
         subscription->second->NextQueuedOutgoingDataStream();
     // Check if Group is too old.
     if (next_queued_stream.group < subscription->second->first_active_group()) {
@@ -1281,7 +1281,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
     return;
   }
   FullTrackName track_name;
-  FullSequence start_object;
+  Location start_object;
   uint64_t end_group;
   std::optional<uint64_t> end_object;
   if (message.joining_fetch.has_value()) {
@@ -1307,11 +1307,11 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
       return;
     }
     track_name = it->second->publisher().GetTrackName();
-    FullSequence fetch_end = it->second->GetWindowStart();
+    Location fetch_end = it->second->GetWindowStart();
     if (message.joining_fetch->preceding_group_offset > fetch_end.group) {
-      start_object = FullSequence(0, 0);
+      start_object = Location(0, 0);
     } else {
-      start_object = FullSequence(
+      start_object = Location(
           fetch_end.group - message.joining_fetch->preceding_group_offset, 0,
           0);
     }
@@ -1445,7 +1445,7 @@ void MoqtSession::ControlStream::OnFetchErrorMessage(
       status = absl::UnknownError(message.reason_phrase);
       break;
   }
-  fetch->OnFetchResult(FullSequence(0, 0), status, nullptr);
+  fetch->OnFetchResult(Location(0, 0), status, nullptr);
   session_->upstream_by_id_.erase(message.subscribe_id);
 }
 
@@ -1522,7 +1522,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                     "Received object for a track with a different stream type");
     return;
   }
-  if (!track->InWindow(FullSequence(message.group_id, message.object_id))) {
+  if (!track->InWindow(Location(message.group_id, message.object_id))) {
     // This is not an error. It can be the result of a recent SUBSCRIBE_UPDATE.
     return;
   }
@@ -1533,8 +1533,8 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       // TODO(martinduke): Send extension headers.
       subscribe->visitor()->OnObjectFragment(
           track->full_track_name(),
-          FullSequence{message.group_id, message.subgroup_id.value_or(0),
-                       message.object_id},
+          Location{message.group_id, message.subgroup_id.value_or(0),
+                   message.object_id},
           message.publisher_priority, message.object_status, payload,
           end_of_message);
     }
@@ -1718,7 +1718,7 @@ SendStreamMap& MoqtSession::PublishedSubscription::stream_map() {
 }
 
 void MoqtSession::PublishedSubscription::Update(
-    FullSequence start, std::optional<uint64_t> end_group,
+    Location start, std::optional<uint64_t> end_group,
     MoqtPriority subscriber_priority) {
   window_.TruncateStart(start);
   if (end_group.has_value()) {
@@ -1749,7 +1749,7 @@ void MoqtSession::PublishedSubscription::set_subscriber_priority(
 };
 
 void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
-  std::optional<FullSequence> largest_id;
+  std::optional<Location> largest_id;
   ControlStream* stream = session_->GetControlStream();
   if (PublisherHasData(*track_publisher_)) {
     largest_id = track_publisher_->GetLargestSequence();
@@ -1786,12 +1786,12 @@ void MoqtSession::PublishedSubscription::OnSubscribeRejected(
 }
 
 void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
-    FullSequence sequence) {
+    Location sequence) {
   if (!window_.InWindow(sequence)) {
     return;
   }
   if (reset_subgroups_.contains(
-          FullSequence{sequence.group, sequence.subgroup, 0})) {
+          Location{sequence.group, sequence.subgroup, 0})) {
     // This subgroup has already been reset, ignore.
     return;
   }
@@ -1846,13 +1846,12 @@ void MoqtSession::PublishedSubscription::OnTrackPublisherGone() {
                             "Publisher is gone");
 }
 
-void MoqtSession::PublishedSubscription::OnNewFinAvailable(
-    FullSequence sequence) {
+void MoqtSession::PublishedSubscription::OnNewFinAvailable(Location sequence) {
   if (!window_.InWindow(sequence)) {
     return;
   }
   if (reset_subgroups_.contains(
-          FullSequence{sequence.group, sequence.subgroup, 0})) {
+          Location{sequence.group, sequence.subgroup, 0})) {
     // This subgroup has already been reset, ignore.
     return;
   }
@@ -1873,12 +1872,12 @@ void MoqtSession::PublishedSubscription::OnNewFinAvailable(
 }
 
 void MoqtSession::PublishedSubscription::OnSubgroupAbandoned(
-    FullSequence sequence, webtransport::StreamErrorCode error_code) {
+    Location sequence, webtransport::StreamErrorCode error_code) {
   if (!window_.InWindow(sequence)) {
     return;
   }
   if (reset_subgroups_.contains(
-          FullSequence{sequence.group, sequence.subgroup, 0})) {
+          Location{sequence.group, sequence.subgroup, 0})) {
     // This subgroup has already been reset, ignore.
     return;
   }
@@ -1908,7 +1907,7 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
     raw_stream->ResetWithUserCode(kResetCodeTimedOut);
   }
   first_active_group_ = std::max(first_active_group_, group_id + 1);
-  absl::erase_if(reset_subgroups_, [&](const FullSequence& sequence) {
+  absl::erase_if(reset_subgroups_, [&](const Location& sequence) {
     return sequence.group < first_active_group_;
   });
 }
@@ -1922,7 +1921,7 @@ MoqtSession::PublishedSubscription::GetAllStreams() const {
 }
 
 webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
-    FullSequence sequence) const {
+    Location sequence) const {
   MoqtForwardingPreference forwarding_preference =
       track_publisher_->GetForwardingPreference();
 
@@ -1940,7 +1939,7 @@ webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
 
 // Returns the highest send order in the subscription.
 void MoqtSession::PublishedSubscription::AddQueuedOutgoingDataStream(
-    FullSequence first_object) {
+    Location first_object) {
   std::optional<webtransport::SendOrder> start_send_order =
       queued_outgoing_data_streams_.empty()
           ? std::optional<webtransport::SendOrder>()
@@ -1958,15 +1957,14 @@ void MoqtSession::PublishedSubscription::AddQueuedOutgoingDataStream(
   }
 }
 
-FullSequence
-MoqtSession::PublishedSubscription::NextQueuedOutgoingDataStream() {
+Location MoqtSession::PublishedSubscription::NextQueuedOutgoingDataStream() {
   QUICHE_DCHECK(!queued_outgoing_data_streams_.empty());
   if (queued_outgoing_data_streams_.empty()) {
-    return FullSequence();
+    return Location();
   }
   auto it = queued_outgoing_data_streams_.rbegin();
   webtransport::SendOrder old_send_order = FinalizeSendOrder(it->first);
-  FullSequence first_object = it->second;
+  Location first_object = it->second;
   // converting a reverse iterator to an iterator involves incrementing it and
   // then taking base().
   queued_outgoing_data_streams_.erase((++it).base());
@@ -1985,16 +1983,16 @@ MoqtSession::PublishedSubscription::NextQueuedOutgoingDataStream() {
 }
 
 void MoqtSession::PublishedSubscription::OnDataStreamCreated(
-    webtransport::StreamId id, FullSequence start_sequence) {
+    webtransport::StreamId id, Location start_sequence) {
   ++streams_opened_;
   stream_map().AddStream(start_sequence, id);
 }
 void MoqtSession::PublishedSubscription::OnDataStreamDestroyed(
-    webtransport::StreamId id, FullSequence end_sequence) {
+    webtransport::StreamId id, Location end_sequence) {
   stream_map().RemoveStream(end_sequence, id);
 }
 
-void MoqtSession::PublishedSubscription::OnObjectSent(FullSequence sequence) {
+void MoqtSession::PublishedSubscription::OnObjectSent(Location sequence) {
   if (largest_sent_.has_value()) {
     largest_sent_ = std::max(*largest_sent_, sequence);
   } else {
@@ -2005,7 +2003,7 @@ void MoqtSession::PublishedSubscription::OnObjectSent(FullSequence sequence) {
 
 MoqtSession::OutgoingDataStream::OutgoingDataStream(
     MoqtSession* session, webtransport::Stream* stream,
-    PublishedSubscription& subscription, FullSequence first_object)
+    PublishedSubscription& subscription, Location first_object)
     : session_(session),
       stream_(stream),
       subscription_id_(subscription.subscription_id()),
@@ -2127,7 +2125,7 @@ void MoqtSession::OutgoingDataStream::SendObjects(
   }
 }
 
-void MoqtSession::OutgoingDataStream::Fin(FullSequence last_object) {
+void MoqtSession::OutgoingDataStream::Fin(Location last_object) {
   if (next_object_ <= last_object) {
     // There is still data to send, do nothing.
     return;
@@ -2203,7 +2201,7 @@ void MoqtSession::CancelFetch(uint64_t subscribe_id) {
   // hasn't opened yet.
 }
 
-void MoqtSession::PublishedSubscription::SendDatagram(FullSequence sequence) {
+void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
   std::optional<PublishedObject> object =
       track_publisher_->GetCachedObject(sequence);
   if (!object.has_value()) {

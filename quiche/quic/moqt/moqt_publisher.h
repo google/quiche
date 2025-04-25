@@ -24,7 +24,7 @@ namespace moqt {
 // PublishedObject is a description of an object that is sufficient to publish
 // it on a given track.
 struct PublishedObject {
-  FullSequence sequence;
+  Location sequence;
   MoqtObjectStatus status;
   MoqtPriority publisher_priority;
   quiche::QuicheMemSlice payload;
@@ -51,15 +51,15 @@ class MoqtObjectListener {
   // Notifies that an object with the given sequence number has become
   // available.  The object payload itself may be retrieved via GetCachedObject
   // method of the associated track publisher.
-  virtual void OnNewObjectAvailable(FullSequence sequence) = 0;
+  virtual void OnNewObjectAvailable(Location sequence) = 0;
   // Notifies that a pure FIN has arrived following |sequence|. Should not be
   // called unless all objects have already been delivered. If not delivered,
   // instead set the fin_after_this flag in the PublishedObject.
-  virtual void OnNewFinAvailable(FullSequence sequence) = 0;
+  virtual void OnNewFinAvailable(Location sequence) = 0;
   // Notifies that the a stream is being abandoned (via RESET_STREAM) before
   // all objects are delivered.
   virtual void OnSubgroupAbandoned(
-      FullSequence sequence, webtransport::StreamErrorCode error_code) = 0;
+      Location sequence, webtransport::StreamErrorCode error_code) = 0;
 
   // No further object will be published for the given group, usually due to a
   // timeout. The owner of the Listener may want to reset the relevant streams.
@@ -107,7 +107,7 @@ class MoqtFetchTask {
 
   // Returns the highest sequence number that will be delivered by the fetch.
   // It is the minimum of the end of the fetch range and the live edge.
-  virtual FullSequence GetLargestId() const = 0;
+  virtual Location GetLargestId() const = 0;
 };
 
 // MoqtTrackPublisher is an application-side API for an MoQT publisher
@@ -136,12 +136,12 @@ class MoqtTrackPublisher {
   // otherwise, the corresponding QUIC streams will be stuck waiting for objects
   // that will never arrive.
   virtual std::optional<PublishedObject> GetCachedObject(
-      FullSequence sequence) const = 0;
+      Location sequence) const = 0;
 
   // Returns a full list of objects available in the cache, to be used for
   // SUBSCRIBEs with a backfill. Returned in order of worsening priority.
-  virtual std::vector<FullSequence> GetCachedObjectsInRange(
-      FullSequence start, FullSequence end) const = 0;
+  virtual std::vector<Location> GetCachedObjectsInRange(Location start,
+                                                        Location end) const = 0;
 
   // TODO: add an API to fetch past objects that are out of cache and might
   // require an upstream request to fill the relevant cache again. This is
@@ -160,7 +160,7 @@ class MoqtTrackPublisher {
   // Returns the largest sequence pair that has been published so far.
   // This method may only be called if
   // DoesTrackStatusImplyHavingData(GetTrackStatus()) is true.
-  virtual FullSequence GetLargestSequence() const = 0;
+  virtual Location GetLargestSequence() const = 0;
 
   // Returns the forwarding preference of the track.
   // This method may only be called if
@@ -175,8 +175,8 @@ class MoqtTrackPublisher {
 
   // Performs a fetch for the specified range of objects.
   virtual std::unique_ptr<MoqtFetchTask> Fetch(
-      FullSequence start, uint64_t end_group,
-      std::optional<uint64_t> end_object, MoqtDeliveryOrder order) = 0;
+      Location start, uint64_t end_group, std::optional<uint64_t> end_object,
+      MoqtDeliveryOrder order) = 0;
 };
 
 // MoqtPublisher is an interface to a publisher that allows it to publish

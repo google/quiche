@@ -46,7 +46,7 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
     AddObjectListener(this);
   }
 
-  void OnNewObjectAvailable(FullSequence sequence) override {
+  void OnNewObjectAvailable(Location sequence) override {
     std::optional<PublishedObject> object = GetCachedObject(sequence);
     QUICHE_CHECK(object.has_value());
     ASSERT_THAT(object->status, AnyOf(MoqtObjectStatus::kNormal,
@@ -60,19 +60,18 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
   }
 
   void GetObjectsFromPast(const SubscribeWindow& window) {
-    std::vector<FullSequence> objects =
-        GetCachedObjectsInRange(FullSequence(0, 0), GetLargestSequence());
-    for (FullSequence object : objects) {
+    std::vector<Location> objects =
+        GetCachedObjectsInRange(Location(0, 0), GetLargestSequence());
+    for (Location object : objects) {
       if (window.InWindow(object)) {
         OnNewObjectAvailable(object);
       }
     }
   }
 
-  MOCK_METHOD(void, OnNewFinAvailable, (FullSequence sequence));
+  MOCK_METHOD(void, OnNewFinAvailable, (Location sequence));
   MOCK_METHOD(void, OnSubgroupAbandoned,
-              (FullSequence sequence,
-               webtransport::StreamErrorCode error_code));
+              (Location sequence, webtransport::StreamErrorCode error_code));
   MOCK_METHOD(void, OnGroupAbandoned, (uint64_t group_id));
   MOCK_METHOD(void, CloseStreamForGroup, (uint64_t group_id), ());
   MOCK_METHOD(void, PublishObject,
@@ -146,7 +145,7 @@ TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromZero) {
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
   queue.AddObject(MemSliceFromString("c"), false);
-  queue.GetObjectsFromPast(SubscribeWindow(FullSequence(0, 0)));
+  queue.GetObjectsFromPast(SubscribeWindow(Location(0, 0)));
 }
 
 TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromMidGroup) {
@@ -163,7 +162,7 @@ TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromMidGroup) {
   queue.AddObject(MemSliceFromString("a"), true);
   queue.AddObject(MemSliceFromString("b"), false);
   queue.AddObject(MemSliceFromString("c"), false);
-  queue.GetObjectsFromPast(SubscribeWindow(FullSequence(0, 1)));
+  queue.GetObjectsFromPast(SubscribeWindow(Location(0, 1)));
 }
 
 TEST(MoqtOutgoingQueue, TwoGroups) {
@@ -211,7 +210,7 @@ TEST(MoqtOutgoingQueue, TwoGroupsPastSubscribe) {
   queue.AddObject(MemSliceFromString("d"), true);
   queue.AddObject(MemSliceFromString("e"), false);
   queue.AddObject(MemSliceFromString("f"), false);
-  queue.GetObjectsFromPast(SubscribeWindow(FullSequence(0, 1)));
+  queue.GetObjectsFromPast(SubscribeWindow(Location(0, 1)));
 }
 
 TEST(MoqtOutgoingQueue, FiveGroups) {
@@ -284,12 +283,12 @@ TEST(MoqtOutgoingQueue, FiveGroupsPastSubscribe) {
   queue.AddObject(MemSliceFromString("h"), false);
   queue.AddObject(MemSliceFromString("i"), true);
   queue.AddObject(MemSliceFromString("j"), false);
-  queue.GetObjectsFromPast(SubscribeWindow(FullSequence(0, 0)));
+  queue.GetObjectsFromPast(SubscribeWindow(Location(0, 0)));
 }
 
 TEST(MoqtOutgoingQueue, Fetch) {
   TestMoqtOutgoingQueue queue;
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{0, 0}, 2, 0,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 2, 0,
                                         MoqtDeliveryOrder::kAscending)),
               StatusIs(absl::StatusCode::kNotFound));
 
@@ -299,40 +298,40 @@ TEST(MoqtOutgoingQueue, Fetch) {
   queue.AddObject(MemSliceFromString("d"), false);
   queue.AddObject(MemSliceFromString("e"), true);
 
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{0, 0}, 2, 0,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 2, 0,
                                         MoqtDeliveryOrder::kAscending)),
               IsOkAndHolds(ElementsAre("a", "b", "c", "d", "e")));
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{0, 100}, 0, 1000,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 100}, 0, 1000,
                                         MoqtDeliveryOrder::kAscending)),
               IsOkAndHolds(IsEmpty()));
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{0, 0}, 2, 0,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 2, 0,
                                         MoqtDeliveryOrder::kDescending)),
               IsOkAndHolds(ElementsAre("e", "c", "d", "a", "b")));
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{0, 0}, 1, 0,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 1, 0,
                                         MoqtDeliveryOrder::kAscending)),
               IsOkAndHolds(ElementsAre("a", "b", "c")));
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{0, 0}, 1, 0,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 1, 0,
                                         MoqtDeliveryOrder::kAscending)),
               IsOkAndHolds(ElementsAre("a", "b", "c")));
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{1, 0}, 5, std::nullopt,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{1, 0}, 5, std::nullopt,
                                         MoqtDeliveryOrder::kAscending)),
               IsOkAndHolds(ElementsAre("c", "d", "e")));
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{3, 0}, 5, std::nullopt,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{3, 0}, 5, std::nullopt,
                                         MoqtDeliveryOrder::kAscending)),
               StatusIs(absl::StatusCode::kNotFound));
 
   queue.AddObject(MemSliceFromString("f"), true);
   queue.AddObject(MemSliceFromString("g"), false);
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{0, 0}, 0, 1,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 0, 1,
                                         MoqtDeliveryOrder::kAscending)),
               StatusIs(absl::StatusCode::kNotFound));
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{0, 0}, 2, 0,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 2, 0,
                                         MoqtDeliveryOrder::kAscending)),
               IsOkAndHolds(ElementsAre("c", "d", "e")));
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{1, 0}, 5, std::nullopt,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{1, 0}, 5, std::nullopt,
                                         MoqtDeliveryOrder::kAscending)),
               IsOkAndHolds(ElementsAre("c", "d", "e", "f", "g")));
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{3, 0}, 5, std::nullopt,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{3, 0}, 5, std::nullopt,
                                         MoqtDeliveryOrder::kAscending)),
               IsOkAndHolds(ElementsAre("f", "g")));
 }
@@ -345,11 +344,11 @@ TEST(MoqtOutgoingQueue, ObjectsGoneWhileFetching) {
   queue.AddObject(MemSliceFromString("d"), true);
   queue.AddObject(MemSliceFromString("e"), true);
 
-  EXPECT_THAT(FetchToVector(queue.Fetch(FullSequence{0, 0}, 5, 0,
+  EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 5, 0,
                                         MoqtDeliveryOrder::kAscending)),
               IsOkAndHolds(ElementsAre("c", "d", "e")));
   std::unique_ptr<MoqtFetchTask> deferred_fetch =
-      queue.Fetch(FullSequence{0, 0}, 5, 0, MoqtDeliveryOrder::kAscending);
+      queue.Fetch(Location{0, 0}, 5, 0, MoqtDeliveryOrder::kAscending);
 
   queue.AddObject(MemSliceFromString("f"), true);
   queue.AddObject(MemSliceFromString("g"), true);
@@ -365,8 +364,7 @@ TEST(MoqtOutgoingQueue, ObjectIsTimestamped) {
   quic::QuicTime test_start = clock->ApproximateNow();
   TestMoqtOutgoingQueue queue;
   queue.AddObject(MemSliceFromString("a"), true);
-  std::optional<PublishedObject> object =
-      queue.GetCachedObject(FullSequence{0, 0});
+  std::optional<PublishedObject> object = queue.GetCachedObject(Location{0, 0});
   ASSERT_TRUE(object.has_value());
   EXPECT_GE(object->arrival_time, test_start);
 }

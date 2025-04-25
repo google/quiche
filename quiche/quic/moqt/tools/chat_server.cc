@@ -134,7 +134,7 @@ ChatServer::RemoteTrackVisitor::RemoteTrackVisitor(ChatServer* server)
 
 void ChatServer::RemoteTrackVisitor::OnReply(
     const moqt::FullTrackName& full_track_name,
-    std::optional<FullSequence> /*largest_id*/,
+    std::optional<Location> /*largest_id*/,
     std::optional<absl::string_view> reason_phrase) {
   std::cout << "Subscription to " << full_track_name.ToString();
   if (reason_phrase.has_value()) {
@@ -146,7 +146,7 @@ void ChatServer::RemoteTrackVisitor::OnReply(
 }
 
 void ChatServer::RemoteTrackVisitor::OnObjectFragment(
-    const moqt::FullTrackName& full_track_name, moqt::FullSequence sequence,
+    const moqt::FullTrackName& full_track_name, moqt::Location sequence,
     moqt::MoqtPriority /*publisher_priority*/, moqt::MoqtObjectStatus status,
     absl::string_view object, bool end_of_message) {
   if (!end_of_message) {

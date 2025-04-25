@@ -103,7 +103,7 @@ class MoqtSessionPeer {
     subscribe.full_track_name = publisher->GetTrackName();
     subscribe.track_alias = track_alias;
     subscribe.subscribe_id = subscribe_id;
-    subscribe.start = FullSequence(start_group, start_object);
+    subscribe.start = Location(start_group, start_object);
     subscribe.subscriber_priority = 0x80;
     session->published_subscriptions_.emplace(
         subscribe_id, std::make_unique<MoqtSession::PublishedSubscription>(
@@ -113,7 +113,7 @@ class MoqtSessionPeer {
   }
 
   static bool InSubscriptionWindow(MoqtObjectListener* subscription,
-                                   FullSequence sequence) {
+                                   Location sequence) {
     return static_cast<MoqtSession::PublishedSubscription*>(subscription)
         ->InWindow(sequence);
   }
@@ -175,8 +175,8 @@ class MoqtSessionPeer {
     session->ValidateSubscribeId(id);
   }
 
-  static FullSequence LargestSentForSubscription(MoqtSession* session,
-                                                 uint64_t subscribe_id) {
+  static Location LargestSentForSubscription(MoqtSession* session,
+                                             uint64_t subscribe_id) {
     return *session->published_subscriptions_[subscribe_id]->largest_sent();
   }
 
@@ -189,7 +189,7 @@ class MoqtSessionPeer {
         std::nullopt,
         std::nullopt,
         FullTrackName{"foo", "bar"},
-        FullSequence{0, 0},
+        Location{0, 0},
         4,
         std::nullopt,
         MoqtSubscribeParameters(),
@@ -204,7 +204,7 @@ class MoqtSessionPeer {
     UpstreamFetch* fetch = static_cast<UpstreamFetch*>(it->second.get());
     // Initialize the fetch task
     fetch->OnFetchResult(
-        FullSequence{4, 10}, absl::OkStatus(),
+        Location{4, 10}, absl::OkStatus(),
         [=, session_ptr = session, fetch_id = fetch_message.fetch_id]() {
           session_ptr->CancelFetch(fetch_id);
         });
@@ -252,7 +252,7 @@ class MoqtSessionPeer {
   }
 
   static bool SubgroupHasBeenReset(MoqtObjectListener* subscription,
-                                   FullSequence sequence) {
+                                   Location sequence) {
     sequence.object = 0;
     return static_cast<MoqtSession::PublishedSubscription*>(subscription)
         ->reset_subgroups()

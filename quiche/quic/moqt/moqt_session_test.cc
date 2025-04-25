@@ -64,7 +64,7 @@ MoqtSubscribe DefaultSubscribe() {
       kDefaultTrackName(),
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
-      /*start=*/FullSequence(0, 0),
+      /*start=*/Location(0, 0),
       /*end_group=*/std::nullopt,
       /*parameters=*/MoqtSubscribeParameters(),
   };
@@ -78,7 +78,7 @@ MoqtFetch DefaultFetch() {
       /*group_order=*/std::nullopt,
       /*joining_fetch=*/std::nullopt,
       kDefaultTrackName(),
-      /*start=*/FullSequence(0, 0),
+      /*start=*/Location(0, 0),
       /*end_group=*/1,
       /*end_object=*/std::nullopt,
       /*parameters=*/MoqtSubscribeParameters(),
@@ -90,7 +90,7 @@ MoqtFetch DefaultFetch() {
 // this to be removed as well.
 static std::shared_ptr<MockTrackPublisher> SetupPublisher(
     FullTrackName track_name, MoqtForwardingPreference forwarding_preference,
-    FullSequence largest_sequence) {
+    Location largest_sequence) {
   auto publisher = std::make_shared<MockTrackPublisher>(std::move(track_name));
   ON_CALL(*publisher, GetTrackStatus())
       .WillByDefault(Return(MoqtTrackStatusCode::kInProgress));
@@ -131,7 +131,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
     return publisher.get();
   }
 
-  void SetLargestId(MockTrackPublisher* publisher, FullSequence largest_id) {
+  void SetLargestId(MockTrackPublisher* publisher, Location largest_id) {
     ON_CALL(*publisher, GetTrackStatus())
         .WillByDefault(Return(MoqtTrackStatusCode::kInProgress));
     ON_CALL(*publisher, GetLargestSequence()).WillByDefault(Return(largest_id));
@@ -159,7 +159,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
         /*group_order=*/MoqtDeliveryOrder::kAscending,
         (*track_status == MoqtTrackStatusCode::kInProgress)
             ? std::make_optional(publisher->GetLargestSequence())
-            : std::optional<FullSequence>(),
+            : std::optional<Location>(),
         /*parameters=*/MoqtSubscribeParameters(),
     };
     EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
@@ -496,7 +496,7 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
-  SetLargestId(track, FullSequence(10, 20));
+  SetLargestId(track, Location(10, 20));
   MoqtSubscribe request = DefaultSubscribe();
   ReceiveSubscribeSynchronousOk(track, request, stream_input.get());
 }
@@ -505,7 +505,7 @@ TEST_F(MoqtSessionTest, SubscribeEntirelyInPast) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
-  SetLargestId(track, FullSequence(10, 20));
+  SetLargestId(track, Location(10, 20));
 
   MoqtSubscribe request = DefaultSubscribe();
   request.end_group = 9;
@@ -533,7 +533,7 @@ TEST_F(MoqtSessionTest, TwoSubscribesForTrack) {
   ReceiveSubscribeSynchronousOk(track, request, stream_input.get());
 
   request.subscribe_id = 2;
-  request.start = FullSequence(12, 0);
+  request.start = Location(12, 0);
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
                            "Duplicate subscribe for track"))
@@ -557,7 +557,7 @@ TEST_F(MoqtSessionTest, UnsubscribeAllowsSecondSubscribe) {
 
   // Subscribe again, succeeds.
   request.subscribe_id = 2;
-  request.start = FullSequence(12, 0);
+  request.start = Location(12, 0);
   ReceiveSubscribeSynchronousOk(track, request, stream_input.get());
 }
 
@@ -652,7 +652,7 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
   };
   EXPECT_CALL(remote_track_visitor, OnReply(_, _, _))
       .WillOnce([&](const FullTrackName& ftn,
-                    std::optional<FullSequence> /*largest_id*/,
+                    std::optional<Location> /*largest_id*/,
                     std::optional<absl::string_view> error_message) {
         EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
         EXPECT_FALSE(error_message.has_value());
@@ -733,7 +733,7 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
   };
   EXPECT_CALL(remote_track_visitor, OnReply(_, _, _))
       .WillOnce([&](const FullTrackName& ftn,
-                    std::optional<FullSequence> /*largest_id*/,
+                    std::optional<Location> /*largest_id*/,
                     std::optional<absl::string_view> error_message) {
         EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
         EXPECT_EQ(*error_message, "deadbeef");
@@ -987,7 +987,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
           &session_, &mock_stream_, MoqtDataStreamType::kStreamHeaderSubgroup);
 
   EXPECT_CALL(visitor_, OnObjectFragment(_, _, _, _, _, _))
-      .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
+      .WillOnce([&](const FullTrackName& full_track_name, Location sequence,
                     MoqtPriority publisher_priority, MoqtObjectStatus status,
                     absl::string_view payload, bool end_of_message) {
         EXPECT_EQ(full_track_name, ftn);
@@ -1032,7 +1032,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
           &session_, &mock_stream_, MoqtDataStreamType::kStreamHeaderSubgroup);
 
   EXPECT_CALL(visitor, OnObjectFragment(_, _, _, _, _, _))
-      .WillOnce([&](const FullTrackName& full_track_name, FullSequence sequence,
+      .WillOnce([&](const FullTrackName& full_track_name, Location sequence,
                     MoqtPriority publisher_priority, MoqtObjectStatus status,
                     absl::string_view payload, bool end_of_message) {
         EXPECT_EQ(full_track_name, ftn);
@@ -1104,8 +1104,8 @@ TEST_F(MoqtSessionTest, SubscribeErrorWithBadTrackAlias) {
 
 TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(4, 2));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1138,28 +1138,28 @@ TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
         fin |= options.send_fin();
         return absl::OkStatus();
       });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([&] {
-    return PublishedObject{FullSequence(5, 0),
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 0))).WillRepeatedly([&] {
+    return PublishedObject{Location(5, 0),
                            MoqtObjectStatus::kNormal,
                            127,
                            MemSliceFromString("deadbeef"),
                            MoqtSessionPeer::Now(&session_),
                            false};
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 1))).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
-  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  subscription->OnNewObjectAvailable(Location(5, 0));
   EXPECT_TRUE(correct_message);
   EXPECT_FALSE(fin);
   EXPECT_EQ(MoqtSessionPeer::LargestSentForSubscription(&session_, 0),
-            FullSequence(5, 0));
+            Location(5, 0));
 }
 
 TEST_F(MoqtSessionTest, FinDataStreamFromCache) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(4, 2));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1192,26 +1192,26 @@ TEST_F(MoqtSessionTest, FinDataStreamFromCache) {
         fin = options.send_fin();
         return absl::OkStatus();
       });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([&] {
-    return PublishedObject{FullSequence(5, 0),
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 0))).WillRepeatedly([&] {
+    return PublishedObject{Location(5, 0),
                            MoqtObjectStatus::kNormal,
                            127,
                            MemSliceFromString("deadbeef"),
                            MoqtSessionPeer::Now(&session_),
                            true};
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 1))).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
-  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  subscription->OnNewObjectAvailable(Location(5, 0));
   EXPECT_TRUE(correct_message);
   EXPECT_TRUE(fin);
 }
 
 TEST_F(MoqtSessionTest, GroupAbandoned) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(4, 2));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1244,18 +1244,18 @@ TEST_F(MoqtSessionTest, GroupAbandoned) {
         fin |= options.send_fin();
         return absl::OkStatus();
       });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([&] {
-    return PublishedObject{FullSequence(5, 0),
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 0))).WillRepeatedly([&] {
+    return PublishedObject{Location(5, 0),
                            MoqtObjectStatus::kNormal,
                            127,
                            MemSliceFromString("deadbeef"),
                            MoqtSessionPeer::Now(&session_),
                            true};
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 1))).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
-  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  subscription->OnNewObjectAvailable(Location(5, 0));
   EXPECT_TRUE(correct_message);
   EXPECT_TRUE(fin);
 
@@ -1265,8 +1265,8 @@ TEST_F(MoqtSessionTest, GroupAbandoned) {
 
 TEST_F(MoqtSessionTest, LateFinDataStream) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(4, 2));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1299,18 +1299,18 @@ TEST_F(MoqtSessionTest, LateFinDataStream) {
         fin = options.send_fin();
         return absl::OkStatus();
       });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([&] {
-    return PublishedObject{FullSequence(5, 0),
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 0))).WillRepeatedly([&] {
+    return PublishedObject{Location(5, 0),
                            MoqtObjectStatus::kNormal,
                            127,
                            MemSliceFromString("deadbeef"),
                            MoqtSessionPeer::Now(&session_),
                            false};
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 1))).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
-  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  subscription->OnNewObjectAvailable(Location(5, 0));
   EXPECT_TRUE(correct_message);
   EXPECT_FALSE(fin);
   fin = false;
@@ -1321,13 +1321,13 @@ TEST_F(MoqtSessionTest, LateFinDataStream) {
         fin = options.send_fin();
         return absl::OkStatus();
       });
-  subscription->OnNewFinAvailable(FullSequence(5, 0));
+  subscription->OnNewFinAvailable(Location(5, 0));
 }
 
 TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(4, 2));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1360,39 +1360,39 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
         fin = options.send_fin();
         return absl::OkStatus();
       });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([&] {
-    return PublishedObject{FullSequence(5, 0),
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 0))).WillRepeatedly([&] {
+    return PublishedObject{Location(5, 0),
                            MoqtObjectStatus::kNormal,
                            127,
                            MemSliceFromString("deadbeef"),
                            MoqtSessionPeer::Now(&session_),
                            false};
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 1))).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
-  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  subscription->OnNewObjectAvailable(Location(5, 0));
   EXPECT_FALSE(fin);
   // Try to deliver (5,1), but fail.
   EXPECT_CALL(mock_stream_, CanWrite()).WillRepeatedly([&] { return false; });
   EXPECT_CALL(*track, GetCachedObject(_)).Times(0);
   EXPECT_CALL(mock_stream_, Writev(_, _)).Times(0);
-  subscription->OnNewObjectAvailable(FullSequence(5, 1));
+  subscription->OnNewObjectAvailable(Location(5, 1));
   // Notify that FIN arrived, but do nothing with it because (5, 1) isn't sent.
   EXPECT_CALL(mock_stream_, Writev(_, _)).Times(0);
-  subscription->OnNewFinAvailable(FullSequence(5, 1));
+  subscription->OnNewFinAvailable(Location(5, 1));
 
   // Reopen the window.
   correct_message = false;
   // object id, extensions, payload length, status.
   const std::string kExpectedMessage2 = {0x01, 0x00, 0x00, 0x03};
   EXPECT_CALL(mock_stream_, CanWrite()).WillRepeatedly([&] { return true; });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([&] {
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 1))).WillRepeatedly([&] {
     return PublishedObject{
-        FullSequence(5, 1),     MoqtObjectStatus::kEndOfGroup,   127,
+        Location(5, 1),         MoqtObjectStatus::kEndOfGroup,   127,
         MemSliceFromString(""), MoqtSessionPeer::Now(&session_), true};
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 2))).WillRepeatedly([] {
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 2))).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
   EXPECT_CALL(mock_stream_, Writev(_, _))
@@ -1409,8 +1409,8 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
 
 TEST_F(MoqtSessionTest, PublisherAbandonsSubgroup) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(4, 2));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1443,37 +1443,37 @@ TEST_F(MoqtSessionTest, PublisherAbandonsSubgroup) {
         fin = options.send_fin();
         return absl::OkStatus();
       });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([&] {
-    return PublishedObject{FullSequence(5, 0),
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 0))).WillRepeatedly([&] {
+    return PublishedObject{Location(5, 0),
                            MoqtObjectStatus::kNormal,
                            127,
                            MemSliceFromString("deadbeef"),
                            MoqtSessionPeer::Now(&session_),
                            false};
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 1))).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
-  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  subscription->OnNewObjectAvailable(Location(5, 0));
 
   // Abandon the subgroup.
   EXPECT_CALL(mock_stream_, ResetWithUserCode(0x1)).Times(1);
-  subscription->OnSubgroupAbandoned(FullSequence(5, 0), 0x1);
+  subscription->OnSubgroupAbandoned(Location(5, 0), 0x1);
 }
 
 // TODO: Test operation with multiple streams.
 
 TEST_F(MoqtSessionTest, UnidirectionalStreamCannotBeOpened) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(4, 2));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
   // Queue the outgoing stream.
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .WillOnce(Return(false));
-  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  subscription->OnNewObjectAvailable(Location(5, 0));
 
   // Unblock the session, and cause the queued stream to be sent.
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
@@ -1495,11 +1495,11 @@ TEST_F(MoqtSessionTest, UnidirectionalStreamCannotBeOpened) {
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
       .WillRepeatedly(Return(&mock_stream_));
   EXPECT_CALL(mock_stream_, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([] {
-    return PublishedObject{FullSequence(5, 0), MoqtObjectStatus::kNormal, 128,
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 0))).WillRepeatedly([] {
+    return PublishedObject{Location(5, 0), MoqtObjectStatus::kNormal, 128,
                            MemSliceFromString("deadbeef")};
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillRepeatedly([] {
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 1))).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
@@ -1507,16 +1507,16 @@ TEST_F(MoqtSessionTest, UnidirectionalStreamCannotBeOpened) {
 
 TEST_F(MoqtSessionTest, QueuedStreamIsCleared) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(4, 2));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
   // Queue the outgoing stream.
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .WillRepeatedly(Return(false));
-  subscription->OnNewObjectAvailable(FullSequence(5, 0, 0));
-  subscription->OnNewObjectAvailable(FullSequence(6, 0, 0));
+  subscription->OnNewObjectAvailable(Location(5, 0, 0));
+  subscription->OnNewObjectAvailable(Location(6, 0, 0));
   subscription->OnGroupAbandoned(5);
 
   // Unblock the session, and cause the queued stream to be sent. There should
@@ -1541,11 +1541,11 @@ TEST_F(MoqtSessionTest, QueuedStreamIsCleared) {
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
       .WillRepeatedly(Return(&mock_stream_));
   EXPECT_CALL(mock_stream_, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(6, 0))).WillRepeatedly([] {
-    return PublishedObject{FullSequence(6, 0), MoqtObjectStatus::kNormal, 128,
+  EXPECT_CALL(*track, GetCachedObject(Location(6, 0))).WillRepeatedly([] {
+    return PublishedObject{Location(6, 0), MoqtObjectStatus::kNormal, 128,
                            MemSliceFromString("deadbeef")};
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(6, 1))).WillRepeatedly([] {
+  EXPECT_CALL(*track, GetCachedObject(Location(6, 1))).WillRepeatedly([] {
     return std::optional<PublishedObject>();
   });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
@@ -1553,8 +1553,8 @@ TEST_F(MoqtSessionTest, QueuedStreamIsCleared) {
 
 TEST_F(MoqtSessionTest, OutgoingStreamDisappears) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(4, 2));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1578,21 +1578,21 @@ TEST_F(MoqtSessionTest, OutgoingStreamDisappears) {
       .WillRepeatedly(Return(&mock_stream_));
 
   EXPECT_CALL(mock_stream_, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 0))).WillRepeatedly([] {
-    return PublishedObject{FullSequence(5, 0), MoqtObjectStatus::kNormal, 128,
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 0))).WillRepeatedly([] {
+    return PublishedObject{Location(5, 0), MoqtObjectStatus::kNormal, 128,
                            MemSliceFromString("deadbeef")};
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).WillOnce([] {
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 1))).WillOnce([] {
     return std::optional<PublishedObject>();
   });
-  subscription->OnNewObjectAvailable(FullSequence(5, 0));
+  subscription->OnNewObjectAvailable(Location(5, 0));
 
   // Now that the stream exists and is recorded within subscription, make it
   // disappear by returning nullptr.
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
       .WillRepeatedly(Return(nullptr));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(5, 1))).Times(0);
-  subscription->OnNewObjectAvailable(FullSequence(5, 1));
+  EXPECT_CALL(*track, GetCachedObject(Location(5, 1))).Times(0);
+  subscription->OnNewObjectAvailable(Location(5, 1));
 }
 
 TEST_F(MoqtSessionTest, OneBidirectionalStreamClient) {
@@ -1663,8 +1663,8 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
 
 TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(4, 2));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtSessionPeer::AddSubscription(&session_, track, 0, 1, 3, 4);
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
@@ -1677,8 +1677,8 @@ TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
 
 TEST_F(MoqtSessionTest, SendDatagram) {
   FullTrackName ftn("foo", "bar");
-  std::shared_ptr<MockTrackPublisher> track_publisher = SetupPublisher(
-      ftn, MoqtForwardingPreference::kDatagram, FullSequence{4, 0});
+  std::shared_ptr<MockTrackPublisher> track_publisher =
+      SetupPublisher(ftn, MoqtForwardingPreference::kDatagram, Location{4, 0});
   MoqtObjectListener* listener =
       MoqtSessionPeer::AddSubscription(&session_, track_publisher, 0, 2, 5, 0);
 
@@ -1697,12 +1697,12 @@ TEST_F(MoqtSessionTest, SendDatagram) {
         return webtransport::DatagramStatus(
             webtransport::DatagramStatusCode::kSuccess, "");
       });
-  EXPECT_CALL(*track_publisher, GetCachedObject(FullSequence{5, 0}))
+  EXPECT_CALL(*track_publisher, GetCachedObject(Location{5, 0}))
       .WillRepeatedly([] {
-        return PublishedObject{FullSequence{5, 0}, MoqtObjectStatus::kNormal,
-                               128, MemSliceFromString("deadbeef")};
+        return PublishedObject{Location{5, 0}, MoqtObjectStatus::kNormal, 128,
+                               MemSliceFromString("deadbeef")};
       });
-  listener->OnNewObjectAvailable(FullSequence(5, 0));
+  listener->OnNewObjectAvailable(Location(5, 0));
   EXPECT_TRUE(correct_message);
 }
 
@@ -1723,11 +1723,10 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
   };
   char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x08, 0x64,
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
-  EXPECT_CALL(
-      visitor_,
-      OnObjectFragment(ftn, FullSequence{object.group_id, object.object_id},
-                       object.publisher_priority, object.object_status, payload,
-                       true))
+  EXPECT_CALL(visitor_,
+              OnObjectFragment(ftn, Location{object.group_id, object.object_id},
+                               object.publisher_priority, object.object_status,
+                               payload, true))
       .Times(1);
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
 }
@@ -1767,7 +1766,7 @@ TEST_F(MoqtSessionTest, StreamObjectOutOfWindow) {
   MockSubscribeRemoteTrackVisitor visitor_;
   std::string payload = "deadbeef";
   MoqtSubscribe subscribe = DefaultSubscribe();
-  subscribe.start = FullSequence(1, 0);
+  subscribe.start = Location(1, 0);
   MoqtSessionPeer::CreateRemoteTrack(&session_, subscribe, &visitor_);
   MoqtObject object = {
       /*track_alias=*/2,
@@ -1790,7 +1789,7 @@ TEST_F(MoqtSessionTest, DatagramOutOfWindow) {
   MockSubscribeRemoteTrackVisitor visitor_;
   std::string payload = "deadbeef";
   MoqtSubscribe subscribe = DefaultSubscribe();
-  subscribe.start = FullSequence(1, 0);
+  subscribe.start = Location(1, 0);
   MoqtSessionPeer::CreateRemoteTrack(&session_, subscribe, &visitor_);
   char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x80, 0x00, 0x08, 0x64,
                      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
@@ -1800,8 +1799,8 @@ TEST_F(MoqtSessionTest, DatagramOutOfWindow) {
 
 TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(0, 0));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(0, 0));
   EXPECT_CALL(*track, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
   MoqtObjectListener* subscription =
@@ -1812,9 +1811,9 @@ TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
       .WillOnce(Return(false));
   EXPECT_CALL(*track, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
-  subscription->OnNewObjectAvailable(FullSequence(1, 0));
-  subscription->OnNewObjectAvailable(FullSequence(0, 0));
-  subscription->OnNewObjectAvailable(FullSequence(2, 0));
+  subscription->OnNewObjectAvailable(Location(1, 0));
+  subscription->OnNewObjectAvailable(Location(0, 0));
+  subscription->OnNewObjectAvailable(Location(2, 0));
   // These should be opened in the sequence (0, 0), (1, 0), (2, 0).
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .WillRepeatedly(Return(true));
@@ -1848,23 +1847,23 @@ TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
   EXPECT_CALL(mock_stream2, visitor()).WillOnce([&]() {
     return stream_visitor[2].get();
   });
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 0)))
+  EXPECT_CALL(*track, GetCachedObject(Location(0, 0)))
       .WillOnce(
-          Return(PublishedObject{FullSequence(0, 0), MoqtObjectStatus::kNormal,
-                                 127, MemSliceFromString("deadbeef")}));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(0, 1)))
+          Return(PublishedObject{Location(0, 0), MoqtObjectStatus::kNormal, 127,
+                                 MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(*track, GetCachedObject(Location(0, 1)))
       .WillOnce(Return(std::nullopt));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(1, 0)))
+  EXPECT_CALL(*track, GetCachedObject(Location(1, 0)))
       .WillOnce(
-          Return(PublishedObject{FullSequence(1, 0), MoqtObjectStatus::kNormal,
-                                 127, MemSliceFromString("deadbeef")}));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(1, 1)))
+          Return(PublishedObject{Location(1, 0), MoqtObjectStatus::kNormal, 127,
+                                 MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(*track, GetCachedObject(Location(1, 1)))
       .WillOnce(Return(std::nullopt));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(2, 0)))
+  EXPECT_CALL(*track, GetCachedObject(Location(2, 0)))
       .WillOnce(
-          Return(PublishedObject{FullSequence(2, 0), MoqtObjectStatus::kNormal,
-                                 127, MemSliceFromString("deadbeef")}));
-  EXPECT_CALL(*track, GetCachedObject(FullSequence(2, 1)))
+          Return(PublishedObject{Location(2, 0), MoqtObjectStatus::kNormal, 127,
+                                 MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(*track, GetCachedObject(Location(2, 1)))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream0, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream1, CanWrite()).WillRepeatedly(Return(true));
@@ -1895,8 +1894,8 @@ TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
 
 TEST_F(MoqtSessionTest, StreamQueuedForSubscriptionThatDoesntExist) {
   FullTrackName ftn("foo", "bar");
-  auto track = SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup,
-                              FullSequence(0, 0));
+  auto track =
+      SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(0, 0));
   EXPECT_CALL(*track, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
   MoqtObjectListener* subscription =
@@ -1905,7 +1904,7 @@ TEST_F(MoqtSessionTest, StreamQueuedForSubscriptionThatDoesntExist) {
       .WillOnce(Return(false));
   EXPECT_CALL(*track, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
-  subscription->OnNewObjectAvailable(FullSequence(0, 0));
+  subscription->OnNewObjectAvailable(Location(0, 0));
 
   // Delete the subscription, then grant stream credit.
   MoqtSessionPeer::DeleteSubscription(&session_, 0);
@@ -1917,11 +1916,11 @@ TEST_F(MoqtSessionTest, StreamQueuedForSubscriptionThatDoesntExist) {
 
 TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   FullTrackName ftn1("foo", "bar");
-  auto track1 = SetupPublisher(ftn1, MoqtForwardingPreference::kSubgroup,
-                               FullSequence(0, 0));
+  auto track1 =
+      SetupPublisher(ftn1, MoqtForwardingPreference::kSubgroup, Location(0, 0));
   FullTrackName ftn2("dead", "beef");
-  auto track2 = SetupPublisher(ftn2, MoqtForwardingPreference::kSubgroup,
-                               FullSequence(0, 0));
+  auto track2 =
+      SetupPublisher(ftn2, MoqtForwardingPreference::kSubgroup, Location(0, 0));
   EXPECT_CALL(*track1, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kNotYetBegun));
   EXPECT_CALL(*track2, GetTrackStatus())
@@ -1943,10 +1942,10 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
       .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
   EXPECT_CALL(*track2, GetTrackStatus())
       .WillRepeatedly(Return(MoqtTrackStatusCode::kInProgress));
-  subscription0->OnNewObjectAvailable(FullSequence(0, 0));
-  subscription1->OnNewObjectAvailable(FullSequence(0, 0));
-  subscription0->OnNewObjectAvailable(FullSequence(1, 0));
-  subscription1->OnNewObjectAvailable(FullSequence(1, 0));
+  subscription0->OnNewObjectAvailable(Location(0, 0));
+  subscription1->OnNewObjectAvailable(Location(0, 0));
+  subscription0->OnNewObjectAvailable(Location(1, 0));
+  subscription1->OnNewObjectAvailable(Location(1, 0));
 
   // Allow one stream to be opened. It will be group 0, subscription 0.
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
@@ -1964,11 +1963,11 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   EXPECT_CALL(mock_stream0, visitor()).WillOnce([&]() {
     return stream_visitor0.get();
   });
-  EXPECT_CALL(*track1, GetCachedObject(FullSequence(0, 0)))
+  EXPECT_CALL(*track1, GetCachedObject(Location(0, 0)))
       .WillOnce(
-          Return(PublishedObject{FullSequence(0, 0), MoqtObjectStatus::kNormal,
-                                 127, MemSliceFromString("foobar")}));
-  EXPECT_CALL(*track1, GetCachedObject(FullSequence(0, 1)))
+          Return(PublishedObject{Location(0, 0), MoqtObjectStatus::kNormal, 127,
+                                 MemSliceFromString("foobar")}));
+  EXPECT_CALL(*track1, GetCachedObject(Location(0, 1)))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream0, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream0, Writev(_, _))
@@ -2000,11 +1999,11 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   EXPECT_CALL(mock_stream1, visitor()).WillOnce([&]() {
     return stream_visitor1.get();
   });
-  EXPECT_CALL(*track2, GetCachedObject(FullSequence(0, 0)))
+  EXPECT_CALL(*track2, GetCachedObject(Location(0, 0)))
       .WillOnce(
-          Return(PublishedObject{FullSequence(0, 0), MoqtObjectStatus::kNormal,
-                                 127, MemSliceFromString("deadbeef")}));
-  EXPECT_CALL(*track2, GetCachedObject(FullSequence(0, 1)))
+          Return(PublishedObject{Location(0, 0), MoqtObjectStatus::kNormal, 127,
+                                 MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(*track2, GetCachedObject(Location(0, 1)))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream1, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream1, Writev(_, _))
@@ -2024,7 +2023,7 @@ TEST_F(MoqtSessionTest, FetchReturnsOk) {
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
   MockTrackPublisher* track = CreateTrackPublisher();
-  SetLargestId(track, FullSequence(0, 0));
+  SetLargestId(track, Location(0, 0));
 
   auto fetch_task_ptr = std::make_unique<MockFetchTask>();
   EXPECT_CALL(*track, Fetch).WillOnce(Return(std::move(fetch_task_ptr)));
@@ -2043,7 +2042,7 @@ TEST_F(MoqtSessionTest, FetchReturnsOkImmediateOpen) {
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   MoqtFetch fetch = DefaultFetch();
   MockTrackPublisher* track = CreateTrackPublisher();
-  SetLargestId(track, FullSequence(0, 0));
+  SetLargestId(track, Location(0, 0));
 
   auto fetch_task_ptr = std::make_unique<MockFetchTask>();
   MockFetchTask* fetch_task = fetch_task_ptr.get();
@@ -2077,7 +2076,7 @@ TEST_F(MoqtSessionTest, FetchReturnsOkImmediateOpen) {
   EXPECT_CALL(data_stream, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(*fetch_task, GetNextObject(_))
       .WillOnce(Invoke([](PublishedObject& output) {
-        output.sequence = FullSequence(0, 0, 0);
+        output.sequence = Location(0, 0, 0);
         output.status = MoqtObjectStatus::kNormal;
         output.publisher_priority = 128;
         output.payload = MemSliceFromString("foo");
@@ -2155,7 +2154,7 @@ TEST_F(MoqtSessionTest, FetchDelivery) {
   EXPECT_CALL(data_stream, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(*fetch, GetNextObject(_))
       .WillOnce(Invoke([](PublishedObject& output) {
-        output.sequence = FullSequence(0, 0, 0);
+        output.sequence = Location(0, 0, 0);
         output.status = MoqtObjectStatus::kNormal;
         output.publisher_priority = 128;
         output.payload = MemSliceFromString("foo");
@@ -2214,7 +2213,7 @@ TEST_F(MoqtSessionTest, FetchNonNormalObjects) {
   EXPECT_CALL(*fetch, GetNextObject(_))
       .WillOnce(Invoke([](PublishedObject& output) {
         // DoesNotExist will be skipped.
-        output.sequence = FullSequence(0, 0, 0);
+        output.sequence = Location(0, 0, 0);
         output.status = MoqtObjectStatus::kObjectDoesNotExist;
         output.publisher_priority = 128;
         output.payload = MemSliceFromString("");
@@ -2222,7 +2221,7 @@ TEST_F(MoqtSessionTest, FetchNonNormalObjects) {
         return MoqtFetchTask::GetNextObjectResult::kSuccess;
       }))
       .WillOnce(Invoke([](PublishedObject& output) {
-        output.sequence = FullSequence(0, 0, 1);
+        output.sequence = Location(0, 0, 1);
         output.status = MoqtObjectStatus::kEndOfGroup;
         output.publisher_priority = 128;
         output.payload = MemSliceFromString("");
@@ -2265,22 +2264,21 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetch) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
-  SetLargestId(track, FullSequence(4, 0, 10));
+  SetLargestId(track, Location(4, 0, 10));
   ReceiveSubscribeSynchronousOk(track, subscribe, stream_input.get());
 
   MoqtObjectListener* subscription =
       MoqtSessionPeer::GetSubscription(&session_, subscribe.subscribe_id);
   ASSERT_NE(subscription, nullptr);
-  EXPECT_TRUE(MoqtSessionPeer::InSubscriptionWindow(subscription,
-                                                    FullSequence(4, 0, 11)));
-  EXPECT_FALSE(MoqtSessionPeer::InSubscriptionWindow(subscription,
-                                                     FullSequence(4, 0, 10)));
+  EXPECT_TRUE(
+      MoqtSessionPeer::InSubscriptionWindow(subscription, Location(4, 0, 11)));
+  EXPECT_FALSE(
+      MoqtSessionPeer::InSubscriptionWindow(subscription, Location(4, 0, 10)));
 
   // Joining FETCH arrives. The resulting Fetch should begin at (2, 0).
   MoqtFetch fetch = DefaultFetch();
   fetch.joining_fetch = {1, 2};
-  EXPECT_CALL(*track,
-              Fetch(FullSequence(2, 0), 4, std::optional<uint64_t>(10), _))
+  EXPECT_CALL(*track, Fetch(Location(2, 0), 4, std::optional<uint64_t>(10), _))
       .WillOnce(Return(std::make_unique<MockFetchTask>()));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kFetchOk), _));
@@ -2307,7 +2305,7 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetchNonLatestObject) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
-  SetLargestId(track, FullSequence(2, 0, 10));
+  SetLargestId(track, Location(2, 0, 10));
   ReceiveSubscribeSynchronousOk(track, subscribe, stream_input.get());
 
   MoqtFetch fetch = DefaultFetch();
@@ -2366,10 +2364,10 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
   EXPECT_CALL(remote_track_visitor, OnReply).Times(1);
   stream_input->OnSubscribeOkMessage(
       MoqtSubscribeOk(0, quic::QuicTimeDelta::FromMilliseconds(0),
-                      MoqtDeliveryOrder::kAscending, FullSequence(2, 0),
+                      MoqtDeliveryOrder::kAscending, Location(2, 0),
                       MoqtSubscribeParameters()));
   stream_input->OnFetchOkMessage(MoqtFetchOk(1, MoqtDeliveryOrder::kAscending,
-                                             FullSequence(2, 0),
+                                             Location(2, 0),
                                              MoqtSubscribeParameters()));
   // Packet arrives on FETCH stream.
   MoqtObject object = {
@@ -2449,17 +2447,17 @@ TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
       [&](std::unique_ptr<MoqtFetchTask> task) {
         fetch_task = std::move(task);
       },
-      FullSequence(0, 0), 4, std::nullopt, 128, std::nullopt,
+      Location(0, 0), 4, std::nullopt, 128, std::nullopt,
       MoqtSubscribeParameters());
   MoqtFetchOk ok = {
       /*subscribe_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/FullSequence(3, 25),
+      /*largest_id=*/Location(3, 25),
       MoqtSubscribeParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
   ASSERT_NE(fetch_task, nullptr);
-  EXPECT_EQ(fetch_task->GetLargestId(), FullSequence(3, 25));
+  EXPECT_EQ(fetch_task->GetLargestId(), Location(3, 25));
   EXPECT_TRUE(fetch_task->GetStatus().ok());
   PublishedObject object;
   EXPECT_EQ(fetch_task->GetNextObject(object),
@@ -2479,7 +2477,7 @@ TEST_F(MoqtSessionTest, FetchThenError) {
       [&](std::unique_ptr<MoqtFetchTask> task) {
         fetch_task = std::move(task);
       },
-      FullSequence(0, 0), 4, std::nullopt, 128, std::nullopt,
+      Location(0, 0), 4, std::nullopt, 128, std::nullopt,
       MoqtSubscribeParameters());
   MoqtFetchError error = {
       /*subscribe_id=*/0,
@@ -2514,7 +2512,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
           } while (result != MoqtFetchTask::GetNextObjectResult::kPending);
         });
       },
-      FullSequence(0, 0), 4, std::nullopt, 128, std::nullopt,
+      Location(0, 0), 4, std::nullopt, 128, std::nullopt,
       MoqtSubscribeParameters());
   // Build queue of packets to arrive.
   std::queue<quiche::QuicheBuffer> headers;
@@ -2554,7 +2552,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
   MoqtFetchOk ok = {
       /*subscribe_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/FullSequence(3, 25),
+      /*largest_id=*/Location(3, 25),
       MoqtSubscribeParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
@@ -2584,7 +2582,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
         fetch_task->SetObjectAvailableCallback(
             [&]() { objects_available = true; });
       },
-      FullSequence(0, 0), 4, std::nullopt, 128, std::nullopt,
+      Location(0, 0), 4, std::nullopt, 128, std::nullopt,
       MoqtSubscribeParameters());
   // Build queue of packets to arrive.
   std::queue<quiche::QuicheBuffer> headers;
@@ -2624,7 +2622,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
   MoqtFetchOk ok = {
       /*subscribe_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/FullSequence(3, 25),
+      /*largest_id=*/Location(3, 25),
       MoqtSubscribeParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
@@ -2753,7 +2751,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutExpiredOnArrival) {
   }));
   EXPECT_CALL(*track_publisher, GetCachedObject(_))
       .WillOnce(Return(PublishedObject{
-          FullSequence(0, 0), MoqtObjectStatus::kObjectDoesNotExist, 0,
+          Location(0, 0), MoqtObjectStatus::kObjectDoesNotExist, 0,
           quiche::QuicheMemSlice(),
           MoqtSessionPeer::Now(&session_) - quic::QuicTimeDelta::FromSeconds(1),
           false}));
@@ -2762,19 +2760,19 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutExpiredOnArrival) {
         stream_visitor.reset();
       }));
   // Arrival time is very old; reset immediately.
-  subscription->OnNewObjectAvailable(FullSequence(0, 0, 0));
+  subscription->OnNewObjectAvailable(Location(0, 0, 0));
   // Subsequent objects for that subgroup are ignored.
   EXPECT_CALL(*track_publisher, GetCachedObject(_)).Times(0);
   EXPECT_CALL(mock_session_, GetStreamById(_)).Times(0);
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .Times(0);
-  subscription->OnNewObjectAvailable(FullSequence(0, 0, 1));
+  subscription->OnNewObjectAvailable(Location(0, 0, 1));
   // Check that reset_subgroups_ is pruned.
-  EXPECT_TRUE(MoqtSessionPeer::SubgroupHasBeenReset(subscription,
-                                                    FullSequence(0, 0, 1)));
+  EXPECT_TRUE(
+      MoqtSessionPeer::SubgroupHasBeenReset(subscription, Location(0, 0, 1)));
   subscription->OnGroupAbandoned(0);
-  EXPECT_FALSE(MoqtSessionPeer::SubgroupHasBeenReset(subscription,
-                                                     FullSequence(0, 0, 1)));
+  EXPECT_FALSE(
+      MoqtSessionPeer::SubgroupHasBeenReset(subscription, Location(0, 0, 1)));
 }
 
 TEST_F(MoqtSessionTest, DeliveryTimeoutAfterIntegratedFin) {
@@ -2809,12 +2807,12 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterIntegratedFin) {
   }));
   EXPECT_CALL(*track_publisher, GetCachedObject(_))
       .WillOnce(Return(PublishedObject{
-          FullSequence(0, 0), MoqtObjectStatus::kObjectDoesNotExist, 0,
+          Location(0, 0), MoqtObjectStatus::kObjectDoesNotExist, 0,
           quiche::QuicheMemSlice(), MoqtSessionPeer::Now(&session_), true}))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(data_mock, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut)).Times(0);
-  subscription->OnNewObjectAvailable(FullSequence(0, 0, 0));
+  subscription->OnNewObjectAvailable(Location(0, 0, 0));
   auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
       MoqtSessionPeer::GetAlarm(stream_visitor.get()));
   EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut))
@@ -2858,14 +2856,14 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterSeparateFin) {
   }));
   EXPECT_CALL(*track_publisher, GetCachedObject(_))
       .WillOnce(Return(PublishedObject{
-          FullSequence(0, 0), MoqtObjectStatus::kObjectDoesNotExist, 0,
+          Location(0, 0), MoqtObjectStatus::kObjectDoesNotExist, 0,
           quiche::QuicheMemSlice(), MoqtSessionPeer::Now(&session_), false}))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(data_mock, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
-  subscription->OnNewObjectAvailable(FullSequence(0, 0, 0));
+  subscription->OnNewObjectAvailable(Location(0, 0, 0));
 
   EXPECT_CALL(data_mock, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
-  subscription->OnNewFinAvailable(FullSequence(0, 0, 0));
+  subscription->OnNewFinAvailable(Location(0, 0, 0));
   auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
       MoqtSessionPeer::GetAlarm(stream_visitor.get()));
   EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut))
@@ -2910,11 +2908,11 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAlternateDesign) {
   }));
   EXPECT_CALL(*track_publisher, GetCachedObject(_))
       .WillOnce(Return(PublishedObject{
-          FullSequence(0, 0), MoqtObjectStatus::kObjectDoesNotExist, 0,
+          Location(0, 0), MoqtObjectStatus::kObjectDoesNotExist, 0,
           quiche::QuicheMemSlice(), MoqtSessionPeer::Now(&session_), false}))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(data_mock1, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
-  subscription->OnNewObjectAvailable(FullSequence(0, 0, 0));
+  subscription->OnNewObjectAvailable(Location(0, 0, 0));
 
   webtransport::test::MockStream data_mock2;
   EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
@@ -2935,11 +2933,11 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAlternateDesign) {
   }));
   EXPECT_CALL(*track_publisher, GetCachedObject(_))
       .WillOnce(Return(PublishedObject{
-          FullSequence(1, 0), MoqtObjectStatus::kObjectDoesNotExist, 0,
+          Location(1, 0), MoqtObjectStatus::kObjectDoesNotExist, 0,
           quiche::QuicheMemSlice(), MoqtSessionPeer::Now(&session_), false}))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(data_mock2, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
-  subscription->OnNewObjectAvailable(FullSequence(1, 0, 0));
+  subscription->OnNewObjectAvailable(Location(1, 0, 0));
 
   // Group 1 should start the timer on the Group 0 stream.
   auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
@@ -2972,8 +2970,8 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
           std::optional<MoqtAnnounceErrorReason> /*error*/) {});
   EXPECT_FALSE(session_.Fetch(
       FullTrackName{"foo", "bar"},
-      +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, FullSequence(0, 0),
-      5, std::nullopt, 127, std::nullopt, MoqtSubscribeParameters()));
+      +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, Location(0, 0), 5,
+      std::nullopt, 127, std::nullopt, MoqtSubscribeParameters()));
   // Error on additional GOAWAY.
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
@@ -3029,8 +3027,8 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
           std::optional<MoqtAnnounceErrorReason> /*error*/) {});
   EXPECT_FALSE(session_.Fetch(
       FullTrackName{"foo", "bar"},
-      +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, FullSequence(0, 0),
-      5, std::nullopt, 127, std::nullopt, MoqtSubscribeParameters()));
+      +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, Location(0, 0), 5,
+      std::nullopt, 127, std::nullopt, MoqtSubscribeParameters()));
   session_.GoAway("");
   // GoAway timer fires.
   auto* goaway_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
@@ -3261,7 +3259,7 @@ TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {
   MoqtSessionPeer::AddSubscription(&session_, ftn, 0, 2, 5, 0);
   // Get the window, set the maximum delivered.
   LocalTrack* track = MoqtSessionPeer::local_track(&session_, ftn);
-  track->GetWindow(0)->OnObjectSent(FullSequence(7, 3),
+  track->GetWindow(0)->OnObjectSent(Location(7, 3),
                                     MoqtObjectStatus::kNormal);
   // Update the end to fall at the last delivered object.
   MoqtSubscribeUpdate update = {
