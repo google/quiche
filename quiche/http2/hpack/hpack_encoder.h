@@ -73,6 +73,12 @@ class QUICHE_EXPORT HpackEncoder {
   std::unique_ptr<ProgressiveEncoder> EncodeRepresentations(
       const Representations& representations);
 
+  // Applies an upper bound on the possible size of the encoder's header table.
+  // The actual table size used will be the minimum of this value and the value
+  // in SETTINGS_HEADER_TABLE_SIZE from the peer. A value of 0 will disable
+  // dynamic table compression.
+  void SetHeaderTableSizeBound(size_t max_size);
+
   // Called upon a change to SETTINGS_HEADER_TABLE_SIZE. Specifically, this
   // is to be called after receiving (and sending an acknowledgement for) a
   // SETTINGS_HEADER_TABLE_SIZE update from the remote decoding endpoint.
@@ -147,6 +153,7 @@ class QUICHE_EXPORT HpackEncoder {
   HpackHeaderTable header_table_;
   HpackOutputStream output_stream_;
 
+  size_t table_size_upper_bound_;
   size_t min_table_size_setting_received_;
   HeaderListener listener_;
   IndexingPolicy should_index_;

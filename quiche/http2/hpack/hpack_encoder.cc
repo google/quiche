@@ -82,7 +82,7 @@ bool DefaultPolicy(absl::string_view name, absl::string_view /* value */) {
 }  // namespace
 
 HpackEncoder::HpackEncoder()
-    : output_stream_(),
+    : table_size_upper_bound_(std::numeric_limits<size_t>::max()),
       min_table_size_setting_received_(std::numeric_limits<size_t>::max()),
       listener_(NoOpListener),
       should_index_(DefaultPolicy),
@@ -122,7 +122,8 @@ std::string HpackEncoder::EncodeHeaderBlock(
 }
 
 void HpackEncoder::ApplyHeaderTableSizeSetting(size_t size_setting) {
-  if (size_setting == header_table_.settings_size_bound()) {
+  if (size_setting == header_table_.settings_size_bound() &&
+      size_setting <= table_size_upper_bound_) {
     return;
   }
   if (size_setting < header_table_.settings_size_bound()) {
@@ -130,6 +131,9 @@ void HpackEncoder::ApplyHeaderTableSizeSetting(size_t size_setting) {
         std::min(size_setting, min_table_size_setting_received_);
   }
   header_table_.SetSettingsHeaderTableSize(size_setting);
+  if (size_setting > table_size_upper_bound_) {
+    header_table_.SetMaxSize(table_size_upper_bound_);
+  }
   should_emit_table_size_ = true;
 }
 
@@ -154,6 +158,18 @@ std::string HpackEncoder::EncodeRepresentations(RepresentationIterator* iter) {
   }
 
   return output_stream_.TakeString();
+}
+
+void HpackEncoder::SetHeaderTableSizeBound(size_t max_size) {
+  table_size_upper_bound_ = max_size;
+  enable_dynamic_table_ = (table_size_upper_bound_ != 0);
+
+  const size_t new_dynamic_table_size =
+      std::min(table_size_upper_bound_, header_table_.settings_size_bound());
+  if (header_table_.max_size() != new_dynamic_table_size) {
+    header_table_.SetMaxSize(new_dynamic_table_size);
+    should_emit_table_size_ = true;
+  }
 }
 
 void HpackEncoder::EmitIndex(size_t index) {
@@ -216,16 +232,19 @@ void HpackEncoder::MaybeEmitTableSize() {
   if (!should_emit_table_size_) {
     return;
   }
-  const size_t current_size = CurrentHeaderTableSizeSetting();
-  QUICHE_DVLOG(1) << "MaybeEmitTableSize current_size=" << current_size;
-  QUICHE_DVLOG(1) << "MaybeEmitTableSize min_table_size_setting_received_="
-                  << min_table_size_setting_received_;
-  if (min_table_size_setting_received_ < current_size) {
+  const size_t target_size =
+      std::min(CurrentHeaderTableSizeSetting(), table_size_upper_bound_);
+  QUICHE_DVLOG(1) << "MaybeEmitTableSize settings_max_table_size="
+                  << CurrentHeaderTableSizeSetting()
+                  << ", min_table_size_setting_received_="
+                  << min_table_size_setting_received_
+                  << ", table_size_upper_bound_=" << table_size_upper_bound_;
+  if (min_table_size_setting_received_ < target_size) {
     output_stream_.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     output_stream_.AppendUint32(min_table_size_setting_received_);
   }
   output_stream_.AppendPrefix(kHeaderTableSizeUpdateOpcode);
-  output_stream_.AppendUint32(current_size);
+  output_stream_.AppendUint32(target_size);
   min_table_size_setting_received_ = std::numeric_limits<size_t>::max();
   should_emit_table_size_ = false;
 }

@@ -382,6 +382,33 @@ TEST_P(HpackEncoderTestWithDefaultStrategy, DynamicTableGrows) {
   EXPECT_GT(encoder_.GetDynamicTableSize(), kInitialDynamicTableSize);
 }
 
+TEST_P(HpackEncoderTestWithDefaultStrategy, DynamicTableStableWithUpperBound) {
+  EXPECT_EQ(kInitialDynamicTableSize, encoder_.GetDynamicTableSize());
+  peer_.table()->SetMaxSize(4096);
+
+  // Caps the dynamic table size at no larger than the initial size.
+  encoder_.SetHeaderTableSizeBound(kInitialDynamicTableSize);
+
+  encoder_.SetHeaderListener(
+      [this](absl::string_view name, absl::string_view value) {
+        this->SaveHeaders(name, value);
+      });
+  const std::vector<std::pair<absl::string_view, absl::string_view>>
+      header_list = {{"cookie", "val1; val2;val3"},
+                     {":path", "/home"},
+                     {"accept", "text/html, text/plain,application/xml"},
+                     {"cookie", "val4"},
+                     {"withnul", absl::string_view("one\0two", 7)}};
+  std::string out;
+  EXPECT_TRUE(test::HpackEncoderPeer::EncodeRepresentations(&encoder_,
+                                                            header_list, &out));
+
+  EXPECT_FALSE(out.empty());
+  // Insertions have happened over the course of the test, but the table is not
+  // any larger.
+  EXPECT_LE(encoder_.GetDynamicTableSize(), kInitialDynamicTableSize);
+}
+
 INSTANTIATE_TEST_SUITE_P(HpackEncoderTests, HpackEncoderTest,
                          ::testing::Values(kDefault, kIncremental,
                                            kRepresentations));
@@ -817,6 +844,84 @@ TEST_P(HpackEncoderTest, HeaderTableSizeUpdate) {
   HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
   EXPECT_EQ(new_entry->name(), "key3");
   EXPECT_EQ(new_entry->value(), "value3");
+}
+
+TEST_P(HpackEncoderTest, HeaderTableSizeUpdateLessThanUpperBound) {
+  encoder_.SetHeaderTableSizeBound(16 * 1024);
+  encoder_.ApplyHeaderTableSizeSetting(1024);
+  ExpectHeaderTableSizeUpdate(1024);
+  ExpectIndexedLiteral("key3", "value3");
+
+  quiche::HttpHeaderBlock headers;
+  headers["key3"] = "value3";
+  CompareWithExpectedEncoding(headers);
+
+  HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
+  EXPECT_EQ(new_entry->name(), "key3");
+  EXPECT_EQ(new_entry->value(), "value3");
+}
+
+TEST_P(HpackEncoderTest, HeaderTableSizeUpdateGreaterThanUpperBound) {
+  encoder_.SetHeaderTableSizeBound(512);
+  encoder_.ApplyHeaderTableSizeSetting(1024);
+  // Since the peer's advertised SETTINGS_HEADER_TABLE_SIZE is larger than our
+  // upper bound, the encoder will limit its dynamic table size to the specified
+  // upper bound.
+  ExpectHeaderTableSizeUpdate(512);
+  ExpectIndexedLiteral("key3", "value3");
+
+  quiche::HttpHeaderBlock headers;
+  headers["key3"] = "value3";
+  CompareWithExpectedEncoding(headers);
+
+  HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
+  EXPECT_EQ(new_entry->name(), "key3");
+  EXPECT_EQ(new_entry->value(), "value3");
+}
+
+TEST_P(HpackEncoderTest, HeaderTableSizeUpdateUpperBoundSmallerThenLarger) {
+  encoder_.ApplyHeaderTableSizeSetting(1024);
+  encoder_.SetHeaderTableSizeBound(512);
+  // Since the table size upper bound is smaller than the value in SETTINGS, the
+  // upper bound value takes precedence.
+  ExpectHeaderTableSizeUpdate(512);
+  ExpectIndexedLiteral("key3", "value3");
+
+  quiche::HttpHeaderBlock headers;
+  headers["key3"] = "value3";
+  CompareWithExpectedEncoding(headers);
+
+  HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
+  EXPECT_EQ(new_entry->name(), "key3");
+  EXPECT_EQ(new_entry->value(), "value3");
+
+  encoder_.SetHeaderTableSizeBound(2 * 1024);
+  // Now that the table size upper bound has been relaxed, the value from
+  // SETTINGS is used.
+  ExpectHeaderTableSizeUpdate(1024);
+  ExpectIndex(peer_.table()->GetByNameAndValue("key3", "value3"));
+  ExpectIndexedLiteral("key4", "value4");
+
+  headers["key4"] = "value4";
+  CompareWithExpectedEncoding(headers);
+
+  new_entry = peer_.table_peer().dynamic_entries()->front().get();
+  EXPECT_EQ(new_entry->name(), "key4");
+  EXPECT_EQ(new_entry->value(), "value4");
+}
+
+TEST_P(HpackEncoderTest, HeaderTableSizeUpdateUpperBoundIsZero) {
+  encoder_.ApplyHeaderTableSizeSetting(1024);
+  encoder_.SetHeaderTableSizeBound(0);
+  // A table size bound of 0 disables dynamic table compression.
+  ExpectHeaderTableSizeUpdate(0);
+  ExpectNonIndexedLiteral("key3", "value3");
+
+  quiche::HttpHeaderBlock headers;
+  headers["key3"] = "value3";
+  CompareWithExpectedEncoding(headers);
+
+  EXPECT_TRUE(peer_.table_peer().dynamic_entries()->empty());
 }
 
 TEST_P(HpackEncoderTest, HeaderTableSizeUpdateWithMin) {
