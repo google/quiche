@@ -293,9 +293,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         std::make_unique<QuicClientSessionCache>(),
         GetParam().event_loop->Create(QuicDefaultClock::Get()));
     client->SetUserAgentID(kTestUserAgentId);
-    if (enable_kyber_in_client_) {
+    if (enable_mlkem_in_client_) {
       std::vector<uint16_t> client_supported_groups = {
-          SSL_GROUP_X25519_KYBER768_DRAFT00, SSL_GROUP_X25519};
+          SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519};
       client->SetPreferredGroups(client_supported_groups);
     }
     client->UseWriter(writer);
@@ -1035,7 +1035,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   int override_client_connection_id_length_ = -1;
   uint8_t expected_server_connection_id_length_;
   bool enable_web_transport_ = false;
-  bool enable_kyber_in_client_ = false;
+  bool enable_mlkem_in_client_ = false;
   std::vector<std::string> received_webtransport_unidirectional_streams_;
   bool use_preferred_address_ = false;
   QuicSocketAddress server_preferred_address_;
@@ -6706,7 +6706,7 @@ void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
   int discard_length;
   if (kyber) {
     discard_length = 1216;
-    enable_kyber_in_client_ = true;
+    enable_mlkem_in_client_ = true;
   } else {
     discard_length = 1000 * num_packets;
     client_config_.SetDiscardLengthToSend(discard_length);

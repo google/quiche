@@ -867,18 +867,17 @@ TEST_P(TlsClientHandshakerTest, ECHGrease) {
   EXPECT_FALSE(stream()->crypto_negotiated_params().encrypted_client_hello);
 }
 
-TEST_P(TlsClientHandshakerTest, EnableKyber) {
-  crypto_config_->set_preferred_groups({SSL_GROUP_X25519_KYBER768_DRAFT00});
+TEST_P(TlsClientHandshakerTest, EnableMLKEM) {
+  crypto_config_->set_preferred_groups({SSL_GROUP_X25519_MLKEM768});
   server_crypto_config_->set_preferred_groups(
-      {SSL_GROUP_X25519_KYBER768_DRAFT00, SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
+      {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
        SSL_GROUP_SECP384R1});
   CreateConnection();
 
   CompleteCryptoHandshake();
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
-  EXPECT_EQ(SSL_GROUP_X25519_KYBER768_DRAFT00,
-            SSL_get_group_id(stream()->GetSsl()));
+  EXPECT_EQ(SSL_GROUP_X25519_MLKEM768, SSL_get_group_id(stream()->GetSsl()));
 }
 
 TEST_P(TlsClientHandshakerTest, EnableClientAlpsUseNewCodepoint) {

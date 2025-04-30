@@ -233,7 +233,7 @@ TEST_P(TlsChloExtractorTest, TlsExtensionInfo_SupportedGroups) {
       // Only one group
       {SSL_GROUP_X25519},
       // Two groups
-      {SSL_GROUP_X25519_KYBER768_DRAFT00, SSL_GROUP_X25519},
+      {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519},
   };
   for (const std::vector<uint16_t>& preferred_groups :
        preferred_groups_to_test) {
