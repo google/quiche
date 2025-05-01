@@ -348,8 +348,9 @@ class QUICHE_EXPORT QuicDispatcher
   virtual void MaybeResetPacketsWithNoVersion(
       const quic::ReceivedPacketInfo& packet_info);
 
-  // Called on packets with unsupported versions.
-  virtual void MaybeSendVersionNegotiationPacket(
+  // Called on packets with unsupported versions. Returns true if a version
+  // negotiation packet is sent.
+  virtual bool MaybeSendVersionNegotiationPacket(
       const ReceivedPacketInfo& packet_info);
 
   virtual ConnectionIdGeneratorInterface& ConnectionIdGenerator() {

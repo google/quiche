@@ -1549,21 +1549,22 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
       GetPerPacketContext());
 }
 
-void QuicDispatcher::MaybeSendVersionNegotiationPacket(
+bool QuicDispatcher::MaybeSendVersionNegotiationPacket(
     const ReceivedPacketInfo& packet_info) {
   if (packet_info.form == IETF_QUIC_LONG_HEADER_PACKET &&
       packet_info.long_packet_type == VERSION_NEGOTIATION) {
-    return;
+    return false;
   }
   if (crypto_config()->validate_chlo_size() &&
       packet_info.packet.length() < kMinPacketSizeForVersionNegotiation) {
-    return;
+    return false;
   }
   time_wait_list_manager()->SendVersionNegotiationPacket(
       packet_info.destination_connection_id, packet_info.source_connection_id,
       packet_info.form != GOOGLE_QUIC_PACKET, packet_info.use_length_prefix,
       GetSupportedVersions(), packet_info.self_address,
       packet_info.peer_address, GetPerPacketContext());
+  return true;
 }
 
 size_t QuicDispatcher::NumSessions() const {
