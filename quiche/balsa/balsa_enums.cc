@@ -62,6 +62,8 @@ const char* BalsaFrameEnums::ErrorCodeToString(
       return "INVALID_WS_IN_STATUS_LINE";
     case INVALID_WS_IN_REQUEST_LINE:
       return "INVALID_WS_IN_REQUEST_LINE";
+    case OBS_FOLD_IN_HEADERS:
+      return "OBS_FOLD_IN_HEADERS";
     case FAILED_CONVERTING_STATUS_CODE_TO_INT:
       return "FAILED_CONVERTING_STATUS_CODE_TO_INT";
     case INVALID_TARGET_URI:
@@ -108,6 +110,8 @@ const char* BalsaFrameEnums::ErrorCodeToString(
       return "TRAILER_TOO_LONG";
     case TRAILER_MISSING_COLON:
       return "TRAILER_MISSING_COLON";
+    case OBS_FOLD_IN_TRAILERS:
+      return "OBS_FOLD_IN_TRAILERS";
     case INTERNAL_LOGIC_ERROR:
       return "INTERNAL_LOGIC_ERROR";
     case INVALID_HEADER_CHARACTER:

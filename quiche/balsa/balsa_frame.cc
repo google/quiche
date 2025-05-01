@@ -475,6 +475,10 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
                                : BalsaFrameEnums::INVALID_HEADER_FORMAT);
         return false;
       }
+      // Getting here means we find obs-fold character (for header line
+      // continuation) and continuation is allowed.
+      HandleWarning(is_trailer ? BalsaFrameEnums::OBS_FOLD_IN_TRAILERS
+                               : BalsaFrameEnums::OBS_FOLD_IN_HEADERS);
 
       // If disallow_header_continuation_lines() is false, we neither reject nor
       // normalize continuation lines, in violation of RFC7230.

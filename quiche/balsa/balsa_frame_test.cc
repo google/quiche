@@ -1089,7 +1089,10 @@ void WhitespaceHeaderTestHelper(
   SCOPED_TRACE(EscapeString(message));
   size_t bytes_consumed = framer.ProcessInput(message.data(), message.size());
   EXPECT_EQ(message.size(), bytes_consumed);
-  if (expected_error_code == BalsaFrameEnums::BALSA_NO_ERROR) {
+  if (expected_error_code == BalsaFrameEnums::BALSA_NO_ERROR ||
+      // Obs fold currently is not treated as an error, but only a warning.
+      expected_error_code == BalsaFrameEnums::OBS_FOLD_IN_HEADERS ||
+      expected_error_code == BalsaFrameEnums::OBS_FOLD_IN_TRAILERS) {
     EXPECT_EQ(false, framer.Error());
   } else {
     EXPECT_EQ(true, framer.Error());
@@ -1119,13 +1122,13 @@ TEST(HTTPBalsaFrame, WhitespaceInRequestsProcessedProperly) {
       "test: test\r\n"
       " continued\r\n"
       "\r\n",
-      true, BalsaFrameEnums::BALSA_NO_ERROR);
+      true, BalsaFrameEnums::OBS_FOLD_IN_HEADERS);
   WhitespaceHeaderTestHelper(
       "GET / HTTP/1.1\r\n"
       "test: test\r\n"
       " \r\n"
       "\r\n",
-      true, BalsaFrameEnums::BALSA_NO_ERROR);
+      true, BalsaFrameEnums::OBS_FOLD_IN_HEADERS);
   SCOPED_TRACE(
       "Test a confusing and ambiguous case: is it a line continuation or a new "
       "header field?");
@@ -1134,7 +1137,7 @@ TEST(HTTPBalsaFrame, WhitespaceInRequestsProcessedProperly) {
       "test: test\r\n"
       "  confusing:continued\r\n"
       "\r\n",
-      true, BalsaFrameEnums::BALSA_NO_ERROR);
+      true, BalsaFrameEnums::OBS_FOLD_IN_HEADERS);
 }
 
 TEST(HTTPBalsaFrame, WhitespaceInResponsesProcessedProperly) {
@@ -1154,14 +1157,14 @@ TEST(HTTPBalsaFrame, WhitespaceInResponsesProcessedProperly) {
       " continued\r\n"
       "Content-Length: 0\r\n"
       "\r\n",
-      false, BalsaFrameEnums::BALSA_NO_ERROR);
+      false, BalsaFrameEnums::OBS_FOLD_IN_HEADERS);
   WhitespaceHeaderTestHelper(
       "HTTP/1.0 200 Reason\r\n"
       "test: test\r\n"
       " \r\n"
       "Content-Length: 0\r\n"
       "\r\n",
-      false, BalsaFrameEnums::BALSA_NO_ERROR);
+      false, BalsaFrameEnums::OBS_FOLD_IN_HEADERS);
   SCOPED_TRACE(
       "Test a confusing and ambiguous case: is it a line continuation or a new "
       "header field?");
@@ -1171,7 +1174,7 @@ TEST(HTTPBalsaFrame, WhitespaceInResponsesProcessedProperly) {
       "   confusing:continued\r\n"
       "Content-Length: 0\r\n"
       "\r\n",
-      false, BalsaFrameEnums::BALSA_NO_ERROR);
+      false, BalsaFrameEnums::OBS_FOLD_IN_HEADERS);
 }
 
 TEST_F(HTTPBalsaFrameTest, VisitorInvokedProperlyForTrivialRequest) {
@@ -4654,6 +4657,7 @@ TEST_F(HTTPBalsaFrameTest, Http09) {
             balsa_frame_.ErrorCode());
 }
 
+// A.k.a., ObsFoldAllowed.
 TEST_F(HTTPBalsaFrameTest, ContinuationAllowed) {
   // See RFC7230 Section 3.2 for the definition of obs-fold:
   // https://httpwg.org/specs/rfc7230.html#header.fields.
@@ -4674,12 +4678,16 @@ TEST_F(HTTPBalsaFrameTest, ContinuationAllowed) {
   fake_headers.AddKeyValue("key2", "value\n includes obs-fold");
   fake_headers.AddKeyValue("key3", "value ends in obs-fold");
   EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
+  EXPECT_CALL(visitor_mock_,
+              HandleWarning(BalsaFrameEnums::OBS_FOLD_IN_HEADERS))
+      .Times(3);
 
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_FALSE(balsa_frame_.Error());
 }
 
+// A.k.a., ObsFoldDisallowed.
 TEST_F(HTTPBalsaFrameTest, ContinuationDisallowed) {
   HttpValidationPolicy http_validation_policy;
   http_validation_policy.disallow_header_continuation_lines = true;
