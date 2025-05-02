@@ -16,8 +16,8 @@ bazel_dep(name = "abseil-cpp", repo_name = "com_google_absl", version = "2025012
 # Last updated 2025-02-25
 bazel_dep(name = "protobuf", repo_name = "com_google_protobuf", version = "29.3")
 
-# Last updated 2025-02-25
-bazel_dep(name = "boringssl", version = "0.20250212.0")
+# Last updated 2025-05-01
+bazel_dep(name = "boringssl", version = "0.20250415.0")
 
 # Last updated 2025-02-25
 bazel_dep(name = "googletest", repo_name = "com_google_googletest", version = "1.16.0")
