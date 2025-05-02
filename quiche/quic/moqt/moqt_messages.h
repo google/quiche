@@ -230,6 +230,8 @@ struct MoqtSubscribeErrorReason {
 };
 using MoqtAnnounceErrorReason = MoqtSubscribeErrorReason;
 
+SubscribeErrorCode StatusToSubscribeErrorCode(absl::Status status);
+
 // Full track name represents a tuple of name elements. All higher order
 // elements MUST be present, but lower-order ones (like the name) can be
 // omitted.

@@ -140,7 +140,6 @@ TEST_F(UpstreamFetchTest, FetchResponse) {
   EXPECT_NE(fetch_task_, nullptr);
   EXPECT_NE(fetch_.task(), nullptr);
   EXPECT_TRUE(fetch_task_->GetStatus().ok());
-  EXPECT_EQ(fetch_task_->GetLargestId(), Location(3, 50));
 }
 
 TEST_F(UpstreamFetchTest, FetchClosedByMoqt) {

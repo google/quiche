@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 
@@ -504,6 +505,8 @@ void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
       case MoqtFetchTask::GetNextObjectResult::kSuccess:
         // Skip ObjectDoesNotExist in FETCH.
         if (object.status == MoqtObjectStatus::kObjectDoesNotExist) {
+          QUIC_BUG(quic_bug_got_doesnotexist_in_fetch)
+              << "Got ObjectDoesNotExist in FETCH";
           continue;
         }
         if (fetch->session_->WriteObjectToStream(
@@ -686,13 +689,14 @@ bool MoqtSession::OpenDataStream(std::shared_ptr<PublishedFetch> fetch,
     return false;
   }
   fetch->SetStreamId(new_stream->GetStreamId());
-  new_stream->SetVisitor(
-      std::make_unique<PublishedFetch::FetchStreamVisitor>(fetch, new_stream));
-  if (new_stream->CanWrite()) {
-    new_stream->visitor()->OnCanWrite();
-  }
   new_stream->SetPriority(webtransport::StreamPriority{
       /*send_group_id=*/kMoqtSendGroupId, send_order});
+  // The line below will lead to updating ObjectsAvailableCallback in the
+  // FetchTask to call OnCanWrite() on the stream. If there is an object
+  // available, the callback will be invoked synchronously (i.e. before
+  // SetVisitor() returns).
+  new_stream->SetVisitor(
+      std::make_unique<PublishedFetch::FetchStreamVisitor>(fetch, new_stream));
   return true;
 }
 
@@ -1332,21 +1336,54 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
                     << " could not be added to the session";
     SendFetchError(message.fetch_id, SubscribeErrorCode::kInternalError,
                    "Could not initialize FETCH state");
-    return;
   }
-  MoqtFetchOk fetch_ok;
-  fetch_ok.subscribe_id = message.fetch_id;
-  fetch_ok.group_order =
-      message.group_order.value_or((*track_publisher)->GetDeliveryOrder());
-  fetch_ok.largest_id = result.first->second->fetch_task()->GetLargestId();
-  SendOrBufferMessage(session_->framer_.SerializeFetchOk(fetch_ok));
-  webtransport::SendOrder send_order =
-      SendOrderForFetch(message.subscriber_priority);
-  if (!session_->session()->CanOpenNextOutgoingUnidirectionalStream() ||
-      !session_->OpenDataStream(result.first->second, send_order)) {
-    // Put the FETCH in the queue for a new stream.
-    session_->UpdateQueuedSendOrder(message.fetch_id, std::nullopt, send_order);
-  }
+  MoqtFetchTask* fetch_task = result.first->second->fetch_task();
+  fetch_task->SetFetchResponseCallback(
+      [this, request_id = message.fetch_id, fetch_start = start_object,
+       fetch_end = Location(end_group, end_object.value_or(UINT64_MAX))](
+          std::variant<MoqtFetchOk, MoqtFetchError> message) {
+        if (!session_->incoming_fetches_.contains(request_id)) {
+          return;  // FETCH was cancelled.
+        }
+        if (std::holds_alternative<MoqtFetchOk>(message)) {
+          MoqtFetchOk& fetch_ok = std::get<MoqtFetchOk>(message);
+          fetch_ok.subscribe_id = request_id;
+          if (fetch_ok.largest_id < fetch_start ||
+              fetch_ok.largest_id > fetch_end) {
+            // TODO(martinduke): Add end_of_track to fetch_ok and check it's
+            // larger than largest_id.
+            QUIC_BUG(quic_bug_fetch_ok_status_error)
+                << "FETCH_OK end or end_of_track is invalid";
+            session_->Error(MoqtError::kInternalError, "FETCH_OK status error");
+            return;
+          }
+          SendOrBufferMessage(session_->framer_.SerializeFetchOk(fetch_ok));
+          return;
+        }
+        MoqtFetchError& fetch_error = std::get<MoqtFetchError>(message);
+        fetch_error.subscribe_id = request_id;
+        SendOrBufferMessage(session_->framer_.SerializeFetchError(fetch_error));
+      });
+  // Set a temporary new-object callback that creates a data stream. When
+  // created, the stream visitor will replace this callback.
+  fetch_task->SetObjectAvailableCallback(
+      [this, send_order = SendOrderForFetch(message.subscriber_priority),
+       request_id = message.fetch_id]() {
+        auto it = session_->incoming_fetches_.find(request_id);
+        if (it == session_->incoming_fetches_.end()) {
+          return;
+        }
+        if (!session_->session()->CanOpenNextOutgoingUnidirectionalStream() ||
+            !session_->OpenDataStream(it->second, send_order)) {
+          if (!session_->subscribes_with_queued_outgoing_data_streams_.contains(
+                  SubscriptionWithQueuedStream(request_id, send_order))) {
+            // Put the FETCH in the queue for a new stream unless it has already
+            // done so.
+            session_->UpdateQueuedSendOrder(request_id, std::nullopt,
+                                            send_order);
+          }
+        }
+      });
 }
 
 void MoqtSession::ControlStream::OnFetchOkMessage(const MoqtFetchOk& message) {

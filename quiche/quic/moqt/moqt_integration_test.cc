@@ -416,7 +416,6 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
   EXPECT_TRUE(success);
 
   EXPECT_TRUE(fetch->GetStatus().ok());
-  EXPECT_EQ(fetch->GetLargestId(), Location(99, 0));
   MoqtFetchTask::GetNextObjectResult result;
   PublishedObject object;
   Location expected{97, 0};

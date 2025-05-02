@@ -249,8 +249,10 @@ class UpstreamFetch : public RemoteTrack {
         ObjectsAvailableCallback callback) override {
       object_available_callback_ = std::move(callback);
     };
+    // TODO(martinduke): Implement the new API, but for now, only deliver the
+    // FetchTask on FETCH_OK.
+    void SetFetchResponseCallback(FetchResponseCallback callback) override {}
     absl::Status GetStatus() override { return status_; };
-    Location GetLargestId() const override { return largest_id_; }
 
     quiche::QuicheWeakPtr<UpstreamFetchTask> weak_ptr() {
       return weak_ptr_factory_.Create();

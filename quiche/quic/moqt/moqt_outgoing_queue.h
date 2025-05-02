@@ -110,12 +110,36 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
 
     GetNextObjectResult GetNextObject(PublishedObject&) override;
     absl::Status GetStatus() override { return status_; }
-    Location GetLargestId() const override { return objects_.back(); }
 
     void SetObjectAvailableCallback(
-        ObjectsAvailableCallback /*callback*/) override {
+        ObjectsAvailableCallback callback) override {
       // Not needed since all objects in a fetch against an in-memory queue are
       // guaranteed to resolve immediately.
+      callback();
+    }
+    void SetFetchResponseCallback(FetchResponseCallback callback) override {
+      if (!status_.ok()) {
+        MoqtFetchError error(0, StatusToSubscribeErrorCode(status_),
+                             std::string(status_.message()));
+        error.error_code = StatusToSubscribeErrorCode(status_);
+        error.reason_phrase = status_.message();
+        std::move(callback)(error);
+        return;
+      }
+      if (objects_.empty()) {
+        MoqtFetchError error(0, StatusToSubscribeErrorCode(status_),
+                             "No objects in range");
+        std::move(callback)(error);
+        return;
+      }
+      MoqtFetchOk ok;
+      ok.group_order = MoqtDeliveryOrder::kAscending;
+      ok.largest_id = *(objects_.crbegin());
+      if (objects_.size() > 1 && *(objects_.cbegin()) > ok.largest_id) {
+        ok.group_order = MoqtDeliveryOrder::kDescending;
+        ok.largest_id = *(objects_.cbegin());
+      }
+      std::move(callback)(ok);
     }
 
    private:

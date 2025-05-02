@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -75,6 +76,10 @@ class MoqtObjectListener {
 class MoqtFetchTask {
  public:
   using ObjectsAvailableCallback = quiche::MultiUseCallback<void()>;
+  // If the fields are not correct (e.g. end_of_track is less than start) it
+  // will result in QUICHE_BUG. The request_id field will be ignored.
+  using FetchResponseCallback = quiche::SingleUseCallback<void(
+      std::variant<MoqtFetchOk, MoqtFetchError>)>;
 
   virtual ~MoqtFetchTask() = default;
 
@@ -91,7 +96,8 @@ class MoqtFetchTask {
     kError,
   };
 
-  // Returns the next object received via the fetch, if available.
+  // Returns the next object received via the fetch, if available. MUST NOT
+  // return an object with status kObjectDoesNotExist.
   virtual GetNextObjectResult GetNextObject(PublishedObject& output) = 0;
 
   // Sets the callback that is called when GetNextObject() has previously
@@ -99,15 +105,18 @@ class MoqtFetchTask {
   // end-of-fetch) is available. The application is responsible for calling
   // GetNextObject() until it gets kPending; no further callback will occur
   // until then.
+  // If an object is available immediately, the callback will be called
+  // immediately.
   virtual void SetObjectAvailableCallback(
       ObjectsAvailableCallback callback) = 0;
+  // One of these callbacks is called as soon as the data publisher has enough
+  // information for either FETCH_OK or FETCH_ERROR.
+  // If the appropriate response is already available, the callback will be
+  // called immediately.
+  virtual void SetFetchResponseCallback(FetchResponseCallback callback) = 0;
 
   // Returns the error if fetch has completely failed, and OK otherwise.
   virtual absl::Status GetStatus() = 0;
-
-  // Returns the highest sequence number that will be delivered by the fetch.
-  // It is the minimum of the end of the fetch range and the live edge.
-  virtual Location GetLargestId() const = 0;
 };
 
 // MoqtTrackPublisher is an application-side API for an MoQT publisher

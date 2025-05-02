@@ -92,6 +92,25 @@ MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
   return static_cast<MoqtObjectStatus>(integer);
 }
 
+SubscribeErrorCode StatusToSubscribeErrorCode(absl::Status status) {
+  QUICHE_DCHECK(!status.ok());
+  switch (status.code()) {
+    case absl::StatusCode::kPermissionDenied:
+    case absl::StatusCode::kUnauthenticated:
+      return SubscribeErrorCode::kUnauthorized;
+    case absl::StatusCode::kDeadlineExceeded:
+      return SubscribeErrorCode::kTimeout;
+    case absl::StatusCode::kUnavailable:
+      return SubscribeErrorCode::kNotSupported;
+    case absl::StatusCode::kNotFound:
+      return SubscribeErrorCode::kDoesNotExist;
+    case absl::StatusCode::kOutOfRange:
+      return SubscribeErrorCode::kInvalidRange;
+    default:
+      return SubscribeErrorCode::kInternalError;
+  }
+}
+
 MoqtFilterType GetFilterType(const MoqtSubscribe& message) {
   if (message.start.has_value()) {
     if (message.end_group.has_value()) {

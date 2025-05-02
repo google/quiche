@@ -151,17 +151,6 @@ class MoqtSessionPeer {
     session->peer_max_subscribe_id_ = id;
   }
 
-  static MockFetchTask* AddFetch(MoqtSession* session, uint64_t fetch_id) {
-    auto fetch_task = std::make_unique<MockFetchTask>();
-    MockFetchTask* return_ptr = fetch_task.get();
-    auto published_fetch = std::make_unique<MoqtSession::PublishedFetch>(
-        fetch_id, session, std::move(fetch_task));
-    session->incoming_fetches_.emplace(fetch_id, std::move(published_fetch));
-    // Add the fetch to the pending stream queue.
-    session->UpdateQueuedSendOrder(fetch_id, std::nullopt, 0);
-    return return_ptr;
-  }
-
   static MoqtSession::PublishedFetch* GetFetch(MoqtSession* session,
                                                uint64_t fetch_id) {
     auto it = session->incoming_fetches_.find(fetch_id);

@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -115,20 +116,56 @@ class MockPublishingMonitorInterface : public MoqtPublishingMonitorInterface {
 
 class MockFetchTask : public MoqtFetchTask {
  public:
+  MockFetchTask() {};  // No synchronous callbacks.
+  MockFetchTask(std::optional<MoqtFetchOk> fetch_ok,
+                std::optional<MoqtFetchError> fetch_error,
+                bool synchronous_object_available)
+      : synchronous_fetch_ok_(fetch_ok),
+        synchronous_fetch_error_(fetch_error),
+        synchronous_object_available_(synchronous_object_available) {
+    QUICHE_DCHECK(!synchronous_fetch_ok_.has_value() ||
+                  !synchronous_fetch_error_.has_value());
+  }
+
   MOCK_METHOD(MoqtFetchTask::GetNextObjectResult, GetNextObject,
               (PublishedObject & output), (override));
   MOCK_METHOD(absl::Status, GetStatus, (), (override));
-  MOCK_METHOD(Location, GetLargestId, (), (const, override));
 
   void SetObjectAvailableCallback(ObjectsAvailableCallback callback) override {
     objects_available_callback_ = std::move(callback);
+    if (synchronous_object_available_) {
+      // The first call is installed by the session to trigger stream creation.
+      // An object might not exist yet.
+      objects_available_callback_();
+    }
+    // The second call is a result of the stream replacing the callback, which
+    // means there is an object available.
+    synchronous_object_available_ = true;
   }
-  ObjectsAvailableCallback& objects_available_callback() {
-    return objects_available_callback_;
-  };
+  void SetFetchResponseCallback(FetchResponseCallback callback) override {
+    if (synchronous_fetch_ok_.has_value()) {
+      std::move(callback)(*synchronous_fetch_ok_);
+      return;
+    }
+    if (synchronous_fetch_error_.has_value()) {
+      std::move(callback)(*synchronous_fetch_error_);
+      return;
+    }
+    fetch_response_callback_ = std::move(callback);
+  }
+
+  void CallObjectsAvailableCallback() { objects_available_callback_(); };
+  void CallFetchResponseCallback(
+      std::variant<MoqtFetchOk, MoqtFetchError> response) {
+    std::move(fetch_response_callback_)(response);
+  }
 
  private:
+  FetchResponseCallback fetch_response_callback_;
   ObjectsAvailableCallback objects_available_callback_;
+  std::optional<MoqtFetchOk> synchronous_fetch_ok_;
+  std::optional<MoqtFetchError> synchronous_fetch_error_;
+  bool synchronous_object_available_ = false;
 };
 
 }  // namespace moqt::test

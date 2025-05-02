@@ -24,7 +24,13 @@ class MoqtFailedFetch : public MoqtFetchTask {
   absl::Status GetStatus() override { return status_; }
   void SetObjectAvailableCallback(
       ObjectsAvailableCallback /*callback*/) override {}
-  Location GetLargestId() const override { return Location(); }
+  void SetFetchResponseCallback(FetchResponseCallback callback) {
+    MoqtFetchError error;
+    error.subscribe_id = 0;
+    error.error_code = StatusToSubscribeErrorCode(status_);
+    error.reason_phrase = status_.message();
+    std::move(callback)(error);
+  }
 
  private:
   absl::Status status_;
