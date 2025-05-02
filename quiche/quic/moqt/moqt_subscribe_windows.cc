@@ -19,7 +19,7 @@ ReducedSequenceIndex::ReducedSequenceIndex(
     Location sequence, MoqtForwardingPreference preference) {
   switch (preference) {
     case MoqtForwardingPreference::kSubgroup:
-      sequence_ = Location(sequence.group, 0, sequence.subgroup);
+      sequence_ = Location(sequence.group, sequence.subgroup, 0);
       break;
     case MoqtForwardingPreference::kDatagram:
       sequence_ = Location(sequence.group, 0, sequence.object);
