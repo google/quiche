@@ -69,10 +69,10 @@ std::optional<MoqtAnnounceErrorReason> ChatClient::OnIncomingAnnounce(
                  "do not subscribe\n";
     return std::nullopt;
   }
-  if (session_->SubscribeCurrentObject(
-          *track_name, &remote_track_visitor_,
-          MoqtSubscribeParameters{std::string(GetUsername(my_track_name_)),
-                                  std::nullopt, std::nullopt, std::nullopt})) {
+  VersionSpecificParameters parameters(
+      std::string(GetUsername(my_track_name_)));
+  if (session_->SubscribeCurrentObject(*track_name, &remote_track_visitor_,
+                                       parameters)) {
     ++subscribes_to_make_;
     other_users_.emplace(*track_name);
   }
@@ -230,7 +230,7 @@ bool ChatClient::AnnounceAndSubscribeAnnounces() {
   std::cout << "Announcing " << GetUserNamespace(my_track_name_).ToString()
             << "\n";
   session_->Announce(GetUserNamespace(my_track_name_),
-                     std::move(announce_callback));
+                     std::move(announce_callback), VersionSpecificParameters());
 
   // Send SUBSCRIBE_ANNOUNCE. Pop 3 levels of namespace to get to {moq-chat,
   // chat-id}
@@ -248,10 +248,11 @@ bool ChatClient::AnnounceAndSubscribeAnnounces() {
                   << " accepted\n";
         return;
       };
-  session_->SubscribeAnnounces(
-      GetChatNamespace(my_track_name_), std::move(subscribe_announces_callback),
-      MoqtSubscribeParameters{std::string(GetUsername(my_track_name_)),
-                              std::nullopt, std::nullopt, std::nullopt});
+  VersionSpecificParameters parameters(
+      std::string(GetUsername(my_track_name_)));
+  session_->SubscribeAnnounces(GetChatNamespace(my_track_name_),
+                               std::move(subscribe_announces_callback),
+                               parameters);
 
   while (session_is_open_ && is_syncing()) {
     RunEventLoop();

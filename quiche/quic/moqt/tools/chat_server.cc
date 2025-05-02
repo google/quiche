@@ -49,8 +49,9 @@ ChatServer::ChatServerSessionHandler::OnIncomingAnnounce(
     return std::nullopt;
   }
   std::cout << "Received ANNOUNCE for " << track_namespace.ToString() << "\n";
-  session_->SubscribeCurrentObject(
-      *track_name_, server_->remote_track_visitor(), MoqtSubscribeParameters());
+  session_->SubscribeCurrentObject(*track_name_,
+                                   server_->remote_track_visitor(),
+                                   moqt::VersionSpecificParameters());
   server_->AddUser(*track_name_);
   return std::nullopt;
 }
@@ -113,7 +114,8 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
               GetUserNamespace(track_name),
               absl::bind_front(&ChatServer::ChatServerSessionHandler::
                                    OnOutgoingAnnounceReply,
-                               this));
+                               this),
+              moqt::VersionSpecificParameters());
         }
         return std::optional<MoqtSubscribeErrorReason>();
       };

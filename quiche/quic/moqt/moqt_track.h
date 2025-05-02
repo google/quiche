@@ -115,15 +115,13 @@ class SubscribeRemoteTrack : public RemoteTrack {
                                   bool end_of_message) = 0;
     virtual void OnSubscribeDone(FullTrackName full_track_name) = 0;
   };
-  SubscribeRemoteTrack(
-      const MoqtSubscribe& subscribe, Visitor* visitor,
-      quic::QuicTimeDelta delivery_timeout = quic::QuicTimeDelta::Infinite())
+  SubscribeRemoteTrack(const MoqtSubscribe& subscribe, Visitor* visitor)
       : RemoteTrack(subscribe.full_track_name, subscribe.subscribe_id,
                     SubscribeWindow(subscribe.start.value_or(Location()),
                                     subscribe.end_group)),
         track_alias_(subscribe.track_alias),
         visitor_(visitor),
-        delivery_timeout_(delivery_timeout),
+        delivery_timeout_(subscribe.parameters.delivery_timeout),
         subscribe_(std::make_unique<MoqtSubscribe>(subscribe)) {}
   ~SubscribeRemoteTrack() override {
     if (subscribe_done_alarm_ != nullptr) {

@@ -45,7 +45,7 @@ TEST_F(MockMoqtSessionTest, MissingTrack) {
               OnReply(FullTrackName("doesn't", "exist"), Eq(std::nullopt),
                       Optional(HasSubstr("not found"))));
   session_.SubscribeCurrentObject(FullTrackName("doesn't", "exist"), &visitor,
-                                  MoqtSubscribeParameters());
+                                  VersionSpecificParameters());
 }
 
 TEST_F(MockMoqtSessionTest, SubscribeCurrentObject) {
@@ -53,7 +53,7 @@ TEST_F(MockMoqtSessionTest, SubscribeCurrentObject) {
   EXPECT_CALL(visitor,
               OnReply(TrackName(), Eq(std::nullopt), Eq(std::nullopt)));
   session_.SubscribeCurrentObject(TrackName(), &visitor,
-                                  MoqtSubscribeParameters());
+                                  VersionSpecificParameters());
   EXPECT_CALL(visitor,
               OnObjectFragment(TrackName(), Location(0, 0), _, _, "test", _));
   track_->AddObject(quic::test::MemSliceFromString("test"), /*key=*/true);
@@ -68,7 +68,7 @@ TEST_F(MockMoqtSessionTest, SubscribeAbsolute) {
   EXPECT_CALL(visitor,
               OnReply(TrackName(), Eq(std::nullopt), Eq(std::nullopt)));
   session_.SubscribeAbsolute(TrackName(), 1, 0, 1, &visitor,
-                             MoqtSubscribeParameters());
+                             VersionSpecificParameters());
   EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(1, 0), _,
                                         MoqtObjectStatus::kNormal, "b", _));
   EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(1, 1), _,
@@ -89,7 +89,7 @@ TEST_F(MockMoqtSessionTest, Fetch) {
       [&](std::unique_ptr<MoqtFetchTask> new_fetch) {
         fetch = std::move(new_fetch);
       },
-      Location(0, 1), 0, 2, 0x80, std::nullopt, MoqtSubscribeParameters());
+      Location(0, 1), 0, 2, 0x80, std::nullopt, VersionSpecificParameters());
   PublishedObject object;
   ASSERT_EQ(fetch->GetNextObject(object), MoqtFetchTask::kSuccess);
   EXPECT_EQ(object.payload.AsStringView(), "b");
@@ -113,7 +113,7 @@ TEST_F(MockMoqtSessionTest, JoiningFetch) {
                                         MoqtObjectStatus::kEndOfGroup, "", _));
   EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(3, 0), _,
                                         MoqtObjectStatus::kNormal, "d", _));
-  session_.JoiningFetch(TrackName(), &visitor, 2, MoqtSubscribeParameters());
+  session_.JoiningFetch(TrackName(), &visitor, 2, VersionSpecificParameters());
   EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(3, 1), _,
                                         MoqtObjectStatus::kEndOfGroup, "", _));
   EXPECT_CALL(visitor, OnObjectFragment(TrackName(), Location(4, 0), _,
@@ -125,7 +125,7 @@ TEST_F(MockMoqtSessionTest, JoiningFetchNoObjects) {
   testing::StrictMock<MockSubscribeRemoteTrackVisitor> visitor;
   EXPECT_CALL(visitor,
               OnReply(TrackName(), Eq(std::nullopt), Eq(std::nullopt)));
-  session_.JoiningFetch(TrackName(), &visitor, 0, MoqtSubscribeParameters());
+  session_.JoiningFetch(TrackName(), &visitor, 0, VersionSpecificParameters());
   EXPECT_CALL(visitor,
               OnObjectFragment(TrackName(), Location(0, 0), _, _, "test", _));
   track_->AddObject(quic::test::MemSliceFromString("test"), /*key=*/true);

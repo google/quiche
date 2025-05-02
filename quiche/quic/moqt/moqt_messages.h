@@ -13,9 +13,9 @@
 #include <optional>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
+#include "absl/container/btree_map.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
@@ -27,6 +27,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -36,32 +37,52 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft10 = 0xff00000a,
+  kDraft11 = 0xff00000b,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft10;
+inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft11;
 inline constexpr uint64_t kDefaultInitialMaxSubscribeId = 100;
+// TODO(martinduke): Implement an auth token cache.
+inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
 inline constexpr uint64_t kMinNamespaceElements = 1;
 inline constexpr uint64_t kMaxNamespaceElements = 32;
 
 struct QUICHE_EXPORT MoqtSessionParameters {
   // TODO: support multiple versions.
-  // TODO: support roles other than PubSub.
-
+  MoqtSessionParameters() = default;
   explicit MoqtSessionParameters(quic::Perspective perspective)
       : perspective(perspective), using_webtrans(true) {}
   MoqtSessionParameters(quic::Perspective perspective, std::string path)
       : perspective(perspective),
         using_webtrans(false),
         path(std::move(path)) {}
+  MoqtSessionParameters(quic::Perspective perspective, std::string path,
+                        uint64_t max_subscribe_id)
+      : perspective(perspective),
+        using_webtrans(true),
+        path(std::move(path)),
+        max_subscribe_id(max_subscribe_id) {}
+  MoqtSessionParameters(quic::Perspective perspective,
+                        uint64_t max_subscribe_id)
+      : perspective(perspective), max_subscribe_id(max_subscribe_id) {}
+  bool operator==(const MoqtSessionParameters& other) {
+    return version == other.version &&
+           deliver_partial_objects == other.deliver_partial_objects &&
+           perspective == other.perspective &&
+           using_webtrans == other.using_webtrans && path == other.path &&
+           max_subscribe_id == other.max_subscribe_id &&
+           max_auth_token_cache_size == other.max_auth_token_cache_size &&
+           support_object_acks == other.support_object_acks;
+  }
 
   MoqtVersion version = kDefaultMoqtVersion;
-  quic::Perspective perspective;
-  bool using_webtrans;
-  std::string path;
-  uint64_t max_subscribe_id = kDefaultInitialMaxSubscribeId;
   bool deliver_partial_objects = false;
+  quic::Perspective perspective = quic::Perspective::IS_SERVER;
+  bool using_webtrans = true;
+  std::string path = "";
+  uint64_t max_subscribe_id = kDefaultInitialMaxSubscribeId;
+  uint64_t max_auth_token_cache_size = kDefaultMaxAuthTokenCacheSize;
   bool support_object_acks = false;
 };
 
@@ -108,8 +129,8 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kFetchOk = 0x18,
   kFetchError = 0x19,
   kSubscribesBlocked = 0x1a,
-  kClientSetup = 0x40,
-  kServerSetup = 0x41,
+  kClientSetup = 0x20,
+  kServerSetup = 0x21,
 
   // QUICHE-specific extensions.
 
@@ -139,23 +160,54 @@ inline constexpr webtransport::StreamErrorCode kResetCodeSubscriptionGone =
     0x01;
 inline constexpr webtransport::StreamErrorCode kResetCodeTimedOut = 0x02;
 
-enum class QUICHE_EXPORT MoqtSetupParameter : uint64_t {
-  kRole = 0x0,
+enum class QUICHE_EXPORT SetupParameter : uint64_t {
   kPath = 0x1,
-  kMaxSubscribeId = 0x2,
+  kMaxRequestId = 0x2,
+  kMaxAuthTokenCacheSize = 0x4,
 
   // QUICHE-specific extensions.
   // Indicates support for OACK messages.
-  kSupportObjectAcks = 0xbbf1439,
+  kSupportObjectAcks = 0xbbf1438,
 };
 
-enum class QUICHE_EXPORT MoqtTrackRequestParameter : uint64_t {
-  kAuthorizationInfo = 0x2,
-  kDeliveryTimeout = 0x3,
+enum class QUICHE_EXPORT VersionSpecificParameter : uint64_t {
+  kAuthorizationToken = 0x1,
+  kDeliveryTimeout = 0x2,
+  kAuthorizationInfo = 0x3,
   kMaxCacheDuration = 0x4,
 
   // QUICHE-specific extensions.
-  kOackWindowSize = 0xbbf1439,
+  kOackWindowSize = 0xbbf1438,
+};
+
+struct VersionSpecificParameters {
+  VersionSpecificParameters() = default;
+  // Likely parameter combinations.
+  VersionSpecificParameters(quic::QuicTimeDelta delivery_timeout,
+                            quic::QuicTimeDelta max_cache_duration)
+      : delivery_timeout(delivery_timeout),
+        max_cache_duration(max_cache_duration) {}
+  explicit VersionSpecificParameters(std::string authorization_info)
+      : authorization_info(authorization_info) {}
+  VersionSpecificParameters(quic::QuicTimeDelta delivery_timeout,
+                            std::string authorization_info)
+      : delivery_timeout(delivery_timeout),
+        authorization_info(authorization_info) {}
+
+  // TODO(martinduke): Turn auth_token into structured data.
+  std::vector<std::string> authorization_token;
+  quic::QuicTimeDelta delivery_timeout = quic::QuicTimeDelta::Infinite();
+  std::optional<std::string> authorization_info;
+  quic::QuicTimeDelta max_cache_duration = quic::QuicTimeDelta::Infinite();
+  std::optional<quic::QuicTimeDelta> oack_window_size;
+
+  bool operator==(const VersionSpecificParameters& other) const {
+    return authorization_token == other.authorization_token &&
+           delivery_timeout == other.delivery_timeout &&
+           authorization_info == other.authorization_info &&
+           max_cache_duration == other.max_cache_duration &&
+           oack_window_size == other.oack_window_size;
+  }
 };
 
 // Used for SUBSCRIBE_ERROR, ANNOUNCE_ERROR, ANNOUNCE_CANCEL,
@@ -306,17 +358,97 @@ H AbslHashValue(H h, const Location& m) {
   return H::combine(std::move(h), m.group, m.object);
 }
 
+// Encodes a list of key-value pairs common to both parameters and extensions.
+// If the key is odd, it is a length-prefixed string (which may encode further
+// item-specific structure). If the key is even, it is a varint.
+// This class does not interpret the semantic meaning of the keys and values,
+// although it does accept various uint64_t-based enums to reduce the burden of
+// casting on the caller.
+class KeyValuePairList {
+ public:
+  KeyValuePairList() = default;
+  size_t size() const { return integer_map_.size() + string_map_.size(); }
+  void insert(VersionSpecificParameter key, uint64_t value) {
+    insert(static_cast<uint64_t>(key), value);
+  }
+  void insert(SetupParameter key, uint64_t value) {
+    insert(static_cast<uint64_t>(key), value);
+  }
+  void insert(VersionSpecificParameter key, absl::string_view value) {
+    insert(static_cast<uint64_t>(key), value);
+  }
+  void insert(SetupParameter key, absl::string_view value) {
+    insert(static_cast<uint64_t>(key), value);
+  }
+  void insert(uint64_t key, absl::string_view value);
+  void insert(uint64_t key, uint64_t value);
+  size_t count(VersionSpecificParameter key) const {
+    return count(static_cast<uint64_t>(key));
+  }
+  size_t count(SetupParameter key) const {
+    return count(static_cast<uint64_t>(key));
+  }
+  bool contains(VersionSpecificParameter key) const {
+    return contains(static_cast<uint64_t>(key));
+  }
+  bool contains(SetupParameter key) const {
+    return contains(static_cast<uint64_t>(key));
+  }
+  // If either of these callbacks returns false, ForEach will return early.
+  using IntCallback = quiche::UnretainedCallback<bool(uint64_t, uint64_t)>;
+  using StringCallback =
+      quiche::UnretainedCallback<bool(uint64_t, absl::string_view)>;
+  // Iterates through the whole list, and executes int_callback for each integer
+  // value and string_callback for each string value.
+  bool ForEach(IntCallback int_callback, StringCallback string_callback) const {
+    for (const auto& [key, value] : integer_map_) {
+      if (!int_callback(key, value)) {
+        return false;
+      }
+    }
+    for (const auto& [key, value] : string_map_) {
+      if (!string_callback(key, value)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  std::vector<uint64_t> GetIntegers(VersionSpecificParameter key) const {
+    return GetIntegers(static_cast<uint64_t>(key));
+  }
+  std::vector<uint64_t> GetIntegers(SetupParameter key) const {
+    return GetIntegers(static_cast<uint64_t>(key));
+  }
+  std::vector<absl::string_view> GetStrings(
+      VersionSpecificParameter key) const {
+    return GetStrings(static_cast<uint64_t>(key));
+  }
+  std::vector<absl::string_view> GetStrings(SetupParameter key) const {
+    return GetStrings(static_cast<uint64_t>(key));
+  }
+  void clear() {
+    integer_map_.clear();
+    string_map_.clear();
+  }
+
+ private:
+  size_t count(uint64_t key) const;
+  bool contains(uint64_t key) const;
+  std::vector<uint64_t> GetIntegers(uint64_t key) const;
+  std::vector<absl::string_view> GetStrings(uint64_t key) const;
+  absl::btree_multimap<uint64_t, uint64_t> integer_map_;
+  absl::btree_multimap<uint64_t, std::string> string_map_;
+};
+
+// TODO(martinduke): Collapse both Setup messages into MoqtSessionParameters.
 struct QUICHE_EXPORT MoqtClientSetup {
   std::vector<MoqtVersion> supported_versions;
-  std::optional<std::string> path;
-  std::optional<uint64_t> max_subscribe_id;
-  bool supports_object_ack = false;
+  MoqtSessionParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtServerSetup {
   MoqtVersion selected_version;
-  std::optional<uint64_t> max_subscribe_id;
-  bool supports_object_ack = false;
+  MoqtSessionParameters parameters;
 };
 
 // These codes do not appear on the wire.
@@ -357,25 +489,6 @@ enum class QUICHE_EXPORT MoqtFilterType : uint64_t {
   kAbsoluteRange = 0x4,
 };
 
-struct QUICHE_EXPORT MoqtSubscribeParameters {
-  std::optional<std::string> authorization_info;
-  std::optional<quic::QuicTimeDelta> delivery_timeout;
-  std::optional<quic::QuicTimeDelta> max_cache_duration;
-
-  // If present, indicates that OBJECT_ACK messages will be sent in response to
-  // the objects on the stream. The actual value is informational, and it
-  // communicates how many frames the subscriber is willing to buffer, in
-  // microseconds.
-  std::optional<quic::QuicTimeDelta> object_ack_window;
-
-  bool operator==(const MoqtSubscribeParameters& other) const {
-    return authorization_info == other.authorization_info &&
-           delivery_timeout == other.delivery_timeout &&
-           max_cache_duration == other.max_cache_duration &&
-           object_ack_window == other.object_ack_window;
-  }
-};
-
 struct QUICHE_EXPORT MoqtSubscribe {
   uint64_t subscribe_id;
   uint64_t track_alias;
@@ -391,8 +504,7 @@ struct QUICHE_EXPORT MoqtSubscribe {
   std::optional<Location> start;
   std::optional<uint64_t> end_group;
   // If the mode is kNone, the these are std::nullopt.
-
-  MoqtSubscribeParameters parameters;
+  VersionSpecificParameters parameters;
 };
 
 // Deduce the filter type from the combination of group and object IDs. Returns
@@ -406,7 +518,7 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
   MoqtDeliveryOrder group_order;
   // If ContextExists on the wire is zero, largest_id has no value.
   std::optional<Location> largest_id;
-  MoqtSubscribeParameters parameters;
+  VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeError {
@@ -442,12 +554,12 @@ struct QUICHE_EXPORT MoqtSubscribeUpdate {
   Location start;
   std::optional<uint64_t> end_group;
   MoqtPriority subscriber_priority;
-  MoqtSubscribeParameters parameters;
+  VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtAnnounce {
   FullTrackName track_namespace;
-  MoqtSubscribeParameters parameters;
+  VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceOk {
@@ -490,6 +602,7 @@ struct QUICHE_EXPORT MoqtTrackStatus {
   MoqtTrackStatusCode status_code;
   uint64_t last_group;
   uint64_t last_object;
+  VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceCancel {
@@ -500,6 +613,7 @@ struct QUICHE_EXPORT MoqtAnnounceCancel {
 
 struct QUICHE_EXPORT MoqtTrackStatusRequest {
   FullTrackName full_track_name;
+  VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtGoAway {
@@ -508,7 +622,7 @@ struct QUICHE_EXPORT MoqtGoAway {
 
 struct QUICHE_EXPORT MoqtSubscribeAnnounces {
   FullTrackName track_namespace;
-  MoqtSubscribeParameters parameters;
+  VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeAnnouncesOk {
@@ -553,7 +667,7 @@ struct QUICHE_EXPORT MoqtFetch {
   Location start_object;  // subgroup is ignored
   uint64_t end_group;
   std::optional<uint64_t> end_object;
-  MoqtSubscribeParameters parameters;
+  VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtFetchCancel {
@@ -564,7 +678,7 @@ struct QUICHE_EXPORT MoqtFetchOk {
   uint64_t subscribe_id;
   MoqtDeliveryOrder group_order;
   Location largest_id;  // subgroup is ignored
-  MoqtSubscribeParameters parameters;
+  VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtFetchError {
@@ -587,6 +701,16 @@ struct QUICHE_EXPORT MoqtObjectAck {
   // Positive if the object has been received before the deadline.
   quic::QuicTimeDelta delta_from_deadline = quic::QuicTimeDelta::Zero();
 };
+
+// Returns false if duplicates are present for a known parameter where the spec
+// forbids duplicates. |perspective| is the consumer of the message, not the
+// sender.
+bool ValidateSetupParameters(const KeyValuePairList& parameters, bool webtrans,
+                             quic::Perspective perspective);
+// Returns false if the parameters contain a protocol violation, or a
+// parameter cannot be in |message type|.
+bool ValidateVersionSpecificParameters(const KeyValuePairList& parameters,
+                                       MoqtMessageType message_type);
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type);

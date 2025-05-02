@@ -56,7 +56,7 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
       /*group_order=*/std::nullopt,
       /*start=*/Location(2, 0),
       std::nullopt,
-      MoqtSubscribeParameters(),
+      VersionSpecificParameters(),
   };
   SubscribeRemoteTrack track_;
 };
@@ -107,7 +107,7 @@ class UpstreamFetchTest : public quic::test::QuicTest {
       /*start_object=*/Location(1, 1),
       /*end_group=*/3,
       /*end_object=*/100,
-      /*parameters=*/MoqtSubscribeParameters(),
+      VersionSpecificParameters(),
   };
   // The pointer held by the application.
   UpstreamFetch fetch_;

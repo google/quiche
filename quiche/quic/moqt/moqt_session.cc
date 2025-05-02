@@ -34,6 +34,8 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -148,12 +150,8 @@ void MoqtSession::OnSessionReady() {
   control_stream_ = control_stream->GetStreamId();
   MoqtClientSetup setup = MoqtClientSetup{
       .supported_versions = std::vector<MoqtVersion>{parameters_.version},
-      .max_subscribe_id = parameters_.max_subscribe_id,
-      .supports_object_ack = parameters_.support_object_acks,
+      .parameters = parameters_,
   };
-  if (!parameters_.using_webtrans) {
-    setup.path = parameters_.path;
-  }
   SendControlMessage(framer_.SerializeClientSetup(setup));
   QUIC_DLOG(INFO) << ENDPOINT << "Send the SETUP message";
 }
@@ -243,7 +241,7 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
 bool MoqtSession::SubscribeAnnounces(
     FullTrackName track_namespace,
     MoqtOutgoingSubscribeAnnouncesCallback callback,
-    MoqtSubscribeParameters parameters) {
+    VersionSpecificParameters parameters) {
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Tried to send SUBSCRIBE_ANNOUNCES after GOAWAY";
@@ -251,9 +249,7 @@ bool MoqtSession::SubscribeAnnounces(
   }
   MoqtSubscribeAnnounces message;
   message.track_namespace = track_namespace;
-  // Cannot contain a delivery timeout.
-  parameters.delivery_timeout = std::nullopt;
-  message.parameters = std::move(parameters);
+  message.parameters = parameters;
   SendControlMessage(framer_.SerializeSubscribeAnnounces(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_ANNOUNCES message for "
                   << message.track_namespace;
@@ -275,7 +271,8 @@ bool MoqtSession::UnsubscribeAnnounces(FullTrackName track_namespace) {
 }
 
 void MoqtSession::Announce(FullTrackName track_namespace,
-                           MoqtOutgoingAnnounceCallback announce_callback) {
+                           MoqtOutgoingAnnounceCallback announce_callback,
+                           VersionSpecificParameters parameters) {
   if (outgoing_announces_.contains(track_namespace)) {
     std::move(announce_callback)(
         track_namespace,
@@ -290,6 +287,7 @@ void MoqtSession::Announce(FullTrackName track_namespace,
   }
   MoqtAnnounce message;
   message.track_namespace = track_namespace;
+  message.parameters = parameters;
   SendControlMessage(framer_.SerializeAnnounce(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE message for "
                   << message.track_namespace;
@@ -323,14 +321,14 @@ void MoqtSession::CancelAnnounce(FullTrackName track_namespace,
 bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     SubscribeRemoteTrack::Visitor* visitor,
-                                    MoqtSubscribeParameters parameters) {
+                                    VersionSpecificParameters parameters) {
   MoqtSubscribe message;
   message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
   message.group_order = std::nullopt;
   message.start = Location(start_group, start_object);
   message.end_group = std::nullopt;
-  message.parameters = std::move(parameters);
+  message.parameters = parameters;
   return Subscribe(message, visitor);
 }
 
@@ -338,7 +336,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     uint64_t end_group,
                                     SubscribeRemoteTrack::Visitor* visitor,
-                                    MoqtSubscribeParameters parameters) {
+                                    VersionSpecificParameters parameters) {
   if (end_group < start_group) {
     QUIC_DLOG(ERROR) << "Subscription end is before beginning";
     return false;
@@ -349,20 +347,20 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
   message.group_order = std::nullopt;
   message.start = Location(start_group, start_object);
   message.end_group = end_group;
-  message.parameters = std::move(parameters);
+  message.parameters = parameters;
   return Subscribe(message, visitor);
 }
 
 bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
                                          SubscribeRemoteTrack::Visitor* visitor,
-                                         MoqtSubscribeParameters parameters) {
+                                         VersionSpecificParameters parameters) {
   MoqtSubscribe message;
   message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
   message.group_order = std::nullopt;
   message.start = std::nullopt;
   message.end_group = std::nullopt;
-  message.parameters = std::move(parameters);
+  message.parameters = parameters;
   return Subscribe(message, visitor);
 }
 
@@ -383,8 +381,7 @@ bool MoqtSession::Fetch(const FullTrackName& name,
                         uint64_t end_group, std::optional<uint64_t> end_object,
                         MoqtPriority priority,
                         std::optional<MoqtDeliveryOrder> delivery_order,
-                        MoqtSubscribeParameters parameters) {
-  // TODO(martinduke): support authorization info
+                        VersionSpecificParameters parameters) {
   if (next_subscribe_id_ >= peer_max_subscribe_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH with ID "
                     << next_subscribe_id_
@@ -396,8 +393,6 @@ bool MoqtSession::Fetch(const FullTrackName& name,
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH after GOAWAY";
     return false;
   }
-  // Cannot have a delivery timeout.
-  parameters.delivery_timeout = std::nullopt;
   MoqtFetch message;
   message.full_track_name = name;
   message.fetch_id = next_subscribe_id_++;
@@ -407,7 +402,6 @@ bool MoqtSession::Fetch(const FullTrackName& name,
   message.subscriber_priority = priority;
   message.group_order = delivery_order;
   message.parameters = parameters;
-  message.parameters.object_ack_window = std::nullopt;
   SendControlMessage(framer_.SerializeFetch(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent FETCH message for "
                   << message.full_track_name;
@@ -419,7 +413,7 @@ bool MoqtSession::Fetch(const FullTrackName& name,
 bool MoqtSession::JoiningFetch(const FullTrackName& name,
                                SubscribeRemoteTrack::Visitor* visitor,
                                uint64_t num_previous_groups,
-                               MoqtSubscribeParameters parameters) {
+                               VersionSpecificParameters parameters) {
   return JoiningFetch(
       name, visitor,
       [this,
@@ -444,7 +438,7 @@ bool MoqtSession::JoiningFetch(const FullTrackName& name,
                                uint64_t num_previous_groups,
                                MoqtPriority priority,
                                std::optional<MoqtDeliveryOrder> delivery_order,
-                               MoqtSubscribeParameters parameters) {
+                               VersionSpecificParameters parameters) {
   if ((next_subscribe_id_ + 1) >= peer_max_subscribe_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send JOINING_FETCH with ID "
                     << (next_subscribe_id_ + 1)
@@ -633,23 +627,15 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
     visitor->OnCanAckObjects(absl::bind_front(&MoqtSession::SendObjectAck, this,
                                               message.subscribe_id));
   } else {
-    QUICHE_DLOG_IF(WARNING, message.parameters.object_ack_window.has_value())
+    QUICHE_DLOG_IF(WARNING, message.parameters.oack_window_size.has_value())
         << "Attempting to set object_ack_window on a connection that does not "
            "support it.";
-    message.parameters.object_ack_window = std::nullopt;
-  }
-  if (message.parameters.delivery_timeout.has_value() &&
-      message.parameters.delivery_timeout->IsInfinite()) {
-    // Cannot encode an infinite delivery timeout.
-    message.parameters.delivery_timeout = std::nullopt;
+    message.parameters.oack_window_size = std::nullopt;
   }
   SendControlMessage(framer_.SerializeSubscribe(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE message for "
                   << message.full_track_name;
-  auto track = std::make_unique<SubscribeRemoteTrack>(
-      message, visitor,
-      message.parameters.delivery_timeout.value_or(
-          quic::QuicTimeDelta::Infinite()));
+  auto track = std::make_unique<SubscribeRemoteTrack>(message, visitor);
   subscribe_by_name_.emplace(message.full_track_name, track.get());
   subscribe_by_alias_.emplace(message.track_alias, track.get());
   upstream_by_id_.emplace(message.subscribe_id, std::move(track));
@@ -856,20 +842,17 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
                                  absl::Hex(session_->parameters_.version)));
     return;
   }
-  session_->peer_supports_object_ack_ = message.supports_object_ack;
+  session_->peer_supports_object_ack_ = message.parameters.support_object_acks;
   QUICHE_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   if (session_->parameters_.perspective == Perspective::IS_SERVER) {
     MoqtServerSetup response;
+    response.parameters = session_->parameters_;
     response.selected_version = session_->parameters_.version;
-    response.max_subscribe_id = session_->parameters_.max_subscribe_id;
-    response.supports_object_ack = session_->parameters_.support_object_acks;
     SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
   // TODO: handle path.
-  if (message.max_subscribe_id.has_value()) {
-    session_->peer_max_subscribe_id_ = *message.max_subscribe_id;
-  }
+  session_->peer_max_subscribe_id_ = message.parameters.max_subscribe_id;
   std::move(session_->callbacks_.session_established_callback)();
 }
 
@@ -887,12 +870,10 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
                                  absl::Hex(session_->parameters_.version)));
     return;
   }
-  session_->peer_supports_object_ack_ = message.supports_object_ack;
+  session_->peer_supports_object_ack_ = message.parameters.support_object_acks;
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle path.
-  if (message.max_subscribe_id.has_value()) {
-    session_->peer_max_subscribe_id_ = *message.max_subscribe_id;
-  }
+  session_->peer_max_subscribe_id_ = message.parameters.max_subscribe_id;
   std::move(session_->callbacks_.session_established_callback)();
 }
 
@@ -960,9 +941,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   MoqtTrackPublisher* track_publisher_ptr = track_publisher->get();
   auto subscription = std::make_unique<MoqtSession::PublishedSubscription>(
       session_, *std::move(track_publisher), message, monitoring);
-  subscription->set_delivery_timeout(
-      message.parameters.delivery_timeout.value_or(
-          quic::QuicTimeDelta::Infinite()));
+  subscription->set_delivery_timeout(message.parameters.delivery_timeout);
   MoqtSession::PublishedSubscription* subscription_ptr = subscription.get();
   auto [it, success] = session_->published_subscriptions_.emplace(
       message.subscribe_id, std::move(subscription));
@@ -1087,9 +1066,7 @@ void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
   }
   it->second->Update(message.start, message.end_group,
                      message.subscriber_priority);
-  if (message.parameters.delivery_timeout.has_value()) {
-    it->second->set_delivery_timeout(*message.parameters.delivery_timeout);
-  }
+  it->second->set_delivery_timeout(message.parameters.delivery_timeout);
 }
 
 void MoqtSession::ControlStream::OnAnnounceMessage(
@@ -1692,7 +1669,7 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
       monitoring_interface_(monitoring_interface) {
   if (monitoring_interface_ != nullptr) {
     monitoring_interface_->OnObjectAckSupportKnown(
-        subscribe.parameters.object_ack_window.has_value());
+        subscribe.parameters.oack_window_size.has_value());
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << subscribe.full_track_name;

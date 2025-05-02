@@ -192,7 +192,7 @@ class MoqtSessionPeer {
         Location{0, 0},
         4,
         std::nullopt,
-        MoqtSubscribeParameters(),
+        VersionSpecificParameters(),
     };
     std::unique_ptr<MoqtFetchTask> task;
     auto [it, success] = session->upstream_by_id_.try_emplace(

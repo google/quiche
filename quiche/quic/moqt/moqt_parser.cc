@@ -20,6 +20,7 @@
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -99,6 +100,108 @@ std::optional<uint64_t> ReadVarInt62FromStream(quiche::ReadStream& stream,
   QUICHE_DCHECK(success);
   QUICHE_DCHECK(reader.IsDoneReading());
   return result;
+}
+
+// Reads from |reader| to list. Returns false if there is a read error.
+bool ParseKeyValuePairList(quic::QuicDataReader& reader,
+                           KeyValuePairList& list) {
+  list.clear();
+  uint64_t num_params;
+  if (!reader.ReadVarInt62(&num_params)) {
+    return false;
+  }
+  for (uint64_t i = 0; i < num_params; ++i) {
+    uint64_t type;
+    if (!reader.ReadVarInt62(&type)) {
+      return false;
+    }
+    if (type % 2 == 1) {
+      absl::string_view bytes;
+      if (!reader.ReadStringPieceVarInt62(&bytes)) {
+        return false;
+      }
+      list.insert(type, bytes);
+      continue;
+    }
+    uint64_t value;
+    if (!reader.ReadVarInt62(&value)) {
+      return false;
+    }
+    list.insert(type, value);
+  }
+  return true;
+}
+
+void KeyValuePairListToMoqtSessionParameters(const KeyValuePairList& parameters,
+                                             MoqtSessionParameters& out) {
+  parameters.ForEach(
+      [&](uint64_t key, uint64_t value) {
+        SetupParameter parameter = static_cast<SetupParameter>(key);
+        switch (parameter) {
+          case SetupParameter::kMaxRequestId:
+            out.max_subscribe_id = value;
+            break;
+          case SetupParameter::kMaxAuthTokenCacheSize:
+            out.max_auth_token_cache_size = value;
+            break;
+          case SetupParameter::kSupportObjectAcks:
+            out.support_object_acks = (value == 1);
+            break;
+          default:
+            break;
+        }
+        return true;
+      },
+      [&](uint64_t key, absl::string_view value) {
+        SetupParameter parameter = static_cast<SetupParameter>(key);
+        switch (parameter) {
+          case SetupParameter::kPath:
+            out.path = value;
+            break;
+          default:
+            break;
+        }
+        return true;
+      });
+}
+
+void KeyValuePairListToVersionSpecificParameters(
+    const KeyValuePairList& parameters, VersionSpecificParameters& out) {
+  parameters.ForEach(
+      [&](uint64_t key, uint64_t value) {
+        VersionSpecificParameter parameter =
+            static_cast<VersionSpecificParameter>(key);
+        switch (parameter) {
+          case VersionSpecificParameter::kDeliveryTimeout:
+            out.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(value);
+            break;
+          case VersionSpecificParameter::kMaxCacheDuration:
+            out.max_cache_duration =
+                quic::QuicTimeDelta::FromMilliseconds(value);
+            break;
+          case VersionSpecificParameter::kOackWindowSize:
+            out.oack_window_size = quic::QuicTimeDelta::FromMicroseconds(value);
+            break;
+          default:
+            break;
+        }
+        return true;
+      },
+      [&](uint64_t key, absl::string_view value) {
+        VersionSpecificParameter parameter =
+            static_cast<VersionSpecificParameter>(key);
+        switch (parameter) {
+          case VersionSpecificParameter::kAuthorizationToken:
+            out.authorization_token.push_back(std::string(value));
+            break;
+          case VersionSpecificParameter::kAuthorizationInfo:
+            out.authorization_info = value;
+            break;
+          default:
+            break;
+        }
+        return true;
+      });
 }
 
 }  // namespace
@@ -275,6 +378,8 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
 
 size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
   MoqtClientSetup setup;
+  setup.parameters.using_webtrans = uses_web_transport_;
+  setup.parameters.perspective = quic::Perspective::IS_CLIENT;
   uint64_t number_of_supported_versions;
   if (!reader.ReadVarInt62(&number_of_supported_versions)) {
     return 0;
@@ -286,131 +391,59 @@ size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
     }
     setup.supported_versions.push_back(static_cast<MoqtVersion>(version));
   }
-  uint64_t num_params;
-  if (!reader.ReadVarInt62(&num_params)) {
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  // Parse parameters
-  for (uint64_t i = 0; i < num_params; ++i) {
-    uint64_t type;
-    absl::string_view value;
-    if (!ReadParameter(reader, type, value)) {
-      return 0;
-    }
-    auto key = static_cast<MoqtSetupParameter>(type);
-    switch (key) {
-      case MoqtSetupParameter::kPath:
-        if (uses_web_transport_) {
-          ParseError(
-              "WebTransport connection is using PATH parameter in SETUP");
-          return 0;
-        }
-        if (setup.path.has_value()) {
-          ParseError("PATH parameter appears twice in CLIENT_SETUP");
-          return 0;
-        }
-        setup.path = value;
-        break;
-      case MoqtSetupParameter::kMaxSubscribeId:
-        if (setup.max_subscribe_id.has_value()) {
-          ParseError("MAX_SUBSCRIBE_ID parameter appears twice in SETUP");
-          return 0;
-        }
-        uint64_t max_id;
-        if (!StringViewToVarInt(value, max_id)) {
-          ParseError("MAX_SUBSCRIBE_ID parameter is not a valid varint");
-          return 0;
-        }
-        setup.max_subscribe_id = max_id;
-        break;
-      case MoqtSetupParameter::kSupportObjectAcks:
-        uint64_t flag;
-        if (!StringViewToVarInt(value, flag) || flag > 1) {
-          ParseError("Invalid kSupportObjectAcks value");
-          return 0;
-        }
-        setup.supports_object_ack = static_cast<bool>(flag);
-        break;
-      default:
-        // Skip over the parameter.
-        break;
-    }
-  }
-  if (!uses_web_transport_ && !setup.path.has_value()) {
-    ParseError("PATH SETUP parameter missing from Client message over QUIC");
+  if (!ValidateSetupParameters(parameters, uses_web_transport_,
+                               quic::Perspective::IS_SERVER)) {
+    ParseError("Client SETUP contains invalid parameters");
     return 0;
   }
+  KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters);
+  // TODO(martinduke): Validate construction of the PATH (Sec 8.3.2.1)
   visitor_.OnClientSetupMessage(setup);
   return reader.PreviouslyReadPayload().length();
 }
 
 size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
   MoqtServerSetup setup;
+  setup.parameters.using_webtrans = uses_web_transport_;
+  setup.parameters.perspective = quic::Perspective::IS_SERVER;
   uint64_t version;
   if (!reader.ReadVarInt62(&version)) {
     return 0;
   }
   setup.selected_version = static_cast<MoqtVersion>(version);
-  uint64_t num_params;
-  if (!reader.ReadVarInt62(&num_params)) {
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  // Parse parameters
-  for (uint64_t i = 0; i < num_params; ++i) {
-    uint64_t type;
-    absl::string_view value;
-    if (!ReadParameter(reader, type, value)) {
-      return 0;
-    }
-    auto key = static_cast<MoqtSetupParameter>(type);
-    switch (key) {
-      case MoqtSetupParameter::kPath:
-        ParseError("PATH parameter in SERVER_SETUP");
-        return 0;
-      case MoqtSetupParameter::kMaxSubscribeId:
-        if (setup.max_subscribe_id.has_value()) {
-          ParseError("MAX_SUBSCRIBE_ID parameter appears twice in SETUP");
-          return 0;
-        }
-        uint64_t max_id;
-        if (!StringViewToVarInt(value, max_id)) {
-          ParseError("MAX_SUBSCRIBE_ID parameter is not a valid varint");
-          return 0;
-        }
-        setup.max_subscribe_id = max_id;
-        break;
-      case MoqtSetupParameter::kSupportObjectAcks:
-        uint64_t flag;
-        if (!StringViewToVarInt(value, flag) || flag > 1) {
-          ParseError("Invalid kSupportObjectAcks value");
-          return 0;
-        }
-        setup.supports_object_ack = static_cast<bool>(flag);
-        break;
-      default:
-        // Skip over the parameter.
-        break;
-    }
+  if (!ValidateSetupParameters(parameters, uses_web_transport_,
+                               quic::Perspective::IS_CLIENT)) {
+    ParseError("Server SETUP contains invalid parameters");
+    return 0;
   }
+  KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters);
   visitor_.OnServerSetupMessage(setup);
   return reader.PreviouslyReadPayload().length();
 }
 
 size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
-  MoqtSubscribe subscribe_request;
+  MoqtSubscribe subscribe;
   uint64_t filter, group, object;
   uint8_t group_order;
   absl::string_view track_name;
-  if (!reader.ReadVarInt62(&subscribe_request.subscribe_id) ||
-      !reader.ReadVarInt62(&subscribe_request.track_alias) ||
-      !ReadTrackNamespace(reader, subscribe_request.full_track_name) ||
+  if (!reader.ReadVarInt62(&subscribe.subscribe_id) ||
+      !reader.ReadVarInt62(&subscribe.track_alias) ||
+      !ReadTrackNamespace(reader, subscribe.full_track_name) ||
       !reader.ReadStringPieceVarInt62(&track_name) ||
-      !reader.ReadUInt8(&subscribe_request.subscriber_priority) ||
+      !reader.ReadUInt8(&subscribe.subscriber_priority) ||
       !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&filter)) {
     return 0;
   }
-  subscribe_request.full_track_name.AddElement(track_name);
-  if (!ParseDeliveryOrder(group_order, subscribe_request.group_order)) {
+  subscribe.full_track_name.AddElement(track_name);
+  if (!ParseDeliveryOrder(group_order, subscribe.group_order)) {
     ParseError("Invalid group order value in SUBSCRIBE message");
     return 0;
   }
@@ -423,15 +456,15 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
       if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
         return 0;
       }
-      subscribe_request.start = Location(group, object);
+      subscribe.start = Location(group, object);
       if (filter_type == MoqtFilterType::kAbsoluteStart) {
         break;
       }
       if (!reader.ReadVarInt62(&group)) {
         return 0;
       }
-      subscribe_request.end_group = group;
-      if (*subscribe_request.end_group < subscribe_request.start->group) {
+      subscribe.end_group = group;
+      if (*subscribe.end_group < subscribe.start->group) {
         ParseError("End group is less than start group");
         return 0;
       }
@@ -440,10 +473,18 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
       ParseError("Invalid filter type");
       return 0;
   }
-  if (!ReadSubscribeParameters(reader, subscribe_request.parameters)) {
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  visitor_.OnSubscribeMessage(subscribe_request);
+  // TODO(martinduke): Parse kAuthorizationToken.
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kSubscribe)) {
+    ParseError("SUBSCRIBE contains invalid parameters");
+    return 0;
+  }
+  KeyValuePairListToVersionSpecificParameters(parameters, subscribe.parameters);
+  visitor_.OnSubscribeMessage(subscribe);
   return reader.PreviouslyReadPayload().length();
 }
 
@@ -474,13 +515,17 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
       return 0;
     }
   }
-  if (!ReadSubscribeParameters(reader, subscribe_ok.parameters)) {
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (subscribe_ok.parameters.authorization_info.has_value()) {
-    ParseError("SUBSCRIBE_OK has authorization info");
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kSubscribeOk)) {
+    ParseError("SUBSCRIBE_OK contains invalid parameters");
     return 0;
   }
+  KeyValuePairListToVersionSpecificParameters(parameters,
+                                              subscribe_ok.parameters);
   visitor_.OnSubscribeOkMessage(subscribe_ok);
   return reader.PreviouslyReadPayload().length();
 }
@@ -531,9 +576,17 @@ size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
       !reader.ReadUInt8(&subscribe_update.subscriber_priority)) {
     return 0;
   }
-  if (!ReadSubscribeParameters(reader, subscribe_update.parameters)) {
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kSubscribeUpdate)) {
+    ParseError("SUBSCRIBE_UPDATE contains invalid parameters");
+    return 0;
+  }
+  KeyValuePairListToVersionSpecificParameters(parameters,
+                                              subscribe_update.parameters);
   subscribe_update.start = Location(start_group, start_object);
   if (end_group > 0) {
     subscribe_update.end_group = end_group - 1;
@@ -541,10 +594,6 @@ size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
       ParseError("End group is less than start group");
       return 0;
     }
-  }
-  if (subscribe_update.parameters.authorization_info.has_value()) {
-    ParseError("SUBSCRIBE_UPDATE has authorization info");
-    return 0;
   }
   visitor_.OnSubscribeUpdateMessage(subscribe_update);
   return reader.PreviouslyReadPayload().length();
@@ -555,13 +604,16 @@ size_t MoqtControlParser::ProcessAnnounce(quic::QuicDataReader& reader) {
   if (!ReadTrackNamespace(reader, announce.track_namespace)) {
     return 0;
   }
-  if (!ReadSubscribeParameters(reader, announce.parameters)) {
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (announce.parameters.delivery_timeout.has_value()) {
-    ParseError("ANNOUNCE has delivery timeout");
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kAnnounce)) {
+    ParseError("ANNOUNCE contains invalid parameters");
     return 0;
   }
+  KeyValuePairListToVersionSpecificParameters(parameters, announce.parameters);
   visitor_.OnAnnounceMessage(announce);
   return reader.PreviouslyReadPayload().length();
 }
@@ -616,6 +668,17 @@ size_t MoqtControlParser::ProcessTrackStatusRequest(
     return 0;
   }
   track_status_request.full_track_name.AddElement(name);
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
+    return 0;
+  }
+  if (!ValidateVersionSpecificParameters(
+          parameters, MoqtMessageType::kTrackStatusRequest)) {
+    ParseError("TRACK_STATUS_REQUEST message contains invalid parameters");
+    return 0;
+  }
+  KeyValuePairListToVersionSpecificParameters(parameters,
+                                              track_status_request.parameters);
   visitor_.OnTrackStatusRequestMessage(track_status_request);
   return reader.PreviouslyReadPayload().length();
 }
@@ -646,6 +709,17 @@ size_t MoqtControlParser::ProcessTrackStatus(quic::QuicDataReader& reader) {
     return 0;
   }
   track_status.status_code = static_cast<MoqtTrackStatusCode>(value);
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
+    return 0;
+  }
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kTrackStatus)) {
+    ParseError("TRACK_STATUS message contains invalid parameters");
+    return 0;
+  }
+  KeyValuePairListToVersionSpecificParameters(parameters,
+                                              track_status.parameters);
   visitor_.OnTrackStatusMessage(track_status);
   return reader.PreviouslyReadPayload().length();
 }
@@ -661,14 +735,22 @@ size_t MoqtControlParser::ProcessGoAway(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessSubscribeAnnounces(
     quic::QuicDataReader& reader) {
-  MoqtSubscribeAnnounces subscribe_namespace;
-  if (!ReadTrackNamespace(reader, subscribe_namespace.track_namespace)) {
+  MoqtSubscribeAnnounces subscribe_announces;
+  if (!ReadTrackNamespace(reader, subscribe_announces.track_namespace)) {
     return 0;
   }
-  if (!ReadSubscribeParameters(reader, subscribe_namespace.parameters)) {
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  visitor_.OnSubscribeAnnouncesMessage(subscribe_namespace);
+  if (!ValidateVersionSpecificParameters(
+          parameters, MoqtMessageType::kSubscribeAnnounces)) {
+    ParseError("SUBSCRIBE_ANNOUNCES message contains invalid parameters");
+    return 0;
+  }
+  KeyValuePairListToVersionSpecificParameters(parameters,
+                                              subscribe_announces.parameters);
+  visitor_.OnSubscribeAnnouncesMessage(subscribe_announces);
   return reader.PreviouslyReadPayload().length();
 }
 
@@ -770,9 +852,15 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
       ParseError("Invalid FETCH type");
       return 0;
   }
-  if (!ReadSubscribeParameters(reader, fetch.parameters)) {
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
+  if (!ValidateVersionSpecificParameters(parameters, MoqtMessageType::kFetch)) {
+    ParseError("FETCH message contains invalid parameters");
+    return 0;
+  }
+  KeyValuePairListToVersionSpecificParameters(parameters, fetch.parameters);
   visitor_.OnFetchMessage(fetch);
   return reader.PreviouslyReadPayload().length();
 }
@@ -789,18 +877,25 @@ size_t MoqtControlParser::ProcessFetchCancel(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
   MoqtFetchOk fetch_ok;
   uint8_t group_order;
+  KeyValuePairList parameters;
   if (!reader.ReadVarInt62(&fetch_ok.subscribe_id) ||
       !reader.ReadUInt8(&group_order) ||
       !reader.ReadVarInt62(&fetch_ok.largest_id.group) ||
       !reader.ReadVarInt62(&fetch_ok.largest_id.object) ||
-      !ReadSubscribeParameters(reader, fetch_ok.parameters)) {
+      !ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
   if (group_order != 0x01 && group_order != 0x02) {
     ParseError("Invalid group order value in FETCH_OK");
     return 0;
   }
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kFetchOk)) {
+    ParseError("FETCH_OK message contains invalid parameters");
+    return 0;
+  }
   fetch_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
+  KeyValuePairListToVersionSpecificParameters(parameters, fetch_ok.parameters);
   visitor_.OnFetchOkMessage(fetch_ok);
   return reader.PreviouslyReadPayload().length();
 }
@@ -855,109 +950,6 @@ void MoqtControlParser::ParseError(MoqtError error_code,
   no_more_data_ = true;
   parsing_error_ = true;
   visitor_.OnParsingError(error_code, reason);
-}
-
-bool MoqtControlParser::ReadVarIntPieceVarInt62(quic::QuicDataReader& reader,
-                                                uint64_t& result) {
-  uint64_t length;
-  if (!reader.ReadVarInt62(&length)) {
-    return false;
-  }
-  uint64_t actual_length = static_cast<uint64_t>(reader.PeekVarInt62Length());
-  if (length != actual_length) {
-    ParseError("Parameter VarInt has length field mismatch");
-    return false;
-  }
-  if (!reader.ReadVarInt62(&result)) {
-    return false;
-  }
-  return true;
-}
-
-bool MoqtControlParser::ReadParameter(quic::QuicDataReader& reader,
-                                      uint64_t& type,
-                                      absl::string_view& value) {
-  if (!reader.ReadVarInt62(&type)) {
-    return false;
-  }
-  return reader.ReadStringPieceVarInt62(&value);
-}
-
-bool MoqtControlParser::ReadSubscribeParameters(
-    quic::QuicDataReader& reader, MoqtSubscribeParameters& params) {
-  uint64_t num_params;
-  if (!reader.ReadVarInt62(&num_params)) {
-    return false;
-  }
-  for (uint64_t i = 0; i < num_params; ++i) {
-    uint64_t type;
-    absl::string_view value;
-    if (!ReadParameter(reader, type, value)) {
-      return false;
-    }
-    uint64_t raw_value;
-    auto key = static_cast<MoqtTrackRequestParameter>(type);
-    switch (key) {
-      case MoqtTrackRequestParameter::kAuthorizationInfo:
-        if (params.authorization_info.has_value()) {
-          ParseError("AUTHORIZATION_INFO parameter appears twice");
-          return false;
-        }
-        params.authorization_info = value;
-        break;
-      case moqt::MoqtTrackRequestParameter::kDeliveryTimeout:
-        if (params.delivery_timeout.has_value()) {
-          ParseError("DELIVERY_TIMEOUT parameter appears twice");
-          return false;
-        }
-        if (!StringViewToVarInt(value, raw_value)) {
-          return false;
-        }
-        params.delivery_timeout =
-            quic::QuicTimeDelta::FromMilliseconds(raw_value);
-        break;
-      case moqt::MoqtTrackRequestParameter::kMaxCacheDuration:
-        if (params.max_cache_duration.has_value()) {
-          ParseError("MAX_CACHE_DURATION parameter appears twice");
-          return false;
-        }
-        if (!StringViewToVarInt(value, raw_value)) {
-          return false;
-        }
-        params.max_cache_duration =
-            quic::QuicTimeDelta::FromMilliseconds(raw_value);
-        break;
-      case MoqtTrackRequestParameter::kOackWindowSize: {
-        if (params.object_ack_window.has_value()) {
-          ParseError("OACK_WINDOW_SIZE parameter appears twice in SUBSCRIBE");
-          return false;
-        }
-        if (!StringViewToVarInt(value, raw_value)) {
-          ParseError("OACK_WINDOW_SIZE parameter is not a valid varint");
-          return false;
-        }
-        params.object_ack_window =
-            quic::QuicTimeDelta::FromMicroseconds(raw_value);
-        break;
-      }
-      default:
-        // Skip over the parameter.
-        break;
-    }
-  }
-  return true;
-}
-
-bool MoqtControlParser::StringViewToVarInt(absl::string_view& sv,
-                                           uint64_t& vi) {
-  quic::QuicDataReader reader(sv);
-  if (static_cast<size_t>(reader.PeekVarInt62Length()) != sv.length()) {
-    ParseError(MoqtError::kParameterLengthMismatch,
-               "Parameter length does not match varint encoding");
-    return false;
-  }
-  reader.ReadVarInt62(&vi);
-  return true;
 }
 
 bool MoqtControlParser::ReadTrackNamespace(quic::QuicDataReader& reader,

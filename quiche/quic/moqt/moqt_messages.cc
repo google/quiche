@@ -4,22 +4,85 @@
 
 #include "quiche/quic/moqt/moqt_messages.h"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
+
+void KeyValuePairList::insert(uint64_t key, absl::string_view value) {
+  if (key % 2 == 0) {
+    QUICHE_BUG(key_value_pair_string_is_even) << "Key value pair of wrong type";
+    return;
+  }
+  string_map_.emplace(key, value);
+}
+
+void KeyValuePairList::insert(uint64_t key, uint64_t value) {
+  if (key % 2 == 1) {
+    QUICHE_BUG(key_value_pair_int_is_odd) << "Key value pair of wrong type";
+    return;
+  }
+  integer_map_.emplace(key, value);
+}
+
+size_t KeyValuePairList::count(uint64_t key) const {
+  if (key % 2 == 0) {
+    return integer_map_.count(key);
+  }
+  return string_map_.count(key);
+}
+
+bool KeyValuePairList::contains(uint64_t key) const {
+  if (key % 2 == 0) {
+    return integer_map_.contains(key);
+  }
+  return string_map_.contains(key);
+}
+
+std::vector<uint64_t> KeyValuePairList::GetIntegers(uint64_t key) const {
+  if (key % 2 == 1) {
+    QUICHE_BUG(key_value_pair_int_is_odd) << "Key value pair of wrong type";
+    return {};
+  }
+  std::vector<uint64_t> result;
+  auto [range_start, range_end] = integer_map_.equal_range(key);
+  for (auto& it = range_start; it != range_end; ++it) {
+    result.push_back(it->second);
+  }
+  return result;
+}
+
+std::vector<absl::string_view> KeyValuePairList::GetStrings(
+    uint64_t key) const {
+  if (key % 2 == 0) {
+    QUICHE_BUG(key_value_pair_string_is_even) << "Key value pair of wrong type";
+    return {};
+  }
+  std::vector<absl::string_view> result;
+  auto [range_start, range_end] = string_map_.equal_range(key);
+  for (auto& it = range_start; it != range_end; ++it) {
+    result.push_back(it->second);
+  }
+  return result;
+}
 
 MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
   if (integer >=
@@ -45,6 +108,71 @@ MoqtFilterType GetFilterType(const MoqtSubscribe& message) {
   return MoqtFilterType::kLatestObject;
 }
 
+bool ValidateSetupParameters(const KeyValuePairList& parameters, bool webtrans,
+                             quic::Perspective perspective) {
+  if (parameters.count(SetupParameter::kPath) > 1 ||
+      parameters.count(SetupParameter::kMaxRequestId) > 1 ||
+      parameters.count(SetupParameter::kMaxAuthTokenCacheSize) > 1 ||
+      parameters.count(SetupParameter::kSupportObjectAcks) > 1) {
+    return false;
+  }
+  if ((webtrans || perspective == quic::Perspective::IS_CLIENT) ==
+      parameters.contains(SetupParameter::kPath)) {
+    // Only non-webtrans servers should receive kPath.
+    return false;
+  }
+  if (!parameters.contains(SetupParameter::kSupportObjectAcks)) {
+    return true;
+  }
+  std::vector<uint64_t> support_object_acks =
+      parameters.GetIntegers(SetupParameter::kSupportObjectAcks);
+  QUICHE_DCHECK(support_object_acks.size() == 1);
+  if (support_object_acks.front() > 1) {
+    return false;
+  }
+  return true;
+}
+
+const std::array<MoqtMessageType, 5> kAllowsAuthorization = {
+    MoqtMessageType::kSubscribe, MoqtMessageType::kTrackStatusRequest,
+    MoqtMessageType::kFetch, MoqtMessageType::kSubscribeAnnounces,
+    MoqtMessageType::kAnnounce};
+const std::array<MoqtMessageType, 4> kAllowsDeliveryTimeout = {
+    MoqtMessageType::kSubscribe, MoqtMessageType::kSubscribeOk,
+    MoqtMessageType::kSubscribeUpdate, MoqtMessageType::kTrackStatus};
+const std::array<MoqtMessageType, 3> kAllowsMaxCacheDuration = {
+    MoqtMessageType::kSubscribeOk, MoqtMessageType::kTrackStatus,
+    MoqtMessageType::kFetchOk};
+bool ValidateVersionSpecificParameters(const KeyValuePairList& parameters,
+                                       MoqtMessageType message_type) {
+  size_t authorization_token =
+      parameters.count(VersionSpecificParameter::kAuthorizationToken);
+  size_t delivery_timeout =
+      parameters.count(VersionSpecificParameter::kDeliveryTimeout);
+  size_t authorization_info =
+      parameters.count(VersionSpecificParameter::kAuthorizationInfo);
+  size_t max_cache_duration =
+      parameters.count(VersionSpecificParameter::kMaxCacheDuration);
+  if (delivery_timeout > 1 || authorization_info > 1 ||
+      max_cache_duration > 1) {
+    // Disallowed duplicate.
+    return false;
+  }
+  if ((authorization_token > 0 || authorization_info > 0) &&
+      !absl::c_linear_search(kAllowsAuthorization, message_type)) {
+    return false;
+  }
+  if (delivery_timeout > 0 &&
+      !absl::c_linear_search(kAllowsDeliveryTimeout, message_type)) {
+    return false;
+  }
+  if (max_cache_duration > 0 &&
+      !absl::c_linear_search(kAllowsMaxCacheDuration, message_type)) {
+    return false;
+  }
+  return true;
+}
+
 std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
   switch (message_type) {
     case MoqtMessageType::kClientSetup:
@@ -52,7 +180,7 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
     case MoqtMessageType::kServerSetup:
       return "SERVER_SETUP";
     case MoqtMessageType::kSubscribe:
-      return "SUBSCRIBE_REQUEST";
+      return "SUBSCRIBE";
     case MoqtMessageType::kSubscribeOk:
       return "SUBSCRIBE_OK";
     case MoqtMessageType::kSubscribeError:

@@ -49,18 +49,18 @@ class MoqtSessionInterface {
   virtual bool SubscribeAbsolute(const FullTrackName& name,
                                  uint64_t start_group, uint64_t start_object,
                                  SubscribeRemoteTrack::Visitor* visitor,
-                                 MoqtSubscribeParameters parameters) = 0;
+                                 VersionSpecificParameters parameters) = 0;
   // Subscribe from (start_group, start_object) to the end of end_group.
   virtual bool SubscribeAbsolute(const FullTrackName& name,
                                  uint64_t start_group, uint64_t start_object,
                                  uint64_t end_group,
                                  SubscribeRemoteTrack::Visitor* visitor,
-                                 MoqtSubscribeParameters parameters) = 0;
+                                 VersionSpecificParameters parameters) = 0;
   // Subscribe to all objects that are larger than the current Largest
   // Group/Object ID.
   virtual bool SubscribeCurrentObject(const FullTrackName& name,
                                       SubscribeRemoteTrack::Visitor* visitor,
-                                      MoqtSubscribeParameters parameters) = 0;
+                                      VersionSpecificParameters parameters) = 0;
 
   // Sends an UNSUBSCRIBE message and removes all of the state related to the
   // subscription.  Returns false if the subscription is not found.
@@ -74,7 +74,7 @@ class MoqtSessionInterface {
                      Location start, uint64_t end_group,
                      std::optional<uint64_t> end_object, MoqtPriority priority,
                      std::optional<MoqtDeliveryOrder> delivery_order,
-                     MoqtSubscribeParameters parameters) = 0;
+                     VersionSpecificParameters parameters) = 0;
 
   // Sends both a SUBSCRIBE and a joining FETCH, beginning `num_previous_groups`
   // groups before the current group. The Fetch will not be flow controlled,
@@ -85,7 +85,7 @@ class MoqtSessionInterface {
   virtual bool JoiningFetch(const FullTrackName& name,
                             SubscribeRemoteTrack::Visitor* visitor,
                             uint64_t num_previous_groups,
-                            MoqtSubscribeParameters parameters) = 0;
+                            VersionSpecificParameters parameters) = 0;
 
   // Sends both a SUBSCRIBE and a joining FETCH, beginning `num_previous_groups`
   // groups before the current group.  `callback` acts the same way as the
@@ -95,7 +95,13 @@ class MoqtSessionInterface {
                             FetchResponseCallback callback,
                             uint64_t num_previous_groups, MoqtPriority priority,
                             std::optional<MoqtDeliveryOrder> delivery_order,
-                            MoqtSubscribeParameters parameters) = 0;
+                            VersionSpecificParameters parameters) = 0;
+
+  // TODO: Add SubscribeAnnounces, UnsubscribeAnnounces method.
+  // TODO: Add Announce, Unannounce method.
+  // TODO: Add AnnounceCancel method.
+  // TODO: Add TrackStatusRequest method.
+  // TODO: Add SubscribeUpdate, SubscribeDone method.
 };
 
 }  // namespace moqt

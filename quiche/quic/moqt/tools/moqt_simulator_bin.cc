@@ -442,7 +442,7 @@ class MoqtSimulator {
     //       server does not yet have an active subscription, so the client has
     //       some catching up to do.
     generator_.Start();
-    MoqtSubscribeParameters subscription_parameters;
+    VersionSpecificParameters subscription_parameters;
     if (!parameters_.delivery_timeout.IsInfinite()) {
       subscription_parameters.delivery_timeout = parameters_.delivery_timeout;
     }

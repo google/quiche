@@ -91,17 +91,17 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   quic::Perspective perspective() const { return parameters_.perspective; }
 
   // Returns true if message was sent.
-  bool SubscribeAnnounces(
-      FullTrackName track_namespace,
-      MoqtOutgoingSubscribeAnnouncesCallback callback,
-      MoqtSubscribeParameters parameters = MoqtSubscribeParameters());
+  bool SubscribeAnnounces(FullTrackName track_namespace,
+                          MoqtOutgoingSubscribeAnnouncesCallback callback,
+                          VersionSpecificParameters parameters);
   bool UnsubscribeAnnounces(FullTrackName track_namespace);
 
   // Send an ANNOUNCE message for |track_namespace|, and call
   // |announce_callback| when the response arrives. Will fail immediately if
   // there is already an unresolved ANNOUNCE for that namespace.
   void Announce(FullTrackName track_namespace,
-                MoqtOutgoingAnnounceCallback announce_callback);
+                MoqtOutgoingAnnounceCallback announce_callback,
+                VersionSpecificParameters parameters);
   // Returns true if message was sent, false if there is no ANNOUNCE to cancel.
   bool Unannounce(FullTrackName track_namespace);
   // Allows the subscriber to declare it will not subscribe to |track_namespace|
@@ -116,15 +116,15 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool SubscribeAbsolute(const FullTrackName& name, uint64_t start_group,
                          uint64_t start_object,
                          SubscribeRemoteTrack::Visitor* visitor,
-                         MoqtSubscribeParameters parameters) override;
+                         VersionSpecificParameters parameters) override;
   // Subscribe from (start_group, start_object) to the end of end_group.
   bool SubscribeAbsolute(const FullTrackName& name, uint64_t start_group,
                          uint64_t start_object, uint64_t end_group,
                          SubscribeRemoteTrack::Visitor* visitor,
-                         MoqtSubscribeParameters parameters) override;
+                         VersionSpecificParameters parameters) override;
   bool SubscribeCurrentObject(const FullTrackName& name,
                               SubscribeRemoteTrack::Visitor* visitor,
-                              MoqtSubscribeParameters parameters) override;
+                              VersionSpecificParameters parameters) override;
   // Returns false if the subscription is not found. The session immediately
   // destroys all subscription state.
   void Unsubscribe(const FullTrackName& name);
@@ -136,7 +136,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
              Location start, uint64_t end_group,
              std::optional<uint64_t> end_object, MoqtPriority priority,
              std::optional<MoqtDeliveryOrder> delivery_order,
-             MoqtSubscribeParameters parameters) override;
+             VersionSpecificParameters parameters) override;
   // Sends both a SUBSCRIBE and a joining FETCH, beginning |num_previous_groups|
   // groups before the current group. The Fetch will not be flow controlled,
   // instead using |visitor| to deliver fetched objects when they arrive. Gaps
@@ -146,7 +146,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool JoiningFetch(const FullTrackName& name,
                     SubscribeRemoteTrack::Visitor* visitor,
                     uint64_t num_previous_groups,
-                    MoqtSubscribeParameters parameters) override;
+                    VersionSpecificParameters parameters) override;
   // Sends both a SUBSCRIBE and a joining FETCH, beginning |num_previous_groups|
   // groups before the current group. The application provides |callback| to
   // fully control acceptance of Fetched objects.
@@ -155,7 +155,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                     FetchResponseCallback callback,
                     uint64_t num_previous_groups, MoqtPriority priority,
                     std::optional<MoqtDeliveryOrder> delivery_order,
-                    MoqtSubscribeParameters parameters) override;
+                    VersionSpecificParameters parameters) override;
 
   // Send a GOAWAY message to the peer. |new_session_uri| must be empty if
   // called by the client.

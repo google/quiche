@@ -127,14 +127,14 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
     ON_CALL(*this, SubscribeCurrentObject)
         .WillByDefault([this](const FullTrackName& name,
                               SubscribeRemoteTrack::Visitor* visitor,
-                              MoqtSubscribeParameters) {
+                              VersionSpecificParameters) {
           return Subscribe(name, visitor, SubscribeWindow());
         });
     ON_CALL(*this, SubscribeAbsolute(_, _, _, _, _))
         .WillByDefault([this](const FullTrackName& name, uint64_t start_group,
                               uint64_t start_object,
                               SubscribeRemoteTrack::Visitor* visitor,
-                              MoqtSubscribeParameters) {
+                              VersionSpecificParameters) {
           return Subscribe(
               name, visitor,
               SubscribeWindow(Location(start_group, start_object)));
@@ -143,7 +143,7 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
         .WillByDefault([this](const FullTrackName& name, uint64_t start_group,
                               uint64_t start_object, uint64_t end_group,
                               SubscribeRemoteTrack::Visitor* visitor,
-                              MoqtSubscribeParameters) {
+                              VersionSpecificParameters) {
           return Subscribe(
               name, visitor,
               SubscribeWindow(Location(start_group, start_object), end_group));
@@ -158,7 +158,7 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
                    Location start, uint64_t end_group,
                    std::optional<uint64_t> end_object, MoqtPriority priority,
                    std::optional<MoqtDeliveryOrder> delivery_order,
-                   MoqtSubscribeParameters parameters) {
+                   VersionSpecificParameters parameters) {
               auto track_publisher = publisher_->GetTrack(name);
               if (!track_publisher.ok()) {
                 std::move(callback)(std::make_unique<MoqtFailedFetch>(
@@ -174,7 +174,7 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
         .WillByDefault([this](const FullTrackName& name,
                               SubscribeRemoteTrack::Visitor* visitor,
                               uint64_t num_previous_groups,
-                              MoqtSubscribeParameters parameters) {
+                              VersionSpecificParameters parameters) {
           return JoiningFetch(
               name, visitor,
               [name, visitor](std::unique_ptr<MoqtFetchTask> fetch) {
@@ -195,7 +195,7 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
                               uint64_t num_previous_groups,
                               MoqtPriority priority,
                               std::optional<MoqtDeliveryOrder> delivery_order,
-                              MoqtSubscribeParameters parameters) {
+                              VersionSpecificParameters parameters) {
           SubscribeCurrentObject(name, visitor, parameters);
           auto track_publisher = publisher_->GetTrack(name);
           if (!track_publisher.ok()) {

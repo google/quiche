@@ -66,7 +66,7 @@ MoqtSubscribe DefaultSubscribe() {
       /*group_order=*/std::nullopt,
       /*start=*/Location(0, 0),
       /*end_group=*/std::nullopt,
-      /*parameters=*/MoqtSubscribeParameters(),
+      /*parameters=*/VersionSpecificParameters(),
   };
   return subscribe;
 }
@@ -81,7 +81,7 @@ MoqtFetch DefaultFetch() {
       /*start=*/Location(0, 0),
       /*end_group=*/1,
       /*end_object=*/std::nullopt,
-      /*parameters=*/MoqtSubscribeParameters(),
+      /*parameters=*/VersionSpecificParameters(),
   };
   return fetch;
 }
@@ -160,7 +160,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
         (*track_status == MoqtTrackStatusCode::kInProgress)
             ? std::make_optional(publisher->GetLargestSequence())
             : std::optional<Location>(),
-        /*parameters=*/MoqtSubscribeParameters(),
+        /*parameters=*/VersionSpecificParameters(),
     };
     EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
     control_parser->OnSubscribeMessage(subscribe);
@@ -272,7 +272,7 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream_);
   MoqtClientSetup setup = {
       /*supported_versions=*/{kDefaultMoqtVersion},
-      /*path=*/std::nullopt,
+      MoqtSessionParameters(quic::Perspective::IS_CLIENT),
   };
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kServerSetup), _));
@@ -361,7 +361,8 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kAnnounce), _));
   session_.Announce(FullTrackName{"foo"},
-                    announce_resolved_callback.AsStdFunction());
+                    announce_resolved_callback.AsStdFunction(),
+                    VersionSpecificParameters());
 
   MoqtAnnounceOk ok = {
       /*track_namespace=*/FullTrackName{"foo"},
@@ -403,7 +404,8 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndUnannounce) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kAnnounce), _));
   session_.Announce(FullTrackName{"foo"},
-                    announce_resolved_callback.AsStdFunction());
+                    announce_resolved_callback.AsStdFunction(),
+                    VersionSpecificParameters());
 
   MoqtAnnounceOk ok = {
       /*track_namespace=*/FullTrackName{"foo"},
@@ -435,7 +437,8 @@ TEST_F(MoqtSessionTest, AnnounceWithError) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kAnnounce), _));
   session_.Announce(FullTrackName{"foo"},
-                    announce_resolved_callback.AsStdFunction());
+                    announce_resolved_callback.AsStdFunction(),
+                    VersionSpecificParameters());
 
   MoqtAnnounceError error = {
       /*track_namespace=*/FullTrackName{"foo"},
@@ -605,18 +608,18 @@ TEST_F(MoqtSessionTest, TooManySubscribes) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                               &remote_track_visitor,
-                                              MoqtSubscribeParameters()));
+                                              VersionSpecificParameters()));
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribesBlocked), _))
       .Times(1);
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo2", "bar2"),
                                                &remote_track_visitor,
-                                               MoqtSubscribeParameters()));
+                                               VersionSpecificParameters()));
   // Second time does not send SUBSCRIBES_BLOCKED.
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo2", "bar2"),
                                                &remote_track_visitor,
-                                               MoqtSubscribeParameters()));
+                                               VersionSpecificParameters()));
 }
 
 TEST_F(MoqtSessionTest, SubscribeDuplicateTrackName) {
@@ -629,10 +632,10 @@ TEST_F(MoqtSessionTest, SubscribeDuplicateTrackName) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                               &remote_track_visitor,
-                                              MoqtSubscribeParameters()));
+                                              VersionSpecificParameters()));
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                                &remote_track_visitor,
-                                               MoqtSubscribeParameters()));
+                                               VersionSpecificParameters()));
 }
 
 TEST_F(MoqtSessionTest, SubscribeWithOk) {
@@ -644,7 +647,7 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                   &remote_track_visitor,
-                                  MoqtSubscribeParameters());
+                                  VersionSpecificParameters());
 
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/0,
@@ -673,7 +676,7 @@ TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribesBlocked), _));
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                                &remote_track_visitor,
-                                               MoqtSubscribeParameters()));
+                                               VersionSpecificParameters()));
   MoqtMaxSubscribeId max_subscribe_id = {
       /*max_subscribe_id=*/kDefaultInitialMaxSubscribeId + 1,
   };
@@ -683,7 +686,7 @@ TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                               &remote_track_visitor,
-                                              MoqtSubscribeParameters()));
+                                              VersionSpecificParameters()));
 }
 
 TEST_F(MoqtSessionTest, LowerMaxSubscribeIdIsAnError) {
@@ -723,7 +726,7 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                   &remote_track_visitor,
-                                  MoqtSubscribeParameters());
+                                  VersionSpecificParameters());
 
   MoqtSubscribeError error = {
       /*subscribe_id=*/0,
@@ -842,7 +845,8 @@ TEST_F(MoqtSessionTest, SubscribeAnnouncesLifeCycle) {
         EXPECT_EQ(track_namespace, ftn);
         EXPECT_FALSE(error.has_value());
         EXPECT_EQ(reason, "");
-      });
+      },
+      VersionSpecificParameters());
   MoqtSubscribeAnnouncesOk ok = {
       /*track_namespace=*/track_namespace,
   };
@@ -873,7 +877,8 @@ TEST_F(MoqtSessionTest, SubscribeAnnouncesError) {
         ASSERT_TRUE(error.has_value());
         EXPECT_EQ(*error, SubscribeErrorCode::kInvalidRange);
         EXPECT_EQ(reason, "deadbeef");
-      });
+      },
+      VersionSpecificParameters());
   MoqtSubscribeAnnouncesError error = {
       /*track_namespace=*/track_namespace,
       /*error_code=*/SubscribeErrorCode::kInvalidRange,
@@ -1637,7 +1642,7 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream_);
   MoqtClientSetup setup = {
       /*supported_versions*/ {kDefaultMoqtVersion},
-      /*path=*/std::nullopt,
+      MoqtSessionParameters(),
   };
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kServerSetup), _));
@@ -2344,7 +2349,7 @@ TEST_F(MoqtSessionTest, SendJoiningFetch) {
               Writev(SerializedControlMessage(expected_fetch), _));
   EXPECT_TRUE(session_.JoiningFetch(
       expected_subscribe.full_track_name, &remote_track_visitor, nullptr, 1,
-      0x80, MoqtDeliveryOrder::kAscending, MoqtSubscribeParameters()));
+      0x80, MoqtDeliveryOrder::kAscending, VersionSpecificParameters()));
 }
 
 TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
@@ -2359,16 +2364,16 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
               Writev(ControlMessageOfType(MoqtMessageType::kFetch), _));
   EXPECT_TRUE(session_.JoiningFetch(FullTrackName("foo", "bar"),
                                     &remote_track_visitor, 0,
-                                    MoqtSubscribeParameters()));
+                                    VersionSpecificParameters()));
 
   EXPECT_CALL(remote_track_visitor, OnReply).Times(1);
   stream_input->OnSubscribeOkMessage(
       MoqtSubscribeOk(0, quic::QuicTimeDelta::FromMilliseconds(0),
                       MoqtDeliveryOrder::kAscending, Location(2, 0),
-                      MoqtSubscribeParameters()));
+                      VersionSpecificParameters()));
   stream_input->OnFetchOkMessage(MoqtFetchOk(1, MoqtDeliveryOrder::kAscending,
                                              Location(2, 0),
-                                             MoqtSubscribeParameters()));
+                                             VersionSpecificParameters()));
   // Packet arrives on FETCH stream.
   MoqtObject object = {
       /*fetch_id=*/1,
@@ -2397,7 +2402,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {
   FullTrackName track_namespace = FullTrackName{"foo"};
   MoqtSubscribeAnnounces announces = {
       track_namespace,
-      /*parameters=*/MoqtSubscribeParameters(),
+      /*parameters=*/VersionSpecificParameters(),
   };
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -2422,7 +2427,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
   FullTrackName track_namespace = FullTrackName{"foo"};
   MoqtSubscribeAnnounces announces = {
       track_namespace,
-      /*parameters=*/MoqtSubscribeParameters(),
+      /*parameters=*/VersionSpecificParameters(),
   };
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -2448,12 +2453,12 @@ TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
         fetch_task = std::move(task);
       },
       Location(0, 0), 4, std::nullopt, 128, std::nullopt,
-      MoqtSubscribeParameters());
+      VersionSpecificParameters());
   MoqtFetchOk ok = {
       /*subscribe_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*largest_id=*/Location(3, 25),
-      MoqtSubscribeParameters(),
+      VersionSpecificParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
   ASSERT_NE(fetch_task, nullptr);
@@ -2478,7 +2483,7 @@ TEST_F(MoqtSessionTest, FetchThenError) {
         fetch_task = std::move(task);
       },
       Location(0, 0), 4, std::nullopt, 128, std::nullopt,
-      MoqtSubscribeParameters());
+      VersionSpecificParameters());
   MoqtFetchError error = {
       /*subscribe_id=*/0,
       /*error_code=*/SubscribeErrorCode::kUnauthorized,
@@ -2513,7 +2518,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
         });
       },
       Location(0, 0), 4, std::nullopt, 128, std::nullopt,
-      MoqtSubscribeParameters());
+      VersionSpecificParameters());
   // Build queue of packets to arrive.
   std::queue<quiche::QuicheBuffer> headers;
   std::queue<std::string> payloads;
@@ -2553,7 +2558,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
       /*subscribe_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*largest_id=*/Location(3, 25),
-      MoqtSubscribeParameters(),
+      VersionSpecificParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
   ASSERT_NE(fetch_task, nullptr);
@@ -2583,7 +2588,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
             [&]() { objects_available = true; });
       },
       Location(0, 0), 4, std::nullopt, 128, std::nullopt,
-      MoqtSubscribeParameters());
+      VersionSpecificParameters());
   // Build queue of packets to arrive.
   std::queue<quiche::QuicheBuffer> headers;
   std::queue<std::string> payloads;
@@ -2623,7 +2628,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
       /*subscribe_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*largest_id=*/Location(3, 25),
-      MoqtSubscribeParameters(),
+      VersionSpecificParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
   ASSERT_NE(fetch_task, nullptr);
@@ -2959,19 +2964,22 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                                &remote_track_visitor,
-                                               MoqtSubscribeParameters()));
+                                               VersionSpecificParameters()));
   EXPECT_FALSE(session_.SubscribeAnnounces(
-      FullTrackName{"foo"}, +[](FullTrackName /*track_namespace*/,
-                                std::optional<SubscribeErrorCode> /*error*/,
-                                absl::string_view /*reason*/) {}));
+      FullTrackName{"foo"},
+      +[](FullTrackName /*track_namespace*/,
+          std::optional<SubscribeErrorCode> /*error*/,
+          absl::string_view /*reason*/) {},
+      VersionSpecificParameters()));
   session_.Announce(
       FullTrackName{"foo"},
       +[](FullTrackName /*track_namespace*/,
-          std::optional<MoqtAnnounceErrorReason> /*error*/) {});
+          std::optional<MoqtAnnounceErrorReason> /*error*/) {},
+      VersionSpecificParameters());
   EXPECT_FALSE(session_.Fetch(
       FullTrackName{"foo", "bar"},
       +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, Location(0, 0), 5,
-      std::nullopt, 127, std::nullopt, MoqtSubscribeParameters()));
+      std::nullopt, 127, std::nullopt, VersionSpecificParameters()));
   // Error on additional GOAWAY.
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
@@ -3000,7 +3008,7 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kAnnounceError), _));
   stream_input->OnAnnounceMessage(
-      MoqtAnnounce(FullTrackName("foo", "bar"), MoqtSubscribeParameters()));
+      MoqtAnnounce(FullTrackName("foo", "bar"), VersionSpecificParameters()));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kFetchError), _));
   MoqtFetch fetch = DefaultFetch();
@@ -3016,19 +3024,22 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                                &remote_track_visitor,
-                                               MoqtSubscribeParameters()));
+                                               VersionSpecificParameters()));
   EXPECT_FALSE(session_.SubscribeAnnounces(
-      FullTrackName{"foo"}, +[](FullTrackName /*track_namespace*/,
-                                std::optional<SubscribeErrorCode> /*error*/,
-                                absl::string_view /*reason*/) {}));
+      FullTrackName{"foo"},
+      +[](FullTrackName /*track_namespace*/,
+          std::optional<SubscribeErrorCode> /*error*/,
+          absl::string_view /*reason*/) {},
+      VersionSpecificParameters()));
   session_.Announce(
       FullTrackName{"foo"},
       +[](FullTrackName /*track_namespace*/,
-          std::optional<MoqtAnnounceErrorReason> /*error*/) {});
+          std::optional<MoqtAnnounceErrorReason> /*error*/) {},
+      VersionSpecificParameters());
   EXPECT_FALSE(session_.Fetch(
       FullTrackName{"foo", "bar"},
       +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, Location(0, 0), 5,
-      std::nullopt, 127, std::nullopt, MoqtSubscribeParameters()));
+      std::nullopt, 127, std::nullopt, VersionSpecificParameters()));
   session_.GoAway("");
   // GoAway timer fires.
   auto* goaway_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
@@ -3085,13 +3096,13 @@ TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithOpenStreams) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                               &remote_track_visitor,
-                                              MoqtSubscribeParameters()));
+                                              VersionSpecificParameters()));
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/0,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*largest_id=*/std::nullopt,
-      /*parameters=*/MoqtSubscribeParameters(),
+      /*parameters=*/VersionSpecificParameters(),
   };
   stream_input->OnSubscribeOkMessage(ok);
   constexpr uint64_t kNumStreams = 3;
@@ -3143,13 +3154,13 @@ TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithClosedStreams) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                               &remote_track_visitor,
-                                              MoqtSubscribeParameters()));
+                                              VersionSpecificParameters()));
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/0,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*largest_id=*/std::nullopt,
-      /*parameters=*/MoqtSubscribeParameters(),
+      /*parameters=*/VersionSpecificParameters(),
   };
   stream_input->OnSubscribeOkMessage(ok);
   constexpr uint64_t kNumStreams = 3;
@@ -3198,13 +3209,13 @@ TEST_F(MoqtSessionTest, SubscribeDoneTimeout) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                               &remote_track_visitor,
-                                              MoqtSubscribeParameters()));
+                                              VersionSpecificParameters()));
   MoqtSubscribeOk ok = {
       /*subscribe_id=*/0,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*largest_id=*/std::nullopt,
-      /*parameters=*/MoqtSubscribeParameters(),
+      /*parameters=*/VersionSpecificParameters(),
   };
   stream_input->OnSubscribeOkMessage(ok);
   constexpr uint64_t kNumStreams = 3;

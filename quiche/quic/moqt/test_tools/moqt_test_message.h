@@ -19,6 +19,7 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -373,11 +374,12 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
 class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
  public:
   explicit ClientSetupMessage(bool webtrans) : TestMessageBase() {
+    client_setup_.parameters.using_webtrans = webtrans;
     if (webtrans) {
       // Should not send PATH.
-      client_setup_.path = std::nullopt;
-      raw_packet_[2] = 0x07;  // adjust payload length (-5)
-      raw_packet_[6] = 0x01;  // only two parameters
+      client_setup_.parameters.path = "";
+      raw_packet_[1] = 0x06;  // adjust payload length (-5)
+      raw_packet_[5] = 0x01;  // only one parameter
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 5);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -398,24 +400,18 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
         return false;
       }
     }
-    if (cast.path != client_setup_.path) {
-      QUIC_LOG(INFO) << "CLIENT_SETUP path mismatch";
-      return false;
-    }
-    if (cast.max_subscribe_id != client_setup_.max_subscribe_id) {
-      QUIC_LOG(INFO) << "CLIENT_SETUP max_subscribe_id mismatch";
+    if (cast.parameters != client_setup_.parameters) {
+      QUIC_LOG(INFO) << "CLIENT_SETUP parameter mismatch";
       return false;
     }
     return true;
   }
 
   void ExpandVarints() override {
-    if (client_setup_.path.has_value()) {
-      ExpandVarintsImpl("--vvvvvvv-vv---");
-      // first two bytes are already a 2B varint. Also, don't expand parameter
-      // varints because that messes up the parameter length field.
+    if (!client_setup_.parameters.path.empty()) {
+      ExpandVarintsImpl("vvvvvvvvvv---");
     } else {
-      ExpandVarintsImpl("--vvvvvvv-");
+      ExpandVarintsImpl("vvvvvvvv");
     }
   }
 
@@ -424,58 +420,51 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[15] = {
-      0x40, 0x40, 0x0c,              // type
+  uint8_t raw_packet_[13] = {
+      0x20, 0x0b,                    // type
       0x02, 0x01, 0x02,              // versions
-      0x02,                          // 3 parameters
-      0x02, 0x01, 0x32,              // max_subscribe_id = 50
+      0x02,                          // 2 parameters
+      0x02, 0x32,                    // max_request_id = 50
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
   };
   MoqtClientSetup client_setup_ = {
       /*supported_versions=*/std::vector<MoqtVersion>(
           {static_cast<MoqtVersion>(1), static_cast<MoqtVersion>(2)}),
-      /*path=*/"foo",
-      /*max_subscribe_id=*/50,
+      MoqtSessionParameters(quic::Perspective::IS_CLIENT, "foo", 50),
   };
 };
 
 class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
  public:
-  explicit ServerSetupMessage() : TestMessageBase() {
+  explicit ServerSetupMessage(bool webtrans) : TestMessageBase() {
+    server_setup_.parameters.using_webtrans = webtrans;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtServerSetup>(values);
-    if (cast.selected_version != server_setup_.selected_version) {
-      QUIC_LOG(INFO) << "SERVER_SETUP selected version mismatch";
-      return false;
-    }
-    if (cast.max_subscribe_id != server_setup_.max_subscribe_id) {
-      QUIC_LOG(INFO) << "SERVER_SETUP max_subscribe_id mismatch";
+    if (cast.parameters != server_setup_.parameters) {
+      QUIC_LOG(INFO) << "SERVER_SETUP parameter mismatch";
       return false;
     }
     return true;
   }
 
-  void ExpandVarints() override {
-    ExpandVarintsImpl("--vvvvv-");  // first two bytes are already a 2b
-                                    // varint
-  }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(server_setup_);
   }
 
  private:
-  uint8_t raw_packet_[8] = {
-      0x40, 0x41, 0x05,  // type
-      0x01, 0x01,        // version, two parameters
-      0x02, 0x01, 0x32,  // max_subscribe_id = 50
+  uint8_t raw_packet_[6] = {
+      0x21, 0x04,  // type
+      0x01, 0x01,  // version, one parameter
+      0x02, 0x32,  // max_request_id = 50
   };
   MoqtServerSetup server_setup_ = {
       /*selected_version=*/static_cast<MoqtVersion>(1),
-      /*max_subscribe_id=*/50,
+      MoqtSessionParameters(quic::Perspective::IS_SERVER, 50),
   };
 };
 
@@ -523,7 +512,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvvvv---v------vvvvvv---vv--vv--");
+    ExpandVarintsImpl("vvvvvv---v------vvvvvv---v--");
   }
 
   MessageStructuredData structured_data() const override {
@@ -531,8 +520,8 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[33] = {
-      0x03, 0x1f, 0x01, 0x02,        // id and alias
+  uint8_t raw_packet_[28] = {
+      0x03, 0x1a, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20,                          // subscriber priority = 0x20
@@ -541,10 +530,9 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       0x04,                          // start_group = 4 (relative previous)
       0x01,                          // start_object = 1 (absolute)
       // No EndGroup or EndObject
-      0x03,                          // 3 parameters
-      0x02, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
-      0x03, 0x02, 0x67, 0x10,        // delivery_timeout = 10000 ms
-      0x04, 0x02, 0x67, 0x10,        // max_cache_duration = 10000 ms
+      0x02,                          // 2 parameters
+      0x02, 0x67, 0x10,              // delivery_timeout = 10000 ms
+      0x03, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
   };
 
   MoqtSubscribe subscribe_ = {
@@ -555,10 +543,8 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       /*group_order=*/MoqtDeliveryOrder::kDescending,
       /*start=*/Location(4, 1),
       /*end_group=*/std::nullopt,
-      /*parameters=*/
-      MoqtSubscribeParameters{
-          "bar", quic::QuicTimeDelta::FromMilliseconds(10000),
-          quic::QuicTimeDelta::FromMilliseconds(10000), std::nullopt},
+      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
+                                "bar"),
   };
 };
 
@@ -593,7 +579,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv--vvvvv--vv--"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv--vvvv--v--"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_ok_);
@@ -610,13 +596,13 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[17] = {
-      0x04, 0x0f, 0x01, 0x03,  // subscribe_id = 1, expires = 3
+  uint8_t raw_packet_[15] = {
+      0x04, 0x0d, 0x01, 0x03,  // subscribe_id = 1, expires = 3
       0x02, 0x01,              // group_order = 2, content exists
       0x0c, 0x14,              // largest_group_id = 12, largest_object_id = 20,
       0x02,                    // 2 parameters
-      0x03, 0x02, 0x67, 0x10,  // delivery_timeout = 10000
-      0x04, 0x02, 0x67, 0x10,  // max_cache_duration = 10000
+      0x02, 0x67, 0x10,        // delivery_timeout = 10000
+      0x04, 0x67, 0x10,        // max_cache_duration = 10000
   };
 
   MoqtSubscribeOk subscribe_ok_ = {
@@ -624,10 +610,8 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(3),
       /*group_order=*/MoqtDeliveryOrder::kDescending,
       /*largest_id=*/Location(12, 20),
-      /*parameters=*/
-      MoqtSubscribeParameters{
-          std::nullopt, quic::QuicTimeDelta::FromMilliseconds(10000),
-          quic::QuicTimeDelta::FromMilliseconds(10000), std::nullopt},
+      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
+                                quic::QuicTimeDelta::FromMilliseconds(10000)),
   };
 };
 
@@ -792,19 +776,18 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvvv-vvv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvv-vv--"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_update_);
   }
 
  private:
-  uint8_t raw_packet_[16] = {
-      0x02, 0x0e, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
+  uint8_t raw_packet_[11] = {
+      0x02, 0x09, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
       0xaa,                                // subscriber_priority
-      0x02,                                // 2 parameters
-      0x03, 0x02, 0x67, 0x10,              // delivery_timeout = 10000
-      0x04, 0x02, 0x67, 0x10,              // max_cache_duration = 10000
+      0x01,                                // 1 parameter
+      0x02, 0x67, 0x10,                    // delivery_timeout = 10000
   };
 
   MoqtSubscribeUpdate subscribe_update_ = {
@@ -812,10 +795,8 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
       /*start=*/Location(3, 1),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
-      /*parameters=*/
-      MoqtSubscribeParameters{
-          std::nullopt, quic::QuicTimeDelta::FromMilliseconds(10000),
-          quic::QuicTimeDelta::FromMilliseconds(10000), std::nullopt},
+      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
+                                quic::QuicTimeDelta::Infinite()),
   };
 };
 
@@ -832,32 +813,28 @@ class QUICHE_NO_EXPORT AnnounceMessage : public TestMessageBase {
       return false;
     }
     if (cast.parameters != announce_.parameters) {
-      QUIC_LOG(INFO) << "ANNOUNCE MESSAGE authorization info mismatch";
+      QUIC_LOG(INFO) << "ANNOUNCE MESSAGE parameter mismatch";
       return false;
     }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv---vvv---vv--"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv---vvv---"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(announce_);
   }
 
  private:
-  uint8_t raw_packet_[17] = {
-      0x06, 0x0f, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x02,                                      // 2 parameters
-      0x02, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
-      0x04, 0x02, 0x67, 0x10,                    // max_cache_duration = 10000ms
+  uint8_t raw_packet_[13] = {
+      0x06, 0x0b, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x01,                                      // 1 parameter
+      0x03, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
   };
 
   MoqtAnnounce announce_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*parameters=*/
-      MoqtSubscribeParameters{"bar", std::nullopt,
-                              quic::QuicTimeDelta::FromMilliseconds(10000),
-                              std::nullopt},
+      VersionSpecificParameters("bar"),
   };
 };
 
@@ -990,23 +967,30 @@ class QUICHE_NO_EXPORT TrackStatusRequestMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "TRACK STATUS REQUEST track name mismatch";
       return false;
     }
+    if (cast.parameters != track_status_request_.parameters) {
+      QUIC_LOG(INFO) << "TRACK STATUS REQUEST parameter mismatch";
+      return false;
+    }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv---v----"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv---v----vvv---"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(track_status_request_);
   }
 
  private:
-  uint8_t raw_packet_[12] = {
-      0x0d, 0x0a, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+  uint8_t raw_packet_[18] = {
+      0x0d, 0x10, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
+      0x01,                                      // 1 parameter
+      0x03, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
   };
 
   MoqtTrackStatusRequest track_status_request_ = {
       /*full_track_name=*/FullTrackName({"foo", "abcd"}),
+      VersionSpecificParameters("bar"),
   };
 };
 
@@ -1065,20 +1049,27 @@ class QUICHE_NO_EXPORT TrackStatusMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "TRACK STATUS last object mismatch";
       return false;
     }
+    if (cast.parameters != track_status_.parameters) {
+      QUIC_LOG(INFO) << "TRACK STATUS parameters mismatch";
+      return false;
+    }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv---v----vvv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv---v----vvvvv--v--"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(track_status_);
   }
 
  private:
-  uint8_t raw_packet_[15] = {
-      0x0e, 0x0d, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+  uint8_t raw_packet_[22] = {
+      0x0e, 0x14, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
       0x00, 0x0c, 0x14,  // status, last_group, last_object
+      0x02,              // 2 parameters
+      0x02, 0x67, 0x10,  // Delivery Timeout = 10000
+      0x04, 0x67, 0x10,  // Max Cache Duration = 10000
   };
 
   MoqtTrackStatus track_status_ = {
@@ -1086,6 +1077,8 @@ class QUICHE_NO_EXPORT TrackStatusMessage : public TestMessageBase {
       /*status_code=*/MoqtTrackStatusCode::kInProgress,
       /*last_group=*/12,
       /*last_object=*/20,
+      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
+                                quic::QuicTimeDelta::FromMilliseconds(10000)),
   };
 };
 
@@ -1149,13 +1142,12 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesMessage : public TestMessageBase {
   uint8_t raw_packet_[13] = {
       0x11, 0x0b, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // namespace = "foo"
       0x01,                                      // 1 parameter
-      0x02, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
+      0x03, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
   };
 
   MoqtSubscribeAnnounces subscribe_namespace_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*parameters=*/
-      MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt, std::nullopt},
+      VersionSpecificParameters("bar"),
   };
 };
 
@@ -1391,7 +1383,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       0x03, 0x62, 0x61, 0x72,              // track_name = "bar"
       0x01, 0x02,                          // start_object = 1, 2
       0x05, 0x07,                          // end_object = 5, 6
-      0x01, 0x02, 0x03, 0x62, 0x61, 0x7a,  // parameters = "baz"
+      0x01, 0x03, 0x03, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
   MoqtFetch fetch_ = {
@@ -1403,8 +1395,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       /*start_object=*/Location{1, 2},
       /*end_group=*/5,
       /*end_object=*/6,
-      /*parameters=*/
-      MoqtSubscribeParameters{"baz", std::nullopt, std::nullopt, std::nullopt},
+      VersionSpecificParameters("baz"),
   };
 };
 
@@ -1490,7 +1481,7 @@ class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
       0x01,                                // group_order = kAscending
       0x02,                                // type = kJoining
       0x02, 0x02,                          // joining_subscribe_id = 2, 2 groups
-      0x01, 0x02, 0x03, 0x62, 0x61, 0x7a,  // parameters = "baz"
+      0x01, 0x03, 0x03, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
   MoqtFetch fetch_ = {
@@ -1503,8 +1494,7 @@ class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
       /*start_object=*/Location{1, 2},
       /*end_group=*/5,
       /*end_object=*/6,
-      /*parameters=*/
-      MoqtSubscribeParameters{"baz", std::nullopt, std::nullopt, std::nullopt},
+      VersionSpecificParameters("baz"),
   };
 };
 
@@ -1572,20 +1562,20 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[12] = {
-      0x18, 0x0a,
-      0x01,                                // subscribe_id = 1
-      0x01,                                // group_order = kAscending
-      0x05, 0x04,                          // largest_object = 5, 4
-      0x01, 0x02, 0x03, 0x62, 0x61, 0x7a,  // parameters = "baz"
+  uint8_t raw_packet_[10] = {
+      0x18, 0x08,
+      0x01,                    // subscribe_id = 1
+      0x01,                    // group_order = kAscending
+      0x05, 0x04,              // largest_object = 5, 4
+      0x01, 0x04, 0x67, 0x10,  // MaxCacheDuration = 10000
   };
 
   MoqtFetchOk fetch_ok_ = {
       /*subscribe_id =*/1,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*start_object=*/Location{5, 4},
-      /*parameters=*/
-      MoqtSubscribeParameters{"baz", std::nullopt, std::nullopt, std::nullopt},
+      VersionSpecificParameters(quic::QuicTimeDelta::Infinite(),
+                                quic::QuicTimeDelta::FromMilliseconds(10000)),
   };
 };
 
@@ -1768,7 +1758,7 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
     case MoqtMessageType::kClientSetup:
       return std::make_unique<ClientSetupMessage>(is_webtrans);
     case MoqtMessageType::kServerSetup:
-      return std::make_unique<ServerSetupMessage>();
+      return std::make_unique<ServerSetupMessage>(is_webtrans);
     default:
       return nullptr;
   }

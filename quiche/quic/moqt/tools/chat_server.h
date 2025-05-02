@@ -71,7 +71,8 @@ class ChatServer {
               track_namespace,
               absl::bind_front(&ChatServer::ChatServerSessionHandler::
                                    OnOutgoingAnnounceReply,
-                               this));
+                               this),
+              VersionSpecificParameters());
           return;
         }
       }

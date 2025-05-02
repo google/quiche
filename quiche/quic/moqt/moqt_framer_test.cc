@@ -415,8 +415,7 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
           /*group_order=*/std::nullopt,
           start,
           end_group,
-          MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt,
-                                  std::nullopt},
+          VersionSpecificParameters("bar"),
       };
       quiche::QuicheBuffer buffer;
       MoqtFilterType expected_filter_type = GetFilterType(subscribe);
@@ -444,7 +443,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
       /*group_order=*/std::nullopt,
       /*start=*/Location(4, 3),
       /*end_group=*/3,
-      MoqtSubscribeParameters{"bar", std::nullopt, std::nullopt, std::nullopt},
+      VersionSpecificParameters("bar"),
   };
   quiche::QuicheBuffer buffer;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
@@ -463,7 +462,7 @@ TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
       /*end_group=*/1,
       /*end_object=*/1,
       /*parameters=*/
-      MoqtSubscribeParameters{"baz", std::nullopt, std::nullopt, std::nullopt},
+      VersionSpecificParameters("baz"),
   };
   quiche::QuicheBuffer buffer;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeFetch(fetch),
@@ -482,8 +481,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
       /*start=*/Location(4, 3),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
-      MoqtSubscribeParameters{std::nullopt, std::nullopt, std::nullopt,
-                              std::nullopt},
+      VersionSpecificParameters(),
   };
   quiche::QuicheBuffer buffer;
   buffer = framer_.SerializeSubscribeUpdate(subscribe_update);
@@ -498,8 +496,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
       /*start=*/Location(4, 3),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
-      MoqtSubscribeParameters{std::nullopt, std::nullopt, std::nullopt,
-                              std::nullopt},
+      VersionSpecificParameters(),
   };
   quiche::QuicheBuffer buffer;
   buffer = framer_.SerializeSubscribeUpdate(subscribe_update);

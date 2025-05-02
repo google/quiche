@@ -155,7 +155,7 @@ class MoqtIngestionHandler {
       FullTrackName full_track_name = track_namespace;
       full_track_name.AddElement(track);
       session_->JoiningFetch(full_track_name, &it->second, 0,
-                             MoqtSubscribeParameters());
+                             VersionSpecificParameters());
     }
 
     return std::nullopt;
