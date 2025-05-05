@@ -539,17 +539,10 @@ TEST_F(QuicTimeWaitListManagerTest, AddOverlappingConnectionIdSet) {
       QuicTimeWaitListManager::SEND_STATELESS_RESET,
       TimeWaitConnectionInfo(false, nullptr, {cid1, cid3}));
 
-  if (GetQuicRestartFlag(quic_use_one_map_in_time_wait_list)) {
-    EXPECT_TRUE(time_wait_list_manager_.IsConnectionIdInTimeWait(cid1));
-    EXPECT_TRUE(time_wait_list_manager_.IsConnectionIdInTimeWait(cid2));
-    EXPECT_TRUE(time_wait_list_manager_.IsConnectionIdInTimeWait(cid3));
-    EXPECT_EQ(time_wait_list_manager_.num_connections(), 2u);
-  } else {
-    EXPECT_TRUE(time_wait_list_manager_.IsConnectionIdInTimeWait(cid1));
-    EXPECT_FALSE(time_wait_list_manager_.IsConnectionIdInTimeWait(cid2));
-    EXPECT_TRUE(time_wait_list_manager_.IsConnectionIdInTimeWait(cid3));
-    EXPECT_EQ(time_wait_list_manager_.num_connections(), 1u);
-  }
+  EXPECT_TRUE(time_wait_list_manager_.IsConnectionIdInTimeWait(cid1));
+  EXPECT_TRUE(time_wait_list_manager_.IsConnectionIdInTimeWait(cid2));
+  EXPECT_TRUE(time_wait_list_manager_.IsConnectionIdInTimeWait(cid3));
+  EXPECT_EQ(time_wait_list_manager_.num_connections(), 2u);
 }
 
 TEST_F(QuicTimeWaitListManagerTest, ConnectionIdsOrderedByTime) {

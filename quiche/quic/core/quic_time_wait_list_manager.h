@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "absl/base/nullability.h"
-#include "absl/container/flat_hash_map.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_blocked_writer_interface.h"
@@ -153,11 +152,7 @@ class QUICHE_EXPORT QuicTimeWaitListManager
   // the size is under the configured maximum.
   void TrimTimeWaitListIfNeeded();
 
-  // The number of connections on the time-wait list.
-  size_t num_connections() const {
-    return use_old_connection_id_map_ ? connection_id_map_.size()
-                                      : num_connections_;
-  }
+  size_t num_connections() const { return num_connections_; }
   bool has_connections() const;
 
   // Sends a version negotiation packet for |server_connection_id| and
@@ -317,8 +312,6 @@ class QUICHE_EXPORT QuicTimeWaitListManager
   // Returns the time when the first connection was added to the time-wait list.
   QuicTime GetOldestConnectionTime() const;
 
-  const bool use_old_connection_id_map_ =
-      !GetQuicRestartFlag(quic_use_one_map_in_time_wait_list);
   size_t num_connections_ = 0;
 
   // QuicheLinkedHashMap allows lookup by ConnectionId
@@ -329,35 +322,9 @@ class QUICHE_EXPORT QuicTimeWaitListManager
       QuicConnectionIdHash>
       connection_id_data_map_;
 
-  using ConnectionIdMap =
-      quiche::QuicheLinkedHashMap<QuicConnectionId, ConnectionIdData,
-                                  QuicConnectionIdHash>;
-  // Do not use find/emplace/erase on this map directly. Use
-  // FindConnectionIdDataInMap, AddConnectionIdDateToMap,
-  // RemoveConnectionDataFromMap instead.
-  ConnectionIdMap connection_id_map_;
-
-  // A connection can have multiple unretired ConnectionIds when it is closed.
-  // These Ids have the same ConnectionIdData entry in connection_id_map_. To
-  // find the entry, look up the cannoical ConnectionId in
-  // indirect_connection_id_map_ first, and look up connection_id_map_ with the
-  // cannoical ConnectionId.
-  absl::flat_hash_map<QuicConnectionId, QuicConnectionId, QuicConnectionIdHash>
-      indirect_connection_id_map_;
-
   // Find data for the given connection_id. Returns nullptr if not found.
   ConnectionIdData* /*absl_nullable*/ FindConnectionIdData(
       const QuicConnectionId& connection_id);
-  // Find an iterator for the given connection_id. Returns
-  // connection_id_map_.end() if none found.
-  ConnectionIdMap::iterator FindConnectionIdDataInMap(
-      const QuicConnectionId& connection_id);
-  // Inserts a ConnectionIdData entry to connection_id_map_.
-  void AddConnectionIdDataToMap(const QuicConnectionId& canonical_connection_id,
-                                int num_packets, TimeWaitAction action,
-                                TimeWaitConnectionInfo info);
-  // Removes a ConnectionIdData entry in connection_id_map_.
-  void RemoveConnectionDataFromMap(ConnectionIdMap::iterator it);
 
   // Pending termination packets that need to be sent out to the peer when we
   // are given a chance to write by the dispatcher.

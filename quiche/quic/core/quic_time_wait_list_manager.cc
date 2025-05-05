@@ -96,51 +96,11 @@ QuicTimeWaitListManager::~QuicTimeWaitListManager() {
 QuicTimeWaitListManager::ConnectionIdData* /*absl_nullable*/
 QuicTimeWaitListManager::FindConnectionIdData(
     const QuicConnectionId& connection_id) {
-  if (use_old_connection_id_map_) {
-    auto it = FindConnectionIdDataInMap(connection_id);
-    if (it == connection_id_map_.end()) {
-      return nullptr;
-    }
-    return &it->second;
-  }
   auto it = connection_id_data_map_.find(connection_id);
   if (it == connection_id_data_map_.end()) {
     return nullptr;
   }
   return it->second.get();
-}
-
-QuicTimeWaitListManager::ConnectionIdMap::iterator
-QuicTimeWaitListManager::FindConnectionIdDataInMap(
-    const QuicConnectionId& connection_id) {
-  QUICHE_DCHECK(use_old_connection_id_map_);
-  auto it = indirect_connection_id_map_.find(connection_id);
-  if (it == indirect_connection_id_map_.end()) {
-    return connection_id_map_.end();
-  }
-  return connection_id_map_.find(it->second);
-}
-
-void QuicTimeWaitListManager::AddConnectionIdDataToMap(
-    const QuicConnectionId& canonical_connection_id, int num_packets,
-    TimeWaitAction action, TimeWaitConnectionInfo info) {
-  QUICHE_DCHECK(use_old_connection_id_map_);
-  for (const auto& cid : info.active_connection_ids) {
-    indirect_connection_id_map_[cid] = canonical_connection_id;
-  }
-  ConnectionIdData data(num_packets, clock_->ApproximateNow(), action,
-                        std::move(info));
-  connection_id_map_.emplace(
-      std::make_pair(canonical_connection_id, std::move(data)));
-}
-
-void QuicTimeWaitListManager::RemoveConnectionDataFromMap(
-    ConnectionIdMap::iterator it) {
-  QUICHE_DCHECK(use_old_connection_id_map_);
-  for (const auto& cid : it->second.info.active_connection_ids) {
-    indirect_connection_id_map_.erase(cid);
-  }
-  connection_id_map_.erase(it);
 }
 
 void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
@@ -153,24 +113,6 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
                 !info.termination_packets.empty());
   QUICHE_DCHECK(action != DO_NOTHING || info.ietf_quic);
 
-  if (use_old_connection_id_map_) {
-    const QuicConnectionId canonical_connection_id =
-        info.active_connection_ids.front();
-    int num_packets = 0;
-    auto it = FindConnectionIdDataInMap(canonical_connection_id);
-    const bool new_connection_id = it == connection_id_map_.end();
-    if (!new_connection_id) {  // Replace record if it is reinserted.
-      QUIC_CODE_COUNT(quic_time_wait_list_manager_reinsert_connection_id);
-      num_packets = it->second.num_packets;
-      RemoveConnectionDataFromMap(it);
-    }
-    TrimTimeWaitListIfNeeded();
-    AddConnectionIdDataToMap(canonical_connection_id, num_packets, action,
-                             std::move(info));
-    return;
-  }
-
-  QUIC_RESTART_FLAG_COUNT(quic_use_one_map_in_time_wait_list);
   TrimTimeWaitListIfNeeded();
 
   quiche::QuicheReferenceCountedPointer<RefCountedConnectionIdData> data(
@@ -191,9 +133,6 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
 
 bool QuicTimeWaitListManager::IsConnectionIdInTimeWait(
     QuicConnectionId connection_id) const {
-  if (use_old_connection_id_map_) {
-    return indirect_connection_id_map_.contains(connection_id);
-  }
   return connection_id_data_map_.contains(connection_id);
 }
 
@@ -455,9 +394,6 @@ bool QuicTimeWaitListManager::WriteToWire(QueuedPacket* queued_packet) {
 
 QuicTime QuicTimeWaitListManager::GetOldestConnectionTime() const {
   QUICHE_DCHECK(has_connections());
-  if (use_old_connection_id_map_) {
-    return connection_id_map_.begin()->second.time_added;
-  }
   return connection_id_data_map_.begin()->second->time_added;
 }
 
@@ -485,16 +421,6 @@ bool QuicTimeWaitListManager::MaybeExpireOldestConnection(
     QuicTime expiration_time) {
   if (!has_connections()) {
     return false;
-  }
-  if (use_old_connection_id_map_) {
-    auto it = connection_id_map_.begin();
-    QuicTime oldest_connection_id_time = it->second.time_added;
-    if (oldest_connection_id_time > expiration_time) {
-      // Too recent, don't retire.
-      return false;
-    }
-    RemoveConnectionDataFromMap(it);
-    return true;
   }
   auto it = connection_id_data_map_.begin();
   QuicTime oldest_connection_id_time = it->second->time_added;
@@ -528,19 +454,16 @@ void QuicTimeWaitListManager::TrimTimeWaitListIfNeeded() {
     return;
   }
   while (has_connections() &&
-         num_connections() >= static_cast<size_t>(kMaxConnections)) {
+         num_connections_ >= static_cast<size_t>(kMaxConnections)) {
     MaybeExpireOldestConnection(QuicTime::Infinite());
     QUIC_CODE_COUNT(quic_time_wait_list_trim_full);
   }
 
   QUICHE_DCHECK(!has_connections() ||
-                num_connections() < static_cast<size_t>(kMaxConnections));
+                num_connections_ < static_cast<size_t>(kMaxConnections));
 }
 
 bool QuicTimeWaitListManager::has_connections() const {
-  if (use_old_connection_id_map_) {
-    return !connection_id_map_.empty();
-  }
   QUIC_BUG_IF(quic_time_wait_list_num_connections_inconsistent,
               num_connections_ > connection_id_data_map_.size());
   return num_connections_ > 0;
