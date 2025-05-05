@@ -160,8 +160,8 @@ class MoqtSessionPeer {
     return it->second.get();
   }
 
-  static void ValidateSubscribeId(MoqtSession* session, uint64_t id) {
-    session->ValidateSubscribeId(id);
+  static void ValidateRequestId(MoqtSession* session, uint64_t id) {
+    session->ValidateRequestId(id);
   }
 
   static Location LargestSentForSubscription(MoqtSession* session,

@@ -629,7 +629,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
   // a session error if is not.
-  bool ValidateSubscribeId(uint64_t subscribe_id);
+  bool ValidateRequestId(uint64_t request_id);
 
   // Actually sends an object on |stream| with track alias or fetch ID |id|
   // and metadata in |object|. Not for use with datagrams. Returns |true| if
@@ -727,11 +727,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<FullTrackName, MoqtOutgoingSubscribeAnnouncesCallback>
       outgoing_subscribe_announces_;
 
-  // The minimum subscribe ID the peer can use that is monotonically increasing.
-  uint64_t next_incoming_subscribe_id_ = 0;
-  // The maximum subscribe ID sent to the peer. Peer-generated IDs must be less
+  // The minimum request ID the peer can use that is monotonically increasing.
+  uint64_t next_incoming_request_id_ = 0;
+  // The maximum request ID sent to the peer. Peer-generated IDs must be less
   // than this value.
-  uint64_t local_max_subscribe_id_ = 0;
+  uint64_t local_max_request_id_ = 0;
 
   std::unique_ptr<quic::QuicAlarmFactory> alarm_factory_;
   // Kill the session if the peer doesn't promptly close out the session after

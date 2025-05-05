@@ -42,7 +42,7 @@ enum class MoqtVersion : uint64_t {
 };
 
 inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft11;
-inline constexpr uint64_t kDefaultInitialMaxSubscribeId = 100;
+inline constexpr uint64_t kDefaultInitialMaxRequestId = 100;
 // TODO(martinduke): Implement an auth token cache.
 inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
 inline constexpr uint64_t kMinNamespaceElements = 1;
@@ -81,7 +81,7 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   quic::Perspective perspective = quic::Perspective::IS_SERVER;
   bool using_webtrans = true;
   std::string path = "";
-  uint64_t max_subscribe_id = kDefaultInitialMaxSubscribeId;
+  uint64_t max_subscribe_id = kDefaultInitialMaxRequestId;
   uint64_t max_auth_token_cache_size = kDefaultMaxAuthTokenCacheSize;
   bool support_object_acks = false;
 };
@@ -147,7 +147,7 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
   kInvalidRequestId = 0x4,
   kDuplicateTrackAlias = 0x5,
   kKeyValueFormattingError = 0x6,
-  kTooManySubscribes = 0x7,
+  kTooManyRequests = 0x7,
   kInvalidPath = 0x8,
   kMalformedPath = 0x9,
   kGoawayTimeout = 0x10,

@@ -99,7 +99,7 @@ MoqtSession::MoqtSession(webtransport::Session* session,
       callbacks_(std::move(callbacks)),
       framer_(quiche::SimpleBufferAllocator::Get(), parameters.using_webtrans),
       publisher_(DefaultPublisher::GetInstance()),
-      local_max_subscribe_id_(parameters.max_subscribe_id),
+      local_max_request_id_(parameters.max_subscribe_id),
       alarm_factory_(std::move(alarm_factory)),
       liveness_token_(std::make_shared<Empty>()) {
   if (parameters_.using_webtrans) {
@@ -778,26 +778,25 @@ void MoqtSession::UpdateQueuedSendOrder(
 }
 
 void MoqtSession::GrantMoreSubscribes(uint64_t num_subscribes) {
-  local_max_subscribe_id_ += num_subscribes;
+  local_max_request_id_ += num_subscribes;
   MoqtMaxSubscribeId message;
-  message.max_subscribe_id = local_max_subscribe_id_;
+  message.max_subscribe_id = local_max_request_id_;
   SendControlMessage(framer_.SerializeMaxSubscribeId(message));
 }
 
-bool MoqtSession::ValidateSubscribeId(uint64_t subscribe_id) {
-  if (subscribe_id >= local_max_subscribe_id_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Received SUBSCRIBE with too large ID";
-    Error(MoqtError::kTooManySubscribes,
-          "Received SUBSCRIBE with too large ID");
+bool MoqtSession::ValidateRequestId(uint64_t request_id) {
+  if (request_id >= local_max_request_id_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received request with too large ID";
+    Error(MoqtError::kTooManyRequests, "Received request with too large ID");
     return false;
   }
-  if (subscribe_id < next_incoming_subscribe_id_) {
+  if (request_id < next_incoming_request_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Subscribe ID not monotonically increasing";
-    Error(MoqtError::kProtocolViolation,
-          "Subscribe ID not monotonically increasing");
+    Error(MoqtError::kInvalidRequestId,
+          "Request ID not monotonically increasing");
     return false;
   }
-  next_incoming_subscribe_id_ = subscribe_id + 1;
+  next_incoming_request_id_ = request_id + 1;
   return true;
 }
 
@@ -905,7 +904,7 @@ void MoqtSession::ControlStream::SendFetchError(
 
 void MoqtSession::ControlStream::OnSubscribeMessage(
     const MoqtSubscribe& message) {
-  if (!session_->ValidateSubscribeId(message.subscribe_id)) {
+  if (!session_->ValidateRequestId(message.subscribe_id)) {
     return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE for "
@@ -950,7 +949,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   auto [it, success] = session_->published_subscriptions_.emplace(
       message.subscribe_id, std::move(subscription));
   if (!success) {
-    QUICHE_NOTREACHED();  // ValidateSubscribeId() should have caught this.
+    QUICHE_NOTREACHED();  // ValidateRequestId() should have caught this.
   }
   track_publisher_ptr->AddObjectListener(subscription_ptr);
 }
@@ -1252,7 +1251,7 @@ void MoqtSession::ControlStream::OnMaxSubscribeIdMessage(
 }
 
 void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
-  if (!session_->ValidateSubscribeId(message.fetch_id)) {
+  if (!session_->ValidateRequestId(message.fetch_id)) {
     return;
   }
   if (session_->sent_goaway_) {

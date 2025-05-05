@@ -113,7 +113,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
                  session_callbacks_.AsSessionCallbacks()) {
     session_.set_publisher(&publisher_);
     MoqtSessionPeer::set_peer_max_subscribe_id(&session_,
-                                               kDefaultInitialMaxSubscribeId);
+                                               kDefaultInitialMaxRequestId);
     ON_CALL(mock_session_, GetStreamById).WillByDefault(Return(&mock_stream_));
   }
   ~MoqtSessionTest() {
@@ -564,16 +564,16 @@ TEST_F(MoqtSessionTest, UnsubscribeAllowsSecondSubscribe) {
   ReceiveSubscribeSynchronousOk(track, request, stream_input.get());
 }
 
-TEST_F(MoqtSessionTest, SubscribeIdTooHigh) {
+TEST_F(MoqtSessionTest, RequestIdTooHigh) {
   // Peer subscribes to (0, 0)
   MoqtSubscribe request = DefaultSubscribe();
-  request.subscribe_id = kDefaultInitialMaxSubscribeId + 1;
+  request.subscribe_id = kDefaultInitialMaxRequestId + 1;
 
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kTooManySubscribes),
-                           "Received SUBSCRIBE with too large ID"));
+              CloseSession(static_cast<uint64_t>(MoqtError::kTooManyRequests),
+                           "Received request with too large ID"));
   stream_input->OnSubscribeMessage(request);
 }
 
@@ -591,14 +591,14 @@ TEST_F(MoqtSessionTest, SubscribeIdNotIncreasing) {
   ++request.track_alias;
   request.full_track_name = FullTrackName({"dead", "beef"});
   EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Subscribe ID not monotonically increasing"));
+              CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
+                           "Request ID not monotonically increasing"));
   stream_input->OnSubscribeMessage(request);
 }
 
 TEST_F(MoqtSessionTest, TooManySubscribes) {
   MoqtSessionPeer::set_next_subscribe_id(&session_,
-                                         kDefaultInitialMaxSubscribeId - 1);
+                                         kDefaultInitialMaxRequestId - 1);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
@@ -665,7 +665,7 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
 
 TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
   MoqtSessionPeer::set_next_subscribe_id(&session_,
-                                         kDefaultInitialMaxSubscribeId);
+                                         kDefaultInitialMaxRequestId);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
@@ -678,7 +678,7 @@ TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
                                                &remote_track_visitor,
                                                VersionSpecificParameters()));
   MoqtMaxSubscribeId max_subscribe_id = {
-      /*max_subscribe_id=*/kDefaultInitialMaxSubscribeId + 1,
+      /*max_subscribe_id=*/kDefaultInitialMaxRequestId + 1,
   };
   stream_input->OnMaxSubscribeIdMessage(max_subscribe_id);
 
@@ -691,7 +691,7 @@ TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
 
 TEST_F(MoqtSessionTest, LowerMaxSubscribeIdIsAnError) {
   MoqtMaxSubscribeId max_subscribe_id = {
-      /*max_subscribe_id=*/kDefaultInitialMaxSubscribeId - 1,
+      /*max_subscribe_id=*/kDefaultInitialMaxRequestId - 1,
   };
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
@@ -712,7 +712,7 @@ TEST_F(MoqtSessionTest, GrantMoreSubscribes) {
   session_.GrantMoreSubscribes(1);
   // Peer subscribes to (0, 0)
   MoqtSubscribe request = DefaultSubscribe();
-  request.subscribe_id = kDefaultInitialMaxSubscribeId;
+  request.subscribe_id = kDefaultInitialMaxRequestId;
   MockTrackPublisher* track = CreateTrackPublisher();
   ReceiveSubscribeSynchronousOk(track, request, stream_input.get());
 }
@@ -2219,15 +2219,15 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeError) {
 
 TEST_F(MoqtSessionTest, InvalidFetch) {
   // Update the state so that it expects ID > 0 next time.
-  MoqtSessionPeer::ValidateSubscribeId(&session_, 0);
+  MoqtSessionPeer::ValidateRequestId(&session_, 0);
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   MoqtFetch fetch = DefaultFetch();
   fetch.fetch_id = 0;  // Too low.
   EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Subscribe ID not monotonically increasing"))
+              CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
+                           "Request ID not monotonically increasing"))
       .Times(1);
   stream_input->OnFetchMessage(fetch);
 }
