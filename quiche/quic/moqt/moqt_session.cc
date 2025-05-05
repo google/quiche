@@ -840,7 +840,7 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
   if (absl::c_find(message.supported_versions, session_->parameters_.version) ==
       message.supported_versions.end()) {
     // TODO(martinduke): Is this the right error code? See issue #346.
-    session_->Error(MoqtError::kProtocolViolation,
+    session_->Error(MoqtError::kVersionNegotiationFailed,
                     absl::StrCat("Version mismatch: expected 0x",
                                  absl::Hex(session_->parameters_.version)));
     return;
