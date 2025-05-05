@@ -222,16 +222,22 @@ void VersionSpecificParametersToKeyValuePairList(
     const VersionSpecificParameters& parameters, KeyValuePairList& out) {
   out.clear();
   for (const auto& it : parameters.authorization_token) {
-    out.insert(VersionSpecificParameter::kAuthorizationToken, it);
+    if (it.type > AuthTokenType::kMaxAuthTokenType) {
+      QUICHE_BUG(moqt_invalid_auth_token_type)
+          << "Invalid Auth Token Type: " << static_cast<uint64_t>(it.type);
+      continue;
+    }
+    // Just support USE_VALUE for now.
+    quiche::QuicheBuffer parameter_value =
+        Serialize(WireVarInt62(AuthTokenAliasType::kUseValue),
+                  WireVarInt62(it.type), WireBytes(it.token));
+    out.insert(VersionSpecificParameter::kAuthorizationToken,
+               std::string(parameter_value.AsStringView()));
   }
   if (!parameters.delivery_timeout.IsInfinite()) {
     out.insert(
         VersionSpecificParameter::kDeliveryTimeout,
         static_cast<uint64_t>(parameters.delivery_timeout.ToMilliseconds()));
-  }
-  if (parameters.authorization_info.has_value()) {
-    out.insert(VersionSpecificParameter::kAuthorizationInfo,
-               *parameters.authorization_info);
   }
   if (!parameters.max_cache_duration.IsInfinite()) {
     out.insert(

@@ -70,7 +70,7 @@ std::optional<MoqtAnnounceErrorReason> ChatClient::OnIncomingAnnounce(
     return std::nullopt;
   }
   VersionSpecificParameters parameters(
-      std::string(GetUsername(my_track_name_)));
+      AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
   if (session_->SubscribeCurrentObject(*track_name, &remote_track_visitor_,
                                        parameters)) {
     ++subscribes_to_make_;
@@ -249,7 +249,7 @@ bool ChatClient::AnnounceAndSubscribeAnnounces() {
         return;
       };
   VersionSpecificParameters parameters(
-      std::string(GetUsername(my_track_name_)));
+      AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
   session_->SubscribeAnnounces(GetChatNamespace(my_track_name_),
                                std::move(subscribe_announces_callback),
                                parameters);

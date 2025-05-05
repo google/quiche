@@ -323,14 +323,13 @@ TEST_F(MoqtSessionTest, Error) {
   bool reported_error = false;
   EXPECT_CALL(
       mock_session_,
-      CloseSession(static_cast<uint64_t>(MoqtError::kParameterLengthMismatch),
-                   "foo"))
+      CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation), "foo"))
       .Times(1);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
       .WillOnce([&](absl::string_view error_message) {
         reported_error = (error_message == "foo");
       });
-  session_.Error(MoqtError::kParameterLengthMismatch, "foo");
+  session_.Error(MoqtError::kProtocolViolation, "foo");
   EXPECT_TRUE(reported_error);
 }
 

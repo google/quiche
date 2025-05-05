@@ -144,12 +144,18 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
   kInternalError = 0x1,
   kUnauthorized = 0x2,
   kProtocolViolation = 0x3,
-  kDuplicateTrackAlias = 0x4,
-  kParameterLengthMismatch = 0x5,
-  kTooManySubscribes = 0x6,
+  kInvalidRequestId = 0x4,
+  kDuplicateTrackAlias = 0x5,
+  kKeyValueFormattingError = 0x6,
+  kTooManySubscribes = 0x7,
+  kInvalidPath = 0x8,
+  kMalformedPath = 0x9,
   kGoawayTimeout = 0x10,
   kControlMessageTimeout = 0x11,
   kDataStreamTimeout = 0x12,
+  kAuthTokenCacheOverflow = 0x13,
+  kDuplicateAuthTokenAlias = 0x14,
+  kVersionNegotiationFailed = 0x15,
 };
 
 // Error codes used by MoQT to reset streams.
@@ -173,11 +179,35 @@ enum class QUICHE_EXPORT SetupParameter : uint64_t {
 enum class QUICHE_EXPORT VersionSpecificParameter : uint64_t {
   kAuthorizationToken = 0x1,
   kDeliveryTimeout = 0x2,
-  kAuthorizationInfo = 0x3,
   kMaxCacheDuration = 0x4,
 
   // QUICHE-specific extensions.
   kOackWindowSize = 0xbbf1438,
+};
+
+enum AuthTokenType : uint64_t {
+  kOutOfBand = 0x0,
+
+  kMaxAuthTokenType = 0x0,
+};
+
+enum AuthTokenAliasType : uint64_t {
+  kDelete = 0x0,
+  kRegister = 0x1,
+  kUseAlias = 0x2,
+  kUseValue = 0x3,
+
+  kMaxValue = 0x3,
+};
+
+struct AuthToken {
+  AuthToken(AuthTokenType token_type, absl::string_view token)
+      : type(token_type), token(token) {}
+  bool operator==(const AuthToken& other) const {
+    return type == other.type && token == other.token;
+  }
+  AuthTokenType type;
+  std::string token;
 };
 
 struct VersionSpecificParameters {
@@ -187,24 +217,24 @@ struct VersionSpecificParameters {
                             quic::QuicTimeDelta max_cache_duration)
       : delivery_timeout(delivery_timeout),
         max_cache_duration(max_cache_duration) {}
-  explicit VersionSpecificParameters(std::string authorization_info)
-      : authorization_info(authorization_info) {}
+  VersionSpecificParameters(AuthTokenType token_type, absl::string_view token) {
+    authorization_token.emplace_back(token_type, token);
+  };
   VersionSpecificParameters(quic::QuicTimeDelta delivery_timeout,
-                            std::string authorization_info)
-      : delivery_timeout(delivery_timeout),
-        authorization_info(authorization_info) {}
+                            AuthTokenType token_type, absl::string_view token)
+      : delivery_timeout(delivery_timeout) {
+    authorization_token.emplace_back(token_type, token);
+  }
 
   // TODO(martinduke): Turn auth_token into structured data.
-  std::vector<std::string> authorization_token;
+  std::vector<AuthToken> authorization_token;
   quic::QuicTimeDelta delivery_timeout = quic::QuicTimeDelta::Infinite();
-  std::optional<std::string> authorization_info;
   quic::QuicTimeDelta max_cache_duration = quic::QuicTimeDelta::Infinite();
   std::optional<quic::QuicTimeDelta> oack_window_size;
 
   bool operator==(const VersionSpecificParameters& other) const {
     return authorization_token == other.authorization_token &&
            delivery_timeout == other.delivery_timeout &&
-           authorization_info == other.authorization_info &&
            max_cache_duration == other.max_cache_duration &&
            oack_window_size == other.oack_window_size;
   }
@@ -222,6 +252,9 @@ enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
   kDoesNotExist = 0x4,     // Can also mean "not interested" or "unknown".
   kInvalidRange = 0x5,     // SUBSCRIBE_ERROR and FETCH_ERROR only.
   kRetryTrackAlias = 0x6,  // SUBSCRIBE_ERROR only.
+  kMalformedAuthToken = 0x10,
+  kUnknownAuthTokenAlias = 0x11,
+  kExpiredAuthToken = 0x12,
 };
 
 struct MoqtSubscribeErrorReason {
@@ -710,7 +743,8 @@ struct QUICHE_EXPORT MoqtObjectAck {
 bool ValidateSetupParameters(const KeyValuePairList& parameters, bool webtrans,
                              quic::Perspective perspective);
 // Returns false if the parameters contain a protocol violation, or a
-// parameter cannot be in |message type|.
+// parameter cannot be in |message type|. Does not validate the internal
+// structure of Authorization Token values.
 bool ValidateVersionSpecificParameters(const KeyValuePairList& parameters,
                                        MoqtMessageType message_type);
 

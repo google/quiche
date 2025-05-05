@@ -168,16 +168,13 @@ bool ValidateVersionSpecificParameters(const KeyValuePairList& parameters,
       parameters.count(VersionSpecificParameter::kAuthorizationToken);
   size_t delivery_timeout =
       parameters.count(VersionSpecificParameter::kDeliveryTimeout);
-  size_t authorization_info =
-      parameters.count(VersionSpecificParameter::kAuthorizationInfo);
   size_t max_cache_duration =
       parameters.count(VersionSpecificParameter::kMaxCacheDuration);
-  if (delivery_timeout > 1 || authorization_info > 1 ||
-      max_cache_duration > 1) {
+  if (delivery_timeout > 1 || max_cache_duration > 1) {
     // Disallowed duplicate.
     return false;
   }
-  if ((authorization_token > 0 || authorization_info > 0) &&
+  if (authorization_token > 0 &&
       !absl::c_linear_search(kAllowsAuthorization, message_type)) {
     return false;
   }

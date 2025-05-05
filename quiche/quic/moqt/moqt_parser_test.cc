@@ -660,7 +660,7 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMaxSubscribeIdAppearsTwice) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
-TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationInfoTwice) {
+TEST_F(MoqtMessageSpecificTest, UnknownParameterTwiceIsOk) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char subscribe[] = {
@@ -670,14 +670,12 @@ TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationInfoTwice) {
       0x20, 0x02,                    // priority = 0x20 descending
       0x02,                          // filter_type = kLatestObject
       0x02,                          // two params
-      0x03, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
-      0x03, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
+      0x1f, 0x03, 0x62, 0x61, 0x72,  // 0x1f = "bar"
+      0x1f, 0x03, 0x62, 0x61, 0x72,  // 0x1f = "bar"
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "SUBSCRIBE contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+  EXPECT_EQ(visitor_.messages_received_, 1);
 }
 
 TEST_F(MoqtMessageSpecificTest, SubscribeDeliveryTimeoutTwice) {
@@ -720,16 +718,113 @@ TEST_F(MoqtMessageSpecificTest, SubscribeMaxCacheDurationTwice) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
-TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationInfo) {
+TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagDelete) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char subscribe[] = {
+      0x03, 0x14, 0x01, 0x02, 0x01,
+      0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x20, 0x02,                    // priority = 0x20 descending
+      0x02,                          // filter_type = kLatestObject
+      0x01,                          // one param
+      0x01, 0x02, 0x00, 0x00,        // authorization_token = DELETE 0;
+  };
+  stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(visitor_.parsing_error_, "Unknown Auth Token Alias");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
+}
+
+TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagRegister) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char subscribe[] = {
+      0x03, 0x18, 0x01, 0x02, 0x01, 0x03, 0x66, 0x6f,
+      0x6f,                          // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x20, 0x02,                    // priority = 0x20 descending
+      0x02,                          // filter_type = kLatestObject
+      0x01,                          // one param
+      0x01, 0x06, 0x01, 0x10, 0x00, 0x62, 0x61, 0x72,  // REGISTER 0x01
+  };
+  stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(visitor_.parsing_error_, "Too many authorization token tags");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kAuthTokenCacheOverflow);
+}
+
+TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagUseAlias) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char subscribe[] = {
+      0x03, 0x14, 0x01, 0x02, 0x01,
+      0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x20, 0x02,                    // priority = 0x20 descending
+      0x02,                          // filter_type = kLatestObject
+      0x01,                          // one param
+      0x01, 0x02, 0x02, 0x07,        // authorization_token = USE 7;
+  };
+  stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(visitor_.parsing_error_, "Unknown Auth Token Alias");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
+}
+
+TEST_F(MoqtMessageSpecificTest,
+       SubscribeAuthorizationTokenTagUnknownAliasType) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char subscribe[] = {
+      0x03, 0x14, 0x01, 0x02, 0x01,
+      0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x20, 0x02,                    // priority = 0x20 descending
+      0x02,                          // filter_type = kLatestObject
+      0x01,                          // one param
+      0x01, 0x02, 0x04, 0x07,        // authorization_token type 4
+  };
+  stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(visitor_.parsing_error_, "Invalid Authorization Token Alias type");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
+}
+
+TEST_F(MoqtMessageSpecificTest,
+       SubscribeAuthorizationTokenTagUnknownTokenType) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char subscribe[] = {
+      0x03, 0x16, 0x01, 0x02, 0x01, 0x03,
+      0x66, 0x6f, 0x6f,                   // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,       // track_name = "abcd"
+      0x20, 0x02,                         // priority = 0x20 descending
+      0x02,                               // filter_type = kLatestObject
+      0x01,                               // one param
+      0x01, 0x04, 0x03, 0x01, 0x00, 0x00  // authorization_token type 1
+  };
+  stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(visitor_.parsing_error_, "Invalid Authorization Token Type");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
+}
+
+TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationToken) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char subscribe_ok[] = {
-      0x04, 0x0f, 0x01, 0x03,  // subscribe_id = 1, expires = 3
+      0x04, 0x11, 0x01, 0x03,  // subscribe_id = 1, expires = 3
       0x02, 0x01,              // group_order = 2, content exists
       0x0c, 0x14,              // largest_group_id = 12, largest_object_id = 20,
       0x02,                    // 2 parameters
       0x02, 0x67, 0x10,        // delivery_timeout = 10000
-      0x03, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_token = "bar"
   };
   stream.Receive(absl::string_view(subscribe_ok, sizeof(subscribe_ok)), false);
   parser.ReadAndDispatchMessages();
@@ -739,14 +834,14 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationInfo) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
-TEST_F(MoqtMessageSpecificTest, SubscribeUpdateHasAuthorizationInfo) {
+TEST_F(MoqtMessageSpecificTest, SubscribeUpdateHasAuthorizationToken) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char subscribe_update[] = {
-      0x02, 0x0b, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
-      0xaa,                                // priority = 0xaa
-      0x01,                                // 1 parameter
-      0x03, 0x03, 0x62, 0x61, 0x72,        // authorization_info = "bar"
+      0x02, 0x0d, 0x02, 0x03, 0x01, 0x05,        // start and end sequences
+      0xaa,                                      // priority = 0xaa
+      0x01,                                      // 1 parameter
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_token = "bar"
   };
   stream.Receive(absl::string_view(subscribe_update, sizeof(subscribe_update)),
                  false);
@@ -757,29 +852,27 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateHasAuthorizationInfo) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
-TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationInfoTwice) {
+TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationTokenTwice) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char announce[] = {
-      0x06, 0x10, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x06, 0x14, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x02,                                      // 2 params
-      0x03, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
-      0x03, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
   };
   stream.Receive(absl::string_view(announce, sizeof(announce)), false);
   parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "ANNOUNCE contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+  EXPECT_EQ(visitor_.messages_received_, 1);
 }
 
 TEST_F(MoqtMessageSpecificTest, AnnounceHasDeliveryTimeout) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char announce[] = {
-      0x06, 0x0e, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x06, 0x10, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x02,                                      // 2 params
-      0x03, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_info = "bar"
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000
   };
   stream.Receive(absl::string_view(announce, sizeof(announce)), false);

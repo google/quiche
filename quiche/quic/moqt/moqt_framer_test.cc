@@ -415,7 +415,7 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
           /*group_order=*/std::nullopt,
           start,
           end_group,
-          VersionSpecificParameters("bar"),
+          VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
       };
       quiche::QuicheBuffer buffer;
       MoqtFilterType expected_filter_type = GetFilterType(subscribe);
@@ -443,7 +443,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
       /*group_order=*/std::nullopt,
       /*start=*/Location(4, 3),
       /*end_group=*/3,
-      VersionSpecificParameters("bar"),
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
   quiche::QuicheBuffer buffer;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
@@ -462,7 +462,7 @@ TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
       /*end_group=*/1,
       /*end_object=*/1,
       /*parameters=*/
-      VersionSpecificParameters("baz"),
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
   };
   quiche::QuicheBuffer buffer;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeFetch(fetch),

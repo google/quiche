@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <string>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_reader.h"
@@ -143,6 +142,16 @@ class QUICHE_EXPORT MoqtControlParser {
   // could not parse the full namespace field.
   bool ReadTrackNamespace(quic::QuicDataReader& reader,
                           FullTrackName& full_track_name);
+  // Translates raw key/value pairs into semantically meaningful formats.
+  // The spec defines many encoding errors in AUTHORIZATION TOKEN as
+  // request level. This treats them as session-level, unless they are a result
+  // of expiration, incorrect internal structure, or anything else not defined
+  // in the MoQT spec. It is allowed to promote request errors to session errors
+  // in MoQT. See also https://github.com/moq-wg/moq-transport/issues/964.
+  bool KeyValuePairListToVersionSpecificParameters(
+      const KeyValuePairList& parameters, VersionSpecificParameters& out);
+  bool ParseAuthTokenParameter(absl::string_view field,
+                               VersionSpecificParameters& out);
 
   MoqtControlParserVisitor& visitor_;
   quiche::ReadStream& stream_;
@@ -153,6 +162,8 @@ class QUICHE_EXPORT MoqtControlParser {
   std::optional<uint64_t> message_type_;
   std::optional<uint64_t> message_size_;
 
+  uint64_t max_auth_token_cache_size_ = 0;
+  uint64_t auth_token_cache_size_ = 0;
   bool processing_ = false;  // True if currently in ProcessData(), to prevent
                              // re-entrancy.
 };

@@ -512,7 +512,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvvvv---v------vvvvvv---v--");
+    ExpandVarintsImpl("vvvvvv---v------vvvvv--vv-----");
   }
 
   MessageStructuredData structured_data() const override {
@@ -520,8 +520,8 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[28] = {
-      0x03, 0x1a, 0x01, 0x02,        // id and alias
+  uint8_t raw_packet_[30] = {
+      0x03, 0x1c, 0x01, 0x02,        // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20,                          // subscriber priority = 0x20
@@ -530,9 +530,9 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       0x04,                          // start_group = 4 (relative previous)
       0x01,                          // start_object = 1 (absolute)
       // No EndGroup or EndObject
-      0x02,                          // 2 parameters
-      0x02, 0x67, 0x10,              // delivery_timeout = 10000 ms
-      0x03, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
+      0x02,                                      // 2 parameters
+      0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
   MoqtSubscribe subscribe_ = {
@@ -544,7 +544,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       /*start=*/Location(4, 1),
       /*end_group=*/std::nullopt,
       VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
-                                "bar"),
+                                AuthTokenType::kOutOfBand, "bar"),
   };
 };
 
@@ -819,22 +819,22 @@ class QUICHE_NO_EXPORT AnnounceMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv---vvv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv---vvv-----"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(announce_);
   }
 
  private:
-  uint8_t raw_packet_[13] = {
-      0x06, 0x0b, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+  uint8_t raw_packet_[15] = {
+      0x06, 0x0d, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x01,                                      // 1 parameter
-      0x03, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
   MoqtAnnounce announce_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      VersionSpecificParameters("bar"),
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
 };
 
@@ -974,23 +974,23 @@ class QUICHE_NO_EXPORT TrackStatusRequestMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv---v----vvv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv---v----vvv-----"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(track_status_request_);
   }
 
  private:
-  uint8_t raw_packet_[18] = {
-      0x0d, 0x10, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+  uint8_t raw_packet_[20] = {
+      0x0d, 0x12, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
       0x01,                                      // 1 parameter
-      0x03, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
   MoqtTrackStatusRequest track_status_request_ = {
       /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-      VersionSpecificParameters("bar"),
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
 };
 
@@ -1132,22 +1132,22 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv---vvv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv---vvv-----"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_namespace_);
   }
 
  private:
-  uint8_t raw_packet_[13] = {
-      0x11, 0x0b, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // namespace = "foo"
+  uint8_t raw_packet_[15] = {
+      0x11, 0x0d, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // namespace = "foo"
       0x01,                                      // 1 parameter
-      0x03, 0x03, 0x62, 0x61, 0x72,              // authorization_info = "bar"
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
   MoqtSubscribeAnnounces subscribe_namespace_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      VersionSpecificParameters("bar"),
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
 };
 
@@ -1349,7 +1349,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvv--vvv---v---vvvvvv---");
+    ExpandVarintsImpl("vvv--vvv---v---vvvvvv-----");
   }
 
   MessageStructuredData structured_data() const override {
@@ -1373,17 +1373,17 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[25] = {
-      0x16, 0x17,
-      0x01,                                // fetch_id = 1
-      0x02,                                // priority = kHigh
-      0x01,                                // group_order = kAscending
-      0x01,                                // type = kStandalone
-      0x01, 0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
-      0x03, 0x62, 0x61, 0x72,              // track_name = "bar"
-      0x01, 0x02,                          // start_object = 1, 2
-      0x05, 0x07,                          // end_object = 5, 6
-      0x01, 0x03, 0x03, 0x62, 0x61, 0x7a,  // parameters = "baz"
+  uint8_t raw_packet_[27] = {
+      0x16, 0x19,
+      0x01,                          // fetch_id = 1
+      0x02,                          // priority = kHigh
+      0x01,                          // group_order = kAscending
+      0x01,                          // type = kStandalone
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x03, 0x62, 0x61, 0x72,        // track_name = "bar"
+      0x01, 0x02,                    // start_object = 1, 2
+      0x05, 0x07,                    // end_object = 5, 6
+      0x01, 0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
   MoqtFetch fetch_ = {
@@ -1395,7 +1395,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       /*start_object=*/Location{1, 2},
       /*end_group=*/5,
       /*end_object=*/6,
-      VersionSpecificParameters("baz"),
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
   };
 };
 
@@ -1461,7 +1461,7 @@ class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvv--vvv---v---vvvvvv---");
+    ExpandVarintsImpl("vvv--vvv---v---vvvvvv-----");
   }
 
   MessageStructuredData structured_data() const override {
@@ -1474,14 +1474,14 @@ class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[14] = {
-      0x16, 0x0c,
-      0x01,                                // fetch_id = 1
-      0x02,                                // priority = kHigh
-      0x01,                                // group_order = kAscending
-      0x02,                                // type = kJoining
-      0x02, 0x02,                          // joining_subscribe_id = 2, 2 groups
-      0x01, 0x03, 0x03, 0x62, 0x61, 0x7a,  // parameters = "baz"
+  uint8_t raw_packet_[16] = {
+      0x16, 0x0e,
+      0x01,        // fetch_id = 1
+      0x02,        // priority = kHigh
+      0x01,        // group_order = kAscending
+      0x02,        // type = kJoining
+      0x02, 0x02,  // joining_subscribe_id = 2, 2 groups
+      0x01, 0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
   MoqtFetch fetch_ = {
@@ -1494,7 +1494,7 @@ class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
       /*start_object=*/Location{1, 2},
       /*end_group=*/5,
       /*end_object=*/6,
-      VersionSpecificParameters("baz"),
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
   };
 };
 
