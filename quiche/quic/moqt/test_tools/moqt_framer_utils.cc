@@ -101,8 +101,8 @@ struct TypeVisitor {
   MoqtMessageType operator()(const MoqtFetchError&) {
     return MoqtMessageType::kFetchError;
   }
-  MoqtMessageType operator()(const MoqtSubscribesBlocked&) {
-    return MoqtMessageType::kSubscribesBlocked;
+  MoqtMessageType operator()(const MoqtRequestsBlocked&) {
+    return MoqtMessageType::kRequestsBlocked;
   }
   MoqtMessageType operator()(const MoqtObjectAck&) {
     return MoqtMessageType::kObjectAck;
@@ -185,8 +185,8 @@ struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtFetchError& message) {
     return framer.SerializeFetchError(message);
   }
-  quiche::QuicheBuffer operator()(const MoqtSubscribesBlocked& message) {
-    return framer.SerializeSubscribesBlocked(message);
+  quiche::QuicheBuffer operator()(const MoqtRequestsBlocked& message) {
+    return framer.SerializeRequestsBlocked(message);
   }
   quiche::QuicheBuffer operator()(const MoqtObjectAck& message) {
     return framer.SerializeObjectAck(message);
@@ -274,7 +274,7 @@ class GenericMessageParseVisitor : public MoqtControlParserVisitor {
   void OnFetchErrorMessage(const MoqtFetchError& message) {
     frames_.push_back(message);
   }
-  void OnSubscribesBlockedMessage(const MoqtSubscribesBlocked& message) {
+  void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) {
     frames_.push_back(message);
   }
   void OnObjectAckMessage(const MoqtObjectAck& message) {

@@ -245,8 +245,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnFetchCancelMessage(const MoqtFetchCancel& message) override {}
     void OnFetchOkMessage(const MoqtFetchOk& message) override;
     void OnFetchErrorMessage(const MoqtFetchError& message) override;
-    void OnSubscribesBlockedMessage(
-        const MoqtSubscribesBlocked& message) override;
+    void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) override;
     void OnObjectAckMessage(const MoqtObjectAck& message) override {
       auto subscription_it =
           session_->published_subscriptions_.find(message.subscribe_id);
@@ -687,7 +686,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   uint64_t next_request_id_ = 0;
   // The local endpoint can send subscribe IDs less than this value.
   uint64_t peer_max_request_id_ = 0;
-  std::optional<uint64_t> last_subscribes_blocked_sent_;
+  std::optional<uint64_t> last_requests_blocked_sent_;
 
   // All open incoming subscriptions, indexed by track name, used to check for
   // duplicates.

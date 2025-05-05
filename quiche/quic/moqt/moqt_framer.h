@@ -69,8 +69,8 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeFetchCancel(const MoqtFetchCancel& message);
   quiche::QuicheBuffer SerializeFetchOk(const MoqtFetchOk& message);
   quiche::QuicheBuffer SerializeFetchError(const MoqtFetchError& message);
-  quiche::QuicheBuffer SerializeSubscribesBlocked(
-      const MoqtSubscribesBlocked& message);
+  quiche::QuicheBuffer SerializeRequestsBlocked(
+      const MoqtRequestsBlocked& message);
   quiche::QuicheBuffer SerializeObjectAck(const MoqtObjectAck& message);
 
  private:

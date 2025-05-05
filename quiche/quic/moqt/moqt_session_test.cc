@@ -611,12 +611,12 @@ TEST_F(MoqtSessionTest, TooManySubscribes) {
                                               VersionSpecificParameters()));
   EXPECT_CALL(
       mock_stream_,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribesBlocked), _))
+      Writev(ControlMessageOfType(MoqtMessageType::kRequestsBlocked), _))
       .Times(1);
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo2", "bar2"),
                                                &remote_track_visitor,
                                                VersionSpecificParameters()));
-  // Second time does not send SUBSCRIBES_BLOCKED.
+  // Second time does not send requests_blocked.
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo2", "bar2"),
                                                &remote_track_visitor,
                                                VersionSpecificParameters()));
@@ -672,7 +672,7 @@ TEST_F(MoqtSessionTest, MaxRequestIdChangesResponse) {
       .WillRepeatedly(Return(&mock_stream_));
   EXPECT_CALL(
       mock_stream_,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribesBlocked), _));
+      Writev(ControlMessageOfType(MoqtMessageType::kRequestsBlocked), _));
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                                &remote_track_visitor,
                                                VersionSpecificParameters()));

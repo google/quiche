@@ -319,8 +319,8 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kFetchError:
       bytes_read = ProcessFetchError(reader);
       break;
-    case MoqtMessageType::kSubscribesBlocked:
-      bytes_read = ProcessSubscribesBlocked(reader);
+    case MoqtMessageType::kRequestsBlocked:
+      bytes_read = ProcessRequestsBlocked(reader);
       break;
     case moqt::MoqtMessageType::kObjectAck:
       bytes_read = ProcessObjectAck(reader);
@@ -897,13 +897,12 @@ size_t MoqtControlParser::ProcessFetchError(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribesBlocked(
-    quic::QuicDataReader& reader) {
-  MoqtSubscribesBlocked subscribes_blocked;
-  if (!reader.ReadVarInt62(&subscribes_blocked.max_subscribe_id)) {
+size_t MoqtControlParser::ProcessRequestsBlocked(quic::QuicDataReader& reader) {
+  MoqtRequestsBlocked requests_blocked;
+  if (!reader.ReadVarInt62(&requests_blocked.max_request_id)) {
     return 0;
   }
-  visitor_.OnSubscribesBlockedMessage(subscribes_blocked);
+  visitor_.OnRequestsBlockedMessage(requests_blocked);
   return reader.PreviouslyReadPayload().length();
 }
 

@@ -586,13 +586,12 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
                             std::optional<uint64_t> provided_track_alias) {
   // TODO(martinduke): support authorization info
   if (next_request_id_ >= peer_max_request_id_) {
-    if (!last_subscribes_blocked_sent_.has_value() ||
-        peer_max_request_id_ > *last_subscribes_blocked_sent_) {
-      MoqtSubscribesBlocked subscribes_blocked;
-      subscribes_blocked.max_subscribe_id = peer_max_request_id_;
-      SendControlMessage(
-          framer_.SerializeSubscribesBlocked(subscribes_blocked));
-      last_subscribes_blocked_sent_ = peer_max_request_id_;
+    if (!last_requests_blocked_sent_.has_value() ||
+        peer_max_request_id_ > *last_requests_blocked_sent_) {
+      MoqtRequestsBlocked requests_blocked;
+      requests_blocked.max_request_id = peer_max_request_id_;
+      SendControlMessage(framer_.SerializeRequestsBlocked(requests_blocked));
+      last_requests_blocked_sent_ = peer_max_request_id_;
     }
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE with ID "
                     << next_request_id_
@@ -1461,8 +1460,8 @@ void MoqtSession::ControlStream::OnFetchErrorMessage(
   session_->upstream_by_id_.erase(message.subscribe_id);
 }
 
-void MoqtSession::ControlStream::OnSubscribesBlockedMessage(
-    const MoqtSubscribesBlocked& message) {
+void MoqtSession::ControlStream::OnRequestsBlockedMessage(
+    const MoqtRequestsBlocked& message) {
   // TODO(martinduke): Derive logic for granting more subscribes.
 }
 

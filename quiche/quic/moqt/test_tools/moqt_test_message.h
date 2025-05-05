@@ -47,7 +47,7 @@ class QUICHE_NO_EXPORT TestMessageBase {
                    MoqtGoAway, MoqtSubscribeAnnounces, MoqtSubscribeAnnouncesOk,
                    MoqtSubscribeAnnouncesError, MoqtUnsubscribeAnnounces,
                    MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
-                   MoqtFetchError, MoqtSubscribesBlocked, MoqtObjectAck>;
+                   MoqtFetchError, MoqtRequestsBlocked, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -1622,14 +1622,14 @@ class QUICHE_NO_EXPORT FetchErrorMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT SubscribesBlockedMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT RequestsBlockedMessage : public TestMessageBase {
  public:
-  SubscribesBlockedMessage() : TestMessageBase() {
+  RequestsBlockedMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtSubscribesBlocked>(values);
-    if (cast.max_subscribe_id != subscribes_blocked_.max_subscribe_id) {
+    auto cast = std::get<MoqtRequestsBlocked>(values);
+    if (cast.max_request_id != requests_blocked_.max_request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBES_BLOCKED max_subscribe_id mismatch";
       return false;
     }
@@ -1639,17 +1639,17 @@ class QUICHE_NO_EXPORT SubscribesBlockedMessage : public TestMessageBase {
   void ExpandVarints() override { ExpandVarintsImpl("vvv"); }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(subscribes_blocked_);
+    return TestMessageBase::MessageStructuredData(requests_blocked_);
   }
 
  private:
   uint8_t raw_packet_[3] = {
       0x1a, 0x01,
-      0x0b,  // max_subscribe_id = 11
+      0x0b,  // max_request_id = 11
   };
 
-  MoqtSubscribesBlocked subscribes_blocked_ = {
-      /*max_subscribe_id=*/11,
+  MoqtRequestsBlocked requests_blocked_ = {
+      /*max_request_id=*/11,
   };
 };
 
@@ -1751,8 +1751,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<FetchOkMessage>();
     case MoqtMessageType::kFetchError:
       return std::make_unique<FetchErrorMessage>();
-    case MoqtMessageType::kSubscribesBlocked:
-      return std::make_unique<SubscribesBlockedMessage>();
+    case MoqtMessageType::kRequestsBlocked:
+      return std::make_unique<RequestsBlockedMessage>();
     case MoqtMessageType::kObjectAck:
       return std::make_unique<ObjectAckMessage>();
     case MoqtMessageType::kClientSetup:
