@@ -762,11 +762,14 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenUnannounce) {
   FullTrackName track_namespace{"foo"};
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  auto parameters = std::make_optional<VersionSpecificParameters>(
+      AuthTokenType::kOutOfBand, "foo");
   MoqtAnnounce announce = {
       track_namespace,
+      *parameters,
   };
   EXPECT_CALL(session_callbacks_.incoming_announce_callback,
-              Call(track_namespace, AnnounceEvent::kAnnounce))
+              Call(track_namespace, parameters))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(
       mock_stream_,
@@ -776,7 +779,7 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenUnannounce) {
       track_namespace,
   };
   EXPECT_CALL(session_callbacks_.incoming_announce_callback,
-              Call(track_namespace, AnnounceEvent::kUnannounce))
+              Call(track_namespace, std::optional<VersionSpecificParameters>()))
       .WillOnce(Return(std::nullopt));
   stream_input->OnUnannounceMessage(unannounce);
 }
@@ -786,11 +789,14 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenAnnounceCancel) {
 
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  auto parameters = std::make_optional<VersionSpecificParameters>(
+      AuthTokenType::kOutOfBand, "foo");
   MoqtAnnounce announce = {
       track_namespace,
+      *parameters,
   };
   EXPECT_CALL(session_callbacks_.incoming_announce_callback,
-              Call(track_namespace, AnnounceEvent::kAnnounce))
+              Call(track_namespace, parameters))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(
       mock_stream_,
@@ -810,15 +816,18 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
 
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  auto parameters = std::make_optional<VersionSpecificParameters>(
+      AuthTokenType::kOutOfBand, "foo");
   MoqtAnnounce announce = {
       track_namespace,
+      *parameters,
   };
   MoqtAnnounceErrorReason error = {
       SubscribeErrorCode::kNotSupported,
       "deadbeef",
   };
   EXPECT_CALL(session_callbacks_.incoming_announce_callback,
-              Call(track_namespace, AnnounceEvent::kAnnounce))
+              Call(track_namespace, parameters))
       .WillOnce(Return(error));
   EXPECT_CALL(
       mock_stream_,
@@ -2414,15 +2423,17 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
 
 TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {
   FullTrackName track_namespace = FullTrackName{"foo"};
+  auto parameters = std::make_optional<VersionSpecificParameters>(
+      AuthTokenType::kOutOfBand, "foo");
   MoqtSubscribeAnnounces announces = {
       track_namespace,
-      /*parameters=*/VersionSpecificParameters(),
+      *parameters,
   };
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
-              Call(_, SubscribeEvent::kSubscribe))
+              Call(_, parameters))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(
       control_stream,
@@ -2432,22 +2443,24 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {
       /*track_namespace=*/FullTrackName{"foo"},
   };
   EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
-              Call(track_namespace, SubscribeEvent::kUnsubscribe))
+              Call(track_namespace, std::optional<VersionSpecificParameters>()))
       .WillOnce(Return(std::nullopt));
   stream_input->OnUnsubscribeAnnouncesMessage(unsubscribe_announces);
 }
 
 TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
   FullTrackName track_namespace = FullTrackName{"foo"};
+  auto parameters = std::make_optional<VersionSpecificParameters>(
+      AuthTokenType::kOutOfBand, "foo");
   MoqtSubscribeAnnounces announces = {
       track_namespace,
-      /*parameters=*/VersionSpecificParameters(),
+      *parameters,
   };
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
-              Call(_, SubscribeEvent::kSubscribe))
+              Call(_, parameters))
       .WillOnce(Return(
           MoqtSubscribeErrorReason{SubscribeErrorCode::kUnauthorized, "foo"}));
   EXPECT_CALL(

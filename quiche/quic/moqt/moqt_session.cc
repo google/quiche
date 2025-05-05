@@ -1085,7 +1085,7 @@ void MoqtSession::ControlStream::OnAnnounceMessage(
   }
   std::optional<MoqtAnnounceErrorReason> error =
       session_->callbacks_.incoming_announce_callback(message.track_namespace,
-                                                      AnnounceEvent::kAnnounce);
+                                                      message.parameters);
   if (error.has_value()) {
     MoqtAnnounceError reply;
     reply.track_namespace = message.track_namespace;
@@ -1143,7 +1143,7 @@ void MoqtSession::ControlStream::OnAnnounceCancelMessage(
 void MoqtSession::ControlStream::OnUnannounceMessage(
     const MoqtUnannounce& message) {
   session_->callbacks_.incoming_announce_callback(message.track_namespace,
-                                                  AnnounceEvent::kUnannounce);
+                                                  std::nullopt);
 }
 
 void MoqtSession::ControlStream::OnGoAwayMessage(const MoqtGoAway& message) {
@@ -1181,7 +1181,7 @@ void MoqtSession::ControlStream::OnSubscribeAnnouncesMessage(
   }
   std::optional<MoqtSubscribeErrorReason> result =
       session_->callbacks_.incoming_subscribe_announces_callback(
-          message.track_namespace, SubscribeEvent::kSubscribe);
+          message.track_namespace, message.parameters);
   if (result.has_value()) {
     MoqtSubscribeAnnouncesError error;
     error.track_namespace = message.track_namespace;
@@ -1234,7 +1234,7 @@ void MoqtSession::ControlStream::OnUnsubscribeAnnouncesMessage(
   // MoqtSession keeps no state here, so just tell the application.
   std::optional<MoqtSubscribeErrorReason> result =
       session_->callbacks_.incoming_subscribe_announces_callback(
-          message.track_namespace, SubscribeEvent::kUnsubscribe);
+          message.track_namespace, std::nullopt);
 }
 
 void MoqtSession::ControlStream::OnMaxSubscribeIdMessage(

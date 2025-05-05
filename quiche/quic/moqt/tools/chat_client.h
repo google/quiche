@@ -127,7 +127,8 @@ class ChatClient {
   void RunEventLoop() { event_loop_->RunEventLoopOnce(kChatEventLoopDuration); }
   // Callback for incoming announces.
   std::optional<MoqtAnnounceErrorReason> OnIncomingAnnounce(
-      const moqt::FullTrackName& track_namespace, AnnounceEvent announce_type);
+      const moqt::FullTrackName& track_namespace,
+      std::optional<VersionSpecificParameters> parameters);
 
   // Basic session information
   FullTrackName my_track_name_;

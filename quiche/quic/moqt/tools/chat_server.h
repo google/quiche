@@ -91,7 +91,7 @@ class ChatServer {
     // Callback for incoming announces.
     std::optional<MoqtAnnounceErrorReason> OnIncomingAnnounce(
         const moqt::FullTrackName& track_namespace,
-        AnnounceEvent announce_type);
+        std::optional<VersionSpecificParameters> parameters);
     void OnOutgoingAnnounceReply(
         FullTrackName track_namespace,
         std::optional<MoqtAnnounceErrorReason> error_message);

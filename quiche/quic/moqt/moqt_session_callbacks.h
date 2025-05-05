@@ -15,9 +15,6 @@
 
 namespace moqt {
 
-enum class SubscribeEvent { kSubscribe, kUnsubscribe };
-enum class AnnounceEvent { kAnnounce, kUnannounce };
-
 // Called when the SETUP message from the peer is received.
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
 
@@ -33,28 +30,34 @@ using MoqtSessionTerminatedCallback =
 using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
 
 // Called whenever an ANNOUNCE or UNANNOUNCE message is received from the peer.
+// ANNOUNCE sets a value for |parameters|, UNANNOUNCE does not.
 using MoqtIncomingAnnounceCallback =
     quiche::MultiUseCallback<std::optional<MoqtAnnounceErrorReason>(
-        const FullTrackName& track_namespace, AnnounceEvent announce_type)>;
+        const FullTrackName& track_namespace,
+        const std::optional<VersionSpecificParameters>& parameters)>;
 
 // Called whenever SUBSCRIBE_ANNOUNCES or UNSUBSCRIBE_ANNOUNCES is received from
 // the peer.  For SUBSCRIBE_ANNOUNCES, the return value indicates whether to
 // return an OK or an ERROR; for UNSUBSCRIBE_ANNOUNCES, the return value is
-// ignored.
+// ignored. SUBSCRIBE_ANNOUNCES sets a value for |parameters|,
+// UNSUBSCRIBE_ANNOUNCES does not.
 using MoqtIncomingSubscribeAnnouncesCallback =
     quiche::MultiUseCallback<std::optional<MoqtSubscribeErrorReason>(
-        const FullTrackName& track_namespace, SubscribeEvent subscribe_type)>;
+        const FullTrackName& track_namespace,
+        std::optional<VersionSpecificParameters> parameters)>;
 
 inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
-    const FullTrackName& /*track_namespace*/, AnnounceEvent /*announce*/) {
+    const FullTrackName& /*track_namespace*/,
+    std::optional<VersionSpecificParameters> /*parameters*/) {
   return std::optional(MoqtAnnounceErrorReason{
       SubscribeErrorCode::kNotSupported,
       "This endpoint does not accept incoming ANNOUNCE messages"});
 };
 
 inline std::optional<MoqtSubscribeErrorReason>
-DefaultIncomingSubscribeAnnouncesCallback(const FullTrackName& track_namespace,
-                                          SubscribeEvent /*subscribe_type*/) {
+DefaultIncomingSubscribeAnnouncesCallback(
+    const FullTrackName& track_namespace,
+    std::optional<VersionSpecificParameters> /*parameters*/) {
   return MoqtSubscribeErrorReason{
       SubscribeErrorCode::kUnauthorized,
       "This endpoint does not support incoming SUBSCRIBE_ANNOUNCES messages"};

@@ -136,16 +136,17 @@ TEST_F(MoqtIntegrationTest, VersionMismatch) {
 
 TEST_F(MoqtIntegrationTest, AnnounceSuccessThenUnannounce) {
   EstablishSession();
+  auto parameters = std::make_optional<VersionSpecificParameters>(
+      AuthTokenType::kOutOfBand, "foo");
   EXPECT_CALL(server_callbacks_.incoming_announce_callback,
-              Call(FullTrackName{"foo"}, AnnounceEvent::kAnnounce))
+              Call(FullTrackName{"foo"}, parameters))
       .WillOnce(Return(std::nullopt));
   testing::MockFunction<void(
       FullTrackName track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
   client_->session()->Announce(FullTrackName{"foo"},
-                               announce_callback.AsStdFunction(),
-                               VersionSpecificParameters());
+                               announce_callback.AsStdFunction(), *parameters);
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
       .WillOnce([&](FullTrackName track_namespace,
@@ -159,10 +160,11 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessThenUnannounce) {
   EXPECT_TRUE(success);
   matches = false;
   EXPECT_CALL(server_callbacks_.incoming_announce_callback, Call(_, _))
-      .WillOnce([&](FullTrackName name, AnnounceEvent event) {
+      .WillOnce([&](FullTrackName name,
+                    std::optional<VersionSpecificParameters> parameters) {
         matches = true;
         EXPECT_EQ(name, FullTrackName{"foo"});
-        EXPECT_EQ(event, AnnounceEvent::kUnannounce);
+        EXPECT_FALSE(parameters.has_value());
         return std::nullopt;
       });
   client_->session()->Unannounce(FullTrackName{"foo"});
@@ -172,16 +174,17 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessThenUnannounce) {
 
 TEST_F(MoqtIntegrationTest, AnnounceSuccessThenCancel) {
   EstablishSession();
+  auto parameters = std::make_optional<VersionSpecificParameters>(
+      AuthTokenType::kOutOfBand, "foo");
   EXPECT_CALL(server_callbacks_.incoming_announce_callback,
-              Call(FullTrackName{"foo"}, AnnounceEvent::kAnnounce))
+              Call(FullTrackName{"foo"}, parameters))
       .WillOnce(Return(std::nullopt));
   testing::MockFunction<void(
       FullTrackName track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
   client_->session()->Announce(FullTrackName{"foo"},
-                               announce_callback.AsStdFunction(),
-                               VersionSpecificParameters());
+                               announce_callback.AsStdFunction(), *parameters);
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
       .WillOnce([&](FullTrackName track_namespace,
@@ -212,8 +215,10 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessThenCancel) {
 
 TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
   EstablishSession();
+  auto parameters = std::make_optional<VersionSpecificParameters>(
+      AuthTokenType::kOutOfBand, "foo");
   EXPECT_CALL(server_callbacks_.incoming_announce_callback,
-              Call(FullTrackName{"foo"}, AnnounceEvent::kAnnounce))
+              Call(FullTrackName{"foo"}, parameters))
       .WillOnce(Return(std::nullopt));
   MockSubscribeRemoteTrackVisitor server_visitor;
   testing::MockFunction<void(
@@ -221,8 +226,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
   client_->session()->Announce(FullTrackName{"foo"},
-                               announce_callback.AsStdFunction(),
-                               VersionSpecificParameters());
+                               announce_callback.AsStdFunction(), *parameters);
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
       .WillOnce([&](FullTrackName track_namespace,
@@ -247,11 +251,12 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
 
   // Set up the server to subscribe to "data" track for the namespace announce
   // it receives.
+  auto parameters = std::make_optional<VersionSpecificParameters>(
+      AuthTokenType::kOutOfBand, "foo");
   MockSubscribeRemoteTrackVisitor server_visitor;
-  EXPECT_CALL(server_callbacks_.incoming_announce_callback,
-              Call(_, AnnounceEvent::kAnnounce))
+  EXPECT_CALL(server_callbacks_.incoming_announce_callback, Call(_, parameters))
       .WillOnce([&](const FullTrackName& track_namespace,
-                    AnnounceEvent /*announce*/) {
+                    std::optional<VersionSpecificParameters> /*parameters*/) {
         FullTrackName track_name = track_namespace;
         track_name.AddElement("data");
         server_->session()->SubscribeAbsolute(
@@ -272,7 +277,7 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
   client_->session()->Announce(
       FullTrackName{"test"},
       [](FullTrackName, std::optional<MoqtAnnounceErrorReason>) {},
-      VersionSpecificParameters());
+      *parameters);
   bool success = test_harness_.RunUntilWithDefaultTimeout(
       [&]() { return received_subscribe_ok; });
   EXPECT_TRUE(success);

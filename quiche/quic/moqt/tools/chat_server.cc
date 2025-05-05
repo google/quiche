@@ -26,7 +26,8 @@ namespace moqt::moq_chat {
 
 std::optional<MoqtAnnounceErrorReason>
 ChatServer::ChatServerSessionHandler::OnIncomingAnnounce(
-    const moqt::FullTrackName& track_namespace, AnnounceEvent announce_type) {
+    const moqt::FullTrackName& track_namespace,
+    std::optional<VersionSpecificParameters> parameters) {
   if (track_name_.has_value() &&
       GetUserNamespace(*track_name_) != track_namespace) {
     // ChatServer only supports one track per client session at a time. Return
@@ -41,7 +42,7 @@ ChatServer::ChatServerSessionHandler::OnIncomingAnnounce(
     return MoqtAnnounceErrorReason(SubscribeErrorCode::kDoesNotExist,
                                    "Not a valid namespace for this chat.");
   }
-  if (announce_type == AnnounceEvent::kUnannounce) {
+  if (!parameters.has_value()) {
     std::cout << "Received UNANNOUNCE for " << track_namespace.ToString()
               << "\n";
     server_->DeleteUser(*track_name_);
@@ -83,8 +84,8 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
       };
   session_->callbacks().incoming_subscribe_announces_callback =
       [this](const moqt::FullTrackName& chat_namespace,
-             SubscribeEvent subscribe_type) {
-        if (subscribe_type == SubscribeEvent::kSubscribe) {
+             std::optional<VersionSpecificParameters> parameters) {
+        if (parameters.has_value()) {
           subscribed_namespaces_.insert(chat_namespace);
           std::cout << "Received SUBSCRIBE_ANNOUNCES for ";
         } else {
@@ -98,7 +99,7 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
               MoqtSubscribeErrorReason{SubscribeErrorCode::kDoesNotExist,
                                        "Not a valid namespace for this chat."});
         }
-        if (subscribe_type == SubscribeEvent::kUnsubscribe) {
+        if (!parameters.has_value()) {
           return std::optional<MoqtSubscribeErrorReason>();
         }
         // Send all ANNOUNCE.

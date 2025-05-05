@@ -39,14 +39,15 @@
 namespace moqt::moq_chat {
 
 std::optional<MoqtAnnounceErrorReason> ChatClient::OnIncomingAnnounce(
-    const moqt::FullTrackName& track_namespace, AnnounceEvent announce_type) {
+    const moqt::FullTrackName& track_namespace,
+    std::optional<VersionSpecificParameters> parameters) {
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore ANNOUNCE for my own track.
     return std::optional<MoqtAnnounceErrorReason>();
   }
   std::optional<FullTrackName> track_name = ConstructTrackNameFromNamespace(
       track_namespace, GetChatId(my_track_name_));
-  if (announce_type == AnnounceEvent::kUnannounce) {
+  if (!parameters.has_value()) {
     std::cout << "UNANNOUNCE for " << track_namespace.ToString() << "\n";
     if (track_name.has_value() && other_users_.contains(*track_name)) {
       session_->Unsubscribe(*track_name);
@@ -69,10 +70,10 @@ std::optional<MoqtAnnounceErrorReason> ChatClient::OnIncomingAnnounce(
                  "do not subscribe\n";
     return std::nullopt;
   }
-  VersionSpecificParameters parameters(
+  VersionSpecificParameters subscribe_parameters(
       AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
   if (session_->SubscribeCurrentObject(*track_name, &remote_track_visitor_,
-                                       parameters)) {
+                                       subscribe_parameters)) {
     ++subscribes_to_make_;
     other_users_.emplace(*track_name);
   }
