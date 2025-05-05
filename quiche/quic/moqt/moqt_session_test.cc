@@ -197,7 +197,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
       return quiche::ReadStream::PeekResult(
           absl::string_view(buffer.data() + data_read,
                             buffer.size() - data_read),
-          fin && data_read == buffer.size(), fin, );
+          fin && data_read == buffer.size(), fin);
     }));
     EXPECT_CALL(*stream, ReadableBytes()).WillRepeatedly(Invoke([&]() {
       return buffer.size() - data_read;
