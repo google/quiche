@@ -86,8 +86,8 @@ struct TypeVisitor {
   MoqtMessageType operator()(const MoqtUnsubscribeAnnounces&) {
     return MoqtMessageType::kUnsubscribeAnnounces;
   }
-  MoqtMessageType operator()(const MoqtMaxSubscribeId&) {
-    return MoqtMessageType::kMaxSubscribeId;
+  MoqtMessageType operator()(const MoqtMaxRequestId&) {
+    return MoqtMessageType::kMaxRequestId;
   }
   MoqtMessageType operator()(const MoqtFetch&) {
     return MoqtMessageType::kFetch;
@@ -170,8 +170,8 @@ struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtUnsubscribeAnnounces& message) {
     return framer.SerializeUnsubscribeAnnounces(message);
   }
-  quiche::QuicheBuffer operator()(const MoqtMaxSubscribeId& message) {
-    return framer.SerializeMaxSubscribeId(message);
+  quiche::QuicheBuffer operator()(const MoqtMaxRequestId& message) {
+    return framer.SerializeMaxRequestId(message);
   }
   quiche::QuicheBuffer operator()(const MoqtFetch& message) {
     return framer.SerializeFetch(message);
@@ -261,7 +261,7 @@ class GenericMessageParseVisitor : public MoqtControlParserVisitor {
   void OnUnsubscribeAnnouncesMessage(const MoqtUnsubscribeAnnounces& message) {
     frames_.push_back(message);
   }
-  void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) {
+  void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) {
     frames_.push_back(message);
   }
   void OnFetchMessage(const MoqtFetch& message) { frames_.push_back(message); }

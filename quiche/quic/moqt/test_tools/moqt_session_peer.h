@@ -143,12 +143,12 @@ class MoqtSessionPeer {
     return session->RemoteTrackByAlias(track_alias);
   }
 
-  static void set_next_subscribe_id(MoqtSession* session, uint64_t id) {
-    session->next_subscribe_id_ = id;
+  static void set_next_request_id(MoqtSession* session, uint64_t id) {
+    session->next_request_id_ = id;
   }
 
-  static void set_peer_max_subscribe_id(MoqtSession* session, uint64_t id) {
-    session->peer_max_subscribe_id_ = id;
+  static void set_peer_max_request_id(MoqtSession* session, uint64_t id) {
+    session->peer_max_request_id_ = id;
   }
 
   static MoqtSession::PublishedFetch* GetFetch(MoqtSession* session,

@@ -139,7 +139,7 @@ void KeyValuePairListToMoqtSessionParameters(const KeyValuePairList& parameters,
         SetupParameter parameter = static_cast<SetupParameter>(key);
         switch (parameter) {
           case SetupParameter::kMaxRequestId:
-            out.max_subscribe_id = value;
+            out.max_request_id = value;
             break;
           case SetupParameter::kMaxAuthTokenCacheSize:
             out.max_auth_token_cache_size = value;
@@ -304,8 +304,8 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kUnsubscribeAnnounces:
       bytes_read = ProcessUnsubscribeAnnounces(reader);
       break;
-    case MoqtMessageType::kMaxSubscribeId:
-      bytes_read = ProcessMaxSubscribeId(reader);
+    case MoqtMessageType::kMaxRequestId:
+      bytes_read = ProcessMaxRequestId(reader);
       break;
     case MoqtMessageType::kFetch:
       bytes_read = ProcessFetch(reader);
@@ -767,12 +767,12 @@ size_t MoqtControlParser::ProcessUnsubscribeAnnounces(
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessMaxSubscribeId(quic::QuicDataReader& reader) {
-  MoqtMaxSubscribeId max_subscribe_id;
-  if (!reader.ReadVarInt62(&max_subscribe_id.max_subscribe_id)) {
+size_t MoqtControlParser::ProcessMaxRequestId(quic::QuicDataReader& reader) {
+  MoqtMaxRequestId max_request_id;
+  if (!reader.ReadVarInt62(&max_request_id.max_request_id)) {
     return 0;
   }
-  visitor_.OnMaxSubscribeIdMessage(max_subscribe_id);
+  visitor_.OnMaxRequestIdMessage(max_request_id);
   return reader.PreviouslyReadPayload().length();
 }
 

@@ -52,7 +52,7 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kSubscribeAnnouncesOk,
       MoqtMessageType::kSubscribeAnnouncesError,
       MoqtMessageType::kUnsubscribeAnnounces,
-      MoqtMessageType::kMaxSubscribeId,
+      MoqtMessageType::kMaxRequestId,
       MoqtMessageType::kFetch,
       MoqtMessageType::kFetchCancel,
       MoqtMessageType::kFetchOk,
@@ -184,9 +184,9 @@ class MoqtFramerTest
         auto data = std::get<MoqtUnsubscribeAnnounces>(structured_data);
         return framer_.SerializeUnsubscribeAnnounces(data);
       }
-      case moqt::MoqtMessageType::kMaxSubscribeId: {
-        auto data = std::get<MoqtMaxSubscribeId>(structured_data);
-        return framer_.SerializeMaxSubscribeId(data);
+      case moqt::MoqtMessageType::kMaxRequestId: {
+        auto data = std::get<MoqtMaxRequestId>(structured_data);
+        return framer_.SerializeMaxRequestId(data);
       }
       case moqt::MoqtMessageType::kFetch: {
         auto data = std::get<MoqtFetch>(structured_data);

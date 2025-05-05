@@ -56,7 +56,7 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
       const MoqtSubscribeAnnouncesError& message) = 0;
   virtual void OnUnsubscribeAnnouncesMessage(
       const MoqtUnsubscribeAnnounces& message) = 0;
-  virtual void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) = 0;
+  virtual void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) = 0;
   virtual void OnFetchMessage(const MoqtFetch& message) = 0;
   virtual void OnFetchCancelMessage(const MoqtFetchCancel& message) = 0;
   virtual void OnFetchOkMessage(const MoqtFetchOk& message) = 0;
@@ -125,7 +125,7 @@ class QUICHE_EXPORT MoqtControlParser {
   size_t ProcessSubscribeAnnouncesOk(quic::QuicDataReader& reader);
   size_t ProcessSubscribeAnnouncesError(quic::QuicDataReader& reader);
   size_t ProcessUnsubscribeAnnounces(quic::QuicDataReader& reader);
-  size_t ProcessMaxSubscribeId(quic::QuicDataReader& reader);
+  size_t ProcessMaxRequestId(quic::QuicDataReader& reader);
   size_t ProcessFetch(quic::QuicDataReader& reader);
   size_t ProcessFetchCancel(quic::QuicDataReader& reader);
   size_t ProcessFetchOk(quic::QuicDataReader& reader);

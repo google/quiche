@@ -192,7 +192,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       std::optional<webtransport::SendOrder> old_send_order,
       std::optional<webtransport::SendOrder> new_send_order);
 
-  void GrantMoreSubscribes(uint64_t num_subscribes);
+  void GrantMoreRequests(uint64_t num_requests);
 
   void UseAlternateDeliveryTimeout() { alternate_delivery_timeout_ = true; }
 
@@ -240,7 +240,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         const MoqtSubscribeAnnouncesError& message) override;
     void OnUnsubscribeAnnouncesMessage(
         const MoqtUnsubscribeAnnounces& message) override;
-    void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override;
+    void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override;
     void OnFetchMessage(const MoqtFetch& message) override;
     void OnFetchCancelMessage(const MoqtFetchCancel& message) override {}
     void OnFetchOkMessage(const MoqtFetchOk& message) override;
@@ -684,9 +684,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // The next track alias to guess on a SUBSCRIBE.
   uint64_t next_remote_track_alias_ = 0;
   // The next subscribe ID that the local endpoint can send.
-  uint64_t next_subscribe_id_ = 0;
+  uint64_t next_request_id_ = 0;
   // The local endpoint can send subscribe IDs less than this value.
-  uint64_t peer_max_subscribe_id_ = 0;
+  uint64_t peer_max_request_id_ = 0;
   std::optional<uint64_t> last_subscribes_blocked_sent_;
 
   // All open incoming subscriptions, indexed by track name, used to check for

@@ -46,7 +46,7 @@ class QUICHE_NO_EXPORT TestMessageBase {
                    MoqtTrackStatusRequest, MoqtUnannounce, MoqtTrackStatus,
                    MoqtGoAway, MoqtSubscribeAnnounces, MoqtSubscribeAnnouncesOk,
                    MoqtSubscribeAnnouncesError, MoqtUnsubscribeAnnounces,
-                   MoqtMaxSubscribeId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
+                   MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
                    MoqtFetchError, MoqtSubscribesBlocked, MoqtObjectAck>;
 
   // The total actual size of the message.
@@ -1256,16 +1256,16 @@ class QUICHE_NO_EXPORT UnsubscribeAnnouncesMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT MaxSubscribeIdMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT MaxRequestIdMessage : public TestMessageBase {
  public:
-  MaxSubscribeIdMessage() : TestMessageBase() {
+  MaxRequestIdMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtMaxSubscribeId>(values);
-    if (cast.max_subscribe_id != max_subscribe_id_.max_subscribe_id) {
-      QUIC_LOG(INFO) << "MAX_SUBSCRIBE_ID mismatch";
+    auto cast = std::get<MoqtMaxRequestId>(values);
+    if (cast.max_request_id != max_request_id_.max_request_id) {
+      QUIC_LOG(INFO) << "MAX_REQUEST_ID mismatch";
       return false;
     }
     return true;
@@ -1274,7 +1274,7 @@ class QUICHE_NO_EXPORT MaxSubscribeIdMessage : public TestMessageBase {
   void ExpandVarints() override { ExpandVarintsImpl("vvv"); }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(max_subscribe_id_);
+    return TestMessageBase::MessageStructuredData(max_request_id_);
   }
 
  private:
@@ -1284,8 +1284,8 @@ class QUICHE_NO_EXPORT MaxSubscribeIdMessage : public TestMessageBase {
       0x0b,
   };
 
-  MoqtMaxSubscribeId max_subscribe_id_ = {
-      /*max_subscribe_id =*/11,
+  MoqtMaxRequestId max_request_id_ = {
+      /*max_request_id =*/11,
   };
 };
 
@@ -1741,8 +1741,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<SubscribeAnnouncesErrorMessage>();
     case MoqtMessageType::kUnsubscribeAnnounces:
       return std::make_unique<UnsubscribeAnnouncesMessage>();
-    case MoqtMessageType::kMaxSubscribeId:
-      return std::make_unique<MaxSubscribeIdMessage>();
+    case MoqtMessageType::kMaxRequestId:
+      return std::make_unique<MaxRequestIdMessage>();
     case MoqtMessageType::kFetch:
       return std::make_unique<FetchMessage>();
     case MoqtMessageType::kFetchCancel:

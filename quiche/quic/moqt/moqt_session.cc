@@ -99,7 +99,7 @@ MoqtSession::MoqtSession(webtransport::Session* session,
       callbacks_(std::move(callbacks)),
       framer_(quiche::SimpleBufferAllocator::Get(), parameters.using_webtrans),
       publisher_(DefaultPublisher::GetInstance()),
-      local_max_request_id_(parameters.max_subscribe_id),
+      local_max_request_id_(parameters.max_request_id),
       alarm_factory_(std::move(alarm_factory)),
       liveness_token_(std::make_shared<Empty>()) {
   if (parameters_.using_webtrans) {
@@ -383,11 +383,11 @@ bool MoqtSession::Fetch(const FullTrackName& name,
                         MoqtPriority priority,
                         std::optional<MoqtDeliveryOrder> delivery_order,
                         VersionSpecificParameters parameters) {
-  if (next_subscribe_id_ >= peer_max_subscribe_id_) {
+  if (next_request_id_ >= peer_max_request_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH with ID "
-                    << next_subscribe_id_
+                    << next_request_id_
                     << " which is greater than the maximum ID "
-                    << peer_max_subscribe_id_;
+                    << peer_max_request_id_;
     return false;
   }
   if (received_goaway_ || sent_goaway_) {
@@ -396,7 +396,7 @@ bool MoqtSession::Fetch(const FullTrackName& name,
   }
   MoqtFetch message;
   message.full_track_name = name;
-  message.fetch_id = next_subscribe_id_++;
+  message.fetch_id = next_request_id_++;
   message.start_object = start;
   message.end_group = end_group;
   message.end_object = end_object;
@@ -417,8 +417,7 @@ bool MoqtSession::JoiningFetch(const FullTrackName& name,
                                VersionSpecificParameters parameters) {
   return JoiningFetch(
       name, visitor,
-      [this,
-       id = next_subscribe_id_](std::unique_ptr<MoqtFetchTask> fetch_task) {
+      [this, id = next_request_id_](std::unique_ptr<MoqtFetchTask> fetch_task) {
         // Move the fetch_task to the subscribe to plumb into its visitor.
         RemoteTrack* track = RemoteTrackById(id);
         if (track == nullptr || track->is_fetch()) {
@@ -440,11 +439,11 @@ bool MoqtSession::JoiningFetch(const FullTrackName& name,
                                MoqtPriority priority,
                                std::optional<MoqtDeliveryOrder> delivery_order,
                                VersionSpecificParameters parameters) {
-  if ((next_subscribe_id_ + 1) >= peer_max_subscribe_id_) {
+  if ((next_request_id_ + 1) >= peer_max_request_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send JOINING_FETCH with ID "
-                    << (next_subscribe_id_ + 1)
+                    << (next_request_id_ + 1)
                     << " which is greater than the maximum ID "
-                    << peer_max_subscribe_id_;
+                    << peer_max_request_id_;
     return false;
   }
   MoqtSubscribe subscribe;
@@ -459,7 +458,7 @@ bool MoqtSession::JoiningFetch(const FullTrackName& name,
     return false;
   }
   MoqtFetch fetch;
-  fetch.fetch_id = next_subscribe_id_++;
+  fetch.fetch_id = next_request_id_++;
   fetch.subscriber_priority = priority;
   fetch.group_order = delivery_order;
   fetch.joining_fetch = {subscribe.subscribe_id, num_previous_groups};
@@ -586,19 +585,19 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
                             SubscribeRemoteTrack::Visitor* visitor,
                             std::optional<uint64_t> provided_track_alias) {
   // TODO(martinduke): support authorization info
-  if (next_subscribe_id_ >= peer_max_subscribe_id_) {
+  if (next_request_id_ >= peer_max_request_id_) {
     if (!last_subscribes_blocked_sent_.has_value() ||
-        peer_max_subscribe_id_ > *last_subscribes_blocked_sent_) {
+        peer_max_request_id_ > *last_subscribes_blocked_sent_) {
       MoqtSubscribesBlocked subscribes_blocked;
-      subscribes_blocked.max_subscribe_id = peer_max_subscribe_id_;
+      subscribes_blocked.max_subscribe_id = peer_max_request_id_;
       SendControlMessage(
           framer_.SerializeSubscribesBlocked(subscribes_blocked));
-      last_subscribes_blocked_sent_ = peer_max_subscribe_id_;
+      last_subscribes_blocked_sent_ = peer_max_request_id_;
     }
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE with ID "
-                    << next_subscribe_id_
+                    << next_request_id_
                     << " which is greater than the maximum ID "
-                    << peer_max_subscribe_id_;
+                    << peer_max_request_id_;
     return false;
   }
   if (subscribe_by_name_.contains(message.full_track_name)) {
@@ -616,7 +615,7 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE after GOAWAY";
     return false;
   }
-  message.subscribe_id = next_subscribe_id_++;
+  message.subscribe_id = next_request_id_++;
   if (provided_track_alias.has_value()) {
     message.track_alias = *provided_track_alias;
     next_remote_track_alias_ =
@@ -777,11 +776,11 @@ void MoqtSession::UpdateQueuedSendOrder(
   }
 }
 
-void MoqtSession::GrantMoreSubscribes(uint64_t num_subscribes) {
-  local_max_request_id_ += num_subscribes;
-  MoqtMaxSubscribeId message;
-  message.max_subscribe_id = local_max_request_id_;
-  SendControlMessage(framer_.SerializeMaxSubscribeId(message));
+void MoqtSession::GrantMoreRequests(uint64_t num_requests) {
+  local_max_request_id_ += num_requests;
+  MoqtMaxRequestId message;
+  message.max_request_id = local_max_request_id_;
+  SendControlMessage(framer_.SerializeMaxRequestId(message));
 }
 
 bool MoqtSession::ValidateRequestId(uint64_t request_id) {
@@ -791,7 +790,7 @@ bool MoqtSession::ValidateRequestId(uint64_t request_id) {
     return false;
   }
   if (request_id < next_incoming_request_id_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Subscribe ID not monotonically increasing";
+    QUIC_DLOG(INFO) << ENDPOINT << "Request ID not monotonically increasing";
     Error(MoqtError::kInvalidRequestId,
           "Request ID not monotonically increasing");
     return false;
@@ -855,7 +854,7 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
   // TODO: handle path.
-  session_->peer_max_subscribe_id_ = message.parameters.max_subscribe_id;
+  session_->peer_max_request_id_ = message.parameters.max_request_id;
   std::move(session_->callbacks_.session_established_callback)();
 }
 
@@ -876,7 +875,7 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
   session_->peer_supports_object_ack_ = message.parameters.support_object_acks;
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle path.
-  session_->peer_max_subscribe_id_ = message.parameters.max_subscribe_id;
+  session_->peer_max_request_id_ = message.parameters.max_request_id;
   std::move(session_->callbacks_.session_established_callback)();
 }
 
@@ -1237,17 +1236,17 @@ void MoqtSession::ControlStream::OnUnsubscribeAnnouncesMessage(
           message.track_namespace, std::nullopt);
 }
 
-void MoqtSession::ControlStream::OnMaxSubscribeIdMessage(
-    const MoqtMaxSubscribeId& message) {
-  if (message.max_subscribe_id < session_->peer_max_subscribe_id_) {
+void MoqtSession::ControlStream::OnMaxRequestIdMessage(
+    const MoqtMaxRequestId& message) {
+  if (message.max_request_id < session_->peer_max_request_id_) {
     QUIC_DLOG(INFO) << ENDPOINT
-                    << "Peer sent MAX_SUBSCRIBE_ID message with "
+                    << "Peer sent MAX_REQUEST_ID message with "
                        "lower value than previous";
     session_->Error(MoqtError::kProtocolViolation,
-                    "MAX_SUBSCRIBE_ID message has lower value than previous");
+                    "MAX_REQUEST_ID has lower value than previous");
     return;
   }
-  session_->peer_max_subscribe_id_ = message.max_subscribe_id;
+  session_->peer_max_request_id_ = message.max_request_id;
 }
 
 void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {

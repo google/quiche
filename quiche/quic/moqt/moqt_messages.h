@@ -58,20 +58,19 @@ struct QUICHE_EXPORT MoqtSessionParameters {
         using_webtrans(false),
         path(std::move(path)) {}
   MoqtSessionParameters(quic::Perspective perspective, std::string path,
-                        uint64_t max_subscribe_id)
+                        uint64_t max_request_id)
       : perspective(perspective),
         using_webtrans(true),
         path(std::move(path)),
-        max_subscribe_id(max_subscribe_id) {}
-  MoqtSessionParameters(quic::Perspective perspective,
-                        uint64_t max_subscribe_id)
-      : perspective(perspective), max_subscribe_id(max_subscribe_id) {}
+        max_request_id(max_request_id) {}
+  MoqtSessionParameters(quic::Perspective perspective, uint64_t max_request_id)
+      : perspective(perspective), max_request_id(max_request_id) {}
   bool operator==(const MoqtSessionParameters& other) {
     return version == other.version &&
            deliver_partial_objects == other.deliver_partial_objects &&
            perspective == other.perspective &&
            using_webtrans == other.using_webtrans && path == other.path &&
-           max_subscribe_id == other.max_subscribe_id &&
+           max_request_id == other.max_request_id &&
            max_auth_token_cache_size == other.max_auth_token_cache_size &&
            support_object_acks == other.support_object_acks;
   }
@@ -81,7 +80,7 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   quic::Perspective perspective = quic::Perspective::IS_SERVER;
   bool using_webtrans = true;
   std::string path = "";
-  uint64_t max_subscribe_id = kDefaultInitialMaxRequestId;
+  uint64_t max_request_id = kDefaultInitialMaxRequestId;
   uint64_t max_auth_token_cache_size = kDefaultMaxAuthTokenCacheSize;
   bool support_object_acks = false;
 };
@@ -123,7 +122,7 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kSubscribeAnnouncesOk = 0x12,
   kSubscribeAnnouncesError = 0x13,
   kUnsubscribeAnnounces = 0x14,
-  kMaxSubscribeId = 0x15,
+  kMaxRequestId = 0x15,
   kFetch = 0x16,
   kFetchCancel = 0x17,
   kFetchOk = 0x18,
@@ -674,8 +673,8 @@ struct QUICHE_EXPORT MoqtUnsubscribeAnnounces {
   FullTrackName track_namespace;
 };
 
-struct QUICHE_EXPORT MoqtMaxSubscribeId {
-  uint64_t max_subscribe_id;
+struct QUICHE_EXPORT MoqtMaxRequestId {
+  uint64_t max_request_id;
 };
 
 enum class QUICHE_EXPORT FetchType : uint64_t {

@@ -206,8 +206,8 @@ void SessionParametersToKeyValuePairList(
       parameters.perspective == quic::Perspective::IS_CLIENT) {
     out.insert(SetupParameter::kPath, parameters.path);
   }
-  if (parameters.max_subscribe_id > 0) {
-    out.insert(SetupParameter::kMaxRequestId, parameters.max_subscribe_id);
+  if (parameters.max_request_id > 0) {
+    out.insert(SetupParameter::kMaxRequestId, parameters.max_request_id);
   }
   if (parameters.max_auth_token_cache_size > 0) {
     out.insert(SetupParameter::kMaxAuthTokenCacheSize,
@@ -658,10 +658,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribeAnnounces(
       WireFullTrackName(message.track_namespace, false));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeMaxSubscribeId(
-    const MoqtMaxSubscribeId& message) {
-  return SerializeControlMessage(MoqtMessageType::kMaxSubscribeId,
-                                 WireVarInt62(message.max_subscribe_id));
+quiche::QuicheBuffer MoqtFramer::SerializeMaxRequestId(
+    const MoqtMaxRequestId& message) {
+  return SerializeControlMessage(MoqtMessageType::kMaxRequestId,
+                                 WireVarInt62(message.max_request_id));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {

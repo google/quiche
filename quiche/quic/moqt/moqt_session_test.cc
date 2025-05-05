@@ -112,8 +112,8 @@ class MoqtSessionTest : public quic::test::QuicTest {
                  std::make_unique<quic::test::TestAlarmFactory>(),
                  session_callbacks_.AsSessionCallbacks()) {
     session_.set_publisher(&publisher_);
-    MoqtSessionPeer::set_peer_max_subscribe_id(&session_,
-                                               kDefaultInitialMaxRequestId);
+    MoqtSessionPeer::set_peer_max_request_id(&session_,
+                                             kDefaultInitialMaxRequestId);
     ON_CALL(mock_session_, GetStreamById).WillByDefault(Return(&mock_stream_));
   }
   ~MoqtSessionTest() {
@@ -597,8 +597,8 @@ TEST_F(MoqtSessionTest, SubscribeIdNotIncreasing) {
 }
 
 TEST_F(MoqtSessionTest, TooManySubscribes) {
-  MoqtSessionPeer::set_next_subscribe_id(&session_,
-                                         kDefaultInitialMaxRequestId - 1);
+  MoqtSessionPeer::set_next_request_id(&session_,
+                                       kDefaultInitialMaxRequestId - 1);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
@@ -663,9 +663,8 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
   stream_input->OnSubscribeOkMessage(ok);
 }
 
-TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
-  MoqtSessionPeer::set_next_subscribe_id(&session_,
-                                         kDefaultInitialMaxRequestId);
+TEST_F(MoqtSessionTest, MaxRequestIdChangesResponse) {
+  MoqtSessionPeer::set_next_request_id(&session_, kDefaultInitialMaxRequestId);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
@@ -677,10 +676,10 @@ TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                                &remote_track_visitor,
                                                VersionSpecificParameters()));
-  MoqtMaxSubscribeId max_subscribe_id = {
-      /*max_subscribe_id=*/kDefaultInitialMaxRequestId + 1,
+  MoqtMaxRequestId max_request_id = {
+      /*max_request_id=*/kDefaultInitialMaxRequestId + 1,
   };
-  stream_input->OnMaxSubscribeIdMessage(max_subscribe_id);
+  stream_input->OnMaxRequestIdMessage(max_request_id);
 
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
@@ -689,27 +688,25 @@ TEST_F(MoqtSessionTest, MaxSubscribeIdChangesResponse) {
                                               VersionSpecificParameters()));
 }
 
-TEST_F(MoqtSessionTest, LowerMaxSubscribeIdIsAnError) {
-  MoqtMaxSubscribeId max_subscribe_id = {
-      /*max_subscribe_id=*/kDefaultInitialMaxRequestId - 1,
+TEST_F(MoqtSessionTest, LowerMaxRequestIdIsAnError) {
+  MoqtMaxRequestId max_request_id = {
+      /*max_request_id=*/kDefaultInitialMaxRequestId - 1,
   };
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  EXPECT_CALL(
-      mock_session_,
-      CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                   "MAX_SUBSCRIBE_ID message has lower value than previous"))
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "MAX_REQUEST_ID has lower value than previous"))
       .Times(1);
-  stream_input->OnMaxSubscribeIdMessage(max_subscribe_id);
+  stream_input->OnMaxRequestIdMessage(max_request_id);
 }
 
-TEST_F(MoqtSessionTest, GrantMoreSubscribes) {
+TEST_F(MoqtSessionTest, GrantMoreRequests) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  EXPECT_CALL(
-      mock_stream_,
-      Writev(ControlMessageOfType(MoqtMessageType::kMaxSubscribeId), _));
-  session_.GrantMoreSubscribes(1);
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kMaxRequestId), _));
+  session_.GrantMoreRequests(1);
   // Peer subscribes to (0, 0)
   MoqtSubscribe request = DefaultSubscribe();
   request.subscribe_id = kDefaultInitialMaxRequestId;

@@ -52,7 +52,7 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kSubscribeAnnouncesOk,
     MoqtMessageType::kSubscribeAnnouncesError,
     MoqtMessageType::kUnsubscribeAnnounces,
-    MoqtMessageType::kMaxSubscribeId,
+    MoqtMessageType::kMaxRequestId,
     MoqtMessageType::kFetch,
     MoqtMessageType::kFetchCancel,
     MoqtMessageType::kFetchOk,
@@ -198,7 +198,7 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
       const MoqtUnsubscribeAnnounces& message) override {
     OnControlMessage(message);
   }
-  void OnMaxSubscribeIdMessage(const MoqtMaxSubscribeId& message) override {
+  void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override {
     OnControlMessage(message);
   }
   void OnFetchMessage(const MoqtFetch& message) override {
@@ -642,7 +642,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidPath);
 }
 
-TEST_F(MoqtMessageSpecificTest, ServerSetupMaxSubscribeIdAppearsTwice) {
+TEST_F(MoqtMessageSpecificTest, ServerSetupMaxRequestIdAppearsTwice) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
