@@ -127,29 +127,30 @@ MoqtFilterType GetFilterType(const MoqtSubscribe& message) {
   return MoqtFilterType::kLatestObject;
 }
 
-bool ValidateSetupParameters(const KeyValuePairList& parameters, bool webtrans,
-                             quic::Perspective perspective) {
+MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
+                                  bool webtrans,
+                                  quic::Perspective perspective) {
   if (parameters.count(SetupParameter::kPath) > 1 ||
       parameters.count(SetupParameter::kMaxRequestId) > 1 ||
       parameters.count(SetupParameter::kMaxAuthTokenCacheSize) > 1 ||
       parameters.count(SetupParameter::kSupportObjectAcks) > 1) {
-    return false;
+    return MoqtError::kKeyValueFormattingError;
   }
   if ((webtrans || perspective == quic::Perspective::IS_CLIENT) ==
       parameters.contains(SetupParameter::kPath)) {
     // Only non-webtrans servers should receive kPath.
-    return false;
+    return MoqtError::kInvalidPath;
   }
   if (!parameters.contains(SetupParameter::kSupportObjectAcks)) {
-    return true;
+    return MoqtError::kNoError;
   }
   std::vector<uint64_t> support_object_acks =
       parameters.GetIntegers(SetupParameter::kSupportObjectAcks);
   QUICHE_DCHECK(support_object_acks.size() == 1);
   if (support_object_acks.front() > 1) {
-    return false;
+    return MoqtError::kKeyValueFormattingError;
   }
-  return true;
+  return MoqtError::kNoError;
 }
 
 const std::array<MoqtMessageType, 5> kAllowsAuthorization = {

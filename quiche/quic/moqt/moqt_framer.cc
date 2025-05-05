@@ -384,8 +384,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
     const MoqtClientSetup& message) {
   KeyValuePairList parameters;
   SessionParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateSetupParameters(parameters, using_webtrans_,
-                               quic::Perspective::IS_SERVER)) {
+  if (ValidateSetupParameters(parameters, using_webtrans_,
+                              quic::Perspective::IS_SERVER) !=
+      MoqtError::kNoError) {
     QUICHE_BUG(QUICHE_BUG_invalid_parameters)
         << "Serializing invalid MoQT parameters";
     return quiche::QuicheBuffer();
@@ -401,8 +402,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
     const MoqtServerSetup& message) {
   KeyValuePairList parameters;
   SessionParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateSetupParameters(parameters, using_webtrans_,
-                               quic::Perspective::IS_CLIENT)) {
+  if (ValidateSetupParameters(parameters, using_webtrans_,
+                              quic::Perspective::IS_CLIENT) !=
+      MoqtError::kNoError) {
     QUICHE_BUG(QUICHE_BUG_invalid_parameters)
         << "Serializing invalid MoQT parameters";
     return quiche::QuicheBuffer();

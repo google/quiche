@@ -737,11 +737,10 @@ struct QUICHE_EXPORT MoqtObjectAck {
   quic::QuicTimeDelta delta_from_deadline = quic::QuicTimeDelta::Zero();
 };
 
-// Returns false if duplicates are present for a known parameter where the spec
-// forbids duplicates. |perspective| is the consumer of the message, not the
-// sender.
-bool ValidateSetupParameters(const KeyValuePairList& parameters, bool webtrans,
-                             quic::Perspective perspective);
+// Returns an error if the parameters are malformed or otherwise violate the
+// spec. |perspective| is the consumer of the message, not the sender.
+MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
+                                  bool webtrans, quic::Perspective perspective);
 // Returns false if the parameters contain a protocol violation, or a
 // parameter cannot be in |message type|. Does not validate the internal
 // structure of Authorization Token values.

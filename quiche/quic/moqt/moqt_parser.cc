@@ -356,9 +356,10 @@ size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateSetupParameters(parameters, uses_web_transport_,
-                               quic::Perspective::IS_SERVER)) {
-    ParseError("Client SETUP contains invalid parameters");
+  MoqtError error = ValidateSetupParameters(parameters, uses_web_transport_,
+                                            quic::Perspective::IS_SERVER);
+  if (error != MoqtError::kNoError) {
+    ParseError(error, "Client SETUP contains invalid parameters");
     return 0;
   }
   KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters);
@@ -380,9 +381,10 @@ size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateSetupParameters(parameters, uses_web_transport_,
-                               quic::Perspective::IS_CLIENT)) {
-    ParseError("Server SETUP contains invalid parameters");
+  MoqtError error = ValidateSetupParameters(parameters, uses_web_transport_,
+                                            quic::Perspective::IS_CLIENT);
+  if (error != MoqtError::kNoError) {
+    ParseError(error, "Server SETUP contains invalid parameters");
     return 0;
   }
   KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters);

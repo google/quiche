@@ -574,7 +574,7 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMaxRequestIdAppearsTwice) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_EQ(visitor_.parsing_error_,
             "Client SETUP contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
@@ -591,7 +591,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_EQ(visitor_.parsing_error_,
             "Server SETUP contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidPath);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
@@ -608,7 +608,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_EQ(visitor_.parsing_error_,
             "Client SETUP contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
@@ -624,7 +624,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_EQ(visitor_.parsing_error_,
             "Client SETUP contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidPath);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
@@ -639,7 +639,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_EQ(visitor_.parsing_error_,
             "Client SETUP contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidPath);
 }
 
 TEST_F(MoqtMessageSpecificTest, ServerSetupMaxSubscribeIdAppearsTwice) {
@@ -657,7 +657,7 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMaxSubscribeIdAppearsTwice) {
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_EQ(visitor_.parsing_error_,
             "Client SETUP contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
 }
 
 TEST_F(MoqtMessageSpecificTest, UnknownParameterTwiceIsOk) {
